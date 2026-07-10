@@ -397,9 +397,16 @@ paths to Stake, Redeem, and Profile. It is not a port of the old dashboard.
 **AP-131 — Privy close port.** Preserve the verified old-platform
 browser-human behavior closely: a verified Privy access token plus CSRF creates
 or renews the signed local session; logout invalidates it; anonymous viewing
-stays anonymous; provider-posted ids, wallets, roles, and profile fields are
-never trusted. The session contains the canonical local human id, not a second
-identity graph. SIWA agents use a separate rail.
+stays anonymous; browser-posted provider ids, wallets, roles, and profile fields
+are never trusted. The session contains the canonical local human id, not a
+second identity graph. SIWA agents use a separate rail.
+
+**AP-131A — Existing HumanAccount owner.** The Ash `HumanAccount` resource maps
+the protected existing `platform.platform_human_users` table directly. It does
+not create, copy, import, or migrate a second human-account store. Migration
+generation is disabled for this existing-table resource. Sign-in may persist
+only identity and wallet evidence returned by successful server-side Privy
+verification; profile display changes use separate owner-authorized actions.
 
 **AP-132 — Staking close port.** Preserve the working Base staking experience:
 public overview, wallet account state, positions, balances, pending rewards,
