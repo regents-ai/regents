@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "post_commit_source_digest": "PENDING_POST_COMMIT_SOURCE_DIGEST",
+  "post_commit_source_digest": "ebebb7dbfd8602f6f8d302afeb05ca717bf29029",
   "design_owned_paths": [
     "lib/ash_platform_web/live/home_live.ex",
     "assets/css/pages/home.css",

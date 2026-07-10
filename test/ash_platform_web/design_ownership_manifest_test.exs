@@ -7,7 +7,9 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
     manifest = @path |> File.read!() |> Jason.decode!()
 
     assert manifest["schema_version"] == 1
-    assert manifest["post_commit_source_digest"] == "PENDING_POST_COMMIT_SOURCE_DIGEST"
+
+    assert manifest["post_commit_source_digest"] ==
+             "ebebb7dbfd8602f6f8d302afeb05ca717bf29029"
 
     assert manifest["route_metadata_fields"] == [
              "path_pattern",
