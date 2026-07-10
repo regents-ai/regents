@@ -1,0 +1,165 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body:has(#app-shell) {
+  overflow: hidden;
+}
+
+button,
+a,
+input {
+  font: inherit;
+}
+
+a {
+  color: currentColor;
+}
+
+button,
+input {
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: Canvas;
+  color: CanvasText;
+}
+
+button {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid AccentColor;
+  outline-offset: 2px;
+}
+
+#public-home {
+  display: grid;
+  min-height: 100%;
+  place-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+#app-shell {
+  display: grid;
+  grid-template: auto minmax(0, 1fr) / minmax(12rem, 18rem) minmax(0, 1fr);
+  height: 100dvh;
+  background: Canvas;
+  color: CanvasText;
+}
+
+#shell-header {
+  z-index: 2;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid currentColor;
+  background: Canvas;
+}
+
+#shell-header .shell-spacer {
+  flex: 1;
+}
+
+#shell-sidebar {
+  overflow: auto;
+  padding: 1rem;
+  border-right: 1px solid currentColor;
+}
+
+#shell-sidebar ul,
+.app-switcher,
+.theme-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+#shell-sidebar li {
+  width: 100%;
+}
+
+#app-shell-scroller {
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#route-content {
+  width: min(64rem, 100%);
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 4rem);
+}
+
+.shell-status[aria-busy="true"]::after {
+  content: "…";
+}
+
+.mobile-menu-button {
+  display: none;
+}
+
+@media (max-width: 44rem) {
+  #app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+
+  #shell-sidebar {
+    position: fixed;
+    inset: 4rem 0 0;
+    z-index: 3;
+    display: none;
+    border-right: 0;
+    background: Canvas;
+  }
+
+  #app-shell[data-menu-open="true"] #shell-sidebar {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
