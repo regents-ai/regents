@@ -33,6 +33,7 @@ defmodule AshPlatformWeb.Router do
     live_session :product_shell,
       on_mount: [{AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
+      live "/settings", ShellLive, :settings
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
       live "/techtree", ShellLive, :techtree

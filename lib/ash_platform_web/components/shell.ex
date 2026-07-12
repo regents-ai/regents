@@ -59,7 +59,12 @@ defmodule AshPlatformWeb.Components.Shell do
           <input type="search" name="search" autocomplete="off" />
         </label>
 
-        <div class="theme-menu" role="group" aria-label="Theme">
+        <div
+          :if={@account_control.kind == :sign_in}
+          class="theme-menu"
+          role="group"
+          aria-label="Theme"
+        >
           <button type="button" data-theme-choice="system">System</button>
           <button type="button" data-theme-choice="light">Light</button>
           <button type="button" data-theme-choice="dark">Dark</button>
@@ -73,10 +78,33 @@ defmodule AshPlatformWeb.Components.Shell do
           >
             {@account_control.label}
           </button>
-          <div :if={@account_control.kind == :signed_in}>
-            <span data-account-target="identity">{@account_control.label}</span>
-            <button type="button" data-account-target="sign-out">Log Out</button>
-          </div>
+          <details :if={@account_control.kind == :signed_in} id="account-menu">
+            <summary>
+              <span data-account-target="identity">{@account_control.label}</span>
+            </summary>
+            <div class="account-menu__content">
+              <.link
+                :if={@account_control.profile_path}
+                patch={@account_control.profile_path}
+                data-account-menu-item="profile"
+              >
+                Profile
+              </.link>
+              <.link
+                patch={@account_control.settings_path}
+                data-account-menu-item="settings"
+              >
+                Settings
+              </.link>
+              <button
+                type="button"
+                data-account-menu-item="log-out"
+                data-account-target="sign-out"
+              >
+                Log Out
+              </button>
+            </div>
+          </details>
         </div>
       </header>
 

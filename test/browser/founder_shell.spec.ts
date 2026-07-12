@@ -41,6 +41,58 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
   await expect(appSelector.getByRole("button", {name: "Sign In"})).toHaveCount(0)
   await expect(accountControl.getByRole("link", {name: "Formation"})).toHaveCount(0)
+
+  await page.evaluate(() => {
+    const link = document.createElement("a")
+    link.href = "/settings"
+    link.textContent = "Anonymous Settings patch"
+    link.dataset.phxLink = "patch"
+    link.dataset.phxLinkState = "push"
+    document.querySelector("#shell-header")?.append(link)
+  })
+  await page.getByRole("link", {name: "Anonymous Settings patch"}).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
+  await expect(page.getByRole("heading", {name: "Appearance"})).toHaveCount(0)
+
+  await page.goto("/settings")
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
+  await expect(page.getByRole("heading", {name: "Appearance"})).toHaveCount(0)
+})
+
+test("signed-in Settings is a real account route with browser-local Appearance", async ({page}) => {
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = await csrfResponse.json()
+
+  const sessionResponse = await page.request.post("/auth/privy/session", {
+    headers: {
+      authorization: "Bearer valid",
+      "x-csrf-token": csrfToken,
+    },
+    data: {},
+  })
+  expect(sessionResponse.status()).toBe(200)
+
+  await page.goto("/app")
+  await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
+  await page.locator("#account-menu summary").click()
+
+  const menuItems = page.locator("#account-menu [data-account-menu-item]")
+  await expect(menuItems).toHaveText(["Settings", "Log Out"])
+
+  await page.getByRole("link", {name: "Settings"}).click()
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(page.getByRole("heading", {name: "Settings", level: 1})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Appearance", level: 2})).toBeVisible()
+
+  const appearance = page.getByRole("group", {name: "Appearance"})
+  await appearance.getByRole("button", {name: "Dark"}).click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  expect(await page.evaluate(() => localStorage.getItem("regent:theme"))).toBe("dark")
+
+  await page.reload()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
 })
 
 test("navigation keeps the document and shell identity and starts at the top", async ({page}) => {

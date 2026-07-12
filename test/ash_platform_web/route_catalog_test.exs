@@ -13,6 +13,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   @paths [
     "/",
     "/app",
+    "/settings",
     "/formation",
     "/regents/:slug",
     "/techtree",
@@ -56,6 +57,22 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     app_entry = Enum.find(RouteCatalog.entries(), &(&1.path_pattern == "/app"))
     assert app_entry.route_spec_id == :app
     assert RouteCatalog.fetch!(:app).route_id == :app
+  end
+
+  test "settings is the canonical Regents Labs detail route" do
+    settings = RouteCatalog.fetch!(:settings)
+
+    assert settings.route_id == :settings
+    assert settings.destination == "/settings"
+    assert settings.app_id == :regent_ops
+    assert settings.app_display_label == "Regents Labs"
+    assert settings.page_display_label == "Settings"
+    assert settings.canonical_root == "/app"
+    assert settings.header_controls == [:profile_actions]
+    assert settings.search_kind == :none
+    assert settings.background_slot == :regents_labs
+    assert settings.content_transition_kind == :detail
+    assert settings.local_state == %{}
   end
 
   test "accepts only the five named tree slugs and reserves nodes" do
@@ -188,7 +205,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 15
+    assert length(decoded["routes"]) == 16
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

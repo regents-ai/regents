@@ -5,29 +5,44 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.ContentCoordinator
   alias AshPlatformWeb.RouteCatalog
+  alias AshPlatformWeb.SettingsLive
 
   @impl true
   def mount(params, _session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
 
-    {:ok,
-     assign(socket,
-       app_targets: RouteCatalog.app_targets(),
-       content: nil,
-       content_error: nil,
-       content_async_name: nil,
-       content_generation: 0,
-       content_status: :loading,
-       presentation: initial_presentation(route_spec),
-       formation_panel: initial_formation_panel(route_spec),
-       route_spec: route_spec,
-       shell_instance: System.unique_integer([:positive, :monotonic])
-     )}
+    case authorize_route(socket, route_spec) do
+      {:redirect, socket} ->
+        {:ok, socket}
+
+      {:ok, socket} ->
+        {:ok,
+         assign(socket,
+           app_targets: RouteCatalog.app_targets(),
+           content: nil,
+           content_error: nil,
+           content_async_name: nil,
+           content_generation: 0,
+           content_status: :loading,
+           presentation: initial_presentation(route_spec),
+           formation_panel: initial_formation_panel(route_spec),
+           route_spec: route_spec,
+           shell_instance: System.unique_integer([:positive, :monotonic])
+         )}
+    end
   end
 
   @impl true
   def handle_params(params, _uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
+
+    case authorize_route(socket, route_spec) do
+      {:redirect, socket} -> {:noreply, socket}
+      {:ok, socket} -> handle_authorized_params(params, route_spec, socket)
+    end
+  end
+
+  defp handle_authorized_params(params, route_spec, socket) do
     generation = socket.assigns.content_generation + 1
 
     socket = cancel_content(socket)
@@ -44,21 +59,35 @@ defmodule AshPlatformWeb.ShellLive do
         route_spec: route_spec
       )
 
-    if connected?(socket) do
-      name = {:content, generation}
+    cond do
+      route_spec.route_id == :settings ->
+        {:noreply, assign(socket, content_status: :ready)}
 
-      socket =
-        socket
-        |> assign(content_async_name: name)
-        |> start_async(name, fn ->
-          ContentCoordinator.load(generation, route_spec, params)
-        end)
+      connected?(socket) ->
+        name = {:content, generation}
 
-      {:noreply, socket}
-    else
-      {:noreply, socket}
+        socket =
+          socket
+          |> assign(content_async_name: name)
+          |> start_async(name, fn ->
+            ContentCoordinator.load(generation, route_spec, params)
+          end)
+
+        {:noreply, socket}
+
+      true ->
+        {:noreply, socket}
     end
   end
+
+  defp authorize_route(
+         %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
+         %{route_id: :settings}
+       ) do
+    {:redirect, redirect(socket, to: "/")}
+  end
+
+  defp authorize_route(socket, _route_spec), do: {:ok, socket}
 
   @impl true
   def handle_async(
@@ -105,17 +134,27 @@ defmodule AshPlatformWeb.ShellLive do
       shell_instance={@shell_instance}
     >
       <:content>
-        <section :if={@content_status == :loading} class="shell-status" aria-busy="true">
+        <SettingsLive.page :if={@route_spec.route_id == :settings} />
+
+        <section
+          :if={@route_spec.route_id != :settings && @content_status == :loading}
+          class="shell-status"
+          aria-busy="true"
+        >
           <h1>{@route_spec.page_display_label}</h1>
           <p>Loading this view</p>
         </section>
 
-        <section :if={@content_status == :error} class="shell-status" role="alert">
+        <section
+          :if={@route_spec.route_id != :settings && @content_status == :error}
+          class="shell-status"
+          role="alert"
+        >
           <h1>{@route_spec.page_display_label}</h1>
           <p>This view could not be loaded. Navigation remains available.</p>
         </section>
 
-        <article :if={@content_status == :ready}>
+        <article :if={@route_spec.route_id != :settings && @content_status == :ready}>
           <p>{@content.eyebrow}</p>
           <p><span aria-label="Capability status">{@content.status}</span></p>
           <h1>{@content.title}</h1>

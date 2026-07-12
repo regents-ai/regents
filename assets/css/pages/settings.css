@@ -1,0 +1,40 @@
+.settings-page {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  width: min(48rem, 100%);
+  margin: 0 auto;
+}
+
+.settings-page__header h1,
+.settings-section h2,
+.settings-section p {
+  margin: 0;
+}
+
+.settings-section {
+  display: grid;
+  gap: 1rem;
+  padding-block: 1.25rem;
+  border-block: 1px solid currentColor;
+}
+
+.settings-section > div:first-child {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-theme-choice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.settings-theme-choice button {
+  width: 100%;
+}
+
+@media (max-width: 30rem) {
+  .settings-theme-choice {
+    grid-template-columns: 1fr;
+  }
+}

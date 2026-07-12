@@ -3,6 +3,67 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
   alias AshPlatformWeb.ShellLive
 
+  test "anonymous settings access redirects home without private content", %{conn: conn} do
+    assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/settings")
+
+    conn = get(conn, "/settings")
+    assert redirected_to(conn) == "/"
+    refute conn.resp_body =~ "Appearance"
+  end
+
+  test "an anonymous shell cannot patch into settings", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/app")
+    refute html =~ "Settings"
+    refute html =~ "Appearance"
+
+    render_patch(view, "/settings")
+
+    assert_redirect(view, "/")
+  end
+
+  test "signed-in account menu orders Settings before Log Out" do
+    html =
+      render_component(&AshPlatformWeb.Components.Shell.shell/1,
+        route_spec: AshPlatformWeb.RouteCatalog.fetch!(:app),
+        app_targets: AshPlatformWeb.RouteCatalog.app_targets(),
+        account_control: %AshPlatform.AccessContext.AccountControl{
+          kind: :signed_in,
+          label: "Account label",
+          profile_path: nil,
+          settings_path: "/settings"
+        },
+        content_status: :ready,
+        presentation: :none,
+        formation_panel: :none,
+        shell_instance: 1,
+        content: [%{inner_block: fn _changed, _argument -> "Content" end}]
+      )
+
+    labels =
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#account-control [data-account-menu-item]")
+      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+
+    assert labels == ["Settings", "Log Out"]
+    assert html =~ ~s(href="/settings")
+  end
+
+  test "Settings owns an Appearance section rather than relabeling the whole page" do
+    assert Code.ensure_loaded?(AshPlatformWeb.SettingsLive)
+    assert function_exported?(AshPlatformWeb.SettingsLive, :page, 1)
+
+    html = render_component(&AshPlatformWeb.SettingsLive.page/1, %{})
+
+    assert html =~ ">Settings<"
+    assert html =~ ">Appearance<"
+    assert html =~ ~s(role="group")
+    assert html =~ ~s(aria-label="Appearance")
+    assert html =~ ~s(data-theme-choice="system")
+    assert html =~ ~s(data-theme-choice="light")
+    assert html =~ ~s(data-theme-choice="dark")
+  end
+
   test "direct deep links render the persistent shell and bounded fixture content", %{conn: conn} do
     {:ok, view, html} = live(conn, "/techtree/nodes/node-1")
 
