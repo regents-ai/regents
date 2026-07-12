@@ -15,6 +15,7 @@ config :ash_platform,
   generators: [timestamp_type: :utc_datetime]
 
 config :ash_platform, :privy, clock: fn -> System.system_time(:second) end
+config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 
 config :ash_platform, :session_options,
   store: :cookie,

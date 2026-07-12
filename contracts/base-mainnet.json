@@ -1,0 +1,135 @@
+{
+  "manifest_version": 1,
+  "chain": {
+    "id": 8453,
+    "name": "Base",
+    "environment": "mainnet"
+  },
+  "contracts": {
+    "regent_revenue_staking": {
+      "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "deployment_transaction": "0xf30488de7242c2fa35ef419227ef296472a993e7c17311adf24ccdc8d73ab5dd",
+      "runtime_code": {
+        "bytes": 11757,
+        "sha256": "9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb",
+        "keccak256": "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+      },
+      "verified_source": {
+        "status": "exact_match",
+        "contract_name": "RegentRevenueStaking",
+        "url": "https://basescan.org/address/0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5#code"
+      },
+      "abi": {
+        "path": "abi/regent-revenue-staking.json",
+        "function_count": 64,
+        "canonical_sha256": "c8c5570f76f32b72e3bdb0a062fc97cb7f74aacadf03683d796b57a765f1ca23"
+      },
+      "onchain_constants": {
+        "stake_token": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+        "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      },
+      "prepared_actions": [
+        {"id": "stake", "signature": "stake(uint256,address)", "selector": "0x7acb7757", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staking_contract", "argument_bindings": {"amount": "requested_stake_amount", "receiver": "connected_wallet"}, "approval": {"token": "stake_token", "spender": "regent_revenue_staking", "amount": "requested_stake_amount", "mode": "exact"}},
+        {"id": "unstake", "signature": "unstake(uint256,address)", "selector": "0x8381e182", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"amount": "requested_unstake_amount", "recipient": "connected_wallet"}},
+        {"id": "claim_usdc", "signature": "claimUSDC(address)", "selector": "0x42852610", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"recipient": "connected_wallet"}},
+        {"id": "claim_regent", "signature": "claimRegent(address)", "selector": "0x739c8d0d", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"recipient": "connected_wallet"}},
+        {"id": "claim_and_restake_regent", "signature": "claimAndRestakeRegent()", "selector": "0xe72a8732", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {}}
+      ],
+      "reads": [
+        {"id": "stake_token", "signature": "stakeToken()", "selector": "0x51ed6a30"},
+        {"id": "usdc", "signature": "usdc()", "selector": "0x3e413bee"},
+        {"id": "paused", "signature": "paused()", "selector": "0x5c975abb"},
+        {"id": "total_staked", "signature": "totalStaked()", "selector": "0x817b1cd2"},
+        {"id": "staked_balance", "signature": "stakedBalance(address)", "selector": "0x60217267"},
+        {"id": "claimable_usdc", "signature": "previewClaimableUSDC(address)", "selector": "0xb026ee79"},
+        {"id": "claimable_regent", "signature": "previewClaimableRegent(address)", "selector": "0xf653a7f7"},
+        {"id": "funded_claimable_regent", "signature": "previewFundedClaimableRegent(address)", "selector": "0xb4010d49"}
+      ]
+    },
+    "animata_redeemer": {
+      "address": "0x71065b775a590c43933f10c0055dc7d74afabb0e",
+      "deployment_transaction": "0x0bada3b11435990bfe2efe7758afc08510d0c7676b19b78439d8c389186ccd35",
+      "runtime_code": {
+        "bytes": 8613,
+        "sha256": "f2f92d1d87d86a0dcf1e46c7999a21d76ee46e65440362de630cbeefc2e46c8d",
+        "keccak256": "0xb2a6b47cb6b6bf34c7b0d0e47fb24c14c8ea2dbdf502325aa120042355e46eb7"
+      },
+      "verified_source": {
+        "status": "exact_match",
+        "contract_name": "AnimataRedeemer",
+        "url": "https://basescan.org/address/0x71065b775a590c43933f10c0055dc7d74afabb0e#code"
+      },
+      "abi": {
+        "path": "abi/animata-redeemer.json",
+        "function_count": 27,
+        "canonical_sha256": "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
+      },
+      "onchain_constants": {
+        "animata_i": "0x78402119Ec6349A0D41F12b54938De7BF783C923",
+        "animata_ii": "0x903C4c1E8B8532FbD3575482d942D493eb9266e2",
+        "result_collection": "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487",
+        "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "regent": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+        "usdc_price_atomic": "80000000",
+        "max_source_token_id": 999,
+        "regent_payout_atomic": "5000000000000000000000000",
+        "vest_duration_seconds": 604800
+      },
+      "prepared_actions": [
+        {"id": "approve_nft_collection", "target": "selected_eligible_collection", "signature": "setApprovalForAll(address,bool)", "selector": "0xa22cb465", "value": "0", "signer_class": "redeemer_wallet", "beneficiary_class": "animata_redeemer", "risk": "collection_wide_operator_approval", "argument_bindings": {"operator": "animata_redeemer", "approved": true}},
+        {"id": "approve_exact_usdc", "target": "base_usdc", "signature": "approve(address,uint256)", "selector": "0x095ea7b3", "value": "0", "signer_class": "redeemer_wallet", "beneficiary_class": "animata_redeemer", "risk": "exact_token_allowance", "argument_bindings": {"spender": "animata_redeemer", "amount_atomic": "80000000", "mode": "exact"}},
+        {"id": "redeem", "target": "animata_redeemer", "signature": "redeem(address,uint256)", "selector": "0x1e9a6950", "value": "0", "signer_class": "redeemer_wallet", "beneficiary_class": "connected_wallet", "argument_bindings": {"collection": "selected_eligible_collection", "token_id": "verified_owned_source_token_id"}},
+        {"id": "claim", "target": "animata_redeemer", "signature": "claim()", "selector": "0x4e71d92d", "value": "0", "signer_class": "redeemer_wallet", "beneficiary_class": "connected_wallet", "argument_bindings": {}}
+      ],
+      "reads": [
+        {"id": "claimable", "signature": "claimable(address)", "selector": "0x402914f5"},
+        {"id": "vest", "signature": "getVest(address)", "selector": "0x474fc417"},
+        {"id": "animata_i", "signature": "COLL1()", "selector": "0x5817e9d1"},
+        {"id": "animata_ii", "signature": "COLL2()", "selector": "0x65d32f1e"},
+        {"id": "result_collection", "signature": "COLL3()", "selector": "0xe54b3581"},
+        {"id": "usdc", "signature": "USDC()", "selector": "0x89a30271"},
+        {"id": "usdc_price", "signature": "USDC_PRICE()", "selector": "0xd8525aeb"},
+        {"id": "price", "signature": "price()", "selector": "0xa035b1fe"},
+        {"id": "regent", "signature": "REGENT()", "selector": "0x6d667d87"},
+        {"id": "regent_payout", "signature": "REGENT_PAYOUT()", "selector": "0xde12a91e"},
+        {"id": "vest_duration", "signature": "VEST_DURATION()", "selector": "0x6e6941c5"},
+        {"id": "max_source_token_id", "signature": "MAX_ID()", "selector": "0x17bac052"},
+        {"id": "result_token_id", "signature": "mapToCollection3(address,uint256)", "selector": "0x6d970989"}
+      ]
+    },
+    "animata_i": {
+      "address": "0x78402119Ec6349A0D41F12b54938De7BF783C923",
+      "deployment_transaction": "0x6aff5611d787e67ec65ad07afaa3cd6dbc698b37062849df193ccc327673bf09",
+      "runtime_code": {"bytes": 19658, "sha256": "d3b5023b1875fa83f99571621bfeeaebceaaf095655b41392fc89a3df816a0ba", "keccak256": "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"}
+    },
+    "animata_ii": {
+      "address": "0x903C4c1E8B8532FbD3575482d942D493eb9266e2",
+      "deployment_transaction": "0xde7d8f5685a441f2e8e7517de7b9f3a05937324c10eccd17e6b1774d219e76a6",
+      "runtime_code": {"bytes": 19658, "sha256": "d3b5023b1875fa83f99571621bfeeaebceaaf095655b41392fc89a3df816a0ba", "keccak256": "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"}
+    },
+    "base_usdc": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "runtime_code": {"bytes": 1852, "sha256": "98d785fcb1bf847f287adc2310759fd94cc13e754b974bc72131382e8266f607", "keccak256": "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab"}
+    }
+  },
+  "standard_interfaces": {
+    "erc20": [
+      {"id": "approve", "signature": "approve(address,uint256)", "selector": "0x095ea7b3"},
+      {"id": "balance_of", "signature": "balanceOf(address)", "selector": "0x70a08231"},
+      {"id": "allowance", "signature": "allowance(address,address)", "selector": "0xdd62ed3e"}
+      ,{"id": "decimals", "signature": "decimals()", "selector": "0x313ce567"}
+    ],
+    "erc721": [
+      {"id": "owner_of", "signature": "ownerOf(uint256)", "selector": "0x6352211e"},
+      {"id": "is_approved_for_all", "signature": "isApprovedForAll(address,address)", "selector": "0xe985e9c5"},
+      {"id": "set_approval_for_all", "signature": "setApprovalForAll(address,bool)", "selector": "0xa22cb465"}
+    ]
+  },
+  "redemption_policy": {
+    "eligible_collections": ["animata_i", "animata_ii"],
+    "usdc_approval_spender": "animata_redeemer",
+    "usdc_approval_amount_atomic": "80000000",
+    "usdc_approval_mode": "exact",
+    "result_collection_is_not_redeemable_input": true
+  }
+}

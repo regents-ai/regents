@@ -53,6 +53,8 @@ defmodule AshPlatform.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
+      {:decimal, "== 3.1.1"},
+      {:req, "== 0.6.2"},
       {:bandit, "~> 1.12.0"}
     ]
   end
