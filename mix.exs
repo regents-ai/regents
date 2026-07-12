@@ -46,6 +46,7 @@ defmodule AshPlatform.MixProject do
       {:ash, "~> 3.29.3"},
       {:simple_sat, "~> 0.1.4"},
       {:ash_postgres, "~> 2.10.0"},
+      {:regent_privy, path: "../elixir-utils/privy"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

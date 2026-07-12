@@ -3,18 +3,14 @@ defmodule AshPlatformWeb.ShellLive do
 
   import AshPlatformWeb.Components.Shell
 
-  alias AshPlatform.{AccessContext, ContentCoordinator}
+  alias AshPlatform.ContentCoordinator
   alias AshPlatformWeb.RouteCatalog
 
   @impl true
   def mount(params, _session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
-    access_context = AccessContext.anonymous()
-
     {:ok,
      assign(socket,
-       access_context: access_context,
-       account_control: AccessContext.account_control(access_context),
        app_targets: RouteCatalog.app_targets(),
        content: nil,
        content_error: nil,

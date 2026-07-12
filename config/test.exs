@@ -24,6 +24,7 @@ config :ash_platform, AshPlatformWeb.Endpoint,
   server: System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
 
 config :ash_platform, :content_provider, AshPlatform.TestContentProvider
+config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 
 # Print only warnings and errors during test
 config :logger, level: :warning

@@ -1,18 +1,17 @@
 openapi: 3.1.0
 info:
-  title: Ash Platform API
-  version: 0.1.0
+  title: Regent API
+  version: 1.0.0
 paths:
   /api/techtree/v1/tree/nodes:
     get:
       operationId: listTreeNodes
-      summary: List public Techtree nodes
       security: []
       parameters: []
       x-pagination: none
       responses:
         "200":
-          description: Public Techtree nodes
+          description: Public Techtree nodes, newest first
           content:
             application/json:
               schema:
@@ -25,18 +24,91 @@ paths:
                     items: {$ref: "#/components/schemas/Node"}
         "400": {$ref: "#/components/responses/InvalidRequest"}
         "500": {$ref: "#/components/responses/InternalError"}
+  /auth/csrf:
+    get:
+      operationId: getBrowserCsrf
+      responses:
+        "200":
+          description: CSRF token for browser session changes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [csrf_token]
+                properties:
+                  csrf_token: {type: string, minLength: 1}
+  /auth/privy/session:
+    post:
+      operationId: createPrivyBrowserSession
+      security: [{privyAccessToken: [], csrfToken: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object, maxProperties: 0, additionalProperties: false}
+      responses:
+        "200": {$ref: "#/components/responses/Session"}
+        "403": {$ref: "#/components/responses/CsrfForbidden"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+    delete:
+      operationId: deletePrivyBrowserSession
+      security: [{csrfToken: []}]
+      responses:
+        "200": {$ref: "#/components/responses/Logout"}
+        "403": {$ref: "#/components/responses/CsrfForbidden"}
+  /auth/session:
+    get:
+      operationId: getBrowserSession
+      responses:
+        "200": {$ref: "#/components/responses/Session"}
 components:
+  securitySchemes:
+    privyAccessToken:
+      type: http
+      scheme: bearer
+      bearerFormat: Privy access token
+    cookieSession: {type: apiKey, in: cookie, name: _ash_platform_key}
+    csrfToken: {type: apiKey, in: header, name: x-csrf-token}
   responses:
+    Session:
+      description: Current browser session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Session"
+    Unauthorized:
+      description: Privy access token was absent or invalid
+      content:
+        application/json:
+            schema: {$ref: "#/components/schemas/Error"}
+    Logout:
+      description: Local browser session removed
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [ok]
+            properties: {ok: {type: boolean, const: true}}
+    CsrfForbidden:
+      description: CSRF token was absent or invalid
     InvalidRequest:
-      description: Unsupported request parameters
+      description: Query parameters are not supported
       content:
         application/json:
           schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            unsupportedQuery:
+              value: {error: {code: invalid_request, message: Query parameters are not supported.}}
     InternalError:
       description: The request could not be completed
       content:
         application/json:
           schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            internalError:
+              value: {error: {code: internal_error, message: The request could not be completed.}}
   schemas:
     Node:
       type: object
@@ -59,5 +131,28 @@ components:
           additionalProperties: false
           required: [code, message]
           properties:
-            code: {type: string}
+            code: {type: string, enum: [invalid_request, internal_error]}
             message: {type: string}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [authenticated, account_control]
+      properties:
+        authenticated: {type: boolean}
+        account_control:
+          type: object
+          additionalProperties: false
+          required: [kind, label, profile_path, avatar_data_uri]
+          properties:
+            kind: {type: string, enum: [sign_in, signed_in]}
+            label: {type: string}
+            profile_path: {type: [string, "null"]}
+            avatar_data_uri:
+              type: [string, "null"]
+              pattern: "^data:image/svg\\+xml;base64,"
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: {type: string, enum: [unauthorized]}

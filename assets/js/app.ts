@@ -192,4 +192,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
 })
 
 liveSocket.connect()
+if (document.querySelector("meta[name='privy-app-id']")) {
+  void import("./privy_bridge").then(({startPrivyBridge}) => startPrivyBridge())
+}
 window.liveSocket = liveSocket

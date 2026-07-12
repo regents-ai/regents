@@ -25,7 +25,13 @@ defmodule AshPlatformWeb.Router do
 
     live "/", HomeLive, :home
 
-    live_session :product_shell do
+    get "/auth/csrf", PrivySessionController, :csrf
+    post "/auth/privy/session", PrivySessionController, :create
+    get "/auth/session", PrivySessionController, :show
+    delete "/auth/privy/session", PrivySessionController, :delete
+
+    live_session :product_shell,
+      on_mount: [{AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile

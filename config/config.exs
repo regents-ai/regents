@@ -10,9 +10,19 @@ import Config
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
 config :ash_platform,
-  ash_domains: [AshPlatform.Techtree],
+  ash_domains: [AshPlatform.Accounts, AshPlatform.Techtree],
   ecto_repos: [AshPlatform.Repo],
   generators: [timestamp_type: :utc_datetime]
+
+config :ash_platform, :privy, clock: fn -> System.system_time(:second) end
+
+config :ash_platform, :session_options,
+  store: :cookie,
+  key: "_ash_platform_key",
+  signing_salt: "OLoeAaio",
+  same_site: "Lax",
+  secure: false,
+  http_only: true
 
 config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
 

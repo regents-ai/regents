@@ -73,6 +73,10 @@ defmodule AshPlatformWeb.Components.Shell do
           >
             {@account_control.label}
           </button>
+          <div :if={@account_control.kind == :signed_in}>
+            <span data-account-target="identity">{@account_control.label}</span>
+            <button type="button" data-account-target="sign-out">Log Out</button>
+          </div>
         </div>
       </header>
 
