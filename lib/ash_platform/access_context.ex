@@ -11,11 +11,25 @@ defmodule AshPlatform.AccessContext do
 
   def human(account), do: %__MODULE__{principal: {:human, account}, capabilities: [:view_public]}
 
-  def account_control(%__MODULE__{principal: :anonymous}) do
+  def account_control(access_context, regent \\ nil)
+
+  def account_control(%__MODULE__{principal: :anonymous}, _regent) do
     %AccountControl{kind: :sign_in, label: "Sign In", profile_path: nil}
   end
 
-  def account_control(%__MODULE__{principal: {:human, account}}) do
+  def account_control(%__MODULE__{principal: {:human, account}}, %{
+        slug: slug,
+        display_name: name
+      }) do
+    %AccountControl{
+      kind: :signed_in,
+      label: name,
+      profile_path: "/regents/#{slug}",
+      avatar_data_uri: PublicIdentity.avatar_data_uri(account)
+    }
+  end
+
+  def account_control(%__MODULE__{principal: {:human, account}}, _regent) do
     %AccountControl{
       kind: :signed_in,
       label: PublicIdentity.label(account),
