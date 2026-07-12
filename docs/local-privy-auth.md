@@ -33,5 +33,6 @@ The setup task refuses production mode, non-loopback database hosts, and databas
 
 ## Current dependency risk
 
-`npm audit --omit=dev --audit-level=high` reports no high-severity findings. The app overrides transitive WebSocket 8.x copies to fixed release 8.21.0 while retaining Privy React 3.34.0. Ten moderate `uuid` findings remain beneath Privy’s MetaMask/Wagmi dependency path. npm’s forced suggestion downgrades Privy and is not an acceptable fix; do not run `npm audit fix --force`. Recheck when Privy publishes a compatible dependency update.
+The local `regent_privy` path dependency must come from the adjacent `elixir-utils` checkout at commit `cbb09857065069590671e2cbabdd5ae0885a65c4` when reproducing this checkpoint.
 
+`npm audit --omit=dev --audit-level=high` reports no high-severity findings. The app overrides transitive WebSocket 8.x copies to fixed release 8.21.0 while retaining Privy React 3.34.0. Ten moderate `uuid` findings remain beneath Privy’s MetaMask/Wagmi dependency path. npm’s forced suggestion downgrades Privy and is not an acceptable fix; do not run `npm audit fix --force`. Recheck when Privy publishes a compatible dependency update.
