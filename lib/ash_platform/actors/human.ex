@@ -3,4 +3,3 @@ defmodule AshPlatform.Actors.Human do
   @enforce_keys [:human_account_id]
   defstruct [:human_account_id, role: :human]
 end
-

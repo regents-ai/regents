@@ -46,4 +46,3 @@ defmodule AshPlatform.Privy do
 
   defp session_id(_claims), do: {:error, :invalid_access_token}
 end
-

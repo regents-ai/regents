@@ -11,4 +11,3 @@ defmodule AshPlatform.VerifiedPrivyIdentity do
           wallet_addresses: [String.t()]
         }
 end
-

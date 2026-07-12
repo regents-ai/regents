@@ -46,4 +46,3 @@ defmodule AshPlatform.Accounts.VerifiedSession do
 
   defp refresh_if_evidence(account, _verified, _actor), do: {:ok, account}
 end
-

@@ -9,6 +9,7 @@ defmodule AshPlatformWeb.ShellLive do
   @impl true
   def mount(params, _session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
+
     {:ok,
      assign(socket,
        app_targets: RouteCatalog.app_targets(),

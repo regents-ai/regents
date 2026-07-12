@@ -63,4 +63,3 @@ defmodule AshPlatform.TestPrivyVerifier do
   def verify_access_token("missing-sid"), do: {:error, :invalid_access_token}
   def verify_access_token(_token), do: {:error, :invalid_token}
 end
-

@@ -15,4 +15,3 @@ defmodule AshPlatform.Accounts.Changes.RefreshWalletEvidence do
     end
   end
 end
-

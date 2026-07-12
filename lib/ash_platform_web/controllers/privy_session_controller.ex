@@ -82,4 +82,3 @@ defmodule AshPlatformWeb.PrivySessionController do
     end
   end
 end
-

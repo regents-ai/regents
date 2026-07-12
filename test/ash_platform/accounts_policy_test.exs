@@ -21,4 +21,3 @@ defmodule AshPlatform.AccountsPolicyTest do
     end
   end
 end
-

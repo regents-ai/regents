@@ -8,4 +8,3 @@ defmodule AshPlatformWeb.Plugs.RuntimeSession do
     Plug.Session.call(conn, Plug.Session.init(options))
   end
 end
-

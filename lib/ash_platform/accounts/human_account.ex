@@ -48,13 +48,13 @@ defmodule AshPlatform.Accounts.HumanAccount do
     update :set_display_name do
       accept [:display_name]
     end
-
   end
 
   policies do
     policy action([:by_privy_did, :register_verified, :refresh_verified]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
+
     policy action([:read_self, :set_display_name]) do
       authorize_if expr(id == ^actor(:human_account_id))
     end

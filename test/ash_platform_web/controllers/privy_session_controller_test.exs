@@ -215,4 +215,3 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     Map.take(account, [:id, :privy_user_id, :wallet_address, :wallet_addresses, :display_name])
   end
 end
-

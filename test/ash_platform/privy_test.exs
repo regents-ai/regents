@@ -48,4 +48,3 @@ defmodule AshPlatform.PrivyTest do
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
 end
-

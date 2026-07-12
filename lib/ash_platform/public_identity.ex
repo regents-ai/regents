@@ -91,4 +91,3 @@ defmodule AshPlatform.PublicIdentity do
 
   defp bright(component), do: 72 + rem(component, 168)
 end
-
