@@ -1,5 +1,19 @@
 import Config
 
+config :ash_platform, :database_startup_enabled, true
+config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
+
+config :ash_platform, AshPlatform.Repo,
+  hostname: "127.0.0.1",
+  database: "ash_platform_test",
+  username: System.get_env("USER"),
+  password: nil,
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
+config :ash, :disable_async?, true
+config :ash, :missed_notifications, :ignore
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ash_platform, AshPlatformWeb.Endpoint,

@@ -1,5 +1,7 @@
 import Config
 
+config :ash_platform, :notebook_origins, ["http://127.0.0.1:4001"]
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

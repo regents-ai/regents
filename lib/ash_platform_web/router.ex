@@ -10,6 +10,16 @@ defmodule AshPlatformWeb.Router do
     plug :put_secure_browser_headers
   end
 
+  pipeline :api do
+    plug :accepts, ["json"]
+  end
+
+  scope "/api", AshPlatformWeb do
+    pipe_through :api
+
+    get "/techtree/v1/tree/nodes", TechtreeNodeController, :index
+  end
+
   scope "/", AshPlatformWeb do
     pipe_through :browser
 

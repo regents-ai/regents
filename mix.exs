@@ -44,6 +44,8 @@ defmodule AshPlatform.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6"},
       {:ash, "~> 3.29.3"},
+      {:simple_sat, "~> 0.1.4"},
+      {:ash_postgres, "~> 2.10.0"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

@@ -7,9 +7,20 @@
 # General application configuration
 import Config
 
+config :mime, :types, %{"application/yaml" => ["yaml"]}
+
 config :ash_platform,
-  ash_domains: [],
+  ash_domains: [AshPlatform.Techtree],
+  ecto_repos: [AshPlatform.Repo],
   generators: [timestamp_type: :utc_datetime]
+
+config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
+
+config :ash_platform, AshPlatform.Repo,
+  hostname: "127.0.0.1",
+  database: "ash_platform_unconfigured",
+  username: "ash_platform_unconfigured",
+  password: "ash_platform_unconfigured"
 
 # Configure the endpoint
 config :ash_platform, AshPlatformWeb.Endpoint,
@@ -34,7 +45,8 @@ config :esbuild,
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,
-  format: "$time $metadata[$level] $message\n",
+  format: "$time $metadata[$level] $message
+",
   metadata: [:request_id]
 
 # Use Jason for JSON parsing in Phoenix
