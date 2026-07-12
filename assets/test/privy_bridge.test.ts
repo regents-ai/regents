@@ -1,7 +1,9 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import * as bridge from "../js/privy_bridge"
 import {
+  connectedEthereumWallet,
+  replaceConnectedEthereumWallets,
   selectConnectedEthereumWallet,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
@@ -16,6 +18,11 @@ const {
 } = bridge
 
 describe("Privy session bridge", () => {
+  afterEach(() => {
+    replaceConnectedEthereumWallets([])
+    vi.unstubAllGlobals()
+  })
+
   it("retains the first sign-in click until Privy is ready", () => {
     const login = vi.fn()
     const gate = createReadyLoginGate(login)
@@ -156,5 +163,31 @@ describe("Privy session bridge", () => {
       )?.provider,
     ).toBe(expected)
   })
-})
 
+  it("rejects a connected wallet when its signer does not match", () => {
+    const provider = {request: vi.fn()}
+
+    expect(
+      selectConnectedEthereumWallet(
+        [["0x2222222222222222222222222222222222222222", provider]],
+        "0x1111111111111111111111111111111111111111",
+      ),
+    ).toBeNull()
+  })
+
+  it("admits the injected test wallet only on the exact controlled test origin", () => {
+    const provider = {request: vi.fn()}
+    const testWallet = {address: "0x1111111111111111111111111111111111111111", provider}
+
+    vi.stubGlobal("window", {
+      location: {origin: "http://127.0.0.1:4002"},
+      __ashPlatformTestWallet: testWallet,
+    })
+    expect(connectedEthereumWallet(testWallet.address)).toEqual(testWallet)
+
+    for (const origin of ["http://localhost:4002", "http://127.0.0.1:4000", "https://127.0.0.1:4002"]) {
+      vi.stubGlobal("window", {location: {origin}, __ashPlatformTestWallet: testWallet})
+      expect(connectedEthereumWallet(testWallet.address)).toBeNull()
+    }
+  })
+})
