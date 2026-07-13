@@ -9,7 +9,7 @@ import {
 } from "../js/wallet_actions/connected_wallet"
 
 const {
-  clearLocalSession,
+  createAccountRequestHandler,
   createLocalSession,
   createPrivyLoginCallbacks,
   createReadyLoginGate,
@@ -131,17 +131,57 @@ describe("Privy session bridge", () => {
   })
 
   it("clears Regent before provider logout is attempted", async () => {
-    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
-      input === "/auth/csrf"
-        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
-        : new Response("{}", {status: 200}),
-    ) as typeof fetch
+    const order: string[] = []
+    const handler = createAccountRequestHandler({
+      requestLogin: vi.fn(),
+      clearSession: vi.fn(async () => {
+        order.push("local")
+      }),
+      providerLogout: vi.fn(async () => {
+        order.push("provider")
+      }),
+      reload: vi.fn(() => order.push("reload")),
+    })
 
-    await clearLocalSession(fetcher)
-    expect(fetcher).toHaveBeenLastCalledWith(
-      "/auth/privy/session",
-      expect.objectContaining({method: "DELETE"}),
-    )
+    await handler("sign-out")
+    expect(order).toEqual(["local", "provider", "reload"])
+  })
+
+  it("queues an initial sign-in request through the ready gate exactly once", async () => {
+    const login = vi.fn()
+    const gate = createReadyLoginGate(login)
+    const handler = createAccountRequestHandler({
+      requestLogin: () => gate.requestLogin(),
+      clearSession: vi.fn(),
+      providerLogout: vi.fn(),
+      reload: vi.fn(),
+    })
+
+    await handler("sign-in")
+    expect(login).not.toHaveBeenCalled()
+    gate.setReady(true)
+    gate.setReady(true)
+    expect(login).toHaveBeenCalledOnce()
+  })
+
+  it("synchronizes signed-in wallet state without logging in or out", async () => {
+    const requestLogin = vi.fn()
+    const clearSession = vi.fn()
+    const providerLogout = vi.fn()
+    const reload = vi.fn()
+    const handler = createAccountRequestHandler({
+      requestLogin,
+      clearSession,
+      providerLogout,
+      reload,
+    })
+
+    await handler("sync")
+
+    expect(requestLogin).not.toHaveBeenCalled()
+    expect(clearSession).not.toHaveBeenCalled()
+    expect(providerLogout).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("does not own or inject server-rendered account markup", () => {

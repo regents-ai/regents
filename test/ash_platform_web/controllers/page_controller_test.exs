@@ -3,6 +3,8 @@ defmodule AshPlatformWeb.PageControllerTest do
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Regent"
+    html = html_response(conn, 200)
+    assert html =~ "Regent"
+    assert html =~ ~s(<meta name="privy-bridge-src" content="/assets/js/privy_bridge.js")
   end
 end

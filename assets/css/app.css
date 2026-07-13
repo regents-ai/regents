@@ -1,5 +1,6 @@
 @import "./pages/home.css";
 @import "./pages/settings.css";
+@import "./components/account_auth_status.css";
 
 :root {
   color-scheme: light dark;

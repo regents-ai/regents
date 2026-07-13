@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="privy-app-id" content={Application.get_env(:ash_platform, :privy, [])[:app_id]} />
+    <meta
+      name="privy-bridge-src"
+      content={AshPlatformWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
+    />
     <.live_title default="Regent" suffix=" · Regents Labs">
       {assigns[:page_title]}
     </.live_title>

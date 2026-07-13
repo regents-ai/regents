@@ -2,7 +2,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.Accounts
-  alias AshPlatform.Actors.System
+  alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Formation
 
   test "verified Privy evidence creates and renews a canonical local session", %{conn: conn} do
     visitor = conn |> init_test_session(%{visitor: "discard-me"}) |> csrf_bootstrap()
@@ -75,6 +76,27 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert Enum.all?(results, &match?({:ok, {:ok, _}}, &1))
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:concurrent", actor: %System{})
     assert account.wallet_address == verified.wallet_address
+  end
+
+  test "session inspection exposes Profile only from the account's canonical Regent", %{
+    conn: conn
+  } do
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:u3-profile", nil, [], actor: %System{})
+
+    assert {:ok, _regent} =
+             Formation.form_regent("u3-profile", "U3 Profile",
+               actor: %Human{human_account_id: account.id}
+             )
+
+    payload =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> get("/auth/session")
+      |> json_response(200)
+
+    assert payload["account_control"]["profile_path"] == "/regents/u3-profile"
+    assert payload["account_control"]["label"] == "U3 Profile"
   end
 
   test "an upsert conflict without linked accounts cannot erase wallet evidence" do

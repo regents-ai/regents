@@ -10,7 +10,7 @@ import Config
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
 config :ash_platform,
-  ash_domains: [AshPlatform.Accounts, AshPlatform.Techtree],
+  ash_domains: [AshPlatform.Accounts, AshPlatform.Formation, AshPlatform.Techtree],
   ecto_repos: [AshPlatform.Repo],
   generators: [timestamp_type: :utc_datetime]
 
@@ -49,7 +49,7 @@ config :esbuild,
   version: "0.25.4",
   ash_platform: [
     args:
-      ~w(js/app.ts --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.ts js/privy_bridge.tsx --bundle --format=esm --target=es2022 --outdir=../priv/static/assets/js --entry-names=[name] --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

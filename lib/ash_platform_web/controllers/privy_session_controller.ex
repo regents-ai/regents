@@ -2,6 +2,8 @@ defmodule AshPlatformWeb.PrivySessionController do
   use AshPlatformWeb, :controller
 
   alias AshPlatform.Accounts.VerifiedSession
+  alias AshPlatform.Actors.Human
+  alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Privy
 
   def csrf(conn, _params) do
@@ -56,10 +58,17 @@ defmodule AshPlatformWeb.PrivySessionController do
     }
 
   defp session_payload(account) do
-    control =
-      account |> AshPlatform.AccessContext.human() |> AshPlatform.AccessContext.account_control()
+    access_context = AccessContext.human(account)
+    control = AccessContext.account_control(access_context, current_regent(account))
 
     %{authenticated: true, account_control: Map.from_struct(control)}
+  end
+
+  defp current_regent(account) do
+    case Formation.get_my_regent(actor: %Human{human_account_id: account.id}) do
+      {:ok, regent} -> regent
+      _ -> nil
+    end
   end
 
   def delete(conn, _params) do

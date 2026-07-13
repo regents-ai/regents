@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.ShellLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  alias AshPlatform.{Accounts, Formation}
+  alias AshPlatform.Actors.{Human, System}
   alias AshPlatformWeb.ShellLive
 
   test "anonymous settings access redirects home without private content", %{conn: conn} do
@@ -81,8 +83,45 @@ defmodule AshPlatformWeb.ShellLiveTest do
     {:ok, view, _html} = live(conn, "/app")
 
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
+
+    assert has_element?(
+             view,
+             "#account-control #account-auth-status[role=status][aria-live=polite][aria-atomic=true][phx-update=ignore][hidden]"
+           )
+
     refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
     refute has_element?(view, "#account-control a", "Formation")
+  end
+
+  test "the server exposes Profile only after the signed human owns a canonical Regent", %{
+    conn: conn
+  } do
+    account =
+      Accounts.register_verified!(
+        "did:privy:u3-shell-profile",
+        "0x1111111111111111111111111111111111111111",
+        ["0x1111111111111111111111111111111111111111"],
+        actor: %System{}
+      )
+
+    session_conn = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, no_regent_view, _html} = live(session_conn, "/app")
+    refute has_element?(no_regent_view, "#account-control [data-account-menu-item=profile]")
+
+    Formation.form_regent!("u3-shell-profile", "U3 Regent",
+      actor: %Human{human_account_id: account.id}
+    )
+
+    {:ok, view, _html} = live(session_conn, "/app")
+
+    assert has_element?(view, "#account-control [data-account-menu-item=profile]", "Profile")
+    assert has_element?(view, "#account-control a[href='/regents/u3-shell-profile']")
+    assert has_element?(view, "#account-control [data-account-target=identity]", "U3 Regent")
+
+    assert has_element?(
+             view,
+             "#account-control #account-auth-status[role=status][aria-live=polite][aria-atomic=true][phx-update=ignore][hidden]"
+           )
   end
 
   test "in-shell navigation keeps the LiveView and shell identity", %{conn: conn} do

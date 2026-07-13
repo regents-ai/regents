@@ -19,7 +19,8 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserComments do
   def reset!(opts \\ []) do
     env = Keyword.get(opts, :env, current_env())
     repo_config = Keyword.get(opts, :repo_config, AshPlatform.Repo.config())
-    validate_test_target!(env, repo_config)
+    environment = Keyword.get(opts, :environment, System.get_env())
+    validate_test_target!(env, repo_config, environment)
 
     AshPlatform.Repo.transaction(fn ->
       node_ids = fixture_node_ids!()
@@ -56,14 +57,24 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserComments do
     end
   end
 
-  def validate_test_target!(env, repo_config) do
-    AshPlatform.LocalDatabaseFixture.validate_target!(env, repo_config)
-    database = to_string(repo_config[:database])
+  def validate_test_target!(env, repo_config, environment \\ System.get_env()) do
+    case environment["ASH_PLATFORM_ACCEPTANCE_RUN_ID"] do
+      run_id when is_binary(run_id) and run_id != "" ->
+        AshPlatform.LocalDatabaseFixture.validate_human_account_fixture_target!(
+          env,
+          repo_config,
+          environment
+        )
 
-    if env == :test and String.ends_with?(database, "_test") do
-      :ok
-    else
-      raise "browser fixture reset refused unsafe database target"
+      _ ->
+        AshPlatform.LocalDatabaseFixture.validate_target!(env, repo_config)
+        database = to_string(repo_config[:database])
+
+        if env == :test and String.ends_with?(database, "_test") do
+          :ok
+        else
+          raise "browser fixture reset refused unsafe database target"
+        end
     end
   end
 

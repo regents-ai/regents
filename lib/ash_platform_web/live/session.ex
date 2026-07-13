@@ -1,16 +1,18 @@
 defmodule AshPlatformWeb.Live.Session do
   @moduledoc false
 
-  alias AshPlatform.{AccessContext, Accounts}
+  alias AshPlatform.{AccessContext, Accounts, Formation}
   alias AshPlatform.Actors.Human
 
   def on_mount(:load_human, _params, session, socket) do
     access_context = load_access_context(session)
+    regent = load_regent(access_context)
 
     {:cont,
      Phoenix.Component.assign(socket,
        access_context: access_context,
-       account_control: AccessContext.account_control(access_context)
+       account_control: AccessContext.account_control(access_context, regent),
+       current_regent: regent
      )}
   end
 
@@ -22,4 +24,13 @@ defmodule AshPlatformWeb.Live.Session do
   end
 
   defp load_access_context(_session), do: AccessContext.anonymous()
+
+  defp load_regent(%AccessContext{principal: {:human, account}}) do
+    case Formation.get_my_regent(actor: %Human{human_account_id: account.id}) do
+      {:ok, regent} -> regent
+      _ -> nil
+    end
+  end
+
+  defp load_regent(_access_context), do: nil
 end

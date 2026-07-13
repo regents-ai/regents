@@ -130,12 +130,68 @@ defmodule AshPlatform.LocalDatabaseFixture do
     end
   end
 
-  def ensure_human_accounts! do
-    repo = AshPlatform.Repo.config()
-    validate_target!(current_env(), repo)
+  def acceptance_database_exists!(run_id, opts \\ []) do
+    config = Keyword.get_lazy(opts, :config, fn -> local_acceptance_config!(run_id) end)
+    adapter = Keyword.get(opts, :adapter, __MODULE__.PostgresAdapter)
+    env = Keyword.get_lazy(opts, :env, &current_env/0)
+    expected_username = expected_username!(opts, env, adapter)
+    environment = Keyword.get_lazy(opts, :environment, &System.get_env/0)
+
+    reject_remote_environment!(environment)
+    validate_acceptance_environment_run!(run_id, environment)
+    validate_acceptance_target!(env, config, expected_username)
+    validate_acceptance_run!(run_id, config)
+
+    case adapter.exists?(config) do
+      true -> true
+      false -> false
+      other -> raise "local acceptance database status failed: #{inspect(other)}"
+    end
+  end
+
+  def ensure_human_accounts!(opts \\ []) do
+    repo = Keyword.get_lazy(opts, :repo, fn -> AshPlatform.Repo.config() end)
+    env = Keyword.get_lazy(opts, :env, &current_env/0)
+    environment = Keyword.get_lazy(opts, :environment, &System.get_env/0)
+
+    validate_human_account_fixture_target!(env, repo, environment)
+
+    setup = fixture_setup!(opts, env)
+    setup.()
+  end
+
+  @doc false
+  def validate_human_account_fixture_target!(env, repo, environment)
+      when is_list(repo) and is_map(environment) do
+    case environment["ASH_PLATFORM_ACCEPTANCE_RUN_ID"] do
+      run_id when is_binary(run_id) and run_id != "" ->
+        reject_remote_environment!(environment)
+        expected_username = System.fetch_env!("USER")
+        validate_acceptance_target!(env, repo, expected_username)
+
+        if to_string(repo[:database]) == @acceptance_database_prefix <> run_id do
+          :ok
+        else
+          raise "local acceptance fixture refused unsafe acceptance database target"
+        end
+
+      _ ->
+        validate_target!(env, repo)
+    end
+  end
+
+  defp setup_human_account_fixture! do
     create_local_human_accounts_table!()
     migrate_application_schema!()
     seed_techtree!()
+  end
+
+  defp fixture_setup!(opts, env) do
+    case Keyword.fetch(opts, :setup) do
+      {:ok, setup} when env == :test and is_function(setup, 0) -> setup
+      :error -> &setup_human_account_fixture!/0
+      _ -> raise "local human-account fixture refused injected setup"
+    end
   end
 
   def validate_target!(env, repo) when is_list(repo) do
@@ -162,6 +218,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
       env == :test and host == "127.0.0.1" and username == expected_username and
         expected_username != "" and database not in @protected_datasets and
         String.starts_with?(database, @acceptance_database_prefix) and byte_size(database) <= 63 and
+        run_id not in @protected_datasets and
         Regex.match?(~r/\A[a-z0-9](?:[a-z0-9_]*[a-z0-9])?\z/, run_id)
 
     if safe? do
@@ -191,6 +248,22 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
   defp current_env do
     if Code.ensure_loaded?(Mix), do: Mix.env(), else: :prod
+  end
+
+  defp validate_acceptance_run!(run_id, config) do
+    if to_string(config[:database]) == @acceptance_database_prefix <> run_id do
+      :ok
+    else
+      raise "local acceptance fixture refused mismatched run database target"
+    end
+  end
+
+  defp validate_acceptance_environment_run!(run_id, environment) do
+    if environment["ASH_PLATFORM_ACCEPTANCE_RUN_ID"] == run_id do
+      :ok
+    else
+      raise "local acceptance fixture requires exact run environment"
+    end
   end
 
   defp nonempty?(value), do: is_binary(value) and String.trim(value) != ""
@@ -273,7 +346,12 @@ defmodule AshPlatform.LocalDatabaseFixture do
     def drop(config), do: Ecto.Adapters.Postgres.storage_down(config)
 
     def exists?(config) do
-      Ecto.Adapters.Postgres.storage_status(config) == :up
+      case Ecto.Adapters.Postgres.storage_status(config) do
+        :up -> true
+        :down -> false
+        {:error, reason} -> raise "local acceptance database status failed: #{inspect(reason)}"
+        other -> raise "local acceptance database status failed: #{inspect(other)}"
+      end
     end
 
     def prepare(config, run_id) do
