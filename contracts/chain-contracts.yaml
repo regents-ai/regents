@@ -1,0 +1,28 @@
+version: 1
+product: ash-platform
+contracts:
+  - id: base_mainnet_reviewed_evidence
+    evidence_manifest: base-mainnet.json
+    evidence_sha256: 015022d9e8ab67feddaf04178413aedd36cc3a4e7471da9dc13e36909051c587
+    chain_target: base-mainnet
+    authority: evidence_only
+    admitted_prepared_actions: []
+    reviewed_action_evidence:
+      - contract_id: regent_revenue_staking
+        abi_path: abi/regent-revenue-staking.json
+        abi_sha256: c8c5570f76f32b72e3bdb0a062fc97cb7f74aacadf03683d796b57a765f1ca23
+        action_ids:
+          - stake
+          - unstake
+          - claim_usdc
+          - claim_regent
+          - claim_and_restake_regent
+      - contract_id: animata_redeemer
+        abi_path: abi/animata-redeemer.json
+        abi_sha256: c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd
+        action_ids:
+          - approve_nft_collection
+          - approve_exact_usdc
+          - redeem
+          - claim
+    validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs

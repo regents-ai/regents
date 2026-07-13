@@ -1,0 +1,79 @@
+version: 1
+repo: ash-platform
+owner: ash-platform
+path: ash-platform
+stack_contract: ../metaprogramming/stack.yaml
+owns:
+  - regent_web_app
+  - web_routes
+  - ash_domain_interfaces
+  - public_api_serving
+  - human_identity
+  - billing
+  - formation
+  - public_regent_records
+  - techtree_product_area
+  - autolaunch_product_area
+source_of_truth:
+  repo_contract: repo.yaml
+  http_contracts:
+    - id: ash_platform_api
+      owner: ash-platform
+      path: contracts/api-contract.openapiv3.yaml
+      served_copy: priv/static/api-contract.openapiv3.yaml
+  cli_contracts: []
+  runtime_contracts: []
+  chain_contracts:
+    - id: ash_platform_chain_contracts
+      owner: ash-platform
+      path: contracts/chain-contracts.yaml
+code_map:
+  - id: endpoint
+    path: lib/ash_platform_web/endpoint.ex
+  - id: routes
+    path: lib/ash_platform_web/router.ex
+  - id: accounts
+    path: lib/ash_platform/accounts.ex
+  - id: techtree
+    path: lib/ash_platform/techtree.ex
+domain_interfaces:
+  - id: accounts
+    owner: ash-platform
+    path: lib/ash_platform/accounts.ex
+  - id: techtree
+    owner: ash-platform
+    path: lib/ash_platform/techtree.ex
+capability_status_at_b1884bf:
+  human_identity: admitted
+  techtree_read: admitted
+  billing: not_admitted
+  formation: not_admitted
+  public_regent_records: not_admitted
+  autolaunch: not_admitted
+protected_datasets:
+  disposition: deliberate_later_ash_resources
+  no_data_action_in_this_unit: true
+  names:
+    - platform_human_users
+    - basenames_mints
+    - basenames_mint_allowances
+    - basenames_payment_credits
+local_path_dependencies:
+  - id: regent_privy
+    path: ../elixir-utils/privy
+    reviewed_repo_commit: cbb09857065069590671e2cbabdd5ae0885a65c4
+planning_records:
+  role: historical_evidence_only
+  binding_contract: false
+  paths:
+    - docs/plans
+    - docs/specs
+    - priv/handoff
+  admission_rule: Current founder and chief decisions plus the contracts and interfaces named above govern admission.
+acceptance_commands:
+  - cwd: ash-platform
+    command: mix precommit
+  - cwd: ash-platform
+    command: npm run typecheck
+  - cwd: ash-platform
+    command: npm test
