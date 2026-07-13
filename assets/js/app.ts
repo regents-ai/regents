@@ -11,6 +11,7 @@ import {
   type ShellState,
 } from "./shell_state"
 import {applyTheme, isThemeChoice, readTheme, type ThemeChoice} from "./theme"
+import {HomeHero} from "./hooks/home_hero"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -180,7 +181,11 @@ const shellBehavior: Hook = {
 
 // Design composes presentation behavior here; the Ash-owned behavior remains first.
 const designShellHook: Hook = {}
-const hooks = {...colocatedHooks, ShellBehavior: composeHooks(shellBehavior, designShellHook)}
+const hooks = {
+  ...colocatedHooks,
+  HomeHero,
+  ShellBehavior: composeHooks(shellBehavior, designShellHook),
+}
 const csrfToken = document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content
 
 if (!csrfToken) throw new Error("Missing CSRF token")
