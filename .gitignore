@@ -27,6 +27,7 @@ ash_platform-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
+/priv/static/notebooks/
 
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json

@@ -1,11 +1,18 @@
 import Config
 
+acceptance_run_id = System.get_env("ASH_PLATFORM_ACCEPTANCE_RUN_ID")
+
+database =
+  if acceptance_run_id,
+    do: "ash_platform_acceptance_#{acceptance_run_id}",
+    else: "ash_platform_test"
+
 config :ash_platform, :database_startup_enabled, true
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
 
 config :ash_platform, AshPlatform.Repo,
   hostname: "127.0.0.1",
-  database: "ash_platform_test",
+  database: database,
   username: System.get_env("USER"),
   password: nil,
   pool: Ecto.Adapters.SQL.Sandbox,

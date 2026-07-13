@@ -45,6 +45,64 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     end
   end
 
+  test "acceptance targets require the exact disposable local tuple" do
+    local_username = "local_owner"
+
+    assert :ok =
+             LocalDatabaseFixture.validate_acceptance_target!(
+               :test,
+               [
+                 hostname: "127.0.0.1",
+                 database: "ash_platform_acceptance_safe_run_1",
+                 username: local_username
+               ],
+               local_username
+             )
+
+    for repo <- [
+          [
+            hostname: "db.internal",
+            database: "ash_platform_acceptance_safe_run",
+            username: local_username
+          ],
+          [
+            hostname: "127.0.0.1",
+            database: "ash_platform_acceptance_safe_run",
+            username: "postgres"
+          ],
+          [
+            hostname: "127.0.0.1",
+            database: "ash_platform_test",
+            username: local_username
+          ],
+          [
+            hostname: "127.0.0.1",
+            database: "platform_human_users",
+            username: local_username
+          ]
+        ] do
+      assert_raise RuntimeError, ~r/refused unsafe acceptance database target/, fn ->
+        LocalDatabaseFixture.validate_acceptance_target!(:test, repo, local_username)
+      end
+    end
+
+    for protected <- ~w(
+          platform_human_users
+          basenames_mints
+          basenames_mint_allowances
+          basenames_payment_credits
+        ),
+        database <- [protected, "ash_platform_acceptance_#{protected}-unsafe"] do
+      assert_raise RuntimeError, ~r/refused unsafe acceptance database target/, fn ->
+        LocalDatabaseFixture.validate_acceptance_target!(
+          :test,
+          [hostname: "127.0.0.1", database: database, username: local_username],
+          local_username
+        )
+      end
+    end
+  end
+
   test "browser fixtures seed, appear publicly, reset, and remain absent", %{conn: conn} do
     ResetBrowserComments.reset!()
     assert [] == public_nodes(conn)
