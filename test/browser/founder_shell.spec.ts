@@ -34,6 +34,7 @@ test("all approved routes render within their page budget", async ({page, reques
 
 test("anonymous Sign In stays separate from the app selector", async ({page}) => {
   await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const appSelector = page.getByRole("navigation", {name: "Applications"})
   const accountControl = page.locator("#account-control")

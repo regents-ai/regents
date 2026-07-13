@@ -178,14 +178,14 @@ defmodule AshPlatformWeb.HomeLive do
           "Bring identity, a private cloud runtime, Hermes Skills, and practical prepaid operations into one guided lifecycle.",
         proofs: [
           %{
-            state: "Live",
+            state: "Preview",
             title: "One active Regent",
-            copy: "Form the Regent connected to your signed-in account."
+            copy: "See how one Regent stays connected to your signed-in account."
           },
           %{
-            state: "Live",
+            state: "Preview",
             title: "Private cloud",
-            copy: "Provision and inspect its private cloud workspace."
+            copy: "Explore the private cloud workspace and controls planned for your Regent."
           },
           %{
             state: "Preview",
@@ -208,9 +208,9 @@ defmodule AshPlatformWeb.HomeLive do
           "Prepare a private launch draft, inspect auctions and tokens, and approve every market action in your wallet.",
         proofs: [
           %{
-            state: "Live",
+            state: "Preview",
             title: "Private drafts",
-            copy: "Shape a launch before it becomes a public market record."
+            copy: "See how a launch takes shape before it becomes a public market record."
           },
           %{
             state: "Preview",
@@ -239,19 +239,19 @@ defmodule AshPlatformWeb.HomeLive do
           "Browse connected research in Map and List, inspect evidence, discuss public nodes, and run approved notebooks locally.",
         proofs: [
           %{
-            state: "Live",
+            state: "Preview",
             title: "Map and List",
-            copy: "Move between two views of the same tree on one route."
+            copy: "See how two views reveal the same research tree."
           },
           %{
-            state: "Live",
+            state: "Preview",
             title: "Focused discussion",
-            copy: "Read public comments and add a signed human reaction."
+            copy: "Preview public comments and signed human reactions on each node."
           },
           %{
-            state: "Live",
+            state: "Preview",
             title: "Local Marimo",
-            copy: "Run approved Marimo WASM notebooks locally in your browser."
+            copy: "Preview approved Marimo WASM notebooks that run locally in your browser."
           },
           %{
             state: "Planned",

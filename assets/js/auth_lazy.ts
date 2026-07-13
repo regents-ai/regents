@@ -136,15 +136,22 @@ export function installAccountAuthLazyLoader(
     status.textContent = ""
     status.hidden = true
   }
-  const showLoadFailure = () => {
+  const showLoadFailure = (request: AccountRequest) => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
-    status.textContent = "Sign in couldn’t start. Try again."
+    status.textContent = {
+      "sign-in": "Sign in couldn’t start. Try again.",
+      "sign-out": "Sign out couldn’t finish. Try again.",
+      sync: "Account connection couldn’t refresh. Try again.",
+    }[request]
     status.hidden = false
   }
   const request = (accountRequest: AccountRequest) => {
     clearStatus()
-    void loader.request(accountRequest).then(clearStatus).catch(showLoadFailure)
+    void loader
+      .request(accountRequest)
+      .then(clearStatus)
+      .catch(() => showLoadFailure(accountRequest))
   }
   const onClick = (event: Event) => {
     const target = event.target instanceof Element ? event.target : null

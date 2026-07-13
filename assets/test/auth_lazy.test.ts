@@ -290,6 +290,29 @@ describe("lazy browser authentication", () => {
     expect(importer).toHaveBeenCalledTimes(2)
   })
 
+  it("uses truthful failure copy for sign out and signed-in synchronization", async () => {
+    vi.stubGlobal("Element", AccountElement)
+
+    const signOutPage = accountDocument()
+    installAccountAuthLazyLoader(
+      signOutPage.documentRoot,
+      vi.fn().mockRejectedValue(new Error("bridge unavailable")),
+    )
+    signOutPage.click("sign-out")
+    await vi.waitFor(() => expect(signOutPage.status.hidden).toBe(false))
+    expect(signOutPage.status.textContent).toBe("Sign out couldn’t finish. Try again.")
+
+    const syncPage = accountDocument({signedIn: true})
+    installAccountAuthLazyLoader(
+      syncPage.documentRoot,
+      vi.fn().mockRejectedValue(new Error("bridge unavailable")),
+    )
+    await vi.waitFor(() => expect(syncPage.status.hidden).toBe(false))
+    expect(syncPage.status.textContent).toBe(
+      "Account connection couldn’t refresh. Try again.",
+    )
+  })
+
   it("starts wallet synchronization on signed-in load but keeps anonymous load lazy", async () => {
     const anonymousImporter = vi.fn<() => Promise<PrivyBridgeModule>>()
     installAccountAuthLazyLoader(accountDocument().documentRoot, anonymousImporter)
