@@ -16,15 +16,17 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
       username: "local_owner"
     ]
 
-    opts = [config: config, adapter: Adapter]
+    opts = [config: config, adapter: Adapter, expected_username: "local_owner", environment: %{}]
 
     assert :ok = LocalDatabaseFixture.setup_local!("task_flow", opts)
+    assert :ok = Adapter.add_product_activity()
     assert :ok = LocalDatabaseFixture.reset_local!("task_flow", opts)
     assert :ok = LocalDatabaseFixture.reset_local!("task_flow", opts)
 
     assert [
              {:create, ^config},
              {:prepare, ^config, "task_flow"},
+             :product_activity,
              {:exists?, ^config},
              {:verify_owned!, ^config, "task_flow"},
              {:drop, ^config},
@@ -38,6 +40,10 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
 
     assert_raise RuntimeError, ~r/14.20 or newer/, fn ->
       LocalDatabaseFixture.validate_postgres_version!("psql (PostgreSQL) 14.19")
+    end
+
+    assert_raise RuntimeError, ~r/could not determine/, fn ->
+      LocalDatabaseFixture.validate_postgres_version!("wrapper 99.99 psql (PostgreSQL) 14.20")
     end
   end
 
@@ -61,8 +67,34 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
       LocalDatabaseFixture.setup_local!("guarded",
         config: config,
         adapter: Adapter,
+        expected_username: "local_owner",
         env: :test,
         environment: %{"DATABASE_URL" => "postgres://remote.example/prod"}
+      )
+    end
+
+    assert_raise RuntimeError, ~r/remote environment configuration/, fn ->
+      LocalDatabaseFixture.setup_local!("guarded",
+        config: config,
+        adapter: Adapter,
+        expected_username: "local_owner",
+        env: :test,
+        environment: %{"DATABASE_POOLED_URL" => "postgres://remote.example/prod"}
+      )
+    end
+
+    assert Adapter.calls() == []
+  end
+
+  test "a configured role that differs from the macOS user is rejected before database access" do
+    config = local_config("wrong_role") |> Keyword.put(:username, "not_the_local_user")
+
+    assert_raise RuntimeError, ~r/unsafe acceptance database target/, fn ->
+      LocalDatabaseFixture.setup_local!("wrong_role",
+        config: config,
+        adapter: Adapter,
+        env: :test,
+        environment: %{}
       )
     end
 
@@ -76,6 +108,7 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
       LocalDatabaseFixture.setup_local!("interrupted",
         config: config,
         adapter: __MODULE__.FailingPrepareAdapter,
+        expected_username: "local_owner",
         env: :test,
         environment: %{}
       )
@@ -92,12 +125,50 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
       LocalDatabaseFixture.reset_local!("wrong_marker",
         config: config,
         adapter: __MODULE__.MarkerMismatchAdapter,
+        expected_username: "local_owner",
         env: :test,
         environment: %{}
       )
     end
 
     refute_received :dropped
+  end
+
+  test "reset refuses protected rows without dropping" do
+    config = local_config("protected_rows")
+
+    assert_raise RuntimeError, "local acceptance protected dataset mirror is not empty", fn ->
+      LocalDatabaseFixture.reset_local!("protected_rows",
+        config: config,
+        adapter: __MODULE__.ProtectedRowsAdapter,
+        expected_username: "local_owner",
+        env: :test,
+        environment: %{}
+      )
+    end
+
+    refute_received :dropped
+  end
+
+  test "ownership marker identity is independent from the recorded product baseline" do
+    assert :ok =
+             LocalDatabaseFixture.validate_ownership_marker!(
+               [["owned", "ash_platform_acceptance_owned", "local_owner"]],
+               "owned",
+               "ash_platform_acceptance_owned",
+               "local_owner"
+             )
+
+    for rows <- [[], [["other", "ash_platform_acceptance_owned", "local_owner"]]] do
+      assert_raise RuntimeError, ~r/ownership marker mismatch/, fn ->
+        LocalDatabaseFixture.validate_ownership_marker!(
+          rows,
+          "owned",
+          "ash_platform_acceptance_owned",
+          "local_owner"
+        )
+      end
+    end
   end
 
   defp local_config(run_id) do
@@ -127,6 +198,18 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
 
     def verify_owned!(_config, _run_id),
       do: raise("local acceptance database ownership marker mismatch")
+
+    def drop(_config) do
+      send(self(), :dropped)
+      :ok
+    end
+  end
+
+  defmodule ProtectedRowsAdapter do
+    def exists?(_config), do: true
+
+    def verify_owned!(_config, _run_id),
+      do: raise("local acceptance protected dataset mirror is not empty")
 
     def drop(_config) do
       send(self(), :dropped)

@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: bin/reset-local-acceptance <run-id>" >&2
+  exit 64
+fi
+
+run_id=$1
+if ! printf '%s\n' "$run_id" | grep -Eq '^[a-z0-9]([a-z0-9_]*[a-z0-9])?$' || [ "${#run_id}" -gt 39 ]; then
+  echo "run ID must be lowercase letters, numbers, and underscores" >&2
+  exit 64
+fi
+
+if [ -n "${DATABASE_URL:-}" ] || [ -n "${DATABASE_DIRECT_URL:-}" ] ||
+   [ -n "${DATABASE_POOLED_URL:-}" ] || [ -n "${FLY_APP_NAME:-}" ] ||
+   [ -n "${FLY_REGION:-}" ]; then
+  echo "remote database or deployment configuration is not allowed" >&2
+  exit 65
+fi
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root"
+export ASH_PLATFORM_ACCEPTANCE_RUN_ID=$run_id
+MIX_ENV=test mix ash_platform.reset_local --run-id "$run_id"

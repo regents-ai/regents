@@ -8,7 +8,13 @@ defmodule AshPlatform.LocalDatabaseFixture do
     basenames_mint_allowances
     basenames_payment_credits
   )
-  @remote_environment_keys ~w(DATABASE_URL DATABASE_DIRECT_URL FLY_APP_NAME FLY_REGION)
+  @remote_environment_keys ~w(
+    DATABASE_URL
+    DATABASE_DIRECT_URL
+    DATABASE_POOLED_URL
+    FLY_APP_NAME
+    FLY_REGION
+  )
 
   def local_acceptance_config!(run_id) do
     username = System.fetch_env!("USER")
@@ -28,40 +34,57 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
   def preflight_toolchain! do
     unless :os.type() == {:unix, :darwin}, do: raise("local acceptance requires Darwin")
-    require_command!("uname", ["-m"], "arm64")
-    require_command!("elixir", ["--version"], "Elixir 1.19.5")
+    validate_exact_output!("architecture", command_output!("uname", ["-m"]), "arm64")
 
-    require_command!(
-      "erl",
-      ["-noshell", "-eval", "io:format(\"~s\", [erlang:system_info(otp_release)]), halt()."],
-      "28"
-    )
+    elixir_version =
+      command_output!("elixir", ["--version"])
+      |> extract_version!(~r/^Elixir (\d+\.\d+\.\d+) /m, "Elixir")
 
-    require_command!("node", ["--version"], "v25.8.0")
-    require_command!("npm", ["--version"], "11.11.0")
-    {postgres_version, 0} = System.cmd("psql", ["--version"], stderr_to_stdout: true)
+    validate_exact_output!("Elixir", elixir_version, "1.19.5")
+
+    otp_version =
+      command_output!("erl", [
+        "-noshell",
+        "-eval",
+        "io:format(\"~s\", [erlang:system_info(otp_release)]), halt()."
+      ])
+
+    validate_exact_output!("Erlang/OTP", otp_version, "28")
+    validate_exact_output!("Node", command_output!("node", ["--version"]), "v25.8.0")
+    validate_exact_output!("npm", command_output!("npm", ["--version"]), "11.11.0")
+    postgres_version = command_output!("psql", ["--version"])
     validate_postgres_version!(postgres_version)
     :ok
   end
 
   def validate_postgres_version!(output) when is_binary(output) do
-    with [version] <- Regex.run(~r/\b(\d+\.\d+)(?:\.\d+)?\b/, output, capture: :all_but_first),
-         {:ok, parsed} <- Version.parse(version <> ".0"),
-         :lt <- Version.compare(parsed, Version.parse!("14.20.0")) do
-      raise "local acceptance requires PostgreSQL 14.20 or newer"
+    with [major, minor] <-
+           Regex.run(
+             ~r/\Apsql \(PostgreSQL\) (\d+)\.(\d+)(?:\.\d+)?(?:\s+[^\r\n]+)?\z/,
+             String.trim(output),
+             capture: :all_but_first
+           ),
+         {major, ""} <- Integer.parse(major),
+         {minor, ""} <- Integer.parse(minor),
+         true <- major > 14 or (major == 14 and minor >= 20) do
+      :ok
     else
-      [_, _ | _] -> raise "local acceptance could not determine PostgreSQL version"
-      nil -> raise "local acceptance could not determine PostgreSQL version"
-      {:error, _} -> raise "local acceptance could not determine PostgreSQL version"
-      _comparison -> :ok
+      false ->
+        raise "local acceptance requires PostgreSQL 14.20 or newer"
+
+      nil ->
+        raise "local acceptance could not determine PostgreSQL version"
+
+      _ ->
+        raise "local acceptance could not determine PostgreSQL version"
     end
   end
 
   def setup_local!(run_id, opts \\ []) do
     config = Keyword.get_lazy(opts, :config, fn -> local_acceptance_config!(run_id) end)
-    expected_username = Keyword.fetch!(config, :username) |> to_string()
     adapter = Keyword.get(opts, :adapter, __MODULE__.PostgresAdapter)
     env = Keyword.get_lazy(opts, :env, &current_env/0)
+    expected_username = expected_username!(opts, env, adapter)
 
     reject_remote_environment!(Keyword.get_lazy(opts, :environment, &System.get_env/0))
     validate_acceptance_target!(env, config, expected_username)
@@ -87,9 +110,9 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
   def reset_local!(run_id, opts \\ []) do
     config = Keyword.get_lazy(opts, :config, fn -> local_acceptance_config!(run_id) end)
-    expected_username = Keyword.fetch!(config, :username) |> to_string()
     adapter = Keyword.get(opts, :adapter, __MODULE__.PostgresAdapter)
     env = Keyword.get_lazy(opts, :env, &current_env/0)
+    expected_username = expected_username!(opts, env, adapter)
 
     reject_remote_environment!(Keyword.get_lazy(opts, :environment, &System.get_env/0))
     validate_acceptance_target!(env, config, expected_username)
@@ -158,24 +181,53 @@ defmodule AshPlatform.LocalDatabaseFixture do
     end
   end
 
+  def validate_ownership_marker!(rows, run_id, database, username) do
+    if rows == [[run_id, database, username]] do
+      :ok
+    else
+      raise "local acceptance database ownership marker mismatch"
+    end
+  end
+
   defp current_env do
     if Code.ensure_loaded?(Mix), do: Mix.env(), else: :prod
   end
 
   defp nonempty?(value), do: is_binary(value) and String.trim(value) != ""
 
-  defp require_command!(command, args, expected) do
-    case System.cmd(command, args, stderr_to_stdout: true) do
-      {output, 0} ->
-        unless String.contains?(output, expected) do
-          raise "local acceptance requires #{command} #{expected}"
-        end
+  defp expected_username!(opts, env, adapter) do
+    case Keyword.fetch(opts, :expected_username) do
+      {:ok, username}
+      when env == :test and adapter != __MODULE__.PostgresAdapter and is_binary(username) and
+             username != "" ->
+        username
 
-      {_output, _status} ->
-        raise "local acceptance requires #{command} #{expected}"
+      :error ->
+        System.fetch_env!("USER")
+
+      _ ->
+        raise "local acceptance fixture refused injected database role"
+    end
+  end
+
+  defp command_output!(command, args) do
+    case System.cmd(command, args, stderr_to_stdout: true) do
+      {output, 0} -> String.trim(output)
+      {_output, _status} -> raise "local acceptance requires #{command}"
     end
   rescue
-    ErlangError -> raise "local acceptance requires #{command} #{expected}"
+    ErlangError -> raise "local acceptance requires #{command}"
+  end
+
+  defp validate_exact_output!(name, actual, expected) do
+    if actual == expected, do: :ok, else: raise("local acceptance requires #{name} #{expected}")
+  end
+
+  defp extract_version!(output, pattern, name) do
+    case Regex.run(pattern, output, capture: :all_but_first) do
+      [version] -> version
+      _ -> raise "local acceptance could not determine #{name} version"
+    end
   end
 
   defp migrate_application_schema! do
@@ -239,7 +291,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, migration_versions text[] NOT NULL, seed_count bigint NOT NULL, seed_fingerprint text NOT NULL, empty_counts jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
+          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, database_name text NOT NULL, database_owner text NOT NULL, migration_versions text[] NOT NULL, seed_count bigint NOT NULL, seed_fingerprint text NOT NULL, empty_counts jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
           []
         )
 
@@ -247,7 +299,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "INSERT INTO acceptance_harness.baseline (run_id, migration_versions, seed_count, seed_fingerprint, empty_counts) VALUES ($1, $2, $3, $4, $5::jsonb)",
+          "INSERT INTO acceptance_harness.baseline (run_id, database_name, database_owner, migration_versions, seed_count, seed_fingerprint, empty_counts) VALUES ($1, current_database(), current_user, $2, $3, $4, $5::jsonb)",
           [run_id, versions, seed_count, seed_fingerprint, empty_counts]
         )
       end)
@@ -255,37 +307,51 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
     def verify_owned!(config, run_id) do
       with_repo(config, fn ->
-        stored =
+        marker =
           Ecto.Adapters.SQL.query!(
             AshPlatform.Repo,
-            "SELECT run_id, migration_versions, seed_count, seed_fingerprint, empty_counts FROM acceptance_harness.baseline",
+            "SELECT run_id, database_name, database_owner FROM acceptance_harness.baseline",
             []
           )
 
-        current = capture_baseline!()
+        AshPlatform.LocalDatabaseFixture.validate_ownership_marker!(
+          marker.rows,
+          run_id,
+          to_string(config[:database]),
+          to_string(config[:username])
+        )
 
-        unless stored.rows == [[run_id | Tuple.to_list(current)]] do
-          raise "local acceptance database ownership marker mismatch"
-        end
-
-        protected_humans =
+        protected_tables =
           Ecto.Adapters.SQL.query!(
             AshPlatform.Repo,
-            "SELECT count(*) FROM platform.platform_human_users",
-            []
-          )
+            "SELECT table_schema, table_name FROM information_schema.tables WHERE table_name = ANY($1)",
+            [
+              [
+                "platform_human_users",
+                "basenames_mints",
+                "basenames_mint_allowances",
+                "basenames_payment_credits"
+              ]
+            ]
+          ).rows
 
-        other_protected =
-          Ecto.Adapters.SQL.query!(
-            AshPlatform.Repo,
-            "SELECT table_name FROM information_schema.tables WHERE table_name = ANY($1)",
-            [["basenames_mints", "basenames_mint_allowances", "basenames_payment_credits"]]
-          )
+        Enum.each(protected_tables, fn [schema, table] ->
+          count =
+            Ecto.Adapters.SQL.query!(
+              AshPlatform.Repo,
+              "SELECT count(*) FROM #{quote_identifier(schema)}.#{quote_identifier(table)}",
+              []
+            )
 
-        unless protected_humans.rows == [[0]] and other_protected.rows == [] do
-          raise "local acceptance protected dataset mirror is not empty"
-        end
+          unless count.rows == [[0]] do
+            raise "local acceptance protected dataset mirror is not empty"
+          end
+        end)
       end)
+    end
+
+    defp quote_identifier(identifier) do
+      ~s("#{String.replace(identifier, "\"", "\"\"")}")
     end
 
     defp capture_baseline! do

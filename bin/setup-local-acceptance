@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eu
+
+expected_elixir_utils_commit=cbb09857065069590671e2cbabdd5ae0885a65c4
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: bin/setup-local-acceptance <run-id>" >&2
+  exit 64
+fi
+
+run_id=$1
+if ! printf '%s\n' "$run_id" | grep -Eq '^[a-z0-9]([a-z0-9_]*[a-z0-9])?$' || [ "${#run_id}" -gt 39 ]; then
+  echo "run ID must be lowercase letters, numbers, and underscores" >&2
+  exit 64
+fi
+
+if [ -n "${DATABASE_URL:-}" ] || [ -n "${DATABASE_DIRECT_URL:-}" ] ||
+   [ -n "${DATABASE_POOLED_URL:-}" ] || [ -n "${FLY_APP_NAME:-}" ] ||
+   [ -n "${FLY_REGION:-}" ]; then
+  echo "remote database or deployment configuration is not allowed" >&2
+  exit 65
+fi
+
+if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
+  echo "local acceptance requires Darwin arm64" >&2
+  exit 69
+fi
+
+for command in git mix elixir node npm psql; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "local acceptance requires $command" >&2
+    exit 69
+  }
+done
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root"
+
+actual_elixir_utils_commit=$(git -C ../elixir-utils rev-parse HEAD 2>/dev/null || true)
+if [ "$actual_elixir_utils_commit" != "$expected_elixir_utils_commit" ]; then
+  echo "../elixir-utils must be at $expected_elixir_utils_commit" >&2
+  exit 66
+fi
+
+export ASH_PLATFORM_ACCEPTANCE_RUN_ID=$run_id
+mix deps.get
+MIX_ENV=test mix ash_platform.setup_local --run-id "$run_id"

@@ -8,6 +8,7 @@ defmodule AshPlatform.TestLocalAcceptanceDatabaseAdapter do
   def start_link(initial \\ []), do: Agent.start_link(fn -> initial end, name: __MODULE__)
   def stop, do: Agent.stop(__MODULE__)
   def calls, do: Agent.get(__MODULE__, &Enum.reverse/1)
+  def add_product_activity, do: record(:product_activity, :ok)
 
   def create(config), do: record({:create, config}, :ok)
   def prepare(config, run_id), do: record({:prepare, config, run_id}, :ok)
