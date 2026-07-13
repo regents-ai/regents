@@ -1,19 +1,13 @@
 defmodule AshPlatformWeb.BoundaryTest do
   use ExUnit.Case, async: true
 
-  @forbidden_runtime_boundaries [
-    "DATABASE_URL",
-    "check_origin: false",
-    "../platform",
-    "/platform/"
-  ]
+  @forbidden_runtime_boundaries ["check_origin: false", "../platform", "/platform/"]
 
-  @excluded_product_surfaces ~w(
-    authentication privy provider billing payment wallet staking redemption
-    autolaunch xmtp siwa 0.25 .25
+  @excluded_techtree_surfaces ~w(
+    billing payment wallet staking redemption autolaunch xmtp siwa 0.25 .25
   )
 
-  test "the Techtree foundation has no old-platform or environment database boundary" do
+  test "the admitted application has no old-platform runtime boundary" do
     paths =
       ["mix.exs" | Path.wildcard("{config,lib,test}/**/*.{ex,exs,heex}")]
       |> List.delete(__ENV__.file |> Path.relative_to_cwd())
@@ -28,33 +22,45 @@ defmodule AshPlatformWeb.BoundaryTest do
   end
 
   test "the application starts only the admitted Repo and Ash domain" do
-    assert Application.fetch_env!(:ash_platform, :ash_domains) == [AshPlatform.Techtree]
+    assert Application.fetch_env!(:ash_platform, :ash_domains) == [
+             AshPlatform.Accounts,
+             AshPlatform.Formation,
+             AshPlatform.Techtree
+           ]
+
     assert Application.fetch_env!(:ash_platform, :ecto_repos) == [AshPlatform.Repo]
 
     children = Supervisor.which_children(AshPlatform.Supervisor)
     assert Enum.any?(children, fn {id, _pid, _type, _modules} -> id == AshPlatform.Repo end)
   end
 
-  test "the admitted database slice contains no excluded product surface" do
+  test "the Techtree slice contains no excluded product surface" do
     paths =
       Path.wildcard("lib/ash_platform/techtree/**/*.ex") ++
         [
           "lib/ash_platform/techtree.ex",
-          "lib/ash_platform/repo.ex",
-          "contracts/api-contract.openapiv3.yaml"
+          "lib/ash_platform/repo.ex"
         ]
 
     for path <- paths,
-        excluded <- @excluded_product_surfaces do
+        excluded <- @excluded_techtree_surfaces do
       refute path |> File.read!() |> String.downcase() =~ excluded,
              "#{path} contains excluded product surface #{excluded}"
     end
 
     contract = YamlElixir.read_from_file!("contracts/api-contract.openapiv3.yaml")
-    assert Map.keys(contract["paths"]) == ["/api/techtree/v1/tree/nodes"]
+
+    assert contract["paths"]
+           |> Map.keys()
+           |> Enum.sort() == [
+             "/api/techtree/v1/tree/nodes",
+             "/auth/csrf",
+             "/auth/privy/session",
+             "/auth/session"
+           ]
   end
 
-  test "the protected human-user table scaffold remains test infrastructure only" do
+  test "human identity is admitted through Accounts and guarded local setup" do
     fixture = File.read!("lib/ash_platform/local_database_fixture.ex")
 
     assert fixture =~ "CREATE TABLE IF NOT EXISTS platform.platform_human_users"
@@ -63,14 +69,18 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert fixture =~ "String.ends_with?(database, \"_dev\")"
     assert fixture =~ "String.ends_with?(database, \"_test\")"
 
-    assert Path.wildcard("lib/ash_platform/{accounts,auth,authentication}/**/*.{ex,exs}") == []
+    for variable <- ~w(DATABASE_URL DATABASE_DIRECT_URL DATABASE_POOLED_URL) do
+      assert fixture =~ variable
+    end
 
-    router = File.read!("lib/ash_platform_web/router.ex") |> String.downcase()
-    contract = File.read!("contracts/api-contract.openapiv3.yaml") |> String.downcase()
+    assert File.exists?("lib/ash_platform/accounts.ex")
+    assert File.exists?("lib/ash_platform/accounts/human_account.ex")
+    assert File.exists?("lib/ash_platform/accounts/verified_session.ex")
 
-    for product_surface <- ["accounts", "auth", "privy", "wallet"] do
-      refute router =~ product_surface
-      refute contract =~ product_surface
+    router = File.read!("lib/ash_platform_web/router.ex")
+
+    for route <- ["/auth/csrf", "/auth/privy/session", "/auth/session"] do
+      assert router =~ route
     end
   end
 
