@@ -66,6 +66,7 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
     "href",
     "/app",
   )
+  await page.locator("#app-selector summary").click()
 
   await page.evaluate(() => {
     const link = document.createElement("a")
