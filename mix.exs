@@ -42,7 +42,7 @@ defmodule AshPlatform.MixProject do
     [
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.2.6"},
+      {:phoenix_live_view, "~> 1.2.7"},
       {:ash, "~> 3.29.3"},
       {:simple_sat, "~> 0.1.4"},
       {:ash_postgres, "~> 2.10.0"},
