@@ -139,18 +139,18 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#route-content h1", "Techtree")
   end
 
-  test "same-tree Map and List controls are local buttons rather than navigation", %{conn: conn} do
+  test "same-tree Map and List controls are links with local presentation state", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/techtree/genebench-pro-reference-lab")
     render_async(view)
 
     assert has_element?(
              view,
-             ~s(a[data-tree-presentation="map"][data-tree-path="/techtree/genebench-pro-reference-lab"][aria-pressed="true"])
+             ~s(a[data-tree-presentation="map"][data-tree-path="/techtree/genebench-pro-reference-lab"][aria-current="true"])
            )
 
     assert has_element?(
              view,
-             ~s(a[data-tree-presentation="list"][data-tree-path="/techtree/genebench-pro-reference-lab"][aria-pressed="false"])
+             ~s|a[data-tree-presentation="list"][data-tree-path="/techtree/genebench-pro-reference-lab"]:not([aria-current])|
            )
 
     assert has_element?(

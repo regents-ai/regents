@@ -1,0 +1,128 @@
+/* Regent shell material tokens, derived from design-system/design_system_tokens.css. */
+:root {
+  color-scheme: dark;
+
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-sm: 4px;
+  --radius-shell: var(--radius-sm);
+  --radius-control: var(--radius-sm);
+
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --active-scale: 0.97;
+  --glass-blur: 9px;
+
+  --font-family-title: "GeistPixel Circle", "GeistPixel Square", ui-sans-serif, system-ui, sans-serif;
+  --font-family-ui: "Geist UI Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --tracking-microlabel: 0.14em;
+  --type-label-size: 14px;
+  --type-caption-size: 13px;
+
+  /* Canonical dark defaults keep the shell readable before theme authority runs. */
+  --color-bg: oklch(14.5% 0 0);
+  --color-surface: oklch(17.5% 0 0);
+  --color-surface-elevated: oklch(20.5% 0 0);
+  --color-border: oklch(32% 0 0);
+  --color-fg: oklch(97% 0 0);
+  --color-fg-muted: oklch(70.8% 0 0);
+  --color-accent: oklch(70% 0.12 238);
+  --color-fg-on-accent: oklch(14.5% 0 0);
+  --product-formation: oklch(68% 0.16 45);
+  --product-autolaunch: oklch(78% 0.17 155);
+  --product-techtree: oklch(72% 0.11 250);
+}
+
+:root[data-theme="light"] {
+  --color-bg: oklch(98.5% 0 0);
+  --color-surface: oklch(97% 0 0);
+  --color-surface-elevated: oklch(99.5% 0 0);
+  --color-border: oklch(86% 0 0);
+  --color-fg: oklch(22% 0 0);
+  --color-fg-muted: oklch(46% 0 0);
+  --color-accent: oklch(46% 0.12 238);
+  --color-fg-on-accent: oklch(98.5% 0 0);
+  --product-formation: oklch(52% 0.16 42);
+  --product-autolaunch: oklch(50% 0.15 155);
+  --product-techtree: oklch(45% 0.11 250);
+}
+
+:root[data-theme="dark"] {
+  --color-bg: oklch(14.5% 0 0);
+  --color-surface: oklch(17.5% 0 0);
+  --color-surface-elevated: oklch(20.5% 0 0);
+  --color-border: oklch(32% 0 0);
+  --color-fg: oklch(97% 0 0);
+  --color-fg-muted: oklch(70.8% 0 0);
+  --color-accent: oklch(70% 0.12 238);
+  --color-fg-on-accent: oklch(14.5% 0 0);
+  --product-formation: oklch(68% 0.16 45);
+  --product-autolaunch: oklch(78% 0.17 155);
+  --product-techtree: oklch(72% 0.11 250);
+}
+
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --hairline: color-mix(in oklch, var(--color-fg) 14%, transparent);
+  --hairline-strong: color-mix(in oklch, var(--color-fg) 26%, transparent);
+  --material-fill: linear-gradient(
+    145deg,
+    color-mix(in oklch, var(--color-surface-elevated) 97%, transparent),
+    color-mix(in oklch, var(--color-surface) 91%, transparent)
+  );
+  --material-fill-strong: linear-gradient(
+    145deg,
+    color-mix(in oklch, var(--color-surface-elevated) 99%, transparent),
+    color-mix(in oklch, var(--color-surface) 95%, transparent)
+  );
+  --material-stroke: linear-gradient(
+    145deg,
+    color-mix(in oklch, var(--color-fg) 26%, transparent),
+    color-mix(in oklch, var(--color-fg) 8%, transparent)
+  );
+  --material-shadow: 0 24px 56px -44px color-mix(in oklch, var(--color-fg) 34%, transparent);
+  --shell-scrim: color-mix(in oklch, var(--color-bg) 72%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --color-bg: oklch(98.5% 0 0);
+    --color-surface: oklch(97% 0 0);
+    --color-surface-elevated: oklch(99.5% 0 0);
+    --color-border: oklch(86% 0 0);
+    --color-fg: oklch(22% 0 0);
+    --color-fg-muted: oklch(46% 0 0);
+    --color-accent: oklch(46% 0.12 238);
+    --color-fg-on-accent: oklch(98.5% 0 0);
+    --product-formation: oklch(52% 0.16 42);
+    --product-autolaunch: oklch(50% 0.15 155);
+    --product-techtree: oklch(45% 0.11 250);
+  }
+}
+
+#app-shell[data-app="formation"] {
+  --shell-accent: var(--product-formation);
+}
+
+#app-shell[data-app="autolaunch"] {
+  --shell-accent: var(--product-autolaunch);
+}
+
+#app-shell[data-app="techtree"] {
+  --shell-accent: var(--product-techtree);
+}
+
+#app-shell[data-app="regent_ops"] {
+  --shell-accent: var(--color-accent);
+}

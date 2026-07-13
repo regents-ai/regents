@@ -23,11 +23,21 @@ type ShellHook = Hook & {
 
 let cachedShellState: ShellState | undefined
 
+function closeAppSelector(shell: HTMLElement): void {
+  const appSelector = shell.querySelector<HTMLDetailsElement>("#app-selector")
+  if (!appSelector) return
+  appSelector.open = false
+  appSelector.removeAttribute("open")
+}
+
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
     const root = document.documentElement
     const scroller = shell.querySelector<HTMLElement>("#app-shell-scroller")
+    const menuButton = shell.querySelector<HTMLButtonElement>("#mobile-menu-button")
+    const sidebar = shell.querySelector<HTMLElement>("#shell-sidebar")
+    const menuScrim = shell.querySelector<HTMLElement>("[data-shell-menu-scrim]")
     const colorPreference = window.matchMedia("(prefers-color-scheme: dark)")
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)")
 
@@ -52,9 +62,30 @@ const shellBehavior: Hook = {
       root.dataset.reducedMotion = motionPreference.matches ? "true" : "false"
     }
 
-    const closeMenu = () => {
+    const menuFocusables = () =>
+      Array.from(
+        sidebar?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter(element => !element.hidden && !element.inert)
+
+    const syncMenuAccessibility = (focusMenu = false, restoreFocus = false) => {
+      const menuOpen = this.shellState?.menuOpen === true
+      if (scroller) scroller.inert = menuOpen
+      if (menuScrim) menuScrim.hidden = !menuOpen
+
+      if (focusMenu && menuOpen) {
+        const [first] = menuFocusables()
+        ;(first ?? sidebar)?.focus()
+      }
+
+      if (restoreFocus && !menuOpen) menuButton?.focus()
+    }
+
+    const closeMenu = (restoreFocus = true) => {
       if (this.shellState) this.shellState.menuOpen = false
       this.restoreState?.()
+      syncMenuAccessibility(false, restoreFocus)
     }
 
     this.restoreState = () => {
@@ -65,17 +96,14 @@ const shellBehavior: Hook = {
       shell.dataset.presentation = state.presentation
       shell.dataset.formationPanel = state.formationPanel
       cachedShellState = state
-      shell
-        .querySelector<HTMLButtonElement>("#mobile-menu-button")
-        ?.setAttribute("aria-expanded", String(state.menuOpen))
+      menuButton?.setAttribute("aria-expanded", String(state.menuOpen))
+      syncMenuAccessibility()
       shell.querySelectorAll<HTMLAnchorElement>("[data-tree-presentation]").forEach(link => {
-        link.setAttribute(
-          "aria-pressed",
-          String(
-            link.dataset.treePath === state.destination &&
-              link.dataset.treePresentation === state.presentation,
-          ),
-        )
+        const selected =
+          link.dataset.treePath === state.destination &&
+          link.dataset.treePresentation === state.presentation
+        if (selected) link.setAttribute("aria-current", "true")
+        else link.removeAttribute("aria-current")
       })
       shell
         .querySelectorAll<HTMLButtonElement>("[data-formation-panel-choice]")
@@ -103,7 +131,11 @@ const shellBehavior: Hook = {
       if (target?.closest("#mobile-menu-button")) {
         if (this.shellState) this.shellState.menuOpen = !this.shellState.menuOpen
         this.restoreState?.()
+        syncMenuAccessibility(this.shellState?.menuOpen === true, true)
       }
+
+      if (target?.closest("[data-shell-menu-scrim], [data-shell-menu-close]")) closeMenu()
+      if (target?.closest("#app-selector-menu a")) closeAppSelector(shell)
 
       if (presentationLink) {
         const presentation = presentationLink.dataset.treePresentation
@@ -125,7 +157,25 @@ const shellBehavior: Hook = {
     const onKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && shell.dataset.menuOpen === "true") {
         closeMenu()
-        shell.querySelector<HTMLButtonElement>("#mobile-menu-button")?.focus()
+        return
+      }
+
+      if (event.key === "Tab" && shell.dataset.menuOpen === "true") {
+        const focusables = menuFocusables()
+        const first = focusables.at(0)
+        const last = focusables.at(-1)
+        if (!first || !last) return
+
+        if (!sidebar?.contains(document.activeElement)) {
+          event.preventDefault()
+          ;(event.shiftKey ? last : first).focus()
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -144,6 +194,8 @@ const shellBehavior: Hook = {
     shell.dataset.behaviorReady = "true"
 
     this.cleanup = () => {
+      if (scroller) scroller.inert = false
+      if (menuScrim) menuScrim.hidden = true
       shell.removeEventListener("click", onClick)
       shell.removeEventListener("keydown", onKeydown)
       colorPreference.removeEventListener("change", onColorChange)
@@ -169,6 +221,7 @@ const shellBehavior: Hook = {
       this.shellState = reconcileShellState(this.shellState, incoming)
     }
     this.restoreState?.()
+    closeAppSelector(this.el)
     this.el.dataset.behaviorReady = "true"
     if (shouldScroll) {
       this.el.querySelector<HTMLElement>("#app-shell-scroller")?.scrollTo({top: 0})

@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test"
+import {expect, test, type Page} from "@playwright/test"
 
 const shellRoutes = [
   "/app",
@@ -16,6 +16,11 @@ const shellRoutes = [
   "/stake",
   "/redeem",
 ]
+
+async function switchApplication(page: Page, label: string) {
+  await page.locator("#app-selector summary").click()
+  await page.locator("#app-selector-menu").getByRole("link", {name: label}).click()
+}
 
 test("all approved routes render within their page budget", async ({page, request}) => {
   const home = await request.get("/")
@@ -42,6 +47,25 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
   await expect(appSelector.getByRole("button", {name: "Sign In"})).toHaveCount(0)
   await expect(accountControl.getByRole("link", {name: "Formation"})).toHaveCount(0)
+
+  await page.locator("#app-selector summary").click()
+  await expect(appSelector.getByRole("link")).toHaveCount(4)
+  await expect(appSelector.getByRole("link", {name: "Formation"})).toHaveAttribute(
+    "href",
+    "/formation",
+  )
+  await expect(appSelector.getByRole("link", {name: "Autolaunch"})).toHaveAttribute(
+    "href",
+    "/autolaunch",
+  )
+  await expect(appSelector.getByRole("link", {name: "Techtree"})).toHaveAttribute(
+    "href",
+    "/techtree",
+  )
+  await expect(appSelector.getByRole("link", {name: "Regents Labs"})).toHaveAttribute(
+    "href",
+    "/app",
+  )
 
   await page.evaluate(() => {
     const link = document.createElement("a")
@@ -107,7 +131,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
 
-  await page.locator("#shell-header").getByRole("link", {name: "Techtree"}).click()
+  await switchApplication(page, "Techtree")
   await expect(page).toHaveURL(/\/techtree$/)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
 
@@ -116,7 +140,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
   ).toBe(true)
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
-  await page.locator("#shell-header").getByRole("link", {name: "Autolaunch"}).click()
+  await switchApplication(page, "Autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
   await page.evaluate(() => {
     document
@@ -179,34 +203,74 @@ test("Formation panels remain local and survive LiveView content patches", async
   await expect(page.locator("#app-shell")).toHaveAttribute("data-formation-panel", "billing")
 })
 
-test("theme and reduced-motion preferences apply immediately", async ({browser}) => {
+test("reduced motion applies immediately and Appearance stays out of the shell", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   await expect(page.locator("html")).toHaveAttribute("data-reduced-motion", "true")
-  await page.getByRole("button", {name: "Dark"}).click()
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
-  await page.reload()
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
   await context.close()
 })
 
-test("the 320px menu is keyboard closable and landmarks remain available", async ({page}) => {
+test("the 320px menu contains focus, isolates content, and closes without overflow", async ({
+  page,
+}) => {
   await page.setViewportSize({width: 320, height: 640})
   await page.goto("/techtree")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const menu = page.getByRole("button", {name: "Menu"})
+  const sidebar = page.getByRole("navigation", {name: "Context navigation"})
+  const scrim = page.getByRole("button", {name: "Close navigation"})
+  const scroller = page.locator("#app-shell-scroller")
+  const firstTarget = sidebar.getByRole("link", {
+    name: "GeneBench-Pro Reference Lab",
+    exact: true,
+  })
+  const lastTarget = sidebar.getByRole("link", {name: "Skill Training Lab list"})
+
   await menu.click()
   await expect(menu).toHaveAttribute("aria-expanded", "true")
-  await expect(page.getByRole("navigation", {name: "Context navigation"})).toBeVisible()
+  await expect(sidebar).toBeVisible()
+  await expect(scrim).toBeVisible()
+  await expect(firstTarget).toBeFocused()
+  expect(await scroller.evaluate(element => element.inert)).toBe(true)
+
+  await page.keyboard.press("Shift+Tab")
+  await expect(lastTarget).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(firstTarget).toBeFocused()
+
   await page.keyboard.press("Escape")
   await expect(menu).toHaveAttribute("aria-expanded", "false")
   await expect(menu).toBeFocused()
-  await expect(page.locator("#shell-sidebar")).toHaveCount(1)
-  await expect(page.locator("#shell-sidebar")).toBeHidden()
+  await expect(sidebar).toBeHidden()
+  await expect(scrim).toBeHidden()
+  expect(await scroller.evaluate(element => element.inert)).toBe(false)
+
+  await menu.click()
+  await expect(firstTarget).toBeFocused()
+  await firstTarget.click()
+  await expect(page).toHaveURL(/\/techtree\/genebench-pro-reference-lab$/)
+  await expect(menu).toHaveAttribute("aria-expanded", "false")
+  await expect(sidebar).toBeHidden()
+  await expect(menu).toBeFocused()
+
+  await menu.click()
+  await expect(scrim).toBeVisible()
+  await scrim.click({position: {x: 310, y: 20}})
+  await expect(menu).toHaveAttribute("aria-expanded", "false")
+  await expect(menu).toBeFocused()
+  await expect(scrim).toBeHidden()
+
+  expect(
+    await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    })),
+  ).toEqual({documentWidth: 320, viewportWidth: 320})
   await expect(page.getByRole("banner")).toHaveCount(1)
   await expect(page.getByRole("main")).toHaveCount(1)
 })
@@ -215,7 +279,11 @@ test("content errors and crashes do not remove shell controls", async ({page}) =
   for (const route of ["/regents/fixture-error", "/regents/fixture-crash"]) {
     await page.goto(route)
     await expect(page.getByRole("alert")).toContainText("could not be loaded")
-    await expect(page.locator("#shell-header").getByRole("link", {name: "Techtree"})).toBeVisible()
-    await expect(page.getByRole("button", {name: "System"})).toBeVisible()
+    await expect(page.locator("#app-selector summary")).toBeVisible()
+    await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
+    await page.locator("#app-selector summary").click()
+    await expect(
+      page.locator("#app-selector-menu").getByRole("link", {name: "Techtree"}),
+    ).toBeVisible()
   }
 })

@@ -1,3 +1,5 @@
+@import "./tokens/material.css";
+@import "./components/shell.css";
 @import "./pages/home.css";
 @import "./pages/settings.css";
 @import "./components/account_auth_status.css";
