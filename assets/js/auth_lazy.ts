@@ -74,13 +74,13 @@ export function createLazyAuthLoader(
 
     const request = pending
     pending = null
-    const attempt = handle
-      .request(request)
-      .finally(() => {
-        if (delivering?.promise === attempt) delivering = null
-      })
-      .then(deliverPending)
+    const attempt = handle.request(request)
+    const settle = () => {
+      if (delivering?.promise === attempt) delivering = null
+      void deliverPending().catch(() => undefined)
+    }
     delivering = {request, promise: attempt}
+    void attempt.then(settle, settle)
     return attempt
   }
 
