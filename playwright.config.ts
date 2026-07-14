@@ -2,7 +2,8 @@ import {defineConfig, devices} from "@playwright/test"
 
 export default defineConfig({
   testDir: "./test/browser",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   reporter: "line",
@@ -11,7 +12,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "MIX_ENV=test ASH_PLATFORM_BROWSER_TEST=1 mix phx.server",
+    command:
+      "MIX_ENV=test mix ash_platform.seed_browser_comments && MIX_ENV=test ASH_PLATFORM_BROWSER_TEST=1 mix phx.server",
     url: "http://127.0.0.1:4002/",
     reuseExistingServer: false,
     timeout: 120_000,
