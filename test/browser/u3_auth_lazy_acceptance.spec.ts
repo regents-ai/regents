@@ -98,12 +98,17 @@ test("sign-in retries failed deferred bridge loads with fresh module URLs", asyn
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const status = page.locator("#account-auth-status")
 
   await page.getByRole("button", {name: "Sign In"}).click()
   await expect.poll(() => bridgeRequests.length).toBe(1)
+  await expect(status).toBeVisible()
+  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
 
   await page.getByRole("button", {name: "Sign In"}).click()
   await expect.poll(() => bridgeRequests.length).toBe(2)
+  await expect(status).toBeVisible()
+  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
 
   await page.getByRole("button", {name: "Sign In"}).click()
   await expect
@@ -113,6 +118,8 @@ test("sign-in retries failed deferred bridge loads with fresh module URLs", asyn
       ),
     )
     .toEqual(["sign-in"])
+  await expect(status).toBeHidden()
+  await expect(status).toHaveText("")
 
   expect(bridgeRequests).toHaveLength(3)
   expect(

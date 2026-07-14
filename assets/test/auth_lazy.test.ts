@@ -113,6 +113,37 @@ describe("lazy browser authentication", () => {
     expect(order).toEqual(["local", "provider", "reload"])
   })
 
+  it("processes queued sign out after an in-flight sync rejects", async () => {
+    let rejectSync: ((error: Error) => void) | undefined
+    const handleRequest = vi.fn(
+      (request: AccountRequest) =>
+        request === "sync"
+          ? new Promise<void>((_resolve, reject) => {
+              rejectSync = reject
+            })
+          : Promise.resolve(),
+    )
+    const loader = createLazyAuthLoader(
+      vi.fn(async () => ({
+        startPrivyBridge: vi.fn(async () => ({request: handleRequest})),
+      })),
+    )
+
+    const sync = loader.request("sync")
+    const syncFailure = expect(sync).rejects.toThrow("wallet sync failed")
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sync"))
+
+    const signOut = loader.request("sign-out")
+    rejectSync?.(new Error("wallet sync failed"))
+
+    await syncFailure
+    await expect(signOut).resolves.toBeUndefined()
+    expect(handleRequest.mock.calls.map(([request]) => request)).toEqual([
+      "sync",
+      "sign-out",
+    ])
+  })
+
   it("retries the fixed server-owned bridge URL and starts exactly once", async () => {
     const handleRequest = vi.fn(async () => undefined)
     const startPrivyBridge = vi.fn(async () => ({request: handleRequest}))

@@ -64,12 +64,13 @@ export function createLazyAuthLoader(
   let delivering: {request: AccountRequest; promise: Promise<void>} | null = null
 
   const deliverPending = (): Promise<void> => {
-    if (!handle || !pending) return Promise.resolve()
+    if (!handle) return Promise.resolve()
     if (delivering) {
-      return delivering.request === pending
+      return pending === null || delivering.request === pending
         ? delivering.promise
-        : delivering.promise.then(deliverPending)
+        : delivering.promise.then(deliverPending, deliverPending)
     }
+    if (!pending) return Promise.resolve()
 
     const request = pending
     pending = null
