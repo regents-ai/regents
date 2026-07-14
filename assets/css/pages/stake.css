@@ -1,0 +1,90 @@
+.stake-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.stake-heading,
+.stake-actions,
+.stake-summary,
+.stake-review {
+  border: 1px solid var(--hairline, color-mix(in srgb, currentColor 18%, transparent));
+  background: var(--color-surface-elevated, Canvas);
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.stake-heading h1,
+.stake-review h2,
+.stake-actions h2 {
+  margin-block: 0.25rem 0.5rem;
+}
+
+.stake-kicker,
+.stake-metric dt,
+.stake-review dt {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stake-layout,
+.stake-summary,
+.stake-actions,
+.stake-review,
+.stake-review dl {
+  display: grid;
+  gap: 1rem;
+}
+
+.stake-layout {
+  grid-template-columns: minmax(14rem, 0.8fr) minmax(18rem, 1.2fr);
+}
+
+.stake-metric,
+.stake-review dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--hairline, color-mix(in srgb, currentColor 18%, transparent));
+  padding-bottom: 0.75rem;
+}
+
+.stake-metric dd,
+.stake-review dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.stake-actions form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.stake-actions input {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.stake-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stake-notice,
+.stake-status {
+  border-left: 3px solid var(--color-accent, currentColor);
+  margin: 0;
+  padding: 0.75rem;
+}
+
+.stake-mono {
+  font-family: var(--font-family-mono, monospace);
+}
+
+@media (max-width: 48rem) {
+  .stake-layout {
+    grid-template-columns: 1fr;
+  }
+}
