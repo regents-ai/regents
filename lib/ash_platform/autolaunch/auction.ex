@@ -1,0 +1,82 @@
+defmodule AshPlatform.Autolaunch.Auction do
+  use Ash.Resource,
+    otp_app: :ash_platform,
+    domain: AshPlatform.Autolaunch,
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
+
+  attributes do
+    uuid_primary_key :id
+
+    attribute :title, :string do
+      allow_nil? false
+      public? true
+      constraints min_length: 1, max_length: 160, trim?: true
+    end
+
+    attribute :summary, :string do
+      public? true
+      constraints max_length: 2_000, trim?: true
+    end
+
+    attribute :featured, :boolean do
+      allow_nil? false
+      public? true
+      default false
+    end
+
+    attribute :state, :atom do
+      allow_nil? false
+      public? true
+      default :created
+      constraints one_of: [:created, :active, :graduated, :failed]
+    end
+
+    attribute :opened_at, :utc_datetime_usec do
+      public? true
+    end
+
+    timestamps()
+  end
+
+  actions do
+    read :list_public do
+      prepare build(sort: [inserted_at: :desc, id: :asc])
+    end
+
+    read :recent_public do
+      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 12)
+    end
+
+    read :featured_public do
+      filter expr(featured == true)
+      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 6)
+    end
+
+    read :public_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
+    create :import_public do
+      accept [:title, :summary, :featured, :state, :opened_at]
+    end
+  end
+
+  policies do
+    policy action([:list_public, :recent_public, :featured_public, :public_by_id]) do
+      authorize_if always()
+    end
+
+    policy action(:import_public) do
+      authorize_if AshPlatform.Checks.SystemActor
+    end
+  end
+
+  postgres do
+    table "auctions"
+    schema("autolaunch")
+    repo(AshPlatform.Repo)
+  end
+end
