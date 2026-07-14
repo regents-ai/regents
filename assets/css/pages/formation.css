@@ -1,0 +1,216 @@
+.formation-page,
+.formation-panel,
+.formation-heading,
+.formation-empty,
+.formation-cloud-runtime {
+  display: grid;
+  gap: 1rem;
+}
+
+.formation-panel {
+  display: none;
+}
+
+#app-shell[data-formation-panel="overview"] [data-formation-panel-content="overview"],
+#app-shell[data-formation-panel="cloud"] [data-formation-panel-content="cloud"],
+#app-shell[data-formation-panel="hermes_skills"] [data-formation-panel-content="hermes_skills"],
+#app-shell[data-formation-panel="billing"] [data-formation-panel-content="billing"] {
+  display: grid;
+}
+
+.formation-heading,
+.formation-account,
+.formation-empty,
+.formation-cloud-runtime,
+.formation-stages {
+  border: 1px solid transparent;
+  border-radius: var(--material-radius, 4px);
+  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(var(--material-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+}
+
+.formation-heading,
+.formation-account,
+.formation-empty,
+.formation-cloud-runtime {
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+
+.formation-account > div,
+.formation-form,
+.formation-form label {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.formation-form {
+  max-width: 38rem;
+  margin-top: 1.25rem;
+}
+
+.formation-form label > span:first-child,
+.formation-slug-field > span {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+}
+
+.formation-form input,
+.formation-form textarea,
+.formation-form button {
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  font: inherit;
+}
+
+.formation-empty button,
+.formation-cloud-runtime button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  font: inherit;
+  cursor: pointer;
+}
+
+.formation-cloud-runtime dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  background: var(--hairline);
+}
+
+.formation-cloud-runtime dl > div {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--color-surface-elevated);
+}
+
+.formation-cloud-runtime dt {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formation-cloud-runtime dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.formation-form input,
+.formation-form textarea {
+  width: 100%;
+  padding: 0.75rem;
+}
+
+.formation-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.formation-form button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+}
+
+.formation-slug-field {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formation-notice {
+  margin-top: 1rem;
+}
+
+.formation-notice--error {
+  font-weight: 650;
+}
+
+.formation-heading > *,
+.formation-account > *,
+.formation-empty > *,
+.formation-cloud-runtime > * {
+  margin-block: 0;
+}
+
+.formation-heading h1,
+.formation-empty h2 {
+  margin-block: 0.25rem;
+}
+
+.formation-kicker,
+.formation-stages > li > span {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.formation-stages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  overflow: hidden;
+  list-style: none;
+  background-color: var(--hairline);
+}
+
+.formation-stages li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--color-surface-elevated);
+}
+
+.formation-stages h2,
+.formation-stages p {
+  margin: 0;
+}
+
+.formation-stages p {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 44rem) {
+  .formation-stages {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-cloud-runtime dl {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-slug-field {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .formation-heading,
+  .formation-account,
+  .formation-empty,
+  .formation-cloud-runtime,
+  .formation-stages {
+    background: var(--color-surface-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
