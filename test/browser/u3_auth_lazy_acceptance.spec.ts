@@ -3,6 +3,36 @@ import {expect, test} from "@playwright/test"
 const bridgePattern =
   /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
 
+const retryViewports = [
+  {name: "desktop", width: 1280, height: 720},
+  {name: "narrow", width: 320, height: 720},
+] as const
+
+async function expectStatusAnchored(
+  page: import("@playwright/test").Page,
+  headerHeight: number,
+) {
+  const status = page.locator("#account-auth-status")
+  await expect(status).toHaveCSS("position", "absolute")
+
+  const statusBox = await status.boundingBox()
+  const accountBox = await page.locator("#account-control").boundingBox()
+  const currentHeaderBox = await page.locator("#shell-header").boundingBox()
+
+  expect(statusBox).not.toBeNull()
+  expect(accountBox).not.toBeNull()
+  expect(currentHeaderBox).not.toBeNull()
+  expect(currentHeaderBox?.height).toBe(headerHeight)
+  expect(statusBox?.y).toBeGreaterThanOrEqual((accountBox?.y ?? 0) + (accountBox?.height ?? 0))
+  expect(statusBox?.x).toBeGreaterThanOrEqual(0)
+  expect((statusBox?.x ?? 0) + (statusBox?.width ?? 0)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerWidth),
+  )
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+}
+
 const bridgeStub = `
 export async function startPrivyBridge() {
   return {
@@ -80,57 +110,65 @@ test("a production-like digested bridge source remains same-origin and callable"
     .toEqual(["sign-in"])
 })
 
-test("sign-in retries failed deferred bridge loads with fresh module URLs", async ({page}) => {
-  const bridgeRequests: string[] = []
-  await page.addInitScript(() => {
-    ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
-  })
-  await page.route(bridgePattern, async route => {
-    const url = route.request().url()
-    bridgeRequests.push(url)
-    const retry = new URL(url).searchParams.get("regent_retry")
-    if (retry === "0" || retry === "1") {
-      await route.fulfill({status: 503, body: "deferred bridge unavailable"})
-      return
-    }
-    await route.fulfill({body: bridgeStub, contentType: "application/javascript"})
-  })
+for (const viewport of retryViewports) {
+  test(`sign-in retries failed deferred bridge loads at ${viewport.name} width`, async ({page}) => {
+    const bridgeRequests: string[] = []
+    await page.setViewportSize({width: viewport.width, height: viewport.height})
+    await page.addInitScript(() => {
+      ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
+    })
+    await page.route(bridgePattern, async route => {
+      const url = route.request().url()
+      bridgeRequests.push(url)
+      const retry = new URL(url).searchParams.get("regent_retry")
+      if (retry === "0" || retry === "1") {
+        await route.fulfill({status: 503, body: "deferred bridge unavailable"})
+        return
+      }
+      await route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+    })
 
-  await page.goto("/app")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  const status = page.locator("#account-auth-status")
+    await page.goto("/app")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    await page.evaluate(() => document.fonts.ready)
+    const headerHeight = (await page.locator("#shell-header").boundingBox())?.height
+    expect(headerHeight).toBeDefined()
+    const status = page.locator("#account-auth-status")
 
-  await page.getByRole("button", {name: "Sign In"}).click()
-  await expect.poll(() => bridgeRequests.length).toBe(1)
-  await expect(status).toBeVisible()
-  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await page.getByRole("button", {name: "Sign In"}).click()
+    await expect.poll(() => bridgeRequests.length).toBe(1)
+    await expect(status).toBeVisible()
+    await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await expectStatusAnchored(page, headerHeight ?? 0)
 
-  await page.getByRole("button", {name: "Sign In"}).click()
-  await expect.poll(() => bridgeRequests.length).toBe(2)
-  await expect(status).toBeVisible()
-  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await page.getByRole("button", {name: "Sign In"}).click()
+    await expect.poll(() => bridgeRequests.length).toBe(2)
+    await expect(status).toBeVisible()
+    await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await expectStatusAnchored(page, headerHeight ?? 0)
 
-  await page.getByRole("button", {name: "Sign In"}).click()
-  await expect
-    .poll(() =>
-      page.evaluate(
+    await page.getByRole("button", {name: "Sign In"}).click()
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
+        ),
+      )
+      .toEqual(["sign-in"])
+    await expect(status).toBeHidden()
+    await expect(status).toHaveText("")
+
+    expect(bridgeRequests).toHaveLength(3)
+    expect(
+      [...new Set(bridgeRequests.map(url => new URL(url).searchParams.get("regent_retry")))],
+    ).toEqual(["0", "1", "2"])
+    expect(
+      await page.evaluate(
         () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
       ),
-    )
-    .toEqual(["sign-in"])
-  await expect(status).toBeHidden()
-  await expect(status).toHaveText("")
-
-  expect(bridgeRequests).toHaveLength(3)
-  expect(
-    [...new Set(bridgeRequests.map(url => new URL(url).searchParams.get("regent_retry")))],
-  ).toEqual(["0", "1", "2"])
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
-    ),
-  ).toEqual(["sign-in"])
-})
+    ).toEqual(["sign-in"])
+  })
+}
 
 test("signed-in direct load requests sync without clearing or reloading", async ({page}) => {
   let bridgeRequests = 0
