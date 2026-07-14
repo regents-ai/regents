@@ -9,10 +9,46 @@ import {
 import React from "react"
 import {createRoot} from "react-dom/client"
 
+import type {AccountRequest, PrivyBridgeHandle} from "./auth_lazy"
 import {
   replaceConnectedEthereumWallets,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
+
+type AccountRequestHandlerOptions = {
+  requestLogin: () => void
+  clearSession: () => Promise<void>
+  providerLogout: () => Promise<void>
+  reload: () => void
+  synchronizeWallets: () => Promise<void>
+}
+
+export function createAccountRequestHandler({
+  requestLogin,
+  clearSession,
+  providerLogout,
+  reload,
+  synchronizeWallets,
+}: AccountRequestHandlerOptions): (request: AccountRequest) => Promise<void> {
+  return async request => {
+    if (request === "sign-in") {
+      requestLogin()
+      return
+    }
+
+    if (request === "sync") {
+      await synchronizeWallets()
+      return
+    }
+
+    await clearSession()
+    try {
+      await providerLogout()
+    } finally {
+      reload()
+    }
+  }
+}
 
 export async function csrfToken(fetcher: typeof fetch = fetch): Promise<string> {
   const response = await fetcher("/auth/csrf", {credentials: "same-origin"})
@@ -119,7 +155,14 @@ export function createReadyLoginGate(login: () => void) {
   }
 }
 
-function AccountBridge() {
+type AccountBridgeProps = {
+  publishRequestHandler: (
+    requestHandler: PrivyBridgeHandle["request"],
+    ready: boolean,
+  ) => void
+}
+
+function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
   const {authenticated, logout, ready} = usePrivy()
   const {wallets} = useWallets()
   const completeLogin = React.useMemo(
@@ -142,6 +185,7 @@ function AccountBridge() {
   )
   const {login} = useLogin(loginCallbacks)
   const loginGate = React.useMemo(() => createReadyLoginGate(login), [login])
+  const walletSyncGeneration = React.useRef(0)
 
   React.useEffect(() => loginGate.setReady(ready), [loginGate, ready])
 
@@ -153,72 +197,86 @@ function AccountBridge() {
     })
   }, [authenticated, completeLogin, getAccessToken, ready])
 
-  React.useEffect(() => {
-    if (!authenticated) {
-      replaceConnectedEthereumWallets([])
-      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-    }
-  }, [authenticated])
-
-  React.useEffect(() => {
-    let cancelled = false
-    if (!ready || wallets.length === 0) {
+  const synchronizeWallets = React.useCallback(async () => {
+    const generation = ++walletSyncGeneration.current
+    if (!ready || !authenticated || wallets.length === 0) {
       replaceConnectedEthereumWallets([])
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
       return
     }
 
-    void Promise.all(
-      wallets.map(async wallet => [wallet.address.toLowerCase(), (await wallet.getEthereumProvider()) as EthereumProvider] as const),
-    ).then(entries => {
-      if (cancelled) return
-      replaceConnectedEthereumWallets(entries)
-      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [ready, wallets])
+    const entries = await Promise.all(
+      wallets.map(
+        async wallet =>
+          [
+            wallet.address.toLowerCase(),
+            (await wallet.getEthereumProvider()) as EthereumProvider,
+          ] as const,
+      ),
+    )
+    if (walletSyncGeneration.current !== generation) return
+    replaceConnectedEthereumWallets(entries)
+    window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+  }, [authenticated, ready, wallets])
 
   React.useEffect(() => {
-    const control = document.querySelector<HTMLElement>("#account-control")
-    if (!control) return
-
-    const onClick = async (event: Event) => {
-      const target = event.target instanceof Element ? event.target : null
-
-      if (target?.closest("[data-account-target='sign-in']")) {
-        loginGate.requestLogin()
-        return
-      }
-
-      if (target?.closest("[data-account-target='sign-out']")) {
-        await clearLocalSession()
-        try {
-          await logout()
-        } finally {
-          window.location.reload()
-        }
-      }
+    void synchronizeWallets()
+    return () => {
+      walletSyncGeneration.current += 1
     }
+  }, [synchronizeWallets])
 
-    control.addEventListener("click", onClick)
-    return () => control.removeEventListener("click", onClick)
-  }, [loginGate, logout])
+  const requestHandler = React.useMemo(
+    () =>
+      createAccountRequestHandler({
+        requestLogin: loginGate.requestLogin,
+        clearSession: clearLocalSession,
+        providerLogout: logout,
+        reload: () => window.location.reload(),
+        synchronizeWallets,
+      }),
+    [loginGate, logout, synchronizeWallets],
+  )
+
+  React.useEffect(
+    () => publishRequestHandler(requestHandler, ready),
+    [publishRequestHandler, ready, requestHandler],
+  )
 
   return null
 }
 
-export function startPrivyBridge(): void {
+export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
   const appId = document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
-  if (!appId) return
+  if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
   const host = document.createElement("div")
   host.hidden = true
   document.body.append(host)
-  createRoot(host).render(
-    <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
-      <AccountBridge />
-    </PrivyProvider>,
-  )
+
+  return new Promise(resolve => {
+    let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
+    let resolved = false
+    const handle: PrivyBridgeHandle = {
+      request(request) {
+        return currentRequestHandler
+          ? currentRequestHandler(request)
+          : Promise.reject(new Error("Privy bridge is not ready"))
+      },
+    }
+    const publishRequestHandler: AccountBridgeProps["publishRequestHandler"] = (
+      requestHandler,
+      ready,
+    ) => {
+      currentRequestHandler = requestHandler
+      if (!ready || resolved) return
+      resolved = true
+      resolve(handle)
+    }
+
+    createRoot(host).render(
+      <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
+        <AccountBridge publishRequestHandler={publishRequestHandler} />
+      </PrivyProvider>,
+    )
+  })
 }

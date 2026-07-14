@@ -9,6 +9,7 @@ import {
 const {
   clearLocalSession,
   createLocalSession,
+  createAccountRequestHandler,
   createPrivyLoginCallbacks,
   createReadyLoginGate,
   createPrivySessionCompletion,
@@ -16,6 +17,29 @@ const {
 } = bridge
 
 describe("Privy session bridge", () => {
+  it("synchronizes wallets without changing the local or provider session", async () => {
+    const requestLogin = vi.fn()
+    const clearSession = vi.fn(async () => undefined)
+    const providerLogout = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    const synchronizeWallets = vi.fn(async () => undefined)
+    const request = createAccountRequestHandler({
+      requestLogin,
+      clearSession,
+      providerLogout,
+      reload,
+      synchronizeWallets,
+    })
+
+    await request("sync")
+
+    expect(synchronizeWallets).toHaveBeenCalledOnce()
+    expect(requestLogin).not.toHaveBeenCalled()
+    expect(clearSession).not.toHaveBeenCalled()
+    expect(providerLogout).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
   it("retains the first sign-in click until Privy is ready", () => {
     const login = vi.fn()
     const gate = createReadyLoginGate(login)
@@ -135,6 +159,26 @@ describe("Privy session bridge", () => {
       "/auth/privy/session",
       expect.objectContaining({method: "DELETE"}),
     )
+  })
+
+  it("reloads once after provider logout fails, without changing sign-out order", async () => {
+    const order: string[] = []
+    const request = createAccountRequestHandler({
+      requestLogin: vi.fn(),
+      clearSession: vi.fn(async () => {
+        order.push("local")
+      }),
+      providerLogout: vi.fn(async () => {
+        order.push("provider")
+        throw new Error("provider unavailable")
+      }),
+      reload: vi.fn(() => order.push("reload")),
+      synchronizeWallets: vi.fn(async () => undefined),
+    })
+
+    await expect(request("sign-out")).rejects.toThrow("provider unavailable")
+
+    expect(order).toEqual(["local", "provider", "reload"])
   })
 
   it("does not own or inject server-rendered account markup", () => {

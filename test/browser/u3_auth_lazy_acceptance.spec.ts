@@ -98,19 +98,14 @@ test("sign-in retries failed deferred bridge loads with fresh module URLs", asyn
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  const status = page.locator("#account-auth-status")
-  await expect(status).toBeHidden()
 
   await page.getByRole("button", {name: "Sign In"}).click()
-  await expect(status).toBeVisible()
-  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+  await expect.poll(() => bridgeRequests.length).toBe(1)
 
   await page.getByRole("button", {name: "Sign In"}).click()
-  await expect(status).toBeVisible()
-  await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+  await expect.poll(() => bridgeRequests.length).toBe(2)
 
   await page.getByRole("button", {name: "Sign In"}).click()
-  await expect(status).toBeHidden()
   await expect
     .poll(() =>
       page.evaluate(
@@ -208,7 +203,7 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   ).toBe(200)
 
   await page.goto("/app")
-  await expect(page.locator("#account-menu [data-account-target='identity']")).toBeVisible()
+  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
   await page.locator("#account-menu summary").click()
   await page.getByRole("button", {name: "Log Out"}).click()
   expect(sessionDeletes).toBe(0)

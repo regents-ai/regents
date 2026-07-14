@@ -164,7 +164,7 @@ export function installAccountAuthLazyLoader(
   }
 
   documentRoot.addEventListener("click", onClick)
-  if (documentRoot.querySelector("#account-control [data-account-target='identity']")) {
+  if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
     request("sync")
   }
   return () => documentRoot.removeEventListener("click", onClick)

@@ -37,8 +37,8 @@ function accountDocument({
         return bridgeSource === null ? null : {content: bridgeSource}
       }
       if (selector === "#account-auth-status") return status
-      if (selector === "#account-control [data-account-target='identity']") {
-        return signedIn ? new AccountElement("identity") : null
+      if (selector === "#account-control [data-account-target='sign-out']") {
+        return signedIn ? new AccountElement("sign-out") : null
       }
       return null
     },
@@ -81,6 +81,7 @@ describe("lazy browser authentication", () => {
           order.push("provider")
         }),
         reload: vi.fn(() => order.push("reload")),
+        synchronizeWallets: vi.fn(async () => undefined),
       }),
     )
     const startPrivyBridge = vi.fn(
