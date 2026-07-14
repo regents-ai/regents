@@ -1,86 +1,236 @@
 defmodule AshPlatformWeb.BoundaryTest do
   use ExUnit.Case, async: true
 
-  @forbidden_runtime_boundaries ["check_origin: false", "../platform", "/platform/"]
+  @forbidden ["check_origin: false", "../platform", "/platform/"]
 
-  @excluded_techtree_surfaces ~w(
-    billing payment wallet staking redemption autolaunch xmtp siwa 0.25 .25
-  )
-
-  test "the admitted application has no old-platform runtime boundary" do
+  test "auth has no production database shortcut or old-platform dependency" do
     paths =
       ["mix.exs" | Path.wildcard("{config,lib,test}/**/*.{ex,exs,heex}")]
       |> List.delete(__ENV__.file |> Path.relative_to_cwd())
 
     for path <- paths,
-        forbidden <- @forbidden_runtime_boundaries do
+        forbidden <- @forbidden do
       refute File.read!(path) =~ forbidden, "#{path} contains forbidden boundary #{forbidden}"
     end
-
-    assert File.exists?("lib/ash_platform/repo.ex")
-    assert Path.wildcard("priv/repo/migrations/*") != []
   end
 
-  test "the application starts only the admitted Repo and Ash domain" do
+  test "the only application migrations are the admitted additive tables" do
+    assert [regent_migration] = Path.wildcard("priv/repo/migrations/*_create_regents.exs")
+
+    assert [techtree_migration] =
+             Path.wildcard("priv/repo/migrations/*_create_techtree_trees_and_nodes.exs")
+
+    assert [autolaunch_migration] =
+             Path.wildcard("priv/repo/migrations/*_create_autolaunch_auctions_and_tokens.exs")
+
+    assert [comments_migration] =
+             Path.wildcard("priv/repo/migrations/*_create_record_comments.exs")
+
+    assert [comment_reactions_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_techtree_comment_reactions.exs")
+
+    assert [notebook_artifacts_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_techtree_notebook_artifacts.exs")
+
+    assert [launch_drafts_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_launch_drafts.exs")
+
+    assert [cloud_runtimes_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
+
+    assert [public_profile_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_public_regent_profile_projection.exs")
+
+    assert [billing_kernel_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_prepaid_authorization_kernel.exs")
+
+    assert [ash_functions_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_install_ash_functions_for_billing_extensions_1.exs"
+             )
+
+    assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
+             Enum.sort([
+               regent_migration,
+               techtree_migration,
+               autolaunch_migration,
+               comments_migration,
+               comment_reactions_migration,
+               notebook_artifacts_migration,
+               launch_drafts_migration,
+               cloud_runtimes_migration,
+               public_profile_migration,
+               billing_kernel_migration,
+               ash_functions_migration
+             ])
+
+    assert_additive_migration(
+      regent_migration,
+      [
+        "create table(:regents",
+        "references(:platform_human_users"
+      ],
+      []
+    )
+
+    assert_additive_migration(
+      techtree_migration,
+      [
+        "create table(:trees",
+        "create table(:nodes",
+        "references(:trees",
+        ~s(prefix: "techtree")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS techtree"]
+    )
+
+    assert_additive_migration(
+      autolaunch_migration,
+      [
+        "create table(:auctions",
+        "create table(:tokens",
+        "references(:auctions",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      comments_migration,
+      [
+        "create table(:comments",
+        "references(:platform_human_users",
+        ~s(prefix: "discussions")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS discussions"]
+    )
+
+    assert_additive_migration(
+      comment_reactions_migration,
+      [
+        "create table(:comment_reactions",
+        "references(:comments",
+        "references(:platform_human_users",
+        ~s(prefix: "discussions")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS discussions"]
+    )
+
+    assert_additive_migration(
+      notebook_artifacts_migration,
+      [
+        "create table(:notebook_artifacts",
+        "references(:nodes",
+        ~s(prefix: "techtree")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS techtree"]
+    )
+
+    assert_additive_migration(
+      launch_drafts_migration,
+      [
+        "create table(:launch_drafts",
+        "references(:platform_human_users",
+        "references(:regents",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      cloud_runtimes_migration,
+      [
+        "create table(:cloud_runtimes",
+        "references(:platform_human_users",
+        "references(:regents"
+      ],
+      []
+    )
+
+    assert_additive_migration(
+      public_profile_migration,
+      [
+        "alter table(:regents)",
+        "add(:avatar_url, :text)"
+      ],
+      []
+    )
+
+    assert_additive_migration(
+      billing_kernel_migration,
+      [
+        "create table(:billing_accounts,",
+        "create table(:billing_ledger_entries,",
+        "create table(:billing_spend_reservations,",
+        "billing_accounts_authority_balanced"
+      ],
+      []
+    )
+
+    assert_extension_migration(ash_functions_migration)
+  end
+
+  defp assert_additive_migration(path, required_fragments, allowed_statements) do
+    source = File.read!(path)
+    [up, _down] = String.split(source, "  def down do", parts: 2)
+
+    for fragment <- required_fragments, do: assert(up =~ fragment)
+    refute up =~ "drop("
+
+    statements =
+      ~r/execute\("([^"]+)"\)/
+      |> Regex.scan(up, capture: :all_but_first)
+      |> List.flatten()
+      |> Enum.uniq()
+
+    assert statements == allowed_statements
+  end
+
+  defp assert_extension_migration(path) do
+    source = File.read!(path)
+    [up, _down] = String.split(source, "  def down do", parts: 2)
+
+    for function <- [
+          "ash_elixir_or",
+          "ash_elixir_and",
+          "ash_trim_whitespace",
+          "ash_raise_error",
+          "ash_required",
+          "uuid_generate_v7"
+        ],
+        do: assert(up =~ "CREATE OR REPLACE FUNCTION #{function}")
+
+    refute up =~ "DROP FUNCTION"
+    refute up =~ "create table("
+    refute up =~ "alter table("
+  end
+
+  test "only the admitted canonical domains are configured" do
     assert Application.fetch_env!(:ash_platform, :ash_domains) == [
              AshPlatform.Accounts,
+             AshPlatform.Billing,
+             AshPlatform.Discussions,
              AshPlatform.Formation,
-             AshPlatform.Techtree
-           ]
-
-    assert Application.fetch_env!(:ash_platform, :ecto_repos) == [AshPlatform.Repo]
-
-    children = Supervisor.which_children(AshPlatform.Supervisor)
-    assert Enum.any?(children, fn {id, _pid, _type, _modules} -> id == AshPlatform.Repo end)
-  end
-
-  test "the Techtree slice contains no excluded product surface" do
-    paths =
-      Path.wildcard("lib/ash_platform/techtree/**/*.ex") ++
-        [
-          "lib/ash_platform/techtree.ex",
-          "lib/ash_platform/repo.ex"
-        ]
-
-    for path <- paths,
-        excluded <- @excluded_techtree_surfaces do
-      refute path |> File.read!() |> String.downcase() =~ excluded,
-             "#{path} contains excluded product surface #{excluded}"
-    end
-
-    contract = YamlElixir.read_from_file!("contracts/api-contract.openapiv3.yaml")
-
-    assert contract["paths"]
-           |> Map.keys()
-           |> Enum.sort() == [
-             "/api/techtree/v1/tree/nodes",
-             "/auth/csrf",
-             "/auth/privy/session",
-             "/auth/session"
+             AshPlatform.Techtree,
+             AshPlatform.Autolaunch,
+             AshPlatform.Redemption,
+             AshPlatform.Staking
            ]
   end
 
-  test "human identity is admitted through Accounts and guarded local setup" do
-    fixture = File.read!("lib/ash_platform/local_database_fixture.ex")
+  test "production database startup is enabled only after canonical configuration succeeds" do
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ "config :ash_platform, :database_startup_enabled, true"
+    assert runtime =~ "AshPlatform.DatabaseConfig.runtime_config!(config_env())"
+    assert runtime =~ "AshPlatform.DatabaseConfig.release_config!()"
+    assert runtime =~ ~s|System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"|
+  end
 
-    assert fixture =~ "CREATE TABLE IF NOT EXISTS platform.platform_human_users"
-    assert fixture =~ "env in [:dev, :test]"
-    assert fixture =~ "host in [\"127.0.0.1\", \"localhost\", \"::1\"]"
-    assert fixture =~ "String.ends_with?(database, \"_dev\")"
-    assert fixture =~ "String.ends_with?(database, \"_test\")"
+  test "runtime code never reads the generic database URL" do
+    legacy_lookup = ~s|System.get_env("DATABASE_URL")|
 
-    for variable <- ~w(DATABASE_URL DATABASE_DIRECT_URL DATABASE_POOLED_URL) do
-      assert fixture =~ variable
-    end
-
-    assert File.exists?("lib/ash_platform/accounts.ex")
-    assert File.exists?("lib/ash_platform/accounts/human_account.ex")
-    assert File.exists?("lib/ash_platform/accounts/verified_session.ex")
-
-    router = File.read!("lib/ash_platform_web/router.ex")
-
-    for route <- ["/auth/csrf", "/auth/privy/session", "/auth/session"] do
-      assert router =~ route
+    for path <- Path.wildcard("{config,lib,rel}/**/*"), File.regular?(path) do
+      refute File.read!(path) =~ legacy_lookup, "#{path} reads the generic database URL"
     end
   end
 
@@ -105,30 +255,5 @@ defmodule AshPlatformWeb.BoundaryTest do
       |> Keyword.fetch!(AshPlatformWeb.Endpoint)
 
     assert Keyword.fetch!(endpoint_config, :check_origin) == ["http://127.0.0.1:4002"]
-  end
-
-  test "notebook proofs use exact environment origin allowlists" do
-    {_ast, default_origins} =
-      "config/config.exs"
-      |> File.read!()
-      |> Code.string_to_quoted!()
-      |> Macro.prewalk([], fn
-        {:config, _, [:ash_platform, :notebook_origins, origins]} = node, declarations ->
-          {node, [origins | declarations]}
-
-        node, declarations ->
-          {node, declarations}
-      end)
-
-    dev_config = Config.Reader.read!("config/dev.exs", env: :dev)
-
-    assert default_origins == [["https://notebooks.regents.sh"]]
-
-    assert dev_config |> Keyword.fetch!(:ash_platform) |> Keyword.fetch!(:notebook_origins) ==
-             ["http://127.0.0.1:4001"]
-
-    assert Application.fetch_env!(:ash_platform, :notebook_origins) == [
-             "http://127.0.0.1:4003"
-           ]
   end
 end

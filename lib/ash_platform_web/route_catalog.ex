@@ -17,13 +17,7 @@ defmodule AshPlatformWeb.RouteCatalog do
   @identifier ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
   @slug ~r/\A[a-z0-9][a-z0-9-]{0,62}\z/
 
-  @trees [
-    {"genebench-pro-reference-lab", "GeneBench-Pro Reference Lab"},
-    {"question-forge-metaskills", "Question Forge Metaskills"},
-    {"new-question-candidates", "New Question Candidates"},
-    {"bixbench-capsule-lab", "BixBench Capsule Lab"},
-    {"skill-training-lab", "Skill Training Lab"}
-  ]
+  @trees Enum.map(AshPlatform.Techtree.SeedTrees.all(), &{&1.slug, &1.name})
   @tree_names Map.new(@trees)
 
   @entries [

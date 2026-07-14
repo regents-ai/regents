@@ -1,13 +1,64 @@
 @import "./tokens/material.css";
 @import "./components/shell.css";
+@import "./components/comment_ledger.css";
 @import "./pages/home.css";
+@import "./pages/formation.css";
+@import "./pages/autolaunch.css";
+@import "./pages/stake.css";
+@import "./pages/redeem.css";
+@import "./pages/regent_ops.css";
+@import "./pages/regent_profile.css";
 @import "./pages/settings.css";
-@import "./components/account_auth_status.css";
+@import "./pages/techtree.css";
+
+@font-face {
+  font-family: "GeistPixel Circle";
+  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GeistPixel Square";
+  src: url("/fonts/GeistPixel-Square.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist UI Sans";
+  src: url("/fonts/geist/Geist[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/geist/GeistMono[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
 
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  --font-family-sans: "Geist UI Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-family-ui: var(--font-family-sans);
+  --font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-family-display: "GeistPixel Circle", "GeistPixel Square", sans-serif;
+  --font-family-title: var(--font-family-display);
+  --font-family-pixel: "GeistPixel Square", sans-serif;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 500ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --active-scale: 0.97;
+  --tracking-microlabel: 0.16em;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-full: 999px;
+  --radius-button: 3px;
+  font-family: var(--font-family-ui);
 }
+
 
 :root[data-theme="light"] {
   color-scheme: light;
@@ -63,100 +114,8 @@ input:focus-visible,
   outline-offset: 2px;
 }
 
-#public-home {
-  display: grid;
-  min-height: 100%;
-  place-content: center;
-  gap: 1rem;
-  padding: 1rem;
-  text-align: center;
-}
-
-#app-shell {
-  display: grid;
-  grid-template: auto minmax(0, 1fr) / minmax(12rem, 18rem) minmax(0, 1fr);
-  height: 100dvh;
-  background: Canvas;
-  color: CanvasText;
-}
-
-#shell-header {
-  z-index: 2;
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 4rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid currentColor;
-  background: Canvas;
-}
-
-#shell-header .shell-spacer {
-  flex: 1;
-}
-
-#shell-sidebar {
-  overflow: auto;
-  padding: 1rem;
-  border-right: 1px solid currentColor;
-}
-
-#shell-sidebar ul,
-.app-switcher,
-.theme-menu {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0;
-  list-style: none;
-}
-
-#shell-sidebar li {
-  width: 100%;
-}
-
-#app-shell-scroller {
-  min-width: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-#route-content {
-  width: min(64rem, 100%);
-  margin: 0 auto;
-  padding: clamp(1rem, 4vw, 4rem);
-}
-
 .shell-status[aria-busy="true"]::after {
   content: "…";
-}
-
-.mobile-menu-button {
-  display: none;
-}
-
-@media (max-width: 44rem) {
-  #app-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .mobile-menu-button {
-    display: inline-flex;
-  }
-
-  #shell-sidebar {
-    position: fixed;
-    inset: 4rem 0 0;
-    z-index: 3;
-    display: none;
-    border-right: 0;
-    background: Canvas;
-  }
-
-  #app-shell[data-menu-open="true"] #shell-sidebar {
-    display: block;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

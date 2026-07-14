@@ -12,6 +12,7 @@ defmodule AshPlatform.Application do
         AshPlatformWeb.Telemetry,
         database_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
+        notebook_static_server_child(),
         # Start a worker by calling: AshPlatform.Worker.start_link(arg)
         # {AshPlatform.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -28,6 +29,13 @@ defmodule AshPlatform.Application do
   defp database_child do
     if Application.get_env(:ash_platform, :database_startup_enabled, false),
       do: AshPlatform.Repo
+  end
+
+  defp notebook_static_server_child do
+    case Application.get_env(:ash_platform, :notebook_static_server, false) do
+      false -> nil
+      options -> {Bandit, Keyword.merge([plug: AshPlatformWeb.NotebookStaticPlug], options)}
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration

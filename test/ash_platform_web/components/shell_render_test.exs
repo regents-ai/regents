@@ -1,205 +1,101 @@
 defmodule AshPlatformWeb.Components.ShellRenderTest do
-  use AshPlatformWeb.ConnCase, async: true
+  use ExUnit.Case, async: true
 
   import Phoenix.LiveViewTest
 
-  alias AshPlatform.AccessContext.AccountControl
-  alias AshPlatformWeb.Components.Shell
-  alias AshPlatformWeb.RouteCatalog
+  alias AshPlatformWeb.Components.Background
 
-  test "renders one current-app selector with the four canonical application roots" do
-    html = render_shell(RouteCatalog.fetch!(:techtree))
-    document = LazyHTML.from_fragment(html)
+  @backgrounds %{
+    home: "/images/backgrounds/home.svg",
+    regents_labs: "/images/backgrounds/regents_labs.svg",
+    formation: "/images/backgrounds/formation.svg",
+    regent_record: "/images/backgrounds/regent_record.svg",
+    techtree_overview: "/images/backgrounds/techtree_overview.svg",
+    techtree_node: "/images/backgrounds/techtree_node.svg",
+    techtree_tree: "/images/backgrounds/techtree_tree.svg",
+    autolaunch: "/images/backgrounds/autolaunch.svg"
+  }
 
-    assert document |> LazyHTML.query("#app-selector > summary") |> LazyHTML.text() =~ "Techtree"
+  @background_dir Path.expand("../../../priv/static/images/backgrounds", __DIR__)
+  @material_css Path.expand("../../../assets/css/tokens/material.css", __DIR__)
+  @shell_css Path.expand("../../../assets/css/components/shell.css", __DIR__)
 
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "#app-selector > summary img[src='/images/brand/regents-crown-flat-dark.svg']"
-             )
-           )
+  test "renders every canonical background slot as inert themed mask content" do
+    for {slot, source} <- @backgrounds do
+      html = render_component(&Background.background/1, slot: slot)
 
-    links = LazyHTML.query(document, "#app-selector-menu a")
-
-    assert Enum.map(links, &LazyHTML.text/1) |> Enum.map(&String.trim/1) == [
-             "Formation",
-             "Autolaunch",
-             "Techtree",
-             "Regents Labs"
-           ]
-
-    assert LazyHTML.attribute(links, "href") == [
-             "/formation",
-             "/autolaunch",
-             "/techtree",
-             "/app"
-           ]
-
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "#app-selector-menu a[aria-current='page'][href='/techtree']"
-             )
-           )
-
-    refute html =~ "Public workspace"
+      assert html =~ ~s(data-background-slot="#{slot}")
+      assert html =~ source
+      assert html =~ "--shell-background-mask"
+      assert html =~ ~s(aria-hidden="true")
+      refute html =~ "<img"
+      refute html =~ "role="
+    end
   end
 
-  test "keeps anonymous account control separate and preserves the auth status seam" do
-    html = render_shell(RouteCatalog.fetch!(:app))
-    document = LazyHTML.from_fragment(html)
-
-    refute Enum.empty?(
-             LazyHTML.query(document, "#account-control [data-account-target='sign-in']")
-           )
-
-    assert Enum.empty?(LazyHTML.query(document, "#app-selector [data-account-target]"))
-
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "#account-auth-status[role='status'][aria-live='polite'][aria-atomic='true'][phx-update='ignore'][hidden]"
-             )
-           )
-
-    refute html =~ "data-theme-choice"
+  test "omits invalid background slots without reflecting them into markup" do
+    for slot <- [:not_a_background, "formation", nil, %{slot: :formation}] do
+      assert render_component(&Background.background/1, slot: slot) == ""
+    end
   end
 
-  test "renders the signed-in account avatar and menu in the canonical order" do
-    account = %AccountControl{
-      kind: :signed_in,
-      label: "0x1234…a1b2",
-      profile_path: "/regents/crown",
-      settings_path: "/settings",
-      avatar_data_uri: "data:image/svg+xml;base64,PHN2Zy8+"
-    }
+  test "keeps exactly eight inert and replaceable geometry masks" do
+    expected_files = @backgrounds |> Map.values() |> Enum.map(&Path.basename/1)
 
-    html = render_shell(RouteCatalog.fetch!(:app), account)
-    document = LazyHTML.from_fragment(html)
+    assert Enum.sort(File.ls!(@background_dir)) == Enum.sort(expected_files)
 
-    refute Enum.empty?(
-             LazyHTML.query(document, "#account-menu summary [data-account-target='identity']")
-           )
+    for filename <- expected_files do
+      svg = File.read!(Path.join(@background_dir, filename))
 
-    refute Enum.empty?(LazyHTML.query(document, "#account-menu img[src^='data:image/svg+xml']"))
-
-    labels =
-      document
-      |> LazyHTML.query("#account-menu [data-account-menu-item]")
-      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
-
-    assert labels == ["Profile", "Settings", "Log Out"]
-    refute html =~ "data-theme-choice"
+      assert svg =~ "background placeholder mask"
+      assert svg =~ "transparent geometry mask"
+      assert svg =~ "not final founder artwork"
+      assert svg =~ ~s(fill="none" stroke="black")
+      refute svg =~ "prefers-color-scheme"
+      refute svg =~ ~r/<script|<style|<rect/i
+      refute svg =~ ~r/(?:href|src)=["'](?:https?:|data:)/i
+    end
   end
 
-  test "omits Profile when the server has no canonical profile path" do
-    account = %AccountControl{
-      kind: :signed_in,
-      label: "0x1234…a1b2",
-      profile_path: nil,
-      settings_path: "/settings"
-    }
+  test "explicit Regent theme owns neutral grounds and all approved guide palettes" do
+    material = File.read!(@material_css)
+    shell = File.read!(@shell_css)
 
-    html = render_shell(RouteCatalog.fetch!(:app), account)
-    document = LazyHTML.from_fragment(html)
+    assert material =~ "--shell-background-ground: oklch(98.5% 0 0)"
+    assert material =~ ":root[data-theme=\"dark\"]"
+    assert material =~ "--shell-background-ground: oklch(14.5% 0 0)"
+    assert shell =~ "background: var(--shell-background-ground)"
+    assert shell =~ "mask: var(--shell-background-mask) center / cover no-repeat"
 
-    assert Enum.empty?(
-             LazyHTML.query(document, "#account-menu [data-account-menu-item='profile']")
-           )
+    for guide <- [
+          "rgb(0, 95, 146)",
+          "rgb(75, 168, 224)",
+          "rgb(176, 63, 0)",
+          "rgb(230, 115, 57)",
+          "rgb(0, 122, 58)",
+          "rgb(65, 214, 134)",
+          "rgb(26, 88, 143)",
+          "rgb(109, 169, 231)"
+        ] do
+      assert shell =~ guide
+    end
 
-    assert document
-           |> LazyHTML.query("#account-menu [data-account-menu-item]")
-           |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim())) == ["Settings", "Log Out"]
+    refute shell =~ "prefers-color-scheme"
   end
 
-  test "preserves sidebar order, current semantics, and one internal content scroller" do
-    html = render_shell(RouteCatalog.fetch!(:autolaunch_tokens))
-    document = LazyHTML.from_fragment(html)
+  test "structural material is square, neutral, high opacity, and motion independent" do
+    material = File.read!(@material_css)
+    shell = File.read!(@shell_css)
 
-    labels =
-      document
-      |> LazyHTML.query("#shell-sidebar [data-sidebar-target]")
-      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    assert material =~ "--material-radius: 4px"
+    assert material =~ "--material-focus-radius: 0"
+    assert material =~ "var(--color-surface-elevated) 96%"
+    assert material =~ "var(--color-surface) 91%"
+    refute material =~ ~r/product-(formation|autolaunch|techtree)/
 
-    assert labels == ["Auctions", "Tokens", "Create"]
-
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "#shell-sidebar [aria-current='page'][href='/autolaunch/tokens']"
-             )
-           )
-
-    assert Enum.count(LazyHTML.query(document, "#app-shell-scroller")) == 1
-    refute Enum.empty?(LazyHTML.query(document, "#route-content[aria-busy='false']"))
-
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "button[data-shell-menu-scrim][type='button'][aria-label='Close navigation'][hidden]"
-             )
-           )
-  end
-
-  test "marks only the selected Techtree presentation as current" do
-    html =
-      render_shell(
-        RouteCatalog.fetch!(:techtree_tree, %{"tree_slug" => "genebench-pro-reference-lab"})
-      )
-
-    document = LazyHTML.from_fragment(html)
-
-    assert Enum.count(
-             LazyHTML.query(
-               document,
-               "[data-tree-presentation='map'][aria-current='true']"
-             )
-           ) == 1
-
-    assert Enum.empty?(
-             LazyHTML.query(
-               document,
-               "[data-tree-presentation='list'][aria-current]"
-             )
-           )
-
-    assert Enum.empty?(LazyHTML.query(document, "[data-tree-presentation][aria-pressed]"))
-  end
-
-  test "renders a neutral background slot without inventing an artwork URL" do
-    html = render_shell(RouteCatalog.fetch!(:formation))
-    document = LazyHTML.from_fragment(html)
-
-    refute Enum.empty?(
-             LazyHTML.query(
-               document,
-               "#shell-background[data-background-slot='formation'][data-background-state='neutral']"
-             )
-           )
-
-    refute html =~ "/images/backgrounds/"
-  end
-
-  defp render_shell(route_spec, account_control \\ anonymous_account()) do
-    render_component(&Shell.shell/1,
-      route_spec: route_spec,
-      app_targets: RouteCatalog.app_targets(),
-      account_control: account_control,
-      content_status: :ready,
-      presentation: :map,
-      formation_panel: :overview,
-      shell_instance: 1,
-      content: [%{inner_block: fn _changed, _argument -> "Content" end}]
-    )
-  end
-
-  defp anonymous_account do
-    %AccountControl{
-      kind: :sign_in,
-      label: "Sign In",
-      profile_path: nil,
-      settings_path: nil
-    }
+    assert shell =~ "background: var(--material-fill) padding-box"
+    assert shell =~ "@media (prefers-reduced-transparency: reduce)"
+    refute shell =~ ~r/\.shell-material\s*\{[^}]*transition:/s
+    refute shell =~ ~r/transition:\s*all|animation:/
   end
 end

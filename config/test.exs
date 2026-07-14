@@ -1,26 +1,5 @@
 import Config
 
-acceptance_run_id = System.get_env("ASH_PLATFORM_ACCEPTANCE_RUN_ID")
-
-database =
-  if acceptance_run_id,
-    do: "ash_platform_acceptance_#{acceptance_run_id}",
-    else: "ash_platform_test"
-
-config :ash_platform, :database_startup_enabled, true
-config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
-
-config :ash_platform, AshPlatform.Repo,
-  hostname: "127.0.0.1",
-  database: database,
-  username: System.get_env("USER"),
-  password: nil,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
-
-config :ash, :disable_async?, true
-config :ash, :missed_notifications, :ignore
-
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ash_platform, AshPlatformWeb.Endpoint,
@@ -32,6 +11,30 @@ config :ash_platform, AshPlatformWeb.Endpoint,
 
 config :ash_platform, :content_provider, AshPlatform.TestContentProvider
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
+config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
+config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
+config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
+config :ash_platform, :database_startup_enabled, true
+config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
+
+config :ash_platform,
+       :notebook_static_server,
+       if(System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1",
+         do: [scheme: :http, ip: {127, 0, 0, 1}, port: 4003, startup_log: false],
+         else: false
+       )
+
+config :ash_platform, AshPlatform.Repo,
+  username: System.get_env("USER"),
+  password: nil,
+  hostname: "127.0.0.1",
+  port: 5432,
+  database: "ash_platform_test",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
+config :ash, :disable_async?, true
+config :ash, :missed_notifications, :ignore
 
 # Print only warnings and errors during test
 config :logger, level: :warning

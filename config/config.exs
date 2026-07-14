@@ -10,12 +10,32 @@ import Config
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
 config :ash_platform,
-  ash_domains: [AshPlatform.Accounts, AshPlatform.Formation, AshPlatform.Techtree],
-  ecto_repos: [AshPlatform.Repo],
+  ash_domains: [
+    AshPlatform.Accounts,
+    AshPlatform.Billing,
+    AshPlatform.Discussions,
+    AshPlatform.Formation,
+    AshPlatform.Techtree,
+    AshPlatform.Autolaunch,
+    AshPlatform.Redemption,
+    AshPlatform.Staking
+  ],
   generators: [timestamp_type: :utc_datetime]
 
+config :ash_platform, ecto_repos: [AshPlatform.Repo]
+
+config :ash_platform, AshPlatform.Repo,
+  database: "ash_platform_disabled",
+  hostname: "127.0.0.1",
+  port: 1,
+  pool_size: 1
+
 config :ash_platform, :privy, clock: fn -> System.system_time(:second) end
+config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvider
+config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
+config :ash_platform, :notebook_static_server, false
 
 config :ash_platform, :session_options,
   store: :cookie,
@@ -24,14 +44,6 @@ config :ash_platform, :session_options,
   same_site: "Lax",
   secure: false,
   http_only: true
-
-config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
-
-config :ash_platform, AshPlatform.Repo,
-  hostname: "127.0.0.1",
-  database: "ash_platform_unconfigured",
-  username: "ash_platform_unconfigured",
-  password: "ash_platform_unconfigured"
 
 # Configure the endpoint
 config :ash_platform, AshPlatformWeb.Endpoint,
@@ -49,15 +61,14 @@ config :esbuild,
   version: "0.25.4",
   ash_platform: [
     args:
-      ~w(js/app.ts js/privy_bridge.tsx --bundle --format=esm --target=es2022 --outdir=../priv/static/assets/js --entry-names=[name] --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.ts --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,
-  format: "$time $metadata[$level] $message
-",
+  format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
 # Use Jason for JSON parsing in Phoenix

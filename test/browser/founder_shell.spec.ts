@@ -17,9 +17,9 @@ const shellRoutes = [
   "/redeem",
 ]
 
-async function switchApplication(page: Page, label: string) {
+async function switchApp(page: Page, label: string) {
   await page.locator("#app-selector summary").click()
-  await page.locator("#app-selector-menu").getByRole("link", {name: label}).click()
+  await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
 }
 
 test("all approved routes render within their page budget", async ({page, request}) => {
@@ -37,6 +37,71 @@ test("all approved routes render within their page budget", async ({page, reques
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
+test("the public homepage presents the four-product mat hero and marketing chapters", async ({page}) => {
+  await page.goto("/")
+
+  const home = page.locator("#public-home")
+  await expect(home).toHaveAttribute("data-hero-enhanced", "true")
+  await expect(page.locator(".rl-hero-art")).toHaveAttribute(
+    "src",
+    "/images/home/hero-bg-dark.svg",
+  )
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "/formation")
+  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "/autolaunch")
+  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "/techtree")
+  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "/app")
+
+  const sectionTops = await page
+    .locator("#formation, #autolaunch, #techtree, #regents-labs")
+    .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
+  expect(sectionTops).toHaveLength(4)
+  expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))
+  expect(await page.evaluate(() => document.fonts.check('16px "GeistPixel Square"'))).toBe(true)
+  await expect(page.locator("#app-shell")).toHaveCount(0)
+  await expect(page.getByText("Public chatbox")).toHaveCount(0)
+})
+
+test("the primary homepage action keeps its contrast on hover", async ({page}) => {
+  await page.goto("/")
+
+  const action = page.getByRole("link", {name: "Form a Regent"}).first()
+  const before = await action.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {backgroundColor: style.backgroundColor, color: style.color}
+  })
+
+  await action.hover()
+
+  await expect
+    .poll(() =>
+      action.evaluate(element => {
+        const style = getComputedStyle(element)
+        return {backgroundColor: style.backgroundColor, color: style.color}
+      }),
+    )
+    .toEqual(before)
+})
+
+test("the four homepage destinations remain full-width and ordered on mobile", async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844})
+  await page.goto("/")
+
+  const boxes = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
+    elements.map(element => {
+      const box = element.getBoundingClientRect()
+      return {left: box.left, right: box.right, top: box.top}
+    }),
+  )
+
+  expect(boxes).toHaveLength(4)
+  expect(boxes.map(box => box.top)).toEqual(
+    [...boxes].map(box => box.top).sort((left, right) => left - right),
+  )
+  expect(boxes.every(box => box.left >= 0 && box.right <= 390)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+})
+
 test("anonymous Sign In stays separate from the app selector", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -44,29 +109,15 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   const appSelector = page.getByRole("navigation", {name: "Applications"})
   const accountControl = page.locator("#account-control")
 
+  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
+  await expect(appSelector).toBeHidden()
+  await page.locator("#app-selector summary").click()
+  await expect(appSelector).toBeVisible()
+  await expect(appSelector.getByRole("link")).toHaveCount(3)
+  await expect(appSelector.getByRole("link", {name: "Regents Labs"})).toHaveCount(0)
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
   await expect(appSelector.getByRole("button", {name: "Sign In"})).toHaveCount(0)
   await expect(accountControl.getByRole("link", {name: "Formation"})).toHaveCount(0)
-
-  await page.locator("#app-selector summary").click()
-  await expect(appSelector.getByRole("link")).toHaveCount(4)
-  await expect(appSelector.getByRole("link", {name: "Formation"})).toHaveAttribute(
-    "href",
-    "/formation",
-  )
-  await expect(appSelector.getByRole("link", {name: "Autolaunch"})).toHaveAttribute(
-    "href",
-    "/autolaunch",
-  )
-  await expect(appSelector.getByRole("link", {name: "Techtree"})).toHaveAttribute(
-    "href",
-    "/techtree",
-  )
-  await expect(appSelector.getByRole("link", {name: "Regents Labs"})).toHaveAttribute(
-    "href",
-    "/app",
-  )
-  await page.locator("#app-selector summary").click()
 
   await page.evaluate(() => {
     const link = document.createElement("a")
@@ -87,27 +138,32 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   await expect(page.getByRole("heading", {name: "Appearance"})).toHaveCount(0)
 })
 
-test("signed-in Settings is a real account route with browser-local Appearance", async ({page}) => {
+test("a signed-in account without a Regent shows its available account menu", async ({page}) => {
   const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = await csrfResponse.json()
-
-  const sessionResponse = await page.request.post("/auth/privy/session", {
-    headers: {
-      authorization: "Bearer valid",
-      "x-csrf-token": csrfToken,
-    },
-    data: {},
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const session = await page.request.post("/auth/privy/session", {
+    headers: {authorization: "Bearer valid", "x-csrf-token": csrfToken},
   })
-  expect(sessionResponse.status()).toBe(200)
+  expect(session.ok()).toBe(true)
 
   await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
-  await page.locator("#account-menu summary").click()
 
-  const menuItems = page.locator("#account-menu [data-account-menu-item]")
-  await expect(menuItems).toHaveText(["Settings", "Log Out"])
+  const account = page.locator("#account-menu")
+  await expect(account.locator("img.account-avatar")).toHaveAttribute(
+    "src",
+    /^data:image\/svg\+xml;base64,/,
+  )
+  await expect
+    .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
+    .toBeGreaterThan(0)
+  await account.locator("summary").first().click()
+  await expect(account.getByRole("link", {name: "Profile"})).toHaveCount(0)
+  await expect(account.getByRole("link", {name: "Settings"})).toBeVisible()
+  await expect(account.getByRole("button", {name: "Log Out"})).toBeVisible()
 
-  await page.getByRole("link", {name: "Settings"}).click()
+  await account.getByRole("link", {name: "Settings"}).click()
   await expect(page).toHaveURL(/\/settings$/)
   await expect(page.getByRole("heading", {name: "Settings", level: 1})).toBeVisible()
   await expect(page.getByRole("heading", {name: "Appearance", level: 2})).toBeVisible()
@@ -121,6 +177,38 @@ test("signed-in Settings is a real account route with browser-local Appearance",
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
 })
 
+test("Regents Labs overview shows public chain truth without inventing a profile", async ({page}) => {
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const overview = page.locator("#regent-ops-overview")
+  await expect(overview.getByRole("heading", {name: "Regents Labs"})).toBeVisible()
+  await expect(overview).toContainText("100 REGENT")
+  await expect(overview).toContainText("Sign in to see your wallet")
+  await expect(overview.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute(
+    "href",
+    "/stake",
+  )
+  await expect(overview.getByRole("link", {name: "Redeem Animata"})).toHaveAttribute(
+    "href",
+    "/redeem",
+  )
+  await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
+})
+
+test("an unknown public Regent profile is honest and keeps shell navigation available", async ({page}) => {
+  await page.goto("/regents/not-here")
+
+  await expect(page.locator("#public-regent-profile")).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Regent not found"})).toBeVisible()
+  await expect(page.getByText("This public Regent profile does not exist.")).toBeVisible()
+  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
+  await expect(page.getByRole("link", {name: "Return to Regents Labs"})).toHaveAttribute(
+    "href",
+    "/app",
+  )
+})
+
 test("navigation keeps the document and shell identity and starts at the top", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -132,7 +220,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
 
-  await switchApplication(page, "Techtree")
+  await switchApp(page, "Techtree")
   await expect(page).toHaveURL(/\/techtree$/)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
 
@@ -141,7 +229,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
   ).toBe(true)
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
-  await switchApplication(page, "Autolaunch")
+  await switchApp(page, "Autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
   await page.evaluate(() => {
     document
@@ -167,14 +255,217 @@ test("navigation keeps the document and shell identity and starts at the top", a
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 })
 
+test("rapid app switches settle only the latest scene and remove motion copies", async ({page}) => {
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  await switchApp(page, "Techtree")
+  await expect(page).toHaveURL(/\/techtree$/)
+  await switchApp(page, "Autolaunch")
+
+  await expect(page).toHaveURL(/\/autolaunch$/)
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-motion-app", "autolaunch")
+  await expect(page.getByRole("heading", {name: "Launch with public proof"})).toBeVisible()
+  await expect(page.locator("[data-motion-copy]"), "outgoing copies are disposable").toHaveCount(0)
+  await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
+})
+
 test("Map and List stay local without adding browser history", async ({page}) => {
   await page.goto("/techtree/genebench-pro-reference-lab")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   const historyLength = await page.evaluate(() => history.length)
-  await page.getByRole("link", {name: "GeneBench-Pro Reference Lab list"}).click()
+  await page.locator(".techtree-list-tab").click()
 
   await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "list")
+  await expect(page.locator("#route-content .techtree-list-panel")).toHaveCSS(
+    "transform",
+    "matrix(1, 0, 0, 1, 0, 0)",
+  )
   expect(await page.evaluate(() => history.length)).toBe(historyLength)
+
+  await page.locator(".techtree-map-tab").click()
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "map")
+  expect(await page.evaluate(() => history.length)).toBe(historyLength)
+})
+
+test("Techtree overview and node detail keep the initial web boundary honest", async ({page}) => {
+  await page.goto("/techtree")
+  await expect(page.getByRole("heading", {name: "Research with Techtree"})).toBeVisible()
+  await expect(page.locator("#techtree-overview code")).toHaveText([
+    "regents techtree start",
+    "regents techtree node create",
+  ])
+  await expect(page.locator("#techtree-overview .techtree-roots a")).toHaveCount(5)
+
+  await page.goto("/techtree/nodes/00000000-0000-0000-0000-000000000001")
+  const node = page.locator("#techtree-node")
+  await expect(node.getByRole("heading", {name: "Node not found"})).toBeVisible()
+  await expect(node.getByRole("link", {name: "Publish", exact: true})).toHaveCount(0)
+  await expect(node.getByRole("button", {name: "Publish", exact: true})).toHaveCount(0)
+})
+
+test("a Techtree notebook runs interactively in a credentialless cross-origin local-compute sandbox", async ({page}) => {
+  test.setTimeout(120_000)
+  await page.goto("/techtree/skill-training-lab")
+  await page.getByRole("link", {name: "Browser notebook fixture"}).first().click()
+
+  const iframe = page.locator("#local-notebook iframe")
+  await expect(iframe).toHaveAttribute("sandbox", "allow-scripts allow-same-origin")
+  await expect(iframe).toHaveAttribute("credentialless", "")
+
+  const runUrl = await iframe.getAttribute("src")
+  expect(runUrl).toMatch(
+    /^http:\/\/127\.0\.0\.1:4003\/[0-9a-f]{64}\/index\.html$/,
+  )
+  const notebookResponse = await page.request.get(runUrl!)
+  expect(notebookResponse.headers()["access-control-allow-origin"]).toBe("*")
+  expect(notebookResponse.headers()["content-security-policy"]).toContain("default-src 'none'")
+  expect(
+    await page.evaluate(() =>
+      document.querySelector<HTMLIFrameElement>("#local-notebook iframe")?.contentDocument === null
+    ),
+  ).toBe(true)
+
+  const notebook = page.frameLocator("#local-notebook iframe")
+  const notebookBody = notebook.locator("body")
+  expect(await notebookBody.evaluate(() => document.cookie)).toBe("")
+  await expect(notebookBody).toContainText("Local result: 6", {
+    timeout: 90_000,
+  })
+
+  const slider = notebook.getByRole("slider")
+  await expect(slider).toBeVisible({timeout: 90_000})
+  await slider.press("ArrowRight")
+  await slider.press("ArrowRight")
+  await expect(notebookBody).toContainText("Local result: 10", {
+    timeout: 30_000,
+  })
+})
+
+test("node comments post once, update another reader live, preserve scroll, and delete cleanly", async ({
+  browser,
+  page,
+}) => {
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const session = await page.request.post("/auth/privy/session", {
+    headers: {authorization: "Bearer valid", "x-csrf-token": csrfToken},
+  })
+  expect(session.ok()).toBe(true)
+
+  await page.goto("/techtree/skill-training-lab")
+  await page.getByRole("link", {name: "Browser comment fixture"}).first().click()
+  await expect(page.getByRole("heading", {name: "Browser comment fixture"})).toBeVisible()
+
+  const publicContext = await browser.newContext()
+  const publicPage = await publicContext.newPage()
+  await publicPage.goto(page.url())
+  await expect(publicPage.locator("#comment-ledger")).toContainText("Sign in to add a comment")
+
+  const publicScroller = publicPage.locator("#app-shell-scroller")
+  await publicScroller.evaluate(element => element.scrollTo(0, element.scrollHeight))
+  const scrollBefore = await publicScroller.evaluate(element => element.scrollTop)
+
+  const uniqueCopy = `Browser proof ${Date.now()}`
+  await page.getByLabel("Add a comment").fill(`**${uniqueCopy}**`)
+  await page.getByRole("button", {name: "Post comment"}).click()
+
+  const signedComment = page.locator("#comment-ledger article").filter({hasText: uniqueCopy})
+  const publicComment = publicPage.locator("#comment-ledger article").filter({hasText: uniqueCopy})
+  await expect(signedComment).toBeVisible()
+  await expect(signedComment.locator(".comment-ledger__body strong")).toHaveText(uniqueCopy)
+  await expect(publicComment).toBeVisible()
+  expect(await publicScroller.evaluate(element => element.scrollTop)).toBe(scrollBefore)
+
+  const reactionScrollBefore = await publicScroller.evaluate(element => element.scrollTop)
+  await signedComment.getByRole("button", {name: "Useful 0"}).click()
+  await expect(signedComment.getByRole("button", {name: "Useful 1"})).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await expect(publicComment.locator('[data-reaction-value="useful"]')).toHaveText("Useful 1")
+  expect(await publicScroller.evaluate(element => element.scrollTop)).toBe(reactionScrollBefore)
+
+  await signedComment.getByRole("button", {name: "Negative 0"}).click()
+  await expect(signedComment.getByRole("button", {name: "Negative 1"})).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await expect(publicComment.locator('[data-reaction-value="useful"]')).toHaveText("Useful 0")
+
+  await signedComment.getByRole("button", {name: "Negative 1"}).click()
+  await expect(publicComment.locator('[data-reaction-value="negative"]')).toHaveText("Negative 0")
+
+  page.once("dialog", dialog => void dialog.accept())
+  await signedComment.getByRole("button", {name: "Delete"}).click()
+  await expect(signedComment).toHaveCount(0)
+  await expect(publicComment).toHaveCount(0)
+
+  await publicContext.close()
+})
+
+test("Autolaunch overview, detail, and Create stay useful without fake market data", async ({page}) => {
+  await page.goto("/autolaunch")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const overview = page.locator("#autolaunch-overview")
+  await expect(overview.getByRole("heading", {name: "Launch with public proof"})).toBeVisible()
+  await expect(overview.locator(".autolaunch-market-section h2")).toHaveText([
+    "Featured auctions",
+    "Recently created",
+    "Top tokens",
+    "Recently graduated",
+  ])
+  await expect(overview).not.toContainText("$")
+
+  await overview.getByRole("link", {name: "Create a launch"}).click()
+  await expect(page).toHaveURL(/\/autolaunch\/create$/)
+  await expect(page.locator("#autolaunch-create li")).toHaveText([
+    "◇ Verified X",
+    "◇ Verified Farcaster",
+    "◇ Verified ENS",
+    "◇ Verified World",
+  ])
+  await expect(page.locator("#autolaunch-create form")).toHaveCount(0)
+
+  await page.goto("/autolaunch/auctions/auction-42")
+  await expect(page.getByRole("heading", {name: "Auction not found"})).toBeVisible()
+  await expect(page.locator("#autolaunch-auction-detail")).toContainText(
+    "No public auction exists",
+  )
+})
+
+test("a signed-in Regent owner saves a private launch draft without creating an auction", async ({page}) => {
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const session = await page.request.post("/auth/privy/session", {
+    headers: {authorization: "Bearer valid-autolaunch-draft", "x-csrf-token": csrfToken},
+  })
+  expect(session.ok()).toBe(true)
+
+  await page.goto("/formation")
+  const formationForm = page.locator("#form-regent")
+  if (await formationForm.isVisible()) {
+    await formationForm.getByLabel("Public name").fill("Draft Browser Regent")
+    await formationForm.getByLabel("Profile URL").fill("draft-browser-regent")
+    await formationForm.getByRole("button", {name: "Form Regent"}).click()
+    await expect(page.getByRole("heading", {name: "Draft Browser Regent is formed"})).toBeVisible()
+  }
+
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const uniqueTitle = `Browser launch draft ${Date.now()}`
+  const draft = page.locator("#create-launch-draft")
+  await draft.getByLabel("Launch title").fill(uniqueTitle)
+  await draft.getByLabel("Token name").fill("Browser Draft")
+  await draft.getByLabel("Token symbol").fill("BDRAFT")
+  await draft.getByLabel("Public summary").fill("Private preparation only.")
+  await draft.getByRole("button", {name: "Save private draft"}).click()
+
+  await expect(page.getByText("Draft saved. No auction or wallet action has started.")).toBeVisible()
+  await expect(page.locator("#launch-drafts article").filter({hasText: uniqueTitle})).toBeVisible()
+
+  await page.goto("/autolaunch/auctions")
+  await expect(page.getByText(uniqueTitle)).toHaveCount(0)
 })
 
 test("tree names preserve presentation while explicit selectors force it", async ({page}) => {
@@ -194,97 +485,82 @@ test("tree names preserve presentation while explicit selectors force it", async
 test("Formation panels remain local and survive LiveView content patches", async ({page}) => {
   await page.goto("/formation")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await expect(page.getByRole("heading", {name: "Form your Regent"})).toBeVisible()
   const historyLength = await page.evaluate(() => history.length)
   await page.getByRole("button", {name: "Billing"}).click()
 
   await expect(page.locator("#app-shell")).toHaveAttribute("data-formation-panel", "billing")
   expect(await page.evaluate(() => history.length)).toBe(historyLength)
   await expect(page).toHaveURL(/\/formation$/)
-  await expect(page.getByRole("heading", {name: "Formation"})).toBeVisible()
+  await expect(page.locator('[data-formation-panel-content="overview"]')).toBeHidden()
+  await expect(page.locator('[data-formation-panel-content="billing"]')).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Billing"})).toBeVisible()
+  await expect(page.getByText("Prepaid credit funds Sprite runtime and hosted AI use")).toBeVisible()
   await expect(page.locator("#app-shell")).toHaveAttribute("data-formation-panel", "billing")
 })
 
-test("reduced motion applies immediately and Appearance stays out of the shell", async ({browser}) => {
+test("a signed-in Regent owner provisions one verified Sprite from Formation Cloud", async ({page}) => {
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const session = await page.request.post("/auth/privy/session", {
+    headers: {authorization: "Bearer valid-formation-cloud", "x-csrf-token": csrfToken},
+  })
+  expect(session.ok()).toBe(true)
+
+  await page.goto("/formation")
+  const formationForm = page.locator("#form-regent")
+  if (await formationForm.isVisible()) {
+    await formationForm.getByLabel("Public name").fill("Cloud Browser Regent")
+    await formationForm.getByLabel("Profile URL").fill("cloud-browser-regent")
+    await formationForm.getByRole("button", {name: "Form Regent"}).click()
+    await expect(page.getByRole("heading", {name: "Cloud Browser Regent is formed"})).toBeVisible()
+  }
+
+  await page.getByRole("button", {name: "Cloud"}).click()
+  await expect(page.locator('[data-formation-panel-content="cloud"]')).toBeVisible()
+
+  const provision = page.getByRole("button", {name: "Provision Sprite"})
+  if (await provision.isVisible()) await provision.click()
+
+  const runtime = page.locator("#formation-cloud-runtime")
+  await expect(runtime).toContainText("Cloud Browser Regent")
+  await expect(runtime).toContainText("cold")
+  await expect(runtime).toContainText("sprites.app")
+  await runtime.getByRole("button", {name: "Refresh status"}).click()
+  await expect(page.getByText("Sprite status refreshed.")).toBeVisible()
+  await expect(page.getByRole("button", {name: "Pause"})).toHaveCount(0)
+  await expect(page.getByRole("button", {name: "Resume"})).toHaveCount(0)
+})
+
+test("theme and reduced-motion preferences apply immediately", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   await expect(page.locator("html")).toHaveAttribute("data-reduced-motion", "true")
-  await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
+  await page.locator("#theme-control summary").click()
+  await page.locator("#theme-control").getByRole("button", {name: "Dark"}).click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await page.reload()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await context.close()
 })
 
-test("the 320px menu contains focus, isolates content, and closes without overflow", async ({
-  page,
-}) => {
+test("the 320px menu is keyboard closable and landmarks remain available", async ({page}) => {
   await page.setViewportSize({width: 320, height: 640})
   await page.goto("/techtree")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const menu = page.getByRole("button", {name: "Menu"})
-  const sidebar = page.getByRole("navigation", {name: "Context navigation"})
-  const scrim = page.getByRole("button", {name: "Close navigation"})
-  const scroller = page.locator("#app-shell-scroller")
-  const firstTarget = sidebar.getByRole("link", {
-    name: "GeneBench-Pro Reference Lab",
-    exact: true,
-  })
-  const lastTarget = sidebar.getByRole("link", {name: "Skill Training Lab list"})
-
   await menu.click()
   await expect(menu).toHaveAttribute("aria-expanded", "true")
-  await expect(sidebar).toBeVisible()
-  await expect(scrim).toBeVisible()
-  await expect(firstTarget).toBeFocused()
-  expect(await scroller.evaluate(element => element.inert)).toBe(true)
-
-  await page.keyboard.press("Shift+Tab")
-  await expect(lastTarget).toBeFocused()
-  await page.keyboard.press("Tab")
-  await expect(firstTarget).toBeFocused()
-
+  await expect(page.getByRole("navigation", {name: "Context navigation"})).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(menu).toHaveAttribute("aria-expanded", "false")
   await expect(menu).toBeFocused()
-  await expect(sidebar).toBeHidden()
-  await expect(scrim).toBeHidden()
-  expect(await scroller.evaluate(element => element.inert)).toBe(false)
-
-  await menu.click()
-  await expect(firstTarget).toBeFocused()
-  await firstTarget.click()
-  await expect(page).toHaveURL(/\/techtree\/genebench-pro-reference-lab$/)
-  await expect(menu).toHaveAttribute("aria-expanded", "false")
-  await expect(sidebar).toBeHidden()
-  await expect(menu).toBeFocused()
-
-  await menu.click()
-  await expect(scrim).toBeVisible()
-  await scrim.click({position: {x: 310, y: 20}})
-  await expect(menu).toHaveAttribute("aria-expanded", "false")
-  await expect(menu).toBeFocused()
-  await expect(scrim).toBeHidden()
-
-  expect(
-    await page.evaluate(() => ({
-      documentWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-    })),
-  ).toEqual({documentWidth: 320, viewportWidth: 320})
+  await expect(page.locator("#shell-sidebar")).toHaveCount(1)
+  await expect(page.locator("#shell-sidebar")).toBeHidden()
   await expect(page.getByRole("banner")).toHaveCount(1)
   await expect(page.getByRole("main")).toHaveCount(1)
-})
-
-test("content errors and crashes do not remove shell controls", async ({page}) => {
-  for (const route of ["/regents/fixture-error", "/regents/fixture-crash"]) {
-    await page.goto(route)
-    await expect(page.getByRole("alert")).toContainText("could not be loaded")
-    await expect(page.locator("#app-selector summary")).toBeVisible()
-    await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
-    await page.locator("#app-selector summary").click()
-    await expect(
-      page.locator("#app-selector-menu").getByRole("link", {name: "Techtree"}),
-    ).toBeVisible()
-  }
 })

@@ -1,7 +1,5 @@
 import Config
 
-config :ash_platform, :notebook_origins, ["http://127.0.0.1:4001"]
-
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -20,6 +18,14 @@ config :ash_platform, AshPlatformWeb.Endpoint,
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:ash_platform, ~w(--sourcemap=inline --watch)]}
   ]
+
+config :ash_platform, :notebook_origins, ["http://127.0.0.1:4001"]
+
+config :ash_platform, :notebook_static_server,
+  scheme: :http,
+  ip: {127, 0, 0, 1},
+  port: 4001,
+  startup_log: false
 
 # ## SSL Support
 #
