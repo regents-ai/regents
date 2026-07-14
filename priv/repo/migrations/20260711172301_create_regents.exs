@@ -31,9 +31,7 @@ defmodule AshPlatform.Repo.Migrations.CreateRegents do
           name: "regents_human_account_id_fkey",
           type: :bigint,
           prefix: "platform"
-        ),
-        null: false
-      )
+        ), null: false)
     end
 
     create unique_index(:regents, [:human_account_id], name: "regents_unique_human_account_index")

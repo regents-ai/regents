@@ -24,6 +24,15 @@ defmodule AshPlatform.Accounts.HumanAccount do
       filter expr(id == ^arg(:id))
     end
 
+    read :public_comment_author
+
+    read :public_profile_source do
+      public? false
+      get? true
+      argument :id, :integer, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
     create :register_verified do
       accept []
       argument :privy_did, :string, allow_nil?: false
@@ -48,14 +57,22 @@ defmodule AshPlatform.Accounts.HumanAccount do
     update :set_display_name do
       accept [:display_name]
     end
+
+    update :set_avatar do
+      accept [:avatar]
+    end
   end
 
   policies do
-    policy action([:by_privy_did, :register_verified, :refresh_verified]) do
+    policy action([:by_privy_did, :register_verified, :refresh_verified, :public_profile_source]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
 
-    policy action([:read_self, :set_display_name]) do
+    policy action(:public_comment_author) do
+      authorize_if always()
+    end
+
+    policy action([:read_self, :set_display_name, :set_avatar]) do
       authorize_if expr(id == ^actor(:human_account_id))
     end
   end
@@ -73,6 +90,7 @@ defmodule AshPlatform.Accounts.HumanAccount do
     attribute :world_human_id, :string, sensitive?: true
     attribute :world_verified_at, :utc_datetime
     attribute :display_name, :string, public?: true, constraints: [max_length: 80]
+    attribute :avatar, :map
     create_timestamp :created_at
     update_timestamp :updated_at
   end

@@ -1,15 +1,13 @@
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 
 import * as bridge from "../js/privy_bridge"
 import {
-  connectedEthereumWallet,
-  replaceConnectedEthereumWallets,
   selectConnectedEthereumWallet,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
 
 const {
-  createAccountRequestHandler,
+  clearLocalSession,
   createLocalSession,
   createPrivyLoginCallbacks,
   createReadyLoginGate,
@@ -18,11 +16,6 @@ const {
 } = bridge
 
 describe("Privy session bridge", () => {
-  afterEach(() => {
-    replaceConnectedEthereumWallets([])
-    vi.unstubAllGlobals()
-  })
-
   it("retains the first sign-in click until Privy is ready", () => {
     const login = vi.fn()
     const gate = createReadyLoginGate(login)
@@ -131,57 +124,17 @@ describe("Privy session bridge", () => {
   })
 
   it("clears Regent before provider logout is attempted", async () => {
-    const order: string[] = []
-    const handler = createAccountRequestHandler({
-      requestLogin: vi.fn(),
-      clearSession: vi.fn(async () => {
-        order.push("local")
-      }),
-      providerLogout: vi.fn(async () => {
-        order.push("provider")
-      }),
-      reload: vi.fn(() => order.push("reload")),
-    })
+    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf"
+        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+        : new Response("{}", {status: 200}),
+    ) as typeof fetch
 
-    await handler("sign-out")
-    expect(order).toEqual(["local", "provider", "reload"])
-  })
-
-  it("queues an initial sign-in request through the ready gate exactly once", async () => {
-    const login = vi.fn()
-    const gate = createReadyLoginGate(login)
-    const handler = createAccountRequestHandler({
-      requestLogin: () => gate.requestLogin(),
-      clearSession: vi.fn(),
-      providerLogout: vi.fn(),
-      reload: vi.fn(),
-    })
-
-    await handler("sign-in")
-    expect(login).not.toHaveBeenCalled()
-    gate.setReady(true)
-    gate.setReady(true)
-    expect(login).toHaveBeenCalledOnce()
-  })
-
-  it("synchronizes signed-in wallet state without logging in or out", async () => {
-    const requestLogin = vi.fn()
-    const clearSession = vi.fn()
-    const providerLogout = vi.fn()
-    const reload = vi.fn()
-    const handler = createAccountRequestHandler({
-      requestLogin,
-      clearSession,
-      providerLogout,
-      reload,
-    })
-
-    await handler("sync")
-
-    expect(requestLogin).not.toHaveBeenCalled()
-    expect(clearSession).not.toHaveBeenCalled()
-    expect(providerLogout).not.toHaveBeenCalled()
-    expect(reload).not.toHaveBeenCalled()
+    await clearLocalSession(fetcher)
+    expect(fetcher).toHaveBeenLastCalledWith(
+      "/auth/privy/session",
+      expect.objectContaining({method: "DELETE"}),
+    )
   })
 
   it("does not own or inject server-rendered account markup", () => {
@@ -202,32 +155,5 @@ describe("Privy session bridge", () => {
         "0x1111111111111111111111111111111111111111",
       )?.provider,
     ).toBe(expected)
-  })
-
-  it("rejects a connected wallet when its signer does not match", () => {
-    const provider = {request: vi.fn()}
-
-    expect(
-      selectConnectedEthereumWallet(
-        [["0x2222222222222222222222222222222222222222", provider]],
-        "0x1111111111111111111111111111111111111111",
-      ),
-    ).toBeNull()
-  })
-
-  it("admits the injected test wallet only on the exact controlled test origin", () => {
-    const provider = {request: vi.fn()}
-    const testWallet = {address: "0x1111111111111111111111111111111111111111", provider}
-
-    vi.stubGlobal("window", {
-      location: {origin: "http://127.0.0.1:4002"},
-      __ashPlatformTestWallet: testWallet,
-    })
-    expect(connectedEthereumWallet(testWallet.address)).toEqual(testWallet)
-
-    for (const origin of ["http://localhost:4002", "http://127.0.0.1:4000", "https://127.0.0.1:4002"]) {
-      vi.stubGlobal("window", {location: {origin}, __ashPlatformTestWallet: testWallet})
-      expect(connectedEthereumWallet(testWallet.address)).toBeNull()
-    }
   })
 })

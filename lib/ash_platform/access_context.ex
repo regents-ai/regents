@@ -14,7 +14,12 @@ defmodule AshPlatform.AccessContext do
   def account_control(access_context, regent \\ nil)
 
   def account_control(%__MODULE__{principal: :anonymous}, _regent) do
-    %AccountControl{kind: :sign_in, label: "Sign In", profile_path: nil, settings_path: nil}
+    %AccountControl{
+      kind: :sign_in,
+      label: "Sign In",
+      profile_path: nil,
+      settings_path: nil
+    }
   end
 
   def account_control(%__MODULE__{principal: {:human, account}}, %{
