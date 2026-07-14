@@ -1,19 +1,38 @@
 defmodule AshPlatformWeb.Components.Background do
-  @moduledoc "Stable presentation seam for founder-supplied shell backgrounds."
+  @moduledoc "Decorative presentation for canonical shell background slots."
 
   use Phoenix.Component
 
-  attr(:slot, :atom, required: true)
+  @sources %{
+    home: "/images/backgrounds/home.svg",
+    regents_labs: "/images/backgrounds/regents_labs.svg",
+    formation: "/images/backgrounds/formation.svg",
+    regent_record: "/images/backgrounds/regent_record.svg",
+    techtree_overview: "/images/backgrounds/techtree_overview.svg",
+    techtree_node: "/images/backgrounds/techtree_node.svg",
+    techtree_tree: "/images/backgrounds/techtree_tree.svg",
+    autolaunch: "/images/backgrounds/autolaunch.svg"
+  }
+
+  attr(:slot, :any, required: true)
 
   def background(assigns) do
+    assigns = assign(assigns, :source, Map.get(@sources, assigns.slot))
+
+    assigns =
+      if assigns.source,
+        do: assign(assigns, :source_style, ~s|--shell-background-mask: url("#{assigns.source}")|),
+        else: assigns
+
     ~H"""
     <div
-      id="shell-background"
+      :if={@source}
       class="shell-background"
       data-background-slot={@slot}
-      data-background-state="neutral"
+      data-motion-background
       aria-hidden="true"
     >
+      <span class="shell-background__asset" style={@source_style}></span>
     </div>
     """
   end
