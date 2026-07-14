@@ -64,22 +64,23 @@ export function createLazyAuthLoader(
   let delivering: {request: AccountRequest; promise: Promise<void>} | null = null
 
   const deliverPending = (): Promise<void> => {
-    if (!handle || !pending) return Promise.resolve()
+    if (!handle) return Promise.resolve()
     if (delivering) {
-      return delivering.request === pending
+      return pending === null || delivering.request === pending
         ? delivering.promise
-        : delivering.promise.then(deliverPending)
+        : delivering.promise.then(deliverPending, deliverPending)
     }
+    if (!pending) return Promise.resolve()
 
     const request = pending
     pending = null
-    const attempt = handle
-      .request(request)
-      .finally(() => {
-        if (delivering?.promise === attempt) delivering = null
-      })
-      .then(deliverPending)
+    const attempt = handle.request(request)
+    const settle = () => {
+      if (delivering?.promise === attempt) delivering = null
+      void deliverPending().catch(() => undefined)
+    }
     delivering = {request, promise: attempt}
+    void attempt.then(settle, settle)
     return attempt
   }
 
@@ -164,7 +165,7 @@ export function installAccountAuthLazyLoader(
   }
 
   documentRoot.addEventListener("click", onClick)
-  if (documentRoot.querySelector("#account-control [data-account-target='identity']")) {
+  if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
     request("sync")
   }
   return () => documentRoot.removeEventListener("click", onClick)

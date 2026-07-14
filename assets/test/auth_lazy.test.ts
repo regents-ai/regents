@@ -37,8 +37,8 @@ function accountDocument({
         return bridgeSource === null ? null : {content: bridgeSource}
       }
       if (selector === "#account-auth-status") return status
-      if (selector === "#account-control [data-account-target='identity']") {
-        return signedIn ? new AccountElement("identity") : null
+      if (selector === "#account-control [data-account-target='sign-out']") {
+        return signedIn ? new AccountElement("sign-out") : null
       }
       return null
     },
@@ -81,6 +81,7 @@ describe("lazy browser authentication", () => {
           order.push("provider")
         }),
         reload: vi.fn(() => order.push("reload")),
+        synchronizeWallets: vi.fn(async () => undefined),
       }),
     )
     const startPrivyBridge = vi.fn(
@@ -110,6 +111,69 @@ describe("lazy browser authentication", () => {
     expect(handleRequest).toHaveBeenCalledOnce()
     expect(handleRequest).toHaveBeenCalledWith("sign-out")
     expect(order).toEqual(["local", "provider", "reload"])
+  })
+
+  it("processes queued sign out after an in-flight sync rejects", async () => {
+    let rejectSync: ((error: Error) => void) | undefined
+    const handleRequest = vi.fn(
+      (request: AccountRequest) =>
+        request === "sync"
+          ? new Promise<void>((_resolve, reject) => {
+              rejectSync = reject
+            })
+          : Promise.resolve(),
+    )
+    const loader = createLazyAuthLoader(
+      vi.fn(async () => ({
+        startPrivyBridge: vi.fn(async () => ({request: handleRequest})),
+      })),
+    )
+
+    const sync = loader.request("sync")
+    const syncFailure = expect(sync).rejects.toThrow("wallet sync failed")
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sync"))
+
+    const signOut = loader.request("sign-out")
+    rejectSync?.(new Error("wallet sync failed"))
+
+    await syncFailure
+    await expect(signOut).resolves.toBeUndefined()
+    expect(handleRequest.mock.calls.map(([request]) => request)).toEqual([
+      "sync",
+      "sign-out",
+    ])
+  })
+
+  it("keeps a successful in-flight sync independent from a queued sign-out rejection", async () => {
+    let resolveSync: (() => void) | undefined
+    const signOutError = new Error("local session deletion failed")
+    const handleRequest = vi.fn(
+      (request: AccountRequest) =>
+        request === "sync"
+          ? new Promise<void>(resolve => {
+              resolveSync = resolve
+            })
+          : Promise.reject(signOutError),
+    )
+    const loader = createLazyAuthLoader(
+      vi.fn(async () => ({
+        startPrivyBridge: vi.fn(async () => ({request: handleRequest})),
+      })),
+    )
+
+    const sync = loader.request("sync")
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sync"))
+
+    const signOut = loader.request("sign-out")
+    const syncOutcome = expect(sync).resolves.toBeUndefined()
+    const signOutOutcome = expect(signOut).rejects.toBe(signOutError)
+    resolveSync?.()
+
+    await Promise.all([syncOutcome, signOutOutcome])
+    expect(handleRequest.mock.calls.map(([request]) => request)).toEqual([
+      "sync",
+      "sign-out",
+    ])
   })
 
   it("retries the fixed server-owned bridge URL and starts exactly once", async () => {

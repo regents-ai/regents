@@ -9,6 +9,7 @@
 @import "./pages/regent_ops.css";
 @import "./pages/regent_profile.css";
 @import "./pages/settings.css";
+@import "./components/account_auth_status.css";
 @import "./pages/techtree.css";
 
 @font-face {

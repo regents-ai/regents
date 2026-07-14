@@ -141,6 +141,17 @@ defmodule AshPlatformWeb.Components.Shell do
               </button>
             </div>
           </details>
+
+          <p
+            id="account-auth-status"
+            class="account-auth-status"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            phx-update="ignore"
+            hidden
+          >
+          </p>
         </div>
 
         <div :if={@account_control.kind == :sign_in} id="theme-control" class="theme-control">

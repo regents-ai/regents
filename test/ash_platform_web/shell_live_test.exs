@@ -47,6 +47,12 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
     assert has_element?(view, "#theme-control details")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
+
+    assert has_element?(
+             view,
+             "#account-control #account-auth-status[role=status][aria-live=polite][aria-atomic=true][phx-update=ignore][hidden]"
+           )
+
     refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
     refute has_element?(view, "#account-control a", "Formation")
 
