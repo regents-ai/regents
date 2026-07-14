@@ -1,26 +1,4 @@
-@font-face {
-  font-family: "GeistPixel Circle";
-  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GeistPixel Square";
-  src: url("/fonts/GeistPixel-Square.woff2") format("woff2");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Geist UI Sans";
-  src: url("/fonts/geist/Geist[wght].woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-#public-home.rl-root {
-  --font-family-ui: "Geist UI Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-family-display: "GeistPixel Circle", "GeistPixel Square", sans-serif;
-  --font-family-pixel: "GeistPixel Square", sans-serif;
+.rl-root {
   --rl-bg: oklch(14.5% 0 0);
   --rl-panel: oklch(18% 0 0);
   --rl-panel-strong: oklch(21% 0 0);
@@ -36,15 +14,10 @@
   --rl-max: 88rem;
 
   min-height: 100vh;
-  display: block;
-  gap: 0;
-  padding: 0;
   background: var(--rl-bg);
   color: var(--rl-ink);
   font-family: var(--font-family-ui);
   line-height: 1.55;
-  place-content: normal;
-  text-align: start;
 }
 
 .rl-root *,
@@ -267,12 +240,6 @@
 .rl-action--strong {
   background: var(--rl-ink);
   color: var(--rl-bg) !important;
-}
-
-.rl-root a.rl-header-entry--strong:focus-visible,
-.rl-root a.rl-action--strong:focus-visible {
-  outline: 3px solid var(--rl-bg);
-  outline-offset: -4px;
 }
 
 .rl-hero-cards {

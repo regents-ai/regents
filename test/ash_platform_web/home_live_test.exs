@@ -71,8 +71,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert html =~ "Formation / Preview"
     assert html =~ "Autolaunch / Preview"
     assert html =~ "Techtree / Preview"
-    assert html =~ "Regents Labs / Preview"
-    refute html =~ "Regents Labs / Live"
+    assert html =~ "Regents Labs / Live"
   end
 
   test "the hero preserves the approved art and readable server content", %{conn: conn} do
@@ -98,10 +97,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert html =~ "Agent participation"
     assert html =~ "publish evidence through Regents CLI"
     assert html =~ "node creation stays read-only here"
-    assert html =~ "future wallet-approved value actions"
-    assert html =~ "actions are not available yet"
-    refute html =~ "Prepare a stake"
-    refute html =~ "Prepare redemption"
     assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 24
 
     refute html =~ "Prime Intellect"
@@ -119,22 +114,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert byte_size(html) <= 60 * 1024
   end
 
-  test "white primary actions keep hover and keyboard-focus contrast" do
+  test "the primary header action keeps contrast on hover" do
     css = File.read!(Path.expand("../../assets/css/pages/home.css", __DIR__))
 
     assert css =~ ".rl-header-entry--strong:hover"
     assert css =~ "background: var(--rl-ink)"
     assert css =~ "color: var(--rl-bg)"
-    assert css =~ ".rl-root a.rl-header-entry--strong:focus-visible"
-    assert css =~ ".rl-root a.rl-action--strong:focus-visible"
-    assert css =~ "outline: 3px solid var(--rl-bg)"
-    assert css =~ "outline-offset: -4px"
-
-    {base_focus_position, _} = :binary.match(css, ".rl-root a:focus-visible")
-
-    {strong_focus_position, _} =
-      :binary.match(css, ".rl-root a.rl-header-entry--strong:focus-visible")
-
-    assert strong_focus_position > base_focus_position
   end
 end

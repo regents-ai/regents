@@ -1,62 +1,39 @@
-# Homepage U2 acceptance evidence
+# Homepage marketing-index evidence
 
-This directory records the isolated U2 homepage candidate built from Ash Platform commit
-`747c953e83343107ce6100c65252514fa52cac95`.
+Status: implementation evidence only. Browser acceptance remains with the Platform motion/integration lane.
 
-## Included result
+## Design result
 
-- The public page is an indexed four-product marketing surface with one mat hero and exactly
-  four chapters: Formation, Autolaunch, Techtree, and Regents Labs.
-- Header tabs stay on the page through `#formation`, `#autolaunch`, `#techtree`, and
-  `#regents-labs`. The four `OPEN` cards enter `/formation`, `/autolaunch`, `/techtree`, and
-  `/app` respectively.
-- The exact founder-provided hero artwork is present at
-  `priv/static/images/home/hero-bg-dark.svg`; its SHA-256 is
-  `5d04f865bb1b4611e6c9cf9d44e2377107202782b27064e864fd2c4509e0da8c`.
-- The page uses the canonical dark crown and the minimal Geist UI Sans, Pixel Circle, and Pixel
-  Square fonts. It intentionally remains dark under System, Light, and Dark preferences.
-- Regents Labs, Stake, and Redeem are labelled as previews; the page says their actions are not
-  yet available rather than implying that a destination is live.
-- White primary actions use a square 3px near-black inset keyboard-focus ring. The neutral token
-  pair has approximately 18.15:1 non-text contrast, above the required 3:1 threshold.
-- Content is visible before JavaScript runs. The optional Anime.js 4.5.0 introduction is finite,
-  cancellable, and publishes deterministic `enhanced` and `settled` readiness states. Reduced
-  motion settles without travel.
+- Uses Prime Intellect only as a structural reference for a strong indexed header and thesis-led hero. No Prime assets, branding, claims, partner marks, announcements, or metrics are present.
+- Keeps the exact founder-provided cutting-mat artwork as the hero background.
+- Gives the header four contiguous marketing links: `#formation`, `#autolaunch`, `#techtree`, and `#regents-labs`.
+- Keeps the four `OPEN` hero cards as product gateways to `/formation`, `/autolaunch`, `/techtree`, and `/app`.
+- Presents exactly four major chapters in that same product order. Each chapter contains its own supporting proof and app-entry action.
+- Uses square Regent geometry, the canonical crown, Regent type, one product accent per chapter, and plain inner proof surfaces.
 
-## Candidate-local verification
+## Verification performed
 
-- `npm ci`: completed from the committed lockfile.
-- `npm test`: 5 files, 28 tests, 0 failures.
-- `npm test -- --run assets/test/home_hero.test.ts`: 1 file, 8 tests, 0 failures.
-- `npm run typecheck`: passed.
-- `git diff --check`: passed.
-- Asset-reference, scope, and hash checks: passed.
+- `mix test test/ash_platform_web/home_live_test.exs`: 4 tests, 0 failures.
+- `mix compile --warnings-as-errors`: passed.
+- `mix format --check-formatted` for the owned Elixir and test files: passed.
+- `git diff --check` for the three implementation files: passed.
+- `shasum -a 256 priv/static/images/home/hero-bg-dark.svg`: `5d04f865bb1b4611e6c9cf9d44e2377107202782b27064e864fd2c4509e0da8c`.
+- Chromium layout probe at 320, 390, and 1440 CSS pixels: page scroll width equalled viewport width; every tab, header action, hero action, and hero card was at least 44px tall; cards were 2×2 at 320/390 and four columns at 1440.
+- A 320px geometry probe compared each voxel cluster with its card's OPEN label, index, title, tagline, and arrow. All 20 comparisons were non-intersecting. Voxels occupy the unused top-center zone rather than the text baseline.
 
-## Unrestricted acceptance still required
+## Browser acceptance status
 
-This sandbox does not permit the local TCP sockets required by Elixir 1.19 Mix PubSub or the
-controlled Phoenix browser server. It also cannot produce trustworthy browser captures without
-that server. No historical screenshots are included or described as fresh evidence.
+Final captures use the exact readiness contract: `#public-home[data-hero-enhanced="true"][data-hero-motion="settled"]`, `document.fonts.ready`, and decoding every incomplete image. They cover desktop dark and light, 390×844 dark, 768×1024 light, and effective 200% dark without horizontal overflow. The public marketing surface deliberately remains dark in both theme modes so the founder artwork and product colors stay stable; this follows the STYLE direction for the dark-stock marketing surface. The two desktop captures are byte-identical with SHA-256 `b6c34f22f097dd52201b3bd5d4966a818ff5fa92c190e7a676e8a430e17aa058`.
 
-Run these commands from the immutable candidate commit in an unrestricted local environment:
+## Independent convergence
 
-```sh
-npm ci
-MIX_OS_CONCURRENCY_LOCK=0 mix deps.get
-MIX_OS_CONCURRENCY_LOCK=0 HEX_OFFLINE=1 mix compile --warnings-as-errors
-MIX_OS_CONCURRENCY_LOCK=0 HEX_OFFLINE=1 mix format --check-formatted
-MIX_OS_CONCURRENCY_LOCK=0 HEX_OFFLINE=1 mix test test/ash_platform_web/home_live_test.exs
-npm test -- --run assets/test/home_hero.test.ts
-npm run typecheck
-MIX_OS_CONCURRENCY_LOCK=0 HEX_OFFLINE=1 mix assets.build
-npm run test:budgets
-MIX_OS_CONCURRENCY_LOCK=0 HEX_OFFLINE=1 npx playwright test test/browser/homepage.spec.ts
-git diff --check
-```
+Chief's unrestricted convergence run on 2026-07-11 passed: HomeLive 4/4, full Mix 159/0, frontend 59/59, budgets 2/2, and Playwright 21/21. Warnings-as-errors compilation, formatting, Ash code generation checks, the asset build, and the repository diff check also passed. The sole browser-suite update replaced a stale expectation for the former eleven-section page with the canonical four marketing chapters.
 
-The browser test waits for
-`#public-home[data-hero-enhanced="true"][data-hero-motion="settled"]`, loaded fonts, and decoded
-images. It then verifies no-JavaScript readability, reduced motion, keyboard focus, hover
-contrast, no horizontal overflow, 2×2 mobile cards without text/voxel collision, 320, 390, 768,
-desktop, effective 200%, and pixel-identical pinned-dark Light/Dark captures. It writes the fresh
-PNG evidence into this directory.
+## Visual critique
+
+- The thesis leads clearly, while the mat remains legible as a precision-work backdrop rather than competing with the copy.
+- The indexed header reads as one contiguous product map. At narrow widths it becomes a horizontally scrollable rail without widening the page.
+- The four OPEN cards form a compact desktop ribbon and a balanced 2×2 composition at 320 and 390 pixels. Their voxel clusters stay clear of every label and keep product identity restrained.
+- The body copy uses Geist UI Sans. The captured implementation still gives CTA actions the pixel face; independent review identified this as a remaining typography mismatch with the founder correction.
+- The four chapters keep proof inside its owning product. Three-card and four-card proof groups balance through an adaptive grid.
+- Independent screenshot review found that the horizontally scrolling product-tab rail does not make the off-canvas fourth tab sufficiently discoverable at 390px and effective 200%. The convergence suites pass, but these two presentation findings remain recorded rather than silently described as accepted.

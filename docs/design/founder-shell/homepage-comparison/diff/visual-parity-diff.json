@@ -1,0 +1,91 @@
+{
+  "kind": "screenshot-parity-diff",
+  "generatedAt": "2026-07-11T18:58:08.820Z",
+  "note": "Lower parityDistance means the candidate is closer to the reference for this fixed pair. This is a distance metric, not an acceptance gate.",
+  "pairCount": 2,
+  "worstPair": "closing-footer",
+  "results": [
+    {
+      "id": "closing-footer",
+      "current": "../../Users/sean/Documents/regent/ash-platform/docs/design/founder-shell/homepage-comparison/reference/closing-footer.png",
+      "candidate": "../../Users/sean/Documents/regent/ash-platform/docs/design/founder-shell/homepage-comparison/candidate/closing-footer.png",
+      "dimensions": {
+        "width": 1440,
+        "height": 1000
+      },
+      "parityDistance": 0.31843,
+      "grayscale": {
+        "mae": 25.44257,
+        "rmse": 66.36456,
+        "diffRatio16": 0.21006,
+        "diffRatio32": 0.12759,
+        "diffRatio64": 0.0908,
+        "pixelmatchRatio": 0.16496
+      },
+      "contentProxies": {
+        "blackRatioCurrent": 0.79008,
+        "blackRatioCandidate": 0.89383,
+        "terrainLikeRatioCurrent": 0.07865,
+        "terrainLikeRatioCandidate": 0.02212,
+        "avgLuminanceCurrent": 32.93056,
+        "avgLuminanceCandidate": 18.37474,
+        "avgLuminanceDelta": -14.55583,
+        "edgeEnergyCurrent": 0.13669,
+        "edgeEnergyCandidate": 0.04291,
+        "edgeEnergyRatio": 0.31392,
+        "edgeDiffRatio32": 0.33013
+      },
+      "artifacts": {
+        "sideBySide": "diff/closing-footer-side-by-side.png",
+        "currentGray": "diff/closing-footer-current-gray.png",
+        "candidateGray": "diff/closing-footer-candidate-gray.png",
+        "absDiff": "diff/closing-footer-absdiff.png",
+        "pixelmatch": "diff/closing-footer-pixelmatch.png",
+        "currentEdges": "diff/closing-footer-current-edges.png",
+        "candidateEdges": "diff/closing-footer-candidate-edges.png",
+        "edgeDiff": "diff/closing-footer-edge-diff.png"
+      }
+    },
+    {
+      "id": "formation",
+      "current": "../../Users/sean/Documents/regent/ash-platform/docs/design/founder-shell/homepage-comparison/reference/formation.png",
+      "candidate": "../../Users/sean/Documents/regent/ash-platform/docs/design/founder-shell/homepage-comparison/candidate/formation.png",
+      "dimensions": {
+        "width": 1440,
+        "height": 1000
+      },
+      "parityDistance": 0.0989,
+      "grayscale": {
+        "mae": 18.98124,
+        "rmse": 57.82856,
+        "diffRatio16": 0.10104,
+        "diffRatio32": 0.08675,
+        "diffRatio64": 0.07495,
+        "pixelmatchRatio": 0.09324
+      },
+      "contentProxies": {
+        "blackRatioCurrent": 0.93083,
+        "blackRatioCandidate": 0.95637,
+        "terrainLikeRatioCurrent": 0.05915,
+        "terrainLikeRatioCandidate": 0.02358,
+        "avgLuminanceCurrent": 22.93355,
+        "avgLuminanceCandidate": 17.9564,
+        "avgLuminanceDelta": -4.97715,
+        "edgeEnergyCurrent": 0.05072,
+        "edgeEnergyCandidate": 0.04746,
+        "edgeEnergyRatio": 0.93582,
+        "edgeDiffRatio32": 0.12349
+      },
+      "artifacts": {
+        "sideBySide": "diff/formation-side-by-side.png",
+        "currentGray": "diff/formation-current-gray.png",
+        "candidateGray": "diff/formation-candidate-gray.png",
+        "absDiff": "diff/formation-absdiff.png",
+        "pixelmatch": "diff/formation-pixelmatch.png",
+        "currentEdges": "diff/formation-current-edges.png",
+        "candidateEdges": "diff/formation-candidate-edges.png",
+        "edgeDiff": "diff/formation-edge-diff.png"
+      }
+    }
+  ]
+}

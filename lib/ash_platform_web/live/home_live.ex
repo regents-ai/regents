@@ -178,14 +178,14 @@ defmodule AshPlatformWeb.HomeLive do
           "Bring identity, a private cloud runtime, Hermes Skills, and practical prepaid operations into one guided lifecycle.",
         proofs: [
           %{
-            state: "Preview",
+            state: "Live",
             title: "One active Regent",
-            copy: "See how one Regent stays connected to your signed-in account."
+            copy: "Form the Regent connected to your signed-in account."
           },
           %{
-            state: "Preview",
+            state: "Live",
             title: "Private cloud",
-            copy: "Explore the private cloud workspace and controls planned for your Regent."
+            copy: "Provision and inspect its private cloud workspace."
           },
           %{
             state: "Preview",
@@ -208,9 +208,9 @@ defmodule AshPlatformWeb.HomeLive do
           "Prepare a private launch draft, inspect auctions and tokens, and approve every market action in your wallet.",
         proofs: [
           %{
-            state: "Preview",
+            state: "Live",
             title: "Private drafts",
-            copy: "See how a launch takes shape before it becomes a public market record."
+            copy: "Shape a launch before it becomes a public market record."
           },
           %{
             state: "Preview",
@@ -239,19 +239,19 @@ defmodule AshPlatformWeb.HomeLive do
           "Browse connected research in Map and List, inspect evidence, discuss public nodes, and run approved notebooks locally.",
         proofs: [
           %{
-            state: "Preview",
+            state: "Live",
             title: "Map and List",
-            copy: "See how two views reveal the same research tree."
+            copy: "Move between two views of the same tree on one route."
           },
           %{
-            state: "Preview",
+            state: "Live",
             title: "Focused discussion",
-            copy: "Preview public comments and signed human reactions on each node."
+            copy: "Read public comments and add a signed human reaction."
           },
           %{
-            state: "Preview",
+            state: "Live",
             title: "Local Marimo",
-            copy: "Preview approved Marimo WASM notebooks that run locally in your browser."
+            copy: "Run approved Marimo WASM notebooks locally in your browser."
           },
           %{
             state: "Planned",
@@ -266,28 +266,28 @@ defmodule AshPlatformWeb.HomeLive do
         anchor: "regents-labs",
         card_key: "regent",
         name: "Regents Labs",
-        status: "Preview",
+        status: "Live",
         href: ~p"/app",
         cta: "Enter Regents Labs",
-        short: "Identity and future wallet actions.",
+        short: "Identity, stake, redeem, and profile.",
         title: "Keep identity and value actions together.",
         description:
-          "Preview the home for your Regent identity, public profile, and future wallet-approved value actions.",
+          "See your Regent, manage its public identity, prepare REGENT staking, and redeem supported NFTs with wallet approval.",
         proofs: [
           %{
-            state: "Preview",
+            state: "Live",
             title: "Regent overview",
-            copy: "See where the Regent connected to your account will appear."
+            copy: "See the Regent connected to your account."
           },
           %{
-            state: "Preview",
+            state: "Live",
             title: "Stake REGENT",
-            copy: "Review where wallet-approved staking will live; actions are not available yet."
+            copy: "Prepare a stake and approve the value action in your wallet."
           },
           %{
-            state: "Preview",
+            state: "Live",
             title: "Redeem supported NFTs",
-            copy: "Review where supported redemption will live; actions are not available yet."
+            copy: "Prepare redemption and verify the completed result."
           }
         ]
       }
