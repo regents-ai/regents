@@ -25,6 +25,14 @@ defmodule AshPlatform.Formation.Regent do
       constraints max_length: 500, trim?: true
     end
 
+    attribute :avatar_url, :string do
+      public? true
+
+      constraints max_length: 2_048,
+                  match:
+                    ~r/\A(?:\/(?!\/)[^\s]*|https:\/\/[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[0-9]{1,5})?(?:\/[^\s]*)?)\z/
+    end
+
     timestamps()
   end
 
@@ -51,6 +59,18 @@ defmodule AshPlatform.Formation.Regent do
       argument :slug, :string, allow_nil?: false
       filter expr(slug == ^arg(:slug))
     end
+
+    action :public_profile, :struct do
+      constraints instance_of: AshPlatform.Formation.PublicRegentProfile
+      allow_nil? true
+      argument :slug, :string, allow_nil?: false
+      run AshPlatform.Formation.Regent.Actions.ReadPublicProfile
+    end
+
+    update :update_profile do
+      accept [:display_name, :summary, :avatar_url]
+      atomic_upgrade_with :my_regent
+    end
   end
 
   policies do
@@ -58,12 +78,20 @@ defmodule AshPlatform.Formation.Regent do
       authorize_if always()
     end
 
-    policy action([:form_regent, :my_regent]) do
+    policy action(:public_profile) do
+      authorize_if always()
+    end
+
+    policy action([:form_regent, :my_regent, :update_profile]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
     policy action(:my_regent) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action(:update_profile) do
+      authorize_if AshPlatform.Formation.Checks.RegentOwner
     end
   end
 

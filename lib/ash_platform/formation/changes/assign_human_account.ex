@@ -8,5 +8,7 @@ defmodule AshPlatform.Formation.Changes.AssignHumanAccount do
     Ash.Changeset.change_attribute(changeset, :human_account_id, id)
   end
 
-  def change(changeset, _opts, _context), do: changeset
+  def change(changeset, _opts, _context) do
+    changeset
+  end
 end
