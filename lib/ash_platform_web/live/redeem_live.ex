@@ -1,0 +1,268 @@
+defmodule AshPlatformWeb.RedeemLive do
+  @moduledoc false
+  use Phoenix.Component
+
+  attr :redemption, :map, default: nil
+  attr :status, :atom, required: true
+  attr :authenticated, :boolean, required: true
+  attr :collection, :string, required: true
+  attr :token_id, :string, required: true
+  attr :notice, :map, default: nil
+  attr :prepared, :map, default: nil
+  attr :submission, :map, default: nil
+  attr :signing, :boolean, default: false
+
+  def redemption_page(assigns) do
+    ~H"""
+    <section id="animata-redemption" phx-hook="RedemptionWallet" class="redeem-page">
+      <header class="redeem-heading">
+        <p class="redeem-kicker">Regents Labs · Base</p>
+        <h1>Redeem Animata</h1>
+        <p>
+          Redeem an Animata I or II token for a Regents Club token and a seven-day stream of
+          5,000,000 REGENT.
+        </p>
+      </header>
+
+      <section class="redeem-facts" aria-label="Redemption facts">
+        <.metric label="Cost" value="80 USDC" />
+        <.metric label="Reward" value="5,000,000 REGENT" />
+        <.metric label="Vesting" value="7 days" />
+        <.metric label="Network" value="Base" />
+      </section>
+
+      <div :if={@status == :loading} class="redeem-status" aria-busy="true">
+        Loading redemption details…
+      </div>
+      <div :if={@status == :error} class="redeem-status" role="alert">
+        Redemption details are unavailable right now. Try again shortly.
+      </div>
+
+      <div :if={@status == :ready && @redemption} class="redeem-layout">
+        <section class="redeem-summary" aria-label="Redemption account status">
+          <.metric label="USDC balance" value={usdc(@redemption.usdc_balance)} />
+          <.metric label="USDC allowance" value={usdc(@redemption.usdc_allowance)} />
+          <.metric label="Claimable REGENT" value={regent(@redemption.claimable)} />
+          <.metric label="Vest total" value={regent(@redemption.vest_pool)} />
+          <.metric label="Released" value={regent(@redemption.vest_released)} />
+          <.metric label="Claimed" value={regent(@redemption.vest_claimed)} />
+          <.metric
+            :if={@redemption.result_token_id}
+            label="Regents Club"
+            value={"Result token ##{@redemption.result_token_id}"}
+          />
+        </section>
+
+        <section :if={!@authenticated} class="redeem-actions">
+          <h2>Connect your account</h2>
+          <p>Sign in with the wallet that holds your Animata token to redeem or claim.</p>
+        </section>
+
+        <section :if={@authenticated} class="redeem-actions" aria-label="Redemption actions">
+          <.notice :if={@notice} notice={@notice} />
+
+          <form id="redemption-selection" phx-change="redemption_selection_changed">
+            <label for="redemption-collection">Collection</label>
+            <select
+              id="redemption-collection"
+              name="collection"
+              disabled={locked?(@prepared, @submission)}
+            >
+              <option value="animata_i" selected={@collection == "animata_i"}>Animata I</option>
+              <option value="animata_ii" selected={@collection == "animata_ii"}>Animata II</option>
+            </select>
+            <label for="redemption-token-id">Token ID</label>
+            <input
+              id="redemption-token-id"
+              name="token_id"
+              value={@token_id}
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="1–999"
+              disabled={locked?(@prepared, @submission)}
+            />
+          </form>
+
+          <p :if={valid_token_input?(@token_id)} class="redeem-selection-status">
+            {"#{collection_label(@collection)} · Token ##{@token_id}"}
+          </p>
+          <p :if={@redemption.nft_owner} class="redeem-selection-status">
+            Owner: <span class="redeem-mono">{short(@redemption.nft_owner)}</span>
+          </p>
+
+          <section :if={@submission} class="redeem-submission" aria-label="Submitted transaction">
+            <p>
+              Submitted transaction:
+              <span class="redeem-mono">{short_hash(@submission.transaction_hash)}</span>
+            </p>
+            <button
+              :if={@prepared && @submission.status != :confirmed}
+              type="button"
+              phx-click="retry_redemption_confirmation"
+            >
+              Retry verification
+            </button>
+            <button
+              :if={@submission.status == :confirmed}
+              type="button"
+              phx-click="refresh_redemption"
+            >
+              Refresh redemption details
+            </button>
+          </section>
+
+          <div class="redeem-button-row">
+            <button
+              type="button"
+              phx-click="prepare_redemption"
+              phx-value-action="approve_nft_collection"
+              disabled={locked?(@prepared, @submission) || @redemption.nft_approved == true}
+            >
+              {if @redemption.nft_approved, do: "NFT collection approved", else: "Review NFT approval"}
+            </button>
+            <button
+              type="button"
+              phx-click="prepare_redemption"
+              phx-value-action="approve_exact_usdc"
+              disabled={locked?(@prepared, @submission) || exact_allowance?(@redemption)}
+            >
+              {if exact_allowance?(@redemption), do: "80 USDC approved", else: "Review USDC approval"}
+            </button>
+            <button
+              type="button"
+              phx-click="prepare_redemption"
+              phx-value-action="redeem"
+              disabled={locked?(@prepared, @submission) || !redeem_ready?(@redemption, @token_id)}
+            >
+              Review redemption
+            </button>
+            <button
+              type="button"
+              phx-click="prepare_redemption"
+              phx-value-action="claim"
+              disabled={locked?(@prepared, @submission) || !claim_ready?(@redemption)}
+            >
+              Review REGENT claim
+            </button>
+          </div>
+
+          <section :if={@prepared} class="redeem-review" aria-label="Wallet action review">
+            <p class="redeem-kicker">Review before signing</p>
+            <h2>{action_label(@prepared.action)}</h2>
+            <p>{@prepared.risk_copy}</p>
+            <dl>
+              <div :if={@prepared.arguments[:collection]}>
+                <dt>Selection</dt>
+                <dd>{selection(@prepared.arguments)}</dd>
+              </div>
+              <div :if={@prepared.arguments[:amount_atomic]}>
+                <dt>Amount</dt><dd>80 USDC</dd>
+              </div>
+              <div>
+                <dt>Network</dt><dd>Base</dd>
+              </div>
+              <div>
+                <dt>Wallet</dt><dd class="redeem-mono">{short(@prepared.expected_signer)}</dd>
+              </div>
+              <div>
+                <dt>Contract</dt><dd class="redeem-mono">{short(@prepared.to)}</dd>
+              </div>
+              <div>
+                <dt>Native value</dt><dd>0 ETH</dd>
+              </div>
+            </dl>
+            <div :if={!@submission} class="redeem-button-row">
+              <button
+                type="button"
+                phx-click="sign_prepared_redemption"
+                phx-value-action-id={@prepared.action_id}
+                disabled={@signing}
+              >
+                {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
+              </button>
+              <button type="button" phx-click="cancel_redemption_review">Cancel review</button>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+
+  defp metric(assigns) do
+    ~H"""
+    <div class="redeem-metric">
+      <p class="redeem-metric-label">{@label}</p>
+      <p class="redeem-metric-value">{@value}</p>
+    </div>
+    """
+  end
+
+  attr :notice, :map, required: true
+
+  defp notice(assigns) do
+    ~H"""
+    <p class="redeem-notice" role={if @notice.tone == :error, do: "alert", else: "status"}>
+      {@notice.message}
+    </p>
+    """
+  end
+
+  defp usdc(nil), do: "—"
+  defp usdc(value), do: value <> " USDC"
+  defp regent(nil), do: "—"
+  defp regent(value), do: value <> " REGENT"
+
+  defp locked?(_prepared, %{status: status}) when status != :confirmed, do: true
+  defp locked?(prepared, _submission), do: not is_nil(prepared)
+  defp exact_allowance?(redemption), do: redemption.usdc_allowance_raw == redemption.price_raw
+
+  defp redeem_ready?(redemption, token_id),
+    do:
+      valid_token_input?(token_id) and redemption.nft_owner == redemption.wallet_address and
+        redemption.nft_approved == true and exact_allowance?(redemption) and
+        parse_integer(redemption.usdc_balance_raw) >= parse_integer(redemption.price_raw)
+
+  defp claim_ready?(redemption), do: parse_integer(redemption.claimable_raw) > 0
+  defp valid_token_input?(value), do: parse_integer(value) in 1..999
+
+  defp parse_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _ -> -1
+    end
+  end
+
+  defp parse_integer(_value), do: -1
+
+  defp action_label("approve_nft_collection"), do: "Approve NFT collection"
+  defp action_label("approve_exact_usdc"), do: "Approve exactly 80 USDC"
+  defp action_label("redeem"), do: "Redeem Animata"
+  defp action_label("claim"), do: "Claim unlocked REGENT"
+
+  defp selection(arguments) do
+    collection = collection_label_from_address(arguments[:collection])
+
+    if arguments[:token_id],
+      do: "#{collection} · Token ##{arguments[:token_id]}",
+      else: "#{collection} collection"
+  end
+
+  defp collection_label("animata_i"), do: "Animata I"
+  defp collection_label("animata_ii"), do: "Animata II"
+
+  defp collection_label_from_address("0x78402119ec6349a0d41f12b54938de7bf783c923"),
+    do: "Animata I"
+
+  defp collection_label_from_address("0x903c4c1e8b8532fbd3575482d942d493eb9266e2"),
+    do: "Animata II"
+
+  defp short("0x" <> address),
+    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
+
+  defp short_hash("0x" <> hash) when byte_size(hash) == 64,
+    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
+end
