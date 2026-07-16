@@ -1,5 +1,4 @@
 import {readFileSync} from "node:fs"
-import {resolve} from "node:path"
 
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
@@ -11,6 +10,8 @@ vi.mock("phoenix", () => ({Socket: class Socket {}}))
 vi.mock("phoenix-colocated/ash_platform", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({installAccountAuthLazyLoader: vi.fn()}))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
+vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
+vi.mock("../js/hooks/voxel", () => ({VoxelDelight: {}}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {
     constructor(
@@ -31,6 +32,7 @@ class FakeElement {
   hidden = false
   inert = false
   open = false
+  parentElement: {id?: string} | null = null
   attributes = new Map<string, string>()
   focusCount = 0
   closestSelectors = new Set<string>()
@@ -54,10 +56,12 @@ class FakeElement {
 
   setAttribute(name: string, value: string) {
     this.attributes.set(name, value)
+    if (name === "open") this.open = true
   }
 
   removeAttribute(name: string) {
     this.attributes.delete(name)
+    if (name === "open") this.open = false
   }
 }
 
@@ -73,6 +77,8 @@ const fakeStorage = new Map<string, string>()
 
 const fakeWindow = {
   liveSocket: undefined as unknown,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
   matchMedia: () => ({
     matches: false,
     addEventListener: vi.fn(),
@@ -86,6 +92,7 @@ const fakeWindow = {
 
 vi.stubGlobal("Element", FakeElement)
 vi.stubGlobal("HTMLElement", FakeElement)
+vi.stubGlobal("MouseEvent", class MouseEvent {})
 vi.stubGlobal("document", fakeDocument)
 vi.stubGlobal("window", fakeWindow)
 vi.stubGlobal("localStorage", fakeWindow.localStorage)
@@ -99,14 +106,24 @@ function shellFixture() {
   const menuButton = new FakeElement()
   menuButton.closestSelectors.add("#mobile-menu-button")
   const firstLink = new FakeElement()
+  firstLink.closestSelectors.add("[data-shell-menu-close]")
   const lastLink = new FakeElement()
   const navigationLink = new FakeElement()
   navigationLink.closestSelectors.add("#shell-sidebar a")
   const scrim = new FakeElement()
   scrim.closestSelectors.add("[data-shell-menu-scrim]")
   const appSelector = new FakeElement()
+  appSelector.parentElement = {id: "app-selector"}
   const appSelectorLink = new FakeElement()
-  appSelectorLink.closestSelectors.add("#app-selector-menu a")
+  appSelectorLink.closestSelectors.add("#app-selector a")
+  appSelectorLink.closest = (selector: string) => {
+    if (selector === "details") return appSelector
+    return selector
+      .split(",")
+      .some(candidate => appSelectorLink.closestSelectors.has(candidate.trim()))
+      ? appSelectorLink
+      : null
+  }
   const scroller = Object.assign(new FakeElement(), {scrollTo: vi.fn()})
   const mapLink = new FakeElement()
   mapLink.dataset.treePath = "/techtree"
@@ -126,10 +143,13 @@ function shellFixture() {
       if (selector === "#app-shell-scroller") return scroller
       if (selector === "[data-shell-menu-scrim]") return scrim
       if (selector === "#app-selector") return appSelector
+      if (selector === "#app-selector > details") return appSelector
       return null
     },
     querySelectorAll(selector: string) {
-      return selector === "[data-tree-presentation]" ? [mapLink, listLink] : []
+      if (selector === "[data-tree-presentation]") return [mapLink, listLink]
+      if (selector.includes("details[open]")) return appSelector.open ? [appSelector] : []
+      return []
     },
     addEventListener(type: string, listener: Listener) {
       listeners.set(type, listener)
@@ -200,9 +220,11 @@ describe("mobile shell navigation", () => {
 
     hook.destroyed?.call(context)
     expect(page.scroller.inert).toBe(false)
+    expect(page.scrim.hidden).toBe(true)
+    expect(page.shell.dataset.menuOpen).toBe("false")
   })
 
-  it.each(["Escape", "scrim", "navigation"])(
+  it.each(["Escape", "scrim", "navigation", "explicit close"])(
     "closes on %s and restores the menu trigger",
     async reason => {
       const page = shellFixture()
@@ -216,6 +238,7 @@ describe("mobile shell navigation", () => {
       if (reason === "Escape") page.keydown("Escape")
       if (reason === "scrim") page.click(page.scrim)
       if (reason === "navigation") page.click(page.navigationLink)
+      if (reason === "explicit close") page.click(page.firstLink)
 
       expect(page.shell.dataset.menuOpen).toBe("false")
       expect(page.menuButton.getAttribute("aria-expanded")).toBe("false")
@@ -225,7 +248,7 @@ describe("mobile shell navigation", () => {
     },
   )
 
-  it("closes the app selector after a selection and after a route patch", () => {
+  it("closes the app selector after a selection", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
@@ -236,15 +259,46 @@ describe("mobile shell navigation", () => {
     page.click(page.appSelectorLink)
     expect(page.appSelector.open).toBe(false)
     expect(page.appSelector.getAttribute("open")).toBeNull()
+  })
 
-    page.appSelector.open = true
+  it("preserves an open app selector across a same-destination route patch", () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    hook.mounted?.call(context)
     page.appSelector.setAttribute("open", "")
+    hook.beforeUpdate?.call(context)
+    page.appSelector.removeAttribute("open")
     hook.updated?.call(context)
+
+    expect(page.appSelector.open).toBe(true)
+    expect(page.appSelector.getAttribute("open")).toBe("")
+  })
+
+  it("closes the drawer and app selector when the destination updates", async () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    hook.mounted?.call(context)
+    page.click(page.menuButton)
+    await Promise.resolve()
+    page.appSelector.setAttribute("open", "")
+    hook.beforeUpdate?.call(context)
+    page.appSelector.removeAttribute("open")
+    page.shell.dataset.destination = "/formation"
+    hook.updated?.call(context)
+
+    expect(page.shell.dataset.menuOpen).toBe("false")
+    expect(page.scroller.inert).toBe(false)
+    expect(page.scrim.hidden).toBe(true)
+    expect(page.menuButton.focusCount).toBeGreaterThan(0)
     expect(page.appSelector.open).toBe(false)
     expect(page.appSelector.getAttribute("open")).toBeNull()
   })
 
-  it("restores one selected Techtree presentation with aria-current", () => {
+  it("restores one selected Techtree presentation with aria-pressed", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
@@ -252,33 +306,34 @@ describe("mobile shell navigation", () => {
     hook.mounted?.call(context)
     expect(page.mapLink.getAttribute("aria-current")).toBe("true")
     expect(page.listLink.getAttribute("aria-current")).toBeNull()
-    expect(page.mapLink.getAttribute("aria-pressed")).toBeNull()
-    expect(page.listLink.getAttribute("aria-pressed")).toBeNull()
+    expect(page.mapLink.getAttribute("aria-pressed")).toBe("true")
+    expect(page.listLink.getAttribute("aria-pressed")).toBe("false")
   })
 })
 
 describe("shell material contract", () => {
-  const cssRoot = resolve(import.meta.dirname, "../css")
+  const readCss = (path: string) =>
+    new TextDecoder().decode(readFileSync(new URL(path, import.meta.url)))
 
   it("loads canonical material before shell and preserves existing page/status imports", () => {
-    const appCss = readFileSync(resolve(cssRoot, "app.css"), "utf8")
+    const appCss = readCss("../css/app.css")
     expect(appCss).toMatch(
-      /^@import "\.\/tokens\/material\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/pages\/home\.css";\n@import "\.\/pages\/settings\.css";\n@import "\.\/components\/account_auth_status\.css";/,
+      /^@import "\.\/tokens\/material\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
     )
   })
 
   it("keeps structural material square, responsive, and free of fabricated artwork", () => {
-    const material = readFileSync(resolve(cssRoot, "tokens/material.css"), "utf8")
-    const shell = readFileSync(resolve(cssRoot, "components/shell.css"), "utf8")
+    const material = readCss("../css/tokens/material.css")
+    const shell = readCss("../css/components/shell.css")
 
-    expect(material).toContain("--radius-shell: var(--radius-sm)")
-    expect(material).toContain(":root:not([data-theme])")
+    expect(material).toContain("--material-radius: 4px")
+    expect(material).toContain(':root:not([data-theme="light"]):not([data-theme="dark"])')
     expect(shell).toContain("min-height: 2.75rem")
     expect(shell).toContain("100dvh")
     expect(shell).toContain("prefers-reduced-transparency: reduce")
-    expect(shell).toContain("prefers-contrast: more")
-    expect(shell).toContain('a[data-tree-presentation][aria-current="true"]')
-    expect(shell).toMatch(/body #route-content[\s\S]*var\(--material-fill\) padding-box/)
+    expect(shell).toContain('#shell-sidebar [aria-pressed="true"]')
+    expect(shell).toContain(".shell-menu-scrim")
+    expect(shell).toMatch(/\.shell-material[\s\S]*var\(--material-fill\) padding-box/)
     expect(shell).not.toMatch(/url\([^)]*backgrounds\//)
     expect(shell).not.toMatch(/border-radius:\s*(?:[5-9]|\d{2,})px/)
   })

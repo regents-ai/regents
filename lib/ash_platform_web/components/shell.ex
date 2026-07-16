@@ -171,7 +171,11 @@ defmodule AshPlatformWeb.Components.Shell do
         class="shell-material"
         data-motion-region
         aria-label="Context navigation"
+        tabindex="-1"
       >
+        <button type="button" class="shell-menu-close" data-shell-menu-close>
+          Close navigation
+        </button>
         <label :if={@route_spec.search_kind != :none} class="shell-mobile-search">
           <span>Search</span>
           <input type="search" name="mobile-search" autocomplete="off" />
@@ -202,6 +206,14 @@ defmodule AshPlatformWeb.Components.Shell do
           </li>
         </ul>
       </nav>
+
+      <button
+        type="button"
+        class="shell-menu-scrim"
+        data-shell-menu-scrim
+        aria-label="Close navigation"
+        hidden
+      ></button>
 
       <div id="app-shell-scroller" tabindex="-1">
         <main

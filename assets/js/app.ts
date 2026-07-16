@@ -33,7 +33,6 @@ const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
     const root = document.documentElement
-    const scroller = shell.querySelector<HTMLElement>("#app-shell-scroller")
     const colorPreference = window.matchMedia("(prefers-color-scheme: dark)")
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)")
 
@@ -59,9 +58,38 @@ const shellBehavior: Hook = {
       shell.dataset.reducedMotion = motionPreference.matches ? "true" : "false"
     }
 
-    const closeMenu = () => {
+    const menuButton = () =>
+      shell.querySelector<HTMLButtonElement>("#mobile-menu-button")
+    const sidebar = () => shell.querySelector<HTMLElement>("#shell-sidebar")
+    const scroller = () => shell.querySelector<HTMLElement>("#app-shell-scroller")
+    const menuScrim = () =>
+      shell.querySelector<HTMLButtonElement>("[data-shell-menu-scrim]")
+    const menuFocusables = () =>
+      Array.from(
+        sidebar()?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter(element => !element.hidden && !element.inert)
+
+    const syncMenuAccessibility = (focusMenu = false, restoreFocus = false) => {
+      const menuOpen = this.shellState?.menuOpen === true
+      const currentScroller = scroller()
+      const currentScrim = menuScrim()
+      if (currentScroller) currentScroller.inert = menuOpen
+      if (currentScrim) currentScrim.hidden = !menuOpen
+
+      if (focusMenu && menuOpen) {
+        const [first] = menuFocusables()
+        ;(first ?? sidebar())?.focus()
+      }
+
+      if (restoreFocus && !menuOpen) menuButton()?.focus()
+    }
+
+    const closeMenu = (restoreFocus = true) => {
       if (this.shellState) this.shellState.menuOpen = false
       this.restoreState?.()
+      syncMenuAccessibility(false, restoreFocus)
     }
 
     this.restoreState = () => {
@@ -72,9 +100,8 @@ const shellBehavior: Hook = {
       shell.dataset.presentation = state.presentation
       shell.dataset.formationPanel = state.formationPanel
       cachedShellState = state
-      shell
-        .querySelector<HTMLButtonElement>("#mobile-menu-button")
-        ?.setAttribute("aria-expanded", String(state.menuOpen))
+      menuButton()?.setAttribute("aria-expanded", String(state.menuOpen))
+      syncMenuAccessibility()
       shell.querySelectorAll<HTMLAnchorElement>("[data-tree-presentation]").forEach(link => {
         link.setAttribute(
           "aria-pressed",
@@ -113,6 +140,11 @@ const shellBehavior: Hook = {
       if (target?.closest("#mobile-menu-button")) {
         if (this.shellState) this.shellState.menuOpen = !this.shellState.menuOpen
         this.restoreState?.()
+        syncMenuAccessibility(this.shellState?.menuOpen === true, true)
+      }
+
+      if (target?.closest("[data-shell-menu-scrim], [data-shell-menu-close]")) {
+        closeMenu()
       }
 
       if (presentationLink) {
@@ -136,6 +168,34 @@ const shellBehavior: Hook = {
     }
 
     const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && shell.dataset.menuOpen === "true") {
+        event.preventDefault()
+        closeMenu()
+        return
+      }
+
+      if (event.key === "Tab" && shell.dataset.menuOpen === "true") {
+        const focusables = menuFocusables()
+        const first = focusables.at(0)
+        const last = focusables.at(-1)
+        const currentSidebar = sidebar()
+
+        if (!first || !last) {
+          event.preventDefault()
+          currentSidebar?.focus()
+        } else if (!currentSidebar?.contains(document.activeElement)) {
+          event.preventDefault()
+          ;(event.shiftKey ? last : first).focus()
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+        return
+      }
+
       if (event.key === "Escape") {
         const openDetails = [...shell.querySelectorAll<HTMLDetailsElement>("details[open]")].at(-1)
 
@@ -147,10 +207,6 @@ const shellBehavior: Hook = {
         }
       }
 
-      if (event.key === "Escape" && shell.dataset.menuOpen === "true") {
-        closeMenu()
-        shell.querySelector<HTMLButtonElement>("#mobile-menu-button")?.focus()
-      }
     }
 
     const onColorChange = () => {
@@ -159,7 +215,7 @@ const shellBehavior: Hook = {
 
     const onHistoryNavigation = () => {
       shell.dataset.motionSource = "keyboard"
-      scroller?.scrollTo({top: 0})
+      scroller()?.scrollTo({top: 0})
     }
 
     shell.addEventListener("click", onClick)
@@ -170,10 +226,11 @@ const shellBehavior: Hook = {
     setTheme(readTheme(localStorage))
     setMotion()
     this.restoreState()
-    scroller?.scrollTo({top: 0})
+    scroller()?.scrollTo({top: 0})
     shell.dataset.behaviorReady = "true"
 
     this.cleanup = () => {
+      closeMenu(false)
       shell.removeEventListener("click", onClick)
       shell.removeEventListener("keydown", onKeydown)
       colorPreference.removeEventListener("change", onColorChange)
@@ -204,6 +261,7 @@ const shellBehavior: Hook = {
         this.el.querySelectorAll("[data-formation-panel-choice]").length > 0,
     }
 
+    const menuWasOpen = this.shellState?.menuOpen === true
     const shouldScroll = this.shellState
       ? shellDestinationChanged(this.shellState, incoming)
       : false
@@ -211,6 +269,9 @@ const shellBehavior: Hook = {
       this.shellState = reconcileShellState(this.shellState, incoming)
     }
     this.restoreState?.()
+    if (menuWasOpen && this.shellState?.menuOpen === false) {
+      this.el.querySelector<HTMLButtonElement>("#mobile-menu-button")?.focus()
+    }
     if (this.destinationBeforeUpdate === incoming.destination) {
       this.openPopoverIds?.forEach(id => {
         this.el.querySelector<HTMLDetailsElement>(`#${id} > details`)?.setAttribute("open", "")

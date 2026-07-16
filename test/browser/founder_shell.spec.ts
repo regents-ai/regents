@@ -547,20 +547,69 @@ test("theme and reduced-motion preferences apply immediately", async ({browser})
   await context.close()
 })
 
-test("the 320px menu is keyboard closable and landmarks remain available", async ({page}) => {
-  await page.setViewportSize({width: 320, height: 640})
-  await page.goto("/techtree")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+for (const width of [320, 390]) {
+  test(`${width}px drawer contains focus and cleans up every close path`, async ({page}) => {
+    await page.setViewportSize({width, height: 720})
+    await page.goto("/techtree")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  const menu = page.getByRole("button", {name: "Menu"})
-  await menu.click()
-  await expect(menu).toHaveAttribute("aria-expanded", "true")
-  await expect(page.getByRole("navigation", {name: "Context navigation"})).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(menu).toHaveAttribute("aria-expanded", "false")
-  await expect(menu).toBeFocused()
-  await expect(page.locator("#shell-sidebar")).toHaveCount(1)
-  await expect(page.locator("#shell-sidebar")).toBeHidden()
-  await expect(page.getByRole("banner")).toHaveCount(1)
-  await expect(page.getByRole("main")).toHaveCount(1)
+    const menu = page.getByRole("button", {name: "Menu"})
+    const sidebar = page.getByRole("navigation", {name: "Context navigation"})
+    const scrim = page.locator("[data-shell-menu-scrim]")
+    const scroller = page.locator("#app-shell-scroller")
+
+    await menu.click()
+    await expect(menu).toHaveAttribute("aria-expanded", "true")
+    await expect(sidebar).toBeVisible()
+    await expect(scrim).toBeVisible()
+    await expect(scroller).toHaveAttribute("inert", "")
+    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
+
+    await page.keyboard.press("Shift+Tab")
+    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
+    await page.keyboard.press("Tab")
+    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
+
+    await page.keyboard.press("Escape")
+    await expect(menu).toHaveAttribute("aria-expanded", "false")
+    await expect(menu).toBeFocused()
+    await expect(scrim).toBeHidden()
+    await expect(scroller).not.toHaveAttribute("inert", "")
+
+    await menu.click()
+    await scrim.click({position: {x: width - 2, y: 10}})
+    await expect(menu).toHaveAttribute("aria-expanded", "false")
+    await expect(menu).toBeFocused()
+
+    await menu.click()
+    await sidebar.getByRole("button", {name: "Close navigation"}).click()
+    await expect(menu).toHaveAttribute("aria-expanded", "false")
+    await expect(menu).toBeFocused()
+
+    await menu.click()
+    const destination = sidebar.locator('a[href]:not([href="/techtree"])').first()
+    await destination.click()
+    await expect(menu).toHaveAttribute("aria-expanded", "false")
+    await expect(scrim).toBeHidden()
+    await expect(scroller).not.toHaveAttribute("inert", "")
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await expect(page.getByRole("banner")).toHaveCount(1)
+    await expect(page.getByRole("main")).toHaveCount(1)
+  })
+}
+
+test("tablet, desktop, and effective 200 percent zoom have no horizontal overflow", async ({page}) => {
+  for (const viewport of [
+    {width: 768, height: 1024},
+    {width: 1280, height: 800},
+    {width: 640, height: 900},
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/techtree")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      viewport.width,
+    )
+  }
 })

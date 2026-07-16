@@ -89,6 +89,8 @@
   display: grid;
   grid-template: auto minmax(0, 1fr) / minmax(13rem, 17rem) minmax(0, 1fr);
   gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
   height: 100dvh;
   padding: 0.75rem;
   overflow: hidden;
@@ -358,6 +360,11 @@ details[open] > summary .shell-chevron {
   display: none;
 }
 
+.shell-menu-close,
+.shell-menu-scrim {
+  display: none;
+}
+
 #shell-sidebar {
   z-index: 2;
   min-height: 0;
@@ -433,6 +440,10 @@ details[open] > summary .shell-chevron {
   transform: scale(var(--active-scale));
 }
 
+#app-shell .shell-menu-scrim:active {
+  transform: none;
+}
+
 @media (max-width: 56rem) {
   .shell-search {
     grid-template-columns: minmax(6rem, 10rem);
@@ -461,9 +472,23 @@ details[open] > summary .shell-chevron {
     padding: 0.4rem;
   }
 
+  #shell-header > * {
+    min-width: 0;
+  }
+
+  #shell-header .shell-spacer {
+    display: none;
+  }
+
+  .app-selector {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .app-selector summary {
     gap: 0.4rem;
-    max-width: 10.5rem;
+    max-width: 100%;
+    min-width: 0;
     padding-inline: 0.45rem;
   }
 
@@ -475,8 +500,10 @@ details[open] > summary .shell-chevron {
 
   .mobile-menu-button {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    padding-inline: 0.5rem;
   }
 
   .shell-local-controls,
@@ -486,7 +513,7 @@ details[open] > summary .shell-chevron {
 
   .account-control > button,
   .account-control summary {
-    max-width: 7.5rem;
+    max-width: 6rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -503,6 +530,31 @@ details[open] > summary .shell-chevron {
 
   #app-shell[data-menu-open="true"] #shell-sidebar {
     display: block;
+  }
+
+  .shell-menu-close {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    border-color: var(--hairline-strong);
+    background: var(--color-surface-elevated);
+  }
+
+  .shell-menu-scrim {
+    position: fixed;
+    inset: 4.75rem 0 0;
+    z-index: 4;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in oklch, var(--color-bg) 72%, transparent);
+  }
+
+  .shell-menu-scrim[hidden] {
+    display: none;
   }
 
   .shell-mobile-search {
