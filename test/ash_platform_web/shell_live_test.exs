@@ -47,6 +47,12 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
     assert has_element?(view, "#theme-control details")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
+
+    assert has_element?(
+             view,
+             "#account-control #account-auth-status[role=status][aria-live=polite][aria-atomic=true][phx-update=ignore][hidden]"
+           )
+
     refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
     refute has_element?(view, "#account-control a", "Formation")
 
@@ -82,6 +88,21 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, "#shell-header [data-theme-choice]")
     refute has_element?(view, "#account-control [phx-click]")
     refute has_element?(view, ".app-switcher [data-account-target]")
+  end
+
+  test "stale wallet evidence cannot retain protected human shell access", %{conn: conn} do
+    account =
+      register_account("stale-wallet-control", "0x9999999999999999999999999999999999999999")
+
+    assert {:ok, _invalidated} = Accounts.refresh_verified(account, nil, [], actor: %System{})
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/app")
+
+    assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
+    refute has_element?(view, "#account-control [data-account-target=sign-out]", "Log Out")
   end
 
   test "signed-in account presentation survives an in-shell patch", %{conn: conn} do

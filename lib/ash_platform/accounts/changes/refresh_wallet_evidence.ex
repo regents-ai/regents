@@ -6,7 +6,7 @@ defmodule AshPlatform.Accounts.Changes.RefreshWalletEvidence do
     addresses = Ash.Changeset.get_argument(changeset, :wallet_addresses)
     primary = Ash.Changeset.get_argument(changeset, :wallet_address)
 
-    if is_list(addresses) and addresses != [] do
+    if is_list(addresses) do
       changeset
       |> Ash.Changeset.change_attribute(:wallet_address, primary)
       |> Ash.Changeset.change_attribute(:wallet_addresses, addresses)

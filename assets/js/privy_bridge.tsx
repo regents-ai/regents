@@ -10,41 +10,124 @@ import React from "react"
 import {createRoot} from "react-dom/client"
 
 import {
+  browserSessionMutations,
+  clearLocalSession,
+  csrfToken,
+  type AccountRequest,
+  type PrivyBridgeHandle,
+  type SessionMutationCoordinator,
+} from "./auth_lazy"
+import {
   replaceConnectedEthereumWallets,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
-export async function csrfToken(fetcher: typeof fetch = fetch): Promise<string> {
-  const response = await fetcher("/auth/csrf", {credentials: "same-origin"})
-  if (!response.ok) throw new Error("Unable to start a secure sign-in.")
-  const body = (await response.json()) as {csrf_token?: unknown}
-  if (typeof body.csrf_token !== "string" || body.csrf_token.length === 0) {
-    throw new Error("Unable to start a secure sign-in.")
+type AccountRequestHandlerOptions = {
+  requestLogin: () => void
+  providerLogout: () => Promise<void>
+  synchronizeWallets: () => Promise<void>
+}
+
+export function createAccountRequestHandler({
+  requestLogin,
+  providerLogout,
+  synchronizeWallets,
+}: AccountRequestHandlerOptions): (request: AccountRequest) => Promise<void> {
+  return async request => {
+    if (request === "sign-in") {
+      requestLogin()
+      return
+    }
+
+    if (request === "sync") {
+      await synchronizeWallets()
+      return
+    }
+
+    await providerLogout()
   }
-  return body.csrf_token
+}
+
+export {csrfToken}
+
+export class LocalSessionEstablishmentError extends Error {
+  constructor(readonly localSessionDropped: boolean) {
+    super("Sign in could not be completed.")
+  }
 }
 
 export async function createLocalSession(
   accessToken: string,
   fetcher: typeof fetch = fetch,
-): Promise<void> {
-  const csrf = await csrfToken(fetcher)
-  const response = await fetcher("/auth/privy/session", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
+  sessionMutations: SessionMutationCoordinator = browserSessionMutations,
+): Promise<{sessionChanged: boolean}> {
+  return sessionMutations.establish(async signal => {
+    const csrf = await csrfToken(fetcher, signal)
+    if (signal.aborted) throw signal.reason
+    const response = await fetcher("/auth/privy/session", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
+      signal,
+    })
+    if (signal.aborted) throw signal.reason
+    if (!response.ok) throw new LocalSessionEstablishmentError(response.status === 401)
+    const sessionChanged = response.headers.get("x-ash-session-changed")
+    if (sessionChanged !== "true" && sessionChanged !== "false") {
+      throw new LocalSessionEstablishmentError(false)
+    }
+    return {sessionChanged: sessionChanged === "true"}
   })
-  if (!response.ok) throw new Error("Sign in could not be completed.")
 }
 
-export async function clearLocalSession(fetcher: typeof fetch = fetch): Promise<void> {
-  const csrf = await csrfToken(fetcher)
-  const response = await fetcher("/auth/privy/session", {
-    method: "DELETE",
-    credentials: "same-origin",
-    headers: {"x-csrf-token": csrf},
-  })
-  if (!response.ok) throw new Error("Sign out could not be completed.")
+type ProviderSessionReconcilerOptions = {
+  clearSession: () => Promise<void>
+  establishSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
+  getAccessToken: () => Promise<string | null>
+  hasLinkedWallet: () => boolean
+  providerAuthenticated: () => boolean
+  reload: () => void
+}
+
+export function createProviderSessionReconciler({
+  clearSession,
+  establishSession,
+  getAccessToken,
+  hasLinkedWallet,
+  providerAuthenticated,
+  reload,
+}: ProviderSessionReconcilerOptions): () => Promise<boolean> {
+  return async () => {
+    if (!providerAuthenticated()) {
+      await clearSession()
+      reload()
+      return false
+    }
+
+    const accessToken = await getAccessToken()
+    if (!accessToken) {
+      await clearSession()
+      reload()
+      return false
+    }
+
+    try {
+      const {sessionChanged} = await establishSession(accessToken)
+      if (!hasLinkedWallet()) {
+        await clearSession()
+        reload()
+        return false
+      }
+      if (sessionChanged) reload()
+      return true
+    } catch (error) {
+      if (!(error instanceof LocalSessionEstablishmentError && error.localSessionDropped)) {
+        await clearSession()
+      }
+      reload()
+      throw error
+    }
+  }
 }
 
 type PrivySessionCompletionOptions = {
@@ -119,7 +202,14 @@ export function createReadyLoginGate(login: () => void) {
   }
 }
 
-function AccountBridge() {
+type AccountBridgeProps = {
+  publishRequestHandler: (
+    requestHandler: PrivyBridgeHandle["request"],
+    ready: boolean,
+  ) => void
+}
+
+function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
   const {authenticated, logout, ready} = usePrivy()
   const {wallets} = useWallets()
   const completeLogin = React.useMemo(
@@ -142,6 +232,19 @@ function AccountBridge() {
   )
   const {login} = useLogin(loginCallbacks)
   const loginGate = React.useMemo(() => createReadyLoginGate(login), [login])
+  const walletSyncGeneration = React.useRef(0)
+  const reconcileProviderSession = React.useMemo(
+    () =>
+      createProviderSessionReconciler({
+        clearSession: () => browserSessionMutations.signOut(clearLocalSession),
+        establishSession: createLocalSession,
+        getAccessToken,
+        hasLinkedWallet: () => wallets.length > 0,
+        providerAuthenticated: () => authenticated,
+        reload: () => window.location.reload(),
+      }),
+    [authenticated, getAccessToken, wallets.length],
+  )
 
   React.useEffect(() => loginGate.setReady(ready), [loginGate, ready])
 
@@ -153,72 +256,84 @@ function AccountBridge() {
     })
   }, [authenticated, completeLogin, getAccessToken, ready])
 
-  React.useEffect(() => {
-    if (!authenticated) {
-      replaceConnectedEthereumWallets([])
-      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-    }
-  }, [authenticated])
-
-  React.useEffect(() => {
-    let cancelled = false
-    if (!ready || wallets.length === 0) {
+  const synchronizeWallets = React.useCallback(async () => {
+    const generation = ++walletSyncGeneration.current
+    if (!ready || !(await reconcileProviderSession())) {
       replaceConnectedEthereumWallets([])
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
       return
     }
 
-    void Promise.all(
-      wallets.map(async wallet => [wallet.address.toLowerCase(), (await wallet.getEthereumProvider()) as EthereumProvider] as const),
-    ).then(entries => {
-      if (cancelled) return
-      replaceConnectedEthereumWallets(entries)
-      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [ready, wallets])
+    const entries = await Promise.all(
+      wallets.map(
+        async wallet =>
+          [
+            wallet.address.toLowerCase(),
+            (await wallet.getEthereumProvider()) as EthereumProvider,
+          ] as const,
+      ),
+    )
+    if (walletSyncGeneration.current !== generation) return
+    replaceConnectedEthereumWallets(entries)
+    window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+  }, [ready, reconcileProviderSession, wallets])
 
   React.useEffect(() => {
-    const control = document.querySelector<HTMLElement>("#account-control")
-    if (!control) return
-
-    const onClick = async (event: Event) => {
-      const target = event.target instanceof Element ? event.target : null
-
-      if (target?.closest("[data-account-target='sign-in']")) {
-        loginGate.requestLogin()
-        return
-      }
-
-      if (target?.closest("[data-account-target='sign-out']")) {
-        await clearLocalSession()
-        try {
-          await logout()
-        } finally {
-          window.location.reload()
-        }
-      }
+    void synchronizeWallets()
+    return () => {
+      walletSyncGeneration.current += 1
     }
+  }, [synchronizeWallets])
 
-    control.addEventListener("click", onClick)
-    return () => control.removeEventListener("click", onClick)
-  }, [loginGate, logout])
+  const requestHandler = React.useMemo(
+    () =>
+      createAccountRequestHandler({
+        requestLogin: loginGate.requestLogin,
+        providerLogout: logout,
+        synchronizeWallets,
+      }),
+    [loginGate, logout, synchronizeWallets],
+  )
+
+  React.useEffect(
+    () => publishRequestHandler(requestHandler, ready),
+    [publishRequestHandler, ready, requestHandler],
+  )
 
   return null
 }
 
-export function startPrivyBridge(): void {
+export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
   const appId = document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
-  if (!appId) return
+  if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
   const host = document.createElement("div")
   host.hidden = true
   document.body.append(host)
-  createRoot(host).render(
-    <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
-      <AccountBridge />
-    </PrivyProvider>,
-  )
+
+  return new Promise(resolve => {
+    let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
+    let resolved = false
+    const handle: PrivyBridgeHandle = {
+      request(request) {
+        return currentRequestHandler
+          ? currentRequestHandler(request)
+          : Promise.reject(new Error("Privy bridge is not ready"))
+      },
+    }
+    const publishRequestHandler: AccountBridgeProps["publishRequestHandler"] = (
+      requestHandler,
+      ready,
+    ) => {
+      currentRequestHandler = requestHandler
+      if (!ready || resolved) return
+      resolved = true
+      resolve(handle)
+    }
+
+    createRoot(host).render(
+      <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
+        <AccountBridge publishRequestHandler={publishRequestHandler} />
+      </PrivyProvider>,
+    )
+  })
 }

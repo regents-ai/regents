@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.Live.Session do
   @moduledoc false
 
   alias AshPlatform.{AccessContext, Accounts, Formation}
+  alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.Human
 
   def on_mount(:load_human, _params, session, socket) do
@@ -18,8 +19,13 @@ defmodule AshPlatformWeb.Live.Session do
 
   defp load_access_context(%{"human_account_id" => id}) when is_integer(id) do
     case Accounts.get_human_account(id, actor: %Human{human_account_id: id}) do
-      {:ok, account} when not is_nil(account) -> AccessContext.human(account)
-      _ -> AccessContext.anonymous()
+      {:ok, account} when not is_nil(account) ->
+        if VerifiedSession.current?(account),
+          do: AccessContext.human(account),
+          else: AccessContext.anonymous()
+
+      _ ->
+        AccessContext.anonymous()
     end
   end
 

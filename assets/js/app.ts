@@ -5,6 +5,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ash_platform"
 
 import {composeHooks, type Hook} from "./hook_composition"
+import {installAccountAuthLazyLoader} from "./auth_lazy"
 import {
   reconcileShellState,
   shellDestinationChanged,
@@ -246,7 +247,5 @@ const liveSocket = new LiveSocket("/live", Socket, {
 })
 
 liveSocket.connect()
-if (document.querySelector("meta[name='privy-app-id']")) {
-  void import("./privy_bridge").then(({startPrivyBridge}) => startPrivyBridge())
-}
+installAccountAuthLazyLoader()
 window.liveSocket = liveSocket

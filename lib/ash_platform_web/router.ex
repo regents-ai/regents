@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.Router do
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
+    plug :enforce_privy_logout_epoch
     plug :fetch_live_flash
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug :protect_from_forgery
@@ -12,6 +13,10 @@ defmodule AshPlatformWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+  end
+
+  def enforce_privy_logout_epoch(conn, _opts) do
+    AshPlatformWeb.PrivySessionController.enforce_logout_epoch(conn)
   end
 
   scope "/api", AshPlatformWeb do

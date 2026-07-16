@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.PrivySessionControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  @logout_epoch_cookie "_ash_platform_logout_epoch"
+
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Formation
@@ -25,6 +27,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     payload = json_response(signed_in, 200)
     assert payload["authenticated"] == true
+    assert get_resp_header(signed_in, "x-ash-session-changed") == ["true"]
     assert payload["account_control"]["profile_path"] == nil
 
     assert payload["account_control"]["avatar_data_uri"] =~
@@ -81,8 +84,12 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   test "session inspection exposes Profile only from the account's canonical Regent", %{
     conn: conn
   } do
+    wallet = "0x1111111111111111111111111111111111111111"
+
     assert {:ok, account} =
-             Accounts.register_verified("did:privy:u3-profile", nil, [], actor: %System{})
+             Accounts.register_verified("did:privy:u3-profile", wallet, [wallet],
+               actor: %System{}
+             )
 
     assert {:ok, _regent} =
              Formation.form_regent("u3-profile", "U3 Profile",
@@ -151,6 +158,14 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert %{"ok" => true} = json_response(deleted, 200)
     assert deleted.private[:plug_session_info] == :drop
+
+    logout_epoch_cookie =
+      deleted
+      |> get_resp_header("set-cookie")
+      |> Enum.find(&String.contains?(&1, @logout_epoch_cookie <> "="))
+
+    assert logout_epoch_cookie =~ "; HttpOnly"
+    assert logout_epoch_cookie =~ "; SameSite=Lax"
   end
 
   test "logout is idempotent without an authenticated cookie when CSRF is valid", %{conn: conn} do
@@ -163,6 +178,40 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert %{"ok" => true} = json_response(deleted, 200)
     assert deleted.private[:plug_session_info] == :drop
     assert get_session(deleted) == %{}
+  end
+
+  test "the current logout epoch rejects a late pre-logout session and admits a fresh sign-in", %{
+    conn: conn
+  } do
+    wallet = "0x7777777777777777777777777777777777777777"
+
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:logout-epoch", wallet, [wallet],
+               actor: %System{}
+             )
+
+    superseded =
+      conn
+      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
+      |> init_test_session(%{
+        human_account_id: account.id,
+        privy_logout_epoch: "pre-logout-epoch"
+      })
+      |> get("/auth/session")
+
+    assert %{"authenticated" => false} = json_response(superseded, 200)
+    assert superseded.private[:plug_session_info] == :drop
+
+    fresh =
+      build_conn()
+      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(fresh, 200)
+    assert get_session(fresh, :privy_logout_epoch) == "current-epoch"
   end
 
   test "SIWA headers cannot enter the browser-human rail", %{conn: conn} do
@@ -195,22 +244,97 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert String.downcase(secure_cookie) =~ "; secure"
   end
 
-  test "missing linked accounts preserve previously verified wallet evidence", %{conn: conn} do
+  test "missing current linked-wallet evidence invalidates the account and local session", %{
+    conn: conn
+  } do
+    valid =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+
+    rejected =
+      build_conn()
+      |> init_test_session(%{human_account_id: account.id})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer no-wallet")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"error" => "unauthorized"} = json_response(rejected, 401)
+    assert rejected.private[:plug_session_info] == :drop
+    assert get_session(rejected) == %{}
+
+    assert {:ok, invalidated} =
+             Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+
+    assert invalidated.wallet_address == nil
+    assert invalidated.wallet_addresses == []
+
+    stale_cookie =
+      build_conn()
+      |> init_test_session(%{human_account_id: account.id})
+      |> get("/auth/session")
+
+    assert %{"authenticated" => false} = json_response(stale_cookie, 200)
+    assert stale_cookie.private[:plug_session_info] == :drop
+    assert get_session(stale_cookie) == %{}
+    assert json_response(valid, 200)["authenticated"] == true
+  end
+
+  test "provider and server account mismatch replaces the local session deterministically", %{
+    conn: conn
+  } do
     conn
     |> init_test_session(%{})
     |> put_valid_csrf()
     |> put_req_header("authorization", "Bearer valid")
     |> post("/auth/privy/session", %{})
 
+    assert {:ok, former} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+
+    replaced =
+      build_conn()
+      |> init_test_session(%{human_account_id: former.id})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer other-account")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(replaced, 200)
+    assert get_resp_header(replaced, "x-ash-session-changed") == ["true"]
+
+    assert {:ok, current} = Accounts.get_by_privy_did("did:privy:other", actor: %System{})
+    assert current.id != former.id
+    assert get_session(replaced, :human_account_id) == current.id
+  end
+
+  test "current provider evidence refreshes a stale former wallet without changing identity", %{
+    conn: conn
+  } do
     conn
     |> init_test_session(%{})
     |> put_valid_csrf()
-    |> put_req_header("authorization", "Bearer no-wallet")
+    |> put_req_header("authorization", "Bearer valid")
     |> post("/auth/privy/session", %{})
 
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
-    assert account.wallet_address == "0x1111111111111111111111111111111111111111"
-    assert account.wallet_addresses == ["0x1111111111111111111111111111111111111111"]
+
+    refreshed =
+      build_conn()
+      |> init_test_session(%{human_account_id: account.id})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer changed-wallet")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(refreshed, 200)
+    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+
+    assert {:ok, current} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+    assert current.id == account.id
+    assert current.wallet_address == "0x2222222222222222222222222222222222222222"
+    assert current.wallet_addresses == ["0x2222222222222222222222222222222222222222"]
   end
 
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")
