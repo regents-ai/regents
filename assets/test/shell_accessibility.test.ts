@@ -31,6 +31,7 @@ class FakeElement {
   hidden = false
   inert = false
   open = false
+  parentElement: {id?: string} | null = null
   attributes = new Map<string, string>()
   focusCount = 0
   closestSelectors = new Set<string>()
@@ -54,6 +55,7 @@ class FakeElement {
 
   setAttribute(name: string, value: string) {
     this.attributes.set(name, value)
+    if (name === "open") this.open = true
   }
 
   removeAttribute(name: string) {
@@ -105,6 +107,7 @@ function shellFixture() {
   const scrim = new FakeElement()
   scrim.closestSelectors.add("[data-shell-menu-scrim]")
   const appSelector = new FakeElement()
+  appSelector.parentElement = {id: "app-selector"}
   const appSelectorLink = new FakeElement()
   appSelectorLink.closestSelectors.add("#app-selector-menu a")
   const scroller = Object.assign(new FakeElement(), {scrollTo: vi.fn()})
@@ -126,10 +129,13 @@ function shellFixture() {
       if (selector === "#app-shell-scroller") return scroller
       if (selector === "[data-shell-menu-scrim]") return scrim
       if (selector === "#app-selector") return appSelector
+      if (selector === "#app-selector > details") return appSelector
       return null
     },
     querySelectorAll(selector: string) {
-      return selector === "[data-tree-presentation]" ? [mapLink, listLink] : []
+      if (selector === "[data-tree-presentation]") return [mapLink, listLink]
+      if (selector.includes("details[open]")) return appSelector.open ? [appSelector] : []
+      return []
     },
     addEventListener(type: string, listener: Listener) {
       listeners.set(type, listener)
@@ -200,6 +206,7 @@ describe("mobile shell navigation", () => {
 
     hook.destroyed?.call(context)
     expect(page.scroller.inert).toBe(false)
+    expect(page.scrim.hidden).toBe(true)
   })
 
   it.each(["Escape", "scrim", "navigation"])(
@@ -225,7 +232,7 @@ describe("mobile shell navigation", () => {
     },
   )
 
-  it("closes the app selector after a selection and after a route patch", () => {
+  it("closes the app selector after a selection", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
@@ -236,10 +243,40 @@ describe("mobile shell navigation", () => {
     page.click(page.appSelectorLink)
     expect(page.appSelector.open).toBe(false)
     expect(page.appSelector.getAttribute("open")).toBeNull()
+  })
 
-    page.appSelector.open = true
+  it("preserves an open app selector across a same-destination route patch", () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    hook.mounted?.call(context)
     page.appSelector.setAttribute("open", "")
+    expect(page.appSelector.open).toBe(true)
+    hook.beforeUpdate?.call(context)
+
+    page.appSelector.removeAttribute("open")
+    expect(page.appSelector.open).toBe(false)
     hook.updated?.call(context)
+
+    expect(page.appSelector.open).toBe(true)
+    expect(page.appSelector.getAttribute("open")).toBe("")
+  })
+
+  it("leaves the app selector closed when the destination changes", () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    hook.mounted?.call(context)
+    page.appSelector.setAttribute("open", "")
+    expect(page.appSelector.open).toBe(true)
+    hook.beforeUpdate?.call(context)
+
+    page.appSelector.removeAttribute("open")
+    page.shell.dataset.destination = "/formation"
+    hook.updated?.call(context)
+
     expect(page.appSelector.open).toBe(false)
     expect(page.appSelector.getAttribute("open")).toBeNull()
   })
