@@ -24,7 +24,7 @@ defmodule Mix.Tasks.AshPlatform.RouteHandoff do
     if stale == [] do
       IO.puts("Founder-shell route handoff is current")
     else
-      paths = stale |> Enum.map(&elem(&1, 0)) |> Enum.join(", ")
+      paths = Enum.map_join(stale, ", ", &elem(&1, 0))
       Mix.raise("Founder-shell route handoff is stale: #{paths}")
     end
   end

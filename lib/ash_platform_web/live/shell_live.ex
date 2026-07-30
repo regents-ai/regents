@@ -2176,19 +2176,21 @@ defmodule AshPlatformWeb.ShellLive do
   defp schedule_redemption_expiry(socket, envelope) do
     socket = cancel_redemption_expiry(socket)
 
-    with {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at) do
-      milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
+    case DateTime.from_iso8601(envelope.expires_at) do
+      {:ok, expires_at, _offset} ->
+        milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
 
-      ref =
-        Process.send_after(
-          self(),
-          {:redemption_envelope_expired, envelope.action_id},
-          milliseconds
-        )
+        ref =
+          Process.send_after(
+            self(),
+            {:redemption_envelope_expired, envelope.action_id},
+            milliseconds
+          )
 
-      assign(socket, redemption_expiry_ref: ref)
-    else
-      _ -> socket
+        assign(socket, redemption_expiry_ref: ref)
+
+      _ ->
+        socket
     end
   end
 
@@ -2278,19 +2280,21 @@ defmodule AshPlatformWeb.ShellLive do
   defp schedule_staking_expiry(socket, envelope) do
     socket = cancel_staking_expiry(socket)
 
-    with {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at) do
-      milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
+    case DateTime.from_iso8601(envelope.expires_at) do
+      {:ok, expires_at, _offset} ->
+        milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
 
-      ref =
-        Process.send_after(
-          self(),
-          {:staking_envelope_expired, envelope.action_id},
-          milliseconds
-        )
+        ref =
+          Process.send_after(
+            self(),
+            {:staking_envelope_expired, envelope.action_id},
+            milliseconds
+          )
 
-      assign(socket, staking_expiry_ref: ref)
-    else
-      _ -> socket
+        assign(socket, staking_expiry_ref: ref)
+
+      _ ->
+        socket
     end
   end
 

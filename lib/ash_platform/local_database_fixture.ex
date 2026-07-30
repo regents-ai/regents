@@ -214,14 +214,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
     run_id = String.replace_prefix(database, @acceptance_database_prefix, "")
 
-    safe? =
-      env == :test and host == "127.0.0.1" and username == expected_username and
-        expected_username != "" and database not in @protected_datasets and
-        String.starts_with?(database, @acceptance_database_prefix) and byte_size(database) <= 63 and
-        run_id not in @protected_datasets and
-        Regex.match?(~r/\A[a-z0-9](?:[a-z0-9_]*[a-z0-9])?\z/, run_id)
-
-    if safe? do
+    if safe_acceptance_target?(env, host, database, username, expected_username, run_id) do
       :ok
     else
       raise "local acceptance fixture refused unsafe acceptance database target"
@@ -283,13 +276,35 @@ defmodule AshPlatform.LocalDatabaseFixture do
     end
   end
 
+  # This private helper receives only fixed command names and fixed argument lists.
+  # sobelow_skip ["CI.System"]
   defp command_output!(command, args) do
     case System.cmd(command, args, stderr_to_stdout: true) do
       {output, 0} -> String.trim(output)
       {_output, _status} -> raise "local acceptance requires #{command}"
     end
   rescue
-    ErlangError -> raise "local acceptance requires #{command}"
+    ErlangError -> reraise "local acceptance requires #{command}", __STACKTRACE__
+  end
+
+  defp safe_acceptance_target?(env, host, database, username, expected_username, run_id) do
+    env == :test and host == "127.0.0.1" and
+      safe_acceptance_username?(username, expected_username) and
+      safe_acceptance_database?(database) and safe_acceptance_run_id?(run_id)
+  end
+
+  defp safe_acceptance_username?(username, expected_username) do
+    username == expected_username and expected_username != ""
+  end
+
+  defp safe_acceptance_database?(database) do
+    database not in @protected_datasets and
+      String.starts_with?(database, @acceptance_database_prefix) and byte_size(database) <= 63
+  end
+
+  defp safe_acceptance_run_id?(run_id) do
+    run_id not in @protected_datasets and
+      Regex.match?(~r/\A[a-z0-9](?:[a-z0-9_]*[a-z0-9])?\z/, run_id)
   end
 
   defp validate_exact_output!(name, actual, expected) do
@@ -413,19 +428,23 @@ defmodule AshPlatform.LocalDatabaseFixture do
             ]
           ).rows
 
-        Enum.each(protected_tables, fn [schema, table] ->
-          count =
-            Ecto.Adapters.SQL.query!(
-              AshPlatform.Repo,
-              "SELECT count(*) FROM #{quote_identifier(schema)}.#{quote_identifier(table)}",
-              []
-            )
-
-          unless count.rows == [[0]] do
-            raise "local acceptance protected dataset mirror is not empty"
-          end
-        end)
+        Enum.each(protected_tables, &verify_empty_protected_table!/1)
       end)
+    end
+
+    # Catalog-derived identifiers are escaped by quote_identifier/1 before interpolation.
+    # sobelow_skip ["SQL.Query"]
+    defp verify_empty_protected_table!([schema, table]) do
+      count =
+        Ecto.Adapters.SQL.query!(
+          AshPlatform.Repo,
+          "SELECT count(*) FROM #{quote_identifier(schema)}.#{quote_identifier(table)}",
+          []
+        )
+
+      unless count.rows == [[0]] do
+        raise "local acceptance protected dataset mirror is not empty"
+      end
     end
 
     defp quote_identifier(identifier) do

@@ -74,23 +74,27 @@ defmodule AshPlatform.Billing.Kernel do
   end
 
   defp create_reservation(args) do
-    with {:ok, account} when not is_nil(account) <- account_by_human(args.human_account_id) do
-      result =
-        Ash.DataLayer.transaction(BillingAccount, fn ->
-          with {:ok, reservation} <-
-                 create_reservation_record(account.id, args.operation_key, args.amount_cents),
-               {:ok, _account} <-
-                 update_account(account, :increase_reserved, args.amount_cents) do
-            reservation
-          else
-            {:error, error} -> Ash.DataLayer.rollback(BillingAccount, error)
-          end
-        end)
+    case account_by_human(args.human_account_id) do
+      {:ok, account} when not is_nil(account) ->
+        result =
+          Ash.DataLayer.transaction(BillingAccount, fn ->
+            with {:ok, reservation} <-
+                   create_reservation_record(account.id, args.operation_key, args.amount_cents),
+                 {:ok, _account} <-
+                   update_account(account, :increase_reserved, args.amount_cents) do
+              reservation
+            else
+              {:error, error} -> Ash.DataLayer.rollback(BillingAccount, error)
+            end
+          end)
 
-      converge_reservation_retry(result, args)
-    else
-      {:ok, nil} -> {:error, "billing account has no funded credit"}
-      {:error, error} -> {:error, error}
+        converge_reservation_retry(result, args)
+
+      {:ok, nil} ->
+        {:error, "billing account has no funded credit"}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 

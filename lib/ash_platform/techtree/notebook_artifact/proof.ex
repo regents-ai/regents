@@ -13,9 +13,8 @@ defmodule AshPlatform.Techtree.NotebookArtifact.Proof do
     with :ok <- validate_version(attributes),
          :ok <- validate_hashes(attributes),
          :ok <- validate_manifest(attributes),
-         :ok <- validate_run_url(attributes),
-         :ok <- validate_allowed_assets(attributes) do
-      :ok
+         :ok <- validate_run_url(attributes) do
+      validate_allowed_assets(attributes)
     end
   end
 

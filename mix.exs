@@ -58,7 +58,9 @@ defmodule AshPlatform.MixProject do
       {:jason, "~> 1.2"},
       {:decimal, "== 3.1.1"},
       {:req, "== 0.6.2"},
-      {:bandit, "~> 1.12.0"}
+      {:bandit, "~> 1.12.0"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -79,8 +81,12 @@ defmodule AshPlatform.MixProject do
       ],
       precommit: [
         "compile --warnings-as-errors",
+        "deps.unlock --check-unused",
         "format --check-formatted",
-        "test",
+        "credo --strict",
+        "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
+        "xref graph --label compile-connected --fail-above 27",
+        "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"
       ]

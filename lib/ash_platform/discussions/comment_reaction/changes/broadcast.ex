@@ -7,21 +7,24 @@ defmodule AshPlatform.Discussions.CommentReaction.Changes.Broadcast do
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.after_transaction(changeset, fn changeset, result ->
-      if successful?(result) do
-        comment_id = comment_id(changeset, result)
-
-        with {:ok, comment} when not is_nil(comment) <-
-               Discussions.get_comment_audit(comment_id, actor: %System{}) do
-          Phoenix.PubSub.broadcast(
-            AshPlatform.PubSub,
-            Discussions.comment_topic(comment.target_type, comment.target_id),
-            {:comment_reactions_changed, comment.target_type, comment.target_id}
-          )
-        end
-      end
-
+      broadcast_if_successful(changeset, result)
       result
     end)
+  end
+
+  defp broadcast_if_successful(changeset, result) do
+    if successful?(result) do
+      comment_id = comment_id(changeset, result)
+
+      with {:ok, comment} when not is_nil(comment) <-
+             Discussions.get_comment_audit(comment_id, actor: %System{}) do
+        Phoenix.PubSub.broadcast(
+          AshPlatform.PubSub,
+          Discussions.comment_topic(comment.target_type, comment.target_id),
+          {:comment_reactions_changed, comment.target_type, comment.target_id}
+        )
+      end
+    end
   end
 
   defp successful?({:ok, _record}), do: true

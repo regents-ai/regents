@@ -49,6 +49,8 @@ defmodule AshPlatform.Discussions.Markdown do
 
   def normalize_and_validate(_body), do: {:error, :invalid}
 
+  # Both raw calls receive only allowlisted, MDEx-sanitized HTML or a fixed empty string.
+  # sobelow_skip ["XSS.Raw"]
   def to_safe_html(body) do
     with {:ok, normalized} <- normalize_and_validate(body),
          {:ok, document} <- MDEx.parse_document(normalized, @parse_options) do

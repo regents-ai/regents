@@ -78,8 +78,8 @@ defmodule AshPlatformWeb do
   defp html_helpers do
     quote do
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias AshPlatformWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

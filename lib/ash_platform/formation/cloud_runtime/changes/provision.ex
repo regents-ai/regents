@@ -23,13 +23,7 @@ defmodule AshPlatform.Formation.CloudRuntime.Changes.Provision do
           regent_id: regent.id,
           sprite_name: sprite_name
         })
-        |> Ash.Changeset.before_transaction(fn changeset ->
-          case SpriteProvider.adapter().create(sprite_name) do
-            {:ok, %{sprite_name: ^sprite_name} = sprite} -> put_sprite(changeset, sprite)
-            {:ok, _wrong_sprite} -> provider_error(changeset)
-            {:error, _reason} -> provider_error(changeset)
-          end
-        end)
+        |> Ash.Changeset.before_transaction(&provision_sprite(&1, sprite_name))
 
       {:error, _error} ->
         provider_error(changeset)
@@ -37,6 +31,14 @@ defmodule AshPlatform.Formation.CloudRuntime.Changes.Provision do
   end
 
   def change(changeset, _opts, _context), do: changeset
+
+  defp provision_sprite(changeset, sprite_name) do
+    case SpriteProvider.adapter().create(sprite_name) do
+      {:ok, %{sprite_name: ^sprite_name} = sprite} -> put_sprite(changeset, sprite)
+      {:ok, _wrong_sprite} -> provider_error(changeset)
+      {:error, _reason} -> provider_error(changeset)
+    end
+  end
 
   defp put_sprite(changeset, sprite) do
     Ash.Changeset.force_change_attributes(changeset, %{

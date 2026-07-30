@@ -1,0 +1,10 @@
+[
+  private: true,
+  skip: true,
+  ignore: [
+    # Config.CSP: introducing a site-wide policy is a runtime behavior change outside this lint-only ticket.
+    "Config.CSP",
+    # Config.HTTPS: endpoint redirect behavior is deployment policy outside this lint-only ticket.
+    "Config.HTTPS"
+  ]
+]

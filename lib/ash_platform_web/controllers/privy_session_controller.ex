@@ -4,9 +4,9 @@ defmodule AshPlatformWeb.PrivySessionController do
   @logout_epoch_cookie "_ash_platform_logout_epoch"
   @logout_epoch_session_key :privy_logout_epoch
 
+  alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.Human
-  alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Privy
 
   def csrf(conn, _params) do

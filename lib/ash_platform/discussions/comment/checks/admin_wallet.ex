@@ -11,12 +11,14 @@ defmodule AshPlatform.Discussions.Comment.Checks.AdminWallet do
   def match?(actor, _context, _opts), do: admin?(actor)
 
   def admin?(%Human{human_account_id: id} = actor) when is_integer(id) do
-    with {:ok, account} when not is_nil(account) <- Accounts.get_human_account(id, actor: actor) do
-      account
-      |> account_wallets()
-      |> Enum.any?(&MapSet.member?(configured_wallets(), &1))
-    else
-      _ -> false
+    case Accounts.get_human_account(id, actor: actor) do
+      {:ok, account} when not is_nil(account) ->
+        account
+        |> account_wallets()
+        |> Enum.any?(&MapSet.member?(configured_wallets(), &1))
+
+      _ ->
+        false
     end
   end
 
