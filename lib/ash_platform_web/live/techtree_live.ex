@@ -4,12 +4,14 @@ defmodule AshPlatformWeb.TechtreeLive do
 
   import AshPlatformWeb.Components.CommentLedger
   import AshPlatformWeb.Components.NotebookFrame
+  import AshPlatformWeb.Components.TechtreeMap
 
   attr :route_spec, :map, required: true
   attr :params, :map, required: true
   attr :trees, :list, required: true
   attr :tree, :map, default: nil
   attr :nodes, :list, required: true
+  attr :edges, :list, required: true
   attr :node, :map, default: nil
   attr :status, :atom, required: true
   attr :presentation, :atom, required: true
@@ -30,6 +32,7 @@ defmodule AshPlatformWeb.TechtreeLive do
       :if={@route_spec.route_id == :techtree_tree}
       tree={@tree}
       nodes={@nodes}
+      edges={@edges}
       status={@status}
       destination={@route_spec.destination}
       presentation={@presentation}
@@ -103,6 +106,7 @@ defmodule AshPlatformWeb.TechtreeLive do
 
   attr :tree, :map, default: nil
   attr :nodes, :list, required: true
+  attr :edges, :list, required: true
   attr :status, :atom, required: true
   attr :destination, :string, required: true
   attr :presentation, :atom, required: true
@@ -122,20 +126,7 @@ defmodule AshPlatformWeb.TechtreeLive do
           <p>{@tree.description}</p>
         </header>
 
-        <div class="techtree-map-stage" aria-label={"#{@tree.name} node map"}>
-          <div :if={@nodes == []} class="techtree-empty">
-            <h2>No nodes yet</h2>
-            <p>Published nodes will appear here as the tree's connected map.</p>
-          </div>
-          <ol :if={@nodes != []} class="techtree-map-nodes">
-            <li :for={{node, index} <- Enum.with_index(@nodes, 1)}>
-              <.link patch={"/techtree/nodes/#{node.id}"}>
-                <span>{String.pad_leading(Integer.to_string(index), 2, "0")}</span>
-                <strong>{node.title}</strong>
-              </.link>
-            </li>
-          </ol>
-        </div>
+        <.map label={"#{@tree.name} node map"} nodes={@nodes} edges={@edges} />
 
         <.presentation_link
           class="techtree-list-tab"

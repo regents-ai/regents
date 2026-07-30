@@ -44,6 +44,9 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     assert has_element?(view, ~s(a.techtree-list-tab[data-tree-presentation="list"]), "List")
     assert has_element?(view, ~s(a.techtree-map-tab[data-tree-presentation="map"]), "Map")
     assert html =~ "No nodes yet"
+    refute has_element?(view, "[data-techtree-map-world]")
+    refute has_element?(view, "[data-techtree-map-edges]")
+    refute has_element?(view, ".techtree-map-nodes")
     refute has_element?(view, "#techtree-tree a", "Publish")
     refute has_element?(view, "#techtree-tree button", "Publish")
   end
@@ -155,6 +158,111 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
              view,
              ~s([data-techtree-list-panel] li[data-motion-surface="list-item"])
            )
+  end
+
+  test "tree Map server-renders positioned variants and both edge kinds", %{conn: conn} do
+    tree = Techtree.get_tree_by_slug!("question-forge-metaskills")
+
+    first =
+      Techtree.import_public_node!(tree.id, "Featured question", "A positioned node.", nil,
+        actor: %System{}
+      )
+
+    second =
+      Techtree.import_public_node!(tree.id, "Standard question", "Another positioned node.", nil,
+        actor: %System{}
+      )
+
+    first =
+      Techtree.update_node_layout!(first, 120.0, 80.0, "featured", actor: %System{})
+
+    second =
+      Techtree.update_node_layout!(second, 520.0, 240.0, "standard", actor: %System{})
+
+    prerequisite = Techtree.create_edge!(first.id, second.id, actor: %System{})
+
+    related =
+      Techtree.create_edge!(
+        second.id,
+        first.id,
+        %{kind: :related},
+        actor: %System{}
+      )
+
+    {:ok, view, initial_html} = live(conn, "/techtree/question-forge-metaskills")
+
+    assert initial_html =~ "data-techtree-map-world"
+    assert initial_html =~ "data-techtree-map-edges"
+    assert initial_html =~ ~s(data-node-id="#{first.id}")
+    assert initial_html =~ ~s(data-edge-kind="prerequisite")
+    assert initial_html =~ ~s(data-edge-kind="related")
+
+    assert has_element?(
+             view,
+             ~s([data-techtree-map-world][data-world-width="832"][data-world-height="424"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(li[data-node-id="#{first.id}"][data-position-source="authored"][data-display-kind="featured"][data-node-x="120.0"][data-node-y="80.0"]),
+             "Featured"
+           )
+
+    assert has_element?(
+             view,
+             ~s(li[data-node-id="#{second.id}"][data-position-source="authored"][data-display-kind="standard"][data-node-x="520.0"][data-node-y="240.0"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(svg[data-techtree-map-edges] > path.techtree-map-edge--prerequisite[data-from-node-id="#{prerequisite.from_node_id}"][data-to-node-id="#{prerequisite.to_node_id}"][d="M 240.0 136.0 L 640.0 296.0"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(svg[data-techtree-map-edges] > path.techtree-map-edge--related[data-from-node-id="#{related.from_node_id}"][data-to-node-id="#{related.to_node_id}"][d="M 640.0 296.0 L 240.0 136.0"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(.techtree-map-nodes > li[data-node-id="#{first.id}"] > a[href="/techtree/nodes/#{first.id}"])
+           )
+  end
+
+  test "nodes without positions use the deterministic fallback grid", %{conn: conn} do
+    tree = Techtree.get_tree_by_slug!("new-question-candidates")
+
+    for title <- ["Fallback one", "Fallback two", "Fallback three", "Fallback four"] do
+      Techtree.import_public_node!(tree.id, title, nil, nil, actor: %System{})
+    end
+
+    ordered_nodes = Techtree.list_tree_nodes!(tree.id)
+
+    {:ok, view, initial_html} = live(conn, "/techtree/new-question-candidates")
+
+    assert initial_html =~ "data-position-source=\"fallback\""
+
+    for {node, {x, y}} <-
+          Enum.zip(ordered_nodes, [{72, 72}, {376, 72}, {680, 72}, {72, 248}]) do
+      assert has_element?(
+               view,
+               ~s(li[data-node-id="#{node.id}"][data-position-source="fallback"][data-node-x="#{x}"][data-node-y="#{y}"])
+             )
+    end
+
+    assert has_element?(
+             view,
+             ~s([data-techtree-map-world][data-world-width="992"][data-world-height="432"])
+           )
+  end
+
+  test "map styles disable motion and transparency effects for user preferences" do
+    css = File.read!(Path.expand("../../assets/css/pages/techtree.css", __DIR__))
+
+    assert css =~ "@media (prefers-reduced-motion: reduce)"
+    assert css =~ ".techtree-list-panel,\n  .techtree-map-nodes a {\n    transition: none;"
+    assert css =~ "@media (prefers-reduced-transparency: reduce)"
+    assert css =~ ".techtree-map-node[data-display-kind=\"featured\"] a {\n    background:"
   end
 
   test "unknown node id is honest", %{conn: conn} do

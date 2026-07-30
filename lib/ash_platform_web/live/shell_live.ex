@@ -81,6 +81,7 @@ defmodule AshPlatformWeb.ShellLive do
        techtree_trees: [],
        techtree_tree: nil,
        techtree_nodes: [],
+       techtree_edges: [],
        techtree_node: nil,
        techtree_notebook_artifact: nil,
        techtree_status: :loading,
@@ -1384,6 +1385,7 @@ defmodule AshPlatformWeb.ShellLive do
           trees={@techtree_trees}
           tree={@techtree_tree}
           nodes={@techtree_nodes}
+          edges={@techtree_edges}
           node={@techtree_node}
           status={@techtree_status}
           presentation={@presentation}
@@ -1649,6 +1651,7 @@ defmodule AshPlatformWeb.ShellLive do
           techtree_trees: trees,
           techtree_tree: nil,
           techtree_nodes: [],
+          techtree_edges: [],
           techtree_node: nil,
           techtree_notebook_artifact: nil,
           techtree_status: :ready
@@ -1661,11 +1664,13 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp load_techtree_route(socket, %{route_id: :techtree_tree}, %{"tree_slug" => slug}) do
     with {:ok, tree} when not is_nil(tree) <- Techtree.get_tree_by_slug(slug),
-         {:ok, nodes} <- Techtree.list_tree_nodes(tree.id) do
+         {:ok, nodes} <- Techtree.list_tree_nodes(tree.id),
+         {:ok, edges} <- Techtree.list_tree_edges(tree.id) do
       assign(socket,
         techtree_trees: list_techtree_roots(),
         techtree_tree: tree,
         techtree_nodes: nodes,
+        techtree_edges: edges,
         techtree_node: nil,
         techtree_notebook_artifact: nil,
         techtree_status: :ready
@@ -1675,6 +1680,7 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket,
           techtree_tree: nil,
           techtree_nodes: [],
+          techtree_edges: [],
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
@@ -1683,6 +1689,7 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket,
           techtree_tree: nil,
           techtree_nodes: [],
+          techtree_edges: [],
           techtree_notebook_artifact: nil,
           techtree_status: :error
         )
@@ -1694,6 +1701,7 @@ defmodule AshPlatformWeb.ShellLive do
       {:ok, nil} ->
         assign(socket,
           techtree_node: nil,
+          techtree_edges: [],
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
@@ -1701,6 +1709,7 @@ defmodule AshPlatformWeb.ShellLive do
       {:ok, node} ->
         assign(socket,
           techtree_node: node,
+          techtree_edges: [],
           techtree_notebook_artifact: current_notebook_artifact(node),
           techtree_status: :ready
         )
@@ -1708,6 +1717,7 @@ defmodule AshPlatformWeb.ShellLive do
       {:error, _error} ->
         assign(socket,
           techtree_node: nil,
+          techtree_edges: [],
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
