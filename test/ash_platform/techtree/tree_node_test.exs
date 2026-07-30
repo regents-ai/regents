@@ -1,7 +1,7 @@
 defmodule AshPlatform.Techtree.TreeNodeTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.Actors.System
+  alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Techtree
 
   @root_names [
@@ -41,6 +41,44 @@ defmodule AshPlatform.Techtree.TreeNodeTest do
     assert public.title == "BBH reference 001"
     assert public.payload_hash == "sha256:abc123"
     assert {:ok, nil} = Techtree.get_public_node(Ash.UUID.generate())
+  end
+
+  test "nodes default to an unpositioned standard display and support layout updates" do
+    tree = Techtree.get_tree_by_slug!("question-forge-metaskills")
+
+    node =
+      Techtree.import_public_node!(tree.id, "Layout node", nil, nil, actor: %System{})
+
+    assert node.pos_x == nil
+    assert node.pos_y == nil
+    assert node.display_kind == "standard"
+
+    assert {:ok, updated} =
+             Techtree.update_node_layout(node, 128.5, -32.25, "featured", actor: %System{})
+
+    assert updated.pos_x == 128.5
+    assert updated.pos_y == -32.25
+    assert updated.display_kind == "featured"
+
+    assert {:ok, reloaded} = Techtree.get_public_node(node.id)
+    assert reloaded.pos_x == 128.5
+    assert reloaded.pos_y == -32.25
+    assert reloaded.display_kind == "featured"
+  end
+
+  test "node layout updates require the exact system actor" do
+    tree = Techtree.get_tree_by_slug!("question-forge-metaskills")
+    node = Techtree.import_public_node!(tree.id, "Denied layout", nil, nil, actor: %System{})
+
+    for actor <- [nil, %Human{human_account_id: 1}, %{role: :system}] do
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Techtree.update_node_layout(node, 10.0, 20.0, "featured", actor: actor)
+    end
+
+    assert {:ok, reloaded} = Techtree.get_public_node(node.id)
+    assert reloaded.pos_x == nil
+    assert reloaded.pos_y == nil
+    assert reloaded.display_kind == "standard"
   end
 
   test "the public listing interface needs no actor or filter and sorts newest first" do

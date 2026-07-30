@@ -24,6 +24,21 @@ defmodule AshPlatform.Techtree.Node do
       constraints max_length: 128
     end
 
+    attribute :pos_x, :float do
+      public? true
+    end
+
+    attribute :pos_y, :float do
+      public? true
+    end
+
+    attribute :display_kind, :string do
+      allow_nil? false
+      public? true
+      default "standard"
+      constraints min_length: 1, max_length: 100, trim?: true
+    end
+
     attribute :published_at, :utc_datetime_usec do
       allow_nil? false
       public? true
@@ -41,6 +56,10 @@ defmodule AshPlatform.Techtree.Node do
   end
 
   actions do
+    read :read do
+      primary? true
+    end
+
     read :list_public do
       prepare build(sort: [published_at: :desc, id: :asc])
     end
@@ -60,14 +79,19 @@ defmodule AshPlatform.Techtree.Node do
     create :import_public do
       accept [:tree_id, :title, :summary, :payload_hash]
     end
+
+    update :update_layout do
+      accept [:pos_x, :pos_y, :display_kind]
+      require_atomic? false
+    end
   end
 
   policies do
-    policy action([:list_public, :list_public_for_tree, :public_by_id]) do
+    policy action([:read, :list_public, :list_public_for_tree, :public_by_id]) do
       authorize_if always()
     end
 
-    policy action(:import_public) do
+    policy action([:import_public, :update_layout]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

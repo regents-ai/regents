@@ -2,6 +2,8 @@ defmodule AshPlatform.Techtree do
   use Ash.Domain,
     otp_app: :ash_platform
 
+  @edge_resource Module.concat(__MODULE__, "Edge")
+
   resources do
     resource AshPlatform.Techtree.Tree do
       define :list_trees, action: :list_public
@@ -29,6 +31,18 @@ defmodule AshPlatform.Techtree do
       define :import_public_node,
         action: :import_public,
         args: [:tree_id, :title, :summary, :payload_hash]
+
+      define :update_node_layout,
+        action: :update_layout,
+        args: [:pos_x, :pos_y, :display_kind]
+    end
+
+    resource @edge_resource do
+      define :list_tree_edges, action: :list_for_tree, args: [:tree_id]
+
+      define :create_edge,
+        action: :create,
+        args: [:from_node_id, :to_node_id]
     end
 
     resource AshPlatform.Techtree.NotebookArtifact do

@@ -52,6 +52,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [token_auction_identity_migration] =
              Path.wildcard("priv/repo/migrations/*_add_unique_autolaunch_token_auction.exs")
 
+    assert [techtree_graph_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_techtree_edges_and_node_layout.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -80,6 +83,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                launch_jobs_migration,
                bids_migration,
                token_auction_identity_migration,
+               techtree_graph_migration,
                cloud_runtimes_migration,
                public_profile_migration,
                billing_kernel_migration,
@@ -214,6 +218,31 @@ defmodule AshPlatformWeb.BoundaryTest do
     )
 
     assert_additive_migration(
+      techtree_graph_migration,
+      [
+        "alter table(:nodes",
+        "add(:pos_x, :float)",
+        "add(:pos_y, :float)",
+        ~s|add(:display_kind, :text, null: false, default: "standard")|,
+        "create table(:edges",
+        "references(:nodes",
+        "create unique_index(:edges, [:from_node_id, :to_node_id]",
+        ~s(prefix: "techtree")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS techtree"]
+    )
+
+    assert_reversible_migration(
+      techtree_graph_migration,
+      [
+        "drop(table(:edges",
+        "remove(:display_kind)",
+        "remove(:pos_y)",
+        "remove(:pos_x)"
+      ]
+    )
+
+    assert_additive_migration(
       cloud_runtimes_migration,
       [
         "create table(:cloud_runtimes",
@@ -260,6 +289,13 @@ defmodule AshPlatformWeb.BoundaryTest do
       |> Enum.uniq()
 
     assert statements == allowed_statements
+  end
+
+  defp assert_reversible_migration(path, required_fragments) do
+    source = File.read!(path)
+    [_up, down] = String.split(source, "  def down do", parts: 2)
+
+    for fragment <- required_fragments, do: assert(down =~ fragment)
   end
 
   defp assert_extension_migration(path) do

@@ -120,6 +120,8 @@ components:
         title: {type: string}
         summary: {type: [string, "null"]}
         payload_hash: {type: [string, "null"]}
+        position: {$ref: "#/components/schemas/NodePosition"}
+        display_kind: {type: string, default: standard}
         published_at: {type: string, format: date-time}
     Tree:
       type: object
@@ -132,6 +134,10 @@ components:
           pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
         name: {type: string}
         description: {type: string}
+        edges:
+          type: array
+          description: Curation and presentation relationships for the graph map, distinct from evidence lineage references.
+          items: {$ref: "#/components/schemas/Edge"}
     Node:
       type: object
       additionalProperties: false
@@ -156,7 +162,28 @@ components:
         evidence_projection: {$ref: "#/components/schemas/EvidenceProjection"}
         evidence_state: {$ref: "#/components/schemas/EvidenceState"}
         base_mainnet_record: {$ref: "#/components/schemas/BaseMainnetRecordReference"}
+        position: {$ref: "#/components/schemas/NodePosition"}
+        display_kind: {type: string, default: standard}
         published_at: {type: string, format: date-time}
+    NodePosition:
+      type: object
+      additionalProperties: false
+      required: [x, y]
+      properties:
+        x: {type: number, format: float}
+        y: {type: number, format: float}
+    Edge:
+      type: object
+      description: A curation and presentation edge for the graph map, not an evidence lineage reference.
+      additionalProperties: false
+      required: [from_node_id, to_node_id, kind]
+      properties:
+        from_node_id: {type: string, format: uuid}
+        to_node_id: {type: string, format: uuid}
+        kind:
+          type: string
+          enum: [prerequisite, related]
+          default: prerequisite
     Capsule:
       type: object
       additionalProperties: false

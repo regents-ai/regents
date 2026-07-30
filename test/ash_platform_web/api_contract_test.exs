@@ -201,13 +201,69 @@ defmodule AshPlatformWeb.ApiContractTest do
            ]
 
     assert Map.keys(node["properties"]) |> Enum.sort() ==
-             ~w(id payload_hash published_at summary title tree_id)
+             ~w(display_kind id payload_hash position published_at summary title tree_id)
 
     assert node["properties"]["id"] == %{"type" => "string", "format" => "uuid"}
     assert node["properties"]["tree_id"] == %{"type" => "string", "format" => "uuid"}
     assert node["properties"]["published_at"] == %{"type" => "string", "format" => "date-time"}
     assert node["properties"]["summary"]["type"] == ["string", "null"]
     assert node["properties"]["payload_hash"]["type"] == ["string", "null"]
+  end
+
+  test "the graph map contract extension is strict and additive" do
+    contract = YamlElixir.read_from_file!(@contract)
+    schemas = contract["components"]["schemas"]
+
+    assert schemas["Tree"]["required"] == ["id", "slug", "name", "description"]
+    refute "edges" in schemas["Tree"]["required"]
+
+    assert schemas["Tree"]["properties"]["edges"] == %{
+             "type" => "array",
+             "description" =>
+               "Curation and presentation relationships for the graph map, distinct from evidence lineage references.",
+             "items" => %{"$ref" => "#/components/schemas/Edge"}
+           }
+
+    assert schemas["Edge"] == %{
+             "type" => "object",
+             "description" =>
+               "A curation and presentation edge for the graph map, not an evidence lineage reference.",
+             "additionalProperties" => false,
+             "required" => ["from_node_id", "to_node_id", "kind"],
+             "properties" => %{
+               "from_node_id" => %{"type" => "string", "format" => "uuid"},
+               "to_node_id" => %{"type" => "string", "format" => "uuid"},
+               "kind" => %{
+                 "type" => "string",
+                 "enum" => ["prerequisite", "related"],
+                 "default" => "prerequisite"
+               }
+             }
+           }
+
+    assert schemas["NodePosition"] == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => ["x", "y"],
+             "properties" => %{
+               "x" => %{"type" => "number", "format" => "float"},
+               "y" => %{"type" => "number", "format" => "float"}
+             }
+           }
+
+    for node_schema <- [schemas["NodeListItem"], schemas["Node"]] do
+      refute "position" in node_schema["required"]
+      refute "display_kind" in node_schema["required"]
+
+      assert node_schema["properties"]["position"] == %{
+               "$ref" => "#/components/schemas/NodePosition"
+             }
+
+      assert node_schema["properties"]["display_kind"] == %{
+               "type" => "string",
+               "default" => "standard"
+             }
+    end
   end
 
   test "the canonical contract declares strict planned Techtree components" do
