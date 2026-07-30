@@ -24,6 +24,8 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/autolaunch/auctions/:auction_id",
     "/autolaunch/tokens",
     "/autolaunch/tokens/:token_id",
+    "/autolaunch/subjects",
+    "/autolaunch/subjects/:id",
     "/autolaunch/create",
     "/stake",
     "/redeem"
@@ -113,6 +115,11 @@ defmodule AshPlatformWeb.RouteCatalogTest do
                path: "/autolaunch/tokens"
              },
              %RouteTarget{
+               route_id: :autolaunch_subjects,
+               label: "Subjects",
+               path: "/autolaunch/subjects"
+             },
+             %RouteTarget{
                route_id: :autolaunch_create,
                label: "Create",
                path: "/autolaunch/create"
@@ -143,7 +150,8 @@ defmodule AshPlatformWeb.RouteCatalogTest do
           {:regent_profile, %{"slug" => "not valid"}},
           {:techtree_node, %{"node_id" => "../node"}},
           {:autolaunch_auction, %{"auction_id" => String.duplicate("a", 129)}},
-          {:autolaunch_token, %{}}
+          {:autolaunch_token, %{}},
+          {:autolaunch_subject, %{"id" => "../subject"}}
         ] do
       assert_raise NotFoundError, fn -> RouteCatalog.fetch!(action, params) end
     end
@@ -205,7 +213,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 16
+    assert length(decoded["routes"]) == 18
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
@@ -249,5 +257,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   defp sample_params(:techtree_node), do: %{"node_id" => "node"}
   defp sample_params(:autolaunch_auction), do: %{"auction_id" => "auction"}
   defp sample_params(:autolaunch_token), do: %{"token_id" => "token"}
+  defp sample_params(:autolaunch_subject), do: %{"id" => "subject"}
   defp sample_params(_), do: %{}
 end

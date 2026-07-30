@@ -35,6 +35,14 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [launch_drafts_migration] =
              Path.wildcard("priv/repo/migrations/*_add_autolaunch_launch_drafts.exs")
 
+    assert [subjects_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_subjects_and_actions.exs")
+
+    assert [subject_identity_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_add_autolaunch_subject_id_and_token_linkage.exs"
+             )
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -58,6 +66,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                comment_reactions_migration,
                notebook_artifacts_migration,
                launch_drafts_migration,
+               subjects_migration,
+               subject_identity_migration,
                cloud_runtimes_migration,
                public_profile_migration,
                billing_kernel_migration,
@@ -135,6 +145,28 @@ defmodule AshPlatformWeb.BoundaryTest do
         ~s(prefix: "autolaunch")
       ],
       ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      subjects_migration,
+      [
+        "create table(:subjects",
+        "create table(:subject_actions",
+        "references(:subjects",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      subject_identity_migration,
+      [
+        "alter table(:tokens",
+        "alter table(:subjects",
+        "add(:subject_id, :text",
+        "create unique_index(:subjects, [:subject_id]"
+      ],
+      []
     )
 
     assert_additive_migration(

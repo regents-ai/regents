@@ -1,8 +1,10 @@
 defmodule AshPlatformWeb.AutolaunchLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
   test "overview has the four founder market sections without fabricated records", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/autolaunch")
@@ -43,6 +45,228 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       assert html =~ empty_copy
       refute html =~ "$"
     end
+  end
+
+  test "subject routes have honest empty and not-found states", %{conn: conn} do
+    {:ok, subjects, _html} = live(conn, "/autolaunch/subjects")
+    assert render_async(subjects) =~ "No public subjects yet."
+
+    {:ok, subject, _html} = live(conn, "/autolaunch/subjects/subject-42")
+    html = render_async(subject)
+
+    assert has_element?(subject, "#autolaunch-subject-detail", "Subject not found")
+    assert html =~ "No public subject exists at subject-42."
+    refute html =~ "$"
+  end
+
+  test "canonical subject identity format edges round-trip through public URLs", %{conn: conn} do
+    edge_ids = ["Z", "A._:-" <> String.duplicate("x", 123)]
+
+    for subject_id <- edge_ids do
+      subject = import_minimal_subject!(subject_id)
+      assert subject.subject_id == subject_id
+
+      {:ok, subjects, _html} = live(conn, "/autolaunch/subjects")
+      subjects_html = render_async(subjects)
+      assert subjects_html =~ ~s(href="/autolaunch/subjects/#{subject_id}")
+
+      {:ok, detail, _html} = live(conn, "/autolaunch/subjects/#{subject_id}")
+      detail_html = render_async(detail)
+      assert has_element?(detail, "#autolaunch-subject-detail", subject_id)
+      assert detail_html =~ subject_id
+    end
+  end
+
+  test "subject read errors never use not-found copy" do
+    html =
+      render_component(&AutolaunchLive.page/1,
+        route_spec: RouteCatalog.fetch!(:autolaunch_subject, %{"id" => "subject:error"}),
+        params: %{"id" => "subject:error"},
+        account_control: %AccountControl{
+          kind: :sign_in,
+          label: "Sign In",
+          profile_path: nil,
+          settings_path: "/settings"
+        },
+        featured_auctions: [],
+        recent_auctions: [],
+        top_tokens: [],
+        graduated_tokens: [],
+        records: [],
+        record: nil,
+        subject_tokens: [],
+        subject_actions: [],
+        subject_settlements: [],
+        launch_drafts: [],
+        draft_fields: %{},
+        status: :error,
+        comments: [],
+        comments_status: :ready,
+        comment_request_id: Ash.UUID.generate(),
+        comment_draft: "",
+        comment_admin: false
+      )
+
+    assert html =~ "Subject unavailable"
+    assert html =~ "This subject could not be loaded right now."
+    assert html =~ ~s(role="alert")
+    refute html =~ "Subject not found"
+  end
+
+  test "subject loaders render stored revenue and newest-first settlement history", %{conn: conn} do
+    subject =
+      Autolaunch.import_subject!(
+        "subject:live:revenue",
+        "agent",
+        8453,
+        "0x3333333333333333333333333333333333333333",
+        "0x4444444444444444444444444444444444444444",
+        "0x5555555555555555555555555555555555555555",
+        "0x6666666666666666666666666666666666666666",
+        "0x7777777777777777777777777777777777777777",
+        "0x8888888888888888888888888888888888888888",
+        1500,
+        250,
+        200,
+        "12000000",
+        "3400000000000000000",
+        "5000000",
+        actor: %System{}
+      )
+
+    auction =
+      Autolaunch.import_auction!(
+        "Subject detail auction",
+        nil,
+        false,
+        :graduated,
+        DateTime.utc_now(),
+        actor: %System{}
+      )
+
+    token =
+      Autolaunch.import_subject_token!(
+        auction.id,
+        subject.subject_id,
+        "Related Subject Token",
+        "RST",
+        "Linked to the subject.",
+        DateTime.utc_now(),
+        nil,
+        actor: %System{}
+      )
+
+    older_hash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    newer_hash = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+    Autolaunch.import_subject_action!(
+      subject.subject_id,
+      "settle_buyback",
+      "0x1111111111111111111111111111111111111111",
+      8453,
+      older_hash,
+      "2000000",
+      "confirmed",
+      100,
+      actor: %System{}
+    )
+
+    Process.sleep(2)
+
+    Autolaunch.import_subject_action!(
+      subject.subject_id,
+      "stake",
+      "0x9999999999999999999999999999999999999999",
+      8453,
+      "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "1",
+      "confirmed",
+      100,
+      actor: %System{}
+    )
+
+    Process.sleep(2)
+
+    Autolaunch.import_subject_action!(
+      subject.subject_id,
+      "settle_buyback",
+      "0x2222222222222222222222222222222222222222",
+      8453,
+      newer_hash,
+      "3000000",
+      "pending",
+      101,
+      actor: %System{}
+    )
+
+    {:ok, subjects, _html} = live(conn, "/autolaunch/subjects")
+    subjects_html = render_async(subjects)
+    assert subjects_html =~ "subject:live:revenue"
+    assert subjects_html =~ ~s(href="/autolaunch/subjects/subject:live:revenue")
+    assert subjects_html =~ "0x3333333333333333333333333333333333333333"
+    assert subjects_html =~ "Chain 8453"
+
+    {:ok, detail, _html} = live(conn, "/autolaunch/subjects/#{subject.subject_id}")
+    html = render_async(detail)
+
+    assert has_element?(detail, "#autolaunch-subject-detail")
+    assert has_element?(detail, "#autolaunch-subject-detail", subject.subject_id)
+    assert has_element?(detail, "#subject-revenue-title", "Revenue")
+    assert has_element?(detail, "#subject-related-tokens", token.name)
+
+    assert has_element?(
+             detail,
+             "#subject-related-tokens a[href='/autolaunch/tokens/#{token.id}']"
+           )
+
+    assert has_element?(detail, "#subject-recent-actions", "stake")
+    assert has_element?(detail, "#subject-recent-actions", "settle buyback")
+    assert has_element?(detail, "#subject-settlement-title", "Settlement history")
+    assert has_element?(detail, "#subject-settlement-history", "settle buyback")
+    refute has_element?(detail, "#subject-settlement-history", "stake")
+    assert html =~ "12000000"
+    assert html =~ "3400000000000000000"
+    assert html =~ "5000000"
+    assert html =~ "Ready to settle"
+    assert html =~ "Yes"
+    assert html =~ "settle buyback"
+    assert html =~ newer_hash
+    assert html =~ older_hash
+    assert :binary.match(html, newer_hash) < :binary.match(html, older_hash)
+    refute html =~ subject.id
+    refute html =~ "$"
+  end
+
+  test "subject detail shows honest empty related records and no derived money", %{conn: conn} do
+    subject =
+      Autolaunch.import_subject!(
+        "subject:live:empty",
+        "project",
+        8453,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        actor: %System{}
+      )
+
+    {:ok, detail, _html} = live(conn, "/autolaunch/subjects/#{subject.subject_id}")
+    html = render_async(detail)
+
+    assert has_element?(detail, "#subject-related-tokens", "No related tokens yet.")
+    assert has_element?(detail, "#subject-recent-actions", "No subject actions yet.")
+    assert has_element?(detail, "#subject-settlement-history", "No settlements yet.")
+    assert html =~ "Ready to settle"
+    assert html =~ "No"
+    refute html =~ "$"
   end
 
   test "Create explains optional reputation and asks anonymous visitors to sign in", %{
@@ -210,5 +434,26 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       refute html =~ "reaction"
       refute html =~ "vote"
     end
+  end
+
+  defp import_minimal_subject!(subject_id) do
+    Autolaunch.import_subject!(
+      subject_id,
+      "agent",
+      8453,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      actor: %System{}
+    )
   end
 end

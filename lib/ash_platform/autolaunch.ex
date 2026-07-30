@@ -39,6 +39,66 @@ defmodule AshPlatform.Autolaunch do
       define :import_token,
         action: :import_public,
         args: [:auction_id, :name, :symbol, :summary, :graduated_at, :top_rank]
+
+      define :import_subject_token,
+        action: :import_public,
+        args: [:auction_id, :subject_id, :name, :symbol, :summary, :graduated_at, :top_rank]
+
+      define :list_subject_tokens,
+        action: :for_subject,
+        args: [:subject_id]
+    end
+
+    resource AshPlatform.Autolaunch.Subject do
+      define :list_subjects, action: :list_public
+
+      define :get_public_subject,
+        action: :public_by_id,
+        args: [:subject_id],
+        not_found_error?: false
+
+      define :import_subject,
+        action: :import_public,
+        args: [
+          :subject_id,
+          :subject_kind,
+          :chain_id,
+          :token_address,
+          :splitter_address,
+          :ingress_address,
+          :treasury_address,
+          :factory_address,
+          :creator_address,
+          :staker_pool_bps,
+          :protocol_skim_bps_snapshot,
+          :current_protocol_skim_bps,
+          :protocol_fee_usdc_total_raw,
+          :regent_emission_total_raw,
+          :pending_buyback_usdc_raw
+        ]
+    end
+
+    resource AshPlatform.Autolaunch.SubjectAction do
+      define :list_subject_actions,
+        action: :recent_for_subject,
+        args: [:subject_identity]
+
+      define :list_subject_settlements,
+        action: :settlements_for_subject,
+        args: [:subject_identity]
+
+      define :import_subject_action,
+        action: :import_public,
+        args: [
+          :subject_identity,
+          :action,
+          :owner_address,
+          :chain_id,
+          :tx_hash,
+          :amount,
+          :status,
+          :block_number
+        ]
     end
   end
 end

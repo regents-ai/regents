@@ -13,6 +13,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :graduated_tokens, :list, required: true
   attr :records, :list, required: true
   attr :record, :map, default: nil
+  attr :subject_tokens, :list, required: true
+  attr :subject_actions, :list, required: true
+  attr :subject_settlements, :list, required: true
   attr :launch_drafts, :list, required: true
   attr :draft_fields, :map, required: true
   attr :draft_notice, :map, default: nil
@@ -42,6 +45,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
       records={@records}
       status={@status}
     />
+    <.subject_collection
+      :if={@route_spec.route_id == :autolaunch_subjects}
+      records={@records}
+      status={@status}
+    />
     <.detail
       :if={@route_spec.route_id in [:autolaunch_auction, :autolaunch_token]}
       kind={if(@route_spec.route_id == :autolaunch_auction, do: :auction, else: :token)}
@@ -63,6 +71,15 @@ defmodule AshPlatformWeb.AutolaunchLive do
       current_human_id={@current_human_id}
       comment_admin={@comment_admin}
     />
+    <.subject_detail
+      :if={@route_spec.route_id == :autolaunch_subject}
+      record_id={@params["id"]}
+      record={@record}
+      tokens={@subject_tokens}
+      actions={@subject_actions}
+      settlements={@subject_settlements}
+      status={@status}
+    />
     <.create
       :if={@route_spec.route_id == :autolaunch_create}
       account_control={@account_control}
@@ -71,6 +88,231 @@ defmodule AshPlatformWeb.AutolaunchLive do
       draft_notice={@draft_notice}
       regent={@regent}
     />
+    """
+  end
+
+  attr :records, :list, required: true
+  attr :status, :atom, required: true
+
+  defp subject_collection(assigns) do
+    ~H"""
+    <section id="autolaunch-subjects" class="autolaunch-page">
+      <header class="autolaunch-heading">
+        <p class="autolaunch-kicker">Autolaunch</p>
+        <h1>Subjects</h1>
+        <p>Browse the people and projects that share launch revenue.</p>
+      </header>
+      <.empty_state
+        :if={@status == :ready && @records == []}
+        copy="No public subjects yet."
+      />
+      <.empty_state
+        :if={@status == :error}
+        copy="Public subjects are unavailable right now."
+      />
+      <ol :if={@status == :ready && @records != []} class="autolaunch-record-list">
+        <li :for={subject <- @records}>
+          <.link patch={"/autolaunch/subjects/#{subject.subject_id}"}>
+            <strong>{subject_label(subject)}</strong>
+            <span>
+              {display_text(subject.token_address)} · {display_text(subject.subject_kind)} · Chain {subject.chain_id}
+            </span>
+          </.link>
+        </li>
+      </ol>
+    </section>
+    """
+  end
+
+  attr :record_id, :string, required: true
+  attr :record, :map, default: nil
+  attr :tokens, :list, required: true
+  attr :actions, :list, required: true
+  attr :settlements, :list, required: true
+  attr :status, :atom, required: true
+
+  defp subject_detail(assigns) do
+    ~H"""
+    <article
+      :if={@status == :ready && @record}
+      id="autolaunch-subject-detail"
+      class="autolaunch-page"
+    >
+      <header class="autolaunch-heading">
+        <p class="autolaunch-kicker">Autolaunch · Subject</p>
+        <h1>{subject_label(@record)}</h1>
+        <p>
+          Revenue sharing and settlement history for this {display_text(@record.subject_kind)}.
+        </p>
+      </header>
+
+      <section aria-labelledby="subject-identity-title">
+        <h2 id="subject-identity-title">Subject details</h2>
+        <dl>
+          <div>
+            <dt>Subject ID</dt><dd>{@record.subject_id}</dd>
+          </div>
+          <div>
+            <dt>Type</dt><dd>{display_text(@record.subject_kind)}</dd>
+          </div>
+          <div>
+            <dt>Chain</dt><dd>{@record.chain_id}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="subject-addresses-title">
+        <h2 id="subject-addresses-title">Linked token and addresses</h2>
+        <dl>
+          <div>
+            <dt>Token</dt><dd>{display_text(@record.token_address)}</dd>
+          </div>
+          <div>
+            <dt>Revenue split</dt><dd>{display_text(@record.splitter_address)}</dd>
+          </div>
+          <div>
+            <dt>Revenue entry</dt><dd>{display_text(@record.ingress_address)}</dd>
+          </div>
+          <div>
+            <dt>Treasury</dt><dd>{display_text(@record.treasury_address)}</dd>
+          </div>
+          <div>
+            <dt>Factory</dt><dd>{display_text(@record.factory_address)}</dd>
+          </div>
+          <div>
+            <dt>Creator</dt><dd>{display_text(@record.creator_address)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="subject-revenue-title">
+        <h2 id="subject-revenue-title">Revenue</h2>
+        <dl>
+          <div>
+            <dt>Staker pool share</dt><dd>{display_bps(@record.staker_pool_bps)}</dd>
+          </div>
+          <div>
+            <dt>Starting protocol share</dt>
+            <dd>{display_bps(@record.protocol_skim_bps_snapshot)}</dd>
+          </div>
+          <div>
+            <dt>Current protocol share</dt>
+            <dd>{display_bps(@record.current_protocol_skim_bps)}</dd>
+          </div>
+          <div>
+            <dt>Protocol fees</dt>
+            <dd>{display_text(@record.protocol_fee_usdc_total_raw)}</dd>
+          </div>
+          <div>
+            <dt>Regent emissions</dt>
+            <dd>{display_text(@record.regent_emission_total_raw)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="subject-related-tokens" aria-labelledby="subject-related-tokens-title">
+        <h2 id="subject-related-tokens-title">Related tokens</h2>
+        <p :if={@tokens == []} class="autolaunch-empty">No related tokens yet.</p>
+        <ol :if={@tokens != []} class="autolaunch-record-list">
+          <li :for={token <- @tokens}>
+            <.link patch={"/autolaunch/tokens/#{token.id}"}>
+              <strong>{token.name} · {token.symbol}</strong>
+              <span>{token.summary || "No public token summary yet."}</span>
+            </.link>
+          </li>
+        </ol>
+      </section>
+
+      <section id="subject-recent-actions" aria-labelledby="subject-recent-actions-title">
+        <h2 id="subject-recent-actions-title">Recent actions</h2>
+        <.subject_action_list
+          actions={@actions}
+          empty_copy="No subject actions yet."
+          id_prefix="subject-action"
+        />
+      </section>
+
+      <section id="subject-settlement-history" aria-labelledby="subject-settlement-title">
+        <h2 id="subject-settlement-title">Settlement history</h2>
+        <dl>
+          <div>
+            <dt>Pending buyback</dt>
+            <dd>{display_text(@record.pending_buyback_usdc_raw)}</dd>
+          </div>
+          <div>
+            <dt>Ready to settle</dt>
+            <dd>{if(settlement_ready?(@record), do: "Yes", else: "No")}</dd>
+          </div>
+        </dl>
+
+        <.subject_action_list
+          actions={@settlements}
+          empty_copy="No settlements yet."
+          id_prefix="subject-settlement"
+        />
+      </section>
+    </article>
+
+    <section
+      :if={@status == :empty}
+      id="autolaunch-subject-detail"
+      class="autolaunch-page autolaunch-empty"
+    >
+      <h1>Subject not found</h1>
+      <p>No public subject exists at {@record_id}.</p>
+      <.link patch="/autolaunch/subjects">Return to Subjects</.link>
+    </section>
+
+    <section
+      :if={@status == :error}
+      id="autolaunch-subject-detail"
+      class="autolaunch-page autolaunch-empty"
+      role="alert"
+    >
+      <h1>Subject unavailable</h1>
+      <p>This subject could not be loaded right now.</p>
+      <.link patch="/autolaunch/subjects">Return to Subjects</.link>
+    </section>
+    """
+  end
+
+  attr :actions, :list, required: true
+  attr :empty_copy, :string, required: true
+  attr :id_prefix, :string, required: true
+
+  defp subject_action_list(assigns) do
+    ~H"""
+    <p :if={@actions == []} class="autolaunch-empty">{@empty_copy}</p>
+    <ol :if={@actions != []} class="autolaunch-record-list">
+      <li :for={action <- @actions} id={"#{@id_prefix}-#{action.id}"}>
+        <article>
+          <h3>{display_action(action.action)}</h3>
+          <dl>
+            <div>
+              <dt>Status</dt><dd>{display_text(action.status)}</dd>
+            </div>
+            <div>
+              <dt>Owner</dt><dd>{display_text(action.owner_address)}</dd>
+            </div>
+            <div>
+              <dt>Chain</dt><dd>{action.chain_id}</dd>
+            </div>
+            <div>
+              <dt>Transaction</dt><dd>{display_text(action.tx_hash)}</dd>
+            </div>
+            <div>
+              <dt>Amount</dt><dd>{display_text(action.amount)}</dd>
+            </div>
+            <div>
+              <dt>Block</dt><dd>{display_text(action.block_number)}</dd>
+            </div>
+            <div>
+              <dt>Time</dt><dd>{display_time(action.inserted_at)}</dd>
+            </div>
+          </dl>
+        </article>
+      </li>
+    </ol>
     """
   end
 
@@ -358,4 +600,35 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp collection_record_kind(:auctions), do: :auction
   defp collection_record_kind(:tokens), do: :token
+
+  defp subject_label(%{subject_id: subject_id}), do: subject_id
+
+  defp display_text(nil), do: "Not available"
+  defp display_text(value) when is_integer(value), do: Integer.to_string(value)
+
+  defp display_text(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> "Not available"
+      text -> text
+    end
+  end
+
+  defp display_bps(nil), do: "Not available"
+  defp display_bps(value), do: "#{value} bps"
+
+  defp display_action(value) do
+    value
+    |> display_text()
+    |> String.replace("_", " ")
+  end
+
+  defp display_time(%DateTime{} = value),
+    do: Calendar.strftime(value, "%b %-d, %Y at %H:%M UTC")
+
+  defp display_time(_value), do: "Not available"
+
+  defp settlement_ready?(%{pending_buyback_usdc_raw: value}) when is_binary(value),
+    do: String.trim(value) != ""
+
+  defp settlement_ready?(_record), do: false
 end

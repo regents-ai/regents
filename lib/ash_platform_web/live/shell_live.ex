@@ -63,6 +63,9 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_graduated_tokens: [],
        autolaunch_records: [],
        autolaunch_record: nil,
+       autolaunch_subject_tokens: [],
+       autolaunch_subject_actions: [],
+       autolaunch_subject_settlements: [],
        autolaunch_launch_drafts: [],
        autolaunch_draft_fields: %{
          "title" => "",
@@ -1333,6 +1336,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_subjects,
+              :autolaunch_subject,
               :autolaunch_create
             ]
           }
@@ -1345,6 +1350,9 @@ defmodule AshPlatformWeb.ShellLive do
           graduated_tokens={@autolaunch_graduated_tokens}
           records={@autolaunch_records}
           record={@autolaunch_record}
+          subject_tokens={@autolaunch_subject_tokens}
+          subject_actions={@autolaunch_subject_actions}
+          subject_settlements={@autolaunch_subject_settlements}
           launch_drafts={@autolaunch_launch_drafts}
           draft_fields={@autolaunch_draft_fields}
           draft_notice={@autolaunch_draft_notice}
@@ -1449,6 +1457,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_subjects,
+              :autolaunch_subject,
               :autolaunch_create,
               :regent_profile
             ] &&
@@ -1477,6 +1487,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_subjects,
+              :autolaunch_subject,
               :autolaunch_create,
               :regent_profile
             ] &&
@@ -1504,6 +1516,8 @@ defmodule AshPlatformWeb.ShellLive do
             :autolaunch_auction,
             :autolaunch_tokens,
             :autolaunch_token,
+            :autolaunch_subjects,
+            :autolaunch_subject,
             :autolaunch_create,
             :regent_profile
           ] &&
@@ -1731,6 +1745,13 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch_subjects}, _params) do
+    case Autolaunch.list_subjects() do
+      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
+      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
+    end
+  end
+
   defp load_autolaunch_route(
          socket,
          %{route_id: :autolaunch_auction},
@@ -1748,6 +1769,25 @@ defmodule AshPlatformWeb.ShellLive do
       {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
       {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
       {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+    end
+  end
+
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch_subject}, %{"id" => id}) do
+    case Autolaunch.get_public_subject(id) do
+      {:ok, nil} ->
+        assign(socket,
+          autolaunch_record: nil,
+          autolaunch_subject_tokens: [],
+          autolaunch_subject_actions: [],
+          autolaunch_subject_settlements: [],
+          autolaunch_status: :empty
+        )
+
+      {:ok, subject} ->
+        load_autolaunch_subject_details(socket, subject)
+
+      {:error, _error} ->
+        subject_load_error(socket)
     end
   end
 
@@ -1777,6 +1817,32 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
+
+  defp load_autolaunch_subject_details(socket, subject) do
+    with {:ok, tokens} <- Autolaunch.list_subject_tokens(subject.subject_id),
+         {:ok, actions} <- Autolaunch.list_subject_actions(subject.subject_id),
+         {:ok, settlements} <- Autolaunch.list_subject_settlements(subject.subject_id) do
+      assign(socket,
+        autolaunch_record: subject,
+        autolaunch_subject_tokens: tokens,
+        autolaunch_subject_actions: actions,
+        autolaunch_subject_settlements: settlements,
+        autolaunch_status: :ready
+      )
+    else
+      {:error, _error} -> subject_load_error(socket)
+    end
+  end
+
+  defp subject_load_error(socket) do
+    assign(socket,
+      autolaunch_record: nil,
+      autolaunch_subject_tokens: [],
+      autolaunch_subject_actions: [],
+      autolaunch_subject_settlements: [],
+      autolaunch_status: :error
+    )
+  end
 
   defp load_comments_route(socket, %{route_id: :techtree_node}) do
     set_comment_target(socket, :techtree_node, socket.assigns.techtree_node)

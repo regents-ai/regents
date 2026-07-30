@@ -49,6 +49,8 @@ defmodule AshPlatformWeb.Router do
       live "/autolaunch/auctions/:auction_id", ShellLive, :autolaunch_auction
       live "/autolaunch/tokens", ShellLive, :autolaunch_tokens
       live "/autolaunch/tokens/:token_id", ShellLive, :autolaunch_token
+      live "/autolaunch/subjects", ShellLive, :autolaunch_subjects
+      live "/autolaunch/subjects/:id", ShellLive, :autolaunch_subject
       live "/autolaunch/create", ShellLive, :autolaunch_create
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

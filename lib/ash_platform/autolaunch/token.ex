@@ -1,4 +1,6 @@
 defmodule AshPlatform.Autolaunch.Token do
+  alias AshPlatform.Autolaunch.SubjectIdentity
+
   use Ash.Resource,
     otp_app: :ash_platform,
     domain: AshPlatform.Autolaunch,
@@ -35,6 +37,11 @@ defmodule AshPlatform.Autolaunch.Token do
       constraints min: 1
     end
 
+    attribute :subject_id, :string do
+      public? true
+      constraints SubjectIdentity.constraints()
+    end
+
     timestamps()
   end
 
@@ -59,6 +66,15 @@ defmodule AshPlatform.Autolaunch.Token do
       prepare build(sort: [graduated_at: :desc, id: :asc], limit: 12)
     end
 
+    read :for_subject do
+      argument :subject_id, :string,
+        allow_nil?: false,
+        constraints: SubjectIdentity.constraints()
+
+      filter expr(subject_id == ^arg(:subject_id))
+      prepare build(sort: [graduated_at: :desc, id: :asc], limit: 25)
+    end
+
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
@@ -66,12 +82,18 @@ defmodule AshPlatform.Autolaunch.Token do
     end
 
     create :import_public do
-      accept [:auction_id, :name, :symbol, :summary, :graduated_at, :top_rank]
+      accept [:auction_id, :subject_id, :name, :symbol, :summary, :graduated_at, :top_rank]
     end
   end
 
   policies do
-    policy action([:list_public, :top_public, :recently_graduated_public, :public_by_id]) do
+    policy action([
+             :list_public,
+             :top_public,
+             :recently_graduated_public,
+             :for_subject,
+             :public_by_id
+           ]) do
       authorize_if always()
     end
 

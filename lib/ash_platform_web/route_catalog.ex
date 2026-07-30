@@ -113,6 +113,20 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :autolaunch_token
     },
     %Entry{
+      path_pattern: "/autolaunch/subjects",
+      live_action: :autolaunch_subjects,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :autolaunch_subjects
+    },
+    %Entry{
+      path_pattern: "/autolaunch/subjects/:id",
+      live_action: :autolaunch_subject,
+      parameter_schema: %{id: :identifier},
+      reserved_values: %{},
+      route_spec_id: :autolaunch_subject
+    },
+    %Entry{
       path_pattern: "/autolaunch/create",
       live_action: :autolaunch_create,
       parameter_schema: %{},
@@ -189,6 +203,12 @@ defmodule AshPlatformWeb.RouteCatalog do
       {:autolaunch_token, :autolaunch, "Autolaunch", "Token", "/autolaunch",
        [:search, :filters, :wallet_status, :network_status, :profile_actions], :autolaunch,
        :autolaunch, :detail, %{}},
+    autolaunch_subjects:
+      {:autolaunch_subjects, :autolaunch, "Autolaunch", "Subjects", "/autolaunch",
+       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
+    autolaunch_subject:
+      {:autolaunch_subject, :autolaunch, "Autolaunch", "Subject", "/autolaunch",
+       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :detail, %{}},
     autolaunch_create:
       {:autolaunch_create, :autolaunch, "Autolaunch", "Create", "/autolaunch",
        [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :workflow, %{}},
@@ -305,6 +325,11 @@ defmodule AshPlatformWeb.RouteCatalog do
           path: "/autolaunch/tokens"
         },
         %RouteTarget{
+          route_id: :autolaunch_subjects,
+          label: "Subjects",
+          path: "/autolaunch/subjects"
+        },
+        %RouteTarget{
           route_id: :autolaunch_create,
           label: "Create",
           path: "/autolaunch/create"
@@ -405,6 +430,7 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   defp handoff_params(:autolaunch_auction), do: %{"auction_id" => "auction"}
   defp handoff_params(:autolaunch_token), do: %{"token_id" => "token"}
+  defp handoff_params(:autolaunch_subject), do: %{"id" => "subject"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
@@ -416,6 +442,9 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   defp destination(:autolaunch_token, %{"token_id" => token_id}),
     do: "/autolaunch/tokens/#{token_id}"
+
+  defp destination(:autolaunch_subject, %{"id" => id}),
+    do: "/autolaunch/subjects/#{id}"
 
   defp destination(action, _params) do
     @entries
