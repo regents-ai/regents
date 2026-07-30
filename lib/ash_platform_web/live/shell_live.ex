@@ -25,6 +25,8 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.SettingsLive
   alias AshPlatformWeb.TechtreeLive
 
+  @autolaunch_wallet_open_minimum_seconds 60
+
   @impl true
   def mount(params, _session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
@@ -69,6 +71,14 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_bid_positions: [],
        autolaunch_returnable_positions: [],
        autolaunch_claimed_token_positions: [],
+       autolaunch_bid_fields: %{"amount" => "", "max_price" => ""},
+       autolaunch_bid_quote: nil,
+       autolaunch_bid_notice: nil,
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_submission: nil,
+       autolaunch_bid_confirmation_name: nil,
+       autolaunch_bid_expiry_ref: nil,
+       autolaunch_bid_signing?: false,
        autolaunch_launch_drafts: [],
        autolaunch_draft_fields: %{
          "title" => "",
@@ -546,6 +556,121 @@ defmodule AshPlatformWeb.ShellLive do
            message: "The REGENT approval is not confirmed yet. Retry verification shortly."
          }
        )}
+
+  def handle_async(
+        {:autolaunch_bid_approval_status, action_id},
+        {:ok, {:ok, :reverted}},
+        %{assigns: %{autolaunch_bid_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_bid_expiry()
+     |> assign(
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_submission: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :error,
+         message: "The quote-token approval reverted. Prepare the bid again when ready."
+       }
+     )
+     |> push_event("autolaunch-bid:approval-reverted", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_bid_approval_status, action_id},
+        {:ok, {:ok, :success}},
+        %{assigns: %{autolaunch_bid_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_submission:
+         Map.put(socket.assigns.autolaunch_bid_submission, :status, :approval_verified),
+       autolaunch_bid_notice: %{
+         tone: :info,
+         message: "Quote-token approval confirmed. Continue to the bid."
+       }
+     )}
+  end
+
+  def handle_async(
+        {:autolaunch_bid_approval_status, action_id},
+        _result,
+        %{assigns: %{autolaunch_bid_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :info,
+         message: "The quote-token approval is not confirmed yet. Retry verification shortly."
+       }
+     )}
+  end
+
+  def handle_async({:autolaunch_bid_approval_status, _action_id}, _result, socket),
+    do: {:noreply, socket}
+
+  def handle_async(
+        {:autolaunch_bid_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true, transaction_reverted: true}}},
+        %{assigns: %{autolaunch_bid_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_bid_expiry()
+     |> assign(
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_submission: nil,
+       autolaunch_bid_confirmation_name: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :error,
+         message: "The auction transaction reverted. Prepare the action again when ready."
+       }
+     )
+     |> push_event("autolaunch-bid:reverted", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_bid_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true}}},
+        %{assigns: %{autolaunch_bid_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_bid_expiry()
+     |> assign(
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_submission:
+         Map.merge(socket.assigns.autolaunch_bid_submission || %{}, %{status: :confirmed}),
+       autolaunch_bid_confirmation_name: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :success,
+         message: "Confirmed on Base. The stored auction records are current."
+       }
+     )
+     |> push_event("autolaunch-bid:confirmed", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_bid_confirmation, action_id},
+        _result,
+        %{assigns: %{autolaunch_bid_confirmation_name: {:autolaunch_bid_confirmation, action_id}}} =
+          socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_confirmation_name: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :info,
+         message: "The transaction is not confirmed yet. Retry verification shortly."
+       }
+     )}
+  end
 
   @impl true
   def handle_event(
@@ -1043,6 +1168,263 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, assign(socket, staking_signing?: false, staking_notice: notice)}
   end
 
+  def handle_event("autolaunch_bid_changed", %{"bid" => fields}, socket) do
+    quote =
+      with auction when not is_nil(auction) <- socket.assigns.autolaunch_record,
+           {:ok, quote} <-
+             Autolaunch.quote_auction_bid(
+               auction.id,
+               fields["amount"],
+               fields["max_price"]
+             ) do
+        quote
+      else
+        _ -> nil
+      end
+
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_fields: fields,
+       autolaunch_bid_quote: quote,
+       autolaunch_bid_notice: nil,
+       autolaunch_bid_prepared: nil
+     )}
+  end
+
+  def handle_event("prepare_autolaunch_bid", %{"bid" => fields}, socket) do
+    actor = human_actor(socket)
+    wallet = expected_wallet(socket)
+
+    result =
+      case socket.assigns.autolaunch_record do
+        auction when not is_nil(auction) ->
+          Autolaunch.prepare_auction_bid(
+            auction.id,
+            wallet,
+            fields["amount"],
+            fields["max_price"],
+            actor: actor
+          )
+
+        _ ->
+          {:error, :auction_not_found}
+      end
+
+    prepare_autolaunch_review(socket, result, fields)
+  end
+
+  def handle_event(
+        "prepare_autolaunch_bid_position",
+        %{"action" => action, "bid-id" => bid_id},
+        socket
+      ) do
+    actor = human_actor(socket)
+
+    result =
+      case action do
+        "exit_bid" -> Autolaunch.prepare_bid_exit(bid_id, actor: actor)
+        "return_quote_token" -> Autolaunch.prepare_bid_return(bid_id, actor: actor)
+        "claim_bid" -> Autolaunch.prepare_bid_claim(bid_id, actor: actor)
+        _ -> {:error, :invalid_action}
+      end
+
+    prepare_autolaunch_review(socket, result, socket.assigns.autolaunch_bid_fields)
+  end
+
+  def handle_event(
+        "sign_prepared_autolaunch_bid",
+        %{"action-id" => action_id},
+        socket
+      ) do
+    case socket.assigns.autolaunch_bid_prepared do
+      %{action_id: ^action_id} = envelope ->
+        if autolaunch_wallet_window_open?(envelope) and
+             autolaunch_approval_authorized?(
+               envelope,
+               socket.assigns.autolaunch_bid_submission
+             ) and
+             is_nil(socket.assigns.autolaunch_bid_confirmation_name) do
+          {:noreply,
+           socket
+           |> assign(
+             autolaunch_bid_signing?: true,
+             autolaunch_bid_notice: %{
+               tone: :info,
+               message: "Complete the reviewed requests in your wallet."
+             }
+           )
+           |> push_event("autolaunch-bid:prepared", %{envelope: envelope})}
+        else
+          expired_autolaunch_review(socket)
+        end
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_bid_notice: %{
+             tone: :error,
+             message: "This review is no longer current. Prepare the action again."
+           }
+         )}
+    end
+  end
+
+  def handle_event(
+        "autolaunch_bid_submitted",
+        %{"action_id" => action_id, "phase" => phase, "transaction_hash" => hash},
+        socket
+      ) do
+    case {socket.assigns.autolaunch_bid_prepared, valid_transaction_hash?(hash)} do
+      {%{action_id: ^action_id}, true} ->
+        submission =
+          record_submission(socket.assigns.autolaunch_bid_submission, action_id, phase, hash)
+
+        socket =
+          socket
+          |> cancel_autolaunch_bid_expiry()
+          |> assign(
+            autolaunch_bid_submission: submission,
+            autolaunch_bid_signing?: false,
+            autolaunch_bid_notice: %{
+              tone: :info,
+              message: autolaunch_submitted_copy(phase, hash)
+            }
+          )
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore_autolaunch_bid_submission", params, socket) do
+    envelope = params["envelope"] || params[:envelope]
+    approval_hash = params["approval_transaction_hash"] || params[:approval_transaction_hash]
+    transaction_hash = params["transaction_hash"] || params[:transaction_hash]
+    actor = human_actor(socket)
+
+    with {:ok, restored} <- Autolaunch.restore_submitted_bid_action(envelope, actor: actor),
+         true <- is_nil(approval_hash) or valid_transaction_hash?(approval_hash),
+         true <- is_nil(transaction_hash) or valid_transaction_hash?(transaction_hash),
+         true <- is_binary(approval_hash) or is_binary(transaction_hash) do
+      status = if transaction_hash, do: :main_pending, else: :approval_pending
+
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_bid_prepared: restored,
+         autolaunch_bid_submission: %{
+           action_id: restored.action_id,
+           approval_transaction_hash: approval_hash,
+           transaction_hash: transaction_hash,
+           status: status
+         },
+         autolaunch_bid_signing?: false,
+         autolaunch_bid_notice: %{
+           tone: :info,
+           message: "A submitted auction transaction is waiting for verification."
+         }
+       )
+       |> cancel_autolaunch_bid_expiry()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("retry_autolaunch_bid_approval_verification", _params, socket) do
+    with %{action_id: action_id} = envelope <- socket.assigns.autolaunch_bid_prepared,
+         %{action_id: ^action_id, approval_transaction_hash: hash} when is_binary(hash) <-
+           socket.assigns.autolaunch_bid_submission do
+      {:noreply, start_autolaunch_approval_verification(socket, envelope, hash)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_autolaunch_bid_approval", _params, socket) do
+    case {socket.assigns.autolaunch_bid_prepared, socket.assigns.autolaunch_bid_submission} do
+      {%{action_id: action_id},
+       %{action_id: action_id, approval_transaction_hash: hash} = submission}
+      when is_binary(hash) ->
+        if is_nil(submission[:transaction_hash]),
+          do: {:noreply, cancel_autolaunch_approval(socket)},
+          else: {:noreply, socket}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "confirm_autolaunch_bid",
+        %{"action_id" => action_id, "transaction_hash" => hash} = params,
+        socket
+      ) do
+    case socket.assigns.autolaunch_bid_prepared do
+      %{action_id: ^action_id} = envelope ->
+        confirm_autolaunch_bid(
+          socket,
+          envelope,
+          hash,
+          params["approval_transaction_hash"]
+        )
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_bid_notice: %{
+             tone: :error,
+             message: "This wallet result does not match the reviewed action."
+           }
+         )}
+    end
+  end
+
+  def handle_event("retry_autolaunch_bid_confirmation", _params, socket) do
+    with %{action_id: action_id} = envelope <- socket.assigns.autolaunch_bid_prepared,
+         %{action_id: ^action_id, transaction_hash: hash} = submission
+         when is_binary(hash) <- socket.assigns.autolaunch_bid_submission do
+      confirm_autolaunch_bid(
+        socket,
+        envelope,
+        hash,
+        submission[:approval_transaction_hash]
+      )
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_autolaunch_bid_review", _params, socket) do
+    if is_nil(socket.assigns.autolaunch_bid_submission) do
+      {:noreply,
+       socket
+       |> cancel_autolaunch_bid_expiry()
+       |> assign(
+         autolaunch_bid_prepared: nil,
+         autolaunch_bid_signing?: false,
+         autolaunch_bid_notice: %{tone: :info, message: "The wallet review was cancelled."}
+       )
+       |> push_event("autolaunch-bid:abandoned", %{})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("autolaunch_bid_wallet_failed", %{"message" => message}, socket) do
+    message =
+      if is_binary(message) and byte_size(message) <= 180,
+        do: message,
+        else: "The wallet action did not complete."
+
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{tone: :error, message: message}
+     )}
+  end
+
   def handle_event(event, params, socket)
       when event in [
              "redemption_selection_changed",
@@ -1075,6 +1457,18 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:redemption_envelope_expired, action_id}, socket),
     do: handle_redemption_expiry(action_id, socket)
+
+  def handle_info({:autolaunch_bid_envelope_expired, action_id}, socket) do
+    case {socket.assigns.autolaunch_bid_prepared, socket.assigns.autolaunch_bid_submission} do
+      {%{action_id: ^action_id}, submission} ->
+        if autolaunch_submission_hash?(submission),
+          do: {:noreply, socket},
+          else: expired_autolaunch_review(socket)
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
 
   def handle_info(
         {:comments_changed, target_type, target_id},
@@ -1364,6 +1758,12 @@ defmodule AshPlatformWeb.ShellLive do
           bid_positions={@autolaunch_bid_positions}
           returnable_positions={@autolaunch_returnable_positions}
           claimed_token_positions={@autolaunch_claimed_token_positions}
+          bid_fields={@autolaunch_bid_fields}
+          bid_quote={@autolaunch_bid_quote}
+          bid_notice={@autolaunch_bid_notice}
+          bid_prepared={@autolaunch_bid_prepared}
+          bid_submission={@autolaunch_bid_submission}
+          bid_signing={@autolaunch_bid_signing?}
           launch_drafts={@autolaunch_launch_drafts}
           draft_fields={@autolaunch_draft_fields}
           draft_notice={@autolaunch_draft_notice}
@@ -1794,9 +2194,30 @@ defmodule AshPlatformWeb.ShellLive do
          %{"auction_id" => id}
        ) do
     case Autolaunch.get_public_auction(id) do
-      {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-      {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+      {:ok, nil} ->
+        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+
+      {:ok, record} ->
+        positions =
+          case human_actor(socket) do
+            %Human{} = actor ->
+              case Autolaunch.list_my_bid_positions(actor: actor) do
+                {:ok, records} -> Enum.filter(records, &(&1.auction_id == record.id))
+                _ -> []
+              end
+
+            nil ->
+              []
+          end
+
+        assign(socket,
+          autolaunch_record: record,
+          autolaunch_bid_positions: positions,
+          autolaunch_status: :ready
+        )
+
+      {:error, _error} ->
+        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
     end
   end
 
@@ -2272,6 +2693,193 @@ defmodule AshPlatformWeb.ShellLive do
       _ -> {:error, :unknown_action}
     end
   end
+
+  defp prepare_autolaunch_review(socket, {:ok, envelope}, fields) do
+    {:noreply,
+     socket
+     |> assign(
+       autolaunch_bid_fields: fields,
+       autolaunch_bid_prepared: envelope,
+       autolaunch_bid_submission: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{
+         tone: :info,
+         message: "Review the details before opening your wallet."
+       }
+     )
+     |> schedule_autolaunch_bid_expiry(envelope)}
+  end
+
+  defp prepare_autolaunch_review(socket, {:error, _reason}, fields) do
+    {:noreply,
+     assign(socket,
+       autolaunch_bid_fields: fields,
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_notice: %{
+         tone: :error,
+         message: "That auction action could not be prepared. Check the amount and wallet."
+       }
+     )}
+  end
+
+  defp confirm_autolaunch_bid(socket, envelope, transaction_hash, approval_hash) do
+    if valid_transaction_hash?(transaction_hash) and
+         (is_nil(approval_hash) or valid_transaction_hash?(approval_hash)) do
+      actor = human_actor(socket)
+      name = {:autolaunch_bid_confirmation, envelope.action_id}
+
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_bid_confirmation_name: name,
+         autolaunch_bid_signing?: true,
+         autolaunch_bid_notice: %{
+           tone: :info,
+           message: "Confirming this transaction on Base…"
+         }
+       )
+       |> start_async(name, fn ->
+         Autolaunch.confirm_bid_wallet_action(
+           envelope,
+           transaction_hash,
+           approval_hash,
+           actor: actor
+         )
+       end)}
+    else
+      {:noreply,
+       assign(socket,
+         autolaunch_bid_signing?: false,
+         autolaunch_bid_notice: %{tone: :error, message: "The transaction hash is invalid."}
+       )}
+    end
+  end
+
+  defp start_autolaunch_approval_verification(socket, envelope, hash) do
+    actor = human_actor(socket)
+    name = {:autolaunch_bid_approval_status, envelope.action_id}
+
+    socket
+    |> assign(
+      autolaunch_bid_signing?: true,
+      autolaunch_bid_notice: %{
+        tone: :info,
+        message: "Verifying the quote-token approval on Base…"
+      }
+    )
+    |> start_async(name, fn ->
+      Autolaunch.verify_bid_approval_submission(envelope, hash, actor: actor)
+    end)
+  end
+
+  defp autolaunch_wallet_window_open?(envelope) do
+    with true <- Envelope.valid?(envelope),
+         {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at) do
+      DateTime.diff(expires_at, Envelope.current_time(), :second) >
+        @autolaunch_wallet_open_minimum_seconds
+    else
+      _ -> false
+    end
+  end
+
+  defp autolaunch_approval_authorized?(%{approval: nil}, _submission), do: true
+  defp autolaunch_approval_authorized?(_envelope, nil), do: true
+
+  defp autolaunch_approval_authorized?(_envelope, %{status: :approval_verified}),
+    do: true
+
+  defp autolaunch_approval_authorized?(_envelope, _submission), do: false
+
+  defp autolaunch_submission_hash?(%{approval_transaction_hash: hash}) when is_binary(hash),
+    do: true
+
+  defp autolaunch_submission_hash?(%{transaction_hash: hash}) when is_binary(hash), do: true
+  defp autolaunch_submission_hash?(_submission), do: false
+
+  defp schedule_autolaunch_bid_expiry(socket, envelope) do
+    socket = cancel_autolaunch_bid_expiry(socket)
+
+    case DateTime.from_iso8601(envelope.expires_at) do
+      {:ok, expires_at, _offset} ->
+        milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
+
+        ref =
+          Process.send_after(
+            self(),
+            {:autolaunch_bid_envelope_expired, envelope.action_id},
+            milliseconds
+          )
+
+        assign(socket, autolaunch_bid_expiry_ref: ref)
+
+      _ ->
+        socket
+    end
+  end
+
+  defp cancel_autolaunch_bid_expiry(%{assigns: %{autolaunch_bid_expiry_ref: nil}} = socket),
+    do: socket
+
+  defp cancel_autolaunch_bid_expiry(socket) do
+    Process.cancel_timer(socket.assigns.autolaunch_bid_expiry_ref)
+    assign(socket, autolaunch_bid_expiry_ref: nil)
+  end
+
+  defp expired_autolaunch_review(socket) do
+    approval_submitted? =
+      match?(
+        %{approval_transaction_hash: hash} when is_binary(hash),
+        socket.assigns.autolaunch_bid_submission
+      )
+
+    message =
+      if approval_submitted? do
+        "This review expired before the auction action was sent. The exact quote-token approval may remain onchain; review it in your wallet before preparing again."
+      else
+        "This wallet review expired. Prepare the auction action again when ready."
+      end
+
+    {:noreply,
+     socket
+     |> cancel_autolaunch_bid_expiry()
+     |> assign(
+       autolaunch_bid_prepared: nil,
+       autolaunch_bid_submission: nil,
+       autolaunch_bid_signing?: false,
+       autolaunch_bid_notice: %{tone: :info, message: message}
+     )
+     |> push_event("autolaunch-bid:abandoned", %{})}
+  end
+
+  defp cancel_autolaunch_approval(socket) do
+    submission = socket.assigns.autolaunch_bid_submission
+    hash = short_hash(submission[:approval_transaction_hash])
+
+    message =
+      if submission[:status] == :approval_verified do
+        "The bid was not sent. The exact quote-token allowance remains onchain."
+      else
+        "The bid was not sent. Approval transaction #{hash} may still confirm later; check it in your wallet or on Base before relying on the allowance state."
+      end
+
+    socket
+    |> cancel_autolaunch_bid_expiry()
+    |> assign(
+      autolaunch_bid_prepared: nil,
+      autolaunch_bid_submission: nil,
+      autolaunch_bid_signing?: false,
+      autolaunch_bid_notice: %{tone: :info, message: message}
+    )
+    |> push_event("autolaunch-bid:abandoned", %{})
+  end
+
+  defp autolaunch_submitted_copy("approval", hash),
+    do: "Exact quote-token approval submitted: #{short_hash(hash)}"
+
+  defp autolaunch_submitted_copy("action", hash),
+    do: "Auction transaction submitted: #{short_hash(hash)}"
+
+  defp autolaunch_submitted_copy(_phase, _hash), do: "Transaction submitted."
 
   defp confirm_staking(socket, envelope, transaction_hash) do
     actor = staking_actor(socket)

@@ -26,6 +26,16 @@ defmodule AshPlatform.Autolaunch do
       define :import_auction,
         action: :import_public,
         args: [:title, :summary, :featured, :state, :opened_at]
+
+      define :set_auction_bid_terms,
+        action: :set_bid_terms,
+        args: [
+          :auction_address,
+          :quote_token_address,
+          :quote_token_symbol,
+          :quote_token_decimals,
+          :current_clearing_price
+        ]
     end
 
     resource AshPlatform.Autolaunch.Token do
@@ -137,6 +147,7 @@ defmodule AshPlatform.Autolaunch do
       define :list_my_bid_positions, action: :mine
       define :list_my_returnable_bid_positions, action: :returnable_mine
       define :list_my_claimed_token_positions, action: :claimed_mine
+      define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
 
       define :import_bid_position,
         action: :import_position,
@@ -152,8 +163,49 @@ defmodule AshPlatform.Autolaunch do
           :exited_at,
           :claimed_at
         ]
+
+      define :set_bid_chain_identity,
+        action: :set_chain_identity,
+        args: [:auction_address, :onchain_bid_id]
     end
   end
+
+  def quote_auction_bid(auction_id, amount, max_price, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.quote(auction_id, amount, max_price, opts)
+
+  def prepare_auction_bid(auction_id, signer, amount, max_price, opts \\ []) do
+    AshPlatform.Autolaunch.BidActions.prepare_bid(
+      auction_id,
+      signer,
+      amount,
+      max_price,
+      opts
+    )
+  end
+
+  def prepare_bid_return(bid_id, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.prepare_position("return_quote_token", bid_id, opts)
+
+  def prepare_bid_exit(bid_id, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.prepare_position("exit_bid", bid_id, opts)
+
+  def prepare_bid_claim(bid_id, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.prepare_position("claim_bid", bid_id, opts)
+
+  def confirm_bid_wallet_action(envelope, transaction_hash, approval_transaction_hash, opts \\ []) do
+    AshPlatform.Autolaunch.BidActions.confirm(
+      envelope,
+      transaction_hash,
+      approval_transaction_hash,
+      opts
+    )
+  end
+
+  def restore_submitted_bid_action(envelope, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.restore(envelope, opts)
+
+  def verify_bid_approval_submission(envelope, transaction_hash, opts \\ []),
+    do: AshPlatform.Autolaunch.BidActions.approval_status(envelope, transaction_hash, opts)
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     AshPlatform.Autolaunch.Auction

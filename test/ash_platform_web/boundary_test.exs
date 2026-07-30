@@ -49,6 +49,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [bids_migration] =
              Path.wildcard("priv/repo/migrations/*_add_autolaunch_bids.exs")
 
+    assert [bid_prepared_actions_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_bid_prepared_action_fields.exs")
+
     assert [token_auction_identity_migration] =
              Path.wildcard("priv/repo/migrations/*_add_unique_autolaunch_token_auction.exs")
 
@@ -82,6 +85,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                subject_identity_migration,
                launch_jobs_migration,
                bids_migration,
+               bid_prepared_actions_migration,
                token_auction_identity_migration,
                techtree_graph_migration,
                cloud_runtimes_migration,
@@ -205,6 +209,31 @@ defmodule AshPlatformWeb.BoundaryTest do
         ~s(prefix: "autolaunch")
       ],
       ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      bid_prepared_actions_migration,
+      [
+        "alter table(:bids",
+        "add(:auction_address, :text)",
+        "add(:onchain_bid_id, :text)",
+        "alter table(:auctions",
+        "add(:quote_token_address, :text)",
+        "add(:quote_token_decimals, :bigint)",
+        ~s(prefix: "autolaunch")
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      bid_prepared_actions_migration,
+      [
+        "remove(:onchain_bid_id)",
+        "remove(:auction_address)",
+        "remove(:current_clearing_price)",
+        "remove(:quote_token_decimals)",
+        "remove(:quote_token_address)"
+      ]
     )
 
     assert_additive_migration(

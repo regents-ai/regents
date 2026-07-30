@@ -6,7 +6,12 @@ contracts:
     evidence_sha256: 015022d9e8ab67feddaf04178413aedd36cc3a4e7471da9dc13e36909051c587
     chain_target: base-mainnet
     authority: evidence_only
-    admitted_prepared_actions: []
+    admitted_prepared_actions:
+      - continuous_clearing_auction.submit_bid
+      - continuous_clearing_auction.exit_bid
+      - continuous_clearing_auction.return_quote_token
+      - continuous_clearing_auction.claim_bid
+      - quote_token_erc20.approve_exact
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json
@@ -25,4 +30,25 @@ contracts:
           - approve_exact_usdc
           - redeem
           - claim
+      - contract_id: continuous_clearing_auction
+        contract_name: IContinuousClearingAuction
+        target: stored_auction_address
+        interface_note: >-
+          submit_bid uses the upstream four-argument convenience overload of the canonical
+          five-argument submitBid and defaults prevTickPriceQ96 to FLOOR_PRICE_Q96; see
+          Uniswap/continuous-clearing-auction src/ContinuousClearingAuction.sol lines 635-641.
+        abi_path: abi/continuous-clearing-auction.json
+        abi_sha256: 901e5873cc24b52eac61553bcdee68c208fb4c210e081337fdbad28f5ac61b76
+        action_ids:
+          - submit_bid
+          - exit_bid
+          - return_quote_token
+          - claim_bid
+      - contract_id: quote_token_erc20
+        contract_name: IERC20
+        target: stored_quote_token_address
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        action_ids:
+          - approve_exact
     validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs

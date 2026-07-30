@@ -10,6 +10,11 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert Map.keys(contract["paths"]) |> Enum.sort() == [
              "/api/autolaunch/v1/auctions",
              "/api/autolaunch/v1/auctions/{id}",
+             "/api/autolaunch/v1/auctions/{id}/bid-quote",
+             "/api/autolaunch/v1/auctions/{id}/bids",
+             "/api/autolaunch/v1/bids/{id}/claim",
+             "/api/autolaunch/v1/bids/{id}/exit",
+             "/api/autolaunch/v1/bids/{id}/return",
              "/api/autolaunch/v1/tokens",
              "/api/techtree/v1/tree/nodes",
              "/auth/csrf",

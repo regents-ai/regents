@@ -5,7 +5,12 @@ defmodule AshPlatform.WalletActions.Envelope do
 
   @ttl_seconds 600
   @staking_actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
-  @confirmable_after_expiry_resources ~w(regent_staking animata_redemption)
+  @confirmable_after_expiry_resources ~w(
+    regent_staking
+    animata_redemption
+    autolaunch_auction
+    autolaunch_bid
+  )
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)

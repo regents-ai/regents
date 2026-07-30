@@ -55,6 +55,71 @@ paths:
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+  /api/autolaunch/v1/auctions/{id}/bid-quote:
+    post:
+      operationId: quoteAuctionBid
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/AuctionId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuctionBidRequest"}
+      responses:
+        "200":
+          description: Quote from the stored auction snapshot
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionBidQuoteEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /api/autolaunch/v1/auctions/{id}/bids:
+    post:
+      operationId: prepareAuctionBid
+      security: [{cookieSession: [], csrfToken: []}]
+      parameters:
+        - {$ref: "#/components/parameters/AuctionId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuctionBidRequest"}
+      responses:
+        "200": {$ref: "#/components/responses/PreparedWalletAction"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /api/autolaunch/v1/bids/{id}/exit:
+    post:
+      operationId: prepareAuctionBidExit
+      security: [{cookieSession: [], csrfToken: []}]
+      parameters:
+        - {$ref: "#/components/parameters/BidId"}
+      responses:
+        "200": {$ref: "#/components/responses/PreparedWalletAction"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /api/autolaunch/v1/bids/{id}/return:
+    post:
+      operationId: prepareAuctionBidReturn
+      security: [{cookieSession: [], csrfToken: []}]
+      parameters:
+        - {$ref: "#/components/parameters/BidId"}
+      responses:
+        "200": {$ref: "#/components/responses/PreparedWalletAction"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /api/autolaunch/v1/bids/{id}/claim:
+    post:
+      operationId: prepareAuctionBidClaim
+      security: [{cookieSession: [], csrfToken: []}]
+      parameters:
+        - {$ref: "#/components/parameters/BidId"}
+      responses:
+        "200": {$ref: "#/components/responses/PreparedWalletAction"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
   /api/autolaunch/v1/tokens:
     get:
       operationId: listTokens
@@ -137,6 +202,17 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Session"}
 components:
+  parameters:
+    AuctionId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    BidId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
   securitySchemes:
     privyAccessToken:
       type: http
@@ -156,6 +232,16 @@ components:
       content:
         application/json:
             schema: {$ref: "#/components/schemas/Error"}
+    PreparedWalletAction:
+      description: A ten-minute, user-signed wallet action. This response never submits it.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [data]
+            properties:
+              data: {$ref: "#/components/schemas/PreparedAuctionWalletAction"}
     Logout:
       description: Local browser session removed
       content:
@@ -200,6 +286,101 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed.}}
   schemas:
+    AuctionBidRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, max_price]
+      properties:
+        amount: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+        max_price: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+    AuctionBidQuoteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - auction_id
+            - amount
+            - max_price
+            - quote_token
+            - current_clearing_price
+            - projected_clearing_price
+            - would_be_active_now
+            - status_band
+            - estimated_tokens_if_end_now
+            - warnings
+          properties:
+            auction_id: {type: string, format: uuid}
+            amount: {type: string}
+            max_price: {type: string}
+            quote_token:
+              type: object
+              additionalProperties: false
+              required: [address, symbol, decimals]
+              properties:
+                address: {type: [string, "null"]}
+                symbol: {type: [string, "null"]}
+                decimals: {type: [integer, "null"], minimum: 0, maximum: 36}
+            current_clearing_price: {type: string}
+            projected_clearing_price: {type: string}
+            would_be_active_now: {type: boolean}
+            status_band: {type: string, enum: [active, borderline, inactive]}
+            estimated_tokens_if_end_now: {type: string}
+            warnings: {type: array, items: {type: string}}
+    PreparedAuctionWalletAction:
+      type: object
+      additionalProperties: false
+      required:
+        - action_id
+        - idempotency_key
+        - confirmation_token
+        - resource
+        - action
+        - chain_id
+        - to
+        - value
+        - data
+        - expected_signer
+        - prepared_at
+        - expires_at
+        - risk_copy
+        - arguments
+        - metadata
+      properties:
+        action_id: {type: string, minLength: 64, maxLength: 64}
+        idempotency_key: {type: string, minLength: 64, maxLength: 64}
+        confirmation_token: {type: string, minLength: 1}
+        resource: {type: string, enum: [autolaunch_auction, autolaunch_bid]}
+        action:
+          type: string
+          enum: [submit_bid, exit_bid, return_quote_token, claim_bid]
+        chain_id: {type: integer, const: 8453}
+        to: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        value: {type: string, const: "0"}
+        data: {type: string, pattern: '^0x[0-9a-f]+$'}
+        expected_signer: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        prepared_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        risk_copy: {type: string, minLength: 1}
+        approval:
+          oneOf:
+            - {type: "null"}
+            - {$ref: "#/components/schemas/ExactTokenApproval"}
+        arguments: {type: object, additionalProperties: true}
+        metadata: {type: object, additionalProperties: true}
+    ExactTokenApproval:
+      type: object
+      additionalProperties: false
+      required: [token, spender, amount, data, mode]
+      properties:
+        token: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        spender: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        amount: {type: string, pattern: '^\d+$'}
+        data: {type: string, pattern: '^0x095ea7b3[0-9a-f]{128}$'}
+        mode: {type: string, const: exact}
     AuctionListEnvelope:
       type: object
       additionalProperties: false

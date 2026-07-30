@@ -36,6 +36,31 @@ defmodule AshPlatform.Autolaunch.Auction do
       public? true
     end
 
+    attribute :auction_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :quote_token_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :quote_token_symbol, :string do
+      public? true
+      constraints min_length: 1, max_length: 32, trim?: true
+    end
+
+    attribute :quote_token_decimals, :integer do
+      public? true
+      constraints min: 0, max: 36
+    end
+
+    attribute :current_clearing_price, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
     timestamps()
   end
 
@@ -66,6 +91,18 @@ defmodule AshPlatform.Autolaunch.Auction do
     create :import_public do
       accept [:title, :summary, :featured, :state, :opened_at]
     end
+
+    update :set_bid_terms do
+      require_atomic? false
+
+      accept [
+        :auction_address,
+        :quote_token_address,
+        :quote_token_symbol,
+        :quote_token_decimals,
+        :current_clearing_price
+      ]
+    end
   end
 
   policies do
@@ -74,6 +111,10 @@ defmodule AshPlatform.Autolaunch.Auction do
     end
 
     policy action(:import_public) do
+      authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action(:set_bid_terms) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

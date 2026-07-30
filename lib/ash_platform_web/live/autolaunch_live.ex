@@ -19,6 +19,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :bid_positions, :list, required: true
   attr :returnable_positions, :list, required: true
   attr :claimed_token_positions, :list, required: true
+  attr :bid_fields, :map, default: %{"amount" => "", "max_price" => ""}
+  attr :bid_quote, :map, default: nil
+  attr :bid_notice, :map, default: nil
+  attr :bid_prepared, :map, default: nil
+  attr :bid_submission, :map, default: nil
+  attr :bid_signing, :boolean, default: false
   attr :launch_drafts, :list, required: true
   attr :draft_fields, :map, required: true
   attr :draft_notice, :map, default: nil
@@ -71,6 +77,14 @@ defmodule AshPlatformWeb.AutolaunchLive do
       }
       record={@record}
       status={@status}
+      account_control={@account_control}
+      bid_fields={@bid_fields}
+      bid_quote={@bid_quote}
+      bid_notice={@bid_notice}
+      bid_prepared={@bid_prepared}
+      bid_submission={@bid_submission}
+      bid_signing={@bid_signing}
+      bid_positions={@bid_positions}
       comments={@comments}
       comments_status={@comments_status}
       comment_notice={@comment_notice}
@@ -716,6 +730,14 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :record_id, :string, required: true
   attr :record, :map, default: nil
   attr :status, :atom, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
+  attr :bid_fields, :map, required: true
+  attr :bid_quote, :map, default: nil
+  attr :bid_notice, :map, default: nil
+  attr :bid_prepared, :map, default: nil
+  attr :bid_submission, :map, default: nil
+  attr :bid_signing, :boolean, required: true
+  attr :bid_positions, :list, required: true
   attr :comments, :list, required: true
   attr :comments_status, :atom, required: true
   attr :comment_notice, :map, default: nil
@@ -738,6 +760,18 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h1>{record_label(@kind, @record)}</h1>
         <p>{@record.summary || record_fallback(@kind)}</p>
       </header>
+      <.auction_wallet
+        :if={@kind == :auction}
+        record={@record}
+        account_control={@account_control}
+        fields={@bid_fields}
+        quote={@bid_quote}
+        notice={@bid_notice}
+        prepared={@bid_prepared}
+        submission={@bid_submission}
+        signing={@bid_signing}
+        positions={@bid_positions}
+      />
       <.comment_ledger
         comments={@comments}
         status={@comments_status}
@@ -760,6 +794,217 @@ defmodule AshPlatformWeb.AutolaunchLive do
       <.link patch={if(@kind == :auction, do: "/autolaunch/auctions", else: "/autolaunch/tokens")}>
         Return to {@title}s
       </.link>
+    </section>
+    """
+  end
+
+  attr :record, :map, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
+  attr :fields, :map, required: true
+  attr :quote, :map, default: nil
+  attr :notice, :map, default: nil
+  attr :prepared, :map, default: nil
+  attr :submission, :map, default: nil
+  attr :signing, :boolean, required: true
+  attr :positions, :list, required: true
+
+  defp auction_wallet(assigns) do
+    ~H"""
+    <section
+      id="auction-bid-wallet"
+      phx-hook="AutolaunchBidWallet"
+      aria-labelledby="auction-bid-wallet-title"
+    >
+      <p class="autolaunch-kicker">Wallet action</p>
+      <h2 id="auction-bid-wallet-title">Prepare an auction bid</h2>
+      <p>
+        Regent prepares the exact approval and auction request. Your verified wallet reviews and
+        signs both requests.
+      </p>
+
+      <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
+        Sign in to prepare a bid from a verified wallet.
+      </p>
+
+      <form
+        :if={@account_control.kind == :signed_in}
+        id="auction-bid-form"
+        phx-change="autolaunch_bid_changed"
+        phx-submit="prepare_autolaunch_bid"
+      >
+        <label>
+          <span>Quote-token amount</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            name="bid[amount]"
+            value={@fields["amount"]}
+            autocomplete="off"
+            required
+          />
+        </label>
+        <label>
+          <span>Maximum price</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            name="bid[max_price]"
+            value={@fields["max_price"]}
+            autocomplete="off"
+            required
+          />
+        </label>
+        <button type="submit" disabled={@record.state != :active || not is_nil(@submission)}>
+          Review bid
+        </button>
+      </form>
+
+      <dl :if={@quote} id="auction-bid-quote">
+        <div>
+          <dt>Estimated tokens</dt><dd>{@quote.estimated_tokens_if_end_now}</dd>
+        </div>
+        <div>
+          <dt>Current clearing price</dt><dd>{@quote.current_clearing_price}</dd>
+        </div>
+        <div>
+          <dt>Position now</dt><dd>{display_action(@quote.status_band)}</dd>
+        </div>
+      </dl>
+
+      <p
+        :if={@notice}
+        class={"autolaunch-draft-notice autolaunch-draft-notice--#{@notice.tone}"}
+        role={if(@notice.tone == :error, do: "alert", else: "status")}
+      >
+        {@notice.message}
+      </p>
+
+      <section :if={@prepared} id="auction-bid-review" aria-label="Wallet action review">
+        <p class="autolaunch-kicker">Review before signing</p>
+        <h3>{bid_action_label(@prepared.action)}</h3>
+        <p>{@prepared.risk_copy}</p>
+        <dl>
+          <div :if={@prepared.arguments[:amount]}>
+            <dt>Amount</dt><dd>{@prepared.arguments[:amount]}</dd>
+          </div>
+          <div :if={@prepared.arguments[:max_price]}>
+            <dt>Maximum price</dt><dd>{@prepared.arguments[:max_price]}</dd>
+          </div>
+          <div>
+            <dt>Network</dt><dd>Base</dd>
+          </div>
+          <div>
+            <dt>Wallet</dt><dd>{@prepared.expected_signer}</dd>
+          </div>
+          <div>
+            <dt>Contract</dt><dd>{@prepared.to}</dd>
+          </div>
+          <div>
+            <dt>Native value</dt><dd>0 ETH</dd>
+          </div>
+        </dl>
+        <p :if={@prepared.approval}>
+          Your wallet first requests an exact quote-token approval for this bid. It is not an
+          unlimited allowance.
+        </p>
+        <button
+          :if={is_nil(@submission)}
+          type="button"
+          phx-click="sign_prepared_autolaunch_bid"
+          phx-value-action-id={@prepared.action_id}
+          disabled={@signing}
+        >
+          {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
+        </button>
+        <button
+          :if={is_nil(@submission)}
+          type="button"
+          phx-click="cancel_autolaunch_bid_review"
+        >
+          Cancel review
+        </button>
+        <button
+          :if={
+            @submission && @submission[:approval_transaction_hash] &&
+              !@submission[:transaction_hash] && @submission.status == :approval_verified
+          }
+          type="button"
+          phx-click="sign_prepared_autolaunch_bid"
+          phx-value-action-id={@prepared.action_id}
+          disabled={@signing}
+        >
+          {if @signing, do: "Waiting for wallet", else: "Continue to bid"}
+        </button>
+        <button
+          :if={
+            @submission && @submission[:approval_transaction_hash] &&
+              !@submission[:transaction_hash] && @submission.status == :approval_pending
+          }
+          type="button"
+          phx-click="retry_autolaunch_bid_approval_verification"
+          disabled={@signing}
+        >
+          Verify approval
+        </button>
+        <button
+          :if={
+            @submission && @submission[:approval_transaction_hash] &&
+              !@submission[:transaction_hash]
+          }
+          type="button"
+          phx-click="cancel_autolaunch_bid_approval"
+        >
+          Cancel bid
+        </button>
+        <p :if={
+          @submission && @submission[:approval_transaction_hash] &&
+            !@submission[:transaction_hash]
+        }>
+          Cancelling does not revoke a confirmed quote-token allowance or stop a pending approval.
+        </p>
+        <button
+          :if={@submission && @submission[:transaction_hash]}
+          type="button"
+          phx-click="retry_autolaunch_bid_confirmation"
+          disabled={@signing}
+        >
+          Retry confirmation
+        </button>
+      </section>
+
+      <section :if={@positions != []} id="auction-owned-bids" aria-labelledby="owned-bids-title">
+        <h3 id="owned-bids-title">Your bid positions</h3>
+        <article :for={position <- @positions} id={"auction-owned-bid-#{position.bid_id}"}>
+          <p>{display_status(position.status)} · {position.amount}</p>
+          <button
+            :if={position.status in ["active", "borderline", "inactive"]}
+            type="button"
+            phx-click="prepare_autolaunch_bid_position"
+            phx-value-action="exit_bid"
+            phx-value-bid-id={position.bid_id}
+          >
+            Review exit
+          </button>
+          <button
+            :if={position.status == "returnable"}
+            type="button"
+            phx-click="prepare_autolaunch_bid_position"
+            phx-value-action="return_quote_token"
+            phx-value-bid-id={position.bid_id}
+          >
+            Review return
+          </button>
+          <button
+            :if={position.status == "claimable"}
+            type="button"
+            phx-click="prepare_autolaunch_bid_position"
+            phx-value-action="claim_bid"
+            phx-value-bid-id={position.bid_id}
+          >
+            Review claim
+          </button>
+        </article>
+      </section>
     </section>
     """
   end
@@ -914,6 +1159,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp bid_title(%{token: %{name: name, symbol: symbol}}), do: "#{name} · #{symbol}"
   defp bid_title(%{auction: %{title: title}}), do: title
   defp bid_title(%{bid_id: bid_id}), do: "Bid #{bid_id}"
+
+  defp bid_action_label("submit_bid"), do: "Submit bid"
+  defp bid_action_label("exit_bid"), do: "Exit bid"
+  defp bid_action_label("return_quote_token"), do: "Return quote tokens"
+  defp bid_action_label("claim_bid"), do: "Claim launch tokens"
 
   defp display_status(value) do
     value

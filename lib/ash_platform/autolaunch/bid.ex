@@ -58,6 +58,16 @@ defmodule AshPlatform.Autolaunch.Bid do
       public? true
     end
 
+    attribute :auction_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :onchain_bid_id, :string do
+      public? true
+      constraints min_length: 1, max_length: 78, trim?: true, match: ~r/\A\d+\z/
+    end
+
     timestamps()
   end
 
@@ -96,6 +106,13 @@ defmodule AshPlatform.Autolaunch.Bid do
               )
     end
 
+    read :owned_by_bid_id do
+      get? true
+      argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
+      filter expr(bid_id == ^arg(:bid_id))
+      prepare build(load: [:auction, :token])
+    end
+
     create :import_position do
       accept [
         :bid_id,
@@ -112,18 +129,23 @@ defmodule AshPlatform.Autolaunch.Bid do
 
       change AshPlatform.Autolaunch.Bid.Changes.NormalizeOwnerAddress
     end
+
+    update :set_chain_identity do
+      require_atomic? false
+      accept [:auction_address, :onchain_bid_id]
+    end
   end
 
   policies do
-    policy action([:mine, :returnable_mine, :claimed_mine]) do
+    policy action([:mine, :returnable_mine, :claimed_mine, :owned_by_bid_id]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
-    policy action([:mine, :returnable_mine, :claimed_mine]) do
+    policy action([:mine, :returnable_mine, :claimed_mine, :owned_by_bid_id]) do
       authorize_if AshPlatform.Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action(:import_position) do
+    policy action([:import_position, :set_chain_identity]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

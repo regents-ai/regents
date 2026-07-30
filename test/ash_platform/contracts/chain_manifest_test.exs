@@ -5,6 +5,8 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @manifest_path Path.join(@root, "contracts/base-mainnet.json")
   @staking_abi_sha256 "c8c5570f76f32b72e3bdb0a062fc97cb7f74aacadf03683d796b57a765f1ca23"
   @redeemer_abi_sha256 "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
+  @auction_abi_sha256 "901e5873cc24b52eac61553bcdee68c208fb4c210e081337fdbad28f5ac61b76"
+  @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -349,6 +351,54 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       assert Enum.count(abi, &(&1["type"] == "function")) == contract["abi"]["function_count"]
       assert is_list(abi)
     end
+  end
+
+  test "chain admission pins auction bid actions and exact quote-token approval" do
+    admission =
+      @root
+      |> Path.join("contracts/chain-contracts.yaml")
+      |> YamlElixir.read_from_file!()
+      |> get_in(["contracts"])
+      |> List.first()
+
+    assert admission["admitted_prepared_actions"] == [
+             "continuous_clearing_auction.submit_bid",
+             "continuous_clearing_auction.exit_bid",
+             "continuous_clearing_auction.return_quote_token",
+             "continuous_clearing_auction.claim_bid",
+             "quote_token_erc20.approve_exact"
+           ]
+
+    evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
+    auction = evidence["continuous_clearing_auction"]
+    erc20 = evidence["quote_token_erc20"]
+
+    assert auction["contract_name"] == "IContinuousClearingAuction"
+    assert auction["target"] == "stored_auction_address"
+
+    assert auction["interface_note"] ==
+             "submit_bid uses the upstream four-argument convenience overload of the canonical five-argument submitBid and defaults prevTickPriceQ96 to FLOOR_PRICE_Q96; see Uniswap/continuous-clearing-auction src/ContinuousClearingAuction.sol lines 635-641."
+
+    assert auction["action_ids"] == ~w(submit_bid exit_bid return_quote_token claim_bid)
+    assert erc20["target"] == "stored_quote_token_address"
+    assert erc20["action_ids"] == ["approve_exact"]
+
+    for {entry, digest} <- [
+          {auction, @auction_abi_sha256},
+          {erc20, @erc20_approve_abi_sha256}
+        ] do
+      path = Path.join([@root, "contracts", entry["abi_path"]])
+      assert File.regular?(path)
+      assert entry["abi_sha256"] == digest
+      assert Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower) == digest
+    end
+
+    assert_selectors([
+      %{"signature" => "submitBid(uint256,uint128,address,bytes)", "selector" => "0x140fe8ee"},
+      %{"signature" => "exitBid(uint256)", "selector" => "0x8e4deb17"},
+      %{"signature" => "claimTokens(uint256)", "selector" => "0x46e04a2f"},
+      %{"signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"}
+    ])
   end
 
   defp assert_abi_contains(manifest, contract_id, rows) do

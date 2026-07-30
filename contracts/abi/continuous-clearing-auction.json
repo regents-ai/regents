@@ -1,0 +1,29 @@
+[
+  {
+    "type": "function",
+    "name": "submitBid",
+    "stateMutability": "payable",
+    "notice": "Upstream four-argument convenience overload of submitBid(uint256,uint128,address,uint256,bytes); defaults prevTickPriceQ96 to FLOOR_PRICE_Q96. Source: Uniswap/continuous-clearing-auction src/ContinuousClearingAuction.sol lines 635-641.",
+    "inputs": [
+      {"name": "maxPrice", "type": "uint256"},
+      {"name": "amount", "type": "uint128"},
+      {"name": "owner", "type": "address"},
+      {"name": "data", "type": "bytes"}
+    ],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "exitBid",
+    "stateMutability": "nonpayable",
+    "inputs": [{"name": "bidId", "type": "uint256"}],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "claimTokens",
+    "stateMutability": "nonpayable",
+    "inputs": [{"name": "bidId", "type": "uint256"}],
+    "outputs": []
+  }
+]

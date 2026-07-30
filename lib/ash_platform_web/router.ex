@@ -15,6 +15,14 @@ defmodule AshPlatformWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :session_api do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :enforce_privy_logout_epoch
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+  end
+
   def enforce_privy_logout_epoch(conn, _opts) do
     AshPlatformWeb.PrivySessionController.enforce_logout_epoch(conn)
   end
@@ -25,7 +33,17 @@ defmodule AshPlatformWeb.Router do
     get "/techtree/v1/tree/nodes", TechtreeNodeController, :index
     get "/autolaunch/v1/auctions", AutolaunchAuctionController, :index
     get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
+    post "/autolaunch/v1/auctions/:id/bid-quote", AutolaunchAuctionController, :bid_quote
     get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
+  end
+
+  scope "/api", AshPlatformWeb do
+    pipe_through :session_api
+
+    post "/autolaunch/v1/auctions/:id/bids", AutolaunchAuctionController, :prepare_bid
+    post "/autolaunch/v1/bids/:id/exit", AutolaunchAuctionController, :prepare_bid_exit
+    post "/autolaunch/v1/bids/:id/return", AutolaunchAuctionController, :prepare_bid_return
+    post "/autolaunch/v1/bids/:id/claim", AutolaunchAuctionController, :prepare_bid_claim
   end
 
   scope "/", AshPlatformWeb do
