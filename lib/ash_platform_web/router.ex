@@ -23,6 +23,9 @@ defmodule AshPlatformWeb.Router do
     pipe_through :api
 
     get "/techtree/v1/tree/nodes", TechtreeNodeController, :index
+    get "/autolaunch/v1/auctions", AutolaunchAuctionController, :index
+    get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
+    get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
   end
 
   scope "/", AshPlatformWeb do

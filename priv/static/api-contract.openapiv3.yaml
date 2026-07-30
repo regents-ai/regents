@@ -3,6 +3,80 @@ info:
   title: Regent API
   version: 1.0.0
 paths:
+  /api/autolaunch/v1/auctions:
+    get:
+      operationId: listAuctions
+      security: []
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [all, biddable, live, failed_minimum, graduated]
+            default: all
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest]
+            default: newest
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      x-pagination: none
+      responses:
+        "200":
+          description: Public Autolaunch auctions
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /api/autolaunch/v1/auctions/{id}:
+    get:
+      operationId: getAuction
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Public Autolaunch auction
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /api/autolaunch/v1/tokens:
+    get:
+      operationId: listTokens
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      x-pagination: none
+      responses:
+        "200":
+          description: Public Autolaunch tokens, newest graduation first
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TokenListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
   /api/techtree/v1/tree/nodes:
     get:
       operationId: listTreeNodes
@@ -101,6 +175,22 @@ components:
           examples:
             unsupportedQuery:
               value: {error: {code: invalid_request, message: Query parameters are not supported.}}
+    InvalidQuery:
+      description: Request query parameters are invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            invalidQuery:
+              value: {error: {code: invalid_request, message: The query parameters are invalid.}}
+    NotFound:
+      description: The requested public record was not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NotFoundApiError"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: The requested record was not found.}}
     InternalError:
       description: The request could not be completed
       content:
@@ -110,6 +200,52 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed.}}
   schemas:
+    AuctionListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Auction"}
+    AuctionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/Auction"}
+    Auction:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, featured, state, opened_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        summary: {type: [string, "null"]}
+        featured: {type: boolean}
+        state: {type: string, enum: [created, active, graduated, failed]}
+        opened_at: {type: [string, "null"], format: date-time}
+    TokenListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Token"}
+    Token:
+      type: object
+      additionalProperties: false
+      required: [id, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank]
+      properties:
+        id: {type: string, format: uuid}
+        auction_id: {type: string, format: uuid}
+        subject_id: {type: [string, "null"]}
+        name: {type: string}
+        symbol: {type: string}
+        summary: {type: [string, "null"]}
+        graduated_at: {type: string, format: date-time}
+        top_rank: {type: [integer, "null"], minimum: 1}
     NodeListItem:
       type: object
       additionalProperties: false
@@ -311,6 +447,18 @@ components:
           required: [code, message]
           properties:
             code: {type: string, enum: [invalid_request, internal_error]}
+            message: {type: string}
+    NotFoundApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, enum: [not_found]}
             message: {type: string}
     Session:
       type: object

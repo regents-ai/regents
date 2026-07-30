@@ -8,6 +8,9 @@ defmodule AshPlatformWeb.ApiContractTest do
     contract = YamlElixir.read_from_file!(@contract)
 
     assert Map.keys(contract["paths"]) |> Enum.sort() == [
+             "/api/autolaunch/v1/auctions",
+             "/api/autolaunch/v1/auctions/{id}",
+             "/api/autolaunch/v1/tokens",
              "/api/techtree/v1/tree/nodes",
              "/auth/csrf",
              "/auth/privy/session",
@@ -208,6 +211,157 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert node["properties"]["published_at"] == %{"type" => "string", "format" => "date-time"}
     assert node["properties"]["summary"]["type"] == ["string", "null"]
     assert node["properties"]["payload_hash"]["type"] == ["string", "null"]
+  end
+
+  test "the public Autolaunch contract is strict and additive" do
+    contract = YamlElixir.read_from_file!(@contract)
+    paths = contract["paths"]
+    schemas = contract["components"]["schemas"]
+
+    auctions = paths["/api/autolaunch/v1/auctions"]["get"]
+    assert auctions["operationId"] == "listAuctions"
+    assert auctions["security"] == []
+    assert auctions["x-pagination"] == "none"
+
+    assert auctions["parameters"] == [
+             %{
+               "name" => "mode",
+               "in" => "query",
+               "schema" => %{
+                 "type" => "string",
+                 "enum" => ["all", "biddable", "live", "failed_minimum", "graduated"],
+                 "default" => "all"
+               }
+             },
+             %{
+               "name" => "sort",
+               "in" => "query",
+               "schema" => %{
+                 "type" => "string",
+                 "enum" => ["newest", "oldest"],
+                 "default" => "newest"
+               }
+             },
+             %{
+               "name" => "limit",
+               "in" => "query",
+               "description" =>
+                 "Values outside the admitted range are clamped to the nearest boundary.",
+               "schema" => %{
+                 "type" => "integer",
+                 "minimum" => 1,
+                 "maximum" => 50,
+                 "default" => 50
+               }
+             }
+           ]
+
+    assert Map.keys(auctions["responses"]) |> Enum.sort() == ["200", "400", "500"]
+
+    auction = paths["/api/autolaunch/v1/auctions/{id}"]["get"]
+    assert auction["operationId"] == "getAuction"
+    assert auction["security"] == []
+
+    assert auction["parameters"] == [
+             %{
+               "name" => "id",
+               "in" => "path",
+               "required" => true,
+               "schema" => %{"type" => "string", "format" => "uuid"}
+             }
+           ]
+
+    assert Map.keys(auction["responses"]) |> Enum.sort() == ["200", "400", "404", "500"]
+
+    tokens = paths["/api/autolaunch/v1/tokens"]["get"]
+    assert tokens["operationId"] == "listTokens"
+    assert tokens["security"] == []
+    assert tokens["x-pagination"] == "none"
+
+    assert tokens["parameters"] == [
+             %{
+               "name" => "limit",
+               "in" => "query",
+               "description" =>
+                 "Values outside the admitted range are clamped to the nearest boundary.",
+               "schema" => %{
+                 "type" => "integer",
+                 "minimum" => 1,
+                 "maximum" => 100,
+                 "default" => 100
+               }
+             }
+           ]
+
+    assert Map.keys(tokens["responses"]) |> Enum.sort() == ["200", "400", "500"]
+
+    assert schemas["AuctionListEnvelope"] == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => ["data"],
+             "properties" => %{
+               "data" => %{
+                 "type" => "array",
+                 "items" => %{"$ref" => "#/components/schemas/Auction"}
+               }
+             }
+           }
+
+    assert schemas["AuctionEnvelope"] == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => ["data"],
+             "properties" => %{
+               "data" => %{"$ref" => "#/components/schemas/Auction"}
+             }
+           }
+
+    assert schemas["Auction"]["additionalProperties"] == false
+    assert schemas["Auction"]["required"] == ~w(id title summary featured state opened_at)
+
+    assert Map.keys(schemas["Auction"]["properties"]) |> Enum.sort() ==
+             ~w(featured id opened_at state summary title)
+
+    assert schemas["TokenListEnvelope"] == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => ["data"],
+             "properties" => %{
+               "data" => %{
+                 "type" => "array",
+                 "items" => %{"$ref" => "#/components/schemas/Token"}
+               }
+             }
+           }
+
+    assert schemas["Token"]["additionalProperties"] == false
+
+    assert schemas["Token"]["required"] ==
+             ~w(id auction_id subject_id name symbol summary graduated_at top_rank)
+
+    assert Map.keys(schemas["Token"]["properties"]) |> Enum.sort() ==
+             ~w(auction_id graduated_at id name subject_id summary symbol top_rank)
+
+    assert contract["components"]["schemas"]["ApiError"]["properties"]["error"]["properties"][
+             "code"
+           ]["enum"] == ["invalid_request", "internal_error"]
+
+    assert schemas["NotFoundApiError"] == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => ["error"],
+             "properties" => %{
+               "error" => %{
+                 "type" => "object",
+                 "additionalProperties" => false,
+                 "required" => ["code", "message"],
+                 "properties" => %{
+                   "code" => %{"type" => "string", "enum" => ["not_found"]},
+                   "message" => %{"type" => "string"}
+                 }
+               }
+             }
+           }
   end
 
   test "the graph map contract extension is strict and additive" do

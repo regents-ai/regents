@@ -2,6 +2,8 @@ defmodule AshPlatform.Autolaunch do
   use Ash.Domain,
     otp_app: :ash_platform
 
+  require Ash.Query
+
   resources do
     resource AshPlatform.Autolaunch.LaunchDraft do
       define :create_launch_draft,
@@ -151,5 +153,41 @@ defmodule AshPlatform.Autolaunch do
           :claimed_at
         ]
     end
+  end
+
+  def list_public_auctions(mode, sort, limit, opts \\ []) do
+    AshPlatform.Autolaunch.Auction
+    |> Ash.Query.for_read(:read)
+    |> filter_public_auctions(mode)
+    |> sort_public_auctions(sort)
+    |> Ash.Query.limit(limit)
+    |> Ash.read(opts)
+  end
+
+  def list_public_tokens(limit, opts \\ []) do
+    AshPlatform.Autolaunch.Token
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.sort(graduated_at: :desc, id: :asc)
+    |> Ash.Query.limit(limit)
+    |> Ash.read(opts)
+  end
+
+  defp filter_public_auctions(query, mode) when mode in ["biddable", "live"],
+    do: Ash.Query.filter(query, state: :active)
+
+  defp filter_public_auctions(query, "failed_minimum"),
+    do: Ash.Query.filter(query, state: :failed)
+
+  defp filter_public_auctions(query, "graduated"),
+    do: Ash.Query.filter(query, state: :graduated)
+
+  defp filter_public_auctions(query, "all"), do: query
+
+  defp sort_public_auctions(query, "oldest") do
+    Ash.Query.sort(query, opened_at: :asc, inserted_at: :asc, id: :asc)
+  end
+
+  defp sort_public_auctions(query, "newest") do
+    Ash.Query.sort(query, opened_at: :desc_nils_last, inserted_at: :desc, id: :asc)
   end
 end
