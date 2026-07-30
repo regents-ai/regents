@@ -130,5 +130,26 @@ defmodule AshPlatform.Autolaunch do
           :finished_at
         ]
     end
+
+    resource AshPlatform.Autolaunch.Bid do
+      define :list_my_bid_positions, action: :mine
+      define :list_my_returnable_bid_positions, action: :returnable_mine
+      define :list_my_claimed_token_positions, action: :claimed_mine
+
+      define :import_bid_position,
+        action: :import_position,
+        args: [
+          :bid_id,
+          :auction_id,
+          :owner_address,
+          :amount,
+          :max_price,
+          :current_clearing_price,
+          :estimated_tokens_if_end_now,
+          :status,
+          :exited_at,
+          :claimed_at
+        ]
+    end
   end
 end

@@ -40,6 +40,10 @@ defmodule AshPlatform.Autolaunch.Auction do
   end
 
   actions do
+    read :read do
+      primary? true
+    end
+
     read :list_public do
       prepare build(sort: [inserted_at: :desc, id: :asc])
     end
@@ -65,7 +69,7 @@ defmodule AshPlatform.Autolaunch.Auction do
   end
 
   policies do
-    policy action([:list_public, :recent_public, :featured_public, :public_by_id]) do
+    policy action([:read, :list_public, :recent_public, :featured_public, :public_by_id]) do
       authorize_if always()
     end
 

@@ -53,6 +53,7 @@ defmodule AshPlatformWeb.Router do
       live "/autolaunch/launches/:id", ShellLive, :autolaunch_launch
       live "/autolaunch/subjects", ShellLive, :autolaunch_subjects
       live "/autolaunch/subjects/:id", ShellLive, :autolaunch_subject
+      live "/autolaunch/holdings", ShellLive, :autolaunch_holdings
       live "/autolaunch/create", ShellLive, :autolaunch_create
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

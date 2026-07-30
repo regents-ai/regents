@@ -37,12 +37,13 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
   end
 
   test "top and recently graduated tokens require explicit public facts" do
-    auction = auction!()
+    ranked_auction = auction!()
+    unranked_auction = auction!()
     graduated_at = DateTime.utc_now()
 
     ranked =
       Autolaunch.import_token!(
-        auction.id,
+        ranked_auction.id,
         "Regent One",
         "RONE",
         "A graduated token.",
@@ -53,7 +54,7 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
 
     unranked =
       Autolaunch.import_token!(
-        auction.id,
+        unranked_auction.id,
         "Regent Two",
         "RTWO",
         nil,
@@ -68,6 +69,38 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
     assert {:ok, graduated} = Autolaunch.list_recently_graduated_tokens()
     assert MapSet.new(Enum.map(graduated, & &1.id)) == MapSet.new([ranked.id, unranked.id])
     assert {:ok, nil} = Autolaunch.get_public_token(Ash.UUID.generate())
+  end
+
+  test "one auction cannot import more than one token" do
+    auction = auction!()
+
+    first =
+      Autolaunch.import_token!(
+        auction.id,
+        "Canonical Auction Token",
+        "CAN",
+        nil,
+        DateTime.utc_now(),
+        nil,
+        actor: %System{}
+      )
+
+    assert {:error, %Ash.Error.Invalid{} = error} =
+             Autolaunch.import_token(
+               auction.id,
+               "Duplicate Auction Token",
+               "DUP",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               actor: %System{}
+             )
+
+    assert Exception.message(error) =~ "auction_id"
+    assert Exception.message(error) =~ "has already been taken"
+
+    assert {:ok, tokens} = Autolaunch.list_tokens()
+    assert Enum.map(tokens, & &1.id) == [first.id]
   end
 
   test "imports reject missing and lookalike system actors" do

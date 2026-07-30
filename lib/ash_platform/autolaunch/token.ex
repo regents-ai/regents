@@ -53,6 +53,10 @@ defmodule AshPlatform.Autolaunch.Token do
   end
 
   actions do
+    read :read do
+      primary? true
+    end
+
     read :list_public do
       prepare build(sort: [graduated_at: :desc, id: :asc])
     end
@@ -88,6 +92,7 @@ defmodule AshPlatform.Autolaunch.Token do
 
   policies do
     policy action([
+             :read,
              :list_public,
              :top_public,
              :recently_graduated_public,
@@ -100,6 +105,10 @@ defmodule AshPlatform.Autolaunch.Token do
     policy action(:import_public) do
       authorize_if AshPlatform.Checks.SystemActor
     end
+  end
+
+  identities do
+    identity :unique_auction, [:auction_id]
   end
 
   postgres do

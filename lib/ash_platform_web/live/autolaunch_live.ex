@@ -16,6 +16,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :subject_tokens, :list, required: true
   attr :subject_actions, :list, required: true
   attr :subject_settlements, :list, required: true
+  attr :bid_positions, :list, required: true
+  attr :returnable_positions, :list, required: true
+  attr :claimed_token_positions, :list, required: true
   attr :launch_drafts, :list, required: true
   attr :draft_fields, :map, required: true
   attr :draft_notice, :map, default: nil
@@ -91,6 +94,13 @@ defmodule AshPlatformWeb.AutolaunchLive do
       record={@record}
       status={@status}
     />
+    <.holdings
+      :if={@route_spec.route_id == :autolaunch_holdings}
+      positions={@bid_positions}
+      returnable_positions={@returnable_positions}
+      claimed_token_positions={@claimed_token_positions}
+      status={@status}
+    />
     <.create
       :if={@route_spec.route_id == :autolaunch_create}
       account_control={@account_control}
@@ -99,6 +109,122 @@ defmodule AshPlatformWeb.AutolaunchLive do
       draft_notice={@draft_notice}
       regent={@regent}
     />
+    """
+  end
+
+  attr :positions, :list, required: true
+  attr :returnable_positions, :list, required: true
+  attr :claimed_token_positions, :list, required: true
+  attr :status, :atom, required: true
+
+  defp holdings(assigns) do
+    ~H"""
+    <section id="autolaunch-holdings" class="autolaunch-page">
+      <header class="autolaunch-heading">
+        <p class="autolaunch-kicker">Autolaunch · Holdings</p>
+        <h1>Your holdings</h1>
+        <p>Review bid positions and launch tokens connected to your verified wallets.</p>
+      </header>
+
+      <p :if={@status == :error} class="autolaunch-empty" role="alert">
+        Your holdings are unavailable right now.
+      </p>
+
+      <div :if={@status == :ready}>
+        <dl>
+          <div>
+            <dt>Bid positions</dt><dd>{length(@positions)}</dd>
+          </div>
+          <div>
+            <dt>Returnable</dt><dd>{length(@returnable_positions)}</dd>
+          </div>
+          <div>
+            <dt>Held launch tokens</dt><dd>{length(@claimed_token_positions)}</dd>
+          </div>
+        </dl>
+
+        <section id="autolaunch-bid-positions" aria-labelledby="autolaunch-bid-positions-title">
+          <h2 id="autolaunch-bid-positions-title">Bid positions</h2>
+          <p :if={@positions == []} class="autolaunch-empty">
+            Bids from your verified wallets will appear here.
+          </p>
+          <ol :if={@positions != []} class="autolaunch-record-list">
+            <li :for={position <- @positions} id={"autolaunch-bid-#{position.bid_id}"}>
+              <article>
+                <p class="autolaunch-kicker">
+                  {display_status(position.status)}
+                </p>
+                <h3>{bid_title(position)}</h3>
+                <dl>
+                  <div>
+                    <dt>Bid amount</dt><dd>{display_text(position.amount)}</dd>
+                  </div>
+                  <div>
+                    <dt>Maximum price</dt><dd>{display_text(position.max_price)}</dd>
+                  </div>
+                  <div>
+                    <dt>Current price</dt>
+                    <dd>{display_text(position.current_clearing_price)}</dd>
+                  </div>
+                  <div>
+                    <dt>Estimated tokens</dt>
+                    <dd>{display_text(position.estimated_tokens_if_end_now)}</dd>
+                  </div>
+                  <div>
+                    <dt>Wallet</dt><dd>{position.owner_address}</dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt><dd>{display_time(position.updated_at)}</dd>
+                  </div>
+                </dl>
+                <p :if={position.status == "returnable"}>
+                  This position can be returned. No return is started from this page.
+                </p>
+                <.link patch={"/autolaunch/auctions/#{position.auction_id}"}>
+                  View auction
+                </.link>
+              </article>
+            </li>
+          </ol>
+        </section>
+
+        <section
+          id="autolaunch-returnable-positions"
+          aria-labelledby="autolaunch-returnable-positions-title"
+        >
+          <h2 id="autolaunch-returnable-positions-title">Ready to return</h2>
+          <p :if={@returnable_positions == []} class="autolaunch-empty">
+            No positions are returnable.
+          </p>
+          <ul :if={@returnable_positions != []}>
+            <li :for={position <- @returnable_positions}>
+              {bid_title(position)} · {display_text(position.amount)}
+            </li>
+          </ul>
+          <p :if={@returnable_positions != []}>
+            Returns are display-only here. This page never opens a wallet or starts a transaction.
+          </p>
+        </section>
+
+        <section
+          id="autolaunch-held-tokens"
+          aria-labelledby="autolaunch-held-tokens-title"
+        >
+          <h2 id="autolaunch-held-tokens-title">Held launch tokens</h2>
+          <p :if={@claimed_token_positions == []} class="autolaunch-empty">
+            Claimed launch tokens will appear here.
+          </p>
+          <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
+            <li :for={position <- @claimed_token_positions}>
+              <.link patch={"/autolaunch/tokens/#{position.token.id}"}>
+                <strong>{position.token.name} · {position.token.symbol}</strong>
+                <span>Claimed from {bid_title(position)}</span>
+              </.link>
+            </li>
+          </ol>
+        </section>
+      </div>
+    </section>
     """
   end
 
@@ -510,6 +636,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <.link patch="/autolaunch/auctions">Browse auctions</.link>
           <.link patch="/autolaunch/tokens">Browse tokens</.link>
           <.link patch="/autolaunch/launches">Browse launches</.link>
+          <.link patch="/autolaunch/holdings">View holdings</.link>
           <.link patch="/autolaunch/create">Create a launch</.link>
         </nav>
       </header>
@@ -783,6 +910,16 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp launch_agent(%{agent_name: value}) when is_binary(value) and value != "", do: value
   defp launch_agent(%{agent_id: value}), do: value
+
+  defp bid_title(%{token: %{name: name, symbol: symbol}}), do: "#{name} · #{symbol}"
+  defp bid_title(%{auction: %{title: title}}), do: title
+  defp bid_title(%{bid_id: bid_id}), do: "Bid #{bid_id}"
+
+  defp display_status(value) do
+    value
+    |> display_action()
+    |> String.capitalize()
+  end
 
   defp display_text(nil), do: "Not available"
   defp display_text(value) when is_integer(value), do: Integer.to_string(value)

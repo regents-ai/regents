@@ -141,6 +141,13 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :autolaunch_subject
     },
     %Entry{
+      path_pattern: "/autolaunch/holdings",
+      live_action: :autolaunch_holdings,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :autolaunch_holdings
+    },
+    %Entry{
       path_pattern: "/autolaunch/create",
       live_action: :autolaunch_create,
       parameter_schema: %{},
@@ -229,6 +236,9 @@ defmodule AshPlatformWeb.RouteCatalog do
     autolaunch_subject:
       {:autolaunch_subject, :autolaunch, "Autolaunch", "Subject", "/autolaunch",
        [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :detail, %{}},
+    autolaunch_holdings:
+      {:autolaunch_holdings, :autolaunch, "Autolaunch", "Holdings", "/autolaunch",
+       [:wallet_status, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
     autolaunch_create:
       {:autolaunch_create, :autolaunch, "Autolaunch", "Create", "/autolaunch",
        [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :workflow, %{}},
@@ -353,6 +363,11 @@ defmodule AshPlatformWeb.RouteCatalog do
           route_id: :autolaunch_subjects,
           label: "Subjects",
           path: "/autolaunch/subjects"
+        },
+        %RouteTarget{
+          route_id: :autolaunch_holdings,
+          label: "Holdings",
+          path: "/autolaunch/holdings"
         },
         %RouteTarget{
           route_id: :autolaunch_create,

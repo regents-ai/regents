@@ -28,6 +28,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/autolaunch/launches/:id",
     "/autolaunch/subjects",
     "/autolaunch/subjects/:id",
+    "/autolaunch/holdings",
     "/autolaunch/create",
     "/stake",
     "/redeem"
@@ -127,6 +128,11 @@ defmodule AshPlatformWeb.RouteCatalogTest do
                path: "/autolaunch/subjects"
              },
              %RouteTarget{
+               route_id: :autolaunch_holdings,
+               label: "Holdings",
+               path: "/autolaunch/holdings"
+             },
+             %RouteTarget{
                route_id: :autolaunch_create,
                label: "Create",
                path: "/autolaunch/create"
@@ -221,7 +227,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 20
+    assert length(decoded["routes"]) == 21
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

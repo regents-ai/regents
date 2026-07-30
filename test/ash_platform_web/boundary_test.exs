@@ -46,6 +46,12 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [launch_jobs_migration] =
              Path.wildcard("priv/repo/migrations/*_add_autolaunch_launch_jobs.exs")
 
+    assert [bids_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_bids.exs")
+
+    assert [token_auction_identity_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_unique_autolaunch_token_auction.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -72,6 +78,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                subjects_migration,
                subject_identity_migration,
                launch_jobs_migration,
+               bids_migration,
+               token_auction_identity_migration,
                cloud_runtimes_migration,
                public_profile_migration,
                billing_kernel_migration,
@@ -182,6 +190,27 @@ defmodule AshPlatformWeb.BoundaryTest do
         ~s(prefix: "autolaunch")
       ],
       ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      bids_migration,
+      [
+        "create table(:bids",
+        "references(:auctions",
+        "create unique_index(:bids, [:bid_id]",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_additive_migration(
+      token_auction_identity_migration,
+      [
+        "create unique_index(:tokens, [:auction_id]",
+        ~s(name: "tokens_unique_auction_index"),
+        ~s(prefix: "autolaunch")
+      ],
+      []
     )
 
     assert_additive_migration(

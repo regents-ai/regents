@@ -66,6 +66,9 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_subject_tokens: [],
        autolaunch_subject_actions: [],
        autolaunch_subject_settlements: [],
+       autolaunch_bid_positions: [],
+       autolaunch_returnable_positions: [],
+       autolaunch_claimed_token_positions: [],
        autolaunch_launch_drafts: [],
        autolaunch_draft_fields: %{
          "title" => "",
@@ -175,8 +178,9 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp authorize_route(
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
-         %{route_id: :settings}
-       ) do
+         %{route_id: route_id}
+       )
+       when route_id in [:settings, :autolaunch_holdings] do
     {:redirect, redirect(socket, to: "/")}
   end
 
@@ -1340,6 +1344,7 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
+              :autolaunch_holdings,
               :autolaunch_create
             ]
           }
@@ -1355,6 +1360,9 @@ defmodule AshPlatformWeb.ShellLive do
           subject_tokens={@autolaunch_subject_tokens}
           subject_actions={@autolaunch_subject_actions}
           subject_settlements={@autolaunch_subject_settlements}
+          bid_positions={@autolaunch_bid_positions}
+          returnable_positions={@autolaunch_returnable_positions}
+          claimed_token_positions={@autolaunch_claimed_token_positions}
           launch_drafts={@autolaunch_launch_drafts}
           draft_fields={@autolaunch_draft_fields}
           draft_notice={@autolaunch_draft_notice}
@@ -1463,6 +1471,7 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
+              :autolaunch_holdings,
               :autolaunch_create,
               :regent_profile
             ] &&
@@ -1495,6 +1504,7 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
+              :autolaunch_holdings,
               :autolaunch_create,
               :regent_profile
             ] &&
@@ -1526,6 +1536,7 @@ defmodule AshPlatformWeb.ShellLive do
             :autolaunch_launch,
             :autolaunch_subjects,
             :autolaunch_subject,
+            :autolaunch_holdings,
             :autolaunch_create,
             :regent_profile
           ] &&
@@ -1835,6 +1846,28 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket,
           autolaunch_launch_drafts: [],
           autolaunch_status: :ready
+        )
+    end
+  end
+
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch_holdings}, _params) do
+    with %Human{} = actor <- human_actor(socket),
+         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
+         {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
+         {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
+      assign(socket,
+        autolaunch_bid_positions: positions,
+        autolaunch_returnable_positions: returnable,
+        autolaunch_claimed_token_positions: Enum.filter(claimed, & &1.token),
+        autolaunch_status: :ready
+      )
+    else
+      _error ->
+        assign(socket,
+          autolaunch_bid_positions: [],
+          autolaunch_returnable_positions: [],
+          autolaunch_claimed_token_positions: [],
+          autolaunch_status: :error
         )
     end
   end
