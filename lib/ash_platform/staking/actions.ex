@@ -6,6 +6,9 @@ defmodule AshPlatform.Staking.Actions do
   alias AshPlatform.Staking.ChainClient
   alias AshPlatform.WalletActions.{Abi, Envelope}
 
+  @resource "regent_staking"
+  @contract_name "RegentRevenueStaking"
+  @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
   @risk %{
     "stake" =>
       "Stake REGENT from your connected wallet. This may require a separate exact token approval before staking.",
@@ -37,6 +40,9 @@ defmodule AshPlatform.Staking.Actions do
          {:ok, data, approval, arguments} <- calldata(action, input.arguments, signer) do
       {:ok,
        Envelope.new(action, signer, data,
+         to: Abi.staking_address(),
+         resource: @resource,
+         contract_name: @contract_name,
          risk_copy: Map.fetch!(@risk, action),
          approval: approval,
          arguments: arguments
@@ -49,7 +55,7 @@ defmodule AshPlatform.Staking.Actions do
   def confirm(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with true <- Envelope.valid_for_confirmation?(envelope),
+    with true <- valid_for_confirmation?(envelope),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       case ChainClient.module().confirm(
              envelope,
@@ -82,7 +88,7 @@ defmodule AshPlatform.Staking.Actions do
   def restore(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with true <- Envelope.valid_for_confirmation?(envelope),
+    with true <- valid_for_confirmation?(envelope),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       {:ok, envelope}
     else
@@ -95,7 +101,7 @@ defmodule AshPlatform.Staking.Actions do
   def approval_status(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with true <- Envelope.valid_for_confirmation?(envelope),
+    with true <- valid_for_confirmation?(envelope),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       ChainClient.module().approval_status(envelope, input.arguments.transaction_hash)
     else
@@ -196,6 +202,16 @@ defmodule AshPlatform.Staking.Actions do
     Abi.normalize_address!(value)
   rescue
     _ -> nil
+  end
+
+  defp valid_for_confirmation?(envelope) do
+    Envelope.valid_for_confirmation?(envelope,
+      resource: @resource,
+      to: Abi.staking_address(),
+      signer: envelope.expected_signer,
+      contract_name: @contract_name,
+      actions: @actions
+    )
   end
 
   defp atomize_envelope(envelope) when is_map(envelope) do

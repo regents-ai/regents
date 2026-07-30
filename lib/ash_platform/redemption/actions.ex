@@ -7,6 +7,7 @@ defmodule AshPlatform.Redemption.Actions do
   alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi}
 
   @resource "animata_redemption"
+  @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
   @risk %{
     "approve_nft_collection" =>
       "Allow the verified Animata redeemer to transfer NFTs from this collection. This approval applies to the whole selected collection until you revoke it.",
@@ -41,12 +42,8 @@ defmodule AshPlatform.Redemption.Actions do
   def confirm(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with {:ok, target} <- target_for(envelope),
-         true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: @resource,
-             to: target
-           ),
+    with {:ok, target, contract_name} <- identity_for(envelope),
+         true <- valid_for_confirmation?(envelope, target, contract_name),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       case ChainClient.module().confirm(envelope, input.arguments.transaction_hash) do
         {:ok, result} ->
@@ -75,12 +72,8 @@ defmodule AshPlatform.Redemption.Actions do
   def restore(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with {:ok, target} <- target_for(envelope),
-         true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: @resource,
-             to: target
-           ),
+    with {:ok, target, contract_name} <- identity_for(envelope),
+         true <- valid_for_confirmation?(envelope, target, contract_name),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       {:ok, envelope}
     else
@@ -201,22 +194,32 @@ defmodule AshPlatform.Redemption.Actions do
 
   defp optional_collection(_collection, _token_id), do: {:error, :invalid_token_selection}
 
-  defp target_for(%{action: "approve_nft_collection", arguments: arguments}) do
+  defp identity_for(%{action: "approve_nft_collection", arguments: arguments}) do
     collection = field(arguments, :collection)
 
     case RedemptionAbi.collection_id(collection) do
       nil -> {:error, :invalid_collection}
-      _id -> {:ok, Abi.normalize_address!(collection)}
+      _id -> {:ok, Abi.normalize_address!(collection), collection_name(collection)}
     end
   end
 
-  defp target_for(%{action: "approve_exact_usdc"}),
-    do: {:ok, Abi.normalize_address!(RedemptionAbi.usdc_address())}
+  defp identity_for(%{action: "approve_exact_usdc"}),
+    do: {:ok, Abi.normalize_address!(RedemptionAbi.usdc_address()), "USDC"}
 
-  defp target_for(%{action: action}) when action in ["redeem", "claim"],
-    do: {:ok, Abi.normalize_address!(RedemptionAbi.redeemer_address())}
+  defp identity_for(%{action: action}) when action in ["redeem", "claim"],
+    do: {:ok, Abi.normalize_address!(RedemptionAbi.redeemer_address()), "AnimataRedeemer"}
 
-  defp target_for(_envelope), do: {:error, :invalid_action}
+  defp identity_for(_envelope), do: {:error, :invalid_action}
+
+  defp valid_for_confirmation?(envelope, target, contract_name) do
+    Envelope.valid_for_confirmation?(envelope,
+      resource: @resource,
+      to: target,
+      signer: envelope.expected_signer,
+      contract_name: contract_name,
+      actions: @actions
+    )
+  end
 
   defp verified_primary_wallet(actor) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),

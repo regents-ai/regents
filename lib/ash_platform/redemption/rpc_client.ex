@@ -5,6 +5,7 @@ defmodule AshPlatform.Redemption.RpcClient do
   alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi, Rpc}
 
   @chain_id 8453
+  @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
   @rpc_opts [client_key: :redemption_http_client, log_scope: "redemption"]
 
   @impl true
@@ -20,11 +21,14 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   @impl true
   def confirm(envelope, transaction_hash) do
-    with {:ok, target} <- target_for(envelope),
+    with {:ok, target, contract_name} <- identity_for(envelope),
          true <-
            Envelope.valid_for_confirmation?(envelope,
              resource: "animata_redemption",
-             to: target
+             to: target,
+             signer: envelope.expected_signer,
+             contract_name: contract_name,
+             actions: @actions
            ),
          :ok <- Rpc.verify_base_chain(@rpc_opts),
          :ok <-
@@ -306,21 +310,23 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   defp valid_selection(_collection, _token_id), do: {:error, :invalid_token_selection}
 
-  defp target_for(%{action: "approve_nft_collection", arguments: arguments}) do
+  defp identity_for(%{action: "approve_nft_collection", arguments: arguments}) do
     collection = field(arguments, :collection)
 
-    if RedemptionAbi.collection_id(collection),
-      do: {:ok, normalized(collection)},
-      else: {:error, :invalid_collection}
+    case RedemptionAbi.collection_id(collection) do
+      "animata_i" -> {:ok, normalized(collection), "Animata I"}
+      "animata_ii" -> {:ok, normalized(collection), "Animata II"}
+      nil -> {:error, :invalid_collection}
+    end
   end
 
-  defp target_for(%{action: "approve_exact_usdc"}),
-    do: {:ok, normalized(RedemptionAbi.usdc_address())}
+  defp identity_for(%{action: "approve_exact_usdc"}),
+    do: {:ok, normalized(RedemptionAbi.usdc_address()), "USDC"}
 
-  defp target_for(%{action: action}) when action in ["redeem", "claim"],
-    do: {:ok, normalized(RedemptionAbi.redeemer_address())}
+  defp identity_for(%{action: action}) when action in ["redeem", "claim"],
+    do: {:ok, normalized(RedemptionAbi.redeemer_address()), "AnimataRedeemer"}
 
-  defp target_for(_envelope), do: {:error, :invalid_action}
+  defp identity_for(_envelope), do: {:error, :invalid_action}
 
   defp normalized(address), do: Abi.normalize_address!(address)
   defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))

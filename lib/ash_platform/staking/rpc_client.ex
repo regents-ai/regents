@@ -6,6 +6,10 @@ defmodule AshPlatform.Staking.RpcClient do
 
   @overview_timeout 12_000
   @chain_id 8453
+  @resource "regent_staking"
+  @contract_name "RegentRevenueStaking"
+  @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
+  @rpc_opts [client_key: :staking_http_client, log_scope: "staking"]
 
   @impl true
   def overview(wallet_address) do
@@ -18,13 +22,15 @@ defmodule AshPlatform.Staking.RpcClient do
   end
 
   defp do_overview(wallet_address) do
-    with :ok <- Rpc.verify_base_chain(),
-         {:ok, paused} <- Rpc.call_bool(Abi.staking_address(), Abi.encode_read("paused")),
+    with :ok <- Rpc.verify_base_chain(@rpc_opts),
+         {:ok, paused} <-
+           Rpc.call_bool(Abi.staking_address(), Abi.encode_read("paused"), @rpc_opts),
          {:ok, total_staked} <-
-           Rpc.call_uint(Abi.staking_address(), Abi.encode_read("total_staked")),
+           Rpc.call_uint(Abi.staking_address(), Abi.encode_read("total_staked"), @rpc_opts),
          {:ok, stake_token} <-
-           Rpc.call_address(Abi.staking_address(), Abi.encode_read("stake_token")),
-         {:ok, usdc} <- Rpc.call_address(Abi.staking_address(), Abi.encode_read("usdc")),
+           Rpc.call_address(Abi.staking_address(), Abi.encode_read("stake_token"), @rpc_opts),
+         {:ok, usdc} <-
+           Rpc.call_address(Abi.staking_address(), Abi.encode_read("usdc"), @rpc_opts),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
          true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
          {:ok, account} <- account_reads(wallet_address, stake_token, usdc) do
@@ -47,16 +53,17 @@ defmodule AshPlatform.Staking.RpcClient do
 
   @impl true
   def confirm(envelope, tx_hash, approval_transaction_hash) do
-    with true <- Envelope.valid_for_confirmation?(envelope),
+    with true <- valid_for_confirmation?(envelope),
          true <- Rpc.valid_hash?(tx_hash),
-         :ok <- Rpc.verify_base_chain(),
+         :ok <- Rpc.verify_base_chain(@rpc_opts),
          :ok <- verify_approval(envelope, approval_transaction_hash),
          :ok <-
            Rpc.confirmed_transaction(
              tx_hash,
              envelope.expected_signer,
              envelope.to,
-             envelope.data
+             envelope.data,
+             @rpc_opts
            ),
          result <- confirmation_result(envelope, tx_hash) do
       result
@@ -69,15 +76,16 @@ defmodule AshPlatform.Staking.RpcClient do
   @impl true
   def approval_status(%{approval: approval, expected_signer: signer} = envelope, hash)
       when is_map(approval) do
-    with true <- Envelope.valid_for_confirmation?(envelope),
+    with true <- valid_for_confirmation?(envelope),
          true <- Rpc.valid_hash?(hash),
-         :ok <- Rpc.verify_base_chain(),
+         :ok <- Rpc.verify_base_chain(@rpc_opts),
          result <-
            Rpc.submission_status(
              hash,
              signer,
              approval_field(approval, :token),
-             approval_field(approval, :data)
+             approval_field(approval, :data),
+             @rpc_opts
            ) do
       result
     else
@@ -118,7 +126,7 @@ defmodule AshPlatform.Staking.RpcClient do
     with true <- Rpc.valid_hash?(hash),
          token <- normalize_or_nil(approval_field(approval, :token)),
          data <- String.downcase(approval_field(approval, :data) || ""),
-         :ok <- Rpc.confirmed_transaction(hash, signer, token, data) do
+         :ok <- Rpc.confirmed_transaction(hash, signer, token, data, @rpc_opts) do
       :ok
     else
       false -> {:error, :invalid_approval_confirmation}
@@ -150,19 +158,32 @@ defmodule AshPlatform.Staking.RpcClient do
     wallet = Abi.normalize_address!(wallet_address)
 
     with {:ok, token_balance} <-
-           Rpc.call_uint(stake_token, Abi.encode_erc20("balance_of", [wallet])),
+           Rpc.call_uint(stake_token, Abi.encode_erc20("balance_of", [wallet]), @rpc_opts),
          {:ok, usdc_balance} <-
-           Rpc.call_uint(usdc, Abi.encode_erc20("balance_of", [wallet])),
+           Rpc.call_uint(usdc, Abi.encode_erc20("balance_of", [wallet]), @rpc_opts),
          {:ok, staked} <-
-           Rpc.call_uint(Abi.staking_address(), Abi.encode_read("staked_balance", [wallet])),
+           Rpc.call_uint(
+             Abi.staking_address(),
+             Abi.encode_read("staked_balance", [wallet]),
+             @rpc_opts
+           ),
          {:ok, claimable_usdc} <-
-           Rpc.call_uint(Abi.staking_address(), Abi.encode_read("claimable_usdc", [wallet])),
+           Rpc.call_uint(
+             Abi.staking_address(),
+             Abi.encode_read("claimable_usdc", [wallet]),
+             @rpc_opts
+           ),
          {:ok, claimable_regent} <-
-           Rpc.call_uint(Abi.staking_address(), Abi.encode_read("claimable_regent", [wallet])),
+           Rpc.call_uint(
+             Abi.staking_address(),
+             Abi.encode_read("claimable_regent", [wallet]),
+             @rpc_opts
+           ),
          {:ok, funded_regent} <-
            Rpc.call_uint(
              Abi.staking_address(),
-             Abi.encode_read("funded_claimable_regent", [wallet])
+             Abi.encode_read("funded_claimable_regent", [wallet]),
+             @rpc_opts
            ) do
       {:ok,
        %{
@@ -184,6 +205,16 @@ defmodule AshPlatform.Staking.RpcClient do
   end
 
   defp approval_field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
+
+  defp valid_for_confirmation?(envelope) do
+    Envelope.valid_for_confirmation?(envelope,
+      resource: @resource,
+      to: Abi.staking_address(),
+      signer: envelope.expected_signer,
+      contract_name: @contract_name,
+      actions: @actions
+    )
+  end
 
   defp normalize_or_nil(value) do
     Abi.normalize_address!(value)

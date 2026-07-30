@@ -1,19 +1,20 @@
 defmodule AshPlatform.WalletActions.Envelope do
   @moduledoc false
 
-  alias AshPlatform.WalletActions.Address
+  alias AshPlatform.WalletActions.{Abi, Address}
 
   @ttl_seconds 600
+  @staking_actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
+  @confirmable_after_expiry_resources ~w(regent_staking animata_redemption)
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
     require_calldata!(data)
     signer = normalize_address!(signer)
-    to = Keyword.fetch!(opts, :to) |> normalize_address!()
+    {to, resource, contract_name} = identity!(action, opts)
+    to = normalize_address!(to)
     value = "0"
     chain_id = 8453
-    resource = Keyword.fetch!(opts, :resource)
-    contract_name = Keyword.fetch!(opts, :contract_name)
     risk_copy = Keyword.fetch!(opts, :risk_copy)
     require_nonempty!(resource, :resource)
     require_nonempty!(contract_name, :contract_name)
@@ -60,33 +61,7 @@ defmodule AshPlatform.WalletActions.Envelope do
   def valid?(envelope, opts \\ [])
 
   def valid?(envelope, opts) when is_map(envelope) do
-    expected_resource = Keyword.fetch!(opts, :resource)
-    expected_to = Keyword.fetch!(opts, :to) |> normalize_address!()
-    expected_signer = Keyword.fetch!(opts, :signer) |> normalize_address!()
-    expected_contract_name = Keyword.fetch!(opts, :contract_name)
-    expected_actions = expected_actions!(opts)
-
-    with {:ok, signed} <- verify(field(envelope, :confirmation_token), @ttl_seconds),
-         true <- signed == canonical_payload(envelope),
-         true <- envelope.chain_id == 8453,
-         true <- envelope.value == "0",
-         true <- envelope.resource == expected_resource,
-         true <- envelope.action in expected_actions,
-         true <- envelope.to == expected_to,
-         true <- envelope.expected_signer == expected_signer,
-         true <- field(envelope.metadata, :contract_name) == expected_contract_name,
-         true <- envelope.expected_signer == normalize_address!(envelope.expected_signer),
-         true <- envelope.data == String.downcase(envelope.data),
-         true <- envelope.action_id == recompute_action_id(envelope),
-         true <- envelope.idempotency_key == envelope.action_id,
-         {:ok, prepared_at, _offset} <- DateTime.from_iso8601(envelope.prepared_at),
-         {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at),
-         duration when duration in 1..600 <- DateTime.diff(expires_at, prepared_at, :second),
-         :gt <- DateTime.compare(expires_at, now()) do
-      true
-    else
-      _ -> false
-    end
+    valid_envelope?(envelope, opts, @ttl_seconds) and fresh?(envelope)
   rescue
     _ -> false
   end
@@ -96,32 +71,10 @@ defmodule AshPlatform.WalletActions.Envelope do
   def valid_for_confirmation?(envelope, opts \\ [])
 
   def valid_for_confirmation?(envelope, opts) when is_map(envelope) do
-    expected_resource = Keyword.fetch!(opts, :resource)
-    expected_to = Keyword.fetch!(opts, :to) |> normalize_address!()
-    expected_signer = Keyword.fetch!(opts, :signer) |> normalize_address!()
-    expected_contract_name = Keyword.fetch!(opts, :contract_name)
-    expected_actions = expected_actions!(opts)
-
-    with {:ok, signed} <- verify(field(envelope, :confirmation_token), @ttl_seconds),
-         true <- signed == canonical_payload(envelope),
-         true <- envelope.chain_id == 8453,
-         true <- envelope.value == "0",
-         true <- envelope.resource == expected_resource,
-         true <- envelope.action in expected_actions,
-         true <- envelope.to == expected_to,
-         true <- envelope.expected_signer == expected_signer,
-         true <- field(envelope.metadata, :contract_name) == expected_contract_name,
-         true <- envelope.expected_signer == normalize_address!(envelope.expected_signer),
-         true <- envelope.data == String.downcase(envelope.data),
-         true <- envelope.action_id == recompute_action_id(envelope),
-         true <- envelope.idempotency_key == envelope.action_id,
-         {:ok, prepared_at, _offset} <- DateTime.from_iso8601(envelope.prepared_at),
-         {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at),
-         duration when duration in 1..600 <- DateTime.diff(expires_at, prepared_at, :second),
-         :gt <- DateTime.compare(expires_at, now()) do
-      true
+    if envelope.resource in @confirmable_after_expiry_resources do
+      valid_envelope?(envelope, opts, :infinity)
     else
-      _ -> false
+      valid_envelope?(envelope, opts, @ttl_seconds) and fresh?(envelope)
     end
   rescue
     _ -> false
@@ -130,6 +83,65 @@ defmodule AshPlatform.WalletActions.Envelope do
   def valid_for_confirmation?(_envelope, _opts), do: false
 
   def current_time, do: now()
+
+  defp valid_envelope?(envelope, opts, max_age) do
+    with {:ok, signed} <- verify(field(envelope, :confirmation_token), max_age),
+         true <- signed == canonical_payload(envelope),
+         true <- envelope.chain_id == 8453,
+         true <- envelope.value == "0",
+         true <- context_matches?(envelope, opts),
+         true <- envelope.expected_signer == normalize_address!(envelope.expected_signer),
+         true <- envelope.data == String.downcase(envelope.data),
+         true <- envelope.action_id == recompute_action_id(envelope),
+         true <- envelope.idempotency_key == envelope.action_id,
+         {:ok, prepared_at, _offset} <- DateTime.from_iso8601(envelope.prepared_at),
+         {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at),
+         duration when duration in 1..600 <- DateTime.diff(expires_at, prepared_at, :second) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp fresh?(envelope) do
+    with {:ok, expires_at, _offset} <- DateTime.from_iso8601(envelope.expires_at),
+         :gt <- DateTime.compare(expires_at, now()) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp context_matches?(envelope, opts) do
+    option_matches?(opts, :resource, envelope.resource) and
+      action_matches?(opts, envelope.action) and
+      address_option_matches?(opts, :to, envelope.to) and
+      address_option_matches?(opts, :signer, envelope.expected_signer) and
+      option_matches?(opts, :contract_name, field(envelope.metadata, :contract_name))
+  end
+
+  defp option_matches?(opts, key, actual) do
+    case Keyword.fetch(opts, key) do
+      {:ok, expected} -> actual == expected
+      :error -> true
+    end
+  end
+
+  defp address_option_matches?(opts, key, actual) do
+    case Keyword.fetch(opts, key) do
+      {:ok, expected} -> actual == normalize_address!(expected)
+      :error -> true
+    end
+  end
+
+  defp action_matches?(opts, actual) do
+    case {Keyword.fetch(opts, :action), Keyword.fetch(opts, :actions)} do
+      {{:ok, action}, :error} when is_binary(action) and action != "" -> actual == action
+      {:error, {:ok, actions}} when is_list(actions) and actions != [] -> actual in actions
+      {:error, :error} -> true
+      _ -> false
+    end
+  end
 
   defp recompute_action_id(envelope) do
     action_id(
@@ -198,12 +210,20 @@ defmodule AshPlatform.WalletActions.Envelope do
     end
   end
 
-  defp expected_actions!(opts) do
-    case {Keyword.get(opts, :action), Keyword.get(opts, :actions)} do
-      {action, nil} when is_binary(action) and action != "" -> [action]
-      {nil, actions} when is_list(actions) and actions != [] -> actions
-      _ -> raise ArgumentError, "expected action context is required"
-    end
+  defp identity!(action, opts) when action in @staking_actions do
+    {
+      Keyword.get(opts, :to, Abi.staking_address()),
+      Keyword.get(opts, :resource, "regent_staking"),
+      Keyword.get(opts, :contract_name, "RegentRevenueStaking")
+    }
+  end
+
+  defp identity!(_action, opts) do
+    {
+      Keyword.fetch!(opts, :to),
+      Keyword.fetch!(opts, :resource),
+      Keyword.fetch!(opts, :contract_name)
+    }
   end
 
   defp require_nonempty!(value, _field) when is_binary(value) and value != "", do: :ok
