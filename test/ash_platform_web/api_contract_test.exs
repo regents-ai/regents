@@ -184,7 +184,11 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert response["required"] == ["data"]
     assert Map.keys(response["properties"]) == ["data"]
 
-    node = contract["components"]["schemas"]["Node"]
+    assert response["properties"]["data"]["items"] == %{
+             "$ref" => "#/components/schemas/NodeListItem"
+           }
+
+    node = contract["components"]["schemas"]["NodeListItem"]
     assert node["additionalProperties"] == false
 
     assert node["required"] == [
@@ -206,6 +210,117 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert node["properties"]["payload_hash"]["type"] == ["string", "null"]
   end
 
+  test "the canonical contract declares strict planned Techtree components" do
+    contract = YamlElixir.read_from_file!(@contract)
+    schemas = contract["components"]["schemas"]
+
+    planned_schema_names = [
+      "Tree",
+      "Node",
+      "Capsule",
+      "ImmutablePayload",
+      "EvidenceProjection",
+      "EvidenceState",
+      "BaseMainnetRecordReference"
+    ]
+
+    assert Enum.all?(planned_schema_names, &(schemas[&1]["additionalProperties"] == false))
+
+    assert schemas["Tree"]["required"] == ["id", "slug", "name", "description"]
+    refute Map.has_key?(schemas["Tree"]["properties"], "parent_id")
+
+    node = schemas["Node"]
+
+    assert node["properties"]["kind"]["enum"] == [
+             "environment_family",
+             "benchmark_slice",
+             "uplift_report",
+             "reproduction",
+             "audit"
+           ]
+
+    assert node["properties"]["base_mainnet_record"] == %{
+             "$ref" => "#/components/schemas/BaseMainnetRecordReference"
+           }
+
+    capsule = schemas["Capsule"]
+
+    assert capsule["required"] == [
+             "declared_digest",
+             "resolved_digest",
+             "observed_digest",
+             "material_difference_summary"
+           ]
+
+    assert Map.keys(capsule["properties"]) |> Enum.sort() ==
+             ~w(declared_digest material_difference_summary observed_digest resolved_digest)
+
+    for digest <- ~w(declared_digest resolved_digest observed_digest) do
+      assert capsule["properties"][digest] == %{
+               "type" => "string",
+               "pattern" => "^[0-9a-f]{64}$"
+             }
+    end
+
+    payload = schemas["ImmutablePayload"]
+    assert payload["required"] == ~w(schema_version media_type sha256 visibility)
+    assert payload["properties"]["sha256"]["pattern"] == "^[0-9a-f]{64}$"
+    assert payload["properties"]["visibility"]["enum"] == ["public", "commitment"]
+    refute "content_uri" in payload["required"]
+
+    projection = schemas["EvidenceProjection"]
+
+    assert projection["properties"]["outcome"] == %{
+             "type" => "string",
+             "enum" => ["positive", "null", "negative", "inconclusive", "invalid"]
+           }
+
+    assurance = projection["properties"]["assurance_dimensions"]
+    assert assurance["additionalProperties"] == false
+
+    assert assurance["required"] == [
+             "artifact_integrity",
+             "execution_evidence",
+             "verifier_quality",
+             "experimental_strength",
+             "generalization_strength",
+             "independent_reproduction",
+             "production_support",
+             "freshness"
+           ]
+
+    for commitment <-
+          ~w(receipt_commitment claim_commitment report_commitment decision_commitment) do
+      assert projection["properties"][commitment] == %{
+               "$ref" => "#/components/schemas/ImmutablePayload"
+             }
+    end
+
+    assert projection["properties"]["base_mainnet_record"] == %{
+             "$ref" => "#/components/schemas/BaseMainnetRecordReference"
+           }
+
+    refute "base_mainnet_record" in projection["required"]
+
+    state = schemas["EvidenceState"]
+    assert state["additionalProperties"] == false
+    assert state["required"] == ["status", "updated_at"]
+    assert "invalidated" in state["properties"]["status"]["enum"]
+    assert "awaiting_revalidation" in state["properties"]["status"]["enum"]
+
+    base_record = schemas["BaseMainnetRecordReference"]
+    assert base_record["properties"]["chain_id"] == %{"type" => "integer", "const" => 8453}
+    assert base_record["additionalProperties"] == false
+    refute Map.has_key?(base_record["properties"], "action")
+
+    path_refs = collect_refs(contract["paths"])
+
+    refute Enum.any?(
+             path_refs,
+             &(&1 in Enum.map(planned_schema_names, fn name -> "#/components/schemas/#{name}" end))
+           )
+  end
+
   test "the served contract is byte-identical and available over HTTP", %{conn: conn} do
     assert File.read!(@served_contract) == File.read!(@contract)
 
@@ -213,4 +328,15 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert response(conn, 200) == File.read!(@contract)
     assert get_resp_header(conn, "content-type") == ["application/yaml"]
   end
+
+  defp collect_refs(%{"$ref" => ref}), do: [ref]
+
+  defp collect_refs(value) when is_map(value) do
+    value
+    |> Map.values()
+    |> Enum.flat_map(&collect_refs/1)
+  end
+
+  defp collect_refs(value) when is_list(value), do: Enum.flat_map(value, &collect_refs/1)
+  defp collect_refs(_value), do: []
 end
