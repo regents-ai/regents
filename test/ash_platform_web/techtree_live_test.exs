@@ -199,6 +199,11 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
 
     assert has_element?(
              view,
+             ~s(#techtree-map-stage.techtree-map-stage[phx-hook="TechtreeCamera"][tabindex="0"][aria-label="Question Forge Metaskills node map"])
+           )
+
+    assert has_element?(
+             view,
              ~s([data-techtree-map-world][data-world-width="832"][data-world-height="424"])
            )
 

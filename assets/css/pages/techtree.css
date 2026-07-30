@@ -140,6 +140,16 @@
   outline-offset: -3px;
 }
 
+.techtree-map-stage[data-camera-ready="true"] {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.techtree-map-stage[data-camera-ready="true"] .techtree-map-world {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
 .techtree-map-stage > .techtree-empty {
   display: grid;
   min-height: 100%;

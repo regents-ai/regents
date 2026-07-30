@@ -11,6 +11,7 @@ vi.mock("phoenix-colocated/ash_platform", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({installAccountAuthLazyLoader: vi.fn()}))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
+vi.mock("../js/hooks/techtree_camera", () => ({TechtreeCamera: {}}))
 vi.mock("../js/hooks/voxel", () => ({VoxelDelight: {}}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {

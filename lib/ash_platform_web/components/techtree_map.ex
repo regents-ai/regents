@@ -17,7 +17,13 @@ defmodule AshPlatformWeb.Components.TechtreeMap do
     assigns = assign(assigns, :layout, layout(assigns.nodes, assigns.edges))
 
     ~H"""
-    <div class="techtree-map-stage" aria-label={@label} tabindex="0">
+    <div
+      id="techtree-map-stage"
+      class="techtree-map-stage"
+      phx-hook="TechtreeCamera"
+      aria-label={@label}
+      tabindex="0"
+    >
       <div :if={@nodes == []} class="techtree-empty">
         <h2>No nodes yet</h2>
         <p>Published nodes will appear here as the tree's connected map.</p>

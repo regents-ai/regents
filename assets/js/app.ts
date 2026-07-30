@@ -16,6 +16,7 @@ import {HomeHero} from "./hooks/home_hero"
 import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
+import {TechtreeCamera} from "./hooks/techtree_camera"
 import {VoxelDelight} from "./hooks/voxel"
 
 type ShellHook = Hook & {
@@ -296,6 +297,7 @@ const hooks = {
   ShellBehavior: composeHooks(shellBehavior, designShellHook),
   RedemptionWallet,
   StakeWallet,
+  TechtreeCamera,
 }
 const csrfToken = document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content
 
