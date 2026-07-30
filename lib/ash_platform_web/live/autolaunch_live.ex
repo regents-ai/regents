@@ -50,6 +50,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
       records={@records}
       status={@status}
     />
+    <.launch_collection
+      :if={@route_spec.route_id == :autolaunch_launches}
+      records={@records}
+      status={@status}
+    />
     <.detail
       :if={@route_spec.route_id in [:autolaunch_auction, :autolaunch_token]}
       kind={if(@route_spec.route_id == :autolaunch_auction, do: :auction, else: :token)}
@@ -80,6 +85,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
       settlements={@subject_settlements}
       status={@status}
     />
+    <.launch_detail
+      :if={@route_spec.route_id == :autolaunch_launch}
+      record_id={@params["id"]}
+      record={@record}
+      status={@status}
+    />
     <.create
       :if={@route_spec.route_id == :autolaunch_create}
       account_control={@account_control}
@@ -88,6 +99,169 @@ defmodule AshPlatformWeb.AutolaunchLive do
       draft_notice={@draft_notice}
       regent={@regent}
     />
+    """
+  end
+
+  attr :records, :list, required: true
+  attr :status, :atom, required: true
+
+  defp launch_collection(assigns) do
+    ~H"""
+    <section id="autolaunch-launches" class="autolaunch-page">
+      <header class="autolaunch-heading">
+        <p class="autolaunch-kicker">Autolaunch</p>
+        <h1>Launches</h1>
+        <p>Follow public launch progress from preparation through completion.</p>
+      </header>
+      <.empty_state
+        :if={@status == :ready && @records == []}
+        copy="No public launches yet."
+      />
+      <.empty_state
+        :if={@status == :error}
+        copy="Public launches are unavailable right now."
+      />
+      <ol :if={@status == :ready && @records != []} class="autolaunch-record-list">
+        <li :for={launch <- @records}>
+          <.link patch={"/autolaunch/launches/#{launch.job_id}"}>
+            <strong>{launch_label(launch)}</strong>
+            <span>
+              {display_action(launch.status)} · {display_action(launch.step)} · {launch_agent(launch)}
+            </span>
+          </.link>
+        </li>
+      </ol>
+    </section>
+    """
+  end
+
+  attr :record_id, :string, required: true
+  attr :record, :map, default: nil
+  attr :status, :atom, required: true
+
+  defp launch_detail(assigns) do
+    ~H"""
+    <article
+      :if={@status == :ready && @record}
+      id="autolaunch-launch-detail"
+      class="autolaunch-page"
+    >
+      <header class="autolaunch-heading">
+        <p class="autolaunch-kicker">Autolaunch · Launch</p>
+        <h1>{launch_label(@record)}</h1>
+        <p>Review this launch's recorded progress, identities, and published addresses.</p>
+      </header>
+
+      <section aria-labelledby="launch-progress-title">
+        <h2 id="launch-progress-title">Progress</h2>
+        <dl>
+          <div>
+            <dt>Status</dt><dd>{display_action(@record.status)}</dd>
+          </div>
+          <div>
+            <dt>Current step</dt><dd>{display_action(@record.step)}</dd>
+          </div>
+          <div>
+            <dt>Chain</dt><dd>{@record.chain_id}</dd>
+          </div>
+          <div>
+            <dt>Launch ID</dt><dd>{@record.job_id}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="launch-identity-title">
+        <h2 id="launch-identity-title">Agent and token</h2>
+        <dl>
+          <div>
+            <dt>Agent</dt><dd>{launch_agent(@record)}</dd>
+          </div>
+          <div>
+            <dt>Agent ID</dt><dd>{@record.agent_id}</dd>
+          </div>
+          <div>
+            <dt>Token name</dt><dd>{@record.token_name}</dd>
+          </div>
+          <div>
+            <dt>Token symbol</dt><dd>{@record.token_symbol}</dd>
+          </div>
+          <div>
+            <dt>Launch wallet</dt><dd>{display_text(@record.agent_safe_address)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="launch-auction-title">
+        <h2 id="launch-auction-title">Linked auction</h2>
+        <p :if={is_nil(@record.auction_id)} class="autolaunch-empty">
+          No auction is linked yet.
+        </p>
+        <.link
+          :if={@record.auction_id}
+          patch={"/autolaunch/auctions/#{@record.auction_id}"}
+        >
+          View linked auction
+        </.link>
+      </section>
+
+      <section aria-labelledby="launch-addresses-title">
+        <h2 id="launch-addresses-title">Published addresses</h2>
+        <dl>
+          <div>
+            <dt>Auction</dt><dd>{display_text(@record.auction_address)}</dd>
+          </div>
+          <div>
+            <dt>Token</dt><dd>{display_text(@record.token_address)}</dd>
+          </div>
+          <div>
+            <dt>Auction rules</dt><dd>{display_text(@record.hook_address)}</dd>
+          </div>
+          <div>
+            <dt>Revenue share</dt>
+            <dd>{display_text(@record.revenue_share_splitter_address)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="launch-times-title">
+        <h2 id="launch-times-title">Timeline</h2>
+        <dl>
+          <div>
+            <dt>Started</dt><dd>{display_time(@record.started_at)}</dd>
+          </div>
+          <div>
+            <dt>Finished</dt><dd>{display_time(@record.finished_at)}</dd>
+          </div>
+          <div>
+            <dt>Record added</dt><dd>{display_time(@record.inserted_at)}</dd>
+          </div>
+          <div>
+            <dt>Last updated</dt><dd>{display_time(@record.updated_at)}</dd>
+          </div>
+        </dl>
+      </section>
+    </article>
+
+    <section
+      :if={@status == :empty}
+      id="autolaunch-launch-detail"
+      class="autolaunch-page autolaunch-empty"
+    >
+      <h1>Launch not found</h1>
+      <p>No public launch exists at {@record_id}.</p>
+      <.link patch="/autolaunch/launches">Return to Launches</.link>
+    </section>
+
+    <section
+      :if={@status == :error}
+      id="autolaunch-launch-detail"
+      class="autolaunch-page autolaunch-empty"
+      role="alert"
+    >
+      <h1>Launch unavailable</h1>
+      <p>This launch could not be loaded right now.</p>
+      <.link patch="/autolaunch/launches">Return to Launches</.link>
+    </section>
     """
   end
 
@@ -335,6 +509,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <nav class="autolaunch-actions" aria-label="Autolaunch actions">
           <.link patch="/autolaunch/auctions">Browse auctions</.link>
           <.link patch="/autolaunch/tokens">Browse tokens</.link>
+          <.link patch="/autolaunch/launches">Browse launches</.link>
           <.link patch="/autolaunch/create">Create a launch</.link>
         </nav>
       </header>
@@ -602,6 +777,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp collection_record_kind(:tokens), do: :token
 
   defp subject_label(%{subject_id: subject_id}), do: subject_id
+
+  defp launch_label(%{token_name: token_name, token_symbol: token_symbol}),
+    do: "#{token_name} · #{token_symbol}"
+
+  defp launch_agent(%{agent_name: value}) when is_binary(value) and value != "", do: value
+  defp launch_agent(%{agent_id: value}), do: value
 
   defp display_text(nil), do: "Not available"
   defp display_text(value) when is_integer(value), do: Integer.to_string(value)

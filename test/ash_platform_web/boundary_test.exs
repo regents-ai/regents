@@ -43,6 +43,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                "priv/repo/migrations/*_add_autolaunch_subject_id_and_token_linkage.exs"
              )
 
+    assert [launch_jobs_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_launch_jobs.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -68,6 +71,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                launch_drafts_migration,
                subjects_migration,
                subject_identity_migration,
+               launch_jobs_migration,
                cloud_runtimes_migration,
                public_profile_migration,
                billing_kernel_migration,
@@ -167,6 +171,17 @@ defmodule AshPlatformWeb.BoundaryTest do
         "create unique_index(:subjects, [:subject_id]"
       ],
       []
+    )
+
+    assert_additive_migration(
+      launch_jobs_migration,
+      [
+        "create table(:launch_jobs",
+        "references(:auctions",
+        "create unique_index(:launch_jobs, [:job_id]",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
     )
 
     assert_additive_migration(

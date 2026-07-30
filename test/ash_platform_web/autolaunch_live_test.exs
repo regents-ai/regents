@@ -269,6 +269,130 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     refute html =~ "$"
   end
 
+  test "launch routes have honest empty and not-found states", %{conn: conn} do
+    {:ok, launches, _html} = live(conn, "/autolaunch/launches")
+    assert render_async(launches) =~ "No public launches yet."
+
+    {:ok, launch, _html} = live(conn, "/autolaunch/launches/launch-42")
+    html = render_async(launch)
+
+    assert has_element?(launch, "#autolaunch-launch-detail", "Launch not found")
+    assert html =~ "No public launch exists at launch-42."
+    refute html =~ "$"
+  end
+
+  test "canonical launch identity format edges round-trip through public URLs", %{conn: conn} do
+    edge_ids = ["Z", "A._:-" <> String.duplicate("x", 123)]
+
+    for job_id <- edge_ids do
+      launch = import_minimal_launch!(job_id)
+      assert launch.job_id == job_id
+
+      {:ok, launches, _html} = live(conn, "/autolaunch/launches")
+      launches_html = render_async(launches)
+      assert launches_html =~ ~s(href="/autolaunch/launches/#{job_id}")
+
+      {:ok, detail, _html} = live(conn, "/autolaunch/launches/#{job_id}")
+      detail_html = render_async(detail)
+      assert has_element?(detail, "#autolaunch-launch-detail", job_id)
+      assert detail_html =~ job_id
+    end
+  end
+
+  test "launch read errors never use not-found copy" do
+    html =
+      render_component(&AutolaunchLive.page/1,
+        route_spec: RouteCatalog.fetch!(:autolaunch_launch, %{"id" => "launch:error"}),
+        params: %{"id" => "launch:error"},
+        account_control: %AccountControl{
+          kind: :sign_in,
+          label: "Sign In",
+          profile_path: nil,
+          settings_path: "/settings"
+        },
+        featured_auctions: [],
+        recent_auctions: [],
+        top_tokens: [],
+        graduated_tokens: [],
+        records: [],
+        record: nil,
+        subject_tokens: [],
+        subject_actions: [],
+        subject_settlements: [],
+        launch_drafts: [],
+        draft_fields: %{},
+        status: :error,
+        comments: [],
+        comments_status: :ready,
+        comment_request_id: Ash.UUID.generate(),
+        comment_draft: "",
+        comment_admin: false
+      )
+
+    assert html =~ "Launch unavailable"
+    assert html =~ "This launch could not be loaded right now."
+    assert html =~ ~s(role="alert")
+    refute html =~ "Launch not found"
+  end
+
+  test "launch loaders render progress, identities, linked auction, addresses, and times", %{
+    conn: conn
+  } do
+    auction =
+      Autolaunch.import_auction!(
+        "Linked launch auction",
+        nil,
+        false,
+        :active,
+        DateTime.utc_now(),
+        actor: %System{}
+      )
+
+    started_at = ~U[2026-07-30 12:00:00.000000Z]
+    finished_at = ~U[2026-07-30 12:45:00.000000Z]
+
+    launch =
+      import_minimal_launch!("launch:live:complete",
+        auction_id: auction.id,
+        status: "complete",
+        step: "record_addresses",
+        agent_name: "Launch Detail Agent",
+        started_at: started_at,
+        finished_at: finished_at
+      )
+
+    {:ok, launches, _html} = live(conn, "/autolaunch/launches")
+    launches_html = render_async(launches)
+    assert launches_html =~ "Launch Detail Token · LDT"
+    assert launches_html =~ "complete"
+    assert launches_html =~ "record addresses"
+    assert launches_html =~ "Launch Detail Agent"
+    assert launches_html =~ ~s(href="/autolaunch/launches/#{launch.job_id}")
+
+    {:ok, detail, _html} = live(conn, "/autolaunch/launches/#{launch.job_id}")
+    html = render_async(detail)
+
+    assert has_element?(detail, "#autolaunch-launch-detail", "Launch Detail Token · LDT")
+    assert has_element?(detail, "#launch-progress-title", "Progress")
+    assert has_element?(detail, "#launch-identity-title", "Agent and token")
+    assert has_element?(detail, "#launch-auction-title", "Linked auction")
+    assert has_element?(detail, "#launch-addresses-title", "Published addresses")
+    assert has_element?(detail, "#autolaunch-launch-detail dt", "Auction rules")
+    assert has_element?(detail, "#launch-times-title", "Timeline")
+    assert html =~ launch.job_id
+    assert html =~ "agent:launch-detail"
+    assert html =~ "Launch Detail Agent"
+    assert html =~ ~s(href="/autolaunch/auctions/#{auction.id}")
+    assert html =~ "0x1111111111111111111111111111111111111111"
+    assert html =~ "0x2222222222222222222222222222222222222222"
+    assert html =~ "0x3333333333333333333333333333333333333333"
+    assert html =~ "0x4444444444444444444444444444444444444444"
+    assert html =~ "0x5555555555555555555555555555555555555555"
+    assert html =~ "Jul 30, 2026 at 12:00 UTC"
+    assert html =~ "Jul 30, 2026 at 12:45 UTC"
+    refute html =~ "$"
+  end
+
   test "Create explains optional reputation and asks anonymous visitors to sign in", %{
     conn: conn
   } do
@@ -328,6 +452,11 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert {:ok, [draft]} = Autolaunch.list_my_launch_drafts(actor: actor)
     assert draft.symbol == "OPEN"
     assert {:ok, []} = Autolaunch.list_auctions()
+
+    {:ok, launches, _html} = live(conn, "/autolaunch/launches")
+    launches_html = render_async(launches)
+    assert launches_html =~ "No public launches yet."
+    refute launches_html =~ draft.title
   end
 
   test "overview, collections, and details render imported public records without invented money",
@@ -453,6 +582,28 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       nil,
       nil,
       nil,
+      actor: %System{}
+    )
+  end
+
+  defp import_minimal_launch!(job_id, attrs \\ []) do
+    Autolaunch.import_launch!(
+      job_id,
+      Keyword.get(attrs, :status, "running"),
+      Keyword.get(attrs, :step, "deploy_token"),
+      Keyword.get(attrs, :agent_id, "agent:launch-detail"),
+      Keyword.get(attrs, :agent_name),
+      Keyword.get(attrs, :token_name, "Launch Detail Token"),
+      Keyword.get(attrs, :token_symbol, "LDT"),
+      8453,
+      Keyword.get(attrs, :auction_id),
+      "0x1111111111111111111111111111111111111111",
+      "0x2222222222222222222222222222222222222222",
+      "0x3333333333333333333333333333333333333333",
+      "0x4444444444444444444444444444444444444444",
+      "0x5555555555555555555555555555555555555555",
+      Keyword.get(attrs, :started_at),
+      Keyword.get(attrs, :finished_at),
       actor: %System{}
     )
   end

@@ -100,5 +100,35 @@ defmodule AshPlatform.Autolaunch do
           :block_number
         ]
     end
+
+    resource AshPlatform.Autolaunch.LaunchJob do
+      define :list_launches, action: :list_public
+
+      define :get_public_launch,
+        action: :public_by_id,
+        args: [:job_id],
+        not_found_error?: false
+
+      define :import_launch,
+        action: :import_public,
+        args: [
+          :job_id,
+          :status,
+          :step,
+          :agent_id,
+          :agent_name,
+          :token_name,
+          :token_symbol,
+          :chain_id,
+          :auction_id,
+          :agent_safe_address,
+          :auction_address,
+          :token_address,
+          :hook_address,
+          :revenue_share_splitter_address,
+          :started_at,
+          :finished_at
+        ]
+    end
   end
 end

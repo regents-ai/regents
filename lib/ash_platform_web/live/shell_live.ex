@@ -1336,6 +1336,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_launches,
+              :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
               :autolaunch_create
@@ -1457,6 +1459,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_launches,
+              :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
               :autolaunch_create,
@@ -1487,6 +1491,8 @@ defmodule AshPlatformWeb.ShellLive do
               :autolaunch_auction,
               :autolaunch_tokens,
               :autolaunch_token,
+              :autolaunch_launches,
+              :autolaunch_launch,
               :autolaunch_subjects,
               :autolaunch_subject,
               :autolaunch_create,
@@ -1516,6 +1522,8 @@ defmodule AshPlatformWeb.ShellLive do
             :autolaunch_auction,
             :autolaunch_tokens,
             :autolaunch_token,
+            :autolaunch_launches,
+            :autolaunch_launch,
             :autolaunch_subjects,
             :autolaunch_subject,
             :autolaunch_create,
@@ -1745,6 +1753,13 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch_launches}, _params) do
+    case Autolaunch.list_launches() do
+      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
+      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
+    end
+  end
+
   defp load_autolaunch_route(socket, %{route_id: :autolaunch_subjects}, _params) do
     case Autolaunch.list_subjects() do
       {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
@@ -1769,6 +1784,14 @@ defmodule AshPlatformWeb.ShellLive do
       {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
       {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
       {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+    end
+  end
+
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch_launch}, %{"id" => id}) do
+    case Autolaunch.get_public_launch(id) do
+      {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+      {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
+      {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :error)
     end
   end
 
