@@ -164,7 +164,7 @@ defmodule AshPlatformWeb.TechtreeLive do
             <p>Published nodes will appear newest first without changing this route.</p>
           </div>
           <ol :if={@nodes != []} class="techtree-node-list">
-            <li :for={node <- @nodes}>
+            <li :for={node <- @nodes} data-motion-surface="list-item">
               <.link patch={"/techtree/nodes/#{node.id}"}>
                 <strong>{node.title}</strong>
                 <span>{node.summary || "No summary yet."}</span>
@@ -201,7 +201,12 @@ defmodule AshPlatformWeb.TechtreeLive do
 
   defp node_detail(assigns) do
     ~H"""
-    <article :if={@status == :ready && @node} id="techtree-node" class="techtree-node">
+    <article
+      :if={@status == :ready && @node}
+      id="techtree-node"
+      class="techtree-node"
+      data-motion-surface="detail"
+    >
       <header class="techtree-heading">
         <p class="techtree-kicker">Techtree · Node</p>
         <h1>{@node.title}</h1>
@@ -224,7 +229,12 @@ defmodule AshPlatformWeb.TechtreeLive do
       />
     </article>
 
-    <section :if={@status == :empty} id="techtree-node" class="techtree-node techtree-empty">
+    <section
+      :if={@status == :empty}
+      id="techtree-node"
+      class="techtree-node techtree-empty"
+      data-motion-surface="detail"
+    >
       <p class="techtree-kicker">Techtree · Node</p>
       <h1>Node not found</h1>
       <p>No public Techtree node exists at {@node_id}.</p>
@@ -235,6 +245,7 @@ defmodule AshPlatformWeb.TechtreeLive do
       :if={@status == :error}
       id="techtree-node"
       class="techtree-node techtree-empty"
+      data-motion-surface="detail"
       role="alert"
     >
       <h1>Node unavailable</h1>

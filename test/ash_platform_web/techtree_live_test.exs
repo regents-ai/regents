@@ -65,7 +65,7 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     {:ok, view, _html} = live(conn, "/techtree/nodes/#{node.id}")
     html = render_async(view)
 
-    assert has_element?(view, "#techtree-node")
+    assert has_element?(view, ~s(#techtree-node[data-motion-surface="detail"]))
     assert html =~ "BBH reference 001"
     assert html =~ "A reproducible reference node."
     assert html =~ "sha256:abc123"
@@ -150,11 +150,17 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
              ~s([data-techtree-list-panel] a[href="/techtree/nodes/#{node.id}"]),
              "Skill receipt"
            )
+
+    assert has_element?(
+             view,
+             ~s([data-techtree-list-panel] li[data-motion-surface="list-item"])
+           )
   end
 
   test "unknown node id is honest", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/techtree/nodes/#{Ash.UUID.generate()}")
     assert render_async(view) =~ "Node not found"
+    assert has_element?(view, ~s(#techtree-node[data-motion-surface="detail"]))
   end
 
   defp valid_notebook_manifest(source_hash) do

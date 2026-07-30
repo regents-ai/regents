@@ -1,11 +1,17 @@
 import {animate, createScope, type AnimationParams} from "animejs"
 
-export const APP_SWITCH_DURATION = 270
-export const CONTENT_TRANSITION_DURATION = 160
+export const APP_ENTRY_DURATION = 270
+export const APP_EXIT_DURATION = 180
+export const CONTENT_ENTRY_DURATION = 180
+export const CONTENT_EXIT_DURATION = 120
+export const SURFACE_ENTRY_DURATION = 210
+export const SURFACE_EXIT_DURATION = 140
+export const SURFACE_STAGGER_DELAY = 24
 export const MOTION_SELECTORS = {
   region: "[data-motion-region]",
   background: "[data-motion-background]",
   headerControls: "[data-motion-header-controls]",
+  surface: "[data-motion-surface]",
 } as const
 
 export type MotionAnimation = {
@@ -29,6 +35,8 @@ export type MotionIntent = {
   reducedMotion?: boolean
   outgoing?: HTMLElement[]
   incoming: HTMLElement[]
+  outgoingSurfaces?: HTMLElement[]
+  incomingSurfaces?: HTMLElement[]
   outgoingBackground?: HTMLElement
   incomingBackground?: HTMLElement
   outgoingHeaderControls?: HTMLElement
@@ -63,6 +71,8 @@ const hide = (target: HTMLElement | undefined) => {
 const renderLatest = (intent: MotionIntent) => {
   intent.outgoing?.forEach(hide)
   intent.incoming.forEach(show)
+  intent.outgoingSurfaces?.forEach(hide)
+  intent.incomingSurfaces?.forEach(show)
   hide(intent.outgoingBackground)
   show(intent.incomingBackground)
   hide(intent.outgoingHeaderControls)
@@ -93,6 +103,14 @@ const incomingX = (root: HTMLElement, target: HTMLElement) => {
   const box = target.getBoundingClientRect()
   return box.left + box.width / 2 < rootBox.left + rootBox.width / 2 ? -12 : 12
 }
+
+const surfaceTravel = (target: HTMLElement) =>
+  target.dataset.motionSurface === "detail" ? 10 : 6
+
+const surfaceDelay = (target: HTMLElement, index: number) =>
+  target.dataset.motionSurface === "list-item"
+    ? Math.min(index * SURFACE_STAGGER_DELAY, SURFACE_STAGGER_DELAY * 4)
+    : 0
 
 export const createMotionController = (
   root: HTMLElement,
@@ -125,6 +143,8 @@ export const createMotionController = (
       let remaining =
         (intent.outgoing?.length ?? 0) +
         intent.incoming.length +
+        (intent.outgoingSurfaces?.length ?? 0) +
+        (intent.incomingSurfaces?.length ?? 0) +
         (intent.kind === "app"
           ? Number(Boolean(intent.outgoingBackground)) +
             Number(Boolean(intent.incomingBackground)) +
@@ -148,8 +168,8 @@ export const createMotionController = (
           animations.push(
             driver.animate(target, {
               opacity: 0,
-              duration: CONTENT_TRANSITION_DURATION,
-              ease: "outQuad",
+              duration: CONTENT_EXIT_DURATION,
+              ease: "inQuad",
               onComplete: complete,
             }),
           ),
@@ -158,7 +178,7 @@ export const createMotionController = (
           animations.push(
             driver.animate(target, {
               opacity: 1,
-              duration: CONTENT_TRANSITION_DURATION,
+              duration: CONTENT_ENTRY_DURATION,
               ease: "outQuad",
               onComplete: complete,
             }),
@@ -170,8 +190,8 @@ export const createMotionController = (
             driver.animate(target, {
               opacity: 0,
               translateY: 8,
-              duration: APP_SWITCH_DURATION,
-              ease: "outQuart",
+              duration: APP_EXIT_DURATION,
+              ease: "inQuart",
               onComplete: complete,
             }),
           ),
@@ -185,28 +205,61 @@ export const createMotionController = (
               opacity: 1,
               translateX: 0,
               delay,
-              duration: APP_SWITCH_DURATION - delay,
+              duration: APP_ENTRY_DURATION - delay,
               ease: "outQuart",
               onComplete: complete,
             }),
           )
         })
-        const crossfade = (target: HTMLElement | undefined, opacity: number) => {
+        const crossfade = (
+          target: HTMLElement | undefined,
+          opacity: number,
+          duration: number,
+          ease: "inQuart" | "outQuart",
+        ) => {
           if (!target) return
           animations.push(
             driver.animate(target, {
               opacity,
-              duration: APP_SWITCH_DURATION,
-              ease: "outQuart",
+              duration,
+              ease,
               onComplete: complete,
             }),
           )
         }
-        crossfade(intent.outgoingBackground, 0)
-        crossfade(intent.incomingBackground, 1)
-        crossfade(intent.outgoingHeaderControls, 0)
-        crossfade(intent.incomingHeaderControls, 1)
+        crossfade(intent.outgoingBackground, 0, APP_EXIT_DURATION, "inQuart")
+        crossfade(intent.incomingBackground, 1, APP_ENTRY_DURATION, "outQuart")
+        crossfade(intent.outgoingHeaderControls, 0, APP_EXIT_DURATION, "inQuart")
+        crossfade(intent.incomingHeaderControls, 1, APP_ENTRY_DURATION, "outQuart")
       }
+
+      intent.outgoingSurfaces?.forEach((target) =>
+        animations.push(
+          driver.animate(target, {
+            opacity: 0,
+            translateY: surfaceTravel(target),
+            duration: SURFACE_EXIT_DURATION,
+            ease: "inQuart",
+            onComplete: complete,
+          }),
+        ),
+      )
+      intent.incomingSurfaces?.forEach((target, index) => {
+        if (!target.style.opacity) target.style.opacity = "0"
+        if (!target.style.transform) {
+          target.style.transform = `translateY(${surfaceTravel(target)}px)`
+        }
+        animations.push(
+          driver.animate(target, {
+            opacity: 1,
+            translateY: 0,
+            delay: surfaceDelay(target, index),
+            duration: SURFACE_ENTRY_DURATION,
+            ease: "outQuart",
+            onComplete: complete,
+          }),
+        )
+      })
 
       if (animations.length === 0) {
         renderLatest(intent)
@@ -236,6 +289,7 @@ type MotionSnapshot = {
   app?: string
   destination?: string
   regions: HTMLElement[]
+  surfaces: HTMLElement[]
   background?: HTMLElement
   headerControls?: HTMLElement
 }
@@ -263,17 +317,23 @@ const cloneForMotion = (target: HTMLElement) => {
 const current = <T extends HTMLElement>(root: HTMLElement, selector: string) =>
   Array.from(root.querySelectorAll<T>(selector)).filter((target) => target.dataset.motionCopy !== "true")
 
-const capture = (root: HTMLElement): MotionSnapshot => ({
-  app: root.dataset.motionApp,
-  destination: root.dataset.destination,
-  regions: current<HTMLElement>(root, MOTION_SELECTORS.region).map(cloneForMotion),
-  background: current<HTMLElement>(root, MOTION_SELECTORS.background)[0]
-    ? cloneForMotion(current<HTMLElement>(root, MOTION_SELECTORS.background)[0])
-    : undefined,
-  headerControls: current<HTMLElement>(root, MOTION_SELECTORS.headerControls)[0]
-    ? cloneForMotion(current<HTMLElement>(root, MOTION_SELECTORS.headerControls)[0])
-    : undefined,
-})
+const capture = (root: HTMLElement): MotionSnapshot => {
+  const regions = current<HTMLElement>(root, MOTION_SELECTORS.region).map(cloneForMotion)
+  const surfaces = regions.flatMap((region) =>
+    [...region.querySelectorAll<HTMLElement>(MOTION_SELECTORS.surface)],
+  )
+  const background = current<HTMLElement>(root, MOTION_SELECTORS.background)[0]
+  const headerControls = current<HTMLElement>(root, MOTION_SELECTORS.headerControls)[0]
+
+  return {
+    app: root.dataset.motionApp,
+    destination: root.dataset.destination,
+    regions,
+    surfaces,
+    background: background ? cloneForMotion(background) : undefined,
+    headerControls: headerControls ? cloneForMotion(headerControls) : undefined,
+  }
+}
 
 const clearCopies = (hook: ShellMotionHookState) => {
   hook.motionCopies?.forEach((copy) => copy.remove())
@@ -285,6 +345,16 @@ export const ShellMotion = {
     this.motion = (this.motionFactory ?? createMotionController)(this.el)
     this.motionApp = this.el.dataset.motionApp
     this.motionCopies = []
+    const incomingSurfaces = current<HTMLElement>(this.el, MOTION_SELECTORS.surface)
+    if (incomingSurfaces.length > 0) {
+      this.motion.transition({
+        kind: "content",
+        source: this.el.dataset.motionSource === "keyboard" ? "keyboard" : "pointer",
+        reducedMotion: this.el.dataset.reducedMotion === "true",
+        incoming: [],
+        incomingSurfaces,
+      })
+    }
   },
   beforeUpdate(this: ShellMotionHookState) {
     clearCopies(this)
@@ -297,6 +367,7 @@ export const ShellMotion = {
     clearCopies(this)
     const nextDestination = this.el.dataset.destination
     const incoming = current<HTMLElement>(this.el, MOTION_SELECTORS.region)
+    const incomingSurfaces = current<HTMLElement>(this.el, MOTION_SELECTORS.surface)
     const incomingBackground = current<HTMLElement>(this.el, MOTION_SELECTORS.background)[0]
     const incomingHeaderControls = current<HTMLElement>(this.el, MOTION_SELECTORS.headerControls)[0]
 
@@ -304,6 +375,7 @@ export const ShellMotion = {
       this.motion.transition({
         kind: "direct",
         incoming,
+        incomingSurfaces,
         incomingBackground,
         incomingHeaderControls,
       })
@@ -326,6 +398,8 @@ export const ShellMotion = {
       reducedMotion,
       outgoing: snapshot.regions,
       incoming,
+      outgoingSurfaces: snapshot.surfaces,
+      incomingSurfaces,
       outgoingBackground: snapshot.background,
       incomingBackground,
       outgoingHeaderControls: snapshot.headerControls,

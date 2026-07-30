@@ -1,6 +1,18 @@
 import {describe, expect, it, vi} from "vitest"
 
-import {ShellMotion, createMotionController, type MotionAnimation, type MotionDriver} from "../js/hooks/motion"
+import {
+  APP_ENTRY_DURATION,
+  APP_EXIT_DURATION,
+  CONTENT_ENTRY_DURATION,
+  CONTENT_EXIT_DURATION,
+  SURFACE_ENTRY_DURATION,
+  SURFACE_EXIT_DURATION,
+  SURFACE_STAGGER_DELAY,
+  ShellMotion,
+  createMotionController,
+  type MotionAnimation,
+  type MotionDriver,
+} from "../js/hooks/motion"
 
 const element = (left = 0) =>
   ({style: {}, dataset: {}, getBoundingClientRect: () => ({left, width: 20})}) as unknown as HTMLElement
@@ -76,13 +88,27 @@ describe("shell motion", () => {
 
     const edgeOptions = animations[1].options
     const centerOptions = animations[2].options
-    expect(Number(edgeOptions.delay) + Number(edgeOptions.duration)).toBe(270)
+    expect(animations[0].options).toMatchObject({
+      duration: APP_EXIT_DURATION,
+      ease: "inQuart",
+    })
+    expect(Number(edgeOptions.delay) + Number(edgeOptions.duration)).toBe(APP_ENTRY_DURATION)
     expect(Number(edgeOptions.delay)).toBeLessThan(Number(centerOptions.delay))
-    expect(Number(centerOptions.delay) + Number(centerOptions.duration)).toBeLessThanOrEqual(270)
+    expect(Number(centerOptions.delay) + Number(centerOptions.duration)).toBeLessThanOrEqual(
+      APP_ENTRY_DURATION,
+    )
     expect(edge.style.transform).toBe("translateX(-12px)")
-    expect(animations.at(-2)?.options.opacity).toBe(0)
-    expect(animations.at(-1)?.options.opacity).toBe(1)
-    expect(animations.every(({options}) => options.ease === "outQuart")).toBe(true)
+    expect(animations.at(-2)?.options).toMatchObject({
+      opacity: 0,
+      duration: APP_EXIT_DURATION,
+      ease: "inQuart",
+    })
+    expect(animations.at(-1)?.options).toMatchObject({
+      opacity: 1,
+      duration: APP_ENTRY_DURATION,
+      ease: "outQuart",
+    })
+    expect([edgeOptions.ease, centerOptions.ease]).toEqual(["outQuart", "outQuart"])
   })
 
   it.each(["keyboard" as const, "reduced" as const])("makes %s navigation immediate and travel-free", (mode) => {
@@ -108,8 +134,78 @@ describe("shell motion", () => {
     controller.transition({kind: "content", outgoing: [element()], incoming: [element()]})
 
     expect(animations).toHaveLength(2)
-    expect(animations.every(({options}) => options.duration === 160)).toBe(true)
+    expect(animations.map(({options}) => [options.duration, options.ease])).toEqual([
+      [CONTENT_EXIT_DURATION, "inQuad"],
+      [CONTENT_ENTRY_DURATION, "outQuad"],
+    ])
     expect(animations.every(({options}) => !("translateX" in options) && !("translateY" in options))).toBe(true)
+  })
+
+  it("accelerates Techtree surfaces away and decelerates staggered entries into place", () => {
+    const {animations, driver, root, scope} = harness()
+    const outgoing = element()
+    outgoing.dataset.motionSurface = "list-item"
+    const first = element()
+    first.dataset.motionSurface = "list-item"
+    const second = element()
+    second.dataset.motionSurface = "list-item"
+    const detail = element()
+    detail.dataset.motionSurface = "detail"
+    const settled = vi.fn()
+    const controller = createMotionController(root, driver, () => scope)
+
+    controller.transition({
+      kind: "content",
+      incoming: [],
+      outgoingSurfaces: [outgoing],
+      incomingSurfaces: [first, second, detail],
+      onSettled: settled,
+    })
+
+    expect(animations.map(({options}) => [options.duration, options.ease])).toEqual([
+      [SURFACE_EXIT_DURATION, "inQuart"],
+      [SURFACE_ENTRY_DURATION, "outQuart"],
+      [SURFACE_ENTRY_DURATION, "outQuart"],
+      [SURFACE_ENTRY_DURATION, "outQuart"],
+    ])
+    expect(animations.map(({options}) => options.delay)).toEqual([
+      undefined,
+      0,
+      SURFACE_STAGGER_DELAY,
+      0,
+    ])
+    expect(animations[0].options.translateY).toBe(6)
+    expect(first.style.transform).toBe("translateY(6px)")
+    expect(detail.style.transform).toBe("translateY(10px)")
+
+    animations.slice(0, -1).forEach(({options}) => (options.onComplete as () => void)())
+    expect(settled).not.toHaveBeenCalled()
+    ;(animations.at(-1)?.options.onComplete as () => void)()
+    expect(settled).toHaveBeenCalledOnce()
+    expect(first.style).toMatchObject({opacity: "1", transform: "none"})
+    expect(detail.style).toMatchObject({opacity: "1", transform: "none"})
+  })
+
+  it("runs marked Techtree entrances through the controller on mount", () => {
+    const {animations, driver, root, scope} = harness()
+    const listItem = element()
+    listItem.dataset.motionSurface = "list-item"
+    const detail = element()
+    detail.dataset.motionSurface = "detail"
+    root.querySelectorAll = vi.fn((selector: string) =>
+      selector.includes("motion-surface") ? [listItem, detail] : [],
+    ) as unknown as typeof root.querySelectorAll
+    const state = {
+      el: root,
+      motionFactory: (motionRoot: HTMLElement) => createMotionController(motionRoot, driver, () => scope),
+    }
+
+    ShellMotion.mounted.call(state)
+
+    expect(animations).toHaveLength(2)
+    expect(animations.every(({options}) => options.ease === "outQuart")).toBe(true)
+    ShellMotion.destroyed.call(state)
+    expect(animations.every(({cancel}) => vi.mocked(cancel).mock.calls.length === 1)).toBe(true)
   })
 
   it("settles an empty patch without retaining a phantom active handle", () => {
@@ -186,6 +282,7 @@ describe("shell motion", () => {
     root.dataset.motionApp = "formation"
     root.dataset.destination = "/formation"
     root.querySelectorAll = ((selector: string) => {
+      if (selector.includes("surface")) return []
       const kind = selector.includes("background") ? "background" : selector.includes("header") ? "header" : "region"
       return root.current.filter((target) => (target as HTMLElement & {kind: string}).kind === kind)
     }) as unknown as typeof root.querySelectorAll
@@ -245,6 +342,7 @@ describe("shell motion", () => {
     root.dataset.motionApp = "formation"
     root.dataset.destination = "/formation"
     root.querySelectorAll = ((selector: string) => {
+      if (selector.includes("surface")) return []
       const kind = selector.includes("background") ? "background" : selector.includes("header") ? "header" : "region"
       return root.current.filter((target) => (target as HTMLElement & {kind: string}).kind === kind)
     }) as unknown as typeof root.querySelectorAll
