@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.ShellLive do
   import AshPlatformWeb.StakeLive
 
   alias AshPlatform.{
+    Accounts,
     Autolaunch,
     ContentCoordinator,
     Discussions,
@@ -26,6 +27,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.TechtreeLive
 
   @autolaunch_wallet_open_minimum_seconds 60
+  @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
 
   @impl true
   def mount(params, _session, socket) do
@@ -57,6 +59,8 @@ defmodule AshPlatformWeb.ShellLive do
        comment_request_id: Ash.UUID.generate(),
        comment_draft: "",
        comment_notice: nil,
+       verified_connections: [],
+       verified_connections_notice: nil,
        comment_admin?: Discussions.admin_actor?(human_actor(socket)),
        route_params: params,
        autolaunch_featured_auctions: [],
@@ -177,6 +181,7 @@ defmodule AshPlatformWeb.ShellLive do
       |> load_regent_route(route_spec, params)
       |> load_techtree_route(route_spec, params)
       |> load_autolaunch_route(route_spec, params)
+      |> load_verified_connections(route_spec)
       |> load_comments_route(route_spec)
 
     cond do
@@ -2079,6 +2084,57 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  def handle_event(
+        "request_verified_connection",
+        %{"action" => action, "provider" => provider},
+        socket
+      ) do
+    with %Human{} <- human_actor(socket),
+         {:ok, provider} <- linked_identity_provider(provider),
+         {:ok, request} <- identity_request(action, provider, socket.assigns.verified_connections) do
+      {:noreply,
+       socket
+       |> assign(
+         verified_connections_notice: %{
+           tone: :info,
+           message: "Complete the connection in the window that opens."
+         }
+       )
+       |> push_event("verified-connections:request", request)}
+    else
+      _error ->
+        {:noreply,
+         assign(socket,
+           verified_connections_notice: %{
+             tone: :error,
+             message: "That connection couldn’t be updated. Refresh the page and try again."
+           }
+         )}
+    end
+  end
+
+  def handle_event("refresh_verified_connections", params, socket) do
+    notice =
+      case params do
+        %{"error" => "already-connected"} ->
+          %{
+            tone: :error,
+            message: "That account is already connected to another Regent account."
+          }
+
+        %{"error" => error} when is_binary(error) and error != "" ->
+          %{tone: :error, message: "That connection couldn’t be verified. Try again."}
+
+        _params ->
+          %{tone: :success, message: "Verified connections updated."}
+      end
+
+    {:noreply,
+     socket
+     |> reload_verified_connections()
+     |> assign(verified_connections_notice: notice)}
+  end
+
   def handle_event(event, params, socket)
       when event in [
              "redemption_selection_changed",
@@ -2456,6 +2512,8 @@ defmodule AshPlatformWeb.ShellLive do
           bid_submission={@autolaunch_bid_submission}
           bid_signing={@autolaunch_bid_signing?}
           launch_drafts={@autolaunch_launch_drafts}
+          verified_connections={@verified_connections}
+          verified_connections_notice={@verified_connections_notice}
           draft_fields={@autolaunch_draft_fields}
           draft_notice={@autolaunch_draft_notice}
           regent={@regent}
@@ -2517,7 +2575,11 @@ defmodule AshPlatformWeb.ShellLive do
           account={current_account(@access_context)}
         />
 
-        <SettingsLive.page :if={@route_spec.route_id == :settings} />
+        <SettingsLive.page
+          :if={@route_spec.route_id == :settings}
+          verified_connections={@verified_connections}
+          verified_connections_notice={@verified_connections_notice}
+        />
 
         <.page
           :if={@route_spec.route_id == :stake}
@@ -2703,6 +2765,48 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp current_human_id(%{principal: {:human, account}}), do: account.id
   defp current_human_id(_access_context), do: nil
+
+  defp load_verified_connections(socket, %{route_id: route_id})
+       when route_id in [:settings, :autolaunch_create] do
+    reload_verified_connections(socket)
+  end
+
+  defp load_verified_connections(socket, _route_spec) do
+    assign(socket, verified_connections: [], verified_connections_notice: nil)
+  end
+
+  defp reload_verified_connections(socket) do
+    case human_actor(socket) do
+      %Human{} = actor ->
+        case Accounts.list_my_linked_identities(actor: actor) do
+          {:ok, identities} -> assign(socket, verified_connections: identities)
+          {:error, _error} -> assign(socket, verified_connections: [])
+        end
+
+      nil ->
+        assign(socket, verified_connections: [])
+    end
+  end
+
+  defp linked_identity_provider(provider) do
+    case Map.fetch(@identity_providers, provider) do
+      {:ok, provider} -> {:ok, provider}
+      :error -> {:error, :invalid_provider}
+    end
+  end
+
+  defp identity_request("link", provider, _identities) do
+    {:ok, %{action: :link, provider: provider}}
+  end
+
+  defp identity_request("unlink", provider, identities) do
+    case Enum.find(identities, &(&1.provider == provider)) do
+      nil -> {:error, :not_connected}
+      identity -> {:ok, %{action: :unlink, provider: provider, subject: identity.subject}}
+    end
+  end
+
+  defp identity_request(_action, _provider, _identities), do: {:error, :invalid_action}
 
   defp load_regent_route(socket, %{route_id: :formation}, _params) do
     regent = socket.assigns.current_regent

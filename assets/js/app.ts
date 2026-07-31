@@ -21,6 +21,7 @@ import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {TechtreeCamera} from "./hooks/techtree_camera"
 import {VoxelDelight} from "./hooks/voxel"
+import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -304,6 +305,7 @@ const hooks = {
   RedemptionWallet,
   StakeWallet,
   TechtreeCamera,
+  VerifiedConnections,
 }
 const csrfToken = document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content
 

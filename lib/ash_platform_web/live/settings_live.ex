@@ -3,6 +3,10 @@ defmodule AshPlatformWeb.SettingsLive do
 
   use AshPlatformWeb, :html
 
+  import AshPlatformWeb.Components.VerifiedConnections
+
+  attr(:verified_connections, :list, default: [])
+  attr(:verified_connections_notice, :map, default: nil)
   attr(:rest, :global)
 
   def page(assigns) do
@@ -11,6 +15,13 @@ defmodule AshPlatformWeb.SettingsLive do
       <header class="settings-page__header">
         <h1>Settings</h1>
       </header>
+
+      <.verified_connections
+        id="settings-verified-connections"
+        class="settings-section"
+        identities={@verified_connections}
+        notice={@verified_connections_notice}
+      />
 
       <section class="settings-section" aria-labelledby="appearance-heading">
         <div>

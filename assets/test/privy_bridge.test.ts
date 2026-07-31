@@ -10,6 +10,7 @@ import {
 const {
   createLocalSession,
   createAccountRequestHandler,
+  createIdentityRequestHandler,
   createProviderSessionReconciler,
   createPrivyLoginCallbacks,
   createReadyLoginGate,
@@ -74,6 +75,78 @@ describe("Privy session bridge", () => {
         signal: expect.any(AbortSignal),
       },
     ])
+  })
+
+  it("returns a verified identity conflict from the refreshed local session", async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf"
+        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+        : new Response("{}", {
+            status: 200,
+            headers: {
+              "x-ash-session-changed": "false",
+              "x-ash-identity-error": "already-connected",
+            },
+          }),
+    ) as typeof fetch
+
+    await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+      sessionChanged: false,
+      identityError: "already-connected",
+    })
+  })
+
+  it("routes link and unlink commands through Privy before refreshing the session", async () => {
+    const linkX = vi.fn()
+    const linkGithub = vi.fn()
+    const linkFarcaster = vi.fn()
+    const unlinkOAuth = vi.fn(async () => undefined)
+    const unlinkFarcaster = vi.fn(async () => undefined)
+    const refreshSession = vi.fn(async () => undefined)
+    const request = createIdentityRequestHandler({
+      linkX,
+      linkGithub,
+      linkFarcaster,
+      unlinkOAuth,
+      unlinkFarcaster,
+      refreshSession,
+    })
+
+    await request({action: "link", provider: "x"})
+    await request({action: "link", provider: "github"})
+    await request({action: "link", provider: "farcaster"})
+
+    expect(linkX).toHaveBeenCalledOnce()
+    expect(linkGithub).toHaveBeenCalledOnce()
+    expect(linkFarcaster).toHaveBeenCalledOnce()
+    expect(refreshSession).not.toHaveBeenCalled()
+
+    await request({action: "unlink", provider: "x", subject: "twitter-42"})
+    await request({action: "unlink", provider: "github", subject: "github-7"})
+    await request({action: "unlink", provider: "farcaster", subject: "12345"})
+
+    expect(unlinkOAuth).toHaveBeenNthCalledWith(1, "twitter", "twitter-42")
+    expect(unlinkOAuth).toHaveBeenNthCalledWith(2, "github", "github-7")
+    expect(unlinkFarcaster).toHaveBeenCalledWith(12345)
+    expect(refreshSession).toHaveBeenCalledTimes(3)
+  })
+
+  it("rejects unlink commands without a verified provider subject", async () => {
+    const request = createIdentityRequestHandler({
+      linkX: vi.fn(),
+      linkGithub: vi.fn(),
+      linkFarcaster: vi.fn(),
+      unlinkOAuth: vi.fn(),
+      unlinkFarcaster: vi.fn(),
+      refreshSession: vi.fn(),
+    })
+
+    await expect(
+      request({action: "unlink", provider: "farcaster", subject: "not-a-fid"}),
+    ).rejects.toThrow("unavailable")
+    await expect(request({action: "unlink", provider: "x"})).rejects.toThrow(
+      "unavailable",
+    )
   })
 
   it.each(["csrf", "session POST"])(

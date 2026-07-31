@@ -26,6 +26,17 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert_redirect(view, "/")
   end
 
+  test "an anonymous socket rejects a forged verified connection request", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app")
+
+    render_hook(view, "request_verified_connection", %{
+      "action" => "link",
+      "provider" => "x"
+    })
+
+    refute_push_event(view, "verified-connections:request", _payload)
+  end
+
   test "direct deep links render the persistent shell and honest node state", %{conn: conn} do
     {:ok, view, html} =
       live(conn, "/techtree/nodes/00000000-0000-0000-0000-000000000001")
@@ -162,6 +173,59 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert html =~ ~s(data-theme-choice="system")
     assert html =~ ~s(data-theme-choice="light")
     assert html =~ ~s(data-theme-choice="dark")
+  end
+
+  test "Settings shows live connected, disconnected, and conflict states", %{conn: conn} do
+    account =
+      register_account(
+        "settings-connections",
+        "0x6666666666666666666666666666666666666666"
+      )
+
+    Accounts.upsert_linked_identity!(
+      :x,
+      "settings-x-subject",
+      "settings_user",
+      "Settings User",
+      DateTime.utc_now(),
+      %{},
+      account.id,
+      actor: %System{}
+    )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/settings")
+
+    assert has_element?(
+             view,
+             ~s(#settings-verified-connections-x a[href="https://x.com/settings_user"]),
+             "@settings_user"
+           )
+
+    assert has_element?(view, "#settings-verified-connections-x button", "Disconnect")
+    assert has_element?(view, "#settings-verified-connections-github", "Not connected")
+    assert has_element?(view, "#settings-verified-connections-github button", "Connect")
+    refute render(view) =~ "settings-x-subject"
+
+    view
+    |> element("#settings-verified-connections-x button", "Disconnect")
+    |> render_click()
+
+    assert_push_event(view, "verified-connections:request", %{
+      action: :unlink,
+      provider: :x,
+      subject: "settings-x-subject"
+    })
+
+    render_hook(view, "refresh_verified_connections", %{"error" => "already-connected"})
+
+    assert has_element?(
+             view,
+             "#settings-verified-connections [role=alert]",
+             "already connected to another Regent account"
+           )
   end
 
   test "in-shell navigation keeps the LiveView and shell identity", %{conn: conn} do

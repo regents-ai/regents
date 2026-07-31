@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
+  import AshPlatformWeb.Components.VerifiedConnections
 
   attr :route_spec, :map, required: true
   attr :params, :map, required: true
@@ -36,6 +37,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :bid_submission, :map, default: nil
   attr :bid_signing, :boolean, default: false
   attr :launch_drafts, :list, required: true
+  attr :verified_connections, :list, default: []
+  attr :verified_connections_notice, :map, default: nil
   attr :draft_fields, :map, required: true
   attr :draft_notice, :map, default: nil
   attr :regent, :map, default: nil
@@ -142,6 +145,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
       launch_drafts={@launch_drafts}
       draft_fields={@draft_fields}
       draft_notice={@draft_notice}
+      verified_connections={@verified_connections}
+      verified_connections_notice={@verified_connections_notice}
       regent={@regent}
     />
     """
@@ -1451,6 +1456,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :launch_drafts, :list, required: true
   attr :draft_fields, :map, required: true
   attr :draft_notice, :map, default: nil
+  attr :verified_connections, :list, default: []
+  attr :verified_connections_notice, :map, default: nil
   attr :regent, :map, default: nil
 
   defp create(assigns) do
@@ -1464,18 +1471,16 @@ defmodule AshPlatformWeb.AutolaunchLive do
         </p>
       </header>
 
-      <section class="autolaunch-reputation" aria-labelledby="autolaunch-reputation-title">
-        <div>
-          <p class="autolaunch-kicker">Optional reputation</p>
-          <h2 id="autolaunch-reputation-title">Strengthen the public signal</h2>
-          <p>Connect all four when available. None is required to sign in or create.</p>
-        </div>
-        <ul>
-          <li :for={network <- ["X", "Farcaster", "ENS", "World"]}>
-            <span aria-hidden="true">◇</span> Verified {network}
-          </li>
-        </ul>
-      </section>
+      <.verified_connections
+        id="autolaunch-verified-connections"
+        class="autolaunch-reputation"
+        kicker="Optional reputation"
+        title="Strengthen the public signal"
+        description="Verified connections are optional. None is required to sign in or create."
+        identities={@verified_connections}
+        notice={@verified_connections_notice}
+        authenticated={@account_control.kind == :signed_in}
+      />
 
       <.empty_state
         :if={@account_control.kind == :sign_in}

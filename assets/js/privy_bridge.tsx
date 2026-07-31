@@ -2,8 +2,11 @@ import {
   PrivyProvider,
   type PrivyEvents,
   useLogin,
+  useLinkAccount,
   usePrivy,
   useToken,
+  useUnlinkFarcaster,
+  useUnlinkOAuth,
   useWallets,
 } from "@privy-io/react-auth"
 import React from "react"
@@ -14,6 +17,7 @@ import {
   clearLocalSession,
   csrfToken,
   type AccountRequest,
+  type IdentityRequest,
   type PrivyBridgeHandle,
   type SessionMutationCoordinator,
 } from "./auth_lazy"
@@ -48,6 +52,47 @@ export function createAccountRequestHandler({
   }
 }
 
+type IdentityRequestHandlerOptions = {
+  linkX: () => void
+  linkGithub: () => void
+  linkFarcaster: () => void
+  unlinkOAuth: (provider: "twitter" | "github", subject: string) => Promise<void>
+  unlinkFarcaster: (fid: number) => Promise<void>
+  refreshSession: () => Promise<void>
+}
+
+export function createIdentityRequestHandler({
+  linkX,
+  linkGithub,
+  linkFarcaster,
+  unlinkOAuth,
+  unlinkFarcaster,
+  refreshSession,
+}: IdentityRequestHandlerOptions): (request: IdentityRequest) => Promise<void> {
+  return async request => {
+    if (request.action === "link") {
+      if (request.provider === "x") linkX()
+      if (request.provider === "github") linkGithub()
+      if (request.provider === "farcaster") linkFarcaster()
+      return
+    }
+
+    if (!request.subject) throw new Error("The connected account is unavailable.")
+
+    if (request.provider === "farcaster") {
+      const fid = Number(request.subject)
+      if (!Number.isSafeInteger(fid) || fid <= 0) {
+        throw new Error("The connected account is unavailable.")
+      }
+      await unlinkFarcaster(fid)
+    } else {
+      await unlinkOAuth(request.provider === "x" ? "twitter" : "github", request.subject)
+    }
+
+    await refreshSession()
+  }
+}
+
 export {csrfToken}
 
 export class LocalSessionEstablishmentError extends Error {
@@ -60,7 +105,10 @@ export async function createLocalSession(
   accessToken: string,
   fetcher: typeof fetch = fetch,
   sessionMutations: SessionMutationCoordinator = browserSessionMutations,
-): Promise<{sessionChanged: boolean}> {
+): Promise<{
+  sessionChanged: boolean
+  identityError?: "already-connected"
+}> {
   return sessionMutations.establish(async signal => {
     const csrf = await csrfToken(fetcher, signal)
     if (signal.aborted) throw signal.reason
@@ -76,7 +124,16 @@ export async function createLocalSession(
     if (sessionChanged !== "true" && sessionChanged !== "false") {
       throw new LocalSessionEstablishmentError(false)
     }
-    return {sessionChanged: sessionChanged === "true"}
+    const identityError = response.headers.get("x-ash-identity-error")
+    if (identityError && identityError !== "already-connected") {
+      throw new LocalSessionEstablishmentError(false)
+    }
+    const verifiedIdentityError =
+      identityError === "already-connected" ? identityError : undefined
+    return {
+      sessionChanged: sessionChanged === "true",
+      ...(verifiedIdentityError ? {identityError: verifiedIdentityError} : {}),
+    }
   })
 }
 
@@ -205,6 +262,7 @@ export function createReadyLoginGate(login: () => void) {
 type AccountBridgeProps = {
   publishRequestHandler: (
     requestHandler: PrivyBridgeHandle["request"],
+    identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
     ready: boolean,
   ) => void
 }
@@ -226,6 +284,27 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
     [completeLogin],
   )
   const {getAccessToken} = useToken(tokenCallbacks)
+  const notifyIdentityState = React.useCallback((error: string | null) => {
+    window.dispatchEvent(
+      new CustomEvent("ash:identity-state", {detail: {error}}),
+    )
+  }, [])
+  const refreshIdentitySession = React.useCallback(async () => {
+    const accessToken = await getAccessToken()
+    if (!accessToken) throw new Error("The connection could not be verified.")
+    const result = await createLocalSession(accessToken)
+    notifyIdentityState(result.identityError ?? null)
+  }, [getAccessToken, notifyIdentityState])
+  const linkCallbacks = React.useMemo(
+    () => ({
+      onSuccess: () => void refreshIdentitySession().catch(() => notifyIdentityState("failed")),
+      onError: () => notifyIdentityState("failed"),
+    }),
+    [notifyIdentityState, refreshIdentitySession],
+  )
+  const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
+  const {unlink: unlinkOAuth} = useUnlinkOAuth()
+  const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const loginCallbacks = React.useMemo(
     () => createPrivyLoginCallbacks(getAccessToken, completeLogin),
     [completeLogin, getAccessToken],
@@ -295,9 +374,33 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
     [loginGate, logout, synchronizeWallets],
   )
 
+  const identityHandler = React.useMemo(
+    () =>
+      createIdentityRequestHandler({
+        linkX: linkTwitter,
+        linkGithub,
+        linkFarcaster,
+        unlinkOAuth: async (provider, subject) => {
+          await unlinkOAuth({provider, subject})
+        },
+        unlinkFarcaster: async fid => {
+          await unlinkFarcasterAccount({fid})
+        },
+        refreshSession: refreshIdentitySession,
+      }),
+    [
+      linkFarcaster,
+      linkGithub,
+      linkTwitter,
+      refreshIdentitySession,
+      unlinkFarcasterAccount,
+      unlinkOAuth,
+    ],
+  )
+
   React.useEffect(
-    () => publishRequestHandler(requestHandler, ready),
-    [publishRequestHandler, ready, requestHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, ready),
+    [identityHandler, publishRequestHandler, ready, requestHandler],
   )
 
   return null
@@ -312,6 +415,7 @@ export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
 
   return new Promise(resolve => {
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
+    let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let resolved = false
     const handle: PrivyBridgeHandle = {
       request(request) {
@@ -319,12 +423,19 @@ export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
           ? currentRequestHandler(request)
           : Promise.reject(new Error("Privy bridge is not ready"))
       },
+      identity(request) {
+        return currentIdentityHandler
+          ? currentIdentityHandler(request)
+          : Promise.reject(new Error("Privy bridge is not ready"))
+      },
     }
     const publishRequestHandler: AccountBridgeProps["publishRequestHandler"] = (
       requestHandler,
+      identityHandler,
       ready,
     ) => {
       currentRequestHandler = requestHandler
+      currentIdentityHandler = identityHandler
       if (!ready || resolved) return
       resolved = true
       resolve(handle)

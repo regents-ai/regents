@@ -15,7 +15,15 @@ defmodule AshPlatform.PrivyTest do
          claims: claims,
          privy_user_id: "did:privy:test",
          wallet_address: nil,
-         wallet_addresses: []
+         wallet_addresses: [],
+         linked_socials: [
+           %{
+             provider: :github,
+             subject: "github-user-7",
+             username: "regents-ai",
+             display_name: nil
+           }
+         ]
        }}
     end
   end
@@ -38,7 +46,15 @@ defmodule AshPlatform.PrivyTest do
               privy_user_id: "did:privy:test",
               session_id: "session",
               wallet_address: nil,
-              wallet_addresses: []
+              wallet_addresses: [],
+              linked_socials: [
+                %{
+                  provider: :github,
+                  subject: "github-user-7",
+                  username: "regents-ai",
+                  display_name: nil
+                }
+              ]
             }} = AshPlatform.Privy.verify_access_token("access")
 
     assert {:error, :invalid_access_token} = AshPlatform.Privy.verify_access_token("identity")

@@ -89,7 +89,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert html =~ "Build public signal before launch."
     assert html =~ "Make knowledge inspectable."
     assert html =~ "Keep identity and value actions together."
-    assert html =~ "X, Farcaster, ENS, and World"
+    assert html =~ "X, GitHub, Farcaster, ENS, and World"
     assert html =~ "Map and List"
     assert html =~ "Focused discussion"
     assert html =~ "Local Marimo"

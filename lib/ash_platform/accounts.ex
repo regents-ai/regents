@@ -26,5 +26,32 @@ defmodule AshPlatform.Accounts do
       define :set_display_name, action: :set_display_name
       define :set_avatar, action: :set_avatar
     end
+
+    resource AshPlatform.Accounts.LinkedIdentity do
+      define :upsert_linked_identity,
+        action: :upsert_verified,
+        args: [
+          :provider,
+          :subject,
+          :username,
+          :display_name,
+          :verified_at,
+          :metadata,
+          :human_account_id
+        ]
+
+      define :list_my_linked_identities, action: :read_mine
+
+      define :list_linked_identities_for_account,
+        action: :for_account,
+        args: [:human_account_id]
+
+      define :get_linked_identity_by_subject,
+        action: :by_provider_subject,
+        args: [:provider, :subject],
+        not_found_error?: false
+
+      define :remove_linked_identity, action: :remove_verified
+    end
   end
 end

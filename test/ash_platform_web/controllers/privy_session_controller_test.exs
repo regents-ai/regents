@@ -76,7 +76,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       )
       |> Enum.to_list()
 
-    assert Enum.all?(results, &match?({:ok, {:ok, _}}, &1))
+    assert Enum.all?(results, &match?({:ok, {:ok, _, []}}, &1))
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:concurrent", actor: %System{})
     assert account.wallet_address == verified.wallet_address
   end
@@ -335,6 +335,46 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert current.id == account.id
     assert current.wallet_address == "0x2222222222222222222222222222222222222222"
     assert current.wallet_addresses == ["0x2222222222222222222222222222222222222222"]
+  end
+
+  test "a social account conflict preserves login and reports a connection error", %{conn: conn} do
+    owner =
+      Accounts.register_verified!(
+        "did:privy:conflict-owner",
+        nil,
+        [],
+        actor: %System{}
+      )
+
+    assert {:ok, _identity} =
+             Accounts.upsert_linked_identity(
+               :x,
+               "shared-x-subject",
+               "owner",
+               nil,
+               DateTime.utc_now(),
+               %{},
+               owner.id,
+               actor: %System{}
+             )
+
+    response =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer conflicting-social")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(response, 200)
+    assert get_resp_header(response, "x-ash-identity-error") == ["already-connected"]
+
+    account =
+      Accounts.get_by_privy_did!("did:privy:conflicting-social", actor: %System{})
+
+    assert get_session(response, :human_account_id) == account.id
+
+    assert {:ok, []} =
+             Accounts.list_linked_identities_for_account(account.id, actor: %System{})
   end
 
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")

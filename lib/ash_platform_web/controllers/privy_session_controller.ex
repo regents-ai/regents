@@ -24,12 +24,13 @@ defmodule AshPlatformWeb.PrivySessionController do
 
     with {:ok, token} <- bearer_token(conn),
          {:ok, verified} <- verifier().verify_access_token(token),
-         {:ok, account} <- VerifiedSession.establish(verified) do
+         {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
       conn
       |> configure_session(renew: true)
       |> clear_session()
       |> put_session(:human_account_id, account.id)
       |> put_logout_epoch_session(logout_epoch)
+      |> put_identity_conflict_header(identity_conflicts)
       |> put_resp_header(
         "x-ash-session-changed",
         to_string(previous_account_id != account.id)
@@ -127,6 +128,12 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   defp put_logout_epoch_session(conn, logout_epoch) do
     put_session(conn, @logout_epoch_session_key, logout_epoch)
+  end
+
+  defp put_identity_conflict_header(conn, []), do: conn
+
+  defp put_identity_conflict_header(conn, _conflicts) do
+    put_resp_header(conn, "x-ash-identity-error", "already-connected")
   end
 
   defp logout_epoch do

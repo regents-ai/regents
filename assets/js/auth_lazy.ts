@@ -1,7 +1,16 @@
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
+export type IdentityProvider = "x" | "github" | "farcaster"
+
+export type IdentityRequest = {
+  action: "link" | "unlink"
+  provider: IdentityProvider
+  subject?: string
+}
+
 export type PrivyBridgeHandle = {
   request: (request: AccountRequest) => Promise<void>
+  identity?: (request: IdentityRequest) => Promise<void>
 }
 
 export type PrivyBridgeModule = {
@@ -198,13 +207,26 @@ export function createLazyAuthLoader(
 ) {
   let handle: PrivyBridgeHandle | null = null
   let preparing: Promise<void> | null = null
-  let pending: AccountRequest | null = null
-  let delivering: {request: AccountRequest; promise: Promise<void>} | null = null
+  let pending: AccountRequest | IdentityRequest | null = null
+  let delivering: {
+    request: AccountRequest | IdentityRequest
+    promise: Promise<void>
+  } | null = null
+
+  const sameRequest = (
+    first: AccountRequest | IdentityRequest,
+    second: AccountRequest | IdentityRequest,
+  ) =>
+    typeof first === "string" || typeof second === "string"
+      ? first === second
+      : first.action === second.action &&
+        first.provider === second.provider &&
+        first.subject === second.subject
 
   const deliverPending = (): Promise<void> => {
     if (!handle) return Promise.resolve()
     if (delivering) {
-      return pending === null || delivering.request === pending
+      return pending === null || sameRequest(delivering.request, pending)
         ? delivering.promise
         : delivering.promise.then(deliverPending, deliverPending)
     }
@@ -212,7 +234,12 @@ export function createLazyAuthLoader(
 
     const request = pending
     pending = null
-    const attempt = handle.request(request)
+    const attempt =
+      typeof request === "string"
+        ? handle.request(request)
+        : handle.identity
+          ? handle.identity(request)
+          : Promise.reject(new Error("Privy identity bridge is not ready"))
     const settle = () => {
       if (delivering?.promise === attempt) delivering = null
       void deliverPending().catch(() => undefined)
@@ -248,7 +275,25 @@ export function createLazyAuthLoader(
 
   return {
     request(request: AccountRequest): Promise<void> {
-      if (delivering?.request === request && pending === null) return delivering.promise
+      if (
+        delivering &&
+        sameRequest(delivering.request, request) &&
+        pending === null
+      ) {
+        return delivering.promise
+      }
+      pending = request
+      if (handle) return deliverPending()
+      return preparing ?? prepare()
+    },
+    identity(request: IdentityRequest): Promise<void> {
+      if (
+        delivering &&
+        sameRequest(delivering.request, request) &&
+        pending === null
+      ) {
+        return delivering.promise
+      }
       pending = request
       if (handle) return deliverPending()
       return preparing ?? prepare()
@@ -344,6 +389,20 @@ export function installAccountAuthLazyLoader(
     if (accountTarget === "sign-in") request("sign-in")
     if (accountTarget === "sign-out") signOut()
   }
+  const onIdentityRequest = (event: Event) => {
+    if (!(event instanceof CustomEvent) || !isIdentityRequest(event.detail)) return
+    clearStatus()
+    void loader
+      .identity(event.detail)
+      .then(clearStatus)
+      .catch(() => showIdentityFailure())
+  }
+  const showIdentityFailure = () => {
+    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
+    if (!status) return
+    status.textContent = "That connection couldn’t be updated. Try again."
+    status.hidden = false
+  }
 
   const reconcileSignedInStartup = () => {
     clearStatus()
@@ -366,8 +425,24 @@ export function installAccountAuthLazyLoader(
   }
 
   documentRoot.addEventListener("click", onClick)
+  documentRoot.addEventListener("ash:identity-request", onIdentityRequest)
   if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
     reconcileSignedInStartup()
   }
-  return () => documentRoot.removeEventListener("click", onClick)
+  return () => {
+    documentRoot.removeEventListener("click", onClick)
+    documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
+  }
+}
+
+function isIdentityRequest(value: unknown): value is IdentityRequest {
+  if (!value || typeof value !== "object") return false
+  const request = value as Partial<IdentityRequest>
+  return (
+    (request.action === "link" || request.action === "unlink") &&
+    (request.provider === "x" ||
+      request.provider === "github" ||
+      request.provider === "farcaster") &&
+    (request.subject === undefined || typeof request.subject === "string")
+  )
 }

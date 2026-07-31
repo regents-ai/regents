@@ -221,7 +221,7 @@ defmodule AshPlatformWeb.HomeLive do
           %{
             state: "Preview",
             title: "Connected reputation",
-            copy: "Optionally add verified X, Farcaster, ENS, and World signals."
+            copy: "Optionally add verified X, GitHub, Farcaster, ENS, and World signals."
           }
         ]
       },

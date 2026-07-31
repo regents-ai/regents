@@ -548,8 +548,8 @@ agent may prepare and operate the corresponding non-custodial path through the
 CLI. Pairing grants visibility and coordination only, never signing power.
 
 **AP-112 — Reputation signal.** Profile and Autolaunch Create use one
-canonical set of optional verified connections: X, Farcaster, ENS, and World.
-The UI recommends connecting all four for stronger Autolaunch social signal,
+canonical set of optional verified connections: X, GitHub, Farcaster, ENS,
+and World. The UI recommends connecting all five for stronger Autolaunch social signal,
 but none is required for account authentication. Public output shows verified
 connections only.
 

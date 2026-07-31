@@ -79,6 +79,24 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
+  def verify_access_token("conflicting-social") do
+    {:ok,
+     %AshPlatform.VerifiedPrivyIdentity{
+       session_id: "conflicting-social-session",
+       privy_user_id: "did:privy:conflicting-social",
+       wallet_address: "0x5555555555555555555555555555555555555555",
+       wallet_addresses: ["0x5555555555555555555555555555555555555555"],
+       linked_socials: [
+         %{
+           provider: :x,
+           subject: "shared-x-subject",
+           username: "other",
+           display_name: nil
+         }
+       ]
+     }}
+  end
+
   def verify_access_token("identity-token"), do: {:error, :invalid_access_token}
   def verify_access_token("missing-sid"), do: {:error, :invalid_access_token}
   def verify_access_token(_token), do: {:error, :invalid_token}

@@ -69,6 +69,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
+    assert [linked_identities_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_linked_identities.exs")
+
     assert [public_profile_migration] =
              Path.wildcard("priv/repo/migrations/*_add_public_regent_profile_projection.exs")
 
@@ -99,6 +102,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                token_auction_identity_migration,
                techtree_graph_migration,
                cloud_runtimes_migration,
+               linked_identities_migration,
                public_profile_migration,
                billing_kernel_migration,
                ash_functions_migration
@@ -323,6 +327,17 @@ defmodule AshPlatformWeb.BoundaryTest do
         "create table(:cloud_runtimes",
         "references(:platform_human_users",
         "references(:regents"
+      ],
+      []
+    )
+
+    assert_additive_migration(
+      linked_identities_migration,
+      [
+        "create table(:linked_identities",
+        "references(:platform_human_users",
+        "create unique_index(:linked_identities, [:provider, :human_account_id]",
+        "create unique_index(:linked_identities, [:provider, :subject]"
       ],
       []
     )

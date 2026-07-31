@@ -419,12 +419,16 @@ test("Autolaunch overview, detail, and Create stay useful without fake market da
 
   await overview.getByRole("link", {name: "Create a launch"}).click()
   await expect(page).toHaveURL(/\/autolaunch\/create$/)
-  await expect(page.locator("#autolaunch-create li")).toHaveText([
-    "◇ Verified X",
-    "◇ Verified Farcaster",
-    "◇ Verified ENS",
-    "◇ Verified World",
+  await expect(page.locator("#autolaunch-verified-connections li strong")).toHaveText([
+    "X",
+    "GitHub",
+    "Farcaster",
   ])
+  await expect(
+    page.locator("#autolaunch-verified-connections button", {
+      hasText: "Sign in to connect",
+    }),
+  ).toHaveCount(3)
   await expect(page.locator("#autolaunch-create form")).toHaveCount(0)
 
   await page.goto("/autolaunch/auctions/auction-42")

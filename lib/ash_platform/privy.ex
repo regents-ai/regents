@@ -15,7 +15,8 @@ defmodule AshPlatform.Privy do
          privy_user_id: verified.privy_user_id,
          session_id: session_id,
          wallet_address: verified.wallet_address,
-         wallet_addresses: verified.wallet_addresses
+         wallet_addresses: verified.wallet_addresses,
+         linked_socials: verified.linked_socials
        }}
     end
   end

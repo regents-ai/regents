@@ -408,14 +408,71 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(view, "#autolaunch-create")
     assert html =~ "review every bid and money action in your wallet"
 
-    for signal <- ["Verified X", "Verified Farcaster", "Verified ENS", "Verified World"] do
-      assert html =~ signal
+    for network <- ["X", "GitHub", "Farcaster"] do
+      assert has_element?(view, "#autolaunch-verified-connections li", network)
     end
 
+    refute html =~ "Verified ENS"
+    refute html =~ "Verified World"
     assert html =~ "None is required to sign in or create."
+    assert has_element?(view, "#autolaunch-verified-connections button", "Sign in to connect")
     assert html =~ "Sign in to prepare your launch."
     refute has_element?(view, "#autolaunch-create form")
     refute has_element?(view, ~s(#autolaunch-create button[type="submit"]))
+  end
+
+  test "Create shows live connected, disconnected, and connection error states", %{conn: conn} do
+    account =
+      Accounts.register_verified!(
+        "did:privy:autolaunch-connections",
+        "0x7777777777777777777777777777777777777777",
+        ["0x7777777777777777777777777777777777777777"],
+        actor: %System{}
+      )
+
+    Accounts.upsert_linked_identity!(
+      :github,
+      "autolaunch-github-subject",
+      "regents-ai",
+      nil,
+      DateTime.utc_now(),
+      %{},
+      account.id,
+      actor: %System{}
+    )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/autolaunch/create")
+
+    assert has_element?(
+             view,
+             ~s(#autolaunch-verified-connections-github a[href="https://github.com/regents-ai"]),
+             "regents-ai"
+           )
+
+    assert has_element?(view, "#autolaunch-verified-connections-github button", "Disconnect")
+    assert has_element?(view, "#autolaunch-verified-connections-x", "Not connected")
+    assert has_element?(view, "#autolaunch-verified-connections-x button", "Connect")
+    refute render(view) =~ "autolaunch-github-subject"
+
+    view
+    |> element("#autolaunch-verified-connections-x button", "Connect")
+    |> render_click()
+
+    assert_push_event(view, "verified-connections:request", %{
+      action: :link,
+      provider: :x
+    })
+
+    render_hook(view, "refresh_verified_connections", %{"error" => "failed"})
+
+    assert has_element?(
+             view,
+             "#autolaunch-verified-connections [role=alert]",
+             "couldn’t be verified"
+           )
   end
 
   test "a signed-in human with a formed Regent creates and reviews a private launch draft", %{
