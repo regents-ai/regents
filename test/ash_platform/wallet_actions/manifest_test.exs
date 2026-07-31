@@ -37,6 +37,10 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     },
     "quote_token_erc20" => %{
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
+    },
+    "regent_staking_revenue_router" => %{
+      "settle_treasury_buyback" =>
+        {"settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32)", "0xd8df40b6"}
     }
   }
 
@@ -88,6 +92,12 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
       assert evidence["continuous_clearing_auction"]["interface_note"] =~
                "defaults prevTickPriceQ96 to FLOOR_PRICE_Q96"
+
+      buyback = evidence["regent_staking_revenue_router"]
+      assert buyback["interface_provenance"] =~ "Archived Platform application b760a45b"
+      assert buyback["implementation_note"] =~ "removed buyback settlement"
+      assert buyback["implementation_note"] =~ "selector 0x9f93f885"
+      assert buyback["implementation_note"] =~ "not implementation or deployment proof"
 
       for {id, entry} <- evidence do
         abi_path = Path.join("contracts", entry["abi_path"])

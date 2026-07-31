@@ -12,6 +12,7 @@ contracts:
       - continuous_clearing_auction.return_quote_token
       - continuous_clearing_auction.claim_bid
       - quote_token_erc20.approve_exact
+      - regent_staking_revenue_router.settle_treasury_buyback
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json
@@ -51,4 +52,22 @@ contracts:
         abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
         action_ids:
           - approve_exact
+      - contract_id: regent_staking_revenue_router
+        contract_name: RegentStakingRevenueRouter
+        target: stored_subject_revenue_router_address
+        interface_provenance: >-
+          Archived Platform application b760a45b encodes
+          settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32) with selector
+          0xd8df40b6 and binds subject identity, treasury, amount, minimum output, and source
+          reference from the prepared request.
+        implementation_note: >-
+          Vendored revenue source at archived Platform b760a45b has removed buyback
+          settlement. Its pre-removal implementation at c69418cf exposes the distinct
+          settleTreasuryBuyback(bytes32,uint256,uint256,bytes32) interface with selector
+          0x9f93f885. This prepared-only legacy interface admission is not implementation
+          or deployment proof.
+        abi_path: abi/regent-staking-revenue-router-buyback.json
+        abi_sha256: 2629af417f877ec532a40e1a1c3a578a17fb3d9b4a2ad7facf4c5ef2060bf581
+        action_ids:
+          - settle_treasury_buyback
     validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs

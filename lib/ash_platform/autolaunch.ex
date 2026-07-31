@@ -59,6 +59,15 @@ defmodule AshPlatform.Autolaunch do
       define :list_subject_tokens,
         action: :for_subject,
         args: [:subject_id]
+
+      define :get_latest_subject_token_price,
+        action: :latest_price_for_subject,
+        args: [:subject_id],
+        not_found_error?: false
+
+      define :set_subject_token_price,
+        action: :set_price_snapshot,
+        args: [:price_quote, :price_source, :price_updated_at]
     end
 
     resource AshPlatform.Autolaunch.Subject do
@@ -88,6 +97,10 @@ defmodule AshPlatform.Autolaunch do
           :regent_emission_total_raw,
           :pending_buyback_usdc_raw
         ]
+
+      define :set_subject_buyback_router,
+        action: :set_buyback_router,
+        args: [:revenue_router_address]
     end
 
     resource AshPlatform.Autolaunch.SubjectAction do
@@ -206,6 +219,30 @@ defmodule AshPlatform.Autolaunch do
 
   def verify_bid_approval_submission(envelope, transaction_hash, opts \\ []),
     do: AshPlatform.Autolaunch.BidActions.approval_status(envelope, transaction_hash, opts)
+
+  def prepare_buyback_settlement(
+        subject_id,
+        signer,
+        amount_usdc,
+        minimum_regent_output,
+        opts \\ []
+      ) do
+    AshPlatform.Autolaunch.BuybackActions.prepare(
+      subject_id,
+      signer,
+      amount_usdc,
+      minimum_regent_output,
+      opts
+    )
+  end
+
+  def confirm_buyback_wallet_action(envelope, transaction_hash, opts \\ []) do
+    AshPlatform.Autolaunch.BuybackActions.confirm(envelope, transaction_hash, opts)
+  end
+
+  def restore_submitted_buyback_action(envelope, opts \\ []) do
+    AshPlatform.Autolaunch.BuybackActions.restore(envelope, opts)
+  end
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     AshPlatform.Autolaunch.Auction

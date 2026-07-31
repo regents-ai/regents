@@ -16,6 +16,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :subject_tokens, :list, required: true
   attr :subject_actions, :list, required: true
   attr :subject_settlements, :list, required: true
+  attr :buyback_fields, :map, default: %{"amount_usdc" => "", "minimum_regent_output" => ""}
+  attr :buyback_notice, :map, default: nil
+  attr :buyback_prepared, :map, default: nil
+  attr :buyback_submission, :map, default: nil
+  attr :buyback_signing, :boolean, default: false
   attr :bid_positions, :list, required: true
   attr :returnable_positions, :list, required: true
   attr :claimed_token_positions, :list, required: true
@@ -101,6 +106,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
       actions={@subject_actions}
       settlements={@subject_settlements}
       status={@status}
+      account_control={@account_control}
+      buyback_fields={@buyback_fields}
+      buyback_notice={@buyback_notice}
+      buyback_prepared={@buyback_prepared}
+      buyback_submission={@buyback_submission}
+      buyback_signing={@buyback_signing}
     />
     <.launch_detail
       :if={@route_spec.route_id == :autolaunch_launch}
@@ -444,6 +455,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :actions, :list, required: true
   attr :settlements, :list, required: true
   attr :status, :atom, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
+  attr :buyback_fields, :map, required: true
+  attr :buyback_notice, :map, default: nil
+  attr :buyback_prepared, :map, default: nil
+  attr :buyback_submission, :map, default: nil
+  attr :buyback_signing, :boolean, required: true
 
   defp subject_detail(assigns) do
     ~H"""
@@ -565,6 +582,16 @@ defmodule AshPlatformWeb.AutolaunchLive do
           id_prefix="subject-settlement"
         />
       </section>
+
+      <.buyback_wallet
+        record={@record}
+        account_control={@account_control}
+        fields={@buyback_fields}
+        notice={@buyback_notice}
+        prepared={@buyback_prepared}
+        submission={@buyback_submission}
+        signing={@buyback_signing}
+      />
     </article>
 
     <section
@@ -586,6 +613,130 @@ defmodule AshPlatformWeb.AutolaunchLive do
       <h1>Subject unavailable</h1>
       <p>This subject could not be loaded right now.</p>
       <.link patch="/autolaunch/subjects">Return to Subjects</.link>
+    </section>
+    """
+  end
+
+  attr :record, :map, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
+  attr :fields, :map, required: true
+  attr :notice, :map, default: nil
+  attr :prepared, :map, default: nil
+  attr :submission, :map, default: nil
+  attr :signing, :boolean, required: true
+
+  defp buyback_wallet(assigns) do
+    ~H"""
+    <section
+      id="subject-buyback-wallet"
+      phx-hook="AutolaunchBuybackWallet"
+      aria-labelledby="subject-buyback-wallet-title"
+    >
+      <p class="autolaunch-kicker">Wallet action</p>
+      <h2 id="subject-buyback-wallet-title">Settle a pending buyback</h2>
+      <p>
+        Regent checks the current market guardrails and prepares the revenue-router request.
+        Your verified wallet reviews and signs the settlement.
+      </p>
+
+      <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
+        Sign in to prepare a buyback settlement from a verified wallet.
+      </p>
+
+      <form
+        :if={@account_control.kind == :signed_in}
+        id="subject-buyback-form"
+        phx-submit="prepare_autolaunch_buyback"
+      >
+        <label>
+          <span>USDC amount</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            name="buyback[amount_usdc]"
+            value={@fields["amount_usdc"]}
+            autocomplete="off"
+            required
+          />
+        </label>
+        <label>
+          <span>Minimum REGENT output</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            name="buyback[minimum_regent_output]"
+            value={@fields["minimum_regent_output"]}
+            autocomplete="off"
+            required
+          />
+        </label>
+        <button type="submit" disabled={not is_nil(@submission)}>Review settlement</button>
+      </form>
+
+      <p
+        :if={@notice}
+        class={"autolaunch-draft-notice autolaunch-draft-notice--#{@notice.tone}"}
+        role={if(@notice.tone == :error, do: "alert", else: "status")}
+      >
+        {@notice.message}
+      </p>
+
+      <section :if={@prepared} id="subject-buyback-review" aria-label="Wallet action review">
+        <p class="autolaunch-kicker">Review before signing</p>
+        <h3>Settle treasury buyback</h3>
+        <p>{@prepared.risk_copy}</p>
+        <dl>
+          <div>
+            <dt>USDC amount</dt><dd>{buyback_argument(@prepared, :amount_usdc)}</dd>
+          </div>
+          <div>
+            <dt>Minimum REGENT output</dt>
+            <dd>{buyback_argument(@prepared, :minimum_regent_output)}</dd>
+          </div>
+          <div>
+            <dt>Subject</dt><dd>{buyback_argument(@prepared, :subject_id)}</dd>
+          </div>
+          <div>
+            <dt>Treasury</dt><dd>{buyback_argument(@prepared, :treasury)}</dd>
+          </div>
+          <div>
+            <dt>Network</dt><dd>Base</dd>
+          </div>
+          <div>
+            <dt>Wallet</dt><dd>{@prepared.expected_signer}</dd>
+          </div>
+          <div>
+            <dt>Contract</dt><dd>{@prepared.to}</dd>
+          </div>
+          <div>
+            <dt>Native value</dt><dd>0 ETH</dd>
+          </div>
+        </dl>
+        <button
+          :if={is_nil(@submission)}
+          type="button"
+          phx-click="sign_prepared_autolaunch_buyback"
+          phx-value-action-id={@prepared.action_id}
+          disabled={@signing}
+        >
+          {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
+        </button>
+        <button
+          :if={is_nil(@submission)}
+          type="button"
+          phx-click="cancel_autolaunch_buyback_review"
+        >
+          Cancel review
+        </button>
+        <button
+          :if={@submission && @submission[:transaction_hash]}
+          type="button"
+          phx-click="retry_autolaunch_buyback_confirmation"
+          disabled={@signing}
+        >
+          Retry confirmation
+        </button>
+      </section>
     </section>
     """
   end
@@ -1149,6 +1300,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp collection_record_kind(:tokens), do: :token
 
   defp subject_label(%{subject_id: subject_id}), do: subject_id
+
+  defp buyback_argument(%{arguments: arguments}, key) do
+    Map.get(arguments, key, Map.get(arguments, Atom.to_string(key)))
+  end
 
   defp launch_label(%{token_name: token_name, token_symbol: token_symbol}),
     do: "#{token_name} · #{token_symbol}"

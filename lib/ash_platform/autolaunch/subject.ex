@@ -53,6 +53,11 @@ defmodule AshPlatform.Autolaunch.Subject do
       constraints max_length: 128, trim?: true
     end
 
+    attribute :revenue_router_address, :string do
+      public? true
+      constraints max_length: 128, trim?: true
+    end
+
     attribute :creator_address, :string do
       public? true
       constraints max_length: 128, trim?: true
@@ -133,6 +138,11 @@ defmodule AshPlatform.Autolaunch.Subject do
         :pending_buyback_usdc_raw
       ]
     end
+
+    update :set_buyback_router do
+      require_atomic? false
+      accept [:revenue_router_address]
+    end
   end
 
   policies do
@@ -141,6 +151,10 @@ defmodule AshPlatform.Autolaunch.Subject do
     end
 
     policy action(:import_public) do
+      authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action(:set_buyback_router) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

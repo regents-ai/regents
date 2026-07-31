@@ -42,6 +42,20 @@ defmodule AshPlatform.Autolaunch.Token do
       constraints SubjectIdentity.constraints()
     end
 
+    attribute :price_quote, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :price_source, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :price_updated_at, :utc_datetime_usec do
+      public? true
+    end
+
     timestamps()
   end
 
@@ -85,8 +99,24 @@ defmodule AshPlatform.Autolaunch.Token do
       filter expr(id == ^arg(:id))
     end
 
+    read :latest_price_for_subject do
+      get? true
+
+      argument :subject_id, :string,
+        allow_nil?: false,
+        constraints: SubjectIdentity.constraints()
+
+      filter expr(subject_id == ^arg(:subject_id) and not is_nil(price_quote))
+      prepare build(sort: [price_updated_at: :desc, id: :desc], limit: 1)
+    end
+
     create :import_public do
       accept [:auction_id, :subject_id, :name, :symbol, :summary, :graduated_at, :top_rank]
+    end
+
+    update :set_price_snapshot do
+      require_atomic? false
+      accept [:price_quote, :price_source, :price_updated_at]
     end
   end
 
@@ -97,12 +127,13 @@ defmodule AshPlatform.Autolaunch.Token do
              :top_public,
              :recently_graduated_public,
              :for_subject,
-             :public_by_id
+             :public_by_id,
+             :latest_price_for_subject
            ]) do
       authorize_if always()
     end
 
-    policy action(:import_public) do
+    policy action([:import_public, :set_price_snapshot]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

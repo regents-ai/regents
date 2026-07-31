@@ -10,6 +10,7 @@ defmodule AshPlatform.WalletActions.Envelope do
     animata_redemption
     autolaunch_auction
     autolaunch_bid
+    autolaunch_buyback
   )
 
   def new(action, signer, data, opts \\ []) do

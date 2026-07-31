@@ -52,6 +52,11 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [bid_prepared_actions_migration] =
              Path.wildcard("priv/repo/migrations/*_add_autolaunch_bid_prepared_action_fields.exs")
 
+    assert [buyback_prepared_actions_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_add_autolaunch_buyback_prepared_action_fields.exs"
+             )
+
     assert [token_auction_identity_migration] =
              Path.wildcard("priv/repo/migrations/*_add_unique_autolaunch_token_auction.exs")
 
@@ -86,6 +91,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                launch_jobs_migration,
                bids_migration,
                bid_prepared_actions_migration,
+               buyback_prepared_actions_migration,
                token_auction_identity_migration,
                techtree_graph_migration,
                cloud_runtimes_migration,
@@ -233,6 +239,30 @@ defmodule AshPlatformWeb.BoundaryTest do
         "remove(:current_clearing_price)",
         "remove(:quote_token_decimals)",
         "remove(:quote_token_address)"
+      ]
+    )
+
+    assert_additive_migration(
+      buyback_prepared_actions_migration,
+      [
+        "alter table(:tokens",
+        "add(:price_quote, :text)",
+        "add(:price_source, :text)",
+        "add(:price_updated_at, :utc_datetime_usec)",
+        "alter table(:subjects",
+        "add(:revenue_router_address, :text)",
+        ~s(prefix: "autolaunch")
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      buyback_prepared_actions_migration,
+      [
+        "remove(:revenue_router_address)",
+        "remove(:price_updated_at)",
+        "remove(:price_source)",
+        "remove(:price_quote)"
       ]
     )
 

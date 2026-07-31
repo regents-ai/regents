@@ -68,6 +68,13 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_subject_tokens: [],
        autolaunch_subject_actions: [],
        autolaunch_subject_settlements: [],
+       autolaunch_buyback_fields: %{"amount_usdc" => "", "minimum_regent_output" => ""},
+       autolaunch_buyback_notice: nil,
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_submission: nil,
+       autolaunch_buyback_confirmation_name: nil,
+       autolaunch_buyback_expiry_ref: nil,
+       autolaunch_buyback_signing?: false,
        autolaunch_bid_positions: [],
        autolaunch_returnable_positions: [],
        autolaunch_claimed_token_positions: [],
@@ -611,6 +618,70 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_async({:autolaunch_bid_approval_status, _action_id}, _result, socket),
     do: {:noreply, socket}
+
+  def handle_async(
+        {:autolaunch_buyback_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true, transaction_reverted: true}}},
+        %{assigns: %{autolaunch_buyback_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_buyback_expiry()
+     |> assign(
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_submission: nil,
+       autolaunch_buyback_confirmation_name: nil,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: %{
+         tone: :error,
+         message: "The buyback transaction reverted. Prepare the settlement again when ready."
+       }
+     )
+     |> push_event("autolaunch-buyback:reverted", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_buyback_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true, subject: subject}}},
+        %{assigns: %{autolaunch_buyback_prepared: %{action_id: action_id}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_buyback_expiry()
+     |> assign(
+       autolaunch_record: subject,
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_submission:
+         Map.merge(socket.assigns.autolaunch_buyback_submission || %{}, %{status: :confirmed}),
+       autolaunch_buyback_confirmation_name: nil,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: %{
+         tone: :success,
+         message: "Confirmed on Base. The stored subject record is current."
+       }
+     )
+     |> push_event("autolaunch-buyback:confirmed", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_buyback_confirmation, action_id},
+        _result,
+        %{
+          assigns: %{
+            autolaunch_buyback_confirmation_name: {:autolaunch_buyback_confirmation, action_id}
+          }
+        } = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_buyback_confirmation_name: nil,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: %{
+         tone: :info,
+         message: "The transaction is not confirmed yet. Retry verification shortly."
+       }
+     )}
+  end
 
   def handle_async(
         {:autolaunch_bid_confirmation, action_id},
@@ -1191,6 +1262,189 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  def handle_event("prepare_autolaunch_buyback", %{"buyback" => fields}, socket) do
+    actor = human_actor(socket)
+    wallet = expected_wallet(socket)
+
+    result =
+      case socket.assigns.autolaunch_record do
+        subject when not is_nil(subject) ->
+          Autolaunch.prepare_buyback_settlement(
+            subject.subject_id,
+            wallet,
+            fields["amount_usdc"],
+            fields["minimum_regent_output"],
+            actor: actor
+          )
+
+        _ ->
+          {:error, :subject_not_found}
+      end
+
+    prepare_autolaunch_buyback_review(socket, result, fields)
+  end
+
+  def handle_event(
+        "sign_prepared_autolaunch_buyback",
+        %{"action-id" => action_id},
+        socket
+      ) do
+    case socket.assigns.autolaunch_buyback_prepared do
+      %{action_id: ^action_id} = envelope ->
+        if autolaunch_wallet_window_open?(envelope) and
+             is_nil(socket.assigns.autolaunch_buyback_submission) and
+             is_nil(socket.assigns.autolaunch_buyback_confirmation_name) do
+          {:noreply,
+           socket
+           |> assign(
+             autolaunch_buyback_signing?: true,
+             autolaunch_buyback_notice: %{
+               tone: :info,
+               message: "Complete the reviewed request in your wallet."
+             }
+           )
+           |> push_event("autolaunch-buyback:prepared", %{envelope: envelope})}
+        else
+          expired_autolaunch_buyback_review(socket)
+        end
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_buyback_notice: %{
+             tone: :error,
+             message: "This review is no longer current. Prepare the settlement again."
+           }
+         )}
+    end
+  end
+
+  def handle_event(
+        "autolaunch_buyback_submitted",
+        %{"action_id" => action_id, "transaction_hash" => hash},
+        socket
+      ) do
+    case {socket.assigns.autolaunch_buyback_prepared, valid_transaction_hash?(hash)} do
+      {%{action_id: ^action_id}, true} ->
+        {:noreply,
+         socket
+         |> cancel_autolaunch_buyback_expiry()
+         |> assign(
+           autolaunch_buyback_submission: %{
+             action_id: action_id,
+             transaction_hash: hash,
+             status: :main_pending
+           },
+           autolaunch_buyback_signing?: false,
+           autolaunch_buyback_notice: %{
+             tone: :info,
+             message: "Buyback transaction submitted: #{short_hash(hash)}"
+           }
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore_autolaunch_buyback_submission", params, socket) do
+    envelope = params["envelope"] || params[:envelope]
+    transaction_hash = params["transaction_hash"] || params[:transaction_hash]
+    actor = human_actor(socket)
+
+    with {:ok, restored} <-
+           Autolaunch.restore_submitted_buyback_action(envelope, actor: actor),
+         true <- valid_transaction_hash?(transaction_hash) do
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_buyback_prepared: restored,
+         autolaunch_buyback_submission: %{
+           action_id: restored.action_id,
+           transaction_hash: transaction_hash,
+           status: :main_pending
+         },
+         autolaunch_buyback_signing?: false,
+         autolaunch_buyback_notice: %{
+           tone: :info,
+           message: "A submitted buyback transaction is waiting for verification."
+         }
+       )
+       |> cancel_autolaunch_buyback_expiry()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "confirm_autolaunch_buyback",
+        %{"action_id" => action_id, "transaction_hash" => hash},
+        socket
+      ) do
+    case socket.assigns.autolaunch_buyback_prepared do
+      %{action_id: ^action_id} = envelope ->
+        confirm_autolaunch_buyback(socket, envelope, hash)
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_buyback_notice: %{
+             tone: :error,
+             message: "This wallet result does not match the reviewed settlement."
+           }
+         )}
+    end
+  end
+
+  def handle_event("retry_autolaunch_buyback_confirmation", _params, socket) do
+    with %{action_id: action_id} = envelope <- socket.assigns.autolaunch_buyback_prepared,
+         %{action_id: ^action_id, transaction_hash: hash} when is_binary(hash) <-
+           socket.assigns.autolaunch_buyback_submission do
+      confirm_autolaunch_buyback(socket, envelope, hash)
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_autolaunch_buyback_review", _params, socket) do
+    if is_nil(socket.assigns.autolaunch_buyback_submission) do
+      {:noreply,
+       socket
+       |> cancel_autolaunch_buyback_expiry()
+       |> assign(
+         autolaunch_buyback_prepared: nil,
+         autolaunch_buyback_signing?: false,
+         autolaunch_buyback_notice: %{
+           tone: :info,
+           message: "The wallet review was cancelled."
+         }
+       )
+       |> push_event("autolaunch-buyback:abandoned", %{})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("autolaunch_buyback_wallet_failed", %{"message" => message}, socket) do
+    message =
+      if is_binary(message) and byte_size(message) <= 180,
+        do: message,
+        else: "The wallet action did not complete."
+
+    notice =
+      if socket.assigns.autolaunch_buyback_submission do
+        %{tone: :info, message: "Transaction submitted. Verification can be retried safely."}
+      else
+        %{tone: :error, message: message}
+      end
+
+    {:noreply,
+     assign(socket,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: notice
+     )}
+  end
+
   def handle_event("prepare_autolaunch_bid", %{"bid" => fields}, socket) do
     actor = human_actor(socket)
     wallet = expected_wallet(socket)
@@ -1464,6 +1718,20 @@ defmodule AshPlatformWeb.ShellLive do
         if autolaunch_submission_hash?(submission),
           do: {:noreply, socket},
           else: expired_autolaunch_review(socket)
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_info({:autolaunch_buyback_envelope_expired, action_id}, socket) do
+    case {socket.assigns.autolaunch_buyback_prepared,
+          socket.assigns.autolaunch_buyback_submission} do
+      {%{action_id: ^action_id}, %{transaction_hash: hash}} when is_binary(hash) ->
+        {:noreply, socket}
+
+      {%{action_id: ^action_id}, _submission} ->
+        expired_autolaunch_buyback_review(socket)
 
       _ ->
         {:noreply, socket}
@@ -1755,6 +2023,11 @@ defmodule AshPlatformWeb.ShellLive do
           subject_tokens={@autolaunch_subject_tokens}
           subject_actions={@autolaunch_subject_actions}
           subject_settlements={@autolaunch_subject_settlements}
+          buyback_fields={@autolaunch_buyback_fields}
+          buyback_notice={@autolaunch_buyback_notice}
+          buyback_prepared={@autolaunch_buyback_prepared}
+          buyback_submission={@autolaunch_buyback_submission}
+          buyback_signing={@autolaunch_buyback_signing?}
           bid_positions={@autolaunch_bid_positions}
           returnable_positions={@autolaunch_returnable_positions}
           claimed_token_positions={@autolaunch_claimed_token_positions}
@@ -2722,6 +2995,50 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  defp prepare_autolaunch_buyback_review(socket, {:ok, envelope}, fields) do
+    {:noreply,
+     socket
+     |> assign(
+       autolaunch_buyback_fields: fields,
+       autolaunch_buyback_prepared: envelope,
+       autolaunch_buyback_submission: nil,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: %{
+         tone: :info,
+         message: "Review the settlement details before opening your wallet."
+       }
+     )
+     |> schedule_autolaunch_buyback_expiry(envelope)}
+  end
+
+  defp prepare_autolaunch_buyback_review(
+         socket,
+         {:error, :buyback_market_paused},
+         fields
+       ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_buyback_fields: fields,
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_notice: %{
+         tone: :error,
+         message: "This market is temporarily paused. Try again after prices refresh."
+       }
+     )}
+  end
+
+  defp prepare_autolaunch_buyback_review(socket, {:error, _reason}, fields) do
+    {:noreply,
+     assign(socket,
+       autolaunch_buyback_fields: fields,
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_notice: %{
+         tone: :error,
+         message: "That settlement could not be prepared. Check the amount and wallet."
+       }
+     )}
+  end
+
   defp confirm_autolaunch_bid(socket, envelope, transaction_hash, approval_hash) do
     if valid_transaction_hash?(transaction_hash) and
          (is_nil(approval_hash) or valid_transaction_hash?(approval_hash)) do
@@ -2751,6 +3068,40 @@ defmodule AshPlatformWeb.ShellLive do
        assign(socket,
          autolaunch_bid_signing?: false,
          autolaunch_bid_notice: %{tone: :error, message: "The transaction hash is invalid."}
+       )}
+    end
+  end
+
+  defp confirm_autolaunch_buyback(socket, envelope, transaction_hash) do
+    if valid_transaction_hash?(transaction_hash) do
+      actor = human_actor(socket)
+      name = {:autolaunch_buyback_confirmation, envelope.action_id}
+
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_buyback_confirmation_name: name,
+         autolaunch_buyback_signing?: true,
+         autolaunch_buyback_notice: %{
+           tone: :info,
+           message: "Confirming this transaction on Base…"
+         }
+       )
+       |> start_async(name, fn ->
+         Autolaunch.confirm_buyback_wallet_action(
+           envelope,
+           transaction_hash,
+           actor: actor
+         )
+       end)}
+    else
+      {:noreply,
+       assign(socket,
+         autolaunch_buyback_signing?: false,
+         autolaunch_buyback_notice: %{
+           tone: :error,
+           message: "The transaction hash is invalid."
+         }
        )}
     end
   end
@@ -2823,6 +3174,53 @@ defmodule AshPlatformWeb.ShellLive do
   defp cancel_autolaunch_bid_expiry(socket) do
     Process.cancel_timer(socket.assigns.autolaunch_bid_expiry_ref)
     assign(socket, autolaunch_bid_expiry_ref: nil)
+  end
+
+  defp schedule_autolaunch_buyback_expiry(socket, envelope) do
+    socket = cancel_autolaunch_buyback_expiry(socket)
+
+    case DateTime.from_iso8601(envelope.expires_at) do
+      {:ok, expires_at, _offset} ->
+        milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
+
+        ref =
+          Process.send_after(
+            self(),
+            {:autolaunch_buyback_envelope_expired, envelope.action_id},
+            milliseconds
+          )
+
+        assign(socket, autolaunch_buyback_expiry_ref: ref)
+
+      _ ->
+        socket
+    end
+  end
+
+  defp cancel_autolaunch_buyback_expiry(
+         %{assigns: %{autolaunch_buyback_expiry_ref: nil}} = socket
+       ),
+       do: socket
+
+  defp cancel_autolaunch_buyback_expiry(socket) do
+    Process.cancel_timer(socket.assigns.autolaunch_buyback_expiry_ref)
+    assign(socket, autolaunch_buyback_expiry_ref: nil)
+  end
+
+  defp expired_autolaunch_buyback_review(socket) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_buyback_expiry()
+     |> assign(
+       autolaunch_buyback_prepared: nil,
+       autolaunch_buyback_submission: nil,
+       autolaunch_buyback_signing?: false,
+       autolaunch_buyback_notice: %{
+         tone: :info,
+         message: "This wallet review expired. Prepare the buyback settlement again when ready."
+       }
+     )
+     |> push_event("autolaunch-buyback:abandoned", %{})}
   end
 
   defp expired_autolaunch_review(socket) do
