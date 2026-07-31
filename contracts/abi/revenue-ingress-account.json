@@ -1,0 +1,12 @@
+[
+  {
+    "inputs": [{"internalType": "bytes32", "name": "sourceRef", "type": "bytes32"}],
+    "name": "sweepUSDC",
+    "outputs": [
+      {"internalType": "uint256", "name": "balance", "type": "uint256"},
+      {"internalType": "uint256", "name": "recognized", "type": "uint256"}
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

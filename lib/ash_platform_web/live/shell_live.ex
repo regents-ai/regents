@@ -75,6 +75,13 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_buyback_confirmation_name: nil,
        autolaunch_buyback_expiry_ref: nil,
        autolaunch_buyback_signing?: false,
+       autolaunch_subject_payment_fields: %{},
+       autolaunch_subject_payment_notice: nil,
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_submission: nil,
+       autolaunch_subject_payment_confirmation_name: nil,
+       autolaunch_subject_payment_expiry_ref: nil,
+       autolaunch_subject_payment_signing?: false,
        autolaunch_bid_positions: [],
        autolaunch_returnable_positions: [],
        autolaunch_claimed_token_positions: [],
@@ -677,6 +684,142 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_buyback_confirmation_name: nil,
        autolaunch_buyback_signing?: false,
        autolaunch_buyback_notice: %{
+         tone: :info,
+         message: "The transaction is not confirmed yet. Retry verification shortly."
+       }
+     )}
+  end
+
+  def handle_async(
+        {:autolaunch_subject_payment_approval, action_id},
+        {:ok, {:ok, :reverted}},
+        %{
+          assigns: %{autolaunch_subject_payment_prepared: %{action_id: action_id}}
+        } = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_subject_payment_expiry()
+     |> assign(
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_submission: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
+         tone: :error,
+         message: "The exact subject-token approval reverted. Prepare the stake again."
+       }
+     )
+     |> push_event("autolaunch-subject-payment:approval-reverted", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_subject_payment_approval, action_id},
+        {:ok, {:ok, :success}},
+        %{
+          assigns: %{autolaunch_subject_payment_prepared: %{action_id: action_id}}
+        } = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_submission:
+         Map.put(
+           socket.assigns.autolaunch_subject_payment_submission,
+           :status,
+           :approval_verified
+         ),
+       autolaunch_subject_payment_notice: %{
+         tone: :info,
+         message: "Exact subject-token approval confirmed. Continue to the stake."
+       }
+     )}
+  end
+
+  def handle_async(
+        {:autolaunch_subject_payment_approval, action_id},
+        _result,
+        %{
+          assigns: %{autolaunch_subject_payment_prepared: %{action_id: action_id}}
+        } = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
+         tone: :info,
+         message: "The exact approval is not confirmed yet. Retry verification shortly."
+       }
+     )}
+  end
+
+  def handle_async({:autolaunch_subject_payment_approval, _action_id}, _result, socket),
+    do: {:noreply, socket}
+
+  def handle_async(
+        {:autolaunch_subject_payment_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true, transaction_reverted: true}}},
+        %{
+          assigns: %{autolaunch_subject_payment_prepared: %{action_id: action_id}}
+        } = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_subject_payment_expiry()
+     |> assign(
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_submission: nil,
+       autolaunch_subject_payment_confirmation_name: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
+         tone: :error,
+         message: "The subject transaction reverted. Prepare the action again."
+       }
+     )
+     |> push_event("autolaunch-subject-payment:reverted", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_subject_payment_confirmation, action_id},
+        {:ok, {:ok, %{receipt_verified: true, subject: subject}}},
+        %{
+          assigns: %{autolaunch_subject_payment_prepared: %{action_id: action_id}}
+        } = socket
+      ) do
+    {:noreply,
+     socket
+     |> cancel_autolaunch_subject_payment_expiry()
+     |> assign(
+       autolaunch_record: subject,
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_submission:
+         Map.merge(socket.assigns.autolaunch_subject_payment_submission || %{}, %{
+           status: :confirmed
+         }),
+       autolaunch_subject_payment_confirmation_name: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
+         tone: :success,
+         message: "Confirmed on Base. The stored subject record is current."
+       }
+     )
+     |> push_event("autolaunch-subject-payment:confirmed", %{})}
+  end
+
+  def handle_async(
+        {:autolaunch_subject_payment_confirmation, action_id},
+        _result,
+        %{
+          assigns: %{
+            autolaunch_subject_payment_confirmation_name:
+              {:autolaunch_subject_payment_confirmation, action_id}
+          }
+        } = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       autolaunch_subject_payment_confirmation_name: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
          tone: :info,
          message: "The transaction is not confirmed yet. Retry verification shortly."
        }
@@ -1445,6 +1588,222 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  def handle_event(
+        "prepare_autolaunch_subject_payment",
+        %{"subject_payment" => fields},
+        socket
+      ) do
+    prepare_autolaunch_subject_payment_review(
+      socket,
+      prepare_autolaunch_subject_payment(socket, fields),
+      fields
+    )
+  end
+
+  def handle_event(
+        "sign_prepared_autolaunch_subject_payment",
+        %{"action-id" => action_id},
+        socket
+      ) do
+    case socket.assigns.autolaunch_subject_payment_prepared do
+      %{action_id: ^action_id} = envelope ->
+        if autolaunch_wallet_window_open?(envelope) and
+             autolaunch_approval_authorized?(
+               envelope,
+               socket.assigns.autolaunch_subject_payment_submission
+             ) and
+             is_nil(socket.assigns.autolaunch_subject_payment_confirmation_name) do
+          {:noreply,
+           socket
+           |> assign(
+             autolaunch_subject_payment_signing?: true,
+             autolaunch_subject_payment_notice: %{
+               tone: :info,
+               message: "Complete the reviewed requests in your wallet."
+             }
+           )
+           |> push_event("autolaunch-subject-payment:prepared", %{envelope: envelope})}
+        else
+          expired_autolaunch_subject_payment_review(socket)
+        end
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_subject_payment_notice: %{
+             tone: :error,
+             message: "This review is no longer current. Prepare the action again."
+           }
+         )}
+    end
+  end
+
+  def handle_event(
+        "autolaunch_subject_payment_submitted",
+        %{"action_id" => action_id, "phase" => phase, "transaction_hash" => hash},
+        socket
+      ) do
+    case {socket.assigns.autolaunch_subject_payment_prepared, valid_transaction_hash?(hash)} do
+      {%{action_id: ^action_id}, true} ->
+        submission =
+          record_submission(
+            socket.assigns.autolaunch_subject_payment_submission,
+            action_id,
+            phase,
+            hash
+          )
+
+        {:noreply,
+         socket
+         |> cancel_autolaunch_subject_payment_expiry()
+         |> assign(
+           autolaunch_subject_payment_submission: submission,
+           autolaunch_subject_payment_signing?: false,
+           autolaunch_subject_payment_notice: %{
+             tone: :info,
+             message: subject_payment_submitted_copy(phase, hash)
+           }
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore_autolaunch_subject_payment_submission", params, socket) do
+    envelope = params["envelope"] || params[:envelope]
+    approval_hash = params["approval_transaction_hash"] || params[:approval_transaction_hash]
+    transaction_hash = params["transaction_hash"] || params[:transaction_hash]
+    actor = human_actor(socket)
+
+    with {:ok, restored} <-
+           Autolaunch.restore_submitted_subject_payment_action(envelope, actor: actor),
+         true <- is_nil(approval_hash) or valid_transaction_hash?(approval_hash),
+         true <- is_nil(transaction_hash) or valid_transaction_hash?(transaction_hash),
+         true <- is_binary(approval_hash) or is_binary(transaction_hash) do
+      status = if transaction_hash, do: :main_pending, else: :approval_pending
+
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_subject_payment_prepared: restored,
+         autolaunch_subject_payment_submission: %{
+           action_id: restored.action_id,
+           approval_transaction_hash: approval_hash,
+           transaction_hash: transaction_hash,
+           status: status
+         },
+         autolaunch_subject_payment_signing?: false,
+         autolaunch_subject_payment_notice: %{
+           tone: :info,
+           message: "A submitted subject transaction is waiting for verification."
+         }
+       )
+       |> cancel_autolaunch_subject_payment_expiry()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "retry_autolaunch_subject_payment_approval_verification",
+        _params,
+        socket
+      ) do
+    with %{action_id: action_id} = envelope <-
+           socket.assigns.autolaunch_subject_payment_prepared,
+         %{action_id: ^action_id, approval_transaction_hash: hash} when is_binary(hash) <-
+           socket.assigns.autolaunch_subject_payment_submission do
+      {:noreply, start_autolaunch_subject_payment_approval(socket, envelope, hash)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "confirm_autolaunch_subject_payment",
+        %{"action_id" => action_id, "transaction_hash" => hash} = params,
+        socket
+      ) do
+    case socket.assigns.autolaunch_subject_payment_prepared do
+      %{action_id: ^action_id} = envelope ->
+        confirm_autolaunch_subject_payment(
+          socket,
+          envelope,
+          hash,
+          params["approval_transaction_hash"]
+        )
+
+      _ ->
+        {:noreply,
+         assign(socket,
+           autolaunch_subject_payment_notice: %{
+             tone: :error,
+             message: "This wallet result does not match the reviewed subject action."
+           }
+         )}
+    end
+  end
+
+  def handle_event("retry_autolaunch_subject_payment_confirmation", _params, socket) do
+    with %{action_id: action_id} = envelope <-
+           socket.assigns.autolaunch_subject_payment_prepared,
+         %{action_id: ^action_id, transaction_hash: hash} = submission
+         when is_binary(hash) <- socket.assigns.autolaunch_subject_payment_submission do
+      confirm_autolaunch_subject_payment(
+        socket,
+        envelope,
+        hash,
+        submission[:approval_transaction_hash]
+      )
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_autolaunch_subject_payment_review", _params, socket) do
+    if is_nil(socket.assigns.autolaunch_subject_payment_submission) do
+      {:noreply,
+       socket
+       |> cancel_autolaunch_subject_payment_expiry()
+       |> assign(
+         autolaunch_subject_payment_prepared: nil,
+         autolaunch_subject_payment_signing?: false,
+         autolaunch_subject_payment_notice: %{
+           tone: :info,
+           message: "The wallet review was cancelled."
+         }
+       )
+       |> push_event("autolaunch-subject-payment:abandoned", %{})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "autolaunch_subject_payment_wallet_failed",
+        %{"message" => message},
+        socket
+      ) do
+    message =
+      if is_binary(message) and byte_size(message) <= 180,
+        do: message,
+        else: "The wallet action did not complete."
+
+    notice =
+      if socket.assigns.autolaunch_subject_payment_submission do
+        %{tone: :info, message: "Transaction submitted. Verification can be retried safely."}
+      else
+        %{tone: :error, message: message}
+      end
+
+    {:noreply,
+     assign(socket,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: notice
+     )}
+  end
+
   def handle_event("prepare_autolaunch_bid", %{"bid" => fields}, socket) do
     actor = human_actor(socket)
     wallet = expected_wallet(socket)
@@ -1732,6 +2091,19 @@ defmodule AshPlatformWeb.ShellLive do
 
       {%{action_id: ^action_id}, _submission} ->
         expired_autolaunch_buyback_review(socket)
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_info({:autolaunch_subject_payment_envelope_expired, action_id}, socket) do
+    case {socket.assigns.autolaunch_subject_payment_prepared,
+          socket.assigns.autolaunch_subject_payment_submission} do
+      {%{action_id: ^action_id}, submission} ->
+        if autolaunch_submission_hash?(submission),
+          do: {:noreply, socket},
+          else: expired_autolaunch_subject_payment_review(socket)
 
       _ ->
         {:noreply, socket}
@@ -2028,6 +2400,11 @@ defmodule AshPlatformWeb.ShellLive do
           buyback_prepared={@autolaunch_buyback_prepared}
           buyback_submission={@autolaunch_buyback_submission}
           buyback_signing={@autolaunch_buyback_signing?}
+          subject_payment_fields={@autolaunch_subject_payment_fields}
+          subject_payment_notice={@autolaunch_subject_payment_notice}
+          subject_payment_prepared={@autolaunch_subject_payment_prepared}
+          subject_payment_submission={@autolaunch_subject_payment_submission}
+          subject_payment_signing={@autolaunch_subject_payment_signing?}
           bid_positions={@autolaunch_bid_positions}
           returnable_positions={@autolaunch_returnable_positions}
           claimed_token_positions={@autolaunch_claimed_token_positions}
@@ -3039,6 +3416,110 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  defp prepare_autolaunch_subject_payment(socket, fields) do
+    actor = human_actor(socket)
+    wallet = expected_wallet(socket)
+
+    case {socket.assigns.autolaunch_record, fields["action"]} do
+      {%{subject_id: subject_id}, "create_payment_link"} ->
+        with {:ok, canonical} <- strict_boolean(fields["canonical"]) do
+          Autolaunch.prepare_subject_payment_link(
+            subject_id,
+            wallet,
+            fields["label"],
+            canonical,
+            actor: actor
+          )
+        end
+
+      {%{subject_id: subject_id}, "set_payment_link_canonical"} ->
+        with {:ok, canonical} <- strict_boolean(fields["canonical"]) do
+          Autolaunch.prepare_subject_payment_link_canonical(
+            subject_id,
+            wallet,
+            fields["receiver"],
+            canonical,
+            actor: actor
+          )
+        end
+
+      {%{subject_id: subject_id}, "set_payment_link_state"} ->
+        with {:ok, active} <- strict_boolean(fields["active"]) do
+          Autolaunch.prepare_subject_payment_link_state(
+            subject_id,
+            wallet,
+            fields["receiver"],
+            active,
+            fields["replacement"],
+            actor: actor
+          )
+        end
+
+      {%{subject_id: subject_id, ingress_address: ingress}, "sweep_usdc"} ->
+        Autolaunch.prepare_subject_ingress_sweep(
+          subject_id,
+          wallet,
+          ingress,
+          actor: actor
+        )
+
+      {%{subject_id: subject_id}, "stake"} ->
+        Autolaunch.prepare_subject_stake(
+          subject_id,
+          wallet,
+          fields["amount"],
+          fields["receiver"],
+          actor: actor
+        )
+
+      {%{subject_id: subject_id}, "unstake"} ->
+        Autolaunch.prepare_subject_unstake(
+          subject_id,
+          wallet,
+          fields["amount"],
+          actor: actor
+        )
+
+      {%{subject_id: subject_id}, "claim_usdc"} ->
+        Autolaunch.prepare_subject_claim_usdc(subject_id, wallet, actor: actor)
+
+      _ ->
+        {:error, :subject_action_unavailable}
+    end
+  end
+
+  defp prepare_autolaunch_subject_payment_review(socket, {:ok, envelope}, fields) do
+    {:noreply,
+     socket
+     |> assign(
+       autolaunch_subject_payment_fields: fields,
+       autolaunch_subject_payment_prepared: envelope,
+       autolaunch_subject_payment_submission: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{
+         tone: :info,
+         message: "Review the subject action before opening your wallet."
+       }
+     )
+     |> schedule_autolaunch_subject_payment_expiry(envelope)}
+  end
+
+  defp prepare_autolaunch_subject_payment_review(socket, {:error, _reason}, fields) do
+    {:noreply,
+     assign(socket,
+       autolaunch_subject_payment_fields: fields,
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_notice: %{
+         tone: :error,
+         message: "That subject action could not be prepared. Check its details and wallet."
+       }
+     )}
+  end
+
+  defp strict_boolean("true"), do: {:ok, true}
+  defp strict_boolean("false"), do: {:ok, false}
+  defp strict_boolean(_value), do: {:error, :invalid_boolean}
+
   defp confirm_autolaunch_bid(socket, envelope, transaction_hash, approval_hash) do
     if valid_transaction_hash?(transaction_hash) and
          (is_nil(approval_hash) or valid_transaction_hash?(approval_hash)) do
@@ -3106,6 +3587,47 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  defp confirm_autolaunch_subject_payment(
+         socket,
+         envelope,
+         transaction_hash,
+         approval_hash
+       ) do
+    if valid_transaction_hash?(transaction_hash) and
+         (is_nil(approval_hash) or valid_transaction_hash?(approval_hash)) do
+      actor = human_actor(socket)
+      name = {:autolaunch_subject_payment_confirmation, envelope.action_id}
+
+      {:noreply,
+       socket
+       |> assign(
+         autolaunch_subject_payment_confirmation_name: name,
+         autolaunch_subject_payment_signing?: true,
+         autolaunch_subject_payment_notice: %{
+           tone: :info,
+           message: "Confirming this transaction on Base…"
+         }
+       )
+       |> start_async(name, fn ->
+         Autolaunch.confirm_subject_payment_action(
+           envelope,
+           transaction_hash,
+           approval_hash,
+           actor: actor
+         )
+       end)}
+    else
+      {:noreply,
+       assign(socket,
+         autolaunch_subject_payment_signing?: false,
+         autolaunch_subject_payment_notice: %{
+           tone: :error,
+           message: "The transaction hash is invalid."
+         }
+       )}
+    end
+  end
+
   defp start_autolaunch_approval_verification(socket, envelope, hash) do
     actor = human_actor(socket)
     name = {:autolaunch_bid_approval_status, envelope.action_id}
@@ -3120,6 +3642,23 @@ defmodule AshPlatformWeb.ShellLive do
     )
     |> start_async(name, fn ->
       Autolaunch.verify_bid_approval_submission(envelope, hash, actor: actor)
+    end)
+  end
+
+  defp start_autolaunch_subject_payment_approval(socket, envelope, hash) do
+    actor = human_actor(socket)
+    name = {:autolaunch_subject_payment_approval, envelope.action_id}
+
+    socket
+    |> assign(
+      autolaunch_subject_payment_signing?: true,
+      autolaunch_subject_payment_notice: %{
+        tone: :info,
+        message: "Verifying the exact subject-token approval on Base…"
+      }
+    )
+    |> start_async(name, fn ->
+      Autolaunch.verify_subject_payment_approval(envelope, hash, actor: actor)
     end)
   end
 
@@ -3207,6 +3746,37 @@ defmodule AshPlatformWeb.ShellLive do
     assign(socket, autolaunch_buyback_expiry_ref: nil)
   end
 
+  defp schedule_autolaunch_subject_payment_expiry(socket, envelope) do
+    socket = cancel_autolaunch_subject_payment_expiry(socket)
+
+    case DateTime.from_iso8601(envelope.expires_at) do
+      {:ok, expires_at, _offset} ->
+        milliseconds = max(DateTime.diff(expires_at, Envelope.current_time(), :millisecond), 0)
+
+        ref =
+          Process.send_after(
+            self(),
+            {:autolaunch_subject_payment_envelope_expired, envelope.action_id},
+            milliseconds
+          )
+
+        assign(socket, autolaunch_subject_payment_expiry_ref: ref)
+
+      _ ->
+        socket
+    end
+  end
+
+  defp cancel_autolaunch_subject_payment_expiry(
+         %{assigns: %{autolaunch_subject_payment_expiry_ref: nil}} = socket
+       ),
+       do: socket
+
+  defp cancel_autolaunch_subject_payment_expiry(socket) do
+    Process.cancel_timer(socket.assigns.autolaunch_subject_payment_expiry_ref)
+    assign(socket, autolaunch_subject_payment_expiry_ref: nil)
+  end
+
   defp expired_autolaunch_buyback_review(socket) do
     {:noreply,
      socket
@@ -3221,6 +3791,32 @@ defmodule AshPlatformWeb.ShellLive do
        }
      )
      |> push_event("autolaunch-buyback:abandoned", %{})}
+  end
+
+  defp expired_autolaunch_subject_payment_review(socket) do
+    approval_submitted? =
+      match?(
+        %{approval_transaction_hash: hash} when is_binary(hash),
+        socket.assigns.autolaunch_subject_payment_submission
+      )
+
+    message =
+      if approval_submitted? do
+        "This review expired before the subject stake was sent. The exact subject-token approval may remain onchain; review it in your wallet before preparing again."
+      else
+        "This wallet review expired. Prepare the subject action again when ready."
+      end
+
+    {:noreply,
+     socket
+     |> cancel_autolaunch_subject_payment_expiry()
+     |> assign(
+       autolaunch_subject_payment_prepared: nil,
+       autolaunch_subject_payment_submission: nil,
+       autolaunch_subject_payment_signing?: false,
+       autolaunch_subject_payment_notice: %{tone: :info, message: message}
+     )
+     |> push_event("autolaunch-subject-payment:abandoned", %{})}
   end
 
   defp expired_autolaunch_review(socket) do
@@ -3278,6 +3874,14 @@ defmodule AshPlatformWeb.ShellLive do
     do: "Auction transaction submitted: #{short_hash(hash)}"
 
   defp autolaunch_submitted_copy(_phase, _hash), do: "Transaction submitted."
+
+  defp subject_payment_submitted_copy("approval", hash),
+    do: "Exact subject-token approval submitted: #{short_hash(hash)}"
+
+  defp subject_payment_submitted_copy("action", hash),
+    do: "Subject transaction submitted: #{short_hash(hash)}"
+
+  defp subject_payment_submitted_copy(_phase, _hash), do: "Transaction submitted."
 
   defp confirm_staking(socket, envelope, transaction_hash) do
     actor = staking_actor(socket)

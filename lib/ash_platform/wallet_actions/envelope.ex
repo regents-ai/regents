@@ -11,6 +11,9 @@ defmodule AshPlatform.WalletActions.Envelope do
     autolaunch_auction
     autolaunch_bid
     autolaunch_buyback
+    autolaunch_payment_link
+    autolaunch_ingress
+    autolaunch_subject_staking
   )
 
   def new(action, signer, data, opts \\ []) do

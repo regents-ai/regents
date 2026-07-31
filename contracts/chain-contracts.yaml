@@ -13,6 +13,15 @@ contracts:
       - continuous_clearing_auction.claim_bid
       - quote_token_erc20.approve_exact
       - regent_staking_revenue_router.settle_treasury_buyback
+      - payment_link_factory.create_payment_link
+      - payment_link_factory.create_canonical_payment_link
+      - payment_link_factory.set_payment_link_canonical
+      - payment_link_factory.set_payment_link_receiver_state
+      - revenue_ingress_account.sweep_usdc
+      - subject_token_erc20.approve_exact
+      - revenue_share_splitter_v2.stake
+      - revenue_share_splitter_v2.unstake
+      - revenue_share_splitter_v2.claim_usdc
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json
@@ -70,4 +79,62 @@ contracts:
         abi_sha256: 2629af417f877ec532a40e1a1c3a578a17fb3d9b4a2ad7facf4c5ef2060bf581
         action_ids:
           - settle_treasury_buyback
+      - contract_id: payment_link_factory
+        contract_name: PaymentLinkFactory
+        target: stored_subject_factory_address
+        abi_path: abi/payment-link-factory.json
+        abi_sha256: 121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343
+        implementation_provenance: >-
+          archive/repos/platform/contracts/src/revenue/PaymentLinkFactory.sol:30-36,64-115,197
+          defines the PaymentLinkCreated(bytes32,address,address,string,bool) event, the four
+          nonpayable calls and their address return or empty returns, and the create emission.
+          Function selectors are derived from those implementation signatures. Event topic0
+          is offline Keccak-256 of the canonical event signature:
+          0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb.
+        confirmation_event_signature: PaymentLinkCreated(bytes32,address,address,string,bool)
+        confirmation_event_topic0: "0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb"
+        action_ids:
+          - create_payment_link
+          - create_canonical_payment_link
+          - set_payment_link_canonical
+          - set_payment_link_receiver_state
+      - contract_id: revenue_ingress_account
+        contract_name: RevenueIngressAccount
+        target: stored_subject_ingress_account
+        abi_path: abi/revenue-ingress-account.json
+        abi_sha256: 5175b02535ed6058b2abcc27215680316d634ec77c06359ae3aa9b2174366da6
+        implementation_provenance: >-
+          archive/repos/platform/contracts/src/revenue/RevenueIngressAccount.sol:183-206
+          defines nonpayable sweepUSDC(bytes32) returning balance and recognized uint256 values;
+          the selector is derived from that implementation signature.
+        action_ids:
+          - sweep_usdc
+      - contract_id: subject_token_erc20
+        contract_name: IERC20
+        target: stored_subject_token_address
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        implementation_provenance: >-
+          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:45
+          declares the immutable stake token; RevenueShareSplitterV2.sol:174 assigns it in
+          the constructor; RevenueShareSplitterV2.sol:299-310 defines the stake entrypoint
+          and pull; RevenueShareSplitterV2.sol:781 enforces the exact balance delta. The
+          prepared allowance uses the standard nonpayable ERC-20 approve interface.
+        action_ids:
+          - approve_exact
+      - contract_id: revenue_share_splitter_v2
+        contract_name: RevenueShareSplitterV2
+        target: stored_subject_splitter_address
+        abi_path: abi/revenue-share-splitter-v2.json
+        abi_sha256: a21b53836c452ce8bb6c3892543cb47521ff9186a01e3327363cc5853f9da69e
+        implementation_provenance: >-
+          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:299-328
+          defines nonpayable stake and unstake with empty returns, while
+          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:432-442
+          defines nonpayable claimUSDC(address) returning uint256 amount; selectors are
+          derived from those implementation signatures.
+        action_ids:
+          - stake
+          - unstake
+          - claim_usdc
     validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs

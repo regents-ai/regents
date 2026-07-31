@@ -4,6 +4,8 @@ defmodule AshPlatform.Autolaunch do
 
   require Ash.Query
 
+  @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
+
   resources do
     resource AshPlatform.Autolaunch.LaunchDraft do
       define :create_launch_draft,
@@ -102,6 +104,8 @@ defmodule AshPlatform.Autolaunch do
         action: :set_buyback_router,
         args: [:revenue_router_address]
     end
+
+    resource @payment_link_resource
 
     resource AshPlatform.Autolaunch.SubjectAction do
       define :list_subject_actions,
@@ -242,6 +246,122 @@ defmodule AshPlatform.Autolaunch do
 
   def restore_submitted_buyback_action(envelope, opts \\ []) do
     AshPlatform.Autolaunch.BuybackActions.restore(envelope, opts)
+  end
+
+  def prepare_subject_payment_link(
+        subject_id,
+        signer,
+        label,
+        canonical,
+        opts \\ []
+      ) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link(
+      subject_id,
+      signer,
+      label,
+      canonical,
+      opts
+    )
+  end
+
+  def prepare_subject_payment_link_canonical(
+        subject_id,
+        signer,
+        receiver,
+        canonical,
+        opts \\ []
+      ) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link_canonical(
+      subject_id,
+      signer,
+      receiver,
+      canonical,
+      opts
+    )
+  end
+
+  def prepare_subject_payment_link_state(
+        subject_id,
+        signer,
+        receiver,
+        active,
+        replacement,
+        opts \\ []
+      ) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link_state(
+      subject_id,
+      signer,
+      receiver,
+      active,
+      replacement,
+      opts
+    )
+  end
+
+  def prepare_subject_ingress_sweep(subject_id, signer, ingress_address, opts \\ []) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_ingress_sweep(
+      subject_id,
+      signer,
+      ingress_address,
+      opts
+    )
+  end
+
+  def prepare_subject_stake(subject_id, signer, amount, opts) when is_list(opts) do
+    prepare_subject_stake(subject_id, signer, amount, nil, opts)
+  end
+
+  def prepare_subject_stake(subject_id, signer, amount, receiver, opts) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_stake(
+      subject_id,
+      signer,
+      amount,
+      receiver,
+      opts
+    )
+  end
+
+  def prepare_subject_unstake(subject_id, signer, amount, opts \\ []) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_unstake(
+      subject_id,
+      signer,
+      amount,
+      opts
+    )
+  end
+
+  def prepare_subject_claim_usdc(subject_id, signer, opts \\ []) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_claim_usdc(
+      subject_id,
+      signer,
+      opts
+    )
+  end
+
+  def confirm_subject_payment_action(
+        envelope,
+        transaction_hash,
+        approval_transaction_hash,
+        opts \\ []
+      ) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.confirm(
+      envelope,
+      transaction_hash,
+      approval_transaction_hash,
+      opts
+    )
+  end
+
+  def restore_submitted_subject_payment_action(envelope, opts \\ []) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.restore(envelope, opts)
+  end
+
+  def verify_subject_payment_approval(envelope, transaction_hash, opts \\ []) do
+    AshPlatform.Autolaunch.SubjectPaymentActions.approval_status(
+      envelope,
+      transaction_hash,
+      opts
+    )
   end
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do

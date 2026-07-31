@@ -57,6 +57,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                "priv/repo/migrations/*_add_autolaunch_buyback_prepared_action_fields.exs"
              )
 
+    assert [payment_links_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_autolaunch_payment_links.exs")
+
     assert [token_auction_identity_migration] =
              Path.wildcard("priv/repo/migrations/*_add_unique_autolaunch_token_auction.exs")
 
@@ -92,6 +95,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                bids_migration,
                bid_prepared_actions_migration,
                buyback_prepared_actions_migration,
+               payment_links_migration,
                token_auction_identity_migration,
                techtree_graph_migration,
                cloud_runtimes_migration,
@@ -264,6 +268,18 @@ defmodule AshPlatformWeb.BoundaryTest do
         "remove(:price_source)",
         "remove(:price_quote)"
       ]
+    )
+
+    assert_additive_migration(
+      payment_links_migration,
+      [
+        "create table(:payment_links",
+        "references(:subjects",
+        "create index(:payment_links, [:subject_id]",
+        "create unique_index(:payment_links, [:receiver_address]",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
     )
 
     assert_additive_migration(

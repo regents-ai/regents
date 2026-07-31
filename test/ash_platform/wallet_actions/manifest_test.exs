@@ -41,6 +41,25 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "regent_staking_revenue_router" => %{
       "settle_treasury_buyback" =>
         {"settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32)", "0xd8df40b6"}
+    },
+    "payment_link_factory" => %{
+      "create_payment_link" => {"createPaymentLink(bytes32,string,bytes32)", "0x96bc6c1a"},
+      "create_canonical_payment_link" =>
+        {"createCanonicalPaymentLink(bytes32,string,bytes32)", "0xb12d629e"},
+      "set_payment_link_canonical" => {"setPaymentLinkCanonical(address,bool)", "0x706a7fa6"},
+      "set_payment_link_receiver_state" =>
+        {"setPaymentLinkReceiverState(address,bool,address)", "0xc8c05f99"}
+    },
+    "revenue_ingress_account" => %{
+      "sweep_usdc" => {"sweepUSDC(bytes32)", "0xbe25fb30"}
+    },
+    "subject_token_erc20" => %{
+      "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
+    },
+    "revenue_share_splitter_v2" => %{
+      "stake" => {"stake(uint256,address)", "0x7acb7757"},
+      "unstake" => {"unstake(uint256,address)", "0x8381e182"},
+      "claim_usdc" => {"claimUSDC(address)", "0x42852610"}
     }
   }
 

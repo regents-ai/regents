@@ -98,6 +98,7 @@ defmodule AshPlatform.Autolaunch.Subject do
 
   relationships do
     has_many :actions, AshPlatform.Autolaunch.SubjectAction
+    has_many :payment_links, AshPlatform.Autolaunch.PaymentLink
   end
 
   actions do

@@ -21,15 +21,13 @@ defmodule AshPlatform.WalletActions.Rpc do
   end
 
   def confirmed_transaction(hash, signer, to, data, opts \\ []) do
-    case submission_status(hash, signer, to, data, opts) do
-      {:ok, :success} -> :ok
-      {:ok, :reverted} -> {:error, :transaction_reverted}
-      {:ok, :pending} -> {:error, :transaction_pending}
+    case confirmed_transaction_receipt(hash, signer, to, data, opts) do
+      {:ok, _receipt} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
-  def submission_status(hash, signer, to, data, opts \\ []) do
+  def confirmed_transaction_receipt(hash, signer, to, data, opts \\ []) do
     with true <- valid_hash?(hash),
          :ok <- verify_base_chain(opts),
          {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
@@ -37,13 +35,29 @@ defmodule AshPlatform.WalletActions.Rpc do
          :ok <- verify_receipt_hash(receipt, hash),
          :ok <- verify_transaction(transaction, hash, signer, to, data) do
       case receipt do
-        %{"status" => "0x1", "blockNumber" => block} when is_binary(block) -> {:ok, :success}
-        %{"status" => "0x0", "blockNumber" => block} when is_binary(block) -> {:ok, :reverted}
-        nil -> {:ok, :pending}
-        _ -> {:error, :invalid_receipt}
+        %{"status" => "0x1", "blockNumber" => block} when is_binary(block) ->
+          {:ok, receipt}
+
+        %{"status" => "0x0", "blockNumber" => block} when is_binary(block) ->
+          {:error, :transaction_reverted}
+
+        nil ->
+          {:error, :transaction_pending}
+
+        _ ->
+          {:error, :invalid_receipt}
       end
     else
       false -> {:error, :invalid_confirmation}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def submission_status(hash, signer, to, data, opts \\ []) do
+    case confirmed_transaction_receipt(hash, signer, to, data, opts) do
+      {:ok, _receipt} -> {:ok, :success}
+      {:error, :transaction_reverted} -> {:ok, :reverted}
+      {:error, :transaction_pending} -> {:ok, :pending}
       {:error, reason} -> {:error, reason}
     end
   end

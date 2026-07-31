@@ -8,6 +8,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @auction_abi_sha256 "901e5873cc24b52eac61553bcdee68c208fb4c210e081337fdbad28f5ac61b76"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
   @buyback_abi_sha256 "2629af417f877ec532a40e1a1c3a578a17fb3d9b4a2ad7facf4c5ef2060bf581"
+  @payment_link_abi_sha256 "121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343"
+  @payment_link_created_signature "PaymentLinkCreated(bytes32,address,address,string,bool)"
+  @payment_link_created_topic0 "0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb"
+  @ingress_abi_sha256 "5175b02535ed6058b2abcc27215680316d634ec77c06359ae3aa9b2174366da6"
+  @splitter_abi_sha256 "a21b53836c452ce8bb6c3892543cb47521ff9186a01e3327363cc5853f9da69e"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -368,13 +373,26 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              "continuous_clearing_auction.return_quote_token",
              "continuous_clearing_auction.claim_bid",
              "quote_token_erc20.approve_exact",
-             "regent_staking_revenue_router.settle_treasury_buyback"
+             "regent_staking_revenue_router.settle_treasury_buyback",
+             "payment_link_factory.create_payment_link",
+             "payment_link_factory.create_canonical_payment_link",
+             "payment_link_factory.set_payment_link_canonical",
+             "payment_link_factory.set_payment_link_receiver_state",
+             "revenue_ingress_account.sweep_usdc",
+             "subject_token_erc20.approve_exact",
+             "revenue_share_splitter_v2.stake",
+             "revenue_share_splitter_v2.unstake",
+             "revenue_share_splitter_v2.claim_usdc"
            ]
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
     auction = evidence["continuous_clearing_auction"]
     erc20 = evidence["quote_token_erc20"]
     buyback = evidence["regent_staking_revenue_router"]
+    payment_links = evidence["payment_link_factory"]
+    ingress = evidence["revenue_ingress_account"]
+    subject_erc20 = evidence["subject_token_erc20"]
+    splitter = evidence["revenue_share_splitter_v2"]
 
     assert auction["contract_name"] == "IContinuousClearingAuction"
     assert auction["target"] == "stored_auction_address"
@@ -391,11 +409,30 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert buyback["interface_provenance"] =~ "selector 0xd8df40b6"
     assert buyback["implementation_note"] =~ "selector 0x9f93f885"
     assert buyback["implementation_note"] =~ "not implementation or deployment proof"
+    assert payment_links["target"] == "stored_subject_factory_address"
+    assert payment_links["implementation_provenance"] =~ "PaymentLinkFactory.sol:30-36,64-115,197"
+    assert payment_links["confirmation_event_signature"] == @payment_link_created_signature
+    assert payment_links["confirmation_event_topic0"] == @payment_link_created_topic0
+    assert keccak(@payment_link_created_signature) == @payment_link_created_topic0
+    assert ingress["target"] == "stored_subject_ingress_account"
+    assert ingress["implementation_provenance"] =~ "RevenueIngressAccount.sol:183-206"
+    assert subject_erc20["target"] == "stored_subject_token_address"
+    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:45"
+    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:174"
+    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:299-310"
+    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:781"
+    assert splitter["target"] == "stored_subject_splitter_address"
+    assert splitter["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:299-328"
+    assert splitter["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:432-442"
 
     for {entry, digest} <- [
           {auction, @auction_abi_sha256},
           {erc20, @erc20_approve_abi_sha256},
-          {buyback, @buyback_abi_sha256}
+          {buyback, @buyback_abi_sha256},
+          {payment_links, @payment_link_abi_sha256},
+          {ingress, @ingress_abi_sha256},
+          {subject_erc20, @erc20_approve_abi_sha256},
+          {splitter, @splitter_abi_sha256}
         ] do
       path = Path.join([@root, "contracts", entry["abi_path"]])
       assert File.regular?(path)
@@ -411,8 +448,80 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       %{
         "signature" => "settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32)",
         "selector" => "0xd8df40b6"
-      }
+      },
+      %{
+        "signature" => "createPaymentLink(bytes32,string,bytes32)",
+        "selector" => "0x96bc6c1a"
+      },
+      %{
+        "signature" => "createCanonicalPaymentLink(bytes32,string,bytes32)",
+        "selector" => "0xb12d629e"
+      },
+      %{"signature" => "setPaymentLinkCanonical(address,bool)", "selector" => "0x706a7fa6"},
+      %{
+        "signature" => "setPaymentLinkReceiverState(address,bool,address)",
+        "selector" => "0xc8c05f99"
+      },
+      %{"signature" => "sweepUSDC(bytes32)", "selector" => "0xbe25fb30"},
+      %{"signature" => "stake(uint256,address)", "selector" => "0x7acb7757"},
+      %{"signature" => "unstake(uint256,address)", "selector" => "0x8381e182"},
+      %{"signature" => "claimUSDC(address)", "selector" => "0x42852610"}
     ])
+  end
+
+  test "S3 ABI mutability and returns match the vendored revenue implementations" do
+    root = Path.join(@root, "contracts/abi")
+
+    payment_links =
+      root
+      |> Path.join("payment-link-factory.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.new(&{&1["name"], &1})
+
+    assert payment_links["createPaymentLink"]["stateMutability"] == "nonpayable"
+    assert Enum.map(payment_links["createPaymentLink"]["outputs"], & &1["type"]) == ["address"]
+    assert payment_links["createCanonicalPaymentLink"]["stateMutability"] == "nonpayable"
+
+    for name <- ["setPaymentLinkCanonical", "setPaymentLinkReceiverState"] do
+      assert payment_links[name]["stateMutability"] == "nonpayable"
+      assert payment_links[name]["outputs"] == []
+    end
+
+    event = payment_links["PaymentLinkCreated"]
+    assert event["anonymous"] == false
+
+    assert Enum.map(event["inputs"], &{&1["type"], &1["indexed"]}) == [
+             {"bytes32", true},
+             {"address", true},
+             {"address", true},
+             {"string", false},
+             {"bool", false}
+           ]
+
+    [sweep] =
+      root
+      |> Path.join("revenue-ingress-account.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert sweep["stateMutability"] == "nonpayable"
+    assert Enum.map(sweep["outputs"], & &1["type"]) == ["uint256", "uint256"]
+
+    splitter =
+      root
+      |> Path.join("revenue-share-splitter-v2.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.new(&{&1["name"], &1})
+
+    for name <- ["stake", "unstake"] do
+      assert splitter[name]["stateMutability"] == "nonpayable"
+      assert splitter[name]["outputs"] == []
+    end
+
+    assert splitter["claimUSDC"]["stateMutability"] == "nonpayable"
+    assert Enum.map(splitter["claimUSDC"]["outputs"], & &1["type"]) == ["uint256"]
   end
 
   defp assert_abi_contains(manifest, contract_id, rows) do
@@ -441,5 +550,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       {selector, 0} = System.cmd(cast, ["sig", row["signature"]], stderr_to_stdout: true)
       assert String.trim(selector) == row["selector"]
     end
+  end
+
+  defp keccak(signature) do
+    cast = System.find_executable("cast") || flunk("Foundry cast is required for chain checks")
+    {topic, 0} = System.cmd(cast, ["keccak", signature], stderr_to_stdout: true)
+    String.trim(topic)
   end
 end
