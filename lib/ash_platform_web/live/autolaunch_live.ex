@@ -1555,8 +1555,50 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <article :for={draft <- @launch_drafts} id={"launch-draft-#{draft.id}"}>
             <p class="autolaunch-kicker">Private draft · {draft.symbol}</p>
             <h3>{draft.title}</h3>
-            <p>{draft.token_name}</p>
-            <p :if={draft.summary}>{draft.summary}</p>
+            <form
+              id={"revise-launch-draft-#{draft.id}"}
+              phx-submit="revise_launch_draft"
+              class="autolaunch-draft-form"
+            >
+              <input type="hidden" name="draft_id" value={draft.id} />
+              <label>
+                <span>Launch title</span>
+                <input
+                  type="text"
+                  name="launch_draft[title]"
+                  value={draft.title}
+                  maxlength="160"
+                  required
+                />
+              </label>
+              <label>
+                <span>Token name</span>
+                <input
+                  type="text"
+                  name="launch_draft[token_name]"
+                  value={draft.token_name}
+                  maxlength="100"
+                  required
+                />
+              </label>
+              <label>
+                <span>Token symbol</span>
+                <input
+                  type="text"
+                  name="launch_draft[symbol]"
+                  value={draft.symbol}
+                  maxlength="16"
+                  pattern="[A-Z0-9]+"
+                  autocapitalize="characters"
+                  required
+                />
+              </label>
+              <label>
+                <span>Public summary</span>
+                <textarea name="launch_draft[summary]" maxlength="2000">{draft.summary}</textarea>
+              </label>
+              <button type="submit">Save draft changes</button>
+            </form>
           </article>
         </div>
       </section>

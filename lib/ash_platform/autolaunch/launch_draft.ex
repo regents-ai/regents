@@ -55,14 +55,19 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
       filter expr(human_account_id == ^actor(:human_account_id))
       prepare build(sort: [updated_at: :desc, id: :asc])
     end
+
+    update :revise_by_owner do
+      accept [:title, :token_name, :symbol, :summary]
+      require_atomic? false
+    end
   end
 
   policies do
-    policy action([:create_for_my_regent, :mine]) do
+    policy action([:create_for_my_regent, :mine, :revise_by_owner]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
-    policy action(:mine) do
+    policy action([:mine, :revise_by_owner]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
   end

@@ -1039,6 +1039,47 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  def handle_event(
+        "revise_launch_draft",
+        %{"draft_id" => draft_id, "launch_draft" => fields},
+        socket
+      ) do
+    with %Human{} = actor <- human_actor(socket),
+         draft when not is_nil(draft) <-
+           Enum.find(
+             socket.assigns.autolaunch_launch_drafts,
+             &(to_string(&1.id) == draft_id)
+           ),
+         {:ok, _draft} <-
+           Autolaunch.revise_launch_draft(
+             draft,
+             fields["title"],
+             fields["token_name"],
+             fields["symbol"],
+             empty_to_nil(fields["summary"]),
+             actor: actor
+           ),
+         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
+      {:noreply,
+       assign(socket,
+         autolaunch_launch_drafts: drafts,
+         autolaunch_draft_notice: %{
+           tone: :success,
+           message: "Draft updated. No auction, token, wallet action, or publication has started."
+         }
+       )}
+    else
+      _error ->
+        {:noreply,
+         assign(socket,
+           autolaunch_draft_notice: %{
+             tone: :error,
+             message: "That draft could not be updated. Check the launch and token details."
+           }
+         )}
+    end
+  end
+
   def handle_event("delete_comment", %{"id" => id}, socket) do
     with %Human{} = actor <- human_actor(socket),
          comment when not is_nil(comment) <- Enum.find(socket.assigns.comments, &(&1.id == id)),

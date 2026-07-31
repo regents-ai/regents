@@ -463,6 +463,44 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     launches_html = render_async(launches)
     assert launches_html =~ "No public launches yet."
     refute launches_html =~ draft.title
+
+    view
+    |> form("#revise-launch-draft-#{draft.id}",
+      launch_draft: %{
+        title: "Revised Research Launch",
+        token_name: "Revised Research",
+        symbol: "REVISED",
+        summary: "A revised public profile still awaiting launch."
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             ~s(#revise-launch-draft-#{draft.id} input[name="launch_draft[title]"][value="Revised Research Launch"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(#revise-launch-draft-#{draft.id} input[name="launch_draft[symbol]"][value="REVISED"])
+           )
+
+    assert render(view) =~
+             "Draft updated. No auction, token, wallet action, or publication has started."
+
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
+
+    assert {persisted.title, persisted.token_name, persisted.symbol, persisted.summary} ==
+             {
+               "Revised Research Launch",
+               "Revised Research",
+               "REVISED",
+               "A revised public profile still awaiting launch."
+             }
+
+    assert {:ok, []} = Autolaunch.list_auctions()
+    assert {:ok, []} = Autolaunch.list_tokens()
+    assert {:ok, []} = Autolaunch.list_launches()
   end
 
   test "overview, collections, and details render imported public records without invented money",

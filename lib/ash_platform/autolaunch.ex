@@ -13,6 +13,10 @@ defmodule AshPlatform.Autolaunch do
         args: [:title, :token_name, :symbol, :summary]
 
       define :list_my_launch_drafts, action: :mine
+
+      define :revise_launch_draft,
+        action: :revise_by_owner,
+        args: [:title, :token_name, :symbol, :summary]
     end
 
     resource AshPlatform.Autolaunch.Auction do
