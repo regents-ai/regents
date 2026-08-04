@@ -1,0 +1,4 @@
+TechtreeGraphRegistryV1Test:testGasBatchEdgeRegistration() (gas: 934107)
+TechtreeGraphRegistryV1Test:testGasBatchNodeRegistration() (gas: 1673991)
+TechtreeGraphRegistryV1Test:testGasSingleEdgeRegistration() (gas: 77830)
+TechtreeGraphRegistryV1Test:testGasSingleNodeRegistration() (gas: 171569)
