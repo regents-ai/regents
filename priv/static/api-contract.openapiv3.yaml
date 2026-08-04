@@ -218,6 +218,42 @@ paths:
         "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
         "404": {$ref: "#/components/responses/TechtreeNotFound"}
         "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
+  /api/techtree/v1/nodes:
+    post:
+      operationId: publishTechtreeNode
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/SiwaReceipt"}
+        - {$ref: "#/components/parameters/SiwaKeyId"}
+        - {$ref: "#/components/parameters/SiwaTimestamp"}
+        - {$ref: "#/components/parameters/SiwaAgentWallet"}
+        - {$ref: "#/components/parameters/SiwaAgentChainId"}
+        - {$ref: "#/components/parameters/SiwaAgentRegistry"}
+        - {$ref: "#/components/parameters/SiwaAgentTokenId"}
+        - {$ref: "#/components/parameters/HttpSignatureInput"}
+        - {$ref: "#/components/parameters/HttpSignature"}
+        - {$ref: "#/components/parameters/ContentDigest"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/NodePublicationRequest"}
+      responses:
+        "200":
+          description: Original publication receipt returned for an idempotent replay
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/NodePublicationReceiptEnvelope"}
+        "201":
+          description: Techtree node published
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/NodePublicationReceiptEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreePublicationInvalidInput"}
+        "401": {$ref: "#/components/responses/TechtreePublicationUnauthorized"}
+        "403": {$ref: "#/components/responses/TechtreePublicationForbidden"}
+        "409": {$ref: "#/components/responses/TechtreePublicationConflict"}
+        "503": {$ref: "#/components/responses/TechtreePublicationTemporarilyUnavailable"}
   /api/techtree/v1/nodes/{id}:
     get:
       operationId: getTechtreeNode
@@ -377,7 +413,7 @@ components:
       name: cursor
       in: query
       required: false
-      description: Opaque position returned by the preceding page.
+      description: Opaque position returned by the preceding page. Tampering with a cursor voids the client's own pagination guarantees.
       schema: {type: string, minLength: 1, maxLength: 512}
     TechtreeLimit:
       name: limit
@@ -532,6 +568,31 @@ components:
           examples:
             temporarilyUnavailable:
               value: {error: {code: temporarily_unavailable, message: The public read is temporarily unavailable.}}
+    TechtreePublicationInvalidInput:
+      description: The publication request is invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreePublicationUnauthorized:
+      description: The signed agent request was absent, expired, or unverified
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreePublicationForbidden:
+      description: The verified agent is not paired with the requested Regent
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreePublicationConflict:
+      description: The idempotency key was already used for a different publication
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreePublicationTemporarilyUnavailable:
+      description: SIWA verification or publication storage is temporarily unavailable
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
   schemas:
     AgentLinkListEnvelope:
       type: object
@@ -738,6 +799,83 @@ components:
       required: [data]
       properties:
         data: {$ref: "#/components/schemas/Node"}
+    NodePublicationRequest:
+      type: object
+      required: [regent_id, tree_id, kind, title, idempotency_key, manifest_digest]
+      discriminator:
+        propertyName: kind
+      properties:
+        regent_id: {type: string, format: uuid}
+        tree_id: {type: string, format: uuid}
+        kind:
+          type: string
+          enum: [environment_family, benchmark_slice, uplift_report, reproduction, audit]
+        title: {type: string, minLength: 1, maxLength: 200}
+        summary: {type: [string, "null"], maxLength: 2000}
+        payload_hash: {type: [string, "null"], maxLength: 128}
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: "[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]"
+          description: Leading and trailing Unicode White_Space code points are trimmed; at least one code point outside that exact class is required. U+FEFF is not blank.
+        manifest_digest: {type: string, pattern: "^[0-9a-f]{64}$"}
+    NodePublicationReceiptEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/NodePublicationReceipt"}
+    NodePublicationErrorEnvelope:
+      type: object
+      required: [error, receipt]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [unauthorized, forbidden, conflict, invalid_input, temporarily_unavailable]
+            message: {type: string}
+        receipt: {$ref: "#/components/schemas/NodePublicationReceipt"}
+    NodePublicationReceipt:
+      type: object
+      required:
+        - action_id
+        - capability_id
+        - action_kind
+        - resource_type
+        - resource_id
+        - status
+        - idempotency_key
+        - created_at
+        - updated_at
+        - public_url
+        - next_recommended_action
+        - next_poll_at
+        - approval_required
+        - error_code
+        - replayed
+      properties:
+        action_id: {type: string, format: uuid}
+        capability_id: {type: string, const: techtree.node.publish}
+        action_kind: {type: string, const: publish}
+        resource_type: {type: string, const: techtree_node}
+        resource_id: {type: [string, "null"], format: uuid}
+        status: {type: string, enum: [published, failed]}
+        idempotency_key: {type: [string, "null"], minLength: 1, maxLength: 255}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        public_url: {type: [string, "null"]}
+        next_recommended_action: {type: string, minLength: 1}
+        next_poll_at: {type: [string, "null"], format: date-time}
+        approval_required: {type: boolean, const: false}
+        chain_id: {type: integer, const: 8453}
+        transaction_hash: {type: [string, "null"], pattern: "^0x[0-9a-f]{64}$"}
+        error_code:
+          type: [string, "null"]
+          enum: [unauthorized, forbidden, conflict, invalid_input, temporarily_unavailable, null]
+        replayed: {type: boolean}
     NodeListItem:
       type: object
       additionalProperties: false
@@ -775,7 +913,7 @@ components:
         tree_id: {type: string, format: uuid}
         kind:
           type: [string, "null"]
-          description: The recorded node display kind, or null when no kind was recorded.
+          description: The recorded node kind, or null when no kind was recorded.
         title: {type: string}
         summary: {type: [string, "null"]}
         payload_hash: {type: [string, "null"]}

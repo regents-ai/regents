@@ -134,7 +134,7 @@ defmodule AshPlatformWeb.TechtreeReadController do
     %{
       id: node.id,
       tree_id: node.tree_id,
-      kind: node.display_kind,
+      kind: node.kind || node.display_kind,
       title: node.title,
       summary: node.summary,
       payload_hash: node.payload_hash,

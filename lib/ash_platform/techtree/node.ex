@@ -25,6 +25,54 @@ defmodule AshPlatform.Techtree.Node do
       constraints max_length: 128
     end
 
+    attribute :kind, :atom do
+      public? true
+
+      constraints one_of: [
+                    :environment_family,
+                    :benchmark_slice,
+                    :uplift_report,
+                    :reproduction,
+                    :audit
+                  ]
+    end
+
+    attribute :manifest_digest, :string do
+      constraints match: ~r/\A[0-9a-f]{64}\z/
+    end
+
+    attribute :idempotency_key, :string do
+      constraints min_length: 1, max_length: 255
+    end
+
+    attribute :contributor_id, :string do
+      public? true
+      constraints min_length: 1, max_length: 255
+    end
+
+    attribute :publisher_agent_id, :string do
+      constraints min_length: 1, max_length: 255
+    end
+
+    attribute :publisher_registry_address, :string do
+      constraints match: ~r/\A0x[0-9a-f]{40}\z/
+    end
+
+    attribute :publisher_token_id, :string do
+      constraints min_length: 1, max_length: 255
+    end
+
+    attribute :publisher_wallet, :string do
+      constraints match: ~r/\A0x[0-9a-f]{40}\z/
+    end
+
+    attribute :publisher_chain_id, :integer do
+      constraints min: 8453, max: 8453
+    end
+
+    attribute :publisher_regent_id, :uuid
+    attribute :siwa_envelope, :map
+
     attribute :pos_x, :float do
       public? true
     end
@@ -49,7 +97,6 @@ defmodule AshPlatform.Techtree.Node do
     attribute :workflow_state, :atom do
       allow_nil? false
       public? true
-      default :published
       constraints one_of: [:draft, :publishing, :published, :failed]
     end
 
@@ -93,6 +140,53 @@ defmodule AshPlatform.Techtree.Node do
 
     create :import_public do
       accept [:tree_id, :title, :summary, :payload_hash]
+      change set_attribute(:workflow_state, :published)
+    end
+
+    create :create_publication do
+      public? false
+
+      accept [
+        :tree_id,
+        :kind,
+        :title,
+        :summary,
+        :payload_hash,
+        :manifest_digest,
+        :idempotency_key,
+        :siwa_envelope
+      ]
+
+      change set_attribute(:workflow_state, :draft)
+      change AshPlatform.Techtree.Node.Changes.AssignPublicationIdentity
+      validate present(:idempotency_key)
+    end
+
+    update :mark_publication_publishing do
+      public? false
+      require_atomic? false
+      accept []
+      change set_attribute(:workflow_state, :publishing)
+    end
+
+    update :mark_publication_published do
+      public? false
+      require_atomic? false
+      accept [:published_at]
+      change set_attribute(:workflow_state, :published)
+    end
+
+    read :publication_by_key do
+      get? true
+      argument :registry_address, :string, allow_nil?: false
+      argument :token_id, :string, allow_nil?: false
+      argument :idempotency_key, :string, allow_nil?: false
+
+      filter expr(
+               publisher_registry_address == ^arg(:registry_address) and
+                 publisher_token_id == ^arg(:token_id) and
+                 idempotency_key == ^arg(:idempotency_key)
+             )
     end
 
     update :update_layout do
@@ -109,6 +203,27 @@ defmodule AshPlatform.Techtree.Node do
     policy action([:import_public, :update_layout]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
+
+    policy action([
+             :create_publication,
+             :mark_publication_publishing,
+             :mark_publication_published,
+             :publication_by_key
+           ]) do
+      authorize_if AshPlatform.Techtree.Checks.AgentIdentity
+    end
+
+    policy action([:mark_publication_publishing, :mark_publication_published]) do
+      authorize_if expr(
+                     publisher_registry_address == ^actor(:registry_address) and
+                       publisher_token_id == ^actor(:token_id)
+                   )
+    end
+  end
+
+  identities do
+    identity :unique_publisher_idempotency,
+             [:publisher_registry_address, :publisher_token_id, :idempotency_key]
   end
 
   postgres do

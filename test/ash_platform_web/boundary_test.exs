@@ -72,6 +72,12 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [techtree_workflow_state_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_zs63_techtree_workflow_state.exs")
 
+    assert [techtree_publication_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_zs64_techtree_publication.exs")
+
+    assert [techtree_fail_safe_state_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_zs64_fail_safe_workflow_state.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -112,6 +118,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                techtree_graph_migration,
                techtree_public_read_index_migration,
                techtree_workflow_state_migration,
+               techtree_publication_migration,
+               techtree_fail_safe_state_migration,
                cloud_runtimes_migration,
                linked_identities_migration,
                public_profile_migration,
@@ -364,6 +372,65 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert_reversible_migration(
       techtree_workflow_state_migration,
       ["remove(:workflow_state)"]
+    )
+
+    assert_additive_migration(
+      techtree_publication_migration,
+      [
+        "alter table(:nodes",
+        "add(:kind, :text)",
+        "add(:manifest_digest, :text)",
+        "add(:idempotency_key, :text)",
+        "add(:contributor_id, :text)",
+        "add(:publisher_agent_id, :text)",
+        "add(:publisher_registry_address, :text)",
+        "add(:publisher_token_id, :text)",
+        "add(:publisher_wallet, :text)",
+        "add(:publisher_chain_id, :bigint)",
+        "add(:publisher_regent_id, :uuid)",
+        "add(:siwa_envelope, :map)",
+        "create unique_index(",
+        ~s|name: "nodes_unique_publisher_idempotency_index"|,
+        ~s|prefix: "techtree"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      techtree_publication_migration,
+      [
+        ~s|name: "nodes_unique_publisher_idempotency_index"|,
+        "remove(:siwa_envelope)",
+        "remove(:publisher_regent_id)",
+        "remove(:publisher_chain_id)",
+        "remove(:publisher_wallet)",
+        "remove(:publisher_token_id)",
+        "remove(:publisher_registry_address)",
+        "remove(:publisher_agent_id)",
+        "remove(:contributor_id)",
+        "remove(:idempotency_key)",
+        "remove(:manifest_digest)",
+        "remove(:kind)"
+      ]
+    )
+
+    publication_migration = File.read!(techtree_publication_migration)
+    refute publication_migration =~ "workflow_state"
+    refute publication_migration =~ "projection"
+
+    assert_additive_migration(
+      techtree_fail_safe_state_migration,
+      [
+        "alter table(:nodes",
+        "modify(:workflow_state, :text, default: nil)",
+        ~s|prefix: "techtree"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      techtree_fail_safe_state_migration,
+      ["modify(:workflow_state, :text, default: \"published\")"]
     )
 
     assert_additive_migration(

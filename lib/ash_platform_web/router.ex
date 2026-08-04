@@ -15,6 +15,11 @@ defmodule AshPlatformWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :agent_write_api do
+    plug :accepts, ["json"]
+    plug AshPlatform.AgentAuth.TechtreeWritePlug
+  end
+
   pipeline :session_api do
     plug :accepts, ["json"]
     plug :fetch_session
@@ -40,6 +45,12 @@ defmodule AshPlatformWeb.Router do
     get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
 
     post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
+  end
+
+  scope "/api/techtree/v1", AshPlatformWeb do
+    pipe_through :agent_write_api
+
+    post "/nodes", TechtreePublicationController, :create
   end
 
   scope "/api", AshPlatformWeb do

@@ -55,7 +55,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     comment_id = database_uuid()
 
     sql!(
-      "INSERT INTO techtree.nodes (id, tree_id, title, summary, published_at, inserted_at, updated_at) SELECT $1, id, 'Unrelated', 'Keep me', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'",
+      "INSERT INTO techtree.nodes (id, tree_id, title, summary, workflow_state, published_at, inserted_at, updated_at) SELECT $1, id, 'Unrelated', 'Keep me', 'published', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'",
       [unrelated_id]
     )
 
@@ -98,7 +98,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     ResetBrowserComments.reset!()
 
     sql!(
-      "INSERT INTO techtree.nodes (tree_id, title, summary, published_at, inserted_at, updated_at) SELECT id, 'Browser comment fixture', 'Not owned', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'"
+      "INSERT INTO techtree.nodes (tree_id, title, summary, workflow_state, published_at, inserted_at, updated_at) SELECT id, 'Browser comment fixture', 'Not owned', 'published', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'"
     )
 
     assert_raise RuntimeError, ~r/marker mismatch/, fn -> ResetBrowserComments.reset!() end
@@ -109,7 +109,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     SeedBrowserComments.seed!()
 
     sql!(
-      "INSERT INTO techtree.nodes (tree_id, title, summary, payload_hash, published_at, inserted_at, updated_at) SELECT id, 'Browser notebook fixture', 'A local Marimo notebook running on this device.', 'sha256:browser-notebook-node-payload', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'"
+      "INSERT INTO techtree.nodes (tree_id, title, summary, payload_hash, workflow_state, published_at, inserted_at, updated_at) SELECT id, 'Browser notebook fixture', 'A local Marimo notebook running on this device.', 'sha256:browser-notebook-node-payload', 'published', now(), now(), now() FROM techtree.trees WHERE slug = 'skill-training-lab'"
     )
 
     assert_raise RuntimeError, ~r/ambiguous browser fixture marker/, fn ->

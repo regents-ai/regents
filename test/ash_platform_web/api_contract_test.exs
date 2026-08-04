@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.ApiContractTest do
   use AshPlatformWeb.ConnCase, async: true
 
+  alias AshPlatform.Techtree.PublicationInput
+
   @contract Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @served_contract Path.expand("../../priv/static/api-contract.openapiv3.yaml", __DIR__)
 
@@ -18,6 +20,7 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/autolaunch/v1/tokens",
              "/api/formation/v1/regents/{regent_id}/agent-links",
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
+             "/api/techtree/v1/nodes",
              "/api/techtree/v1/nodes/{id}",
              "/api/techtree/v1/tree/nodes",
              "/api/techtree/v1/trees",
@@ -690,6 +693,9 @@ defmodule AshPlatformWeb.ApiContractTest do
              "default" => 25
            }
 
+    assert parameters["TechtreeCursor"]["description"] =~
+             "Tampering with a cursor voids the client's own pagination guarantees."
+
     assert schemas["TreeNodePageEnvelope"]["required"] == ["data", "edges", "next_cursor"]
 
     assert paths["/api/techtree/v1/nodes/{id}"]["get"]["operationId"] ==
@@ -718,6 +724,105 @@ defmodule AshPlatformWeb.ApiContractTest do
                  "$ref" => "#/components/schemas/TechtreeReadError"
                })
            )
+  end
+
+  test "the Techtree publication contract is SIWA-authenticated, idempotent, and additive-open" do
+    contract = YamlElixir.read_from_file!(@contract)
+    operation = contract["paths"]["/api/techtree/v1/nodes"]["post"]
+    schemas = contract["components"]["schemas"]
+
+    assert operation["operationId"] == "publishTechtreeNode"
+    assert operation["security"] == []
+
+    assert Enum.map(operation["parameters"], & &1["$ref"]) == [
+             "#/components/parameters/SiwaReceipt",
+             "#/components/parameters/SiwaKeyId",
+             "#/components/parameters/SiwaTimestamp",
+             "#/components/parameters/SiwaAgentWallet",
+             "#/components/parameters/SiwaAgentChainId",
+             "#/components/parameters/SiwaAgentRegistry",
+             "#/components/parameters/SiwaAgentTokenId",
+             "#/components/parameters/HttpSignatureInput",
+             "#/components/parameters/HttpSignature",
+             "#/components/parameters/ContentDigest"
+           ]
+
+    assert operation["requestBody"] == %{
+             "required" => true,
+             "content" => %{
+               "application/json" => %{
+                 "schema" => %{"$ref" => "#/components/schemas/NodePublicationRequest"}
+               }
+             }
+           }
+
+    assert Map.keys(operation["responses"]) |> Enum.sort() ==
+             ~w(200 201 400 401 403 409 503)
+
+    request = schemas["NodePublicationRequest"]
+
+    assert request["required"] ==
+             ~w(regent_id tree_id kind title idempotency_key manifest_digest)
+
+    assert request["discriminator"] == %{"propertyName" => "kind"}
+
+    assert request["properties"]["kind"]["enum"] ==
+             ~w(environment_family benchmark_slice uplift_report reproduction audit)
+
+    assert request["properties"]["manifest_digest"]["pattern"] == "^[0-9a-f]{64}$"
+    idempotency_key = request["properties"]["idempotency_key"]
+
+    assert idempotency_key["pattern"] == PublicationInput.idempotency_key_pattern()
+
+    assert idempotency_key["description"] ==
+             "Leading and trailing Unicode White_Space code points are trimmed; at least one code point outside that exact class is required. U+FEFF is not blank."
+
+    contract_pattern =
+      idempotency_key["pattern"]
+      |> String.replace(~r/\\u([0-9A-F]{4})/, "\\x{\\1}")
+      |> Regex.compile!("u")
+
+    for {value, accepted?} <- [{" ", false}, {<<0x85::utf8>>, false}, {<<0xFEFF::utf8>>, true}] do
+      assert PublicationInput.nonblank?(value) == accepted?
+      assert Regex.match?(contract_pattern, value) == accepted?
+    end
+
+    refute Map.has_key?(request, "additionalProperties")
+
+    receipt = schemas["NodePublicationReceipt"]
+
+    assert receipt["required"] == [
+             "action_id",
+             "capability_id",
+             "action_kind",
+             "resource_type",
+             "resource_id",
+             "status",
+             "idempotency_key",
+             "created_at",
+             "updated_at",
+             "public_url",
+             "next_recommended_action",
+             "next_poll_at",
+             "approval_required",
+             "error_code",
+             "replayed"
+           ]
+
+    assert receipt["properties"]["capability_id"]["const"] == "techtree.node.publish"
+    assert receipt["properties"]["status"]["enum"] == ["published", "failed"]
+    assert receipt["properties"]["replayed"] == %{"type" => "boolean"}
+    refute Map.has_key?(receipt, "additionalProperties")
+    refute Map.has_key?(schemas["NodePublicationReceiptEnvelope"], "additionalProperties")
+    refute Map.has_key?(schemas["NodePublicationErrorEnvelope"], "additionalProperties")
+
+    error_codes =
+      schemas["NodePublicationErrorEnvelope"]["properties"]["error"]["properties"]["code"][
+        "enum"
+      ]
+
+    assert error_codes ==
+             ~w(unauthorized forbidden conflict invalid_input temporarily_unavailable)
   end
 
   test "the served contract is byte-identical and available over HTTP", %{conn: conn} do
