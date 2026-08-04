@@ -3,6 +3,16 @@ defmodule AshPlatform.Formation do
     otp_app: :ash_platform
 
   resources do
+    resource AshPlatform.Formation.AgentLink do
+      define :claim_agent_link, action: :claim, args: [:regent_id, :code, :identity]
+      define :list_my_agent_links, action: :mine_for_regent, args: [:regent_id]
+      define :revoke_agent_link, action: :revoke
+    end
+
+    resource AshPlatform.Formation.AgentPairingCode do
+      define :issue_agent_pairing_code, action: :issue, args: [:regent_id]
+    end
+
     resource AshPlatform.Formation.CloudRuntime do
       define :provision_cloud_runtime, action: :provision_for_my_regent
       define :get_my_cloud_runtime, action: :mine

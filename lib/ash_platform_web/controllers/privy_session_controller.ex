@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   @logout_epoch_cookie "_ash_platform_logout_epoch"
   @logout_epoch_session_key :privy_logout_epoch
+  @live_socket_prefix "privy_sessions:"
 
   alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Accounts.VerifiedSession
@@ -26,10 +27,7 @@ defmodule AshPlatformWeb.PrivySessionController do
          {:ok, verified} <- verifier().verify_access_token(token),
          {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
       conn
-      |> configure_session(renew: true)
-      |> clear_session()
-      |> put_session(:human_account_id, account.id)
-      |> put_logout_epoch_session(logout_epoch)
+      |> replace_authenticated_session(account.id, logout_epoch)
       |> put_identity_conflict_header(identity_conflicts)
       |> put_resp_header(
         "x-ash-session-changed",
@@ -119,9 +117,39 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   defp drop_local_session(conn) do
+    reset_local_session(conn, drop: true)
+  end
+
+  defp replace_authenticated_session(conn, account_id, logout_epoch) do
     conn
-    |> configure_session(drop: true)
+    |> reset_local_session(renew: true)
+    |> put_session(:human_account_id, account_id)
+    |> put_live_socket_id()
+    |> put_logout_epoch_session(logout_epoch)
+  end
+
+  defp reset_local_session(conn, options) do
+    conn
+    |> disconnect_live_socket()
+    |> configure_session(options)
     |> clear_session()
+  end
+
+  defp put_live_socket_id(conn) do
+    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+    put_session(conn, :live_socket_id, @live_socket_prefix <> token)
+  end
+
+  defp disconnect_live_socket(conn) do
+    case get_session(conn, :live_socket_id) do
+      @live_socket_prefix <> _token = live_socket_id ->
+        AshPlatformWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+
+      _other ->
+        :ok
+    end
+
+    conn
   end
 
   defp put_logout_epoch_session(conn, nil), do: conn

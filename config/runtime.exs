@@ -28,6 +28,10 @@ config :ash_platform, :sprites,
   base_url: "https://api.sprites.dev",
   token: System.get_env("SPRITES_TOKEN")
 
+config :ash_platform, :siwa,
+  base_url: System.get_env("SIWA_SERVER_URL"),
+  audience: System.get_env("SIWA_AUDIENCE")
+
 database_config =
   if config_env() == :prod and System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate" do
     AshPlatform.DatabaseConfig.release_config!()

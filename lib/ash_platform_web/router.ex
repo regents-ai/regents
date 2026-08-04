@@ -35,6 +35,8 @@ defmodule AshPlatformWeb.Router do
     get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
     post "/autolaunch/v1/auctions/:id/bid-quote", AutolaunchAuctionController, :bid_quote
     get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
+
+    post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
   end
 
   scope "/api", AshPlatformWeb do
@@ -44,6 +46,8 @@ defmodule AshPlatformWeb.Router do
     post "/autolaunch/v1/bids/:id/exit", AutolaunchAuctionController, :prepare_bid_exit
     post "/autolaunch/v1/bids/:id/return", AutolaunchAuctionController, :prepare_bid_return
     post "/autolaunch/v1/bids/:id/claim", AutolaunchAuctionController, :prepare_bid_claim
+
+    get "/formation/v1/regents/:regent_id/agent-links", AgentLinkController, :index
   end
 
   scope "/", AshPlatformWeb do

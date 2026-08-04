@@ -14,6 +14,12 @@ config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
 config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
+
+config :ash_platform,
+       :agent_verification_client,
+       AshPlatform.AgentAuth.DeterministicVerificationClient
+
+config :ash_platform, :siwa, base_url: "https://siwa.test", audience: "ash-platform-test"
 config :ash_platform, :database_startup_enabled, true
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
 

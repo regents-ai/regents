@@ -16,6 +16,8 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/autolaunch/v1/bids/{id}/exit",
              "/api/autolaunch/v1/bids/{id}/return",
              "/api/autolaunch/v1/tokens",
+             "/api/formation/v1/regents/{regent_id}/agent-links",
+             "/api/formation/v1/regents/{regent_id}/agent-links/claim",
              "/api/techtree/v1/tree/nodes",
              "/auth/csrf",
              "/auth/privy/session",
@@ -176,6 +178,76 @@ defmodule AshPlatformWeb.ApiContractTest do
              },
              "CsrfForbidden" => %{"description" => "CSRF token was absent or invalid"}
            }
+  end
+
+  test "the agent pairing contract has one owner read and one SIWA-authenticated claim" do
+    contract = YamlElixir.read_from_file!(@contract)
+    paths = contract["paths"]
+
+    index = paths["/api/formation/v1/regents/{regent_id}/agent-links"]["get"]
+    assert index["operationId"] == "listRegentAgentLinks"
+    assert index["security"] == [%{"cookieSession" => []}]
+    assert index["parameters"] == [%{"$ref" => "#/components/parameters/RegentId"}]
+    assert Map.keys(index["responses"]) |> Enum.sort() == ["200", "401", "404"]
+
+    claim = paths["/api/formation/v1/regents/{regent_id}/agent-links/claim"]["post"]
+    assert claim["operationId"] == "claimRegentAgentLink"
+    assert claim["security"] == []
+
+    assert Enum.map(claim["parameters"], & &1["$ref"]) == [
+             "#/components/parameters/RegentId",
+             "#/components/parameters/SiwaReceipt",
+             "#/components/parameters/SiwaKeyId",
+             "#/components/parameters/SiwaTimestamp",
+             "#/components/parameters/SiwaAgentWallet",
+             "#/components/parameters/SiwaAgentChainId",
+             "#/components/parameters/SiwaAgentRegistry",
+             "#/components/parameters/SiwaAgentTokenId",
+             "#/components/parameters/HttpSignatureInput",
+             "#/components/parameters/HttpSignature",
+             "#/components/parameters/ContentDigest"
+           ]
+
+    assert claim["requestBody"] == %{
+             "required" => true,
+             "content" => %{
+               "text/plain" => %{
+                 "schema" => %{"type" => "string", "minLength" => 1, "maxLength" => 128}
+               }
+             }
+           }
+
+    assert Map.keys(claim["responses"]) |> Enum.sort() == ["201", "400", "401", "429"]
+
+    assert claim["responses"]["429"] == %{
+             "$ref" => "#/components/responses/AgentClaimRateLimited"
+           }
+
+    link = contract["components"]["schemas"]["AgentLink"]
+    assert link["additionalProperties"] == false
+
+    assert link["required"] == [
+             "id",
+             "regent_id",
+             "agent_id",
+             "registry_address",
+             "token_id",
+             "wallet",
+             "paired_at"
+           ]
+
+    refute Map.has_key?(link["properties"], "human_account_id")
+    refute Map.has_key?(link["properties"], "code")
+    refute Map.has_key?(link["properties"], "signature")
+
+    assert contract["components"]["schemas"]["AgentPairingError"]["properties"]["error"][
+             "properties"
+           ]["code"]["enum"] == [
+             "not_found",
+             "pairing_failed",
+             "verification_failed",
+             "rate_limited"
+           ]
   end
 
   test "the canonical contract declares the exact public node list" do

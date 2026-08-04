@@ -35,7 +35,13 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert signed_in.private[:plug_session_info] == :renew
     assert session_cookie(signed_in) != visitor_cookie
-    assert get_session(signed_in) |> Map.keys() == ["human_account_id"]
+
+    assert get_session(signed_in) |> Map.keys() |> Enum.sort() == [
+             "human_account_id",
+             "live_socket_id"
+           ]
+
+    assert get_session(signed_in, :live_socket_id) =~ "privy_sessions:"
 
     assert {:ok, account} =
              Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
@@ -180,6 +186,70 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert get_session(deleted) == %{}
   end
 
+  test "logout disconnects an already-open Formation LiveView", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(signed_in, 200)
+
+    live_socket_id = get_session(signed_in, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
+    {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
+    assert Process.alive?(view.pid)
+
+    deleted =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> delete("/auth/privy/session")
+
+    assert %{"ok" => true} = json_response(deleted, 200)
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^live_socket_id,
+      event: "disconnect"
+    }
+  end
+
+  test "session refresh disconnects the Formation LiveView mounted under the previous session", %{
+    conn: conn
+  } do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(signed_in, 200)
+
+    previous_socket_id = get_session(signed_in, :live_socket_id)
+    previous_account_id = get_session(signed_in, :human_account_id)
+    AshPlatformWeb.Endpoint.subscribe(previous_socket_id)
+    {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
+    assert Process.alive?(view.pid)
+
+    refreshed =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(refreshed, 200)
+    assert get_session(refreshed, :human_account_id) == previous_account_id
+    refute get_session(refreshed, :live_socket_id) == previous_socket_id
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^previous_socket_id,
+      event: "disconnect"
+    }
+  end
+
   test "the current logout epoch rejects a late pre-logout session and admits a fresh sign-in", %{
     conn: conn
   } do
@@ -190,17 +260,26 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
                actor: %System{}
              )
 
+    live_socket_id = "privy_sessions:superseded"
+    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
+
     superseded =
       conn
       |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
       |> init_test_session(%{
         human_account_id: account.id,
+        live_socket_id: live_socket_id,
         privy_logout_epoch: "pre-logout-epoch"
       })
       |> get("/auth/session")
 
     assert %{"authenticated" => false} = json_response(superseded, 200)
     assert superseded.private[:plug_session_info] == :drop
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^live_socket_id,
+      event: "disconnect"
+    }
 
     fresh =
       build_conn()

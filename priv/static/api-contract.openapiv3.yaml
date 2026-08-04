@@ -142,6 +142,50 @@ paths:
               schema: {$ref: "#/components/schemas/TokenListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+  /api/formation/v1/regents/{regent_id}/agent-links:
+    get:
+      operationId: listRegentAgentLinks
+      security: [{cookieSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/RegentId"}
+      responses:
+        "200":
+          description: Agent identities paired with the signed-in human's Regent
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentLinkListEnvelope"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/AgentPairingNotFound"}
+  /api/formation/v1/regents/{regent_id}/agent-links/claim:
+    post:
+      operationId: claimRegentAgentLink
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/RegentId"}
+        - {$ref: "#/components/parameters/SiwaReceipt"}
+        - {$ref: "#/components/parameters/SiwaKeyId"}
+        - {$ref: "#/components/parameters/SiwaTimestamp"}
+        - {$ref: "#/components/parameters/SiwaAgentWallet"}
+        - {$ref: "#/components/parameters/SiwaAgentChainId"}
+        - {$ref: "#/components/parameters/SiwaAgentRegistry"}
+        - {$ref: "#/components/parameters/SiwaAgentTokenId"}
+        - {$ref: "#/components/parameters/HttpSignatureInput"}
+        - {$ref: "#/components/parameters/HttpSignature"}
+        - {$ref: "#/components/parameters/ContentDigest"}
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        "201":
+          description: Agent identity paired with the Regent
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentLinkEnvelope"}
+        "400": {$ref: "#/components/responses/AgentPairingFailed"}
+        "401": {$ref: "#/components/responses/AgentVerificationFailed"}
+        "429": {$ref: "#/components/responses/AgentClaimRateLimited"}
   /api/techtree/v1/tree/nodes:
     get:
       operationId: listTreeNodes
@@ -213,6 +257,61 @@ components:
       in: path
       required: true
       schema: {type: string, minLength: 1, maxLength: 128}
+    RegentId:
+      name: regent_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    SiwaReceipt:
+      name: x-siwa-receipt
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+    SiwaKeyId:
+      name: x-key-id
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+    SiwaTimestamp:
+      name: x-timestamp
+      in: header
+      required: true
+      schema: {type: string, pattern: '^\d+$'}
+    SiwaAgentWallet:
+      name: x-agent-wallet-address
+      in: header
+      required: true
+      schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
+    SiwaAgentChainId:
+      name: x-agent-chain-id
+      in: header
+      required: true
+      schema: {type: string, const: "8453"}
+    SiwaAgentRegistry:
+      name: x-agent-registry-address
+      in: header
+      required: true
+      schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
+    SiwaAgentTokenId:
+      name: x-agent-token-id
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+    HttpSignatureInput:
+      name: signature-input
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+    HttpSignature:
+      name: signature
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+    ContentDigest:
+      name: content-digest
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
   securitySchemes:
     privyAccessToken:
       type: http
@@ -285,7 +384,77 @@ components:
           examples:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed.}}
+    AgentPairingNotFound:
+      description: The Regent was not found for the signed-in human
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: The Regent was not found.}}
+    AgentPairingFailed:
+      description: The pairing code could not be claimed
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            pairingFailed:
+              value: {error: {code: pairing_failed, message: The pairing code could not be used.}}
+    AgentVerificationFailed:
+      description: SIWA verification did not verify the signed agent request
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            verificationFailed:
+              value: {error: {code: verification_failed, message: The signed agent request could not be verified.}}
+    AgentClaimRateLimited:
+      description: Too many pairing claims were received from the client address
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            rateLimited:
+              value: {error: {code: rate_limited, message: Too many pairing attempts. Please wait and try again.}}
   schemas:
+    AgentLinkListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/AgentLink"}
+    AgentLinkEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/AgentLink"}
+    AgentLink:
+      type: object
+      additionalProperties: false
+      required: [id, regent_id, agent_id, registry_address, token_id, wallet, paired_at]
+      properties:
+        id: {type: string, format: uuid}
+        regent_id: {type: string, format: uuid}
+        agent_id: {type: string, minLength: 1}
+        registry_address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        token_id: {type: string, minLength: 1}
+        wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        paired_at: {type: string, format: date-time}
+    AgentPairingError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, enum: [not_found, pairing_failed, verification_failed, rate_limited]}
+            message: {type: string}
     AuctionBidRequest:
       type: object
       additionalProperties: false

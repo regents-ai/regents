@@ -83,6 +83,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                "priv/repo/migrations/*_install_ash_functions_for_billing_extensions_1.exs"
              )
 
+    assert [agent_pairing_migration] =
+             Path.wildcard("priv/repo/migrations/*_agent_pairing.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -105,7 +108,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                linked_identities_migration,
                public_profile_migration,
                billing_kernel_migration,
-               ash_functions_migration
+               ash_functions_migration,
+               agent_pairing_migration
              ])
 
     assert_additive_migration(
@@ -363,6 +367,26 @@ defmodule AshPlatformWeb.BoundaryTest do
     )
 
     assert_extension_migration(ash_functions_migration)
+
+    assert_additive_migration(
+      agent_pairing_migration,
+      [
+        "create table(:agent_pairing_codes",
+        "references(:platform_human_users",
+        "references(:regents",
+        "create unique_index(:agent_pairing_codes, [:human_account_id]",
+        "create unique_index(:agent_pairing_codes, [:code_hash]",
+        "create table(:agent_links",
+        "create unique_index(:agent_links, [:agent_id]",
+        "create unique_index(:agent_links, [:registry_address, :token_id]"
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      agent_pairing_migration,
+      ["drop(table(:agent_links))", "drop(table(:agent_pairing_codes))"]
+    )
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

@@ -1,6 +1,9 @@
 defmodule AshPlatformWeb.FormationLive do
   @moduledoc false
-  use Phoenix.Component
+  use Phoenix.LiveComponent
+
+  alias AshPlatform.Actors.Human
+  alias AshPlatform.Formation
 
   attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
   attr :regent, :map, default: nil
@@ -97,6 +100,12 @@ defmodule AshPlatformWeb.FormationLive do
               </label>
               <button type="submit">Save profile</button>
             </form>
+
+            <.live_component
+              module={__MODULE__}
+              id={"agent-pairing-#{@regent.id}"}
+              regent={@regent}
+            />
           </div>
 
           <p
@@ -247,5 +256,133 @@ defmodule AshPlatformWeb.FormationLive do
       <p>{@copy}</p>
     </div>
     """
+  end
+
+  @impl true
+  def update(%{regent: regent} = assigns, socket) do
+    actor = %Human{human_account_id: regent.human_account_id}
+
+    links =
+      case Formation.list_my_agent_links(regent.id, actor: actor) do
+        {:ok, links} -> links
+        {:error, _error} -> []
+      end
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(:agent_links, links)
+     |> assign_new(:pairing_code, fn -> nil end)
+     |> assign_new(:pairing_notice, fn -> nil end)}
+  end
+
+  @impl true
+  def handle_event("request_agent_pairing_code", _params, socket) do
+    actor = human_actor(socket.assigns.regent)
+
+    case Formation.issue_agent_pairing_code(socket.assigns.regent.id, actor: actor) do
+      {:ok, issued} ->
+        {:noreply,
+         assign(socket,
+           pairing_code: issued,
+           pairing_notice: %{tone: :success, message: "Your temporary code is ready."}
+         )}
+
+      {:error, _error} ->
+        {:noreply,
+         assign(socket,
+           pairing_code: nil,
+           pairing_notice: %{
+             tone: :error,
+             message: "A code was created recently. Please wait a moment and try again."
+           }
+         )}
+    end
+  end
+
+  def handle_event("revoke_agent_link", %{"id" => id}, socket) do
+    actor = human_actor(socket.assigns.regent)
+
+    with %{id: ^id} = link <- Enum.find(socket.assigns.agent_links, &(&1.id == id)),
+         :ok <- revoke(link, actor) do
+      {:noreply,
+       assign(socket,
+         agent_links: Enum.reject(socket.assigns.agent_links, &(&1.id == id)),
+         pairing_notice: %{tone: :success, message: "The agent is no longer connected."}
+       )}
+    else
+      _error ->
+        {:noreply,
+         assign(socket,
+           pairing_notice: %{
+             tone: :error,
+             message: "That agent could not be disconnected. Please try again."
+           }
+         )}
+    end
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <section id="agent-pairing" class="formation-empty" aria-labelledby="agent-pairing-title">
+      <h2 id="agent-pairing-title">Connect an agent</h2>
+      <p>Create a temporary code, then paste it into the Regent app running with your agent.</p>
+      <button
+        id="request-agent-pairing-code"
+        type="button"
+        phx-click="request_agent_pairing_code"
+        phx-target={@myself}
+      >
+        Create temporary code
+      </button>
+
+      <div :if={@pairing_code} id="agent-pairing-code" role="status">
+        <p><strong>{@pairing_code.code}</strong></p>
+        <p>
+          This code works once and expires at {Calendar.strftime(
+            @pairing_code.expires_at,
+            "%H:%M UTC"
+          )}.
+        </p>
+      </div>
+
+      <p
+        :if={@pairing_notice}
+        class={"formation-notice formation-notice--#{@pairing_notice.tone}"}
+        role="status"
+      >
+        {@pairing_notice.message}
+      </p>
+
+      <div :if={@agent_links != []} id="connected-agents">
+        <h3>Connected agents</h3>
+        <ul>
+          <li :for={link <- @agent_links} id={"agent-link-#{link.id}"}>
+            <p><strong>{link.agent_id}</strong></p>
+            <p>Wallet {link.wallet}</p>
+            <button
+              type="button"
+              phx-click="revoke_agent_link"
+              phx-value-id={link.id}
+              phx-target={@myself}
+            >
+              Disconnect
+            </button>
+          </li>
+        </ul>
+      </div>
+    </section>
+    """
+  end
+
+  defp human_actor(regent), do: %Human{human_account_id: regent.human_account_id}
+
+  defp revoke(link, actor) do
+    case Formation.revoke_agent_link(link, actor: actor) do
+      :ok -> :ok
+      {:ok, _link} -> :ok
+      {:error, error} -> {:error, error}
+    end
   end
 end

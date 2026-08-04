@@ -112,4 +112,56 @@ defmodule AshPlatformWeb.FormationLiveTest do
     view |> element("#refresh-cloud-runtime") |> render_click()
     assert render(view) =~ "Sprite status refreshed."
   end
+
+  test "the owner creates a temporary agent code and disconnects a paired agent", %{conn: conn} do
+    account =
+      Accounts.register_verified!("did:privy:formation-agent-pairing", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    actor = %Human{human_account_id: account.id}
+    regent = Formation.form_regent!("agent-pairing-live", "Agent Pairing", actor: actor)
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/formation")
+
+    assert has_element?(view, "#request-agent-pairing-code", "Create temporary code")
+    refute has_element?(view, "#agent-pairing-code")
+
+    view |> element("#request-agent-pairing-code") |> render_click()
+    html = render(view)
+    assert html =~ "This code works once"
+    assert [_, code] = Regex.run(~r/id="agent-pairing-code".*?<strong>([^<]+)<\/strong>/s, html)
+
+    link =
+      Formation.claim_agent_link!(
+        regent.id,
+        code,
+        %{
+          agent_id: "agent-live",
+          registry_address: "0x1111111111111111111111111111111111111111",
+          token_id: "7",
+          wallet: "0x2222222222222222222222222222222222222222"
+        },
+        actor: %System{}
+      )
+
+    {:ok, refreshed, _html} =
+      conn
+      |> recycle()
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/formation")
+
+    assert has_element?(refreshed, "#agent-link-#{link.id}", "agent-live")
+
+    refreshed
+    |> element("#agent-link-#{link.id} button", "Disconnect")
+    |> render_click()
+
+    refute has_element?(refreshed, "#agent-link-#{link.id}")
+    assert render(refreshed) =~ "The agent is no longer connected."
+    assert {:ok, []} = Formation.list_my_agent_links(regent.id, actor: actor)
+  end
 end
