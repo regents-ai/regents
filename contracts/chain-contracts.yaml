@@ -1,0 +1,6 @@
+version: 1
+product: regent-contracts
+contracts: []
+# Canonical chain-contract manifest for contracts owned by this repo.
+# Entries are added only for reviewed, deployed contracts with verified
+# deployment records under deployments/.
