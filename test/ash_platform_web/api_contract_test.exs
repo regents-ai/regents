@@ -18,7 +18,10 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/autolaunch/v1/tokens",
              "/api/formation/v1/regents/{regent_id}/agent-links",
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
+             "/api/techtree/v1/nodes/{id}",
              "/api/techtree/v1/tree/nodes",
+             "/api/techtree/v1/trees",
+             "/api/techtree/v1/trees/{slug}/nodes",
              "/auth/csrf",
              "/auth/privy/session",
              "/auth/session"
@@ -484,17 +487,18 @@ defmodule AshPlatformWeb.ApiContractTest do
 
     for node_schema <- [schemas["NodeListItem"], schemas["Node"]] do
       refute "position" in node_schema["required"]
-      refute "display_kind" in node_schema["required"]
 
       assert node_schema["properties"]["position"] == %{
                "$ref" => "#/components/schemas/NodePosition"
              }
-
-      assert node_schema["properties"]["display_kind"] == %{
-               "type" => "string",
-               "default" => "standard"
-             }
     end
+
+    refute "display_kind" in schemas["NodeListItem"]["required"]
+
+    assert schemas["NodeListItem"]["properties"]["display_kind"] == %{
+             "type" => "string",
+             "default" => "standard"
+           }
   end
 
   test "the canonical contract declares strict planned Techtree components" do
@@ -508,7 +512,7 @@ defmodule AshPlatformWeb.ApiContractTest do
       "ImmutablePayload",
       "EvidenceProjection",
       "EvidenceState",
-      "BaseMainnetRecordReference"
+      "BaseMainnetProjectionReference"
     ]
 
     assert Enum.all?(planned_schema_names, &(schemas[&1]["additionalProperties"] == false))
@@ -518,16 +522,46 @@ defmodule AshPlatformWeb.ApiContractTest do
 
     node = schemas["Node"]
 
-    assert node["properties"]["kind"]["enum"] == [
-             "environment_family",
-             "benchmark_slice",
-             "uplift_report",
-             "reproduction",
-             "audit"
+    assert node["required"] == [
+             "id",
+             "tree_id",
+             "kind",
+             "title",
+             "summary",
+             "payload_hash",
+             "base_mainnet_projection",
+             "edges",
+             "published_at"
            ]
 
-    assert node["properties"]["base_mainnet_record"] == %{
-             "$ref" => "#/components/schemas/BaseMainnetRecordReference"
+    assert node["properties"]["kind"]["type"] == ["string", "null"]
+    refute Map.has_key?(node["properties"], "display_kind")
+
+    for optional <-
+          ~w(contributor_id lineage_node_ids capsule immutable_payloads evidence_projection evidence_state) do
+      refute optional in node["required"]
+      assert node["properties"][optional]["description"] =~ "Absent or null"
+    end
+
+    assert node["properties"]["lineage_node_ids"]["type"] == ["array", "null"]
+    assert node["properties"]["immutable_payloads"]["type"] == ["array", "null"]
+
+    for optional_ref <- ~w(capsule evidence_projection evidence_state) do
+      assert %{"oneOf" => [ref, %{"type" => "null"}]} =
+               node["properties"][optional_ref]
+
+      assert Map.has_key?(ref, "$ref")
+    end
+
+    assert node["properties"]["base_mainnet_projection"] == %{
+             "$ref" => "#/components/schemas/BaseMainnetProjectionReference"
+           }
+
+    assert node["properties"]["edges"] == %{
+             "type" => "array",
+             "description" =>
+               "Typed curation edges touching this node, distinct from evidence lineage.",
+             "items" => %{"$ref" => "#/components/schemas/Edge"}
            }
 
     capsule = schemas["Capsule"]
@@ -583,11 +617,11 @@ defmodule AshPlatformWeb.ApiContractTest do
              }
     end
 
-    assert projection["properties"]["base_mainnet_record"] == %{
-             "$ref" => "#/components/schemas/BaseMainnetRecordReference"
+    assert projection["properties"]["base_mainnet_projection"] == %{
+             "$ref" => "#/components/schemas/BaseMainnetProjectionReference"
            }
 
-    refute "base_mainnet_record" in projection["required"]
+    refute "base_mainnet_projection" in projection["required"]
 
     state = schemas["EvidenceState"]
     assert state["additionalProperties"] == false
@@ -595,16 +629,94 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert "invalidated" in state["properties"]["status"]["enum"]
     assert "awaiting_revalidation" in state["properties"]["status"]["enum"]
 
-    base_record = schemas["BaseMainnetRecordReference"]
-    assert base_record["properties"]["chain_id"] == %{"type" => "integer", "const" => 8453}
-    assert base_record["additionalProperties"] == false
-    refute Map.has_key?(base_record["properties"], "action")
+    base_projection = schemas["BaseMainnetProjectionReference"]
+
+    assert base_projection == %{
+             "type" => "object",
+             "additionalProperties" => false,
+             "required" => [
+               "chain_id",
+               "projection_status",
+               "record_uid",
+               "transaction_hash",
+               "block_number"
+             ],
+             "properties" => %{
+               "chain_id" => %{"type" => "integer", "const" => 8453},
+               "projection_status" => %{
+                 "type" => "string",
+                 "enum" => ["not_started", "pending", "submitted", "confirmed", "failed"]
+               },
+               "record_uid" => %{"type" => ["string", "null"], "minLength" => 1},
+               "transaction_hash" => %{
+                 "type" => ["string", "null"],
+                 "pattern" => "^0x[0-9a-f]{64}$"
+               },
+               "block_number" => %{"type" => ["integer", "null"], "minimum" => 0}
+             }
+           }
 
     path_refs = collect_refs(contract["paths"])
+    assert "#/components/schemas/TreeListEnvelope" in path_refs
+    assert "#/components/schemas/TreeNodePageEnvelope" in path_refs
+    assert "#/components/schemas/NodeEnvelope" in path_refs
+  end
 
-    refute Enum.any?(
-             path_refs,
-             &(&1 in Enum.map(planned_schema_names, fn name -> "#/components/schemas/#{name}" end))
+  test "the three Techtree reads declare bounded cursor pagination and five honest errors" do
+    contract = YamlElixir.read_from_file!(@contract)
+    paths = contract["paths"]
+    parameters = contract["components"]["parameters"]
+    schemas = contract["components"]["schemas"]
+
+    assert paths["/api/techtree/v1/trees"]["get"]["operationId"] == "listTechtreeTrees"
+
+    assert paths["/api/techtree/v1/trees"]["get"]["responses"]["200"]["description"] ==
+             "Public Techtree trees; all research collections are public in this version"
+
+    page = paths["/api/techtree/v1/trees/{slug}/nodes"]["get"]
+    assert page["operationId"] == "listTechtreeTreeNodes"
+    assert page["security"] == []
+
+    assert page["parameters"] == [
+             %{"$ref" => "#/components/parameters/TechtreeTreeSlug"},
+             %{"$ref" => "#/components/parameters/TechtreeCursor"},
+             %{"$ref" => "#/components/parameters/TechtreeLimit"}
+           ]
+
+    assert parameters["TechtreeLimit"]["schema"] == %{
+             "type" => "integer",
+             "minimum" => 1,
+             "maximum" => 100,
+             "default" => 25
+           }
+
+    assert schemas["TreeNodePageEnvelope"]["required"] == ["data", "edges", "next_cursor"]
+
+    assert paths["/api/techtree/v1/nodes/{id}"]["get"]["operationId"] ==
+             "getTechtreeNode"
+
+    refute Map.has_key?(paths["/api/techtree/v1/nodes/{id}"]["get"]["responses"], "424")
+
+    assert schemas["TechtreeReadError"]["properties"]["error"]["properties"]["code"][
+             "enum"
+           ] == [
+             "not_found",
+             "unauthorized",
+             "temporarily_unavailable",
+             "invalid_input",
+             "artifact_unavailable"
+           ]
+
+    responses = contract["components"]["responses"]
+
+    assert responses["TechtreeArtifactUnavailable"]["description"] =~
+             "zs6.6 payload-access gate"
+
+    assert Enum.all?(
+             ~w(TechtreeInvalidInput TechtreeUnauthorized TechtreeNotFound TechtreeArtifactUnavailable TechtreeTemporarilyUnavailable),
+             &(responses[&1]["content"]["application/json"]["schema"] == %{
+                 "$ref" => "#/components/schemas/TechtreeReadError"
+               })
            )
   end
 

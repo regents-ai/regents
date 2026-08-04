@@ -66,6 +66,12 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [techtree_graph_migration] =
              Path.wildcard("priv/repo/migrations/*_add_techtree_edges_and_node_layout.exs")
 
+    assert [techtree_public_read_index_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_zs63_techtree_public_read_index.exs")
+
+    assert [techtree_workflow_state_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_zs63_techtree_workflow_state.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -104,6 +110,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                payment_links_migration,
                token_auction_identity_migration,
                techtree_graph_migration,
+               techtree_public_read_index_migration,
+               techtree_workflow_state_migration,
                cloud_runtimes_migration,
                linked_identities_migration,
                public_profile_migration,
@@ -323,6 +331,39 @@ defmodule AshPlatformWeb.BoundaryTest do
         "remove(:pos_y)",
         "remove(:pos_x)"
       ]
+    )
+
+    assert_additive_migration(
+      techtree_public_read_index_migration,
+      [
+        "@disable_ddl_transaction true",
+        "@disable_migration_lock true",
+        ~s|create index(:nodes, [:tree_id, "published_at DESC", "id ASC"]|,
+        ~s|name: "nodes_public_tree_page_index"|,
+        "concurrently: true",
+        ~s|prefix: "techtree"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      techtree_public_read_index_migration,
+      [~s|drop_if_exists(|, ~s|name: "nodes_public_tree_page_index"|]
+    )
+
+    assert_additive_migration(
+      techtree_workflow_state_migration,
+      [
+        "alter table(:nodes",
+        ~s|add(:workflow_state, :text, null: false, default: "published")|,
+        ~s|prefix: "techtree"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      techtree_workflow_state_migration,
+      ["remove(:workflow_state)"]
     )
 
     assert_additive_migration(

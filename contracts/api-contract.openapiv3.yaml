@@ -186,6 +186,54 @@ paths:
         "400": {$ref: "#/components/responses/AgentPairingFailed"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
         "429": {$ref: "#/components/responses/AgentClaimRateLimited"}
+  /api/techtree/v1/trees:
+    get:
+      operationId: listTechtreeTrees
+      security: []
+      parameters: []
+      responses:
+        "200":
+          description: Public Techtree trees; all research collections are public in this version
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreeListEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreeInvalidInput"}
+        "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
+        "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
+  /api/techtree/v1/trees/{slug}/nodes:
+    get:
+      operationId: listTechtreeTreeNodes
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/TechtreeTreeSlug"}
+        - {$ref: "#/components/parameters/TechtreeCursor"}
+        - {$ref: "#/components/parameters/TechtreeLimit"}
+      responses:
+        "200":
+          description: Published nodes and typed curation edges for one Techtree tree
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreeNodePageEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreeInvalidInput"}
+        "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
+        "404": {$ref: "#/components/responses/TechtreeNotFound"}
+        "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
+  /api/techtree/v1/nodes/{id}:
+    get:
+      operationId: getTechtreeNode
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/TechtreeNodeId"}
+      responses:
+        "200":
+          description: Public Techtree node detail
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/NodeEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreeInvalidInput"}
+        "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
+        "404": {$ref: "#/components/responses/TechtreeNotFound"}
+        "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
   /api/techtree/v1/tree/nodes:
     get:
       operationId: listTreeNodes
@@ -312,6 +360,34 @@ components:
       in: header
       required: true
       schema: {type: string, minLength: 1}
+    TechtreeTreeSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 63
+        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    TechtreeNodeId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    TechtreeCursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque position returned by the preceding page.
+      schema: {type: string, minLength: 1, maxLength: 512}
+    TechtreeLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
   securitySchemes:
     privyAccessToken:
       type: http
@@ -416,6 +492,46 @@ components:
           examples:
             rateLimited:
               value: {error: {code: rate_limited, message: Too many pairing attempts. Please wait and try again.}}
+    TechtreeInvalidInput:
+      description: The request input is invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeReadError"}
+          examples:
+            invalidInput:
+              value: {error: {code: invalid_input, message: The request input is invalid.}}
+    TechtreeUnauthorized:
+      description: The caller is not authorized to read the requested public projection
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeReadError"}
+          examples:
+            unauthorized:
+              value: {error: {code: unauthorized, message: The request is not authorized.}}
+    TechtreeNotFound:
+      description: The requested public projection was not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeReadError"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: The requested public record was not found.}}
+    TechtreeArtifactUnavailable:
+      description: Reserved for the zs6.6 payload-access gate when public artifact retrieval is admitted; these read endpoints do not emit this response
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeReadError"}
+          examples:
+            artifactUnavailable:
+              value: {error: {code: artifact_unavailable, message: A referenced public artifact is unavailable.}}
+    TechtreeTemporarilyUnavailable:
+      description: The public read could not be completed at this time
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeReadError"}
+          examples:
+            temporarilyUnavailable:
+              value: {error: {code: temporarily_unavailable, message: The public read is temporarily unavailable.}}
   schemas:
     AgentLinkListEnvelope:
       type: object
@@ -596,6 +712,32 @@ components:
         summary: {type: [string, "null"]}
         graduated_at: {type: string, format: date-time}
         top_rank: {type: [integer, "null"], minimum: 1}
+    TreeListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Tree"}
+    TreeNodePageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, edges, next_cursor]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/NodeListItem"}
+        edges:
+          type: array
+          items: {$ref: "#/components/schemas/Edge"}
+        next_cursor: {type: [string, "null"]}
+    NodeEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/Node"}
     NodeListItem:
       type: object
       additionalProperties: false
@@ -627,29 +769,50 @@ components:
     Node:
       type: object
       additionalProperties: false
-      required: [id, tree_id, kind, title, contributor_id, lineage_node_ids, published_at]
+      required: [id, tree_id, kind, title, summary, payload_hash, base_mainnet_projection, edges, published_at]
       properties:
         id: {type: string, format: uuid}
         tree_id: {type: string, format: uuid}
         kind:
-          type: string
-          enum: [environment_family, benchmark_slice, uplift_report, reproduction, audit]
+          type: [string, "null"]
+          description: The recorded node display kind, or null when no kind was recorded.
         title: {type: string}
         summary: {type: [string, "null"]}
-        contributor_id: {type: string, minLength: 1}
+        payload_hash: {type: [string, "null"]}
+        contributor_id:
+          type: [string, "null"]
+          minLength: 1
+          description: Absent or null when contributor identity was not recorded for this node.
         lineage_node_ids:
-          type: array
+          type: [array, "null"]
           uniqueItems: true
           items: {type: string, format: uuid}
-        capsule: {$ref: "#/components/schemas/Capsule"}
+          description: Absent or null when evidence lineage was not recorded; an empty array records a root node.
+        capsule:
+          oneOf:
+            - {$ref: "#/components/schemas/Capsule"}
+            - {type: "null"}
+          description: Absent or null when capsule commitments were not recorded for this node.
         immutable_payloads:
-          type: array
+          type: [array, "null"]
           items: {$ref: "#/components/schemas/ImmutablePayload"}
-        evidence_projection: {$ref: "#/components/schemas/EvidenceProjection"}
-        evidence_state: {$ref: "#/components/schemas/EvidenceState"}
-        base_mainnet_record: {$ref: "#/components/schemas/BaseMainnetRecordReference"}
+          description: Absent or null when immutable payload references were not recorded for this node.
+        evidence_projection:
+          oneOf:
+            - {$ref: "#/components/schemas/EvidenceProjection"}
+            - {type: "null"}
+          description: Absent or null when an approved evidence projection was not recorded for this node.
+        evidence_state:
+          oneOf:
+            - {$ref: "#/components/schemas/EvidenceState"}
+            - {type: "null"}
+          description: Absent or null when public evidence state was not recorded for this node.
+        base_mainnet_projection: {$ref: "#/components/schemas/BaseMainnetProjectionReference"}
         position: {$ref: "#/components/schemas/NodePosition"}
-        display_kind: {type: string, default: standard}
+        edges:
+          type: array
+          description: Typed curation edges touching this node, distinct from evidence lineage.
+          items: {$ref: "#/components/schemas/Edge"}
         published_at: {type: string, format: date-time}
     NodePosition:
       type: object
@@ -752,7 +915,7 @@ components:
         claim_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
         report_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
         decision_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
-        base_mainnet_record: {$ref: "#/components/schemas/BaseMainnetRecordReference"}
+        base_mainnet_projection: {$ref: "#/components/schemas/BaseMainnetProjectionReference"}
     EvidenceState:
       type: object
       additionalProperties: false
@@ -777,15 +940,20 @@ components:
           uniqueItems: true
           items: {type: string, format: uuid}
         updated_at: {type: string, format: date-time}
-    BaseMainnetRecordReference:
+    BaseMainnetProjectionReference:
       type: object
       additionalProperties: false
-      required: [chain_id, record_id, identity_status, integrity_status]
+      required: [chain_id, projection_status, record_uid, transaction_hash, block_number]
       properties:
         chain_id: {type: integer, const: 8453}
-        record_id: {type: string, minLength: 1}
-        identity_status: {type: string, enum: [unverified, verified]}
-        integrity_status: {type: string, enum: [unverified, verified, mismatch]}
+        projection_status:
+          type: string
+          enum: [not_started, pending, submitted, confirmed, failed]
+        record_uid: {type: [string, "null"], minLength: 1}
+        transaction_hash:
+          type: [string, "null"]
+          pattern: "^0x[0-9a-f]{64}$"
+        block_number: {type: [integer, "null"], minimum: 0}
     ApiError:
       type: object
       additionalProperties: false
@@ -809,6 +977,20 @@ components:
           required: [code, message]
           properties:
             code: {type: string, enum: [not_found]}
+            message: {type: string}
+    TechtreeReadError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [not_found, unauthorized, temporarily_unavailable, invalid_input, artifact_unavailable]
             message: {type: string}
     Session:
       type: object

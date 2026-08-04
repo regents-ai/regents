@@ -33,7 +33,15 @@ defmodule AshPlatform.Techtree.Edge do
   actions do
     read :list_for_tree do
       argument :tree_id, :uuid, allow_nil?: false
-      filter expr(from_node.tree_id == ^arg(:tree_id))
+
+      filter expr(
+               from_node.tree_id == ^arg(:tree_id) and
+                 from_node.workflow_state == :published and
+                 to_node.workflow_state == :published and
+                 not is_nil(from_node.published_at) and
+                 not is_nil(to_node.published_at)
+             )
+
       prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 

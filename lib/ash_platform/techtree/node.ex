@@ -3,7 +3,8 @@ defmodule AshPlatform.Techtree.Node do
     otp_app: :ash_platform,
     domain: AshPlatform.Techtree,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   attributes do
     uuid_primary_key :id
@@ -45,6 +46,13 @@ defmodule AshPlatform.Techtree.Node do
       default &DateTime.utc_now/0
     end
 
+    attribute :workflow_state, :atom do
+      allow_nil? false
+      public? true
+      default :published
+      constraints one_of: [:draft, :publishing, :published, :failed]
+    end
+
     timestamps()
   end
 
@@ -58,22 +66,29 @@ defmodule AshPlatform.Techtree.Node do
   actions do
     read :read do
       primary? true
+      filter expr(workflow_state == :published and not is_nil(published_at))
     end
 
     read :list_public do
+      filter expr(workflow_state == :published and not is_nil(published_at))
       prepare build(sort: [published_at: :desc, id: :asc])
     end
 
     read :list_public_for_tree do
       argument :tree_id, :uuid, allow_nil?: false
-      filter expr(tree_id == ^arg(:tree_id))
+
+      filter expr(
+               tree_id == ^arg(:tree_id) and workflow_state == :published and
+                 not is_nil(published_at)
+             )
+
       prepare build(sort: [published_at: :desc, id: :asc])
     end
 
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
-      filter expr(id == ^arg(:id))
+      filter expr(id == ^arg(:id) and workflow_state == :published and not is_nil(published_at))
     end
 
     create :import_public do
@@ -100,5 +115,12 @@ defmodule AshPlatform.Techtree.Node do
     table "nodes"
     schema("techtree")
     repo(AshPlatform.Repo)
+
+    custom_indexes do
+      index([:tree_id, "published_at DESC", "id ASC"],
+        name: "nodes_public_tree_page_index",
+        concurrently: true
+      )
+    end
   end
 end
