@@ -1,0 +1,83 @@
+version: 2
+status: historical_reconstruction
+network:
+  name: base-mainnet
+  chain_id: 8453
+source:
+  archive_commit: b760a45b7a9d97711d14ebe8d467dfcc168b5f1a
+  broadcast: broadcast/DeployRegentRevenueStaking.s.sol/8453/run-1777954073673.json
+  broadcast_recorded_commit: 876207e
+  broadcast_timestamp_ms: 1777954073673
+admission_source:
+  manifest: ash-platform/contracts/chain-contracts.yaml
+  contract_id: base_mainnet_reviewed_evidence
+  admitted_prepared_action_ids:
+    - continuous_clearing_auction.submit_bid
+    - continuous_clearing_auction.exit_bid
+    - continuous_clearing_auction.return_quote_token
+    - continuous_clearing_auction.claim_bid
+    - quote_token_erc20.approve_exact
+    - regent_staking_revenue_router.settle_treasury_buyback
+    - payment_link_factory.create_payment_link
+    - payment_link_factory.create_canonical_payment_link
+    - payment_link_factory.set_payment_link_canonical
+    - payment_link_factory.set_payment_link_receiver_state
+    - revenue_ingress_account.sweep_usdc
+    - subject_token_erc20.approve_exact
+    - revenue_share_splitter_v2.stake
+    - revenue_share_splitter_v2.unstake
+    - revenue_share_splitter_v2.claim_usdc
+  standing_launch_note: >-
+    v0.1 LAUNCH admission is separately governed by the v0.1 money-action matrix;
+    subject-owner action classes become unavailable at launch regardless of current admission.
+warning: >-
+  This reconstructs what was deployed from archived broadcast evidence. It is not a
+  deployment instruction, does not promote any contract, and records no new action.
+  Historical artifact deployment is distinct from binding that artifact to current source.
+deployments:
+  - contract: RegentRevenueStaking
+    broadcast_artifact_name: RegentRevenueStaking
+    source_at_deployment: src/revenue/RegentRevenueStaking.sol
+    migrated_source: src/staking/RegentRevenueStaking.sol
+    source_lineage:
+      status: current_source_unverified_creation_bytecode_mismatch
+      broadcast_recorded_commit: 876207e
+      note: broadcast commit object is not present in the retained archive Git object set
+    current_source_binding:
+      method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+      compiler: solc_0.8.30_forge_1.5.1
+      result: mismatch
+      broadcast_creation_bytes: 12580
+      current_creation_bytes: 13031
+      broadcast_creation_sha256: f489624743cf33fa1370cc29eff800a942d0fdcd384f8c84ca8f67804516d45d
+      current_creation_sha256: 4291ed5266727b9a4ee63a5e282a0027db0bc2eb9ae62d2476c23cee1d19bff9
+      current_source_deployed: false
+    address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+    transaction_hash: "0xf30488de7242c2fa35ef419227ef296472a993e7c17311adf24ccdc8d73ab5dd"
+    constructor:
+      signature: "constructor(address,address,address,uint256,address)"
+      stake_token: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+      usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      treasury: "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+      revenue_share_supply_denominator: "100000000000000000000000000000"
+      owner: "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+    historical_artifact_labels:
+      deployed: true
+      publicly_exposed: true
+    current_migrated_source_labels:
+      migrated: true
+      deployed: false
+      publicly_exposed: false
+      money_admitted: false
+    reviewed_action_evidence_only:
+      - regent_revenue_staking.stake
+      - regent_revenue_staking.unstake
+      - regent_revenue_staking.claim_usdc
+      - regent_revenue_staking.claim_regent
+      - regent_revenue_staking.claim_and_restake_regent
+    admitted_prepared_action_ids: []
+    admission_note: staking actions are reviewed-evidence only; zero admitted action ids
+notes:
+  - The historical RegentRevenueStaking artifact is the only Autolaunch-family artifact recorded on Base mainnet.
+  - Creation bytecode does not bind that historical artifact to the current migrated source.
+  - The approved plan marks the historical deployment permanent and forbids redeployment.

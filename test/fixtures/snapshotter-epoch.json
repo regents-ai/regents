@@ -1,0 +1,83 @@
+{
+  "algoVersion": "2",
+  "chainId": "8453",
+  "staking": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+  "distributor": "0x00000000000000000000000000000000005B117E",
+  "fromBlock": "1000",
+  "toBlock": "10999",
+  "deposited": "1750000000010000000003",
+  "allocated": "202500000019400000000",
+  "inputsHash": "0xbfdaa678498eb8e979fcc9407ed5a6ffec6458c8c4e9dee9fa797c6fcb6dd777",
+  "root": "0xdb95aacd300d9a5f9f6049bdc6fe105948f1a32d6e0c1de39889c0abd1934e9b",
+  "deposits": [
+    {
+      "blockNumber": "3000",
+      "logIndex": 2,
+      "amount": "1000000000000000000000"
+    },
+    {
+      "blockNumber": "5000",
+      "logIndex": 4,
+      "amount": "500000000000000000003"
+    },
+    {
+      "blockNumber": "8000",
+      "logIndex": 0,
+      "amount": "250000000000000000000"
+    },
+    {
+      "blockNumber": "9000",
+      "logIndex": 7,
+      "amount": "10000000000"
+    }
+  ],
+  "leaves": [
+    {
+      "index": "0",
+      "account": "0x1111111111111111111111111111111111111111",
+      "amount": "37500000000300000000",
+      "proof": [
+        "0x95656a19ef26fb49c3ecb7be011b05c659a35af29853e3fce6c48f5ada643ede",
+        "0x3184278bca0df52555dff3ecee3de4792edfdf8d69f05d36667ad6e3e555f98d"
+      ]
+    },
+    {
+      "index": "1",
+      "account": "0x2222222222222222222222222222222222222222",
+      "amount": "87500000000500000000",
+      "proof": [
+        "0x13de211d5f8e998af9c6c9c3e7fc69ce7e0649ec9ee427b4cb2c2f93f2512328",
+        "0xa5454bbde41fa325c04fd042687dc09844f3b52e35cb6ac75605d5eee36d3d6b",
+        "0x3184278bca0df52555dff3ecee3de4792edfdf8d69f05d36667ad6e3e555f98d"
+      ]
+    },
+    {
+      "index": "2",
+      "account": "0x3333333333333333333333333333333333333333",
+      "amount": "75000000001000000000",
+      "proof": [
+        "0x7940c087c7358e6d3a787a62c58c8eb7b9907a9b99ec68a136f592c577dea160",
+        "0x3e568de0e2fca71223b71574a89302a5a2a4e4917e841a3ab57e6eab249220f3"
+      ]
+    },
+    {
+      "index": "3",
+      "account": "0x4444444444444444444444444444444444444444",
+      "amount": "2500000000100000000",
+      "proof": [
+        "0x8d3e829cf42a0d326bc120687bbca33cda15684a457d2077fc3b57b4b6944d85",
+        "0x3e568de0e2fca71223b71574a89302a5a2a4e4917e841a3ab57e6eab249220f3"
+      ]
+    },
+    {
+      "index": "4",
+      "account": "0x6666666666666666666666666666666666666666",
+      "amount": "17500000000",
+      "proof": [
+        "0x6f25bbac432adec4b8de6e9c8c8ac47b95cd164800c0c7da8e71d6b0a5a7dcf0",
+        "0xa5454bbde41fa325c04fd042687dc09844f3b52e35cb6ac75605d5eee36d3d6b",
+        "0x3184278bca0df52555dff3ecee3de4792edfdf8d69f05d36667ad6e3e555f98d"
+      ]
+    }
+  ]
+}

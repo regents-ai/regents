@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {Test} from "forge-std/Test.sol";
+
+import {RegentRevenueStaking} from "src/staking/RegentRevenueStaking.sol";
+import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
+import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
+
+contract RegentStakingRevenueRouterTest is Test {
+    bytes32 internal constant SUBJECT_ID = keccak256("subject");
+    address internal constant OWNER = address(0xA11CE);
+    address internal constant TREASURY = address(0x1111);
+    address internal constant OTHER_TREASURY = address(0x2222);
+    address internal constant OTHER_SPLITTER = address(0xDEAD);
+    uint256 internal constant USDC_FEE = 100e6;
+
+    MintableERC20Mock internal usdc;
+    MintableERC20Mock internal regent;
+    SubjectRegistry internal subjectRegistry;
+    RegentRevenueStaking internal staking;
+    RegentStakingRevenueRouter internal router;
+
+    function setUp() external {
+        usdc = new MintableERC20Mock("USD Coin", "USDC");
+        regent = new MintableERC20Mock("REGENT", "REGENT");
+        subjectRegistry = new SubjectRegistry(OWNER);
+        staking =
+            new RegentRevenueStaking(address(regent), address(usdc), TREASURY, 1_000_000e18, OWNER);
+        router = new RegentStakingRevenueRouter(
+            OWNER, address(usdc), address(subjectRegistry), address(staking)
+        );
+
+        vm.prank(OWNER);
+        subjectRegistry.createSubject(
+            SUBJECT_ID, address(0xBEEF), address(this), TREASURY, true, "Subject"
+        );
+    }
+
+    function testRouterAcceptsFeeOnlyFromRegisteredSubjectSplitter() external {
+        usdc.mint(address(router), USDC_FEE);
+
+        vm.prank(OTHER_SPLITTER);
+        vm.expectRevert("ONLY_SUBJECT_SPLITTER");
+        router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
+    }
+
+    function testRouterAcceptsFeeAfterRegistryTreasuryRotation() external {
+        usdc.mint(address(router), USDC_FEE);
+
+        vm.prank(OWNER);
+        subjectRegistry.updateSubject(SUBJECT_ID, address(this), OTHER_TREASURY, true, "Subject");
+
+        uint256 deposited = router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
+
+        assertEq(deposited, USDC_FEE);
+        assertEq(usdc.balanceOf(address(staking)), USDC_FEE);
+    }
+
+    function testRouterRejectsZeroAmount() external {
+        vm.expectRevert("AMOUNT_ZERO");
+        router.processProtocolFee(SUBJECT_ID, 0, bytes32("source"));
+    }
+
+    function testRouterRejectsSettlementLargerThanMax() external {
+        uint256 tooLarge = router.maxUsdcPerSettlement() + 1;
+        usdc.mint(address(router), tooLarge);
+
+        vm.expectRevert("SETTLEMENT_TOO_LARGE");
+        router.processProtocolFee(SUBJECT_ID, tooLarge, bytes32("source"));
+    }
+
+    function testRouterRejectsStakingUsdcMismatch() external {
+        MintableERC20Mock otherUsdc = new MintableERC20Mock("Other USD", "oUSD");
+
+        vm.expectRevert("STAKING_USDC_MISMATCH");
+        new RegentStakingRevenueRouter(
+            OWNER, address(otherUsdc), address(subjectRegistry), address(staking)
+        );
+    }
+
+    function testRouterDepositsUsdcIntoRegentRevenueStaking() external {
+        usdc.mint(address(router), USDC_FEE);
+
+        uint256 deposited = router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
+
+        assertEq(deposited, USDC_FEE);
+        assertEq(usdc.balanceOf(address(router)), 0);
+        assertEq(usdc.balanceOf(address(staking)), USDC_FEE);
+        assertEq(staking.totalUsdcReceived(), USDC_FEE);
+        assertEq(router.totalUsdcSettled(), USDC_FEE);
+        assertEq(router.totalUsdcDepositedToRegentStaking(), USDC_FEE);
+    }
+
+    function testRouterRevertsIfStakingIsPaused() external {
+        vm.prank(OWNER);
+        staking.setPaused(true);
+
+        usdc.mint(address(router), USDC_FEE);
+
+        vm.expectRevert("PAUSED");
+        router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
+    }
+
+    function testRouterUsesFixedProtocolSkim() external view {
+        assertEq(router.protocolSkimBps(), 100);
+    }
+
+    function testMaxUsdcPerSettlementIsOwnerConfigurable() external {
+        vm.prank(OWNER);
+        router.setMaxUsdcPerSettlement(1000e6);
+        assertEq(router.maxUsdcPerSettlement(), 1000e6);
+    }
+
+    function testSetMaxUsdcPerSettlementRejectsZero() external {
+        vm.prank(OWNER);
+        vm.expectRevert("MAX_SETTLEMENT_ZERO");
+        router.setMaxUsdcPerSettlement(0);
+    }
+
+    /// @notice The market-buyback surface has been removed by construction: the router no longer
+    ///         exposes any buyback record/settle/oracle/adapter selectors, so there is no
+    ///         settle-time market price for anyone to manipulate.
+    function testNoBuybackSurfaceRemains() external {
+        // treasuryBuybackBps() selector removed
+        (bool ok,) = address(router).staticcall(abi.encodeWithSignature("treasuryBuybackBps()"));
+        assertFalse(ok);
+        // pendingTreasuryBuybackUsdc(bytes32) selector removed
+        (ok,) = address(router)
+            .staticcall(abi.encodeWithSignature("pendingTreasuryBuybackUsdc(bytes32)", SUBJECT_ID));
+        assertFalse(ok);
+        // buybackAdapter() selector removed
+        (ok,) = address(router).staticcall(abi.encodeWithSignature("buybackAdapter()"));
+        assertFalse(ok);
+        // settleTreasuryBuyback(...) selector removed
+        (ok,) = address(router)
+            .call(
+                abi.encodeWithSignature(
+                    "settleTreasuryBuyback(bytes32,uint256,uint256,bytes32)",
+                    SUBJECT_ID,
+                    USDC_FEE,
+                    uint256(1),
+                    bytes32("x")
+                )
+            );
+        assertFalse(ok);
+        // recordTreasuryBuyback(...) selector removed
+        (ok,) = address(router)
+            .call(
+                abi.encodeWithSignature(
+                    "recordTreasuryBuyback(bytes32,uint256,bytes32)",
+                    SUBJECT_ID,
+                    USDC_FEE,
+                    bytes32("x")
+                )
+            );
+        assertFalse(ok);
+    }
+}

@@ -1,0 +1,61 @@
+version: 1
+status: draft
+approval: founder_approval_pending
+purpose: one canonical economics preset for v0.1 Autolaunch
+warning: Draft only; this migration does not activate, expose, or admit these economics.
+auction:
+  quote_asset:
+    symbol: REGENT
+    address_base_mainnet: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+  bidder_payment_asset: REGENT
+  total_token_supply_units: "100000000000000000000000000000"
+  allocation_bps:
+    public_sale: 1000
+    lp_reserve: 500
+    agent_vesting: 8500
+  schedule_preset:
+    auction_start_block_offset: 300
+    auction_duration_blocks: 86400
+    final_block_bps: 3000
+    claim_delay_blocks: 64
+    migration_delay_blocks: 128
+    sweep_delay_blocks: 384
+  price_preset:
+    floor_price: "7922816251426433400832"
+    auction_tick_spacing: "23768448754279300202496"
+graduated_pool:
+  quote_asset_seed: raised_REGENT
+  raised_regent_split_bps:
+    pool_seed: 4000
+    agent_treasury: 6000
+  launch_token_seed: public_sale_remainder_plus_lp_reserve
+  lp_position_custody: permanently_locked_at_dead_address
+  uniswap_pool_fee: 0
+  pool_tick_spacing: 60
+  trading_surface: external_link_only
+hook_fee:
+  charged_on_quote_asset_swaps_bps: 200
+  agent_treasury_bps: 100
+  regent_recipient_bps: 100
+  invariant: agent_treasury_bps_plus_regent_recipient_bps_equals_total
+vesting:
+  beneficiary: launch_agent_safe
+  duration_seconds: 31536000
+  allocation_bps: 8500
+revenue:
+  settlement_asset:
+    symbol: USDC
+    address_base_mainnet: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  eligible_revenue_share_default_bps: 10000
+  protocol_staking_skim_bps: 100
+  protocol_staking_destination: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+four_labels:
+  migrated: true
+  deployed: false
+  publicly_exposed: false
+  money_admitted: false
+decisions:
+  - TECH is deleted and is not an auction or revenue asset.
+  - Bidders pay REGENT; raised REGENT seeds the graduated pool and funds the treasury split.
+  - The 2% hook fee is split into a 1% agent-treasury lane and a 1% Regent lane.
+  - Trading is presented only through an external link; no embedded trading surface is admitted.

@@ -1,0 +1,302 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {Test} from "forge-std/Test.sol";
+
+import {AuctionParameters} from "src/autolaunch/cca/interfaces/IContinuousClearingAuction.sol";
+import {LaunchDeploymentController} from "src/autolaunch/LaunchDeploymentController.sol";
+import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
+import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
+import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
+import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
+import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
+import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
+import {
+    RevenueShareSplitterV2Deployer
+} from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
+import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ExampleCCADeploymentScript} from "script/ExampleCCADeploymentScript.s.sol";
+import {
+    MockContinuousClearingAuctionFactory
+} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
+import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
+import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
+import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
+
+interface IUERC20LaunchToken {
+    function balanceOf(address account) external view returns (uint256);
+    function decimals() external view returns (uint8);
+    function totalSupply() external view returns (uint256);
+    function creator() external view returns (address);
+    function graffiti() external view returns (bytes32);
+    function tokenURI() external view returns (string memory);
+}
+
+contract ExampleCCADeploymentScriptTest is Test {
+    address internal constant AGENT_SAFE = address(0x4321);
+    address internal constant REGENT_MULTISIG = address(0x9FA1);
+    address internal constant IDENTITY_REGISTRY = address(0x8004);
+    address internal constant STRATEGY_OPERATOR = address(0xBEEF);
+    address internal constant TEST_TOKEN_FACTORY = address(uint160(0xFACA0));
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+    address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address internal constant POOL_MANAGER = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
+    address internal constant POSITION_MANAGER = 0x7C5f5A4bBd8fD63184577525326123B519429bDc;
+    uint256 internal constant IDENTITY_AGENT_ID = 42;
+    uint256 internal constant TOTAL_SUPPLY = 1_000_000_000_000_000_000_000;
+    uint256 internal constant CCA_TICK_SPACING_Q96 = 79_228_162_514_264_337_593_543_950;
+    uint256 internal constant CCA_FLOOR_PRICE_Q96 = 7_922_816_251_426_433_759_354_395_000;
+    uint256 internal constant CCA_MAX_TARGET_PRICE_Q96 = CCA_TICK_SPACING_Q96 * 10_000_000;
+
+    ExampleCCADeploymentScript internal script;
+    MockContinuousClearingAuctionFactory internal auctionFactory;
+    MockHookPoolManager internal poolManager;
+    SubjectRegistry internal subjectRegistry;
+    RevenueShareFactory internal revenueShareFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
+    RevenueIngressFactory internal revenueIngressFactory;
+    RegentLBPStrategyFactory internal strategyFactory;
+    UERC20Factory internal tokenFactory;
+    MockRegentStakingRevenueRouter internal feeRouter;
+
+    function setUp() external {
+        script = new ExampleCCADeploymentScript();
+        vm.chainId(8453);
+        _installCanonicalRegentMock();
+        auctionFactory = new MockContinuousClearingAuctionFactory();
+        poolManager = new MockHookPoolManager();
+        subjectRegistry = new SubjectRegistry(address(this));
+        feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
+        revenueShareFactory = new RevenueShareFactory(
+            address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
+        );
+        revenueIngressFactory =
+            new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
+        strategyFactory = new RegentLBPStrategyFactory(address(script));
+        tokenFactory = UERC20Factory(TEST_TOKEN_FACTORY);
+        vm.etch(address(tokenFactory), type(UERC20Factory).runtimeCode);
+        subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
+
+        _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
+        _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory))
+        );
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
+            vm.toString(address(revenueIngressFactory))
+        );
+        vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
+        vm.setEnv("AUTOLAUNCH_FACTORY_OWNER_ADDRESS", vm.toString(address(script)));
+        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(POOL_MANAGER));
+        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(POSITION_MANAGER));
+        vm.setEnv("AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS", vm.toString(REGENT));
+        vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
+        _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
+        _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
+        vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
+        vm.setEnv("AUTOLAUNCH_TOKEN_SYMBOL", "LAGENT");
+        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_DESCRIPTION", "Regent launch rehearsal");
+        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_WEBSITE", "https://autolaunch.sh");
+        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_IMAGE", "");
+        vm.setEnv("AUTOLAUNCH_AGENT_ID", "1:42");
+        vm.setEnv("AUTOLAUNCH_TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
+        vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
+        vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
+        vm.setEnv("CCA_REQUIRED_CURRENCY_RAISED", "1000000000000000000");
+        vm.setEnv("AUCTION_DURATION_BLOCKS", "86400");
+        vm.setEnv("CCA_PREBID_BLOCKS", "0");
+        vm.setEnv("CCA_FINAL_BLOCK_BPS", "3000");
+        vm.setEnv("CCA_CLAIM_BLOCK_OFFSET", "64");
+        vm.setEnv("LBP_MIGRATION_BLOCK_OFFSET", "128");
+        vm.setEnv("LBP_SWEEP_BLOCK_OFFSET", "256");
+        vm.setEnv("VESTING_START_TIMESTAMP", "1700000000");
+        vm.setEnv("VESTING_DURATION_SECONDS", "31536000");
+    }
+
+    function testDeployFromEnvCreatesModelBLaunchStack() external {
+        vm.chainId(8453);
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        LaunchDeploymentController.DeploymentResult memory result = script.deployFromEnv();
+
+        _assertCoreAddressesWereCreated(result);
+        assertTrue(result.subjectId != bytes32(0));
+        assertTrue(result.poolId != bytes32(0));
+        _assertTokenDistributionAndMetadata(result);
+        _assertStrategy(result);
+        _assertSubject(result);
+        _assertFeeRegistry(result);
+        _assertRevenueSplitter(result);
+        _assertIdentityAndAuction(result);
+        _assertIngressAndPermissions(result);
+    }
+
+    function _setEnvAddress(string memory key, address value) internal {
+        vm.setEnv(key, vm.toString(value));
+    }
+
+    function _installCanonicalRegentMock() internal {
+        MintableERC20Mock implementation = new MintableERC20Mock("REGENT", "REGENT");
+        vm.etch(REGENT, address(implementation).code);
+    }
+
+    function _defaultConvexAuctionSteps() internal pure returns (bytes memory) {
+        return hex"0000360000002a8e000044000000214500004b0000001e7b00004f0000001ccd0000530000001b9c0000550000001ab300005800000019f700005a000000195a00005c00000018d400005e000000185e00005f00000017f8000061000000179b2d97e60000000001";
+    }
+
+    function _assertScheduleTotals(bytes memory steps, uint256 expectedBlocks) internal pure {
+        uint256 totalMps;
+        uint256 totalBlocks;
+
+        for (uint256 offset; offset < steps.length; offset += 8) {
+            uint256 packed;
+            assembly ("memory-safe") {
+                packed := shr(192, mload(add(add(steps, 0x20), offset)))
+            }
+
+            uint256 stepMps = packed >> 40;
+            uint256 blockDelta = packed & type(uint40).max;
+            totalMps += stepMps * blockDelta;
+            totalBlocks += blockDelta;
+        }
+
+        assertEq(totalMps, 10_000_000);
+        assertEq(totalBlocks, expectedBlocks);
+    }
+
+    function _assertCoreAddressesWereCreated(
+        LaunchDeploymentController.DeploymentResult memory result
+    ) internal pure {
+        assertTrue(result.tokenAddress != address(0));
+        assertTrue(result.auctionAddress != address(0));
+        assertTrue(result.strategyAddress != address(0));
+        assertTrue(result.vestingWalletAddress != address(0));
+        assertTrue(result.hookAddress != address(0));
+        assertTrue(result.feeVaultAddress != address(0));
+        assertTrue(result.launchFeeRegistryAddress != address(0));
+        assertTrue(result.subjectRegistryAddress != address(0));
+        assertTrue(result.revenueShareSplitterAddress != address(0));
+        assertTrue(result.defaultIngressAddress != address(0));
+    }
+
+    function _assertTokenDistributionAndMetadata(
+        LaunchDeploymentController.DeploymentResult memory result
+    ) internal view {
+        uint256 expectedAuctionAmount = TOTAL_SUPPLY / 10;
+        uint256 expectedReserveAmount = (TOTAL_SUPPLY * 500) / 10_000;
+        uint256 expectedVestingAmount = TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
+
+        IUERC20LaunchToken token = IUERC20LaunchToken(result.tokenAddress);
+        assertEq(token.balanceOf(result.auctionAddress), expectedAuctionAmount);
+        assertEq(token.balanceOf(result.strategyAddress), expectedReserveAmount);
+        assertEq(token.balanceOf(result.vestingWalletAddress), expectedVestingAmount);
+        assertEq(token.decimals(), 18);
+        assertEq(token.totalSupply(), TOTAL_SUPPLY);
+        assertTrue(bytes(token.tokenURI()).length > 0);
+        assertEq(auctionFactory.lastAmount(), expectedAuctionAmount);
+    }
+
+    function _assertStrategy(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        RegentLBPStrategy strategy = RegentLBPStrategy(result.strategyAddress);
+        assertEq(strategy.officialPoolFee(), 0);
+        assertEq(strategy.officialPoolTickSpacing(), 60);
+        assertEq(strategy.positionManager(), POSITION_MANAGER);
+        assertEq(strategy.poolManager(), POOL_MANAGER);
+        assertEq(strategy.subjectRegistry(), address(subjectRegistry));
+        assertEq(strategy.subjectId(), result.subjectId);
+        assertEq(strategy.LP_CURRENCY_BPS(), 4000);
+        assertEq(
+            subjectRegistry.subjectLifecycleAuthority(result.subjectId), result.strategyAddress
+        );
+    }
+
+    function _assertSubject(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        SubjectRegistry.SubjectConfig memory config = subjectRegistry.getSubject(result.subjectId);
+        assertEq(config.stakeToken, result.tokenAddress);
+        assertEq(config.splitter, result.revenueShareSplitterAddress);
+        assertEq(config.treasurySafe, AGENT_SAFE);
+        assertTrue(config.active);
+    }
+
+    function _assertFeeRegistry(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
+        LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
+        assertEq(poolConfig.launchToken, result.tokenAddress);
+        assertEq(poolConfig.quoteToken, REGENT);
+        assertEq(poolConfig.treasury, AGENT_SAFE);
+        assertEq(poolConfig.regentRecipient, REGENT_MULTISIG);
+    }
+
+    function _assertRevenueSplitter(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(result.revenueShareSplitterAddress);
+        assertEq(splitter.stakeToken(), result.tokenAddress);
+        assertEq(splitter.usdc(), USDC);
+        assertEq(splitter.treasuryRecipient(), AGENT_SAFE);
+        assertEq(splitter.protocolRecipient(), address(feeRouter));
+        assertEq(strategyFactory.owner(), address(script));
+    }
+
+    function _assertIdentityAndAuction(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        assertEq(
+            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID),
+            result.subjectId
+        );
+        AuctionParameters memory parameters =
+            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+        assertEq(parameters.currency, REGENT);
+        assertEq(parameters.tokensRecipient, result.strategyAddress);
+        assertEq(parameters.fundsRecipient, result.strategyAddress);
+        assertEq(parameters.tickSpacing, CCA_TICK_SPACING_Q96);
+        assertEq(parameters.floorPrice, CCA_FLOOR_PRICE_Q96);
+        assertEq(parameters.requiredCurrencyRaised, 1 ether);
+        assertEq(parameters.claimBlock, parameters.endBlock + 64);
+        assertEq(parameters.validationHook, address(0));
+        assertEq(parameters.endBlock - parameters.startBlock, 86_401);
+        assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
+        _assertScheduleTotals(parameters.auctionStepsData, 86_401);
+    }
+
+    function _assertIngressAndPermissions(LaunchDeploymentController.DeploymentResult memory result)
+        internal
+        view
+    {
+        assertEq(
+            revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
+            result.defaultIngressAddress
+        );
+        IUERC20LaunchToken token = IUERC20LaunchToken(result.tokenAddress);
+        RegentLBPStrategy strategy = RegentLBPStrategy(result.strategyAddress);
+        address controller = strategy.auctionCreator();
+        assertEq(token.creator(), controller);
+        assertEq(token.graffiti(), keccak256(abi.encode(AGENT_SAFE)));
+        assertFalse(revenueShareFactory.authorizedCreators(controller));
+        assertFalse(revenueIngressFactory.authorizedCreators(controller));
+        assertFalse(strategyFactory.authorizedCreators(controller));
+    }
+
+    function testDeployFromEnvRejectsNonMainnetChain() external {
+        vm.chainId(1);
+
+        vm.expectRevert("BASE_MAINNET_ONLY");
+        script.deployFromEnv();
+    }
+}
