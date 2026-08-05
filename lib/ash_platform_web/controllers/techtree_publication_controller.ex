@@ -1,6 +1,7 @@
 defmodule AshPlatformWeb.TechtreePublicationController do
   use AshPlatformWeb, :controller
 
+  alias AshPlatform.AgentAuth.{AgentIdentity, ClaimRateLimiter}
   alias AshPlatform.Techtree.{Publication, PublicationInput, PublicationReceipt}
 
   @kinds %{
@@ -13,24 +14,43 @@ defmodule AshPlatformWeb.TechtreePublicationController do
   @digest_pattern ~r/\A[0-9a-f]{64}\z/
 
   def create(%Plug.Conn{query_string: ""} = conn, params) do
-    with {:ok, attributes} <- validate(params),
-         {:ok, node, replayed} <-
-           Publication.publish(
-             attributes,
-             conn.assigns.agent_identity,
-             conn.assigns.verified_siwa_envelope
-           ) do
-      status = if replayed, do: :ok, else: :created
+    case validate(params) do
+      {:ok, attributes} -> publish(conn, attributes)
+      {:error, :invalid_input} -> invalid_input(conn)
+    end
+  end
 
-      conn
-      |> put_status(status)
-      |> json(%{data: PublicationReceipt.published(node, replayed)})
+  def create(conn, _params), do: invalid_input(conn)
+
+  defp publish(conn, attributes) do
+    actor = conn.assigns.agent_identity
+
+    case Publication.accepted_replay(attributes, actor) do
+      {:ok, node} ->
+        render_published(conn, node, true)
+
+      :not_found ->
+        create_new(conn, attributes, actor)
+
+      {:error, :temporarily_unavailable} ->
+        error(conn, :service_unavailable, :temporarily_unavailable)
+    end
+  end
+
+  defp create_new(conn, attributes, actor) do
+    with :ok <- admit_publication(actor),
+         {:ok, node, replayed} <-
+           Publication.publish(attributes, actor, conn.assigns.verified_siwa_envelope) do
+      render_published(conn, node, replayed)
     else
       {:error, :conflict} ->
         error(conn, :conflict, :conflict)
 
       {:error, :forbidden} ->
         error(conn, :forbidden, :forbidden)
+
+      {:error, :rate_limited} ->
+        replay_or_rate_limit(conn, attributes, actor)
 
       {:error, :invalid_input} ->
         error(conn, :bad_request, :invalid_input)
@@ -40,7 +60,43 @@ defmodule AshPlatformWeb.TechtreePublicationController do
     end
   end
 
-  def create(conn, _params), do: error(conn, :bad_request, :invalid_input)
+  defp replay_or_rate_limit(conn, attributes, actor) do
+    case Publication.accepted_replay(attributes, actor) do
+      {:ok, node} ->
+        render_published(conn, node, true)
+
+      :not_found ->
+        error(conn, :too_many_requests, :rate_limited)
+
+      {:error, :temporarily_unavailable} ->
+        error(conn, :service_unavailable, :temporarily_unavailable)
+    end
+  end
+
+  defp render_published(conn, node, replayed) do
+    status = if replayed, do: :ok, else: :created
+
+    conn
+    |> put_status(status)
+    |> json(%{data: PublicationReceipt.published(node, replayed)})
+  end
+
+  defp invalid_input(conn) do
+    case admit_publication(conn.assigns.agent_identity) do
+      :ok -> error(conn, :bad_request, :invalid_input)
+      {:error, :rate_limited} -> error(conn, :too_many_requests, :rate_limited)
+    end
+  end
+
+  defp admit_publication(%AgentIdentity{registry_address: registry_address, token_id: token_id}) do
+    config = Application.fetch_env!(:ash_platform, :techtree_publication_rate_limit)
+
+    ClaimRateLimiter.admit(
+      {:publication, registry_address, token_id},
+      Keyword.fetch!(config, :limit),
+      Keyword.fetch!(config, :window_seconds)
+    )
+  end
 
   defp validate(params) do
     params = PublicationInput.normalize(params)
@@ -126,6 +182,8 @@ defmodule AshPlatformWeb.TechtreePublicationController do
 
   defp message(:forbidden),
     do: "The verified agent is not paired with the requested Regent."
+
+  defp message(:rate_limited), do: "Too many publications. Please wait and try again."
 
   defp message(:invalid_input), do: "The publication request is invalid."
 

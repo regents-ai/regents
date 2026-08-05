@@ -10,6 +10,7 @@ defmodule AshPlatform.Application do
     children =
       [
         AshPlatformWeb.Telemetry,
+        {AshPlatform.AgentAuth.ClaimRateLimiter, []},
         database_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
         notebook_static_server_child(),

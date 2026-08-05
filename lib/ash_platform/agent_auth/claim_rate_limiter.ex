@@ -1,19 +1,39 @@
 defmodule AshPlatform.AgentAuth.ClaimRateLimiter do
-  @moduledoc false
+  @moduledoc """
+  Rate limiting for signed-agent claim and Techtree publication requests.
+
+  The Techtree publication limit is a per-node best-effort bound, not a global hard
+  cap. With N application instances, an identity can publish up to N × limit in one
+  window. The post-v0.1 upgrade trigger is before horizontal scaling of the write
+  path: replace this with a distributed/shared-state budget.
+
+  Concurrent identical duplicates may transiently 429 and self-heal on retry; correctness is guaranteed by the idempotency constraint.
+  """
+
   use GenServer
 
   @table __MODULE__
   @limit 10
   @window_seconds 60
 
-  def admit(remote_ip) do
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  @spec admit(term()) :: :ok | {:error, :rate_limited}
+  def admit(remote_ip), do: admit({:claim, remote_ip}, @limit, @window_seconds)
+
+  @spec admit(term(), pos_integer(), pos_integer()) :: :ok | {:error, :rate_limited}
+  def admit(key, limit, window_seconds) do
     table = ensure_table()
-    bucket = System.monotonic_time(:second) |> div(@window_seconds)
-    sweep_expired(table, bucket)
-    increment(table, remote_ip, bucket)
+    bucket = System.monotonic_time(:second) |> div(window_seconds)
+    sweep_expired(table, bucket, window_seconds)
+    increment(table, {window_seconds, key}, bucket, limit)
   end
 
   @doc false
+  @spec reset() :: :ok
   def reset do
     case :ets.whereis(@table) do
       :undefined -> :ok
@@ -21,45 +41,47 @@ defmodule AshPlatform.AgentAuth.ClaimRateLimiter do
     end
   end
 
-  defp increment(table, remote_ip, bucket) do
-    case :ets.lookup(table, remote_ip) do
+  defp increment(table, key, bucket, limit) do
+    case :ets.lookup(table, key) do
       [] ->
-        insert_first(table, remote_ip, bucket)
+        insert_first(table, key, bucket, limit)
 
-      [{^remote_ip, ^bucket, _count}] ->
-        increment_current(table, remote_ip)
+      [{^key, ^bucket, _count}] ->
+        increment_current(table, key, limit)
 
-      [{^remote_ip, old_bucket, count}] ->
-        reset_expired(table, remote_ip, old_bucket, count, bucket)
+      [{^key, old_bucket, count}] ->
+        reset_expired(table, key, old_bucket, count, bucket, limit)
     end
   end
 
-  defp insert_first(table, remote_ip, bucket) do
-    if :ets.insert_new(table, {remote_ip, bucket, 1}),
+  defp insert_first(table, key, bucket, limit) do
+    if :ets.insert_new(table, {key, bucket, 1}),
       do: :ok,
-      else: increment(table, remote_ip, bucket)
+      else: increment(table, key, bucket, limit)
   end
 
-  defp increment_current(table, remote_ip) do
-    if :ets.update_counter(table, remote_ip, {3, 1}) <= @limit,
+  defp increment_current(table, key, limit) do
+    if :ets.update_counter(table, key, {3, 1}) <= limit,
       do: :ok,
       else: {:error, :rate_limited}
   end
 
-  defp reset_expired(table, remote_ip, old_bucket, count, bucket) do
-    replacement = [{{remote_ip, old_bucket, count}, [], [{{remote_ip, bucket, 1}}]}]
+  defp reset_expired(table, key, old_bucket, count, bucket, limit) do
+    replacement = [{{key, old_bucket, count}, [], [{{key, bucket, 1}}]}]
 
     if :ets.select_replace(table, replacement) == 1,
       do: :ok,
-      else: increment(table, remote_ip, bucket)
+      else: increment(table, key, bucket, limit)
   end
 
-  defp sweep_expired(table, bucket) do
-    if :ets.insert_new(table, {{:sweep, bucket}, true}) do
-      :ets.select_delete(table, [{{:"$1", :"$2", :"$3"}, [{:<, :"$2", bucket}], [true]}])
+  defp sweep_expired(table, bucket, window_seconds) do
+    if :ets.insert_new(table, {{:sweep, window_seconds, bucket}, true}) do
+      :ets.select_delete(table, [
+        {{{window_seconds, :"$1"}, :"$2", :"$3"}, [{:<, :"$2", bucket}], [true]}
+      ])
 
       :ets.select_delete(table, [
-        {{{:sweep, :"$1"}, :"$2"}, [{:<, :"$1", bucket}], [true]}
+        {{{:sweep, window_seconds, :"$1"}, :"$2"}, [{:<, :"$1", bucket}], [true]}
       ])
     end
 
@@ -67,15 +89,7 @@ defmodule AshPlatform.AgentAuth.ClaimRateLimiter do
   end
 
   defp ensure_table do
-    owner = Process.whereis(__MODULE__) || start_owner()
-    GenServer.call(owner, :table)
-  end
-
-  defp start_owner do
-    case GenServer.start(__MODULE__, nil, name: __MODULE__) do
-      {:ok, owner} -> owner
-      {:error, {:already_started, owner}} -> owner
-    end
+    GenServer.call(__MODULE__, :table)
   end
 
   @impl true

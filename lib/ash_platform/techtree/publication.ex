@@ -4,6 +4,23 @@ defmodule AshPlatform.Techtree.Publication do
   alias AshPlatform.AgentAuth.AgentIdentity
   alias AshPlatform.Techtree.Node
 
+  @spec accepted_replay(map(), struct()) ::
+          {:ok, map()} | :not_found | {:error, :temporarily_unavailable}
+  def accepted_replay(attributes, %AgentIdentity{} = actor) do
+    case publication_by_key(actor, attributes.idempotency_key) do
+      {:ok, nil} ->
+        :not_found
+
+      {:ok, node} ->
+        if accepted_publication?(node) and same_publication?(node, attributes, actor),
+          do: {:ok, node},
+          else: :not_found
+
+      {:error, _error} ->
+        {:error, :temporarily_unavailable}
+    end
+  end
+
   def publish(attributes, %AgentIdentity{} = actor, envelope) do
     with :ok <- admit_tree(attributes.tree_id) do
       transact(attributes, actor, envelope)
@@ -89,6 +106,10 @@ defmodule AshPlatform.Techtree.Publication do
     if same_publication?(node, attributes, actor),
       do: {:ok, node, true},
       else: {:error, :conflict}
+  end
+
+  defp accepted_publication?(node) do
+    node.workflow_state == :published and not is_nil(node.published_at)
   end
 
   defp same_publication?(node, attributes, actor) do

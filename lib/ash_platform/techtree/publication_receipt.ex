@@ -50,6 +50,7 @@ defmodule AshPlatform.Techtree.PublicationReceipt do
   defp admitted_key(_value), do: nil
 
   defp next_action(:temporarily_unavailable), do: "retry_later"
+  defp next_action(:rate_limited), do: "retry_later"
   defp next_action(:unauthorized), do: "sign_new_request"
   defp next_action(:forbidden), do: "pair_agent_with_regent"
   defp next_action(:conflict), do: "use_new_idempotency_key"

@@ -757,7 +757,10 @@ defmodule AshPlatformWeb.ApiContractTest do
            }
 
     assert Map.keys(operation["responses"]) |> Enum.sort() ==
-             ~w(200 201 400 401 403 409 503)
+             ~w(200 201 400 401 403 409 429 503)
+
+    assert operation["responses"]["429"] ==
+             %{"$ref" => "#/components/responses/TechtreePublicationRateLimited"}
 
     request = schemas["NodePublicationRequest"]
 
@@ -822,7 +825,18 @@ defmodule AshPlatformWeb.ApiContractTest do
       ]
 
     assert error_codes ==
-             ~w(unauthorized forbidden conflict invalid_input temporarily_unavailable)
+             ~w(unauthorized forbidden conflict rate_limited invalid_input temporarily_unavailable)
+
+    assert schemas["NodePublicationReceipt"]["properties"]["error_code"]["enum"] ==
+             [
+               "unauthorized",
+               "forbidden",
+               "conflict",
+               "rate_limited",
+               "invalid_input",
+               "temporarily_unavailable",
+               nil
+             ]
   end
 
   test "the served contract is byte-identical and available over HTTP", %{conn: conn} do

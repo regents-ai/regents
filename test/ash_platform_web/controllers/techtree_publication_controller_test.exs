@@ -3,7 +3,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
 
   alias AshPlatform.{Accounts, Formation, Techtree}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.AgentAuth.AgentIdentity
+  alias AshPlatform.AgentAuth.{AgentIdentity, ClaimRateLimiter}
   alias AshPlatform.Techtree.{Node, PublicationInput}
 
   @registry "0x1111111111111111111111111111111111111111"
@@ -14,10 +14,12 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
   setup do
     Process.delete(:agent_verification_result)
     Process.delete(:capture_agent_verification_calls)
+    ClaimRateLimiter.reset()
 
     on_exit(fn ->
       Process.delete(:agent_verification_result)
       Process.delete(:capture_agent_verification_calls)
+      ClaimRateLimiter.reset()
     end)
 
     unique = Elixir.System.unique_integer([:positive])
@@ -48,6 +50,144 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     tree = Techtree.get_tree_by_slug!("skill-training-lab")
 
     %{account: account, human: human, regent: regent, identity: identity, link: link, tree: tree}
+  end
+
+  test "a publisher within its configured rate remains admitted", context do
+    with_publication_rate_limit(2, fn ->
+      for index <- 1..2 do
+        response =
+          signed_post(
+            request_body(context, "audit", "within-limit-#{index}"),
+            {:ok, context.identity}
+          )
+
+        assert response.status == 201
+      end
+
+      assert publisher_publication_count(context) == 2
+    end)
+  end
+
+  test "the publication budget rejects the next distinct publication", context do
+    with_publication_rate_limit(2, fn ->
+      for index <- 1..2 do
+        response =
+          signed_post(
+            request_body(context, "audit", "over-limit-#{index}"),
+            {:ok, context.identity}
+          )
+
+        assert response.status == 201
+      end
+
+      rejected =
+        signed_post(request_body(context, "audit", "over-limit-3"), {:ok, context.identity})
+        |> json_response(429)
+
+      assert_failed_receipt(rejected, "rate_limited")
+      assert rejected["error"]["message"] == "Too many publications. Please wait and try again."
+      assert publisher_publication_count(context) == 2
+    end)
+  end
+
+  test "publication budgets are isolated by publisher identity", context do
+    other = pair_identity(context, "isolated")
+    other_context = %{context | identity: other.identity, link: other.link, regent: other.regent}
+
+    with_publication_rate_limit(1, fn ->
+      response =
+        signed_post(request_body(context, "audit", "identity-a-1"), {:ok, context.identity})
+
+      assert response.status == 201
+
+      rejected =
+        signed_post(request_body(context, "audit", "identity-a-2"), {:ok, context.identity})
+        |> json_response(429)
+
+      assert_failed_receipt(rejected, "rate_limited")
+
+      response =
+        signed_post(request_body(other_context, "audit", "identity-b-1"), {:ok, other.identity})
+
+      assert response.status == 201
+      assert publisher_publication_count(context) == 1
+      assert publisher_publication_count(other_context) == 1
+    end)
+  end
+
+  test "accepted replays remain available at a full budget", context do
+    with_publication_rate_limit(1, fn ->
+      body = request_body(context, "audit", "accepted-replay-full")
+      first = (signed_post(body, {:ok, context.identity}) |> json_response(201))["data"]
+
+      replay =
+        (raw_post(Jason.encode!(body), [{"signature", "fresh-replay-signature"}], {
+           :ok,
+           context.identity
+         })
+         |> json_response(200))["data"]
+
+      assert Map.drop(replay, ["replayed"]) == Map.drop(first, ["replayed"])
+      assert replay["replayed"] == true
+    end)
+  end
+
+  test "accepted replays do not consume budget for a later distinct publication", context do
+    with_publication_rate_limit(2, fn ->
+      body = request_body(context, "audit", "accepted-replay-budget")
+      first = (signed_post(body, {:ok, context.identity}) |> json_response(201))["data"]
+
+      replay =
+        (raw_post(Jason.encode!(body), [{"signature", "fresh-budget-replay-signature"}], {
+           :ok,
+           context.identity
+         })
+         |> json_response(200))["data"]
+
+      assert Map.drop(replay, ["replayed"]) == Map.drop(first, ["replayed"])
+      assert replay["replayed"] == true
+
+      distinct =
+        signed_post(
+          request_body(context, "audit", "accepted-replay-distinct"),
+          {:ok, context.identity}
+        )
+        |> json_response(201)
+
+      assert distinct["data"]["replayed"] == false
+      assert publisher_publication_count(context) == 2
+    end)
+  end
+
+  test "invalid publication attempts still consume budget", context do
+    with_publication_rate_limit(1, fn ->
+      invalid = Map.put(request_body(context, "audit", "invalid-budget"), "kind", "unknown")
+
+      assert_failed_receipt(
+        signed_post(invalid, {:ok, context.identity}) |> json_response(400),
+        "invalid_input"
+      )
+
+      assert_failed_receipt(
+        signed_post(request_body(context, "audit", "after-invalid"), {:ok, context.identity})
+        |> json_response(429),
+        "rate_limited"
+      )
+
+      assert publisher_publication_count(context) == 0
+    end)
+  end
+
+  test "the rate limiter table is owned by its supervised process", _context do
+    limiter_pid = Process.whereis(ClaimRateLimiter)
+
+    assert is_pid(limiter_pid)
+    assert :ets.info(ClaimRateLimiter, :owner) == limiter_pid
+
+    assert Enum.any?(Supervisor.which_children(AshPlatform.Supervisor), fn
+             {ClaimRateLimiter, ^limiter_pid, :worker, _modules} -> true
+             _child -> false
+           end)
   end
 
   test "each node kind publishes and is visible through public API and Map/List", context do
@@ -264,6 +404,56 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     receipts = Enum.map(responses, &Jason.decode!(&1.resp_body)["data"])
     assert receipts |> Enum.map(& &1["resource_id"]) |> Enum.uniq() |> length() == 1
     assert publication_count(context, body["idempotency_key"]) == 1
+  end
+
+  test "a concurrent accepted replay wins over a full publication budget", context do
+    with_publication_rate_limit(1, fn ->
+      body = request_body(context, "benchmark_slice", "concurrent-rate-limit")
+      encoded = Jason.encode!(body)
+      parent = self()
+
+      tasks =
+        for index <- 1..2 do
+          Task.async(fn ->
+            Process.put(:agent_verification_result, {:ok, context.identity})
+            send(parent, {:ready, self()})
+
+            receive do
+              :publish -> raw_post(encoded, [{"signature", "concurrent-rate-#{index}"}])
+            end
+          end)
+        end
+
+      pids =
+        for _index <- tasks do
+          assert_receive {:ready, pid}
+          pid
+        end
+
+      Enum.each(pids, &send(&1, :publish))
+      responses = Enum.map(tasks, &Task.await(&1, 15_000))
+      receipts = Enum.map(responses, &Jason.decode!(&1.resp_body)["data"])
+
+      assert Enum.sort(Enum.map(responses, & &1.status)) == [200, 201]
+      assert Enum.count(receipts, &(&1["replayed"] == false)) == 1
+      assert Enum.count(receipts, &(&1["replayed"] == true)) == 1
+
+      [created, replayed] =
+        receipts
+        |> Enum.sort_by(& &1["replayed"])
+
+      assert Map.drop(replayed, ["replayed"]) == Map.drop(created, ["replayed"])
+      assert publication_count(context, body["idempotency_key"]) == 1
+
+      distinct =
+        signed_post(
+          request_body(context, "benchmark_slice", "concurrent-rate-distinct"),
+          {:ok, context.identity}
+        )
+        |> json_response(429)
+
+      assert_failed_receipt(distinct, "rate_limited")
+    end)
   end
 
   test "unsigned, expired, and unverified requests fail closed", context do
@@ -495,6 +685,39 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     }
   end
 
+  defp pair_identity(context, suffix) do
+    unique = Elixir.System.unique_integer([:positive])
+
+    account =
+      Accounts.register_verified!(
+        "did:privy:techtree-publication-#{suffix}:#{unique}",
+        @wallet,
+        [@wallet],
+        actor: %System{}
+      )
+
+    human = %Human{human_account_id: account.id}
+
+    regent =
+      Formation.form_regent!(
+        "publication-#{suffix}-#{unique}",
+        "Publication #{suffix} #{unique}",
+        actor: human
+      )
+
+    identity = %{
+      agent_id: "agent-publication-#{suffix}-#{unique}",
+      registry_address: @registry,
+      token_id: "#{context.identity.token_id}-#{suffix}-#{unique}",
+      wallet: @wallet
+    }
+
+    issued = Formation.issue_agent_pairing_code!(regent.id, actor: human)
+    link = Formation.claim_agent_link!(regent.id, issued.code, identity, actor: %System{})
+
+    %{identity: identity, link: link, regent: regent}
+  end
+
   defp signed_post(body, verification_result) do
     raw_post(Jason.encode!(body), [{"signature", "test-signature"}], verification_result)
   end
@@ -536,6 +759,24 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     assert response["receipt"]["error_code"] == code
     assert response["receipt"]["resource_id"] == nil
     assert Enum.sort(Map.keys(response["receipt"])) == Enum.sort(@receipt_keys)
+  end
+
+  defp with_publication_rate_limit(limit, fun) do
+    previous = Application.fetch_env!(:ash_platform, :techtree_publication_rate_limit)
+
+    Application.put_env(
+      :ash_platform,
+      :techtree_publication_rate_limit,
+      limit: limit,
+      window_seconds: 60
+    )
+
+    try do
+      fun.()
+    after
+      Application.put_env(:ash_platform, :techtree_publication_rate_limit, previous)
+      ClaimRateLimiter.reset()
+    end
   end
 
   defp publication_count(context, idempotency_key) do

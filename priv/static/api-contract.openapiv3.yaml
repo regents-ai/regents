@@ -253,6 +253,7 @@ paths:
         "401": {$ref: "#/components/responses/TechtreePublicationUnauthorized"}
         "403": {$ref: "#/components/responses/TechtreePublicationForbidden"}
         "409": {$ref: "#/components/responses/TechtreePublicationConflict"}
+        "429": {$ref: "#/components/responses/TechtreePublicationRateLimited"}
         "503": {$ref: "#/components/responses/TechtreePublicationTemporarilyUnavailable"}
   /api/techtree/v1/nodes/{id}:
     get:
@@ -588,6 +589,11 @@ components:
       content:
         application/json:
           schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreePublicationRateLimited:
+      description: The publisher identity exceeded its publication budget for the current window
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
     TechtreePublicationTemporarilyUnavailable:
       description: SIWA verification or publication storage is temporarily unavailable
       content:
@@ -835,7 +841,7 @@ components:
           properties:
             code:
               type: string
-              enum: [unauthorized, forbidden, conflict, invalid_input, temporarily_unavailable]
+              enum: [unauthorized, forbidden, conflict, rate_limited, invalid_input, temporarily_unavailable]
             message: {type: string}
         receipt: {$ref: "#/components/schemas/NodePublicationReceipt"}
     NodePublicationReceipt:
@@ -874,7 +880,7 @@ components:
         transaction_hash: {type: [string, "null"], pattern: "^0x[0-9a-f]{64}$"}
         error_code:
           type: [string, "null"]
-          enum: [unauthorized, forbidden, conflict, invalid_input, temporarily_unavailable, null]
+          enum: [unauthorized, forbidden, conflict, rate_limited, invalid_input, temporarily_unavailable, null]
         replayed: {type: boolean}
     NodeListItem:
       type: object
