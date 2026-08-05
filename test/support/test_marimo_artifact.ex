@@ -32,28 +32,14 @@ defmodule AshPlatform.TestMarimoArtifact do
   end
 
   defp export! do
-    uvx = System.find_executable("uvx") || raise "uvx is required for the Marimo browser proof"
     File.rm_rf!(@build_dir)
     File.mkdir_p!(@notebooks_root)
 
-    args = [
-      "--from",
-      "marimo==#{@marimo_version}",
-      "marimo",
-      "export",
-      "html-wasm",
+    Application.fetch_env!(:ash_platform, :marimo_exporter).export(
       @source,
-      "-o",
       @build_dir,
-      "--mode",
-      "run",
-      "--no-show-code"
-    ]
-
-    case System.cmd(uvx, args, stderr_to_stdout: true) do
-      {_output, 0} -> :ok
-      {output, status} -> raise "Marimo export failed (#{status}): #{output}"
-    end
+      @marimo_version
+    )
 
     unless File.regular?(Path.join(@build_dir, "index.html")) do
       raise "Marimo export did not produce index.html"
@@ -87,5 +73,32 @@ defmodule AshPlatform.TestMarimoArtifact do
 
   defp sha256(value) do
     "sha256:" <> (:crypto.hash(:sha256, value) |> Base.encode16(case: :lower))
+  end
+end
+
+defmodule AshPlatform.TestMarimoArtifact.UvxExporter do
+  @moduledoc false
+
+  def export(source, build_dir, marimo_version) do
+    uvx = System.find_executable("uvx") || raise "uvx is required for the Marimo browser proof"
+
+    args = [
+      "--from",
+      "marimo==#{marimo_version}",
+      "marimo",
+      "export",
+      "html-wasm",
+      source,
+      "-o",
+      build_dir,
+      "--mode",
+      "run",
+      "--no-show-code"
+    ]
+
+    case System.cmd(uvx, args, stderr_to_stdout: true) do
+      {_output, 0} -> :ok
+      {output, status} -> raise "Marimo export failed (#{status}): #{output}"
+    end
   end
 end

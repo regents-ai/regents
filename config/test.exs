@@ -14,6 +14,7 @@ config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
 config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
+config :ash_platform, :marimo_exporter, AshPlatform.TestMarimoArtifact.UvxExporter
 
 config :ash_platform,
        :agent_verification_client,

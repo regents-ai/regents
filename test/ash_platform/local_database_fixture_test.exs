@@ -29,6 +29,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     end
   end
 
+  @tag :external
   test "browser fixtures seed, appear publicly, reset, and remain absent", %{conn: conn} do
     ResetBrowserComments.reset!()
     assert [] == public_nodes(conn)
@@ -41,6 +42,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     assert ResetBrowserComments.reset!() == 0
   end
 
+  @tag :external
   test "browser fixture reset removes owned dependencies and preserves unrelated rows" do
     ResetBrowserComments.reset!()
     SeedBrowserComments.seed!()
@@ -104,6 +106,7 @@ defmodule AshPlatform.LocalDatabaseFixtureTest do
     assert_raise RuntimeError, ~r/marker mismatch/, fn -> ResetBrowserComments.reset!() end
   end
 
+  @tag :external
   test "browser fixture reset aborts when a complete marker is ambiguous" do
     ResetBrowserComments.reset!()
     SeedBrowserComments.seed!()
