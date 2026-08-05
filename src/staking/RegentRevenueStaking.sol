@@ -1,4 +1,27 @@
 // SPDX-License-Identifier: MIT
+
+/**
+ * NOTICE: This file is a NEWER revision than the RegentRevenueStaking contract
+ * deployed on Base mainnet holding real funds.
+ *
+ * Deployed runtime size: 11,757 bytes; deployed runtime SHA-256:
+ * 9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb.
+ * This runtime was independently reconstructed from the signed deployment tx
+ * and matched to the RPC-pinned base-mainnet.json.
+ *
+ * Verified-source reference: Basescan/Blockscout at
+ * 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5.
+ * The DEPLOYED contract LACKS claimRoundingReserveUsdc() and the
+ * reserve/rounding-carry accounting.
+ *
+ * Consequence in the verifier's terms: a bounded claim-availability risk —
+ * the deployed contract's missing reserve logic means treasury withdrawal of
+ * a rounding carry can make an affected claim revert until residual USDC is
+ * refunded; NOT reentrancy, NOT fund loss.
+ *
+ * This NOTICE does not imply that a redeploy is planned or recommended; that
+ * is a founder decision, and this source file does not pre-empt it.
+ */
 pragma solidity ^0.8.26;
 
 import {Owned} from "src/shared/auth/Owned.sol";

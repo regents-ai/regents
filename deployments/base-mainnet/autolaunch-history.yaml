@@ -80,4 +80,5 @@ deployments:
 notes:
   - The historical RegentRevenueStaking artifact is the only Autolaunch-family artifact recorded on Base mainnet.
   - Creation bytecode does not bind that historical artifact to the current migrated source.
+  - "deployed revision != current source": address 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5 has reconstructed runtime size 11,757 bytes and SHA-256 9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb.
   - The approved plan marks the historical deployment permanent and forbids redeployment.

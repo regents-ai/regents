@@ -78,6 +78,7 @@ migrated_but_not_required_for_v0_1_deployment:
   - reference/revenue legacy RevenueShareSplitter family
 prepared_action_admission:
   source_of_truth: ash-platform/contracts/chain-contracts.yaml
+  # Admission is authoritatively owned by ash-platform/contracts/chain-contracts.yaml (already cited as source_of_truth); a mirrored id list can drift, so per hard cutover one owner, no duplicated state.
   source_contract_id: base_mainnet_reviewed_evidence
   standing_launch_note: >-
     v0.1 LAUNCH admission is separately governed by the v0.1 money-action matrix;
@@ -85,38 +86,19 @@ prepared_action_admission:
   action_classes:
     - contract_class: continuous_clearing_auction
       local_status: external_not_migrated
-      admitted_prepared_action_ids:
-        - continuous_clearing_auction.submit_bid
-        - continuous_clearing_auction.exit_bid
-        - continuous_clearing_auction.return_quote_token
-        - continuous_clearing_auction.claim_bid
     - contract_class: quote_token_erc20
       local_status: external_not_migrated
-      admitted_prepared_action_ids: [quote_token_erc20.approve_exact]
     - contract_class: regent_staking_revenue_router
       local_contract: RegentStakingRevenueRouter
       lineage: legacy_prepared_interface_only_current_migrated_source_has_removed_buyback
-      admitted_prepared_action_ids:
-        - regent_staking_revenue_router.settle_treasury_buyback
     - contract_class: payment_link_factory
       local_contract: PaymentLinkFactory
-      admitted_prepared_action_ids:
-        - payment_link_factory.create_payment_link
-        - payment_link_factory.create_canonical_payment_link
-        - payment_link_factory.set_payment_link_canonical
-        - payment_link_factory.set_payment_link_receiver_state
     - contract_class: revenue_ingress_account
       local_contract: RevenueIngressAccount
-      admitted_prepared_action_ids: [revenue_ingress_account.sweep_usdc]
     - contract_class: subject_token_erc20
       local_status: external_launch_token_not_migrated
-      admitted_prepared_action_ids: [subject_token_erc20.approve_exact]
     - contract_class: revenue_share_splitter_v2
       local_contract: RevenueShareSplitterV2
-      admitted_prepared_action_ids:
-        - revenue_share_splitter_v2.stake
-        - revenue_share_splitter_v2.unstake
-        - revenue_share_splitter_v2.claim_usdc
 role_matrix:
   launch_agent_safe: {address: pending, authority: subject_treasury_and_vesting_beneficiary, approval: founder_pending}
   protocol_owner: {address: pending, authority: factories_registries_router_and_controller, approval: founder_pending}
