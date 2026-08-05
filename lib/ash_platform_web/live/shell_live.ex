@@ -4077,10 +4077,10 @@ defmodule AshPlatformWeb.ShellLive do
     message =
       case {reason, submission[:status]} do
         {:expired, :approval_verified} ->
-          "This approval review expired. No staking transaction was sent. The exact REGENT allowance remains onchain."
+          "This approval review expired. No staking transaction was sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance."
 
         {:user, :approval_verified} ->
-          "Staking was not sent. The exact REGENT allowance remains onchain. You can prepare a new action."
+          "Staking was not sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance. You can prepare a new action."
 
         {:expired, _pending} ->
           "This approval review expired and no staking transaction was sent. Approval transaction #{hash} may still confirm later. Check this hash in your wallet or on Base before relying on the allowance state."

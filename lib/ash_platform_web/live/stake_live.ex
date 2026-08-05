@@ -99,8 +99,8 @@ defmodule AshPlatformWeb.StakeLive do
               @prepared && @submission[:approval_transaction_hash] &&
                 !@submission[:transaction_hash] && @submission.status == :approval_verified
             }>
-              Abandoning will not send the staking transaction. The exact REGENT allowance remains
-              onchain.
+              Abandoning will not send the staking transaction. The approval transaction was
+              confirmed on Base, but we have not re-read the current REGENT allowance.
             </p>
             <p :if={
               @prepared && @submission[:approval_transaction_hash] &&

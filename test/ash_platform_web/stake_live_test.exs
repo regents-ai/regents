@@ -75,6 +75,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert html =~ "REGENT approval confirmed"
     assert html =~ "Continue after approval"
 
+    assert html =~
+             ~r/The approval transaction was\s+confirmed on Base, but we have not re-read the current REGENT allowance\./
+
+    refute html =~ "The exact REGENT allowance remains onchain"
+
     view
     |> element(".stake-submission button", "Continue after approval")
     |> render_click()
@@ -167,7 +172,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-click="abandon_staking_approval"])) |> render_click()
 
     html = render(view)
-    assert html =~ "exact REGENT allowance remains onchain"
+
+    assert html =~
+             "Staking was not sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance. You can prepare a new action."
+
+    refute html =~ "The exact REGENT allowance remains onchain"
     refute html =~ "Submitted transaction"
     assert_push_event(view, "staking:abandoned", %{})
 
@@ -176,6 +185,43 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     assert render(view) =~ "Review before signing"
+  end
+
+  test "an expired verified approval states that the current allowance was not reread", %{
+    conn: conn
+  } do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:stake-expired-verified", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    render_async(view)
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    action_id = prepared_action_id(render(view))
+
+    render_hook(view, "staking_submitted", %{
+      "action_id" => action_id,
+      "phase" => "approval",
+      "transaction_hash" => @approval_hash
+    })
+
+    assert render_async(view) =~ "REGENT approval confirmed"
+    send(view.pid, {:staking_envelope_expired, action_id})
+
+    html = render(view)
+
+    assert html =~
+             "This approval review expired. No staking transaction was sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance."
+
+    refute html =~ "The exact REGENT allowance remains onchain"
+    refute html =~ "Submitted transaction"
+    assert_push_event(view, "staking:abandoned", %{})
   end
 
   test "a pending approval can be abandoned while preserving its uncertain hash", %{conn: conn} do
