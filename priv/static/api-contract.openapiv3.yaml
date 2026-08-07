@@ -270,6 +270,24 @@ paths:
         "400": {$ref: "#/components/responses/TechtreeInvalidInput"}
         "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
         "404": {$ref: "#/components/responses/TechtreeNotFound"}
+        "424": {$ref: "#/components/responses/TechtreeArtifactUnavailable"}
+        "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
+  /api/techtree/v1/nodes/{id}/payload:
+    get:
+      operationId: getTechtreeNodePayload
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/TechtreeNodeId"}
+      responses:
+        "200":
+          description: The canonical public payload bytes referenced by the node
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CanonicalPublicPayload"}
+        "400": {$ref: "#/components/responses/TechtreeInvalidInput"}
+        "401": {$ref: "#/components/responses/TechtreeUnauthorized"}
+        "404": {$ref: "#/components/responses/TechtreeNotFound"}
+        "424": {$ref: "#/components/responses/TechtreeArtifactUnavailable"}
         "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
   /api/techtree/v1/tree/nodes:
     get:
@@ -554,7 +572,7 @@ components:
             notFound:
               value: {error: {code: not_found, message: The requested public record was not found.}}
     TechtreeArtifactUnavailable:
-      description: Reserved for the zs6.6 payload-access gate when public artifact retrieval is admitted; these read endpoints do not emit this response
+      description: A public node exists but its referenced artifact could not be retrieved or matched to its displayed hash
       content:
         application/json:
           schema: {$ref: "#/components/schemas/TechtreeReadError"}
@@ -826,6 +844,12 @@ components:
           pattern: "[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]"
           description: Leading and trailing Unicode White_Space code points are trimmed; at least one code point outside that exact class is required. U+FEFF is not blank.
         manifest_digest: {type: string, pattern: "^[0-9a-f]{64}$"}
+        manifest_cid: {type: [string, "null"], minLength: 1, maxLength: 255}
+        manifest_hash: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
+        manifest_uri: {type: [string, "null"], maxLength: 2_048, format: uri}
+        lineage:
+          type: [array, "null"]
+          items: {$ref: "#/components/schemas/LineageReference"}
     NodePublicationReceiptEnvelope:
       type: object
       required: [data]
@@ -885,13 +909,30 @@ components:
     NodeListItem:
       type: object
       additionalProperties: false
-      required: [id, tree_id, title, summary, payload_hash, published_at]
+      required:
+        [id, tree_id, title, summary, payload_hash, published_at, contributor, lineage, manifest_cid, manifest_hash, manifest_uri, payload_url, payload_verification, projection_status]
       properties:
         id: {type: string, format: uuid}
         tree_id: {type: string, format: uuid}
         title: {type: string}
         summary: {type: [string, "null"]}
         payload_hash: {type: [string, "null"]}
+        contributor:
+          oneOf:
+            - {$ref: "#/components/schemas/Contributor"}
+            - {type: "null"}
+        lineage:
+          type: array
+          description: Empty for a root node; each entry is a typed evidence-lineage reference.
+          items: {$ref: "#/components/schemas/LineageReference"}
+        manifest_cid: {type: [string, "null"]}
+        manifest_hash: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
+        manifest_uri: {type: [string, "null"], format: uri}
+        payload_url: {type: [string, "null"], format: uri-reference}
+        payload_verification: {$ref: "#/components/schemas/PayloadVerification"}
+        projection_status:
+          type: string
+          enum: [not_started, pending, submitted, confirmed, failed]
         position: {$ref: "#/components/schemas/NodePosition"}
         display_kind: {type: string, default: standard}
         published_at: {type: string, format: date-time}
@@ -913,7 +954,8 @@ components:
     Node:
       type: object
       additionalProperties: false
-      required: [id, tree_id, kind, title, summary, payload_hash, base_mainnet_projection, edges, published_at]
+      required:
+        [id, tree_id, kind, title, summary, payload_hash, base_mainnet_projection, edges, published_at, contributor, lineage, manifest_cid, manifest_hash, manifest_uri, payload_url, payload_verification, projection_status]
       properties:
         id: {type: string, format: uuid}
         tree_id: {type: string, format: uuid}
@@ -923,10 +965,18 @@ components:
         title: {type: string}
         summary: {type: [string, "null"]}
         payload_hash: {type: [string, "null"]}
+        contributor:
+          oneOf:
+            - {$ref: "#/components/schemas/Contributor"}
+            - {type: "null"}
         contributor_id:
           type: [string, "null"]
           minLength: 1
           description: Absent or null when contributor identity was not recorded for this node.
+        lineage:
+          type: array
+          description: Empty for a root node; each entry is a typed evidence-lineage reference.
+          items: {$ref: "#/components/schemas/LineageReference"}
         lineage_node_ids:
           type: [array, "null"]
           uniqueItems: true
@@ -952,6 +1002,20 @@ components:
             - {type: "null"}
           description: Absent or null when public evidence state was not recorded for this node.
         base_mainnet_projection: {$ref: "#/components/schemas/BaseMainnetProjectionReference"}
+        manifest_cid: {type: [string, "null"]}
+        manifest_hash: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
+        manifest_uri: {type: [string, "null"], format: uri}
+        payload_url: {type: [string, "null"], format: uri-reference}
+        payload_verification: {$ref: "#/components/schemas/PayloadVerification"}
+        projection_status:
+          type: string
+          enum: [not_started, pending, submitted, confirmed, failed]
+        inspect_evidence:
+          type: object
+          additionalProperties: false
+          required: [manifest_digest]
+          properties:
+            manifest_digest: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
         position: {$ref: "#/components/schemas/NodePosition"}
         edges:
           type: array
@@ -965,6 +1029,36 @@ components:
       properties:
         x: {type: number, format: float}
         y: {type: number, format: float}
+    Contributor:
+      type: object
+      additionalProperties: false
+      required: [agent_id, profile_url]
+      properties:
+        agent_id: {type: string, minLength: 1}
+        profile_url: {type: [string, "null"], format: uri-reference}
+    LineageReference:
+      type: object
+      additionalProperties: false
+      required: [node_id, kind]
+      properties:
+        node_id: {type: string, format: uuid}
+        kind:
+          type: string
+          enum: [derived_from, supports, contradicts, reproduces, fails_to_reproduce, supersedes]
+    PayloadVerification:
+      type: object
+      additionalProperties: false
+      required: [status, expected_hash, actual_hash]
+      properties:
+        status:
+          type: string
+          enum: [not_available, not_checked, hash_matched, unavailable]
+        expected_hash: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
+        actual_hash: {type: [string, "null"], pattern: "^[0-9a-f]{64}$"}
+    CanonicalPublicPayload:
+      type: object
+      description: The canonical payload is owned by the publishing evidence system and is returned without a second Ash projection shape.
+      additionalProperties: true
     Edge:
       type: object
       description: A curation and presentation edge for the graph map, not an evidence lineage reference.

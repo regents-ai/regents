@@ -38,6 +38,7 @@ defmodule AshPlatformWeb.Router do
     get "/techtree/v1/trees", TechtreeReadController, :trees
     get "/techtree/v1/trees/:slug/nodes", TechtreeReadController, :tree_nodes
     get "/techtree/v1/nodes/:id", TechtreeReadController, :node
+    get "/techtree/v1/nodes/:id/payload", TechtreeReadController, :payload
     get "/techtree/v1/tree/nodes", TechtreeNodeController, :index
     get "/autolaunch/v1/auctions", AutolaunchAuctionController, :index
     get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show

@@ -70,7 +70,23 @@ defmodule AshPlatformWeb.TechtreeNodeControllerTest do
     assert second["id"] == older.id
 
     assert Map.keys(first) |> Enum.sort() ==
-             ~w(id payload_hash published_at summary title tree_id)
+             ~w(
+               contributor
+               display_kind
+               id
+               lineage
+               manifest_cid
+               manifest_hash
+               manifest_uri
+               payload_hash
+               payload_url
+               payload_verification
+               projection_status
+               published_at
+               summary
+               title
+               tree_id
+             )
 
     assert first == %{
              "id" => newer.id,
@@ -78,6 +94,19 @@ defmodule AshPlatformWeb.TechtreeNodeControllerTest do
              "title" => "Newer",
              "summary" => nil,
              "payload_hash" => nil,
+             "display_kind" => "standard",
+             "contributor" => nil,
+             "lineage" => [],
+             "manifest_cid" => nil,
+             "manifest_hash" => nil,
+             "manifest_uri" => nil,
+             "payload_url" => nil,
+             "payload_verification" => %{
+               "status" => "not_available",
+               "expected_hash" => nil,
+               "actual_hash" => nil
+             },
+             "projection_status" => "not_started",
              "published_at" => DateTime.to_iso8601(newer.published_at)
            }
   end

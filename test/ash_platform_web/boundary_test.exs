@@ -78,6 +78,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [techtree_fail_safe_state_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_zs64_fail_safe_workflow_state.exs")
 
+    assert [techtree_provenance_payload_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_zs66_techtree_provenance_payload.exs")
+
     assert [cloud_runtimes_migration] =
              Path.wildcard("priv/repo/migrations/*_add_formation_cloud_runtimes.exs")
 
@@ -120,6 +123,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                techtree_workflow_state_migration,
                techtree_publication_migration,
                techtree_fail_safe_state_migration,
+               techtree_provenance_payload_migration,
                cloud_runtimes_migration,
                linked_identities_migration,
                public_profile_migration,
@@ -431,6 +435,31 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert_reversible_migration(
       techtree_fail_safe_state_migration,
       ["modify(:workflow_state, :text, default: \"published\")"]
+    )
+
+    assert_additive_migration(
+      techtree_provenance_payload_migration,
+      [
+        "alter table(:nodes",
+        "add(:manifest_cid, :text)",
+        "add(:manifest_hash, :text)",
+        "add(:manifest_uri, :text)",
+        "add(:lineage, :map)",
+        ~s|add(:projection_status, :text, null: false, default: "not_started")|,
+        ~s|prefix: "techtree"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      techtree_provenance_payload_migration,
+      [
+        "remove(:projection_status)",
+        "remove(:lineage)",
+        "remove(:manifest_uri)",
+        "remove(:manifest_hash)",
+        "remove(:manifest_cid)"
+      ]
     )
 
     assert_additive_migration(

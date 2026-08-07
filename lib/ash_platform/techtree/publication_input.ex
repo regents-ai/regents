@@ -1,7 +1,19 @@
 defmodule AshPlatform.Techtree.PublicationInput do
   @moduledoc false
 
-  @string_fields ~w(regent_id tree_id kind title summary payload_hash idempotency_key manifest_digest)
+  @string_fields ~w(
+    regent_id
+    tree_id
+    kind
+    title
+    summary
+    payload_hash
+    idempotency_key
+    manifest_digest
+    manifest_cid
+    manifest_hash
+    manifest_uri
+  )
 
   @blank_ranges [
     {0x0009, 0x000D},

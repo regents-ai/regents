@@ -60,6 +60,12 @@ defmodule AshPlatform.Formation.Regent do
       filter expr(slug == ^arg(:slug))
     end
 
+    read :public_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
     action :public_profile, :struct do
       constraints instance_of: AshPlatform.Formation.PublicRegentProfile
       allow_nil? true
@@ -74,7 +80,7 @@ defmodule AshPlatform.Formation.Regent do
   end
 
   policies do
-    policy action(:public_by_slug) do
+    policy action([:public_by_slug, :public_by_id]) do
       authorize_if always()
     end
 

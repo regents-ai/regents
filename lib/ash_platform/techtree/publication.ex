@@ -113,14 +113,24 @@ defmodule AshPlatform.Techtree.Publication do
   end
 
   defp same_publication?(node, attributes, actor) do
-    node.publisher_regent_id == actor.regent_id and
-      node.tree_id == attributes.tree_id and
-      node.kind == attributes.kind and
-      node.title == attributes.title and
-      node.summary == attributes.summary and
-      node.payload_hash == attributes.payload_hash and
-      node.manifest_digest == attributes.manifest_digest
+    [
+      {node.publisher_regent_id, actor.regent_id},
+      {node.tree_id, attributes.tree_id},
+      {node.kind, attributes.kind},
+      {node.title, attributes.title},
+      {node.summary, attributes.summary},
+      {node.payload_hash, attributes.payload_hash},
+      {node.manifest_digest, attributes.manifest_digest},
+      {node.manifest_cid, attributes.manifest_cid},
+      {node.manifest_hash, attributes.manifest_hash},
+      {node.manifest_uri, attributes.manifest_uri},
+      {lineage_value(node.lineage), lineage_value(attributes.lineage)}
+    ]
+    |> Enum.all?(fn {actual, expected} -> actual == expected end)
   end
+
+  defp lineage_value(nil), do: %{}
+  defp lineage_value(value), do: value
 
   defp classify(%Ash.Error.Invalid{}), do: {:error, :invalid_input}
   defp classify(%Ash.Error.Forbidden{}), do: {:error, :forbidden}

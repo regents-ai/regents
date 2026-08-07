@@ -234,6 +234,18 @@ defmodule AshPlatformWeb.TechtreeReadControllerTest do
              "title" => "Detailed node",
              "summary" => "Public summary",
              "payload_hash" => "sha256:abc",
+             "contributor" => nil,
+             "lineage" => [],
+             "manifest_cid" => nil,
+             "manifest_hash" => nil,
+             "manifest_uri" => nil,
+             "payload_url" => nil,
+             "payload_verification" => %{
+               "status" => "not_available",
+               "expected_hash" => nil,
+               "actual_hash" => nil
+             },
+             "projection_status" => "not_started",
              "base_mainnet_projection" => %{
                "chain_id" => 8453,
                "projection_status" => "not_started",
@@ -268,7 +280,8 @@ defmodule AshPlatformWeb.TechtreeReadControllerTest do
           "/api/techtree/v1/trees/#{tree.slug}/nodes?limit=101",
           "/api/techtree/v1/trees/#{tree.slug}/nodes?cursor=not-a-cursor",
           "/api/techtree/v1/trees/missing-tree/nodes?cursor=not-a-cursor",
-          "/api/techtree/v1/nodes/not-a-uuid"
+          "/api/techtree/v1/nodes/not-a-uuid",
+          "/api/techtree/v1/nodes/not-a-uuid/payload"
         ] do
       assert json_response(get(conn, path), 400) ==
                error_body("invalid_input", "The request input is invalid.")
@@ -279,6 +292,11 @@ defmodule AshPlatformWeb.TechtreeReadControllerTest do
 
     assert json_response(get(conn, "/api/techtree/v1/nodes/#{Ash.UUID.generate()}"), 404) ==
              error_body("not_found", "The requested public record was not found.")
+
+    assert json_response(
+             get(conn, "/api/techtree/v1/nodes/#{Ash.UUID.generate()}/payload"),
+             404
+           ) == error_body("not_found", "The requested public record was not found.")
   end
 
   test "authorization and availability failures use honest errors without leaking details", %{

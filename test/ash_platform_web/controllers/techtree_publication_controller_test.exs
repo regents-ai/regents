@@ -242,6 +242,28 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
            )
   end
 
+  test "publication accepts manifest retrievability fields and typed lineage", context do
+    parent_id = Ash.UUID.generate()
+    digest = request_body(context, "uplift_report", "manifest-fields")["manifest_digest"]
+
+    body =
+      request_body(context, "uplift_report", "manifest-fields")
+      |> Map.merge(%{
+        "manifest_cid" => "bafybeipublication",
+        "manifest_hash" => digest,
+        "manifest_uri" => "ipfs://bafybeipublication",
+        "lineage" => [%{"node_id" => parent_id, "kind" => "supports"}]
+      })
+
+    response = signed_post(body, {:ok, context.identity}) |> json_response(201)
+    node = Ash.get!(Node, response["data"]["resource_id"], authorize?: false)
+
+    assert node.manifest_cid == body["manifest_cid"]
+    assert node.manifest_hash == digest
+    assert node.manifest_uri == body["manifest_uri"]
+    assert node.lineage == %{parent_id => "supports"}
+  end
+
   test "replay compares normalized fields and preserves the first exact envelope", context do
     body =
       context
@@ -276,27 +298,44 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
   test "every persisted request string is normalized before persistence and replay comparison",
        context do
     assert PublicationInput.string_fields() ==
-             ~w(regent_id tree_id kind title summary payload_hash idempotency_key manifest_digest)
+             ~w(
+               regent_id
+               tree_id
+               kind
+               title
+               summary
+               payload_hash
+               idempotency_key
+               manifest_digest
+               manifest_cid
+               manifest_hash
+               manifest_uri
+             )
 
-    for field <- PublicationInput.string_fields() do
-      body =
-        context
-        |> request_body("audit", "normalize-#{field}")
-        |> Map.update!(field, &(" \t" <> &1 <> <<0x85::utf8>>))
+    with_publication_rate_limit(length(PublicationInput.string_fields()) + 1, fn ->
+      for field <- PublicationInput.string_fields() do
+        body =
+          context
+          |> request_body("audit", "normalize-#{field}")
+          |> Map.put_new("manifest_cid", "bafybeinormalize")
+          |> Map.put_new("manifest_hash", String.duplicate("5", 64))
+          |> Map.put_new("manifest_uri", "ipfs://bafybeinormalize")
+          |> Map.update!(field, &(" \t" <> &1 <> <<0x85::utf8>>))
 
-      encoded = Jason.encode!(body)
-      first = raw_post(encoded, [{"signature", "first-#{field}"}], {:ok, context.identity})
-      first_receipt = json_response(first, 201)["data"]
+        encoded = Jason.encode!(body)
+        first = raw_post(encoded, [{"signature", "first-#{field}"}], {:ok, context.identity})
+        first_receipt = json_response(first, 201)["data"]
 
-      replay = raw_post(encoded, [{"signature", "replay-#{field}"}], {:ok, context.identity})
-      replay_receipt = json_response(replay, 200)["data"]
+        replay = raw_post(encoded, [{"signature", "replay-#{field}"}], {:ok, context.identity})
+        replay_receipt = json_response(replay, 200)["data"]
 
-      assert Map.drop(replay_receipt, ["replayed"]) == Map.drop(first_receipt, ["replayed"])
-      assert replay_receipt["replayed"] == true
+        assert Map.drop(replay_receipt, ["replayed"]) == Map.drop(first_receipt, ["replayed"])
+        assert replay_receipt["replayed"] == true
 
-      node = Ash.get!(Node, first_receipt["resource_id"], authorize?: false)
-      assert node.siwa_envelope["body"] == encoded
-    end
+        node = Ash.get!(Node, first_receipt["resource_id"], authorize?: false)
+        assert node.siwa_envelope["body"] == encoded
+      end
+    end)
   end
 
   test "blank idempotency keys are invalid and create no node", context do
@@ -528,6 +567,12 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     for invalid <- [
           Map.put(base, "kind", "unknown"),
           Map.put(base, "manifest_digest", String.duplicate("A", 64)),
+          Map.put(base, "manifest_cid", "bafybeiincomplete"),
+          Map.merge(base, %{
+            "manifest_cid" => "bafybeimismatch",
+            "manifest_hash" => String.duplicate("f", 64)
+          }),
+          Map.put(base, "manifest_uri", "https://user:pass@example.test/manifest"),
           Map.put(base, "tree_id", Ash.UUID.generate())
         ] do
       response = signed_post(invalid, {:ok, context.identity}) |> json_response(400)

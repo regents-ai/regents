@@ -2,19 +2,11 @@ defmodule AshPlatformWeb.TechtreeReadController do
   use AshPlatformWeb, :controller
 
   alias AshPlatform.Techtree
-  alias AshPlatform.Techtree.Pagination
+  alias AshPlatform.Techtree.{Pagination, Payload, Provenance}
 
   @default_limit 25
   @maximum_limit 100
   @slug_pattern ~r/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
-  @not_started_projection %{
-    chain_id: 8453,
-    projection_status: :not_started,
-    record_uid: nil,
-    transaction_hash: nil,
-    block_number: nil
-  }
-
   def trees(conn, params) do
     techtree = techtree(conn)
 
@@ -38,7 +30,7 @@ defmodule AshPlatformWeb.TechtreeReadController do
          {:ok, page} <- Pagination.page(tree.id, cursor, limit, actor: nil),
          {:ok, edges} <- techtree.list_tree_edges(tree.id, actor: nil) do
       json(conn, %{
-        data: Enum.map(page.nodes, &public_node_list_item/1),
+        data: Enum.map(page.nodes, &Provenance.public_node_list_item/1),
         edges: Enum.map(edges, &public_edge/1),
         next_cursor: page.next_cursor
       })
@@ -54,13 +46,31 @@ defmodule AshPlatformWeb.TechtreeReadController do
     with :ok <- allow_parameters(params, ["id"]),
          {:ok, id} <- validate_id(id),
          {:ok, node} when not is_nil(node) <- techtree.get_public_node(id, actor: nil),
-         {:ok, edges} <- techtree.list_tree_edges(node.tree_id, actor: nil) do
+         {:ok, edges} <- techtree.list_tree_edges(node.tree_id, actor: nil),
+         {:ok, artifact} <- Payload.fetch_if_referenced(node) do
       node_edges =
         Enum.filter(edges, &(&1.from_node_id == node.id or &1.to_node_id == node.id))
 
-      json(conn, %{data: public_node(node, node_edges)})
+      json(conn, %{data: Provenance.public_node(node, node_edges, artifact.verification)})
     else
       {:ok, nil} -> render_error(conn, :not_found)
+      error -> render_error(conn, error)
+    end
+  end
+
+  def payload(conn, %{"id" => id} = params) do
+    techtree = techtree(conn)
+
+    with :ok <- allow_parameters(params, ["id"]),
+         {:ok, id} <- validate_id(id),
+         {:ok, node} when not is_nil(node) <- techtree.get_public_node(id, actor: nil),
+         {:ok, %{bytes: bytes}} when is_binary(bytes) <- Payload.fetch(node) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(200, bytes)
+    else
+      {:ok, nil} -> render_error(conn, :not_found)
+      {:ok, %{bytes: nil}} -> render_error(conn, :artifact_unavailable)
       error -> render_error(conn, error)
     end
   end
@@ -117,53 +127,6 @@ defmodule AshPlatformWeb.TechtreeReadController do
     }
   end
 
-  defp public_node_list_item(node) do
-    %{
-      id: node.id,
-      tree_id: node.tree_id,
-      title: node.title,
-      summary: node.summary,
-      payload_hash: node.payload_hash,
-      display_kind: node.display_kind,
-      published_at: DateTime.to_iso8601(node.published_at)
-    }
-    |> put_position(node)
-  end
-
-  defp public_node(node, edges) do
-    %{
-      id: node.id,
-      tree_id: node.tree_id,
-      kind: node.kind || node.display_kind,
-      title: node.title,
-      summary: node.summary,
-      payload_hash: node.payload_hash,
-      base_mainnet_projection: @not_started_projection,
-      edges: Enum.map(edges, &public_edge/1),
-      published_at: DateTime.to_iso8601(node.published_at)
-    }
-    |> put_position(node)
-    |> put_recorded(node, :contributor_id)
-    |> put_recorded(node, :lineage_node_ids)
-    |> put_recorded(node, :capsule)
-    |> put_recorded(node, :immutable_payloads)
-    |> put_recorded(node, :evidence_projection)
-    |> put_recorded(node, :evidence_state)
-    |> put_recorded(node, :base_mainnet_projection)
-  end
-
-  defp put_position(payload, %{pos_x: x, pos_y: y}) when not is_nil(x) and not is_nil(y),
-    do: Map.put(payload, :position, %{x: x, y: y})
-
-  defp put_position(payload, _node), do: payload
-
-  defp put_recorded(payload, node, field) do
-    case Map.fetch(node, field) do
-      {:ok, value} when not is_nil(value) -> Map.put(payload, field, value)
-      _missing_or_nil -> payload
-    end
-  end
-
   defp public_edge(edge) do
     %{
       from_node_id: edge.from_node_id,
@@ -185,6 +148,15 @@ defmodule AshPlatformWeb.TechtreeReadController do
 
   defp render_error(conn, :invalid_input),
     do: error(conn, :bad_request, :invalid_input, "The request input is invalid.")
+
+  defp render_error(conn, :artifact_unavailable),
+    do:
+      error(
+        conn,
+        424,
+        :artifact_unavailable,
+        "A referenced public artifact is unavailable."
+      )
 
   defp render_error(conn, _reason),
     do:

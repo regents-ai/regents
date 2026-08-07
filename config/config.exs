@@ -36,6 +36,12 @@ config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
 config :ash_platform, :siwa, base_url: nil, audience: nil
 config :ash_platform, :techtree_publication_rate_limit, limit: 10, window_seconds: 60
+
+config :ash_platform, :techtree_payload,
+  gateway_url: "https://ipfs.io/ipfs",
+  timeout: 5_000,
+  max_bytes: 5_242_880
+
 config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]

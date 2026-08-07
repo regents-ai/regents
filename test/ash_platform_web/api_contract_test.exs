@@ -22,6 +22,7 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
              "/api/techtree/v1/nodes",
              "/api/techtree/v1/nodes/{id}",
+             "/api/techtree/v1/nodes/{id}/payload",
              "/api/techtree/v1/tree/nodes",
              "/api/techtree/v1/trees",
              "/api/techtree/v1/trees/{slug}/nodes",
@@ -283,11 +284,21 @@ defmodule AshPlatformWeb.ApiContractTest do
              "title",
              "summary",
              "payload_hash",
-             "published_at"
+             "published_at",
+             "contributor",
+             "lineage",
+             "manifest_cid",
+             "manifest_hash",
+             "manifest_uri",
+             "payload_url",
+             "payload_verification",
+             "projection_status"
            ]
 
     assert Map.keys(node["properties"]) |> Enum.sort() ==
-             ~w(display_kind id payload_hash position published_at summary title tree_id)
+             ~w(contributor display_kind id lineage manifest_cid manifest_hash manifest_uri
+               payload_hash payload_url payload_verification position projection_status published_at
+               summary title tree_id)
 
     assert node["properties"]["id"] == %{"type" => "string", "format" => "uuid"}
     assert node["properties"]["tree_id"] == %{"type" => "string", "format" => "uuid"}
@@ -502,6 +513,33 @@ defmodule AshPlatformWeb.ApiContractTest do
              "type" => "string",
              "default" => "standard"
            }
+
+    assert schemas["NodeListItem"]["required"] == [
+             "id",
+             "tree_id",
+             "title",
+             "summary",
+             "payload_hash",
+             "published_at",
+             "contributor",
+             "lineage",
+             "manifest_cid",
+             "manifest_hash",
+             "manifest_uri",
+             "payload_url",
+             "payload_verification",
+             "projection_status"
+           ]
+
+    assert schemas["Contributor"]["required"] == ~w(agent_id profile_url)
+
+    assert schemas["LineageReference"]["properties"]["kind"]["enum"] ==
+             ~w(derived_from supports contradicts reproduces fails_to_reproduce supersedes)
+
+    assert schemas["PayloadVerification"]["properties"]["status"]["enum"] ==
+             ~w(not_available not_checked hash_matched unavailable)
+
+    assert schemas["CanonicalPublicPayload"]["additionalProperties"] == true
   end
 
   test "the canonical contract declares strict planned Techtree components" do
@@ -534,7 +572,15 @@ defmodule AshPlatformWeb.ApiContractTest do
              "payload_hash",
              "base_mainnet_projection",
              "edges",
-             "published_at"
+             "published_at",
+             "contributor",
+             "lineage",
+             "manifest_cid",
+             "manifest_hash",
+             "manifest_uri",
+             "payload_url",
+             "payload_verification",
+             "projection_status"
            ]
 
     assert node["properties"]["kind"]["type"] == ["string", "null"]
@@ -565,6 +611,17 @@ defmodule AshPlatformWeb.ApiContractTest do
              "description" =>
                "Typed curation edges touching this node, distinct from evidence lineage.",
              "items" => %{"$ref" => "#/components/schemas/Edge"}
+           }
+
+    assert node["properties"]["contributor"] == %{
+             "oneOf" => [
+               %{"$ref" => "#/components/schemas/Contributor"},
+               %{"type" => "null"}
+             ]
+           }
+
+    assert node["properties"]["payload_verification"] == %{
+             "$ref" => "#/components/schemas/PayloadVerification"
            }
 
     capsule = schemas["Capsule"]
@@ -665,7 +722,7 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert "#/components/schemas/NodeEnvelope" in path_refs
   end
 
-  test "the three Techtree reads declare bounded cursor pagination and five honest errors" do
+  test "the Techtree reads declare bounded pagination and artifact retrieval errors" do
     contract = YamlElixir.read_from_file!(@contract)
     paths = contract["paths"]
     parameters = contract["components"]["parameters"]
@@ -701,7 +758,26 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert paths["/api/techtree/v1/nodes/{id}"]["get"]["operationId"] ==
              "getTechtreeNode"
 
-    refute Map.has_key?(paths["/api/techtree/v1/nodes/{id}"]["get"]["responses"], "424")
+    assert paths["/api/techtree/v1/nodes/{id}"]["get"]["responses"]["424"] == %{
+             "$ref" => "#/components/responses/TechtreeArtifactUnavailable"
+           }
+
+    payload = paths["/api/techtree/v1/nodes/{id}/payload"]["get"]
+    assert payload["operationId"] == "getTechtreeNodePayload"
+    assert payload["security"] == []
+
+    assert payload["responses"]["200"] == %{
+             "description" => "The canonical public payload bytes referenced by the node",
+             "content" => %{
+               "application/json" => %{
+                 "schema" => %{"$ref" => "#/components/schemas/CanonicalPublicPayload"}
+               }
+             }
+           }
+
+    assert payload["responses"]["424"] == %{
+             "$ref" => "#/components/responses/TechtreeArtifactUnavailable"
+           }
 
     assert schemas["TechtreeReadError"]["properties"]["error"]["properties"]["code"][
              "enum"
@@ -716,7 +792,7 @@ defmodule AshPlatformWeb.ApiContractTest do
     responses = contract["components"]["responses"]
 
     assert responses["TechtreeArtifactUnavailable"]["description"] =~
-             "zs6.6 payload-access gate"
+             "could not be retrieved or matched to its displayed hash"
 
     assert Enum.all?(
              ~w(TechtreeInvalidInput TechtreeUnauthorized TechtreeNotFound TechtreeArtifactUnavailable TechtreeTemporarilyUnavailable),

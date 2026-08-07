@@ -29,6 +29,11 @@ defmodule AshPlatform.Formation do
       define :form_regent, action: :form_regent, args: [:slug, :display_name]
       define :get_my_regent, action: :my_regent, not_found_error?: false
 
+      define :get_public_regent_by_id,
+        action: :public_by_id,
+        args: [:id],
+        not_found_error?: false
+
       define :get_public_regent,
         action: :public_by_slug,
         args: [:slug],

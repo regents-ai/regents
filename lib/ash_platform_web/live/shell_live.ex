@@ -17,6 +17,7 @@ defmodule AshPlatformWeb.ShellLive do
   }
 
   alias AshPlatform.Actors.Human
+  alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Envelope
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
@@ -111,6 +112,9 @@ defmodule AshPlatformWeb.ShellLive do
        techtree_nodes: [],
        techtree_edges: [],
        techtree_node: nil,
+       techtree_provenance: nil,
+       techtree_uplift_report: nil,
+       techtree_payload_status: :not_available,
        techtree_notebook_artifact: nil,
        techtree_status: :loading,
        regent: socket.assigns.current_regent,
@@ -2536,6 +2540,9 @@ defmodule AshPlatformWeb.ShellLive do
           nodes={@techtree_nodes}
           edges={@techtree_edges}
           node={@techtree_node}
+          provenance={@techtree_provenance}
+          uplift_report={@techtree_uplift_report}
+          payload_status={@techtree_payload_status}
           status={@techtree_status}
           presentation={@presentation}
           comments={@comments}
@@ -2848,6 +2855,9 @@ defmodule AshPlatformWeb.ShellLive do
           techtree_nodes: [],
           techtree_edges: [],
           techtree_node: nil,
+          techtree_provenance: nil,
+          techtree_uplift_report: nil,
+          techtree_payload_status: :not_available,
           techtree_notebook_artifact: nil,
           techtree_status: :ready
         )
@@ -2864,9 +2874,12 @@ defmodule AshPlatformWeb.ShellLive do
       assign(socket,
         techtree_trees: list_techtree_roots(),
         techtree_tree: tree,
-        techtree_nodes: nodes,
+        techtree_nodes: Enum.map(nodes, &Provenance.browser_node/1),
         techtree_edges: edges,
         techtree_node: nil,
+        techtree_provenance: nil,
+        techtree_uplift_report: nil,
+        techtree_payload_status: :not_available,
         techtree_notebook_artifact: nil,
         techtree_status: :ready
       )
@@ -2876,6 +2889,9 @@ defmodule AshPlatformWeb.ShellLive do
           techtree_tree: nil,
           techtree_nodes: [],
           techtree_edges: [],
+          techtree_provenance: nil,
+          techtree_uplift_report: nil,
+          techtree_payload_status: :not_available,
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
@@ -2885,6 +2901,9 @@ defmodule AshPlatformWeb.ShellLive do
           techtree_tree: nil,
           techtree_nodes: [],
           techtree_edges: [],
+          techtree_provenance: nil,
+          techtree_uplift_report: nil,
+          techtree_payload_status: :not_available,
           techtree_notebook_artifact: nil,
           techtree_status: :error
         )
@@ -2897,14 +2916,22 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket,
           techtree_node: nil,
           techtree_edges: [],
+          techtree_provenance: nil,
+          techtree_uplift_report: nil,
+          techtree_payload_status: :not_available,
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
 
       {:ok, node} ->
+        {provenance, uplift_report, payload_status} = node_presentation(node)
+
         assign(socket,
           techtree_node: node,
           techtree_edges: [],
+          techtree_provenance: provenance,
+          techtree_uplift_report: uplift_report,
+          techtree_payload_status: payload_status,
           techtree_notebook_artifact: current_notebook_artifact(node),
           techtree_status: :ready
         )
@@ -2913,6 +2940,9 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket,
           techtree_node: nil,
           techtree_edges: [],
+          techtree_provenance: nil,
+          techtree_uplift_report: nil,
+          techtree_payload_status: :not_available,
           techtree_notebook_artifact: nil,
           techtree_status: :empty
         )
@@ -2920,6 +2950,33 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_techtree_route(socket, _route_spec, _params), do: socket
+
+  defp node_presentation(node) do
+    case Payload.fetch_if_referenced(node) do
+      {:ok, %{bytes: bytes, verification: verification}} ->
+        {Provenance.public_node(node, [], verification), project_uplift_report(bytes), :ready}
+
+      {:error, :artifact_unavailable} ->
+        verification = %{
+          status: :unavailable,
+          expected_hash: Map.get(node, :manifest_hash),
+          actual_hash: nil
+        }
+
+        {Provenance.public_node(node, [], verification), nil, :artifact_unavailable}
+    end
+  end
+
+  defp project_uplift_report(bytes) when is_binary(bytes) do
+    with {:ok, payload} <- Jason.decode(bytes),
+         {:ok, report} <- UpliftReport.project(payload) do
+      report
+    else
+      _result -> nil
+    end
+  end
+
+  defp project_uplift_report(_bytes), do: nil
 
   defp current_notebook_artifact(%{payload_hash: payload_hash} = node)
        when is_binary(payload_hash) do

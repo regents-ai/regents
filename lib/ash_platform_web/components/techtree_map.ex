@@ -75,7 +75,23 @@ defmodule AshPlatformWeb.Components.TechtreeMap do
               <span :if={placed.display_kind == "featured"} class="techtree-map-node-kind">
                 Featured
               </span>
+              <small>Projection: {projection_label(placed.node.projection_status)}</small>
             </.link>
+            <div class="techtree-map-node-provenance">
+              <.link
+                :if={placed.node.contributor && placed.node.contributor.profile_url}
+                patch={placed.node.contributor.profile_url}
+              >
+                {placed.node.contributor.agent_id}
+              </.link>
+              <span :if={placed.node.contributor && is_nil(placed.node.contributor.profile_url)}>
+                {placed.node.contributor.agent_id}
+              </span>
+              <time :if={placed.node.published_at} datetime={placed.node.published_at}>
+                {placed.node.published_at}
+              </time>
+              <span>{lineage_summary(placed.node)}</span>
+            </div>
           </li>
         </ol>
       </div>
@@ -164,6 +180,34 @@ defmodule AshPlatformWeb.Components.TechtreeMap do
 
   defp edge_kind(:related), do: "related"
   defp edge_kind(:prerequisite), do: "prerequisite"
+
+  defp projection_label("not_started"), do: "Not requested"
+  defp projection_label("pending"), do: "Pending"
+  defp projection_label("submitted"), do: "Submitted"
+  defp projection_label("confirmed"), do: "Confirmed"
+  defp projection_label("failed"), do: "Failed"
+  defp projection_label(:not_started), do: "Not requested"
+  defp projection_label(:pending), do: "Pending"
+  defp projection_label(:submitted), do: "Submitted"
+  defp projection_label(:confirmed), do: "Confirmed"
+  defp projection_label(:failed), do: "Failed"
+  defp projection_label(_status), do: "Not recorded"
+
+  defp lineage_summary(%{lineage: []}), do: "Root node"
+
+  defp lineage_summary(%{lineage: lineage}) when is_list(lineage) do
+    lineage
+    |> Enum.map_join(", ", &lineage_kind_label(&1.kind))
+  end
+
+  defp lineage_summary(_node), do: "Lineage not recorded"
+
+  defp lineage_kind_label(kind) when is_binary(kind), do: String.replace(kind, "_", " ")
+
+  defp lineage_kind_label(kind) when is_atom(kind),
+    do: kind |> Atom.to_string() |> lineage_kind_label()
+
+  defp lineage_kind_label(_kind), do: "lineage"
 
   defp world_width(nodes) do
     nodes

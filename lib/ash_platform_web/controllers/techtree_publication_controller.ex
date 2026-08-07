@@ -12,6 +12,14 @@ defmodule AshPlatformWeb.TechtreePublicationController do
     "audit" => :audit
   }
   @digest_pattern ~r/\A[0-9a-f]{64}\z/
+  @lineage_kinds %{
+    "derived_from" => "derived_from",
+    "supports" => "supports",
+    "contradicts" => "contradicts",
+    "reproduces" => "reproduces",
+    "fails_to_reproduce" => "fails_to_reproduce",
+    "supersedes" => "supersedes"
+  }
 
   def create(%Plug.Conn{query_string: ""} = conn, params) do
     case validate(params) do
@@ -108,7 +116,13 @@ defmodule AshPlatformWeb.TechtreePublicationController do
          {:ok, summary} <- optional_string(params["summary"], 2_000),
          {:ok, payload_hash} <- optional_string(params["payload_hash"], 128),
          {:ok, idempotency_key} <- string(params["idempotency_key"], 1, 255),
-         {:ok, manifest_digest} <- digest(params["manifest_digest"]) do
+         {:ok, manifest_digest} <- digest(params["manifest_digest"]),
+         {:ok, manifest_cid} <- optional_string(params["manifest_cid"], 255),
+         {:ok, manifest_hash} <- optional_digest(params["manifest_hash"]),
+         {:ok, manifest_uri} <- optional_manifest_uri(params["manifest_uri"]),
+         {:ok, lineage} <- lineage(params["lineage"]),
+         :ok <-
+           validate_manifest_reference(manifest_cid, manifest_hash, manifest_uri, manifest_digest) do
       {:ok,
        %{
          regent_id: regent_id,
@@ -118,7 +132,11 @@ defmodule AshPlatformWeb.TechtreePublicationController do
          summary: summary,
          payload_hash: payload_hash,
          idempotency_key: idempotency_key,
-         manifest_digest: manifest_digest
+         manifest_digest: manifest_digest,
+         manifest_cid: manifest_cid,
+         manifest_hash: manifest_hash,
+         manifest_uri: manifest_uri,
+         lineage: lineage
        }}
     end
   end
@@ -161,6 +179,90 @@ defmodule AshPlatformWeb.TechtreePublicationController do
   end
 
   defp digest(_value), do: {:error, :invalid_input}
+
+  defp optional_digest(nil), do: {:ok, nil}
+  defp optional_digest(value), do: digest(value)
+
+  defp optional_manifest_uri(nil), do: {:ok, nil}
+
+  defp optional_manifest_uri(value) do
+    with {:ok, value} <- string(value, 1, 2_048),
+         %URI{scheme: scheme, host: host, userinfo: nil, query: nil, fragment: nil} <-
+           URI.parse(value),
+         true <- scheme in ["https", "ipfs"] and is_binary(host) do
+      {:ok, value}
+    else
+      _result -> {:error, :invalid_input}
+    end
+  end
+
+  defp lineage(nil), do: {:ok, %{}}
+
+  defp lineage(%{"node_id" => _node_id, "kind" => _kind} = value),
+    do: lineage([value])
+
+  defp lineage(%{node_id: _node_id, kind: _kind} = value),
+    do: lineage([value])
+
+  defp lineage(value) when is_map(value) do
+    value
+    |> Enum.map(fn {node_id, kind} -> %{"node_id" => node_id, "kind" => kind} end)
+    |> lineage()
+  end
+
+  defp lineage(value) when is_list(value) do
+    with {:ok, references} <- Enum.reduce_while(value, {:ok, []}, &lineage_reference/2),
+         true <- unique_node_ids?(references) do
+      {:ok, Map.new(references, fn %{node_id: node_id, kind: kind} -> {node_id, kind} end)}
+    else
+      _result -> {:error, :invalid_input}
+    end
+  end
+
+  defp lineage(_value), do: {:error, :invalid_input}
+
+  defp lineage_reference(reference, {:ok, references}) when is_map(reference) do
+    node_id = Map.get(reference, "node_id", Map.get(reference, :node_id))
+    kind = Map.get(reference, "kind", Map.get(reference, :kind))
+
+    with {:ok, node_id} <- uuid(node_id),
+         {:ok, kind} <- lineage_kind(kind) do
+      {:cont, {:ok, [%{node_id: node_id, kind: kind} | references]}}
+    else
+      _result -> {:halt, {:error, :invalid_input}}
+    end
+  end
+
+  defp lineage_reference(_reference, _acc), do: {:halt, {:error, :invalid_input}}
+
+  defp lineage_kind(value) do
+    case Map.fetch(@lineage_kinds, value) do
+      {:ok, kind} -> {:ok, kind}
+      :error -> {:error, :invalid_input}
+    end
+  end
+
+  defp unique_node_ids?(references) do
+    node_ids = Enum.map(references, & &1.node_id)
+    length(node_ids) == length(Enum.uniq(node_ids))
+  end
+
+  defp validate_manifest_reference(nil, nil, nil, _manifest_digest), do: :ok
+
+  defp validate_manifest_reference(manifest_cid, manifest_hash, manifest_uri, manifest_digest)
+       when is_binary(manifest_cid) and is_binary(manifest_hash) do
+    if manifest_hash == manifest_digest and (is_nil(manifest_uri) or is_binary(manifest_uri)),
+      do: :ok,
+      else: {:error, :invalid_input}
+  end
+
+  defp validate_manifest_reference(
+         _manifest_cid,
+         _manifest_hash,
+         _manifest_uri,
+         _manifest_digest
+       ),
+       do: {:error, :invalid_input}
 
   defp error(conn, status, code) do
     idempotency_key =

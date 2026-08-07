@@ -13,6 +13,9 @@ defmodule AshPlatformWeb.TechtreeLive do
   attr :nodes, :list, required: true
   attr :edges, :list, required: true
   attr :node, :map, default: nil
+  attr :provenance, :map, default: nil
+  attr :uplift_report, :map, default: nil
+  attr :payload_status, :atom, required: true
   attr :status, :atom, required: true
   attr :presentation, :atom, required: true
   attr :comments, :list, required: true
@@ -40,6 +43,9 @@ defmodule AshPlatformWeb.TechtreeLive do
     <.node_detail
       :if={@route_spec.route_id == :techtree_node}
       node={@node}
+      provenance={@provenance}
+      uplift_report={@uplift_report}
+      payload_status={@payload_status}
       node_id={@params["node_id"]}
       status={@status}
       comments={@comments}
@@ -76,7 +82,7 @@ defmodule AshPlatformWeb.TechtreeLive do
           <h2 id="techtree-agent-title">Build on the graph</h2>
           <p>Start the guided Techtree flow, inspect published work, then attach new research.</p>
         </div>
-        <div class="techtree-commands" aria-label="Verified Regents CLI commands">
+        <div class="techtree-commands" aria-label="Regents CLI commands">
           <code>regents techtree start</code>
           <code>regents techtree node create</code>
         </div>
@@ -160,6 +166,22 @@ defmodule AshPlatformWeb.TechtreeLive do
                 <strong>{node.title}</strong>
                 <span>{node.summary || "No summary yet."}</span>
               </.link>
+              <div class="techtree-node-provenance">
+                <span :if={node.contributor}>
+                  Contributor: {node.contributor.agent_id}
+                </span>
+                <.link
+                  :if={node.contributor && node.contributor.profile_url}
+                  patch={node.contributor.profile_url}
+                >
+                  View profile
+                </.link>
+                <time :if={node.published_at} datetime={node.published_at}>
+                  Published {node.published_at}
+                </time>
+                <span>Evidence lineage: {lineage_summary(node)}</span>
+                <span>Projection: {projection_label(node.projection_status)}</span>
+              </div>
             </li>
           </ol>
         </div>
@@ -179,6 +201,9 @@ defmodule AshPlatformWeb.TechtreeLive do
 
   attr :node_id, :string, required: true
   attr :node, :map, default: nil
+  attr :provenance, :map, default: nil
+  attr :uplift_report, :map, default: nil
+  attr :payload_status, :atom, required: true
   attr :status, :atom, required: true
   attr :comments, :list, required: true
   attr :comments_status, :atom, required: true
@@ -204,6 +229,94 @@ defmodule AshPlatformWeb.TechtreeLive do
         <p>{@node.summary || "This node has not added a public summary yet."}</p>
         <code :if={@node.payload_hash}>{@node.payload_hash}</code>
       </header>
+
+      <section
+        :if={@provenance}
+        class="techtree-node-section"
+        aria-labelledby="techtree-provenance-title"
+      >
+        <header>
+          <p class="techtree-kicker">Public provenance</p>
+          <h2 id="techtree-provenance-title">Where this node came from</h2>
+        </header>
+
+        <dl class="techtree-provenance-grid">
+          <div>
+            <dt>Contributor</dt>
+            <dd :if={@provenance.contributor}>
+              <span>{@provenance.contributor.agent_id}</span>
+              <.link
+                :if={@provenance.contributor.profile_url}
+                patch={@provenance.contributor.profile_url}
+              >
+                View public profile
+              </.link>
+            </dd>
+            <dd :if={is_nil(@provenance.contributor)}>Not recorded</dd>
+          </div>
+          <div>
+            <dt>Published</dt>
+            <dd>
+              <time
+                :if={@provenance.published_at}
+                datetime={@provenance.published_at}
+              >
+                {@provenance.published_at}
+              </time>
+              <span :if={is_nil(@provenance.published_at)}>Not recorded</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Projection</dt>
+            <dd>{projection_label(@provenance.projection_status)}</dd>
+          </div>
+        </dl>
+
+        <section class="techtree-node-subsection" aria-labelledby="techtree-lineage-title">
+          <h3 id="techtree-lineage-title">Evidence lineage</h3>
+          <p :if={@provenance.lineage == []}>Root node; no evidence parent is recorded.</p>
+          <ul :if={@provenance.lineage != []}>
+            <li :for={reference <- @provenance.lineage}>
+              <span>{lineage_kind_label(reference.kind)}</span>
+              <.link patch={"/techtree/nodes/#{reference.node_id}"}>
+                {reference.node_id}
+              </.link>
+            </li>
+          </ul>
+        </section>
+
+        <section class="techtree-node-subsection" aria-labelledby="techtree-payload-title">
+          <h3 id="techtree-payload-title">Public payload</h3>
+          <p>{payload_status_message(@payload_status, @provenance.payload_verification.status)}</p>
+          <dl class="techtree-provenance-grid">
+            <div>
+              <dt>Manifest CID</dt>
+              <dd><code>{@provenance.manifest_cid || "Not recorded"}</code></dd>
+            </div>
+            <div>
+              <dt>Manifest hash</dt>
+              <dd><code>{@provenance.manifest_hash || "Not recorded"}</code></dd>
+            </div>
+            <div>
+              <dt>Manifest URI</dt>
+              <dd><code>{@provenance.manifest_uri || "Not recorded"}</code></dd>
+            </div>
+          </dl>
+          <.link :if={@provenance.payload_url} patch={@provenance.payload_url}>
+            Fetch public payload
+          </.link>
+        </section>
+      </section>
+
+      <.uplift_report :if={@uplift_report} report={@uplift_report} />
+
+      <details
+        :if={@provenance && Map.get(@provenance, :inspect_evidence)}
+        class="techtree-inspect-evidence"
+      >
+        <summary>Inspect evidence</summary>
+        <pre>{display_value(Map.get(@provenance, :inspect_evidence))}</pre>
+      </details>
 
       <.frame artifact={@notebook_artifact} />
 
@@ -243,6 +356,125 @@ defmodule AshPlatformWeb.TechtreeLive do
       <p>This public node could not be loaded.</p>
     </section>
     """
+  end
+
+  attr :report, :map, required: true
+
+  defp uplift_report(assigns) do
+    ~H"""
+    <section
+      id="techtree-uplift-report"
+      class="techtree-node-section"
+      aria-labelledby="techtree-uplift-title"
+    >
+      <header>
+        <p class="techtree-kicker">Uplift report</p>
+        <h2 id="techtree-uplift-title">What this result says</h2>
+      </header>
+
+      <div class="techtree-uplift-questions">
+        <section>
+          <h3>Did it help?</h3>
+          <p>{@report.outcome.label}</p>
+        </section>
+        <section>
+          <h3>How capable is the final agent?</h3>
+          <p>{display_value(@report.final_capability)}</p>
+        </section>
+        <section>
+          <h3>What got better or worse?</h3>
+          <p>{display_value(@report.measured_change)}</p>
+          <p :if={@report.regressions not in [[], nil]}>
+            Regressions: {display_value(@report.regressions)}
+          </p>
+        </section>
+        <section>
+          <h3>What did it cost?</h3>
+          <p>{display_value(@report.cost_latency)}</p>
+        </section>
+        <section>
+          <h3>How strong is the evidence?</h3>
+          <p>{@report.evidence.class}</p>
+          <p>{@report.evidence.reproduction_status}</p>
+          <p>{@report.evidence.reproduction_package}</p>
+        </section>
+      </div>
+
+      <div class="techtree-evaluation-sections">
+        <section aria-labelledby="techtree-held-out-title">
+          <h3 id="techtree-held-out-title">Held-out evaluation</h3>
+          <pre>{display_value(@report.scored_evaluation || "Not recorded.")}</pre>
+        </section>
+        <section aria-labelledby="techtree-calibration-title">
+          <h3 id="techtree-calibration-title">Calibration (public references)</h3>
+          <p :if={is_nil(@report.calibration)}>No public-reference calibration was included.</p>
+          <p :if={@report.calibration}>
+            Possible contamination: these scores do not carry the uplift claim.
+          </p>
+          <pre :if={@report.calibration}>{display_value(@report.calibration)}</pre>
+        </section>
+      </div>
+
+      <details class="techtree-inspect-evidence">
+        <summary>Inspect evidence</summary>
+        <pre>{display_value(@report.inspect_evidence)}</pre>
+      </details>
+    </section>
+    """
+  end
+
+  defp projection_label("not_started"), do: "Not requested"
+  defp projection_label("pending"), do: "Pending"
+  defp projection_label("submitted"), do: "Submitted"
+  defp projection_label("confirmed"), do: "Confirmed"
+  defp projection_label("failed"), do: "Failed"
+  defp projection_label(:not_started), do: "Not requested"
+  defp projection_label(:pending), do: "Pending"
+  defp projection_label(:submitted), do: "Submitted"
+  defp projection_label(:confirmed), do: "Confirmed"
+  defp projection_label(:failed), do: "Failed"
+  defp projection_label(_status), do: "Not recorded"
+
+  defp payload_status_message(:artifact_unavailable, _status),
+    do: "The public payload is unavailable. The node itself remains published."
+
+  defp payload_status_message(_status, :not_available), do: "No public payload is attached."
+
+  defp payload_status_message(_status, :not_checked),
+    do: "A public payload is attached but has not been fetched here."
+
+  defp payload_status_message(_status, :hash_matched),
+    do: "Fetched bytes match the displayed manifest hash."
+
+  defp payload_status_message(_status, :unavailable), do: "The public payload is unavailable."
+  defp payload_status_message(_status, _verification), do: "Payload status is not recorded."
+
+  defp lineage_kind_label(kind) when is_binary(kind), do: String.replace(kind, "_", " ")
+
+  defp lineage_kind_label(kind) when is_atom(kind),
+    do: kind |> Atom.to_string() |> lineage_kind_label()
+
+  defp lineage_kind_label(_kind), do: "lineage"
+
+  defp lineage_summary(%{lineage: []}), do: "Root node"
+
+  defp lineage_summary(%{lineage: lineage}) when is_list(lineage) do
+    lineage
+    |> Enum.map_join(", ", &lineage_kind_label(&1.kind))
+    |> then(&"#{&1}")
+  end
+
+  defp lineage_summary(_node), do: "Lineage not recorded"
+
+  defp display_value(nil), do: "Not recorded."
+  defp display_value(value) when is_binary(value), do: value
+  defp display_value(value) when is_number(value) or is_boolean(value), do: to_string(value)
+
+  defp display_value(value) do
+    case Jason.encode(value) do
+      {:ok, encoded} -> encoded
+      {:error, _error} -> "Not available."
+    end
   end
 
   attr :class, :string, required: true

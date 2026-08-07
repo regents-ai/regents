@@ -25,6 +25,32 @@ defmodule AshPlatform.Techtree.Node do
       constraints max_length: 128
     end
 
+    attribute :manifest_cid, :string do
+      public? true
+      constraints min_length: 1, max_length: 255
+    end
+
+    attribute :manifest_hash, :string do
+      public? true
+      constraints match: ~r/\A[0-9a-f]{64}\z/
+    end
+
+    attribute :manifest_uri, :string do
+      public? true
+      constraints max_length: 2_048
+    end
+
+    attribute :lineage, :map do
+      public? true
+    end
+
+    attribute :projection_status, :atom do
+      allow_nil? false
+      public? true
+      default :not_started
+      constraints one_of: [:not_started, :pending, :submitted, :confirmed, :failed]
+    end
+
     attribute :kind, :atom do
       public? true
 
@@ -139,7 +165,17 @@ defmodule AshPlatform.Techtree.Node do
     end
 
     create :import_public do
-      accept [:tree_id, :title, :summary, :payload_hash]
+      accept [
+        :tree_id,
+        :title,
+        :summary,
+        :payload_hash,
+        :manifest_cid,
+        :manifest_hash,
+        :manifest_uri,
+        :lineage
+      ]
+
       change set_attribute(:workflow_state, :published)
     end
 
@@ -153,6 +189,10 @@ defmodule AshPlatform.Techtree.Node do
         :summary,
         :payload_hash,
         :manifest_digest,
+        :manifest_cid,
+        :manifest_hash,
+        :manifest_uri,
+        :lineage,
         :idempotency_key,
         :siwa_envelope
       ]

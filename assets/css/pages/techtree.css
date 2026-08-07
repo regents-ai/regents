@@ -284,6 +284,109 @@
   margin-top: 1px;
 }
 
+.techtree-node-provenance,
+.techtree-map-node-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 1rem 0.85rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.techtree-node-provenance a,
+.techtree-map-node-provenance a {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.techtree-node-section,
+.techtree-inspect-evidence {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+}
+
+.techtree-node-section > header > *,
+.techtree-node-subsection > h3,
+.techtree-uplift-questions h3,
+.techtree-evaluation-sections h3 {
+  margin-block: 0;
+}
+
+.techtree-provenance-grid,
+.techtree-uplift-questions,
+.techtree-evaluation-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.techtree-provenance-grid {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.techtree-provenance-grid dt {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.techtree-provenance-grid dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.techtree-node-subsection,
+.techtree-uplift-questions section,
+.techtree-evaluation-sections section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.techtree-node-subsection ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.techtree-uplift-questions,
+.techtree-evaluation-sections {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.techtree-uplift-questions section,
+.techtree-evaluation-sections section {
+  padding: 1rem;
+  border: 1px solid var(--hairline-strong);
+}
+
+.techtree-uplift-questions p,
+.techtree-evaluation-sections p {
+  margin: 0;
+}
+
+.techtree-inspect-evidence {
+  margin-bottom: 1.5rem;
+}
+
+.techtree-inspect-evidence pre,
+.techtree-evaluation-sections pre {
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .techtree-list-tab,
 .techtree-map-tab {
   display: grid;
