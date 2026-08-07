@@ -2,7 +2,7 @@ defmodule AshPlatform.Techtree.Provenance do
   @moduledoc false
 
   alias AshPlatform.Formation
-  alias AshPlatform.Techtree.Payload
+  alias AshPlatform.Techtree.{EvidenceStateUpdate, Payload}
 
   @lineage_kinds ~w(
     derived_from
@@ -45,7 +45,7 @@ defmodule AshPlatform.Techtree.Provenance do
     |> put_recorded(node, :capsule)
     |> put_recorded(node, :immutable_payloads)
     |> put_recorded(node, :evidence_projection)
-    |> put_recorded(node, :evidence_state)
+    |> put_evidence_state(node)
   end
 
   @spec resolve_profile(map()) :: map() | nil
@@ -226,6 +226,39 @@ defmodule AshPlatform.Techtree.Provenance do
       {:ok, value} when not is_nil(value) -> Map.put(payload, field, value)
       _missing_or_nil -> payload
     end
+  end
+
+  defp put_evidence_state(payload, node) do
+    case Map.get(node, :id) do
+      id when is_binary(id) ->
+        case EvidenceStateUpdate.latest_for_node(id) do
+          {:ok, nil} -> Map.put(payload, :evidence_state, synthesized_evidence_state(node))
+          {:ok, update} -> Map.put(payload, :evidence_state, public_evidence_state(update))
+          _error -> Map.put(payload, :evidence_state, synthesized_evidence_state(node))
+        end
+
+      _id ->
+        put_recorded(payload, node, :evidence_state)
+    end
+  rescue
+    _error -> put_recorded(payload, node, :evidence_state)
+  end
+
+  defp synthesized_evidence_state(node) do
+    %{
+      status: "issued",
+      evidence_reference_ids: [],
+      updated_at: datetime(Map.get(node, :published_at))
+    }
+  end
+
+  defp public_evidence_state(%EvidenceStateUpdate{} = update) do
+    %{
+      status: Atom.to_string(update.status),
+      reason: update.reason,
+      evidence_reference_ids: update.evidence_reference_ids,
+      updated_at: datetime(update.inserted_at)
+    }
   end
 
   defp public_edge(edge) do

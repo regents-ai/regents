@@ -63,6 +63,20 @@ defmodule AshPlatform.Techtree do
         action: :current_for_node,
         args: [:node_id, :node_payload_hash]
     end
+
+    resource AshPlatform.Techtree.EvidenceStateUpdate do
+      define :append_evidence_state_update,
+        action: :append,
+        args: [:node_id, :status, :reason, :evidence_reference_ids, :siwa_envelope]
+
+      define :latest_evidence_state_update,
+        action: :latest_for_node,
+        args: [:node_id]
+
+      define :list_evidence_state_updates,
+        action: :all_for_node,
+        args: [:node_id]
+    end
   end
 
   def ensure_seed_trees(opts \\ []) do

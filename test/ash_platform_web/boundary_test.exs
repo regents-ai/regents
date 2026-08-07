@@ -32,6 +32,11 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [notebook_artifacts_migration] =
              Path.wildcard("priv/repo/migrations/*_add_techtree_notebook_artifacts.exs")
 
+    assert [evidence_state_updates_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_regent_zs65_techtree_evidence_state_updates.exs"
+             )
+
     assert [launch_drafts_migration] =
              Path.wildcard("priv/repo/migrations/*_add_autolaunch_launch_drafts.exs")
 
@@ -109,6 +114,7 @@ defmodule AshPlatformWeb.BoundaryTest do
                comments_migration,
                comment_reactions_migration,
                notebook_artifacts_migration,
+               evidence_state_updates_migration,
                launch_drafts_migration,
                subjects_migration,
                subject_identity_migration,
@@ -192,6 +198,22 @@ defmodule AshPlatformWeb.BoundaryTest do
         ~s(prefix: "techtree")
       ],
       ["CREATE SCHEMA IF NOT EXISTS techtree"]
+    )
+
+    assert_additive_migration(
+      evidence_state_updates_migration,
+      [
+        "create table(:evidence_state_updates",
+        "references(:nodes",
+        "create index(:evidence_state_updates",
+        ~s(prefix: "techtree")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS techtree"]
+    )
+
+    assert_reversible_migration(
+      evidence_state_updates_migration,
+      ["drop(table(:evidence_state_updates"]
     )
 
     assert_additive_migration(
