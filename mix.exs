@@ -27,7 +27,7 @@ defmodule AshPlatform.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "test.external": :test]
     ]
   end
 
@@ -79,6 +79,7 @@ defmodule AshPlatform.MixProject do
         "esbuild ash_platform --minify",
         "phx.digest"
       ],
+      "test.external": ["test --only external"],
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --check-unused",

@@ -13,3 +13,5 @@ npm test
 npm run test:browser
 npm run test:budgets
 ```
+
+The three `:external` Marimo tests are non-required network checks that reach PyPI; run them with `mix test.external`. They are excluded from `mix precommit` by design so the required gates remain hermetic.
