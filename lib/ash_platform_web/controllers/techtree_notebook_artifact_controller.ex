@@ -45,17 +45,24 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
   def create(conn, _params), do: error(conn, 400, :invalid_request)
 
   defp import_artifact(conn, attributes) do
-    Techtree.import_agent_notebook_artifact(
-      attributes.node_id,
-      attributes.node_payload_hash,
-      attributes.source_hash,
-      attributes.payload_hash,
-      attributes.marimo_version,
-      attributes.run_url,
-      attributes.manifest_json,
-      attributes.allowed_assets,
-      actor: conn.assigns.agent_identity
-    )
+    storage_call = fn ->
+      Techtree.import_agent_notebook_artifact(
+        attributes.node_id,
+        attributes.node_payload_hash,
+        attributes.source_hash,
+        attributes.payload_hash,
+        attributes.marimo_version,
+        attributes.run_url,
+        attributes.manifest_json,
+        attributes.allowed_assets,
+        actor: conn.assigns.agent_identity
+      )
+    end
+
+    case Map.get(conn.private, :techtree_notebook_artifact_importer) do
+      nil -> storage_call.()
+      importer -> importer.(storage_call)
+    end
   end
 
   defp validate(params, id) do
@@ -197,8 +204,11 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
   defp action_error(conn, %Ash.Error.Forbidden{}), do: error(conn, 403, :forbidden)
 
   defp action_error(conn, %Ash.Error.Invalid{errors: errors}) do
-    code = if unique_identity_error?(errors), do: :conflict, else: :invalid_notebook_artifact
-    error(conn, 422, code)
+    if unique_identity_error?(errors) do
+      error(conn, 409, :conflict)
+    else
+      error(conn, 422, :invalid_notebook_artifact)
+    end
   end
 
   defp action_error(conn, %Ash.Error.Unknown{}),

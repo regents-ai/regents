@@ -162,19 +162,57 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     )
   end
 
-  test "notebook storage failures return a temporary-unavailable error", context do
+  test "notebook storage failures after identity precheck return a temporary-unavailable error",
+       context do
     node_payload_hash = sha256("notebook-storage")
     node = publish_node(context, "notebook-storage", node_payload_hash)
     before_node = node_columns(node)
     artifact = artifact_request(node_payload_hash, "notebook-storage source")
+    test_pid = self()
 
-    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "DROP TABLE techtree.notebook_artifacts")
+    importer = fn _storage_call ->
+      send(test_pid, :notebook_storage_called)
 
-    response = post_artifact(node.id, artifact, {:ok, context.identity})
+      {:error,
+       Ash.Error.to_error_class(RuntimeError.exception("notebook artifact storage unavailable"))}
+    end
 
+    response = post_artifact(node.id, artifact, {:ok, context.identity}, importer)
+
+    assert_received :notebook_storage_called
     assert response.status == 503
     assert json_response(response, 503)["error"]["code"] == "temporarily_unavailable"
+    assert artifact_count(node.id) == 0
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
+  end
+
+  test "concurrent duplicate imports return conflict", context do
+    node_payload_hash = sha256("concurrent duplicate")
+    node = publish_node(context, "concurrent-duplicate", node_payload_hash)
+    artifact = artifact_request(node_payload_hash, "concurrent duplicate source")
+    importer = concurrent_importer(self())
+
+    tasks =
+      for _index <- 1..2 do
+        Task.async(fn ->
+          post_artifact(node.id, artifact, {:ok, context.identity}, importer)
+        end)
+      end
+
+    storage_pids =
+      for _task <- tasks do
+        assert_receive {:notebook_storage_ready, pid}, 5_000
+        pid
+      end
+
+    Enum.each(storage_pids, &send(&1, :insert))
+    responses = Enum.map(tasks, &Task.await(&1, 15_000))
+
+    assert Enum.sort(Enum.map(responses, & &1.status)) == [201, 409]
+
+    conflict = Enum.find(responses, &(&1.status == 409))
+    assert json_response(conflict, 409)["error"]["code"] == "conflict"
+    assert artifact_count(node.id) == 1
   end
 
   test "unpaired, revoked, re-paired, different-Regent, and cross-owner HTTP cases fail closed",
@@ -421,14 +459,28 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
   end
 
   defp post_artifact(node_id, artifact, verification_result),
-    do: post_artifact(node_id, artifact, verification_result, [], "")
+    do: post_artifact(node_id, artifact, verification_result, [], "", nil)
 
-  defp post_artifact(node_id, artifact, verification_result, headers, query)
+  defp post_artifact(node_id, artifact, verification_result, importer),
+    do: post_artifact(node_id, artifact, verification_result, [], "", importer)
+
+  defp post_artifact(node_id, artifact, verification_result, headers, query),
+    do: post_artifact(node_id, artifact, verification_result, headers, query, nil)
+
+  defp post_artifact(node_id, artifact, verification_result, headers, query, importer)
        when is_map(artifact) do
-    post_artifact(node_id, Jason.encode!(artifact), verification_result, headers, query)
+    post_artifact(
+      node_id,
+      Jason.encode!(artifact),
+      verification_result,
+      headers,
+      query,
+      importer
+    )
   end
 
-  defp post_artifact(node_id, body, verification_result, headers, query) when is_binary(body) do
+  defp post_artifact(node_id, body, verification_result, headers, query, importer)
+       when is_binary(body) do
     Process.put(:agent_verification_result, verification_result)
 
     conn =
@@ -447,6 +499,13 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
       |> put_req_header("content-digest", "sha-256=:redacted:")
 
     conn =
+      if importer do
+        put_private(conn, :techtree_notebook_artifact_importer, importer)
+      else
+        conn
+      end
+
+    conn =
       Enum.reduce(headers, conn, fn {name, value}, conn ->
         put_req_header(conn, name, value)
       end)
@@ -458,6 +517,20 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
       "/api/techtree/v1/nodes/#{node_id}/notebook-artifact#{query}",
       body
     )
+  end
+
+  defp concurrent_importer(test_pid) do
+    fn storage_call ->
+      send(test_pid, {:notebook_storage_ready, self()})
+
+      receive do
+        :insert ->
+          storage_call.()
+      after
+        5_000 ->
+          {:error, Ash.Error.to_error_class(RuntimeError.exception("insert timeout"))}
+      end
+    end
   end
 
   defp agent_actor(context) do
