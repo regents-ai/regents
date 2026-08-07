@@ -3,6 +3,14 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdate.Changes.PrepareAppend do
 
   alias AshPlatform.AgentAuth.AgentIdentity
 
+  @lock_query """
+  SELECT id::text, workflow_state, published_at
+  FROM techtree.nodes
+  WHERE id = ANY($1::uuid[])
+  ORDER BY id
+  FOR UPDATE
+  """
+
   @impl true
   def change(changeset, _opts, %{actor: %AgentIdentity{} = actor}) do
     changeset
@@ -25,18 +33,16 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdate.Changes.PrepareAppend do
     node_id = Ash.Changeset.get_attribute(changeset, :node_id)
     reference_ids = Ash.Changeset.get_attribute(changeset, :evidence_reference_ids) || []
 
-    cond do
-      node_id in reference_ids ->
-        invalid_reference(changeset)
+    if node_id in reference_ids do
+      invalid_reference(changeset)
+    else
+      case lock_nodes([node_id | reference_ids]) do
+        {:ok, nodes} ->
+          validate_nodes(changeset, node_id, reference_ids, nodes)
 
-      true ->
-        case lock_nodes([node_id | reference_ids]) do
-          {:ok, nodes} ->
-            validate_nodes(changeset, node_id, reference_ids, nodes)
-
-          {:error, _reason} ->
-            Ash.Changeset.add_error(changeset, message: "temporary database error")
-        end
+        {:error, _reason} ->
+          Ash.Changeset.add_error(changeset, message: "temporary database error")
+      end
     end
   end
 
@@ -67,7 +73,7 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdate.Changes.PrepareAppend do
 
   defp lock_nodes(ids) do
     with {:ok, ids} <- dump_ids(ids),
-         {:ok, result} <- Ecto.Adapters.SQL.query(AshPlatform.Repo, lock_query(ids), ids) do
+         {:ok, result} <- Ecto.Adapters.SQL.query(AshPlatform.Repo, @lock_query, [ids]) do
       {:ok,
        Map.new(result.rows, fn [id, workflow_state, published_at] ->
          {id, %{workflow_state: workflow_state, published_at: published_at}}
@@ -90,18 +96,5 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdate.Changes.PrepareAppend do
       {:ok, dumped} -> {:ok, Enum.reverse(dumped)}
       error -> error
     end
-  end
-
-  defp lock_query(ids) do
-    placeholders =
-      ids |> Enum.with_index(1) |> Enum.map_join(", ", fn {_id, index} -> "$#{index}" end)
-
-    """
-    SELECT id::text, workflow_state, published_at
-    FROM techtree.nodes
-    WHERE id IN (#{placeholders})
-    ORDER BY id
-    FOR UPDATE
-    """
   end
 end

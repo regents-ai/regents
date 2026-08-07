@@ -13,6 +13,14 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
     "manifest_json",
     "allowed_assets"
   ]
+  @conflict_markers [
+    "unique_node_source",
+    "already exists",
+    "has already been taken",
+    "unique constraint"
+  ]
+  @notebook_markers ["Notebook", "notebook"]
+
   def create(%Plug.Conn{query_string: ""} = conn, %{"id" => id} = params) do
     with {:ok, attributes} <- validate(params, id),
          :ok <- existing_identity(attributes),
@@ -154,26 +162,22 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
   defp action_error(conn, reason) do
     message = if is_exception(reason), do: Exception.message(reason), else: inspect(reason)
 
+    {status, code} = action_error_result(message)
+    error(conn, status, code)
+  end
+
+  defp action_error_result(message) do
     cond do
-      String.contains?(message, "unique_node_source") or
-        String.contains?(message, "already exists") or
-        String.contains?(message, "has already been taken") or
-          String.contains?(message, "unique constraint") ->
-        error(conn, 409, :conflict)
-
-      String.contains?(message, "current payload") ->
-        error(conn, 422, :stale_node_payload)
-
-      String.contains?(message, "public node") ->
-        error(conn, 404, :not_found)
-
-      String.contains?(message, "Notebook") or String.contains?(message, "notebook") ->
-        error(conn, 422, :invalid_notebook_artifact)
-
-      true ->
-        error(conn, 503, :temporarily_unavailable)
+      contains_any?(message, @conflict_markers) -> {409, :conflict}
+      String.contains?(message, "current payload") -> {422, :stale_node_payload}
+      String.contains?(message, "public node") -> {404, :not_found}
+      contains_any?(message, @notebook_markers) -> {422, :invalid_notebook_artifact}
+      true -> {503, :temporarily_unavailable}
     end
   end
+
+  defp contains_any?(message, markers),
+    do: Enum.any?(markers, &String.contains?(message, &1))
 
   defp error(conn, status, code) do
     conn

@@ -3,6 +3,7 @@ defmodule AshPlatform.Techtree do
     otp_app: :ash_platform
 
   @edge_resource Module.concat(__MODULE__, "Edge")
+  @notebook_artifact_resource Module.concat(__MODULE__, "NotebookArtifact")
 
   resources do
     resource AshPlatform.Techtree.Tree do
@@ -45,7 +46,7 @@ defmodule AshPlatform.Techtree do
         args: [:from_node_id, :to_node_id]
     end
 
-    resource AshPlatform.Techtree.NotebookArtifact do
+    resource @notebook_artifact_resource do
       define :import_notebook_artifact,
         action: :import_verified,
         args: [
