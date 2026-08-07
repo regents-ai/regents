@@ -2954,7 +2954,8 @@ defmodule AshPlatformWeb.ShellLive do
   defp node_presentation(node) do
     case Payload.fetch_if_referenced(node) do
       {:ok, %{bytes: bytes, verification: verification}} ->
-        {Provenance.public_node(node, [], verification), project_uplift_report(bytes), :ready}
+        {Provenance.public_node(node, [], verification), project_uplift_report(node, bytes),
+         :ready}
 
       {:error, :artifact_unavailable} ->
         verification = %{
@@ -2967,16 +2968,21 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  defp project_uplift_report(bytes) when is_binary(bytes) do
-    with {:ok, payload} <- Jason.decode(bytes),
-         {:ok, report} <- UpliftReport.project(payload) do
-      report
+  defp project_uplift_report(node, bytes) when is_binary(bytes) do
+    if uplift_report_node?(node) do
+      case UpliftReport.project_json(bytes) do
+        {:ok, report} -> report
+        :not_uplift_report -> UpliftReport.not_recognized()
+      end
     else
-      _result -> nil
+      nil
     end
   end
 
-  defp project_uplift_report(_bytes), do: nil
+  defp project_uplift_report(_node, _bytes), do: nil
+
+  defp uplift_report_node?(node),
+    do: Map.get(node, :kind) in [:uplift_report, "uplift_report"]
 
   defp current_notebook_artifact(%{payload_hash: payload_hash} = node)
        when is_binary(payload_hash) do

@@ -8,6 +8,8 @@ defmodule AshPlatform.Techtree.Payload do
   @default_max_bytes 5_242_880
   @cid_pattern ~r/\A[0-9A-Za-z][0-9A-Za-z._-]{0,254}\z/
   @hash_pattern ~r/\A[0-9a-f]{64}\z/
+  @content_range_pattern ~r/\Abytes\s+(\d+)-(\d+)\/(\d+|\*)\z/
+  @stream_private_key :ash_platform_techtree_payload
 
   @type verification :: %{
           status: :not_available | :not_checked | :hash_matched | :unavailable,
@@ -60,7 +62,6 @@ defmodule AshPlatform.Techtree.Payload do
     with {:ok, cid} <- valid_cid(Map.get(node, :manifest_cid)),
          {:ok, expected_hash} <- valid_hash(Map.get(node, :manifest_hash)),
          {:ok, bytes} <- get_bytes(cid),
-         true <- byte_size(bytes) <= max_bytes(),
          actual_hash <- sha256(bytes),
          true <- actual_hash == expected_hash,
          :ok <- valid_json_object(bytes) do
@@ -95,16 +96,126 @@ defmodule AshPlatform.Techtree.Payload do
       receive_timeout: timeout(),
       connect_options: [timeout: timeout()],
       decode_body: false,
+      into: &stream_response/2,
       retry: false,
       redirect: false
     ]
 
     case http_client().get("#{gateway_url()}/#{cid}", options) do
-      {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
+      {:ok, %Req.Response{} = response} -> streamed_body(response)
       _result -> {:error, :artifact_unavailable}
     end
   rescue
     _error -> {:error, :artifact_unavailable}
+  end
+
+  defp stream_response({:data, data}, {request, %Req.Response{} = response})
+       when is_binary(data) do
+    state =
+      Req.Response.get_private(response, @stream_private_key, %{
+        bytes: 0,
+        chunks: [],
+        status: :streaming
+      })
+
+    next_size = state.bytes + byte_size(data)
+
+    if next_size > max_bytes() do
+      response =
+        Req.Response.put_private(
+          response,
+          @stream_private_key,
+          %{state | status: :too_large}
+        )
+
+      {:halt, {request, response}}
+    else
+      response =
+        Req.Response.put_private(
+          response,
+          @stream_private_key,
+          %{state | bytes: next_size, chunks: [data | state.chunks]}
+        )
+
+      {:cont, {request, response}}
+    end
+  end
+
+  defp stream_response(_event, {request, response}), do: {:halt, {request, response}}
+
+  defp streamed_body(%Req.Response{} = response) do
+    with true <- response.status in [200, 206],
+         :ok <- response_size_within_limit(response),
+         %{bytes: bytes, chunks: chunks, status: :streaming} <-
+           Req.Response.get_private(response, @stream_private_key),
+         body <- chunks |> Enum.reverse() |> IO.iodata_to_binary(),
+         true <- byte_size(body) == bytes do
+      {:ok, body}
+    else
+      _result -> {:error, :artifact_unavailable}
+    end
+  end
+
+  defp response_size_within_limit(%Req.Response{} = response) do
+    case content_length_within_limit(response.headers) do
+      :ok -> content_range_within_limit(response.headers)
+      error -> error
+    end
+  end
+
+  defp content_length_within_limit(headers) do
+    case response_header(headers, "content-length") do
+      nil -> :ok
+      value -> bounded_header_integer(value)
+    end
+  end
+
+  defp content_range_within_limit(headers) do
+    case response_header(headers, "content-range") do
+      nil ->
+        :ok
+
+      value ->
+        validate_content_range(value)
+    end
+  end
+
+  defp validate_content_range(value) do
+    case Regex.run(@content_range_pattern, value) do
+      [_, first, last, total] ->
+        content_range_bounds(String.to_integer(first), String.to_integer(last), total)
+
+      _match ->
+        {:error, :invalid_content_range}
+    end
+  end
+
+  defp content_range_bounds(first, last, total) do
+    if last >= first and
+         (total == "*" or String.to_integer(total) <= max_bytes()) and
+         last - first + 1 <= max_bytes() do
+      :ok
+    else
+      {:error, :too_large}
+    end
+  end
+
+  defp bounded_header_integer(value) do
+    case Integer.parse(value) do
+      {size, ""} when size >= 0 ->
+        if size <= max_bytes(), do: :ok, else: {:error, :too_large}
+
+      _result ->
+        {:error, :too_large}
+    end
+  end
+
+  defp response_header(headers, name) do
+    case Map.get(headers, name) do
+      [value | _rest] when is_binary(value) -> value
+      value when is_binary(value) -> value
+      _value -> nil
+    end
   end
 
   defp valid_cid(cid) when is_binary(cid) do

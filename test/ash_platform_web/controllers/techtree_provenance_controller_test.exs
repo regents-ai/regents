@@ -6,13 +6,25 @@ defmodule AshPlatformWeb.TechtreeProvenanceControllerTest do
   alias AshPlatform.Techtree.{Node, Payload}
 
   defmodule HttpClient do
-    def get(_url, _options),
-      do:
-        Application.get_env(
-          :ash_platform,
-          :techtree_test_payload_response,
-          {:error, :missing_stub}
-        )
+    def get(_url, options) do
+      case Application.get_env(
+             :ash_platform,
+             :techtree_test_payload_response,
+             {:error, :missing_stub}
+           ) do
+        {:ok, %{status: status, body: body} = response} when is_binary(body) ->
+          request = Req.new()
+          response = Req.Response.new(status: status, headers: Map.get(response, :headers, %{}))
+
+          case options[:into].({:data, body}, {request, response}) do
+            {:cont, {_request, response}} -> {:ok, response}
+            {:halt, {_request, response}} -> {:ok, response}
+          end
+
+        result ->
+          result
+      end
+    end
   end
 
   setup do
@@ -21,7 +33,7 @@ defmodule AshPlatformWeb.TechtreeProvenanceControllerTest do
     Application.put_env(:ash_platform, :techtree_payload,
       gateway_url: "https://gateway.test/ipfs",
       timeout: 25,
-      max_bytes: 1_024,
+      max_bytes: 20_000,
       http_client: HttpClient
     )
 
@@ -107,8 +119,9 @@ defmodule AshPlatformWeb.TechtreeProvenanceControllerTest do
     end
 
     assert html =~ "Helped"
-    assert html =~ "advanced"
-    assert html =~ "+2 held-out tasks"
+    assert html =~ "candidate"
+    assert html =~ "700"
+    assert html =~ "absolute_delta_millis"
     assert html =~ "Single run"
     assert html =~ "Reproduction package included"
     assert html =~ "Possible contamination"
@@ -117,7 +130,72 @@ defmodule AshPlatformWeb.TechtreeProvenanceControllerTest do
     assert html =~ "Inspect evidence"
     assert html =~ "Projection"
     assert html =~ "Confirmed"
+    assert has_element?(view, "[data-techtree-capability-change-pair]")
+
+    assert has_element?(
+             view,
+             "[data-techtree-capability-change-pair] h3",
+             "How capable is the final agent?"
+           )
+
+    assert has_element?(
+             view,
+             "[data-techtree-capability-change-pair] h3",
+             "What got better or worse?"
+           )
+
     refute html =~ "legacy"
+  end
+
+  test "rejects a lookalike report and never renders its unknown vocabulary", %{
+    conn: conn,
+    tree: tree
+  } do
+    payload =
+      AshPlatform.Test.UpliftReportFixture.canonical_report()
+      |> Map.merge(%{
+        "evidence_class" => "verified_effective",
+        "reproduction_status" => "guaranteed"
+      })
+      |> AshPlatform.Test.UpliftReportFixture.rekey()
+      |> Jason.encode!()
+
+    node =
+      public_node!(tree, %{
+        title: "Lookalike uplift",
+        kind: :uplift_report,
+        manifest_cid: "bafybeilookalike",
+        manifest_hash: Payload.sha256(payload)
+      })
+
+    put_payload_response({:ok, %{status: 200, body: payload}})
+    {:ok, view, _html} = live(conn, "/techtree/nodes/#{node.id}")
+    html = render_async(view)
+
+    assert has_element?(view, "#techtree-uplift-report", "Not a recognized Uplift report")
+    refute html =~ "Verified Effective"
+    refute html =~ "Guaranteed"
+  end
+
+  test "does not project a canonical-looking payload for a non-report node", %{
+    conn: conn,
+    tree: tree
+  } do
+    payload = AshPlatform.Test.UpliftReportFixture.canonical_report() |> Jason.encode!()
+
+    node =
+      public_node!(tree, %{
+        title: "Audit payload",
+        kind: :audit,
+        manifest_cid: "bafybeiauditpayload",
+        manifest_hash: Payload.sha256(payload)
+      })
+
+    put_payload_response({:ok, %{status: 200, body: payload}})
+    {:ok, view, _html} = live(conn, "/techtree/nodes/#{node.id}")
+    render_async(view)
+
+    refute has_element?(view, "#techtree-uplift-report")
   end
 
   test "roots and projection states are rendered without inventing lineage", %{
@@ -227,19 +305,8 @@ defmodule AshPlatformWeb.TechtreeProvenanceControllerTest do
   end
 
   defp uplift_payload do
-    Jason.encode!(%{
-      "schema_version" => "uplift-report-v1",
-      "report_id" => "report-provenance",
-      "outcome" => "positive",
-      "final_capability_level" => "advanced",
-      "measured_change" => "+2 held-out tasks",
-      "evidence_class" => "single_run",
-      "reproduction_status" => "not_run",
-      "reproduction_package_status" => "available",
-      "cost_latency" => "$1.84 / 42 seconds",
-      "scored_evaluation" => %{"held_out" => %{"delta" => 2}},
-      "calibration" => %{"scores" => %{"public_reference" => 1}}
-    })
+    AshPlatform.Test.UpliftReportFixture.canonical_report()
+    |> Jason.encode!()
   end
 
   defp tree!(suffix) do

@@ -372,21 +372,29 @@ defmodule AshPlatformWeb.TechtreeLive do
         <h2 id="techtree-uplift-title">What this result says</h2>
       </header>
 
-      <div class="techtree-uplift-questions">
+      <p :if={@report.status == :not_recognized}>Not a recognized Uplift report</p>
+
+      <div :if={@report.status == :recognized} class="techtree-uplift-questions">
         <section>
           <h3>Did it help?</h3>
           <p>{@report.outcome.label}</p>
         </section>
-        <section>
-          <h3>How capable is the final agent?</h3>
-          <p>{display_value(@report.final_capability)}</p>
-        </section>
-        <section>
-          <h3>What got better or worse?</h3>
-          <p>{display_value(@report.measured_change)}</p>
-          <p :if={@report.regressions not in [[], nil]}>
-            Regressions: {display_value(@report.regressions)}
-          </p>
+        <section
+          data-techtree-capability-change-pair
+          class="techtree-uplift-capability-change"
+          aria-label="Final capability and measured change"
+        >
+          <div>
+            <h3>How capable is the final agent?</h3>
+            <p>{display_value(@report.final_capability)}</p>
+          </div>
+          <div>
+            <h3>What got better or worse?</h3>
+            <p>{display_value(@report.measured_change)}</p>
+            <p :if={@report.regressions not in [[], nil]}>
+              Regressions: {display_value(@report.regressions)}
+            </p>
+          </div>
         </section>
         <section>
           <h3>What did it cost?</h3>
@@ -400,7 +408,7 @@ defmodule AshPlatformWeb.TechtreeLive do
         </section>
       </div>
 
-      <div class="techtree-evaluation-sections">
+      <div :if={@report.status == :recognized} class="techtree-evaluation-sections">
         <section aria-labelledby="techtree-held-out-title">
           <h3 id="techtree-held-out-title">Held-out evaluation</h3>
           <pre>{display_value(@report.scored_evaluation || "Not recorded.")}</pre>
@@ -415,7 +423,7 @@ defmodule AshPlatformWeb.TechtreeLive do
         </section>
       </div>
 
-      <details class="techtree-inspect-evidence">
+      <details :if={@report.status == :recognized} class="techtree-inspect-evidence">
         <summary>Inspect evidence</summary>
         <pre>{display_value(@report.inspect_evidence)}</pre>
       </details>
