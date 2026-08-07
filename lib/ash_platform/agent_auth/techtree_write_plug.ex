@@ -5,6 +5,7 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
   import Plug.Conn
 
   alias AshPlatform.AgentAuth.{AgentIdentity, VerificationClient}
+  alias AshPlatform.Techtree.Checks.PublisherOwnsNode
   alias AshPlatform.Techtree.PublicationReceipt
 
   @session_cookie "_ash_platform_key="
@@ -19,22 +20,29 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
          envelope = envelope(conn, body),
          {:ok, identity} <- verify(envelope),
          {:ok, actor} <- paired_actor(identity),
-         :ok <- admit_regent(conn.body_params, actor) do
+         :ok <- admit_regent(conn.body_params, actor),
+         :ok <- admit_target(conn, actor) do
       conn
       |> assign(:agent_identity, actor)
       |> assign(:verified_siwa_envelope, envelope)
     else
+      {:error, :payload_too_large} ->
+        halt_error(conn, 413, :payload_too_large)
+
       {:error, :invalid_input} ->
-        halt_error(conn, :bad_request, :invalid_input)
+        halt_error(conn, 400, :invalid_request)
 
       {:error, :unauthorized} ->
-        halt_error(conn, :unauthorized, :unauthorized)
+        halt_error(conn, 401, :unauthorized)
 
       {:error, :forbidden} ->
-        halt_error(conn, :forbidden, :forbidden)
+        halt_error(conn, 403, :forbidden)
+
+      {:error, :not_found} ->
+        halt_error(conn, 404, :not_found)
 
       {:error, :temporarily_unavailable} ->
-        halt_error(conn, :service_unavailable, :temporarily_unavailable)
+        halt_error(conn, 503, :temporarily_unavailable)
     end
   end
 
@@ -50,7 +58,7 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
   end
 
   defp raw_body(%{assigns: %{verified_envelope_body_error: :too_large}}),
-    do: {:error, :invalid_input}
+    do: {:error, :payload_too_large}
 
   defp raw_body(%{assigns: %{verified_envelope_raw_body: body}}) when is_binary(body),
     do: {:ok, body}
@@ -129,7 +137,80 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
 
   defp admit_regent(_params, _actor), do: :ok
 
+  defp admit_target(conn, actor) do
+    case target_id(conn) do
+      nil ->
+        :ok
+
+      {:ok, node_id} ->
+        with :ok <- public_target(node_id),
+             true <- PublisherOwnsNode.authorized?(actor, node_id) do
+          :ok
+        else
+          false -> {:error, :forbidden}
+          {:error, reason} -> {:error, reason}
+        end
+
+      :error ->
+        {:error, :invalid_input}
+    end
+  end
+
+  defp target_id(%{path_info: ["api", "techtree", "v1", "nodes", id, surface]})
+       when surface in ["evidence-state", "notebook-artifact"] do
+    case Ecto.UUID.cast(id) do
+      {:ok, id} -> {:ok, id}
+      :error -> :error
+    end
+  end
+
+  defp target_id(_conn), do: nil
+
+  defp public_target(node_id) do
+    case Ecto.Adapters.SQL.query(
+           AshPlatform.Repo,
+           """
+           SELECT 1
+           FROM techtree.nodes
+           WHERE id = $1
+             AND workflow_state = 'published'
+             AND published_at IS NOT NULL
+           """,
+           [Ecto.UUID.dump!(node_id)]
+         ) do
+      {:ok, %{rows: [[1]]}} -> :ok
+      {:ok, %{rows: []}} -> {:error, :not_found}
+      {:error, _error} -> {:error, :temporarily_unavailable}
+    end
+  rescue
+    _error -> {:error, :temporarily_unavailable}
+  end
+
   defp halt_error(conn, status, code) do
+    if agent_write_endpoint?(conn) do
+      halt_agent_write_error(conn, status, code)
+    else
+      {publication_status, publication_code} =
+        case code do
+          :invalid_request -> {status, :invalid_input}
+          :payload_too_large -> {400, :invalid_input}
+          code -> {status, code}
+        end
+
+      halt_publication_error(conn, publication_status, publication_code)
+    end
+  end
+
+  defp halt_agent_write_error(conn, status, code) do
+    body = %{error: %{code: code, message: agent_write_message(code)}}
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(status_code(status), Jason.encode!(body))
+    |> halt()
+  end
+
+  defp halt_publication_error(conn, status, code) do
     idempotency_key =
       case conn.body_params do
         %{"idempotency_key" => value} when is_binary(value) -> value
@@ -143,9 +224,29 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
 
     conn
     |> put_resp_content_type("application/json")
-    |> send_resp(Plug.Conn.Status.code(status), Jason.encode!(body))
+    |> send_resp(status_code(status), Jason.encode!(body))
     |> halt()
   end
+
+  defp status_code(status) when is_integer(status), do: status
+  defp status_code(status), do: Plug.Conn.Status.code(status)
+
+  defp agent_write_endpoint?(%{path_info: ["api", "techtree", "v1", "nodes", _id, surface]})
+       when surface in ["evidence-state", "notebook-artifact"],
+       do: true
+
+  defp agent_write_endpoint?(_conn), do: false
+
+  defp agent_write_message(:invalid_request), do: "The agent write request is invalid."
+  defp agent_write_message(:unauthorized), do: "The signed agent request could not be verified."
+  defp agent_write_message(:forbidden), do: "The verified agent is not the node publisher."
+  defp agent_write_message(:not_found), do: "The requested public node was not found."
+  defp agent_write_message(:payload_too_large), do: "The signed request body is too large."
+
+  defp agent_write_message(:temporarily_unavailable),
+    do: "The agent write could not be completed at this time."
+
+  defp agent_write_message(_code), do: "The agent write request is invalid."
 
   defp message(:unauthorized), do: "The signed agent request could not be verified."
   defp message(:forbidden), do: "The verified agent is not paired with the requested Regent."

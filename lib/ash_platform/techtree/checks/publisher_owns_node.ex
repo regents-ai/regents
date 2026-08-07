@@ -10,10 +10,13 @@ defmodule AshPlatform.Techtree.Checks.PublisherOwnsNode do
   @impl true
   def match?(%AgentIdentity{} = actor, %{subject: subject}, _opts) do
     node_id = subject_node_id(subject)
-    owns_node?(actor, node_id)
+    authorized?(actor, node_id)
   end
 
   def match?(_actor, _context, _opts), do: false
+
+  def authorized?(%AgentIdentity{} = actor, node_id), do: owns_node?(actor, node_id)
+  def authorized?(_actor, _node_id), do: false
 
   defp subject_node_id(%Ash.Changeset{} = changeset) do
     Ash.Changeset.get_argument(changeset, :node_id) ||

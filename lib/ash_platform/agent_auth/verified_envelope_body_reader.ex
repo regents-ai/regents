@@ -4,10 +4,28 @@ defmodule AshPlatform.AgentAuth.VerifiedEnvelopeBodyReader do
   import Plug.Conn, only: [assign: 3]
 
   @maximum_body_bytes 65_536
-  @publication_path "/api/techtree/v1/nodes"
+  @notebook_maximum_body_bytes 4_194_304
 
-  def read_body(%{method: "POST", request_path: @publication_path} = conn, opts) do
-    opts = Keyword.merge(opts, length: @maximum_body_bytes, read_length: @maximum_body_bytes)
+  def read_body(%{method: "POST", path_info: path_info} = conn, opts) do
+    case body_limit(path_info) do
+      nil -> Plug.Conn.read_body(conn, opts)
+      limit -> read_bounded_body(conn, opts, limit)
+    end
+  end
+
+  def read_body(conn, opts), do: Plug.Conn.read_body(conn, opts)
+
+  defp body_limit(["api", "techtree", "v1", "nodes", _id, "evidence-state"]),
+    do: @maximum_body_bytes
+
+  defp body_limit(["api", "techtree", "v1", "nodes", _id, "notebook-artifact"]),
+    do: @notebook_maximum_body_bytes
+
+  defp body_limit(["api", "techtree", "v1", "nodes"]), do: @maximum_body_bytes
+  defp body_limit(_path_info), do: nil
+
+  defp read_bounded_body(conn, opts, limit) do
+    opts = Keyword.merge(opts, length: limit, read_length: limit)
 
     case Plug.Conn.read_body(conn, opts) do
       {:ok, body, conn} ->
@@ -21,6 +39,4 @@ defmodule AshPlatform.AgentAuth.VerifiedEnvelopeBodyReader do
         {:error, reason}
     end
   end
-
-  def read_body(conn, opts), do: Plug.Conn.read_body(conn, opts)
 end

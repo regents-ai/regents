@@ -52,6 +52,7 @@ defmodule AshPlatformWeb.Router do
     pipe_through :agent_write_api
 
     post "/nodes", TechtreePublicationController, :create
+    post "/nodes/:id/evidence-state", TechtreeEvidenceController, :create
   end
 
   scope "/api", AshPlatformWeb do
