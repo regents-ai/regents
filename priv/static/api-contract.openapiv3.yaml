@@ -934,6 +934,7 @@ components:
         data: {$ref: "#/components/schemas/Node"}
     NodePublicationRequest:
       type: object
+      additionalProperties: false
       required: [regent_id, tree_id, kind, title, idempotency_key, manifest_digest]
       discriminator:
         propertyName: kind

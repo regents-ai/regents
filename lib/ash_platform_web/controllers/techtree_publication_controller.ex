@@ -107,9 +107,8 @@ defmodule AshPlatformWeb.TechtreePublicationController do
   end
 
   defp validate(params) do
-    params = PublicationInput.normalize(params)
-
-    with {:ok, regent_id} <- uuid(params["regent_id"]),
+    with {:ok, params} <- PublicationInput.normalize(params),
+         {:ok, regent_id} <- uuid(params["regent_id"]),
          {:ok, tree_id} <- uuid(params["tree_id"]),
          {:ok, kind} <- kind(params["kind"]),
          {:ok, title} <- string(params["title"], 1, 200),
@@ -225,7 +224,8 @@ defmodule AshPlatformWeb.TechtreePublicationController do
     node_id = Map.get(reference, "node_id", Map.get(reference, :node_id))
     kind = Map.get(reference, "kind", Map.get(reference, :kind))
 
-    with {:ok, node_id} <- uuid(node_id),
+    with :ok <- allow_lineage_reference_keys(reference),
+         {:ok, node_id} <- uuid(node_id),
          {:ok, kind} <- lineage_kind(kind) do
       {:cont, {:ok, [%{node_id: node_id, kind: kind} | references]}}
     else
@@ -234,6 +234,14 @@ defmodule AshPlatformWeb.TechtreePublicationController do
   end
 
   defp lineage_reference(_reference, _acc), do: {:halt, {:error, :invalid_input}}
+
+  defp allow_lineage_reference_keys(reference) do
+    case Enum.sort(Map.keys(reference)) do
+      ["kind", "node_id"] -> :ok
+      [:kind, :node_id] -> :ok
+      _keys -> {:error, :invalid_input}
+    end
+  end
 
   defp lineage_kind(value) do
     case Map.fetch(@lineage_kinds, value) do

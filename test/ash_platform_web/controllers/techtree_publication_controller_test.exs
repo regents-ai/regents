@@ -195,7 +195,6 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
       for {kind, index} <- Enum.with_index(@kinds) do
         body =
           request_body(context, kind, "kind-#{index}")
-          |> Map.put("future_evidence_state", %{"status" => "issued"})
 
         response = signed_post(body, {:ok, context.identity})
         receipt = json_response(response, 201)["data"]
@@ -240,6 +239,36 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
              view,
              ~s([data-techtree-list-panel] a[href="/techtree/nodes/#{first.id}"])
            )
+  end
+
+  test "unknown top-level publication keys are rejected without creating a node", context do
+    body =
+      request_body(context, "audit", "unknown-top-level")
+      |> Map.put("future_evidence_state", %{"status" => "issued"})
+
+    response = signed_post(body, {:ok, context.identity}) |> json_response(400)
+
+    assert_invalid_input_envelope(response, body["idempotency_key"])
+    assert publisher_publication_count(context) == 0
+    assert publication_count(context, body["idempotency_key"]) == 0
+  end
+
+  test "unknown lineage reference keys are rejected without creating a node", context do
+    body =
+      request_body(context, "uplift_report", "unknown-lineage-key")
+      |> Map.put("lineage", [
+        %{
+          "node_id" => Ash.UUID.generate(),
+          "kind" => "supports",
+          "future_relation" => "not-supported"
+        }
+      ])
+
+    response = signed_post(body, {:ok, context.identity}) |> json_response(400)
+
+    assert_invalid_input_envelope(response, body["idempotency_key"])
+    assert publisher_publication_count(context) == 0
+    assert publication_count(context, body["idempotency_key"]) == 0
   end
 
   test "publication accepts manifest retrievability fields and typed lineage", context do
@@ -804,6 +833,29 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     assert response["receipt"]["error_code"] == code
     assert response["receipt"]["resource_id"] == nil
     assert Enum.sort(Map.keys(response["receipt"])) == Enum.sort(@receipt_keys)
+  end
+
+  defp assert_invalid_input_envelope(response, idempotency_key) do
+    assert_failed_receipt(response, "invalid_input")
+
+    assert response["error"] == %{
+             "code" => "invalid_input",
+             "message" => "The publication request is invalid."
+           }
+
+    receipt = response["receipt"]
+    assert {:ok, _action_id} = Ecto.UUID.cast(receipt["action_id"])
+    assert receipt["capability_id"] == "techtree.node.publish"
+    assert receipt["action_kind"] == "publish"
+    assert receipt["resource_type"] == "techtree_node"
+    assert receipt["idempotency_key"] == idempotency_key
+    assert receipt["created_at"] == receipt["updated_at"]
+    assert {:ok, _created_at, 0} = DateTime.from_iso8601(receipt["created_at"])
+    assert receipt["public_url"] == nil
+    assert receipt["next_recommended_action"] == "correct_publication_request"
+    assert receipt["next_poll_at"] == nil
+    assert receipt["approval_required"] == false
+    assert receipt["replayed"] == false
   end
 
   defp with_publication_rate_limit(limit, fun) do

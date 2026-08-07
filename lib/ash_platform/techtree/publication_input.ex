@@ -14,6 +14,7 @@ defmodule AshPlatform.Techtree.PublicationInput do
     manifest_hash
     manifest_uri
   )
+  @allowed_keys @string_fields ++ ["lineage"]
 
   @blank_ranges [
     {0x0009, 0x000D},
@@ -57,12 +58,16 @@ defmodule AshPlatform.Techtree.PublicationInput do
                            )
 
   def string_fields, do: @string_fields
+  def allowed_keys, do: @allowed_keys
   def idempotency_key_pattern, do: @idempotency_key_pattern
 
   def normalize(params) when is_map(params) do
-    Enum.reduce(@string_fields, params, fn field, params ->
-      Map.update(params, field, nil, &normalize_string/1)
-    end)
+    with :ok <- allow_keys(params) do
+      {:ok,
+       Enum.reduce(@string_fields, params, fn field, params ->
+         Map.update(params, field, nil, &normalize_string/1)
+       end)}
+    end
   end
 
   def nonblank?(value) when is_binary(value) do
@@ -92,6 +97,12 @@ defmodule AshPlatform.Techtree.PublicationInput do
     |> Enum.drop_while(&blank_codepoint?/1)
     |> Enum.reverse()
     |> List.to_string()
+  end
+
+  defp allow_keys(params) do
+    if Enum.all?(Map.keys(params), &(&1 in @allowed_keys)),
+      do: :ok,
+      else: {:error, :invalid_input}
   end
 
   defp blank_codepoint?(codepoint), do: MapSet.member?(@blank_codepoint_set, codepoint)

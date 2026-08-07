@@ -901,7 +901,7 @@ defmodule AshPlatformWeb.ApiContractTest do
            )
   end
 
-  test "the Techtree publication contract is SIWA-authenticated, idempotent, and additive-open" do
+  test "the Techtree publication contract is SIWA-authenticated, idempotent, and closed" do
     contract = YamlElixir.read_from_file!(@contract)
     operation = contract["paths"]["/api/techtree/v1/nodes"]["post"]
     schemas = contract["components"]["schemas"]
@@ -939,6 +939,25 @@ defmodule AshPlatformWeb.ApiContractTest do
 
     request = schemas["NodePublicationRequest"]
 
+    publication_keys = ~w(
+      regent_id
+      tree_id
+      kind
+      title
+      summary
+      payload_hash
+      idempotency_key
+      manifest_digest
+      manifest_cid
+      manifest_hash
+      manifest_uri
+      lineage
+    )
+
+    assert PublicationInput.allowed_keys() == publication_keys
+    assert Map.keys(request["properties"]) |> Enum.sort() == Enum.sort(publication_keys)
+    assert request["additionalProperties"] == false
+
     assert request["required"] ==
              ~w(regent_id tree_id kind title idempotency_key manifest_digest)
 
@@ -964,8 +983,6 @@ defmodule AshPlatformWeb.ApiContractTest do
       assert PublicationInput.nonblank?(value) == accepted?
       assert Regex.match?(contract_pattern, value) == accepted?
     end
-
-    refute Map.has_key?(request, "additionalProperties")
 
     receipt = schemas["NodePublicationReceipt"]
 
