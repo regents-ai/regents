@@ -272,6 +272,75 @@ paths:
         "404": {$ref: "#/components/responses/TechtreeNotFound"}
         "424": {$ref: "#/components/responses/TechtreeArtifactUnavailable"}
         "503": {$ref: "#/components/responses/TechtreeTemporarilyUnavailable"}
+  /api/techtree/v1/nodes/{id}/evidence-state:
+    post:
+      operationId: appendTechtreeEvidenceState
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/TechtreeNodeId"}
+        - {$ref: "#/components/parameters/SiwaReceipt"}
+        - {$ref: "#/components/parameters/SiwaKeyId"}
+        - {$ref: "#/components/parameters/SiwaTimestamp"}
+        - {$ref: "#/components/parameters/SiwaAgentWallet"}
+        - {$ref: "#/components/parameters/SiwaAgentChainId"}
+        - {$ref: "#/components/parameters/SiwaAgentRegistry"}
+        - {$ref: "#/components/parameters/SiwaAgentTokenId"}
+        - {$ref: "#/components/parameters/HttpSignatureInput"}
+        - {$ref: "#/components/parameters/HttpSignature"}
+        - {$ref: "#/components/parameters/ContentDigest"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EvidenceStateUpdateRequest"}
+      responses:
+        "201":
+          description: Evidence state update appended to the node history
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EvidenceStateUpdateEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreeAgentWriteInvalidRequest"}
+        "401": {$ref: "#/components/responses/TechtreeAgentWriteUnauthorized"}
+        "403": {$ref: "#/components/responses/TechtreeAgentWriteForbidden"}
+        "404": {$ref: "#/components/responses/TechtreeAgentWriteNotFound"}
+        "413": {$ref: "#/components/responses/TechtreeAgentWritePayloadTooLarge"}
+        "422": {$ref: "#/components/responses/TechtreeAgentWriteUnprocessableEntity"}
+        "503": {$ref: "#/components/responses/TechtreeAgentWriteTemporarilyUnavailable"}
+  /api/techtree/v1/nodes/{id}/notebook-artifact:
+    post:
+      operationId: importTechtreeNotebookArtifact
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/TechtreeNodeId"}
+        - {$ref: "#/components/parameters/SiwaReceipt"}
+        - {$ref: "#/components/parameters/SiwaKeyId"}
+        - {$ref: "#/components/parameters/SiwaTimestamp"}
+        - {$ref: "#/components/parameters/SiwaAgentWallet"}
+        - {$ref: "#/components/parameters/SiwaAgentChainId"}
+        - {$ref: "#/components/parameters/SiwaAgentRegistry"}
+        - {$ref: "#/components/parameters/SiwaAgentTokenId"}
+        - {$ref: "#/components/parameters/HttpSignatureInput"}
+        - {$ref: "#/components/parameters/HttpSignature"}
+        - {$ref: "#/components/parameters/ContentDigest"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/NotebookArtifactImportRequest"}
+      responses:
+        "201":
+          description: Verified notebook artifact imported for the node
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/NotebookArtifactEnvelope"}
+        "400": {$ref: "#/components/responses/TechtreeAgentWriteInvalidRequest"}
+        "401": {$ref: "#/components/responses/TechtreeAgentWriteUnauthorized"}
+        "403": {$ref: "#/components/responses/TechtreeAgentWriteForbidden"}
+        "404": {$ref: "#/components/responses/TechtreeAgentWriteNotFound"}
+        "409": {$ref: "#/components/responses/TechtreeAgentWriteConflict"}
+        "413": {$ref: "#/components/responses/TechtreeAgentWritePayloadTooLarge"}
+        "422": {$ref: "#/components/responses/TechtreeAgentWriteUnprocessableEntity"}
+        "503": {$ref: "#/components/responses/TechtreeAgentWriteTemporarilyUnavailable"}
   /api/techtree/v1/nodes/{id}/payload:
     get:
       operationId: getTechtreeNodePayload
@@ -617,6 +686,46 @@ components:
       content:
         application/json:
           schema: {$ref: "#/components/schemas/NodePublicationErrorEnvelope"}
+    TechtreeAgentWriteInvalidRequest:
+      description: The agent write request is invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteUnauthorized:
+      description: The signed agent request could not be verified
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteForbidden:
+      description: The verified agent is not the node publisher
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteNotFound:
+      description: The requested public node was not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteConflict:
+      description: The notebook artifact identity already exists
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWritePayloadTooLarge:
+      description: The signed request body is larger than the endpoint limit
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteUnprocessableEntity:
+      description: The request is well formed but its evidence or notebook proof is invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
+    TechtreeAgentWriteTemporarilyUnavailable:
+      description: The agent write could not be completed at this time
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TechtreeAgentWriteError"}
   schemas:
     AgentLinkListEnvelope:
       type: object
@@ -850,6 +959,105 @@ components:
         lineage:
           type: [array, "null"]
           items: {$ref: "#/components/schemas/LineageReference"}
+    EvidenceStateUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [reproduced, disputed, superseded, expired, invalidated]
+        reason: {type: [string, "null"], minLength: 1, maxLength: 2000}
+        evidence_reference_ids:
+          type: array
+          uniqueItems: true
+          maxItems: 100
+          default: []
+          items: {type: string, format: uuid}
+    EvidenceStateUpdateEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/EvidenceStateUpdate"}
+    EvidenceStateUpdate:
+      type: object
+      additionalProperties: false
+      required: [id, node_id, status, reason, evidence_reference_ids, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        node_id: {type: string, format: uuid}
+        status:
+          type: string
+          enum: [reproduced, disputed, superseded, expired, invalidated]
+        reason: {type: [string, "null"], maxLength: 2000}
+        evidence_reference_ids:
+          type: array
+          uniqueItems: true
+          maxItems: 100
+          items: {type: string, format: uuid}
+        updated_at: {type: string, format: date-time}
+    NotebookArtifactImportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [node_payload_hash, source_hash, payload_hash, marimo_version, run_url, manifest_json, allowed_assets]
+      properties:
+        node_payload_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        source_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        payload_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        marimo_version: {type: string, const: "0.23.14"}
+        run_url: {type: string, format: uri, maxLength: 2_048}
+        manifest_json: {type: string, maxLength: 524288}
+        allowed_assets:
+          type: array
+          const:
+            - "https://cdn.jsdelivr.net"
+            - "https://wasm.marimo.app"
+            - "https://files.pythonhosted.org"
+    NotebookArtifactEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/NotebookArtifact"}
+    NotebookArtifact:
+      type: object
+      additionalProperties: false
+      required:
+        [id, node_id, node_payload_hash, source_hash, payload_hash, marimo_version, runtime, compatibility, run_url, allowed_assets, inserted_at]
+      properties:
+        id: {type: string, format: uuid}
+        node_id: {type: string, format: uuid}
+        node_payload_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        source_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        payload_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        marimo_version: {type: string, const: "0.23.14"}
+        runtime: {type: string, const: pyodide}
+        compatibility: {type: string, const: verified}
+        run_url: {type: string, format: uri, maxLength: 2_048}
+        allowed_assets:
+          type: array
+          const:
+            - "https://cdn.jsdelivr.net"
+            - "https://wasm.marimo.app"
+            - "https://files.pythonhosted.org"
+        inserted_at: {type: string, format: date-time}
+    TechtreeAgentWriteError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [invalid_request, unauthorized, forbidden, not_found, conflict, payload_too_large, invalid_evidence_reference, invalid_notebook_artifact, stale_node_payload, temporarily_unavailable]
+            message: {type: string}
     NodePublicationReceiptEnvelope:
       type: object
       required: [data]
@@ -1157,25 +1365,22 @@ components:
     EvidenceState:
       type: object
       additionalProperties: false
-      required: [status, updated_at]
+      required: [status, evidence_reference_ids, updated_at]
       properties:
         status:
           type: string
           enum:
-            - draft
             - issued
             - reproduced
-            - production_supported
             - disputed
-            - awaiting_revalidation
             - superseded
             - expired
-            - revoked
             - invalidated
-        reason: {type: string}
+        reason: {type: [string, "null"], maxLength: 2_000}
         evidence_reference_ids:
           type: array
           uniqueItems: true
+          maxItems: 100
           items: {type: string, format: uuid}
         updated_at: {type: string, format: date-time}
     BaseMainnetProjectionReference:

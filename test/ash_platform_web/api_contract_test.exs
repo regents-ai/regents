@@ -22,6 +22,8 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
              "/api/techtree/v1/nodes",
              "/api/techtree/v1/nodes/{id}",
+             "/api/techtree/v1/nodes/{id}/evidence-state",
+             "/api/techtree/v1/nodes/{id}/notebook-artifact",
              "/api/techtree/v1/nodes/{id}/payload",
              "/api/techtree/v1/tree/nodes",
              "/api/techtree/v1/trees",
@@ -685,9 +687,12 @@ defmodule AshPlatformWeb.ApiContractTest do
 
     state = schemas["EvidenceState"]
     assert state["additionalProperties"] == false
-    assert state["required"] == ["status", "updated_at"]
-    assert "invalidated" in state["properties"]["status"]["enum"]
-    assert "awaiting_revalidation" in state["properties"]["status"]["enum"]
+    assert state["required"] == ["status", "evidence_reference_ids", "updated_at"]
+
+    assert state["properties"]["status"]["enum"] ==
+             ~w(issued reproduced disputed superseded expired invalidated)
+
+    refute "awaiting_revalidation" in state["properties"]["status"]["enum"]
 
     base_projection = schemas["BaseMainnetProjectionReference"]
 
@@ -720,6 +725,100 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert "#/components/schemas/TreeListEnvelope" in path_refs
     assert "#/components/schemas/TreeNodePageEnvelope" in path_refs
     assert "#/components/schemas/NodeEnvelope" in path_refs
+  end
+
+  test "agent Techtree writes have strict contracts and exact SIWA headers" do
+    contract = YamlElixir.read_from_file!(@contract)
+    paths = contract["paths"]
+    schemas = contract["components"]["schemas"]
+
+    siwa_parameters = [
+      %{"$ref" => "#/components/parameters/TechtreeNodeId"},
+      %{"$ref" => "#/components/parameters/SiwaReceipt"},
+      %{"$ref" => "#/components/parameters/SiwaKeyId"},
+      %{"$ref" => "#/components/parameters/SiwaTimestamp"},
+      %{"$ref" => "#/components/parameters/SiwaAgentWallet"},
+      %{"$ref" => "#/components/parameters/SiwaAgentChainId"},
+      %{"$ref" => "#/components/parameters/SiwaAgentRegistry"},
+      %{"$ref" => "#/components/parameters/SiwaAgentTokenId"},
+      %{"$ref" => "#/components/parameters/HttpSignatureInput"},
+      %{"$ref" => "#/components/parameters/HttpSignature"},
+      %{"$ref" => "#/components/parameters/ContentDigest"}
+    ]
+
+    evidence = paths["/api/techtree/v1/nodes/{id}/evidence-state"]["post"]
+    notebook = paths["/api/techtree/v1/nodes/{id}/notebook-artifact"]["post"]
+
+    for {operation, operation_id, request_schema, success_schema, statuses} <- [
+          {evidence, "appendTechtreeEvidenceState", "EvidenceStateUpdateRequest",
+           "EvidenceStateUpdateEnvelope", ~w(201 400 401 403 404 413 422 503)},
+          {notebook, "importTechtreeNotebookArtifact", "NotebookArtifactImportRequest",
+           "NotebookArtifactEnvelope", ~w(201 400 401 403 404 409 413 422 503)}
+        ] do
+      assert operation["operationId"] == operation_id
+      assert operation["security"] == []
+      assert operation["parameters"] == siwa_parameters
+      assert Map.keys(operation["responses"]) |> Enum.sort() == Enum.sort(statuses)
+
+      assert operation["requestBody"] == %{
+               "required" => true,
+               "content" => %{
+                 "application/json" => %{
+                   "schema" => %{"$ref" => "#/components/schemas/#{request_schema}"}
+                 }
+               }
+             }
+
+      assert operation["responses"]["201"]["content"] == %{
+               "application/json" => %{
+                 "schema" => %{"$ref" => "#/components/schemas/#{success_schema}"}
+               }
+             }
+    end
+
+    assert schemas["EvidenceStateUpdateRequest"]["additionalProperties"] == false
+    assert schemas["EvidenceStateUpdateRequest"]["required"] == ["status"]
+
+    assert schemas["EvidenceStateUpdateRequest"]["properties"]["status"]["enum"] ==
+             ~w(reproduced disputed superseded expired invalidated)
+
+    assert schemas["EvidenceStateUpdateRequest"]["properties"]["evidence_reference_ids"][
+             "maxItems"
+           ] == 100
+
+    assert schemas["EvidenceStateUpdate"]["required"] ==
+             ~w(id node_id status reason evidence_reference_ids updated_at)
+
+    assert schemas["NotebookArtifactImportRequest"]["additionalProperties"] == false
+
+    assert schemas["NotebookArtifactImportRequest"]["required"] ==
+             ~w(node_payload_hash source_hash payload_hash marimo_version run_url manifest_json allowed_assets)
+
+    assert schemas["NotebookArtifactImportRequest"]["properties"]["marimo_version"] ==
+             %{"type" => "string", "const" => "0.23.14"}
+
+    assert schemas["NotebookArtifactImportRequest"]["properties"]["manifest_json"]["maxLength"] ==
+             524_288
+
+    assert schemas["NotebookArtifactImportRequest"]["properties"]["allowed_assets"]["const"] == [
+             "https://cdn.jsdelivr.net",
+             "https://wasm.marimo.app",
+             "https://files.pythonhosted.org"
+           ]
+
+    assert schemas["NotebookArtifact"]["required"] ==
+             ~w(id node_id node_payload_hash source_hash payload_hash marimo_version runtime compatibility run_url allowed_assets inserted_at)
+
+    refute Map.has_key?(schemas["NotebookArtifact"]["properties"], "manifest_json")
+
+    assert schemas["TechtreeAgentWriteError"]["additionalProperties"] == false
+
+    assert schemas["TechtreeAgentWriteError"]["properties"]["error"]["properties"]["code"][
+             "enum"
+           ] ==
+             ~w(invalid_request unauthorized forbidden not_found conflict payload_too_large invalid_evidence_reference invalid_notebook_artifact stale_node_payload temporarily_unavailable)
+
+    refute Map.has_key?(contract["components"]["securitySchemes"], "siwa")
   end
 
   test "the Techtree reads declare bounded pagination and artifact retrieval errors" do
