@@ -10,9 +10,6 @@ import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
-import {
-    PermissionlessExistingTokenRevenueFactory
-} from "src/autolaunch/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/autolaunch/revenue/DeferredAutolaunchFactory.sol";
 import {
     IRegentStakingRevenueRouter
@@ -36,7 +33,6 @@ contract DeployAutolaunchInfraScript is Script {
         RevenueShareSplitterV2Deployer revenueShareSplitterDeployer;
         RevenueShareFactory revenueShareFactory;
         RevenueIngressFactory revenueIngressFactory;
-        PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory;
         DeferredAutolaunchFactory deferredAutolaunchFactory;
         RegentStakingRevenueRouter stakingRevenueRouter;
         RegentLBPStrategyFactory strategyFactory;
@@ -70,13 +66,6 @@ contract DeployAutolaunchInfraScript is Script {
         infra.revenueIngressFactory = new RevenueIngressFactory(
             cfg.revenueUsdcToken, address(infra.subjectRegistry), cfg.owner
         );
-        infra.existingTokenRevenueFactory = new PermissionlessExistingTokenRevenueFactory(
-            cfg.owner,
-            cfg.revenueUsdcToken,
-            address(infra.revenueIngressFactory),
-            infra.subjectRegistry,
-            IRegentStakingRevenueRouter(address(infra.stakingRevenueRouter))
-        );
         infra.deferredAutolaunchFactory = new DeferredAutolaunchFactory(
             cfg.owner,
             infra.revenueShareFactory,
@@ -86,11 +75,7 @@ contract DeployAutolaunchInfraScript is Script {
         );
         infra.strategyFactory = new RegentLBPStrategyFactory(cfg.owner);
         infra.subjectRegistry.setAuthorizedRegistrar(address(infra.revenueShareFactory), true);
-        infra.subjectRegistry
-            .setAuthorizedRegistrar(address(infra.existingTokenRevenueFactory), true);
         infra.revenueIngressFactory.setAuthorizedCreator(address(infra.revenueShareFactory), true);
-        infra.revenueIngressFactory
-            .setAuthorizedCreator(address(infra.existingTokenRevenueFactory), true);
         infra.revenueIngressFactory
             .setAuthorizedCreator(address(infra.deferredAutolaunchFactory), true);
         infra.revenueShareFactory
@@ -116,21 +101,20 @@ contract DeployAutolaunchInfraScript is Script {
         validateConfig(cfg);
     }
 
-    function run() external {
+    function run() external returns (string memory result) {
         ScriptConfig memory cfg = loadConfigFromEnv();
 
         DeployedInfra memory infra = deploy(cfg);
 
-        console2.log(
-            string.concat(
-                _resultAddressJson(infra), _resultConfigJson(cfg), _resultOwnershipJson(infra, cfg)
-            )
+        result = string.concat(
+            _resultAddressJson(infra), _resultConfigJson(cfg), _resultOwnershipJson(infra, cfg)
         );
+        console2.log(string.concat("AUTOLAUNCH_INFRA_RESULT_JSON:", result));
     }
 
     function _resultAddressJson(DeployedInfra memory infra) internal view returns (string memory) {
         return string.concat(
-            "AUTOLAUNCH_INFRA_RESULT_JSON:{\"subjectRegistryAddress\":\"",
+            "{\"subjectRegistryAddress\":\"",
             vm.toString(address(infra.subjectRegistry)),
             "\",\"revenueShareSplitterDeployerAddress\":\"",
             vm.toString(address(infra.revenueShareSplitterDeployer)),
@@ -138,8 +122,6 @@ contract DeployAutolaunchInfraScript is Script {
             vm.toString(address(infra.revenueShareFactory)),
             "\",\"revenueIngressFactoryAddress\":\"",
             vm.toString(address(infra.revenueIngressFactory)),
-            "\",\"existingTokenRevenueFactoryAddress\":\"",
-            vm.toString(address(infra.existingTokenRevenueFactory)),
             "\",\"deferredAutolaunchFactoryAddress\":\"",
             vm.toString(address(infra.deferredAutolaunchFactory)),
             "\",\"stakingRevenueRouterAddress\":\"",

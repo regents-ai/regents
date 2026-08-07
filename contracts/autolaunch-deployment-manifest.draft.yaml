@@ -68,8 +68,6 @@ external_dependencies:
 migrated_but_not_required_for_v0_1_deployment:
   - DeferredAutolaunchFactory
   - DeferredAutolaunchVestingWallet
-  - PermissionlessExistingTokenRevenueFactory
-  - LiveStakeFeePoolSplitter
   - PaymentLinkFactory
   - PaymentLinkReceiver
   - RegentDailyDistributor

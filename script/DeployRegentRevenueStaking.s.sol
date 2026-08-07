@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+// NON-PRODUCTION: current source is not proven to reproduce deployed singleton
+// 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5; certification is deployed-runtime-bound.
+// The broadcast-recorded commit object is not present in the retained archive Git object set.
+
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 
@@ -20,10 +24,12 @@ contract DeployRegentRevenueStakingScript is Script {
     }
 
     function deployFromEnv() external returns (RegentRevenueStaking staking) {
+        _requireNonProductionDeploy();
         return deploy(loadConfigFromEnv());
     }
 
     function deploy(ScriptConfig memory cfg) public returns (RegentRevenueStaking staking) {
+        _requireNonProductionDeploy();
         validateConfig(cfg);
 
         vm.startBroadcast();
@@ -72,6 +78,7 @@ contract DeployRegentRevenueStakingScript is Script {
     }
 
     function run() external {
+        _requireNonProductionDeploy();
         ScriptConfig memory cfg = loadConfigFromEnv();
         RegentRevenueStaking staking = deploy(cfg);
 
@@ -91,6 +98,13 @@ contract DeployRegentRevenueStakingScript is Script {
                 vm.toString(cfg.revenueShareSupplyDenominator),
                 "}"
             )
+        );
+    }
+
+    function _requireNonProductionDeploy() internal view {
+        require(
+            vm.envOr("ALLOW_NON_PRODUCTION_STAKING_DEPLOY", false),
+            "NON_PRODUCTION_STAKING_DEPLOY_DISABLED"
         );
     }
 }

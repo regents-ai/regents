@@ -44,6 +44,32 @@ contract DeployRegentRevenueStakingScriptTest is Test {
         assertEq(cfg.revenueShareSupplyDenominator, SUPPLY_DENOMINATOR);
     }
 
+    function testDeployDefaultsToRevertWithoutOptIn() external {
+        _disableNonProductionDeploy();
+
+        DeployRegentRevenueStakingScript.ScriptConfig memory cfg = _defaultScriptConfig();
+        cfg.regentToken = address(0);
+
+        vm.expectRevert("NON_PRODUCTION_STAKING_DEPLOY_DISABLED");
+        script.deploy(cfg);
+
+        vm.expectRevert("NON_PRODUCTION_STAKING_DEPLOY_DISABLED");
+        script.deployFromEnv();
+
+        vm.expectRevert("NON_PRODUCTION_STAKING_DEPLOY_DISABLED");
+        script.run();
+
+        vm.setEnv("ALLOW_NON_PRODUCTION_STAKING_DEPLOY", "true");
+
+        RegentRevenueStaking staking = script.deploy(_defaultScriptConfig());
+
+        assertEq(staking.stakeToken(), address(regent));
+        assertEq(staking.usdc(), address(usdc));
+        assertEq(staking.treasuryRecipient(), TREASURY);
+        assertEq(staking.owner(), OWNER);
+        assertEq(staking.revenueShareSupplyDenominator(), SUPPLY_DENOMINATOR);
+    }
+
     function testValidateConfigRejectsWrongBaseMainnetUsdc() external {
         DeployRegentRevenueStakingScript.ScriptConfig memory cfg = _defaultScriptConfig();
         cfg.usdc = address(0xC0FFEE);
@@ -68,22 +94,18 @@ contract DeployRegentRevenueStakingScriptTest is Test {
         script.validateConfig(cfg);
     }
 
-    function testDeployCreatesConfiguredStakingContract() external {
-        RegentRevenueStaking staking = script.deploy(_defaultScriptConfig());
-
-        assertEq(staking.stakeToken(), address(regent));
-        assertEq(staking.usdc(), address(usdc));
-        assertEq(staking.treasuryRecipient(), TREASURY);
-        assertEq(staking.owner(), OWNER);
-        assertEq(staking.revenueShareSupplyDenominator(), SUPPLY_DENOMINATOR);
-    }
-
     function _setRequiredEnv() internal {
         vm.setEnv("BASE_REGENT_TOKEN_ADDRESS", vm.toString(address(regent)));
         vm.setEnv("BASE_USDC_ADDRESS", vm.toString(address(usdc)));
         vm.setEnv("REGENT_REVENUE_TREASURY_ADDRESS", vm.toString(TREASURY));
         vm.setEnv("REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS", vm.toString(OWNER));
         vm.setEnv("REGENT_REVENUE_SUPPLY_DENOMINATOR", vm.toString(SUPPLY_DENOMINATOR));
+    }
+
+    function _disableNonProductionDeploy() internal {
+        if (vm.envOr("ALLOW_NON_PRODUCTION_STAKING_DEPLOY", false)) {
+            vm.setEnv("ALLOW_NON_PRODUCTION_STAKING_DEPLOY", "false");
+        }
     }
 
     function _defaultScriptConfig()

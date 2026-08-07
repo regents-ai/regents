@@ -12,6 +12,9 @@ import {
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {
+    IRegentStakingRevenueRouter
+} from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
+import {
     PermissionlessExistingTokenRevenueFactory
 } from "src/autolaunch/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/autolaunch/revenue/DeferredAutolaunchFactory.sol";
@@ -54,28 +57,27 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(infra.subjectRegistry.owner(), OWNER);
         assertTrue(address(infra.revenueShareSplitterDeployer) != address(0));
         assertTrue(infra.subjectRegistry.canRegisterSubject(address(infra.revenueShareFactory)));
-        assertTrue(
-            infra.subjectRegistry.canRegisterSubject(address(infra.existingTokenRevenueFactory))
+        PermissionlessExistingTokenRevenueFactory existingTokenFactory = new PermissionlessExistingTokenRevenueFactory(
+            OWNER,
+            USDC,
+            address(infra.revenueIngressFactory),
+            infra.subjectRegistry,
+            IRegentStakingRevenueRouter(address(infra.stakingRevenueRouter))
         );
+        assertFalse(infra.subjectRegistry.canRegisterSubject(address(existingTokenFactory)));
         assertEq(infra.revenueShareFactory.owner(), OWNER);
         assertEq(infra.revenueShareFactory.pendingOwner(), address(0));
         assertEq(infra.revenueIngressFactory.owner(), OWNER);
-        assertEq(infra.existingTokenRevenueFactory.owner(), OWNER);
         assertEq(infra.deferredAutolaunchFactory.owner(), OWNER);
         assertEq(infra.strategyFactory.owner(), OWNER);
         assertEq(infra.revenueShareFactory.usdc(), USDC);
         assertEq(infra.revenueIngressFactory.usdc(), USDC);
-        assertEq(infra.existingTokenRevenueFactory.usdc(), USDC);
         assertEq(
             address(infra.revenueShareFactory.subjectRegistry()), address(infra.subjectRegistry)
         );
         assertEq(infra.revenueIngressFactory.subjectRegistry(), address(infra.subjectRegistry));
         assertEq(
             infra.revenueShareFactory.stakingRevenueRouter(), address(infra.stakingRevenueRouter)
-        );
-        assertEq(
-            address(infra.existingTokenRevenueFactory.stakingRevenueRouter()),
-            address(infra.stakingRevenueRouter)
         );
         assertEq(
             address(infra.deferredAutolaunchFactory.stakingRevenueRouter()),
@@ -89,10 +91,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertTrue(
             infra.revenueIngressFactory.authorizedCreators(address(infra.revenueShareFactory))
         );
-        assertTrue(
-            infra.revenueIngressFactory
-                .authorizedCreators(address(infra.existingTokenRevenueFactory))
-        );
+        assertFalse(infra.revenueIngressFactory.authorizedCreators(address(existingTokenFactory)));
         assertTrue(
             infra.revenueIngressFactory.authorizedCreators(address(infra.deferredAutolaunchFactory))
         );
@@ -113,7 +112,6 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(infra.revenueShareFactory.owner(), DEPLOYER);
         assertEq(infra.revenueShareFactory.pendingOwner(), address(0));
         assertEq(infra.revenueIngressFactory.owner(), DEPLOYER);
-        assertEq(infra.existingTokenRevenueFactory.owner(), DEPLOYER);
         assertEq(infra.deferredAutolaunchFactory.owner(), DEPLOYER);
         assertEq(infra.strategyFactory.owner(), DEPLOYER);
     }
@@ -143,13 +141,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(infra.subjectRegistry.owner(), OWNER);
         assertTrue(address(infra.revenueShareSplitterDeployer) != address(0));
         assertTrue(infra.subjectRegistry.canRegisterSubject(address(infra.revenueShareFactory)));
-        assertTrue(
-            infra.subjectRegistry.canRegisterSubject(address(infra.existingTokenRevenueFactory))
-        );
         assertEq(infra.revenueShareFactory.owner(), OWNER);
         assertEq(infra.revenueShareFactory.pendingOwner(), address(0));
         assertEq(infra.revenueIngressFactory.owner(), OWNER);
-        assertEq(infra.existingTokenRevenueFactory.owner(), OWNER);
         assertEq(infra.deferredAutolaunchFactory.owner(), OWNER);
         assertEq(infra.strategyFactory.owner(), OWNER);
         assertEq(infra.revenueShareFactory.usdc(), USDC);
@@ -162,7 +156,50 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
 
-        script.run();
+        string memory resultJson = script.run();
+
+        assertTrue(vm.keyExistsJson(resultJson, ".subjectRegistryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueShareSplitterDeployerAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueShareFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueIngressFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".deferredAutolaunchFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".stakingRevenueRouterAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".strategyFactoryAddress"));
+        assertFalse(vm.keyExistsJson(resultJson, ".existingTokenRevenueFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueUsdcTokenAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueTokenSymbol"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueTokenDecimals"));
+        assertTrue(vm.keyExistsJson(resultJson, ".regentRevenueStakingAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".trustedTokenFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueShareFactoryOwner"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueShareFactoryPendingOwner"));
+        assertTrue(vm.keyExistsJson(resultJson, ".revenueIngressFactoryOwner"));
+        assertTrue(vm.keyExistsJson(resultJson, ".strategyFactoryOwner"));
+        assertTrue(vm.keyExistsJson(resultJson, ".owner"));
+
+        assertTrue(vm.parseJsonAddress(resultJson, ".subjectRegistryAddress") != address(0));
+        assertTrue(
+            vm.parseJsonAddress(resultJson, ".revenueShareSplitterDeployerAddress") != address(0)
+        );
+        assertTrue(vm.parseJsonAddress(resultJson, ".revenueShareFactoryAddress") != address(0));
+        assertTrue(vm.parseJsonAddress(resultJson, ".revenueIngressFactoryAddress") != address(0));
+        assertTrue(
+            vm.parseJsonAddress(resultJson, ".deferredAutolaunchFactoryAddress") != address(0)
+        );
+        assertTrue(vm.parseJsonAddress(resultJson, ".stakingRevenueRouterAddress") != address(0));
+        assertTrue(vm.parseJsonAddress(resultJson, ".strategyFactoryAddress") != address(0));
+        assertEq(vm.parseJsonAddress(resultJson, ".revenueUsdcTokenAddress"), USDC);
+        assertEq(vm.parseJsonString(resultJson, ".revenueTokenSymbol"), "USDC");
+        assertEq(vm.parseJsonUint(resultJson, ".revenueTokenDecimals"), 6);
+        assertEq(vm.parseJsonAddress(resultJson, ".regentRevenueStakingAddress"), address(staking));
+        assertEq(
+            vm.parseJsonAddress(resultJson, ".trustedTokenFactoryAddress"), address(tokenFactory)
+        );
+        assertEq(vm.parseJsonAddress(resultJson, ".revenueShareFactoryOwner"), OWNER);
+        assertEq(vm.parseJsonAddress(resultJson, ".revenueShareFactoryPendingOwner"), address(0));
+        assertEq(vm.parseJsonAddress(resultJson, ".revenueIngressFactoryOwner"), OWNER);
+        assertEq(vm.parseJsonAddress(resultJson, ".strategyFactoryOwner"), OWNER);
+        assertEq(vm.parseJsonAddress(resultJson, ".owner"), OWNER);
     }
 
     function testValidateConfigRejectsWrongBaseMainnetUsdc() external {
