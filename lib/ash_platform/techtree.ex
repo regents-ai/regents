@@ -59,6 +59,19 @@ defmodule AshPlatform.Techtree do
           :allowed_assets
         ]
 
+      define :import_agent_notebook_artifact,
+        action: :import_agent_verified,
+        args: [
+          :node_id,
+          :node_payload_hash,
+          :source_hash,
+          :payload_hash,
+          :marimo_version,
+          :run_url,
+          :manifest_json,
+          :allowed_assets
+        ]
+
       define :list_current_notebook_artifacts,
         action: :current_for_node,
         args: [:node_id, :node_payload_hash]

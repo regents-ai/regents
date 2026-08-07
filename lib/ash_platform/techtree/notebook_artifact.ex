@@ -90,6 +90,23 @@ defmodule AshPlatform.Techtree.NotebookArtifact do
       change AshPlatform.Techtree.NotebookArtifact.Changes.ValidateArtifact
     end
 
+    create :import_agent_verified do
+      public? false
+
+      accept [
+        :node_id,
+        :node_payload_hash,
+        :source_hash,
+        :payload_hash,
+        :marimo_version,
+        :run_url,
+        :manifest_json,
+        :allowed_assets
+      ]
+
+      change AshPlatform.Techtree.NotebookArtifact.Changes.ValidateArtifact
+    end
+
     read :current_for_node do
       argument :node_id, :uuid, allow_nil?: false
       argument :node_payload_hash, :string, allow_nil?: false
@@ -110,6 +127,10 @@ defmodule AshPlatform.Techtree.NotebookArtifact do
 
     policy action(:import_verified) do
       authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action(:import_agent_verified) do
+      authorize_if AshPlatform.Techtree.Checks.PublisherOwnsNode
     end
   end
 

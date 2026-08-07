@@ -53,6 +53,7 @@ defmodule AshPlatformWeb.Router do
 
     post "/nodes", TechtreePublicationController, :create
     post "/nodes/:id/evidence-state", TechtreeEvidenceController, :create
+    post "/nodes/:id/notebook-artifact", TechtreeNotebookArtifactController, :create
   end
 
   scope "/api", AshPlatformWeb do
