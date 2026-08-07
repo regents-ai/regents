@@ -58,7 +58,7 @@ defmodule AshPlatform.MixProject do
       {:jason, "~> 1.2"},
       {:decimal, "== 3.1.1"},
       {:req, "== 0.6.2"},
-      {:bandit, "~> 1.12.0"},
+      {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
     ]
