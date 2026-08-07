@@ -259,6 +259,120 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
     assert evidence_count(node.id) == 0
   end
 
+  test "each persisted publisher field is required for the HTTP owner check", context do
+    node = publish_node(context, "tuple-fields")
+    body = Jason.encode!(%{"status" => "reproduced"})
+
+    for {column, value} <- [
+          {:publisher_agent_id, "different-agent"},
+          {:publisher_registry_address, "0x3333333333333333333333333333333333333333"},
+          {:publisher_token_id, "different-token"},
+          {:publisher_wallet, "0x3333333333333333333333333333333333333333"},
+          {:publisher_chain_id, 1},
+          {:publisher_regent_id, Ash.UUID.generate()}
+        ] do
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        "UPDATE techtree.nodes SET #{column} = $1 WHERE id = $2",
+        [sql_value(column, value), Ecto.UUID.dump!(node.id)]
+      )
+
+      response = post_evidence(node.id, body, {:ok, context.identity})
+      assert response.status == 403
+      assert json_response(response, 403)["error"]["code"] == "forbidden"
+      assert evidence_count(node.id) == 0
+
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        "UPDATE techtree.nodes SET #{column} = $1 WHERE id = $2",
+        [sql_value(column, Map.fetch!(node, column)), Ecto.UUID.dump!(node.id)]
+      )
+    end
+  end
+
+  test "a revoked link is rejected even when its old node tuple remains", context do
+    node = publish_node(context, "revoked")
+
+    assert :ok = Formation.revoke_agent_link(context.link, actor: context.human)
+
+    response =
+      post_evidence(node.id, Jason.encode!(%{"status" => "reproduced"}), {:ok, context.identity})
+
+    assert response.status == 403
+    assert json_response(response, 403)["error"]["code"] == "forbidden"
+    assert evidence_count(node.id) == 0
+  end
+
+  test "the evidence body limit distinguishes exact-limit input from one byte over", context do
+    node = publish_node(context, "body-limit")
+    exact = body_at_size(65_536)
+
+    exact_response = post_evidence(node.id, exact, {:ok, context.identity})
+    assert exact_response.status == 400
+    assert json_response(exact_response, 400)["error"]["code"] == "invalid_request"
+    assert evidence_count(node.id) == 0
+
+    Process.put(:capture_agent_verification_calls, true)
+    over = body_at_size(65_537)
+    over_response = post_evidence(node.id, over, {:ok, context.identity})
+    assert over_response.status == 413
+    assert json_response(over_response, 413)["error"]["code"] == "payload_too_large"
+    refute_received {:agent_verification, _envelope}
+    assert evidence_count(node.id) == 0
+  end
+
+  test "concurrent owner appends both commit and GET selects the forced tie winner", context do
+    node = publish_node(context, "concurrent")
+    parent = self()
+
+    tasks =
+      for {status, reason} <- [
+            {"reproduced", "concurrent reproduction"},
+            {"disputed", "concurrent dispute"}
+          ] do
+        Task.async(fn ->
+          Process.put(:agent_verification_result, {:ok, context.identity})
+          send(parent, {:ready, self()})
+
+          receive do
+            :go ->
+              post_evidence(
+                node.id,
+                Jason.encode!(%{"status" => status, "reason" => reason}),
+                {:ok, context.identity}
+              )
+          end
+        end)
+      end
+
+    Enum.each(tasks, fn _task -> assert_receive {:ready, _pid}, 1_000 end)
+    Enum.each(tasks, fn task -> send(task.pid, :go) end)
+
+    responses = Enum.map(tasks, &Task.await(&1, 5_000))
+    assert Enum.map(responses, & &1.status) == [201, 201]
+    assert evidence_count(node.id) == 2
+
+    tied_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    {:ok, updates} = EvidenceStateUpdate.all_for_node(node.id)
+
+    for update <- updates do
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        "UPDATE techtree.evidence_state_updates SET inserted_at = $1 WHERE id = $2",
+        [tied_at, Ecto.UUID.dump!(update.id)]
+      )
+    end
+
+    winner = Enum.max_by(updates, & &1.id)
+    detail = get(build_conn(), "/api/techtree/v1/nodes/#{node.id}") |> json_response(200)
+    state = detail["data"]["evidence_state"]
+
+    assert state["status"] == Atom.to_string(winner.status)
+    assert state["reason"] == winner.reason
+    assert state["updated_at"] == DateTime.to_iso8601(tied_at)
+  end
+
   defp publish_node(context, suffix) do
     actor = agent_actor(context)
 
@@ -370,6 +484,17 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
   defp evidence_count(node_id) do
     {:ok, rows} = EvidenceStateUpdate.all_for_node(node_id)
     length(rows)
+  end
+
+  defp sql_value(:publisher_regent_id, value), do: Ecto.UUID.dump!(value)
+  defp sql_value(_column, value), do: value
+
+  defp body_at_size(size) do
+    base = Jason.encode!(%{"status" => "reproduced", "padding" => ""})
+    padding = String.duplicate("x", size - byte_size(base))
+    body = Jason.encode!(%{"status" => "reproduced", "padding" => padding})
+    assert byte_size(body) == size
+    body
   end
 
   defp node_columns(node) do

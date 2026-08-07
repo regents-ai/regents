@@ -89,8 +89,9 @@ defmodule AshPlatformWeb.TechtreeEvidenceController do
   defp reason(_value), do: {:error, :invalid_request}
 
   defp references(reference_ids, node_id) when is_list(reference_ids) do
-    if length(reference_ids) <= 100 and length(reference_ids) == length(Enum.uniq(reference_ids)) do
+    if length(reference_ids) <= 100 do
       with {:ok, reference_ids} <- cast_references(reference_ids),
+           true <- length(reference_ids) == length(Enum.uniq(reference_ids)),
            false <- node_id in reference_ids do
         {:ok, reference_ids}
       else

@@ -101,6 +101,7 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
              )
 
     first_node_columns = node_columns(Ash.get!(Node, node.id, authorize?: false))
+    first_row_columns = update_columns(first)
 
     assert {:ok, second} =
              Techtree.append_evidence_state_update(
@@ -111,6 +112,9 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
                %{"sequence" => 2},
                actor: actor
              )
+
+    assert {:ok, appended_rows} = EvidenceStateUpdate.all_for_node(node.id)
+    assert update_columns(Enum.find(appended_rows, &(&1.id == first.id))) == first_row_columns
 
     tied_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
@@ -317,5 +321,10 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
   defp node_columns(node) do
     attributes = Ash.Resource.Info.attributes(Node)
     Map.take(Map.from_struct(node), Enum.map(attributes, & &1.name))
+  end
+
+  defp update_columns(update) do
+    attributes = Ash.Resource.Info.attributes(EvidenceStateUpdate)
+    Map.take(Map.from_struct(update), Enum.map(attributes, & &1.name))
   end
 end
