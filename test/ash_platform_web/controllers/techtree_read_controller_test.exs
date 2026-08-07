@@ -245,6 +245,11 @@ defmodule AshPlatformWeb.TechtreeReadControllerTest do
                "expected_hash" => nil,
                "actual_hash" => nil
              },
+             "evidence_state" => %{
+               "status" => "issued",
+               "evidence_reference_ids" => [],
+               "updated_at" => DateTime.to_iso8601(node.published_at)
+             },
              "projection_status" => "not_started",
              "base_mainnet_projection" => %{
                "chain_id" => 8453,
@@ -265,7 +270,7 @@ defmodule AshPlatformWeb.TechtreeReadControllerTest do
            }
 
     for absent <-
-          ~w(contributor_id lineage_node_ids capsule immutable_payloads evidence_projection evidence_state) do
+          ~w(contributor_id lineage_node_ids capsule immutable_payloads evidence_projection) do
       refute Map.has_key?(detail, absent)
     end
   end
