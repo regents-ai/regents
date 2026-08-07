@@ -3,306 +3,570 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-# Committed required-set manifest. The root entries are the direct submodules
-# targeted by foundry.toml's remappings. The nested entries are the two
-# v4-periphery submodules imported by its source. The checks below keep this
-# manifest tied to those declarations instead of allowing a remembered list.
-required_submodule_paths='
-lib/forge-std
-lib/v4-core
-lib/v4-periphery
-lib/permit2
-lib/solmate
-lib/solady
-lib/openzeppelin-contracts
-lib/uerc20-factory
-lib/v4-periphery/lib/permit2
-lib/v4-periphery/lib/v4-core
-'
+root_submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-submodules.XXXXXX")
+nested_submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-nested-submodules.XXXXXX")
+submodule_attempt_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodule-attempt.XXXXXX")
+phase_paths_snapshot_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-phase-paths.XXXXXX")
+submodule_status_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodule-status.XXXXXX")
+test_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-test.XXXXXX")
+required_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-required-paths.XXXXXX")
+root_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-paths.XXXXXX")
+nested_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-nested-paths.XXXXXX")
+effective_remappings_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-effective-remappings.XXXXXX")
+root_effective_remappings_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-effective-remappings.XXXXXX")
+gitmodule_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-gitmodule-paths.XXXXXX")
+imports_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-imports.XXXXXX")
+resolution_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-resolution-paths.XXXXXX")
+trap 'rm -f "$root_submodule_log" "$nested_submodule_log" "$submodule_attempt_log" "$phase_paths_snapshot_log" "$submodule_status_log" "$test_log" "$required_paths_log" "$root_paths_log" "$nested_paths_log" "$effective_remappings_log" "$root_effective_remappings_log" "$gitmodule_paths_log" "$imports_log" "$resolution_paths_log"' 0 1 2 15
 
-root_required_submodule_paths() {
-    for path in $required_submodule_paths; do
-        case "$path" in
-            lib/*/lib/*)
-                ;;
-            *)
-                printf '%s\n' "$path"
-                ;;
-        esac
-    done
-}
-
-nested_required_submodule_paths() {
-    for path in $required_submodule_paths; do
-        case "$path" in
-            lib/*/lib/*)
-                printf '%s\n' "$path"
-                ;;
-        esac
-    done
-}
-
-foundry_remappings() {
-    if [ -f remappings.txt ]; then
-        awk -F= \
-            '/^[[:space:]]*[^#[:space:]]+\/=/{gsub(/[[:space:]]/, "", $1); gsub(/[[:space:]]/, "", $2); print $1 "=" $2}' \
-            remappings.txt
-    fi
-
-    if [ -f foundry.toml ]; then
-        awk -F'"' '/^[[:space:]]*"[^"]+\/=/{print $2}' foundry.toml
-    fi
-}
+: >"$required_paths_log"
+: >"$root_paths_log"
+: >"$nested_paths_log"
+: >"$resolution_paths_log"
 
 has_path() {
-    list=$1
-    needle=$2
-    printf '%s\n' "$list" | grep -F -x "$needle" >/dev/null
+    list_file=$1
+    wanted_path=$2
+    grep -F -x "$wanted_path" "$list_file" >/dev/null 2>&1
 }
 
-check_root_manifest() {
-    remapping_manifest=$(foundry_remappings | sort -u)
-    if [ -z "$remapping_manifest" ]; then
-        echo "No Foundry remappings were found; refusing to guess the required submodule set." >&2
-        return 1
+append_unique_path() {
+    destination_file=$1
+    path_value=$2
+
+    [ -n "$path_value" ] || return 0
+    if ! has_path "$destination_file" "$path_value"; then
+        printf '%s\n' "$path_value" >>"$destination_file"
+    fi
+}
+
+join_project_path() {
+    join_project=$1
+    join_relative=$2
+
+    if [ "$join_project" = "." ]; then
+        printf '%s\n' "$join_relative"
+    elif [ -n "$join_relative" ]; then
+        printf '%s/%s\n' "$join_project" "$join_relative"
+    else
+        printf '%s\n' "$join_project"
+    fi
+}
+
+project_has_gitmodules() {
+    gitmodules_project=$1
+    [ -f "$gitmodules_project/.gitmodules" ]
+}
+
+project_gitmodule_paths() {
+    gitmodule_project=$1
+    gitmodules_file="$gitmodule_project/.gitmodules"
+
+    [ -f "$gitmodules_file" ] || return 0
+    git config --file "$gitmodules_file" --get-regexp '\.path$' 2>/dev/null |
+        awk '{print $2}'
+}
+
+normalize_remappings() {
+    awk -F= '
+        function trim(value) {
+            gsub(/^[[:space:]]+/, "", value)
+            gsub(/[[:space:]]+$/, "", value)
+            return value
+        }
+        {
+            if ($0 ~ /^[[:space:]]*#/ || index($0, "=") == 0) {
+                next
+            }
+
+            prefix = trim($1)
+            target = substr($0, index($0, "=") + 1)
+            sub(/[[:space:]]*#.*/, "", target)
+            target = trim(target)
+            gsub(/[[:space:]]/, "", prefix)
+
+            if (prefix ~ /\/$/ && target != "") {
+                print prefix "=" target
+            }
+        }
+    '
+}
+
+toml_remappings() {
+    toml_file=$1
+
+    [ -f "$toml_file" ] || return 0
+    awk -F'"' '{
+        for (field = 2; field <= NF; field += 2) {
+            if ($field ~ /\/=.*\// || $field ~ /\/=.[^[:space:]]*/) {
+                print $field
+            }
+        }
+    }' "$toml_file"
+    awk -F"'" '{
+        for (field = 2; field <= NF; field += 2) {
+            if ($field ~ /\/=.*\// || $field ~ /\/=.[^[:space:]]*/) {
+                print $field
+            }
+        }
+    }' "$toml_file"
+}
+
+project_configured_remappings() {
+    remapping_project=$1
+
+    if [ -f "$remapping_project/remappings.txt" ]; then
+        normalize_remappings <"$remapping_project/remappings.txt"
+    fi
+    toml_remappings "$remapping_project/foundry.toml" | normalize_remappings
+}
+
+project_effective_remappings() {
+    effective_project=$1
+    generated_remappings=
+
+    project_configured_remappings "$effective_project"
+
+    if command -v forge >/dev/null 2>&1; then
+        if generated_remappings=$(cd "$effective_project" && FOUNDRY_OFFLINE=true forge remappings 2>/dev/null); then
+            printf '%s\n' "$generated_remappings" | normalize_remappings
+        fi
+    fi
+}
+
+project_import_paths() {
+    import_project=$1
+    import_source_dir=
+
+    if [ "$import_project" = "." ]; then
+        import_source_dirs='src test script'
+    else
+        import_source_dirs='src'
     fi
 
-    if [ ! -f .gitmodules ]; then
-        echo "Missing .gitmodules; refusing to guess the required submodule set." >&2
-        return 1
-    fi
-
-    root_gitmodule_paths=$(git config --file .gitmodules --get-regexp '\.path$' | awk '{print $2}')
-    root_manifest=$(root_required_submodule_paths)
-
-    if [ -z "$root_gitmodule_paths" ] || [ -z "$root_manifest" ]; then
-        echo "Empty root submodule manifest; refusing to continue." >&2
-        return 1
-    fi
-
-    for path in $root_gitmodule_paths; do
-        case "$path" in
-            lib/*/lib/*)
-                echo "Root .gitmodules unexpectedly contains a nested path: $path" >&2
-                return 1
-                ;;
-        esac
-
-        if ! has_path "$root_manifest" "$path"; then
-            echo "Required-set manifest is missing root submodule declared by .gitmodules: $path" >&2
-            return 1
+    for import_source_dir in $import_source_dirs; do
+        import_source_path="$import_project/$import_source_dir"
+        if [ -d "$import_source_path" ]; then
+            if [ "$import_project" = "." ]; then
+                grep -R -h --include='*.sol' -E '^[[:space:]]*import([[:space:]]|\{)' "$import_source_path" 2>/dev/null
+            else
+                grep -R -h --exclude-dir=test --include='*.sol' -E '^[[:space:]]*import([[:space:]]|\{)' "$import_source_path" 2>/dev/null
+            fi |
+                awk -F'"' '{
+                    for (field = 2; field <= NF; field += 2) {
+                        if ($field != "") {
+                            print $field
+                            break
+                        }
+                    }
+                }'
         fi
-    done
+    done | sort -u
+}
 
-    for path in $root_manifest; do
-        if ! has_path "$root_gitmodule_paths" "$path"; then
-            echo "Required-set manifest contains undeclared root submodule: $path" >&2
-            return 1
-        fi
+find_mapping_for_import() {
+    import_value=$1
+    mappings_file=$2
+    best_prefix=
+    best_target=
 
-        remapping_found=0
-        for mapping in $remapping_manifest; do
-            mapping_target=${mapping#*=}
-            mapping_target=${mapping_target%/}
-            case "$mapping_target/" in
-                "$path/"*)
-                    remapping_found=1
-                    ;;
-            esac
-        done
+    while IFS= read -r mapping_line; do
+        [ -n "$mapping_line" ] || continue
+        mapping_prefix=${mapping_line%%=*}
+        mapping_target=${mapping_line#*=}
 
-        if [ "$remapping_found" -ne 1 ]; then
-            echo "Required root submodule is not targeted by a Foundry remapping: $path" >&2
-            return 1
-        fi
-    done
-
-    for mapping in $remapping_manifest; do
-        mapping_target=${mapping#*=}
-        mapping_target=${mapping_target%/}
-        case "$mapping_target" in
-            lib/*)
-                remapping_found=0
-                for path in $root_manifest; do
-                    case "$mapping_target/" in
-                        "$path/"*)
-                            remapping_found=1
-                            ;;
-                    esac
-                done
-
-                if [ "$remapping_found" -ne 1 ]; then
-                    echo "Foundry remapping targets an unlisted submodule path: $mapping" >&2
-                    return 1
+        case "$import_value" in
+            "$mapping_prefix"*)
+                if [ -z "$best_prefix" ] || [ "${#mapping_prefix}" -gt "${#best_prefix}" ]; then
+                    best_prefix=$mapping_prefix
+                    best_target=$mapping_target
                 fi
                 ;;
         esac
-    done
+    done <"$mappings_file"
 
-    echo "Required root submodule set checked against .gitmodules and Foundry remappings."
+    if [ -n "$best_prefix" ]; then
+        printf '%s|%s\n' "$best_prefix" "$best_target"
+    else
+        return 1
+    fi
 }
 
-check_nested_manifest() {
-    nested_manifest=$(nested_required_submodule_paths)
-    if [ -z "$nested_manifest" ]; then
-        echo "Empty nested submodule manifest; refusing to continue." >&2
+resolve_target() {
+    resolve_origin_project=$1
+    resolve_target_value=$2
+    resolve_record_required=$3
+    resolve_origin=$4
+    current_project=$resolve_origin_project
+    remaining_target=$resolve_target_value
+    first_root_path=
+
+    while :; do
+        case "$remaining_target" in
+            ./*)
+                remaining_target=${remaining_target#./}
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    case "$remaining_target" in
+        ""|/*|../*|*/../*|*/..)
+            echo "Unsupported remapping target for $resolve_origin: $resolve_origin_project -> $resolve_target_value" >&2
+            return 1
+            ;;
+    esac
+
+    while [ -n "$remaining_target" ]; do
+        : >"$gitmodule_paths_log"
+        project_gitmodule_paths "$current_project" >"$gitmodule_paths_log"
+        best_child=
+        best_child_length=0
+
+        while IFS= read -r child_path; do
+            [ -n "$child_path" ] || continue
+            case "$remaining_target/" in
+                "$child_path/"*)
+                    if [ -z "$best_child" ] || [ "${#child_path}" -gt "$best_child_length" ]; then
+                        best_child=$child_path
+                        best_child_length=${#child_path}
+                    fi
+                    ;;
+            esac
+        done <"$gitmodule_paths_log"
+
+        if [ -z "$best_child" ]; then
+            break
+        fi
+
+        current_project=$(join_project_path "$current_project" "$best_child")
+        remaining_target=${remaining_target#"$best_child"}
+        remaining_target=${remaining_target#/}
+
+        if [ -z "$first_root_path" ] && [ "$resolve_origin_project" = "." ]; then
+            first_root_path=$current_project
+        fi
+
+        if [ "$resolve_record_required" -eq 1 ]; then
+            append_unique_path "$required_paths_log" "$current_project"
+            if [ -n "$first_root_path" ]; then
+                append_unique_path "$root_paths_log" "$first_root_path"
+            fi
+        fi
+    done
+
+    if [ -n "$remaining_target" ] && project_has_gitmodules "$current_project"; then
+        case "$remaining_target" in
+            lib/*)
+                echo "Unrepresented submodule path for $resolve_origin: $resolve_origin_project -> $resolve_target_value" >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    resolved_submodule_path=$current_project
+    resolved_path=$(join_project_path "$current_project" "$remaining_target")
+}
+
+derive_project() {
+    derive_project_path=$1
+    derive_root_project=$2
+
+    project_effective_remappings "$derive_project_path" | sort -u >"$effective_remappings_log"
+    if [ "$derive_root_project" -eq 1 ]; then
+        cp "$effective_remappings_log" "$root_effective_remappings_log"
+    fi
+
+    while IFS= read -r mapping_line; do
+        [ -n "$mapping_line" ] || continue
+        mapping_target=${mapping_line#*=}
+        if ! resolve_target "$derive_project_path" "$mapping_target" 0 "remapping $mapping_line in $derive_project_path"; then
+            return 1
+        fi
+    done <"$effective_remappings_log"
+
+    while IFS= read -r mapping_line; do
+        [ -n "$mapping_line" ] || continue
+        mapping_target=${mapping_line#*=}
+        if [ "$derive_root_project" -eq 1 ]; then
+            mapping_origin="root remapping $mapping_line"
+        else
+            mapping_origin="remapping $mapping_line in $derive_project_path"
+        fi
+        if ! resolve_target "$derive_project_path" "$mapping_target" 1 "$mapping_origin"; then
+            return 1
+        fi
+    done <"$effective_remappings_log"
+
+    project_import_paths "$derive_project_path" >"$imports_log"
+    while IFS= read -r import_value; do
+        [ -n "$import_value" ] || continue
+
+        case "$import_value" in
+            ./*|../*|src/*|test/*|script/*|reference/*)
+                continue
+                ;;
+        esac
+
+        root_fallback=0
+        if ! mapping_match=$(find_mapping_for_import "$import_value" "$effective_remappings_log"); then
+            if [ "$derive_root_project" -eq 0 ] && mapping_match=$(find_mapping_for_import "$import_value" "$root_effective_remappings_log"); then
+                root_fallback=1
+            else
+                echo "No effective Foundry remapping for import in $derive_project_path: $import_value" >&2
+                return 1
+            fi
+        fi
+
+        mapping_prefix=${mapping_match%%|*}
+        mapping_target=${mapping_match#*|}
+        mapping_suffix=${import_value#"$mapping_prefix"}
+        case "$mapping_target" in
+            */)
+                ;;
+            *)
+                mapping_target="$mapping_target/"
+                ;;
+        esac
+        case "$mapping_target" in
+            */)
+                ;;
+            *)
+                mapping_target="$mapping_target/"
+                ;;
+        esac
+        if [ "$root_fallback" -eq 1 ]; then
+            if ! resolve_target . "$mapping_target$mapping_suffix" 1 "root fallback import $import_value in $derive_project_path"; then
+                return 1
+            fi
+        elif ! resolve_target "$derive_project_path" "$mapping_target$mapping_suffix" 1 "import $import_value in $derive_project_path"; then
+            return 1
+        fi
+
+        if [ "$root_fallback" -eq 1 ]; then
+            root_module_name=${resolved_submodule_path##*/}
+            : >"$gitmodule_paths_log"
+            project_gitmodule_paths "$derive_project_path" >"$gitmodule_paths_log"
+            while IFS= read -r child_path; do
+                [ -n "$child_path" ] || continue
+                child_name=${child_path##*/}
+                if [ "$child_name" = "$root_module_name" ]; then
+                    nested_import_path=$(join_project_path "$derive_project_path" "$child_path/$mapping_suffix")
+                    append_unique_path "$required_paths_log" "$(join_project_path "$derive_project_path" "$child_path")"
+                    if [ -e "$nested_import_path" ]; then
+                        resolved_path=$nested_import_path
+                    fi
+                fi
+            done <"$gitmodule_paths_log"
+        fi
+        if [ ! -e "$resolved_path" ] && [ "$resolved_submodule_path" != "$derive_project_path" ]; then
+            fallback_import_path=$(join_project_path "$resolved_submodule_path" "$mapping_suffix")
+            if [ -e "$fallback_import_path" ]; then
+                resolved_path=$fallback_import_path
+            fi
+        fi
+        append_unique_path "$resolution_paths_log" "$resolved_path"
+    done <"$imports_log"
+}
+
+check_root_paths() {
+    if [ ! -f .gitmodules ]; then
+        echo "Missing .gitmodules; refusing to guess the required root submodule set." >&2
         return 1
     fi
 
-    for path in $nested_manifest; do
-        parent=${path%/lib/*}
-        child=${path#"$parent/"}
+    project_gitmodule_paths . | sort -u >"$gitmodule_paths_log"
+    if [ ! -s "$gitmodule_paths_log" ] || [ ! -s "$root_paths_log" ]; then
+        echo "Could not derive a non-empty root submodule set from Foundry remappings." >&2
+        return 1
+    fi
 
-        if [ ! -f "$parent/.gitmodules" ]; then
-            echo "Nested manifest parent is unavailable: $parent/.gitmodules" >&2
+    while IFS= read -r declared_path; do
+        [ -n "$declared_path" ] || continue
+        if ! has_path "$root_paths_log" "$declared_path"; then
+            echo "Root .gitmodules path is not represented by a configured Foundry remapping: $declared_path" >&2
             return 1
         fi
+    done <"$gitmodule_paths_log"
 
-        nested_gitmodule_paths=$(git -C "$parent" config --file .gitmodules --get-regexp '\.path$' | awk '{print $2}')
-        if ! has_path "$nested_gitmodule_paths" "$child"; then
-            echo "Nested manifest path is not declared by $parent/.gitmodules: $path" >&2
+    while IFS= read -r derived_path; do
+        [ -n "$derived_path" ] || continue
+        if ! has_path "$gitmodule_paths_log" "$derived_path"; then
+            echo "Derived root path is not declared by .gitmodules: $derived_path" >&2
             return 1
         fi
-
-        nested_prefix=
-        for mapping in $remapping_manifest; do
-            mapping_prefix=${mapping%%=*}
-            mapping_target=${mapping#*=}
-            mapping_target=${mapping_target%/}
-            case "$mapping_target/" in
-                "$child/"*)
-                    nested_prefix=$mapping_prefix
-                    ;;
-            esac
-        done
-
-        if [ -z "$nested_prefix" ]; then
-            echo "Nested manifest path has no matching Foundry remapping: $path" >&2
-            return 1
-        fi
-
-        if ! grep -R -F -e "\"$nested_prefix" -e "'$nested_prefix" "$parent/src" >/dev/null 2>&1; then
-            echo "Nested manifest path is not imported by $parent/src: $path" >&2
-            return 1
-        fi
-    done
-
-    echo "Required nested submodule set checked against v4-periphery declarations, imports, and remappings."
-}
-
-submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodules.XXXXXX")
-submodule_status_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodule-status.XXXXXX")
-test_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-test.XXXXXX")
-trap 'rm -f "$submodule_log" "$submodule_status_log" "$test_log"' 0 1 2 15
-
-submodule_status_for_path() {
-    path=$1
-    case "$path" in
-        lib/*/lib/*)
-            parent=${path%/lib/*}
-            child=${path#"$parent/"}
-            git -C "$parent" submodule status -- "$child"
-            ;;
-        *)
-            git submodule status -- "$path"
-            ;;
-    esac
+    done <"$root_paths_log"
 }
 
 submodules_complete_for_paths() {
-    paths=$1
-    complete=0
+    paths_file=$1
+    status_command=0
+
     : >"$submodule_status_log"
-
-    for path in $paths; do
-        module_status=$(submodule_status_for_path "$path" 2>&1) || {
-            printf '%s: %s\n' "$path" "$module_status" >>"$submodule_status_log"
-            complete=1
-            continue
-        }
-
-        if [ -z "$module_status" ]; then
-            printf '%s: no submodule status\n' "$path" >>"$submodule_status_log"
-            complete=1
-            continue
-        fi
-
-        printf '%s: %s\n' "$path" "$module_status" >>"$submodule_status_log"
-        status_prefix=$(printf '%s' "$module_status" | cut -c1)
-        if [ "$status_prefix" != " " ]; then
-            complete=1
-        fi
-    done
-
+    git submodule status --recursive >"$submodule_status_log" 2>&1 || status_command=$?
     cat "$submodule_status_log"
-    if [ "$complete" -ne 0 ]; then
-        echo "Required submodule set is incomplete or not pinned." >&2
+    if [ "$status_command" -ne 0 ]; then
+        echo "Unable to inspect the submodule tree." >&2
         return 1
     fi
-}
 
-submodules_complete() {
-    submodules_complete_for_paths "$required_submodule_paths"
-}
+    while IFS= read -r required_path; do
+        [ -n "$required_path" ] || continue
+        module_status=$(awk -v wanted="$required_path" '$2 == wanted {print; exit}' "$submodule_status_log")
+        if [ -z "$module_status" ]; then
+            echo "Required submodule has no status entry: $required_path" >&2
+            return 1
+        fi
 
-root_submodules_complete() {
-    submodules_complete_for_paths "$(root_required_submodule_paths)"
+        status_prefix=$(printf '%s' "$module_status" | cut -c1)
+        if [ "$status_prefix" != " " ]; then
+            echo "Required submodule is incomplete or not pinned: $required_path" >&2
+            return 1
+        fi
+    done <"$paths_file"
 }
 
 network_unavailable() {
+    attempt_file=$1
     grep -E -i \
         'could not resolve (host|proxy)|failed to connect to|connection (timed out|reset by peer)|network is unreachable|could not connect to server|curl: \((6|7|28)\)' \
-        "$submodule_log" >/dev/null
+        "$attempt_file" >/dev/null 2>&1
 }
 
-check_root_manifest || exit 1
+is_root_path() {
+    root_check_path=$1
+    has_path "$root_paths_log" "$root_check_path"
+}
 
-submodule_update_status=0
+update_one_submodule() {
+    update_path=$1
+
+    if is_root_path "$update_path"; then
+        git submodule update --init -- "$update_path"
+    else
+        update_parent=${update_path%/lib/*}
+        update_child=${update_path#"$update_parent/"}
+        if [ "$update_parent" = "$update_path" ] || [ ! -d "$update_parent" ]; then
+            echo "Cannot locate initialized parent for required submodule: $update_path" >&2
+            return 1
+        fi
+        git -C "$update_parent" submodule update --init -- "$update_child"
+    fi
+}
+
+update_submodule_phase() {
+    phase_log=$1
+    phase_paths=$2
+    phase_fetch_unavailable=0
+    phase_status=0
+
+    : >"$phase_log"
+    cp "$phase_paths" "$phase_paths_snapshot_log"
+    # shellcheck disable=SC2094
+    while IFS= read -r update_path; do
+        [ -n "$update_path" ] || continue
+        : >"$submodule_attempt_log"
+        if update_one_submodule "$update_path" >"$submodule_attempt_log" 2>&1; then
+            cat "$submodule_attempt_log" >>"$phase_log"
+        else
+            phase_status=$?
+            cat "$submodule_attempt_log" >>"$phase_log"
+            cat "$phase_log"
+            if ! network_unavailable "$submodule_attempt_log" || ! submodules_complete_for_paths "$phase_paths_snapshot_log"; then
+                return "$phase_status"
+            fi
+            phase_fetch_unavailable=1
+            break
+        fi
+    done <"$phase_paths_snapshot_log"
+
+    cat "$phase_log"
+    return 0
+}
+
+build_nested_paths() {
+    : >"$nested_paths_log"
+    while IFS= read -r required_path; do
+        [ -n "$required_path" ] || continue
+        if ! is_root_path "$required_path"; then
+            printf '%s\n' "$required_path" >>"$nested_paths_log"
+        fi
+    done <"$required_paths_log"
+}
+
+check_resolved_paths() {
+    while IFS= read -r resolved_import_path; do
+        [ -n "$resolved_import_path" ] || continue
+        if [ ! -e "$resolved_import_path" ]; then
+            echo "Remapping/import path is not present after required submodule initialization: $resolved_import_path" >&2
+            return 1
+        fi
+    done <"$resolution_paths_log"
+}
+
+derive_project . 1
+check_root_paths
+
 root_fetch_unavailable=0
-for path in $(root_required_submodule_paths); do
-    git submodule update --init -- "$path" >>"$submodule_log" 2>&1 || {
-        submodule_update_status=$?
-        break
-    }
-done
-
-if [ "$submodule_update_status" -ne 0 ]; then
-    if ! network_unavailable || ! root_submodules_complete; then
-        cat "$submodule_log"
-        exit "$submodule_update_status"
-    fi
-
-    root_fetch_unavailable=1
-fi
-
-check_nested_manifest || exit 1
-
-submodule_update_status=0
 nested_fetch_unavailable=0
-for path in $(nested_required_submodule_paths); do
-    parent=${path%/lib/*}
-    child=${path#"$parent/"}
-    git -C "$parent" submodule update --init -- "$child" >>"$submodule_log" 2>&1 || {
-        submodule_update_status=$?
-        break
-    }
-done
-cat "$submodule_log"
 
-if [ "$submodule_update_status" -ne 0 ]; then
-    if ! network_unavailable || ! submodules_complete; then
-        exit "$submodule_update_status"
+if update_submodule_phase "$root_submodule_log" "$root_paths_log"; then
+    if [ "$phase_fetch_unavailable" -ne 0 ]; then
+        root_fetch_unavailable=1
+    fi
+else
+    phase_status=$?
+    exit "$phase_status"
+fi
+
+submodules_complete_for_paths "$root_paths_log"
+
+previous_required_count=0
+while :; do
+    derive_project . 1
+    check_root_paths
+
+    cp "$required_paths_log" "$phase_paths_snapshot_log"
+    while IFS= read -r required_project; do
+        [ -n "$required_project" ] || continue
+        derive_project "$required_project" 0
+    done <"$phase_paths_snapshot_log"
+
+    build_nested_paths
+    if [ -s "$nested_paths_log" ]; then
+        if [ "$nested_fetch_unavailable" -eq 0 ]; then
+            if update_submodule_phase "$nested_submodule_log" "$nested_paths_log"; then
+                if [ "$phase_fetch_unavailable" -ne 0 ]; then
+                    nested_fetch_unavailable=1
+                fi
+            else
+                phase_status=$?
+                exit "$phase_status"
+            fi
+        elif ! submodules_complete_for_paths "$nested_paths_log"; then
+            exit 1
+        fi
     fi
 
-    nested_fetch_unavailable=1
-fi
+    current_required_count=$(wc -l <"$required_paths_log" | tr -d ' ')
+    if [ "$current_required_count" -eq "$previous_required_count" ]; then
+        break
+    fi
+    previous_required_count=$current_required_count
+done
 
 if [ "$root_fetch_unavailable" -ne 0 ] || [ "$nested_fetch_unavailable" -ne 0 ]; then
     echo "Submodule fetch unavailable; using FOUNDRY_OFFLINE=true with complete pinned tree."
     export FOUNDRY_OFFLINE=true
-else
-    submodules_complete || exit 1
 fi
+
+check_resolved_paths
+submodules_complete_for_paths "$required_paths_log"
+
+echo "Derived and completeness-verified required submodule paths:"
+sort -u "$required_paths_log"
 
 forge build
 

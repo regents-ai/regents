@@ -1,0 +1,22 @@
+Gate release transcript: clean disposable clone
+
+$ git clone --no-local /Users/sean/Documents/regent/worktrees/regent-contracts/regent-n3e /tmp/regent-n3e-proof.Gm0nzo/clean-clone
+Cloning into '/tmp/regent-n3e-proof.Gm0nzo/clean-clone'...
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone checkout 38c5f8a2d319b317c2eab09de6e752346c1b1238
+HEAD is now at 38c5f8a fix: derive gate submodules and release proofs
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone rev-parse HEAD
+38c5f8a2d319b317c2eab09de6e752346c1b1238
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone hash-object bin/gate.sh
+54e932a90e45052b174b7d2bc9c98e34a18aa4ab
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone status --porcelain=v1
+
+$ (cd /tmp/regent-n3e-proof.Gm0nzo/clean-clone && ./bin/gate.sh > gate-full.log 2>&1)
+$ echo gate_exit=$?
+gate_exit=0
+$ grep -E 'Derived and completeness-verified required submodule paths:|Compiling [0-9]+ files with Solc|Ran [0-9]+ test suites|[0-9]+ tests passed' /tmp/regent-n3e-proof.Gm0nzo/clean-clone/gate-full.log
+Derived and completeness-verified required submodule paths:
+Compiling 183 files with Solc 0.8.30
+Compiling 150 files with Solc 0.8.26
+Compiling 26 files with Solc 0.8.28
+Ran 37 test suites in 26.57s (140.54s CPU time): 370 tests passed, 0 failed, 0 skipped (370 total tests)
+Ran 37 test suites in 26.57s (140.54s CPU time): 370 tests passed, 0 failed, 0 skipped (370 total tests)

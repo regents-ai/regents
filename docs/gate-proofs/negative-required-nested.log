@@ -1,0 +1,39 @@
+Gate release transcript: unrestorable required nested member
+
+$ git clone --no-local /Users/sean/Documents/regent/worktrees/regent-contracts/regent-n3e /tmp/regent-n3e-proof.Gm0nzo/clean-clone
+Cloning into '/tmp/regent-n3e-proof.Gm0nzo/clean-clone'...
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone checkout 38c5f8a2d319b317c2eab09de6e752346c1b1238
+HEAD is now at 38c5f8a fix: derive gate submodules and release proofs
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone rev-parse HEAD
+38c5f8a2d319b317c2eab09de6e752346c1b1238
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone hash-object bin/gate.sh
+54e932a90e45052b174b7d2bc9c98e34a18aa4ab
+$ (cd /tmp/regent-n3e-proof.Gm0nzo/clean-clone && ./bin/gate.sh > gate-full.log 2>&1)
+$ echo gate_exit=$?
+gate_exit=0
+
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery submodule deinit --force -- lib/permit2
+Cleared directory 'lib/permit2'
+Submodule 'lib/permit2' (https://github.com/Uniswap/permit2) unregistered for path 'lib/permit2'
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery config --file .gitmodules submodule.lib/permit2.url https://invalid.invalid/regent-required-member.git
+$ mkdir /tmp/regent-n3e-proof.Gm0nzo/nested-cache-quarantine
+$ mv /tmp/regent-n3e-proof.Gm0nzo/clean-clone/.git/modules/lib/v4-periphery/modules/lib/permit2 /tmp/regent-n3e-proof.Gm0nzo/nested-cache-quarantine/permit2
+$ git -C /tmp/regent-n3e-proof.Gm0nzo/clean-clone submodule status --recursive | grep 'lib/v4-periphery/lib/permit2'
+-cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 lib/v4-periphery/lib/permit2
+$ (cd /tmp/regent-n3e-proof.Gm0nzo/clean-clone && ./bin/gate.sh > gate-negative.log 2>&1)
+$ echo gate_exit=$?
+gate_exit=1
+$ grep -E 'Cloning into|fatal:|^-[0-9a-f]+ .*lib/v4-periphery/lib/permit2|Required submodule' /tmp/regent-n3e-proof.Gm0nzo/clean-clone/gate-negative.log
+-cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 lib/v4-periphery/lib/permit2
+Cloning into '/private/tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery/lib/permit2'...
+fatal: unable to access 'https://invalid.invalid/regent-required-member.git/': Could not resolve host: invalid.invalid
+fatal: clone of 'https://invalid.invalid/regent-required-member.git' into submodule path '/private/tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery/lib/permit2' failed
+Cloning into '/private/tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery/lib/permit2'...
+fatal: unable to access 'https://invalid.invalid/regent-required-member.git/': Could not resolve host: invalid.invalid
+fatal: clone of 'https://invalid.invalid/regent-required-member.git' into submodule path '/private/tmp/regent-n3e-proof.Gm0nzo/clean-clone/lib/v4-periphery/lib/permit2' failed
+-cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 lib/v4-periphery/lib/permit2
+Required submodule is incomplete or not pinned: lib/v4-periphery/lib/permit2
+$ grep -E 'forge (build|test|fmt)|Compiling|Ran [0-9]+ test suites' /tmp/regent-n3e-proof.Gm0nzo/clean-clone/gate-negative.log | wc -l
+       0
+$ grep -E '[0-9]+ tests passed|[0-9]+ tests, [0-9]+ failures|[0-9]+ tests, [0-9]+ failed' /tmp/regent-n3e-proof.Gm0nzo/clean-clone/gate-negative.log | wc -l
+       0
