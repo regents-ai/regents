@@ -51,7 +51,10 @@ defmodule AshPlatformWeb.TechtreeReadController do
       node_edges =
         Enum.filter(edges, &(&1.from_node_id == node.id or &1.to_node_id == node.id))
 
-      json(conn, %{data: Provenance.public_node(node, node_edges, artifact.verification)})
+      case Provenance.public_node_result(node, node_edges, artifact.verification) do
+        {:ok, public_node} -> json(conn, %{data: public_node})
+        error -> render_error(conn, error)
+      end
     else
       {:ok, nil} -> render_error(conn, :not_found)
       error -> render_error(conn, error)

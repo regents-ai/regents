@@ -3,6 +3,14 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
 
   alias AshPlatform.Techtree
 
+  @maximum_node_payload_hash_length 128
+  @maximum_source_hash_length 80
+  @maximum_payload_hash_length 80
+  @maximum_marimo_version_length 32
+  @maximum_run_url_length 2_048
+  @maximum_manifest_length 524_288
+  @maximum_asset_length 2_048
+
   @allowed_keys [
     "id",
     "node_payload_hash",
@@ -13,16 +21,9 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
     "manifest_json",
     "allowed_assets"
   ]
-  @conflict_markers [
-    "unique_node_source",
-    "already exists",
-    "has already been taken",
-    "unique constraint"
-  ]
-  @notebook_markers ["Notebook", "notebook"]
-
   def create(%Plug.Conn{query_string: ""} = conn, %{"id" => id} = params) do
     with {:ok, attributes} <- validate(params, id),
+         :ok <- current_node_payload(attributes),
          :ok <- existing_identity(attributes),
          {:ok, artifact} <- import_artifact(conn, attributes) do
       conn
@@ -67,6 +68,11 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
          {:ok, run_url} <- required_string(params, "run_url"),
          {:ok, manifest_json} <- required_string(params, "manifest_json"),
          {:ok, allowed_assets} <- required_assets(params, "allowed_assets"),
+         :ok <- validate_max_length(node_payload_hash, @maximum_node_payload_hash_length),
+         :ok <- validate_max_length(source_hash, @maximum_source_hash_length),
+         :ok <- validate_max_length(payload_hash, @maximum_payload_hash_length),
+         :ok <- validate_max_length(marimo_version, @maximum_marimo_version_length),
+         :ok <- validate_max_length(run_url, @maximum_run_url_length),
          :ok <- validate_manifest_bytes(manifest_json) do
       {:ok,
        %{
@@ -105,7 +111,7 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
   defp required_assets(params, key) do
     case Map.fetch(params, key) do
       {:ok, value} when is_list(value) and length(value) == 3 ->
-        if Enum.all?(value, &is_binary/1), do: {:ok, value}, else: {:error, :invalid_request}
+        if Enum.all?(value, &valid_asset?/1), do: {:ok, value}, else: {:error, :invalid_request}
 
       _result ->
         {:error, :invalid_request}
@@ -113,9 +119,38 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
   end
 
   defp validate_manifest_bytes(manifest_json) do
-    if String.valid?(manifest_json) and byte_size(manifest_json) <= 524_288,
+    if String.valid?(manifest_json) and byte_size(manifest_json) <= @maximum_manifest_length,
       do: :ok,
       else: {:error, :invalid_request}
+  end
+
+  defp validate_max_length(value, maximum) do
+    if String.valid?(value) and String.length(value) <= maximum,
+      do: :ok,
+      else: {:error, :invalid_request}
+  end
+
+  defp valid_asset?(value) when is_binary(value),
+    do: String.valid?(value) and String.length(value) <= @maximum_asset_length
+
+  defp valid_asset?(_value), do: false
+
+  defp current_node_payload(attributes) do
+    case Techtree.get_public_node(attributes.node_id, actor: nil) do
+      {:ok, nil} ->
+        {:error, :not_found}
+
+      {:ok, %{payload_hash: payload_hash}} when payload_hash == attributes.node_payload_hash ->
+        :ok
+
+      {:ok, _node} ->
+        {:error, :stale_node_payload}
+
+      {:error, _error} ->
+        {:error, :temporarily_unavailable}
+    end
+  rescue
+    _error -> {:error, :temporarily_unavailable}
   end
 
   defp existing_identity(attributes) do
@@ -159,25 +194,33 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactController do
     }
   end
 
-  defp action_error(conn, reason) do
-    message = if is_exception(reason), do: Exception.message(reason), else: inspect(reason)
+  defp action_error(conn, %Ash.Error.Forbidden{}), do: error(conn, 403, :forbidden)
 
-    {status, code} = action_error_result(message)
-    error(conn, status, code)
+  defp action_error(conn, %Ash.Error.Invalid{errors: errors}) do
+    code = if unique_identity_error?(errors), do: :conflict, else: :invalid_notebook_artifact
+    error(conn, 422, code)
   end
 
-  defp action_error_result(message) do
-    cond do
-      contains_any?(message, @conflict_markers) -> {409, :conflict}
-      String.contains?(message, "current payload") -> {422, :stale_node_payload}
-      String.contains?(message, "public node") -> {404, :not_found}
-      contains_any?(message, @notebook_markers) -> {422, :invalid_notebook_artifact}
-      true -> {503, :temporarily_unavailable}
-    end
+  defp action_error(conn, %Ash.Error.Unknown{}),
+    do: error(conn, 503, :temporarily_unavailable)
+
+  defp action_error(conn, %Ecto.ConstraintError{}),
+    do: error(conn, 503, :temporarily_unavailable)
+
+  defp action_error(conn, _reason), do: error(conn, 503, :temporarily_unavailable)
+
+  defp unique_identity_error?(errors) when is_list(errors) do
+    Enum.any?(errors, fn
+      %Ash.Error.Changes.InvalidAttribute{private_vars: private_vars}
+      when is_list(private_vars) ->
+        Keyword.get(private_vars, :constraint) == "notebook_artifacts_unique_node_source_index"
+
+      _error ->
+        false
+    end)
   end
 
-  defp contains_any?(message, markers),
-    do: Enum.any?(markers, &String.contains?(message, &1))
+  defp unique_identity_error?(_errors), do: false
 
   defp error(conn, status, code) do
     conn

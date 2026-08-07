@@ -140,6 +140,33 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
     assert public.evidence_state.updated_at == DateTime.to_iso8601(tied_at)
   end
 
+  test "a latest-history lookup failure never fabricates issued after an invalidated append",
+       context do
+    node = publish_node(context, "history-failure")
+    actor = agent_actor(context)
+
+    assert {:ok, update} =
+             Techtree.append_evidence_state_update(
+               node.id,
+               :invalidated,
+               "Invalidated by the verified publisher.",
+               [],
+               %{"body" => "invalidated"},
+               actor: actor
+             )
+
+    assert {:ok, [stored]} = EvidenceStateUpdate.all_for_node(node.id)
+    assert stored.id == update.id
+
+    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "DROP TABLE techtree.evidence_state_updates")
+
+    response = get(build_conn(), "/api/techtree/v1/nodes/#{node.id}")
+
+    assert response.status == 503
+    assert json_response(response, 503)["error"]["code"] == "temporarily_unavailable"
+    refute response.resp_body =~ "issued"
+  end
+
   test "target and reference nodes are locked and references must be public", context do
     node = publish_node(context, "reference-target")
 

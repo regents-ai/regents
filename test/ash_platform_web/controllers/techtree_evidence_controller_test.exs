@@ -86,7 +86,7 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
     assert stored.submitter_chain_id == 8453
     assert stored.submitter_regent_id == context.regent.id
     assert DateTime.compare(stored.inserted_at, inserted_at) == :eq
-    assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_columns
+    assert node_columns(node) == before_columns
   end
 
   test "node detail returns the latest appended evidence state", context do
@@ -115,6 +115,7 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
   test "evidence requests are strict and reject unknown fields, aliases, and queries", context do
     node = publish_node(context, "strict")
     initial_count = evidence_count(node.id)
+    before_columns = node_columns(node)
 
     for invalid <- [
           %{"status" => "issued"},
@@ -130,9 +131,15 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
           %{"reason" => "missing status"}
         ] do
       response = post_evidence(node.id, Jason.encode!(invalid), {:ok, context.identity})
-      assert response.status == 400
-      assert json_response(response, 400)["error"]["code"] == "invalid_request"
-      assert evidence_count(node.id) == initial_count
+
+      assert_rejection_unchanged(
+        response,
+        400,
+        :invalid_request,
+        node,
+        before_columns,
+        initial_count
+      )
     end
 
     response =
@@ -144,23 +151,34 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
         "?unexpected=true"
       )
 
-    assert response.status == 400
-    assert json_response(response, 400)["error"]["code"] == "invalid_request"
-    assert evidence_count(node.id) == initial_count
+    assert_rejection_unchanged(
+      response,
+      400,
+      :invalid_request,
+      node,
+      before_columns,
+      initial_count
+    )
   end
 
   test "invalid, private, missing, and self references return 422 without an append", context do
     node = publish_node(context, "references")
     private = draft_node(context, "private-reference")
     invalid_ids = [Ash.UUID.generate(), private.id, node.id]
+    before_columns = node_columns(node)
 
     for reference_id <- invalid_ids do
       body = %{"status" => "reproduced", "evidence_reference_ids" => [reference_id]}
       response = post_evidence(node.id, Jason.encode!(body), {:ok, context.identity})
 
-      assert response.status == 422
-      assert json_response(response, 422)["error"]["code"] == "invalid_evidence_reference"
-      assert evidence_count(node.id) == 0
+      assert_rejection_unchanged(
+        response,
+        422,
+        :invalid_evidence_reference,
+        node,
+        before_columns,
+        0
+      )
     end
   end
 
@@ -174,38 +192,46 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
 
     draft = draft_node(context, "target-draft")
     body = Jason.encode!(%{"status" => "reproduced"})
+    before_node = node_columns(node)
+    before_system_node = node_columns(system_node)
+    before_draft = node_columns(draft)
 
     malformed = post_evidence("not-a-uuid", body, {:ok, context.identity})
-    assert malformed.status == 400
-    assert json_response(malformed, 400)["error"]["code"] == "invalid_request"
+    assert_rejection_unchanged(malformed, 400, :invalid_request, node, before_node, 0)
 
     missing = post_evidence(Ash.UUID.generate(), body, {:ok, context.identity})
-    assert missing.status == 404
-    assert json_response(missing, 404)["error"]["code"] == "not_found"
+    assert_rejection_unchanged(missing, 404, :not_found, node, before_node, 0)
 
     private = post_evidence(draft.id, body, {:ok, context.identity})
-    assert private.status == 404
-    assert json_response(private, 404)["error"]["code"] == "not_found"
+    assert_rejection_unchanged(private, 404, :not_found, draft, before_draft, 0)
 
     non_owner = post_evidence(system_node.id, body, {:ok, context.identity})
-    assert non_owner.status == 403
-    assert json_response(non_owner, 403)["error"]["code"] == "forbidden"
+    assert_rejection_unchanged(non_owner, 403, :forbidden, system_node, before_system_node, 0)
 
     assert evidence_count(node.id) == 0
+    assert node_columns(node) == before_node
   end
 
   test "verification failures, Privy cookie, and Bearer auth fail closed", context do
     node = publish_node(context, "auth")
     body = Jason.encode!(%{"status" => "reproduced"})
+    before_columns = node_columns(node)
     Process.put(:capture_agent_verification_calls, true)
 
     rejected = post_evidence(node.id, body, {:error, :verification_failed})
-    assert rejected.status == 401
-    assert json_response(rejected, 401)["error"]["code"] == "unauthorized"
+    assert_rejection_unchanged(rejected, 401, :unauthorized, node, before_columns, 0)
 
     unavailable = post_evidence(node.id, body, {:error, :verification_unavailable})
-    assert unavailable.status == 503
-    assert json_response(unavailable, 503)["error"]["code"] == "temporarily_unavailable"
+
+    assert_rejection_unchanged(
+      unavailable,
+      503,
+      :temporarily_unavailable,
+      node,
+      before_columns,
+      0
+    )
+
     assert_received {:agent_verification, _envelope}
     assert_received {:agent_verification, _envelope}
     Process.delete(:capture_agent_verification_calls)
@@ -215,8 +241,7 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
           {"authorization", "Bearer privy-access-token"}
         ] do
       response = post_evidence(node.id, body, {:ok, context.identity}, [header])
-      assert response.status == 401
-      assert json_response(response, 401)["error"]["code"] == "unauthorized"
+      assert_rejection_unchanged(response, 401, :unauthorized, node, before_columns, 0)
     end
 
     refute_received {:agent_verification, _envelope}
@@ -225,43 +250,42 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
 
   test "a re-paired identity with a changed publisher tuple remains forbidden", context do
     node = publish_node(context, "re-paired")
+    before_columns = node_columns(node)
     changed_wallet = "0x3333333333333333333333333333333333333333"
 
-    identity = %{
-      agent_id: "agent-repaired-#{Elixir.System.unique_integer([:positive])}",
-      registry_address: context.identity.registry_address,
-      token_id: "repaired-#{Elixir.System.unique_integer([:positive])}",
-      wallet: changed_wallet
-    }
+    assert :ok = Formation.revoke_agent_link(context.link, actor: context.human)
+    identity = %{context.identity | wallet: changed_wallet}
 
-    assert {:ok, _link} =
-             AgentLink
-             |> Ash.Changeset.for_create(
-               :pair,
-               %{
-                 human_account_id: context.human.human_account_id,
-                 regent_id: context.regent.id,
-                 agent_id: identity.agent_id,
-                 registry_address: identity.registry_address,
-                 token_id: identity.token_id,
-                 wallet: identity.wallet,
-                 paired_at: DateTime.utc_now()
-               },
-               actor: %System{}
-             )
-             |> Ash.create()
+    assert identity.agent_id == context.identity.agent_id
+    assert identity.registry_address == context.identity.registry_address
+    assert identity.token_id == context.identity.token_id
+    refute identity.wallet == context.identity.wallet
+    pair_link(identity, context.regent.id, context.human.human_account_id)
 
     body = Jason.encode!(%{"status" => "reproduced"})
     response = post_evidence(node.id, body, {:ok, identity})
 
-    assert response.status == 403
-    assert json_response(response, 403)["error"]["code"] == "forbidden"
-    assert evidence_count(node.id) == 0
+    assert_rejection_unchanged(response, 403, :forbidden, node, before_columns, 0)
+  end
+
+  test "a re-paired identity under a different Regent remains forbidden", context do
+    node = publish_node(context, "different-regent-repair")
+    before_columns = node_columns(node)
+    other = alternate_owner_context("different-regent-repair")
+
+    assert :ok = Formation.revoke_agent_link(context.link, actor: context.human)
+    pair_link(context.identity, other.regent.id, other.human.human_account_id)
+
+    response =
+      post_evidence(node.id, Jason.encode!(%{"status" => "reproduced"}), {:ok, context.identity})
+
+    assert_rejection_unchanged(response, 403, :forbidden, node, before_columns, 0)
   end
 
   test "each persisted publisher field is required for the HTTP owner check", context do
     node = publish_node(context, "tuple-fields")
     body = Jason.encode!(%{"status" => "reproduced"})
+    before_columns = node_columns(node)
 
     for {column, value} <- [
           {:publisher_agent_id, "different-agent"},
@@ -277,48 +301,62 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
         [sql_value(column, value), Ecto.UUID.dump!(node.id)]
       )
 
+      mutated_columns = node_columns(node)
       response = post_evidence(node.id, body, {:ok, context.identity})
-      assert response.status == 403
-      assert json_response(response, 403)["error"]["code"] == "forbidden"
-      assert evidence_count(node.id) == 0
+      assert_rejection_unchanged(response, 403, :forbidden, node, mutated_columns, 0)
 
       Ecto.Adapters.SQL.query!(
         AshPlatform.Repo,
         "UPDATE techtree.nodes SET #{column} = $1 WHERE id = $2",
         [sql_value(column, Map.fetch!(node, column)), Ecto.UUID.dump!(node.id)]
       )
+
+      assert node_columns(node) == before_columns
     end
   end
 
   test "a revoked link is rejected even when its old node tuple remains", context do
     node = publish_node(context, "revoked")
+    before_columns = node_columns(node)
 
     assert :ok = Formation.revoke_agent_link(context.link, actor: context.human)
 
     response =
       post_evidence(node.id, Jason.encode!(%{"status" => "reproduced"}), {:ok, context.identity})
 
-    assert response.status == 403
-    assert json_response(response, 403)["error"]["code"] == "forbidden"
-    assert evidence_count(node.id) == 0
+    assert_rejection_unchanged(response, 403, :forbidden, node, before_columns, 0)
   end
 
   test "the evidence body limit distinguishes exact-limit input from one byte over", context do
     node = publish_node(context, "body-limit")
+    before_columns = node_columns(node)
     exact = body_at_size(65_536)
 
     exact_response = post_evidence(node.id, exact, {:ok, context.identity})
-    assert exact_response.status == 400
-    assert json_response(exact_response, 400)["error"]["code"] == "invalid_request"
-    assert evidence_count(node.id) == 0
+
+    assert_rejection_unchanged(
+      exact_response,
+      400,
+      :invalid_request,
+      node,
+      before_columns,
+      0
+    )
 
     Process.put(:capture_agent_verification_calls, true)
     over = body_at_size(65_537)
     over_response = post_evidence(node.id, over, {:ok, context.identity})
-    assert over_response.status == 413
-    assert json_response(over_response, 413)["error"]["code"] == "payload_too_large"
+
+    assert_rejection_unchanged(
+      over_response,
+      413,
+      :payload_too_large,
+      node,
+      before_columns,
+      0
+    )
+
     refute_received {:agent_verification, _envelope}
-    assert evidence_count(node.id) == 0
   end
 
   test "concurrent owner appends both commit and GET selects the forced tie winner", context do
@@ -486,6 +524,52 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
     length(rows)
   end
 
+  defp assert_rejection_unchanged(response, status, code, node, before_columns, before_count) do
+    assert response.status == status
+    assert json_response(response, status)["error"]["code"] == Atom.to_string(code)
+    assert evidence_count(node.id) == before_count
+    assert node_columns(node) == before_columns
+  end
+
+  defp alternate_owner_context(suffix) do
+    unique = Elixir.System.unique_integer([:positive])
+    wallet = "0x4444444444444444444444444444444444444444"
+
+    account =
+      Accounts.register_verified!(
+        "did:privy:#{suffix}:#{unique}",
+        wallet,
+        [wallet],
+        actor: %System{}
+      )
+
+    human = %Human{human_account_id: account.id}
+    regent = Formation.form_regent!("#{suffix}-#{unique}", "#{suffix} #{unique}", actor: human)
+
+    %{human: human, regent: regent}
+  end
+
+  defp pair_link(identity, regent_id, human_account_id) do
+    {:ok, link} =
+      AgentLink
+      |> Ash.Changeset.for_create(
+        :pair,
+        %{
+          human_account_id: human_account_id,
+          regent_id: regent_id,
+          agent_id: identity.agent_id,
+          registry_address: identity.registry_address,
+          token_id: identity.token_id,
+          wallet: identity.wallet,
+          paired_at: DateTime.utc_now()
+        },
+        actor: %System{}
+      )
+      |> Ash.create()
+
+    link
+  end
+
   defp sql_value(:publisher_regent_id, value), do: Ecto.UUID.dump!(value)
   defp sql_value(_column, value), do: value
 
@@ -498,7 +582,14 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
   end
 
   defp node_columns(node) do
-    attributes = Ash.Resource.Info.attributes(Node)
-    Map.take(Map.from_struct(node), Enum.map(attributes, & &1.name))
+    result =
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        "SELECT * FROM techtree.nodes WHERE id = $1",
+        [Ecto.UUID.dump!(node.id)]
+      )
+
+    assert [values] = result.rows
+    Map.new(Enum.zip(result.columns, values))
   end
 end

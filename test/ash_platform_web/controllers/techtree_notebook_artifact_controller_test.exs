@@ -4,10 +4,13 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
   alias AshPlatform.{Accounts, Formation, Techtree}
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.AgentAuth.AgentIdentity
-  alias AshPlatform.Techtree.Node
+  alias AshPlatform.Formation.AgentLink
+  alias AshPlatform.Techtree.{Node, NotebookArtifact}
 
   @registry "0x1111111111111111111111111111111111111111"
   @wallet "0x2222222222222222222222222222222222222222"
+  @other_registry "0x3333333333333333333333333333333333333333"
+  @other_wallet "0x4444444444444444444444444444444444444444"
   @marimo_version "0.23.14"
   @allowed_assets [
     "https://cdn.jsdelivr.net",
@@ -53,7 +56,7 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
   test "owner HTTP import returns the exact public artifact shape", context do
     node_payload_hash = sha256("node payload")
     node = publish_node(context, "happy", node_payload_hash)
-    artifact = artifact_request(node_payload_hash, "browser local")
+    artifact = generated_artifact(node_payload_hash)
 
     response = post_artifact(node.id, artifact, {:ok, context.identity}) |> json_response(201)
     data = response["data"]
@@ -94,6 +97,13 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     node_payload_hash = sha256("node payload")
     node = publish_node(context, "proof-negatives", node_payload_hash)
     valid = artifact_request(node_payload_hash, "browser local")
+    existing = artifact_request(node_payload_hash, "existing identity")
+
+    post_artifact(node.id, existing, {:ok, context.identity}) |> json_response(201)
+
+    before_node = node_columns(node)
+    {:ok, [existing_row]} = Techtree.list_current_notebook_artifacts(node.id, node_payload_hash)
+    before_existing = notebook_columns(existing_row)
 
     invalid_requests = [
       {:invalid_notebook_artifact, Map.put(valid, :payload_hash, sha256("different bytes"))},
@@ -111,10 +121,135 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
 
     for {code, invalid} <- invalid_requests do
       response = post_artifact(node.id, invalid, {:ok, context.identity})
-      assert response.status == 422
-      assert json_response(response, 422)["error"]["code"] == Atom.to_string(code)
-      assert artifact_count(node.id) == 0
+
+      assert_notebook_rejection(
+        response,
+        422,
+        code,
+        node,
+        before_node,
+        1,
+        existing_row.id,
+        before_existing
+      )
     end
+  end
+
+  test "a run URL over 2,048 characters is a request-shape error", context do
+    node_payload_hash = sha256("run-url-size")
+    node = publish_node(context, "run-url-size", node_payload_hash)
+    valid = artifact_request(node_payload_hash, "run-url-size source")
+    existing = artifact_request(node_payload_hash, "run-url-size existing")
+
+    post_artifact(node.id, existing, {:ok, context.identity}) |> json_response(201)
+
+    before_node = node_columns(node)
+    {:ok, [existing_row]} = Techtree.list_current_notebook_artifacts(node.id, node_payload_hash)
+    before_existing = notebook_columns(existing_row)
+    oversized = Map.put(valid, :run_url, String.duplicate("x", 2_049))
+
+    response = post_artifact(node.id, oversized, {:ok, context.identity})
+
+    assert_notebook_rejection(
+      response,
+      400,
+      :invalid_request,
+      node,
+      before_node,
+      1,
+      existing_row.id,
+      before_existing
+    )
+  end
+
+  test "notebook storage failures return a temporary-unavailable error", context do
+    node_payload_hash = sha256("notebook-storage")
+    node = publish_node(context, "notebook-storage", node_payload_hash)
+    before_node = node_columns(node)
+    artifact = artifact_request(node_payload_hash, "notebook-storage source")
+
+    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "DROP TABLE techtree.notebook_artifacts")
+
+    response = post_artifact(node.id, artifact, {:ok, context.identity})
+
+    assert response.status == 503
+    assert json_response(response, 503)["error"]["code"] == "temporarily_unavailable"
+    assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
+  end
+
+  test "unpaired, revoked, re-paired, different-Regent, and cross-owner HTTP cases fail closed",
+       context do
+    node_payload_hash = sha256("http-authorization")
+    node = publish_node(context, "http-authorization", node_payload_hash)
+    artifact = artifact_request(node_payload_hash, "http authorization source")
+    before_node = node_columns(node)
+
+    unpaired = %{
+      agent_id: "unpaired-#{Elixir.System.unique_integer([:positive])}",
+      registry_address: @registry,
+      token_id: "unpaired-#{Elixir.System.unique_integer([:positive])}",
+      wallet: @wallet
+    }
+
+    assert_http_error_unchanged(
+      post_artifact(node.id, artifact, {:ok, unpaired}),
+      403,
+      :forbidden,
+      node,
+      before_node,
+      0
+    )
+
+    assert :ok = Formation.revoke_agent_link(context.link, actor: context.human)
+
+    assert_http_error_unchanged(
+      post_artifact(node.id, artifact, {:ok, context.identity}),
+      403,
+      :forbidden,
+      node,
+      before_node,
+      0
+    )
+
+    repaired_link = pair_link(context.identity, context.regent.id, context.human.human_account_id)
+
+    assert post_artifact(node.id, artifact, {:ok, context.identity}) |> json_response(201)
+    assert artifact_count(node.id) == 1
+
+    assert :ok = Formation.revoke_agent_link(repaired_link, actor: context.human)
+    other_regent = new_owner_context("notebook-different-regent")
+    pair_link(context.identity, other_regent.regent.id, other_regent.human.human_account_id)
+
+    assert_http_error_unchanged(
+      post_artifact(
+        node.id,
+        artifact_request(node_payload_hash, "different regent source"),
+        {:ok, context.identity}
+      ),
+      403,
+      :forbidden,
+      node,
+      before_node,
+      1
+    )
+
+    owner = new_owner_context("notebook-cross-owner")
+    other_node_payload_hash = sha256("cross-owner node")
+    other_node = publish_node(owner, "cross-owner", other_node_payload_hash)
+    other_before_node = node_columns(other_node)
+
+    assert_http_error_unchanged(
+      post_artifact(
+        other_node.id,
+        artifact_request(other_node_payload_hash, "cross-owner source"),
+        {:ok, context.identity}
+      ),
+      403,
+      :forbidden,
+      other_node,
+      other_before_node,
+      0
+    )
   end
 
   test "same identity retries conflict without mutation and a new source creates a row",
@@ -270,6 +405,11 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     }
   end
 
+  defp generated_artifact(node_payload_hash) do
+    AshPlatform.TestMarimoArtifact.artifact()
+    |> Map.put(:node_payload_hash, node_payload_hash)
+  end
+
   defp valid_manifest_json(source_hash) do
     Jason.encode!(%{
       "schema_version" => 1,
@@ -341,6 +481,90 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
       )
 
     count
+  end
+
+  defp assert_notebook_rejection(
+         response,
+         status,
+         code,
+         node,
+         before_node,
+         before_count,
+         existing_id,
+         before_existing
+       ) do
+    assert response.status == status
+    assert json_response(response, status)["error"]["code"] == Atom.to_string(code)
+    assert artifact_count(node.id) == before_count
+    assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
+    {:ok, [existing]} = Techtree.list_current_notebook_artifacts(node.id, node.payload_hash)
+    assert existing.id == existing_id
+    assert notebook_columns(existing) == before_existing
+  end
+
+  defp assert_http_error_unchanged(response, status, code, node, before_node, before_count) do
+    assert response.status == status
+    assert json_response(response, status)["error"]["code"] == Atom.to_string(code)
+    assert artifact_count(node.id) == before_count
+    assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
+  end
+
+  defp new_owner_context(suffix) do
+    unique = Elixir.System.unique_integer([:positive])
+    wallet = @other_wallet
+
+    account =
+      Accounts.register_verified!(
+        "did:privy:#{suffix}:#{unique}",
+        wallet,
+        [wallet],
+        actor: %System{}
+      )
+
+    human = %Human{human_account_id: account.id}
+    regent = Formation.form_regent!("#{suffix}-#{unique}", "#{suffix} #{unique}", actor: human)
+
+    identity = %{
+      agent_id: "agent-#{suffix}-#{unique}",
+      registry_address: @other_registry,
+      token_id: Integer.to_string(unique),
+      wallet: wallet
+    }
+
+    link = pair_link(identity, regent.id, human.human_account_id)
+    tree = Techtree.get_tree_by_slug!("skill-training-lab")
+    %{identity: identity, link: link, regent: regent, human: human, tree: tree}
+  end
+
+  defp pair_link(identity, regent_id, human_account_id) do
+    {:ok, link} =
+      AgentLink
+      |> Ash.Changeset.for_create(
+        :pair,
+        %{
+          human_account_id: human_account_id,
+          regent_id: regent_id,
+          agent_id: identity.agent_id,
+          registry_address: identity.registry_address,
+          token_id: identity.token_id,
+          wallet: identity.wallet,
+          paired_at: DateTime.utc_now()
+        },
+        actor: %System{}
+      )
+      |> Ash.create()
+
+    link
+  end
+
+  defp node_columns(node) do
+    attributes = Ash.Resource.Info.attributes(Node)
+    Map.take(Map.from_struct(node), Enum.map(attributes, & &1.name))
+  end
+
+  defp notebook_columns(artifact) do
+    attributes = Ash.Resource.Info.attributes(NotebookArtifact)
+    Map.take(Map.from_struct(artifact), Enum.map(attributes, & &1.name))
   end
 
   defp hash_hex("sha256:" <> hex), do: hex

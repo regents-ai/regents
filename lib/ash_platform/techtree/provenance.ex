@@ -32,6 +32,24 @@ defmodule AshPlatform.Techtree.Provenance do
 
   @spec public_node(map(), list(), map()) :: map()
   def public_node(node, edges, verification) do
+    case public_node_result(node, edges, verification) do
+      {:ok, payload} -> payload
+      {:error, _reason} -> public_node_without_evidence_state(node, edges, verification)
+    end
+  end
+
+  @spec public_node_result(map(), list(), map()) ::
+          {:ok, map()} | {:error, :temporarily_unavailable}
+  def public_node_result(node, edges, verification) do
+    payload = public_node_without_evidence_state(node, edges, verification)
+
+    case evidence_state(node) do
+      {:ok, evidence_state} -> {:ok, Map.put(payload, :evidence_state, evidence_state)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp public_node_without_evidence_state(node, edges, verification) do
     node
     |> base_node()
     |> Map.merge(%{
@@ -45,7 +63,6 @@ defmodule AshPlatform.Techtree.Provenance do
     |> put_recorded(node, :capsule)
     |> put_recorded(node, :immutable_payloads)
     |> put_recorded(node, :evidence_projection)
-    |> put_evidence_state(node)
   end
 
   @spec resolve_profile(map()) :: map() | nil
@@ -228,20 +245,20 @@ defmodule AshPlatform.Techtree.Provenance do
     end
   end
 
-  defp put_evidence_state(payload, node) do
+  defp evidence_state(node) do
     case Map.get(node, :id) do
       id when is_binary(id) ->
         case EvidenceStateUpdate.latest_for_node(id) do
-          {:ok, nil} -> Map.put(payload, :evidence_state, synthesized_evidence_state(node))
-          {:ok, update} -> Map.put(payload, :evidence_state, public_evidence_state(update))
-          _error -> Map.put(payload, :evidence_state, synthesized_evidence_state(node))
+          {:ok, nil} -> {:ok, synthesized_evidence_state(node)}
+          {:ok, update} -> {:ok, public_evidence_state(update)}
+          {:error, _error} -> {:error, :temporarily_unavailable}
         end
 
       _id ->
-        put_recorded(payload, node, :evidence_state)
+        {:ok, Map.get(node, :evidence_state)}
     end
   rescue
-    _error -> put_recorded(payload, node, :evidence_state)
+    _error -> {:error, :temporarily_unavailable}
   end
 
   defp synthesized_evidence_state(node) do
