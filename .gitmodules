@@ -22,3 +22,6 @@
 [submodule "lib/uerc20-factory"]
 	path = lib/uerc20-factory
 	url = https://github.com/Uniswap/uerc20-factory
+[submodule "lib/safe-smart-account"]
+	path = lib/safe-smart-account
+	url = https://github.com/safe-fndn/safe-smart-account

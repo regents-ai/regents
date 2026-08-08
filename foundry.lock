@@ -11,6 +11,9 @@
   "lib/permit2": {
     "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
   },
+  "lib/safe-smart-account": {
+    "rev": "bf943f80fec5ac647159d26161446ac5d716a294"
+  },
   "lib/solady": {
     "rev": "90db92ce173856605d24a554969f2c67cadbc7e9"
   },

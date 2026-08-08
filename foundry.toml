@@ -21,6 +21,7 @@ remappings = [
   "permit2/=lib/permit2/",
   "solmate/=lib/solmate/",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "@safe-global/safe-smart-account/=lib/safe-smart-account/contracts/",
 ]
 
 [rpc_endpoints]
