@@ -17,16 +17,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :subject_tokens, :list, required: true
   attr :subject_actions, :list, required: true
   attr :subject_settlements, :list, required: true
-  attr :buyback_fields, :map, default: %{"amount_usdc" => "", "minimum_regent_output" => ""}
-  attr :buyback_notice, :map, default: nil
-  attr :buyback_prepared, :map, default: nil
-  attr :buyback_submission, :map, default: nil
-  attr :buyback_signing, :boolean, default: false
-  attr :subject_payment_fields, :map, default: %{}
-  attr :subject_payment_notice, :map, default: nil
-  attr :subject_payment_prepared, :map, default: nil
-  attr :subject_payment_submission, :map, default: nil
-  attr :subject_payment_signing, :boolean, default: false
   attr :bid_positions, :list, required: true
   attr :returnable_positions, :list, required: true
   attr :claimed_token_positions, :list, required: true
@@ -114,17 +104,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
       actions={@subject_actions}
       settlements={@subject_settlements}
       status={@status}
-      account_control={@account_control}
-      buyback_fields={@buyback_fields}
-      buyback_notice={@buyback_notice}
-      buyback_prepared={@buyback_prepared}
-      buyback_submission={@buyback_submission}
-      buyback_signing={@buyback_signing}
-      subject_payment_fields={@subject_payment_fields}
-      subject_payment_notice={@subject_payment_notice}
-      subject_payment_prepared={@subject_payment_prepared}
-      subject_payment_submission={@subject_payment_submission}
-      subject_payment_signing={@subject_payment_signing}
     />
     <.launch_detail
       :if={@route_spec.route_id == :autolaunch_launch}
@@ -470,17 +449,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :actions, :list, required: true
   attr :settlements, :list, required: true
   attr :status, :atom, required: true
-  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
-  attr :buyback_fields, :map, required: true
-  attr :buyback_notice, :map, default: nil
-  attr :buyback_prepared, :map, default: nil
-  attr :buyback_submission, :map, default: nil
-  attr :buyback_signing, :boolean, required: true
-  attr :subject_payment_fields, :map, required: true
-  attr :subject_payment_notice, :map, default: nil
-  attr :subject_payment_prepared, :map, default: nil
-  attr :subject_payment_submission, :map, default: nil
-  attr :subject_payment_signing, :boolean, required: true
 
   defp subject_detail(assigns) do
     ~H"""
@@ -590,10 +558,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
             <dt>Pending buyback</dt>
             <dd>{display_text(@record.pending_buyback_usdc_raw)}</dd>
           </div>
-          <div>
-            <dt>Ready to settle</dt>
-            <dd>{if(settlement_ready?(@record), do: "Yes", else: "No")}</dd>
-          </div>
         </dl>
 
         <.subject_action_list
@@ -602,26 +566,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
           id_prefix="subject-settlement"
         />
       </section>
-
-      <.buyback_wallet
-        record={@record}
-        account_control={@account_control}
-        fields={@buyback_fields}
-        notice={@buyback_notice}
-        prepared={@buyback_prepared}
-        submission={@buyback_submission}
-        signing={@buyback_signing}
-      />
-
-      <.subject_payment_wallet
-        record={@record}
-        account_control={@account_control}
-        fields={@subject_payment_fields}
-        notice={@subject_payment_notice}
-        prepared={@subject_payment_prepared}
-        submission={@subject_payment_submission}
-        signing={@subject_payment_signing}
-      />
     </article>
 
     <section
@@ -643,392 +587,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
       <h1>Subject unavailable</h1>
       <p>This subject could not be loaded right now.</p>
       <.link patch="/autolaunch/subjects">Return to Subjects</.link>
-    </section>
-    """
-  end
-
-  attr :record, :map, required: true
-  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
-  attr :fields, :map, required: true
-  attr :notice, :map, default: nil
-  attr :prepared, :map, default: nil
-  attr :submission, :map, default: nil
-  attr :signing, :boolean, required: true
-
-  defp buyback_wallet(assigns) do
-    ~H"""
-    <section
-      id="subject-buyback-wallet"
-      phx-hook="AutolaunchBuybackWallet"
-      aria-labelledby="subject-buyback-wallet-title"
-    >
-      <p class="autolaunch-kicker">Wallet action</p>
-      <h2 id="subject-buyback-wallet-title">Settle a pending buyback</h2>
-      <p>
-        Regent checks the current market guardrails and prepares the revenue-router request.
-        Your verified wallet reviews and signs the settlement.
-      </p>
-
-      <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
-        Sign in to prepare a buyback settlement from a verified wallet.
-      </p>
-
-      <form
-        :if={@account_control.kind == :signed_in}
-        id="subject-buyback-form"
-        phx-submit="prepare_autolaunch_buyback"
-      >
-        <label>
-          <span>USDC amount</span>
-          <input
-            type="text"
-            inputmode="decimal"
-            name="buyback[amount_usdc]"
-            value={@fields["amount_usdc"]}
-            autocomplete="off"
-            required
-          />
-        </label>
-        <label>
-          <span>Minimum REGENT output</span>
-          <input
-            type="text"
-            inputmode="decimal"
-            name="buyback[minimum_regent_output]"
-            value={@fields["minimum_regent_output"]}
-            autocomplete="off"
-            required
-          />
-        </label>
-        <button type="submit" disabled={not is_nil(@submission)}>Review settlement</button>
-      </form>
-
-      <p
-        :if={@notice}
-        class={"autolaunch-draft-notice autolaunch-draft-notice--#{@notice.tone}"}
-        role={if(@notice.tone == :error, do: "alert", else: "status")}
-      >
-        {@notice.message}
-      </p>
-
-      <section :if={@prepared} id="subject-buyback-review" aria-label="Wallet action review">
-        <p class="autolaunch-kicker">Review before signing</p>
-        <h3>Settle treasury buyback</h3>
-        <p>{@prepared.risk_copy}</p>
-        <dl>
-          <div>
-            <dt>USDC amount</dt><dd>{buyback_argument(@prepared, :amount_usdc)}</dd>
-          </div>
-          <div>
-            <dt>Minimum REGENT output</dt>
-            <dd>{buyback_argument(@prepared, :minimum_regent_output)}</dd>
-          </div>
-          <div>
-            <dt>Subject</dt><dd>{buyback_argument(@prepared, :subject_id)}</dd>
-          </div>
-          <div>
-            <dt>Treasury</dt><dd>{buyback_argument(@prepared, :treasury)}</dd>
-          </div>
-          <div>
-            <dt>Network</dt><dd>Base</dd>
-          </div>
-          <div>
-            <dt>Wallet</dt><dd>{@prepared.expected_signer}</dd>
-          </div>
-          <div>
-            <dt>Contract</dt><dd>{@prepared.to}</dd>
-          </div>
-          <div>
-            <dt>Native value</dt><dd>0 ETH</dd>
-          </div>
-        </dl>
-        <button
-          :if={is_nil(@submission)}
-          type="button"
-          phx-click="sign_prepared_autolaunch_buyback"
-          phx-value-action-id={@prepared.action_id}
-          disabled={@signing}
-        >
-          {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
-        </button>
-        <button
-          :if={is_nil(@submission)}
-          type="button"
-          phx-click="cancel_autolaunch_buyback_review"
-        >
-          Cancel review
-        </button>
-        <button
-          :if={@submission && @submission[:transaction_hash]}
-          type="button"
-          phx-click="retry_autolaunch_buyback_confirmation"
-          disabled={@signing}
-        >
-          Retry confirmation
-        </button>
-      </section>
-    </section>
-    """
-  end
-
-  attr :record, :map, required: true
-  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
-  attr :fields, :map, required: true
-  attr :notice, :map, default: nil
-  attr :prepared, :map, default: nil
-  attr :submission, :map, default: nil
-  attr :signing, :boolean, required: true
-
-  defp subject_payment_wallet(assigns) do
-    ~H"""
-    <section
-      id="subject-payment-wallet"
-      phx-hook="AutolaunchSubjectPaymentWallet"
-      aria-labelledby="subject-payment-wallet-title"
-    >
-      <p class="autolaunch-kicker">Wallet actions</p>
-      <h2 id="subject-payment-wallet-title">Payment links, revenue, and subject staking</h2>
-      <p>
-        Regent prepares each request from this subject's stored Base contracts. Your verified
-        subject-owner wallet reviews and signs it.
-      </p>
-
-      <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
-        Sign in to prepare subject wallet actions.
-      </p>
-
-      <div :if={@account_control.kind == :signed_in} id="subject-payment-forms">
-        <form id="subject-payment-link-create-form" phx-submit="prepare_autolaunch_subject_payment">
-          <input type="hidden" name="subject_payment[action]" value="create_payment_link" />
-          <h3>Create a payment link</h3>
-          <label>
-            <span>Label</span>
-            <input
-              type="text"
-              name="subject_payment[label]"
-              value={subject_payment_field(@fields, "label")}
-              maxlength="96"
-              required
-            />
-          </label>
-          <label>
-            <span>Link kind</span>
-            <select name="subject_payment[canonical]">
-              <option value="false">Standard</option>
-              <option value="true">Canonical</option>
-            </select>
-          </label>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review payment link
-          </button>
-        </form>
-
-        <form
-          id="subject-payment-link-canonical-form"
-          phx-submit="prepare_autolaunch_subject_payment"
-        >
-          <input
-            type="hidden"
-            name="subject_payment[action]"
-            value="set_payment_link_canonical"
-          />
-          <h3>Set canonical status</h3>
-          <label>
-            <span>Payment-link address</span>
-            <input type="text" name="subject_payment[receiver]" required autocomplete="off" />
-          </label>
-          <label>
-            <span>Canonical</span>
-            <select name="subject_payment[canonical]">
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </label>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review canonical change
-          </button>
-        </form>
-
-        <form id="subject-payment-link-state-form" phx-submit="prepare_autolaunch_subject_payment">
-          <input type="hidden" name="subject_payment[action]" value="set_payment_link_state" />
-          <h3>Set payment-link receiver state</h3>
-          <label>
-            <span>Payment-link address</span>
-            <input type="text" name="subject_payment[receiver]" required autocomplete="off" />
-          </label>
-          <label>
-            <span>Active</span>
-            <select name="subject_payment[active]">
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </label>
-          <label>
-            <span>Replacement address (optional)</span>
-            <input type="text" name="subject_payment[replacement]" autocomplete="off" />
-          </label>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review receiver change
-          </button>
-        </form>
-
-        <form
-          :if={@record.ingress_address}
-          id="subject-ingress-sweep-form"
-          phx-submit="prepare_autolaunch_subject_payment"
-        >
-          <input type="hidden" name="subject_payment[action]" value="sweep_usdc" />
-          <h3>Sweep recorded revenue ingress</h3>
-          <p>{@record.ingress_address}</p>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review USDC sweep
-          </button>
-        </form>
-
-        <form id="subject-stake-form" phx-submit="prepare_autolaunch_subject_payment">
-          <input type="hidden" name="subject_payment[action]" value="stake" />
-          <h3>Stake subject tokens</h3>
-          <label>
-            <span>Token amount</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              name="subject_payment[amount]"
-              required
-              autocomplete="off"
-            />
-          </label>
-          <label>
-            <span>Receiver (optional; defaults to your wallet)</span>
-            <input type="text" name="subject_payment[receiver]" autocomplete="off" />
-          </label>
-          <p>
-            This uses an exact token approval for the reviewed amount. Your wallet may retain that
-            allowance if the stake is not submitted; review or revoke it before preparing again.
-          </p>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review stake
-          </button>
-        </form>
-
-        <form id="subject-unstake-form" phx-submit="prepare_autolaunch_subject_payment">
-          <input type="hidden" name="subject_payment[action]" value="unstake" />
-          <h3>Unstake subject tokens</h3>
-          <label>
-            <span>Token amount</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              name="subject_payment[amount]"
-              required
-              autocomplete="off"
-            />
-          </label>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review unstake
-          </button>
-        </form>
-
-        <form id="subject-claim-usdc-form" phx-submit="prepare_autolaunch_subject_payment">
-          <input type="hidden" name="subject_payment[action]" value="claim_usdc" />
-          <h3>Claim subject USDC</h3>
-          <button type="submit" disabled={subject_payment_locked?(@prepared, @submission)}>
-            Review USDC claim
-          </button>
-        </form>
-      </div>
-
-      <p
-        :if={@notice}
-        class={"autolaunch-draft-notice autolaunch-draft-notice--#{@notice.tone}"}
-        role={if(@notice.tone == :error, do: "alert", else: "status")}
-      >
-        {@notice.message}
-      </p>
-
-      <section :if={@prepared} id="subject-payment-review" aria-label="Wallet action review">
-        <p class="autolaunch-kicker">Review before signing</p>
-        <h3>{subject_payment_title(@prepared.action)}</h3>
-        <p>{@prepared.risk_copy}</p>
-        <dl>
-          <div>
-            <dt>Subject</dt><dd>{subject_payment_argument(@prepared, :subject_id)}</dd>
-          </div>
-          <div>
-            <dt>Network</dt><dd>Base</dd>
-          </div>
-          <div>
-            <dt>Wallet</dt><dd>{@prepared.expected_signer}</dd>
-          </div>
-          <div>
-            <dt>Contract</dt><dd>{@prepared.to}</dd>
-          </div>
-          <div>
-            <dt>Native value</dt><dd>0 ETH</dd>
-          </div>
-          <div :if={subject_payment_argument(@prepared, :label)}>
-            <dt>Label</dt><dd>{subject_payment_argument(@prepared, :label)}</dd>
-          </div>
-          <div :if={subject_payment_argument(@prepared, :receiver)}>
-            <dt>Receiver</dt><dd>{subject_payment_argument(@prepared, :receiver)}</dd>
-          </div>
-          <div
-            :if={subject_payment_argument(@prepared, :replacement)}
-            id="subject-payment-review-replacement"
-          >
-            <dt>Replacement</dt><dd>{subject_payment_argument(@prepared, :replacement)}</dd>
-          </div>
-          <div :if={subject_payment_argument(@prepared, :amount)}>
-            <dt>Token amount</dt><dd>{subject_payment_argument(@prepared, :amount)}</dd>
-          </div>
-          <div :if={not is_nil(subject_payment_argument(@prepared, :canonical))}>
-            <dt>Canonical</dt>
-            <dd>{yes_no(subject_payment_argument(@prepared, :canonical))}</dd>
-          </div>
-          <div :if={not is_nil(subject_payment_argument(@prepared, :active))}>
-            <dt>Active</dt><dd>{yes_no(subject_payment_argument(@prepared, :active))}</dd>
-          </div>
-        </dl>
-        <p :if={@prepared.approval}>
-          First approve exactly {@prepared.approval.amount} atomic units of the stored subject token.
-          If you stop after approval, review or revoke that allowance in your wallet.
-        </p>
-        <button
-          :if={is_nil(@submission)}
-          type="button"
-          phx-click="sign_prepared_autolaunch_subject_payment"
-          phx-value-action-id={@prepared.action_id}
-          disabled={@signing}
-        >
-          {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
-        </button>
-        <button
-          :if={is_nil(@submission)}
-          type="button"
-          phx-click="cancel_autolaunch_subject_payment_review"
-        >
-          Cancel review
-        </button>
-        <button
-          :if={
-            @submission && @submission[:approval_transaction_hash] &&
-              is_nil(@submission[:transaction_hash])
-          }
-          type="button"
-          phx-click="retry_autolaunch_subject_payment_approval_verification"
-          disabled={@signing}
-        >
-          Retry approval verification
-        </button>
-        <button
-          :if={@submission && @submission[:transaction_hash]}
-          type="button"
-          phx-click="retry_autolaunch_subject_payment_confirmation"
-          disabled={@signing}
-        >
-          Retry confirmation
-        </button>
-      </section>
     </section>
     """
   end
@@ -1635,31 +1193,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp subject_label(%{subject_id: subject_id}), do: subject_id
 
-  defp buyback_argument(%{arguments: arguments}, key) do
-    Map.get(arguments, key, Map.get(arguments, Atom.to_string(key)))
-  end
-
-  defp subject_payment_argument(%{arguments: arguments}, key) do
-    Map.get(arguments, key, Map.get(arguments, Atom.to_string(key)))
-  end
-
-  defp subject_payment_field(fields, key), do: Map.get(fields, key, "")
-
-  defp subject_payment_locked?(prepared, submission),
-    do: not is_nil(prepared) or not is_nil(submission)
-
-  defp subject_payment_title("create_payment_link"), do: "Create payment link"
-  defp subject_payment_title("create_canonical_payment_link"), do: "Create canonical payment link"
-  defp subject_payment_title("set_payment_link_canonical"), do: "Set canonical status"
-  defp subject_payment_title("set_payment_link_receiver_state"), do: "Set receiver state"
-  defp subject_payment_title("sweep_usdc"), do: "Sweep ingress USDC"
-  defp subject_payment_title("stake"), do: "Stake subject tokens"
-  defp subject_payment_title("unstake"), do: "Unstake subject tokens"
-  defp subject_payment_title("claim_usdc"), do: "Claim subject USDC"
-
-  defp yes_no(true), do: "Yes"
-  defp yes_no(false), do: "No"
-
   defp launch_label(%{token_name: token_name, token_symbol: token_symbol}),
     do: "#{token_name} · #{token_symbol}"
 
@@ -1704,9 +1237,4 @@ defmodule AshPlatformWeb.AutolaunchLive do
     do: Calendar.strftime(value, "%b %-d, %Y at %H:%M UTC")
 
   defp display_time(_value), do: "Not available"
-
-  defp settlement_ready?(%{pending_buyback_usdc_raw: value}) when is_binary(value),
-    do: String.trim(value) != ""
-
-  defp settlement_ready?(_record), do: false
 end

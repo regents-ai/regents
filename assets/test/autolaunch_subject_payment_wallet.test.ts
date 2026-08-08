@@ -4,7 +4,6 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import ingressAbi from "../../contracts/abi/revenue-ingress-account.json"
 import paymentLinkAbi from "../../contracts/abi/payment-link-factory.json"
 import splitterAbi from "../../contracts/abi/revenue-share-splitter-v2.json"
-import {recordSubjectPaymentSubmission} from "../js/hooks/autolaunch_subject_payment_wallet"
 import {
   assertSubjectPaymentEnvelope,
   executePreparedSubjectPaymentAction,
@@ -346,30 +345,4 @@ describe("Autolaunch subject payment wallet actions", () => {
     expect(actionSubmitted).toHaveBeenCalledWith("action", actionHash)
   })
 
-  it("stores approval and action hashes for submitted-hash recovery", () => {
-    const storage = {setItem: vi.fn()}
-    const prepared = envelope("stake")
-
-    const approval = recordSubjectPaymentSubmission(
-      null,
-      prepared,
-      "approval",
-      approvalHash,
-      storage,
-    )
-    const action = recordSubjectPaymentSubmission(
-      approval,
-      prepared,
-      "action",
-      actionHash,
-      storage,
-    )
-
-    expect(action.approval_transaction_hash).toBe(approvalHash)
-    expect(action.transaction_hash).toBe(actionHash)
-    expect(storage.setItem).toHaveBeenLastCalledWith(
-      "regent:autolaunch-subject-payment:submitted",
-      expect.stringContaining(actionHash),
-    )
-  })
 })

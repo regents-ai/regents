@@ -40,7 +40,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   }
 
   def prepare_payment_link(subject_id, signer, label, canonical, opts) do
-    with {:ok, subject, signer, subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, factory} <- normalize_address(subject.factory_address),
          {:ok, label} <- label(label),
          {:ok, canonical} <- boolean(canonical),
@@ -73,7 +74,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   end
 
   def prepare_payment_link_canonical(subject_id, signer, receiver, canonical, opts) do
-    with {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, factory} <- normalize_address(subject.factory_address),
          {:ok, receiver} <- allowed_payment_link_receiver(subject, receiver),
          {:ok, canonical} <- boolean(canonical),
@@ -103,7 +105,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
         replacement,
         opts
       ) do
-    with {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, factory} <- normalize_address(subject.factory_address),
          {:ok, receiver} <- allowed_payment_link_receiver(subject, receiver),
          {:ok, active} <- boolean(active),
@@ -129,7 +132,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   end
 
   def prepare_ingress_sweep(subject_id, signer, ingress_address, opts) do
-    with {:ok, subject, signer, subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, ingress} <- allowed_ingress(subject, ingress_address),
          {:ok, data} <- encode(fn -> SubjectPaymentAbi.encode_ingress_sweep(subject_bytes32) end) do
       {:ok,
@@ -146,7 +150,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   end
 
   def prepare_stake(subject_id, signer, amount, receiver, opts) do
-    with {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, splitter} <- normalize_address(subject.splitter_address),
          {:ok, token} <- normalize_address(subject.token_address),
          {:ok, amount_decimal, amount_atomic} <- decimal_units(amount),
@@ -180,7 +185,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   end
 
   def prepare_unstake(subject_id, signer, amount, opts) do
-    with {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, splitter} <- normalize_address(subject.splitter_address),
          {:ok, amount_decimal, amount_atomic} <- decimal_units(amount),
          {:ok, data} <-
@@ -201,7 +207,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
   end
 
   def prepare_claim_usdc(subject_id, signer, opts) do
-    with {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
+    with :ok <- action_not_admitted(),
+         {:ok, subject, signer, _subject_bytes32} <- prepare_context(subject_id, signer, opts),
          {:ok, splitter} <- normalize_address(subject.splitter_address),
          {:ok, data} <- encode(fn -> SubjectPaymentAbi.encode_claim_usdc(signer) end) do
       {:ok,
@@ -281,6 +288,8 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentActions do
       _ -> {:error, :invalid_submitted_action}
     end
   end
+
+  defp action_not_admitted, do: {:error, :action_not_admitted}
 
   defp prepare_context(subject_id, signer, opts) do
     actor = Keyword.get(opts, :actor)

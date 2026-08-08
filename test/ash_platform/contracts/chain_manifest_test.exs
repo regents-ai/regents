@@ -7,7 +7,6 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @redeemer_abi_sha256 "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
   @auction_abi_sha256 "901e5873cc24b52eac61553bcdee68c208fb4c210e081337fdbad28f5ac61b76"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @buyback_abi_sha256 "2629af417f877ec532a40e1a1c3a578a17fb3d9b4a2ad7facf4c5ef2060bf581"
   @payment_link_abi_sha256 "121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343"
   @payment_link_created_signature "PaymentLinkCreated(bytes32,address,address,string,bool)"
   @payment_link_created_topic0 "0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb"
@@ -372,23 +371,12 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              "continuous_clearing_auction.exit_bid",
              "continuous_clearing_auction.return_quote_token",
              "continuous_clearing_auction.claim_bid",
-             "quote_token_erc20.approve_exact",
-             "regent_staking_revenue_router.settle_treasury_buyback",
-             "payment_link_factory.create_payment_link",
-             "payment_link_factory.create_canonical_payment_link",
-             "payment_link_factory.set_payment_link_canonical",
-             "payment_link_factory.set_payment_link_receiver_state",
-             "revenue_ingress_account.sweep_usdc",
-             "subject_token_erc20.approve_exact",
-             "revenue_share_splitter_v2.stake",
-             "revenue_share_splitter_v2.unstake",
-             "revenue_share_splitter_v2.claim_usdc"
+             "quote_token_erc20.approve_exact"
            ]
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
     auction = evidence["continuous_clearing_auction"]
     erc20 = evidence["quote_token_erc20"]
-    buyback = evidence["regent_staking_revenue_router"]
     payment_links = evidence["payment_link_factory"]
     ingress = evidence["revenue_ingress_account"]
     subject_erc20 = evidence["subject_token_erc20"]
@@ -403,12 +391,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert auction["action_ids"] == ~w(submit_bid exit_bid return_quote_token claim_bid)
     assert erc20["target"] == "stored_quote_token_address"
     assert erc20["action_ids"] == ["approve_exact"]
-    assert buyback["contract_name"] == "RegentStakingRevenueRouter"
-    assert buyback["target"] == "stored_subject_revenue_router_address"
-    assert buyback["action_ids"] == ["settle_treasury_buyback"]
-    assert buyback["interface_provenance"] =~ "selector 0xd8df40b6"
-    assert buyback["implementation_note"] =~ "selector 0x9f93f885"
-    assert buyback["implementation_note"] =~ "not implementation or deployment proof"
+    refute Map.has_key?(evidence, "regent_staking_revenue_router")
     assert payment_links["target"] == "stored_subject_factory_address"
     assert payment_links["implementation_provenance"] =~ "PaymentLinkFactory.sol:30-36,64-115,197"
     assert payment_links["confirmation_event_signature"] == @payment_link_created_signature
@@ -428,7 +411,6 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     for {entry, digest} <- [
           {auction, @auction_abi_sha256},
           {erc20, @erc20_approve_abi_sha256},
-          {buyback, @buyback_abi_sha256},
           {payment_links, @payment_link_abi_sha256},
           {ingress, @ingress_abi_sha256},
           {subject_erc20, @erc20_approve_abi_sha256},
@@ -444,28 +426,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       %{"signature" => "submitBid(uint256,uint128,address,bytes)", "selector" => "0x140fe8ee"},
       %{"signature" => "exitBid(uint256)", "selector" => "0x8e4deb17"},
       %{"signature" => "claimTokens(uint256)", "selector" => "0x46e04a2f"},
-      %{"signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"},
-      %{
-        "signature" => "settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32)",
-        "selector" => "0xd8df40b6"
-      },
-      %{
-        "signature" => "createPaymentLink(bytes32,string,bytes32)",
-        "selector" => "0x96bc6c1a"
-      },
-      %{
-        "signature" => "createCanonicalPaymentLink(bytes32,string,bytes32)",
-        "selector" => "0xb12d629e"
-      },
-      %{"signature" => "setPaymentLinkCanonical(address,bool)", "selector" => "0x706a7fa6"},
-      %{
-        "signature" => "setPaymentLinkReceiverState(address,bool,address)",
-        "selector" => "0xc8c05f99"
-      },
-      %{"signature" => "sweepUSDC(bytes32)", "selector" => "0xbe25fb30"},
-      %{"signature" => "stake(uint256,address)", "selector" => "0x7acb7757"},
-      %{"signature" => "unstake(uint256,address)", "selector" => "0x8381e182"},
-      %{"signature" => "claimUSDC(address)", "selector" => "0x42852610"}
+      %{"signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"}
     ])
   end
 

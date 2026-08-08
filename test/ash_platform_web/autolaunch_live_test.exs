@@ -230,8 +230,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert html =~ "12000000"
     assert html =~ "3400000000000000000"
     assert html =~ "5000000"
-    assert html =~ "Ready to settle"
-    assert html =~ "Yes"
     assert html =~ "settle buyback"
     assert html =~ newer_hash
     assert html =~ older_hash
@@ -267,8 +265,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(detail, "#subject-related-tokens", "No related tokens yet.")
     assert has_element?(detail, "#subject-recent-actions", "No subject actions yet.")
     assert has_element?(detail, "#subject-settlement-history", "No settlements yet.")
-    assert html =~ "Ready to settle"
-    assert html =~ "No"
+    refute html =~ "Ready to settle"
     refute html =~ "$"
   end
 

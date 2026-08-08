@@ -10,7 +10,6 @@ defmodule AshPlatform.WalletActions.Envelope do
     animata_redemption
     autolaunch_auction
     autolaunch_bid
-    autolaunch_buyback
     autolaunch_payment_link
     autolaunch_ingress
     autolaunch_subject_staking

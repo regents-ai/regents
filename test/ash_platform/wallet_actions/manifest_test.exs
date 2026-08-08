@@ -37,11 +37,9 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     },
     "quote_token_erc20" => %{
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
-    },
-    "regent_staking_revenue_router" => %{
-      "settle_treasury_buyback" =>
-        {"settleTreasuryBuyback(bytes32,address,uint256,uint256,bytes32)", "0xd8df40b6"}
-    },
+    }
+  }
+  @retained_evidence_actions %{
     "payment_link_factory" => %{
       "create_payment_link" => {"createPaymentLink(bytes32,string,bytes32)", "0x96bc6c1a"},
       "create_canonical_payment_link" =>
@@ -112,18 +110,16 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       assert evidence["continuous_clearing_auction"]["interface_note"] =~
                "defaults prevTickPriceQ96 to FLOOR_PRICE_Q96"
 
-      buyback = evidence["regent_staking_revenue_router"]
-      assert buyback["interface_provenance"] =~ "Archived Platform application b760a45b"
-      assert buyback["implementation_note"] =~ "removed buyback settlement"
-      assert buyback["implementation_note"] =~ "selector 0x9f93f885"
-      assert buyback["implementation_note"] =~ "not implementation or deployment proof"
-
       for {id, entry} <- evidence do
         abi_path = Path.join("contracts", entry["abi_path"])
         assert File.regular?(abi_path)
         assert sha256(File.read!(abi_path)) == entry["abi_sha256"]
 
-        expected_actions = Map.get(@actions, id) || Map.fetch!(@admitted_actions, id)
+        expected_actions =
+          Map.get(@actions, id) ||
+            Map.get(@admitted_actions, id) ||
+            Map.fetch!(@retained_evidence_actions, id)
+
         assert MapSet.new(entry["action_ids"]) == MapSet.new(Map.keys(expected_actions))
       end
 

@@ -103,10 +103,6 @@ defmodule AshPlatform.Autolaunch do
           :regent_emission_total_raw,
           :pending_buyback_usdc_raw
         ]
-
-      define :set_subject_buyback_router,
-        action: :set_buyback_router,
-        args: [:revenue_router_address]
     end
 
     resource @payment_link_resource
@@ -227,30 +223,6 @@ defmodule AshPlatform.Autolaunch do
 
   def verify_bid_approval_submission(envelope, transaction_hash, opts \\ []),
     do: AshPlatform.Autolaunch.BidActions.approval_status(envelope, transaction_hash, opts)
-
-  def prepare_buyback_settlement(
-        subject_id,
-        signer,
-        amount_usdc,
-        minimum_regent_output,
-        opts \\ []
-      ) do
-    AshPlatform.Autolaunch.BuybackActions.prepare(
-      subject_id,
-      signer,
-      amount_usdc,
-      minimum_regent_output,
-      opts
-    )
-  end
-
-  def confirm_buyback_wallet_action(envelope, transaction_hash, opts \\ []) do
-    AshPlatform.Autolaunch.BuybackActions.confirm(envelope, transaction_hash, opts)
-  end
-
-  def restore_submitted_buyback_action(envelope, opts \\ []) do
-    AshPlatform.Autolaunch.BuybackActions.restore(envelope, opts)
-  end
 
   def prepare_subject_payment_link(
         subject_id,
