@@ -370,7 +370,6 @@ contract SubjectRegistry is ISubjectRegistry, IOwned {
         if (!hasIdentity) return;
         require(registration.identityChainId != 0, "IDENTITY_CHAIN_ID_ZERO");
         require(registration.identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
-        require(registration.identityAgentId != 0, "IDENTITY_AGENT_ID_ZERO");
     }
 
     function _subject(bytes32 subjectId) internal view returns (SubjectConfig memory) {

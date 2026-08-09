@@ -140,6 +140,25 @@ contract RevenueShareFactoryTest is Test {
         assertEq(realSplitter.revenueShareSupplyDenominator(), 1000 ether);
     }
 
+    function testControllerCanCreateSplitterForZeroIdentityAgentId() external {
+        address splitter = factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            INGRESS_FACTORY,
+            TREASURY_SAFE,
+            address(feeRouter),
+            1000 ether,
+            "Agent",
+            8453,
+            address(0x8004),
+            0
+        );
+
+        assertTrue(splitter != address(0));
+        assertEq(factory.splitterOfStakeToken(address(stakeToken)), splitter);
+        assertEq(factory.splitterOfSubject(SUBJECT_ID), splitter);
+    }
+
     function testCreateReservesTokenAndSubjectBeforeExternalDeploy() external {
         ObservingSplitterDeployer observingDeployer =
             new ObservingSplitterDeployer(splitterDeployer);
@@ -210,6 +229,34 @@ contract RevenueShareFactoryTest is Test {
             1000 ether,
             "Agent",
             1,
+            address(0),
+            0
+        );
+
+        vm.expectRevert(RevenueShareFactory.IdentityChainIdZero.selector);
+        factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            INGRESS_FACTORY,
+            TREASURY_SAFE,
+            address(feeRouter),
+            1000 ether,
+            "Agent",
+            0,
+            address(0x8004),
+            0
+        );
+
+        vm.expectRevert(RevenueShareFactory.IdentityChainIdZero.selector);
+        factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            INGRESS_FACTORY,
+            TREASURY_SAFE,
+            address(feeRouter),
+            1000 ether,
+            "Agent",
+            0,
             address(0),
             42
         );

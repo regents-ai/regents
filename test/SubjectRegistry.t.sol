@@ -74,6 +74,71 @@ contract SubjectRegistryTest is Test {
         );
     }
 
+    function testRegistrationStoresIndexesEnumeratesAndRoundTripsZeroIdentityAgentId() external {
+        bytes32 subjectId = keccak256("zero-agent-id");
+        address token = address(0xCA20);
+        ISubjectRegistry.SubjectRegistration memory registration =
+            _registration(subjectId, token, strategy);
+        registration.identityAgentId = 0;
+
+        registry.registerSubject(registration);
+
+        ISubjectRegistry.SubjectConfig memory cfg = registry.getSubject(subjectId);
+        assertEq(cfg.identityChainId, 8453);
+        assertEq(cfg.identityRegistry, address(0x8004));
+        assertEq(cfg.identityAgentId, 0);
+        assertEq(registry.subjectOfStakeToken(token), subjectId);
+        assertEq(registry.subjectCountForStakeToken(token), 1);
+        assertEq(registry.subjectForStakeTokenAt(token, 0), subjectId);
+        bytes32[] memory subjects = registry.subjectsForStakeToken(token);
+        assertEq(subjects.length, 1);
+        assertEq(subjects[0], subjectId);
+        assertEq(registry.identityLinkCount(subjectId), 1);
+        SubjectRegistry.IdentityLink memory link = registry.identityLinkAt(subjectId, 0);
+        assertEq(link.chainId, 8453);
+        assertEq(link.registry, address(0x8004));
+        assertEq(link.agentId, 0);
+        assertEq(registry.subjectForIdentity(8453, address(0x8004), 0), subjectId);
+
+        ISubjectRegistry.SubjectRegistration memory duplicate =
+            _registration(keccak256("duplicate-zero-agent-id"), address(0xCA21), strategy);
+        duplicate.identityAgentId = 0;
+        vm.expectRevert("IDENTITY_ALREADY_LINKED");
+        registry.registerSubject(duplicate);
+        vm.expectRevert("SUBJECT_NOT_FOUND");
+        registry.getSubject(duplicate.subjectId);
+        assertEq(registry.subjectOfStakeToken(duplicate.stakeToken), bytes32(0));
+        assertEq(registry.subjectCountForStakeToken(duplicate.stakeToken), 0);
+        assertEq(registry.subjectForIdentity(8453, address(0x8004), 0), subjectId);
+    }
+
+    function testRegistrationRejectsPartialIdentityTuplesWithoutResidue() external {
+        ISubjectRegistry.SubjectRegistration memory chainOnly =
+            _registration(keccak256("chain-only"), address(0xCA22), strategy);
+        chainOnly.identityRegistry = address(0);
+        chainOnly.identityAgentId = 0;
+        vm.expectRevert("IDENTITY_REGISTRY_ZERO");
+        registry.registerSubject(chainOnly);
+        _assertRegistrationFailureLeavesNoResidue(chainOnly);
+
+        ISubjectRegistry.SubjectRegistration memory registryOnly =
+            _registration(keccak256("registry-only"), address(0xCA23), strategy);
+        registryOnly.identityChainId = 0;
+        registryOnly.identityAgentId = 0;
+        vm.expectRevert("IDENTITY_CHAIN_ID_ZERO");
+        registry.registerSubject(registryOnly);
+        _assertRegistrationFailureLeavesNoResidue(registryOnly);
+
+        ISubjectRegistry.SubjectRegistration memory agentOnly =
+            _registration(keccak256("agent-only"), address(0xCA24), strategy);
+        agentOnly.identityChainId = 0;
+        agentOnly.identityRegistry = address(0);
+        agentOnly.identityAgentId = 42;
+        vm.expectRevert("IDENTITY_CHAIN_ID_ZERO");
+        registry.registerSubject(agentOnly);
+        _assertRegistrationFailureLeavesNoResidue(agentOnly);
+    }
+
     function testOnlyBoundControllerCanRegister() external {
         vm.prank(GOVERNANCE);
         vm.expectRevert("ONLY_CONTROLLER");

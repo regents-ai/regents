@@ -175,7 +175,6 @@ contract RevenueShareFactory is Owned {
     function _validateIdentityLink(SubjectSplitterParams memory params) internal pure {
         if (params.identityChainId == 0) revert IdentityChainIdZero();
         if (params.identityRegistry == address(0)) revert IdentityRegistryZero();
-        if (params.identityAgentId == 0) revert IdentityAgentIdZero();
     }
 
     function _deploySubjectSplitter(SubjectSplitterParams memory params)
