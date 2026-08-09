@@ -45,7 +45,11 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
     );
     event AuthorizedCreatorSet(address indexed account, bool enabled);
 
-    constructor(address owner_) Owned(owner_) {}
+    constructor(address owner_) Owned(owner_) {
+        address expectedDeployer = _strategyDeployer();
+        RegentLBPStrategyDeployer deployer = new RegentLBPStrategyDeployer();
+        require(address(deployer) == expectedDeployer, "DEPLOYER_ADDRESS_MISMATCH");
+    }
 
     modifier onlyAuthorizedCreator() {
         require(msg.sender == owner || authorizedCreators[msg.sender], "ONLY_AUTHORIZED_CREATOR");
@@ -68,34 +72,35 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
         require(amount <= type(uint128).max, "STRATEGY_SUPPLY_TOO_LARGE");
         _validateQuoteToken(cfg);
 
+        bytes memory constructorArguments = abi.encode(
+            RegentLBPStrategy.StrategyConfig({
+                token: token,
+                quoteToken: cfg.quoteToken,
+                auctionInitializerFactory: cfg.auctionInitializerFactory,
+                auctionParameters: cfg.auctionParameters,
+                officialPoolHook: cfg.officialPoolHook,
+                agentSafe: cfg.agentSafe,
+                vestingWallet: cfg.vestingWallet,
+                operator: cfg.operator,
+                positionManager: cfg.positionManager,
+                poolManager: cfg.poolManager,
+                subjectRegistry: cfg.subjectRegistry,
+                officialPoolFee: cfg.officialPoolFee,
+                officialPoolTickSpacing: cfg.officialPoolTickSpacing,
+                auctionCreator: msg.sender,
+                migrationBlock: cfg.migrationBlock,
+                sweepBlock: cfg.sweepBlock,
+                tokenSplitToAuctionMps: cfg.tokenSplitToAuctionMps,
+                // forge-lint: disable-next-line(unsafe-typecast)
+                totalStrategySupply: uint128(amount),
+                auctionTokenAmount: cfg.auctionTokenAmount,
+                reserveTokenAmount: cfg.reserveTokenAmount
+            })
+        );
+        // The fixed deployer only creates the exact strategy, whose constructor makes no calls.
+        // slither-disable-next-line reentrancy-events
         distributionContract = IDistributionContract(
-            address(
-                new RegentLBPStrategy(
-                    RegentLBPStrategy.StrategyConfig({
-                        token: token,
-                        quoteToken: cfg.quoteToken,
-                        auctionInitializerFactory: cfg.auctionInitializerFactory,
-                        auctionParameters: cfg.auctionParameters,
-                        officialPoolHook: cfg.officialPoolHook,
-                        agentSafe: cfg.agentSafe,
-                        vestingWallet: cfg.vestingWallet,
-                        operator: cfg.operator,
-                        positionManager: cfg.positionManager,
-                        poolManager: cfg.poolManager,
-                        subjectRegistry: cfg.subjectRegistry,
-                        officialPoolFee: cfg.officialPoolFee,
-                        officialPoolTickSpacing: cfg.officialPoolTickSpacing,
-                        auctionCreator: msg.sender,
-                        migrationBlock: cfg.migrationBlock,
-                        sweepBlock: cfg.sweepBlock,
-                        tokenSplitToAuctionMps: cfg.tokenSplitToAuctionMps,
-                        // forge-lint: disable-next-line(unsafe-typecast)
-                        totalStrategySupply: uint128(amount),
-                        auctionTokenAmount: cfg.auctionTokenAmount,
-                        reserveTokenAmount: cfg.reserveTokenAmount
-                    })
-                )
-            )
+            RegentLBPStrategyDeployer(_strategyDeployer()).deploy(constructorArguments)
         );
 
         emit DistributionInitialized(address(distributionContract), token, amount);
@@ -127,6 +132,41 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
         require(cfg.auctionParameters.currency == cfg.quoteToken, "AUCTION_QUOTE_TOKEN_MISMATCH");
         require(cfg.quoteToken.code.length != 0, "QUOTE_TOKEN_NO_CODE");
         require(IERC20MetadataMinimal(cfg.quoteToken).decimals() == 18, "QUOTE_TOKEN_DECIMALS");
+    }
+
+    function _strategyDeployer() private view returns (address) {
+        return
+            address(
+                uint160(uint256(keccak256(abi.encodePacked(hex"d694", address(this), hex"01"))))
+            );
+    }
+}
+
+contract RegentLBPStrategyDeployer {
+    address private immutable factory;
+
+    constructor() {
+        factory = msg.sender;
+    }
+
+    function deploy(bytes calldata constructorArguments) external returns (address strategy) {
+        require(msg.sender == factory, "ONLY_FACTORY");
+
+        // The apparent literal is compiler-generated fixed strategy creation code.
+        // slither-disable-next-line too-many-digits
+        bytes memory initcode =
+            bytes.concat(type(RegentLBPStrategy).creationCode, constructorArguments);
+        // Assembly is required to bubble CREATE return data exactly, including an empty revert.
+        // slither-disable-next-line assembly
+        assembly ("memory-safe") {
+            strategy := create(0, add(initcode, 0x20), mload(initcode))
+            if iszero(strategy) {
+                returndatacopy(0, 0, returndatasize())
+                revert(0, returndatasize())
+            }
+        }
+
+        require(strategy.code.length != 0, "STRATEGY_NO_CODE");
     }
 }
 
