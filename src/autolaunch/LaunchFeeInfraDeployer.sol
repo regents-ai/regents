@@ -11,8 +11,21 @@ contract LaunchFeeInfraDeployer {
     uint160 internal constant REQUIRED_HOOK_FLAGS = Hooks.BEFORE_INITIALIZE_FLAG
         | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
+    address public immutable authorizedController;
 
-    function deploy(address owner, address poolManager, address quoteToken, bytes32 hookSalt)
+    constructor(address authorizedController_) {
+        require(authorizedController_ != address(0), "AUTHORIZED_CONTROLLER_ZERO");
+        authorizedController = authorizedController_;
+    }
+
+    function deploy(
+        address agentSafe,
+        address subjectRegistry,
+        bytes32 subjectId,
+        address poolManager,
+        address quoteToken,
+        bytes32 hookSalt
+    )
         external
         returns (
             LaunchFeeRegistry launchFeeRegistry,
@@ -20,12 +33,16 @@ contract LaunchFeeInfraDeployer {
             LaunchPoolFeeHook hook
         )
     {
-        require(owner != address(0), "OWNER_ZERO");
+        require(msg.sender == authorizedController, "ONLY_AUTHORIZED_CONTROLLER");
+        require(agentSafe != address(0), "AGENT_SAFE_ZERO");
+        require(subjectRegistry != address(0), "SUBJECT_REGISTRY_ZERO");
+        require(subjectId != bytes32(0), "SUBJECT_ID_ZERO");
         require(poolManager != address(0), "POOL_MANAGER_ZERO");
         require(quoteToken != address(0), "QUOTE_TOKEN_ZERO");
 
-        launchFeeRegistry = new LaunchFeeRegistry(address(this), quoteToken);
-        feeVault = new LaunchFeeVault(address(this), address(launchFeeRegistry));
+        launchFeeRegistry =
+            new LaunchFeeRegistry(agentSafe, msg.sender, subjectRegistry, subjectId, quoteToken);
+        feeVault = new LaunchFeeVault(address(launchFeeRegistry));
 
         bytes memory hookConstructorArgs =
             abi.encode(address(this), poolManager, address(launchFeeRegistry), address(feeVault));
@@ -45,9 +62,5 @@ contract LaunchFeeInfraDeployer {
         require(address(hook) == expectedHookAddress, "HOOK_ADDRESS_MISMATCH");
 
         feeVault.setHook(address(hook));
-
-        launchFeeRegistry.transferOwnership(owner);
-        feeVault.transferOwnership(owner);
-        hook.transferOwnership(owner);
     }
 }

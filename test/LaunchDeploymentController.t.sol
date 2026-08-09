@@ -139,7 +139,7 @@ contract LaunchDeploymentControllerTest is Test {
     function setUp() external {
         vm.chainId(8453);
         controller = new LaunchDeploymentController();
-        feeInfraDeployer = new LaunchFeeInfraDeployer();
+        feeInfraDeployer = new LaunchFeeInfraDeployer(address(controller));
         AutolaunchBindingsTest bindingsFixture = new AutolaunchBindingsTest();
         bindingsFixture.setUp();
         poolManager = new MockHookPoolManager();
@@ -170,6 +170,21 @@ contract LaunchDeploymentControllerTest is Test {
 
         vm.expectRevert("REVENUE_INGRESS_FACTORY_ZERO");
         _deploy();
+    }
+
+    function testLegacyRegentRecipientFieldIsInertAndCannotRedirectFees() external {
+        launchCfg.addresses.regentRecipient = address(0xDEAD);
+        bytes32 launchId = _prepareLaunch();
+
+        launchCfg.addresses.regentRecipient = address(0);
+        _deployLaunchFeeInfra(launchId);
+        _finalizeLaunch(launchId);
+
+        LaunchDeploymentController.DeploymentResult memory result = _readResult(launchId);
+        LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
+        assertEq(registry.treasuryRecipient(result.poolId), AGENT_SAFE);
+        assertEq(registry.regentRecipient(result.poolId), registry.REGENT_REVENUE_STAKING());
+        assertEq(registry.agentSafe(), AGENT_SAFE);
     }
 
     function testRejectsBadMigrationTiming() external {
@@ -770,19 +785,14 @@ contract LaunchDeploymentControllerTest is Test {
     {
         _assertRegisteredPool(result);
         LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
-        assertEq(registry.owner(), address(controller));
-        assertEq(registry.pendingOwner(), AGENT_SAFE);
+        assertEq(registry.agentSafe(), AGENT_SAFE);
+        assertEq(registry.setupAuthority(), address(0));
 
         LaunchFeeVault feeVault = LaunchFeeVault(payable(result.feeVaultAddress));
-        assertEq(feeVault.owner(), address(controller));
-        assertEq(feeVault.pendingOwner(), AGENT_SAFE);
+        assertEq(feeVault.hookSetupAuthority(), address(0));
+        assertEq(feeVault.tokenSetupAuthority(), address(0));
         assertEq(feeVault.canonicalLaunchToken(), result.tokenAddress);
         assertEq(feeVault.canonicalQuoteToken(), address(regent));
-
-        LaunchPoolFeeHook hook = LaunchPoolFeeHook(result.hookAddress);
-        assertEq(hook.owner(), address(controller));
-        assertEq(hook.pendingOwner(), AGENT_SAFE);
-
         AgentTokenVestingWallet vestingWallet = AgentTokenVestingWallet(result.vestingWalletAddress);
         assertEq(vestingWallet.beneficiary(), AGENT_SAFE);
     }
@@ -795,8 +805,8 @@ contract LaunchDeploymentControllerTest is Test {
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
         assertEq(poolConfig.launchToken, result.tokenAddress);
         assertEq(poolConfig.quoteToken, address(regent));
-        assertEq(poolConfig.treasury, AGENT_SAFE);
-        assertEq(poolConfig.regentRecipient, REGENT_RECIPIENT);
+        assertEq(registry.treasuryRecipient(result.poolId), AGENT_SAFE);
+        assertEq(registry.regentRecipient(result.poolId), registry.REGENT_REVENUE_STAKING());
     }
 
     function _assertRevenueSubject(LaunchDeploymentController.DeploymentResult memory result)

@@ -258,7 +258,7 @@ contract LaunchDeploymentController is Owned {
         StagedLaunch storage launch = _stagedLaunchOrRevert(launchId, cfg);
         require(!launch.feeInfraDeployed, "FEE_INFRA_ALREADY_DEPLOYED");
 
-        FeeInfra memory feeInfra = _deployFeeInfra(cfg);
+        FeeInfra memory feeInfra = _deployFeeInfra(cfg, launchId, launch.subjectRegistryAddress);
 
         launch.launchFeeRegistryAddress = address(feeInfra.launchFeeRegistry);
         launch.feeVaultAddress = address(feeInfra.feeVault);
@@ -333,8 +333,6 @@ contract LaunchDeploymentController is Owned {
             LaunchFeeRegistry.PoolRegistration({
                 launchToken: launch.tokenAddress,
                 quoteToken: cfg.addresses.auctionQuoteToken,
-                treasury: cfg.addresses.agentSafe,
-                regentRecipient: cfg.addresses.regentRecipient,
                 poolFee: cfg.economics.officialPoolFee,
                 tickSpacing: cfg.economics.officialPoolTickSpacing,
                 poolManager: cfg.addresses.poolManager,
@@ -342,11 +340,7 @@ contract LaunchDeploymentController is Owned {
                 authorizedInitializer: address(strategy)
             })
         );
-        feeVault.setCanonicalTokens(launch.tokenAddress, cfg.addresses.auctionQuoteToken);
-
-        launchFeeRegistry.transferOwnership(cfg.addresses.agentSafe);
-        feeVault.transferOwnership(cfg.addresses.agentSafe);
-        hook.transferOwnership(cfg.addresses.agentSafe);
+        feeVault.setCanonicalTokens(poolId);
 
         launch.strategyAddress = address(strategy);
         launch.auctionAddress = RegentLBPStrategy(address(strategy)).auctionAddress();
@@ -490,7 +484,6 @@ contract LaunchDeploymentController is Owned {
         require(
             IERC20MetadataLike(addresses.auctionQuoteToken).decimals() == 18, "QUOTE_TOKEN_DECIMALS"
         );
-        require(addresses.regentRecipient != address(0), "REGENT_RECIPIENT_ZERO");
     }
 
     function _validateIdentity(address identityRegistry, uint256 identityAgentId) internal pure {
@@ -652,23 +645,21 @@ contract LaunchDeploymentController is Owned {
         );
     }
 
-    function _deployFeeInfra(DeploymentConfig memory cfg)
-        internal
-        returns (FeeInfra memory feeInfra)
-    {
-        (feeInfra.launchFeeRegistry, feeInfra.feeVault, feeInfra.hook) = LaunchFeeInfraDeployer(
-                cfg.addresses.feeInfraDeployer
-            )
-            .deploy(
-                address(this),
-                cfg.addresses.poolManager,
-                cfg.addresses.auctionQuoteToken,
-                cfg.metadata.launchFeeHookSalt
-            );
-
-        feeInfra.launchFeeRegistry.acceptOwnership();
-        feeInfra.feeVault.acceptOwnership();
-        feeInfra.hook.acceptOwnership();
+    function _deployFeeInfra(
+        DeploymentConfig memory cfg,
+        bytes32 subjectId,
+        address subjectRegistry
+    ) internal returns (FeeInfra memory feeInfra) {
+        (feeInfra.launchFeeRegistry, feeInfra.feeVault, feeInfra.hook) =
+            LaunchFeeInfraDeployer(cfg.addresses.feeInfraDeployer)
+                .deploy(
+                    cfg.addresses.agentSafe,
+                    subjectRegistry,
+                    subjectId,
+                    cfg.addresses.poolManager,
+                    cfg.addresses.auctionQuoteToken,
+                    cfg.metadata.launchFeeHookSalt
+                );
     }
 
     function _createRevenueSubject(DeploymentConfig memory cfg, address token)
@@ -836,7 +827,6 @@ contract LaunchDeploymentController is Owned {
                 addresses.strategyOperator,
                 addresses.auctionQuoteToken,
                 addresses.revenueUsdcToken,
-                addresses.regentRecipient,
                 addresses.validationHook
             )
         );

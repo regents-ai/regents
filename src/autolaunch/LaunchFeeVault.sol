@@ -1,17 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Owned} from "src/shared/auth/Owned.sol";
 import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
+import {
+    IRegentRevenueStakingFunding
+} from "src/autolaunch/interfaces/IRegentRevenueStakingFunding.sol";
 import {SafeTransferLib} from "src/shared/libraries/SafeTransferLib.sol";
 
-contract LaunchFeeVault is Owned {
+interface IERC20FeeVaultView {
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address account, address spender) external view returns (uint256);
+}
+
+interface IRegentRevenueStakingView is IRegentRevenueStakingFunding {
+    function totalFundedRegent() external view returns (uint256);
+}
+
+contract LaunchFeeVault {
     using SafeTransferLib for address;
+
+    address public constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+    address public constant REGENT_REVENUE_STAKING = 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5;
 
     LaunchFeeRegistry public immutable registryContract;
     address public hook;
+    address public hookSetupAuthority;
+    address public tokenSetupAuthority;
     address public canonicalLaunchToken;
     address public canonicalQuoteToken;
+    uint256 private _reentrancyGuard = 1;
 
     mapping(bytes32 => mapping(address => uint256)) public treasuryAccrued;
     mapping(bytes32 => mapping(address => uint256)) public regentAccrued;
@@ -26,32 +43,39 @@ contract LaunchFeeVault is Owned {
     event TreasuryWithdrawn(
         bytes32 indexed poolId, address indexed currency, address indexed recipient, uint256 amount
     );
-    event RegentShareWithdrawn(
-        bytes32 indexed poolId, address indexed currency, address indexed recipient, uint256 amount
-    );
+    event RegentShareFunded(bytes32 indexed poolId, uint256 amount);
     event CanonicalTokensSet(address indexed launchToken, address indexed quoteToken);
 
-    constructor(address owner_, address registry_) Owned(owner_) {
-        require(registry_ != address(0), "REGISTRY_ZERO");
-        registryContract = LaunchFeeRegistry(registry_);
+    modifier nonReentrant() {
+        require(_reentrancyGuard == 1, "REENTRANT");
+        _reentrancyGuard = 2;
+        _;
+        _reentrancyGuard = 1;
     }
 
-    function setHook(address hook_) external onlyOwner {
+    constructor(address registry_) {
+        require(registry_ != address(0), "REGISTRY_ZERO");
+        registryContract = LaunchFeeRegistry(registry_);
+        hookSetupAuthority = msg.sender;
+        tokenSetupAuthority = registryContract.setupAuthority();
+    }
+
+    function setHook(address hook_) external {
+        require(msg.sender == hookSetupAuthority, "ONLY_HOOK_SETUP_AUTHORITY");
         require(hook_ != address(0), "HOOK_ZERO");
-        require(hook == address(0), "HOOK_ALREADY_SET");
         hook = hook_;
+        hookSetupAuthority = address(0);
         emit HookSet(hook_);
     }
 
-    function setCanonicalTokens(address launchToken_, address quoteToken_) external onlyOwner {
-        require(launchToken_ != address(0), "TOKEN_ZERO");
-        require(quoteToken_ != address(0), "QUOTE_TOKEN_ZERO");
-        require(launchToken_ != quoteToken_, "POOL_CURRENCIES_EQUAL");
-        require(canonicalLaunchToken == address(0), "CANONICAL_TOKENS_ALREADY_SET");
-
-        canonicalLaunchToken = launchToken_;
-        canonicalQuoteToken = quoteToken_;
-        emit CanonicalTokensSet(launchToken_, quoteToken_);
+    function setCanonicalTokens(bytes32 poolId) external {
+        require(msg.sender == tokenSetupAuthority, "ONLY_TOKEN_SETUP_AUTHORITY");
+        LaunchFeeRegistry.PoolConfig memory config = registryContract.getPoolConfig(poolId);
+        registryContract.requireActiveFeeInfrastructure(address(this), config.hook);
+        canonicalLaunchToken = config.launchToken;
+        canonicalQuoteToken = config.quoteToken;
+        tokenSetupAuthority = address(0);
+        emit CanonicalTokensSet(config.launchToken, config.quoteToken);
     }
 
     function recordAccrual(
@@ -61,59 +85,69 @@ contract LaunchFeeVault is Owned {
         uint256 regentAmount
     ) external {
         require(msg.sender == hook, "ONLY_HOOK");
-
         LaunchFeeRegistry.PoolConfig memory config = registryContract.getPoolConfig(poolId);
         require(config.hookEnabled, "HOOK_DISABLED");
-        require(currency == config.quoteToken, "CURRENCY_MISMATCH");
+        require(currency == REGENT && currency == config.quoteToken, "CURRENCY_MISMATCH");
+        registryContract.requireActiveFeeInfrastructure(address(this), msg.sender);
 
         treasuryAccrued[poolId][currency] += treasuryAmount;
         regentAccrued[poolId][currency] += regentAmount;
-
         emit FeeAccrued(poolId, currency, treasuryAmount, regentAmount);
     }
 
-    function withdrawTreasury(bytes32 poolId, address currency, uint256 amount, address recipient)
-        external
-    {
-        require(recipient != address(0), "RECIPIENT_ZERO");
-        require(msg.sender == registryContract.treasuryRecipient(poolId), "ONLY_TREASURY");
-
-        uint256 available = treasuryAccrued[poolId][currency];
-        require(available >= amount, "TREASURY_BALANCE_LOW");
-
-        unchecked {
-            treasuryAccrued[poolId][currency] = available - amount;
-        }
-
-        emit TreasuryWithdrawn(poolId, currency, recipient, amount);
-        currency.safeTransfer(recipient, amount);
+    function withdrawTreasury(bytes32 poolId) external nonReentrant {
+        address recipient = registryContract.treasuryRecipient(poolId);
+        uint256 amount = treasuryAccrued[poolId][REGENT];
+        require(amount != 0, "NOTHING_ACCRUED");
+        treasuryAccrued[poolId][REGENT] = 0;
+        emit TreasuryWithdrawn(poolId, REGENT, recipient, amount);
+        REGENT.safeTransfer(recipient, amount);
     }
 
-    function withdrawRegentShare(
-        bytes32 poolId,
-        address currency,
-        uint256 amount,
-        address recipient
-    ) external {
-        require(recipient != address(0), "RECIPIENT_ZERO");
-        require(msg.sender == registryContract.regentRecipient(poolId), "ONLY_REGENT_RECIPIENT");
+    // Slither cannot infer the shared custom one-slot guard; the malicious callback/reentry
+    // rollback test is the executable proof that both value-moving paths are mutually guarded.
+    // slither-disable-next-line reentrancy-balance
+    function fundRegentShare(bytes32 poolId) external nonReentrant {
+        require(
+            registryContract.regentRecipient(poolId) == REGENT_REVENUE_STAKING,
+            "STAKING_DESTINATION_MISMATCH"
+        );
+        uint256 amount = regentAccrued[poolId][REGENT];
+        require(amount != 0, "NOTHING_ACCRUED");
 
-        uint256 available = regentAccrued[poolId][currency];
-        require(available >= amount, "REGENT_BALANCE_LOW");
+        IERC20FeeVaultView regent = IERC20FeeVaultView(REGENT);
+        IRegentRevenueStakingView staking = IRegentRevenueStakingView(REGENT_REVENUE_STAKING);
+        require(regent.allowance(address(this), REGENT_REVENUE_STAKING) == 0, "ALLOWANCE_NOT_ZERO");
+        uint256 vaultBalanceBefore = regent.balanceOf(address(this));
+        uint256 stakingBalanceBefore = regent.balanceOf(REGENT_REVENUE_STAKING);
+        uint256 totalFundedBefore = staking.totalFundedRegent();
 
-        unchecked {
-            regentAccrued[poolId][currency] = available - amount;
-        }
+        regentAccrued[poolId][REGENT] = 0;
+        REGENT.forceApprove(REGENT_REVENUE_STAKING, amount);
+        uint256 received = staking.fundRegentRewards(amount);
+        REGENT.forceApprove(REGENT_REVENUE_STAKING, 0);
 
-        emit RegentShareWithdrawn(poolId, currency, recipient, amount);
-        currency.safeTransfer(recipient, amount);
+        require(received == amount, "STAKING_RETURN_MISMATCH");
+        // Exact token deltas are required; fee-on-transfer or donation mismatches must roll back.
+        // slither-disable-next-line incorrect-equality
+        require(
+            regent.balanceOf(address(this)) + amount == vaultBalanceBefore, "VAULT_BALANCE_MISMATCH"
+        );
+        // slither-disable-next-line incorrect-equality
+        require(
+            regent.balanceOf(REGENT_REVENUE_STAKING) == stakingBalanceBefore + amount,
+            "STAKING_BALANCE_MISMATCH"
+        );
+        require(
+            staking.totalFundedRegent() == totalFundedBefore + amount, "STAKING_ACCOUNTING_MISMATCH"
+        );
+        require(
+            regent.allowance(address(this), REGENT_REVENUE_STAKING) == 0, "ALLOWANCE_NOT_CLEARED"
+        );
+        emit RegentShareFunded(poolId, amount);
     }
 
     receive() external payable {
         revert("ETH_NOT_ACCEPTED");
-    }
-
-    function _isProtectedToken(address token) internal view override returns (bool) {
-        return token == canonicalLaunchToken || token == canonicalQuoteToken;
     }
 }

@@ -6,7 +6,7 @@ import {HookMiner} from "src/shared/libraries/HookMiner.sol";
 import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
 
 contract MockHookDeployer {
-    function deploy(address owner_, address poolManager_, address registry_, address vault_)
+    function deploy(address poolManager_, address registry_, address vault_)
         external
         returns (LaunchPoolFeeHook hook)
     {
@@ -15,9 +15,9 @@ contract MockHookDeployer {
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
                 | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG,
             type(LaunchPoolFeeHook).creationCode,
-            abi.encode(owner_, poolManager_, registry_, vault_)
+            abi.encode(address(this), poolManager_, registry_, vault_)
         );
 
-        hook = new LaunchPoolFeeHook{salt: salt}(owner_, poolManager_, registry_, vault_);
+        hook = new LaunchPoolFeeHook{salt: salt}(address(this), poolManager_, registry_, vault_);
     }
 }

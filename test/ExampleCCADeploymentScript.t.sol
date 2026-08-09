@@ -5,7 +5,9 @@ import {Test} from "forge-std/Test.sol";
 
 import {AuctionParameters} from "src/autolaunch/cca/interfaces/IContinuousClearingAuction.sol";
 import {LaunchDeploymentController} from "src/autolaunch/LaunchDeploymentController.sol";
+import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
+import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
 import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
@@ -281,8 +283,12 @@ contract ExampleCCADeploymentScriptTest is Test {
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
         assertEq(poolConfig.launchToken, result.tokenAddress);
         assertEq(poolConfig.quoteToken, REGENT);
-        assertEq(poolConfig.treasury, AGENT_SAFE);
-        assertEq(poolConfig.regentRecipient, REGENT_MULTISIG);
+        assertEq(registry.treasuryRecipient(result.poolId), AGENT_SAFE);
+        assertEq(registry.regentRecipient(result.poolId), registry.REGENT_REVENUE_STAKING());
+        address feeInfraDeployer = LaunchPoolFeeHook(result.hookAddress).feeInfraDeployer();
+        assertEq(
+            LaunchFeeInfraDeployer(feeInfraDeployer).authorizedController(), address(controller)
+        );
     }
 
     function _assertRevenueSplitter(LaunchDeploymentController.DeploymentResult memory result)

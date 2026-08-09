@@ -299,7 +299,7 @@ contract ExampleCCADeploymentScript is Script {
     {
         _requireFactoryOwner(cfg);
         if (cfg.feeInfraDeployer == address(0)) {
-            cfg.feeInfraDeployer = address(new LaunchFeeInfraDeployer());
+            cfg.feeInfraDeployer = address(new LaunchFeeInfraDeployer(cfg.controller));
         }
         LaunchDeploymentController controller = LaunchDeploymentController(cfg.controller);
         RegentLBPStrategyFactory(cfg.strategyFactory)

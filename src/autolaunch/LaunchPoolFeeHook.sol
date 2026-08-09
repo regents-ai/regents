@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Owned} from "src/shared/auth/Owned.sol";
 import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {LaunchFeeVault} from "src/autolaunch/LaunchFeeVault.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -19,7 +18,7 @@ import {
     toBeforeSwapDelta
 } from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 
-contract LaunchPoolFeeHook is Owned, IHooks {
+contract LaunchPoolFeeHook is IHooks {
     using Hooks for IHooks;
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
@@ -27,7 +26,7 @@ contract LaunchPoolFeeHook is Owned, IHooks {
 
     uint256 public constant TOTAL_FEE_BPS = 200;
     uint256 public constant TREASURY_FEE_BPS = 100;
-    uint256 public constant REGENT_MULTISIG_FEE_BPS = 100;
+    uint256 public constant REGENT_STAKING_FEE_BPS = 100;
     uint256 public constant BPS_DENOMINATOR = 10_000;
     // High-risk v4 permissions: beforeInitialize, beforeSwap, afterSwap, beforeSwapReturnDelta,
     // and afterSwapReturnDelta. beforeInitialize gates pool creation to the registry-authorized
@@ -63,13 +62,20 @@ contract LaunchPoolFeeHook is Owned, IHooks {
         bool exactInput
     );
 
-    constructor(address owner_, address poolManager_, address registry_, address vault_)
-        Owned(owner_)
-    {
+    address public immutable feeInfraDeployer;
+
+    constructor(
+        address feeInfraDeployer_,
+        address poolManager_,
+        address registry_,
+        address vault_
+    ) {
+        require(feeInfraDeployer_ == msg.sender, "DEPLOYER_MISMATCH");
         require(poolManager_ != address(0), "POOL_MANAGER_ZERO");
         require(registry_ != address(0), "REGISTRY_ZERO");
         require(vault_ != address(0), "VAULT_ZERO");
 
+        feeInfraDeployer = feeInfraDeployer_;
         poolManagerContract = IPoolManager(poolManager_);
         registryContract = LaunchFeeRegistry(registry_);
         vaultContract = LaunchFeeVault(payable(vault_));
@@ -258,9 +264,9 @@ contract LaunchPoolFeeHook is Owned, IHooks {
     {
         feeData.chargedCurrency = quoteToken;
         feeData.chargedAmount = chargedAmount;
-        feeData.totalFee = feeData.chargedAmount * TOTAL_FEE_BPS / BPS_DENOMINATOR;
-        feeData.treasuryFee = feeData.totalFee * TREASURY_FEE_BPS / TOTAL_FEE_BPS;
-        feeData.regentFee = feeData.totalFee - feeData.treasuryFee;
+        feeData.treasuryFee = feeData.chargedAmount * TREASURY_FEE_BPS / BPS_DENOMINATOR;
+        feeData.regentFee = feeData.chargedAmount * REGENT_STAKING_FEE_BPS / BPS_DENOMINATOR;
+        feeData.totalFee = feeData.treasuryFee + feeData.regentFee;
         feeData.exactInput = exactInput;
     }
 
@@ -320,6 +326,7 @@ contract LaunchPoolFeeHook is Owned, IHooks {
         returns (LaunchFeeRegistry.PoolConfig memory config)
     {
         config = registryContract.getPoolConfig(poolId);
+        registryContract.requireActiveFeeInfrastructure(address(vaultContract), address(this));
         require(config.hookEnabled, "HOOK_DISABLED");
         require(config.poolManager == msg.sender, "POOL_MANAGER_MISMATCH");
         require(config.hook == address(this), "HOOK_MISMATCH");

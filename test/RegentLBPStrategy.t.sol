@@ -118,7 +118,9 @@ contract RegentLBPStrategyTest is Test {
 
     function setUp() external {
         token = new MintableERC20Mock("Launch Token", "LT");
-        quoteToken = new MintableERC20Mock("REGENT", "REGENT");
+        MintableERC20Mock quoteImplementation = new MintableERC20Mock("REGENT", "REGENT");
+        vm.etch(0x6f89bcA4eA5931EdFCB09786267b251DeE752b07, address(quoteImplementation).code);
+        quoteToken = MintableERC20Mock(0x6f89bcA4eA5931EdFCB09786267b251DeE752b07);
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new PoolManager(address(this));
         weth = new WETH();
@@ -133,17 +135,16 @@ contract RegentLBPStrategyTest is Test {
         hookDeployer = new MockHookDeployer();
         // The fee hook's beforeInitialize guard reads pool config from a real registry, so the
         // hook must point at a real LaunchFeeRegistry whose canonical quote token matches.
-        registry = new LaunchFeeRegistry(address(this), address(quoteToken));
-        vault = new LaunchFeeVault(address(this), address(registry));
-        hook = hookDeployer.deploy(
-            address(this), address(poolManager), address(registry), address(vault)
-        );
-        vault.setHook(address(hook));
-        mismatchAuctionFactory = new MismatchAuctionFactory();
-
         subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         lifecycleSplitter = new LifecycleSplitterMock();
         subjectId = keccak256(abi.encode(block.chainid, address(token)));
+        registry = new LaunchFeeRegistry(
+            AGENT_TREASURY, address(this), address(subjectRegistry), subjectId, address(quoteToken)
+        );
+        vault = new LaunchFeeVault(address(registry));
+        hook = hookDeployer.deploy(address(poolManager), address(registry), address(vault));
+        vault.setHook(address(hook));
+        mismatchAuctionFactory = new MismatchAuctionFactory();
         vestingWallet =
             new AgentTokenVestingWallet(AGENT_TREASURY, VESTING_START, 365 days, address(token));
 
@@ -187,14 +188,21 @@ contract RegentLBPStrategyTest is Test {
             LaunchFeeRegistry.PoolRegistration({
                 launchToken: address(token),
                 quoteToken: address(quoteToken),
-                treasury: AGENT_TREASURY,
-                regentRecipient: AGENT_TREASURY,
                 poolFee: OFFICIAL_POOL_FEE,
                 tickSpacing: OFFICIAL_POOL_TICK_SPACING,
                 poolManager: address(poolManager),
                 hook: address(hook),
                 authorizedInitializer: initializer
             })
+        );
+        vault.setCanonicalTokens(
+            registry.computePoolId(
+                address(token),
+                address(quoteToken),
+                OFFICIAL_POOL_FEE,
+                OFFICIAL_POOL_TICK_SPACING,
+                address(hook)
+            )
         );
     }
 
@@ -352,19 +360,21 @@ contract RegentLBPStrategyTest is Test {
         assertEq(token.balanceOf(address(vestingWallet)), vestingBefore + tokenToSweep);
     }
 
-    function testMigrateRevertsWhenStrategyNotAuthorizedInitializer() external {
-        // Pool registered authorizing a DIFFERENT address as initializer; the strategy's direct
-        // poolManager.initialize call must be rejected by the fee hook's beforeInitialize guard.
+    function testRegistryRejectsInitializerThatIsNotTheBoundStrategy() external {
         _registerStrategySubject(strategy);
         strategy.onTokensReceived();
-        _registerOfficialPool(address(0xBEEF));
-        quoteToken.mint(strategy.auctionAddress(), 200e18);
-
-        vm.roll(202);
-        vm.prank(OPERATOR);
-        vm.expectRevert(_wrappedInitializeRevert("UNAUTHORIZED_INITIALIZER"));
-        strategy.migrate();
-
+        vm.expectRevert("STRATEGY_MISMATCH");
+        registry.registerPool(
+            LaunchFeeRegistry.PoolRegistration({
+                launchToken: address(token),
+                quoteToken: address(quoteToken),
+                poolFee: OFFICIAL_POOL_FEE,
+                tickSpacing: OFFICIAL_POOL_TICK_SPACING,
+                poolManager: address(poolManager),
+                hook: address(hook),
+                authorizedInitializer: address(0xBEEF)
+            })
+        );
         assertFalse(strategy.migrated());
     }
 
@@ -597,8 +607,7 @@ contract RegentLBPStrategyTest is Test {
         assertEq(vault.regentAccrued(poolId, address(quoteToken)), expectedFee / 2);
 
         // The agent treasury can actually collect its half.
-        vm.prank(AGENT_TREASURY);
-        vault.withdrawTreasury(poolId, address(quoteToken), expectedFee / 2, AGENT_TREASURY);
+        vault.withdrawTreasury(poolId);
         assertEq(quoteToken.balanceOf(AGENT_TREASURY), expectedFee / 2);
     }
 

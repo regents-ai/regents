@@ -2,8 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
-
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
@@ -19,16 +18,26 @@ import {
 } from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
-import {CustomRevert} from "@uniswap/v4-core/src/libraries/CustomRevert.sol";
-import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {LaunchFeeVault} from "src/autolaunch/LaunchFeeVault.sol";
 import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {SafeTransferLib} from "src/shared/libraries/SafeTransferLib.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockHookDeployer} from "test/mocks/MockHookDeployer.sol";
-import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
+import {MockHookPoolManager, MockFeeSubjectRegistry} from "test/mocks/MockHookPoolManager.sol";
+
+contract HookRegentFundingTarget {
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+    uint256 public totalFundedRegent;
+
+    function fundRegentRewards(uint256 amount) external returns (uint256) {
+        MintableERC20Mock(REGENT).transferFrom(msg.sender, address(this), amount);
+        totalFundedRegent += amount;
+        return amount;
+    }
+}
 
 contract RealPoolManagerHarness is IUnlockCallback {
     using BalanceDeltaLibrary for BalanceDelta;
@@ -39,7 +48,6 @@ contract RealPoolManagerHarness is IUnlockCallback {
         MODIFY_LIQUIDITY,
         SWAP
     }
-
     IPoolManager public immutable poolManager;
 
     constructor(IPoolManager poolManager_) {
@@ -60,27 +68,25 @@ contract RealPoolManagerHarness is IUnlockCallback {
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         require(msg.sender == address(poolManager), "ONLY_POOL_MANAGER");
-
         (Action action, bytes memory inner) = abi.decode(data, (Action, bytes));
         if (action == Action.MODIFY_LIQUIDITY) {
             (PoolKey memory liquidityKey, ModifyLiquidityParams memory liquidityParams) =
                 abi.decode(inner, (PoolKey, ModifyLiquidityParams));
             (BalanceDelta liquidityDelta,) =
-                poolManager.modifyLiquidity(liquidityKey, liquidityParams, bytes(""));
-            _resolveCurrency(liquidityKey.currency0);
-            _resolveCurrency(liquidityKey.currency1);
+                poolManager.modifyLiquidity(liquidityKey, liquidityParams, "");
+            _resolve(liquidityKey.currency0);
+            _resolve(liquidityKey.currency1);
             return abi.encode(liquidityDelta.amount0(), liquidityDelta.amount1());
         }
-
         (PoolKey memory swapKey, SwapParams memory swapParams) =
             abi.decode(inner, (PoolKey, SwapParams));
-        BalanceDelta swapDelta = poolManager.swap(swapKey, swapParams, bytes(""));
-        _resolveCurrency(swapKey.currency0);
-        _resolveCurrency(swapKey.currency1);
+        BalanceDelta swapDelta = poolManager.swap(swapKey, swapParams, "");
+        _resolve(swapKey.currency0);
+        _resolve(swapKey.currency1);
         return abi.encode(swapDelta.amount0(), swapDelta.amount1());
     }
 
-    function _resolveCurrency(Currency currency) internal {
+    function _resolve(Currency currency) internal {
         int256 delta = poolManager.currencyDelta(address(this), currency);
         if (delta < 0) {
             uint256 amount = uint256(-delta);
@@ -96,79 +102,86 @@ contract RealPoolManagerHarness is IUnlockCallback {
 contract LaunchPoolFeeHookTest is Test {
     using PoolIdLibrary for PoolKey;
 
-    uint24 internal constant POOL_FEE = 0;
-    int24 internal constant TICK_SPACING = 60;
-    address internal constant OWNER = address(0xA11CE);
-    address internal constant TREASURY = address(0x7EAD);
-    address internal constant REGENT_RECIPIENT = address(0x9FA1);
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+    address internal constant STAKING = 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5;
+    address internal constant AGENT_SAFE = address(0xA11CE);
     address internal constant TRADER = address(0xB0B);
-    uint256 internal constant FEE_BPS = 200;
+    uint24 internal constant POOL_FEE = 3000;
+    int24 internal constant TICK_SPACING = 60;
+    bytes32 internal constant SUBJECT_ID = keccak256("mock-subject");
+    bytes32 internal constant REAL_SUBJECT_ID = keccak256("real-subject");
 
+    MintableERC20Mock internal regent;
+    MintableERC20Mock internal launchToken;
+    MockFeeSubjectRegistry internal subjectRegistry;
     LaunchFeeRegistry internal registry;
     LaunchFeeVault internal vault;
-    LaunchPoolFeeHook internal hook;
     MockHookDeployer internal hookDeployer;
     MockHookPoolManager internal poolManager;
-    MintableERC20Mock internal launchToken;
-    MintableERC20Mock internal quoteToken;
+    LaunchPoolFeeHook internal hook;
+    PoolKey internal poolKey;
+    bytes32 internal poolId;
+
+    PoolManager internal realPoolManager;
+    RealPoolManagerHarness internal realHarness;
+    MintableERC20Mock internal realLaunchToken;
+    MockFeeSubjectRegistry internal realSubjectRegistry;
     LaunchFeeRegistry internal realRegistry;
     LaunchFeeVault internal realVault;
     LaunchPoolFeeHook internal realHook;
-    PoolManager internal realPoolManager;
-    MintableERC20Mock internal realLaunchToken;
-    MintableERC20Mock internal realQuoteToken;
-    RealPoolManagerHarness internal realHarness;
-
-    PoolKey internal poolKey;
-    bytes32 internal poolId;
     PoolKey internal realPoolKey;
     bytes32 internal realPoolId;
 
     function setUp() external {
-        vm.startPrank(OWNER);
-
+        MintableERC20Mock regentImplementation = new MintableERC20Mock("REGENT", "REGENT");
+        vm.etch(REGENT, address(regentImplementation).code);
+        regent = MintableERC20Mock(REGENT);
         launchToken = new MintableERC20Mock("Launch", "LAUNCH");
-        quoteToken = new MintableERC20Mock("Quote", "Q");
-        registry = new LaunchFeeRegistry(OWNER, address(quoteToken));
-        vault = new LaunchFeeVault(OWNER, address(registry));
         hookDeployer = new MockHookDeployer();
         poolManager = new MockHookPoolManager();
-        hook = hookDeployer.deploy(OWNER, address(poolManager), address(registry), address(vault));
-
+        subjectRegistry = new MockFeeSubjectRegistry();
+        registry = new LaunchFeeRegistry(
+            AGENT_SAFE, address(this), address(subjectRegistry), SUBJECT_ID, REGENT
+        );
+        vault = new LaunchFeeVault(address(registry));
+        hook = hookDeployer.deploy(address(poolManager), address(registry), address(vault));
         vault.setHook(address(hook));
-        poolId = _registerPool(address(launchToken), address(quoteToken));
-        realPoolManager = new PoolManager(OWNER);
+        _setSubject(subjectRegistry, SUBJECT_ID, registry, vault, hook, launchToken, address(this));
+        poolId = registry.registerPool(
+            _registration(address(launchToken), address(poolManager), address(hook))
+        );
+        vault.setCanonicalTokens(poolId);
+        poolKey = _sortedPoolKey(address(launchToken), REGENT, address(hook));
+        regent.mint(address(poolManager), 100_000e18);
+
+        realPoolManager = new PoolManager(AGENT_SAFE);
+        realHarness = new RealPoolManagerHarness(realPoolManager);
         realLaunchToken = new MintableERC20Mock("Real Launch", "RLAUNCH");
-        realQuoteToken = new MintableERC20Mock("Real Quote", "RQUOTE");
-        realRegistry = new LaunchFeeRegistry(OWNER, address(realQuoteToken));
-        realVault = new LaunchFeeVault(OWNER, address(realRegistry));
+        realSubjectRegistry = new MockFeeSubjectRegistry();
+        realRegistry = new LaunchFeeRegistry(
+            AGENT_SAFE, address(this), address(realSubjectRegistry), REAL_SUBJECT_ID, REGENT
+        );
+        realVault = new LaunchFeeVault(address(realRegistry));
         realHook = hookDeployer.deploy(
-            OWNER, address(realPoolManager), address(realRegistry), address(realVault)
+            address(realPoolManager), address(realRegistry), address(realVault)
         );
         realVault.setHook(address(realHook));
-        realPoolId = realRegistry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: address(realLaunchToken),
-                quoteToken: address(realQuoteToken),
-                treasury: TREASURY,
-                regentRecipient: REGENT_RECIPIENT,
-                poolFee: POOL_FEE,
-                tickSpacing: TICK_SPACING,
-                poolManager: address(realPoolManager),
-                hook: address(realHook),
-                authorizedInitializer: address(this)
-            })
+        _setSubject(
+            realSubjectRegistry,
+            REAL_SUBJECT_ID,
+            realRegistry,
+            realVault,
+            realHook,
+            realLaunchToken,
+            address(this)
         );
-        vm.stopPrank();
-
-        poolKey = _sortedPoolKey(address(launchToken), address(quoteToken), address(hook));
-        realPoolKey =
-            _sortedPoolKey(address(realLaunchToken), address(realQuoteToken), address(realHook));
-        launchToken.mint(address(poolManager), 1000e18);
-        quoteToken.mint(address(poolManager), 1000e18);
-        realHarness = new RealPoolManagerHarness(realPoolManager);
-        realLaunchToken.mint(address(realHarness), 10_000e18);
-        realQuoteToken.mint(address(realHarness), 10_000e18);
+        realPoolId = realRegistry.registerPool(
+            _registration(address(realLaunchToken), address(realPoolManager), address(realHook))
+        );
+        realVault.setCanonicalTokens(realPoolId);
+        realPoolKey = _sortedPoolKey(address(realLaunchToken), REGENT, address(realHook));
+        realLaunchToken.mint(address(realHarness), 100_000e18);
+        regent.mint(address(realHarness), 100_000e18);
         realPoolManager.initialize(realPoolKey, TickMath.getSqrtPriceAtTick(0));
         realHarness.modifyLiquidity(
             realPoolKey,
@@ -178,283 +191,448 @@ contract LaunchPoolFeeHookTest is Test {
         );
     }
 
-    function testZeroForOneExactInputChargesQuoteToken() external {
-        _assertSwapFee(poolKey, true, -100e18, -100e18, 80e18);
-    }
-
-    function testZeroForOneExactOutputChargesQuoteToken() external {
-        _assertSwapFee(poolKey, true, 90e18, -120e18, 90e18);
-    }
-
-    function testOneForZeroExactInputChargesQuoteToken() external {
-        _assertSwapFee(poolKey, false, -100e18, 70e18, -100e18);
-    }
-
-    function testOneForZeroExactOutputChargesQuoteToken() external {
-        _assertSwapFee(poolKey, false, 80e18, 80e18, -110e18);
+    function testFourArgumentConstructorBindsActualDeployerAndFinalOwner() external view {
+        assertEq(hook.feeInfraDeployer(), address(hookDeployer));
+        assertEq(registry.agentSafe(), AGENT_SAFE);
+        assertEq(uint160(address(hook)) & uint160((1 << 14) - 1), hook.REQUIRED_HOOK_FLAGS());
     }
 
     function testBeforeInitializePermissionAndFlagAreEnabled() external view {
-        Hooks.Permissions memory perms = hook.getHookPermissions();
-        assertTrue(perms.beforeInitialize);
-        assertTrue(perms.beforeSwap);
-        assertTrue(perms.afterSwap);
-        assertTrue(perms.beforeSwapReturnDelta);
-        assertTrue(perms.afterSwapReturnDelta);
-        assertFalse(perms.afterInitialize);
-
-        // The mined hook address must carry the BEFORE_INITIALIZE flag bit in its low 14 bits.
+        Hooks.Permissions memory permissions = hook.getHookPermissions();
+        assertTrue(permissions.beforeInitialize);
+        assertTrue(permissions.beforeSwap);
+        assertTrue(permissions.afterSwap);
+        assertTrue(permissions.beforeSwapReturnDelta);
+        assertTrue(permissions.afterSwapReturnDelta);
+        assertFalse(permissions.afterInitialize);
         assertTrue(uint160(address(hook)) & Hooks.BEFORE_INITIALIZE_FLAG != 0);
         assertTrue(uint160(address(realHook)) & Hooks.BEFORE_INITIALIZE_FLAG != 0);
-        assertEq(
-            uint160(address(hook)) & uint160((1 << 14) - 1), uint160(hook.REQUIRED_HOOK_FLAGS())
-        );
+    }
+
+    function testUnauthorizedInitializerIsRejected() external {
+        vm.prank(address(poolManager));
+        vm.expectRevert("UNAUTHORIZED_INITIALIZER");
+        hook.beforeInitialize(address(0xBAD), poolKey, TickMath.getSqrtPriceAtTick(0));
     }
 
     function testLegitimateInitializerCanCreatePool() external view {
-        // setUp() already initialized realPoolKey via realPoolManager.initialize from address(this),
-        // which is the registered authorizedInitializer. A non-zero slot0 proves it succeeded.
         (uint160 sqrtPriceX96,,,) = StateLibrary.getSlot0(realPoolManager, PoolId.wrap(realPoolId));
         assertTrue(sqrtPriceX96 != 0);
     }
 
-    function testFrontRunDirectInitializeByUnauthorizedSenderReverts() external {
-        // Register a fresh pool whose authorized initializer is some strategy, then have an
-        // attacker (address(this)) try to front-run pool creation by calling initialize directly.
-        MintableERC20Mock attackToken = new MintableERC20Mock("Attack Launch", "ALAUNCH");
-        attackToken.mint(address(this), 1e18);
-        address authorizedStrategy = address(0x57A7E6);
+    function testZeroForOneExactInputChargesRegent() external {
+        _assertSwapFee(true, -100e18, -100e18, 80e18);
+    }
 
-        vm.prank(OWNER);
-        bytes32 attackPoolId = realRegistry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: address(attackToken),
-                quoteToken: address(realQuoteToken),
-                treasury: TREASURY,
-                regentRecipient: REGENT_RECIPIENT,
-                poolFee: POOL_FEE,
-                tickSpacing: TICK_SPACING,
-                poolManager: address(realPoolManager),
-                hook: address(realHook),
-                authorizedInitializer: authorizedStrategy
+    function testZeroForOneExactOutputChargesRegent() external {
+        _assertSwapFee(true, 90e18, -120e18, 90e18);
+    }
+
+    function testOneForZeroExactInputChargesRegent() external {
+        _assertSwapFee(false, -100e18, 70e18, -100e18);
+    }
+
+    function testOneForZeroExactOutputChargesRegent() external {
+        _assertSwapFee(false, 80e18, 80e18, -110e18);
+    }
+
+    function testEachFeeHalfIsExactlyOnePercentAcrossRoundingBoundaries() external {
+        _simulateSwap(99, -99, 99);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.regentAccrued(poolId, REGENT), 0);
+
+        _simulateSwap(100, -100, 98);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), 1);
+        assertEq(vault.regentAccrued(poolId, REGENT), 1);
+
+        _simulateSwap(199, -199, 195);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), 2);
+        assertEq(vault.regentAccrued(poolId, REGENT), 2);
+    }
+
+    function testOrdinaryPoolFeeRemainsIndependentFromTwoPercentHookFee() external {
+        (, BeforeSwapDelta beforeDelta, uint24 feeOverride) = poolManager.simulateBeforeSwap(
+            address(hook),
+            TRADER,
+            poolKey,
+            SwapParams({
+                zeroForOne: _regentIsCurrency0(poolKey),
+                amountSpecified: -100e18,
+                sqrtPriceLimitX96: 0
             })
         );
-        assertEq(realRegistry.poolAuthorizedInitializer(attackPoolId), authorizedStrategy);
-
-        PoolKey memory attackKey =
-            _sortedPoolKey(address(attackToken), address(realQuoteToken), address(realHook));
-
-        // The PoolManager bubbles the hook's "UNAUTHORIZED_INITIALIZER" revert as an ERC-7751
-        // WrappedError; assert the exact wrapped payload so the front-run is provably blocked.
-        vm.expectRevert(_wrappedInitializeRevert("UNAUTHORIZED_INITIALIZER"));
-        realPoolManager.initialize(attackKey, TickMath.getSqrtPriceAtTick(0));
+        assertEq(registry.getPoolConfig(poolId).poolFee, POOL_FEE);
+        assertEq(feeOverride, 0);
+        assertEq(uint128(BeforeSwapDeltaLibrary.getSpecifiedDelta(beforeDelta)), 2e18);
     }
 
-    function _wrappedInitializeRevert(string memory reason) internal view returns (bytes memory) {
-        return abi.encodeWithSelector(
-            CustomRevert.WrappedError.selector,
-            address(realHook),
-            IHooks.beforeInitialize.selector,
-            abi.encodeWithSignature("Error(string)", reason),
-            abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+    function testRealPoolManagerExactInputAccruesSeparateHookFee() external {
+        bool regentIsCurrency0 = _regentIsCurrency0(realPoolKey);
+        realHarness.swap(
+            realPoolKey,
+            SwapParams({
+                zeroForOne: regentIsCurrency0,
+                amountSpecified: -10e18,
+                sqrtPriceLimitX96: regentIsCurrency0
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            })
         );
+        assertEq(realRegistry.getPoolConfig(realPoolId).poolFee, POOL_FEE);
+        assertEq(realVault.treasuryAccrued(realPoolId, REGENT), 0.1e18);
+        assertEq(realVault.regentAccrued(realPoolId, REGENT), 0.1e18);
     }
 
-    function testRejectsPoolsWithoutQuoteToken() external {
-        vm.startPrank(OWNER);
-        vm.expectRevert("QUOTE_TOKEN_ZERO");
-        _registerPool(address(launchToken), address(0));
-        vm.stopPrank();
+    function testRealPoolManagerExactOutputAccruesSeparateHookFee() external {
+        bool zeroForOne = !_regentIsCurrency0(realPoolKey);
+        realHarness.swap(
+            realPoolKey,
+            SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: 5e18,
+                sqrtPriceLimitX96: zeroForOne
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            })
+        );
+        assertEq(realRegistry.getPoolConfig(realPoolId).poolFee, POOL_FEE);
+        assertEq(realVault.treasuryAccrued(realPoolId, REGENT), 0.05e18);
+        assertEq(realVault.regentAccrued(realPoolId, REGENT), 0.05e18);
     }
 
-    function testUnregisteredPoolCannotChargeFee() external {
-        PoolKey memory unknownKey = _poolKey(address(0x4444), address(quoteToken));
+    function testQuarantineBlocksInitializeSwapTakeAndAccrual() external {
+        subjectRegistry.setLifecycle(SUBJECT_ID, ISubjectRegistry.Lifecycle.Quarantined);
+        uint256 managerBefore = regent.balanceOf(address(poolManager));
 
-        vm.expectRevert("POOL_NOT_REGISTERED");
-        _simulateSwap(unknownKey, true, -100e18, -100e18, 80e18);
+        vm.prank(address(poolManager));
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        hook.beforeInitialize(address(this), poolKey, TickMath.getSqrtPriceAtTick(0));
+
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        _simulateSwap(100e18, -100e18, 98e18);
+
+        assertEq(regent.balanceOf(address(poolManager)), managerBefore);
+        assertEq(regent.balanceOf(address(vault)), 0);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.regentAccrued(poolId, REGENT), 0);
     }
 
-    function testOwnerCanDisableAndReEnableFeeCapture() external {
-        vm.prank(OWNER);
-        registry.setHookEnabled(poolId, false);
-
-        vm.expectRevert("HOOK_DISABLED");
-        _simulateSwap(poolKey, true, -100e18, -100e18, 80e18);
-
-        vm.prank(OWNER);
-        registry.setHookEnabled(poolId, true);
-
-        _assertSwapFee(poolKey, true, -100e18, -100e18, 80e18);
-    }
-
-    function testRejectsDirectBeforeSwapCallsFromNonPoolManager() external {
+    function testRejectsDirectBeforeSwapCallFromNonPoolManager() external {
         vm.expectRevert("ONLY_POOL_MANAGER");
         hook.beforeSwap(
             TRADER,
             poolKey,
             SwapParams({zeroForOne: true, amountSpecified: -100e18, sqrtPriceLimitX96: 0}),
-            bytes("")
+            ""
         );
     }
 
-    function testRejectsDirectAfterSwapCallsFromNonPoolManager() external {
+    function testRejectsDirectAfterSwapCallFromNonPoolManager() external {
         vm.expectRevert("ONLY_POOL_MANAGER");
         hook.afterSwap(
             TRADER,
             poolKey,
             SwapParams({zeroForOne: true, amountSpecified: -100e18, sqrtPriceLimitX96: 0}),
             BalanceDelta.wrap(0),
-            bytes("")
+            ""
         );
     }
 
     function testRejectsPoolRegisteredForDifferentPoolManager() external {
-        MintableERC20Mock otherLaunchToken = new MintableERC20Mock("Other Launch", "OLAUNCH");
-        vm.prank(OWNER);
-        registry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: address(otherLaunchToken),
-                quoteToken: address(quoteToken),
-                treasury: TREASURY,
-                regentRecipient: REGENT_RECIPIENT,
-                poolFee: POOL_FEE,
-                tickSpacing: TICK_SPACING,
-                poolManager: address(0xDEAD),
-                hook: address(hook),
-                authorizedInitializer: address(this)
-            })
+        MintableERC20Mock token = new MintableERC20Mock("Other", "OTHER");
+        (
+            MockFeeSubjectRegistry otherSubjectRegistry,
+            LaunchFeeRegistry otherRegistry,
+            LaunchFeeVault otherVault,
+            LaunchPoolFeeHook otherHook
+        ) = _freshInfrastructure();
+        _setSubject(
+            otherSubjectRegistry,
+            keccak256("fresh-subject"),
+            otherRegistry,
+            otherVault,
+            otherHook,
+            token,
+            address(this)
         );
-        PoolKey memory mismatchedPoolManagerKey =
-            _sortedPoolKey(address(otherLaunchToken), address(quoteToken), address(hook));
+        otherRegistry.registerPool(_registrationFor(token, address(0xDEAD), address(otherHook)));
+        otherVault.setCanonicalTokens(
+            otherRegistry.computePoolId(
+                address(token), REGENT, POOL_FEE, TICK_SPACING, address(otherHook)
+            )
+        );
+        PoolKey memory key = _sortedPoolKey(address(token), REGENT, address(otherHook));
 
         vm.expectRevert("POOL_MANAGER_MISMATCH");
-        _simulateSwap(mismatchedPoolManagerKey, true, -100e18, -100e18, 80e18);
+        poolManager.simulateBeforeSwap(
+            address(otherHook),
+            TRADER,
+            key,
+            SwapParams({zeroForOne: true, amountSpecified: -100e18, sqrtPriceLimitX96: 0})
+        );
     }
 
     function testRejectsPoolRegisteredForDifferentHook() external {
-        MintableERC20Mock otherLaunchToken = new MintableERC20Mock("Other Launch", "OLAUNCH");
+        MintableERC20Mock token = new MintableERC20Mock("Other", "OTHER");
+        (
+            MockFeeSubjectRegistry otherSubjectRegistry,
+            LaunchFeeRegistry otherRegistry,
+            LaunchFeeVault otherVault,
+            LaunchPoolFeeHook otherHook
+        ) = _freshInfrastructure();
         address wrongHook = address(0x1234);
-        vm.prank(OWNER);
-        registry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: address(otherLaunchToken),
-                quoteToken: address(quoteToken),
-                treasury: TREASURY,
-                regentRecipient: REGENT_RECIPIENT,
-                poolFee: POOL_FEE,
-                tickSpacing: TICK_SPACING,
-                poolManager: address(poolManager),
-                hook: wrongHook,
-                authorizedInitializer: address(this)
-            })
+        _setSubjectWithHook(
+            otherSubjectRegistry,
+            keccak256("fresh-subject"),
+            otherRegistry,
+            otherVault,
+            wrongHook,
+            token,
+            address(this)
         );
-        PoolKey memory mismatchedHookKey =
-            _sortedPoolKey(address(otherLaunchToken), address(quoteToken), wrongHook);
+        otherRegistry.registerPool(_registrationFor(token, address(poolManager), wrongHook));
+        _setSubject(
+            otherSubjectRegistry,
+            keccak256("fresh-subject"),
+            otherRegistry,
+            otherVault,
+            otherHook,
+            token,
+            address(this)
+        );
+        PoolKey memory key = _sortedPoolKey(address(token), REGENT, wrongHook);
 
         vm.expectRevert("HOOK_MISMATCH");
-        _simulateSwap(mismatchedHookKey, true, -100e18, -100e18, 80e18);
-    }
-
-    function testOddSmallFeeIsFullyAssignedToWithdrawableShares() external {
-        _simulateSwap(poolKey, true, -50, -50, 49);
-
-        assertEq(poolManager.lastTakeAmount(), 1);
-        assertEq(quoteToken.balanceOf(address(vault)), 1);
-        assertEq(vault.treasuryAccrued(poolId, address(quoteToken)), 0);
-        assertEq(vault.regentAccrued(poolId, address(quoteToken)), 1);
-    }
-
-    function testFuzzQuoteFeesAreFullyWithdrawable(uint128 amountSeed) external {
-        uint256 amount = bound(uint256(amountSeed), 50, 1_000_000e18);
-        uint256 expectedFee = amount * FEE_BPS / 10_000;
-        quoteToken.mint(address(poolManager), expectedFee);
-
-        uint256 treasuryBefore = vault.treasuryAccrued(poolId, address(quoteToken));
-        uint256 regentBefore = vault.regentAccrued(poolId, address(quoteToken));
-        uint256 vaultBalanceBefore = quoteToken.balanceOf(address(vault));
-
-        _simulateSwap(
-            poolKey, true, -int256(amount), -int128(int256(amount)), int128(int256(amount))
+        poolManager.simulateBeforeSwap(
+            address(otherHook),
+            TRADER,
+            key,
+            SwapParams({zeroForOne: true, amountSpecified: -100e18, sqrtPriceLimitX96: 0})
         );
-
-        uint256 treasuryDelta = vault.treasuryAccrued(poolId, address(quoteToken)) - treasuryBefore;
-        uint256 regentDelta = vault.regentAccrued(poolId, address(quoteToken)) - regentBefore;
-        uint256 vaultBalanceDelta = quoteToken.balanceOf(address(vault)) - vaultBalanceBefore;
-
-        assertEq(vaultBalanceDelta, expectedFee);
-        assertEq(treasuryDelta + regentDelta, expectedFee);
     }
 
-    function testTreasuryWithdrawIsAccessControlled() external {
-        _simulateSwap(poolKey, true, -100e18, -100e18, 80e18);
-
-        uint256 halfFee = poolManager.lastTakeAmount() / 2;
-
-        vm.expectRevert("ONLY_TREASURY");
-        vault.withdrawTreasury(poolId, address(quoteToken), halfFee, TREASURY);
-
-        vm.prank(TREASURY);
-        vault.withdrawTreasury(poolId, address(quoteToken), halfFee, TREASURY);
-
-        assertEq(quoteToken.balanceOf(TREASURY), halfFee);
-        assertEq(vault.treasuryAccrued(poolId, address(quoteToken)), 0);
+    function testUnregisteredPoolCannotChargeFee() external {
+        PoolKey memory unknownKey = poolKey;
+        unknownKey.tickSpacing = 120;
+        vm.expectRevert("POOL_NOT_REGISTERED");
+        poolManager.simulateBeforeSwap(
+            address(hook),
+            TRADER,
+            unknownKey,
+            SwapParams({zeroForOne: true, amountSpecified: -100e18, sqrtPriceLimitX96: 0})
+        );
     }
 
-    function testRealPoolManagerExactInputSwapAccruesExpectedFee() external {
-        vm.recordLogs();
-        realHarness.swap(
-            realPoolKey,
+    function testRejectsPoolRegistrationWithoutQuoteToken() external {
+        MintableERC20Mock token = new MintableERC20Mock("Other", "OTHER");
+        MockFeeSubjectRegistry otherSubjectRegistry = new MockFeeSubjectRegistry();
+        bytes32 otherSubjectId = keccak256("quote-zero-subject");
+        LaunchFeeRegistry otherRegistry = new LaunchFeeRegistry(
+            AGENT_SAFE, address(this), address(otherSubjectRegistry), otherSubjectId, REGENT
+        );
+        _setSubjectWithHook(
+            otherSubjectRegistry,
+            otherSubjectId,
+            otherRegistry,
+            vault,
+            address(hook),
+            token,
+            address(this)
+        );
+        LaunchFeeRegistry.PoolRegistration memory registration =
+            _registrationFor(token, address(poolManager), address(hook));
+        registration.quoteToken = address(0);
+
+        vm.expectRevert("QUOTE_TOKEN_NOT_CANONICAL");
+        otherRegistry.registerPool(registration);
+    }
+
+    function testAgentSafeCanDisableAndReEnableActiveFeeCapture() external {
+        vm.prank(AGENT_SAFE);
+        registry.setHookEnabled(poolId, false);
+        vm.expectRevert("HOOK_DISABLED");
+        _simulateSwap(100e18, -100e18, 98e18);
+
+        vm.prank(AGENT_SAFE);
+        registry.setHookEnabled(poolId, true);
+        _assertSwapFee(_regentIsCurrency0(poolKey), -100e18, -100e18, 98e18);
+    }
+
+    function testFuzzRegentFeesAreFullyBackedAndClaimable(uint128 amountSeed) external {
+        uint256 amount = bound(uint256(amountSeed), 100, 1_000_000e18);
+        uint256 share = amount / 100;
+        regent.mint(address(poolManager), share * 2);
+        uint256 agentBefore = regent.balanceOf(AGENT_SAFE);
+
+        _simulateSwap(amount, -int128(int256(amount)), int128(int256(amount)));
+        assertEq(vault.treasuryAccrued(poolId, REGENT), share);
+        assertEq(vault.regentAccrued(poolId, REGENT), share);
+        assertEq(regent.balanceOf(address(vault)), share * 2);
+
+        HookRegentFundingTarget target = new HookRegentFundingTarget();
+        vm.etch(STAKING, address(target).code);
+        vault.withdrawTreasury(poolId);
+        vault.fundRegentShare(poolId);
+
+        assertEq(regent.balanceOf(AGENT_SAFE) - agentBefore, share);
+        assertEq(regent.balanceOf(STAKING), share);
+        assertEq(HookRegentFundingTarget(STAKING).totalFundedRegent(), share);
+        assertEq(regent.balanceOf(address(vault)), 0);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.regentAccrued(poolId, REGENT), 0);
+    }
+
+    function _simulateSwap(uint256 amount, int128 amount0, int128 amount1) internal {
+        bool regentIsCurrency0 = _regentIsCurrency0(poolKey);
+        poolManager.simulateSwap(
+            address(hook),
+            TRADER,
+            poolKey,
             SwapParams({
-                zeroForOne: true,
-                amountSpecified: -10e18,
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-            })
+                zeroForOne: regentIsCurrency0,
+                amountSpecified: -int256(amount),
+                sqrtPriceLimitX96: 0
+            }),
+            amount0,
+            amount1
         );
-
-        _assertRealSwapFee(realPoolId, true, vm.getRecordedLogs());
     }
 
-    function testRealPoolManagerExactOutputSwapAccruesExpectedFee() external {
-        vm.recordLogs();
-        realHarness.swap(
-            realPoolKey,
-            SwapParams({
-                zeroForOne: false,
-                amountSpecified: 5e18,
-                sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
-            })
-        );
-
-        _assertRealSwapFee(realPoolId, false, vm.getRecordedLogs());
-    }
-
-    function _registerPool(address launchTokenAddress, address quoteTokenAddress)
+    function _assertSwapFee(bool zeroForOne, int256 amountSpecified, int128 amount0, int128 amount1)
         internal
-        returns (bytes32)
     {
-        return registry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: launchTokenAddress,
-                quoteToken: quoteTokenAddress,
-                treasury: TREASURY,
-                regentRecipient: REGENT_RECIPIENT,
-                poolFee: POOL_FEE,
-                tickSpacing: TICK_SPACING,
-                poolManager: address(poolManager),
-                hook: address(hook),
-                authorizedInitializer: address(this)
-            })
+        bool exactInput = amountSpecified < 0;
+        bool specifiedCurrency0 = exactInput == zeroForOne;
+        bool quoteIsSpecified = specifiedCurrency0 == _regentIsCurrency0(poolKey);
+        int128 chargedDelta = (!specifiedCurrency0) ? amount0 : amount1;
+        uint256 baseAmount = quoteIsSpecified
+            ? uint256(amountSpecified < 0 ? -amountSpecified : amountSpecified)
+            : uint256(uint128(chargedDelta < 0 ? -chargedDelta : chargedDelta));
+        uint256 share = baseAmount / 100;
+        uint256 totalFee = share * 2;
+
+        (
+            bytes4 beforeSelector,
+            BeforeSwapDelta beforeDelta,
+            bytes4 afterSelector,
+            int128 afterDelta
+        ) = poolManager.simulateSwap(
+            address(hook),
+            TRADER,
+            poolKey,
+            SwapParams({
+                zeroForOne: zeroForOne, amountSpecified: amountSpecified, sqrtPriceLimitX96: 0
+            }),
+            amount0,
+            amount1
+        );
+
+        assertEq(beforeSelector, IHooks.beforeSwap.selector);
+        assertEq(afterSelector, IHooks.afterSwap.selector);
+        assertEq(
+            uint128(BeforeSwapDeltaLibrary.getSpecifiedDelta(beforeDelta)),
+            quoteIsSpecified ? totalFee : 0
+        );
+        assertEq(uint128(afterDelta), quoteIsSpecified ? 0 : totalFee);
+        assertEq(BeforeSwapDeltaLibrary.getUnspecifiedDelta(beforeDelta), 0);
+        assertEq(poolManager.lastTakeCurrency(), REGENT);
+        assertEq(poolManager.lastTakeRecipient(), address(vault));
+        assertEq(poolManager.lastTakeAmount(), totalFee);
+        assertEq(vault.treasuryAccrued(poolId, REGENT), share);
+        assertEq(vault.regentAccrued(poolId, REGENT), share);
+        assertEq(regent.balanceOf(address(vault)), totalFee);
+    }
+
+    function _freshInfrastructure()
+        internal
+        returns (
+            MockFeeSubjectRegistry otherSubjectRegistry,
+            LaunchFeeRegistry otherRegistry,
+            LaunchFeeVault otherVault,
+            LaunchPoolFeeHook otherHook
+        )
+    {
+        otherSubjectRegistry = new MockFeeSubjectRegistry();
+        otherRegistry = new LaunchFeeRegistry(
+            AGENT_SAFE,
+            address(this),
+            address(otherSubjectRegistry),
+            keccak256("fresh-subject"),
+            REGENT
+        );
+        otherVault = new LaunchFeeVault(address(otherRegistry));
+        otherHook =
+            hookDeployer.deploy(address(poolManager), address(otherRegistry), address(otherVault));
+        otherVault.setHook(address(otherHook));
+    }
+
+    function _registrationFor(MintableERC20Mock token, address manager, address hookAddress)
+        internal
+        view
+        returns (LaunchFeeRegistry.PoolRegistration memory)
+    {
+        return _registration(address(token), manager, hookAddress);
+    }
+
+    function _registration(address token, address manager, address hookAddress)
+        internal
+        view
+        returns (LaunchFeeRegistry.PoolRegistration memory)
+    {
+        return LaunchFeeRegistry.PoolRegistration({
+            launchToken: token,
+            quoteToken: REGENT,
+            poolFee: POOL_FEE,
+            tickSpacing: TICK_SPACING,
+            poolManager: manager,
+            hook: hookAddress,
+            authorizedInitializer: address(this)
+        });
+    }
+
+    function _setSubject(
+        MockFeeSubjectRegistry subjectRegistry_,
+        bytes32 subjectId_,
+        LaunchFeeRegistry registry_,
+        LaunchFeeVault vault_,
+        LaunchPoolFeeHook hook_,
+        MintableERC20Mock token,
+        address strategy
+    ) internal {
+        _setSubjectWithHook(
+            subjectRegistry_, subjectId_, registry_, vault_, address(hook_), token, strategy
         );
     }
 
-    function _poolKey(address currency0, address currency1) internal view returns (PoolKey memory) {
-        return PoolKey({
-            currency0: Currency.wrap(currency0),
-            currency1: Currency.wrap(currency1),
-            fee: POOL_FEE,
-            tickSpacing: TICK_SPACING,
-            hooks: IHooks(address(hook))
-        });
+    function _setSubjectWithHook(
+        MockFeeSubjectRegistry subjectRegistry_,
+        bytes32 subjectId_,
+        LaunchFeeRegistry registry_,
+        LaunchFeeVault vault_,
+        address hook_,
+        MintableERC20Mock token,
+        address strategy
+    ) internal {
+        subjectRegistry_.setSubject(
+            subjectId_,
+            ISubjectRegistry.SubjectConfig({
+                stakeToken: address(token),
+                splitter: address(1),
+                treasurySafe: AGENT_SAFE,
+                ingress: address(2),
+                paymentLinkFactory: address(3),
+                strategy: strategy,
+                launchFeeRegistry: address(registry_),
+                feeVault: address(vault_),
+                feeHook: hook_,
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                lifecycle: ISubjectRegistry.Lifecycle.Active,
+                label: "subject",
+                safeRuntime: address(4)
+            })
+        );
     }
 
     function _sortedPoolKey(address tokenA, address tokenB, address hookAddress)
@@ -464,7 +642,6 @@ contract LaunchPoolFeeHookTest is Test {
     {
         (address currency0, address currency1) =
             tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-
         return PoolKey({
             currency0: Currency.wrap(currency0),
             currency1: Currency.wrap(currency1),
@@ -474,135 +651,7 @@ contract LaunchPoolFeeHookTest is Test {
         });
     }
 
-    function _simulateSwap(
-        PoolKey memory key,
-        bool zeroForOne,
-        int256 amountSpecified,
-        int128 amount0,
-        int128 amount1
-    )
-        internal
-        returns (
-            bytes4 beforeSelector,
-            BeforeSwapDelta beforeDelta,
-            bytes4 afterSelector,
-            int128 afterDelta
-        )
-    {
-        return poolManager.simulateSwap(
-            address(hook),
-            TRADER,
-            key,
-            SwapParams({
-                zeroForOne: zeroForOne, amountSpecified: amountSpecified, sqrtPriceLimitX96: 0
-            }),
-            amount0,
-            amount1
-        );
-    }
-
-    function _assertSwapFee(
-        PoolKey memory key,
-        bool zeroForOne,
-        int256 amountSpecified,
-        int128 amount0,
-        int128 amount1
-    ) internal {
-        (uint256 baseAmount, bool quoteIsSpecified) =
-            _expectedQuoteFeeBaseAmount(key, zeroForOne, amountSpecified, amount0, amount1);
-        uint256 expectedFee = baseAmount * FEE_BPS / 10_000;
-
-        bytes32 id = PoolId.unwrap(key.toId());
-        (
-            bytes4 beforeSelector,
-            BeforeSwapDelta beforeDelta,
-            bytes4 afterSelector,
-            int128 afterDelta
-        ) = _simulateSwap(key, zeroForOne, amountSpecified, amount0, amount1);
-
-        assertEq(beforeSelector, IHooks.beforeSwap.selector);
-        assertEq(afterSelector, IHooks.afterSwap.selector);
-        if (quoteIsSpecified) {
-            assertEq(uint128(BeforeSwapDeltaLibrary.getSpecifiedDelta(beforeDelta)), expectedFee);
-            assertEq(uint128(afterDelta), 0);
-        } else {
-            assertEq(uint128(BeforeSwapDeltaLibrary.getSpecifiedDelta(beforeDelta)), 0);
-            assertEq(uint128(afterDelta), expectedFee);
-        }
-        assertEq(BeforeSwapDeltaLibrary.getUnspecifiedDelta(beforeDelta), 0);
-        assertEq(poolManager.lastTakeCurrency(), address(quoteToken));
-        assertEq(poolManager.lastTakeRecipient(), address(vault));
-        assertEq(poolManager.lastTakeAmount(), expectedFee);
-        assertEq(quoteToken.balanceOf(address(vault)), expectedFee);
-
-        _assertSplitFee(id, address(quoteToken), expectedFee / 2);
-        _assertSplitFee(id, address(launchToken), 0);
-    }
-
-    function _expectedQuoteFeeBaseAmount(
-        PoolKey memory key,
-        bool zeroForOne,
-        int256 amountSpecified,
-        int128 amount0,
-        int128 amount1
-    ) internal view returns (uint256 amount, bool quoteIsSpecified) {
-        bool exactInput = amountSpecified < 0;
-        bool specifiedCurrency0 = exactInput == zeroForOne;
-        address specifiedCurrency =
-            specifiedCurrency0 ? Currency.unwrap(key.currency0) : Currency.unwrap(key.currency1);
-        quoteIsSpecified = specifiedCurrency == address(quoteToken);
-
-        if (quoteIsSpecified) {
-            return
-                (amountSpecified < 0 ? uint256(-amountSpecified) : uint256(amountSpecified), true);
-        }
-
-        bool unspecifiedCurrency0 = !specifiedCurrency0;
-        int128 chargedAmount = unspecifiedCurrency0 ? amount0 : amount1;
-        if (chargedAmount < 0) {
-            chargedAmount = -chargedAmount;
-        }
-        amount = uint128(chargedAmount);
-    }
-
-    function _assertSplitFee(bytes32 id, address token, uint256 share) internal view {
-        assertEq(vault.treasuryAccrued(id, token), share);
-        assertEq(vault.regentAccrued(id, token), share);
-    }
-
-    function _assertRealSwapFee(bytes32 id, bool exactInput, Vm.Log[] memory entries)
-        internal
-        view
-    {
-        bytes32 eventTopic = keccak256(
-            "SwapFeeAccrued(bytes32,address,address,uint256,uint256,uint256,uint256,bool)"
-        );
-        bool found;
-        uint256 totalFee;
-        uint256 treasuryFee;
-        uint256 regentFee;
-        bool eventExactInput;
-
-        for (uint256 i = 0; i < entries.length; ++i) {
-            if (
-                entries[i].emitter == address(realHook) && entries[i].topics.length == 4
-                    && entries[i].topics[0] == eventTopic
-            ) {
-                found = true;
-                assertEq(entries[i].topics[1], id);
-                assertEq(address(uint160(uint256(entries[i].topics[3]))), address(realQuoteToken));
-                (, totalFee, treasuryFee, regentFee, eventExactInput) =
-                    abi.decode(entries[i].data, (uint256, uint256, uint256, uint256, bool));
-                assertEq(eventExactInput, exactInput);
-                break;
-            }
-        }
-
-        assertTrue(found);
-        assertEq(realVault.treasuryAccrued(id, address(realQuoteToken)), treasuryFee);
-        assertEq(realVault.regentAccrued(id, address(realQuoteToken)), regentFee);
-        assertEq(realQuoteToken.balanceOf(address(realVault)), totalFee);
-        assertEq(realVault.treasuryAccrued(id, address(realLaunchToken)), 0);
-        assertEq(realVault.regentAccrued(id, address(realLaunchToken)), 0);
+    function _regentIsCurrency0(PoolKey memory key) internal pure returns (bool) {
+        return Currency.unwrap(key.currency0) == REGENT;
     }
 }
