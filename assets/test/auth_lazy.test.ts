@@ -455,12 +455,22 @@ describe("lazy browser authentication", () => {
       vi.stubGlobal("Element", AccountElement)
       const order: string[] = []
       const page = accountDocument()
+      let resolveHandle: ((handle: {request: (request: AccountRequest) => Promise<void>}) => void) |
+        undefined
+      const providerLogout = vi.fn(async () => {
+        order.push("provider")
+      })
       const clearSession = vi.fn(async () => {
         order.push("local")
       })
       const reload = vi.fn(() => order.push("reload"))
       const importer = vi.fn(async () => ({
-        startPrivyBridge: vi.fn(() => new Promise<never>(() => undefined)),
+        startPrivyBridge: vi.fn(
+          () =>
+            new Promise<{request: (request: AccountRequest) => Promise<void>}>(resolve => {
+              resolveHandle = resolve
+            }),
+        ),
       }))
 
       installAccountAuthLazyLoader(page.documentRoot, importer, {
@@ -477,6 +487,90 @@ describe("lazy browser authentication", () => {
       await vi.advanceTimersByTimeAsync(10)
       await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
       expect(order).toEqual(["local", "reload"])
+      expect(page.status.textContent).toBe(
+        "Signed out locally. Provider sign out couldn’t finish.",
+      )
+
+      resolveHandle?.({request: providerLogout})
+      await vi.advanceTimersByTimeAsync(0)
+      expect(providerLogout).not.toHaveBeenCalled()
+      expect(order).toEqual(["local", "reload"])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("reloads once only after provider logout succeeds", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const order: string[] = []
+    const page = accountDocument()
+    const clearSession = vi.fn(async () => {
+      order.push("local")
+    })
+    const providerLogout = vi.fn(async () => {
+      order.push("provider")
+    })
+    const reload = vi.fn(() => order.push("reload"))
+
+    installAccountAuthLazyLoader(
+      page.documentRoot,
+      vi.fn(async () => ({
+        startPrivyBridge: vi.fn(async () => ({request: providerLogout})),
+      })),
+      {
+        clearSession,
+        reload,
+        sessionMutations: createSessionMutationCoordinator(),
+      },
+    )
+    page.click("sign-out")
+
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    expect(providerLogout).toHaveBeenCalledOnce()
+    expect(providerLogout).toHaveBeenCalledWith("sign-out")
+    expect(order).toEqual(["local", "provider", "reload"])
+  })
+
+  it("keeps timeout status and navigation terminal after late provider settlement", async () => {
+    vi.useFakeTimers()
+
+    try {
+      vi.stubGlobal("Element", AccountElement)
+      const page = accountDocument()
+      let settleProvider: (() => void) | undefined
+      const providerLogout = vi.fn(
+        () =>
+          new Promise<void>(resolve => {
+            settleProvider = resolve
+          }),
+      )
+      const reload = vi.fn()
+
+      installAccountAuthLazyLoader(
+        page.documentRoot,
+        vi.fn(async () => ({
+          startPrivyBridge: vi.fn(async () => ({request: providerLogout})),
+        })),
+        {
+          clearSession: vi.fn(async () => undefined),
+          providerSignOutTimeoutMs: 10,
+          reload,
+          sessionMutations: createSessionMutationCoordinator(),
+        },
+      )
+      page.click("sign-out")
+
+      await vi.advanceTimersByTimeAsync(0)
+      expect(providerLogout).toHaveBeenCalledOnce()
+      await vi.advanceTimersByTimeAsync(10)
+      await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+      expect(page.status.textContent).toBe(
+        "Signed out locally. Provider sign out couldn’t finish.",
+      )
+
+      settleProvider?.()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(reload).toHaveBeenCalledOnce()
       expect(page.status.textContent).toBe(
         "Signed out locally. Provider sign out couldn’t finish.",
       )

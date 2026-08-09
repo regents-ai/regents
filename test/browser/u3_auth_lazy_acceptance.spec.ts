@@ -43,6 +43,40 @@ export async function startPrivyBridge() {
 }
 `
 
+const sameAccountReconciliationBridgeStub = `
+import {
+  createLocalSession,
+  createProviderSessionReconciler,
+} from "/assets/js/privy_bridge.js?u3_original=1"
+
+export async function startPrivyBridge() {
+  const reconcile = createProviderSessionReconciler({
+    clearSession: async () => {
+      window.__u3ReconciliationDeletes = (window.__u3ReconciliationDeletes || 0) + 1
+    },
+    establishSession: async accessToken => {
+      const result = await createLocalSession(accessToken)
+      window.__u3SessionChanged = result.sessionChanged
+      return result
+    },
+    getAccessToken: async () => "valid",
+    hasLinkedWallet: () => true,
+    providerAuthenticated: () => true,
+    reload: () => {
+      window.__u3UnexpectedReloads = (window.__u3UnexpectedReloads || 0) + 1
+      throw new Error("same-account reconciliation attempted to reload")
+    },
+  })
+
+  return {
+    async request(request) {
+      window.__u3BridgeCalls = [...(window.__u3BridgeCalls || []), request]
+      if (request === "sync") window.__u3ReconcileResult = await reconcile()
+    }
+  }
+}
+`
+
 const delayedSignOutBridgeStub = `
 export function startPrivyBridge() {
   return new Promise(resolve => {
@@ -197,12 +231,14 @@ for (const viewport of retryViewports) {
   })
 }
 
-test("signed-in direct load requests sync without clearing or reloading", async ({page}) => {
+test("same-account reconciliation preserves the mounted LiveView", async ({page}) => {
   let bridgeRequests = 0
   let sessionDeletes = 0
   const documentRequests: string[] = []
   await page.addInitScript(() => {
     ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
+    ;(window as Window & {__u3ReconciliationDeletes?: number}).__u3ReconciliationDeletes = 0
+    ;(window as Window & {__u3UnexpectedReloads?: number}).__u3UnexpectedReloads = 0
   })
   page.on("request", request => {
     if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
@@ -216,7 +252,10 @@ test("signed-in direct load requests sync without clearing or reloading", async 
   })
   await page.route(bridgePattern, async route => {
     bridgeRequests += 1
-    await route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+    await route.fulfill({
+      body: sameAccountReconciliationBridgeStub,
+      contentType: "application/javascript",
+    })
   })
 
   await establishLocalSession(page)
@@ -231,19 +270,53 @@ test("signed-in direct load requests sync without clearing or reloading", async 
       ),
     )
     .toEqual(["sync"])
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & {__u3SessionChanged?: boolean}).__u3SessionChanged,
+      ),
+    )
+    .toBe(false)
+  expect(
+    await page.evaluate(
+      () => (window as Window & {__u3ReconcileResult?: boolean}).__u3ReconcileResult,
+    ),
+  ).toBe(true)
 
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)
   expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & {__u3ReconciliationDeletes?: number})
+          .__u3ReconciliationDeletes,
+    ),
+  ).toBe(0)
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & {__u3UnexpectedReloads?: number}).__u3UnexpectedReloads,
+    ),
+  ).toBe(0)
   expect((await page.request.get("/auth/session")).status()).toBe(200)
+
+  await page.locator("#app-selector summary").click()
+  await page.locator("#app-selector a[href='/formation']").click()
+  await expect(page).toHaveURL(/\/formation$/)
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
 })
 
 test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
   let sessionDeletes = 0
   let providerLogouts = 0
+  const order: string[] = []
   const documentRequests: string[] = []
   await page.exposeFunction("__u3ProviderLogout", () => {
     providerLogouts += 1
+    order.push("provider")
   })
   page.on("request", request => {
     if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
@@ -251,6 +324,15 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
     }
     if (request.isNavigationRequest() && request.resourceType() === "document") {
       documentRequests.push(request.url())
+      if (documentRequests.length > 1) order.push("reload")
+    }
+  })
+  page.on("response", response => {
+    if (
+      response.request().method() === "DELETE" &&
+      response.url().endsWith("/auth/privy/session")
+    ) {
+      order.push("delete")
     }
   })
   await page.route(bridgePattern, route =>
@@ -261,6 +343,14 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
 
   await page.goto("/app")
   await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          typeof (window as Window & {__u3ReadyBridge?: () => void}).__u3ReadyBridge,
+      ),
+    )
+    .toBe("function")
   await page.locator("#account-menu summary").click()
   await page.getByRole("button", {name: "Log Out"}).click()
   await expect.poll(() => sessionDeletes).toBe(1)
@@ -272,6 +362,7 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await expect.poll(() => providerLogouts).toBe(1)
   await expect.poll(() => documentRequests.length).toBe(2)
   expect(sessionDeletes).toBe(1)
+  expect(order).toEqual(["delete", "provider", "reload"])
 })
 
 test("logout rejects a stale session response released after local deletion", async ({

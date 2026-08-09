@@ -207,7 +207,11 @@ export function createLazyAuthLoader(
 ) {
   let handle: PrivyBridgeHandle | null = null
   let preparing: Promise<void> | null = null
-  let pending: AccountRequest | IdentityRequest | null = null
+  let pending: {
+    generation: number
+    request: AccountRequest | IdentityRequest
+  } | null = null
+  let nextGeneration = 0
   let delivering: {
     request: AccountRequest | IdentityRequest
     promise: Promise<void>
@@ -226,13 +230,13 @@ export function createLazyAuthLoader(
   const deliverPending = (): Promise<void> => {
     if (!handle) return Promise.resolve()
     if (delivering) {
-      return pending === null || sameRequest(delivering.request, pending)
+      return pending === null || sameRequest(delivering.request, pending.request)
         ? delivering.promise
         : delivering.promise.then(deliverPending, deliverPending)
     }
     if (!pending) return Promise.resolve()
 
-    const request = pending
+    const {request} = pending
     pending = null
     const attempt =
       typeof request === "string"
@@ -274,7 +278,8 @@ export function createLazyAuthLoader(
   }
 
   return {
-    request(request: AccountRequest): Promise<void> {
+    request(request: AccountRequest, signal?: AbortSignal): Promise<void> {
+      if (signal?.aborted) return Promise.reject(signal.reason)
       if (
         delivering &&
         sameRequest(delivering.request, request) &&
@@ -282,9 +287,19 @@ export function createLazyAuthLoader(
       ) {
         return delivering.promise
       }
-      pending = request
-      if (handle) return deliverPending()
-      return preparing ?? prepare()
+      if (pending?.request !== "sign-out" || request === "sign-out") {
+        const generation = nextGeneration
+        nextGeneration += 1
+        pending = {generation, request}
+        signal?.addEventListener(
+          "abort",
+          () => {
+            if (pending?.generation === generation) pending = null
+          },
+          {once: true},
+        )
+      }
+      return handle ? deliverPending() : preparing ?? prepare()
     },
     identity(request: IdentityRequest): Promise<void> {
       if (
@@ -294,7 +309,8 @@ export function createLazyAuthLoader(
       ) {
         return delivering.promise
       }
-      pending = request
+      pending = {generation: nextGeneration, request}
+      nextGeneration += 1
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
@@ -362,14 +378,16 @@ export function installAccountAuthLazyLoader(
         return
       }
 
+      const providerAttempt = new AbortController()
       try {
         await withinWindow(
-          loader.request("sign-out"),
+          loader.request("sign-out", providerAttempt.signal),
           providerSignOutTimeoutMs,
           "Provider sign out did not become ready.",
         )
         clearStatus()
       } catch {
+        providerAttempt.abort()
         showProviderSignOutFailure()
       } finally {
         reload()

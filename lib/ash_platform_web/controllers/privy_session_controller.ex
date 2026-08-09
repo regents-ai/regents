@@ -26,13 +26,17 @@ defmodule AshPlatformWeb.PrivySessionController do
     with {:ok, token} <- bearer_token(conn),
          {:ok, verified} <- verifier().verify_access_token(token),
          {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
+      {conn, session_changed?} =
+        if previous_account_id == account.id and
+             canonical_live_socket_id?(get_session(conn, :live_socket_id)) do
+          {conn, false}
+        else
+          {replace_authenticated_session(conn, account.id, logout_epoch), true}
+        end
+
       conn
-      |> replace_authenticated_session(account.id, logout_epoch)
       |> put_identity_conflict_header(identity_conflicts)
-      |> put_resp_header(
-        "x-ash-session-changed",
-        to_string(previous_account_id != account.id)
-      )
+      |> put_resp_header("x-ash-session-changed", to_string(session_changed?))
       |> json(session_payload(account))
     else
       _ -> unauthorized(conn)
@@ -93,7 +97,8 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   def delete(conn, _params) do
     conn
-    |> drop_local_session()
+    |> configure_session(drop: true)
+    |> clear_session()
     |> put_resp_cookie(@logout_epoch_cookie, logout_epoch(), logout_epoch_cookie_options())
     |> json(%{ok: true})
   end
@@ -141,16 +146,27 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   defp disconnect_live_socket(conn) do
-    case get_session(conn, :live_socket_id) do
-      @live_socket_prefix <> _token = live_socket_id ->
-        AshPlatformWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+    live_socket_id = get_session(conn, :live_socket_id)
 
-      _other ->
-        :ok
+    if canonical_live_socket_id?(live_socket_id) do
+      AshPlatformWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
     end
 
     conn
   end
+
+  defp canonical_live_socket_id?(@live_socket_prefix <> token) when byte_size(token) == 43 do
+    with true <- String.match?(token, ~r/\A[A-Za-z0-9_-]{43}\z/),
+         {:ok, decoded} <- Base.url_decode64(token, padding: false),
+         32 <- byte_size(decoded),
+         ^token <- Base.url_encode64(decoded, padding: false) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp canonical_live_socket_id?(_live_socket_id), do: false
 
   defp put_logout_epoch_session(conn, nil), do: conn
 
