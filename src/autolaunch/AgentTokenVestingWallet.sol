@@ -11,13 +11,10 @@ interface ILaunchStrategyGraduation {
 contract AgentTokenVestingWallet {
     using SafeTransferLib for address;
 
-    uint64 internal constant DEFAULT_ROTATION_DELAY = 3 days;
+    uint64 public constant VESTING_DURATION = 365 days;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-    address public beneficiary;
-    address public pendingBeneficiary;
-    uint64 public pendingBeneficiaryEta;
-    uint64 public immutable rotationDelay;
+    address public immutable beneficiary;
     uint64 public immutable startTimestamp;
     uint64 public immutable durationSeconds;
     address public immutable launchToken;
@@ -31,15 +28,6 @@ contract AgentTokenVestingWallet {
     event LaunchTokenReleased(address indexed beneficiary, uint256 amount);
     event StrategyBound(address indexed strategy);
     event LaunchTokenBurnedOnFailedLaunch(address indexed strategy, uint256 amount);
-    event BeneficiaryRotationProposed(
-        address indexed currentBeneficiary, address indexed pendingBeneficiary, uint64 eta
-    );
-    event BeneficiaryRotationCancelled(
-        address indexed currentBeneficiary, address indexed cancelledBeneficiary
-    );
-    event BeneficiaryRotationExecuted(
-        address indexed oldBeneficiary, address indexed newBeneficiary
-    );
     event NativeRescued(address indexed recipient, uint256 amount);
     event UnsupportedTokenRescued(address indexed token, uint256 amount, address indexed recipient);
 
@@ -64,10 +52,10 @@ contract AgentTokenVestingWallet {
         require(beneficiary_ != address(0), "BENEFICIARY_ZERO");
         require(startTimestamp_ != 0, "START_ZERO");
         require(durationSeconds_ != 0, "DURATION_ZERO");
+        require(durationSeconds_ == VESTING_DURATION, "DURATION_NOT_365_DAYS");
         require(launchToken_ != address(0), "LAUNCH_TOKEN_ZERO");
 
         beneficiary = beneficiary_;
-        rotationDelay = DEFAULT_ROTATION_DELAY;
         startTimestamp = startTimestamp_;
         durationSeconds = durationSeconds_;
         launchToken = launchToken_;
@@ -118,6 +106,8 @@ contract AgentTokenVestingWallet {
         return _vestedAmount(_currentTime()) - releasedLaunchToken;
     }
 
+    // Timestamp comparisons implement the fixed linear vesting schedule.
+    // slither-disable-next-line timestamp
     function releaseLaunchToken() external nonReentrant returns (uint256 amount) {
         require(launchGraduated(), "LAUNCH_NOT_GRADUATED");
 
@@ -129,40 +119,6 @@ contract AgentTokenVestingWallet {
         launchToken.safeTransfer(beneficiary, amount);
 
         emit LaunchTokenReleased(beneficiary, amount);
-    }
-
-    function proposeBeneficiaryRotation(address newBeneficiary) external onlyBeneficiary {
-        require(newBeneficiary != address(0), "BENEFICIARY_ZERO");
-        require(newBeneficiary != beneficiary, "BENEFICIARY_UNCHANGED");
-
-        uint64 eta = uint64(_currentTime()) + rotationDelay;
-        pendingBeneficiary = newBeneficiary;
-        pendingBeneficiaryEta = eta;
-
-        emit BeneficiaryRotationProposed(beneficiary, newBeneficiary, eta);
-    }
-
-    function cancelBeneficiaryRotation() external onlyBeneficiary {
-        address cancelledBeneficiary = pendingBeneficiary;
-        require(cancelledBeneficiary != address(0), "PENDING_BENEFICIARY_ZERO");
-
-        pendingBeneficiary = address(0);
-        pendingBeneficiaryEta = 0;
-
-        emit BeneficiaryRotationCancelled(beneficiary, cancelledBeneficiary);
-    }
-
-    function executeBeneficiaryRotation() external {
-        address nextBeneficiary = pendingBeneficiary;
-        require(nextBeneficiary != address(0), "PENDING_BENEFICIARY_ZERO");
-        require(_currentTime() >= pendingBeneficiaryEta, "ROTATION_NOT_READY");
-
-        address oldBeneficiary = beneficiary;
-        beneficiary = nextBeneficiary;
-        pendingBeneficiary = address(0);
-        pendingBeneficiaryEta = 0;
-
-        emit BeneficiaryRotationExecuted(oldBeneficiary, nextBeneficiary);
     }
 
     function rescueNative(address recipient) external onlyBeneficiary nonReentrant {
@@ -194,6 +150,8 @@ contract AgentTokenVestingWallet {
         timestamp = block.timestamp;
     }
 
+    // Timestamp comparisons implement the fixed linear vesting schedule.
+    // slither-disable-next-line timestamp
     function _vestedAmount(uint256 timestamp) internal view returns (uint256) {
         // After a failed-launch burn nothing is vestable; report exactly what was already
         // released so `releasableLaunchToken` returns 0 instead of underflowing.

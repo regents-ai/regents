@@ -18,10 +18,8 @@ contract StrategyGraduationMock {
 
 contract AgentTokenVestingWalletTest is Test {
     address internal constant BENEFICIARY = address(0xBEEF);
-    address internal constant NEXT_BENEFICIARY = address(0xCAFE);
     uint64 internal constant START = 1_700_000_000;
     uint64 internal constant DURATION = 365 days;
-    uint64 internal constant ROTATION_DELAY = 3 days;
 
     MintableERC20Mock internal token;
     MintableERC20Mock internal other;
@@ -51,67 +49,21 @@ contract AgentTokenVestingWalletTest is Test {
         assertEq(vestingWallet.releasedLaunchToken(), 500e18);
     }
 
-    function testProposeBeneficiaryRotation() external {
-        vm.warp(START);
-        vm.prank(BENEFICIARY);
-        vestingWallet.proposeBeneficiaryRotation(NEXT_BENEFICIARY);
+    function testBeneficiaryAndDurationAreFixedAtCreation() external {
+        assertEq(vestingWallet.beneficiary(), BENEFICIARY);
+        assertEq(vestingWallet.durationSeconds(), 365 days);
 
-        assertEq(vestingWallet.pendingBeneficiary(), NEXT_BENEFICIARY);
-        assertEq(vestingWallet.pendingBeneficiaryEta(), START + ROTATION_DELAY);
+        (bool proposeOk,) = address(vestingWallet)
+            .call(abi.encodeWithSignature("proposeBeneficiaryRotation(address)", address(0xCAFE)));
+        (bool executeOk,) =
+            address(vestingWallet).call(abi.encodeWithSignature("executeBeneficiaryRotation()"));
+        assertFalse(proposeOk);
+        assertFalse(executeOk);
     }
 
-    function testCancelBeneficiaryRotation() external {
-        vm.warp(START);
-        vm.prank(BENEFICIARY);
-        vestingWallet.proposeBeneficiaryRotation(NEXT_BENEFICIARY);
-
-        vm.prank(BENEFICIARY);
-        vestingWallet.cancelBeneficiaryRotation();
-
-        assertEq(vestingWallet.pendingBeneficiary(), address(0));
-        assertEq(vestingWallet.pendingBeneficiaryEta(), 0);
-    }
-
-    function testExecuteBeneficiaryRotationAfterDelay() external {
-        vm.warp(START);
-        vm.prank(BENEFICIARY);
-        vestingWallet.proposeBeneficiaryRotation(NEXT_BENEFICIARY);
-
-        vm.warp(START + ROTATION_DELAY);
-        vestingWallet.executeBeneficiaryRotation();
-
-        assertEq(vestingWallet.beneficiary(), NEXT_BENEFICIARY);
-        assertEq(vestingWallet.pendingBeneficiary(), address(0));
-        assertEq(vestingWallet.pendingBeneficiaryEta(), 0);
-    }
-
-    function testReleaseUsesOldBeneficiaryBeforeRotationExecutes() external {
-        vm.warp(START);
-        vm.prank(BENEFICIARY);
-        vestingWallet.proposeBeneficiaryRotation(NEXT_BENEFICIARY);
-
-        vm.warp(START + DURATION / 2);
-        uint256 released = vestingWallet.releaseLaunchToken();
-
-        assertEq(released, 500e18);
-        assertEq(token.balanceOf(BENEFICIARY), 500e18);
-        assertEq(token.balanceOf(NEXT_BENEFICIARY), 0);
-    }
-
-    function testReleaseUsesNewBeneficiaryAfterRotationExecutes() external {
-        vm.warp(START);
-        vm.prank(BENEFICIARY);
-        vestingWallet.proposeBeneficiaryRotation(NEXT_BENEFICIARY);
-
-        vm.warp(START + ROTATION_DELAY);
-        vestingWallet.executeBeneficiaryRotation();
-
-        vm.warp(START + DURATION / 2);
-        uint256 released = vestingWallet.releaseLaunchToken();
-
-        assertEq(released, 500e18);
-        assertEq(token.balanceOf(BENEFICIARY), 0);
-        assertEq(token.balanceOf(NEXT_BENEFICIARY), 500e18);
+    function testRejectsNonCanonicalVestingDuration() external {
+        vm.expectRevert("DURATION_NOT_365_DAYS");
+        new AgentTokenVestingWallet(BENEFICIARY, START, DURATION - 1, address(token));
     }
 
     function testReleaseRevertsWhenNothingIsVested() external {

@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {RegentRevenueStaking} from "src/staking/RegentRevenueStaking.sol";
 import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
+import {RevenueIngressAccount} from "src/autolaunch/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
@@ -19,13 +20,13 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
     address internal constant STAKER = address(0x3333);
     address internal constant STAKER_TWO = address(0x4444);
     uint256 internal constant SUPPLY_DENOMINATOR = 1000e18;
-    uint256 internal constant HUNDRED_USDC = 100e18;
-    uint256 internal constant PROTOCOL_SKIM = 1e18;
+    uint256 internal constant HUNDRED_USDC = 100e6;
+    uint256 internal constant PROTOCOL_SKIM = 1e6;
     // The former 10% market-buyback lane now rides with stakers: the full post-skim subject
     // lane (99 USDC on a 100 USDC deposit) is staker-eligible under the default 100% share.
-    uint256 internal constant SUBJECT_LANE = 99e18;
-    uint256 internal constant STAKER_CLAIM = 9900e15;
-    uint256 internal constant TREASURY_RESIDUAL = 89_100e15;
+    uint256 internal constant SUBJECT_LANE = 99e6;
+    uint256 internal constant STAKER_CLAIM = 9900e3;
+    uint256 internal constant TREASURY_RESIDUAL = 89_100e3;
 
     MintableERC20Mock internal usdc;
     MintableERC20Mock internal regent;
@@ -49,7 +50,6 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
         router = new RegentStakingRevenueRouter(
             address(this), address(usdc), address(subjectRegistry), address(staking)
         );
-        router.setMaxUsdcPerSettlement(1000e18);
         splitter = new RevenueShareSplitterV2(
             address(stakeToken),
             address(usdc),
@@ -109,7 +109,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
 
         // Full post-skim lane (99 USDC, incl. the old 9.9 buyback slice) is now staker-claimable.
         assertEq(splitter.previewClaimableUSDC(STAKER), SUBJECT_LANE);
-        assertGt(SUBJECT_LANE, 89_100e15); // strictly more than the pre-cutover staker outcome
+        assertGt(SUBJECT_LANE, 89_100e3); // strictly more than the pre-cutover staker outcome
         assertEq(splitter.treasuryResidualUsdc(), 0);
 
         // Only the 1% protocol skim ever leaves the splitter; nothing is routed for a buyback.
@@ -123,24 +123,50 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
         assertEq(usdc.balanceOf(STAKER), SUBJECT_LANE);
     }
 
-    function testTreasuryDivergenceBetweenSplitterAndRegistryDoesNotBrickDeposits() external {
+    function testQuarantineBlocksTreasuryRecipientRotationExecution() external {
         address newSafe = address(0x7777);
 
-        // Rotate the V2 splitter's OWN treasuryRecipient without touching the registry.
-        vm.startPrank(TREASURY);
+        vm.prank(TREASURY);
         splitter.proposeTreasuryRecipientRotation(newSafe);
+        vm.prank(TREASURY);
+        subjectRegistry.quarantineSubject(SUBJECT_ID);
         vm.warp(block.timestamp + splitter.treasuryRotationDelay());
-        splitter.executeTreasuryRecipientRotation();
-        vm.stopPrank();
-        assertEq(splitter.treasuryRecipient(), newSafe);
 
-        // Revenue intake keeps working even though splitter and registry treasuries diverge.
+        vm.expectRevert("SUBJECT_INACTIVE");
+        splitter.executeTreasuryRecipientRotation();
+        assertEq(splitter.treasuryRecipient(), TREASURY);
+        assertEq(splitter.pendingTreasuryRecipient(), newSafe);
+    }
+
+    function testActiveTreasuryRotationKeepsDirectAndDefaultIngressRoutingLive() external {
+        address newSafe = address(0x7777);
+
+        vm.prank(TREASURY);
+        splitter.proposeTreasuryRecipientRotation(newSafe);
+        assertEq(splitter.treasuryRotationDelay(), 3 days);
+        vm.warp(block.timestamp + 3 days);
+        splitter.executeTreasuryRecipientRotation();
+
+        address ingress =
+            ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress");
+
         usdc.mint(address(this), HUNDRED_USDC);
         usdc.approve(address(splitter), HUNDRED_USDC);
         splitter.depositUSDC(HUNDRED_USDC, bytes32("direct"), bytes32("source"));
 
-        assertEq(splitter.protocolFeeUsdc(), PROTOCOL_SKIM);
-        assertEq(usdc.balanceOf(address(staking)), PROTOCOL_SKIM);
+        usdc.mint(ingress, HUNDRED_USDC);
+        RevenueIngressAccount(payable(ingress)).sweepUSDC(bytes32("default_ingress"));
+
+        assertEq(splitter.treasuryRecipient(), newSafe);
+        assertEq(splitter.directDepositUsdc(), HUNDRED_USDC);
+        assertEq(splitter.verifiedIngressUsdc(), HUNDRED_USDC);
+        assertEq(splitter.protocolFeeUsdc(), PROTOCOL_SKIM * 2);
+        assertEq(splitter.treasuryResidualUsdc(), SUBJECT_LANE * 2);
+
+        vm.prank(newSafe);
+        splitter.sweepTreasuryResidualUSDC(SUBJECT_LANE * 2);
+        assertEq(usdc.balanceOf(newSafe), SUBJECT_LANE * 2);
+        assertEq(usdc.balanceOf(TREASURY), 0);
     }
 
     function testNoStakerSubjectStillSendsProtocolSkimToRegentStaking() external {
@@ -335,6 +361,25 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
         assertEq(feeToken.balanceOf(STAKER), 0);
     }
 
+    function testClaimAndUnstakeCannotRedirectFixedAccountExit() external {
+        stakeToken.mint(STAKER, SUPPLY_DENOMINATOR);
+        vm.startPrank(STAKER);
+        stakeToken.approve(address(splitter), SUPPLY_DENOMINATOR);
+        splitter.stake(SUPPLY_DENOMINATOR, STAKER);
+        vm.stopPrank();
+
+        usdc.mint(address(this), HUNDRED_USDC);
+        usdc.approve(address(splitter), HUNDRED_USDC);
+        splitter.depositUSDC(HUNDRED_USDC, bytes32("direct"), bytes32("source"));
+
+        vm.startPrank(STAKER);
+        vm.expectRevert("RECIPIENT_NOT_ACCOUNT");
+        splitter.claimUSDC(STAKER_TWO);
+        vm.expectRevert("RECIPIENT_NOT_ACCOUNT");
+        splitter.unstake(SUPPLY_DENOMINATOR, STAKER_TWO);
+        vm.stopPrank();
+    }
+
     function testDepositRejectsInexactProtocolFeeRouterReturn() external {
         bytes32 subjectId = keccak256("v2-mock-protocol-return");
         MockRegentStakingRevenueRouter mockRouter =
@@ -379,7 +424,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
                 stakeToken: token,
                 splitter: subjectSplitter,
                 agentSafe: TREASURY,
-                ingress: address(0x1001),
+                ingress: ingressFactory.predictDefaultIngress(id, TREASURY),
                 paymentLinkFactory: address(0x1002),
                 strategy: address(0x1003),
                 launchFeeRegistry: address(0x1004),

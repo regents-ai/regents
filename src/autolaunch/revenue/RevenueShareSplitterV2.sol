@@ -216,7 +216,11 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
         emit PausedSet(paused_);
     }
 
-    function proposeTreasuryRecipientRotation(address newRecipient) external onlyOwner {
+    function proposeTreasuryRecipientRotation(address newRecipient)
+        external
+        onlyOwner
+        onlyActiveSubject
+    {
         require(newRecipient != address(0), "TREASURY_ZERO");
         require(newRecipient != address(this), "TREASURY_IS_SELF");
         require(newRecipient != treasuryRecipient, "TREASURY_UNCHANGED");
@@ -237,7 +241,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
 
     // Reviewed in slither.db.json: the timestamp enforces the configured rotation delay.
     // slither-disable-next-line timestamp
-    function executeTreasuryRecipientRotation() external {
+    function executeTreasuryRecipientRotation() external onlyActiveSubject {
         address newRecipient = pendingTreasuryRecipient;
         require(newRecipient != address(0), "PENDING_TREASURY_ZERO");
         require(block.timestamp >= pendingTreasuryRecipientEta, "ROTATION_NOT_READY");
@@ -321,6 +325,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
         require(amount != 0, "AMOUNT_ZERO");
         require(recipient != address(0), "RECIPIENT_ZERO");
         require(recipient != address(this), "RECIPIENT_IS_SELF");
+        require(recipient == msg.sender, "RECIPIENT_NOT_ACCOUNT");
         _sync(msg.sender);
         uint256 currentStake = stakedBalance[msg.sender];
         require(currentStake >= amount, "STAKE_BALANCE_LOW");
@@ -436,6 +441,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     function claimUSDC(address recipient) external nonReentrant returns (uint256 amount) {
         require(recipient != address(0), "RECIPIENT_ZERO");
         require(recipient != address(this), "RECIPIENT_IS_SELF");
+        require(recipient == msg.sender, "RECIPIENT_NOT_ACCOUNT");
         _sync(msg.sender);
         amount = storedClaimableUsdc[msg.sender];
         if (amount < 1) return 0;
@@ -471,7 +477,12 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
         usdc.safeTransfer(treasuryRecipient, amount);
     }
 
-    function reassignUndistributedDustToTreasury(uint256 amount) external onlyOwner nonReentrant {
+    function reassignUndistributedDustToTreasury(uint256 amount)
+        external
+        onlyOwner
+        onlyActiveSubject
+        nonReentrant
+    {
         require(amount != 0, "AMOUNT_ZERO");
         require(undistributedDustUsdc >= amount, "DUST_BALANCE_LOW");
         require(
@@ -515,12 +526,14 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     function sweepSurplusUSDC(uint256 amount, address recipient)
         external
         whenNotPaused
+        onlyActiveSubject
         onlyTreasurySweepCaller
         nonReentrant
     {
         require(amount != 0, "AMOUNT_ZERO");
         require(recipient != address(0), "RECIPIENT_ZERO");
         require(recipient != address(this), "RECIPIENT_IS_SELF");
+        require(recipient == treasuryRecipient, "RECIPIENT_NOT_TREASURY");
         require(surplusUsdc() >= amount, "SURPLUS_BALANCE_LOW");
         totalSurplusUsdcSwept += amount;
         emit USDCSurplusSwept(amount, recipient);

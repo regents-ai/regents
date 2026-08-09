@@ -22,7 +22,7 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
     address public immutable override regentRevenueStaking;
     address public immutable subjectRegistry;
 
-    uint256 public maxUsdcPerSettlement = 50_000e6;
+    uint256 public constant maxUsdcPerSettlement = 2000e6;
     uint256 public totalUsdcSettled;
     uint256 public totalUsdcDepositedToRegentStaking;
 
@@ -64,6 +64,8 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
         regentRevenueStaking = regentRevenueStaking_;
     }
 
+    // Exact balance deltas and post-call accounting are protected by nonReentrant.
+    // slither-disable-next-line reentrancy-balance,incorrect-equality,reentrancy-benign
     function processProtocolFee(bytes32 subjectId, uint256 usdcAmount, bytes32 sourceRef)
         external
         override
@@ -79,10 +81,16 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
             IERC20SupplyMinimal(usdc).balanceOf(address(this)) >= usdcAmount, "USDC_NOT_RECEIVED"
         );
 
+        uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         usdc.forceApprove(regentRevenueStaking, usdcAmount);
         depositedUsdc = IRegentRevenueStakingMinimal(regentRevenueStaking)
             .depositUSDC(usdcAmount, subjectId, sourceRef);
+        usdc.forceApprove(regentRevenueStaking, 0);
         require(depositedUsdc == usdcAmount, "STAKING_DEPOSIT_INEXACT");
+        require(
+            beforeBalance - IERC20SupplyMinimal(usdc).balanceOf(address(this)) == usdcAmount,
+            "STAKING_TRANSFER_INEXACT"
+        );
 
         totalUsdcSettled += usdcAmount;
         totalUsdcDepositedToRegentStaking += depositedUsdc;
@@ -92,11 +100,8 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
         );
     }
 
-    function setMaxUsdcPerSettlement(uint256 newAmount) external onlyOwner {
-        require(newAmount != 0, "MAX_SETTLEMENT_ZERO");
-        uint256 previous = maxUsdcPerSettlement;
-        maxUsdcPerSettlement = newAmount;
-        emit MaxUsdcPerSettlementSet(previous, newAmount);
+    function setMaxUsdcPerSettlement(uint256) external view onlyOwner {
+        revert("CAP_IMMUTABLE");
     }
 
     function _requireRegisteredSubjectSplitter(bytes32 subjectId)

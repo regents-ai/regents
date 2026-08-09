@@ -9,6 +9,18 @@ import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 
+contract NoPullStakingMock {
+    address public immutable usdc;
+
+    constructor(address usdc_) {
+        usdc = usdc_;
+    }
+
+    function depositUSDC(uint256 amount, bytes32, bytes32) external pure returns (uint256) {
+        return amount;
+    }
+}
+
 contract RegentStakingRevenueRouterTest is Test {
     bytes32 internal constant SUBJECT_ID = keccak256("subject");
     address internal constant OWNER = address(0xA11CE);
@@ -113,6 +125,21 @@ contract RegentStakingRevenueRouterTest is Test {
         assertEq(staking.totalUsdcReceived(), USDC_FEE);
         assertEq(router.totalUsdcSettled(), USDC_FEE);
         assertEq(router.totalUsdcDepositedToRegentStaking(), USDC_FEE);
+        assertEq(usdc.allowance(address(router), address(staking)), 0);
+    }
+
+    function testRouterRejectsExactReturnWithoutExactTokenTransfer() external {
+        NoPullStakingMock noPullStaking = new NoPullStakingMock(address(usdc));
+        RegentStakingRevenueRouter noPullRouter = new RegentStakingRevenueRouter(
+            OWNER, address(usdc), address(subjectRegistry), address(noPullStaking)
+        );
+        usdc.mint(address(noPullRouter), USDC_FEE);
+
+        vm.expectRevert("STAKING_TRANSFER_INEXACT");
+        noPullRouter.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
+
+        assertEq(usdc.balanceOf(address(noPullRouter)), USDC_FEE);
+        assertEq(usdc.allowance(address(noPullRouter), address(noPullStaking)), 0);
     }
 
     function testRouterRevertsIfStakingIsPaused() external {
@@ -129,16 +156,14 @@ contract RegentStakingRevenueRouterTest is Test {
         assertEq(router.protocolSkimBps(), 100);
     }
 
-    function testMaxUsdcPerSettlementIsOwnerConfigurable() external {
-        vm.prank(OWNER);
-        router.setMaxUsdcPerSettlement(1000e6);
-        assertEq(router.maxUsdcPerSettlement(), 1000e6);
-    }
+    function testMaxUsdcPerSettlementIsFixedAtTwoThousandTokenUnits() external {
+        uint256 fixedCap = 2000e6;
+        assertEq(router.maxUsdcPerSettlement(), fixedCap);
 
-    function testSetMaxUsdcPerSettlementRejectsZero() external {
         vm.prank(OWNER);
-        vm.expectRevert("MAX_SETTLEMENT_ZERO");
-        router.setMaxUsdcPerSettlement(0);
+        vm.expectRevert("CAP_IMMUTABLE");
+        router.setMaxUsdcPerSettlement(1000e6);
+        assertEq(router.maxUsdcPerSettlement(), fixedCap);
     }
 
     /// @notice The market-buyback surface has been removed by construction: the router no longer

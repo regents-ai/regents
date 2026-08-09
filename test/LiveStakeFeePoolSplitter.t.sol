@@ -102,7 +102,6 @@ contract LiveStakeFeePoolSplitterTest is Test {
         RegentStakingRevenueRouter router = new RegentStakingRevenueRouter(
             address(this), address(usdc), address(subjectRegistry), address(staking)
         );
-        router.setMaxUsdcPerSettlement(1000e18);
         LiveStakeFeePoolSplitter realRouterSplitter = new LiveStakeFeePoolSplitter(
             address(liveStakeToken),
             address(usdc),
@@ -123,19 +122,19 @@ contract LiveStakeFeePoolSplitterTest is Test {
         vm.prank(STAKER_ONE);
         realRouterSplitter.stake(10e18, STAKER_ONE);
 
-        usdc.mint(address(this), HUNDRED_USDC);
-        usdc.approve(address(realRouterSplitter), HUNDRED_USDC);
-        realRouterSplitter.depositUSDC(HUNDRED_USDC, bytes32("direct"), bytes32("source"));
+        usdc.mint(address(this), 100e6);
+        usdc.approve(address(realRouterSplitter), 100e6);
+        realRouterSplitter.depositUSDC(100e6, bytes32("direct"), bytes32("source"));
 
-        assertEq(realRouterSplitter.protocolFeeUsdc(), PROTOCOL_SKIM);
-        assertEq(realRouterSplitter.netAgentLaneUsdc(), SUBJECT_LANE);
-        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), STAKER_POOL);
-        assertEq(realRouterSplitter.treasuryReservedUsdc(), TREASURY_LANE);
-        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), STAKER_POOL);
-        assertEq(usdc.balanceOf(address(staking)), PROTOCOL_SKIM);
+        assertEq(realRouterSplitter.protocolFeeUsdc(), 1e6);
+        assertEq(realRouterSplitter.netAgentLaneUsdc(), 99e6);
+        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), 9_900_000);
+        assertEq(realRouterSplitter.treasuryReservedUsdc(), 89_100_000);
+        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), 9_900_000);
+        assertEq(usdc.balanceOf(address(staking)), 1e6);
         assertEq(usdc.balanceOf(address(router)), 0);
-        assertEq(staking.totalUsdcReceived(), PROTOCOL_SKIM);
-        assertEq(router.totalUsdcDepositedToRegentStaking(), PROTOCOL_SKIM);
+        assertEq(staking.totalUsdcReceived(), 1e6);
+        assertEq(router.totalUsdcDepositedToRegentStaking(), 1e6);
         assertEq(regent.balanceOf(TREASURY), 0);
     }
 
@@ -441,7 +440,6 @@ contract LiveStakeFeePoolSplitterTest is Test {
         RegentStakingRevenueRouter router = new RegentStakingRevenueRouter(
             address(this), address(usdc), address(subjectRegistry), address(staking)
         );
-        router.setMaxUsdcPerSettlement(1000e18);
         LiveStakeFeePoolSplitter rotationSplitter = new LiveStakeFeePoolSplitter(
             address(rotationStakeToken),
             address(usdc),
@@ -465,10 +463,10 @@ contract LiveStakeFeePoolSplitterTest is Test {
         );
 
         // Protocol skim accrued BEFORE the registry treasury rotation.
-        usdc.mint(address(this), 100e18);
-        usdc.approve(address(rotationSplitter), 100e18);
-        rotationSplitter.depositUSDC(100e18, bytes32("direct"), bytes32("pre-rotation"));
-        assertEq(usdc.balanceOf(address(staking)), PROTOCOL_SKIM);
+        usdc.mint(address(this), 100e6);
+        usdc.approve(address(rotationSplitter), 100e6);
+        rotationSplitter.depositUSDC(100e6, bytes32("direct"), bytes32("pre-rotation"));
+        assertEq(usdc.balanceOf(address(staking)), 1e6);
 
         // The registered Agent Safe and splitter are immutable.
         vm.expectRevert("SUBJECT_IMMUTABLE");
@@ -477,16 +475,16 @@ contract LiveStakeFeePoolSplitterTest is Test {
         );
 
         // Deposits and ingress sweeps still succeed after the rotation.
-        usdc.mint(address(this), 100e18);
-        usdc.approve(address(rotationSplitter), 100e18);
-        rotationSplitter.depositUSDC(100e18, bytes32("direct"), bytes32("post-rotation"));
+        usdc.mint(address(this), 100e6);
+        usdc.approve(address(rotationSplitter), 100e6);
+        rotationSplitter.depositUSDC(100e6, bytes32("direct"), bytes32("post-rotation"));
 
-        usdc.mint(address(rotationIngress), 50e18);
+        usdc.mint(address(rotationIngress), 50e6);
         rotationIngress.sweepUSDC(bytes32("post-rotation-sweep"));
 
         // Protocol fee accrued into Regent staking on 100 + 100 + 50 = 250 USDC -> 2.5 skim.
-        assertEq(usdc.balanceOf(address(staking)), 25e17);
-        assertEq(staking.totalUsdcReceived(), 25e17);
+        assertEq(usdc.balanceOf(address(staking)), 2_500_000);
+        assertEq(staking.totalUsdcReceived(), 2_500_000);
         // No market-bought REGENT reaches any treasury under the direct-distribution model.
         assertEq(regent.balanceOf(newSafe), 0);
         assertEq(regent.balanceOf(TREASURY), 0);

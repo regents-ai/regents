@@ -67,6 +67,8 @@ contract RevenueIngressAccountTest is Test {
         ingress = RevenueIngressAccount(
             payable(ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress"))
         );
+        assertEq(ingress.splitter(), address(splitter));
+        assertEq(ingress.destination(), address(splitter));
     }
 
     function testSweepRecognizesRevenueInsideSplitter() external {

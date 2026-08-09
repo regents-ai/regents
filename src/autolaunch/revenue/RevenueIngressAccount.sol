@@ -17,6 +17,7 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
     address public immutable override usdc;
     address public immutable subjectRegistry;
     address public immutable factory;
+    address public immutable splitter;
     bytes32 public immutable override subjectId;
     uint256 public constant MAX_ACCOUNTING_TAG_PAGE_SIZE = 100;
     uint256 private _reentrancyGuard = 1;
@@ -74,16 +75,17 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         require(subjectId_ != bytes32(0), "SUBJECT_ZERO");
         InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
-        address splitter = ISubjectRegistry(subjectRegistry_).splitterOfSubject(subjectId_);
-        require(splitter != address(0), "SPLITTER_ZERO");
-        require(IRevenueShareSplitter(splitter).usdc() == usdc_, "SPLITTER_USDC_MISMATCH");
+        address splitter_ = ISubjectRegistry(subjectRegistry_).splitterOfSubject(subjectId_);
+        require(splitter_ != address(0), "SPLITTER_ZERO");
+        require(IRevenueShareSplitter(splitter_).usdc() == usdc_, "SPLITTER_USDC_MISMATCH");
         require(
-            IRevenueShareSplitter(splitter).subjectId() == subjectId_, "SPLITTER_SUBJECT_MISMATCH"
+            IRevenueShareSplitter(splitter_).subjectId() == subjectId_, "SPLITTER_SUBJECT_MISMATCH"
         );
 
         usdc = usdc_;
         subjectRegistry = subjectRegistry_;
         factory = msg.sender;
+        splitter = splitter_;
         subjectId = subjectId_;
         label = label_;
     }
@@ -98,9 +100,8 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         revert("INGRESS_IMMUTABLE");
     }
 
-    function destination() public view override returns (address splitter) {
-        splitter = ISubjectRegistry(subjectRegistry).splitterOfSubject(subjectId);
-        require(splitter != address(0), "SPLITTER_ZERO");
+    function destination() public view override returns (address) {
+        return splitter;
     }
 
     // Reviewed in slither.db.json: nonReentrant guards canonical USDC transfer callbacks.
@@ -194,19 +195,21 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         );
         require(sourceRef != bytes32(0), "SOURCE_REF_ZERO");
 
-        address splitter = destination();
-        require(IRevenueShareSplitter(splitter).usdc() == usdc, "SPLITTER_USDC_MISMATCH");
+        address destinationSplitter = destination();
+        require(IRevenueShareSplitter(destinationSplitter).usdc() == usdc, "SPLITTER_USDC_MISMATCH");
         require(
-            IRevenueShareSplitter(splitter).subjectId() == subjectId, "SPLITTER_SUBJECT_MISMATCH"
+            IRevenueShareSplitter(destinationSplitter).subjectId() == subjectId,
+            "SPLITTER_SUBJECT_MISMATCH"
         );
 
         balance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         require(balance != 0, "NOTHING_TO_SWEEP");
 
-        usdc.forceApprove(splitter, balance);
-        recognized = IRevenueShareSplitter(splitter).recordIngressSweep(balance, sourceRef);
+        usdc.forceApprove(destinationSplitter, balance);
+        recognized =
+            IRevenueShareSplitter(destinationSplitter).recordIngressSweep(balance, sourceRef);
 
-        emit USDCSwept(msg.sender, splitter, balance, recognized, sourceRef);
+        emit USDCSwept(msg.sender, destinationSplitter, balance, recognized, sourceRef);
     }
 
     receive() external payable {
