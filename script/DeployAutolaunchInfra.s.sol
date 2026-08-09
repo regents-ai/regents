@@ -1,179 +1,197 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.28;
 
 import {Script} from "forge-std/Script.sol";
-import {console2} from "forge-std/console2.sol";
 
-import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {AutolaunchFactoryV1} from "src/autolaunch/AutolaunchFactoryV1.sol";
+import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
+import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
+import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
+import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
+import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
 import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
-import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
-import {DeferredAutolaunchFactory} from "src/autolaunch/revenue/DeferredAutolaunchFactory.sol";
-import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
-import {
-    IRegentStakingRevenueRouter
-} from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
-import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
-import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
-import {BaseUsdc} from "src/shared/libraries/BaseUsdc.sol";
+import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 
+/// @notice Disposable CREATE deployer. Its nonce must be N before the first call.
+contract AutolaunchInfraDeployerV1 {
+    address public immutable governance;
+    SubjectRegistry public subjectRegistry;
+    RegentStakingRevenueRouter public stakingRouter;
+    RevenueShareSplitterV2Deployer public splitterDeployer;
+    RevenueShareFactory public revenueShareFactory;
+    RevenueIngressFactory public revenueIngressFactory;
+    PaymentLinkFactory public paymentLinkFactory;
+    RegentLBPStrategyFactory public strategyFactory;
+    LaunchFeeInfraDeployer public feeInfraDeployer;
+
+    constructor(address governance_) {
+        require(governance_ != address(0), "GOVERNANCE_ZERO");
+        governance = governance_;
+    }
+
+    function deployDependencies(
+        address predictedFactory,
+        address guardian,
+        address usdc,
+        address liveStaking
+    ) external {
+        require(msg.sender == governance, "ONLY_GOVERNANCE");
+        require(address(subjectRegistry) == address(0), "DEPENDENCIES_ALREADY_DEPLOYED");
+        subjectRegistry = new SubjectRegistry(predictedFactory, governance, guardian);
+        stakingRouter =
+            new RegentStakingRevenueRouter(governance, usdc, address(subjectRegistry), liveStaking);
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
+        revenueShareFactory = new RevenueShareFactory(
+            governance, usdc, subjectRegistry, address(stakingRouter), address(splitterDeployer)
+        );
+        revenueIngressFactory =
+            new RevenueIngressFactory(usdc, address(subjectRegistry), governance);
+        paymentLinkFactory = new PaymentLinkFactory(governance, usdc, address(subjectRegistry));
+        strategyFactory = new RegentLBPStrategyFactory(governance);
+        feeInfraDeployer = new LaunchFeeInfraDeployer(predictedFactory);
+    }
+
+    function deployFactory(address tokenFactory, address identityRegistry, address operationsSafe)
+        external
+        returns (AutolaunchFactoryV1 factory)
+    {
+        require(msg.sender == governance, "ONLY_GOVERNANCE");
+        require(address(feeInfraDeployer) != address(0), "DEPENDENCIES_NOT_DEPLOYED");
+        factory = new AutolaunchFactoryV1(
+            tokenFactory,
+            address(strategyFactory),
+            address(revenueShareFactory),
+            address(revenueIngressFactory),
+            address(paymentLinkFactory),
+            address(feeInfraDeployer),
+            identityRegistry,
+            operationsSafe
+        );
+    }
+}
+
+/// @notice Produces unsigned, zero-value calls only. It never starts a broadcast.
 contract DeployAutolaunchInfraScript is Script {
     uint256 internal constant BASE_MAINNET_CHAIN_ID = 8453;
+    address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address internal constant IDENTITY_REGISTRY = 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432;
+    address internal constant LIVE_STAKING = 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5;
 
     struct ScriptConfig {
-        address owner;
-        address revenueUsdcToken;
-        address regentRevenueStaking;
-        address tokenFactory;
-        address controller;
+        address deployer;
+        uint64 startingNonce;
+        address governance;
         address guardian;
+        address tokenFactory;
+        address operationsSafe;
     }
 
-    struct DeployedInfra {
-        SubjectRegistry subjectRegistry;
-        RevenueShareSplitterV2Deployer revenueShareSplitterDeployer;
-        RevenueShareFactory revenueShareFactory;
-        RevenueIngressFactory revenueIngressFactory;
-        DeferredAutolaunchFactory deferredAutolaunchFactory;
-        PaymentLinkFactory paymentLinkFactory;
-        RegentStakingRevenueRouter stakingRevenueRouter;
-        RegentLBPStrategyFactory strategyFactory;
+    struct PreparedCall {
+        address sender;
+        address to;
+        uint256 value;
+        bytes data;
     }
 
-    function deployFromEnv() external returns (DeployedInfra memory infra) {
-        ScriptConfig memory cfg = loadConfigFromEnv();
-
-        return deploy(cfg);
+    struct DeploymentAddresses {
+        address subjectRegistry;
+        address stakingRouter;
+        address splitterDeployer;
+        address revenueShareFactory;
+        address revenueIngressFactory;
+        address paymentLinkFactory;
+        address strategyFactory;
+        address feeInfraDeployer;
+        address factory;
     }
 
-    function deploy(ScriptConfig memory cfg) public returns (DeployedInfra memory infra) {
-        validateConfig(cfg);
-
-        vm.startBroadcast(cfg.owner);
-        infra.subjectRegistry = new SubjectRegistry(cfg.controller, cfg.owner, cfg.guardian);
-        infra.stakingRevenueRouter = new RegentStakingRevenueRouter(
-            cfg.owner,
-            cfg.revenueUsdcToken,
-            address(infra.subjectRegistry),
-            cfg.regentRevenueStaking
-        );
-        infra.revenueShareSplitterDeployer = new RevenueShareSplitterV2Deployer();
-        infra.revenueShareFactory = new RevenueShareFactory(
-            cfg.owner,
-            cfg.revenueUsdcToken,
-            infra.subjectRegistry,
-            address(infra.stakingRevenueRouter),
-            address(infra.revenueShareSplitterDeployer)
-        );
-        infra.revenueIngressFactory = new RevenueIngressFactory(
-            cfg.revenueUsdcToken, address(infra.subjectRegistry), cfg.owner
-        );
-        infra.deferredAutolaunchFactory = new DeferredAutolaunchFactory(
-            cfg.owner,
-            infra.revenueShareFactory,
-            infra.revenueIngressFactory,
-            IRegentStakingRevenueRouter(address(infra.stakingRevenueRouter)),
-            cfg.tokenFactory
-        );
-        infra.paymentLinkFactory =
-            new PaymentLinkFactory(cfg.owner, cfg.revenueUsdcToken, address(infra.subjectRegistry));
-        infra.strategyFactory = new RegentLBPStrategyFactory(cfg.owner);
-        infra.strategyFactory.setAuthorizedCreator(cfg.controller, true);
-        vm.stopBroadcast();
+    struct PreparedDeployment {
+        DeploymentAddresses addresses;
+        PreparedCall deployDependencies;
+        PreparedCall authorizeFactory;
+        PreparedCall deployFactory;
     }
 
-    function validateConfig(ScriptConfig memory cfg) public view {
-        require(cfg.owner != address(0), "OWNER_ZERO");
-        require(cfg.revenueUsdcToken != address(0), "REVENUE_USDC_ZERO");
-        require(cfg.regentRevenueStaking != address(0), "REGENT_STAKING_ZERO");
-        require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
-        require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
-        require(cfg.controller != address(0), "CONTROLLER_ZERO");
-        require(cfg.guardian != address(0), "GUARDIAN_ZERO");
-        require(cfg.controller != cfg.owner, "CONTROLLER_IS_GOVERNANCE");
-        require(cfg.controller != cfg.guardian, "CONTROLLER_IS_GUARDIAN");
-        require(cfg.owner != cfg.guardian, "GOVERNANCE_IS_GUARDIAN");
-        require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
-        BaseUsdc.requireCanonical(cfg.revenueUsdcToken);
+    function prepare(ScriptConfig memory cfg)
+        public
+        view
+        returns (PreparedDeployment memory prepared)
+    {
+        _validate(cfg);
+        prepared.addresses = predictedAddresses(cfg.deployer, cfg.startingNonce);
+        prepared.deployDependencies = PreparedCall({
+            sender: cfg.governance,
+            to: cfg.deployer,
+            value: 0,
+            data: abi.encodeCall(
+                AutolaunchInfraDeployerV1.deployDependencies,
+                (prepared.addresses.factory, cfg.guardian, USDC, LIVE_STAKING)
+            )
+        });
+        prepared.authorizeFactory = PreparedCall({
+            sender: cfg.governance,
+            to: prepared.addresses.strategyFactory,
+            value: 0,
+            data: abi.encodeCall(
+                RegentLBPStrategyFactory.setAuthorizedCreator, (prepared.addresses.factory, true)
+            )
+        });
+        prepared.deployFactory = PreparedCall({
+            sender: cfg.governance,
+            to: cfg.deployer,
+            value: 0,
+            data: abi.encodeCall(
+                AutolaunchInfraDeployerV1.deployFactory,
+                (cfg.tokenFactory, IDENTITY_REGISTRY, cfg.operationsSafe)
+            )
+        });
+    }
+
+    function predictedAddresses(address deployer, uint64 nonce)
+        public
+        pure
+        returns (DeploymentAddresses memory addresses)
+    {
+        addresses.subjectRegistry = vm.computeCreateAddress(deployer, nonce);
+        addresses.stakingRouter = vm.computeCreateAddress(deployer, nonce + 1);
+        addresses.splitterDeployer = vm.computeCreateAddress(deployer, nonce + 2);
+        addresses.revenueShareFactory = vm.computeCreateAddress(deployer, nonce + 3);
+        addresses.revenueIngressFactory = vm.computeCreateAddress(deployer, nonce + 4);
+        addresses.paymentLinkFactory = vm.computeCreateAddress(deployer, nonce + 5);
+        addresses.strategyFactory = vm.computeCreateAddress(deployer, nonce + 6);
+        addresses.feeInfraDeployer = vm.computeCreateAddress(deployer, nonce + 7);
+        addresses.factory = vm.computeCreateAddress(deployer, nonce + 8);
     }
 
     function loadConfigFromEnv() public view returns (ScriptConfig memory cfg) {
-        cfg.owner = vm.envAddress("AUTOLAUNCH_INFRA_OWNER");
-        cfg.revenueUsdcToken = vm.envAddress("AUTOLAUNCH_REVENUE_USDC_ADDRESS");
-        cfg.regentRevenueStaking = vm.envAddress("REGENT_REVENUE_STAKING_ADDRESS");
-        cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
-        cfg.controller = vm.envAddress("AUTOLAUNCH_CONTROLLER_ADDRESS");
+        cfg.deployer = vm.envAddress("AUTOLAUNCH_DISPOSABLE_DEPLOYER_ADDRESS");
+        cfg.startingNonce = uint64(vm.envUint("AUTOLAUNCH_DISPOSABLE_DEPLOYER_NONCE"));
+        cfg.governance = vm.envAddress("AUTOLAUNCH_GOVERNANCE_ADDRESS");
         cfg.guardian = vm.envAddress("AUTOLAUNCH_GUARDIAN_ADDRESS");
-        validateConfig(cfg);
+        cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
+        cfg.operationsSafe = vm.envAddress("AUTOLAUNCH_OPERATIONS_SAFE_ADDRESS");
+        _validate(cfg);
     }
 
-    function run() external returns (string memory result) {
-        ScriptConfig memory cfg = loadConfigFromEnv();
-
-        DeployedInfra memory infra = deploy(cfg);
-
-        result = string.concat(
-            _resultAddressJson(infra), _resultConfigJson(cfg), _resultOwnershipJson(infra, cfg)
-        );
-        console2.log(string.concat("AUTOLAUNCH_INFRA_RESULT_JSON:", result));
+    function run() external view returns (PreparedDeployment memory) {
+        return prepare(loadConfigFromEnv());
     }
 
-    function _resultAddressJson(DeployedInfra memory infra) internal view returns (string memory) {
-        return string.concat(
-            "{\"subjectRegistryAddress\":\"",
-            vm.toString(address(infra.subjectRegistry)),
-            "\",\"revenueShareSplitterDeployerAddress\":\"",
-            vm.toString(address(infra.revenueShareSplitterDeployer)),
-            "\",\"revenueShareFactoryAddress\":\"",
-            vm.toString(address(infra.revenueShareFactory)),
-            "\",\"revenueIngressFactoryAddress\":\"",
-            vm.toString(address(infra.revenueIngressFactory)),
-            "\",\"deferredAutolaunchFactoryAddress\":\"",
-            vm.toString(address(infra.deferredAutolaunchFactory)),
-            "\",\"paymentLinkFactoryAddress\":\"",
-            vm.toString(address(infra.paymentLinkFactory)),
-            "\",\"stakingRevenueRouterAddress\":\"",
-            vm.toString(address(infra.stakingRevenueRouter)),
-            "\",\"strategyFactoryAddress\":\"",
-            vm.toString(address(infra.strategyFactory))
+    function _validate(ScriptConfig memory cfg) private view {
+        require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
+        require(cfg.deployer.code.length != 0, "DEPLOYER_NOT_DEPLOYED");
+        require(vm.getNonce(cfg.deployer) == cfg.startingNonce, "DEPLOYER_NONCE_CHANGED");
+        require(cfg.governance != address(0), "GOVERNANCE_ZERO");
+        require(
+            AutolaunchInfraDeployerV1(cfg.deployer).governance() == cfg.governance,
+            "DEPLOYER_GOVERNANCE_MISMATCH"
         );
-    }
-
-    function _resultConfigJson(ScriptConfig memory cfg) internal view returns (string memory) {
-        return string.concat(
-            "\",\"revenueUsdcTokenAddress\":\"",
-            vm.toString(cfg.revenueUsdcToken),
-            "\",\"revenueTokenSymbol\":\"USDC\",\"revenueTokenDecimals\":6",
-            ",\"regentRevenueStakingAddress\":\"",
-            vm.toString(cfg.regentRevenueStaking),
-            "\",\"trustedTokenFactoryAddress\":\"",
-            vm.toString(cfg.tokenFactory),
-            "\",\"controllerAddress\":\"",
-            vm.toString(cfg.controller),
-            "\",\"guardianAddress\":\"",
-            vm.toString(cfg.guardian)
-        );
-    }
-
-    function _resultOwnershipJson(DeployedInfra memory infra, ScriptConfig memory cfg)
-        internal
-        view
-        returns (string memory)
-    {
-        return string.concat(
-            "\",\"revenueShareFactoryOwner\":\"",
-            vm.toString(infra.revenueShareFactory.owner()),
-            "\",\"revenueShareFactoryPendingOwner\":\"",
-            vm.toString(infra.revenueShareFactory.pendingOwner()),
-            "\",\"revenueIngressFactoryOwner\":\"",
-            vm.toString(infra.revenueIngressFactory.owner()),
-            "\",\"strategyFactoryOwner\":\"",
-            vm.toString(infra.strategyFactory.owner()),
-            "\",\"owner\":\"",
-            vm.toString(cfg.owner),
-            "\"}"
-        );
+        require(cfg.guardian != address(0), "GUARDIAN_ZERO");
+        require(cfg.governance != cfg.guardian, "GOVERNANCE_IS_GUARDIAN");
+        require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
+        require(cfg.operationsSafe.code.length != 0, "OPERATIONS_SAFE_NOT_DEPLOYED");
     }
 }

@@ -1,121 +1,87 @@
-version: 2
+version: 3
 status: draft
 approval: founder_approval_pending
-purpose: canonical Base-mainnet Autolaunch deployment set for v0.1
+purpose: minimal atomic AutolaunchFactoryV1 deployment and binding evidence
 warning: >-
-  Draft only. Migration does not deploy, publicly expose, or admit any prepared action.
-  Addresses marked pending must be resolved and the complete manifest founder-approved before use.
-network:
-  name: base-mainnet
+  Draft preparation evidence only. This manifest does not deploy, admit, sign,
+  broadcast, transact, access a provider, or move value.
+network: {name: base-mainnet, chain_id: 8453}
+consumer:
+  contract: AutolaunchFactoryV1
+  interface: IAutolaunchFactoryV1
+  method: launch
+  launch_inputs: [agentId, tokenName, tokenSymbol, startBlock, floorPrice, requiredRegentRaised, launchFeeHookSalt]
+  direct_authority: msg.sender_is_agent_safe_and_canonical_identity_owner
+  prepared_safe_call: {value: 0, operation: CALL, keyless: true, signed: false, broadcast: false}
+  retired_controller_compatibility: none
+abi_evidence:
+  source: compiler_generated_IAutolaunchFactoryV1
+  interface_artifact: out/IAutolaunchFactoryV1.sol/IAutolaunchFactoryV1.json
+  implementation_artifact: out/AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json
+  normalization: recursively_delete_internalType_sort_object_keys_preserve_array_order_compact_utf8
+  normalized_bytes: 1496
+  interface_abi_sha256: "0xfc54a41c85077366fe7df844dbbd539bf992f1a6c30593cee3f0b0d5b31cf1ba"
+  implementation_comparison: constructor_excluded_then_byte_equal
+constructor_bindings:
+  order: [tokenFactory, strategyFactory, revenueShareFactory, revenueIngressFactory, paymentLinkFactory, feeInfraDeployer, identityRegistry, operationsSafe]
+  canonical_identity_registry: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+fixed_bindings:
+  usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  regent: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+  cca_factory: "0x000000001F26a0044BaA66024e7b6599c61963F8"
+  pool_manager: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
+  position_manager: "0x7C5f5A4bBd8fD63184577525326123B519429bDc"
+  live_staking: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+deployment_algorithm:
+  version: ordinary_create_v1
+  disposable_deployer: D
+  starting_nonce: N
+  order:
+    - {nonce: N, contract: SubjectRegistry}
+    - {nonce: N+1, contract: RegentStakingRevenueRouter}
+    - {nonce: N+2, contract: RevenueShareSplitterV2Deployer}
+    - {nonce: N+3, contract: RevenueShareFactory}
+    - {nonce: N+4, contract: RevenueIngressFactory}
+    - {nonce: N+5, contract: PaymentLinkFactory}
+    - {nonce: N+6, contract: RegentLBPStrategyFactory}
+    - {nonce: N+7, contract: LaunchFeeInfraDeployer}
+    - {sender: governance, action: authorize_factory_in_strategy_factory, deployer_nonce_unchanged: N+8}
+    - {nonce: N+8, contract: AutolaunchFactoryV1}
+  prepared_calls: 3
+  prepared_call_values: [0, 0, 0]
+  circular_create2: false
+binding_digest:
+  algorithm: AutolaunchFactoryBindingV1
+  runtime_code_hash_source: EXTCODEHASH_after_immutable_substitution
+  dynamic_state_excluded: [pause, quarantine, restoration, lifecycle]
+  typehashes:
+    constructor: "0x6e1e8f7b1a5de15fa2aadd33503de85b47cdbc151c53c83df2df74862a6e0fba"
+    fixed: "0x32ba980f8a2e1edef01731a3c84113908d409e004d68bd4677bf33faad970eba"
+    live_readbacks: "0xa95774e92247e20d445e762ad35b922069db60bcc3a13a7174ed7bfa39396546"
+    final: "0xece30424d68a49316340bac7da891d7930b005201ccaea7ba1bcf2ef915ea7e6"
+deterministic_vector:
   chain_id: 8453
-canonical_assets:
-  auction_quote_regent: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
-  revenue_usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-existing_permanent_contract:
-  name: RegentRevenueStaking
-  address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
-  action: reuse_never_redeploy
-  historical_artifact_labels: {deployed: true, publicly_exposed: true}
-  current_source_binding:
-    status: unverified
-    method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
-    compiler: solc_0.8.30_forge_1.5.1
-    result: mismatch
-    broadcast_creation_bytes: 12580
-    current_creation_bytes: 13031
-    broadcast_creation_sha256: f489624743cf33fa1370cc29eff800a942d0fdcd384f8c84ca8f67804516d45d
-    current_creation_sha256: 4291ed5266727b9a4ee63a5e282a0027db0bc2eb9ae62d2476c23cee1d19bff9
-    current_source_deployed: false
-    note: historical deployment is not source-bound to the current migrated contract
-  constructor:
-    stake_token: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
-    usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    treasury: "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
-    revenue_share_supply_denominator: "100000000000000000000000000000"
-    owner: "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
-  labels: {migrated: true, deployed: false, publicly_exposed: false, money_admitted: false}
-  reviewed_action_evidence_only:
-    - regent_revenue_staking.stake
-    - regent_revenue_staking.unstake
-    - regent_revenue_staking.claim_usdc
-    - regent_revenue_staking.claim_regent
-    - regent_revenue_staking.claim_and_restake_regent
-  admitted_prepared_action_ids: []
-  admission_note: staking actions are reviewed-evidence only; zero admitted action ids
-required_for_v0_1:
-  - {name: LaunchDeploymentController, constructor: [], owner: deployer_then_founder_approved_owner}
-  - {name: LaunchFeeInfraDeployer, constructor: [], role: stateless_child_deployer}
-  - {name: LaunchFeeRegistry, constructor: [owner, canonical_quote_regent], owner: founder_approved_owner}
-  - {name: LaunchFeeVault, constructor: [owner, launch_fee_registry], owner: founder_approved_owner}
-  - {name: LaunchPoolFeeHook, constructor: [owner, uniswap_v4_pool_manager, launch_fee_registry, launch_fee_vault], owner: founder_approved_owner}
-  - {name: RegentLBPStrategyFactory, constructor: [owner], owner: founder_approved_owner}
-  - {name: RegentLBPStrategy, constructor: [StrategyConfig], role: one_per_launch}
-  - {name: AgentTokenVestingWallet, constructor: [beneficiary, start, duration, launch_token], role: one_per_launch}
-  - {name: SubjectRegistry, constructor: [owner], owner: founder_approved_owner}
-  - {name: RevenueShareSplitterV2Deployer, constructor: [], role: canonical_v2_deployer}
-  - {name: RevenueShareFactory, constructor: [owner, usdc, subject_registry, staking_revenue_router, splitter_v2_deployer], owner: founder_approved_owner}
-  - {name: RevenueIngressFactory, constructor: [usdc, subject_registry, owner], owner: founder_approved_owner}
-  - {name: RevenueShareSplitterV2, constructor: [stake_token, usdc, ingress_factory, subject_registry, subject_id, treasury, staking_revenue_router, revenue_share_supply_denominator, label, owner], role: one_per_launch}
-  - {name: RevenueIngressAccount, constructor: [usdc, subject_registry, subject_id, label, owner], role: one_or_more_per_launch}
-  - {name: RegentStakingRevenueRouter, constructor: [owner, usdc, subject_registry, regent_revenue_staking], owner: founder_approved_owner}
-  - {name: CCA_interfaces_and_AuctionStepsBuilder, constructor: [], role: integration_surface}
-  - {name: ITokenFactory_and_IDistributionStrategy, constructor: [], role: integration_surface}
-external_dependencies:
-  - {name: UERC20_factory, address: pending, approval: founder_pending}
-  - {name: CCA_initializer_factory, address: pending, approval: founder_pending}
-  - {name: Uniswap_v4_PoolManager, address: pending, approval: founder_pending}
-  - {name: Uniswap_v4_PositionManager, address: pending, approval: founder_pending}
-migrated_but_not_required_for_v0_1_deployment:
-  - DeferredAutolaunchFactory
-  - DeferredAutolaunchVestingWallet
-  - PaymentLinkFactory
-  - PaymentLinkReceiver
-  - RegentDailyDistributor
-  - RegentEmissionVault
-  - TestnetMintableERC20
-  - reference/revenue legacy RevenueShareSplitter family
-prepared_action_admission:
-  source_of_truth: ash-platform/contracts/chain-contracts.yaml
-  # Admission is authoritatively owned by ash-platform/contracts/chain-contracts.yaml (already cited as source_of_truth); a mirrored id list can drift, so per hard cutover one owner, no duplicated state.
-  source_contract_id: base_mainnet_reviewed_evidence
-  standing_launch_note: >-
-    v0.1 LAUNCH admission is separately governed by the v0.1 money-action matrix;
-    subject-owner action classes become unavailable at launch regardless of current admission.
-  action_classes:
-    - contract_class: continuous_clearing_auction
-      local_status: external_not_migrated
-    - contract_class: quote_token_erc20
-      local_status: external_not_migrated
-    - contract_class: regent_staking_revenue_router
-      local_contract: RegentStakingRevenueRouter
-      lineage: legacy_prepared_interface_only_current_migrated_source_has_removed_buyback
-    - contract_class: payment_link_factory
-      local_contract: PaymentLinkFactory
-    - contract_class: revenue_ingress_account
-      local_contract: RevenueIngressAccount
-    - contract_class: subject_token_erc20
-      local_status: external_launch_token_not_migrated
-    - contract_class: revenue_share_splitter_v2
-      local_contract: RevenueShareSplitterV2
-role_matrix:
-  launch_agent_safe: {address: pending, authority: subject_treasury_and_vesting_beneficiary, approval: founder_pending}
-  protocol_owner: {address: pending, authority: factories_registries_router_and_controller, approval: founder_pending}
-  strategy_operator: {address: pending, authority: auction_migration_recovery_and_sweep, approval: founder_pending}
-  regent_fee_recipient: {address: pending, authority: withdraw_regent_fee_lane, approval: founder_pending}
-  deployer_signer: {address: pending, authority: protected_one_time_deployment_only, approval: founder_pending}
-  external_trade_link_operator: {address: pending, authority: publish_external_link_only, approval: founder_pending}
-deployment_inputs_pending:
-  - every pending address in this manifest
-  - launch-specific token metadata, identity link, hook salt, auction schedule, and vesting start
-  - constructor encodings for founder approval
-  - independent G10 review and money-admission evidence
-source_binding_status:
-  required_v0_1_set: unverified_not_deployed
-  historical_regent_revenue_staking: unverified_creation_bytecode_mismatch
-  verified_current_source_deployments: []
-  note: source binding is explicitly unverified; no placeholder value grants deployment status
-default_labels_for_not_yet_deployed_entries:
-  migrated: true
+  deployer: "0x000000000000000000000000000000000000D00D"
+  starting_nonce: 7
+  addresses:
+    subject_registry: "0x2dC7D6fFE49D504c5750C978c81849d56B5780e8"
+    staking_router: "0xe14F22aFB374FC775850EB75892b47c2541FdB82"
+    splitter_deployer: "0xb561120f4265BcBCC353b5795d11A39b449f6bb3"
+    revenue_share_factory: "0x968415090eC0cFaBE7a33bAc28Ad9342cC1CBF12"
+    revenue_ingress_factory: "0x65944B0bE4FaA92b196F4Bf779A6F36EE3A9516E"
+    payment_link_factory: "0xd60eA133cf0EF4030c3Ef136700081Adb95ebBD9"
+    strategy_factory: "0xEA3b1315A1d214bA7f9Afe726860571D76f8b82c"
+    fee_infra_deployer: "0x3eE590DCD55FCD21F8F65F1e208c619188079330"
+    factory: "0xDc883b4bf20Ee92d81c390A4E57896cd81532184"
+  runtime_code_bytes: 14777
+  complete_initcode_bytes: 20242
+  runtime_code_hash: "0x26fbb4084d4e17058476a1d255453e36494d2e96e70135ad47f037a2cf9a76cd"
+  constructor_bindings_hash: "0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d"
+  fixed_bindings_hash: "0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f"
+  live_readbacks_hash: "0xdd3da8abc137bbe448b87405f36120c2684fa0d34fbd992862ec0a3df2a9d8cc"
+  factory_binding_digest: "0xc7b3c6119f5a2f8f8973c3a5d063963b5e0c3e853314e7bff96fa0ef1ab4c35d"
+release_state:
   deployed: false
   publicly_exposed: false
-  admitted_prepared_action_ids: []
+  admitted: false
+  mainnet: NO_GO

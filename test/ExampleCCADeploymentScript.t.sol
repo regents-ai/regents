@@ -1,363 +1,106 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {AuctionParameters} from "src/autolaunch/cca/interfaces/IContinuousClearingAuction.sol";
-import {LaunchDeploymentController} from "src/autolaunch/LaunchDeploymentController.sol";
-import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
-import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
-import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
-import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
-import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
-import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
-import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
-import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
-import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
-import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
-import {
-    RevenueShareSplitterV2Deployer
-} from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
-import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "script/ExampleCCADeploymentScript.s.sol";
-import {AutolaunchBindingsTest} from "test/AutolaunchBindings.t.sol";
-import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
-import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
-import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
+import {IAutolaunchFactoryV1} from "src/autolaunch/interfaces/IAutolaunchFactoryV1.sol";
+import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 
-interface IUERC20LaunchToken {
-    function balanceOf(address account) external view returns (uint256);
-    function decimals() external view returns (uint8);
-    function totalSupply() external view returns (uint256);
-    function creator() external view returns (address);
-    function graffiti() external view returns (bytes32);
-    function tokenURI() external view returns (string memory);
+contract PreparedLaunchFactoryMock is IAutolaunchFactoryV1 {
+    address public lastCaller;
+    uint256 public lastAgentId;
+    uint64 public lastStartBlock;
+    uint256 public lastFloorPrice;
+    uint128 public lastRequiredRegentRaised;
+    bytes32 public lastHookSalt;
+
+    function launch(LaunchParams calldata params) external returns (LaunchResult memory result) {
+        lastCaller = msg.sender;
+        lastAgentId = params.agentId;
+        lastStartBlock = params.startBlock;
+        lastFloorPrice = params.floorPrice;
+        lastRequiredRegentRaised = params.requiredRegentRaised;
+        lastHookSalt = params.launchFeeHookSalt;
+        result.subjectId = keccak256(abi.encode(block.chainid, msg.sender, params.agentId));
+    }
 }
 
-interface IContinuousClearingAuctionState {
-    function token() external view returns (address);
-    function currency() external view returns (address);
-    function totalSupply() external view returns (uint128);
-    function tokensRecipient() external view returns (address);
-    function fundsRecipient() external view returns (address);
-    function startBlock() external view returns (uint64);
-    function endBlock() external view returns (uint64);
-    function claimBlock() external view returns (uint64);
-    function validationHook() external view returns (address);
+contract AgentSafeCallMock {
+    function execute(address to, bytes calldata data) external returns (bytes memory result) {
+        (bool ok, bytes memory returned) = to.call(data);
+        require(ok, "SAFE_CALL_FAILED");
+        return returned;
+    }
 }
 
 contract ExampleCCADeploymentScriptTest is Test {
-    address internal constant AGENT_SAFE = address(0x4321);
-    address internal constant REGENT_MULTISIG = address(0x9FA1);
-    address internal constant IDENTITY_REGISTRY = address(0x8004);
-    address internal constant STRATEGY_OPERATOR = address(0xBEEF);
-    address internal constant TEST_TOKEN_FACTORY = address(uint160(0xFACA0));
-    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
-    address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-    address internal constant POOL_MANAGER = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
-    address internal constant POSITION_MANAGER = 0x7C5f5A4bBd8fD63184577525326123B519429bDc;
-    address internal constant CCA_FACTORY = 0x000000001F26a0044BaA66024e7b6599c61963F8;
-    uint256 internal constant IDENTITY_AGENT_ID = 42;
-    uint256 internal constant TOTAL_SUPPLY = 1_000_000_000_000_000_000_000;
-    uint256 internal constant CCA_TICK_SPACING_Q96 = 79_228_162_514_264_337_593_543_950;
-    uint256 internal constant CCA_FLOOR_PRICE_Q96 = 7_922_816_251_426_433_759_354_395_000;
-    uint256 internal constant CCA_MAX_TARGET_PRICE_Q96 = CCA_TICK_SPACING_Q96 * 10_000_000;
+    uint256 internal constant TICK = 79_228_162_514_264_337_593_543_950;
 
     ExampleCCADeploymentScript internal script;
-    MockHookPoolManager internal poolManager;
-    SubjectRegistry internal subjectRegistry;
-    RevenueShareFactory internal revenueShareFactory;
-    RevenueShareSplitterV2Deployer internal splitterDeployer;
-    RevenueIngressFactory internal revenueIngressFactory;
-    PaymentLinkFactory internal paymentLinkFactory;
-    LaunchDeploymentController internal controller;
-    RegentLBPStrategyFactory internal strategyFactory;
-    UERC20Factory internal tokenFactory;
-    MockRegentStakingRevenueRouter internal feeRouter;
+    PreparedLaunchFactoryMock internal factory;
+    AgentSafeCallMock internal agentSafe;
+    LaunchFeeInfraDeployer internal feeInfraDeployer;
 
     function setUp() external {
+        vm.chainId(8453);
+        vm.roll(1000);
         script = new ExampleCCADeploymentScript();
-        vm.chainId(8453);
-        controller = new LaunchDeploymentController();
-        controller.transferOwnership(address(script));
-        vm.prank(address(script));
-        controller.acceptOwnership();
-        _installCanonicalRegentMock();
-        AutolaunchBindingsTest bindingsFixture = new AutolaunchBindingsTest();
-        bindingsFixture.setUp();
-        poolManager = new MockHookPoolManager();
-        subjectRegistry = new SubjectRegistry(address(controller), address(this), address(0x600D));
-        feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
-        splitterDeployer = new RevenueShareSplitterV2Deployer();
-        revenueShareFactory = new RevenueShareFactory(
-            address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
-        );
-        revenueIngressFactory =
-            new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
-        paymentLinkFactory = new PaymentLinkFactory(address(script), USDC, address(subjectRegistry));
-        strategyFactory = new RegentLBPStrategyFactory(address(script));
-        tokenFactory = UERC20Factory(TEST_TOKEN_FACTORY);
-        vm.etch(address(tokenFactory), type(UERC20Factory).runtimeCode);
-
-        _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
-        _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
-        vm.setEnv(
-            "AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory))
-        );
-        vm.setEnv(
-            "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
-            vm.toString(address(revenueIngressFactory))
-        );
-        vm.setEnv(
-            "AUTOLAUNCH_PAYMENT_LINK_FACTORY_ADDRESS", vm.toString(address(paymentLinkFactory))
-        );
-        vm.setEnv("EXAMPLE_CCA_CONTROLLER_ADDRESS", vm.toString(address(controller)));
-        vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
-        vm.setEnv("EXAMPLE_CCA_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
-        vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(CCA_FACTORY));
-        vm.setEnv("AUTOLAUNCH_FACTORY_OWNER_ADDRESS", vm.toString(address(script)));
-        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(POOL_MANAGER));
-        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(POSITION_MANAGER));
-        vm.setEnv("AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS", vm.toString(REGENT));
-        vm.setEnv("EXAMPLE_CCA_REVENUE_USDC_ADDRESS", vm.toString(USDC));
-        _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
-        _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
-        vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
-        vm.setEnv("AUTOLAUNCH_TOKEN_SYMBOL", "LAGENT");
-        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_DESCRIPTION", "Regent launch rehearsal");
-        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_WEBSITE", "https://autolaunch.sh");
-        vm.setEnv("AUTOLAUNCH_TOKEN_METADATA_IMAGE", "");
-        vm.setEnv("AUTOLAUNCH_AGENT_ID", "1:42");
-        vm.setEnv("AUTOLAUNCH_TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
-        vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
-        vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
-        vm.setEnv("CCA_REQUIRED_CURRENCY_RAISED", "1000000000000000000");
-        vm.setEnv("AUCTION_DURATION_BLOCKS", "86400");
-        vm.setEnv("CCA_PREBID_BLOCKS", "0");
-        vm.setEnv("CCA_FINAL_BLOCK_BPS", "3000");
-        vm.setEnv("CCA_CLAIM_BLOCK_OFFSET", "64");
-        vm.setEnv("LBP_MIGRATION_BLOCK_OFFSET", "128");
-        vm.setEnv("LBP_SWEEP_BLOCK_OFFSET", "256");
-        vm.setEnv("VESTING_START_TIMESTAMP", "1700000000");
-        vm.setEnv("VESTING_DURATION_SECONDS", "31536000");
+        factory = new PreparedLaunchFactoryMock();
+        agentSafe = new AgentSafeCallMock();
+        feeInfraDeployer = new LaunchFeeInfraDeployer(address(factory));
     }
 
-    function testDeployCreatesModelBLaunchStack() external {
-        vm.chainId(8453);
-        LaunchDeploymentController.DeploymentResult memory result = script.deployFromEnv();
+    function testPrepareProducesExactDirectSafeCall() external {
+        ExampleCCADeploymentScript.PreparedSafeCall memory prepared = script.prepare(_config());
+        assertEq(prepared.from, address(agentSafe));
+        assertEq(prepared.to, address(factory));
+        assertEq(prepared.value, 0);
+        assertEq(prepared.operation, 0);
+        assertEq(bytes4(prepared.data), IAutolaunchFactoryV1.launch.selector);
+        assertEq(prepared.feeInfraDeployerNonce, vm.getNonce(address(feeInfraDeployer)));
 
-        _assertCoreAddressesWereCreated(result);
-        assertTrue(result.subjectId != bytes32(0));
-        assertTrue(result.poolId != bytes32(0));
-        _assertTokenDistributionAndMetadata(result);
-        _assertStrategy(result);
-        _assertSubject(result);
-        _assertFeeRegistry(result);
-        _assertRevenueSplitter(result);
-        _assertIdentityAndAuction(result);
-        _assertIngressAndPermissions(result);
+        agentSafe.execute(prepared.to, prepared.data);
+        assertEq(factory.lastCaller(), address(agentSafe));
+        assertEq(factory.lastAgentId(), 0);
+        assertEq(factory.lastStartBlock(), 1300);
+        assertEq(factory.lastFloorPrice(), TICK * 100);
+        assertEq(factory.lastRequiredRegentRaised(), 100e18);
+        assertEq(factory.lastHookSalt(), prepared.launchFeeHookSalt);
     }
 
-    function _setEnvAddress(string memory key, address value) internal {
-        vm.setEnv(key, vm.toString(value));
+    function testPreparationMinesFreshWitnessFromCurrentNonce() external {
+        ExampleCCADeploymentScript.PreparedSafeCall memory first = script.prepare(_config());
+        vm.setNonce(address(feeInfraDeployer), first.feeInfraDeployerNonce + 2);
+        ExampleCCADeploymentScript.PreparedSafeCall memory second = script.prepare(_config());
+        assertEq(second.feeInfraDeployerNonce, first.feeInfraDeployerNonce + 2);
+        assertTrue(second.launchFeeHookSalt != first.launchFeeHookSalt);
     }
 
-    function _installCanonicalRegentMock() internal {
-        MintableERC20Mock implementation = new MintableERC20Mock("REGENT", "REGENT");
-        vm.etch(REGENT, address(implementation).code);
-    }
-
-    function _defaultConvexAuctionSteps() internal pure returns (bytes memory) {
-        return hex"0000360000002a8e000044000000214500004b0000001e7b00004f0000001ccd0000530000001b9c0000550000001ab300005800000019f700005a000000195a00005c00000018d400005e000000185e00005f00000017f8000061000000179b2d97e60000000001";
-    }
-
-    function _assertScheduleTotals(bytes memory steps, uint256 expectedBlocks) internal pure {
-        uint256 totalMps;
-        uint256 totalBlocks;
-
-        for (uint256 offset; offset < steps.length; offset += 8) {
-            uint256 packed;
-            assembly ("memory-safe") {
-                packed := shr(192, mload(add(add(steps, 0x20), offset)))
-            }
-
-            uint256 stepMps = packed >> 40;
-            uint256 blockDelta = packed & type(uint40).max;
-            totalMps += stepMps * blockDelta;
-            totalBlocks += blockDelta;
-        }
-
-        assertEq(totalMps, 10_000_000);
-        assertEq(totalBlocks, expectedBlocks);
-    }
-
-    function _auctionParameters(RegentLBPStrategy strategy)
-        internal
-        view
-        returns (AuctionParameters memory parameters)
-    {
-        (
-            parameters.currency,
-            parameters.tokensRecipient,
-            parameters.fundsRecipient,
-            parameters.startBlock,
-            parameters.endBlock,
-            parameters.claimBlock,
-            parameters.tickSpacing,
-            parameters.validationHook,
-            parameters.floorPrice,
-            parameters.requiredCurrencyRaised,
-            parameters.auctionStepsData
-        ) = strategy.auctionParameters();
-    }
-
-    function _assertCoreAddressesWereCreated(
-        LaunchDeploymentController.DeploymentResult memory result
-    ) internal pure {
-        assertTrue(result.tokenAddress != address(0));
-        assertTrue(result.auctionAddress != address(0));
-        assertTrue(result.strategyAddress != address(0));
-        assertTrue(result.vestingWalletAddress != address(0));
-        assertTrue(result.hookAddress != address(0));
-        assertTrue(result.feeVaultAddress != address(0));
-        assertTrue(result.launchFeeRegistryAddress != address(0));
-        assertTrue(result.subjectRegistryAddress != address(0));
-        assertTrue(result.revenueShareSplitterAddress != address(0));
-        assertTrue(result.defaultIngressAddress != address(0));
-    }
-
-    function _assertTokenDistributionAndMetadata(
-        LaunchDeploymentController.DeploymentResult memory result
-    ) internal view {
-        uint256 expectedAuctionAmount = TOTAL_SUPPLY / 10;
-        uint256 expectedReserveAmount = (TOTAL_SUPPLY * 500) / 10_000;
-        uint256 expectedVestingAmount = TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
-
-        IUERC20LaunchToken token = IUERC20LaunchToken(result.tokenAddress);
-        assertEq(token.balanceOf(result.auctionAddress), expectedAuctionAmount);
-        assertEq(token.balanceOf(result.strategyAddress), expectedReserveAmount);
-        assertEq(token.balanceOf(result.vestingWalletAddress), expectedVestingAmount);
-        assertEq(token.decimals(), 18);
-        assertEq(token.totalSupply(), TOTAL_SUPPLY);
-        assertTrue(bytes(token.tokenURI()).length > 0);
-        assertEq(
-            IContinuousClearingAuctionState(result.auctionAddress).totalSupply(),
-            expectedAuctionAmount
-        );
-    }
-
-    function _assertStrategy(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        RegentLBPStrategy strategy = RegentLBPStrategy(result.strategyAddress);
-        assertEq(strategy.officialPoolFee(), 0);
-        assertEq(strategy.officialPoolTickSpacing(), 60);
-        assertEq(strategy.positionManager(), POSITION_MANAGER);
-        assertEq(strategy.poolManager(), POOL_MANAGER);
-        assertEq(strategy.subjectRegistry(), address(subjectRegistry));
-        assertEq(strategy.subjectId(), result.subjectId);
-        assertEq(strategy.LP_CURRENCY_BPS(), 4000);
-        assertEq(subjectRegistry.getSubject(result.subjectId).strategy, result.strategyAddress);
-    }
-
-    function _assertSubject(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        SubjectRegistry.SubjectConfig memory config = subjectRegistry.getSubject(result.subjectId);
-        assertEq(config.stakeToken, result.tokenAddress);
-        assertEq(config.splitter, result.revenueShareSplitterAddress);
-        assertEq(config.treasurySafe, AGENT_SAFE);
-        assertEq(uint256(config.lifecycle), uint256(ISubjectRegistry.Lifecycle.Active));
-        assertEq(config.ingress, result.defaultIngressAddress);
-        assertEq(config.paymentLinkFactory, address(paymentLinkFactory));
-    }
-
-    function _assertFeeRegistry(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
-        LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
-        assertEq(poolConfig.launchToken, result.tokenAddress);
-        assertEq(poolConfig.quoteToken, REGENT);
-        assertEq(registry.treasuryRecipient(result.poolId), AGENT_SAFE);
-        assertEq(registry.regentRecipient(result.poolId), registry.REGENT_REVENUE_STAKING());
-        address feeInfraDeployer = LaunchPoolFeeHook(result.hookAddress).feeInfraDeployer();
-        assertEq(
-            LaunchFeeInfraDeployer(feeInfraDeployer).authorizedController(), address(controller)
-        );
-    }
-
-    function _assertRevenueSplitter(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(result.revenueShareSplitterAddress);
-        assertEq(splitter.stakeToken(), result.tokenAddress);
-        assertEq(splitter.usdc(), USDC);
-        assertEq(splitter.treasuryRecipient(), AGENT_SAFE);
-        assertEq(splitter.protocolRecipient(), address(feeRouter));
-        assertEq(strategyFactory.owner(), address(script));
-    }
-
-    function _assertIdentityAndAuction(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        assertEq(
-            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID),
-            result.subjectId
-        );
-        AuctionParameters memory parameters =
-            _auctionParameters(RegentLBPStrategy(result.strategyAddress));
-        IContinuousClearingAuctionState auction =
-            IContinuousClearingAuctionState(result.auctionAddress);
-        assertEq(parameters.currency, REGENT);
-        assertEq(parameters.tokensRecipient, address(0));
-        assertEq(parameters.fundsRecipient, address(0));
-        assertEq(parameters.tickSpacing, CCA_TICK_SPACING_Q96);
-        assertEq(parameters.floorPrice, CCA_FLOOR_PRICE_Q96);
-        assertEq(parameters.requiredCurrencyRaised, 1 ether);
-        assertEq(parameters.claimBlock, parameters.endBlock + 64);
-        assertEq(parameters.validationHook, address(0));
-        assertEq(parameters.endBlock - parameters.startBlock, 86_401);
-        assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
-        _assertScheduleTotals(parameters.auctionStepsData, 86_401);
-        assertEq(auction.token(), result.tokenAddress);
-        assertEq(auction.currency(), parameters.currency);
-        assertEq(auction.tokensRecipient(), result.strategyAddress);
-        assertEq(auction.fundsRecipient(), result.strategyAddress);
-        assertEq(auction.startBlock(), parameters.startBlock);
-        assertEq(auction.endBlock(), parameters.endBlock);
-        assertEq(auction.claimBlock(), parameters.claimBlock);
-        assertEq(auction.validationHook(), parameters.validationHook);
-    }
-
-    function _assertIngressAndPermissions(LaunchDeploymentController.DeploymentResult memory result)
-        internal
-        view
-    {
-        assertEq(
-            revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
-            result.defaultIngressAddress
-        );
-        IUERC20LaunchToken token = IUERC20LaunchToken(result.tokenAddress);
-        RegentLBPStrategy strategy = RegentLBPStrategy(result.strategyAddress);
-        address controller = strategy.auctionCreator();
-        assertEq(token.creator(), controller);
-        assertEq(token.graffiti(), keccak256(abi.encode(AGENT_SAFE)));
-        assertTrue(revenueShareFactory.authorizedCreators(controller));
-        assertTrue(revenueIngressFactory.authorizedCreators(controller));
-        assertFalse(strategyFactory.authorizedCreators(controller));
-    }
-
-    function testDeploymentGuardRejectsNonMainnetChain() external {
+    function testPreparationRejectsNonMainnetChain() external {
         vm.chainId(1);
-
         vm.expectRevert("BASE_MAINNET_ONLY");
-        script.deployFromEnv();
+        script.prepare(_config());
+    }
+
+    function testPreparationRejectsMisalignedFloorPrice() external {
+        ExampleCCADeploymentScript.ScriptConfig memory cfg = _config();
+        cfg.floorPrice++;
+        vm.expectRevert("FLOOR_PRICE_TICK_MISALIGNED");
+        script.prepare(cfg);
+    }
+
+    function _config() internal view returns (ExampleCCADeploymentScript.ScriptConfig memory) {
+        return ExampleCCADeploymentScript.ScriptConfig({
+            agentSafe: address(agentSafe),
+            factory: address(factory),
+            feeInfraDeployer: address(feeInfraDeployer),
+            agentId: 0,
+            tokenName: "Regent Agent Token",
+            tokenSymbol: "RAGENT",
+            startBlock: 1300,
+            floorPrice: TICK * 100,
+            requiredRegentRaised: 100e18
+        });
     }
 }
