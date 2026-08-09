@@ -19,6 +19,16 @@ contract AgentSafePolicyMock {
         return AgentSafePolicy.emptyModulesHash();
     }
 
+    function structureCommitment(address safe, address controller, address runtime)
+        external
+        view
+        returns (bytes32)
+    {
+        return AgentSafePolicy.structureCommitment(
+            AgentSafePolicy.readStructure(safe, controller, runtime)
+        );
+    }
+
     function identityPins()
         external
         pure

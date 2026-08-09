@@ -10,6 +10,7 @@ import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
@@ -28,7 +29,7 @@ contract RevenueIngressFactoryTest is Test {
 
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
@@ -40,9 +41,7 @@ contract RevenueIngressFactoryTest is Test {
         );
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
-        subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
-
-        revenueShareFactory.createSubjectSplitter(
+        address splitter = revenueShareFactory.createSubjectSplitter(
             SUBJECT_ID,
             address(0xB0B),
             address(ingressFactory),
@@ -54,12 +53,16 @@ contract RevenueIngressFactoryTest is Test {
             address(0x8004),
             42
         );
+        address predicted = ingressFactory.predictDefaultIngress(SUBJECT_ID, TREASURY_SAFE);
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        subjectRegistry.registerSubject(_registration(splitter, predicted));
     }
 
     function testSubjectManagerCreatesDefaultIngress() external {
-        vm.prank(TREASURY_SAFE);
         address ingress =
-            ingressFactory.createIngressAccount(SUBJECT_ID, "default-usdc-ingress", true);
+            ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress");
 
         assertEq(ingressFactory.defaultIngressOfSubject(SUBJECT_ID), ingress);
         assertEq(ingressFactory.ingressAccountCount(SUBJECT_ID), 1);
@@ -68,26 +71,43 @@ contract RevenueIngressFactoryTest is Test {
         assertEq(RevenueIngressAccount(payable(ingress)).subjectId(), SUBJECT_ID);
     }
 
-    function testInactiveSubjectBlocksIngressCreationAndDefaultSelection() external {
-        vm.prank(TREASURY_SAFE);
+    function testQuarantinedSubjectBlocksAdditionalIngressAndDefaultMutation() external {
         address ingressA =
-            ingressFactory.createIngressAccount(SUBJECT_ID, "default-usdc-ingress", true);
+            ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress");
 
         vm.prank(TREASURY_SAFE);
-        address ingressB = ingressFactory.createIngressAccount(SUBJECT_ID, "backup-ingress", false);
-
-        address activeSplitter = revenueShareFactory.splitterOfSubject(SUBJECT_ID);
-        vm.prank(TREASURY_SAFE);
-        subjectRegistry.updateSubject(SUBJECT_ID, activeSplitter, TREASURY_SAFE, false, "Subject");
+        subjectRegistry.quarantineSubject(SUBJECT_ID);
 
         assertEq(ingressFactory.defaultIngressOfSubject(SUBJECT_ID), ingressA);
 
-        vm.prank(TREASURY_SAFE);
-        vm.expectRevert("SUBJECT_INACTIVE");
-        ingressFactory.createIngressAccount(SUBJECT_ID, "late-ingress", false);
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress");
 
-        vm.prank(TREASURY_SAFE);
-        vm.expectRevert("SUBJECT_INACTIVE");
-        ingressFactory.setDefaultIngress(SUBJECT_ID, ingressB);
+        vm.expectRevert("INGRESS_IMMUTABLE");
+        ingressFactory.setDefaultIngress(SUBJECT_ID, address(0xBEEF));
+    }
+
+    function _registration(address splitter, address ingress)
+        internal
+        view
+        returns (ISubjectRegistry.SubjectRegistration memory)
+    {
+        return ISubjectRegistry.SubjectRegistration({
+            subjectId: SUBJECT_ID,
+            stakeToken: address(0xB0B),
+            splitter: splitter,
+            agentSafe: TREASURY_SAFE,
+            ingress: ingress,
+            paymentLinkFactory: address(0x1002),
+            strategy: address(0x1003),
+            launchFeeRegistry: address(0x1004),
+            feeVault: address(0x1005),
+            feeHook: address(0x1006),
+            identityChainId: block.chainid,
+            identityRegistry: address(0x8004),
+            identityAgentId: 42,
+            label: "Subject",
+            safeRuntime: address(0x7007)
+        });
     }
 }

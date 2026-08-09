@@ -12,7 +12,9 @@ import {LaunchFeeVault} from "src/autolaunch/LaunchFeeVault.sol";
 import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
 import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
+import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {AgentTokenVestingWallet} from "src/autolaunch/AgentTokenVestingWallet.sol";
 import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
@@ -34,6 +36,7 @@ contract LaunchDeploymentController is Owned {
         address feeInfraDeployer;
         address revenueShareFactory;
         address revenueIngressFactory;
+        address paymentLinkFactory;
         address identityRegistry;
         address tokenFactory;
         address strategyFactory;
@@ -176,6 +179,8 @@ contract LaunchDeploymentController is Owned {
         _deploymentLock = 1;
     }
 
+    // Reviewed in slither.db.json: owner-only orchestration across bound factories.
+    // slither-disable-next-line reentrancy-events,reentrancy-no-eth
     function deploy(
         bytes calldata addressesData,
         bytes calldata economicsData,
@@ -200,6 +205,8 @@ contract LaunchDeploymentController is Owned {
         return _prepareLaunch(cfg);
     }
 
+    // Reviewed in slither.db.json: publication follows calls to bound deployment factories.
+    // slither-disable-next-line reentrancy-benign,reentrancy-events,reentrancy-no-eth
     function _prepareLaunch(DeploymentConfig memory cfg) internal returns (bytes32 launchId) {
         _validateConfig(cfg);
         _allocationData(cfg.economics.totalSupply);
@@ -245,6 +252,8 @@ contract LaunchDeploymentController is Owned {
         _deployLaunchFeeInfra(launchId, cfg);
     }
 
+    // Reviewed in slither.db.json: this event records completed bound-factory deployment.
+    // slither-disable-next-line reentrancy-events
     function _deployLaunchFeeInfra(bytes32 launchId, DeploymentConfig memory cfg) internal {
         StagedLaunch storage launch = _stagedLaunchOrRevert(launchId, cfg);
         require(!launch.feeInfraDeployed, "FEE_INFRA_ALREADY_DEPLOYED");
@@ -277,6 +286,8 @@ contract LaunchDeploymentController is Owned {
         _finalizeLaunch(launchId, cfg);
     }
 
+    // Reviewed in slither.db.json: terminal events follow atomic launch finalization.
+    // slither-disable-next-line reentrancy-events
     function _finalizeLaunch(bytes32 launchId, DeploymentConfig memory cfg) internal {
         StagedLaunch storage launch = _stagedLaunchOrRevert(launchId, cfg);
         require(launch.feeInfraDeployed, "FEE_INFRA_NOT_DEPLOYED");
@@ -292,11 +303,12 @@ contract LaunchDeploymentController is Owned {
             allocation
         );
 
-        // Wire the failed-launch unwind: the strategy may burn the vesting wallet and mark the
-        // subject dead if the auction does not graduate.
         AgentTokenVestingWallet(launch.vestingWalletAddress).bindStrategy(address(strategy));
-        RevenueShareFactory(cfg.addresses.revenueShareFactory)
-            .setSubjectLifecycleAuthority(launchId, address(strategy));
+
+        _registerSubject(launchId, cfg, launch, address(strategy));
+        address ingress = RevenueIngressFactory(cfg.addresses.revenueIngressFactory)
+            .createDefaultIngressAccount(launchId, "default-usdc-ingress");
+        require(ingress == launch.defaultIngressAddress, "DEFAULT_INGRESS_ADDRESS_MISMATCH");
 
         require(
             IERC20Like(launch.tokenAddress).transfer(address(strategy), allocation.strategySupply),
@@ -343,6 +355,33 @@ contract LaunchDeploymentController is Owned {
 
         _emitLaunchStackDeployed(launchId, launch, cfg.addresses.agentSafe);
         _emitLaunchTokenRoles(launchId, cfg);
+    }
+
+    function _registerSubject(
+        bytes32 launchId,
+        DeploymentConfig memory cfg,
+        StagedLaunch storage launch,
+        address strategy
+    ) internal {
+        ISubjectRegistry.SubjectRegistration memory registration =
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: launchId,
+                stakeToken: launch.tokenAddress,
+                splitter: launch.revenueShareSplitterAddress,
+                agentSafe: cfg.addresses.agentSafe,
+                ingress: launch.defaultIngressAddress,
+                paymentLinkFactory: cfg.addresses.paymentLinkFactory,
+                strategy: strategy,
+                launchFeeRegistry: launch.launchFeeRegistryAddress,
+                feeVault: launch.feeVaultAddress,
+                feeHook: launch.hookAddress,
+                identityChainId: cfg.addresses.identityRegistry == address(0) ? 0 : block.chainid,
+                identityRegistry: cfg.addresses.identityRegistry,
+                identityAgentId: cfg.economics.identityAgentId,
+                label: cfg.metadata.subjectLabel,
+                safeRuntime: cfg.addresses.strategyOperator
+            });
+        SubjectRegistry(launch.subjectRegistryAddress).registerSubject(registration);
     }
 
     function stagedLaunchCore(bytes32 launchId)
@@ -434,6 +473,7 @@ contract LaunchDeploymentController is Owned {
         require(addresses.feeInfraDeployer != address(0), "FEE_INFRA_DEPLOYER_ZERO");
         require(addresses.revenueShareFactory != address(0), "REVENUE_SHARE_FACTORY_ZERO");
         require(addresses.revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
+        require(addresses.paymentLinkFactory != address(0), "PAYMENT_LINK_FACTORY_ZERO");
         require(addresses.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
         require(addresses.strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
         require(addresses.auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
@@ -521,6 +561,32 @@ contract LaunchDeploymentController is Owned {
                 == addresses.revenueUsdcToken,
             "REVENUE_INGRESS_USDC_MISMATCH"
         );
+        require(
+            PaymentLinkFactory(addresses.paymentLinkFactory).usdc() == addresses.revenueUsdcToken,
+            "PAYMENT_LINK_USDC_MISMATCH"
+        );
+        address registry =
+            address(RevenueShareFactory(addresses.revenueShareFactory).subjectRegistry());
+        require(
+            RevenueIngressFactory(addresses.revenueIngressFactory).subjectRegistry() == registry,
+            "REVENUE_INGRESS_REGISTRY_MISMATCH"
+        );
+        require(
+            PaymentLinkFactory(addresses.paymentLinkFactory).subjectRegistry() == registry,
+            "PAYMENT_LINK_REGISTRY_MISMATCH"
+        );
+        require(
+            RevenueShareFactory(addresses.revenueShareFactory).controller() == address(this),
+            "REVENUE_SHARE_CONTROLLER_MISMATCH"
+        );
+        require(
+            RevenueIngressFactory(addresses.revenueIngressFactory).controller() == address(this),
+            "REVENUE_INGRESS_CONTROLLER_MISMATCH"
+        );
+        require(
+            PaymentLinkFactory(addresses.paymentLinkFactory).controller() == address(this),
+            "PAYMENT_LINK_CONTROLLER_MISMATCH"
+        );
     }
 
     function _allocationData(uint256 totalSupply)
@@ -556,8 +622,7 @@ contract LaunchDeploymentController is Owned {
     {
         subjectRegistry = RevenueShareFactory(revenueShareFactory).subjectRegistry();
         require(
-            subjectRegistry.canRegisterSubject(revenueShareFactory),
-            "REVENUE_SHARE_FACTORY_NOT_REGISTRAR"
+            subjectRegistry.controller() == address(this), "SUBJECT_REGISTRY_CONTROLLER_MISMATCH"
         );
     }
 
@@ -630,8 +695,8 @@ contract LaunchDeploymentController is Owned {
             );
 
         revenueSubject.defaultIngress = RevenueIngressFactory(cfg.addresses.revenueIngressFactory)
-            .createIngressAccount(revenueSubject.subjectId, "default-usdc-ingress", true);
-        require(revenueSubject.defaultIngress != address(0), "DEFAULT_INGRESS_NOT_CREATED");
+            .predictDefaultIngress(revenueSubject.subjectId, cfg.addresses.agentSafe);
+        require(revenueSubject.defaultIngress != address(0), "DEFAULT_INGRESS_NOT_PREDICTED");
     }
 
     function _initializeStrategy(
@@ -697,6 +762,8 @@ contract LaunchDeploymentController is Owned {
         });
     }
 
+    // Reviewed in slither.db.json: bounded assembly reads fixed-width packed schedule entries.
+    // slither-disable-next-line assembly
     function _validateAuctionStepsData(bytes memory steps, uint256 durationBlocks) internal pure {
         require(steps.length != 0, "AUCTION_STEPS_EMPTY");
         require(steps.length % 8 == 0, "AUCTION_STEPS_LENGTH");
@@ -759,6 +826,7 @@ contract LaunchDeploymentController is Owned {
                 addresses.feeInfraDeployer,
                 addresses.revenueShareFactory,
                 addresses.revenueIngressFactory,
+                addresses.paymentLinkFactory,
                 addresses.identityRegistry,
                 addresses.tokenFactory,
                 addresses.strategyFactory,

@@ -9,6 +9,8 @@ import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
+import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
 import {
@@ -56,6 +58,8 @@ contract ExampleCCADeploymentScriptTest is Test {
     RevenueShareFactory internal revenueShareFactory;
     RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal revenueIngressFactory;
+    PaymentLinkFactory internal paymentLinkFactory;
+    LaunchDeploymentController internal controller;
     RegentLBPStrategyFactory internal strategyFactory;
     UERC20Factory internal tokenFactory;
     MockRegentStakingRevenueRouter internal feeRouter;
@@ -63,10 +67,14 @@ contract ExampleCCADeploymentScriptTest is Test {
     function setUp() external {
         script = new ExampleCCADeploymentScript();
         vm.chainId(8453);
+        controller = new LaunchDeploymentController();
+        controller.transferOwnership(address(script));
+        vm.prank(address(script));
+        controller.acceptOwnership();
         _installCanonicalRegentMock();
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(controller), address(this), address(0x600D));
         feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
@@ -74,10 +82,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         );
         revenueIngressFactory =
             new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
+        paymentLinkFactory = new PaymentLinkFactory(address(script), USDC, address(subjectRegistry));
         strategyFactory = new RegentLBPStrategyFactory(address(script));
         tokenFactory = UERC20Factory(TEST_TOKEN_FACTORY);
         vm.etch(address(tokenFactory), type(UERC20Factory).runtimeCode);
-        subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
 
         _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
         _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
@@ -88,14 +96,18 @@ contract ExampleCCADeploymentScriptTest is Test {
             "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
             vm.toString(address(revenueIngressFactory))
         );
+        vm.setEnv(
+            "AUTOLAUNCH_PAYMENT_LINK_FACTORY_ADDRESS", vm.toString(address(paymentLinkFactory))
+        );
+        vm.setEnv("EXAMPLE_CCA_CONTROLLER_ADDRESS", vm.toString(address(controller)));
         vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
-        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("EXAMPLE_CCA_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
         vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
         vm.setEnv("AUTOLAUNCH_FACTORY_OWNER_ADDRESS", vm.toString(address(script)));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(POOL_MANAGER));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(POSITION_MANAGER));
         vm.setEnv("AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS", vm.toString(REGENT));
-        vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
+        vm.setEnv("EXAMPLE_CCA_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
         _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
         vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
@@ -118,9 +130,8 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("VESTING_DURATION_SECONDS", "31536000");
     }
 
-    function testDeployFromEnvCreatesModelBLaunchStack() external {
+    function testDeployCreatesModelBLaunchStack() external {
         vm.chainId(8453);
-        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
         LaunchDeploymentController.DeploymentResult memory result = script.deployFromEnv();
 
         _assertCoreAddressesWereCreated(result);
@@ -212,9 +223,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(strategy.subjectRegistry(), address(subjectRegistry));
         assertEq(strategy.subjectId(), result.subjectId);
         assertEq(strategy.LP_CURRENCY_BPS(), 4000);
-        assertEq(
-            subjectRegistry.subjectLifecycleAuthority(result.subjectId), result.strategyAddress
-        );
+        assertEq(subjectRegistry.getSubject(result.subjectId).strategy, result.strategyAddress);
     }
 
     function _assertSubject(LaunchDeploymentController.DeploymentResult memory result)
@@ -225,7 +234,9 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(config.stakeToken, result.tokenAddress);
         assertEq(config.splitter, result.revenueShareSplitterAddress);
         assertEq(config.treasurySafe, AGENT_SAFE);
-        assertTrue(config.active);
+        assertEq(uint256(config.lifecycle), uint256(ISubjectRegistry.Lifecycle.Active));
+        assertEq(config.ingress, result.defaultIngressAddress);
+        assertEq(config.paymentLinkFactory, address(paymentLinkFactory));
     }
 
     function _assertFeeRegistry(LaunchDeploymentController.DeploymentResult memory result)
@@ -288,12 +299,12 @@ contract ExampleCCADeploymentScriptTest is Test {
         address controller = strategy.auctionCreator();
         assertEq(token.creator(), controller);
         assertEq(token.graffiti(), keccak256(abi.encode(AGENT_SAFE)));
-        assertFalse(revenueShareFactory.authorizedCreators(controller));
-        assertFalse(revenueIngressFactory.authorizedCreators(controller));
+        assertTrue(revenueShareFactory.authorizedCreators(controller));
+        assertTrue(revenueIngressFactory.authorizedCreators(controller));
         assertFalse(strategyFactory.authorizedCreators(controller));
     }
 
-    function testDeployFromEnvRejectsNonMainnetChain() external {
+    function testDeploymentGuardRejectsNonMainnetChain() external {
         vm.chainId(1);
 
         vm.expectRevert("BASE_MAINNET_ONLY");

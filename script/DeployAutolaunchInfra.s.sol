@@ -11,6 +11,7 @@ import {
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {DeferredAutolaunchFactory} from "src/autolaunch/revenue/DeferredAutolaunchFactory.sol";
+import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
 import {
     IRegentStakingRevenueRouter
 } from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
@@ -26,6 +27,8 @@ contract DeployAutolaunchInfraScript is Script {
         address revenueUsdcToken;
         address regentRevenueStaking;
         address tokenFactory;
+        address controller;
+        address guardian;
     }
 
     struct DeployedInfra {
@@ -34,6 +37,7 @@ contract DeployAutolaunchInfraScript is Script {
         RevenueShareFactory revenueShareFactory;
         RevenueIngressFactory revenueIngressFactory;
         DeferredAutolaunchFactory deferredAutolaunchFactory;
+        PaymentLinkFactory paymentLinkFactory;
         RegentStakingRevenueRouter stakingRevenueRouter;
         RegentLBPStrategyFactory strategyFactory;
     }
@@ -48,7 +52,7 @@ contract DeployAutolaunchInfraScript is Script {
         validateConfig(cfg);
 
         vm.startBroadcast(cfg.owner);
-        infra.subjectRegistry = new SubjectRegistry(cfg.owner);
+        infra.subjectRegistry = new SubjectRegistry(cfg.controller, cfg.owner, cfg.guardian);
         infra.stakingRevenueRouter = new RegentStakingRevenueRouter(
             cfg.owner,
             cfg.revenueUsdcToken,
@@ -73,13 +77,10 @@ contract DeployAutolaunchInfraScript is Script {
             IRegentStakingRevenueRouter(address(infra.stakingRevenueRouter)),
             cfg.tokenFactory
         );
+        infra.paymentLinkFactory =
+            new PaymentLinkFactory(cfg.owner, cfg.revenueUsdcToken, address(infra.subjectRegistry));
         infra.strategyFactory = new RegentLBPStrategyFactory(cfg.owner);
-        infra.subjectRegistry.setAuthorizedRegistrar(address(infra.revenueShareFactory), true);
-        infra.revenueIngressFactory.setAuthorizedCreator(address(infra.revenueShareFactory), true);
-        infra.revenueIngressFactory
-            .setAuthorizedCreator(address(infra.deferredAutolaunchFactory), true);
-        infra.revenueShareFactory
-            .setAuthorizedCreator(address(infra.deferredAutolaunchFactory), true);
+        infra.strategyFactory.setAuthorizedCreator(cfg.controller, true);
         vm.stopBroadcast();
     }
 
@@ -89,6 +90,11 @@ contract DeployAutolaunchInfraScript is Script {
         require(cfg.regentRevenueStaking != address(0), "REGENT_STAKING_ZERO");
         require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
         require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
+        require(cfg.controller != address(0), "CONTROLLER_ZERO");
+        require(cfg.guardian != address(0), "GUARDIAN_ZERO");
+        require(cfg.controller != cfg.owner, "CONTROLLER_IS_GOVERNANCE");
+        require(cfg.controller != cfg.guardian, "CONTROLLER_IS_GUARDIAN");
+        require(cfg.owner != cfg.guardian, "GOVERNANCE_IS_GUARDIAN");
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
         BaseUsdc.requireCanonical(cfg.revenueUsdcToken);
     }
@@ -98,6 +104,8 @@ contract DeployAutolaunchInfraScript is Script {
         cfg.revenueUsdcToken = vm.envAddress("AUTOLAUNCH_REVENUE_USDC_ADDRESS");
         cfg.regentRevenueStaking = vm.envAddress("REGENT_REVENUE_STAKING_ADDRESS");
         cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
+        cfg.controller = vm.envAddress("AUTOLAUNCH_CONTROLLER_ADDRESS");
+        cfg.guardian = vm.envAddress("AUTOLAUNCH_GUARDIAN_ADDRESS");
         validateConfig(cfg);
     }
 
@@ -124,6 +132,8 @@ contract DeployAutolaunchInfraScript is Script {
             vm.toString(address(infra.revenueIngressFactory)),
             "\",\"deferredAutolaunchFactoryAddress\":\"",
             vm.toString(address(infra.deferredAutolaunchFactory)),
+            "\",\"paymentLinkFactoryAddress\":\"",
+            vm.toString(address(infra.paymentLinkFactory)),
             "\",\"stakingRevenueRouterAddress\":\"",
             vm.toString(address(infra.stakingRevenueRouter)),
             "\",\"strategyFactoryAddress\":\"",
@@ -139,7 +149,11 @@ contract DeployAutolaunchInfraScript is Script {
             ",\"regentRevenueStakingAddress\":\"",
             vm.toString(cfg.regentRevenueStaking),
             "\",\"trustedTokenFactoryAddress\":\"",
-            vm.toString(cfg.tokenFactory)
+            vm.toString(cfg.tokenFactory),
+            "\",\"controllerAddress\":\"",
+            vm.toString(cfg.controller),
+            "\",\"guardianAddress\":\"",
+            vm.toString(cfg.guardian)
         );
     }
 

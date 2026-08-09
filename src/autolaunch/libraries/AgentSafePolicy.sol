@@ -47,6 +47,16 @@ library AgentSafePolicy {
         address guard;
     }
 
+    struct Structure {
+        address singleton;
+        address fallbackHandler;
+        bytes32 ownersHash;
+        uint256 ownerCount;
+        uint256 threshold;
+        bytes32 modulesHash;
+        address guard;
+    }
+
     error RuntimeMismatch(address target, bytes32 actual);
     error SingletonMismatch(address actual);
     error FallbackHandlerMismatch(address actual);
@@ -54,6 +64,7 @@ library AgentSafePolicy {
     error InvalidThreshold(uint256 actual);
     error NonceMismatch(uint256 actual);
     error ForbiddenOwner(address owner);
+    error DuplicateOwner(address owner);
     error ModulesNotEmpty();
     error GuardNotZero(address guard);
     error StorageReadMalformed(uint256 slot);
@@ -73,6 +84,32 @@ library AgentSafePolicy {
         bytes32 digest,
         bytes memory signature
     ) internal view {
+        Structure memory structure = readStructure(safe, controller, runtime);
+        if (
+            structure.ownersHash != expected.ownersHash
+                || structure.ownerCount != expected.ownerCount
+        ) {
+            revert OwnersMismatch(structure.ownersHash, structure.ownerCount);
+        }
+        if (structure.threshold != expected.threshold) {
+            revert InvalidThreshold(structure.threshold);
+        }
+
+        IAgentSafe agentSafe = IAgentSafe(safe);
+        uint256 safeNonce = agentSafe.nonce();
+        if (safeNonce != expected.nonce) revert NonceMismatch(safeNonce);
+
+        if (structure.modulesHash != expected.modulesHash) revert ModulesNotEmpty();
+        if (structure.guard != expected.guard) revert GuardNotZero(structure.guard);
+
+        _validateSignature(safe, digest, signature);
+    }
+
+    function readStructure(address safe, address controller, address runtime)
+        internal
+        view
+        returns (Structure memory structure)
+    {
         _requireRuntime(SAFE_PROXY_FACTORY, SAFE_PROXY_FACTORY_RUNTIME_CODE_HASH);
         _requireRuntime(safe, SAFE_PROXY_RUNTIME_CODE_HASH);
         _requireRuntime(SAFE_SINGLETON, SAFE_SINGLETON_RUNTIME_CODE_HASH);
@@ -81,42 +118,39 @@ library AgentSafePolicy {
         );
 
         IAgentSafe agentSafe = IAgentSafe(safe);
-        address singleton = agentSafe.masterCopy();
-        if (singleton != SAFE_SINGLETON) revert SingletonMismatch(singleton);
+        structure.singleton = agentSafe.masterCopy();
+        if (structure.singleton != SAFE_SINGLETON) revert SingletonMismatch(structure.singleton);
 
-        address fallbackHandler = _storageAddress(agentSafe, FALLBACK_HANDLER_STORAGE_SLOT);
-        if (fallbackHandler != COMPATIBILITY_FALLBACK_HANDLER) {
-            revert FallbackHandlerMismatch(fallbackHandler);
+        structure.fallbackHandler = _storageAddress(agentSafe, FALLBACK_HANDLER_STORAGE_SLOT);
+        if (structure.fallbackHandler != COMPATIBILITY_FALLBACK_HANDLER) {
+            revert FallbackHandlerMismatch(structure.fallbackHandler);
         }
 
         address[] memory owners = agentSafe.getOwners();
-        bytes32 ownersHash = keccak256(abi.encode(owners));
-        if (ownersHash != expected.ownersHash || owners.length != expected.ownerCount) {
-            revert OwnersMismatch(ownersHash, owners.length);
-        }
+        structure.ownersHash = keccak256(abi.encode(owners));
+        structure.ownerCount = owners.length;
         for (uint256 i; i < owners.length; ++i) {
             if (owners[i] == controller || owners[i] == runtime) revert ForbiddenOwner(owners[i]);
+            for (uint256 j = i + 1; j < owners.length; ++j) {
+                if (owners[i] == owners[j]) revert DuplicateOwner(owners[i]);
+            }
         }
 
-        uint256 threshold = agentSafe.getThreshold();
-        if (threshold == 0 || threshold > owners.length || threshold != expected.threshold) {
-            revert InvalidThreshold(threshold);
+        structure.threshold = agentSafe.getThreshold();
+        if (structure.threshold == 0 || structure.threshold > owners.length) {
+            revert InvalidThreshold(structure.threshold);
         }
-
-        uint256 safeNonce = agentSafe.nonce();
-        if (safeNonce != expected.nonce) revert NonceMismatch(safeNonce);
 
         (address[] memory modules, address next) = agentSafe.getModulesPaginated(SENTINEL, 1);
-        bytes32 modulesHash = keccak256(abi.encode(modules));
-        if (
-            modules.length != 0 || next != SENTINEL || modulesHash != expected.modulesHash
-                || expected.modulesHash != emptyModulesHash()
-        ) revert ModulesNotEmpty();
+        structure.modulesHash = keccak256(abi.encode(modules));
+        if (modules.length != 0 || next != SENTINEL || structure.modulesHash != emptyModulesHash()) revert ModulesNotEmpty();
 
-        address guard = _storageAddress(agentSafe, GUARD_STORAGE_SLOT);
-        if (guard != address(0) || guard != expected.guard) revert GuardNotZero(guard);
+        structure.guard = _storageAddress(agentSafe, GUARD_STORAGE_SLOT);
+        if (structure.guard != address(0)) revert GuardNotZero(structure.guard);
+    }
 
-        _validateSignature(safe, digest, signature);
+    function structureCommitment(Structure memory structure) internal pure returns (bytes32) {
+        return keccak256(abi.encode(structure));
     }
 
     function _storageAddress(IAgentSafe safe, uint256 slot) private view returns (address value) {

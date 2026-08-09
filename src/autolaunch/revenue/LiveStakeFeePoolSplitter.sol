@@ -15,11 +15,10 @@ import {
 import {
     ISubjectPaymentReceiver
 } from "src/autolaunch/revenue/interfaces/ISubjectPaymentReceiver.sol";
-import {ISubjectLifecycleSync} from "src/autolaunch/revenue/interfaces/ISubjectLifecycleSync.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
 
-contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycleSync {
+contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter {
     using SafeTransferLib for address;
 
     enum RevenueSourceKind {
@@ -51,7 +50,6 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     uint16 public immutable stakerPoolBps;
     string public label;
     bool public paused;
-    bool public subjectLifecycleRetired;
 
     uint256 public override totalStaked;
     uint256 public accRewardPerTokenUsdc;
@@ -99,7 +97,6 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     event USDCTreasuryWithdrawn(uint256 amount, address indexed recipient);
     event USDCDustReassigned(uint256 amount, address indexed recipient);
     event AccountSynced(address indexed account);
-    event SubjectLifecycleSynced(bool active, bool retiring, bool retired);
 
     constructor(
         address stakeToken_,
@@ -158,11 +155,6 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         _;
     }
 
-    modifier onlySubjectRegistry() {
-        require(msg.sender == subjectRegistry, "ONLY_SUBJECT_REGISTRY");
-        _;
-    }
-
     function protocolRecipient() external view override returns (address) {
         return address(stakingRevenueRouter);
     }
@@ -178,6 +170,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         emit LabelSet(label_);
     }
 
+    // Reviewed in slither.db.json: nonReentrant guards the exact-transfer token callback.
+    // slither-disable-next-line reentrancy-benign,reentrancy-no-eth
     function stake(uint256 amount, address receiver)
         external
         whenNotPaused
@@ -386,13 +380,6 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         }
     }
 
-    function syncSubjectLifecycle(bool active_, bool retiring_) external onlySubjectRegistry {
-        if (retiring_) {
-            subjectLifecycleRetired = true;
-        }
-        emit SubjectLifecycleSynced(active_, retiring_, subjectLifecycleRetired);
-    }
-
     function _recordRevenue(
         uint256 received,
         RevenueSourceKind sourceKind,
@@ -408,6 +395,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         _emitRevenueDeposited(accounting, sourceKind, depositor, sourceTag, sourceRef);
     }
 
+    // Reviewed in slither.db.json: zero checks select exact accounting branches.
+    // slither-disable-next-line incorrect-equality
     function _revenueAccounting(uint256 received)
         internal
         returns (RevenueAccounting memory accounting)
@@ -471,6 +460,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         totalUsdcCreditedToStakers += accounting.creditedByAccumulator;
     }
 
+    // Reviewed in slither.db.json: exact router settlement is an accounting invariant.
+    // slither-disable-next-line incorrect-equality
     function _routeRevenue(RevenueAccounting memory accounting, bytes32 sourceRef) internal {
         if (accounting.protocolAmount > 0) {
             usdc.safeTransfer(address(stakingRevenueRouter), accounting.protocolAmount);
@@ -520,9 +511,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     }
 
     function _subjectIsActive() internal view returns (bool) {
-        return
-            !subjectLifecycleRetired
-                && ISubjectRegistry(subjectRegistry).getSubject(subjectId).active;
+        return ISubjectRegistry(subjectRegistry).lifecycleOf(subjectId)
+            == ISubjectRegistry.Lifecycle.Active;
     }
 
     function _isKnownIngress(address ingress) internal view returns (bool) {
@@ -557,14 +547,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
             return false;
         }
 
-        // A registered ingress bound to this splitter/subject/usdc is always allowed to sweep
-        // held USDC, even when deactivated: deactivation stops new deposits, it must not strand
-        // funds. The probe only confirms the receiver interface is implemented.
-        try ISubjectPaymentReceiver(ingress).isReceiverActive() returns (bool) {
-            return true;
-        } catch {
-            return false;
-        }
+        return true;
     }
 
     function _previewRevenueSplit(uint256 amount)
@@ -614,6 +597,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     ///      token would revert here rather than mis-account). Subjects created through the
     ///      permissionless factory must use standard-behavior ERC20s; see
     ///      PermissionlessExistingTokenRevenueFactory.createExistingTokenRevenueSubject.
+    // Reviewed in slither.db.json: balance deltas intentionally reject fee-on-transfer tokens.
+    // slither-disable-next-line incorrect-equality,reentrancy-balance
     function _pullExactStakeToken(address from, uint256 amount)
         internal
         returns (uint256 received)
@@ -625,6 +610,8 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         require(received == amount, "STAKE_TOKEN_IN_EXACT");
     }
 
+    // Reviewed in slither.db.json: balance deltas intentionally reject fee-on-transfer tokens.
+    // slither-disable-next-line incorrect-equality,reentrancy-balance
     function _pushExactStakeToken(address recipient, uint256 amount) internal {
         uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(recipient);
         stakeToken.safeTransfer(recipient, amount);

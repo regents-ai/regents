@@ -35,6 +35,8 @@ contract ExampleCCADeploymentScript is Script {
         address feeInfraDeployer;
         address revenueShareFactory;
         address revenueIngressFactory;
+        address paymentLinkFactory;
+        address controller;
         address identityRegistry;
         address tokenFactory;
         address strategyFactory;
@@ -176,10 +178,16 @@ contract ExampleCCADeploymentScript is Script {
         cfg.revenueIngressFactory = vm.envAddress("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS");
         require(cfg.revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
 
+        cfg.paymentLinkFactory = vm.envAddress("AUTOLAUNCH_PAYMENT_LINK_FACTORY_ADDRESS");
+        require(cfg.paymentLinkFactory != address(0), "PAYMENT_LINK_FACTORY_ZERO");
+
+        cfg.controller = vm.envAddress("EXAMPLE_CCA_CONTROLLER_ADDRESS");
+        require(cfg.controller != address(0), "CONTROLLER_ZERO");
+
         cfg.strategyFactory = vm.envAddress("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS");
         require(cfg.strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
 
-        cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
+        cfg.tokenFactory = vm.envAddress("EXAMPLE_CCA_TOKEN_FACTORY_ADDRESS");
         require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
 
         cfg.auctionInitializerFactory = vm.envAddress("AUTOLAUNCH_CCA_FACTORY_ADDRESS");
@@ -198,7 +206,7 @@ contract ExampleCCADeploymentScript is Script {
         require(cfg.auctionQuoteToken != address(0), "QUOTE_TOKEN_ZERO");
         _requireBaseMainnetRegent(cfg.auctionQuoteToken);
 
-        cfg.revenueUsdcToken = _envAddress20("AUTOLAUNCH_REVENUE_USDC_ADDRESS");
+        cfg.revenueUsdcToken = _envAddress20("EXAMPLE_CCA_REVENUE_USDC_ADDRESS");
         require(cfg.revenueUsdcToken != address(0), "REVENUE_USDC_ZERO");
         _requireBaseMainnetUsdc(cfg.revenueUsdcToken);
 
@@ -293,10 +301,7 @@ contract ExampleCCADeploymentScript is Script {
         if (cfg.feeInfraDeployer == address(0)) {
             cfg.feeInfraDeployer = address(new LaunchFeeInfraDeployer());
         }
-        LaunchDeploymentController controller = new LaunchDeploymentController();
-        RevenueShareFactory(cfg.revenueShareFactory).setAuthorizedCreator(address(controller), true);
-        RevenueIngressFactory(cfg.revenueIngressFactory)
-            .setAuthorizedCreator(address(controller), true);
+        LaunchDeploymentController controller = LaunchDeploymentController(cfg.controller);
         RegentLBPStrategyFactory(cfg.strategyFactory)
             .setAuthorizedCreator(address(controller), true);
         LaunchDeploymentController.DeploymentConfig memory deployCfg = _controllerConfig(cfg);
@@ -321,10 +326,6 @@ contract ExampleCCADeploymentScript is Script {
             _encodedMetadata(deployCfg)
         );
         result = _readControllerResult(controller, launchId);
-        RevenueShareFactory(cfg.revenueShareFactory)
-            .setAuthorizedCreator(address(controller), false);
-        RevenueIngressFactory(cfg.revenueIngressFactory)
-            .setAuthorizedCreator(address(controller), false);
         RegentLBPStrategyFactory(cfg.strategyFactory)
             .setAuthorizedCreator(address(controller), false);
     }
@@ -338,6 +339,7 @@ contract ExampleCCADeploymentScript is Script {
         deployCfg.addresses.feeInfraDeployer = cfg.feeInfraDeployer;
         deployCfg.addresses.revenueShareFactory = cfg.revenueShareFactory;
         deployCfg.addresses.revenueIngressFactory = cfg.revenueIngressFactory;
+        deployCfg.addresses.paymentLinkFactory = cfg.paymentLinkFactory;
         deployCfg.addresses.identityRegistry = cfg.identityRegistry;
         deployCfg.addresses.tokenFactory = cfg.tokenFactory;
         deployCfg.addresses.strategyFactory = cfg.strategyFactory;

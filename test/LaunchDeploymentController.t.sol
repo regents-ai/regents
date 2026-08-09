@@ -16,6 +16,8 @@ import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
 import {RevenueIngressAccount} from "src/autolaunch/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
+import {PaymentLinkFactory} from "src/autolaunch/revenue/PaymentLinkFactory.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
 import {
@@ -117,6 +119,7 @@ contract LaunchDeploymentControllerTest is Test {
     RevenueShareFactory internal revenueShareFactory;
     RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal revenueIngressFactory;
+    PaymentLinkFactory internal paymentLinkFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     MintableERC20Mock internal usdc;
     MintableERC20Mock internal regent;
@@ -133,7 +136,7 @@ contract LaunchDeploymentControllerTest is Test {
         strategyFactory = new RegentLBPStrategyFactory(address(this));
         usdc = _installCanonicalUsdcMock();
         regent = _installCanonicalRegentMock();
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(controller), address(this), address(0x6789));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
@@ -145,9 +148,8 @@ contract LaunchDeploymentControllerTest is Test {
         );
         revenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
-        subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
-        revenueShareFactory.setAuthorizedCreator(address(controller), true);
-        revenueIngressFactory.setAuthorizedCreator(address(controller), true);
+        paymentLinkFactory =
+            new PaymentLinkFactory(address(this), address(usdc), address(subjectRegistry));
         strategyFactory.setAuthorizedCreator(address(controller), true);
         _setDefaultConfig();
     }
@@ -172,6 +174,13 @@ contract LaunchDeploymentControllerTest is Test {
         _deploy();
     }
 
+    function testRejectsLaunchWhenStrategyOperatorAliasesAgentSafe() external {
+        launchCfg.addresses.strategyOperator = AGENT_SAFE;
+
+        vm.expectRevert("SAFE_RUNTIME_IS_AGENT_SAFE");
+        _deploy();
+    }
+
     function testRejectsNonCanonicalUsdc() external {
         launchCfg.addresses.revenueUsdcToken = address(0xC0FFEE);
 
@@ -187,7 +196,8 @@ contract LaunchDeploymentControllerTest is Test {
     }
 
     function testRejectsDeployWhenSubjectRegistryOwnershipNotAccepted() external {
-        SubjectRegistry localSubjectRegistry = new SubjectRegistry(address(this));
+        SubjectRegistry localSubjectRegistry =
+            new SubjectRegistry(address(0xBAD), address(this), address(0x6789));
         RevenueShareFactory localRevenueShareFactory = new RevenueShareFactory(
             address(this),
             address(usdc),
@@ -197,14 +207,14 @@ contract LaunchDeploymentControllerTest is Test {
         );
         RevenueIngressFactory localRevenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(localSubjectRegistry), address(this));
-
-        localRevenueShareFactory.setAuthorizedCreator(address(controller), true);
-        localRevenueIngressFactory.setAuthorizedCreator(address(controller), true);
+        PaymentLinkFactory localPaymentLinkFactory =
+            new PaymentLinkFactory(address(this), address(usdc), address(localSubjectRegistry));
 
         launchCfg.addresses.revenueShareFactory = address(localRevenueShareFactory);
         launchCfg.addresses.revenueIngressFactory = address(localRevenueIngressFactory);
+        launchCfg.addresses.paymentLinkFactory = address(localPaymentLinkFactory);
 
-        vm.expectRevert("REVENUE_SHARE_FACTORY_NOT_REGISTRAR");
+        vm.expectRevert("REVENUE_SHARE_CONTROLLER_MISMATCH");
         _deploy();
     }
 
@@ -291,6 +301,22 @@ contract LaunchDeploymentControllerTest is Test {
         _assertStoredResult(launchId, result);
     }
 
+    function testDeterministicIngressCollisionRollsBackFinalRegistration() external {
+        bytes32 launchId = _prepareLaunch();
+        LaunchDeploymentController.DeploymentResult memory prepared = _readResult(launchId);
+        _deployLaunchFeeInfra(launchId);
+
+        vm.etch(prepared.defaultIngressAddress, hex"6000");
+
+        vm.expectRevert();
+        _finalizeLaunch(launchId);
+
+        assertEq(subjectRegistry.subjectOfStakeToken(prepared.tokenAddress), bytes32(0));
+        assertEq(revenueIngressFactory.defaultIngressOfSubject(launchId), address(0));
+        assertEq(_readResult(launchId).strategyAddress, address(0));
+        assertEq(prepared.defaultIngressAddress.code.length, 2);
+    }
+
     function testRecoverFailedAuctionBurnsSupplyAndKillsSubjectAcrossTheStack() external {
         // Full-stack failed-launch unwind: auction misses its minimum raise, the operator runs
         // recoverFailedAuction, and the ENTIRE token supply (auction 10% + LP reserve 5% +
@@ -322,33 +348,33 @@ contract LaunchDeploymentControllerTest is Test {
         vm.warp(uint256(launchCfg.schedule.vestingStartTimestamp) + 730 days);
         assertEq(vestingWallet.releasableLaunchToken(), 0);
 
-        // The subject is dead in the registry and the splitter is permanently retired.
-        assertTrue(subjectRegistry.subjectDead(result.subjectId));
-        assertFalse(subjectRegistry.getSubject(result.subjectId).active);
-        assertTrue(splitter.subjectLifecycleRetired());
+        assertEq(
+            uint256(subjectRegistry.lifecycleOf(result.subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Retired)
+        );
 
         // Nothing can be staked or deposited on the dead subject's rev-share stack.
         vm.expectRevert("SUBJECT_INACTIVE");
         splitter.stake(1, address(this));
         vm.expectRevert("SUBJECT_INACTIVE");
         splitter.depositUSDC(1, bytes32("tag"), bytes32("ref"));
-        vm.expectRevert("SUBJECT_INACTIVE");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
         ingress.depositUSDC(1, bytes32("tag"));
 
         // The subject cannot be reactivated — not even by its treasury safe or the owner.
         vm.prank(AGENT_SAFE);
-        vm.expectRevert("SUBJECT_DEAD");
+        vm.expectRevert("SUBJECT_IMMUTABLE");
         subjectRegistry.updateSubject(
             result.subjectId, result.revenueShareSplitterAddress, AGENT_SAFE, true, "Agent Coin"
         );
-        vm.expectRevert("SUBJECT_DEAD");
+        vm.expectRevert("SUBJECT_IMMUTABLE");
         subjectRegistry.updateSubject(
             result.subjectId, result.revenueShareSplitterAddress, AGENT_SAFE, true, "Agent Coin"
         );
 
-        // And no new ingress accounts can be created for it.
+        // The legacy alternate-ingress selector is disabled for every caller.
         vm.prank(AGENT_SAFE);
-        vm.expectRevert("SUBJECT_INACTIVE");
+        vm.expectRevert("LEGACY_INGRESS_DISABLED");
         revenueIngressFactory.createIngressAccount(result.subjectId, "late-ingress", false);
     }
 
@@ -470,6 +496,7 @@ contract LaunchDeploymentControllerTest is Test {
         launchCfg.addresses.feeInfraDeployer = address(feeInfraDeployer);
         launchCfg.addresses.revenueShareFactory = address(revenueShareFactory);
         launchCfg.addresses.revenueIngressFactory = address(revenueIngressFactory);
+        launchCfg.addresses.paymentLinkFactory = address(paymentLinkFactory);
         launchCfg.addresses.identityRegistry = IDENTITY_REGISTRY;
         launchCfg.addresses.tokenFactory = address(tokenFactory);
         launchCfg.addresses.strategyFactory = address(strategyFactory);
@@ -663,9 +690,7 @@ contract LaunchDeploymentControllerTest is Test {
         assertEq(strategy.LP_CURRENCY_BPS(), 4000);
         assertEq(strategy.officialPoolFee(), 0);
         assertEq(strategy.officialPoolTickSpacing(), 60);
-        assertEq(
-            subjectRegistry.subjectLifecycleAuthority(result.subjectId), result.strategyAddress
-        );
+        assertEq(subjectRegistry.getSubject(result.subjectId).strategy, result.strategyAddress);
         assertEq(
             AgentTokenVestingWallet(result.vestingWalletAddress).strategy(), result.strategyAddress
         );
@@ -744,8 +769,14 @@ contract LaunchDeploymentControllerTest is Test {
         assertEq(subject.stakeToken, result.tokenAddress);
         assertEq(subject.splitter, result.revenueShareSplitterAddress);
         assertEq(subject.treasurySafe, AGENT_SAFE);
-        assertTrue(subject.active);
-        assertTrue(subjectRegistry.subjectManagers(result.subjectId, AGENT_SAFE));
+        assertEq(uint256(subject.lifecycle), uint256(ISubjectRegistry.Lifecycle.Active));
+        assertEq(subject.ingress, result.defaultIngressAddress);
+        assertEq(subject.paymentLinkFactory, address(paymentLinkFactory));
+        assertEq(subject.strategy, result.strategyAddress);
+        assertEq(subject.safeRuntime, STRATEGY_OPERATOR);
+        assertEq(subject.launchFeeRegistry, result.launchFeeRegistryAddress);
+        assertEq(subject.feeVault, result.feeVaultAddress);
+        assertEq(subject.feeHook, result.hookAddress);
 
         bytes32 expectedSubjectId = keccak256(abi.encode(block.chainid, result.tokenAddress));
         assertEq(result.subjectId, expectedSubjectId);

@@ -14,6 +14,7 @@ contract PaymentLinkFactory is Owned {
 
     address public immutable usdc;
     address public immutable subjectRegistry;
+    address public immutable controller;
 
     struct PaymentLinkMeta {
         bytes32 subjectId;
@@ -50,14 +51,11 @@ contract PaymentLinkFactory is Owned {
 
         usdc = usdc_;
         subjectRegistry = subjectRegistry_;
+        controller = SubjectRegistryControllerForPaymentLinks(subjectRegistry_).controller();
     }
 
-    modifier onlySubjectManager(bytes32 subjectId) {
-        require(
-            ISubjectRegistry(subjectRegistry).canManageSubject(subjectId, msg.sender)
-                || msg.sender == owner,
-            "ONLY_SUBJECT_MANAGER"
-        );
+    modifier onlyController() {
+        require(msg.sender == controller, "ONLY_CONTROLLER");
         _;
     }
 
@@ -76,43 +74,18 @@ contract PaymentLinkFactory is Owned {
 
     function createCanonicalPaymentLink(bytes32 subjectId, string calldata label, bytes32 salt)
         external
-        onlySubjectManager(subjectId)
+        onlyController
         returns (address receiver)
     {
         receiver = _createPaymentLink(subjectId, msg.sender, label, salt, true);
     }
 
-    function setPaymentLinkCanonical(address receiver, bool canonical)
-        external
-        onlySubjectManager(paymentLinkMeta[receiver].subjectId)
-    {
-        require(isPaymentLink[receiver], "PAYMENT_LINK_UNKNOWN");
-        PaymentLinkMeta storage meta = paymentLinkMeta[receiver];
-        require(meta.canonical != canonical, "CANONICAL_UNCHANGED");
-
-        meta.canonical = canonical;
-        if (canonical) {
-            _pushCanonicalPaymentLink(meta.subjectId, receiver);
-        } else {
-            _removeCanonicalPaymentLink(meta.subjectId, receiver);
-        }
-
-        emit PaymentLinkCanonicalSet(meta.subjectId, receiver, canonical);
+    function setPaymentLinkCanonical(address, bool) external pure {
+        revert("CANONICAL_IMMUTABLE");
     }
 
-    function setPaymentLinkReceiverState(address receiver, bool active, address replacement)
-        external
-    {
-        require(isPaymentLink[receiver], "PAYMENT_LINK_UNKNOWN");
-        PaymentLinkMeta memory meta = paymentLinkMeta[receiver];
-        require(
-            msg.sender == meta.creator
-                || ISubjectRegistry(subjectRegistry).canManageSubject(meta.subjectId, msg.sender)
-                || msg.sender == owner,
-            "ONLY_LINK_CONTROLLER"
-        );
-        PaymentLinkReceiver(payable(receiver)).setReceiverState(active, replacement);
-        emit PaymentLinkReceiverStateSet(meta.subjectId, receiver, active, replacement);
+    function setPaymentLinkReceiverState(address, bool, address) external pure {
+        revert("PAYMENT_LINK_IMMUTABLE");
     }
 
     function canonicalPaymentLinkCountForSubject(bytes32 subjectId)
@@ -172,7 +145,7 @@ contract PaymentLinkFactory is Owned {
 
         ISubjectRegistry.SubjectConfig memory subject =
             ISubjectRegistry(subjectRegistry).getSubject(subjectId);
-        require(subject.active, "SUBJECT_INACTIVE");
+        require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
         require(subject.splitter != address(0), "SPLITTER_ZERO");
         require(IRevenueShareSplitter(subject.splitter).usdc() == usdc, "SPLITTER_USDC_MISMATCH");
         require(
@@ -209,21 +182,6 @@ contract PaymentLinkFactory is Owned {
         links.push(receiver);
     }
 
-    function _removeCanonicalPaymentLink(bytes32 subjectId, address receiver) internal {
-        address[] storage links = canonicalPaymentLinksBySubject[subjectId];
-        uint256 length = links.length;
-        for (uint256 i; i < length; ++i) {
-            if (links[i] == receiver) {
-                uint256 last = length - 1;
-                if (i != last) {
-                    links[i] = links[last];
-                }
-                links.pop();
-                return;
-            }
-        }
-    }
-
     function _page(address[] storage source, uint256 cursor, uint256 limit)
         internal
         view
@@ -244,4 +202,8 @@ contract PaymentLinkFactory is Owned {
             links[i - cursor] = source[i];
         }
     }
+}
+
+interface SubjectRegistryControllerForPaymentLinks {
+    function controller() external view returns (address);
 }

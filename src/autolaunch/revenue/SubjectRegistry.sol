@@ -1,354 +1,246 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Owned} from "src/shared/auth/Owned.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
-import {ISubjectLifecycleSync} from "src/autolaunch/revenue/interfaces/ISubjectLifecycleSync.sol";
+import {IOwned} from "src/autolaunch/revenue/interfaces/IOwned.sol";
+import {AgentSafePolicy} from "src/autolaunch/libraries/AgentSafePolicy.sol";
 import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
 
-contract SubjectRegistry is Owned, ISubjectRegistry {
+interface ISubjectSplitterRotation {
+    function pendingTreasuryRecipient() external view returns (address);
+}
+
+interface ISubjectStrategyOperator {
+    function operator() external view returns (address);
+}
+
+contract SubjectRegistry is ISubjectRegistry, IOwned {
+    uint256 public constant RESTORATION_DELAY = 24 hours;
+
     struct IdentityLink {
         uint256 chainId;
         address registry;
         uint256 agentId;
     }
 
+    address public immutable controller;
+    address public immutable governance;
+    address public immutable guardian;
+
     mapping(bytes32 => SubjectConfig) private subjects;
     mapping(address => bytes32) public override subjectOfStakeToken;
     mapping(address => bytes32[]) private subjectsByStakeToken;
-    mapping(address => bool) public authorizedRegistrars;
-    mapping(bytes32 => mapping(address => bool)) public subjectManagers;
-    mapping(bytes32 => IdentityLink[]) private identityLinks;
     mapping(bytes32 => bytes32) public subjectOfIdentityHash;
-    mapping(bytes32 => address) public override subjectLifecycleAuthority;
-    mapping(bytes32 => bool) public override subjectDead;
+    mapping(bytes32 => uint256) public override restorationExecutableAt;
+    mapping(bytes32 => bytes32) public override restorationPolicyCommitment;
 
-    event SubjectCreated(
+    event SubjectRegistered(
         bytes32 indexed subjectId,
         address indexed stakeToken,
-        address indexed splitter,
-        address treasurySafe,
-        string label
-    );
-    event AuthorizedRegistrarSet(address indexed registrar, bool enabled);
-    event CanonicalSubjectForStakeTokenSet(address indexed stakeToken, bytes32 indexed subjectId);
-    event PermissionlessSubjectCreated(
-        bytes32 indexed subjectId,
-        address indexed stakeToken,
-        address indexed splitter,
-        address treasurySafe,
-        address creator,
-        string label
-    );
-    event SubjectUpdated(
-        bytes32 indexed subjectId,
-        address indexed splitter,
-        address treasurySafe,
-        bool active,
-        string label
-    );
-    event SubjectManagerSet(bytes32 indexed subjectId, address indexed account, bool enabled);
-    event ClaimedIdentityLinked(
-        bytes32 indexed subjectId,
-        bytes32 indexed identityHash,
-        uint256 chainId,
-        address indexed registry,
-        uint256 agentId
-    );
-    event ClaimedIdentityUnlinked(
-        bytes32 indexed subjectId,
-        bytes32 indexed identityHash,
-        uint256 chainId,
-        address indexed registry,
-        uint256 agentId
-    );
-    event SubjectLifecycleAuthoritySet(bytes32 indexed subjectId, address indexed authority);
-    event SubjectMarkedDead(
-        bytes32 indexed subjectId, address indexed splitter, address indexed caller
-    );
-
-    constructor(address owner_) Owned(owner_) {}
-
-    modifier onlyRegistrar() {
-        require(canRegisterSubject(msg.sender), "ONLY_REGISTRAR");
-        _;
-    }
-
-    modifier onlySubjectManager(bytes32 subjectId) {
-        require(canManageSubject(subjectId, msg.sender), "ONLY_SUBJECT_MANAGER");
-        _;
-    }
-
-    modifier onlySubjectController(bytes32 subjectId) {
-        require(_canControlSubject(subjectId, msg.sender), "ONLY_SUBJECT_CONTROLLER");
-        _;
-    }
-
-    function createSubject(
-        bytes32 subjectId,
-        address stakeToken,
+        address indexed agentSafe,
         address splitter,
-        address treasurySafe,
-        bool active,
-        string calldata label
-    ) external override onlyRegistrar {
-        require(subjectId != bytes32(0), "SUBJECT_ZERO");
-        require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
-        require(splitter != address(0), "SPLITTER_ZERO");
-        require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
-        require(subjects[subjectId].stakeToken == address(0), "SUBJECT_EXISTS");
-        require(subjectOfStakeToken[stakeToken] == bytes32(0), "STAKE_TOKEN_ALREADY_LINKED");
-        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
+        address ingress,
+        address paymentLinkFactory,
+        address strategy,
+        address launchFeeRegistry,
+        address feeVault,
+        address feeHook,
+        address safeRuntime
+    );
+    event SubjectQuarantined(bytes32 indexed subjectId, address indexed caller);
+    event RestorationRequested(
+        bytes32 indexed subjectId, uint256 executableAt, bytes32 policyCommitment
+    );
+    event RestorationCancelled(
+        bytes32 indexed subjectId, address indexed guardian, bytes32 policyCommitment
+    );
+    event SubjectRestored(
+        bytes32 indexed subjectId, address indexed governance, bytes32 policyCommitment
+    );
+    event SubjectRetired(bytes32 indexed subjectId, address indexed strategy);
 
-        subjects[subjectId] = SubjectConfig({
-            stakeToken: stakeToken,
-            splitter: splitter,
-            treasurySafe: treasurySafe,
-            active: active,
-            label: label
-        });
-        subjectOfStakeToken[stakeToken] = subjectId;
-        subjectsByStakeToken[stakeToken].push(subjectId);
-        subjectManagers[subjectId][treasurySafe] = true;
-        subjectManagers[subjectId][msg.sender] = true;
-
-        emit SubjectCreated(subjectId, stakeToken, splitter, treasurySafe, label);
-        emit SubjectManagerSet(subjectId, treasurySafe, true);
-        emit SubjectManagerSet(subjectId, msg.sender, true);
+    constructor(address controller_, address governance_, address guardian_) {
+        require(controller_ != address(0), "CONTROLLER_ZERO");
+        require(governance_ != address(0), "GOVERNANCE_ZERO");
+        require(guardian_ != address(0), "GUARDIAN_ZERO");
+        require(controller_ != governance_, "CONTROLLER_IS_GOVERNANCE");
+        require(controller_ != guardian_, "CONTROLLER_IS_GUARDIAN");
+        require(governance_ != guardian_, "GOVERNANCE_IS_GUARDIAN");
+        controller = controller_;
+        governance = governance_;
+        guardian = guardian_;
     }
 
-    function createPermissionlessSubject(
-        bytes32 subjectId,
-        address stakeToken,
-        address splitter,
-        address treasurySafe,
-        address creator,
-        bool active,
-        string calldata label
-    ) external override onlyRegistrar {
-        require(subjectId != bytes32(0), "SUBJECT_ZERO");
-        require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
-        require(splitter != address(0), "SPLITTER_ZERO");
-        require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
-        require(creator != address(0), "CREATOR_ZERO");
-        require(subjects[subjectId].stakeToken == address(0), "SUBJECT_EXISTS");
-        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
+    /// @notice Compatibility getter for deployment tooling. Governance is immutable.
+    function owner() external view override returns (address) {
+        return governance;
+    }
 
-        subjects[subjectId] = SubjectConfig({
-            stakeToken: stakeToken,
-            splitter: splitter,
-            treasurySafe: treasurySafe,
-            active: active,
-            label: label
-        });
-
-        subjectsByStakeToken[stakeToken].push(subjectId);
-
-        subjectManagers[subjectId][treasurySafe] = true;
-        subjectManagers[subjectId][creator] = true;
-
-        emit PermissionlessSubjectCreated(
-            subjectId, stakeToken, splitter, treasurySafe, creator, label
+    function registerSubject(SubjectRegistration calldata registration) external override {
+        require(msg.sender == controller, "ONLY_CONTROLLER");
+        require(registration.subjectId != bytes32(0), "SUBJECT_ZERO");
+        require(registration.stakeToken != address(0), "STAKE_TOKEN_ZERO");
+        require(registration.splitter != address(0), "SPLITTER_ZERO");
+        require(registration.agentSafe != address(0), "AGENT_SAFE_ZERO");
+        require(registration.ingress != address(0), "INGRESS_ZERO");
+        require(registration.paymentLinkFactory != address(0), "PAYMENT_LINK_FACTORY_ZERO");
+        require(registration.strategy != address(0), "STRATEGY_ZERO");
+        require(registration.safeRuntime != address(0), "SAFE_RUNTIME_ZERO");
+        require(registration.agentSafe != controller, "AGENT_SAFE_IS_CONTROLLER");
+        require(registration.agentSafe != governance, "AGENT_SAFE_IS_GOVERNANCE");
+        require(registration.agentSafe != guardian, "AGENT_SAFE_IS_GUARDIAN");
+        require(registration.strategy != controller, "STRATEGY_IS_CONTROLLER");
+        require(registration.strategy != governance, "STRATEGY_IS_GOVERNANCE");
+        require(registration.strategy != guardian, "STRATEGY_IS_GUARDIAN");
+        require(registration.strategy != registration.agentSafe, "STRATEGY_IS_AGENT_SAFE");
+        require(registration.safeRuntime != controller, "SAFE_RUNTIME_IS_CONTROLLER");
+        require(registration.safeRuntime != governance, "SAFE_RUNTIME_IS_GOVERNANCE");
+        require(registration.safeRuntime != guardian, "SAFE_RUNTIME_IS_GUARDIAN");
+        require(registration.safeRuntime != registration.agentSafe, "SAFE_RUNTIME_IS_AGENT_SAFE");
+        require(registration.safeRuntime != registration.strategy, "SAFE_RUNTIME_IS_STRATEGY");
+        require(
+            ISubjectStrategyOperator(registration.strategy).operator() == registration.safeRuntime,
+            "SAFE_RUNTIME_OPERATOR_MISMATCH"
         );
-        emit SubjectManagerSet(subjectId, treasurySafe, true);
-        emit SubjectManagerSet(subjectId, creator, true);
+        require(registration.launchFeeRegistry != address(0), "FEE_REGISTRY_ZERO");
+        require(registration.feeVault != address(0), "FEE_VAULT_ZERO");
+        require(registration.feeHook != address(0), "FEE_HOOK_ZERO");
+        require(subjects[registration.subjectId].stakeToken == address(0), "SUBJECT_EXISTS");
+        require(
+            subjectOfStakeToken[registration.stakeToken] == bytes32(0), "STAKE_TOKEN_ALREADY_LINKED"
+        );
+        InputBounds.requireStringMax(
+            registration.label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG"
+        );
+        _validateIdentity(registration);
+
+        subjects[registration.subjectId] = SubjectConfig({
+            stakeToken: registration.stakeToken,
+            splitter: registration.splitter,
+            treasurySafe: registration.agentSafe,
+            ingress: registration.ingress,
+            paymentLinkFactory: registration.paymentLinkFactory,
+            strategy: registration.strategy,
+            launchFeeRegistry: registration.launchFeeRegistry,
+            feeVault: registration.feeVault,
+            feeHook: registration.feeHook,
+            identityChainId: registration.identityChainId,
+            identityRegistry: registration.identityRegistry,
+            identityAgentId: registration.identityAgentId,
+            lifecycle: Lifecycle.Active,
+            label: registration.label,
+            safeRuntime: registration.safeRuntime
+        });
+        subjectOfStakeToken[registration.stakeToken] = registration.subjectId;
+        subjectsByStakeToken[registration.stakeToken].push(registration.subjectId);
+
+        if (registration.identityRegistry != address(0)) {
+            bytes32 identityHash = _identityHash(
+                registration.identityChainId,
+                registration.identityRegistry,
+                registration.identityAgentId
+            );
+            require(subjectOfIdentityHash[identityHash] == bytes32(0), "IDENTITY_ALREADY_LINKED");
+            subjectOfIdentityHash[identityHash] = registration.subjectId;
+        }
+
+        emit SubjectRegistered(
+            registration.subjectId,
+            registration.stakeToken,
+            registration.agentSafe,
+            registration.splitter,
+            registration.ingress,
+            registration.paymentLinkFactory,
+            registration.strategy,
+            registration.launchFeeRegistry,
+            registration.feeVault,
+            registration.feeHook,
+            registration.safeRuntime
+        );
     }
 
-    function setAuthorizedRegistrar(address registrar, bool enabled) external onlyOwner {
-        require(registrar != address(0), "REGISTRAR_ZERO");
-        authorizedRegistrars[registrar] = enabled;
-        emit AuthorizedRegistrarSet(registrar, enabled);
-    }
-
-    function setCanonicalSubjectForStakeToken(address stakeToken, bytes32 subjectId)
-        external
-        override
-        onlyOwner
-    {
-        require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
-        SubjectConfig storage cfg = _subjectStorage(subjectId);
-        require(cfg.stakeToken == stakeToken, "STAKE_TOKEN_MISMATCH");
-
-        subjectOfStakeToken[stakeToken] = subjectId;
-        emit CanonicalSubjectForStakeTokenSet(stakeToken, subjectId);
-    }
-
-    /// @notice Binds the one address (besides the owner) allowed to mark this subject dead.
-    /// @dev Registrar-gated and set-once: for CCA launches the deployment controller binds the
-    ///      launch's RegentLBPStrategy here (via RevenueShareFactory) so a failed auction can
-    ///      kill its own subject atomically inside `recoverFailedAuction`.
-    function setSubjectLifecycleAuthority(bytes32 subjectId, address authority)
-        external
-        override
-        onlyRegistrar
-    {
-        _subjectStorage(subjectId);
-        require(authority != address(0), "AUTHORITY_ZERO");
-        require(subjectLifecycleAuthority[subjectId] == address(0), "AUTHORITY_SET");
-        require(!subjectDead[subjectId], "SUBJECT_DEAD");
-
-        subjectLifecycleAuthority[subjectId] = authority;
-        emit SubjectLifecycleAuthoritySet(subjectId, authority);
-    }
-
-    /// @notice Permanently kills a subject: deactivates it, retires its splitter, and blocks
-    ///         every future reactivation path. Used for failed launches — the subject must
-    ///         never be stakeable, depositable, or mistaken for a live market again.
-    function markSubjectDead(bytes32 subjectId) external override {
+    function quarantineSubject(bytes32 subjectId) external override {
         SubjectConfig storage cfg = _subjectStorage(subjectId);
         require(
-            msg.sender == subjectLifecycleAuthority[subjectId] || msg.sender == owner,
-            "ONLY_LIFECYCLE_AUTHORITY"
+            msg.sender == cfg.treasurySafe || msg.sender == governance || msg.sender == guardian,
+            "ONLY_QUARANTINE_AUTHORITY"
         );
-        require(!subjectDead[subjectId], "SUBJECT_DEAD");
-
-        subjectDead[subjectId] = true;
-        cfg.active = false;
-        // retiring=true permanently latches `subjectLifecycleRetired` on the splitter, so the
-        // splitter stays disabled even independently of this registry flag.
-        ISubjectLifecycleSync(cfg.splitter).syncSubjectLifecycle(false, true);
-
-        emit SubjectMarkedDead(subjectId, cfg.splitter, msg.sender);
+        require(cfg.lifecycle == Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
+        cfg.lifecycle = Lifecycle.Quarantined;
+        emit SubjectQuarantined(subjectId, msg.sender);
     }
 
-    function updateSubject(
-        bytes32 subjectId,
-        address splitter,
-        address treasurySafe,
-        bool active,
-        string calldata label
-    ) external onlySubjectController(subjectId) {
-        require(!subjectDead[subjectId], "SUBJECT_DEAD");
+    // A fixed governance delay is the intended lifecycle policy.
+    // slither-disable-next-line timestamp
+    function requestRestoration(bytes32 subjectId) external override {
         SubjectConfig storage cfg = _subjectStorage(subjectId);
-        address previousSplitter = cfg.splitter;
-        require(splitter != address(0), "SPLITTER_ZERO");
-        require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
-        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
-        bool splitterChanged = previousSplitter != splitter;
-        bool activeChanged = cfg.active != active;
-
-        if (cfg.treasurySafe != treasurySafe) {
-            subjectManagers[subjectId][cfg.treasurySafe] = false;
-            emit SubjectManagerSet(subjectId, cfg.treasurySafe, false);
-            subjectManagers[subjectId][treasurySafe] = true;
-            emit SubjectManagerSet(subjectId, treasurySafe, true);
-        }
-
-        if (activeChanged || splitterChanged) {
-            ISubjectLifecycleSync(previousSplitter).syncSubjectLifecycle(active, splitterChanged);
-        }
-        if (splitterChanged) {
-            ISubjectLifecycleSync(splitter).syncSubjectLifecycle(active, false);
-        }
-
-        cfg.active = active;
-        cfg.splitter = splitter;
-        cfg.treasurySafe = treasurySafe;
-        cfg.label = label;
-
-        emit SubjectUpdated(subjectId, splitter, treasurySafe, active, label);
+        require(msg.sender == cfg.treasurySafe, "ONLY_AGENT_SAFE");
+        require(cfg.lifecycle == Lifecycle.Quarantined, "SUBJECT_NOT_QUARANTINED");
+        require(restorationExecutableAt[subjectId] == 0, "RESTORATION_PENDING");
+        bytes32 policyCommitment = AgentSafePolicy.structureCommitment(
+            AgentSafePolicy.readStructure(cfg.treasurySafe, controller, cfg.safeRuntime)
+        );
+        require(_pendingTreasuryRecipient(cfg.splitter) == address(0), "TREASURY_ROTATION_PENDING");
+        uint256 executableAt = block.timestamp + RESTORATION_DELAY;
+        restorationExecutableAt[subjectId] = executableAt;
+        restorationPolicyCommitment[subjectId] = policyCommitment;
+        emit RestorationRequested(subjectId, executableAt, policyCommitment);
     }
 
-    function setSubjectManager(bytes32 subjectId, address account, bool enabled)
-        external
-        onlySubjectController(subjectId)
-    {
-        require(account != address(0), "ACCOUNT_ZERO");
-        subjectManagers[subjectId][account] = enabled;
-        emit SubjectManagerSet(subjectId, account, enabled);
-    }
-
-    function setSubjectLabel(bytes32 subjectId, string calldata label)
-        external
-        onlySubjectManager(subjectId)
-    {
+    // slither-disable-next-line timestamp
+    function executeRestoration(bytes32 subjectId) external override {
+        require(msg.sender == governance, "ONLY_GOVERNANCE");
         SubjectConfig storage cfg = _subjectStorage(subjectId);
-        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
-        cfg.label = label;
-        emit SubjectUpdated(subjectId, cfg.splitter, cfg.treasurySafe, cfg.active, label);
+        require(cfg.lifecycle == Lifecycle.Quarantined, "SUBJECT_NOT_QUARANTINED");
+        uint256 executableAt = restorationExecutableAt[subjectId];
+        require(executableAt != 0, "NO_RESTORATION_PENDING");
+        require(block.timestamp >= executableAt, "RESTORATION_DELAY");
+        bytes32 policyCommitment = restorationPolicyCommitment[subjectId];
+        bytes32 currentCommitment = AgentSafePolicy.structureCommitment(
+            AgentSafePolicy.readStructure(cfg.treasurySafe, controller, cfg.safeRuntime)
+        );
+        require(currentCommitment == policyCommitment, "SAFE_STRUCTURE_CHANGED");
+        require(_pendingTreasuryRecipient(cfg.splitter) == address(0), "TREASURY_ROTATION_PENDING");
+        delete restorationExecutableAt[subjectId];
+        delete restorationPolicyCommitment[subjectId];
+        cfg.lifecycle = Lifecycle.Active;
+        emit SubjectRestored(subjectId, msg.sender, policyCommitment);
     }
 
-    function linkIdentity(bytes32 subjectId, uint256 chainId, address registry, uint256 agentId)
-        external
-        onlySubjectManager(subjectId)
-        returns (bytes32 identityHash)
-    {
-        require(chainId != 0, "CHAIN_ID_ZERO");
-        require(registry != address(0), "REGISTRY_ZERO");
-        require(agentId != 0, "AGENT_ID_ZERO");
-        _subjectStorage(subjectId);
-
-        identityHash = _identityHash(chainId, registry, agentId);
-        bytes32 previous = subjectOfIdentityHash[identityHash];
-        require(previous == bytes32(0) || previous == subjectId, "IDENTITY_LINKED_TO_OTHER_SUBJECT");
-
-        if (previous == bytes32(0)) {
-            subjectOfIdentityHash[identityHash] = subjectId;
-            identityLinks[subjectId].push(
-                IdentityLink({chainId: chainId, registry: registry, agentId: agentId})
-            );
-            emit ClaimedIdentityLinked(subjectId, identityHash, chainId, registry, agentId);
-        }
+    // slither-disable-next-line timestamp
+    function cancelRestoration(bytes32 subjectId) external override {
+        require(msg.sender == guardian, "ONLY_GUARDIAN");
+        SubjectConfig storage cfg = _subjectStorage(subjectId);
+        require(cfg.lifecycle == Lifecycle.Quarantined, "SUBJECT_NOT_QUARANTINED");
+        require(restorationExecutableAt[subjectId] != 0, "NO_RESTORATION_PENDING");
+        bytes32 policyCommitment = restorationPolicyCommitment[subjectId];
+        delete restorationExecutableAt[subjectId];
+        delete restorationPolicyCommitment[subjectId];
+        emit RestorationCancelled(subjectId, msg.sender, policyCommitment);
     }
 
-    function unlinkIdentity(bytes32 subjectId, uint256 chainId, address registry, uint256 agentId)
-        external
-        onlySubjectManager(subjectId)
-    {
-        _subjectStorage(subjectId);
-        bytes32 identityHash = _identityHash(chainId, registry, agentId);
-        require(subjectOfIdentityHash[identityHash] == subjectId, "IDENTITY_NOT_LINKED");
-
-        delete subjectOfIdentityHash[identityHash];
-
-        IdentityLink[] storage links = identityLinks[subjectId];
-        uint256 length = links.length;
-        for (uint256 i; i < length; ++i) {
-            IdentityLink memory link = links[i];
-            if (link.chainId == chainId && link.registry == registry && link.agentId == agentId) {
-                uint256 last = length - 1;
-                if (i != last) {
-                    links[i] = links[last];
-                }
-                links.pop();
-                emit ClaimedIdentityUnlinked(subjectId, identityHash, chainId, registry, agentId);
-                return;
-            }
-        }
-
-        revert("IDENTITY_NOT_FOUND");
+    function retireSubject(bytes32 subjectId) external override {
+        SubjectConfig storage cfg = _subjectStorage(subjectId);
+        require(msg.sender == cfg.strategy, "ONLY_STRATEGY");
+        require(cfg.lifecycle == Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
+        cfg.lifecycle = Lifecycle.Retired;
+        emit SubjectRetired(subjectId, msg.sender);
     }
 
     function getSubject(bytes32 subjectId) external view override returns (SubjectConfig memory) {
         return _subject(subjectId);
     }
 
+    function lifecycleOf(bytes32 subjectId) external view override returns (Lifecycle) {
+        return _subjectStorage(subjectId).lifecycle;
+    }
+
     function splitterOfSubject(bytes32 subjectId) external view override returns (address) {
-        return _subject(subjectId).splitter;
-    }
-
-    function isSubjectActive(bytes32 subjectId) external view override returns (bool) {
-        SubjectConfig storage cfg = subjects[subjectId];
-        return cfg.stakeToken != address(0) && cfg.active;
-    }
-
-    function canManageSubject(bytes32 subjectId, address account)
-        public
-        view
-        override
-        returns (bool)
-    {
-        SubjectConfig storage cfg = subjects[subjectId];
-        if (cfg.stakeToken == address(0)) {
-            return false;
-        }
-
-        return
-            account == owner || subjectManagers[subjectId][account] || account == cfg.treasurySafe;
+        return _subjectStorage(subjectId).splitter;
     }
 
     function canRegisterSubject(address account) public view override returns (bool) {
-        return account == owner || authorizedRegistrars[account];
+        return account == controller;
     }
 
     function subjectCountForStakeToken(address stakeToken)
@@ -379,8 +271,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
     }
 
     function identityLinkCount(bytes32 subjectId) external view returns (uint256) {
-        _subjectStorage(subjectId);
-        return identityLinks[subjectId].length;
+        return _subjectStorage(subjectId).identityRegistry == address(0) ? 0 : 1;
     }
 
     function identityLinkAt(bytes32 subjectId, uint256 index)
@@ -388,8 +279,13 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         view
         returns (IdentityLink memory)
     {
-        _subjectStorage(subjectId);
-        return identityLinks[subjectId][index];
+        SubjectConfig storage cfg = _subjectStorage(subjectId);
+        require(index == 0 && cfg.identityRegistry != address(0), "IDENTITY_INDEX_OOB");
+        return IdentityLink({
+            chainId: cfg.identityChainId,
+            registry: cfg.identityRegistry,
+            agentId: cfg.identityAgentId
+        });
     }
 
     function subjectForIdentity(uint256 chainId, address registry, uint256 agentId)
@@ -398,6 +294,83 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         returns (bytes32)
     {
         return subjectOfIdentityHash[_identityHash(chainId, registry, agentId)];
+    }
+
+    // Legacy authority and mutation selectors remain present only to fail before side effects.
+    function authorizedRegistrars(address) external pure returns (bool) {
+        return false;
+    }
+
+    function subjectManagers(bytes32, address) external pure returns (bool) {
+        return false;
+    }
+
+    function canManageSubject(bytes32, address) external pure returns (bool) {
+        return false;
+    }
+
+    function setAuthorizedRegistrar(address, bool) external pure {
+        revert("LEGACY_AUTHORITY_DISABLED");
+    }
+
+    function setCanonicalSubjectForStakeToken(address, bytes32) external pure {
+        revert("CANONICAL_REASSIGNMENT_DISABLED");
+    }
+
+    function setSubjectLifecycleAuthority(bytes32, address) external pure {
+        revert("LEGACY_AUTHORITY_DISABLED");
+    }
+
+    function markSubjectDead(bytes32) external pure {
+        revert("LEGACY_DEATH_DISABLED");
+    }
+
+    function createSubject(bytes32, address, address, address, bool, string calldata)
+        external
+        pure
+    {
+        revert("LEGACY_REGISTRATION_DISABLED");
+    }
+
+    function createPermissionlessSubject(
+        bytes32,
+        address,
+        address,
+        address,
+        address,
+        bool,
+        string calldata
+    ) external pure {
+        revert("PERMISSIONLESS_REGISTRATION_DISABLED");
+    }
+
+    function updateSubject(bytes32, address, address, bool, string calldata) external pure {
+        revert("SUBJECT_IMMUTABLE");
+    }
+
+    function setSubjectManager(bytes32, address, bool) external pure {
+        revert("LEGACY_AUTHORITY_DISABLED");
+    }
+
+    function setSubjectLabel(bytes32, string calldata) external pure {
+        revert("SUBJECT_IMMUTABLE");
+    }
+
+    function linkIdentity(bytes32, uint256, address, uint256) external pure returns (bytes32) {
+        revert("POST_REGISTRATION_LINK_DISABLED");
+    }
+
+    function unlinkIdentity(bytes32, uint256, address, uint256) external pure {
+        revert("POST_REGISTRATION_LINK_DISABLED");
+    }
+
+    function _validateIdentity(SubjectRegistration calldata registration) internal pure {
+        bool hasIdentity = registration.identityChainId != 0
+            || registration.identityRegistry != address(0) || registration.identityAgentId != 0;
+        if (!hasIdentity) return;
+        require(registration.identityChainId != 0, "IDENTITY_CHAIN_ID_ZERO");
+        require(registration.identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
+        require(registration.identityAgentId != 0, "IDENTITY_AGENT_ID_ZERO");
     }
 
     function _subject(bytes32 subjectId) internal view returns (SubjectConfig memory) {
@@ -411,13 +384,8 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         require(cfg.stakeToken != address(0), "SUBJECT_NOT_FOUND");
     }
 
-    function _canControlSubject(bytes32 subjectId, address account) internal view returns (bool) {
-        SubjectConfig storage cfg = subjects[subjectId];
-        if (cfg.stakeToken == address(0)) {
-            return false;
-        }
-
-        return account == owner || account == cfg.treasurySafe;
+    function _pendingTreasuryRecipient(address splitter) private view returns (address) {
+        return ISubjectSplitterRotation(splitter).pendingTreasuryRecipient();
     }
 
     function _identityHash(uint256 chainId, address registry, uint256 agentId)

@@ -6,6 +6,8 @@ import {Test} from "forge-std/Test.sol";
 import {IAgentSafe} from "src/autolaunch/interfaces/IAgentSafe.sol";
 import {IERC1271} from "src/autolaunch/interfaces/IERC1271.sol";
 import {AgentSafePolicy} from "src/autolaunch/libraries/AgentSafePolicy.sol";
+import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {AgentSafePolicyMock} from "test/mocks/AgentSafePolicyMock.sol";
 
 interface IPinnedSafeFactory {
@@ -21,6 +23,14 @@ interface ISafeMessageHash {
         returns (bytes32);
 }
 
+contract RestorationSplitterMock {
+    address public pendingTreasuryRecipient;
+
+    function setPendingTreasuryRecipient(address recipient) external {
+        pendingTreasuryRecipient = recipient;
+    }
+}
+
 contract AgentSafePolicyTest is Test {
     uint256 internal constant LAUNCHER_KEY = 0xA11CE;
     uint256 internal constant OWNER_TWO_KEY = 0xB0B;
@@ -28,11 +38,15 @@ contract AgentSafePolicyTest is Test {
     bytes32 internal constant DIGEST = keccak256("launch-authorization");
     address internal constant CONTROLLER = address(0xC011);
     address internal constant RUNTIME = address(0xBEEF);
+    address internal constant GOVERNANCE = address(0xA0A0);
+    address internal constant GUARDIAN = address(0xB0B0);
+    address internal constant STRATEGY = address(0xC0C0);
     address internal constant SENTINEL = address(0x1);
     bytes32 internal constant FALLBACK_HANDLER_STORAGE_SLOT =
         0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5;
     bytes32 internal constant GUARD_STORAGE_SLOT =
         0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8;
+    bytes32 internal constant SAFE_NONCE_STORAGE_SLOT = bytes32(uint256(5));
 
     address internal constant PINNED_SINGLETON = 0x41675C099F32341bf84BFc5382aF534df5C7461a;
     address internal constant PINNED_FACTORY = 0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67;
@@ -44,6 +58,16 @@ contract AgentSafePolicyTest is Test {
     AgentSafePolicyMock internal policy;
     address internal safe;
     AgentSafePolicy.ExpectedState internal expected;
+
+    event RestorationRequested(
+        bytes32 indexed subjectId, uint256 executableAt, bytes32 policyCommitment
+    );
+    event RestorationCancelled(
+        bytes32 indexed subjectId, address indexed guardian, bytes32 policyCommitment
+    );
+    event SubjectRestored(
+        bytes32 indexed subjectId, address indexed governance, bytes32 policyCommitment
+    );
 
     function setUp() external {
         singleton = PINNED_SINGLETON;
@@ -82,6 +106,49 @@ contract AgentSafePolicyTest is Test {
             DIGEST,
             _signatures(thresholdSafe, DIGEST, _keys(LAUNCHER_KEY, OWNER_TWO_KEY))
         );
+    }
+
+    function testStructureCommitmentSupportsOneOfOneAndTwoOfThree() external {
+        bytes32 oneOfOne = policy.structureCommitment(safe, CONTROLLER, RUNTIME);
+        (address thresholdSafe,) = _twoOfThreeSafe();
+        bytes32 twoOfThree = policy.structureCommitment(thresholdSafe, CONTROLLER, RUNTIME);
+
+        assertNotEq(oneOfOne, bytes32(0));
+        assertNotEq(twoOfThree, bytes32(0));
+        assertNotEq(oneOfOne, twoOfThree);
+    }
+
+    function testStructureCommitmentExcludesNonce() external {
+        bytes32 beforeCommitment = policy.structureCommitment(safe, CONTROLLER, RUNTIME);
+        vm.store(safe, SAFE_NONCE_STORAGE_SLOT, bytes32(uint256(17)));
+
+        assertEq(IAgentSafe(safe).nonce(), 17);
+        assertEq(policy.structureCommitment(safe, CONTROLLER, RUNTIME), beforeCommitment);
+    }
+
+    function testStructureRejectsDuplicateOwners() external {
+        address[] memory duplicateOwners = new address[](2);
+        duplicateOwners[0] = vm.addr(LAUNCHER_KEY);
+        duplicateOwners[1] = duplicateOwners[0];
+        vm.mockCall(safe, abi.encodeCall(IAgentSafe.getOwners, ()), abi.encode(duplicateOwners));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(AgentSafePolicy.DuplicateOwner.selector, duplicateOwners[0])
+        );
+        policy.structureCommitment(safe, CONTROLLER, RUNTIME);
+    }
+
+    function testStructureFailsClosedOnMalformedAndRevertingViews() external {
+        vm.mockCall(safe, abi.encodeCall(IAgentSafe.getOwners, ()), hex"1234");
+        vm.expectRevert();
+        policy.structureCommitment(safe, CONTROLLER, RUNTIME);
+
+        vm.clearMockedCalls();
+        vm.mockCallRevert(
+            safe, abi.encodeCall(IAgentSafe.getThreshold, ()), abi.encode("VIEW_REVERTED")
+        );
+        vm.expectRevert();
+        policy.structureCommitment(safe, CONTROLLER, RUNTIME);
     }
 
     function testRejectsOneSignatureAtTwoOfThree() external {
@@ -187,6 +254,283 @@ contract AgentSafePolicyTest is Test {
         policy.validate(forbiddenSafe, CONTROLLER, RUNTIME, forbiddenExpected, DIGEST, hex"");
     }
 
+    function testRestorationOneOfOneIgnoresNonceAndExecutes() external {
+        bytes32 subjectId = keccak256("restoration-one-of-one");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+
+        vm.store(safe, SAFE_NONCE_STORAGE_SLOT, bytes32(uint256(9)));
+        assertEq(IAgentSafe(safe).nonce(), 9);
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit SubjectRestored(subjectId, GOVERNANCE, commitment);
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)), uint256(ISubjectRegistry.Lifecycle.Active)
+        );
+        assertEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), bytes32(0));
+    }
+
+    function testRestorationTwoOfThreeExecutes() external {
+        (address thresholdSafe,) = _twoOfThreeSafe();
+        bytes32 subjectId = keccak256("restoration-two-of-three");
+        (SubjectRegistry registry,) = _quarantinedSubject(thresholdSafe, subjectId);
+        _requestRestoration(registry, thresholdSafe, subjectId);
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)), uint256(ISubjectRegistry.Lifecycle.Active)
+        );
+    }
+
+    function testRestorationScheduleDoesNotTruncateAtUint64Boundary() external {
+        bytes32 subjectId = keccak256("restoration-boundary");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        vm.warp(type(uint64).max);
+
+        _requestRestoration(registry, safe, subjectId);
+
+        assertEq(registry.restorationExecutableAt(subjectId), uint256(type(uint64).max) + 24 hours);
+    }
+
+    function testRestorationRejectsOwnerDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-owner-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        address[] memory changedOwners = new address[](1);
+        changedOwners[0] = vm.addr(OWNER_TWO_KEY);
+        vm.mockCall(safe, abi.encodeCall(IAgentSafe.getOwners, ()), abi.encode(changedOwners));
+
+        _expectChangedStructure(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsOwnerOrderDriftAndPreservesRequest() external {
+        (address thresholdSafe,) = _twoOfThreeSafe();
+        bytes32 subjectId = keccak256("restoration-owner-order-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(thresholdSafe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, thresholdSafe, subjectId);
+        address[] memory changedOwners = IAgentSafe(thresholdSafe).getOwners();
+        (changedOwners[0], changedOwners[1]) = (changedOwners[1], changedOwners[0]);
+        vm.mockCall(
+            thresholdSafe, abi.encodeCall(IAgentSafe.getOwners, ()), abi.encode(changedOwners)
+        );
+
+        _expectChangedStructure(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsDuplicateOwnersAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-duplicate-owner");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        address[] memory duplicateOwners = new address[](2);
+        duplicateOwners[0] = vm.addr(LAUNCHER_KEY);
+        duplicateOwners[1] = duplicateOwners[0];
+        vm.mockCall(safe, abi.encodeCall(IAgentSafe.getOwners, ()), abi.encode(duplicateOwners));
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(
+            abi.encodeWithSelector(AgentSafePolicy.DuplicateOwner.selector, duplicateOwners[0])
+        );
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsThresholdDriftAndPreservesRequest() external {
+        (address thresholdSafe,) = _twoOfThreeSafe();
+        bytes32 subjectId = keccak256("restoration-threshold-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(thresholdSafe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, thresholdSafe, subjectId);
+        vm.mockCall(thresholdSafe, abi.encodeCall(IAgentSafe.getThreshold, ()), abi.encode(1));
+
+        _expectChangedStructure(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsModuleDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-module-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        address[] memory modules = new address[](1);
+        modules[0] = address(0xD00D);
+        vm.mockCall(
+            safe,
+            abi.encodeCall(IAgentSafe.getModulesPaginated, (SENTINEL, 1)),
+            abi.encode(modules, SENTINEL)
+        );
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(AgentSafePolicy.ModulesNotEmpty.selector);
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsGuardDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-guard-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.store(safe, GUARD_STORAGE_SLOT, bytes32(uint256(uint160(address(0x600D)))));
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(
+            abi.encodeWithSelector(AgentSafePolicy.GuardNotZero.selector, address(0x600D))
+        );
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsFallbackDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-fallback-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.store(safe, FALLBACK_HANDLER_STORAGE_SLOT, bytes32(uint256(uint160(address(0xFA11)))));
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AgentSafePolicy.FallbackHandlerMismatch.selector, address(0xFA11)
+            )
+        );
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsSingletonDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-singleton-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.store(safe, bytes32(0), bytes32(uint256(uint160(handler))));
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(abi.encodeWithSelector(AgentSafePolicy.SingletonMismatch.selector, handler));
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsRuntimeDriftAndPreservesRequest() external {
+        bytes32 subjectId = keccak256("restoration-runtime-drift");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.etch(safe, hex"00");
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(
+            abi.encodeWithSelector(AgentSafePolicy.RuntimeMismatch.selector, safe, safe.codehash)
+        );
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationRejectsPendingTreasuryRotationAtRequest() external {
+        bytes32 subjectId = keccak256("restoration-pending-at-request");
+        (SubjectRegistry registry, RestorationSplitterMock splitter) =
+            _quarantinedSubject(safe, subjectId);
+        splitter.setPendingTreasuryRecipient(address(0xCAFE));
+
+        vm.expectRevert("TREASURY_ROTATION_PENDING");
+        vm.prank(safe);
+        registry.requestRestoration(subjectId);
+
+        assertEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), bytes32(0));
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
+    }
+
+    function testRestorationRejectsPendingTreasuryRotationAtExecution() external {
+        bytes32 subjectId = keccak256("restoration-pending-at-execution");
+        (SubjectRegistry registry, RestorationSplitterMock splitter) =
+            _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        splitter.setPendingTreasuryRecipient(address(0xCAFE));
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert("TREASURY_ROTATION_PENDING");
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationFailsClosedOnMalformedRequestView() external {
+        bytes32 subjectId = keccak256("restoration-malformed-request");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        vm.mockCall(safe, abi.encodeCall(IAgentSafe.getOwners, ()), hex"1234");
+
+        vm.expectRevert();
+        vm.prank(safe);
+        registry.requestRestoration(subjectId);
+
+        assertEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), bytes32(0));
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
+    }
+
+    function testRestorationFailsClosedOnRevertingExecutionView() external {
+        bytes32 subjectId = keccak256("restoration-reverting-execution");
+        (SubjectRegistry registry,) = _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.mockCallRevert(
+            safe, abi.encodeCall(IAgentSafe.getOwners, ()), abi.encode("VIEW_REVERTED")
+        );
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert();
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function testRestorationFailsClosedOnMalformedSplitterView() external {
+        bytes32 subjectId = keccak256("restoration-malformed-splitter");
+        (SubjectRegistry registry, RestorationSplitterMock splitter) =
+            _quarantinedSubject(safe, subjectId);
+        vm.mockCall(
+            address(splitter), abi.encodeWithSignature("pendingTreasuryRecipient()"), hex"1234"
+        );
+
+        vm.expectRevert();
+        vm.prank(safe);
+        registry.requestRestoration(subjectId);
+        assertEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), bytes32(0));
+    }
+
+    function testGuardianCancellationIgnoresDriftAndClearsBothPendingFields() external {
+        bytes32 subjectId = keccak256("restoration-guardian-cancellation");
+        (SubjectRegistry registry, RestorationSplitterMock splitter) =
+            _quarantinedSubject(safe, subjectId);
+        bytes32 commitment = _requestRestoration(registry, safe, subjectId);
+        vm.etch(safe, hex"00");
+        splitter.setPendingTreasuryRecipient(address(0xCAFE));
+
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit RestorationCancelled(subjectId, GUARDIAN, commitment);
+        vm.prank(GUARDIAN);
+        registry.cancelRestoration(subjectId);
+
+        assertEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), bytes32(0));
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
+    }
+
     function testCanonicalFamilyIsExactCertifiedTuple() external view {
         assertEq(
             singleton.codehash, 0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4
@@ -232,6 +576,76 @@ contract AgentSafePolicyTest is Test {
         assertEq(bytes32(excludedCallback), bytes32(bytes4(0xd18af54d)));
         assertEq(bytes32(legacyEip1271), bytes32(bytes4(0x20c13b0b)));
         assertEq(bytes32(eip1271), bytes32(bytes4(0x1626ba7e)));
+    }
+
+    function _quarantinedSubject(address agentSafe, bytes32 subjectId)
+        internal
+        returns (SubjectRegistry registry, RestorationSplitterMock splitter)
+    {
+        registry = new SubjectRegistry(CONTROLLER, GOVERNANCE, GUARDIAN);
+        splitter = new RestorationSplitterMock();
+        vm.mockCall(STRATEGY, abi.encodeWithSignature("operator()"), abi.encode(RUNTIME));
+        vm.prank(CONTROLLER);
+        registry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: subjectId,
+                stakeToken: address(0xD00D),
+                splitter: address(splitter),
+                agentSafe: agentSafe,
+                ingress: address(0x1002),
+                paymentLinkFactory: address(0x1003),
+                strategy: STRATEGY,
+                launchFeeRegistry: address(0x1004),
+                feeVault: address(0x1005),
+                feeHook: address(0x1006),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "Restoration subject",
+                safeRuntime: RUNTIME
+            })
+        );
+        vm.prank(GUARDIAN);
+        registry.quarantineSubject(subjectId);
+    }
+
+    function _requestRestoration(SubjectRegistry registry, address agentSafe, bytes32 subjectId)
+        internal
+        returns (bytes32 commitment)
+    {
+        commitment = policy.structureCommitment(agentSafe, CONTROLLER, RUNTIME);
+        uint256 executableAt = block.timestamp + 24 hours;
+        vm.expectEmit(true, false, false, true, address(registry));
+        emit RestorationRequested(subjectId, executableAt, commitment);
+        vm.prank(agentSafe);
+        registry.requestRestoration(subjectId);
+        assertEq(registry.restorationExecutableAt(subjectId), executableAt);
+        assertEq(registry.restorationPolicyCommitment(subjectId), commitment);
+    }
+
+    function _expectChangedStructure(
+        SubjectRegistry registry,
+        bytes32 subjectId,
+        bytes32 commitment
+    ) internal {
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert("SAFE_STRUCTURE_CHANGED");
+        vm.prank(GOVERNANCE);
+        registry.executeRestoration(subjectId);
+        _assertRestorationPending(registry, subjectId, commitment);
+    }
+
+    function _assertRestorationPending(
+        SubjectRegistry registry,
+        bytes32 subjectId,
+        bytes32 commitment
+    ) internal view {
+        assertNotEq(registry.restorationExecutableAt(subjectId), 0);
+        assertEq(registry.restorationPolicyCommitment(subjectId), commitment);
+        assertEq(
+            uint256(registry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
     }
 
     function _twoOfThreeSafe()

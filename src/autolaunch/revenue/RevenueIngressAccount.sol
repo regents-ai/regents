@@ -22,8 +22,8 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
     uint256 private _reentrancyGuard = 1;
 
     string public label;
-    bool public override isReceiverActive = true;
-    address public override replacementReceiver;
+    bool public constant override isReceiverActive = true;
+    address public constant override replacementReceiver = address(0);
 
     struct AccountingTag {
         uint256 blockNumber;
@@ -35,7 +35,6 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
     AccountingTag[] private _accountingTags;
 
     event LabelSet(string label);
-    event ReceiverStateSet(bool active, address indexed replacementReceiver);
     event AccountingTagRecorded(
         uint256 indexed index,
         address indexed depositor,
@@ -95,13 +94,8 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         emit LabelSet(label_);
     }
 
-    function setReceiverState(bool active, address replacement) external onlyFactory {
-        if (replacement != address(0)) {
-            require(replacement != address(this), "REPLACEMENT_IS_SELF");
-        }
-        isReceiverActive = active;
-        replacementReceiver = replacement;
-        emit ReceiverStateSet(active, replacement);
+    function setReceiverState(bool, address) external view onlyFactory {
+        revert("INGRESS_IMMUTABLE");
     }
 
     function destination() public view override returns (address splitter) {
@@ -109,13 +103,18 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         require(splitter != address(0), "SPLITTER_ZERO");
     }
 
+    // Reviewed in slither.db.json: nonReentrant guards canonical USDC transfer callbacks.
+    // slither-disable-next-line reentrancy-benign
     function depositUSDC(uint256 amount, bytes32 sourceTag)
         external
         nonReentrant
         returns (uint256 received)
     {
-        require(isReceiverActive, "RECEIVER_INACTIVE");
-        require(ISubjectRegistry(subjectRegistry).isSubjectActive(subjectId), "SUBJECT_INACTIVE");
+        require(
+            ISubjectRegistry(subjectRegistry).lifecycleOf(subjectId)
+                == ISubjectRegistry.Lifecycle.Active,
+            "SUBJECT_NOT_ACTIVE"
+        );
         require(amount != 0, "AMOUNT_ZERO");
 
         // This ingress is configured for canonical USDC; safe transfer success is the
@@ -188,8 +187,11 @@ contract RevenueIngressAccount is Owned, ISubjectPaymentReceiver {
         nonReentrant
         returns (uint256 balance, uint256 recognized)
     {
-        // Sweeping is always safe: funds route only to the subject's canonical splitter.
-        // Deactivation blocks new deposits (see depositUSDC) but must never strand held USDC.
+        require(
+            ISubjectRegistry(subjectRegistry).lifecycleOf(subjectId)
+                == ISubjectRegistry.Lifecycle.Active,
+            "SUBJECT_NOT_ACTIVE"
+        );
         require(sourceRef != bytes32(0), "SOURCE_REF_ZERO");
 
         address splitter = destination();

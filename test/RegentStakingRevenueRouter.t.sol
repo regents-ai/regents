@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {RegentRevenueStaking} from "src/staking/RegentRevenueStaking.sol";
 import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 
 contract RegentStakingRevenueRouterTest is Test {
@@ -25,17 +26,17 @@ contract RegentStakingRevenueRouterTest is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         regent = new MintableERC20Mock("REGENT", "REGENT");
-        subjectRegistry = new SubjectRegistry(OWNER);
+        subjectRegistry = new SubjectRegistry(address(this), OWNER, address(0x600D));
         staking =
             new RegentRevenueStaking(address(regent), address(usdc), TREASURY, 1_000_000e18, OWNER);
         router = new RegentStakingRevenueRouter(
             OWNER, address(usdc), address(subjectRegistry), address(staking)
         );
 
-        vm.prank(OWNER);
-        subjectRegistry.createSubject(
-            SUBJECT_ID, address(0xBEEF), address(this), TREASURY, true, "Subject"
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
         );
+        subjectRegistry.registerSubject(_registration());
     }
 
     function testRouterAcceptsFeeOnlyFromRegisteredSubjectSplitter() external {
@@ -46,16 +47,37 @@ contract RegentStakingRevenueRouterTest is Test {
         router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
     }
 
-    function testRouterAcceptsFeeAfterRegistryTreasuryRotation() external {
+    function testRouterKeepsUsingImmutableRegisteredTreasury() external {
         usdc.mint(address(router), USDC_FEE);
 
         vm.prank(OWNER);
+        vm.expectRevert("SUBJECT_IMMUTABLE");
         subjectRegistry.updateSubject(SUBJECT_ID, address(this), OTHER_TREASURY, true, "Subject");
 
         uint256 deposited = router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
 
         assertEq(deposited, USDC_FEE);
         assertEq(usdc.balanceOf(address(staking)), USDC_FEE);
+    }
+
+    function _registration() internal view returns (ISubjectRegistry.SubjectRegistration memory) {
+        return ISubjectRegistry.SubjectRegistration({
+            subjectId: SUBJECT_ID,
+            stakeToken: address(0xBEEF),
+            splitter: address(this),
+            agentSafe: TREASURY,
+            ingress: address(0x1001),
+            paymentLinkFactory: address(0x1002),
+            strategy: address(0x1003),
+            launchFeeRegistry: address(0x1004),
+            feeVault: address(0x1005),
+            feeHook: address(0x1006),
+            identityChainId: 0,
+            identityRegistry: address(0),
+            identityAgentId: 0,
+            label: "Subject",
+            safeRuntime: address(0x7007)
+        });
     }
 
     function testRouterRejectsZeroAmount() external {

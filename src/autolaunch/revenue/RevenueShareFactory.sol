@@ -34,7 +34,7 @@ contract RevenueShareFactory is Owned {
     error StakingRevenueRouterZero();
     error SplitterDeployerZero();
     error StakingRevenueRouterUsdcMismatch();
-    error OnlyAuthorizedCreator();
+    error OnlyController();
     error AccountZero();
     error SubjectZero();
     error StakeTokenZero();
@@ -44,9 +44,6 @@ contract RevenueShareFactory is Owned {
     error SplitterExistsForToken();
     error SplitterExistsForSubject();
     error SupplyDenominatorZero();
-    error FactoryNotRegistrar();
-    error UnknownSubject();
-    error AuthorityZero();
     error IdentityChainIdZero();
     error IdentityRegistryZero();
     error IdentityAgentIdZero();
@@ -56,11 +53,11 @@ contract RevenueShareFactory is Owned {
     address public immutable usdc;
     address public immutable stakingRevenueRouter;
     address public immutable splitterDeployer;
+    address public immutable controller;
     SubjectRegistry public immutable subjectRegistry;
 
     mapping(address => address) public splitterOfStakeToken;
     mapping(bytes32 => address) public splitterOfSubject;
-    mapping(address => bool) public authorizedCreators;
     uint256 private _createLock = 1;
 
     struct SubjectSplitterParams {
@@ -85,7 +82,6 @@ contract RevenueShareFactory is Owned {
         address stakingRevenueRouter,
         string label
     );
-    event AuthorizedCreatorSet(address indexed account, bool enabled);
 
     constructor(
         address owner_,
@@ -105,12 +101,11 @@ contract RevenueShareFactory is Owned {
         stakingRevenueRouter = stakingRevenueRouter_;
         splitterDeployer = splitterDeployer_;
         subjectRegistry = subjectRegistry_;
+        controller = subjectRegistry_.controller();
     }
 
-    modifier onlyAuthorizedCreator() {
-        if (msg.sender != owner && !authorizedCreators[msg.sender]) {
-            revert OnlyAuthorizedCreator();
-        }
+    modifier onlyController() {
+        if (msg.sender != controller) revert OnlyController();
         _;
     }
 
@@ -121,12 +116,16 @@ contract RevenueShareFactory is Owned {
         _createLock = 1;
     }
 
-    function setAuthorizedCreator(address account, bool enabled) external onlyOwner {
-        if (account == address(0)) revert AccountZero();
-        authorizedCreators[account] = enabled;
-        emit AuthorizedCreatorSet(account, enabled);
+    function authorizedCreators(address account) external view returns (bool) {
+        return account == controller;
     }
 
+    function setAuthorizedCreator(address, bool) external pure {
+        revert OnlyController();
+    }
+
+    // Reviewed in slither.db.json: nonReentrantCreate protects bound deployer callbacks.
+    // slither-disable-next-line reentrancy-events,reentrancy-no-eth
     function createSubjectSplitter(
         bytes32 subjectId,
         address stakeToken,
@@ -138,7 +137,7 @@ contract RevenueShareFactory is Owned {
         uint256 identityChainId,
         address identityRegistry,
         uint256 identityAgentId
-    ) external onlyAuthorizedCreator nonReentrantCreate returns (address splitter) {
+    ) external onlyController nonReentrantCreate returns (address splitter) {
         SubjectSplitterParams memory params = SubjectSplitterParams({
             subjectId: subjectId,
             stakeToken: stakeToken,
@@ -156,20 +155,7 @@ contract RevenueShareFactory is Owned {
         _reserveSubjectSplitter(params);
         splitter = _deploySubjectSplitter(params);
         _publishSubjectSplitter(params, splitter);
-        _registerSubjectSplitter(params, splitter);
-    }
-
-    /// @notice Binds the lifecycle authority (e.g. the launch's LBP strategy) for a subject this
-    ///         factory created, using the factory's registrar power on the subject registry.
-    function setSubjectLifecycleAuthority(bytes32 subjectId, address authority)
-        external
-        onlyAuthorizedCreator
-    {
-        address splitter = splitterOfSubject[subjectId];
-        if (splitter == address(0) || splitter == SPLITTER_RESERVED) revert UnknownSubject();
-        if (authority == address(0)) revert AuthorityZero();
-
-        subjectRegistry.setSubjectLifecycleAuthority(subjectId, authority);
+        IOwnedTransfer(splitter).transferOwnership(params.agentSafe);
     }
 
     function _validateSubjectSplitterParams(SubjectSplitterParams memory params) internal view {
@@ -183,7 +169,6 @@ contract RevenueShareFactory is Owned {
         if (splitterOfStakeToken[params.stakeToken] != address(0)) revert SplitterExistsForToken();
         if (splitterOfSubject[params.subjectId] != address(0)) revert SplitterExistsForSubject();
         if (params.revenueShareSupplyDenominator == 0) revert SupplyDenominatorZero();
-        if (!subjectRegistry.canRegisterSubject(address(this))) revert FactoryNotRegistrar();
         if (_hasIdentityLink(params)) _validateIdentityLink(params);
     }
 
@@ -236,23 +221,5 @@ contract RevenueShareFactory is Owned {
             stakingRevenueRouter,
             params.label
         );
-    }
-
-    function _registerSubjectSplitter(SubjectSplitterParams memory params, address splitter)
-        internal
-    {
-        subjectRegistry.createSubject(
-            params.subjectId, params.stakeToken, splitter, params.agentSafe, true, params.label
-        );
-        if (_hasIdentityLink(params)) {
-            bytes32 identityHash = subjectRegistry.linkIdentity(
-                params.subjectId,
-                params.identityChainId,
-                params.identityRegistry,
-                params.identityAgentId
-            );
-            if (identityHash == bytes32(0)) revert IdentityLinkFailed();
-        }
-        IOwnedTransfer(splitter).transferOwnership(params.agentSafe);
     }
 }

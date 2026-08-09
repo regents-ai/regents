@@ -9,13 +9,12 @@ import {PaymentLinkReceiver} from "src/autolaunch/revenue/PaymentLinkReceiver.so
 import {RevenueIngressAccount} from "src/autolaunch/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
-/// @notice Regression test for FIX A (regent-bemd): a DEACTIVATED receiver holding USDC must
-///         still be able to sweep its balance to the subject's canonical splitter. Deactivation
-///         only blocks NEW deposits; it must never strand held USDC. Covers both receiver types
-///         and the splitter-side `_isKnownIngress` acceptance of a deactivated ingress.
+/// @notice Regression proof that receiver redirection is disabled and subject quarantine blocks
+///         both new deposits and held-balance sweeps before any transfer side effect.
 contract PoCReceiverDeactivationSweep is Test {
     bytes32 internal constant SUBJECT_ID = keccak256("fixA-subject");
     address internal constant TREASURY = address(0x1111);
@@ -33,7 +32,7 @@ contract PoCReceiverDeactivationSweep is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
@@ -49,50 +48,63 @@ contract PoCReceiverDeactivationSweep is Test {
             "Fix A subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            SUBJECT_ID,
-            address(stakeToken),
-            address(splitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Fix A subject"
-        );
         paymentFactory =
             new PaymentLinkFactory(address(this), address(usdc), address(subjectRegistry));
+        address predictedIngress = ingressFactory.predictDefaultIngress(SUBJECT_ID, TREASURY);
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        subjectRegistry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: SUBJECT_ID,
+                stakeToken: address(stakeToken),
+                splitter: address(splitter),
+                agentSafe: TREASURY,
+                ingress: predictedIngress,
+                paymentLinkFactory: address(paymentFactory),
+                strategy: address(0x1003),
+                launchFeeRegistry: address(0x1004),
+                feeVault: address(0x1005),
+                feeHook: address(0x1006),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "Fix A subject",
+                safeRuntime: address(0x7007)
+            })
+        );
     }
 
-    function testDeactivatedIngressCanStillSweepHeldUsdc() external {
-        vm.prank(TREASURY);
+    function testQuarantinedIngressCannotSweepHeldUsdc() external {
         RevenueIngressAccount ingress = RevenueIngressAccount(
-            payable(ingressFactory.createIngressAccount(SUBJECT_ID, "ingress", true))
+            payable(ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress"))
         );
 
         // USDC arrives (e.g. a raw ERC20 transfer to the ingress address).
         usdc.mint(address(ingress), 100e18);
 
-        // The subject manager deactivates the ingress while it still holds funds.
-        vm.prank(TREASURY);
+        vm.expectRevert("INGRESS_IMMUTABLE");
         ingressFactory.setIngressReceiverState(SUBJECT_ID, address(ingress), false, address(0));
-        assertFalse(ingress.isReceiverActive(), "ingress should be deactivated");
+        assertTrue(ingress.isReceiverActive(), "ingress state is immutable");
+
+        vm.prank(TREASURY);
+        subjectRegistry.quarantineSubject(SUBJECT_ID);
 
         // New deposits are blocked...
         usdc.mint(PAYER, 1e18);
         vm.prank(PAYER);
         usdc.approve(address(ingress), 1e18);
         vm.prank(PAYER);
-        vm.expectRevert("RECEIVER_INACTIVE");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
         ingress.depositUSDC(1e18, bytes32("blocked"));
 
-        // ...but the held balance can still be swept to the canonical splitter (FIX A).
-        (uint256 balance, uint256 recognized) = ingress.sweepUSDC(bytes32("rescue-sweep"));
-        assertEq(balance, 100e18, "full held balance forwarded");
-        assertEq(recognized, 100e18, "splitter recognized the swept USDC");
-        assertEq(usdc.balanceOf(address(ingress)), 0, "no USDC stranded in the ingress");
-        assertEq(splitter.verifiedIngressUsdc(), 100e18, "credited as verified ingress revenue");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        ingress.sweepUSDC(bytes32("blocked-sweep"));
+        assertEq(usdc.balanceOf(address(ingress)), 100e18, "quarantine blocks the transfer");
+        assertEq(splitter.verifiedIngressUsdc(), 0);
     }
 
-    function testDeactivatedPaymentLinkReceiverCanStillSweepHeldUsdc() external {
+    function testQuarantinedPaymentLinkCannotSweepHeldUsdc() external {
         vm.prank(CREATOR);
         PaymentLinkReceiver receiver = PaymentLinkReceiver(
             payable(paymentFactory.createPaymentLink(SUBJECT_ID, "link", bytes32("salt1")))
@@ -101,23 +113,24 @@ contract PoCReceiverDeactivationSweep is Test {
         // USDC arrives via a raw ERC20 transfer to the link address.
         usdc.mint(address(receiver), 100e18);
 
-        // Deactivate the receiver while it holds funds.
+        vm.expectRevert("PAYMENT_LINK_IMMUTABLE");
         paymentFactory.setPaymentLinkReceiverState(address(receiver), false, address(0));
-        assertFalse(receiver.isReceiverActive(), "receiver should be deactivated");
+        assertTrue(receiver.isReceiverActive(), "receiver state is immutable");
+
+        vm.prank(TREASURY);
+        subjectRegistry.quarantineSubject(SUBJECT_ID);
 
         // New deposits are blocked...
         usdc.mint(PAYER, 1e18);
         vm.prank(PAYER);
         usdc.approve(address(receiver), 1e18);
         vm.prank(PAYER);
-        vm.expectRevert("RECEIVER_INACTIVE");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
         receiver.depositUSDC(1e18, bytes32("blocked"));
 
-        // ...but the held balance can still be swept to the canonical splitter (FIX A).
-        (uint256 balance, uint256 recognized) = receiver.sweepUSDC(bytes32("rescue-sweep"));
-        assertEq(balance, 100e18, "full held balance forwarded");
-        assertEq(recognized, 100e18, "splitter recognized the swept USDC");
-        assertEq(usdc.balanceOf(address(receiver)), 0, "no USDC stranded in the receiver");
-        assertEq(splitter.directDepositUsdc(), 100e18, "credited as direct deposit revenue");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        receiver.sweepUSDC(bytes32("blocked-sweep"));
+        assertEq(usdc.balanceOf(address(receiver)), 100e18, "quarantine blocks the transfer");
+        assertEq(splitter.directDepositUsdc(), 0);
     }
 }

@@ -2,264 +2,333 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
-import {ISubjectLifecycleSync} from "src/autolaunch/revenue/interfaces/ISubjectLifecycleSync.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 
-contract LifecycleSyncSplitterMock is ISubjectLifecycleSync {
-    bool public lastActive = true;
-    bool public retired;
+contract RevertingLifecycleTarget {
+    address public constant operator = address(0x7007);
 
-    function syncSubjectLifecycle(bool active_, bool retiring_) external {
-        lastActive = active_;
-        if (retiring_) {
-            retired = true;
+    fallback() external {
+        revert("NO_CALLBACK_ALLOWED");
+    }
+}
+
+contract StrategyOperatorTarget {
+    address public immutable operator;
+
+    constructor(address operator_) {
+        operator = operator_;
+    }
+}
+
+contract RevertingOperatorTarget {
+    function operator() external pure returns (address) {
+        revert("OPERATOR_REVERT");
+    }
+}
+
+contract MalformedOperatorTarget {
+    fallback() external {
+        assembly {
+            mstore(0, 0x7007)
+            return(0, 1)
         }
     }
 }
 
+contract MissingOperatorTarget {}
+
 contract SubjectRegistryTest is Test {
+    address internal constant GOVERNANCE = address(0xA11CE);
+    address internal constant GUARDIAN = address(0x600D);
+    address internal constant AGENT_SAFE = address(0x1111);
+    address internal constant SAFE_RUNTIME = address(0x7007);
     bytes32 internal constant SUBJECT_ID = keccak256("subject");
-    address internal constant OWNER = address(0xA11CE);
-    address internal constant STAKE_TOKEN = address(0xBEEF);
-    address internal constant SPLITTER = address(0xC0FFEE);
-    address internal constant NEXT_SPLITTER = address(0xC0FFED);
-    address internal constant INITIAL_SAFE = address(0x1111);
-    address internal constant NEXT_SAFE = address(0x2222);
-    address internal constant SUBJECT_MANAGER = address(0x3333);
-    address internal constant REGISTRAR = address(0x4444);
-    address internal constant CREATOR = address(0x5555);
+    address internal constant TOKEN = address(0xBEEF);
 
     SubjectRegistry internal registry;
+    address internal strategy;
 
     function setUp() external {
-        registry = new SubjectRegistry(OWNER);
-
-        vm.prank(OWNER);
-        registry.createSubject(SUBJECT_ID, STAKE_TOKEN, SPLITTER, INITIAL_SAFE, true, "Atlas");
+        strategy = address(new StrategyOperatorTarget(SAFE_RUNTIME));
+        registry = new SubjectRegistry(address(this), GOVERNANCE, GUARDIAN);
+        registry.registerSubject(_registration(SUBJECT_ID, TOKEN, strategy));
     }
 
-    function testUpdateSubjectRotatesTreasurySafeAndManager() external {
-        vm.prank(INITIAL_SAFE);
-        registry.updateSubject(SUBJECT_ID, SPLITTER, NEXT_SAFE, true, "Atlas");
-
-        SubjectRegistry.SubjectConfig memory subject = registry.getSubject(SUBJECT_ID);
-        assertEq(subject.treasurySafe, NEXT_SAFE);
-        assertEq(subject.splitter, SPLITTER);
-        assertTrue(subject.active);
-
-        assertFalse(registry.subjectManagers(SUBJECT_ID, INITIAL_SAFE));
-        assertTrue(registry.subjectManagers(SUBJECT_ID, NEXT_SAFE));
-        assertFalse(registry.canManageSubject(SUBJECT_ID, INITIAL_SAFE));
-        assertTrue(registry.canManageSubject(SUBJECT_ID, NEXT_SAFE));
-    }
-
-    function testSubjectManagerCannotRedirectEconomicRoute() external {
-        vm.prank(INITIAL_SAFE);
-        registry.setSubjectManager(SUBJECT_ID, SUBJECT_MANAGER, true);
-
-        vm.prank(SUBJECT_MANAGER);
-        vm.expectRevert("ONLY_SUBJECT_CONTROLLER");
-        registry.updateSubject(SUBJECT_ID, NEXT_SPLITTER, NEXT_SAFE, false, "Redirected");
-
-        vm.prank(SUBJECT_MANAGER);
-        vm.expectRevert("ONLY_SUBJECT_CONTROLLER");
-        registry.setSubjectManager(SUBJECT_ID, address(0x4444), true);
-    }
-
-    function testSubjectManagerCanUpdateLabelAndClaimIdentity() external {
-        vm.prank(INITIAL_SAFE);
-        registry.setSubjectManager(SUBJECT_ID, SUBJECT_MANAGER, true);
-
-        vm.prank(SUBJECT_MANAGER);
-        registry.setSubjectLabel(SUBJECT_ID, "Atlas Prime");
-
-        SubjectRegistry.SubjectConfig memory subject = registry.getSubject(SUBJECT_ID);
-        assertEq(subject.label, "Atlas Prime");
-
-        vm.prank(SUBJECT_MANAGER);
-        bytes32 identityHash = registry.linkIdentity(SUBJECT_ID, 8453, address(0x5555), 7);
-
-        assertEq(registry.subjectForIdentity(8453, address(0x5555), 7), SUBJECT_ID);
-        assertTrue(identityHash != bytes32(0));
-    }
-
-    function testAuthorizedRegistrarAndCanonicalDuplicateRules() external {
-        bytes32 nextSubjectId = keccak256("next-subject");
-
-        vm.prank(REGISTRAR);
-        vm.expectRevert("ONLY_REGISTRAR");
-        registry.createSubject(
-            nextSubjectId, address(0xAAAA), NEXT_SPLITTER, NEXT_SAFE, true, "Next"
+    function testControllerRegistersCompleteImmutableBundleDirectly() external view {
+        ISubjectRegistry.SubjectConfig memory cfg = registry.getSubject(SUBJECT_ID);
+        assertEq(cfg.stakeToken, TOKEN);
+        assertEq(cfg.splitter, address(0x1001));
+        assertEq(cfg.treasurySafe, AGENT_SAFE);
+        assertEq(cfg.ingress, address(0x1002));
+        assertEq(cfg.paymentLinkFactory, address(0x1003));
+        assertEq(cfg.strategy, strategy);
+        assertEq(cfg.launchFeeRegistry, address(0x1004));
+        assertEq(cfg.feeVault, address(0x1005));
+        assertEq(cfg.feeHook, address(0x1006));
+        assertEq(cfg.safeRuntime, SAFE_RUNTIME);
+        assertEq(uint256(cfg.lifecycle), uint256(ISubjectRegistry.Lifecycle.Active));
+        assertEq(registry.subjectOfStakeToken(TOKEN), SUBJECT_ID);
+        assertEq(
+            registry.subjectForIdentity(8453, address(0x8004), uint256(uint160(TOKEN))), SUBJECT_ID
         );
+    }
 
-        vm.prank(OWNER);
-        registry.setAuthorizedRegistrar(REGISTRAR, true);
+    function testOnlyBoundControllerCanRegister() external {
+        vm.prank(GOVERNANCE);
+        vm.expectRevert("ONLY_CONTROLLER");
+        registry.registerSubject(_registration(keccak256("other"), address(0xCAFE), strategy));
+    }
 
-        assertTrue(registry.canRegisterSubject(REGISTRAR));
+    function testRegistrationRejectsOverlappingAuthorityRoles() external {
+        ISubjectRegistry.SubjectRegistration memory registration =
+            _registration(keccak256("role-overlap"), address(0xCAFE), strategy);
 
-        vm.prank(REGISTRAR);
+        registration.agentSafe = address(this);
+        vm.expectRevert("AGENT_SAFE_IS_CONTROLLER");
+        registry.registerSubject(registration);
+
+        registration.agentSafe = GOVERNANCE;
+        vm.expectRevert("AGENT_SAFE_IS_GOVERNANCE");
+        registry.registerSubject(registration);
+
+        registration.agentSafe = GUARDIAN;
+        vm.expectRevert("AGENT_SAFE_IS_GUARDIAN");
+        registry.registerSubject(registration);
+
+        registration.agentSafe = AGENT_SAFE;
+        registration.strategy = address(this);
+        vm.expectRevert("STRATEGY_IS_CONTROLLER");
+        registry.registerSubject(registration);
+
+        registration.strategy = GOVERNANCE;
+        vm.expectRevert("STRATEGY_IS_GOVERNANCE");
+        registry.registerSubject(registration);
+
+        registration.strategy = GUARDIAN;
+        vm.expectRevert("STRATEGY_IS_GUARDIAN");
+        registry.registerSubject(registration);
+
+        registration.strategy = AGENT_SAFE;
+        vm.expectRevert("STRATEGY_IS_AGENT_SAFE");
+        registry.registerSubject(registration);
+    }
+
+    function testRegistrationIsExactlyOnceAndTokenUnique() external {
+        vm.expectRevert("SUBJECT_EXISTS");
+        registry.registerSubject(_registration(SUBJECT_ID, address(0xCAFE), strategy));
+
         vm.expectRevert("STAKE_TOKEN_ALREADY_LINKED");
-        registry.createSubject(nextSubjectId, STAKE_TOKEN, NEXT_SPLITTER, NEXT_SAFE, true, "Next");
+        registry.registerSubject(_registration(keccak256("other"), TOKEN, strategy));
     }
 
-    function testPermissionlessSubjectsAllowDuplicateStakeToken() external {
-        bytes32 firstPermissionlessId = keccak256("first-permissionless");
-        bytes32 secondPermissionlessId = keccak256("second-permissionless");
+    function testRegistrationRejectsZeroSafeRuntime() external {
+        ISubjectRegistry.SubjectRegistration memory registration =
+            _registration(keccak256("zero-runtime"), address(0xCAFE), strategy);
+        registration.safeRuntime = address(0);
 
-        vm.prank(OWNER);
-        registry.setAuthorizedRegistrar(REGISTRAR, true);
-
-        vm.prank(REGISTRAR);
-        registry.createPermissionlessSubject(
-            firstPermissionlessId,
-            STAKE_TOKEN,
-            address(0xF001),
-            NEXT_SAFE,
-            CREATOR,
-            true,
-            "Shared one"
-        );
-
-        vm.prank(REGISTRAR);
-        registry.createPermissionlessSubject(
-            secondPermissionlessId,
-            STAKE_TOKEN,
-            address(0xF002),
-            NEXT_SAFE,
-            CREATOR,
-            true,
-            "Shared two"
-        );
-
-        assertEq(registry.subjectOfStakeToken(STAKE_TOKEN), SUBJECT_ID);
-        assertEq(registry.subjectCountForStakeToken(STAKE_TOKEN), 3);
-        assertEq(registry.subjectForStakeTokenAt(STAKE_TOKEN, 0), SUBJECT_ID);
-        assertEq(registry.subjectForStakeTokenAt(STAKE_TOKEN, 1), firstPermissionlessId);
-        assertEq(registry.subjectForStakeTokenAt(STAKE_TOKEN, 2), secondPermissionlessId);
-        assertTrue(registry.canManageSubject(firstPermissionlessId, NEXT_SAFE));
-        assertTrue(registry.canManageSubject(firstPermissionlessId, CREATOR));
+        vm.expectRevert("SAFE_RUNTIME_ZERO");
+        registry.registerSubject(registration);
     }
 
-    function testPermissionlessSubjectDoesNotClaimCanonicalEmptyStakeTokenSlot() external {
-        bytes32 permissionlessId = keccak256("permissionless-only");
-        address otherStakeToken = address(0xAAAA);
+    function testRegistrationRejectsUnsafeSafeRuntime() external {
+        ISubjectRegistry.SubjectRegistration memory registration =
+            _registration(keccak256("unsafe-runtime"), address(0xCAFE), strategy);
 
-        vm.prank(OWNER);
-        registry.setAuthorizedRegistrar(REGISTRAR, true);
+        registration.safeRuntime = address(this);
+        vm.expectRevert("SAFE_RUNTIME_IS_CONTROLLER");
+        registry.registerSubject(registration);
 
-        vm.prank(REGISTRAR);
-        registry.createPermissionlessSubject(
-            permissionlessId,
-            otherStakeToken,
-            address(0xF003),
-            NEXT_SAFE,
-            CREATOR,
-            true,
-            "Shared only"
-        );
+        registration.safeRuntime = GOVERNANCE;
+        vm.expectRevert("SAFE_RUNTIME_IS_GOVERNANCE");
+        registry.registerSubject(registration);
 
-        assertEq(registry.subjectOfStakeToken(otherStakeToken), bytes32(0));
-        assertEq(registry.subjectForStakeTokenAt(otherStakeToken, 0), permissionlessId);
+        registration.safeRuntime = GUARDIAN;
+        vm.expectRevert("SAFE_RUNTIME_IS_GUARDIAN");
+        registry.registerSubject(registration);
+
+        registration.safeRuntime = AGENT_SAFE;
+        vm.expectRevert("SAFE_RUNTIME_IS_AGENT_SAFE");
+        registry.registerSubject(registration);
+
+        registration.safeRuntime = strategy;
+        vm.expectRevert("SAFE_RUNTIME_IS_STRATEGY");
+        registry.registerSubject(registration);
+
+        registration.safeRuntime = address(0xBAD);
+        vm.expectRevert("SAFE_RUNTIME_OPERATOR_MISMATCH");
+        registry.registerSubject(registration);
     }
 
-    function _createDeadTestSubject()
+    function testRegistrationFailsClosedWhenStrategyOperatorReverts() external {
+        ISubjectRegistry.SubjectRegistration memory registration = _registration(
+            keccak256("reverting-operator"), address(0xCA10), address(new RevertingOperatorTarget())
+        );
+
+        vm.expectRevert("OPERATOR_REVERT");
+        registry.registerSubject(registration);
+
+        _assertRegistrationFailureLeavesNoResidue(registration);
+    }
+
+    function testRegistrationFailsClosedWhenStrategyOperatorReturnsMalformedData() external {
+        ISubjectRegistry.SubjectRegistration memory registration = _registration(
+            keccak256("malformed-operator"), address(0xCA11), address(new MalformedOperatorTarget())
+        );
+
+        vm.expectRevert();
+        registry.registerSubject(registration);
+
+        _assertRegistrationFailureLeavesNoResidue(registration);
+    }
+
+    function testRegistrationFailsClosedWhenStrategyOperatorSelectorIsMissing() external {
+        ISubjectRegistry.SubjectRegistration memory registration = _registration(
+            keccak256("missing-operator"), address(0xCA12), address(new MissingOperatorTarget())
+        );
+
+        vm.expectRevert();
+        registry.registerSubject(registration);
+
+        _assertRegistrationFailureLeavesNoResidue(registration);
+    }
+
+    function testAgentSafeGovernanceAndGuardianCanQuarantine() external {
+        vm.prank(AGENT_SAFE);
+        registry.quarantineSubject(SUBJECT_ID);
+        assertEq(
+            uint256(registry.lifecycleOf(SUBJECT_ID)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
+
+        bytes32 governanceSubject = keccak256("governance");
+        registry.registerSubject(_registration(governanceSubject, address(0xCA01), strategy));
+        vm.prank(GOVERNANCE);
+        registry.quarantineSubject(governanceSubject);
+
+        bytes32 guardianSubject = keccak256("guardian");
+        registry.registerSubject(_registration(guardianSubject, address(0xCA02), strategy));
+        vm.prank(GUARDIAN);
+        registry.quarantineSubject(guardianSubject);
+    }
+
+    function testUnauthorizedCallerCannotQuarantine() external {
+        vm.prank(address(0xBAD));
+        vm.expectRevert("ONLY_QUARANTINE_AUTHORITY");
+        registry.quarantineSubject(SUBJECT_ID);
+    }
+
+    function testOnlyAgentSafeMayRequestRestoration() external {
+        vm.prank(GUARDIAN);
+        registry.quarantineSubject(SUBJECT_ID);
+        vm.prank(GOVERNANCE);
+        vm.expectRevert("ONLY_AGENT_SAFE");
+        registry.requestRestoration(SUBJECT_ID);
+    }
+
+    function testGuardianCannotExecuteRestoration() external {
+        vm.prank(GUARDIAN);
+        vm.expectRevert("ONLY_GOVERNANCE");
+        registry.executeRestoration(SUBJECT_ID);
+    }
+
+    function testStrategyRetirementIsNarrowAndTerminal() external {
+        vm.prank(address(0xBAD));
+        vm.expectRevert("ONLY_STRATEGY");
+        registry.retireSubject(SUBJECT_ID);
+        vm.prank(strategy);
+        registry.retireSubject(SUBJECT_ID);
+        assertEq(
+            uint256(registry.lifecycleOf(SUBJECT_ID)), uint256(ISubjectRegistry.Lifecycle.Retired)
+        );
+        vm.prank(AGENT_SAFE);
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        registry.quarantineSubject(SUBJECT_ID);
+        vm.prank(strategy);
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        registry.retireSubject(SUBJECT_ID);
+    }
+
+    function testQuarantineBlocksRetirement() external {
+        vm.prank(GUARDIAN);
+        registry.quarantineSubject(SUBJECT_ID);
+        vm.prank(strategy);
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        registry.retireSubject(SUBJECT_ID);
+    }
+
+    function testLegacyRegistrationAuthorityAndDeathSelectorsAreDisabled() external {
+        vm.expectRevert("LEGACY_AUTHORITY_DISABLED");
+        registry.setAuthorizedRegistrar(address(this), true);
+        vm.expectRevert("LEGACY_AUTHORITY_DISABLED");
+        registry.setSubjectLifecycleAuthority(SUBJECT_ID, strategy);
+        vm.expectRevert("LEGACY_DEATH_DISABLED");
+        registry.markSubjectDead(SUBJECT_ID);
+        vm.expectRevert("PERMISSIONLESS_REGISTRATION_DISABLED");
+        registry.createPermissionlessSubject(
+            keccak256("legacy"), address(1), address(2), address(3), address(4), true, "legacy"
+        );
+    }
+
+    function testRedirectReplacementAndPostRegistrationLinkingAreDisabled() external {
+        vm.expectRevert("SUBJECT_IMMUTABLE");
+        registry.updateSubject(SUBJECT_ID, address(9), address(8), false, "redirect");
+        vm.expectRevert("CANONICAL_REASSIGNMENT_DISABLED");
+        registry.setCanonicalSubjectForStakeToken(TOKEN, keccak256("redirect"));
+        vm.expectRevert("POST_REGISTRATION_LINK_DISABLED");
+        registry.linkIdentity(SUBJECT_ID, 1, address(2), 3);
+    }
+
+    function testLifecycleTransitionsDoNotCallSubjectContracts() external {
+        RevertingLifecycleTarget target = new RevertingLifecycleTarget();
+        bytes32 id = keccak256("no-callback");
+        ISubjectRegistry.SubjectRegistration memory registration =
+            _registration(id, address(0xCA03), address(target));
+        registration.splitter = address(target);
+        registration.ingress = address(target);
+        registry.registerSubject(registration);
+        vm.prank(GUARDIAN);
+        registry.quarantineSubject(id);
+    }
+
+    function _assertRegistrationFailureLeavesNoResidue(
+        ISubjectRegistry.SubjectRegistration memory registration
+    ) internal {
+        vm.expectRevert("SUBJECT_NOT_FOUND");
+        registry.getSubject(registration.subjectId);
+        assertEq(registry.subjectOfStakeToken(registration.stakeToken), bytes32(0));
+        assertEq(registry.subjectCountForStakeToken(registration.stakeToken), 0);
+        assertEq(
+            registry.subjectForIdentity(
+                registration.identityChainId,
+                registration.identityRegistry,
+                registration.identityAgentId
+            ),
+            bytes32(0)
+        );
+    }
+
+    function _registration(bytes32 id, address token, address strategy_)
         internal
-        returns (bytes32 deadSubjectId, LifecycleSyncSplitterMock splitter)
+        pure
+        returns (ISubjectRegistry.SubjectRegistration memory)
     {
-        deadSubjectId = keccak256("dead-subject");
-        splitter = new LifecycleSyncSplitterMock();
-        vm.prank(OWNER);
-        registry.createSubject(
-            deadSubjectId, address(0xDD01), address(splitter), INITIAL_SAFE, true, "Doomed"
-        );
-    }
-
-    function testLifecycleAuthorityIsRegistrarGatedAndSetOnce() external {
-        (bytes32 deadSubjectId,) = _createDeadTestSubject();
-
-        vm.prank(INITIAL_SAFE);
-        vm.expectRevert("ONLY_REGISTRAR");
-        registry.setSubjectLifecycleAuthority(deadSubjectId, address(0xA0A0));
-
-        vm.prank(OWNER);
-        vm.expectRevert("AUTHORITY_ZERO");
-        registry.setSubjectLifecycleAuthority(deadSubjectId, address(0));
-
-        vm.prank(OWNER);
-        registry.setSubjectLifecycleAuthority(deadSubjectId, address(0xA0A0));
-        assertEq(registry.subjectLifecycleAuthority(deadSubjectId), address(0xA0A0));
-
-        vm.prank(OWNER);
-        vm.expectRevert("AUTHORITY_SET");
-        registry.setSubjectLifecycleAuthority(deadSubjectId, address(0xB0B0));
-    }
-
-    function testMarkSubjectDeadDeactivatesRetiresAndBlocksReactivation() external {
-        (bytes32 deadSubjectId, LifecycleSyncSplitterMock splitter) = _createDeadTestSubject();
-
-        vm.prank(OWNER);
-        registry.setSubjectLifecycleAuthority(deadSubjectId, address(0xA0A0));
-
-        // Nobody but the authority (or owner) can kill the subject — not even its treasury safe.
-        vm.prank(INITIAL_SAFE);
-        vm.expectRevert("ONLY_LIFECYCLE_AUTHORITY");
-        registry.markSubjectDead(deadSubjectId);
-
-        vm.prank(address(0xA0A0));
-        registry.markSubjectDead(deadSubjectId);
-
-        assertTrue(registry.subjectDead(deadSubjectId));
-        assertFalse(registry.getSubject(deadSubjectId).active);
-        assertFalse(registry.isSubjectActive(deadSubjectId));
-        assertTrue(splitter.retired());
-        assertFalse(splitter.lastActive());
-
-        // Dead is terminal: no double-kill, no update/reactivation, no new authority.
-        vm.prank(address(0xA0A0));
-        vm.expectRevert("SUBJECT_DEAD");
-        registry.markSubjectDead(deadSubjectId);
-
-        vm.prank(INITIAL_SAFE);
-        vm.expectRevert("SUBJECT_DEAD");
-        registry.updateSubject(deadSubjectId, address(splitter), INITIAL_SAFE, true, "Doomed");
-
-        vm.prank(OWNER);
-        vm.expectRevert("SUBJECT_DEAD");
-        registry.updateSubject(deadSubjectId, address(splitter), INITIAL_SAFE, true, "Doomed");
-    }
-
-    function testOwnerCanMarkSubjectDeadWithoutAuthority() external {
-        (bytes32 deadSubjectId, LifecycleSyncSplitterMock splitter) = _createDeadTestSubject();
-
-        vm.prank(OWNER);
-        registry.markSubjectDead(deadSubjectId);
-
-        assertTrue(registry.subjectDead(deadSubjectId));
-        assertTrue(splitter.retired());
-    }
-
-    function testOwnerCanSetCanonicalSubjectForStakeToken() external {
-        bytes32 permissionlessId = keccak256("permissionless-canonical");
-        address otherStakeToken = address(0xBBBB);
-
-        vm.prank(OWNER);
-        registry.setAuthorizedRegistrar(REGISTRAR, true);
-
-        vm.prank(REGISTRAR);
-        registry.createPermissionlessSubject(
-            permissionlessId,
-            otherStakeToken,
-            address(0xF004),
-            NEXT_SAFE,
-            CREATOR,
-            true,
-            "Shared canonical"
-        );
-
-        vm.prank(OWNER);
-        registry.setCanonicalSubjectForStakeToken(otherStakeToken, permissionlessId);
-
-        assertEq(registry.subjectOfStakeToken(otherStakeToken), permissionlessId);
+        return ISubjectRegistry.SubjectRegistration({
+            subjectId: id,
+            stakeToken: token,
+            splitter: address(0x1001),
+            agentSafe: AGENT_SAFE,
+            ingress: address(0x1002),
+            paymentLinkFactory: address(0x1003),
+            strategy: strategy_,
+            launchFeeRegistry: address(0x1004),
+            feeVault: address(0x1005),
+            feeHook: address(0x1006),
+            identityChainId: 8453,
+            identityRegistry: address(0x8004),
+            identityAgentId: uint256(uint160(token)),
+            label: "Atlas",
+            safeRuntime: SAFE_RUNTIME
+        });
     }
 }

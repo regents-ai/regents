@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {LiveStakeFeePoolSplitter} from "src/autolaunch/revenue/LiveStakeFeePoolSplitter.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
@@ -34,7 +35,7 @@ contract PoCLiveStakeRoundingDrift is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
@@ -50,14 +51,27 @@ contract PoCLiveStakeRoundingDrift is Test {
             "PoC subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            SUBJECT_ID,
-            address(stakeToken),
-            address(splitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "PoC subject"
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        subjectRegistry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: SUBJECT_ID,
+                stakeToken: address(stakeToken),
+                splitter: address(splitter),
+                agentSafe: TREASURY,
+                ingress: address(0x1001),
+                paymentLinkFactory: address(0x1002),
+                strategy: address(0x1003),
+                launchFeeRegistry: address(0x1004),
+                feeVault: address(0x1005),
+                feeHook: address(0x1006),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "PoC subject",
+                safeRuntime: address(0x7007)
+            })
         );
     }
 

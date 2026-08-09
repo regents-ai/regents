@@ -27,6 +27,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
     address internal constant OWNER = address(0xA11CE);
     address internal constant DEPLOYER = address(0xBEEF);
     address internal constant TEST_TOKEN_FACTORY = address(uint160(0xFACA0));
+    address internal constant CONTROLLER = address(0xC011);
+    address internal constant GUARDIAN = address(0x600D);
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
 
     DeployAutolaunchInfraScript internal script;
@@ -49,14 +51,17 @@ contract DeployAutolaunchInfraScriptTest is Test {
                 owner: OWNER,
                 revenueUsdcToken: USDC,
                 regentRevenueStaking: address(staking),
-                tokenFactory: address(tokenFactory)
+                tokenFactory: address(tokenFactory),
+                controller: CONTROLLER,
+                guardian: GUARDIAN
             });
 
         DeployAutolaunchInfraScript.DeployedInfra memory infra = script.deploy(cfg);
 
         assertEq(infra.subjectRegistry.owner(), OWNER);
         assertTrue(address(infra.revenueShareSplitterDeployer) != address(0));
-        assertTrue(infra.subjectRegistry.canRegisterSubject(address(infra.revenueShareFactory)));
+        assertTrue(infra.subjectRegistry.canRegisterSubject(CONTROLLER));
+        assertFalse(infra.subjectRegistry.canRegisterSubject(address(infra.revenueShareFactory)));
         PermissionlessExistingTokenRevenueFactory existingTokenFactory = new PermissionlessExistingTokenRevenueFactory(
             OWNER,
             USDC,
@@ -85,16 +90,19 @@ contract DeployAutolaunchInfraScriptTest is Test {
         );
         assertEq(infra.deferredAutolaunchFactory.trustedTokenFactory(), address(tokenFactory));
         assertEq(infra.stakingRevenueRouter.regentRevenueStaking(), address(staking));
-        assertTrue(
+        assertFalse(
             infra.revenueShareFactory.authorizedCreators(address(infra.deferredAutolaunchFactory))
         );
-        assertTrue(
+        assertFalse(
             infra.revenueIngressFactory.authorizedCreators(address(infra.revenueShareFactory))
         );
         assertFalse(infra.revenueIngressFactory.authorizedCreators(address(existingTokenFactory)));
-        assertTrue(
+        assertFalse(
             infra.revenueIngressFactory.authorizedCreators(address(infra.deferredAutolaunchFactory))
         );
+        assertEq(infra.subjectRegistry.controller(), CONTROLLER);
+        assertEq(infra.subjectRegistry.guardian(), GUARDIAN);
+        assertEq(infra.paymentLinkFactory.controller(), CONTROLLER);
         assertTrue(address(infra.strategyFactory) != address(0));
     }
 
@@ -104,7 +112,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
                 owner: DEPLOYER,
                 revenueUsdcToken: USDC,
                 regentRevenueStaking: address(staking),
-                tokenFactory: address(tokenFactory)
+                tokenFactory: address(tokenFactory),
+                controller: CONTROLLER,
+                guardian: GUARDIAN
             });
 
         DeployAutolaunchInfraScript.DeployedInfra memory infra = script.deploy(cfg);
@@ -121,6 +131,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CONTROLLER_ADDRESS", vm.toString(CONTROLLER));
+        vm.setEnv("AUTOLAUNCH_GUARDIAN_ADDRESS", vm.toString(GUARDIAN));
 
         DeployAutolaunchInfraScript.ScriptConfig memory cfg = script.loadConfigFromEnv();
 
@@ -128,6 +140,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(cfg.revenueUsdcToken, USDC);
         assertEq(cfg.regentRevenueStaking, address(staking));
         assertEq(cfg.tokenFactory, address(tokenFactory));
+        assertEq(cfg.controller, CONTROLLER);
+        assertEq(cfg.guardian, GUARDIAN);
     }
 
     function testDeployFromEnvUsesLoadedConfig() external {
@@ -135,12 +149,14 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CONTROLLER_ADDRESS", vm.toString(CONTROLLER));
+        vm.setEnv("AUTOLAUNCH_GUARDIAN_ADDRESS", vm.toString(GUARDIAN));
 
         DeployAutolaunchInfraScript.DeployedInfra memory infra = script.deployFromEnv();
 
         assertEq(infra.subjectRegistry.owner(), OWNER);
         assertTrue(address(infra.revenueShareSplitterDeployer) != address(0));
-        assertTrue(infra.subjectRegistry.canRegisterSubject(address(infra.revenueShareFactory)));
+        assertTrue(infra.subjectRegistry.canRegisterSubject(CONTROLLER));
         assertEq(infra.revenueShareFactory.owner(), OWNER);
         assertEq(infra.revenueShareFactory.pendingOwner(), address(0));
         assertEq(infra.revenueIngressFactory.owner(), OWNER);
@@ -155,6 +171,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CONTROLLER_ADDRESS", vm.toString(CONTROLLER));
+        vm.setEnv("AUTOLAUNCH_GUARDIAN_ADDRESS", vm.toString(GUARDIAN));
 
         string memory resultJson = script.run();
 
@@ -163,6 +181,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertTrue(vm.keyExistsJson(resultJson, ".revenueShareFactoryAddress"));
         assertTrue(vm.keyExistsJson(resultJson, ".revenueIngressFactoryAddress"));
         assertTrue(vm.keyExistsJson(resultJson, ".deferredAutolaunchFactoryAddress"));
+        assertTrue(vm.keyExistsJson(resultJson, ".paymentLinkFactoryAddress"));
         assertTrue(vm.keyExistsJson(resultJson, ".stakingRevenueRouterAddress"));
         assertTrue(vm.keyExistsJson(resultJson, ".strategyFactoryAddress"));
         assertFalse(vm.keyExistsJson(resultJson, ".existingTokenRevenueFactoryAddress"));
@@ -208,7 +227,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
                 owner: OWNER,
                 revenueUsdcToken: address(0xC0FFEE),
                 regentRevenueStaking: address(staking),
-                tokenFactory: address(tokenFactory)
+                tokenFactory: address(tokenFactory),
+                controller: CONTROLLER,
+                guardian: GUARDIAN
             });
 
         vm.expectRevert("USDC_NOT_CANONICAL");
@@ -221,6 +242,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CONTROLLER_ADDRESS", vm.toString(CONTROLLER));
+        vm.setEnv("AUTOLAUNCH_GUARDIAN_ADDRESS", vm.toString(GUARDIAN));
 
         vm.expectRevert("BASE_MAINNET_ONLY");
         script.loadConfigFromEnv();

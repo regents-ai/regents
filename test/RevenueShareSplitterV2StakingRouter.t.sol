@@ -8,6 +8,7 @@ import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRe
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
@@ -39,7 +40,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         regent = new MintableERC20Mock("REGENT", "REGENT");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
         staking = new RegentRevenueStaking(
@@ -61,9 +62,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            SUBJECT_ID, address(stakeToken), address(splitter), TREASURY, true, "Subject"
-        );
+        _register(SUBJECT_ID, address(stakeToken), address(splitter));
     }
 
     function testHundredUsdcRoutesProtocolSkimToRegentStaking() external {
@@ -173,9 +172,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            subjectId, address(dustStakeToken), address(dustSplitter), TREASURY, true, "Subject"
-        );
+        _register(subjectId, address(dustStakeToken), address(dustSplitter));
 
         // Fully staked subject with a denominator that does not divide ACC_PRECISION:
         // accumulator rounding books the staker entitlement into undistributedDustUsdc
@@ -220,14 +217,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            subjectId,
-            address(residualStakeToken),
-            address(residualSplitter),
-            TREASURY,
-            true,
-            "Subject"
-        );
+        _register(subjectId, address(residualStakeToken), address(residualSplitter));
 
         residualStakeToken.mint(STAKER, 1);
         residualStakeToken.mint(STAKER_TWO, 1);
@@ -283,14 +273,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            subjectId,
-            address(residualStakeToken),
-            address(residualSplitter),
-            TREASURY,
-            true,
-            "Subject"
-        );
+        _register(subjectId, address(residualStakeToken), address(residualSplitter));
 
         residualStakeToken.mint(STAKER, 1);
         residualStakeToken.mint(STAKER_TWO, 1);
@@ -331,9 +314,7 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Fee subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            feeSubjectId, address(feeToken), address(feeSplitter), TREASURY, true, "Fee subject"
-        );
+        _register(feeSubjectId, address(feeToken), address(feeSplitter));
 
         feeToken.mint(STAKER, 100e18);
         vm.startPrank(STAKER);
@@ -385,8 +366,31 @@ contract RevenueShareSplitterV2StakingRouterTest is Test {
             "Subject",
             TREASURY
         );
-        subjectRegistry.createSubject(
-            subjectId, address(mockStakeToken), address(mockSplitter), TREASURY, true, "Subject"
+        _register(subjectId, address(mockStakeToken), address(mockSplitter));
+    }
+
+    function _register(bytes32 id, address token, address subjectSplitter) internal {
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        subjectRegistry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: id,
+                stakeToken: token,
+                splitter: subjectSplitter,
+                agentSafe: TREASURY,
+                ingress: address(0x1001),
+                paymentLinkFactory: address(0x1002),
+                strategy: address(0x1003),
+                launchFeeRegistry: address(0x1004),
+                feeVault: address(0x1005),
+                feeHook: address(0x1006),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "Subject",
+                safeRuntime: address(0x7007)
+            })
         );
     }
 }

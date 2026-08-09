@@ -64,7 +64,7 @@ contract RevenueShareFactoryTest is Test {
     MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
-        subjectRegistry = new SubjectRegistry(OWNER);
+        subjectRegistry = new SubjectRegistry(address(this), OWNER, address(0x600D));
         feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         factory = new RevenueShareFactory(
@@ -72,14 +72,11 @@ contract RevenueShareFactoryTest is Test {
         );
         stakeToken = new MintableBurnableERC20Mock("Agent", "AGENT", 18);
         stakeToken.mint(address(this), 1000 ether);
-
-        vm.prank(OWNER);
-        subjectRegistry.setAuthorizedRegistrar(address(factory), true);
     }
 
     function testRejectsUnauthorizedSplitterCreation() external {
         vm.prank(ATTACKER);
-        vm.expectRevert(RevenueShareFactory.OnlyAuthorizedCreator.selector);
+        vm.expectRevert(RevenueShareFactory.OnlyController.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
@@ -94,11 +91,11 @@ contract RevenueShareFactoryTest is Test {
         );
     }
 
-    function testAuthorizedCreatorCanCreateSplitter() external {
+    function testControllerCanCreateSplitterWithoutRegisteringSubject() external {
         vm.prank(OWNER);
+        vm.expectRevert(RevenueShareFactory.OnlyController.selector);
         factory.setAuthorizedCreator(CREATOR, true);
 
-        vm.prank(CREATOR);
         address splitter = factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
@@ -114,8 +111,8 @@ contract RevenueShareFactoryTest is Test {
 
         assertTrue(splitter != address(0));
         assertEq(factory.splitterOfSubject(SUBJECT_ID), splitter);
-        assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), SUBJECT_ID);
-        assertEq(subjectRegistry.subjectForIdentity(1, address(0x8004), 42), SUBJECT_ID);
+        assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), bytes32(0));
+        assertEq(subjectRegistry.subjectForIdentity(1, address(0x8004), 42), bytes32(0));
     }
 
     function testCreateReservesTokenAndSubjectBeforeExternalDeploy() external {
@@ -125,13 +122,7 @@ contract RevenueShareFactoryTest is Test {
         );
         observingDeployer.setFactory(observedFactory);
 
-        vm.prank(OWNER);
-        subjectRegistry.setAuthorizedRegistrar(address(observedFactory), true);
-        vm.prank(OWNER);
-        observedFactory.setAuthorizedCreator(CREATOR, true);
-
         bytes32 subjectId = keccak256("observed-reservation");
-        vm.prank(CREATOR);
         address splitter = observedFactory.createSubjectSplitter(
             subjectId,
             address(stakeToken),
@@ -156,10 +147,6 @@ contract RevenueShareFactoryTest is Test {
     }
 
     function testRejectsMalformedIdentityLinkInputs() external {
-        vm.prank(OWNER);
-        factory.setAuthorizedCreator(CREATOR, true);
-
-        vm.prank(CREATOR);
         vm.expectRevert(RevenueShareFactory.IdentityRegistryZero.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
@@ -176,10 +163,6 @@ contract RevenueShareFactoryTest is Test {
     }
 
     function testRejectsZeroRecipients() external {
-        vm.prank(OWNER);
-        factory.setAuthorizedCreator(CREATOR, true);
-
-        vm.prank(CREATOR);
         vm.expectRevert(RevenueShareFactory.AgentSafeZero.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
@@ -194,7 +177,6 @@ contract RevenueShareFactoryTest is Test {
             0
         );
 
-        vm.prank(CREATOR);
         vm.expectRevert(RevenueShareFactory.StakingRevenueRouterMismatch.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,

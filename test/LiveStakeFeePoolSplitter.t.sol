@@ -9,6 +9,7 @@ import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRe
 import {RevenueIngressAccount} from "src/autolaunch/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/autolaunch/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
@@ -38,7 +39,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
@@ -55,19 +56,11 @@ contract LiveStakeFeePoolSplitterTest is Test {
             TREASURY
         );
 
-        subjectRegistry.createPermissionlessSubject(
-            SUBJECT_ID,
-            address(stakeToken),
-            address(splitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Live subject"
-        );
+        address predictedIngress = ingressFactory.predictDefaultIngress(SUBJECT_ID, TREASURY);
+        _register(SUBJECT_ID, address(stakeToken), address(splitter), predictedIngress);
 
-        vm.prank(TREASURY);
         ingress = RevenueIngressAccount(
-            payable(ingressFactory.createIngressAccount(SUBJECT_ID, "default-usdc-ingress", true))
+            payable(ingressFactory.createDefaultIngressAccount(SUBJECT_ID, "default-usdc-ingress"))
         );
     }
 
@@ -101,6 +94,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
 
     function testHundredUsdcDepositsProtocolSkimIntoRegentStaking() external {
         bytes32 liveSubjectId = keccak256("live-subject-real-router");
+        MintableERC20Mock liveStakeToken = new MintableERC20Mock("Live Agent", "LIVE");
         MintableERC20Mock regent = new MintableERC20Mock("REGENT", "REGENT");
         RegentRevenueStaking staking = new RegentRevenueStaking(
             address(regent), address(usdc), TREASURY, 1_000_000e18, address(this)
@@ -110,7 +104,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
         );
         router.setMaxUsdcPerSettlement(1000e18);
         LiveStakeFeePoolSplitter realRouterSplitter = new LiveStakeFeePoolSplitter(
-            address(stakeToken),
+            address(liveStakeToken),
             address(usdc),
             address(ingressFactory),
             address(subjectRegistry),
@@ -121,19 +115,11 @@ contract LiveStakeFeePoolSplitterTest is Test {
             "Live subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            liveSubjectId,
-            address(stakeToken),
-            address(realRouterSplitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Live subject"
-        );
+        _register(liveSubjectId, address(liveStakeToken), address(realRouterSplitter), address(1));
 
-        stakeToken.mint(STAKER_ONE, 1000e18);
+        liveStakeToken.mint(STAKER_ONE, 1000e18);
         vm.prank(STAKER_ONE);
-        stakeToken.approve(address(realRouterSplitter), 10e18);
+        liveStakeToken.approve(address(realRouterSplitter), 10e18);
         vm.prank(STAKER_ONE);
         realRouterSplitter.stake(10e18, STAKER_ONE);
 
@@ -231,15 +217,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
             "Fee subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            feeSubjectId,
-            address(feeToken),
-            address(feeSplitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Fee subject"
-        );
+        _register(feeSubjectId, address(feeToken), address(feeSplitter), address(1));
 
         feeToken.mint(STAKER_ONE, 100e18);
         feeToken.setFeeBps(100);
@@ -268,15 +246,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
             "Fee subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            feeSubjectId,
-            address(feeToken),
-            address(feeSplitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Fee subject"
-        );
+        _register(feeSubjectId, address(feeToken), address(feeSplitter), address(1));
 
         feeToken.mint(STAKER_ONE, 100e18);
         vm.startPrank(STAKER_ONE);
@@ -460,9 +430,10 @@ contract LiveStakeFeePoolSplitterTest is Test {
         splitter.reassignUndistributedDustToTreasury(1);
     }
 
-    function testRegistryTreasuryRotationKeepsRevenueFlowingAndPaysNewSafe() external {
+    function testRegistryTreasuryIsImmutableAndRevenueKeepsFlowing() external {
         bytes32 liveSubjectId = keccak256("live-subject-rotation");
         address newSafe = address(0x7777);
+        MintableERC20Mock rotationStakeToken = new MintableERC20Mock("Rotation Agent", "ROT");
         MintableERC20Mock regent = new MintableERC20Mock("REGENT", "REGENT");
         RegentRevenueStaking staking = new RegentRevenueStaking(
             address(regent), address(usdc), TREASURY, 1_000_000e18, address(this)
@@ -472,7 +443,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
         );
         router.setMaxUsdcPerSettlement(1000e18);
         LiveStakeFeePoolSplitter rotationSplitter = new LiveStakeFeePoolSplitter(
-            address(stakeToken),
+            address(rotationStakeToken),
             address(usdc),
             address(ingressFactory),
             address(subjectRegistry),
@@ -483,18 +454,14 @@ contract LiveStakeFeePoolSplitterTest is Test {
             "Live subject",
             TREASURY
         );
-        subjectRegistry.createPermissionlessSubject(
-            liveSubjectId,
-            address(stakeToken),
-            address(rotationSplitter),
-            TREASURY,
-            CREATOR,
-            true,
-            "Live subject"
+        address predictedIngress = ingressFactory.predictDefaultIngress(liveSubjectId, TREASURY);
+        _register(
+            liveSubjectId, address(rotationStakeToken), address(rotationSplitter), predictedIngress
         );
-        vm.prank(TREASURY);
         RevenueIngressAccount rotationIngress = RevenueIngressAccount(
-            payable(ingressFactory.createIngressAccount(liveSubjectId, "rotation-ingress", true))
+            payable(ingressFactory.createDefaultIngressAccount(
+                    liveSubjectId, "default-usdc-ingress"
+                ))
         );
 
         // Protocol skim accrued BEFORE the registry treasury rotation.
@@ -503,7 +470,8 @@ contract LiveStakeFeePoolSplitterTest is Test {
         rotationSplitter.depositUSDC(100e18, bytes32("direct"), bytes32("pre-rotation"));
         assertEq(usdc.balanceOf(address(staking)), PROTOCOL_SKIM);
 
-        // Rotate the registry's treasurySafe; the splitter's own treasuryRecipient is untouched.
+        // The registered Agent Safe and splitter are immutable.
+        vm.expectRevert("SUBJECT_IMMUTABLE");
         subjectRegistry.updateSubject(
             liveSubjectId, address(rotationSplitter), newSafe, true, "Live subject"
         );
@@ -530,6 +498,33 @@ contract LiveStakeFeePoolSplitterTest is Test {
         stakeToken.approve(address(splitter), amount);
         vm.prank(account);
         splitter.stake(amount, account);
+    }
+
+    function _register(bytes32 id, address token, address subjectSplitter, address subjectIngress)
+        internal
+    {
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        subjectRegistry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: id,
+                stakeToken: token,
+                splitter: subjectSplitter,
+                agentSafe: TREASURY,
+                ingress: subjectIngress,
+                paymentLinkFactory: address(0x1002),
+                strategy: address(0x1003),
+                launchFeeRegistry: address(0x1004),
+                feeVault: address(0x1005),
+                feeHook: address(0x1006),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "Live subject",
+                safeRuntime: address(0x7007)
+            })
+        );
     }
 
     function _depositUsdc(address depositor, uint256 amount) internal {

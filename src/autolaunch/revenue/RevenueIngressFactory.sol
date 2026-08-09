@@ -4,18 +4,16 @@ pragma solidity ^0.8.26;
 import {Owned} from "src/shared/auth/Owned.sol";
 import {RevenueIngressAccount} from "src/autolaunch/revenue/RevenueIngressAccount.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
-import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
 
 contract RevenueIngressFactory is Owned {
-    uint256 public constant MAX_INGRESS_ACCOUNTS_PER_SUBJECT = 64;
+    string internal constant DEFAULT_LABEL = "default-usdc-ingress";
 
     address public immutable usdc;
     address public immutable subjectRegistry;
+    address public immutable controller;
 
-    mapping(bytes32 => address[]) private ingressAccountsBySubject;
     mapping(address => bool) public isIngressAccount;
     mapping(bytes32 => address) public defaultIngressOfSubject;
-    mapping(address => bool) public authorizedCreators;
 
     event IngressAccountCreated(
         bytes32 indexed subjectId,
@@ -26,145 +24,117 @@ contract RevenueIngressFactory is Owned {
         bool makeDefault
     );
     event DefaultIngressSet(bytes32 indexed subjectId, address indexed ingress);
-    event IngressReceiverStateSet(
-        bytes32 indexed subjectId, address indexed ingress, bool active, address indexed replacement
-    );
-    event AuthorizedCreatorSet(address indexed account, bool enabled);
 
     constructor(address usdc_, address subjectRegistry_, address owner_) Owned(owner_) {
         require(usdc_ != address(0), "USDC_ZERO");
         require(subjectRegistry_ != address(0), "SUBJECT_REGISTRY_ZERO");
-
         usdc = usdc_;
         subjectRegistry = subjectRegistry_;
+        controller = SubjectRegistryController(subjectRegistry_).controller();
     }
 
-    modifier onlySubjectManager(bytes32 subjectId) {
-        require(
-            ISubjectRegistry(subjectRegistry).canManageSubject(subjectId, msg.sender)
-                || msg.sender == owner,
-            "ONLY_SUBJECT_MANAGER"
-        );
+    modifier onlyController() {
+        require(msg.sender == controller, "ONLY_CONTROLLER");
         _;
     }
 
-    modifier onlyCreateIngressManager(bytes32 subjectId) {
-        require(
-            msg.sender == owner || authorizedCreators[msg.sender]
-                || ISubjectRegistry(subjectRegistry).canManageSubject(subjectId, msg.sender),
-            "ONLY_SUBJECT_MANAGER"
-        );
-        _;
+    function authorizedCreators(address account) external view returns (bool) {
+        return account == controller;
     }
 
-    function setAuthorizedCreator(address account, bool enabled) external onlyOwner {
-        require(account != address(0), "ACCOUNT_ZERO");
-        authorizedCreators[account] = enabled;
-        emit AuthorizedCreatorSet(account, enabled);
+    function setAuthorizedCreator(address, bool) external pure {
+        revert("LEGACY_AUTHORITY_DISABLED");
     }
 
-    function createIngressAccount(bytes32 subjectId, string calldata label, bool makeDefault)
-        external
-        onlyCreateIngressManager(subjectId)
-        returns (address ingress)
+    function predictDefaultIngress(bytes32 subjectId, address agentSafe)
+        public
+        view
+        returns (address predicted)
     {
-        ingress = _createIngressAccount(subjectId, label, makeDefault);
+        require(subjectId != bytes32(0), "SUBJECT_ZERO");
+        require(agentSafe != address(0), "AGENT_SAFE_ZERO");
+        // creationCode is compiler output, not a hand-written numeric literal.
+        // slither-disable-next-line too-many-digits
+        bytes32 initCodeHash = keccak256(
+            abi.encodePacked(
+                type(RevenueIngressAccount).creationCode,
+                abi.encode(usdc, subjectRegistry, subjectId, DEFAULT_LABEL, agentSafe)
+            )
+        );
+        predicted = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(bytes1(0xff), address(this), subjectId, initCodeHash)
+                    )
+                )
+            )
+        );
     }
 
     function createDefaultIngressAccount(bytes32 subjectId, string calldata label)
         external
-        onlyCreateIngressManager(subjectId)
+        onlyController
         returns (address ingress)
     {
-        ingress = _createIngressAccount(subjectId, label, true);
+        require(keccak256(bytes(label)) == keccak256(bytes(DEFAULT_LABEL)), "DEFAULT_LABEL_ONLY");
+        ingress = _createDefaultIngress(subjectId);
     }
 
-    function _createIngressAccount(bytes32 subjectId, string calldata label, bool makeDefault)
-        internal
-        returns (address ingress)
-    {
-        ISubjectRegistry.SubjectConfig memory cfg = _subjectConfig(subjectId);
-        require(cfg.stakeToken != address(0), "SUBJECT_UNKNOWN");
-        require(cfg.splitter != address(0), "SPLITTER_ZERO");
-        require(cfg.active, "SUBJECT_INACTIVE");
-        require(
-            ingressAccountsBySubject[subjectId].length < MAX_INGRESS_ACCOUNTS_PER_SUBJECT,
-            "INGRESS_ACCOUNT_LIMIT"
+    function createIngressAccount(bytes32, string calldata, bool) external pure returns (address) {
+        revert("LEGACY_INGRESS_DISABLED");
+    }
+
+    function _createDefaultIngress(bytes32 subjectId) internal returns (address ingress) {
+        ISubjectRegistry.SubjectConfig memory cfg =
+            ISubjectRegistry(subjectRegistry).getSubject(subjectId);
+        require(cfg.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
+        require(defaultIngressOfSubject[subjectId] == address(0), "INGRESS_EXISTS");
+        address predicted = predictDefaultIngress(subjectId, cfg.treasurySafe);
+        require(cfg.ingress == predicted, "INGRESS_PREDICTION_MISMATCH");
+
+        RevenueIngressAccount account = new RevenueIngressAccount{salt: subjectId}(
+            usdc, subjectRegistry, subjectId, DEFAULT_LABEL, cfg.treasurySafe
         );
-        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
-
-        RevenueIngressAccount account =
-            new RevenueIngressAccount(usdc, subjectRegistry, subjectId, label, cfg.treasurySafe);
         ingress = address(account);
-
-        ingressAccountsBySubject[subjectId].push(ingress);
+        require(ingress == predicted, "INGRESS_ADDRESS_MISMATCH");
+        defaultIngressOfSubject[subjectId] = ingress;
         isIngressAccount[ingress] = true;
 
-        bool selectedAsDefault = makeDefault || defaultIngressOfSubject[subjectId] == address(0);
-        if (selectedAsDefault) {
-            defaultIngressOfSubject[subjectId] = ingress;
-            emit DefaultIngressSet(subjectId, ingress);
-        }
-
-        emit IngressAccountCreated(
-            subjectId, ingress, cfg.splitter, cfg.treasurySafe, label, selectedAsDefault
-        );
-    }
-
-    function setDefaultIngress(bytes32 subjectId, address ingress)
-        external
-        onlySubjectManager(subjectId)
-    {
-        require(_subjectConfig(subjectId).active, "SUBJECT_INACTIVE");
-        require(isIngressAccount[ingress], "INGRESS_UNKNOWN");
-        require(
-            RevenueIngressAccount(payable(ingress)).subjectId() == subjectId,
-            "INGRESS_SUBJECT_MISMATCH"
-        );
-        require(RevenueIngressAccount(payable(ingress)).usdc() == usdc, "INGRESS_USDC_MISMATCH");
-        require(
-            RevenueIngressAccount(payable(ingress)).destination()
-                == _subjectConfig(subjectId).splitter,
-            "INGRESS_DESTINATION_MISMATCH"
-        );
-        require(RevenueIngressAccount(payable(ingress)).isReceiverActive(), "INGRESS_INACTIVE");
-
-        defaultIngressOfSubject[subjectId] = ingress;
         emit DefaultIngressSet(subjectId, ingress);
+        emit IngressAccountCreated(
+            subjectId, ingress, cfg.splitter, cfg.treasurySafe, DEFAULT_LABEL, true
+        );
     }
 
-    function setIngressReceiverState(
-        bytes32 subjectId,
-        address ingress,
-        bool active,
-        address replacement
-    ) external onlySubjectManager(subjectId) {
-        require(isIngressAccount[ingress], "INGRESS_UNKNOWN");
-        require(
-            RevenueIngressAccount(payable(ingress)).subjectId() == subjectId,
-            "INGRESS_SUBJECT_MISMATCH"
-        );
-        RevenueIngressAccount(payable(ingress)).setReceiverState(active, replacement);
-        emit IngressReceiverStateSet(subjectId, ingress, active, replacement);
+    function setDefaultIngress(bytes32, address) external pure {
+        revert("INGRESS_IMMUTABLE");
+    }
+
+    function setIngressReceiverState(bytes32, address, bool, address) external pure {
+        revert("INGRESS_IMMUTABLE");
     }
 
     function ingressAccountCount(bytes32 subjectId) external view returns (uint256) {
-        return ingressAccountsBySubject[subjectId].length;
+        return defaultIngressOfSubject[subjectId] == address(0) ? 0 : 1;
     }
 
     function ingressAccountAt(bytes32 subjectId, uint256 index) external view returns (address) {
-        return ingressAccountsBySubject[subjectId][index];
+        require(index == 0 && defaultIngressOfSubject[subjectId] != address(0), "INGRESS_INDEX_OOB");
+        return defaultIngressOfSubject[subjectId];
     }
 
-    function ingressAccountsOfSubject(bytes32 subjectId) external view returns (address[] memory) {
-        return ingressAccountsBySubject[subjectId];
-    }
-
-    function _subjectConfig(bytes32 subjectId)
-        internal
+    function ingressAccountsOfSubject(bytes32 subjectId)
+        external
         view
-        returns (ISubjectRegistry.SubjectConfig memory)
+        returns (address[] memory accounts)
     {
-        return ISubjectRegistry(subjectRegistry).getSubject(subjectId);
+        address ingress = defaultIngressOfSubject[subjectId];
+        accounts = new address[](ingress == address(0) ? 0 : 1);
+        if (ingress != address(0)) accounts[0] = ingress;
     }
+}
+
+interface SubjectRegistryController {
+    function controller() external view returns (address);
 }

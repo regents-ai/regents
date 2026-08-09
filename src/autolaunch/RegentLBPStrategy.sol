@@ -146,6 +146,15 @@ contract RegentLBPStrategy is IDistributionContract {
         _;
     }
 
+    modifier onlyActiveSubject() {
+        require(
+            ISubjectRegistry(subjectRegistry).lifecycleOf(subjectId)
+                == ISubjectRegistry.Lifecycle.Active,
+            "SUBJECT_NOT_ACTIVE"
+        );
+        _;
+    }
+
     constructor(StrategyConfig memory cfg) {
         require(cfg.token != address(0), "TOKEN_ZERO");
         require(cfg.quoteToken != address(0), "QUOTE_TOKEN_ZERO");
@@ -237,7 +246,9 @@ contract RegentLBPStrategy is IDistributionContract {
         emit AuctionCreated(predictedAuction, auctionTokenAmount);
     }
 
-    function migrate() external nonReentrant {
+    // Reviewed in slither.db.json: migration is nonReentrant across the bound auction and pool.
+    // slither-disable-next-line reentrancy-benign
+    function migrate() external onlyActiveSubject nonReentrant {
         require(msg.sender == operator, "NOT_OPERATOR");
         require(block.number >= migrationBlock, "MIGRATION_NOT_ALLOWED");
         require(!migrated, "ALREADY_MIGRATED");
@@ -293,6 +304,8 @@ contract RegentLBPStrategy is IDistributionContract {
         migration.positionId = IPositionManager(positionManager).nextTokenId();
     }
 
+    // Reviewed in slither.db.json: exact tick equality validates the initialized pool price.
+    // slither-disable-next-line incorrect-equality
     function _initializeMigrationPool(MigrationLiquidity memory migration) internal {
         int24 initializedTick =
             IPoolManager(poolManager).initialize(migration.poolKey, migration.sqrtPriceX96);
@@ -336,7 +349,7 @@ contract RegentLBPStrategy is IDistributionContract {
         migratedTokenForLP = migration.tokenForLPUint128;
     }
 
-    function sweepToken() external nonReentrant {
+    function sweepToken() external onlyActiveSubject nonReentrant {
         require(msg.sender == operator, "NOT_OPERATOR");
         require(block.number >= sweepBlock, "SWEEP_NOT_ALLOWED");
         require(migrated, "MIGRATION_REQUIRED");
@@ -351,7 +364,7 @@ contract RegentLBPStrategy is IDistributionContract {
         emit TokensSweptToVesting(vestingWallet, tokenBalance);
     }
 
-    function sweepQuoteToken() external nonReentrant {
+    function sweepQuoteToken() external onlyActiveSubject nonReentrant {
         require(msg.sender == operator, "NOT_OPERATOR");
         require(block.number >= sweepBlock, "SWEEP_NOT_ALLOWED");
         require(migrated, "MIGRATION_REQUIRED");
@@ -367,10 +380,10 @@ contract RegentLBPStrategy is IDistributionContract {
     /// @notice Unwinds a launch whose auction did not graduate. The entire launched-token supply
     ///         held by the launch stack — unsold auction tokens, the strategy's LP reserve, and
     ///         the agent's unvested allocation — is burned to the canonical dead address, and the
-    ///         subject is marked dead so its rev-share splitter and ingress accounts are disabled
+    ///         subject is retired so its rev-share splitter and ingress accounts are disabled
     ///         permanently. The agent receives nothing. Bidders reclaim their REGENT themselves
     ///         through the auction's own exit path.
-    function recoverFailedAuction() external nonReentrant {
+    function recoverFailedAuction() external onlyActiveSubject nonReentrant {
         require(msg.sender == operator, "NOT_OPERATOR");
         require(block.number >= sweepBlock, "SWEEP_NOT_ALLOWED");
         require(!migrated, "ALREADY_MIGRATED");
@@ -388,7 +401,7 @@ contract RegentLBPStrategy is IDistributionContract {
         require(tokenBalance != 0, "NOTHING_TO_BURN");
         token.safeTransfer(BURN_ADDRESS, tokenBalance);
 
-        ISubjectRegistry(subjectRegistry).markSubjectDead(subjectId);
+        ISubjectRegistry(subjectRegistry).retireSubject(subjectId);
 
         emit FailedAuctionBurned(auctionAddress, subjectId, tokenBalance, vestingTokensBurned);
     }
@@ -426,6 +439,8 @@ contract RegentLBPStrategy is IDistributionContract {
         emit UnsupportedTokenRescued(token_, amount, recipient);
     }
 
+    // Reviewed in slither.db.json: balance deltas intentionally measure the bound auction sweep.
+    // slither-disable-next-line reentrancy-balance
     function _accountAuctionQuoteToken(IContinuousClearingAuction auction)
         internal
         returns (uint256 quoteTokenRaised)

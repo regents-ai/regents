@@ -11,6 +11,7 @@ import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
@@ -34,18 +35,13 @@ contract PaymentLinkFactoryTest is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        subjectRegistry = new SubjectRegistry(OWNER);
+        subjectRegistry = new SubjectRegistry(CREATOR, OWNER, address(0x600D));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
             OWNER, address(usdc), subjectRegistry, address(feeRouter), address(splitterDeployer)
         );
         paymentLinkFactory = new PaymentLinkFactory(OWNER, address(usdc), address(subjectRegistry));
-
-        vm.startPrank(OWNER);
-        subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
-        revenueShareFactory.setAuthorizedCreator(CREATOR, true);
-        vm.stopPrank();
 
         vm.prank(CREATOR);
         splitter = revenueShareFactory.createSubjectSplitter(
@@ -60,6 +56,11 @@ contract PaymentLinkFactoryTest is Test {
             address(0),
             0
         );
+        vm.mockCall(
+            address(0x1003), abi.encodeWithSignature("operator()"), abi.encode(address(0x7007))
+        );
+        vm.prank(CREATOR);
+        subjectRegistry.registerSubject(_registration());
     }
 
     function testCreatesReceiverAndSweepsSimpleTransfers() external {
@@ -103,8 +104,8 @@ contract PaymentLinkFactoryTest is Test {
         assertEq(RevenueShareSplitterV2(splitter).directDepositUsdc(), 25e6);
     }
 
-    function testSubjectManagerCreatesCanonicalPaymentLink() external {
-        vm.prank(TREASURY);
+    function testControllerCreatesCanonicalPaymentLink() external {
+        vm.prank(CREATOR);
         address receiverAddress = paymentLinkFactory.createCanonicalPaymentLink(
             SUBJECT_ID, "Displayed", keccak256("displayed")
         );
@@ -115,7 +116,7 @@ contract PaymentLinkFactoryTest is Test {
         );
     }
 
-    function testReceiverFollowsSubjectSplitterRotation() external {
+    function testReceiverKeepsImmutableRegisteredSplitter() external {
         vm.prank(CREATOR);
         PaymentLinkReceiver receiver = PaymentLinkReceiver(
             payable(paymentLinkFactory.createPaymentLink(
@@ -137,9 +138,10 @@ contract PaymentLinkFactoryTest is Test {
         );
 
         vm.prank(TREASURY);
+        vm.expectRevert("SUBJECT_IMMUTABLE");
         subjectRegistry.updateSubject(SUBJECT_ID, address(nextSplitter), TREASURY, true, "Agent v2");
 
-        assertEq(receiver.destination(), address(nextSplitter));
+        assertEq(receiver.destination(), splitter);
 
         usdc.mint(PAYER, 10e6);
         vm.startPrank(PAYER);
@@ -147,8 +149,8 @@ contract PaymentLinkFactoryTest is Test {
         receiver.depositUSDC(10e6, keccak256("ref-2"));
         vm.stopPrank();
 
-        assertEq(RevenueShareSplitterV2(splitter).directDepositUsdc(), 0);
-        assertEq(nextSplitter.directDepositUsdc(), 10e6);
+        assertEq(RevenueShareSplitterV2(splitter).directDepositUsdc(), 10e6);
+        assertEq(nextSplitter.directDepositUsdc(), 0);
     }
 
     function testRejectsEthAndProtectsUsdcFromRescue() external {
@@ -175,5 +177,25 @@ contract PaymentLinkFactoryTest is Test {
 
     function _longLabel() internal pure returns (string memory) {
         return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    }
+
+    function _registration() internal view returns (ISubjectRegistry.SubjectRegistration memory) {
+        return ISubjectRegistry.SubjectRegistration({
+            subjectId: SUBJECT_ID,
+            stakeToken: address(stakeToken),
+            splitter: splitter,
+            agentSafe: TREASURY,
+            ingress: INGRESS_FACTORY,
+            paymentLinkFactory: address(paymentLinkFactory),
+            strategy: address(0x1003),
+            launchFeeRegistry: address(0x1004),
+            feeVault: address(0x1005),
+            feeHook: address(0x1006),
+            identityChainId: 0,
+            identityRegistry: address(0),
+            identityAgentId: 0,
+            label: "Agent",
+            safeRuntime: address(0x7007)
+        });
     }
 }

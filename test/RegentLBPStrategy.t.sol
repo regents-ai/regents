@@ -9,6 +9,7 @@ import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {LaunchFeeVault} from "src/autolaunch/LaunchFeeVault.sol";
 import {LaunchPoolFeeHook} from "src/autolaunch/LaunchPoolFeeHook.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {ISubjectLifecycleSync} from "src/autolaunch/revenue/interfaces/ISubjectLifecycleSync.sol";
 import {MockHookDeployer} from "test/mocks/MockHookDeployer.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
@@ -140,17 +141,9 @@ contract RegentLBPStrategyTest is Test {
         vault.setHook(address(hook));
         mismatchAuctionFactory = new MismatchAuctionFactory();
 
-        subjectRegistry = new SubjectRegistry(address(this));
+        subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
         lifecycleSplitter = new LifecycleSplitterMock();
         subjectId = keccak256(abi.encode(block.chainid, address(token)));
-        subjectRegistry.createSubject(
-            subjectId,
-            address(token),
-            address(lifecycleSplitter),
-            AGENT_TREASURY,
-            true,
-            "Launch Token"
-        );
         vestingWallet =
             new AgentTokenVestingWallet(AGENT_TREASURY, VESTING_START, 365 days, address(token));
 
@@ -159,11 +152,32 @@ contract RegentLBPStrategyTest is Test {
         token.mint(address(strategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
     }
 
-    /// @dev Wires the failed-launch unwind for `failedStrategy` the way the deployment
-    ///      controller does at finalize: vesting-wallet burn binding + registry dead authority.
+    /// @dev Wires the failed-launch unwind atomically around the final strategy identity.
     function _wireFailureUnwind(RegentLBPStrategy failedStrategy) internal {
         vestingWallet.bindStrategy(address(failedStrategy));
-        subjectRegistry.setSubjectLifecycleAuthority(subjectId, address(failedStrategy));
+        _registerStrategySubject(failedStrategy);
+    }
+
+    function _registerStrategySubject(RegentLBPStrategy registeredStrategy) internal {
+        subjectRegistry.registerSubject(
+            ISubjectRegistry.SubjectRegistration({
+                subjectId: subjectId,
+                stakeToken: address(token),
+                splitter: address(lifecycleSplitter),
+                agentSafe: AGENT_TREASURY,
+                ingress: address(0x1111),
+                paymentLinkFactory: address(0x2222),
+                strategy: address(registeredStrategy),
+                launchFeeRegistry: address(registry),
+                feeVault: address(vault),
+                feeHook: address(hook),
+                identityChainId: 0,
+                identityRegistry: address(0),
+                identityAgentId: 0,
+                label: "Launch Token",
+                safeRuntime: OPERATOR
+            })
+        );
     }
 
     /// @dev Registers the official launch pool authorizing `initializer` (the migrating strategy)
@@ -218,6 +232,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testMigrateRequiresAuctionCreation() external {
+        _registerStrategySubject(strategy);
         quoteToken.mint(address(strategy), 200e18);
 
         vm.roll(202);
@@ -228,6 +243,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testMigrateRequiresGraduatedAuctionEvenWhenStrategyHoldsQuoteToken() external {
         RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        _registerStrategySubject(failedStrategy);
         token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         failedStrategy.onTokensReceived();
         quoteToken.mint(address(failedStrategy), 200e18);
@@ -257,6 +273,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testMigrateCreatesRealV4PositionAndSweepsRemainders() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 201e18);
@@ -338,6 +355,7 @@ contract RegentLBPStrategyTest is Test {
     function testMigrateRevertsWhenStrategyNotAuthorizedInitializer() external {
         // Pool registered authorizing a DIFFERENT address as initializer; the strategy's direct
         // poolManager.initialize call must be rejected by the fee hook's beforeInitialize guard.
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(0xBEEF));
         quoteToken.mint(strategy.auctionAddress(), 200e18);
@@ -353,6 +371,7 @@ contract RegentLBPStrategyTest is Test {
     function testMigrateRevertsWhenPoolNotRegistered() external {
         // Without a registry entry the hook's beforeInitialize guard reverts POOL_NOT_REGISTERED,
         // so a graduated strategy cannot initialize an unregistered pool.
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         quoteToken.mint(strategy.auctionAddress(), 200e18);
 
@@ -368,6 +387,7 @@ contract RegentLBPStrategyTest is Test {
         // Adversarial: attacker directly calls poolManager.initialize before migrate(). The shared
         // hook authorizes only the registered strategy, so the front-run reverts and migrate()
         // remains reachable (no permanent freeze).
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 200e18);
@@ -392,6 +412,7 @@ contract RegentLBPStrategyTest is Test {
         // is not the authorized strategy, so the hook reverts. PositionManager.initializePool catches
         // that revert and returns the sentinel tick WITHOUT creating the pool, so the attacker cannot
         // pre-create the pool and migrate() still succeeds end-to-end (no permanent freeze).
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 200e18);
@@ -422,6 +443,7 @@ contract RegentLBPStrategyTest is Test {
         // front-running initialization both ways. Both attempts fail to pre-create the pool, migrate()
         // still succeeds, and the post-migration sweeps move funds — proving the freeze is gone.
         RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        _registerStrategySubject(graduatedStrategy);
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         graduatedStrategy.onTokensReceived();
         _registerOfficialPool(address(graduatedStrategy));
@@ -475,6 +497,7 @@ contract RegentLBPStrategyTest is Test {
 
     /// @dev Runs a graduated migration and returns the locked position id.
     function _migrateWithRaise(uint256 raised) internal returns (uint256 positionId) {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), raised);
@@ -596,6 +619,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testSweepsRequireMigrationToFinish() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         token.mint(address(strategy), 12e18);
         quoteToken.mint(address(strategy), 11e18);
@@ -608,6 +632,37 @@ contract RegentLBPStrategyTest is Test {
         vm.prank(OPERATOR);
         vm.expectRevert("MIGRATION_REQUIRED");
         strategy.sweepToken();
+    }
+
+    function testQuarantineBlocksMigrationSweepsAndRetirementBeforeEffects() external {
+        _registerStrategySubject(strategy);
+        strategy.onTokensReceived();
+        _registerOfficialPool(address(strategy));
+        quoteToken.mint(strategy.auctionAddress(), 200e18);
+        token.mint(address(strategy), 12e18);
+        quoteToken.mint(address(strategy), 11e18);
+
+        vm.prank(AGENT_TREASURY);
+        subjectRegistry.quarantineSubject(subjectId);
+
+        vm.roll(303);
+        vm.startPrank(OPERATOR);
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        strategy.migrate();
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        strategy.sweepToken();
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        strategy.sweepQuoteToken();
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
+        strategy.recoverFailedAuction();
+        vm.stopPrank();
+
+        assertFalse(strategy.migrated());
+        assertFalse(strategy.failedAuctionRecovered());
+        assertEq(
+            uint256(subjectRegistry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Quarantined)
+        );
     }
 
     function testRecoverFailedAuctionBurnsEntireSupplyAndMarksSubjectDead() external {
@@ -636,12 +691,13 @@ contract RegentLBPStrategyTest is Test {
         assertEq(token.balanceOf(AGENT_TREASURY), 0);
         assertTrue(failedStrategy.failedAuctionRecovered());
 
-        // The subject is dead and its splitter permanently retired.
-        assertTrue(subjectRegistry.subjectDead(subjectId));
-        assertFalse(subjectRegistry.getSubject(subjectId).active);
-        assertFalse(subjectRegistry.isSubjectActive(subjectId));
-        assertTrue(lifecycleSplitter.retired());
-        assertFalse(lifecycleSplitter.lastActive());
+        // The subject is terminally retired directly in the registry. No splitter callback runs.
+        assertEq(
+            uint256(subjectRegistry.lifecycleOf(subjectId)),
+            uint256(ISubjectRegistry.Lifecycle.Retired)
+        );
+        assertFalse(lifecycleSplitter.retired());
+        assertTrue(lifecycleSplitter.lastActive());
 
         // The vesting wallet has nothing left to release, ever. The launch never graduated, so
         // release is gated shut on top of the burn having emptied the balance.
@@ -664,7 +720,7 @@ contract RegentLBPStrategyTest is Test {
         failedStrategy.recoverFailedAuction();
 
         vm.prank(OPERATOR);
-        vm.expectRevert("ALREADY_RECOVERED");
+        vm.expectRevert("SUBJECT_NOT_ACTIVE");
         failedStrategy.recoverFailedAuction();
     }
 
@@ -697,6 +753,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testGraduatedAuctionSweepsFundsAfterEndAndMigrationUsesSweptCurrency() external {
         RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        _registerStrategySubject(graduatedStrategy);
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         graduatedStrategy.onTokensReceived();
         _registerOfficialPool(address(graduatedStrategy));
@@ -745,6 +802,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testMigrateUsesNetCurrencySweptAfterProtocolFee() external {
         RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        _registerStrategySubject(graduatedStrategy);
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         graduatedStrategy.onTokensReceived();
         _registerOfficialPool(address(graduatedStrategy));
@@ -767,6 +825,7 @@ contract RegentLBPStrategyTest is Test {
         uint256 raised = bound(uint256(raisedSeed), 3e18, 1000e18);
         RegentLBPStrategy graduatedStrategy =
             new RegentLBPStrategy(_strategyConfig(uint128(raised)));
+        _registerStrategySubject(graduatedStrategy);
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         graduatedStrategy.onTokensReceived();
         _registerOfficialPool(address(graduatedStrategy));
@@ -799,6 +858,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testMigrateIgnoresUnsolicitedQuoteTokenDonation() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 200e18);
@@ -814,6 +874,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testSweepCurrencyCanSendResidualDonationAfterMigration() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 200e18);
@@ -835,6 +896,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testRecoverFailedAuctionRevertsForGraduatedAuction() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
 
         vm.roll(303);
@@ -844,6 +906,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testRecoverFailedAuctionRevertsAfterMigration() external {
+        _registerStrategySubject(strategy);
         strategy.onTokensReceived();
         _registerOfficialPool(address(strategy));
         quoteToken.mint(strategy.auctionAddress(), 200e18);

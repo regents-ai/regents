@@ -22,11 +22,10 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
     uint256 private _reentrancyGuard = 1;
 
     string public label;
-    bool public override isReceiverActive = true;
-    address public override replacementReceiver;
+    bool public constant override isReceiverActive = true;
+    address public constant override replacementReceiver = address(0);
 
     event LabelSet(string label);
-    event ReceiverStateSet(bool active, address indexed replacementReceiver);
     event PaymentLinkDeposit(address indexed payer, uint256 amount, bytes32 indexed paymentRef);
     event PaymentLinkSwept(
         address indexed caller,
@@ -63,7 +62,7 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
 
         ISubjectRegistry.SubjectConfig memory subject =
             ISubjectRegistry(subjectRegistry_).getSubject(subjectId_);
-        require(subject.active, "SUBJECT_INACTIVE");
+        require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
         require(subject.splitter != address(0), "SPLITTER_ZERO");
         require(IRevenueShareSplitter(subject.splitter).usdc() == usdc_, "SPLITTER_USDC_MISMATCH");
         require(
@@ -85,13 +84,8 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
         emit LabelSet(label_);
     }
 
-    function setReceiverState(bool active, address replacement) external onlyFactory {
-        if (replacement != address(0)) {
-            require(replacement != address(this), "REPLACEMENT_IS_SELF");
-        }
-        isReceiverActive = active;
-        replacementReceiver = replacement;
-        emit ReceiverStateSet(active, replacement);
+    function setReceiverState(bool, address) external view onlyFactory {
+        revert("PAYMENT_LINK_IMMUTABLE");
     }
 
     function destination() public view override returns (address splitter) {
@@ -104,7 +98,7 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
         nonReentrant
         returns (uint256 received, uint256 recognized)
     {
-        require(isReceiverActive, "RECEIVER_INACTIVE");
+        _requireActiveSubject();
         require(amount != 0, "AMOUNT_ZERO");
         require(paymentRef != bytes32(0), "PAYMENT_REF_ZERO");
 
@@ -123,6 +117,7 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
         returns (uint256 balance, uint256 recognized)
     {
         require(paymentRef != bytes32(0), "PAYMENT_REF_ZERO");
+        _requireActiveSubject();
         return _forwardUSDC(paymentRef);
     }
 
@@ -130,8 +125,6 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
         internal
         returns (uint256 balance, uint256 recognized)
     {
-        // Sweeping is always safe: funds route only to the subject's canonical splitter.
-        // Deactivation blocks new deposits (see depositUSDC) but must never strand held USDC.
         address splitter = destination();
         require(IRevenueShareSplitter(splitter).usdc() == usdc, "SPLITTER_USDC_MISMATCH");
         require(
@@ -154,5 +147,13 @@ contract PaymentLinkReceiver is Owned, ISubjectPaymentReceiver {
 
     function _isProtectedToken(address token) internal view override returns (bool) {
         return token == usdc;
+    }
+
+    function _requireActiveSubject() internal view {
+        require(
+            ISubjectRegistry(subjectRegistry).lifecycleOf(subjectId)
+                == ISubjectRegistry.Lifecycle.Active,
+            "SUBJECT_NOT_ACTIVE"
+        );
     }
 }
