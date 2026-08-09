@@ -32,6 +32,18 @@ contract PaymentLinkFactoryTest is Test {
     PaymentLinkFactory internal paymentLinkFactory;
     address internal splitter;
 
+    event PaymentLinkCreated(
+        bytes32 indexed subjectId,
+        address indexed receiver,
+        address indexed creator,
+        address controller,
+        address beneficiary,
+        uint16 referralBps,
+        address splitter,
+        string label,
+        bool canonical
+    );
+
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
@@ -70,6 +82,10 @@ contract PaymentLinkFactoryTest is Test {
 
         PaymentLinkReceiver receiver = PaymentLinkReceiver(payable(receiverAddress));
         assertEq(receiver.destination(), splitter);
+        assertEq(receiver.creator(), CREATOR);
+        assertEq(receiver.controller(), CREATOR);
+        assertEq(receiver.beneficiary(), CREATOR);
+        assertEq(receiver.referralBps(), 0);
         assertTrue(paymentLinkFactory.isPaymentLink(receiverAddress));
         assertEq(paymentLinkFactory.canonicalPaymentLinkCountForSubject(SUBJECT_ID), 0);
         assertEq(paymentLinkFactory.paymentLinkForCreatorAt(CREATOR, 0), receiverAddress);
@@ -105,15 +121,95 @@ contract PaymentLinkFactoryTest is Test {
     }
 
     function testControllerCreatesCanonicalPaymentLink() external {
+        address predicted = _predictedReceiver(
+            CREATOR, TREASURY, TREASURY, 0, "Displayed", keccak256("displayed"), true
+        );
+
+        vm.expectEmit(true, true, true, true, address(paymentLinkFactory));
+        emit PaymentLinkCreated(
+            SUBJECT_ID, predicted, CREATOR, TREASURY, TREASURY, 0, splitter, "Displayed", true
+        );
         vm.prank(CREATOR);
         address receiverAddress = paymentLinkFactory.createCanonicalPaymentLink(
             SUBJECT_ID, "Displayed", keccak256("displayed")
         );
 
+        PaymentLinkReceiver receiver = PaymentLinkReceiver(payable(receiverAddress));
+        assertEq(receiverAddress, predicted);
+        assertEq(receiver.creator(), paymentLinkFactory.controller());
+        assertEq(receiver.controller(), TREASURY);
+        assertEq(receiver.agentSafe(), TREASURY);
+        assertEq(receiver.beneficiary(), TREASURY);
+        assertEq(receiver.referralBps(), 0);
+        assertTrue(receiver.canonical());
+        assertEq(receiver.destination(), splitter);
         assertEq(paymentLinkFactory.canonicalPaymentLinkCountForSubject(SUBJECT_ID), 1);
         assertEq(
             paymentLinkFactory.canonicalPaymentLinkForSubjectAt(SUBJECT_ID, 0), receiverAddress
         );
+
+        vm.prank(CREATOR);
+        vm.expectRevert("CANONICAL_LINK_EXISTS");
+        paymentLinkFactory.createCanonicalPaymentLink(
+            SUBJECT_ID, "Duplicate", keccak256("duplicate")
+        );
+
+        vm.prank(PAYER);
+        vm.expectRevert("ONLY_CONTROLLER");
+        paymentLinkFactory.createCanonicalPaymentLink(
+            SUBJECT_ID, "Arbitrary", keccak256("arbitrary")
+        );
+    }
+
+    function testPermissionlessCreatorAndControllerIdentityWithPassiveEoaBeneficiary() external {
+        address predicted = _predictedReceiver(
+            PAYER, PAYER, CREATOR, 250, "Referral", keccak256("referral"), false
+        );
+        vm.expectEmit(true, true, true, true, address(paymentLinkFactory));
+        emit PaymentLinkCreated(
+            SUBJECT_ID, predicted, PAYER, PAYER, CREATOR, 250, splitter, "Referral", false
+        );
+        vm.prank(PAYER);
+        PaymentLinkReceiver receiver = PaymentLinkReceiver(
+            payable(paymentLinkFactory.createPaymentLink(
+                    SUBJECT_ID, CREATOR, 250, "Referral", keccak256("referral")
+                ))
+        );
+
+        assertEq(address(receiver), predicted);
+        assertEq(receiver.creator(), PAYER);
+        assertEq(receiver.controller(), PAYER);
+        assertEq(receiver.agentSafe(), TREASURY);
+        assertEq(receiver.beneficiary(), CREATOR);
+        assertEq(receiver.referralBps(), 250);
+        assertFalse(receiver.canonical());
+        assertEq(receiver.destination(), splitter);
+    }
+
+    function testReferralBoundsAreInclusive() external {
+        vm.startPrank(PAYER);
+        PaymentLinkReceiver zero = PaymentLinkReceiver(
+            payable(paymentLinkFactory.createPaymentLink(
+                    SUBJECT_ID, CREATOR, 0, "Zero", keccak256("zero")
+                ))
+        );
+        PaymentLinkReceiver max = PaymentLinkReceiver(
+            payable(paymentLinkFactory.createPaymentLink(
+                    SUBJECT_ID, CREATOR, 250, "Max", keccak256("max")
+                ))
+        );
+        assertEq(zero.referralBps(), 0);
+        assertEq(max.referralBps(), 250);
+
+        vm.expectRevert("REFERRAL_BPS_TOO_HIGH");
+        paymentLinkFactory.createPaymentLink(
+            SUBJECT_ID, CREATOR, 251, "Too high", keccak256("too-high")
+        );
+        vm.expectRevert("BENEFICIARY_ZERO");
+        paymentLinkFactory.createPaymentLink(
+            SUBJECT_ID, address(0), 1, "Zero beneficiary", keccak256("zero-beneficiary")
+        );
+        vm.stopPrank();
     }
 
     function testReceiverKeepsImmutableRegisteredSplitter() external {
@@ -153,7 +249,7 @@ contract PaymentLinkFactoryTest is Test {
         assertEq(nextSplitter.directDepositUsdc(), 0);
     }
 
-    function testRejectsEthAndProtectsUsdcFromRescue() external {
+    function testRejectsEthAndHasNoRecoverySurface() external {
         vm.prank(CREATOR);
         PaymentLinkReceiver receiver = PaymentLinkReceiver(
             payable(paymentLinkFactory.createPaymentLink(SUBJECT_ID, "No ETH", keccak256("no-eth")))
@@ -165,9 +261,14 @@ contract PaymentLinkFactoryTest is Test {
         assertFalse(success);
 
         usdc.mint(address(receiver), 1e6);
-        vm.prank(CREATOR);
-        vm.expectRevert("PROTECTED_TOKEN");
-        receiver.rescueUnsupportedToken(address(usdc), 1e6, CREATOR);
+        (success,) = address(receiver)
+            .call(
+                abi.encodeWithSignature(
+                    "rescueUnsupportedToken(address,uint256,address)", address(usdc), 1e6, CREATOR
+                )
+            );
+        assertFalse(success);
+        assertEq(usdc.balanceOf(address(receiver)), 1e6);
     }
 
     function testRejectsLongLabels() external {
@@ -177,6 +278,41 @@ contract PaymentLinkFactoryTest is Test {
 
     function _longLabel() internal pure returns (string memory) {
         return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    }
+
+    function _predictedReceiver(
+        address creator,
+        address linkController,
+        address beneficiary,
+        uint16 referralBps,
+        string memory label,
+        bytes32 salt,
+        bool canonical
+    ) internal view returns (address) {
+        bytes32 deploymentSalt = keccak256(
+            abi.encode(
+                creator, linkController, beneficiary, referralBps, SUBJECT_ID, salt, canonical
+            )
+        );
+        bytes32 initCodeHash = keccak256(
+            abi.encodePacked(
+                type(PaymentLinkReceiver).creationCode,
+                abi.encode(
+                    address(usdc),
+                    address(subjectRegistry),
+                    SUBJECT_ID,
+                    splitter,
+                    TREASURY,
+                    creator,
+                    linkController,
+                    beneficiary,
+                    referralBps,
+                    canonical,
+                    label
+                )
+            )
+        );
+        return vm.computeCreate2Address(deploymentSalt, initCodeHash, address(paymentLinkFactory));
     }
 
     function _registration() internal view returns (ISubjectRegistry.SubjectRegistration memory) {

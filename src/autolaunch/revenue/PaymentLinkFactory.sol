@@ -9,7 +9,8 @@ import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
 
 contract PaymentLinkFactory is Owned {
     uint256 public constant MAX_PUBLIC_LINKS_PER_CREATOR_PER_SUBJECT = 16;
-    uint256 public constant MAX_CANONICAL_LINKS_PER_SUBJECT = 64;
+    uint256 public constant MAX_CANONICAL_LINKS_PER_SUBJECT = 1;
+    uint16 public constant MAX_REFERRAL_BPS = 250;
     uint256 public constant MAX_PAGE_SIZE = 100;
 
     address public immutable usdc;
@@ -19,6 +20,7 @@ contract PaymentLinkFactory is Owned {
     struct PaymentLinkMeta {
         bytes32 subjectId;
         address creator;
+        address controller;
         bool canonical;
     }
 
@@ -32,6 +34,10 @@ contract PaymentLinkFactory is Owned {
         bytes32 indexed subjectId,
         address indexed receiver,
         address indexed creator,
+        address controller,
+        address beneficiary,
+        uint16 referralBps,
+        address splitter,
         string label,
         bool canonical
     );
@@ -63,12 +69,34 @@ contract PaymentLinkFactory is Owned {
         external
         returns (address receiver)
     {
+        return _createPublicPaymentLink(subjectId, msg.sender, 0, label, salt);
+    }
+
+    function createPaymentLink(
+        bytes32 subjectId,
+        address beneficiary,
+        uint16 referralBps,
+        string calldata label,
+        bytes32 salt
+    ) external returns (address receiver) {
+        return _createPublicPaymentLink(subjectId, beneficiary, referralBps, label, salt);
+    }
+
+    function _createPublicPaymentLink(
+        bytes32 subjectId,
+        address beneficiary,
+        uint16 referralBps,
+        string calldata label,
+        bytes32 salt
+    ) internal returns (address receiver) {
         require(
             publicLinkCountByCreatorForSubject[subjectId][msg.sender]
                 < MAX_PUBLIC_LINKS_PER_CREATOR_PER_SUBJECT,
             "PUBLIC_LINK_LIMIT"
         );
-        receiver = _createPaymentLink(subjectId, msg.sender, label, salt, false);
+        receiver = _createPaymentLink(
+            subjectId, msg.sender, msg.sender, beneficiary, referralBps, label, salt, false
+        );
         publicLinkCountByCreatorForSubject[subjectId][msg.sender] += 1;
     }
 
@@ -77,7 +105,11 @@ contract PaymentLinkFactory is Owned {
         onlyController
         returns (address receiver)
     {
-        receiver = _createPaymentLink(subjectId, msg.sender, label, salt, true);
+        require(canonicalPaymentLinksBySubject[subjectId].length == 0, "CANONICAL_LINK_EXISTS");
+        ISubjectRegistry.SubjectConfig memory subject = _validatedSubject(subjectId);
+        receiver = _createPaymentLink(
+            subjectId, controller, subject.treasurySafe, subject.treasurySafe, 0, label, salt, true
+        );
     }
 
     function setPaymentLinkCanonical(address, bool) external pure {
@@ -135,50 +167,83 @@ contract PaymentLinkFactory is Owned {
     function _createPaymentLink(
         bytes32 subjectId,
         address creator,
+        address linkController,
+        address beneficiary,
+        uint16 referralBps,
         string calldata label,
         bytes32 salt,
         bool canonical
     ) internal returns (address receiver) {
         require(subjectId != bytes32(0), "SUBJECT_ZERO");
         require(creator != address(0), "CREATOR_ZERO");
+        require(linkController != address(0), "CONTROLLER_ZERO");
+        require(beneficiary != address(0), "BENEFICIARY_ZERO");
+        require(referralBps <= MAX_REFERRAL_BPS, "REFERRAL_BPS_TOO_HIGH");
         InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
-        ISubjectRegistry.SubjectConfig memory subject =
-            ISubjectRegistry(subjectRegistry).getSubject(subjectId);
+        ISubjectRegistry.SubjectConfig memory subject = _validatedSubject(subjectId);
+
+        bytes32 deploymentSalt = keccak256(
+            abi.encode(
+                creator, linkController, beneficiary, referralBps, subjectId, salt, canonical
+            )
+        );
+        PaymentLinkReceiver deployed = new PaymentLinkReceiver{salt: deploymentSalt}(
+            usdc,
+            subjectRegistry,
+            subjectId,
+            subject.splitter,
+            subject.treasurySafe,
+            creator,
+            linkController,
+            beneficiary,
+            referralBps,
+            canonical,
+            label
+        );
+        receiver = address(deployed);
+
+        isPaymentLink[receiver] = true;
+        paymentLinkMeta[receiver] = PaymentLinkMeta({
+            subjectId: subjectId, creator: creator, controller: linkController, canonical: canonical
+        });
+        paymentLinksByCreator[creator].push(receiver);
+        if (canonical) {
+            _pushCanonicalPaymentLink(subjectId, receiver);
+        }
+
+        emit PaymentLinkCreated(
+            subjectId,
+            receiver,
+            creator,
+            linkController,
+            beneficiary,
+            referralBps,
+            subject.splitter,
+            label,
+            canonical
+        );
+    }
+
+    function _validatedSubject(bytes32 subjectId)
+        internal
+        view
+        returns (ISubjectRegistry.SubjectConfig memory subject)
+    {
+        subject = ISubjectRegistry(subjectRegistry).getSubject(subjectId);
         require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
+        require(subject.treasurySafe != address(0), "AGENT_SAFE_ZERO");
         require(subject.splitter != address(0), "SPLITTER_ZERO");
         require(IRevenueShareSplitter(subject.splitter).usdc() == usdc, "SPLITTER_USDC_MISMATCH");
         require(
             IRevenueShareSplitter(subject.splitter).subjectId() == subjectId,
             "SPLITTER_SUBJECT_MISMATCH"
         );
-
-        bytes32 deploymentSalt = keccak256(abi.encode(creator, subjectId, salt));
-        PaymentLinkReceiver deployed = new PaymentLinkReceiver{salt: deploymentSalt}(
-            usdc, subjectRegistry, subjectId, creator, label
-        );
-        receiver = address(deployed);
-
-        isPaymentLink[receiver] = true;
-        paymentLinkMeta[receiver] =
-            PaymentLinkMeta({subjectId: subjectId, creator: creator, canonical: canonical});
-        paymentLinksByCreator[creator].push(receiver);
-        if (canonical) {
-            _pushCanonicalPaymentLink(subjectId, receiver);
-        }
-
-        emit PaymentLinkCreated(subjectId, receiver, creator, label, canonical);
     }
 
     function _pushCanonicalPaymentLink(bytes32 subjectId, address receiver) internal {
         address[] storage links = canonicalPaymentLinksBySubject[subjectId];
-        uint256 length = links.length;
-        for (uint256 i; i < length; ++i) {
-            if (links[i] == receiver) {
-                return;
-            }
-        }
-        require(length < MAX_CANONICAL_LINKS_PER_SUBJECT, "CANONICAL_LINK_LIMIT");
+        require(links.length == 0, "CANONICAL_LINK_EXISTS");
         links.push(receiver);
     }
 
