@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   @logout_epoch_cookie "_ash_platform_logout_epoch"
   @logout_epoch_session_key :privy_logout_epoch
   @live_socket_prefix "privy_sessions:"
+  @live_socket_token_pattern ~r/\A[A-Za-z0-9_-]{43}\z/
 
   alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Accounts.VerifiedSession
@@ -26,12 +27,19 @@ defmodule AshPlatformWeb.PrivySessionController do
     with {:ok, token} <- bearer_token(conn),
          {:ok, verified} <- verifier().verify_access_token(token),
          {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
+      {conn, session_changed?} =
+        if previous_account_id == account.id and
+             canonical_live_socket_id(get_session(conn, :live_socket_id)) do
+          {conn, false}
+        else
+          {replace_authenticated_session(conn, account.id, logout_epoch), true}
+        end
+
       conn
-      |> replace_authenticated_session(account.id, logout_epoch)
       |> put_identity_conflict_header(identity_conflicts)
       |> put_resp_header(
         "x-ash-session-changed",
-        to_string(previous_account_id != account.id)
+        to_string(session_changed?)
       )
       |> json(session_payload(account))
     else
@@ -92,10 +100,17 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   def delete(conn, _params) do
+    live_socket_id = canonical_live_socket_id(get_session(conn, :live_socket_id))
+
+    %Plug.Conn{state: :sent} =
+      conn =
+      conn
+      |> drop_local_session(disconnect: false)
+      |> put_resp_cookie(@logout_epoch_cookie, logout_epoch(), logout_epoch_cookie_options())
+      |> json(%{ok: true})
+
+    broadcast_disconnect(live_socket_id)
     conn
-    |> drop_local_session()
-    |> put_resp_cookie(@logout_epoch_cookie, logout_epoch(), logout_epoch_cookie_options())
-    |> json(%{ok: true})
   end
 
   def enforce_logout_epoch(conn) do
@@ -104,9 +119,11 @@ defmodule AshPlatformWeb.PrivySessionController do
     session_epoch = get_session(conn, @logout_epoch_session_key)
     current_epoch = conn.req_cookies[@logout_epoch_cookie]
 
-    if is_integer(account_id) and session_epoch != current_epoch,
-      do: drop_local_session(conn),
-      else: conn
+    if is_integer(account_id) and session_epoch != current_epoch do
+      if routed_session_delete?(conn), do: conn, else: drop_local_session(conn)
+    else
+      conn
+    end
   end
 
   defp unauthorized(conn) do
@@ -116,8 +133,8 @@ defmodule AshPlatformWeb.PrivySessionController do
     |> json(%{error: "unauthorized"})
   end
 
-  defp drop_local_session(conn) do
-    reset_local_session(conn, drop: true)
+  defp drop_local_session(conn, options \\ []) do
+    reset_local_session(conn, Keyword.put(options, :drop, true))
   end
 
   defp replace_authenticated_session(conn, account_id, logout_epoch) do
@@ -129,9 +146,12 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   defp reset_local_session(conn, options) do
+    disconnect? = Keyword.get(options, :disconnect, true)
+    session_options = Keyword.delete(options, :disconnect)
+    conn = if disconnect?, do: disconnect_live_socket(conn), else: conn
+
     conn
-    |> disconnect_live_socket()
-    |> configure_session(options)
+    |> configure_session(session_options)
     |> clear_session()
   end
 
@@ -141,15 +161,36 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   defp disconnect_live_socket(conn) do
-    case get_session(conn, :live_socket_id) do
-      @live_socket_prefix <> _token = live_socket_id ->
-        AshPlatformWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
-
-      _other ->
-        :ok
-    end
+    conn
+    |> get_session(:live_socket_id)
+    |> canonical_live_socket_id()
+    |> broadcast_disconnect()
 
     conn
+  end
+
+  defp canonical_live_socket_id(@live_socket_prefix <> token = live_socket_id)
+       when byte_size(token) == 43 do
+    with true <- Regex.match?(@live_socket_token_pattern, token),
+         {:ok, decoded} <- Base.url_decode64(token, padding: false),
+         true <- byte_size(decoded) == 32,
+         ^token <- Base.url_encode64(decoded, padding: false) do
+      live_socket_id
+    else
+      _ -> nil
+    end
+  end
+
+  defp canonical_live_socket_id(_other), do: nil
+
+  defp broadcast_disconnect(nil), do: :ok
+
+  defp broadcast_disconnect(live_socket_id) do
+    AshPlatformWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+  end
+
+  defp routed_session_delete?(conn) do
+    conn.method == "DELETE" and conn.path_info == ["auth", "privy", "session"]
   end
 
   defp put_logout_epoch_session(conn, nil), do: conn

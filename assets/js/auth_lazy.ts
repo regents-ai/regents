@@ -11,10 +11,15 @@ export type IdentityRequest = {
 export type PrivyBridgeHandle = {
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
+  finishSignOutOnly?: () => void
+}
+
+export type PrivyBridgeStartupOptions = {
+  mode?: "ordinary" | "sign-out-only"
 }
 
 export type PrivyBridgeModule = {
-  startPrivyBridge: () => Promise<PrivyBridgeHandle>
+  startPrivyBridge: (options?: PrivyBridgeStartupOptions) => Promise<PrivyBridgeHandle>
 }
 
 type PrivyBridgeImporter = () => Promise<PrivyBridgeModule>
@@ -27,14 +32,18 @@ type BrowserPrivyBridgeImporterOptions = {
 
 type AccountAuthInstallOptions = {
   clearSession?: () => Promise<void>
+  handoffStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
+  now?: () => number
   providerSignOutTimeoutMs?: number
-  reload?: () => void
   sessionMutations?: SessionMutationCoordinator
   signedInStartupTimeoutMs?: number
 }
 
 const defaultProviderSignOutTimeoutMs = 1_500
 const defaultSignedInStartupTimeoutMs = 5_000
+const signOutHandoffKey = "regent:privy-sign-out-handoff:v1"
+const signOutHandoffMaxAgeMs = 30_000
+const consumedHandoffDocuments = new WeakSet<Document>()
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
@@ -62,6 +71,127 @@ export async function clearLocalSession(fetcher: typeof fetch = fetch): Promise<
     headers: {"x-csrf-token": csrf},
   })
   if (!response.ok) throw new Error("Sign out could not be completed.")
+}
+
+type SignOutHandoff = {version: 1; issuedAtMs: number}
+
+function handoffStorageOrNull(
+  storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">,
+) {
+  if (storage) return storage
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+export function writeSignOutHandoff(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null,
+  issuedAtMs: number,
+): boolean {
+  if (!storage || !Number.isInteger(issuedAtMs)) return false
+  const value = JSON.stringify({version: 1, issuedAtMs} satisfies SignOutHandoff)
+
+  try {
+    storage.setItem(signOutHandoffKey, value)
+  } catch {
+    return false
+  }
+
+  try {
+    return storage.getItem(signOutHandoffKey) === value
+  } catch {
+    return false
+  }
+}
+
+export function clearSignOutHandoff(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null,
+): void {
+  if (!storage) return
+
+  try {
+    storage.removeItem(signOutHandoffKey)
+  } catch {
+    try {
+      storage.setItem(signOutHandoffKey, "")
+    } catch {
+      return
+    }
+  }
+
+  try {
+    if (storage.getItem(signOutHandoffKey) !== null) {
+      storage.setItem(signOutHandoffKey, "")
+      void storage.getItem(signOutHandoffKey)
+    }
+  } catch {
+    // Cleanup is best-effort and must never mask the local sign-out failure.
+  }
+}
+
+function validSignOutHandoff(value: string, nowMs: number): boolean {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false
+    const record = parsed as Record<string, unknown>
+    if (Object.keys(record).sort().join(",") !== "issuedAtMs,version") return false
+    if (record.version !== 1 || !Number.isInteger(record.issuedAtMs)) return false
+    const issuedAtMs = record.issuedAtMs as number
+    return issuedAtMs <= nowMs && nowMs - issuedAtMs <= signOutHandoffMaxAgeMs
+  } catch {
+    return false
+  }
+}
+
+export function consumeSignOutHandoff(
+  documentRoot: Document,
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null,
+  nowMs: number,
+): boolean {
+  if (consumedHandoffDocuments.has(documentRoot)) return false
+  consumedHandoffDocuments.add(documentRoot)
+  if (!storage) return false
+
+  let captured: string | null
+  try {
+    captured = storage.getItem(signOutHandoffKey)
+  } catch {
+    return false
+  }
+
+  try {
+    storage.removeItem(signOutHandoffKey)
+  } catch {
+    return false
+  }
+
+  try {
+    if (storage.getItem(signOutHandoffKey) !== null) return false
+  } catch {
+    return false
+  }
+
+  return captured !== null && validSignOutHandoff(captured, nowMs)
+}
+
+export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const response = await fetcher("/auth/session", {
+      credentials: "same-origin",
+      redirect: "error",
+    })
+    if (!response.ok || response.redirected) return false
+    const body = (await response.json()) as unknown
+    return Boolean(
+      body &&
+        typeof body === "object" &&
+        (body as {authenticated?: unknown}).authenticated === false,
+    )
+  } catch {
+    return false
+  }
 }
 
 export type SessionMutationCoordinator = {
@@ -204,7 +334,10 @@ export function createBrowserPrivyBridgeImporter({
 
 export function createLazyAuthLoader(
   importer: PrivyBridgeImporter,
+  startupOptions: PrivyBridgeStartupOptions = {},
 ) {
+  let state: "ordinary" | "handoff-preterminal" | "handoff-terminal" =
+    startupOptions.mode === "sign-out-only" ? "handoff-preterminal" : "ordinary"
   let handle: PrivyBridgeHandle | null = null
   let preparing: Promise<void> | null = null
   let pending: AccountRequest | IdentityRequest | null = null
@@ -255,7 +388,9 @@ export function createLazyAuthLoader(
         if (typeof module.startPrivyBridge !== "function") {
           throw new Error("Privy bridge module is invalid")
         }
-        return module.startPrivyBridge()
+        return startupOptions.mode
+          ? module.startPrivyBridge(startupOptions)
+          : module.startPrivyBridge()
       })
       .then(readyHandle => {
         if (!readyHandle || typeof readyHandle.request !== "function") {
@@ -263,6 +398,7 @@ export function createLazyAuthLoader(
         }
         handle = readyHandle
         preparing = null
+        if (state === "handoff-terminal") handle.finishSignOutOnly?.()
         return deliverPending()
       })
 
@@ -275,6 +411,15 @@ export function createLazyAuthLoader(
 
   return {
     request(request: AccountRequest): Promise<void> {
+      if (state === "handoff-preterminal" && request !== "sign-out") {
+        return Promise.reject(new Error("Provider sign out is still in progress."))
+      }
+      if (state === "handoff-terminal") {
+        if (request === "sign-out") return Promise.resolve()
+        if (request === "sync") {
+          return Promise.reject(new Error("Automatic reconciliation is disabled."))
+        }
+      }
       if (
         delivering &&
         sameRequest(delivering.request, request) &&
@@ -287,6 +432,9 @@ export function createLazyAuthLoader(
       return preparing ?? prepare()
     },
     identity(request: IdentityRequest): Promise<void> {
+      if (state === "handoff-preterminal") {
+        return Promise.reject(new Error("Provider sign out is still in progress."))
+      }
       if (
         delivering &&
         sameRequest(delivering.request, request) &&
@@ -298,6 +446,12 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
+    finishHandoff(): void {
+      if (state !== "handoff-preterminal") return
+      state = "handoff-terminal"
+      pending = null
+      handle?.finishSignOutOnly?.()
+    },
   }
 }
 
@@ -306,17 +460,21 @@ export function installAccountAuthLazyLoader(
   importer?: PrivyBridgeImporter,
   {
     clearSession = clearLocalSession,
+    handoffStorage,
+    now = () => Date.now(),
     providerSignOutTimeoutMs = defaultProviderSignOutTimeoutMs,
-    reload = () => window.location.reload(),
     sessionMutations = browserSessionMutations,
     signedInStartupTimeoutMs = defaultSignedInStartupTimeoutMs,
   }: AccountAuthInstallOptions = {},
 ): () => void {
+  const storage = handoffStorageOrNull(handoffStorage)
+  const consumedHandoff = consumeSignOutHandoff(documentRoot, storage, now())
   const bridgeSource = documentRoot.querySelector<HTMLMetaElement>(
     "meta[name='privy-bridge-src']",
   )?.content
   const loader = createLazyAuthLoader(
     importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null}),
+    consumedHandoff ? {mode: "sign-out-only"} : {},
   )
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
@@ -353,27 +511,17 @@ export function installAccountAuthLazyLoader(
     if (signOutInFlight) return
     userSignOutStarted = true
     clearStatus()
+    writeSignOutHandoff(storage, now())
 
     const attempt = (async () => {
       try {
         await sessionMutations.signOut(clearSession)
       } catch {
+        clearSignOutHandoff(storage)
         showLoadFailure("sign-out")
         return
       }
-
-      try {
-        await withinWindow(
-          loader.request("sign-out"),
-          providerSignOutTimeoutMs,
-          "Provider sign out did not become ready.",
-        )
-        clearStatus()
-      } catch {
-        showProviderSignOutFailure()
-      } finally {
-        reload()
-      }
+      clearStatus()
     })()
 
     signOutInFlight = attempt
@@ -419,14 +567,32 @@ export function installAccountAuthLazyLoader(
       } catch {
         return
       }
-
-      if (!userSignOutStarted) reload()
     })
   }
 
   documentRoot.addEventListener("click", onClick)
   documentRoot.addEventListener("ash:identity-request", onIdentityRequest)
-  if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
+  if (consumedHandoff) {
+    void proveAnonymousSession().then(async anonymous => {
+      if (!anonymous) {
+        loader.finishHandoff()
+        return
+      }
+
+      try {
+        await withinWindow(
+          loader.request("sign-out"),
+          providerSignOutTimeoutMs,
+          "Provider sign out did not become ready.",
+        )
+        clearStatus()
+      } catch {
+        showProviderSignOutFailure()
+      } finally {
+        loader.finishHandoff()
+      }
+    })
+  } else if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
     reconcileSignedInStartup()
   }
   return () => {

@@ -41,7 +41,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
              "live_socket_id"
            ]
 
-    assert get_session(signed_in, :live_socket_id) =~ "privy_sessions:"
+    assert_canonical_live_socket_id(get_session(signed_in, :live_socket_id))
 
     assert {:ok, account} =
              Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
@@ -200,6 +200,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     AshPlatformWeb.Endpoint.subscribe(live_socket_id)
     {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
     assert Process.alive?(view.pid)
+    flush_test_messages()
 
     deleted =
       build_conn()
@@ -207,15 +208,44 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       |> put_valid_csrf()
       |> delete("/auth/privy/session")
 
-    assert %{"ok" => true} = json_response(deleted, 200)
+    assert_response_sent_then_disconnect(live_socket_id)
 
-    assert_receive %Phoenix.Socket.Broadcast{
-      topic: ^live_socket_id,
-      event: "disconnect"
-    }
+    assert %{"ok" => true} = json_response(deleted, 200)
   end
 
-  test "session refresh disconnects the Formation LiveView mounted under the previous session", %{
+  test "stale-epoch logout sends the dropped-session response before one disconnect", %{
+    conn: conn
+  } do
+    conn
+    |> init_test_session(%{})
+    |> put_valid_csrf()
+    |> put_req_header("authorization", "Bearer valid")
+    |> post("/auth/privy/session", %{})
+
+    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+    live_socket_id = canonical_live_socket_id()
+    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
+    flush_test_messages()
+
+    deleted =
+      build_conn()
+      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
+      |> init_test_session(%{
+        human_account_id: account.id,
+        live_socket_id: live_socket_id,
+        privy_logout_epoch: "stale-epoch"
+      })
+      |> put_valid_csrf()
+      |> delete("/auth/privy/session")
+
+    assert_response_sent_then_disconnect(live_socket_id)
+
+    refute_receive %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"}
+    assert %{"ok" => true} = json_response(deleted, 200)
+    assert deleted.private[:plug_session_info] == :drop
+  end
+
+  test "canonical same-account refresh preserves the mounted Formation LiveView session", %{
     conn: conn
   } do
     signed_in =
@@ -233,21 +263,83 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
     assert Process.alive?(view.pid)
 
-    refreshed =
+    refresh_request =
       build_conn()
       |> init_test_session(get_session(signed_in))
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
+
+    expected_session = get_session(refresh_request)
+    refreshed = post(refresh_request, "/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
+    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
     assert get_session(refreshed, :human_account_id) == previous_account_id
-    refute get_session(refreshed, :live_socket_id) == previous_socket_id
+    assert get_session(refreshed) == expected_session
+    assert get_session(refreshed, :live_socket_id) == previous_socket_id
+    refute refreshed.private[:plug_session_info] in [:renew, :drop]
 
-    assert_receive %Phoenix.Socket.Broadcast{
+    refute_receive %Phoenix.Socket.Broadcast{
       topic: ^previous_socket_id,
       event: "disconnect"
     }
+
+    assert Process.alive?(view.pid)
+    assert render_click(view, "refresh_verified_connections", %{}) =~ "Form your one Regent"
+  end
+
+  test "same-account refresh renews every incomplete socket form without broadcasting it", %{
+    conn: conn
+  } do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    account_id = get_session(signed_in, :human_account_id)
+    canonical_token = Base.url_encode64(:binary.copy(<<0>>, 32), padding: false)
+
+    malformed_socket_ids = [
+      nil,
+      "",
+      "privy_sessions:",
+      "privy_sessions:short",
+      "privy_sessions:" <> String.duplicate("a", 43),
+      "privy_sessions:" <> String.duplicate("+", 43),
+      "privy_sessions:" <> Base.url_encode64(:binary.copy(<<0>>, 31), padding: false),
+      "privy_sessions:" <> canonical_token <> "="
+    ]
+
+    for malformed_socket_id <- malformed_socket_ids do
+      if malformed_socket_id, do: AshPlatformWeb.Endpoint.subscribe(malformed_socket_id)
+
+      refreshed =
+        build_conn()
+        |> init_test_session(%{
+          human_account_id: account_id,
+          live_socket_id: malformed_socket_id,
+          unrelated: "discard-me"
+        })
+        |> put_valid_csrf()
+        |> put_req_header("authorization", "Bearer valid")
+        |> post("/auth/privy/session", %{})
+
+      assert %{"authenticated" => true} = json_response(refreshed, 200)
+      assert get_resp_header(refreshed, "x-ash-session-changed") == ["true"]
+      assert refreshed.private[:plug_session_info] == :renew
+      assert_canonical_live_socket_id(get_session(refreshed, :live_socket_id))
+      refute get_session(refreshed, :live_socket_id) == malformed_socket_id
+      refute get_session(refreshed, :unrelated)
+
+      if malformed_socket_id do
+        refute_receive %Phoenix.Socket.Broadcast{
+          topic: ^malformed_socket_id,
+          event: "disconnect"
+        }
+      end
+    end
   end
 
   test "the current logout epoch rejects a late pre-logout session and admits a fresh sign-in", %{
@@ -276,7 +368,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert %{"authenticated" => false} = json_response(superseded, 200)
     assert superseded.private[:plug_session_info] == :drop
 
-    assert_receive %Phoenix.Socket.Broadcast{
+    refute_receive %Phoenix.Socket.Broadcast{
       topic: ^live_socket_id,
       event: "disconnect"
     }
@@ -374,9 +466,12 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert {:ok, former} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
 
+    former_socket_id = canonical_live_socket_id()
+    AshPlatformWeb.Endpoint.subscribe(former_socket_id)
+
     replaced =
       build_conn()
-      |> init_test_session(%{human_account_id: former.id})
+      |> init_test_session(%{human_account_id: former.id, live_socket_id: former_socket_id})
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer other-account")
       |> post("/auth/privy/session", %{})
@@ -387,6 +482,11 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert {:ok, current} = Accounts.get_by_privy_did("did:privy:other", actor: %System{})
     assert current.id != former.id
     assert get_session(replaced, :human_account_id) == current.id
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^former_socket_id,
+      event: "disconnect"
+    }
   end
 
   test "current provider evidence refreshes a stale former wallet without changing identity", %{
@@ -400,15 +500,23 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
 
+    live_socket_id = canonical_live_socket_id()
+
     refreshed =
       build_conn()
-      |> init_test_session(%{human_account_id: account.id})
+      |> init_test_session(%{
+        human_account_id: account.id,
+        live_socket_id: live_socket_id,
+        preserved: "session-state"
+      })
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer changed-wallet")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
     assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_session(refreshed, :live_socket_id) == live_socket_id
+    assert get_session(refreshed, :preserved) == "session-state"
 
     assert {:ok, current} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
     assert current.id == account.id
@@ -454,6 +562,24 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert {:ok, []} =
              Accounts.list_linked_identities_for_account(account.id, actor: %System{})
+
+    live_socket_id = get_session(response, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
+
+    refresh_request =
+      build_conn()
+      |> init_test_session(get_session(response))
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer conflicting-social")
+
+    expected_session = get_session(refresh_request)
+    refreshed = post(refresh_request, "/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(refreshed, 200)
+    assert get_resp_header(refreshed, "x-ash-identity-error") == ["already-connected"]
+    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_session(refreshed) == expected_session
+    refute_receive %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"}
   end
 
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")
@@ -472,6 +598,45 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
   defp session_cookie(conn) do
     conn |> get_resp_header("set-cookie") |> Enum.find(&String.contains?(&1, "_ash_platform_key"))
+  end
+
+  defp canonical_live_socket_id do
+    "privy_sessions:" <> Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+  end
+
+  defp assert_canonical_live_socket_id("privy_sessions:" <> token) do
+    assert byte_size(token) == 43
+    assert {:ok, decoded} = Base.url_decode64(token, padding: false)
+    assert byte_size(decoded) == 32
+    assert Base.url_encode64(decoded, padding: false) == token
+  end
+
+  defp flush_test_messages do
+    receive do
+      _message -> flush_test_messages()
+    after
+      0 -> :ok
+    end
+  end
+
+  defp assert_response_sent_then_disconnect(live_socket_id) do
+    events = receive_until_disconnect(live_socket_id, [])
+    assert events == [:response_sent, :socket_disconnect]
+  end
+
+  defp receive_until_disconnect(live_socket_id, events) do
+    receive do
+      {:plug_conn, :sent} ->
+        receive_until_disconnect(live_socket_id, [:response_sent | events])
+
+      %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"} ->
+        Enum.reverse([:socket_disconnect | events])
+
+      _message ->
+        receive_until_disconnect(live_socket_id, events)
+    after
+      100 -> flunk("expected response send followed by socket disconnect")
+    end
   end
 
   defp account_evidence(nil), do: nil

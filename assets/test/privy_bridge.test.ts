@@ -1,4 +1,39 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
+import React from "react"
+
+const productionRootRender = vi.hoisted(() => vi.fn())
+const productionPrivyHooks = vi.hoisted(() => ({
+  login: vi.fn(),
+  linkTwitter: vi.fn(),
+  linkGithub: vi.fn(),
+  linkFarcaster: vi.fn(),
+  unlinkOAuth: vi.fn(async () => undefined),
+  unlinkFarcaster: vi.fn(async () => undefined),
+}))
+
+vi.mock("react-dom/client", () => ({
+  createRoot: () => ({render: productionRootRender}),
+}))
+
+vi.mock("@privy-io/react-auth", () => ({
+  PrivyProvider: "privy-provider",
+  usePrivy: () => ({authenticated: false, logout: vi.fn(), ready: true}),
+  useWallets: () => ({wallets: []}),
+  useToken: () => ({getAccessToken: vi.fn(async () => null)}),
+  useLogin: () => ({login: productionPrivyHooks.login}),
+  useLinkAccount: () => ({
+    linkTwitter: productionPrivyHooks.linkTwitter,
+    linkGithub: productionPrivyHooks.linkGithub,
+    linkFarcaster: productionPrivyHooks.linkFarcaster,
+  }),
+  useUnlinkOAuth: () => ({unlink: productionPrivyHooks.unlinkOAuth}),
+  useUnlinkFarcaster: () => ({unlink: productionPrivyHooks.unlinkFarcaster}),
+}))
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 import * as bridge from "../js/privy_bridge"
 import {clearLocalSession, createSessionMutationCoordinator} from "../js/auth_lazy"
@@ -12,12 +47,65 @@ const {
   createAccountRequestHandler,
   createIdentityRequestHandler,
   createProviderSessionReconciler,
+  createSignOutOnlyBridgeState,
   createPrivyLoginCallbacks,
   createReadyLoginGate,
   createPrivySessionCompletion,
   createPrivyTokenCallbacks,
   LocalSessionEstablishmentError,
 } = bridge
+
+type HookSlot = {
+  deps?: readonly unknown[]
+  value?: unknown
+}
+
+function installAccountBridgeRenderer() {
+  const slots: HookSlot[] = []
+  let cursor = 0
+  let pendingEffects: React.EffectCallback[] = []
+  const unchanged = (left?: readonly unknown[], right?: readonly unknown[]) =>
+    left !== undefined &&
+    right !== undefined &&
+    left.length === right.length &&
+    left.every((value, index) => Object.is(value, right[index]))
+
+  vi.spyOn(React, "useRef").mockImplementation(((initial: unknown) => {
+    const index = cursor++
+    if (!slots[index]) slots[index] = {value: {current: initial}}
+    return slots[index].value
+  }) as typeof React.useRef)
+  vi.spyOn(React, "useMemo").mockImplementation(((factory: () => unknown, deps?: unknown[]) => {
+    const index = cursor++
+    if (!slots[index] || !unchanged(slots[index].deps, deps)) {
+      slots[index] = {deps, value: factory()}
+    }
+    return slots[index].value
+  }) as typeof React.useMemo)
+  vi.spyOn(React, "useCallback").mockImplementation(((callback: unknown, deps?: unknown[]) => {
+    const index = cursor++
+    if (!slots[index] || !unchanged(slots[index].deps, deps)) {
+      slots[index] = {deps, value: callback}
+    }
+    return slots[index].value
+  }) as typeof React.useCallback)
+  vi.spyOn(React, "useEffect").mockImplementation(((effect: React.EffectCallback, deps?: unknown[]) => {
+    const index = cursor++
+    if (!slots[index] || !unchanged(slots[index].deps, deps)) {
+      slots[index] = {deps}
+      pendingEffects.push(effect)
+    }
+  }) as typeof React.useEffect)
+
+  return (element: React.ReactElement) => {
+    cursor = 0
+    pendingEffects = []
+    ;(element.type as (props: unknown) => unknown)(element.props)
+    const effects = pendingEffects
+    pendingEffects = []
+    effects.forEach(effect => effect())
+  }
+}
 
 describe("Privy session bridge", () => {
   it("synchronizes wallets without changing the local or provider session", async () => {
@@ -343,6 +431,181 @@ describe("Privy session bridge", () => {
 
     expect(order).toEqual(["provider"])
   })
+
+  it("keeps sign-out-only startup preterminal until one provider attempt settles", async () => {
+    let finishProviderLogout: (() => void) | undefined
+    const ordinaryRequest = vi.fn(
+      (request: "sign-in" | "sign-out" | "sync") =>
+        request === "sign-out"
+          ? new Promise<void>(resolve => {
+              finishProviderLogout = resolve
+            })
+          : Promise.resolve(),
+    )
+    const ordinaryIdentity = vi.fn(async () => undefined)
+    const onTerminal = vi.fn()
+    const state = createSignOutOnlyBridgeState({
+      ordinaryRequest,
+      ordinaryIdentity,
+      onTerminal,
+    })
+
+    await expect(state.request("sign-in")).rejects.toThrow("still in progress")
+    await expect(state.request("sync")).rejects.toThrow("still in progress")
+    await expect(state.identity({action: "link", provider: "x"})).rejects.toThrow(
+      "still in progress",
+    )
+    const firstSignOut = state.request("sign-out")
+    const joinedSignOut = state.request("sign-out")
+    expect(ordinaryRequest).toHaveBeenCalledOnce()
+    finishProviderLogout?.()
+    await Promise.all([firstSignOut, joinedSignOut])
+    expect(onTerminal).toHaveBeenCalledOnce()
+
+    await state.request("sign-out")
+    await expect(state.request("sync")).rejects.toThrow("disabled")
+    await state.request("sign-in")
+    await state.identity({action: "link", provider: "github"})
+    expect(ordinaryRequest.mock.calls.map(([request]) => request)).toEqual([
+      "sign-out",
+      "sign-in",
+    ])
+    expect(ordinaryIdentity).toHaveBeenCalledOnce()
+  })
+
+  it.each(["resolve", "reject"] as const)(
+    "holds explicit work after timeout until late provider %s",
+    async outcome => {
+      let resolveProvider: (() => void) | undefined
+      let rejectProvider: ((error: Error) => void) | undefined
+      const order: string[] = []
+      const ordinaryRequest = vi.fn((request: "sign-in" | "sign-out" | "sync") => {
+        order.push(request)
+        return request === "sign-out"
+          ? new Promise<void>((resolve, reject) => {
+              resolveProvider = resolve
+              rejectProvider = reject
+            })
+          : Promise.resolve()
+      })
+      const ordinaryIdentity = vi.fn(async () => {
+        order.push("identity")
+      })
+      const onTerminal = vi.fn()
+      const state = createSignOutOnlyBridgeState({
+        ordinaryRequest,
+        ordinaryIdentity,
+        onTerminal,
+      })
+
+      const providerAttempt = state.request("sign-out")
+      const providerSettled = providerAttempt.catch(() => undefined)
+      state.finish()
+      state.finish()
+      expect(onTerminal).toHaveBeenCalledOnce()
+
+      const signIn = state.request("sign-in")
+      const identity = state.identity({action: "link", provider: "github"})
+      await Promise.resolve()
+      expect(order).toEqual(["sign-out"])
+      expect(ordinaryIdentity).not.toHaveBeenCalled()
+
+      await state.request("sign-out")
+      await expect(state.request("sync")).rejects.toThrow("disabled")
+      order.push("provider-settled")
+      if (outcome === "resolve") resolveProvider?.()
+      else rejectProvider?.(new Error("provider logout failed"))
+
+      await providerSettled
+      await Promise.all([signIn, identity])
+      expect(onTerminal).toHaveBeenCalledOnce()
+      expect(order).toEqual(["sign-out", "provider-settled", "sign-in", "identity"])
+      expect(ordinaryRequest.mock.calls.map(([request]) => request)).toEqual([
+        "sign-out",
+        "sign-in",
+      ])
+      expect(ordinaryIdentity).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each(["resolve", "reject"] as const)(
+    "keeps the production component queue through a rerender until provider %s",
+    async outcome => {
+      productionRootRender.mockReset()
+      const renderAccountBridge = installAccountBridgeRenderer()
+      const firstLogin = vi.fn()
+      const firstLinkGithub = vi.fn()
+      const order: string[] = []
+      productionPrivyHooks.login = firstLogin
+      productionPrivyHooks.linkGithub = firstLinkGithub
+      vi.stubGlobal("document", {
+        body: {append: vi.fn()},
+        createElement: () => ({hidden: false}),
+        querySelector: () => null,
+      })
+
+      let resolveProvider: (() => void) | undefined
+      let rejectProvider: ((error: Error) => void) | undefined
+      const providerLogout = vi.fn(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            resolveProvider = resolve
+            rejectProvider = reject
+          }),
+      )
+      const getAccessToken = vi.fn(async () => "unexpected-token")
+      const startup = bridge.startPrivyBridge(
+        {mode: "sign-out-only"},
+        {
+          appId: "test-app",
+          authenticated: true,
+          getAccessToken,
+          logout: providerLogout,
+          ready: true,
+          wallets: [],
+        },
+      )
+      const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+        children: React.ReactElement
+      }>
+      const accountElement = providerElement.props.children
+      renderAccountBridge(accountElement)
+      const handle = await startup
+
+      const providerAttempt = handle.request("sign-out")
+      const providerSettled = providerAttempt.catch(() => undefined)
+      handle.finishSignOutOnly?.()
+
+      const latestLogin = vi.fn(() => order.push("sign-in"))
+      const latestLinkGithub = vi.fn(() => order.push("identity"))
+      productionPrivyHooks.login = latestLogin
+      productionPrivyHooks.linkGithub = latestLinkGithub
+      renderAccountBridge(accountElement)
+
+      const signIn = handle.request("sign-in")
+      const identity = handle.identity?.({action: "link", provider: "github"})
+      await Promise.resolve()
+      expect(order).toEqual([])
+      expect(firstLogin).not.toHaveBeenCalled()
+      expect(firstLinkGithub).not.toHaveBeenCalled()
+      expect(latestLogin).not.toHaveBeenCalled()
+      expect(latestLinkGithub).not.toHaveBeenCalled()
+
+      await handle.request("sign-out")
+      await expect(handle.request("sync")).rejects.toThrow("disabled")
+      order.push("provider-settled")
+      if (outcome === "resolve") resolveProvider?.()
+      else rejectProvider?.(new Error("provider logout failed"))
+
+      await providerSettled
+      await Promise.all([signIn, identity])
+      expect(order).toEqual(["provider-settled", "sign-in", "identity"])
+      expect(providerLogout).toHaveBeenCalledOnce()
+      expect(latestLogin).toHaveBeenCalledOnce()
+      expect(latestLinkGithub).toHaveBeenCalledOnce()
+      expect(getAccessToken).not.toHaveBeenCalled()
+    },
+  )
 
   it("clears a stale server session when Privy is unauthenticated", async () => {
     const clearSession = vi.fn(async () => undefined)

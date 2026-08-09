@@ -1,14 +1,19 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   createBrowserPrivyBridgeImporter,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
+  consumeSignOutHandoff,
   installAccountAuthLazyLoader,
+  proveAnonymousSession,
+  writeSignOutHandoff,
   type AccountRequest,
   type PrivyBridgeModule,
 } from "../js/auth_lazy"
 import {createAccountRequestHandler} from "../js/privy_bridge"
+
+afterEach(() => vi.unstubAllGlobals())
 
 class AccountElement {
   hidden = true
@@ -22,6 +27,18 @@ class AccountElement {
 
   get dataset() {
     return {accountTarget: this.accountTarget}
+  }
+}
+
+function memoryStorage(initial?: string) {
+  const values = new Map<string, string>()
+  if (initial !== undefined) {
+    values.set("regent:privy-sign-out-handoff:v1", initial)
+  }
+  return {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => void values.set(key, value)),
+    removeItem: vi.fn((key: string) => void values.delete(key)),
   }
 }
 
@@ -412,71 +429,62 @@ describe("lazy browser authentication", () => {
     expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
   })
 
-  it.each([
-    {
-      name: "the public app ID is absent",
-      importer: () =>
-        Promise.resolve({
-          startPrivyBridge: vi.fn(() => Promise.reject(new Error("Privy app is unavailable"))),
-        }),
-    },
-    {
-      name: "the bridge import fails",
-      importer: () => Promise.reject(new Error("bridge unavailable")),
-    },
-  ])("clears the local session first when $name", async ({importer}) => {
+  it("writes the handoff before local deletion and leaves provider work to the new document", async () => {
     vi.stubGlobal("Element", AccountElement)
     const order: string[] = []
-    const page = accountDocument({appId: null})
+    const page = accountDocument()
+    const storage = memoryStorage()
     const clearSession = vi.fn(async () => {
       order.push("local")
     })
-    const reload = vi.fn(() => order.push("reload"))
+    const setItem = storage.setItem.getMockImplementation()!
+    storage.setItem.mockImplementation((key, value) => {
+      order.push("handoff")
+      setItem(key, value)
+    })
+    const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
 
-    installAccountAuthLazyLoader(page.documentRoot, vi.fn(importer), {
+    installAccountAuthLazyLoader(page.documentRoot, importer, {
       clearSession,
-      reload,
+      handoffStorage: storage,
+      now: () => 1_000,
       sessionMutations: createSessionMutationCoordinator(),
     })
     page.click("sign-out")
 
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(clearSession).toHaveBeenCalledOnce())
+    expect(order.slice(0, 2)).toEqual(["handoff", "local"])
     expect(clearSession).toHaveBeenCalledOnce()
-    expect(order).toEqual(["local", "reload"])
-    expect(page.status.textContent).toBe(
-      "Signed out locally. Provider sign out couldn’t finish.",
-    )
+    expect(importer).not.toHaveBeenCalled()
   })
 
-  it("clears locally and reloads when the provider never becomes ready", async () => {
+  it("gives a consumed handoff one bounded provider attempt without reloading", async () => {
     vi.useFakeTimers()
 
     try {
       vi.stubGlobal("Element", AccountElement)
-      const order: string[] = []
       const page = accountDocument()
-      const clearSession = vi.fn(async () => {
-        order.push("local")
-      })
-      const reload = vi.fn(() => order.push("reload"))
+      const storage = memoryStorage(JSON.stringify({version: 1, issuedAtMs: 1_000}))
+      const fetcher = vi.fn(async () =>
+        new Response(JSON.stringify({authenticated: false}), {status: 200}),
+      ) as typeof fetch
+      vi.stubGlobal("fetch", fetcher)
       const importer = vi.fn(async () => ({
         startPrivyBridge: vi.fn(() => new Promise<never>(() => undefined)),
       }))
-
       installAccountAuthLazyLoader(page.documentRoot, importer, {
-        clearSession,
+        handoffStorage: storage,
+        now: () => 1_001,
         providerSignOutTimeoutMs: 10,
-        reload,
-        sessionMutations: createSessionMutationCoordinator(),
       })
-      page.click("sign-out")
 
       await vi.advanceTimersByTimeAsync(0)
-      expect(clearSession).toHaveBeenCalledOnce()
-      expect(reload).not.toHaveBeenCalled()
+      expect(fetcher).toHaveBeenCalledWith("/auth/session", {
+        credentials: "same-origin",
+        redirect: "error",
+      })
       await vi.advanceTimersByTimeAsync(10)
-      await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
-      expect(order).toEqual(["local", "reload"])
+      await vi.waitFor(() => expect(page.status.hidden).toBe(false))
       expect(page.status.textContent).toBe(
         "Signed out locally. Provider sign out couldn’t finish.",
       )
@@ -489,11 +497,11 @@ describe("lazy browser authentication", () => {
     vi.stubGlobal("Element", AccountElement)
     const page = accountDocument()
     const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
-    const reload = vi.fn()
+    const storage = memoryStorage()
 
     installAccountAuthLazyLoader(page.documentRoot, importer, {
       clearSession: vi.fn().mockRejectedValue(new Error("local deletion failed")),
-      reload,
+      handoffStorage: storage,
       sessionMutations: createSessionMutationCoordinator(),
     })
     page.click("sign-out")
@@ -501,7 +509,7 @@ describe("lazy browser authentication", () => {
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(page.status.textContent).toBe("Sign out couldn’t finish. Try again.")
     expect(importer).not.toHaveBeenCalled()
-    expect(reload).not.toHaveBeenCalled()
+    expect(storage.getItem("regent:privy-sign-out-handoff:v1")).toBeNull()
   })
 
   it("uses truthful failure copy for sign out and signed-in synchronization", async () => {
@@ -526,7 +534,6 @@ describe("lazy browser authentication", () => {
       vi.fn().mockRejectedValue(new Error("bridge unavailable")),
       {
         clearSession: vi.fn(async () => undefined),
-        reload: vi.fn(),
         sessionMutations: createSessionMutationCoordinator(),
       },
     )
@@ -551,16 +558,14 @@ describe("lazy browser authentication", () => {
   ])("fails closed on signed-in startup when $name", async ({importer}) => {
     const page = accountDocument({signedIn: true})
     const clearSession = vi.fn(async () => undefined)
-    const reload = vi.fn()
 
     installAccountAuthLazyLoader(page.documentRoot, vi.fn(importer), {
       clearSession,
-      reload,
       sessionMutations: createSessionMutationCoordinator(),
       signedInStartupTimeoutMs: 10,
     })
 
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(clearSession).toHaveBeenCalledOnce())
     expect(clearSession).toHaveBeenCalledOnce()
     expect(page.status.textContent).toBe(
       "Account connection couldn’t refresh. Try again.",
@@ -579,5 +584,198 @@ describe("lazy browser authentication", () => {
 
     await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sync"))
     expect(signedInImporter).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    null,
+    "",
+    "not-json",
+    JSON.stringify({version: 1, issuedAtMs: 1_000, extra: true}),
+    JSON.stringify({version: 2, issuedAtMs: 1_000}),
+    JSON.stringify({version: 1, issuedAtMs: 1_001}),
+    JSON.stringify({version: 1, issuedAtMs: -29_001}),
+  ])("rejects and removes an absent or invalid handoff: %s", value => {
+    const storage = memoryStorage(value ?? undefined)
+    const page = accountDocument()
+
+    expect(consumeSignOutHandoff(page.documentRoot, storage, 1_000)).toBe(false)
+    expect(storage.getItem("regent:privy-sign-out-handoff:v1")).toBeNull()
+  })
+
+  it("consumes a strict current handoff once per document", () => {
+    const value = JSON.stringify({version: 1, issuedAtMs: 1_000})
+    const storage = memoryStorage(value)
+    const page = accountDocument()
+
+    expect(consumeSignOutHandoff(page.documentRoot, storage, 31_000)).toBe(true)
+    storage.setItem("regent:privy-sign-out-handoff:v1", value)
+    expect(consumeSignOutHandoff(page.documentRoot, storage, 31_000)).toBe(false)
+  })
+
+  it("writes only the strict versioned handoff and confirms it synchronously", () => {
+    const storage = memoryStorage()
+
+    expect(writeSignOutHandoff(storage, 1_000)).toBe(true)
+    expect(storage.getItem("regent:privy-sign-out-handoff:v1")).toBe(
+      JSON.stringify({version: 1, issuedAtMs: 1_000}),
+    )
+  })
+
+  it("fails closed when handoff read, removal, or removal confirmation fails", () => {
+    const value = JSON.stringify({version: 1, issuedAtMs: 1_000})
+    for (const operation of ["read", "remove", "confirm"] as const) {
+      const storage = memoryStorage(value)
+      if (operation === "read") {
+        storage.getItem.mockImplementationOnce(() => {
+          throw new Error()
+        })
+      }
+      if (operation === "remove") {
+        storage.removeItem.mockImplementationOnce(() => {
+          throw new Error()
+        })
+      }
+      if (operation === "confirm") {
+        storage.getItem
+          .mockImplementationOnce(() => value)
+          .mockImplementationOnce(() => value)
+      }
+
+      expect(
+        consumeSignOutHandoff(accountDocument().documentRoot, storage, 1_001),
+      ).toBe(false)
+    }
+  })
+
+  it.each([
+    new Response(JSON.stringify({authenticated: true}), {status: 200}),
+    new Response(JSON.stringify({authenticated: false}), {status: 500}),
+    new Response("not-json", {status: 200}),
+    {
+      ok: true,
+      redirected: true,
+      json: async () => ({authenticated: false}),
+    } as Response,
+  ])("requires an ordinary successful anonymous session proof", async response => {
+    const fetcher = vi.fn(async () => response) as typeof fetch
+    await expect(proveAnonymousSession(fetcher)).resolves.toBe(false)
+  })
+
+  it("does not import Privy when a consumed handoff cannot prove an anonymous session", async () => {
+    const page = accountDocument()
+    const storage = memoryStorage(JSON.stringify({version: 1, issuedAtMs: 1_000}))
+    const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({authenticated: true}), {status: 200}),
+      ),
+    )
+
+    installAccountAuthLazyLoader(page.documentRoot, importer, {
+      handoffStorage: storage,
+      now: () => 1_001,
+    })
+
+    await vi.waitFor(() => expect(storage.removeItem).toHaveBeenCalledOnce())
+    expect(importer).not.toHaveBeenCalled()
+  })
+
+  it("a retained marker after failed deletion still requires current anonymous truth", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const originalPage = accountDocument()
+    const storage = memoryStorage()
+    const setItem = storage.setItem.getMockImplementation()!
+    const removeItem = storage.removeItem.getMockImplementation()!
+    let writeCount = 0
+    storage.setItem.mockImplementation((key, value) => {
+      writeCount += 1
+      if (writeCount > 1) throw new Error("tombstone failed")
+      setItem(key, value)
+    })
+    storage.removeItem.mockImplementation(() => {
+      throw new Error("removal failed")
+    })
+
+    installAccountAuthLazyLoader(originalPage.documentRoot, vi.fn(), {
+      clearSession: vi.fn().mockRejectedValue(new Error("deletion failed")),
+      handoffStorage: storage,
+      now: () => 1_000,
+      sessionMutations: createSessionMutationCoordinator(),
+    })
+    originalPage.click("sign-out")
+    await vi.waitFor(() => expect(originalPage.status.hidden).toBe(false))
+
+    storage.setItem.mockImplementation(setItem)
+    storage.removeItem.mockImplementation(removeItem)
+    const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({authenticated: true}), {status: 200}),
+      ),
+    )
+    installAccountAuthLazyLoader(accountDocument().documentRoot, importer, {
+      handoffStorage: storage,
+      now: () => 1_001,
+    })
+
+    await vi.waitFor(() => expect(storage.removeItem).toHaveBeenCalled())
+    expect(importer).not.toHaveBeenCalled()
+  })
+
+  it("enforces preterminal and terminal handoff request states", async () => {
+    const request = vi.fn(async (_request: AccountRequest) => undefined)
+    const identity = vi.fn(async () => undefined)
+    const finishSignOutOnly = vi.fn()
+    const startPrivyBridge = vi.fn(async () => ({request, identity, finishSignOutOnly}))
+    const loader = createLazyAuthLoader(
+      vi.fn(async () => ({startPrivyBridge})),
+      {mode: "sign-out-only"},
+    )
+
+    await expect(loader.request("sign-in")).rejects.toThrow("still in progress")
+    await expect(loader.request("sync")).rejects.toThrow("still in progress")
+    await expect(loader.identity({action: "link", provider: "x"})).rejects.toThrow(
+      "still in progress",
+    )
+    await Promise.all([loader.request("sign-out"), loader.request("sign-out")])
+    expect(startPrivyBridge).toHaveBeenCalledWith({mode: "sign-out-only"})
+    expect(request).toHaveBeenCalledOnce()
+    expect(request).toHaveBeenCalledWith("sign-out")
+
+    loader.finishHandoff()
+    await loader.request("sign-out")
+    await expect(loader.request("sync")).rejects.toThrow("disabled")
+    await loader.request("sign-in")
+    await loader.identity({action: "link", provider: "x"})
+    expect(request.mock.calls.map(([value]) => value)).toEqual(["sign-out", "sign-in"])
+    expect(identity).toHaveBeenCalledOnce()
+    expect(finishSignOutOnly).toHaveBeenCalledOnce()
+  })
+
+  it("invalidates a timed-out handoff before late bridge readiness", async () => {
+    let resolveModule: ((module: PrivyBridgeModule) => void) | undefined
+    const request = vi.fn(async () => undefined)
+    const finishSignOutOnly = vi.fn()
+    const loader = createLazyAuthLoader(
+      vi.fn(
+        () =>
+          new Promise<PrivyBridgeModule>(resolve => {
+            resolveModule = resolve
+          }),
+      ),
+      {mode: "sign-out-only"},
+    )
+
+    const signOut = loader.request("sign-out")
+    loader.finishHandoff()
+    resolveModule?.({
+      startPrivyBridge: vi.fn(async () => ({request, finishSignOutOnly})),
+    })
+
+    await signOut
+    expect(request).not.toHaveBeenCalled()
+    expect(finishSignOutOnly).toHaveBeenCalledOnce()
   })
 })

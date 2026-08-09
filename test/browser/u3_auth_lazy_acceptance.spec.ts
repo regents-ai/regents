@@ -43,17 +43,36 @@ export async function startPrivyBridge() {
 }
 `
 
-const delayedSignOutBridgeStub = `
-export function startPrivyBridge() {
-  return new Promise(resolve => {
-    window.__u3ReadyBridge = () => resolve({
-      async request(request) {
-        window.__u3BridgeCalls = [...(window.__u3BridgeCalls || []), request]
-        if (request !== "sign-out") return
-        await window.__u3ProviderLogout()
+const productionSignOutBridgeStub = `
+import {startPrivyBridge as startProductionPrivyBridge} from "/assets/js/privy_bridge.js?u3_original=1"
+
+export async function startPrivyBridge(options) {
+  window.__u3StartModes = [...(window.__u3StartModes || []), options?.mode || "ordinary"]
+  if (options?.mode !== "sign-out-only") {
+    return {async request() { await new Promise(() => {}) }}
+  }
+  const handle = await startProductionPrivyBridge(options, {
+    appId: "clp0000000000000000000000",
+    authenticated: true,
+    async getAccessToken() {
+      window.__u3TokenReads = (window.__u3TokenReads || 0) + 1
+      return "unexpected-token"
+    },
+    async logout() {
+      window.__u3ProviderLogouts = (window.__u3ProviderLogouts || 0) + 1
+      await window.__u3ProviderLogout()
+    },
+    ready: true,
+    wallets: [{
+      address: "0x1111111111111111111111111111111111111111",
+      async getEthereumProvider() {
+        window.__u3WalletReads = (window.__u3WalletReads || 0) + 1
+        return {request: async () => null}
       }
-    })
+    }]
   })
+  window.__u3ProductionHandle = handle
+  return handle
 }
 `
 
@@ -63,19 +82,30 @@ export function startPrivyBridge() {
 }
 `
 
-const delayedReconciliationBridgeStub = `
-import {createLocalSession} from "/assets/js/privy_bridge.js?u3_original=1"
-
-function fetchIgnoringAbort(input, init = {}) {
-  const {signal: _ignoredSignal, ...request} = init
-  return fetch(input, request)
-}
+const realReconciliationBridgeStub = `
+import {
+  createLocalSession,
+  createProviderSessionReconciler
+} from "/assets/js/privy_bridge.js?u3_original=1"
 
 export async function startPrivyBridge() {
   return {
     async request(request) {
       window.__u3BridgeCalls = [...(window.__u3BridgeCalls || []), request]
-      if (request === "sync") await createLocalSession("valid", fetchIgnoringAbort)
+      if (request !== "sync") return
+      const reconcile = createProviderSessionReconciler({
+        clearSession: async () => { window.__u3UnexpectedDelete = true },
+        establishSession: async token => {
+          const result = await createLocalSession(token)
+          window.__u3SessionChanged = result.sessionChanged
+          return result
+        },
+        getAccessToken: async () => "valid",
+        hasLinkedWallet: () => true,
+        providerAuthenticated: () => true,
+        reload: () => { window.__u3ReloadAttempted = true }
+      })
+      window.__u3Reconciled = await reconcile()
     }
   }
 }
@@ -104,6 +134,32 @@ test("anonymous load does not request the deferred Privy bridge", async ({page})
 
   expect(bridgeRequests).toEqual([])
 })
+
+for (const invalidHandoff of [
+  {name: "malformed", value: "not-json"},
+  {name: "future", value: JSON.stringify({version: 1, issuedAtMs: Date.now() + 60_000})},
+  {name: "expired", value: JSON.stringify({version: 1, issuedAtMs: 0})},
+]) {
+  test(`${invalidHandoff.name} sign-out handoff remains ordinary and lazy`, async ({page}) => {
+    let bridgeRequests = 0
+    await page.addInitScript(value => {
+      sessionStorage.setItem("regent:privy-sign-out-handoff:v1", value)
+    }, invalidHandoff.value)
+    page.on("request", request => {
+      if (bridgePattern.test(request.url())) bridgeRequests += 1
+    })
+
+    await page.goto("/app")
+    await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
+    await page.waitForLoadState("networkidle")
+    expect(bridgeRequests).toBe(0)
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("regent:privy-sign-out-handoff:v1"),
+      ),
+    ).toBeNull()
+  })
+}
 
 test("the deferred Privy bridge is served as JavaScript", async ({request}) => {
   const response = await request.get("/assets/js/privy_bridge.js")
@@ -197,7 +253,7 @@ for (const viewport of retryViewports) {
   })
 }
 
-test("signed-in direct load requests sync without clearing or reloading", async ({page}) => {
+test("canonical same-account direct load runs the real reconciler without reload", async ({page}) => {
   let bridgeRequests = 0
   let sessionDeletes = 0
   const documentRequests: string[] = []
@@ -216,7 +272,10 @@ test("signed-in direct load requests sync without clearing or reloading", async 
   })
   await page.route(bridgePattern, async route => {
     bridgeRequests += 1
-    await route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+    await route.fulfill({
+      body: realReconciliationBridgeStub,
+      contentType: "application/javascript",
+    })
   })
 
   await establishLocalSession(page)
@@ -231,79 +290,58 @@ test("signed-in direct load requests sync without clearing or reloading", async 
       ),
     )
     .toEqual(["sync"])
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as Window & {__u3Reconciled?: boolean}).__u3Reconciled,
+      ),
+    )
+    .toBe(true)
 
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)
   expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
+  expect(
+    await page.evaluate(
+      () => (window as Window & {__u3SessionChanged?: boolean}).__u3SessionChanged,
+    ),
+  ).toBe(false)
+  expect(
+    await page.evaluate(() =>
+      Boolean((window as Window & {__u3ReloadAttempted?: boolean}).__u3ReloadAttempted),
+    ),
+  ).toBe(false)
+  expect(
+    await page.evaluate(() =>
+      Boolean((window as Window & {__u3UnexpectedDelete?: boolean}).__u3UnexpectedDelete),
+    ),
+  ).toBe(false)
+  await expect(page.locator("[data-phx-session]").first()).toBeVisible()
+  await page.locator("#account-menu summary").click()
+  await expect(page.getByRole("button", {name: "Log Out"})).toBeVisible()
+  await page.getByRole("link", {name: "Settings"}).click()
+  await expect(page.locator("#settings-verified-connections")).toBeVisible()
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent("ash:identity-state", {detail: {error: null}}))
+  })
+  await expect(page.getByText("Verified connections updated.")).toBeVisible()
+  expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
   expect((await page.request.get("/auth/session")).status()).toBe(200)
 })
 
-test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
-  let sessionDeletes = 0
-  let providerLogouts = 0
-  const documentRequests: string[] = []
-  await page.exposeFunction("__u3ProviderLogout", () => {
-    providerLogouts += 1
-  })
-  page.on("request", request => {
-    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
-      sessionDeletes += 1
-    }
-    if (request.isNavigationRequest() && request.resourceType() === "document") {
-      documentRequests.push(request.url())
-    }
-  })
-  await page.route(bridgePattern, route =>
-    route.fulfill({body: delayedSignOutBridgeStub, contentType: "application/javascript"}),
-  )
-
-  await establishLocalSession(page)
-
-  await page.goto("/app")
-  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
-  await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Log Out"}).click()
-  await expect.poll(() => sessionDeletes).toBe(1)
-  expect(providerLogouts).toBe(0)
-
-  await page.evaluate(() =>
-    (window as Window & {__u3ReadyBridge?: () => void}).__u3ReadyBridge?.(),
-  )
-  await expect.poll(() => providerLogouts).toBe(1)
-  await expect.poll(() => documentRequests.length).toBe(2)
-  expect(sessionDeletes).toBe(1)
-})
-
-test("logout rejects a stale session response released after local deletion", async ({
+test("a held pre-logout session response cannot restore browser or LiveView access", async ({
   page,
 }) => {
-  let sessionDeletes = 0
-  let releasePost: (() => void) | undefined
+  let releaseHeldResponse: (() => void) | undefined
+  const releaseGate = new Promise<void>(resolve => (releaseHeldResponse = resolve))
   let markPostProcessed: (() => void) | undefined
-  const postProcessed = new Promise<void>(resolve => {
-    markPostProcessed = resolve
-  })
-  await page.route(bridgePattern, route =>
-    route.fulfill({body: delayedReconciliationBridgeStub, contentType: "application/javascript"}),
-  )
-
-  await establishLocalSession(page)
-  const setupCsrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: setupCsrfToken} = await setupCsrfResponse.json()
-  const setupLogout = await page.request.delete("/auth/privy/session", {
-    headers: {"x-csrf-token": setupCsrfToken},
-  })
-  expect(setupLogout.status()).toBe(200)
-  await establishLocalSession(page)
-
-  const oldMarker = (
-    await page.context().cookies()
-  ).find(cookie => cookie.name === "_ash_platform_logout_epoch")?.value
-  expect(oldMarker).toBeTruthy()
+  const postProcessed = new Promise<void>(resolve => (markPostProcessed = resolve))
+  let heldSetCookie = ""
+  const documentRequests: string[] = []
 
   page.on("request", request => {
-    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
-      sessionDeletes += 1
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documentRequests.push(request.url())
     }
   })
   await page.route("**/auth/privy/session", async route => {
@@ -312,35 +350,279 @@ test("logout rejects a stale session response released after local deletion", as
       return
     }
 
-    expect(route.request().headers().cookie).toContain(
-      `_ash_platform_logout_epoch=${oldMarker}`,
-    )
     const response = await route.fetch()
+    heldSetCookie = response.headers()["set-cookie"] ?? ""
     markPostProcessed?.()
-    await new Promise<void>(resolve => {
-      releasePost = resolve
-    })
+    await releaseGate
     await route.fulfill({response})
   })
-  await page.goto("/app")
+
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#autolaunch-verified-connections")).toBeVisible()
+  await expect(page.getByRole("button", {name: "Sign in to connect"}).first()).toBeVisible()
+  const csrfToken = await page.evaluate(async () => {
+    const response = await fetch("/auth/csrf", {credentials: "same-origin"})
+    return ((await response.json()) as {csrf_token: string}).csrf_token
+  })
+  const sessionCookieBefore = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_key",
+  )?.value
+
+  const heldPost = page.evaluate(async token => {
+    const response = await fetch("/auth/privy/session", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {authorization: "Bearer valid", "x-csrf-token": token},
+    })
+    return {
+      status: response.status,
+      sessionChanged: response.headers.get("x-ash-session-changed"),
+    }
+  }, csrfToken)
   await postProcessed
+  expect(heldSetCookie).toContain("_ash_platform_key=")
+
+  const deleteCsrfToken = await page.evaluate(async () => {
+    const response = await fetch("/auth/csrf", {credentials: "same-origin"})
+    return ((await response.json()) as {csrf_token: string}).csrf_token
+  })
+  const deleted = await page.evaluate(async token => {
+    const response = await fetch("/auth/privy/session", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: {"x-csrf-token": token},
+    })
+    return response.status
+  }, deleteCsrfToken)
+  expect(deleted).toBe(200)
+  const logoutEpoch = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_logout_epoch",
+  )?.value
+  expect(logoutEpoch).toBeTruthy()
+
+  releaseHeldResponse?.()
+  await expect(heldPost).resolves.toEqual({status: 200, sessionChanged: "true"})
+  const staleSessionCookie = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_key",
+  )?.value
+  expect(staleSessionCookie).toBeTruthy()
+  expect(staleSessionCookie).not.toBe(sessionCookieBefore)
+
+  const session = await page.request.get("/auth/session")
+  expect((await session.json()).authenticated).toBe(false)
+  await expect(page.locator("[data-phx-session]").first()).toBeVisible()
+  await page.evaluate(() => {
+    const liveView = document.querySelector<HTMLElement>("[data-phx-session]")
+    if (!liveView) throw new Error("The protected LiveView is not mounted.")
+    const button = document.createElement("button")
+    button.id = "u3-protected-identity-probe"
+    button.type = "button"
+    button.setAttribute("phx-click", "request_verified_connection")
+    button.setAttribute("phx-value-action", "link")
+    button.setAttribute("phx-value-provider", "github")
+    button.textContent = "Probe protected identity action"
+    liveView.append(button)
+  })
+  await page.locator("#u3-protected-identity-probe").click()
+  await expect(
+    page.getByText("That connection couldn’t be updated. Refresh the page and try again."),
+  ).toBeVisible()
+  const sessionAfterProtectedAction = await page.request.get("/auth/session")
+  expect((await sessionAfterProtectedAction.json()).authenticated).toBe(false)
+  await expect(page.getByRole("button", {name: "Sign in to connect"}).first()).toBeVisible()
+  expect(documentRequests).toEqual(["http://127.0.0.1:4002/autolaunch/create"])
+})
+
+test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
+  let sessionDeletes = 0
+  let finishProviderLogout: (() => void) | undefined
+  const documentRequests: string[] = []
+  const eventOrder: string[] = []
+  await page.exposeFunction(
+    "__u3ProviderLogout",
+    () => new Promise<void>(resolve => (finishProviderLogout = resolve)),
+  )
+  let localSessionPostsAfterDelete = 0
+  page.on("request", request => {
+    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
+      sessionDeletes += 1
+    }
+    if (
+      sessionDeletes > 0 &&
+      request.method() === "POST" &&
+      request.url().endsWith("/auth/privy/session")
+    ) {
+      localSessionPostsAfterDelete += 1
+    }
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documentRequests.push(request.url())
+      eventOrder.push(`document-${documentRequests.length}`)
+    }
+  })
+  page.on("response", response => {
+    if (
+      response.request().method() === "DELETE" &&
+      response.url().endsWith("/auth/privy/session")
+    ) {
+      eventOrder.push("delete-response")
+    }
+  })
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: productionSignOutBridgeStub, contentType: "application/javascript"}),
+  )
+
+  await establishLocalSession(page)
+  const epochBefore = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_logout_epoch",
+  )?.value
+
+  await page.goto("/app")
+  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await page.locator("#account-menu summary").click()
+  await page.getByRole("button", {name: "Log Out"}).click()
+  await expect.poll(() => sessionDeletes).toBe(1)
+
+  await expect.poll(() => documentRequests.length).toBe(2)
+  const epochAfter = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_logout_epoch",
+  )?.value
+  expect(epochAfter).toBeTruthy()
+  expect(epochAfter).not.toBe(epochBefore)
+  expect(eventOrder.indexOf("delete-response")).toBeLessThan(
+    eventOrder.indexOf("document-2"),
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as Window & {__u3StartModes?: string[]}).__u3StartModes ?? [],
+      ),
+    )
+    .toContain("sign-out-only")
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as Window & {__u3ProviderLogouts?: number}).__u3ProviderLogouts ?? 0,
+      ),
+    )
+    .toBe(1)
+  const blockedProductionRequests = await page.evaluate(async () => {
+    const handle = (
+      window as Window & {
+        __u3ProductionHandle?: {
+          request: (request: "sign-in" | "sign-out" | "sync") => Promise<void>
+          identity?: (request: {action: "link"; provider: "x"}) => Promise<void>
+        }
+      }
+    ).__u3ProductionHandle
+    if (!handle?.identity) return []
+    return Promise.all([
+      handle.request("sync").then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      handle.request("sign-in").then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      handle.identity({action: "link", provider: "x"}).then(
+        () => "resolved",
+        () => "rejected",
+      ),
+    ])
+  })
+  expect(blockedProductionRequests).toEqual(["rejected", "rejected", "rejected"])
+  expect(
+    await page.evaluate(
+      () => (window as Window & {__u3TokenReads?: number}).__u3TokenReads ?? 0,
+    ),
+  ).toBe(0)
+  expect(
+    await page.evaluate(
+      () => (window as Window & {__u3WalletReads?: number}).__u3WalletReads ?? 0,
+    ),
+  ).toBe(0)
+  expect(localSessionPostsAfterDelete).toBe(0)
+  finishProviderLogout?.()
+  await page.waitForTimeout(100)
+  expect(
+    await page.evaluate(
+      () => (window as Window & {__u3ProviderLogouts?: number}).__u3ProviderLogouts ?? 0,
+    ),
+  ).toBe(1)
+  expect(documentRequests).toHaveLength(2)
+  expect(sessionDeletes).toBe(1)
+})
+
+test("a valid handoff uses the real session resource and refuses authenticated truth", async ({
+  page,
+}) => {
+  const sessionReads: string[] = []
+  let bridgeLoads = 0
+  await establishLocalSession(page)
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "regent:privy-sign-out-handoff:v1",
+      JSON.stringify({version: 1, issuedAtMs: Date.now()}),
+    )
+  })
+  page.on("request", request => {
+    if (request.method() === "GET" && new URL(request.url()).pathname.startsWith("/auth/")) {
+      sessionReads.push(new URL(request.url()).pathname)
+    }
+  })
+  await page.route(bridgePattern, route => {
+    bridgeLoads += 1
+    return route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+  })
+
+  await page.goto("/app")
+  await expect.poll(() => sessionReads).toContain("/auth/session")
+  await page.waitForLoadState("networkidle")
+  expect(sessionReads.filter(path => path === "/auth/session")).toHaveLength(1)
+  expect(sessionReads.filter(path => path !== "/auth/session")).toEqual([])
+  expect(bridgeLoads).toBe(0)
+  expect((await (await page.request.get("/auth/session")).json()).authenticated).toBe(true)
+})
+
+test("the second document proves anonymous server truth before importing Privy", async ({
+  page,
+}) => {
+  const order: string[] = []
+  let bridgeLoads = 0
+  let sessionDeletes = 0
+  const documentRequests: string[] = []
+
+  page.on("request", request => {
+    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
+      sessionDeletes += 1
+    }
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documentRequests.push(request.url())
+    }
+  })
+  page.on("response", response => {
+    if (response.request().method() === "GET" && response.url().endsWith("/auth/session")) {
+      order.push("anonymous-proof")
+    }
+  })
+  await page.route(bridgePattern, route => {
+    bridgeLoads += 1
+    order.push(`bridge-${bridgeLoads}`)
+    return route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+  })
+
+  await establishLocalSession(page)
+  await page.goto("/app")
+  await expect.poll(() => bridgeLoads).toBe(1)
   await page.locator("#account-menu summary").click()
   await page.getByRole("button", {name: "Log Out"}).click()
 
   await expect.poll(() => sessionDeletes).toBe(1)
-  const newMarker = (
-    await page.context().cookies()
-  ).find(cookie => cookie.name === "_ash_platform_logout_epoch")?.value
-  expect(newMarker).toBeTruthy()
-  expect(newMarker).not.toBe(oldMarker)
-  const finalSession = await page.request.get("/auth/session")
-  expect((await finalSession.json()).authenticated).toBe(false)
-
-  releasePost?.()
-  await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
-  const sessionAfterLateCompletion = await page.request.get("/auth/session")
-  expect((await sessionAfterLateCompletion.json()).authenticated).toBe(false)
-  expect(sessionDeletes).toBe(1)
+  await expect.poll(() => documentRequests.length).toBe(2)
+  await expect.poll(() => bridgeLoads).toBe(2)
+  expect(order.indexOf("anonymous-proof")).toBeGreaterThan(order.indexOf("bridge-1"))
+  expect(order.indexOf("anonymous-proof")).toBeLessThan(order.indexOf("bridge-2"))
+  expect((await (await page.request.get("/auth/session")).json()).authenticated).toBe(false)
 })
 
 for (const failure of [

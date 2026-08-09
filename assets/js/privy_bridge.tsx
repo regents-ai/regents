@@ -19,6 +19,7 @@ import {
   type AccountRequest,
   type IdentityRequest,
   type PrivyBridgeHandle,
+  type PrivyBridgeStartupOptions,
   type SessionMutationCoordinator,
 } from "./auth_lazy"
 import {
@@ -90,6 +91,68 @@ export function createIdentityRequestHandler({
     }
 
     await refreshSession()
+  }
+}
+
+type SignOutOnlyBridgeOptions = {
+  ordinaryRequest: (request: AccountRequest) => Promise<void>
+  ordinaryIdentity: (request: IdentityRequest) => Promise<void>
+  onTerminal?: () => void
+}
+
+export function createSignOutOnlyBridgeState({
+  ordinaryRequest,
+  ordinaryIdentity,
+  onTerminal = () => undefined,
+}: SignOutOnlyBridgeOptions) {
+  let state: "preterminal" | "terminal" = "preterminal"
+  let providerSignOutAttempt: Promise<void> | null = null
+  let explicitRequestTail = Promise.resolve()
+
+  const finish = () => {
+    if (state === "terminal") return
+    state = "terminal"
+    onTerminal()
+  }
+
+  const afterProviderSignOut = <T,>(request: () => Promise<T>): Promise<T> => {
+    const providerSettled = providerSignOutAttempt?.then(
+      () => undefined,
+      () => undefined,
+    ) ?? Promise.resolve()
+    const attempt = explicitRequestTail.then(() => providerSettled).then(request)
+    explicitRequestTail = attempt.then(
+      () => undefined,
+      () => undefined,
+    )
+    return attempt
+  }
+
+  return {
+    request(request: AccountRequest): Promise<void> {
+      if (state === "terminal") {
+        if (request === "sign-out") return Promise.resolve()
+        if (request === "sync") {
+          return Promise.reject(new Error("Automatic reconciliation is disabled."))
+        }
+        return afterProviderSignOut(() => ordinaryRequest(request))
+      }
+      if (request !== "sign-out") {
+        return Promise.reject(new Error("Provider sign out is still in progress."))
+      }
+      if (providerSignOutAttempt) return providerSignOutAttempt
+
+      const attempt = ordinaryRequest("sign-out")
+      providerSignOutAttempt = attempt
+      void attempt.then(finish, finish)
+      return attempt
+    },
+    identity(request: IdentityRequest): Promise<void> {
+      return state === "terminal"
+        ? afterProviderSignOut(() => ordinaryIdentity(request))
+        : Promise.reject(new Error("Provider sign out is still in progress."))
+    },
+    finish,
   }
 }
 
@@ -260,30 +323,57 @@ export function createReadyLoginGate(login: () => void) {
 }
 
 type AccountBridgeProps = {
+  mode: "ordinary" | "sign-out-only"
+  providerState?: PrivyBridgeProviderState
   publishRequestHandler: (
     requestHandler: PrivyBridgeHandle["request"],
     identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
+    finishSignOutOnly: () => void,
     ready: boolean,
   ) => void
 }
 
-function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
-  const {authenticated, logout, ready} = usePrivy()
-  const {wallets} = useWallets()
-  const completeLogin = React.useMemo(
+export type PrivyBridgeProviderState = {
+  appId: string
+  authenticated: boolean
+  getAccessToken: () => Promise<string | null>
+  logout: () => Promise<void>
+  ready: boolean
+  wallets: ReturnType<typeof useWallets>["wallets"]
+}
+
+function AccountBridge({mode, providerState, publishRequestHandler}: AccountBridgeProps) {
+  const privy = usePrivy()
+  const providerWallets = useWallets()
+  const authenticated = providerState?.authenticated ?? privy.authenticated
+  const logout = providerState?.logout ?? privy.logout
+  const ready = providerState?.ready ?? privy.ready
+  const wallets = providerState?.wallets ?? providerWallets.wallets
+  const signOutOnly = mode === "sign-out-only"
+  const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
+    signOutOnly ? "preterminal" : "terminal",
+  )
+  const completeExplicitLogin = React.useMemo(
     () =>
       createPrivySessionCompletion({
         localSessionNeeded: () =>
+          (!signOutOnly || signOutOnlyState.current === "terminal") &&
           document.querySelector("#account-control [data-account-target='sign-in']") !== null,
         reload: () => window.location.reload(),
       }),
-    [],
+    [signOutOnly],
+  )
+  const completeAutomaticLogin = React.useCallback(
+    (accessToken: string) =>
+      signOutOnly ? Promise.resolve() : completeExplicitLogin(accessToken),
+    [completeExplicitLogin, signOutOnly],
   )
   const tokenCallbacks = React.useMemo(
-    () => createPrivyTokenCallbacks(completeLogin),
-    [completeLogin],
+    () => createPrivyTokenCallbacks(completeAutomaticLogin),
+    [completeAutomaticLogin],
   )
-  const {getAccessToken} = useToken(tokenCallbacks)
+  const providerToken = useToken(tokenCallbacks)
+  const getAccessToken = providerState?.getAccessToken ?? providerToken.getAccessToken
   const notifyIdentityState = React.useCallback((error: string | null) => {
     window.dispatchEvent(
       new CustomEvent("ash:identity-state", {detail: {error}}),
@@ -306,8 +396,8 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const loginCallbacks = React.useMemo(
-    () => createPrivyLoginCallbacks(getAccessToken, completeLogin),
-    [completeLogin, getAccessToken],
+    () => createPrivyLoginCallbacks(getAccessToken, completeExplicitLogin),
+    [completeExplicitLogin, getAccessToken],
   )
   const {login} = useLogin(loginCallbacks)
   const loginGate = React.useMemo(() => createReadyLoginGate(login), [login])
@@ -328,12 +418,12 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
   React.useEffect(() => loginGate.setReady(ready), [loginGate, ready])
 
   React.useEffect(() => {
-    if (!ready || !authenticated) return
+    if (signOutOnly || !ready || !authenticated) return
 
     void getAccessToken().then(accessToken => {
-      if (accessToken) void completeLogin(accessToken).catch(() => undefined)
+      if (accessToken) void completeAutomaticLogin(accessToken).catch(() => undefined)
     })
-  }, [authenticated, completeLogin, getAccessToken, ready])
+  }, [authenticated, completeAutomaticLogin, getAccessToken, ready, signOutOnly])
 
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
@@ -358,13 +448,19 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
   }, [ready, reconcileProviderSession, wallets])
 
   React.useEffect(() => {
+    if (signOutOnly) return
     void synchronizeWallets()
     return () => {
       walletSyncGeneration.current += 1
     }
-  }, [synchronizeWallets])
+  }, [signOutOnly, synchronizeWallets])
 
-  const requestHandler = React.useMemo(
+  const markSignOutTerminal = React.useCallback(() => {
+    signOutOnlyState.current = "terminal"
+    walletSyncGeneration.current += 1
+  }, [])
+
+  const ordinaryRequestHandler = React.useMemo(
     () =>
       createAccountRequestHandler({
         requestLogin: loginGate.requestLogin,
@@ -374,7 +470,7 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
     [loginGate, logout, synchronizeWallets],
   )
 
-  const identityHandler = React.useMemo(
+  const ordinaryIdentityHandler = React.useMemo(
     () =>
       createIdentityRequestHandler({
         linkX: linkTwitter,
@@ -398,16 +494,43 @@ function AccountBridge({publishRequestHandler}: AccountBridgeProps) {
     ],
   )
 
+  const ordinaryRequestHandlerRef = React.useRef(ordinaryRequestHandler)
+  const ordinaryIdentityHandlerRef = React.useRef(ordinaryIdentityHandler)
+  ordinaryRequestHandlerRef.current = ordinaryRequestHandler
+  ordinaryIdentityHandlerRef.current = ordinaryIdentityHandler
+
+  const signOutOnlyBridge = React.useMemo(
+    () =>
+      createSignOutOnlyBridgeState({
+        ordinaryRequest: request => ordinaryRequestHandlerRef.current(request),
+        ordinaryIdentity: request => ordinaryIdentityHandlerRef.current(request),
+        onTerminal: markSignOutTerminal,
+      }),
+    [markSignOutTerminal],
+  )
+  const requestHandler = signOutOnly
+    ? signOutOnlyBridge.request
+    : ordinaryRequestHandler
+  const identityHandler = signOutOnly
+    ? signOutOnlyBridge.identity
+    : ordinaryIdentityHandler
+  const finishSignOutOnly = signOutOnlyBridge.finish
+
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, ready),
-    [identityHandler, publishRequestHandler, ready, requestHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler],
   )
 
   return null
 }
 
-export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
-  const appId = document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
+export function startPrivyBridge(
+  {mode = "ordinary"}: PrivyBridgeStartupOptions = {},
+  providerState?: PrivyBridgeProviderState,
+): Promise<PrivyBridgeHandle> {
+  const appId =
+    providerState?.appId ??
+    document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
   if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
   const host = document.createElement("div")
   host.hidden = true
@@ -416,6 +539,7 @@ export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
   return new Promise(resolve => {
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
+    let currentFinishSignOutOnly: (() => void) | null = null
     let resolved = false
     const handle: PrivyBridgeHandle = {
       request(request) {
@@ -428,14 +552,19 @@ export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
           ? currentIdentityHandler(request)
           : Promise.reject(new Error("Privy bridge is not ready"))
       },
+      finishSignOutOnly() {
+        currentFinishSignOutOnly?.()
+      },
     }
     const publishRequestHandler: AccountBridgeProps["publishRequestHandler"] = (
       requestHandler,
       identityHandler,
+      finishSignOutOnly,
       ready,
     ) => {
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
+      currentFinishSignOutOnly = finishSignOutOnly
       if (!ready || resolved) return
       resolved = true
       resolve(handle)
@@ -443,7 +572,11 @@ export function startPrivyBridge(): Promise<PrivyBridgeHandle> {
 
     createRoot(host).render(
       <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
-        <AccountBridge publishRequestHandler={publishRequestHandler} />
+        <AccountBridge
+          mode={mode}
+          providerState={providerState}
+          publishRequestHandler={publishRequestHandler}
+        />
       </PrivyProvider>,
     )
   })
