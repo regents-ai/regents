@@ -816,8 +816,8 @@ contract LaunchDeploymentControllerTest is Test {
         RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(result.revenueShareSplitterAddress);
         assertEq(splitter.stakeToken(), result.tokenAddress);
         assertEq(splitter.usdc(), address(usdc));
-        assertEq(splitter.owner(), address(revenueShareFactory));
-        assertEq(splitter.pendingOwner(), AGENT_SAFE);
+        assertEq(splitter.owner(), AGENT_SAFE);
+        assertEq(splitter.pendingOwner(), address(0));
         assertEq(splitter.treasuryRecipient(), AGENT_SAFE);
         assertEq(splitter.protocolRecipient(), address(feeRouter));
 

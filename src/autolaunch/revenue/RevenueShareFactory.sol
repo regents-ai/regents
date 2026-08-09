@@ -22,10 +22,6 @@ interface IRevenueShareSplitterV2Deployer {
     ) external returns (address splitter);
 }
 
-interface IOwnedTransfer {
-    function transferOwnership(address newOwner) external;
-}
-
 contract RevenueShareFactory is Owned {
     address internal constant SPLITTER_RESERVED = address(1);
 
@@ -155,7 +151,6 @@ contract RevenueShareFactory is Owned {
         _reserveSubjectSplitter(params);
         splitter = _deploySubjectSplitter(params);
         _publishSubjectSplitter(params, splitter);
-        IOwnedTransfer(splitter).transferOwnership(params.agentSafe);
     }
 
     function _validateSubjectSplitterParams(SubjectSplitterParams memory params) internal view {
@@ -198,7 +193,7 @@ contract RevenueShareFactory is Owned {
                 stakingRevenueRouter,
                 params.revenueShareSupplyDenominator,
                 params.label,
-                address(this)
+                params.agentSafe
             );
     }
 

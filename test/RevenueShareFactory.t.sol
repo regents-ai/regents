@@ -7,23 +7,23 @@ import {RevenueShareFactory} from "src/autolaunch/revenue/RevenueShareFactory.so
 import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
+import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
-contract FakeOwnedSplitter {
-    address public pendingOwner;
-
-    function transferOwnership(address newOwner) external {
-        pendingOwner = newOwner;
-    }
-}
-
 contract ObservingSplitterDeployer {
     RevenueShareFactory public factory;
+    RevenueShareSplitterV2Deployer public immutable realDeployer;
     address public observedStakeTokenMapping;
     address public observedSubjectMapping;
-    address public deployedSplitter;
+    address public observedInitialOwner;
+    address public observedOwnerBeforeReturn;
+    address public observedPendingOwnerBeforeReturn;
+
+    constructor(RevenueShareSplitterV2Deployer realDeployer_) {
+        realDeployer = realDeployer_;
+    }
 
     function setFactory(RevenueShareFactory factory_) external {
         factory = factory_;
@@ -31,20 +31,33 @@ contract ObservingSplitterDeployer {
 
     function deploy(
         address stakeToken,
-        address,
-        address,
-        address,
+        address usdc,
+        address ingressFactory,
+        address subjectRegistry,
         bytes32 subjectId,
-        address,
-        address,
-        uint256,
-        string calldata,
-        address
+        address treasuryRecipient,
+        address stakingRevenueRouter,
+        uint256 revenueShareSupplyDenominator,
+        string calldata label,
+        address owner
     ) external returns (address splitter) {
         observedStakeTokenMapping = factory.splitterOfStakeToken(stakeToken);
         observedSubjectMapping = factory.splitterOfSubject(subjectId);
-        splitter = address(new FakeOwnedSplitter());
-        deployedSplitter = splitter;
+        observedInitialOwner = owner;
+        splitter = realDeployer.deploy(
+            stakeToken,
+            usdc,
+            ingressFactory,
+            subjectRegistry,
+            subjectId,
+            treasuryRecipient,
+            stakingRevenueRouter,
+            revenueShareSupplyDenominator,
+            label,
+            owner
+        );
+        observedOwnerBeforeReturn = RevenueShareSplitterV2(splitter).owner();
+        observedPendingOwnerBeforeReturn = RevenueShareSplitterV2(splitter).pendingOwner();
     }
 }
 
@@ -113,10 +126,23 @@ contract RevenueShareFactoryTest is Test {
         assertEq(factory.splitterOfSubject(SUBJECT_ID), splitter);
         assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), bytes32(0));
         assertEq(subjectRegistry.subjectForIdentity(1, address(0x8004), 42), bytes32(0));
+
+        RevenueShareSplitterV2 realSplitter = RevenueShareSplitterV2(splitter);
+        assertEq(realSplitter.owner(), TREASURY_SAFE);
+        assertEq(realSplitter.pendingOwner(), address(0));
+        assertEq(realSplitter.stakeToken(), address(stakeToken));
+        assertEq(realSplitter.usdc(), USDC);
+        assertEq(realSplitter.ingressFactory(), INGRESS_FACTORY);
+        assertEq(realSplitter.subjectRegistry(), address(subjectRegistry));
+        assertEq(realSplitter.subjectId(), SUBJECT_ID);
+        assertEq(realSplitter.treasuryRecipient(), TREASURY_SAFE);
+        assertEq(address(realSplitter.stakingRevenueRouter()), address(feeRouter));
+        assertEq(realSplitter.revenueShareSupplyDenominator(), 1000 ether);
     }
 
     function testCreateReservesTokenAndSubjectBeforeExternalDeploy() external {
-        ObservingSplitterDeployer observingDeployer = new ObservingSplitterDeployer();
+        ObservingSplitterDeployer observingDeployer =
+            new ObservingSplitterDeployer(splitterDeployer);
         RevenueShareFactory observedFactory = new RevenueShareFactory(
             OWNER, USDC, subjectRegistry, address(feeRouter), address(observingDeployer)
         );
@@ -142,8 +168,35 @@ contract RevenueShareFactoryTest is Test {
             observingDeployer.observedSubjectMapping()
         );
         assertTrue(observingDeployer.observedStakeTokenMapping() != splitter);
+        assertEq(observingDeployer.observedInitialOwner(), TREASURY_SAFE);
+        assertEq(observingDeployer.observedOwnerBeforeReturn(), TREASURY_SAFE);
+        assertEq(observingDeployer.observedPendingOwnerBeforeReturn(), address(0));
         assertEq(observedFactory.splitterOfStakeToken(address(stakeToken)), splitter);
         assertEq(observedFactory.splitterOfSubject(subjectId), splitter);
+    }
+
+    function testFactoryHasNoOwnerAuthorityOverCreatedSplitter() external {
+        RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(
+            factory.createSubjectSplitter(
+                SUBJECT_ID,
+                address(stakeToken),
+                INGRESS_FACTORY,
+                TREASURY_SAFE,
+                address(feeRouter),
+                1000 ether,
+                "Agent",
+                0,
+                address(0),
+                0
+            )
+        );
+
+        vm.prank(address(factory));
+        (bool success,) = address(splitter).call(abi.encodeCall(splitter.setPaused, (true)));
+
+        assertFalse(success);
+        assertFalse(splitter.paused());
+        assertEq(splitter.owner(), TREASURY_SAFE);
     }
 
     function testRejectsMalformedIdentityLinkInputs() external {
