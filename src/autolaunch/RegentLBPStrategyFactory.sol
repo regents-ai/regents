@@ -9,6 +9,10 @@ import {IDistributionStrategy} from "src/shared/interfaces/IDistributionStrategy
 import {Owned} from "src/shared/auth/Owned.sol";
 import {RegentLBPStrategy} from "src/autolaunch/RegentLBPStrategy.sol";
 import {BaseMainnetChainConfig} from "src/shared/libraries/BaseMainnetChainConfig.sol";
+import {AutolaunchBindings} from "src/autolaunch/libraries/AutolaunchBindings.sol";
+import {
+    IContinuousClearingAuctionFactory
+} from "src/autolaunch/cca/interfaces/IContinuousClearingAuctionFactory.sol";
 
 contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
     struct RegentLBPStrategyConfig {
@@ -102,6 +106,24 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
         BaseMainnetChainConfig.requireRegent(cfg.quoteToken);
         BaseMainnetChainConfig.requirePoolManager(cfg.poolManager);
         BaseMainnetChainConfig.requirePositionManager(cfg.positionManager);
+        require(
+            cfg.auctionInitializerFactory == AutolaunchBindings.CCA_FACTORY, "CCA_FACTORY_MISMATCH"
+        );
+        require(
+            cfg.auctionInitializerFactory.code.length
+                == AutolaunchBindings.CCA_FACTORY_RUNTIME_SIZE,
+            "CCA_FACTORY_RUNTIME_SIZE"
+        );
+        require(
+            cfg.auctionInitializerFactory.codehash
+                == AutolaunchBindings.CCA_FACTORY_RUNTIME_CODE_HASH,
+            "CCA_FACTORY_RUNTIME_HASH"
+        );
+        require(
+            IContinuousClearingAuctionFactory(cfg.auctionInitializerFactory).protocolFeeController()
+                == address(0),
+            "CCA_PROTOCOL_FEE_CONTROLLER"
+        );
         require(cfg.auctionParameters.currency == cfg.quoteToken, "AUCTION_QUOTE_TOKEN_MISMATCH");
         require(cfg.quoteToken.code.length != 0, "QUOTE_TOKEN_NO_CODE");
         require(IERC20MetadataMinimal(cfg.quoteToken).decimals() == 18, "QUOTE_TOKEN_DECIMALS");

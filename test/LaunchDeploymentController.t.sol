@@ -26,9 +26,7 @@ import {
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {HookMiner} from "src/shared/libraries/HookMiner.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {
-    MockContinuousClearingAuctionFactory
-} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {AutolaunchBindingsTest} from "test/AutolaunchBindings.t.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
@@ -41,6 +39,18 @@ interface IUERC20LaunchToken {
     function creator() external view returns (address);
     function graffiti() external view returns (bytes32);
     function tokenURI() external view returns (string memory);
+}
+
+interface IContinuousClearingAuctionState {
+    function token() external view returns (address);
+    function currency() external view returns (address);
+    function totalSupply() external view returns (uint128);
+    function tokensRecipient() external view returns (address);
+    function fundsRecipient() external view returns (address);
+    function startBlock() external view returns (uint64);
+    function endBlock() external view returns (uint64);
+    function claimBlock() external view returns (uint64);
+    function validationHook() external view returns (address);
 }
 
 contract ReentrantLaunchTokenFactory {
@@ -104,6 +114,7 @@ contract LaunchDeploymentControllerTest is Test {
         0x498581fF718922c3f8e6A244956aF099B2652b2b;
     address internal constant BASE_MAINNET_POSITION_MANAGER =
         0x7C5f5A4bBd8fD63184577525326123B519429bDc;
+    address internal constant CCA_FACTORY = 0x000000001F26a0044BaA66024e7b6599c61963F8;
     uint160 internal constant REQUIRED_HOOK_FLAGS = Hooks.BEFORE_INITIALIZE_FLAG
         | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
@@ -111,7 +122,6 @@ contract LaunchDeploymentControllerTest is Test {
         keccak256("LaunchStackDeployed(address,bytes32,address,address,address,bytes32,address)");
 
     LaunchDeploymentController internal controller;
-    MockContinuousClearingAuctionFactory internal auctionFactory;
     MockHookPoolManager internal poolManager;
     UERC20Factory internal tokenFactory;
     LaunchFeeInfraDeployer internal feeInfraDeployer;
@@ -130,7 +140,8 @@ contract LaunchDeploymentControllerTest is Test {
         vm.chainId(8453);
         controller = new LaunchDeploymentController();
         feeInfraDeployer = new LaunchFeeInfraDeployer();
-        auctionFactory = new MockContinuousClearingAuctionFactory();
+        AutolaunchBindingsTest bindingsFixture = new AutolaunchBindingsTest();
+        bindingsFixture.setUp();
         poolManager = new MockHookPoolManager();
         tokenFactory = new UERC20Factory();
         strategyFactory = new RegentLBPStrategyFactory(address(this));
@@ -333,6 +344,8 @@ contract LaunchDeploymentControllerTest is Test {
         // No bids: the auction raised 0 REGENT and does not graduate.
         vm.roll(303);
         vm.prank(STRATEGY_OPERATOR);
+        assertTrue(strategy.progressFinalization(2 << 96));
+        vm.prank(STRATEGY_OPERATOR);
         strategy.recoverFailedAuction();
 
         // The whole supply burned; the agent got nothing.
@@ -451,9 +464,12 @@ contract LaunchDeploymentControllerTest is Test {
         _assertCoreAddressesWereCreated(result);
 
         AuctionParameters memory parameters =
-            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+            _auctionParameters(RegentLBPStrategy(result.strategyAddress));
         assertEq(parameters.endBlock - parameters.startBlock, 86_401);
         assertEq(parameters.auctionStepsData, launchCfg.metadata.auctionStepsData);
+        assertEq(
+            IContinuousClearingAuctionState(result.auctionAddress).endBlock(), parameters.endBlock
+        );
     }
 
     function testEmitsLaunchStackDeployedEvent() external {
@@ -500,7 +516,7 @@ contract LaunchDeploymentControllerTest is Test {
         launchCfg.addresses.identityRegistry = IDENTITY_REGISTRY;
         launchCfg.addresses.tokenFactory = address(tokenFactory);
         launchCfg.addresses.strategyFactory = address(strategyFactory);
-        launchCfg.addresses.auctionInitializerFactory = address(auctionFactory);
+        launchCfg.addresses.auctionInitializerFactory = CCA_FACTORY;
         launchCfg.addresses.poolManager = BASE_MAINNET_POOL_MANAGER;
         launchCfg.addresses.positionManager = BASE_MAINNET_POSITION_MANAGER;
         launchCfg.addresses.strategyOperator = STRATEGY_OPERATOR;
@@ -531,6 +547,26 @@ contract LaunchDeploymentControllerTest is Test {
         launchCfg.metadata.tokenFactoryGraffiti = keccak256(abi.encode(AGENT_SAFE));
         launchCfg.metadata.launchFeeHookSalt =
             _launchFeeHookSalt(address(feeInfraDeployer), BASE_MAINNET_POOL_MANAGER);
+    }
+
+    function _auctionParameters(RegentLBPStrategy strategy)
+        internal
+        view
+        returns (AuctionParameters memory parameters)
+    {
+        (
+            parameters.currency,
+            parameters.tokensRecipient,
+            parameters.fundsRecipient,
+            parameters.startBlock,
+            parameters.endBlock,
+            parameters.claimBlock,
+            parameters.tickSpacing,
+            parameters.validationHook,
+            parameters.floorPrice,
+            parameters.requiredCurrencyRaised,
+            parameters.auctionStepsData
+        ) = strategy.auctionParameters();
     }
 
     function _deploy() internal returns (bytes32 launchId) {
@@ -710,12 +746,22 @@ contract LaunchDeploymentControllerTest is Test {
         uint256 auctionAmount
     ) internal view {
         AuctionParameters memory parameters =
-            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+            _auctionParameters(RegentLBPStrategy(result.strategyAddress));
+        IContinuousClearingAuctionState auction =
+            IContinuousClearingAuctionState(result.auctionAddress);
         assertEq(parameters.currency, address(regent));
-        assertEq(parameters.tokensRecipient, result.strategyAddress);
-        assertEq(parameters.fundsRecipient, result.strategyAddress);
+        assertEq(parameters.tokensRecipient, address(0));
+        assertEq(parameters.fundsRecipient, address(0));
         assertEq(parameters.auctionStepsData, _singleAuctionStep(100_000, 100));
-        assertEq(auctionFactory.lastAmount(), auctionAmount);
+        assertEq(auction.token(), result.tokenAddress);
+        assertEq(auction.currency(), parameters.currency);
+        assertEq(auction.totalSupply(), auctionAmount);
+        assertEq(auction.tokensRecipient(), result.strategyAddress);
+        assertEq(auction.fundsRecipient(), result.strategyAddress);
+        assertEq(auction.startBlock(), parameters.startBlock);
+        assertEq(auction.endBlock(), parameters.endBlock);
+        assertEq(auction.claimBlock(), parameters.claimBlock);
+        assertEq(auction.validationHook(), parameters.validationHook);
     }
 
     function _assertFeeInfra(LaunchDeploymentController.DeploymentResult memory result)

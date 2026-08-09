@@ -21,7 +21,26 @@ struct LBPInitializationParams {
     uint256 currencyRaised;
 }
 
+struct Checkpoint {
+    uint256 clearingPrice;
+    uint256 currencyRaisedAtClearingPriceQ96X7;
+    uint256 cumulativeMpsPerPrice;
+    uint24 cumulativeMps;
+    uint64 prev;
+    uint64 next;
+}
+
 interface IContinuousClearingAuction {
+    function checkpoint() external returns (Checkpoint memory checkpoint_);
+
+    function forceIterateOverTicks(uint256 untilTickPriceQ96)
+        external
+        returns (uint256 clearingPriceQ96);
+
+    function lastCheckpointedBlock() external view returns (uint64);
+
+    function endBlock() external view returns (uint64);
+
     function isGraduated() external view returns (bool);
 
     function currencyRaised() external view returns (uint256);
@@ -62,6 +81,11 @@ interface IContinuousClearingAuction {
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
 
+    function submitBid(uint256 maxPriceQ96, uint128 amount, address owner, bytes calldata hookData)
+        external
+        payable
+        returns (uint256 bidId);
+
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
@@ -83,4 +107,6 @@ interface IContinuousClearingAuction {
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
+
+    function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 }

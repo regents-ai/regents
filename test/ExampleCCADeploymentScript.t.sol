@@ -18,9 +18,7 @@ import {
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "script/ExampleCCADeploymentScript.s.sol";
-import {
-    MockContinuousClearingAuctionFactory
-} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {AutolaunchBindingsTest} from "test/AutolaunchBindings.t.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
@@ -35,6 +33,18 @@ interface IUERC20LaunchToken {
     function tokenURI() external view returns (string memory);
 }
 
+interface IContinuousClearingAuctionState {
+    function token() external view returns (address);
+    function currency() external view returns (address);
+    function totalSupply() external view returns (uint128);
+    function tokensRecipient() external view returns (address);
+    function fundsRecipient() external view returns (address);
+    function startBlock() external view returns (uint64);
+    function endBlock() external view returns (uint64);
+    function claimBlock() external view returns (uint64);
+    function validationHook() external view returns (address);
+}
+
 contract ExampleCCADeploymentScriptTest is Test {
     address internal constant AGENT_SAFE = address(0x4321);
     address internal constant REGENT_MULTISIG = address(0x9FA1);
@@ -45,6 +55,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address internal constant POOL_MANAGER = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
     address internal constant POSITION_MANAGER = 0x7C5f5A4bBd8fD63184577525326123B519429bDc;
+    address internal constant CCA_FACTORY = 0x000000001F26a0044BaA66024e7b6599c61963F8;
     uint256 internal constant IDENTITY_AGENT_ID = 42;
     uint256 internal constant TOTAL_SUPPLY = 1_000_000_000_000_000_000_000;
     uint256 internal constant CCA_TICK_SPACING_Q96 = 79_228_162_514_264_337_593_543_950;
@@ -52,7 +63,6 @@ contract ExampleCCADeploymentScriptTest is Test {
     uint256 internal constant CCA_MAX_TARGET_PRICE_Q96 = CCA_TICK_SPACING_Q96 * 10_000_000;
 
     ExampleCCADeploymentScript internal script;
-    MockContinuousClearingAuctionFactory internal auctionFactory;
     MockHookPoolManager internal poolManager;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
@@ -72,7 +82,8 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.prank(address(script));
         controller.acceptOwnership();
         _installCanonicalRegentMock();
-        auctionFactory = new MockContinuousClearingAuctionFactory();
+        AutolaunchBindingsTest bindingsFixture = new AutolaunchBindingsTest();
+        bindingsFixture.setUp();
         poolManager = new MockHookPoolManager();
         subjectRegistry = new SubjectRegistry(address(controller), address(this), address(0x600D));
         feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
@@ -102,7 +113,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("EXAMPLE_CCA_CONTROLLER_ADDRESS", vm.toString(address(controller)));
         vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
         vm.setEnv("EXAMPLE_CCA_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
-        vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
+        vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(CCA_FACTORY));
         vm.setEnv("AUTOLAUNCH_FACTORY_OWNER_ADDRESS", vm.toString(address(script)));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(POOL_MANAGER));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(POSITION_MANAGER));
@@ -179,6 +190,26 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(totalBlocks, expectedBlocks);
     }
 
+    function _auctionParameters(RegentLBPStrategy strategy)
+        internal
+        view
+        returns (AuctionParameters memory parameters)
+    {
+        (
+            parameters.currency,
+            parameters.tokensRecipient,
+            parameters.fundsRecipient,
+            parameters.startBlock,
+            parameters.endBlock,
+            parameters.claimBlock,
+            parameters.tickSpacing,
+            parameters.validationHook,
+            parameters.floorPrice,
+            parameters.requiredCurrencyRaised,
+            parameters.auctionStepsData
+        ) = strategy.auctionParameters();
+    }
+
     function _assertCoreAddressesWereCreated(
         LaunchDeploymentController.DeploymentResult memory result
     ) internal pure {
@@ -208,7 +239,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(token.decimals(), 18);
         assertEq(token.totalSupply(), TOTAL_SUPPLY);
         assertTrue(bytes(token.tokenURI()).length > 0);
-        assertEq(auctionFactory.lastAmount(), expectedAuctionAmount);
+        assertEq(
+            IContinuousClearingAuctionState(result.auctionAddress).totalSupply(),
+            expectedAuctionAmount
+        );
     }
 
     function _assertStrategy(LaunchDeploymentController.DeploymentResult memory result)
@@ -272,10 +306,12 @@ contract ExampleCCADeploymentScriptTest is Test {
             result.subjectId
         );
         AuctionParameters memory parameters =
-            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+            _auctionParameters(RegentLBPStrategy(result.strategyAddress));
+        IContinuousClearingAuctionState auction =
+            IContinuousClearingAuctionState(result.auctionAddress);
         assertEq(parameters.currency, REGENT);
-        assertEq(parameters.tokensRecipient, result.strategyAddress);
-        assertEq(parameters.fundsRecipient, result.strategyAddress);
+        assertEq(parameters.tokensRecipient, address(0));
+        assertEq(parameters.fundsRecipient, address(0));
         assertEq(parameters.tickSpacing, CCA_TICK_SPACING_Q96);
         assertEq(parameters.floorPrice, CCA_FLOOR_PRICE_Q96);
         assertEq(parameters.requiredCurrencyRaised, 1 ether);
@@ -284,6 +320,14 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(parameters.endBlock - parameters.startBlock, 86_401);
         assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
         _assertScheduleTotals(parameters.auctionStepsData, 86_401);
+        assertEq(auction.token(), result.tokenAddress);
+        assertEq(auction.currency(), parameters.currency);
+        assertEq(auction.tokensRecipient(), result.strategyAddress);
+        assertEq(auction.fundsRecipient(), result.strategyAddress);
+        assertEq(auction.startBlock(), parameters.startBlock);
+        assertEq(auction.endBlock(), parameters.endBlock);
+        assertEq(auction.claimBlock(), parameters.claimBlock);
+        assertEq(auction.validationHook(), parameters.validationHook);
     }
 
     function _assertIngressAndPermissions(LaunchDeploymentController.DeploymentResult memory result)

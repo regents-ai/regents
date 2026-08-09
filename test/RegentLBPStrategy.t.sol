@@ -665,6 +665,77 @@ contract RegentLBPStrategyTest is Test {
         );
     }
 
+    function testBoundedFinalizationRemainsPendingUntilEndCheckpoint() external {
+        auctionFactory.configureFinalization(2);
+        RegentLBPStrategy pendingStrategy = new RegentLBPStrategy(_strategyConfig(1));
+        token.mint(address(pendingStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
+        pendingStrategy.onTokensReceived();
+        _wireFailureUnwind(pendingStrategy);
+
+        MockDistributionContract auction =
+            MockDistributionContract(pendingStrategy.auctionAddress());
+        vm.roll(202);
+
+        vm.prank(OPERATOR);
+        vm.expectRevert("AUCTION_FINALIZATION_PENDING");
+        pendingStrategy.migrate();
+
+        vm.prank(OPERATOR);
+        assertFalse(pendingStrategy.progressFinalization(2000));
+        assertEq(auction.pendingFinalizationSteps(), 1);
+        assertEq(auction.lastCheckpointedBlock(), 0);
+        assertFalse(pendingStrategy.failedAuctionRecovered());
+
+        vm.prank(OPERATOR);
+        assertTrue(pendingStrategy.progressFinalization(3000));
+        assertEq(auction.lastCheckpointedBlock(), auction.endBlock());
+
+        vm.roll(303);
+        vm.prank(OPERATOR);
+        pendingStrategy.recoverFailedAuction();
+        assertTrue(pendingStrategy.failedAuctionRecovered());
+    }
+
+    function testBidExitAndClaimSelectorsRemainCallable() external {
+        strategy.onTokensReceived();
+        MockDistributionContract auction = MockDistributionContract(strategy.auctionAddress());
+
+        uint256 hintedBid = auction.submitBid(2000, 1e18, address(this), 1000, bytes("hinted"));
+        uint256 simpleBid = auction.submitBid(3000, 2e18, address(this), bytes("simple"));
+        auction.exitBid(hintedBid);
+        auction.exitPartiallyFilledBid(simpleBid, 10, 20);
+        auction.claimTokens(hintedBid);
+        uint256[] memory bidIds = new uint256[](1);
+        bidIds[0] = simpleBid;
+        auction.claimTokensBatch(address(this), bidIds);
+
+        assertTrue(auction.bidExited(hintedBid));
+        assertTrue(auction.bidExited(simpleBid));
+        assertTrue(auction.bidClaimed(hintedBid));
+        assertTrue(auction.bidClaimed(simpleBid));
+    }
+
+    function testMaxFinalizationBoundRevertsWithoutLifecycleProgress() external {
+        auctionFactory.configureFinalization(2);
+        RegentLBPStrategy pendingStrategy = new RegentLBPStrategy(_strategyConfig(1));
+        token.mint(address(pendingStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
+        pendingStrategy.onTokensReceived();
+        _wireFailureUnwind(pendingStrategy);
+
+        MockDistributionContract auction =
+            MockDistributionContract(pendingStrategy.auctionAddress());
+        vm.roll(202);
+
+        vm.prank(OPERATOR);
+        vm.expectRevert("FINALIZATION_BOUND_MAX");
+        pendingStrategy.progressFinalization(type(uint256).max);
+
+        assertEq(auction.pendingFinalizationSteps(), 2);
+        assertEq(auction.lastCheckpointedBlock(), 0);
+        assertFalse(pendingStrategy.migrated());
+        assertFalse(pendingStrategy.failedAuctionRecovered());
+    }
+
     function testRecoverFailedAuctionBurnsEntireSupplyAndMarksSubjectDead() external {
         RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(1));
         token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
@@ -751,6 +822,50 @@ contract RegentLBPStrategyTest is Test {
         failedStrategy.recoverFailedAuction();
     }
 
+    function testRetirementPreservesFailedAuctionBidderRefundInventory() external {
+        RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
+        failedStrategy.onTokensReceived();
+        _wireFailureUnwind(failedStrategy);
+
+        MockDistributionContract auction = MockDistributionContract(failedStrategy.auctionAddress());
+        quoteToken.mint(address(auction), 5e18);
+
+        vm.roll(303);
+        vm.prank(OPERATOR);
+        failedStrategy.recoverFailedAuction();
+
+        assertEq(quoteToken.balanceOf(address(auction)), 5e18);
+        assertEq(quoteToken.balanceOf(AGENT_TREASURY), 0);
+    }
+
+    function testSoldOutFailedAuctionBurnsAllLaunchTokensAndPreservesRefunds() external {
+        RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
+        token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
+        token.mint(address(vestingWallet), VESTING_AMOUNT);
+        failedStrategy.onTokensReceived();
+        _wireFailureUnwind(failedStrategy);
+
+        MockDistributionContract auction = MockDistributionContract(failedStrategy.auctionAddress());
+        auction.setSoldOut(true);
+        quoteToken.mint(address(auction), 5e18);
+        assertEq(auction.remainingSupply(), 0);
+        assertEq(token.balanceOf(address(auction)), AUCTION_AMOUNT);
+
+        uint256 deadBefore = token.balanceOf(DEAD_ADDRESS);
+        vm.roll(303);
+        vm.prank(OPERATOR);
+        failedStrategy.recoverFailedAuction();
+
+        assertEq(
+            token.balanceOf(DEAD_ADDRESS),
+            deadBefore + AUCTION_AMOUNT + RESERVE_AMOUNT + VESTING_AMOUNT
+        );
+        assertEq(token.balanceOf(address(auction)), 0);
+        assertEq(quoteToken.balanceOf(address(auction)), 5e18);
+        assertEq(quoteToken.balanceOf(AGENT_TREASURY), 0);
+    }
+
     function testGraduatedAuctionSweepsFundsAfterEndAndMigrationUsesSweptCurrency() external {
         RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
         _registerStrategySubject(graduatedStrategy);
@@ -800,7 +915,7 @@ contract RegentLBPStrategyTest is Test {
         assertEq(token.balanceOf(AGENT_TREASURY), 0);
     }
 
-    function testMigrateUsesNetCurrencySweptAfterProtocolFee() external {
+    function testMigrateRejectsNonzeroEffectiveProtocolFee() external {
         RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
         _registerStrategySubject(graduatedStrategy);
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
@@ -814,11 +929,11 @@ contract RegentLBPStrategyTest is Test {
 
         vm.roll(202);
         vm.prank(OPERATOR);
+        vm.expectRevert("CCA_PROTOCOL_FEE_NONZERO");
         graduatedStrategy.migrate();
 
-        assertTrue(graduatedStrategy.migrated());
-        assertEq(graduatedStrategy.accountedAuctionQuoteToken(), 176e18);
-        assertEq(graduatedStrategy.migratedQuoteTokenForLP(), (176e18 * 4000) / 10_000);
+        assertFalse(graduatedStrategy.migrated());
+        assertEq(graduatedStrategy.accountedAuctionQuoteToken(), 0);
     }
 
     function testFuzzGraduatedMigrationSplitsRaisedCurrencyFortySixty(uint128 raisedSeed) external {

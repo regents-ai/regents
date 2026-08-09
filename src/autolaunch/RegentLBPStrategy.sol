@@ -4,7 +4,9 @@ pragma solidity ^0.8.26;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {
     AuctionParameters,
-    IContinuousClearingAuction
+    Checkpoint,
+    IContinuousClearingAuction,
+    LBPInitializationParams
 } from "src/autolaunch/cca/interfaces/IContinuousClearingAuction.sol";
 import {
     IContinuousClearingAuctionFactory
@@ -124,6 +126,9 @@ contract RegentLBPStrategy is IDistributionContract {
     event QuoteTokenSweptToTreasury(address indexed treasury, uint256 amount);
     event AuctionQuoteTokenAccounted(
         address indexed auction, uint256 quoteTokenRaised, uint256 strategyQuoteTokenBalance
+    );
+    event AuctionFinalizationProgress(
+        address indexed auction, uint64 lastCheckpointedBlock, uint64 endBlock, bool complete
     );
     event FailedAuctionBurned(
         address indexed auction,
@@ -246,17 +251,58 @@ contract RegentLBPStrategy is IDistributionContract {
         emit AuctionCreated(predictedAuction, auctionTokenAmount);
     }
 
+    /// @notice Advances final auction checkpointing to a caller-supplied initialized tick bound.
+    /// @dev An incomplete bounded call is pending and does not classify the auction.
+    function progressFinalization(uint256 untilTickPriceQ96)
+        external
+        nonReentrant
+        returns (bool complete)
+    {
+        require(msg.sender == operator, "NOT_OPERATOR");
+        require(untilTickPriceQ96 != type(uint256).max, "FINALIZATION_BOUND_MAX");
+        require(auctionAddress != address(0), "AUCTION_NOT_CREATED");
+
+        IContinuousClearingAuction auction = IContinuousClearingAuction(auctionAddress);
+        uint64 endBlock_ = auction.endBlock();
+        require(block.number > endBlock_, "AUCTION_NOT_ENDED");
+
+        uint64 lastCheckpointedBlock_ = auction.lastCheckpointedBlock();
+        if (lastCheckpointedBlock_ != endBlock_) {
+            if (auction.requiredDemandQ96AtNextActiveTick() != 0) {
+                uint256 clearingPriceQ96 = auction.forceIterateOverTicks(untilTickPriceQ96);
+                require(
+                    clearingPriceQ96 >= auctionParameters.floorPrice,
+                    "CCA_CLEARING_PRICE_BELOW_FLOOR"
+                );
+            }
+            if (auction.requiredDemandQ96AtNextActiveTick() == 0) {
+                Checkpoint memory checkpoint_ = auction.checkpoint();
+                require(
+                    checkpoint_.clearingPrice >= auctionParameters.floorPrice,
+                    "CCA_CLEARING_PRICE_BELOW_FLOOR"
+                );
+            }
+            lastCheckpointedBlock_ = auction.lastCheckpointedBlock();
+        }
+
+        complete = lastCheckpointedBlock_ == endBlock_;
+        emit AuctionFinalizationProgress(
+            auctionAddress, lastCheckpointedBlock_, endBlock_, complete
+        );
+    }
+
     // Reviewed in slither.db.json: migration is nonReentrant across the bound auction and pool.
     // slither-disable-next-line reentrancy-benign
     function migrate() external onlyActiveSubject nonReentrant {
         require(msg.sender == operator, "NOT_OPERATOR");
         require(block.number >= migrationBlock, "MIGRATION_NOT_ALLOWED");
         require(!migrated, "ALREADY_MIGRATED");
-        migrated = true;
         require(auctionAddress != address(0), "AUCTION_NOT_CREATED");
 
         IContinuousClearingAuction auction = IContinuousClearingAuction(auctionAddress);
+        _requireFinalCheckpoint(auction);
         require(auction.isGraduated(), "AUCTION_NOT_GRADUATED");
+        migrated = true;
 
         MigrationLiquidity memory migration = _prepareMigrationLiquidity(auction);
         _initializeMigrationPool(migration);
@@ -391,10 +437,12 @@ contract RegentLBPStrategy is IDistributionContract {
         require(auctionAddress != address(0), "AUCTION_NOT_CREATED");
 
         IContinuousClearingAuction auction = IContinuousClearingAuction(auctionAddress);
+        _requireFinalCheckpoint(auction);
         require(!auction.isGraduated(), "AUCTION_GRADUATED");
         failedAuctionRecovered = true;
 
-        _sweepUnsoldAuctionTokens();
+        // A failed official CCA sweeps TOTAL_SUPPLY even when remainingSupply() is zero.
+        auction.sweepUnsoldTokens();
         uint256 vestingTokensBurned = ILaunchVestingBurnable(vestingWallet).burnOnFailedLaunch();
 
         uint256 tokenBalance = IERC20SupplyMinimal(token).balanceOf(address(this));
@@ -445,6 +493,10 @@ contract RegentLBPStrategy is IDistributionContract {
         internal
         returns (uint256 quoteTokenRaised)
     {
+        uint256 grossCurrencyRaised = auction.currencyRaised();
+        LBPInitializationParams memory initialization = auction.lbpInitializationParams();
+        require(initialization.currencyRaised == grossCurrencyRaised, "CCA_PROTOCOL_FEE_NONZERO");
+
         // The auction is created from the configured CCA factory and migration is non-reentrant.
         // Pre-existing strategy quote-token balance is excluded from the raised amount.
         uint256 balanceBefore = IERC20SupplyMinimal(quoteToken).balanceOf(address(this));
@@ -454,8 +506,17 @@ contract RegentLBPStrategy is IDistributionContract {
         require(balanceAfter >= balanceBefore, "AUCTION_QUOTE_TOKEN_LOW");
         quoteTokenRaised = balanceAfter - balanceBefore;
         require(quoteTokenRaised != 0, "NO_QUOTE_TOKEN_RAISED");
+        // Exact equality is required by the frozen zero-fee admission and launch economics.
+        // slither-disable-next-line incorrect-equality
+        require(quoteTokenRaised == initialization.currencyRaised, "AUCTION_QUOTE_TOKEN_MISMATCH");
 
         emit AuctionQuoteTokenAccounted(auctionAddress, quoteTokenRaised, balanceAfter);
+    }
+
+    function _requireFinalCheckpoint(IContinuousClearingAuction auction) internal view {
+        require(
+            auction.lastCheckpointedBlock() == auction.endBlock(), "AUCTION_FINALIZATION_PENDING"
+        );
     }
 
     function _poolKey() internal view returns (PoolKey memory poolKey) {
