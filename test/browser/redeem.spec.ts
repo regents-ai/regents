@@ -1,9 +1,11 @@
 import {expect, test} from "@playwright/test"
+import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const hashes = ["aa", "bb", "cc", "dd"].map(byte => `0x${byte.repeat(32)}`)
 
 test("each Animata approval, redemption and claim requires its own wallet action", async ({page}) => {
+  const auth = await installAuthenticatedPrivy(page, "valid-redemption")
   await page.addInitScript(
     ({wallet, hashes}) => {
       let sends = 0
@@ -57,14 +59,11 @@ test("each Animata approval, redemption and claim requires its own wallet action
     {wallet, hashes},
   )
 
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid-redemption", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
+  await auth.establishLocalSession()
 
   await page.goto("/redeem")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   await expect(page.getByRole("heading", {name: "Redeem Animata"})).toBeVisible()
   await expect(page.locator(".redeem-summary").getByText("1 REGENT", {exact: true}).first()).toBeVisible()
 

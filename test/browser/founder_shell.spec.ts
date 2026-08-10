@@ -1,4 +1,8 @@
 import {expect, test, type Page} from "@playwright/test"
+import {
+  installAuthenticatedPrivy,
+  matchesAuthenticatedPrivyBridgeUrl,
+} from "./support/authenticated_privy"
 
 const shellRoutes = [
   "/app",
@@ -139,16 +143,47 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
 })
 
 test("a signed-in account without a Regent shows its available account menu", async ({page}) => {
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
+  const ashOrigin = "http://127.0.0.1:4002"
+  const hashedBridge = "privy_bridge-0123456789abcdef0123456789abcdef.js"
+  expect(
+    matchesAuthenticatedPrivyBridgeUrl(
+      `${ashOrigin}/assets/js/privy_bridge.js?regent_retry=1`,
+      ashOrigin,
+    ),
+  ).toBe(true)
+  expect(
+    matchesAuthenticatedPrivyBridgeUrl(
+      `${ashOrigin}/assets/js/${hashedBridge}?vsn=d&regent_retry=2`,
+      ashOrigin,
+    ),
+  ).toBe(true)
+  expect(
+    matchesAuthenticatedPrivyBridgeUrl(
+      "https://attacker.example/assets/js/privy_bridge.js?regent_retry=1",
+      ashOrigin,
+    ),
+  ).toBe(false)
+  expect(
+    matchesAuthenticatedPrivyBridgeUrl(
+      `https://attacker.example/assets/js/${hashedBridge}?vsn=d&regent_retry=2`,
+      ashOrigin,
+    ),
+  ).toBe(false)
+  expect(
+    matchesAuthenticatedPrivyBridgeUrl(
+      `${ashOrigin}/assets/js/privy_bridge.js?authenticated_privy_original=1`,
+      ashOrigin,
+    ),
+  ).toBe(false)
+
+  const auth = await installAuthenticatedPrivy(page, "valid")
+  await auth.establishLocalSession()
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
 
   const account = page.locator("#account-menu")
   await expect(account.locator("img.account-avatar")).toHaveAttribute(
@@ -167,6 +202,8 @@ test("a signed-in account without a Regent shows its available account menu", as
   await expect(page).toHaveURL(/\/settings$/)
   await expect(page.getByRole("heading", {name: "Settings", level: 1})).toBeVisible()
   await expect(page.getByRole("heading", {name: "Appearance", level: 2})).toBeVisible()
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 2, syncs: 1})
 
   const appearance = page.getByRole("group", {name: "Appearance"})
   await appearance.getByRole("button", {name: "Dark"}).click()
@@ -175,6 +212,8 @@ test("a signed-in account without a Regent shows its available account menu", as
 
   await page.reload()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 2, sessionChecks: 3, syncs: 2})
 })
 
 test("Regents Labs overview shows public chain truth without inventing a profile", async ({page}) => {
@@ -346,21 +385,39 @@ test("node comments post once, update another reader live, preserve scroll, and 
   browser,
   page,
 }) => {
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
-
-  await page.goto("/techtree/skill-training-lab")
-  await page.getByRole("link", {name: "Browser comment fixture"}).first().click()
-  await expect(page.getByRole("heading", {name: "Browser comment fixture"})).toBeVisible()
+  const auth = await installAuthenticatedPrivy(page, "valid")
+  await auth.establishLocalSession()
 
   const publicContext = await browser.newContext()
   const publicPage = await publicContext.newPage()
+  const publicSession = await publicPage.request.get("/auth/session")
+  const publicOrigin = new URL(publicSession.url()).origin
+  expect(publicSession.status()).toBe(200)
+  expect((await publicSession.json()).authenticated).toBe(false)
+  const publicBridgeRequests: string[] = []
+  publicPage.on("request", request => {
+    if (matchesAuthenticatedPrivyBridgeUrl(request.url(), publicOrigin)) {
+      publicBridgeRequests.push(request.url())
+    }
+  })
+  await publicPage.goto("/techtree/skill-training-lab")
+  expect(publicBridgeRequests).toEqual([])
+  expect(
+    await publicPage.evaluate(
+      () => typeof (window as Window & {__authenticatedPrivyRecordSync?: unknown})
+        .__authenticatedPrivyRecordSync,
+    ),
+  ).toBe("undefined")
+
+  await page.goto("/techtree/skill-training-lab")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
+  await page.getByRole("link", {name: "Browser comment fixture"}).first().click()
+  await expect(page.getByRole("heading", {name: "Browser comment fixture"})).toBeVisible()
+
   await publicPage.goto(page.url())
   await expect(publicPage.locator("#comment-ledger")).toContainText("Sign in to add a comment")
+  expect(publicBridgeRequests).toEqual([])
 
   const publicScroller = publicPage.locator("#app-shell-scroller")
   await publicScroller.evaluate(element => element.scrollTo(0, element.scrollHeight))
@@ -439,14 +496,12 @@ test("Autolaunch overview, detail, and Create stay useful without fake market da
 })
 
 test("a signed-in Regent owner saves a private launch draft without creating an auction", async ({page}) => {
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid-autolaunch-draft", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
+  const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
+  await auth.establishLocalSession()
 
   await page.goto("/formation")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   const formationForm = page.locator("#form-regent")
   if (await formationForm.isVisible()) {
     await formationForm.getByLabel("Public name").fill("Draft Browser Regent")
@@ -457,6 +512,8 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
 
   await page.goto("/autolaunch/create")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
   const uniqueTitle = `Browser launch draft ${Date.now()}`
   const draft = page.locator("#create-launch-draft")
   await draft.getByLabel("Launch title").fill(uniqueTitle)
@@ -469,6 +526,8 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await expect(page.locator("#launch-drafts article").filter({hasText: uniqueTitle})).toBeVisible()
 
   await page.goto("/autolaunch/auctions")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 3, sessionChecks: 3, syncs: 3})
   await expect(page.getByText(uniqueTitle)).toHaveCount(0)
 })
 
@@ -504,14 +563,12 @@ test("Formation panels remain local and survive LiveView content patches", async
 })
 
 test("a signed-in Regent owner provisions one verified Sprite from Formation Cloud", async ({page}) => {
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid-formation-cloud", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
+  const auth = await installAuthenticatedPrivy(page, "valid-formation-cloud")
+  await auth.establishLocalSession()
 
   await page.goto("/formation")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   const formationForm = page.locator("#form-regent")
   if (await formationForm.isVisible()) {
     await formationForm.getByLabel("Public name").fill("Cloud Browser Regent")

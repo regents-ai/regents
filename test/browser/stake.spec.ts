@@ -1,10 +1,12 @@
 import {expect, test} from "@playwright/test"
+import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const approvalHash = `0x${"cd".repeat(32)}`
 const stakingHash = `0x${"ab".repeat(32)}`
 
 test("signed-in staking uses a deterministic wallet, confirms once and refreshes", async ({page}) => {
+  const auth = await installAuthenticatedPrivy(page, "valid-staking")
   await page.addInitScript(
     ({wallet, approvalHash, stakingHash}) => {
       let sends = 0
@@ -57,14 +59,11 @@ test("signed-in staking uses a deterministic wallet, confirms once and refreshes
     {wallet, approvalHash, stakingHash},
   )
 
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const session = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid-staking", "x-csrf-token": csrfToken},
-  })
-  expect(session.ok()).toBe(true)
+  await auth.establishLocalSession()
 
   await page.goto("/stake")
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   await expect(page.getByRole("heading", {name: "Stake REGENT"})).toBeVisible()
   await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
 
