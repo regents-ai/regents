@@ -29,7 +29,7 @@ contract ExampleCCADeploymentScriptConfigTest is Test {
         feeInfraDeployer = new LaunchFeeInfraDeployer(address(factory));
     }
 
-    function testConfigAcceptsExactSevenLaunchInputsIncludingAgentIdZero() external view {
+    function testConfigAcceptsExactEightLaunchInputsIncludingAgentIdZero() external view {
         ExampleCCADeploymentScript.PreparedSafeCall memory prepared = script.prepare(_config());
         assertEq(prepared.from, address(agentSafe));
         assertEq(prepared.to, address(factory));

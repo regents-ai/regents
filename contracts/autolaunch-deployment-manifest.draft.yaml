@@ -50,10 +50,16 @@ deployment_algorithm:
   prepared_calls: 3
   prepared_call_values: [0, 0, 0]
   circular_create2: false
+initial_state_readbacks:
+  launch_fee:
+    getter: launchFee()
+    expected_value: "1_000_000e18"
+    scope: deployment_state_only
+    later_governance_mutations: excluded_from_binding_digest
 binding_digest:
   algorithm: AutolaunchFactoryBindingV1
   runtime_code_hash_source: EXTCODEHASH_after_immutable_substitution
-  dynamic_state_excluded: [pause, quarantine, restoration, lifecycle]
+  dynamic_state_excluded: [pause, quarantine, restoration, lifecycle, launch_fee]
   typehashes:
     constructor: "0x6e1e8f7b1a5de15fa2aadd33503de85b47cdbc151c53c83df2df74862a6e0fba"
     fixed: "0x32ba980f8a2e1edef01731a3c84113908d409e004d68bd4677bf33faad970eba"
