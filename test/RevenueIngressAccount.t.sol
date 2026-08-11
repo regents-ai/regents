@@ -72,20 +72,24 @@ contract RevenueIngressAccountTest is Test {
     }
 
     function testSweepRecognizesRevenueInsideSplitter() external {
-        usdc.mint(address(ingress), 1000e18);
+        uint256 gross = 1000e18;
+        uint256 protocolShare =
+            (gross * feeRouter.protocolSkimBps()) / splitter.BPS_DENOMINATOR();
+        uint256 subjectShare = gross - protocolShare;
+        usdc.mint(address(ingress), gross);
 
         (uint256 balance, uint256 recognized) = ingress.sweepUSDC(bytes32("sweep"));
 
-        assertEq(balance, 1000e18);
-        assertEq(recognized, 1000e18);
+        assertEq(balance, gross);
+        assertEq(recognized, gross);
         assertEq(usdc.balanceOf(address(ingress)), 0);
-        // Only the 1% protocol skim leaves for the fee router; the rest of the subject lane
-        // (including the former buyback slice) stays in the splitter for stakers/treasury.
-        assertEq(usdc.balanceOf(address(splitter)), 990e18);
-        assertEq(usdc.balanceOf(address(feeRouter)), 10e18);
-        assertEq(feeRouter.totalUsdcProcessed(), 10e18);
-        assertEq(splitter.treasuryResidualUsdc(), 990e18);
-        assertEq(splitter.protocolFeeUsdc(), 10e18);
+        // Only the router's current protocol skim leaves; the subject lane stays in the splitter.
+        assertEq(usdc.balanceOf(address(splitter)), subjectShare);
+        assertEq(usdc.balanceOf(address(feeRouter)), protocolShare);
+        assertEq(feeRouter.totalUsdcProcessed(), protocolShare);
+        assertEq(splitter.treasuryResidualUsdc(), subjectShare);
+        assertEq(splitter.protocolFeeUsdc(), protocolShare);
+        assertEq(subjectShare + protocolShare, gross);
     }
 
     function testDepositUSDCRecordsAccountingTag() external {

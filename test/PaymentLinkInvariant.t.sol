@@ -42,7 +42,9 @@ contract PaymentLinkHandler {
         totalGross += gross;
         totalReferral += referral;
         totalNet += net;
-        totalProtocol += (net * 100) / 10_000;
+        RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(receiver.destination());
+        totalProtocol +=
+            (net * splitter.stakingRevenueRouter().protocolSkimBps()) / splitter.BPS_DENOMINATOR();
     }
 }
 
@@ -128,6 +130,9 @@ contract PaymentLinkInvariant is StdInvariant, Test {
         assertEq(usdc.balanceOf(BENEFICIARY), handler.totalReferral());
         assertEq(splitter.directDepositUsdc(), handler.totalNet());
         assertEq(feeRouter.totalUsdcProcessed(), handler.totalProtocol());
+        assertEq(
+            usdc.balanceOf(address(splitter)) + handler.totalProtocol(), handler.totalNet()
+        );
     }
 
     function _registration() internal view returns (ISubjectRegistry.SubjectRegistration memory) {

@@ -74,6 +74,9 @@ contract PaymentLinkReceiverTest is Test {
         uint256 gross = 100_000_003;
         uint256 referral = (gross * 250) / 10_000;
         uint256 net = gross - referral;
+        uint256 protocolShare =
+            (net * feeRouter.protocolSkimBps()) / splitter.BPS_DENOMINATOR();
+        uint256 subjectShare = net - protocolShare;
 
         usdc.mint(address(receiver), gross);
         vm.prank(CALLER);
@@ -84,7 +87,9 @@ contract PaymentLinkReceiverTest is Test {
         assertEq(usdc.balanceOf(BENEFICIARY), referral);
         assertEq(usdc.balanceOf(address(receiver)), 0);
         assertEq(splitter.directDepositUsdc(), net);
-        assertEq(feeRouter.totalUsdcProcessed(), (net * 100) / 10_000);
+        assertEq(usdc.balanceOf(address(splitter)), subjectShare);
+        assertEq(feeRouter.totalUsdcProcessed(), protocolShare);
+        assertEq(referral + subjectShare + protocolShare, gross);
     }
 
     function testProductPauseBlocksDepositButNotAlreadyHeldSweep() external {
