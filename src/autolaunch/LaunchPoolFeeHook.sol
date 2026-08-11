@@ -25,7 +25,7 @@ contract LaunchPoolFeeHook is IHooks {
     using SafeCast for uint256;
 
     uint256 public constant TOTAL_FEE_BPS = 200;
-    uint256 public constant TREASURY_FEE_BPS = 100;
+    uint256 public constant SUBJECT_STAKING_FEE_BPS = 100;
     uint256 public constant REGENT_STAKING_FEE_BPS = 100;
     uint256 public constant BPS_DENOMINATOR = 10_000;
     // High-risk v4 permissions: beforeInitialize, beforeSwap, afterSwap, beforeSwapReturnDelta,
@@ -40,7 +40,7 @@ contract LaunchPoolFeeHook is IHooks {
         address chargedCurrency;
         uint256 chargedAmount;
         uint256 totalFee;
-        uint256 treasuryFee;
+        uint256 subjectStakingFee;
         uint256 regentFee;
         bool exactInput;
     }
@@ -57,7 +57,7 @@ contract LaunchPoolFeeHook is IHooks {
         address indexed currency,
         uint256 chargedAmount,
         uint256 totalFee,
-        uint256 treasuryFee,
+        uint256 subjectStakingFee,
         uint256 regentFee,
         bool exactInput
     );
@@ -264,9 +264,10 @@ contract LaunchPoolFeeHook is IHooks {
     {
         feeData.chargedCurrency = quoteToken;
         feeData.chargedAmount = chargedAmount;
-        feeData.treasuryFee = feeData.chargedAmount * TREASURY_FEE_BPS / BPS_DENOMINATOR;
+        feeData.subjectStakingFee =
+            feeData.chargedAmount * SUBJECT_STAKING_FEE_BPS / BPS_DENOMINATOR;
         feeData.regentFee = feeData.chargedAmount * REGENT_STAKING_FEE_BPS / BPS_DENOMINATOR;
-        feeData.totalFee = feeData.treasuryFee + feeData.regentFee;
+        feeData.totalFee = feeData.subjectStakingFee + feeData.regentFee;
         feeData.exactInput = exactInput;
     }
 
@@ -279,7 +280,7 @@ contract LaunchPoolFeeHook is IHooks {
             feeData.chargedCurrency,
             feeData.chargedAmount,
             feeData.totalFee,
-            feeData.treasuryFee,
+            feeData.subjectStakingFee,
             feeData.regentFee,
             feeData.exactInput
         );
@@ -288,7 +289,7 @@ contract LaunchPoolFeeHook is IHooks {
             Currency.wrap(feeData.chargedCurrency), address(vaultContract), feeData.totalFee
         );
         vaultContract.recordAccrual(
-            poolId, feeData.chargedCurrency, feeData.treasuryFee, feeData.regentFee
+            poolId, feeData.chargedCurrency, feeData.subjectStakingFee, feeData.regentFee
         );
     }
 
@@ -327,6 +328,7 @@ contract LaunchPoolFeeHook is IHooks {
     {
         config = registryContract.getPoolConfig(poolId);
         registryContract.requireActiveFeeInfrastructure(address(vaultContract), address(this));
+        registryContract.requireSubjectStakingBinding();
         require(config.hookEnabled, "HOOK_DISABLED");
         require(config.poolManager == msg.sender, "POOL_MANAGER_MISMATCH");
         require(config.hook == address(this), "HOOK_MISMATCH");
@@ -339,7 +341,7 @@ contract LaunchPoolFeeHook is IHooks {
         address chargedCurrency,
         uint256 chargedAmount,
         uint256 totalFee,
-        uint256 treasuryFee,
+        uint256 subjectStakingFee,
         uint256 regentFee,
         bool exactInput
     ) internal {
@@ -349,7 +351,7 @@ contract LaunchPoolFeeHook is IHooks {
             chargedCurrency,
             chargedAmount,
             totalFee,
-            treasuryFee,
+            subjectStakingFee,
             regentFee,
             exactInput
         );

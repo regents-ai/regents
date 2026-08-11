@@ -1,16 +1,18 @@
 version: 2
 status: draft
 approval: founder_approval_pending
-purpose: exact fixed economics for minimal atomic AutolaunchFactoryV1
+purpose: autolaunch economics and mutable live-state disclosure
 warning: Draft evidence only; this file does not deploy, admit, sign, or move value.
 launch_fee:
-  initial_regent_wei: "1000000000000000000000000"
+  initial_value: {regent_wei: "1000000000000000000000000"}
   authority: subject_registry_governance
+  governance_mutable: true
   zero_allowed: true
-  preparation_source: onchain_factory_getter
+  draft_witness_source: candidate_local_getter
   destination_base_mainnet: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
   funding_method: fundRegentRewards
-  atomic_no_refund: true
+  failure: complete_atomic_rollback
+  success: final_nonrefundable
 token:
   total_supply_wei: "100000000000000000000000000000"
   decimals: 18
@@ -40,14 +42,72 @@ graduated_pool:
   lp_position_custody: permanently_locked_at_dead_address
 hook_fee:
   total_bps: 200
-  agent_safe_lane_bps: 100
+  subject_staker_pool_lane_bps: 100
   canonical_regent_staking_lane_bps: 100
+  subject_lane_destination: registered_subject_revenue_share_splitter
+  agent_safe_pool_fee_lane: none
 vesting:
   beneficiary: direct_calling_agent_safe
   duration_seconds: 31536000
 revenue:
   settlement_asset: {symbol: USDC, address_base_mainnet: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}
-  protocol_staking_skim_bps: 100
-  subject_lane_bps: 9900
+  protocol_staking_skim:
+    initial_value: {bps: 200}
+    governance_mutable: true
+    authority: subject_registry_governance
+    zero_allowed: true
+    upper_bound_exclusive_bps: 1000
+    failure: complete_atomic_rollback
+    success: final_nonrefundable
+    applies_to: all_existing_and_future_subject_splitters_at_settlement
+  subject_lane_initial_bps: 9800
   live_staking_destination: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+subject_regent_rewards:
+  source: registered_subject_fee_vault
+  destination: subject_token_stakers
+  staker_share_bps: 10000
+  protocol_skim_bps: 0
+  agent_safe_residual_bps: 0
+  raw_transfer_recognition: false
+  dust_policy: physically_backed_staker_protected
+  admitted_abi:
+    funding: "fundRegentRewards(uint256)"
+    claim: "claimRegent(address)"
+    preview: "previewClaimableRegent(address)"
+    liability: "reservedRegent()"
+    accumulator: "accRewardPerTokenRegent()"
+    events: ["RegentRewardsFunded(uint256,uint256,uint256)", "RegentRewardClaimed(address,uint256,address)"]
+manual_clanker_income:
+  status: operations_only_founder_gated
+  regent_side: fundRegentRewards
+  eth_side: swap_to_regent_then_fundRegentRewards
+  automatic_contract_route: none
+mutable_live_state_witnesses:
+  launch_fee:
+    getter: launchFee()
+    required_initial_value: "1000000e18"
+    governance_authority: subject_registry_governance
+    zero_allowed: true
+    change_event: LaunchFeeUpdated(uint256,uint256)
+    block_number: deferred_protected_read
+    block_hash: deferred_protected_read
+  protocol_skim_bps:
+    getter: protocolSkimBps()
+    required_initial_value: 200
+    governance_authority: subject_registry_governance
+    zero_allowed: true
+    change_event: ProtocolSkimBpsSet(uint16,uint16)
+    block_number: deferred_protected_read
+    block_hash: deferred_protected_read
+abi_surface:
+  launch_fee_registry:
+    recipient_getter: "subjectStakingRecipient(bytes32)"
+    retired_getter: "treasuryRecipient(bytes32)"
+  launch_fee_vault:
+    subject_settlement: "fundSubjectShare(bytes32)"
+    retired_settlement: "withdrawTreasury(bytes32)"
+  staking_router:
+    getter: "protocolSkimBps()"
+    setter: "setProtocolSkimBps(uint16)"
+    event: "ProtocolSkimBpsSet(uint16,uint16)"
 labels: {migrated: true, deployed: false, publicly_exposed: false, money_admitted: false}

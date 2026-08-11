@@ -39,6 +39,39 @@ contract HookRegentFundingTarget {
     }
 }
 
+contract HookSubjectRegentSplitter {
+    uint256 public constant ACC_PRECISION = 1e27;
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
+    address public immutable stakeToken;
+    bytes32 public immutable subjectId;
+    address public immutable subjectRegistry;
+    uint256 public totalRegentReceived;
+    uint256 public reservedRegent;
+
+    constructor(address stakeToken_, bytes32 subjectId_, address subjectRegistry_) {
+        stakeToken = stakeToken_;
+        subjectId = subjectId_;
+        subjectRegistry = subjectRegistry_;
+    }
+
+    function totalStaked() external pure returns (uint256) {
+        return 0;
+    }
+
+    function accRewardPerTokenRegent() external pure returns (uint256) {
+        return 0;
+    }
+
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        uint256 beforeBalance = MintableERC20Mock(REGENT).balanceOf(address(this));
+        MintableERC20Mock(REGENT).transferFrom(msg.sender, address(this), amount);
+        received = MintableERC20Mock(REGENT).balanceOf(address(this)) - beforeBalance;
+        totalRegentReceived += received;
+        reservedRegent += received;
+    }
+}
+
 contract RealPoolManagerHarness is IUnlockCallback {
     using BalanceDeltaLibrary for BalanceDelta;
     using SafeTransferLib for address;
@@ -121,6 +154,7 @@ contract LaunchPoolFeeHookTest is Test {
     LaunchPoolFeeHook internal hook;
     PoolKey internal poolKey;
     bytes32 internal poolId;
+    mapping(bytes32 => HookSubjectRegentSplitter) internal subjectSplitters;
 
     PoolManager internal realPoolManager;
     RealPoolManagerHarness internal realHarness;
@@ -238,15 +272,15 @@ contract LaunchPoolFeeHookTest is Test {
 
     function testEachFeeHalfIsExactlyOnePercentAcrossRoundingBoundaries() external {
         _simulateSwap(99, -99, 99);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 0);
         assertEq(vault.regentAccrued(poolId, REGENT), 0);
 
         _simulateSwap(100, -100, 98);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 1);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 1);
         assertEq(vault.regentAccrued(poolId, REGENT), 1);
 
         _simulateSwap(199, -199, 195);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 2);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 2);
         assertEq(vault.regentAccrued(poolId, REGENT), 2);
     }
 
@@ -279,7 +313,7 @@ contract LaunchPoolFeeHookTest is Test {
             })
         );
         assertEq(realRegistry.getPoolConfig(realPoolId).poolFee, POOL_FEE);
-        assertEq(realVault.treasuryAccrued(realPoolId, REGENT), 0.1e18);
+        assertEq(realVault.subjectAccrued(realPoolId, REGENT), 0.1e18);
         assertEq(realVault.regentAccrued(realPoolId, REGENT), 0.1e18);
     }
 
@@ -296,7 +330,7 @@ contract LaunchPoolFeeHookTest is Test {
             })
         );
         assertEq(realRegistry.getPoolConfig(realPoolId).poolFee, POOL_FEE);
-        assertEq(realVault.treasuryAccrued(realPoolId, REGENT), 0.05e18);
+        assertEq(realVault.subjectAccrued(realPoolId, REGENT), 0.05e18);
         assertEq(realVault.regentAccrued(realPoolId, REGENT), 0.05e18);
     }
 
@@ -313,7 +347,7 @@ contract LaunchPoolFeeHookTest is Test {
 
         assertEq(regent.balanceOf(address(poolManager)), managerBefore);
         assertEq(regent.balanceOf(address(vault)), 0);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 0);
         assertEq(vault.regentAccrued(poolId, REGENT), 0);
     }
 
@@ -462,23 +496,23 @@ contract LaunchPoolFeeHookTest is Test {
         uint256 amount = bound(uint256(amountSeed), 100, 1_000_000e18);
         uint256 share = amount / 100;
         regent.mint(address(poolManager), share * 2);
-        uint256 agentBefore = regent.balanceOf(AGENT_SAFE);
+        uint256 subjectBefore = regent.balanceOf(address(subjectSplitters[SUBJECT_ID]));
 
         _simulateSwap(amount, -int128(int256(amount)), int128(int256(amount)));
-        assertEq(vault.treasuryAccrued(poolId, REGENT), share);
+        assertEq(vault.subjectAccrued(poolId, REGENT), share);
         assertEq(vault.regentAccrued(poolId, REGENT), share);
         assertEq(regent.balanceOf(address(vault)), share * 2);
 
         HookRegentFundingTarget target = new HookRegentFundingTarget();
         vm.etch(STAKING, address(target).code);
-        vault.withdrawTreasury(poolId);
+        vault.fundSubjectShare(poolId);
         vault.fundRegentShare(poolId);
 
-        assertEq(regent.balanceOf(AGENT_SAFE) - agentBefore, share);
+        assertEq(regent.balanceOf(address(subjectSplitters[SUBJECT_ID])) - subjectBefore, share);
         assertEq(regent.balanceOf(STAKING), share);
         assertEq(HookRegentFundingTarget(STAKING).totalFundedRegent(), share);
         assertEq(regent.balanceOf(address(vault)), 0);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 0);
         assertEq(vault.regentAccrued(poolId, REGENT), 0);
     }
 
@@ -538,7 +572,7 @@ contract LaunchPoolFeeHookTest is Test {
         assertEq(poolManager.lastTakeCurrency(), REGENT);
         assertEq(poolManager.lastTakeRecipient(), address(vault));
         assertEq(poolManager.lastTakeAmount(), totalFee);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), share);
+        assertEq(vault.subjectAccrued(poolId, REGENT), share);
         assertEq(vault.regentAccrued(poolId, REGENT), share);
         assertEq(regent.balanceOf(address(vault)), totalFee);
     }
@@ -613,11 +647,15 @@ contract LaunchPoolFeeHookTest is Test {
         MintableERC20Mock token,
         address strategy
     ) internal {
+        HookSubjectRegentSplitter subjectSplitter = new HookSubjectRegentSplitter(
+            address(token), subjectId_, address(subjectRegistry_)
+        );
+        subjectSplitters[subjectId_] = subjectSplitter;
         subjectRegistry_.setSubject(
             subjectId_,
             ISubjectRegistry.SubjectConfig({
                 stakeToken: address(token),
-                splitter: address(1),
+                splitter: address(subjectSplitter),
                 treasurySafe: AGENT_SAFE,
                 ingress: address(2),
                 paymentLinkFactory: address(3),

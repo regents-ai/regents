@@ -6,6 +6,7 @@ import {
     IRegentRevenueStakingFunding
 } from "src/autolaunch/interfaces/IRegentRevenueStakingFunding.sol";
 import {SafeTransferLib} from "src/shared/libraries/SafeTransferLib.sol";
+import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 
 interface IERC20FeeVaultView {
     function balanceOf(address account) external view returns (uint256);
@@ -14,6 +15,16 @@ interface IERC20FeeVaultView {
 
 interface IRegentRevenueStakingView is IRegentRevenueStakingFunding {
     function totalFundedRegent() external view returns (uint256);
+}
+
+interface ISubjectRegentSplitter {
+    // The getter must match the splitter's compiler-generated constant getter.
+    // slither-disable-next-line naming-convention
+    function ACC_PRECISION() external view returns (uint256);
+    function totalStaked() external view returns (uint256);
+    function accRewardPerTokenRegent() external view returns (uint256);
+    function reservedRegent() external view returns (uint256);
+    function fundRegentRewards(uint256 amount) external returns (uint256 received);
 }
 
 contract LaunchFeeVault {
@@ -30,19 +41,17 @@ contract LaunchFeeVault {
     address public canonicalQuoteToken;
     uint256 private _reentrancyGuard = 1;
 
-    mapping(bytes32 => mapping(address => uint256)) public treasuryAccrued;
+    mapping(bytes32 => mapping(address => uint256)) public subjectAccrued;
     mapping(bytes32 => mapping(address => uint256)) public regentAccrued;
 
     event HookSet(address indexed hook);
     event FeeAccrued(
         bytes32 indexed poolId,
         address indexed currency,
-        uint256 treasuryAmount,
+        uint256 subjectAmount,
         uint256 regentAmount
     );
-    event TreasuryWithdrawn(
-        bytes32 indexed poolId, address indexed currency, address indexed recipient, uint256 amount
-    );
+    event SubjectShareFunded(bytes32 indexed poolId, address indexed splitter, uint256 amount);
     event RegentShareFunded(bytes32 indexed poolId, uint256 amount);
     event CanonicalTokensSet(address indexed launchToken, address indexed quoteToken);
 
@@ -81,7 +90,7 @@ contract LaunchFeeVault {
     function recordAccrual(
         bytes32 poolId,
         address currency,
-        uint256 treasuryAmount,
+        uint256 subjectAmount,
         uint256 regentAmount
     ) external {
         require(msg.sender == hook, "ONLY_HOOK");
@@ -90,18 +99,50 @@ contract LaunchFeeVault {
         require(currency == REGENT && currency == config.quoteToken, "CURRENCY_MISMATCH");
         registryContract.requireActiveFeeInfrastructure(address(this), msg.sender);
 
-        treasuryAccrued[poolId][currency] += treasuryAmount;
+        subjectAccrued[poolId][currency] += subjectAmount;
         regentAccrued[poolId][currency] += regentAmount;
-        emit FeeAccrued(poolId, currency, treasuryAmount, regentAmount);
+        emit FeeAccrued(poolId, currency, subjectAmount, regentAmount);
     }
 
-    function withdrawTreasury(bytes32 poolId) external nonReentrant {
-        address recipient = registryContract.treasuryRecipient(poolId);
-        uint256 amount = treasuryAccrued[poolId][REGENT];
+    // The shared one-slot guard protects every callback, while exact equalities enforce the
+    // named balance, allowance, liability, and accumulator-delta invariants.
+    // slither-disable-next-line reentrancy-balance,incorrect-equality
+    function fundSubjectShare(bytes32 poolId) external nonReentrant {
+        address recipient = registryContract.subjectStakingRecipient(poolId);
+        uint256 amount = subjectAccrued[poolId][REGENT];
         require(amount != 0, "NOTHING_ACCRUED");
-        treasuryAccrued[poolId][REGENT] = 0;
-        emit TreasuryWithdrawn(poolId, REGENT, recipient, amount);
-        REGENT.safeTransfer(recipient, amount);
+        IERC20FeeVaultView regent = IERC20FeeVaultView(REGENT);
+        ISubjectRegentSplitter splitter = ISubjectRegentSplitter(recipient);
+        require(regent.allowance(address(this), recipient) == 0, "ALLOWANCE_NOT_ZERO");
+
+        uint256 vaultBalanceBefore = regent.balanceOf(address(this));
+        uint256 splitterBalanceBefore = regent.balanceOf(recipient);
+        uint256 reservedBefore = splitter.reservedRegent();
+        uint256 accumulatorBefore = splitter.accRewardPerTokenRegent();
+        uint256 totalStaked = splitter.totalStaked();
+        uint256 expectedAccumulatorDelta =
+            totalStaked == 0 ? 0 : FullMath.mulDiv(amount, splitter.ACC_PRECISION(), totalStaked);
+
+        subjectAccrued[poolId][REGENT] = 0;
+        REGENT.forceApprove(recipient, amount);
+        uint256 received = splitter.fundRegentRewards(amount);
+        REGENT.forceApprove(recipient, 0);
+
+        require(received == amount, "SUBJECT_RETURN_MISMATCH");
+        require(
+            regent.balanceOf(address(this)) + amount == vaultBalanceBefore, "VAULT_BALANCE_MISMATCH"
+        );
+        require(
+            regent.balanceOf(recipient) == splitterBalanceBefore + amount,
+            "SUBJECT_BALANCE_MISMATCH"
+        );
+        require(splitter.reservedRegent() == reservedBefore + amount, "SUBJECT_LIABILITY_MISMATCH");
+        require(
+            splitter.accRewardPerTokenRegent() == accumulatorBefore + expectedAccumulatorDelta,
+            "SUBJECT_ACCUMULATOR_MISMATCH"
+        );
+        require(regent.allowance(address(this), recipient) == 0, "ALLOWANCE_NOT_CLEARED");
+        emit SubjectShareFunded(poolId, recipient, amount);
     }
 
     // Slither cannot infer the shared custom one-slot guard; the malicious callback/reentry
@@ -147,6 +188,8 @@ contract LaunchFeeVault {
         emit RegentShareFunded(poolId, amount);
     }
 
+    // This receiver always reverts and therefore cannot lock Ether.
+    // slither-disable-next-line locked-ether
     receive() external payable {
         revert("ETH_NOT_ACCEPTED");
     }

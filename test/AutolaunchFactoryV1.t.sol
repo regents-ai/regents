@@ -124,7 +124,7 @@ contract StakingRouterBindingMock {
     address public immutable usdc;
     address public immutable subjectRegistry;
     address public immutable regentRevenueStaking;
-    uint16 public constant protocolSkimBps = 100;
+    uint16 public constant protocolSkimBps = 200;
 
     constructor(address usdc_, address subjectRegistry_, address staking_) {
         usdc = usdc_;
@@ -463,6 +463,51 @@ contract AutolaunchFactoryV1Test is Test {
         assertEq(regent.balanceOf(address(factory)), 0);
         assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
         assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+    }
+
+    function testCARRIED_LAUNCH_FEE_PROOFGovernanceSelectedPositiveFeeLaunchesExactly() external {
+        uint256 changedFee = 2_000_000e18;
+        factory.setLaunchFee(changedFee);
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Changed Fee", "CFEE");
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint256 stakingBefore = regent.balanceOf(LIVE_STAKING);
+
+        IAutolaunchFactoryV1.LaunchResult memory result = agentSafe.launch(factory, params);
+
+        assertGt(result.token.code.length, 0);
+        assertEq(safeBefore - regent.balanceOf(address(agentSafe)), changedFee);
+        assertEq(regent.balanceOf(LIVE_STAKING) - stakingBefore, changedFee);
+        assertEq(staking.totalFundedRegent(), changedFee);
+        assertEq(regent.balanceOf(address(factory)), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+    }
+
+    function testCARRIED_LAUNCH_FEE_PROOFInsufficientSafeBalanceRollsBackAtPull() external {
+        uint256 insufficientFee = regent.balanceOf(address(agentSafe)) + 1;
+        factory.setLaunchFee(insufficientFee);
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "No Balance", "NOBAL");
+        address predictedToken = _predictedToken(params);
+        bytes32 predictedSubjectId = keccak256(abi.encode(block.chainid, predictedToken));
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint256 stakingBefore = regent.balanceOf(LIVE_STAKING);
+        uint64 factoryNonceBefore = vm.getNonce(address(factory));
+
+        vm.expectRevert("BALANCE_LOW");
+        agentSafe.launch(factory, params);
+
+        assertEq(regent.balanceOf(address(agentSafe)), safeBefore);
+        assertEq(regent.balanceOf(address(factory)), 0);
+        assertEq(regent.balanceOf(LIVE_STAKING), stakingBefore);
+        assertEq(staking.totalFundedRegent(), 0);
+        assertEq(staking.callCount(), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+        assertEq(predictedToken.code.length, 0);
+        assertEq(subjectRegistry.subjectForIdentity(8453, IDENTITY_REGISTRY, 0), bytes32(0));
+        assertEq(subjectRegistry.subjectOfStakeToken(predictedToken), bytes32(0));
+        assertEq(predictedSubjectId, keccak256(abi.encode(uint256(8453), predictedToken)));
+        assertEq(vm.getNonce(address(factory)), factoryNonceBefore);
     }
 
     function testZERO_FEE_BRANCHSkipsFeeCallsAndResidue() external {

@@ -139,11 +139,11 @@ contract RevenueQuarantineInvariant is Test {
         vm.prank(AGENT_SAFE);
         splitter.sweepTreasuryResidualUSDC(treasuryClaim);
 
-        assertEq(claimed, 9_900_000);
+        assertEq(claimed, 9_800_000);
         assertEq(usdc.balanceOf(STAKER), claimed);
         assertEq(stakeToken.balanceOf(STAKER), STAKE_AMOUNT);
         assertEq(usdc.balanceOf(AGENT_SAFE), treasuryClaim);
-        assertEq(usdc.balanceOf(address(staking)), 1e6);
+        assertEq(usdc.balanceOf(address(staking)), 2e6);
         assertEq(usdc.balanceOf(address(ingress)), 50e6);
         assertEq(splitter.surplusUsdc(), 1);
     }

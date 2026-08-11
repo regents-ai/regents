@@ -137,7 +137,7 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
             "LIVE_STAKING_MISMATCH"
         );
         require(
-            IRegentStakingRevenueRouter(stakingRouter).protocolSkimBps() == 100,
+            IRegentStakingRevenueRouter(stakingRouter).protocolSkimBps() == 200,
             "PROTOCOL_SKIM_MISMATCH"
         );
         require(

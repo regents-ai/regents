@@ -6,6 +6,18 @@ import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MockFeeSubjectRegistry} from "test/mocks/MockHookPoolManager.sol";
 
+contract RegistrySubjectSplitterBinding {
+    address public immutable stakeToken;
+    bytes32 public immutable subjectId;
+    address public immutable subjectRegistry;
+
+    constructor(address stakeToken_, bytes32 subjectId_, address subjectRegistry_) {
+        stakeToken = stakeToken_;
+        subjectId = subjectId_;
+        subjectRegistry = subjectRegistry_;
+    }
+}
+
 contract LaunchFeeRegistryTest is Test {
     address internal constant AGENT_SAFE = address(0xA11CE);
     address internal constant SETUP_AUTHORITY = address(0xC0117);
@@ -21,6 +33,7 @@ contract LaunchFeeRegistryTest is Test {
 
     LaunchFeeRegistry internal registry;
     MockFeeSubjectRegistry internal subjectRegistry;
+    address internal splitter;
 
     function setUp() external {
         subjectRegistry = new MockFeeSubjectRegistry();
@@ -63,13 +76,59 @@ contract LaunchFeeRegistryTest is Test {
         assertEq(config.hook, HOOK);
         assertEq(config.authorizedInitializer, INITIALIZER);
         assertTrue(config.hookEnabled);
-        assertEq(registry.treasuryRecipient(poolId), AGENT_SAFE);
+        assertEq(registry.subjectStakingRecipient(poolId), splitter);
         assertEq(registry.regentRecipient(poolId), registry.REGENT_REVENUE_STAKING());
         assertEq(registry.setupAuthority(), address(0));
 
         vm.prank(SETUP_AUTHORITY);
         vm.expectRevert("ONLY_SETUP_AUTHORITY");
         registry.registerPool(_registration());
+    }
+
+    function testSUBJECT_SPLITTER_BINDINGRejectsEveryMismatchedSplitterTuple() external {
+        vm.prank(SETUP_AUTHORITY);
+        bytes32 poolId = registry.registerPool(_registration());
+
+        _setSplitter(
+            address(
+                new RegistrySubjectSplitterBinding(
+                    LAUNCH_TOKEN, bytes32(uint256(1)), address(subjectRegistry)
+                )
+            )
+        );
+        vm.expectRevert("SPLITTER_SUBJECT_MISMATCH");
+        registry.subjectStakingRecipient(poolId);
+
+        _setSplitter(
+            address(
+                new RegistrySubjectSplitterBinding(
+                    address(0xBAD), SUBJECT_ID, address(subjectRegistry)
+                )
+            )
+        );
+        vm.expectRevert("SPLITTER_TOKEN_MISMATCH");
+        registry.subjectStakingRecipient(poolId);
+
+        _setSplitter(
+            address(new RegistrySubjectSplitterBinding(LAUNCH_TOKEN, SUBJECT_ID, address(0xBAD)))
+        );
+        vm.expectRevert("SPLITTER_REGISTRY_MISMATCH");
+        registry.subjectStakingRecipient(poolId);
+    }
+
+    function testSUBJECT_SHARE_ATOMIC_FUNDINGQuarantinePreservesSettlementButRetirementStopsIt()
+        external
+    {
+        vm.prank(SETUP_AUTHORITY);
+        bytes32 poolId = registry.registerPool(_registration());
+        address expectedSplitter = splitter;
+
+        subjectRegistry.setLifecycle(SUBJECT_ID, ISubjectRegistry.Lifecycle.Quarantined);
+        assertEq(registry.subjectStakingRecipient(poolId), expectedSplitter);
+
+        subjectRegistry.setLifecycle(SUBJECT_ID, ISubjectRegistry.Lifecycle.Retired);
+        vm.expectRevert("SUBJECT_RETIRED");
+        registry.subjectStakingRecipient(poolId);
     }
 
     function testRegistrationRequiresExactActiveSubjectTuple() external {
@@ -154,11 +213,14 @@ contract LaunchFeeRegistryTest is Test {
         address strategy,
         address hook
     ) internal {
+        splitter = address(
+            new RegistrySubjectSplitterBinding(launchToken, SUBJECT_ID, address(subjectRegistry))
+        );
         subjectRegistry.setSubject(
             SUBJECT_ID,
             ISubjectRegistry.SubjectConfig({
                 stakeToken: launchToken,
-                splitter: address(1),
+                splitter: splitter,
                 treasurySafe: agentSafe,
                 ingress: address(2),
                 paymentLinkFactory: address(3),
@@ -174,5 +236,11 @@ contract LaunchFeeRegistryTest is Test {
                 safeRuntime: address(4)
             })
         );
+    }
+
+    function _setSplitter(address splitter_) internal {
+        ISubjectRegistry.SubjectConfig memory subject = subjectRegistry.getSubject(SUBJECT_ID);
+        subject.splitter = splitter_;
+        subjectRegistry.setSubject(SUBJECT_ID, subject);
     }
 }

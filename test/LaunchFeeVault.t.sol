@@ -30,7 +30,7 @@ contract MockRegentFundingTarget {
         if (mode == 1) revert("STAKING_FAILED");
         if (mode == 5) {
             (bool success,) = callbackVault.call(
-                abi.encodeCall(LaunchFeeVault.withdrawTreasury, (callbackPoolId))
+                abi.encodeCall(LaunchFeeVault.fundSubjectShare, (callbackPoolId))
             );
             require(success, "CALLBACK_FAILED");
         }
@@ -39,6 +39,59 @@ contract MockRegentFundingTarget {
         }
         if (mode != 3) totalFundedRegent += amount;
         return mode == 2 ? amount - 1 : amount;
+    }
+}
+
+contract MockSubjectRegentFundingTarget {
+    uint256 public constant ACC_PRECISION = 1e27;
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
+    address public immutable stakeToken;
+    bytes32 public immutable subjectId;
+    address public immutable subjectRegistry;
+    uint256 public totalRegentReceived;
+    uint256 public reservedRegent;
+    uint8 public mode;
+    LaunchFeeVault public callbackVault;
+    bytes32 public callbackPoolId;
+
+    constructor(address stakeToken_, bytes32 subjectId_, address subjectRegistry_) {
+        stakeToken = stakeToken_;
+        subjectId = subjectId_;
+        subjectRegistry = subjectRegistry_;
+    }
+
+    function setMode(uint8 mode_) external {
+        mode = mode_;
+    }
+
+    function setCallback(LaunchFeeVault vault_, bytes32 poolId_) external {
+        callbackVault = vault_;
+        callbackPoolId = poolId_;
+    }
+
+    function totalStaked() external pure returns (uint256) {
+        return 0;
+    }
+
+    function accRewardPerTokenRegent() external pure returns (uint256) {
+        return 0;
+    }
+
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        if (mode == 1) revert("SUBJECT_FAILED");
+        if (mode == 5) {
+            (bool success,) = address(callbackVault)
+                .call(abi.encodeCall(LaunchFeeVault.fundSubjectShare, (callbackPoolId)));
+            require(success, "SUBJECT_CALLBACK_FAILED");
+        }
+        if (mode != 4) MintableERC20Mock(REGENT).transferFrom(msg.sender, address(this), amount);
+        received = mode == 4 ? 0 : amount;
+        if (mode != 3) {
+            totalRegentReceived += received;
+            reservedRegent += received;
+        }
+        if (mode == 2) return received - 1;
     }
 }
 
@@ -58,6 +111,7 @@ contract LaunchFeeVaultTest is Test {
     MockFeeSubjectRegistry internal subjectRegistry;
     MintableERC20Mock internal regent;
     MockRegentFundingTarget internal staking;
+    MockSubjectRegentFundingTarget internal subjectSplitter;
     bytes32 internal poolId;
 
     function setUp() external {
@@ -73,6 +127,8 @@ contract LaunchFeeVaultTest is Test {
             AGENT_SAFE, address(this), address(subjectRegistry), SUBJECT_ID, REGENT
         );
         vault = new LaunchFeeVault(address(registry));
+        subjectSplitter =
+            new MockSubjectRegentFundingTarget(LAUNCH_TOKEN, SUBJECT_ID, address(subjectRegistry));
         MockHookDeployer hookDeployer = new MockHookDeployer();
         hook = hookDeployer.deploy(address(0x5005), address(registry), address(vault));
         vault.setHook(address(hook));
@@ -89,6 +145,7 @@ contract LaunchFeeVaultTest is Test {
             })
         );
         vault.setCanonicalTokens(poolId);
+        subjectSplitter.setCallback(vault, poolId);
     }
 
     function testFinalSetupAuthoritiesAreConsumed() external view {
@@ -120,17 +177,22 @@ contract LaunchFeeVaultTest is Test {
 
     function testDirectTransferNeverBecomesStoredAccrual() external {
         regent.mint(address(vault), 7e18);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 0);
         assertEq(vault.regentAccrued(poolId, REGENT), 0);
         vm.expectRevert("NOTHING_ACCRUED");
-        vault.withdrawTreasury(poolId);
+        vault.fundSubjectShare(poolId);
     }
 
-    function testFixedSubjectClaimAlwaysDrainsToAgentSafe() external {
+    function testSUBJECT_SHARE_ATOMIC_FUNDINGFundsOnlyRegisteredSplitterWithExactAccounting()
+        external
+    {
         _accrueAndFundVault();
-        vault.withdrawTreasury(poolId);
-        assertEq(regent.balanceOf(AGENT_SAFE), SUBJECT_SHARE);
-        assertEq(vault.treasuryAccrued(poolId, REGENT), 0);
+        vault.fundSubjectShare(poolId);
+        assertEq(regent.balanceOf(address(subjectSplitter)), SUBJECT_SHARE);
+        assertEq(subjectSplitter.totalRegentReceived(), SUBJECT_SHARE);
+        assertEq(subjectSplitter.reservedRegent(), SUBJECT_SHARE);
+        assertEq(regent.allowance(address(vault), address(subjectSplitter)), 0);
+        assertEq(vault.subjectAccrued(poolId, REGENT), 0);
     }
 
     function testProtocolShareFundsOnlyFrozenStakingWithExactAccounting() external {
@@ -154,9 +216,9 @@ contract LaunchFeeVaultTest is Test {
         vm.expectRevert("SUBJECT_NOT_ACTIVE");
         vault.recordAccrual(poolId, REGENT, 1, 1);
 
-        vault.withdrawTreasury(poolId);
+        vault.fundSubjectShare(poolId);
         vault.fundRegentShare(poolId);
-        assertEq(regent.balanceOf(AGENT_SAFE), SUBJECT_SHARE);
+        assertEq(regent.balanceOf(address(subjectSplitter)), SUBJECT_SHARE);
         assertEq(regent.balanceOf(STAKING), PROTOCOL_SHARE);
     }
 
@@ -182,6 +244,30 @@ contract LaunchFeeVaultTest is Test {
         }
     }
 
+    function testSUBJECT_SHARE_ATOMIC_FUNDINGEveryMismatchRollsBackWithoutResidue() external {
+        for (uint8 mode = 1; mode <= 5; ++mode) {
+            _accrueAndFundVault();
+            subjectSplitter.setMode(mode);
+            uint256 vaultBefore = regent.balanceOf(address(vault));
+            uint256 splitterBefore = regent.balanceOf(address(subjectSplitter));
+            uint256 receivedBefore = subjectSplitter.totalRegentReceived();
+            uint256 reservedBefore = subjectSplitter.reservedRegent();
+
+            vm.expectRevert();
+            vault.fundSubjectShare(poolId);
+
+            assertEq(vault.subjectAccrued(poolId, REGENT), SUBJECT_SHARE);
+            assertEq(regent.balanceOf(address(vault)), vaultBefore);
+            assertEq(regent.balanceOf(address(subjectSplitter)), splitterBefore);
+            assertEq(subjectSplitter.totalRegentReceived(), receivedBefore);
+            assertEq(subjectSplitter.reservedRegent(), reservedBefore);
+            assertEq(regent.allowance(address(vault), address(subjectSplitter)), 0);
+
+            subjectSplitter.setMode(0);
+            vault.fundSubjectShare(poolId);
+        }
+    }
+
     function testStakingCallbackCannotReenterSubjectClaimAndEverythingRollsBack() external {
         _accrueAndFundVault();
         staking.setMode(5);
@@ -193,7 +279,7 @@ contract LaunchFeeVaultTest is Test {
         vm.expectRevert("CALLBACK_FAILED");
         vault.fundRegentShare(poolId);
 
-        assertEq(vault.treasuryAccrued(poolId, REGENT), SUBJECT_SHARE);
+        assertEq(vault.subjectAccrued(poolId, REGENT), SUBJECT_SHARE);
         assertEq(vault.regentAccrued(poolId, REGENT), PROTOCOL_SHARE);
         assertEq(regent.balanceOf(address(vault)), vaultBefore);
         assertEq(regent.balanceOf(STAKING), stakingBefore);
@@ -246,7 +332,7 @@ contract LaunchFeeVaultTest is Test {
             SUBJECT_ID,
             ISubjectRegistry.SubjectConfig({
                 stakeToken: LAUNCH_TOKEN,
-                splitter: address(1),
+                splitter: address(subjectSplitter),
                 treasurySafe: AGENT_SAFE,
                 ingress: address(2),
                 paymentLinkFactory: address(3),

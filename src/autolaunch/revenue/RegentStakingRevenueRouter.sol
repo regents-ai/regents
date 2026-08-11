@@ -16,7 +16,7 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
     using SafeTransferLib for address;
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    uint16 public constant override protocolSkimBps = 100;
+    uint16 public override protocolSkimBps = 200;
 
     address public immutable override usdc;
     address public immutable override regentRevenueStaking;
@@ -102,6 +102,13 @@ contract RegentStakingRevenueRouter is Owned, IRegentStakingRevenueRouter {
 
     function setMaxUsdcPerSettlement(uint256) external view onlyOwner {
         revert("CAP_IMMUTABLE");
+    }
+
+    function setProtocolSkimBps(uint16 newBps) external override onlyOwner {
+        require(newBps < 1000, "PROTOCOL_SKIM_TOO_HIGH");
+        uint16 previousBps = protocolSkimBps;
+        protocolSkimBps = newBps;
+        emit ProtocolSkimBpsSet(previousBps, newBps);
     }
 
     function _requireRegisteredSubjectSplitter(bytes32 subjectId)

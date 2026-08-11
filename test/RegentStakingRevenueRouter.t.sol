@@ -5,6 +5,9 @@ import {Test} from "forge-std/Test.sol";
 
 import {RegentRevenueStaking} from "src/staking/RegentRevenueStaking.sol";
 import {RegentStakingRevenueRouter} from "src/autolaunch/revenue/RegentStakingRevenueRouter.sol";
+import {
+    IRegentStakingRevenueRouter
+} from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 import {ISubjectRegistry} from "src/autolaunch/revenue/interfaces/ISubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
@@ -152,8 +155,28 @@ contract RegentStakingRevenueRouterTest is Test {
         router.processProtocolFee(SUBJECT_ID, USDC_FEE, bytes32("source"));
     }
 
-    function testRouterUsesFixedProtocolSkim() external view {
-        assertEq(router.protocolSkimBps(), 100);
+    function testSHARED_USDC_SKIM_GOVERNANCEInitialValueIsTwoHundredBps() external view {
+        assertEq(router.protocolSkimBps(), 200);
+    }
+
+    function testSHARED_USDC_SKIM_GOVERNANCEOnlyOwnerCanSetIncludingZero() external {
+        vm.prank(address(0xBAD));
+        vm.expectRevert("ONLY_OWNER");
+        router.setProtocolSkimBps(250);
+        assertEq(router.protocolSkimBps(), 200);
+
+        vm.expectEmit(false, false, false, true, address(router));
+        emit IRegentStakingRevenueRouter.ProtocolSkimBpsSet(200, 0);
+        vm.prank(OWNER);
+        router.setProtocolSkimBps(0);
+        assertEq(router.protocolSkimBps(), 0);
+    }
+
+    function testSHARED_USDC_SKIM_GOVERNANCERejectsBoundWithoutStateChange() external {
+        vm.prank(OWNER);
+        vm.expectRevert("PROTOCOL_SKIM_TOO_HIGH");
+        router.setProtocolSkimBps(1000);
+        assertEq(router.protocolSkimBps(), 200);
     }
 
     function testMaxUsdcPerSettlementIsFixedAtTwoThousandTokenUnits() external {

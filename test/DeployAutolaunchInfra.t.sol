@@ -11,6 +11,9 @@ import {
 import {AutolaunchFactoryV1} from "src/autolaunch/AutolaunchFactoryV1.sol";
 import {IAutolaunchFactoryV1} from "src/autolaunch/interfaces/IAutolaunchFactoryV1.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
+import {
+    IRegentStakingRevenueRouter
+} from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 
 contract LiveStakingBindingMock {
     address public constant usdc = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
@@ -31,8 +34,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
         0x6e1e8f7b1a5de15fa2aadd33503de85b47cdbc151c53c83df2df74862a6e0fba;
     bytes32 internal constant FIXED_TYPEHASH =
         0x32ba980f8a2e1edef01731a3c84113908d409e004d68bd4677bf33faad970eba;
-    bytes32 internal constant LIVE_TYPEHASH =
-        0xa95774e92247e20d445e762ad35b922069db60bcc3a13a7174ed7bfa39396546;
+    bytes32 internal constant LIVE_TYPEHASH = keccak256(
+        "AutolaunchLiveReadbacksV1(address subjectRegistry,address subjectRegistryController,address revenueShareController,address revenueIngressController,address paymentLinkController,address revenueIngressSubjectRegistry,address paymentLinkSubjectRegistry,address stakingRouter,address splitterDeployer,address revenueShareUsdc,address revenueIngressUsdc,address paymentLinkUsdc,address stakingRouterUsdc,address stakingRouterSubjectRegistry,address stakingRouterRegentRevenueStaking,bool strategyFactoryAuthorized,address feeInfraAuthorizedController,address subjectRegistryGovernance,address subjectRegistryGuardian)"
+    );
     bytes32 internal constant BINDING_TYPEHASH =
         0xece30424d68a49316340bac7da891d7930b005201ccaea7ba1bcf2ef915ea7e6;
     bytes32 internal constant ABI_SHA256 =
@@ -146,6 +150,18 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(type(AutolaunchFactoryV1).creationCode.length + args.length, 23_436);
         assertLe(type(AutolaunchFactoryV1).creationCode.length + args.length, 48_152);
 
+        IRegentStakingRevenueRouter deployedRouter =
+            IRegentStakingRevenueRouter(address(deployer.stakingRouter()));
+        assertEq(deployedRouter.protocolSkimBps(), 200);
+        assertEq(deployer.stakingRouter().owner(), GOVERNANCE);
+        bytes32 liveHashBeforeSkimChange = _liveReadbacksHash(deployer, expected.factory);
+        vm.expectEmit(false, false, false, true, address(deployedRouter));
+        emit IRegentStakingRevenueRouter.ProtocolSkimBpsSet(200, 0);
+        vm.prank(GOVERNANCE);
+        deployedRouter.setProtocolSkimBps(0);
+        assertEq(deployedRouter.protocolSkimBps(), 0);
+        assertEq(_liveReadbacksHash(deployer, expected.factory), liveHashBeforeSkimChange);
+
         bytes32 constructorHash = keccak256(
             abi.encode(
                 CONSTRUCTOR_TYPEHASH,
@@ -175,7 +191,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             constructorHash, 0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d
         );
         assertEq(fixedHash, 0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f);
-        assertEq(liveHash, 0xdd3da8abc137bbe448b87405f36120c2684fa0d34fbd992862ec0a3df2a9d8cc);
+        assertEq(liveHash, 0x55cda8a466450076424bfdfd65cc1720fb10b3ca2e47321eb84b86745252b513);
         assertEq(
             keccak256(
                 abi.encode(
@@ -189,7 +205,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
                     liveHash
                 )
             ),
-            0xac8b51b7851a5755484d14c298b3c38a861f13dd8a5d3c6d88fa34217c7f8615
+            0x526713e578e96be8580ad71fd7daeb9c50670322043f6cfc73363a5aa997d6a2
         );
         _assertRetiredSelectorsReject(address(factory), deployer, expected);
     }
@@ -229,7 +245,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             LIVE_TYPEHASH,
             keccak256(
                 bytes(
-                    "AutolaunchLiveReadbacksV1(address subjectRegistry,address subjectRegistryController,address revenueShareController,address revenueIngressController,address paymentLinkController,address revenueIngressSubjectRegistry,address paymentLinkSubjectRegistry,address stakingRouter,address splitterDeployer,address revenueShareUsdc,address revenueIngressUsdc,address paymentLinkUsdc,address stakingRouterUsdc,address stakingRouterSubjectRegistry,address stakingRouterRegentRevenueStaking,uint16 stakingRouterProtocolSkimBps,bool strategyFactoryAuthorized,address feeInfraAuthorizedController,address subjectRegistryGovernance,address subjectRegistryGuardian)"
+                    "AutolaunchLiveReadbacksV1(address subjectRegistry,address subjectRegistryController,address revenueShareController,address revenueIngressController,address paymentLinkController,address revenueIngressSubjectRegistry,address paymentLinkSubjectRegistry,address stakingRouter,address splitterDeployer,address revenueShareUsdc,address revenueIngressUsdc,address paymentLinkUsdc,address stakingRouterUsdc,address stakingRouterSubjectRegistry,address stakingRouterRegentRevenueStaking,bool strategyFactoryAuthorized,address feeInfraAuthorizedController,address subjectRegistryGovernance,address subjectRegistryGuardian)"
                 )
             )
         );
@@ -333,7 +349,6 @@ contract DeployAutolaunchInfraScriptTest is Test {
                 _usdc(),
                 address(d.subjectRegistry()),
                 LIVE_STAKING,
-                uint16(100),
                 true,
                 factory,
                 GOVERNANCE,

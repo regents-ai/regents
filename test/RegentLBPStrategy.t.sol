@@ -47,8 +47,38 @@ import {
 } from "src/autolaunch/cca/interfaces/external/IDistributionContract.sol";
 
 contract LifecycleSplitterMock is ISubjectLifecycleSync {
+    uint256 public constant ACC_PRECISION = 1e27;
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
+    address public immutable stakeToken;
+    bytes32 public immutable subjectId;
+    address public immutable subjectRegistry;
+    uint256 public totalRegentReceived;
+    uint256 public reservedRegent;
     bool public lastActive = true;
     bool public retired;
+
+    constructor(address stakeToken_, bytes32 subjectId_, address subjectRegistry_) {
+        stakeToken = stakeToken_;
+        subjectId = subjectId_;
+        subjectRegistry = subjectRegistry_;
+    }
+
+    function totalStaked() external pure returns (uint256) {
+        return 0;
+    }
+
+    function accRewardPerTokenRegent() external pure returns (uint256) {
+        return 0;
+    }
+
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        uint256 beforeBalance = MintableERC20Mock(REGENT).balanceOf(address(this));
+        MintableERC20Mock(REGENT).transferFrom(msg.sender, address(this), amount);
+        received = MintableERC20Mock(REGENT).balanceOf(address(this)) - beforeBalance;
+        totalRegentReceived += received;
+        reservedRegent += received;
+    }
 
     function syncSubjectLifecycle(bool active_, bool retiring_) external {
         lastActive = active_;
@@ -136,8 +166,9 @@ contract RegentLBPStrategyTest is Test {
         // The fee hook's beforeInitialize guard reads pool config from a real registry, so the
         // hook must point at a real LaunchFeeRegistry whose canonical quote token matches.
         subjectRegistry = new SubjectRegistry(address(this), address(0xA11CE), address(0x600D));
-        lifecycleSplitter = new LifecycleSplitterMock();
         subjectId = keccak256(abi.encode(block.chainid, address(token)));
+        lifecycleSplitter =
+            new LifecycleSplitterMock(address(token), subjectId, address(subjectRegistry));
         registry = new LaunchFeeRegistry(
             AGENT_TREASURY, address(this), address(subjectRegistry), subjectId, address(quoteToken)
         );
@@ -577,9 +608,8 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testPoolTradeFeeStillAccruesAndCollectsAfterLock() external {
-        // The 2% pool trade fee (1% agent / 1% Regent) is charged by the hook during swaps and
-        // routed to the LaunchFeeVault — position ownership is irrelevant, so locking the LP
-        // forever does not touch the agent/Regent fee income path.
+        // The 2% pool trade fee (1% subject stakers / 1% global Regent staking) is charged by
+        // the hook during swaps and routed to the LaunchFeeVault.
         _migrateWithRaise(200e18);
         bytes32 poolId = strategy.migratedPoolId();
 
@@ -603,12 +633,12 @@ contract RegentLBPStrategyTest is Test {
 
         uint256 expectedFee = (swapAmount * 200) / 10_000;
         assertEq(quoteToken.balanceOf(address(vault)), expectedFee);
-        assertEq(vault.treasuryAccrued(poolId, address(quoteToken)), expectedFee / 2);
+        assertEq(vault.subjectAccrued(poolId, address(quoteToken)), expectedFee / 2);
         assertEq(vault.regentAccrued(poolId, address(quoteToken)), expectedFee / 2);
 
-        // The agent treasury can actually collect its half.
-        vault.withdrawTreasury(poolId);
-        assertEq(quoteToken.balanceOf(AGENT_TREASURY), expectedFee / 2);
+        // The registered subject splitter receives its half.
+        vault.fundSubjectShare(poolId);
+        assertEq(quoteToken.balanceOf(address(lifecycleSplitter)), expectedFee / 2);
     }
 
     function _wrappedInitializeRevert(string memory reason) internal view returns (bytes memory) {

@@ -21,6 +21,12 @@ import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
 contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     using SafeTransferLib for address;
 
+    error SubjectBindingMismatch();
+    error SubjectFeeVaultUnauthorized();
+    error SubjectFeeVaultBindingMismatch();
+    error SubjectLookupFailed();
+    error RegentTransferInexact();
+
     enum RevenueSourceKind {
         DirectDeposit,
         AuthorizedIngress,
@@ -39,6 +45,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant ACC_PRECISION = 1e27;
+    address public constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
     uint16 public constant MIN_ELIGIBLE_REVENUE_SHARE_BPS = 1000;
     uint16 public constant MAX_ELIGIBLE_REVENUE_SHARE_STEP_BPS = 2000;
     uint16 public constant DEFAULT_ELIGIBLE_REVENUE_SHARE_BPS = 10_000;
@@ -89,10 +96,16 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     uint256 public totalClaimedUsdc;
     uint256 public totalSurplusUsdcRedeposited;
     uint256 public totalSurplusUsdcSwept;
+    uint256 public accRewardPerTokenRegent;
+    uint256 private _totalRegentReceived;
+    uint256 private _totalClaimedRegent;
+    uint256 private _undistributedRegent;
 
     mapping(address => uint256) public stakedBalance;
     mapping(address => uint256) public rewardDebtUsdc;
     mapping(address => uint256) public storedClaimableUsdc;
+    mapping(address => uint256) private _rewardDebtRegent;
+    mapping(address => uint256) private _storedClaimableRegent;
 
     uint256 private _reentrancyGuard = 1;
 
@@ -142,6 +155,10 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     event USDCTreasuryReservedWithdrawn(uint256 amount, address indexed recipient);
     event USDCDustReassigned(uint256 amount, address indexed recipient);
     event AccountSynced(address indexed account);
+    event RegentRewardsFunded(
+        uint256 amountReceived, uint256 creditedToStakers, uint256 protectedDust
+    );
+    event RegentRewardClaimed(address indexed account, uint256 amount, address recipient);
 
     constructor(
         address stakeToken_,
@@ -451,6 +468,60 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
         usdc.safeTransfer(recipient, amount);
     }
 
+    // The shared one-slot guard protects the exact-transfer callback and all following accounting.
+    // slither-disable-next-line reentrancy-balance,reentrancy-benign
+    function fundRegentRewards(uint256 amount) external nonReentrant returns (uint256 received) {
+        _requireRegisteredFeeVault();
+        require(amount != 0, "AMOUNT_ZERO");
+        uint256 beforeBalance = IERC20SupplyMinimal(REGENT).balanceOf(address(this));
+        REGENT.safeTransferFrom(msg.sender, address(this), amount);
+        received = IERC20SupplyMinimal(REGENT).balanceOf(address(this)) - beforeBalance;
+        require(received != 0, "NOTHING_RECEIVED");
+
+        uint256 credited = 0;
+        if (totalStaked == 0) {
+            _undistributedRegent += received;
+        } else {
+            uint256 deltaAcc = FullMath.mulDiv(received, ACC_PRECISION, totalStaked);
+            accRewardPerTokenRegent += deltaAcc;
+            credited = FullMath.mulDiv(deltaAcc, totalStaked, ACC_PRECISION);
+            _undistributedRegent += received - credited;
+        }
+        _totalRegentReceived += received;
+        emit RegentRewardsFunded(received, credited, received - credited);
+    }
+
+    function previewClaimableRegent(address account) public view returns (uint256) {
+        uint256 claimable = _storedClaimableRegent[account];
+        uint256 currentAcc = accRewardPerTokenRegent;
+        uint256 priorAcc = _rewardDebtRegent[account];
+        if (currentAcc <= priorAcc) return claimable;
+        return
+            claimable
+                + FullMath.mulDiv(stakedBalance[account], currentAcc - priorAcc, ACC_PRECISION);
+    }
+
+    // The shared one-slot guard protects the exact recipient-balance check across transfer.
+    // slither-disable-next-line reentrancy-balance
+    function claimRegent(address recipient) external nonReentrant returns (uint256 amount) {
+        require(recipient == msg.sender, "RECIPIENT_NOT_ACCOUNT");
+        _sync(msg.sender);
+        amount = _storedClaimableRegent[msg.sender];
+        if (amount == 0) return 0;
+        _storedClaimableRegent[msg.sender] = 0;
+        _totalClaimedRegent += amount;
+        uint256 beforeBalance = IERC20SupplyMinimal(REGENT).balanceOf(recipient);
+        REGENT.safeTransfer(recipient, amount);
+        if (IERC20SupplyMinimal(REGENT).balanceOf(recipient) != beforeBalance + amount) {
+            revert RegentTransferInexact();
+        }
+        emit RegentRewardClaimed(msg.sender, amount, recipient);
+    }
+
+    function reservedRegent() public view returns (uint256) {
+        return _totalRegentReceived - _totalClaimedRegent;
+    }
+
     function sweepTreasuryResidualUSDC(uint256 amount)
         external
         whenNotPaused
@@ -693,14 +764,73 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     function _sync(address account) internal {
         uint256 currentAcc = accRewardPerTokenUsdc;
         uint256 priorAcc = rewardDebtUsdc[account];
-        if (currentAcc <= priorAcc) return;
         uint256 stakeBal = stakedBalance[account];
-        if (stakeBal > 0) {
+        if (currentAcc > priorAcc && stakeBal > 0) {
             storedClaimableUsdc[
                 account
             ] += FullMath.mulDiv(stakeBal, currentAcc - priorAcc, ACC_PRECISION);
         }
-        rewardDebtUsdc[account] = currentAcc;
+        if (currentAcc > priorAcc) rewardDebtUsdc[account] = currentAcc;
+
+        uint256 currentRegentAcc = accRewardPerTokenRegent;
+        uint256 priorRegentAcc = _rewardDebtRegent[account];
+        if (currentRegentAcc > priorRegentAcc && stakeBal > 0) {
+            _storedClaimableRegent[
+                account
+            ] += FullMath.mulDiv(stakeBal, currentRegentAcc - priorRegentAcc, ACC_PRECISION);
+        }
+        if (currentRegentAcc > priorRegentAcc) _rewardDebtRegent[account] = currentRegentAcc;
+    }
+
+    function _requireRegisteredFeeVault() internal view {
+        (
+            address registeredStakeToken,
+            address registeredSplitter,
+            address registeredFeeRegistry,
+            address registeredFeeVault,
+            uint256 lifecycle
+        ) = _subjectFeeBindings();
+        if (
+            lifecycle == uint256(ISubjectRegistry.Lifecycle.Retired)
+                || registeredStakeToken != stakeToken || registeredSplitter != address(this)
+        ) revert SubjectBindingMismatch();
+        if (registeredFeeVault != msg.sender) revert SubjectFeeVaultUnauthorized();
+        ILaunchFeeVaultBinding vault = ILaunchFeeVaultBinding(msg.sender);
+        if (
+            vault.registryContract() == registeredFeeRegistry
+                && vault.canonicalLaunchToken() == stakeToken
+                && vault.canonicalQuoteToken() == REGENT
+        ) return;
+        revert SubjectFeeVaultBindingMismatch();
+    }
+
+    /// @dev `SubjectConfig` contains a trailing dynamic string. Read only the five fixed ABI
+    ///      words needed by this lane so the splitter deployer retains EIP-170 headroom.
+    // This bounded read avoids material deployer bytecode growth while decoding only fixed words.
+    // slither-disable-next-line assembly,low-level-calls
+    function _subjectFeeBindings()
+        private
+        view
+        returns (
+            address registeredStakeToken,
+            address registeredSplitter,
+            address registeredFeeRegistry,
+            address registeredFeeVault,
+            uint256 lifecycle
+        )
+    {
+        (bool success, bytes memory data) = subjectRegistry.staticcall(
+            abi.encodeCall(ISubjectRegistry.getSubject, (subjectId))
+        );
+        if (!success || data.length < 480) revert SubjectLookupFailed();
+        assembly ("memory-safe") {
+            let tuple := add(add(data, 0x20), mload(add(data, 0x20)))
+            registeredStakeToken := mload(tuple)
+            registeredSplitter := mload(add(tuple, 0x20))
+            registeredFeeRegistry := mload(add(tuple, 0xc0))
+            registeredFeeVault := mload(add(tuple, 0xe0))
+            lifecycle := mload(add(tuple, 0x180))
+        }
     }
 
     function _subjectIsActive() internal view returns (bool) {
@@ -805,6 +935,12 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     }
 
     function _isProtectedToken(address token) internal view override returns (bool) {
-        return token == usdc || token == stakeToken;
+        return token == usdc || token == stakeToken || token == REGENT;
     }
 }
+
+    interface ILaunchFeeVaultBinding {
+        function registryContract() external view returns (address);
+        function canonicalLaunchToken() external view returns (address);
+        function canonicalQuoteToken() external view returns (address);
+    }

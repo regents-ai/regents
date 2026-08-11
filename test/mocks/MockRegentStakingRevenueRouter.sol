@@ -8,7 +8,7 @@ import {
 contract MockRegentStakingRevenueRouter is IRegentStakingRevenueRouter {
     address public immutable override usdc;
     address public immutable override regentRevenueStaking;
-    uint16 public override protocolSkimBps = 100;
+    uint16 public override protocolSkimBps = 200;
     bool public shouldRevert;
     uint256 public totalUsdcProcessed;
     uint256 public totalUsdcDepositedToRegentStaking;
@@ -23,6 +23,12 @@ contract MockRegentStakingRevenueRouter is IRegentStakingRevenueRouter {
 
     function setShouldRevert(bool shouldRevert_) external {
         shouldRevert = shouldRevert_;
+    }
+
+    function setProtocolSkimBps(uint16 newBps) external override {
+        uint16 previousBps = protocolSkimBps;
+        protocolSkimBps = newBps;
+        emit ProtocolSkimBpsSet(previousBps, newBps);
     }
 
     function setProcessProtocolFeeReturnOverride(uint256 returnOverride) external {

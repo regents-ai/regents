@@ -7,6 +7,12 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 
+interface ISubjectSplitterBinding {
+    function stakeToken() external view returns (address);
+    function subjectId() external view returns (bytes32);
+    function subjectRegistry() external view returns (address);
+}
+
 contract LaunchFeeRegistry {
     using PoolIdLibrary for PoolKey;
 
@@ -46,7 +52,7 @@ contract LaunchFeeRegistry {
         bytes32 indexed poolId,
         address indexed launchToken,
         address indexed quoteToken,
-        address agentSafe,
+        address subjectStakingRecipient,
         address poolManager,
         address hook,
         address authorizedInitializer
@@ -74,7 +80,7 @@ contract LaunchFeeRegistry {
 
     function registerPool(PoolRegistration memory registration) external returns (bytes32 poolId) {
         require(msg.sender == setupAuthority, "ONLY_SETUP_AUTHORITY");
-        _requireActiveSubject(registration);
+        address subjectSplitter = _requireActiveSubject(registration);
         require(registration.launchToken != address(0), "TOKEN_ZERO");
         require(registration.quoteToken == canonicalQuoteToken, "QUOTE_TOKEN_NOT_CANONICAL");
         require(registration.poolFee <= 1_000_000, "POOL_FEE_INVALID");
@@ -114,7 +120,7 @@ contract LaunchFeeRegistry {
             poolId,
             registration.launchToken,
             registration.quoteToken,
-            agentSafe,
+            subjectSplitter,
             registration.poolManager,
             registration.hook,
             registration.authorizedInitializer
@@ -131,12 +137,14 @@ contract LaunchFeeRegistry {
     }
 
     function requireActiveFeeInfrastructure(address vault, address hook) public view {
-        ISubjectRegistry.SubjectConfig memory subject = subjectRegistry.getSubject(subjectId);
-        require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
-        require(subject.treasurySafe == agentSafe, "AGENT_SAFE_MISMATCH");
-        require(subject.launchFeeRegistry == address(this), "FEE_REGISTRY_MISMATCH");
+        ISubjectRegistry.SubjectConfig memory subject = _requireActiveFeeSubject();
         if (vault != address(0)) require(subject.feeVault == vault, "FEE_VAULT_MISMATCH");
         require(subject.feeHook == hook, "FEE_HOOK_MISMATCH");
+    }
+
+    function requireSubjectStakingBinding() external view {
+        ISubjectRegistry.SubjectConfig memory subject = _requireActiveFeeSubject();
+        _requireSplitterBinding(subject);
     }
 
     function getPoolConfig(bytes32 poolId) external view returns (PoolConfig memory) {
@@ -147,9 +155,13 @@ contract LaunchFeeRegistry {
         return poolConfigs[poolId].launchToken != address(0);
     }
 
-    function treasuryRecipient(bytes32 poolId) external view returns (address) {
-        _poolOrRevert(poolId);
-        return agentSafe;
+    function subjectStakingRecipient(bytes32 poolId) external view returns (address recipient) {
+        PoolConfig memory config = _poolOrRevert(poolId);
+        ISubjectRegistry.SubjectConfig memory subject = _requireFeeSubject();
+        require(subject.lifecycle != ISubjectRegistry.Lifecycle.Retired, "SUBJECT_RETIRED");
+        require(subject.stakeToken == config.launchToken, "SUBJECT_TOKEN_MISMATCH");
+        _requireSplitterBinding(subject);
+        recipient = subject.splitter;
     }
 
     function regentRecipient(bytes32 poolId) external view returns (address) {
@@ -184,7 +196,11 @@ contract LaunchFeeRegistry {
         );
     }
 
-    function _requireActiveSubject(PoolRegistration memory registration) internal view {
+    function _requireActiveSubject(PoolRegistration memory registration)
+        internal
+        view
+        returns (address splitter)
+    {
         ISubjectRegistry.SubjectConfig memory subject = subjectRegistry.getSubject(subjectId);
         require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
         require(subject.stakeToken == registration.launchToken, "SUBJECT_TOKEN_MISMATCH");
@@ -192,6 +208,37 @@ contract LaunchFeeRegistry {
         require(subject.strategy == registration.authorizedInitializer, "STRATEGY_MISMATCH");
         require(subject.launchFeeRegistry == address(this), "FEE_REGISTRY_MISMATCH");
         require(subject.feeHook == registration.hook, "FEE_HOOK_MISMATCH");
+        require(subject.splitter != address(0), "SUBJECT_SPLITTER_ZERO");
+        splitter = subject.splitter;
+    }
+
+    function _requireActiveFeeSubject()
+        internal
+        view
+        returns (ISubjectRegistry.SubjectConfig memory subject)
+    {
+        subject = _requireFeeSubject();
+        require(subject.lifecycle == ISubjectRegistry.Lifecycle.Active, "SUBJECT_NOT_ACTIVE");
+    }
+
+    function _requireFeeSubject()
+        internal
+        view
+        returns (ISubjectRegistry.SubjectConfig memory subject)
+    {
+        subject = subjectRegistry.getSubject(subjectId);
+        require(subject.treasurySafe == agentSafe, "AGENT_SAFE_MISMATCH");
+        require(subject.launchFeeRegistry == address(this), "FEE_REGISTRY_MISMATCH");
+    }
+
+    function _requireSplitterBinding(ISubjectRegistry.SubjectConfig memory subject) internal view {
+        require(subject.splitter != address(0), "SUBJECT_SPLITTER_ZERO");
+        ISubjectSplitterBinding splitter = ISubjectSplitterBinding(subject.splitter);
+        require(splitter.subjectId() == subjectId, "SPLITTER_SUBJECT_MISMATCH");
+        require(splitter.stakeToken() == subject.stakeToken, "SPLITTER_TOKEN_MISMATCH");
+        require(
+            splitter.subjectRegistry() == address(subjectRegistry), "SPLITTER_REGISTRY_MISMATCH"
+        );
     }
 
     function _poolOrRevert(bytes32 poolId) internal view returns (PoolConfig memory config) {

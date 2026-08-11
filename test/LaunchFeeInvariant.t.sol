@@ -74,12 +74,45 @@ contract LaunchFeeInvariantHandler is Test {
     }
 
     function claimSubject() external {
-        try vault.withdrawTreasury(poolId) {} catch {}
+        try vault.fundSubjectShare(poolId) {} catch {}
     }
 }
 
 interface LaunchPoolFeeVaultView {
-    function withdrawTreasury(bytes32 poolId) external;
+    function fundSubjectShare(bytes32 poolId) external;
+}
+
+contract InvariantSubjectRegentSplitter {
+    uint256 public constant ACC_PRECISION = 1e27;
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
+    address public immutable stakeToken;
+    bytes32 public immutable subjectId;
+    address public immutable subjectRegistry;
+    uint256 public totalRegentReceived;
+    uint256 public reservedRegent;
+
+    constructor(address stakeToken_, bytes32 subjectId_, address subjectRegistry_) {
+        stakeToken = stakeToken_;
+        subjectId = subjectId_;
+        subjectRegistry = subjectRegistry_;
+    }
+
+    function totalStaked() external pure returns (uint256) {
+        return 0;
+    }
+
+    function accRewardPerTokenRegent() external pure returns (uint256) {
+        return 0;
+    }
+
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        uint256 beforeBalance = MintableERC20Mock(REGENT).balanceOf(address(this));
+        MintableERC20Mock(REGENT).transferFrom(msg.sender, address(this), amount);
+        received = MintableERC20Mock(REGENT).balanceOf(address(this)) - beforeBalance;
+        totalRegentReceived += received;
+        reservedRegent += received;
+    }
 }
 
 contract LaunchFeeInvariant is Test {
@@ -93,6 +126,7 @@ contract LaunchFeeInvariant is Test {
     LaunchFeeRegistry internal registry;
     LaunchFeeVault internal vault;
     LaunchPoolFeeHook internal hook;
+    InvariantSubjectRegentSplitter internal subjectSplitter;
     bytes32 internal poolId;
 
     function setUp() external {
@@ -106,6 +140,9 @@ contract LaunchFeeInvariant is Test {
             AGENT_SAFE, address(this), address(subjectRegistry), SUBJECT_ID, REGENT
         );
         vault = new LaunchFeeVault(address(registry));
+        subjectSplitter = new InvariantSubjectRegentSplitter(
+            address(launchToken), SUBJECT_ID, address(subjectRegistry)
+        );
         MockHookDeployer deployer = new MockHookDeployer();
         hook = deployer.deploy(address(poolManager), address(registry), address(vault));
         vault.setHook(address(hook));
@@ -113,7 +150,7 @@ contract LaunchFeeInvariant is Test {
             SUBJECT_ID,
             ISubjectRegistry.SubjectConfig({
                 stakeToken: address(launchToken),
-                splitter: address(1),
+                splitter: address(subjectSplitter),
                 treasurySafe: AGENT_SAFE,
                 ingress: address(2),
                 paymentLinkFactory: address(3),
@@ -148,7 +185,7 @@ contract LaunchFeeInvariant is Test {
     }
 
     function invariantStoredAccrualIsAlwaysBacked() external view {
-        uint256 subjectAccrued = vault.treasuryAccrued(poolId, REGENT);
+        uint256 subjectAccrued = vault.subjectAccrued(poolId, REGENT);
         uint256 protocolAccrued = vault.regentAccrued(poolId, REGENT);
         uint256 balance = regent.balanceOf(address(vault));
         assertLe(subjectAccrued, balance);
@@ -157,7 +194,7 @@ contract LaunchFeeInvariant is Test {
     }
 
     function invariantDestinationsAndAuthorityNeverDrift() external view {
-        assertEq(registry.treasuryRecipient(poolId), AGENT_SAFE);
+        assertEq(registry.subjectStakingRecipient(poolId), address(subjectSplitter));
         assertEq(registry.regentRecipient(poolId), registry.REGENT_REVENUE_STAKING());
         assertEq(registry.agentSafe(), AGENT_SAFE);
         assertEq(registry.setupAuthority(), address(0));

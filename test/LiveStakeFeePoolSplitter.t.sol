@@ -21,12 +21,12 @@ contract LiveStakeFeePoolSplitterTest is Test {
     address internal constant STAKER_ONE = address(0x3333);
     address internal constant STAKER_TWO = address(0x4444);
     uint256 internal constant HUNDRED_USDC = 100e18;
-    uint256 internal constant PROTOCOL_SKIM = 1e18;
+    uint256 internal constant PROTOCOL_SKIM = 2e18;
     // The former 10% market-buyback lane is gone: net-after-skim is the full agent lane, split
     // between the staker pool (stakerPoolBps) and treasury.
-    uint256 internal constant SUBJECT_LANE = 99e18;
-    uint256 internal constant STAKER_POOL = 99e17;
-    uint256 internal constant TREASURY_LANE = 891e17;
+    uint256 internal constant SUBJECT_LANE = 98e18;
+    uint256 internal constant STAKER_POOL = 98e17;
+    uint256 internal constant TREASURY_LANE = 882e17;
 
     MintableERC20Mock internal usdc;
     MintableERC20Mock internal stakeToken;
@@ -126,15 +126,15 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.approve(address(realRouterSplitter), 100e6);
         realRouterSplitter.depositUSDC(100e6, bytes32("direct"), bytes32("source"));
 
-        assertEq(realRouterSplitter.protocolFeeUsdc(), 1e6);
-        assertEq(realRouterSplitter.netAgentLaneUsdc(), 99e6);
-        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), 9_900_000);
-        assertEq(realRouterSplitter.treasuryReservedUsdc(), 89_100_000);
-        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), 9_900_000);
-        assertEq(usdc.balanceOf(address(staking)), 1e6);
+        assertEq(realRouterSplitter.protocolFeeUsdc(), 2e6);
+        assertEq(realRouterSplitter.netAgentLaneUsdc(), 98e6);
+        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), 9_800_000);
+        assertEq(realRouterSplitter.treasuryReservedUsdc(), 88_200_000);
+        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), 9_800_000);
+        assertEq(usdc.balanceOf(address(staking)), 2e6);
         assertEq(usdc.balanceOf(address(router)), 0);
-        assertEq(staking.totalUsdcReceived(), 1e6);
-        assertEq(router.totalUsdcDepositedToRegentStaking(), 1e6);
+        assertEq(staking.totalUsdcReceived(), 2e6);
+        assertEq(router.totalUsdcDepositedToRegentStaking(), 2e6);
         assertEq(regent.balanceOf(TREASURY), 0);
     }
 
@@ -144,16 +144,16 @@ contract LiveStakeFeePoolSplitterTest is Test {
 
         _depositUsdc(address(this), 100e18);
 
-        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 66e17);
-        assertEq(splitter.previewClaimableUSDC(STAKER_TWO), 33e17);
+        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), STAKER_POOL * 2 / 3);
+        assertEq(splitter.previewClaimableUSDC(STAKER_TWO), STAKER_POOL / 3);
 
         vm.prank(STAKER_ONE);
         splitter.claimUSDC(STAKER_ONE);
         vm.prank(STAKER_TWO);
         splitter.claimUSDC(STAKER_TWO);
 
-        assertEq(usdc.balanceOf(STAKER_ONE), 66e17);
-        assertEq(usdc.balanceOf(STAKER_TWO), 33e17);
+        assertEq(usdc.balanceOf(STAKER_ONE), STAKER_POOL * 2 / 3);
+        assertEq(usdc.balanceOf(STAKER_TWO), STAKER_POOL / 3);
     }
 
     function testNoStakersRoutesStakerPoolToTreasuryAndLateStakeGetsNothing() external {
@@ -178,13 +178,13 @@ contract LiveStakeFeePoolSplitterTest is Test {
         vm.prank(STAKER_ONE);
         splitter.stake(hugeStake, STAKER_ONE);
 
-        // 100 wei USDC -> protocol 1, net 99, staker pool 9, treasury 90.
+        // 100 wei USDC -> protocol 2, net 98, staker pool 9, treasury 89.
         // deltaAcc = mulDiv(9, 1e27, 1e28) == 0, so the 9-wei staker pool falls to treasury.
         _depositUsdc(address(this), 100);
 
         assertEq(splitter.stakerPoolInflowUsdc(), 9);
         assertEq(splitter.noStakerPoolRoutedToTreasuryUsdc(), 9);
-        assertEq(splitter.treasuryReservedUsdc(), 99);
+        assertEq(splitter.treasuryReservedUsdc(), 98);
         assertEq(splitter.accRewardPerTokenUsdc(), 0);
         assertEq(splitter.undistributedDustUsdc(), 0);
         assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 0);
@@ -357,8 +357,8 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.mint(address(ingress), 50e18);
         ingress.sweepUSDC(bytes32("sweep"));
 
-        // Protocol skim on 100 + 50 = 1.5 USDC processed by the router.
-        assertEq(feeRouter.totalUsdcProcessed(), 1500e15);
+        // Protocol skim on 100 + 50 = 3 USDC processed by the router.
+        assertEq(feeRouter.totalUsdcProcessed(), 3e18);
     }
 
     function testRouterRevertLeavesDirectDepositAndSweepAccountingUnchanged() external {
@@ -383,8 +383,8 @@ contract LiveStakeFeePoolSplitterTest is Test {
     }
 
     function testOwnerReassignsUndistributedDustToTreasuryAndTreasuryWithdrawsIt() external {
-        // 7e18 staked against a 99e17 staker pool leaves 1 wei of accumulator rounding dust.
-        _stake(STAKER_ONE, 7e18);
+        // 3e18 staked against a 98e17 staker pool leaves 1 wei of accumulator rounding dust.
+        _stake(STAKER_ONE, 3e18);
         _depositUsdc(address(this), 100e18);
 
         uint256 dust = splitter.undistributedDustUsdc();
@@ -412,7 +412,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
     }
 
     function testDustReassignmentRevertsOnZeroExcessAndNonOwner() external {
-        _stake(STAKER_ONE, 7e18);
+        _stake(STAKER_ONE, 3e18);
         _depositUsdc(address(this), 100e18);
         assertEq(splitter.undistributedDustUsdc(), 1);
 
@@ -466,7 +466,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.mint(address(this), 100e6);
         usdc.approve(address(rotationSplitter), 100e6);
         rotationSplitter.depositUSDC(100e6, bytes32("direct"), bytes32("pre-rotation"));
-        assertEq(usdc.balanceOf(address(staking)), 1e6);
+        assertEq(usdc.balanceOf(address(staking)), 2e6);
 
         // The registered Agent Safe and splitter are immutable.
         vm.expectRevert("SUBJECT_IMMUTABLE");
@@ -482,9 +482,9 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.mint(address(rotationIngress), 50e6);
         rotationIngress.sweepUSDC(bytes32("post-rotation-sweep"));
 
-        // Protocol fee accrued into Regent staking on 100 + 100 + 50 = 250 USDC -> 2.5 skim.
-        assertEq(usdc.balanceOf(address(staking)), 2_500_000);
-        assertEq(staking.totalUsdcReceived(), 2_500_000);
+        // Protocol fee accrued into Regent staking on 100 + 100 + 50 = 250 USDC -> 5 skim.
+        assertEq(usdc.balanceOf(address(staking)), 5_000_000);
+        assertEq(staking.totalUsdcReceived(), 5_000_000);
         // No market-bought REGENT reaches any treasury under the direct-distribution model.
         assertEq(regent.balanceOf(newSafe), 0);
         assertEq(regent.balanceOf(TREASURY), 0);

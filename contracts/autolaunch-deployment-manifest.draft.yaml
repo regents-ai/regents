@@ -54,16 +54,31 @@ initial_state_readbacks:
   launch_fee:
     getter: launchFee()
     expected_value: "1_000_000e18"
+    governance_authority: subject_registry_governance
+    zero_allowed: true
+    change_event: LaunchFeeUpdated(uint256,uint256)
     scope: deployment_state_only
     later_governance_mutations: excluded_from_binding_digest
+    block_number: deferred_protected_read
+    block_hash: deferred_protected_read
+  protocol_skim_bps:
+    getter: protocolSkimBps()
+    expected_value: 200
+    governance_authority: subject_registry_governance
+    zero_allowed: true
+    change_event: ProtocolSkimBpsSet(uint16,uint16)
+    scope: deployment_state_only
+    later_governance_mutations: excluded_from_binding_digest
+    block_number: deferred_protected_read
+    block_hash: deferred_protected_read
 binding_digest:
   algorithm: AutolaunchFactoryBindingV1
   runtime_code_hash_source: EXTCODEHASH_after_immutable_substitution
-  dynamic_state_excluded: [pause, quarantine, restoration, lifecycle, launch_fee]
+  dynamic_state_excluded: [pause, quarantine, restoration, lifecycle, launch_fee, protocol_skim_bps]
   typehashes:
     constructor: "0x6e1e8f7b1a5de15fa2aadd33503de85b47cdbc151c53c83df2df74862a6e0fba"
     fixed: "0x32ba980f8a2e1edef01731a3c84113908d409e004d68bd4677bf33faad970eba"
-    live_readbacks: "0xa95774e92247e20d445e762ad35b922069db60bcc3a13a7174ed7bfa39396546"
+    live_readbacks: "0xc7bf3d7286599e3dbfa59b4515bf7c7da7a5b8bff68f3b29b54be0c52402c67f"
     final: "0xece30424d68a49316340bac7da891d7930b005201ccaea7ba1bcf2ef915ea7e6"
 deterministic_vector:
   chain_id: 8453
@@ -84,10 +99,31 @@ deterministic_vector:
   runtime_code_hash: "0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a"
   constructor_bindings_hash: "0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d"
   fixed_bindings_hash: "0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f"
-  live_readbacks_hash: "0xdd3da8abc137bbe448b87405f36120c2684fa0d34fbd992862ec0a3df2a9d8cc"
-  factory_binding_digest: "0xac8b51b7851a5755484d14c298b3c38a861f13dd8a5d3c6d88fa34217c7f8615"
+  live_readbacks_hash: "0x55cda8a466450076424bfdfd65cc1720fb10b3ca2e47321eb84b86745252b513"
+  factory_binding_digest: "0x526713e578e96be8580ad71fd7daeb9c50670322043f6cfc73363a5aa997d6a2"
+candidate_deployability:
+  revenue_share_splitter_v2:
+    runtime_bytes: 20817
+    runtime_margin_bytes: 3759
+    complete_initcode_bytes_for_384_byte_constructor_args: 23474
+    initcode_margin_bytes: 25678
+  revenue_share_splitter_v2_deployer:
+    runtime_bytes: 23570
+    runtime_margin_bytes: 1006
 release_state:
   deployed: false
   publicly_exposed: false
   admitted: false
   mainnet: NO_GO
+official_pool_fee_route:
+  total_bps: 200
+  subject_staker_pool_lane_bps: 100
+  subject_lane_destination: registered_subject_revenue_share_splitter
+  subject_lane_funding_method: fundSubjectShare
+  canonical_regent_staking_lane_bps: 100
+  agent_safe_pool_fee_lane: none
+manual_clanker_income:
+  evidence_class: operations_only
+  regent_side: fundRegentRewards
+  eth_side: swap_to_regent_then_fundRegentRewards
+  founder_authorization_required: true
