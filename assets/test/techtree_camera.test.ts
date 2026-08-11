@@ -39,6 +39,7 @@ type FakeEvent = {
   target: FakeElement
   pointerType?: string
   button?: number
+  isPrimary?: boolean
   pointerId?: number
   clientX?: number
   clientY?: number
@@ -181,6 +182,9 @@ const hookHarness = (reducedMotion = false) => {
   const world = new FakeElement("world")
   const node = new FakeElement("node")
   const link = new FakeElement("link", stage)
+  const otherNode = new FakeElement("node")
+  const otherLink = new FakeElement("link", stage)
+  let pointerHitTarget: FakeElement | null = null
   const animations: Array<{
     cancel: ReturnType<typeof vi.fn>
     options: Parameters<CameraDriver["animate"]>[1]
@@ -189,12 +193,19 @@ const hookHarness = (reducedMotion = false) => {
   stage.append(world)
   world.append(node)
   node.append(link)
+  world.append(otherNode)
+  otherNode.append(otherLink)
   world.dataset = {worldWidth: "800", worldHeight: "400"}
   node.dataset = {nodeId: "canonical-node", nodeX: "120", nodeY: "80"}
   node.offsetWidth = 240
   node.offsetHeight = 112
   link.dataset = {phxLink: "patch"}
   link.href = "/techtree/nodes/canonical-node"
+  otherNode.dataset = {nodeId: "other-node", nodeX: "420", nodeY: "80"}
+  otherNode.offsetWidth = 240
+  otherNode.offsetHeight = 112
+  otherLink.dataset = {phxLink: "patch"}
+  otherLink.href = "/techtree/nodes/other-node"
 
   const canonicalLink = link.closest<HTMLAnchorElement>(
     "a[data-phx-link=patch][href]",
@@ -202,6 +213,9 @@ const hookHarness = (reducedMotion = false) => {
   if (!canonicalLink) throw new Error("canonical LiveView patch anchor is required")
 
   vi.stubGlobal("Element", FakeElement)
+  vi.stubGlobal("document", {
+    elementFromPoint: vi.fn(() => pointerHitTarget),
+  })
   vi.stubGlobal("window", {
     matchMedia: () => ({matches: reducedMotion}),
     requestAnimationFrame: vi.fn(() => 1),
@@ -220,29 +234,65 @@ const hookHarness = (reducedMotion = false) => {
   }
   TechtreeCamera.mounted.call(state as never)
 
-  const pointerDown = () =>
+  const pointerDown = (
+    values: Partial<FakeEvent> = {},
+    target: FakeElement = link,
+  ) =>
     stage.emit(
       "pointerdown",
-      fakeEvent(link, {
+      fakeEvent(target, {
         pointerType: "mouse",
         button: 0,
+        isPrimary: true,
         pointerId: 1,
         clientX: 140,
         clientY: 100,
+        ...values,
       }),
     )
-  const pointerUp = () =>
+  const pointerUp = (
+    values: Partial<FakeEvent> = {},
+    target: FakeElement = stage,
+  ) =>
     stage.emit(
       "pointerup",
-      fakeEvent(stage, {pointerId: 1, clientX: 140, clientY: 100}),
+      fakeEvent(target, {
+        pointerId: 1,
+        clientX: 140,
+        clientY: 100,
+        ...values,
+      }),
     )
-  const pointerCancel = () =>
+  const pointerCancel = (values: Partial<FakeEvent> = {}) =>
     stage.emit(
       "pointercancel",
-      fakeEvent(stage, {pointerId: 1, clientX: 180, clientY: 140}),
+      fakeEvent(stage, {
+        pointerId: 1,
+        clientX: 180,
+        clientY: 140,
+        ...values,
+      }),
+    )
+  const losePointerCapture = (values: Partial<FakeEvent> = {}) =>
+    stage.emit(
+      "lostpointercapture",
+      fakeEvent(stage, {pointerId: 1, ...values}),
     )
 
-  return {animations, link, pointerCancel, pointerDown, pointerUp, stage, state}
+  return {
+    animations,
+    link,
+    losePointerCapture,
+    otherNode,
+    pointerCancel,
+    pointerDown,
+    setPointerHitTarget(target: FakeElement | null) {
+      pointerHitTarget = target
+    },
+    pointerUp,
+    stage,
+    state,
+  }
 }
 
 afterEach(() => {
@@ -423,7 +473,7 @@ describe("Techtree camera node activation invariants", () => {
       } else if (mode === "cancel-keyboard") {
         pointerDown()
         pointerCancel()
-        stage.emit("click", fakeEvent(stage, {detail: 1}))
+        stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
 
         expect(stage.outboundNavigationCount).toBe(0)
         expect(link.clickCount).toBe(0)
@@ -436,7 +486,7 @@ describe("Techtree camera node activation invariants", () => {
       } else {
         pointerDown()
         pointerUp()
-        stage.emit("click", fakeEvent(stage, {detail: 1}))
+        stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
       }
 
       expect(stage.outboundNavigationCount, mode).toBe(1)
@@ -476,20 +526,99 @@ describe("Techtree camera node activation invariants", () => {
     expect(link.clickCount).toBe(0)
     expect(animations).toHaveLength(animationCount)
     TechtreeCamera.destroyed.call(state as never)
+
+    for (const {down, click, navigationCount} of [
+      {down: {metaKey: true}, click: {metaKey: true}, navigationCount: 1},
+      {down: {ctrlKey: true}, click: {ctrlKey: true}, navigationCount: 1},
+      {down: {shiftKey: true}, click: {shiftKey: true}, navigationCount: 1},
+      {down: {altKey: true}, click: {altKey: true}, navigationCount: 1},
+      {
+        down: {defaultPrevented: true},
+        click: {defaultPrevented: true},
+        navigationCount: 0,
+      },
+      {down: {isPrimary: false}, click: {}, navigationCount: 1},
+      {down: {button: 1}, click: {}, navigationCount: 1},
+    ]) {
+      const {animations, link, pointerDown, pointerUp, stage, state} = hookHarness()
+      const animationCount = animations.length
+      const diagnostic = JSON.stringify(down)
+
+      pointerDown(down)
+      pointerUp()
+      expect(animations, diagnostic).toHaveLength(animationCount)
+      expect(animations.at(-1)?.cancel, diagnostic).not.toHaveBeenCalled()
+      expect(stage.hasPointerCapture(1), diagnostic).toBe(false)
+      const activation = fakeEvent(link, {detail: 1, pointerId: 1, ...click})
+      stage.emit("click", activation)
+
+      expect(activation.propagationStopped, diagnostic).toBe(false)
+      expect(stage.outboundNavigationCount, diagnostic).toBe(navigationCount)
+      expect(link.clickCount, diagnostic).toBe(0)
+      TechtreeCamera.destroyed.call(state as never)
+    }
   })
 
-  it("U2 drag separation continues the canonical link zero times", () => {
-    const {link, pointerDown, pointerUp, stage, state} = hookHarness()
+  it("U2 gesture separation binds recovery to one pointer and origin node without stale activation", () => {
+    const {
+      link,
+      losePointerCapture,
+      otherNode,
+      pointerCancel,
+      pointerDown,
+      pointerUp,
+      setPointerHitTarget,
+      stage,
+      state,
+    } = hookHarness()
     pointerDown()
     stage.emit(
       "pointermove",
       fakeEvent(stage, {pointerId: 1, clientX: 180, clientY: 140}),
     )
     pointerUp()
-    stage.emit("click", fakeEvent(stage, {detail: 1}))
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
 
     expect(link.clickCount).toBe(0)
     expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 2})
+    pointerUp({pointerId: 3})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 3}))
+    expect(stage.outboundNavigationCount).toBe(0)
+    pointerUp({pointerId: 2})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 3}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 4})
+    pointerDown({pointerId: 5})
+    pointerUp({pointerId: 5})
+    pointerUp({pointerId: 4})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 4}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 6})
+    pointerCancel({pointerId: 6})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 6}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 7})
+    losePointerCapture({pointerId: 7})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 7}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 8})
+    setPointerHitTarget(otherNode)
+    pointerUp({pointerId: 8})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 8}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    setPointerHitTarget(null)
+    pointerDown({pointerId: 9})
+    pointerUp({pointerId: 9})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 9}))
+    expect(link.clickCount).toBe(1)
+    expect(stage.outboundNavigationCount).toBe(1)
     TechtreeCamera.destroyed.call(state as never)
   })
 
@@ -499,7 +628,7 @@ describe("Techtree camera node activation invariants", () => {
         hookHarness()
       pointerDown()
       pointerUp()
-      stage.emit("click", fakeEvent(stage, {detail: 1}))
+      stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
 
       expect(link.clickCount, outcome).toBe(1)
       expect(stage.outboundNavigationCount, outcome).toBe(1)

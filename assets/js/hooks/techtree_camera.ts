@@ -251,8 +251,16 @@ export const TechtreeCamera = {
           camera: CameraTransform
         }
       | undefined
-    let dragged = false
-    let pointerLink: HTMLAnchorElement | null = null
+    const draggedPointers = new Set<number>()
+    let activationGesture:
+      | {pointerId: number; link: HTMLAnchorElement; node: HTMLElement}
+      | undefined
+    let recoveredActivation:
+      | {pointerId: number; link: HTMLAnchorElement; node: HTMLElement}
+      | undefined
+    let suppressedClick:
+      | {pointerId: number; node: HTMLElement | null}
+      | undefined
 
     this.cameraWorld = world
     this.camera = camera
@@ -295,19 +303,41 @@ export const TechtreeCamera = {
     }
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return
+      const nativePreserved =
+        event.defaultPrevented ||
+        event.isPrimary === false ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      if (nativePreserved) {
+        activationGesture = undefined
+        recoveredActivation = undefined
+        suppressedClick = undefined
+        return
+      }
+
       const target = event.target instanceof Element ? event.target : null
       const link = target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]")
       const node = target?.closest<HTMLElement>("[data-node-id]")
-      pointerLink = link && link.parentElement === node ? link : null
+      recoveredActivation = undefined
+      suppressedClick = undefined
+      activationGesture =
+        pointers.size === 0 && link && node && link.parentElement === node
+          ? {pointerId: event.pointerId, link, node}
+          : undefined
       camera.interrupt()
       const point = localPoint(stage, event.clientX, event.clientY)
       pointers.set(event.pointerId, {...point, id: event.pointerId})
       stage.setPointerCapture(event.pointerId)
-      dragged = false
 
-      if (pointers.size > 1) beginPinch()
-      else beginPan({...point, id: event.pointerId})
+      if (pointers.size > 1) {
+        activationGesture = undefined
+        beginPinch()
+      } else {
+        beginPan({...point, id: event.pointerId})
+      }
     }
 
     const onPointerMove = (event: PointerEvent) => {
@@ -325,7 +355,7 @@ export const TechtreeCamera = {
         )
         const worldX = (pinch.center.x - pinch.camera.x) / pinch.camera.zoom
         const worldY = (pinch.center.y - pinch.camera.y) / pinch.camera.zoom
-        dragged = true
+        for (const pointerId of pointers.keys()) draggedPointers.add(pointerId)
         event.preventDefault()
         camera.jump({
           x: center.x - worldX * zoom,
@@ -338,9 +368,11 @@ export const TechtreeCamera = {
       if (!pan || pan.pointerId !== event.pointerId) return
       const deltaX = point.x - pan.start.x
       const deltaY = point.y - pan.start.y
-      if (!dragged && Math.hypot(deltaX, deltaY) < 6) return
+      if (!draggedPointers.has(event.pointerId) && Math.hypot(deltaX, deltaY) < 6) {
+        return
+      }
 
-      dragged = true
+      draggedPointers.add(event.pointerId)
       event.preventDefault()
       stage.focus({preventScroll: true})
       camera.jump({
@@ -350,7 +382,40 @@ export const TechtreeCamera = {
       })
     }
 
-    const onPointerEnd = (event: PointerEvent) => {
+    const finishPointer = (event: PointerEvent, allowRecovery: boolean) => {
+      if (!pointers.has(event.pointerId)) {
+        if (recoveredActivation?.pointerId === event.pointerId) {
+          recoveredActivation = undefined
+        }
+        if (suppressedClick?.pointerId === event.pointerId) suppressedClick = undefined
+        return
+      }
+
+      const target = event.target instanceof Element ? event.target : null
+      const hitTarget =
+        typeof document === "undefined"
+          ? null
+          : document.elementFromPoint(event.clientX, event.clientY)
+      const terminalNode =
+        hitTarget?.closest<HTMLElement>("[data-node-id]") ??
+        target?.closest<HTMLElement>("[data-node-id]") ??
+        null
+      const originResolved = hitTarget instanceof Element || target !== stage
+      const gesture =
+        activationGesture?.pointerId === event.pointerId ? activationGesture : undefined
+      const originMatches = !originResolved || terminalNode === gesture?.node
+
+      if (allowRecovery && gesture && originMatches && !draggedPointers.has(event.pointerId)) {
+        recoveredActivation = gesture
+      } else {
+        recoveredActivation = undefined
+      }
+      suppressedClick =
+        allowRecovery && draggedPointers.has(event.pointerId)
+          ? {pointerId: event.pointerId, node: gesture?.node ?? terminalNode}
+          : undefined
+      if (gesture) activationGesture = undefined
+      draggedPointers.delete(event.pointerId)
       pointers.delete(event.pointerId)
       if (stage.hasPointerCapture(event.pointerId)) {
         stage.releasePointerCapture(event.pointerId)
@@ -363,10 +428,14 @@ export const TechtreeCamera = {
       }
     }
 
+    const onPointerEnd = (event: PointerEvent) => finishPointer(event, true)
+
     const onPointerCancel = (event: PointerEvent) => {
-      onPointerEnd(event)
-      pointerLink = null
-      dragged = false
+      finishPointer(event, false)
+    }
+
+    const onLostPointerCapture = (event: PointerEvent) => {
+      if (pointers.has(event.pointerId)) finishPointer(event, false)
     }
 
     const onWheel = (event: WheelEvent) => {
@@ -414,15 +483,24 @@ export const TechtreeCamera = {
     }
 
     const onClick = (event: MouseEvent) => {
-      if (dragged) {
-        pointerLink = null
+      const pointerId =
+        "pointerId" in event && typeof event.pointerId === "number"
+          ? event.pointerId
+          : undefined
+      const target = event.target instanceof Element ? event.target : null
+      const targetNode = target?.closest<HTMLElement>("[data-node-id]") ?? null
+      const suppress =
+        pointerId !== undefined &&
+        suppressedClick?.pointerId === pointerId &&
+        (!targetNode || targetNode === suppressedClick.node)
+      suppressedClick = undefined
+      if (suppress) {
+        recoveredActivation = undefined
         event.preventDefault()
         event.stopPropagation()
-        dragged = false
         return
       }
 
-      const target = event.target instanceof Element ? event.target : null
       const source = event.detail === 0 ? "keyboard" : "pointer"
       const targetLink =
         target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]") ?? null
@@ -432,10 +510,18 @@ export const TechtreeCamera = {
         event.ctrlKey ||
         event.shiftKey ||
         event.altKey
+      const recovery = recoveredActivation
+      recoveredActivation = undefined
       const recoveredLink =
-        source === "pointer" && !modified && !targetLink ? pointerLink : null
+        source === "pointer" &&
+        !modified &&
+        !targetLink &&
+        pointerId !== undefined &&
+        recovery?.pointerId === pointerId &&
+        (!targetNode || targetNode === recovery.node)
+          ? recovery.link
+          : null
       const link = targetLink ?? recoveredLink
-      pointerLink = null
       if (modified) return
 
       const node = target?.closest<HTMLElement>("[data-node-id]") ??
@@ -497,6 +583,7 @@ export const TechtreeCamera = {
     stage.addEventListener("pointermove", onPointerMove)
     stage.addEventListener("pointerup", onPointerEnd)
     stage.addEventListener("pointercancel", onPointerCancel)
+    stage.addEventListener("lostpointercapture", onLostPointerCapture)
     stage.addEventListener("wheel", onWheel, {passive: false})
     stage.addEventListener("click", onClick)
     stage.addEventListener("keydown", onKeydown)
@@ -508,6 +595,7 @@ export const TechtreeCamera = {
       stage.removeEventListener("pointermove", onPointerMove)
       stage.removeEventListener("pointerup", onPointerEnd)
       stage.removeEventListener("pointercancel", onPointerCancel)
+      stage.removeEventListener("lostpointercapture", onLostPointerCapture)
       stage.removeEventListener("wheel", onWheel)
       stage.removeEventListener("click", onClick)
       stage.removeEventListener("keydown", onKeydown)
