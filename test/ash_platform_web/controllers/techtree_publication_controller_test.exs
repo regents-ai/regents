@@ -22,6 +22,14 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
       ClaimRateLimiter.reset()
     end)
 
+    :ok
+  end
+
+  setup context do
+    if context[:publisher_fixture] == false, do: :ok, else: publisher_fixture()
+  end
+
+  defp publisher_fixture do
     unique = Elixir.System.unique_integer([:positive])
 
     account =
@@ -576,15 +584,16 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     )
   end
 
-  test "Privy cookie and bearer sessions never reach SIWA verification", context do
-    body = request_body(context, "audit", "privy") |> Jason.encode!()
+  @tag publisher_fixture: false
+  test "Privy cookie and bearer sessions never reach SIWA verification" do
+    body = Jason.encode!(%{})
     Process.put(:capture_agent_verification_calls, true)
 
     for header <- [
           {"cookie", "_ash_platform_key=privy-session"},
           {"authorization", "Bearer privy-access-token"}
         ] do
-      response = raw_post(body, [header], {:ok, context.identity}) |> json_response(401)
+      response = raw_post(body, [header]) |> json_response(401)
       assert_failed_receipt(response, "unauthorized")
       refute_received {:agent_verification, _envelope}
     end
