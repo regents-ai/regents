@@ -8,6 +8,9 @@ import {
 } from "src/autolaunch/cca/interfaces/external/IDistributionContract.sol";
 import {AgentTokenVestingWallet} from "src/autolaunch/AgentTokenVestingWallet.sol";
 import {IAutolaunchFactoryV1} from "src/autolaunch/interfaces/IAutolaunchFactoryV1.sol";
+import {
+    IRegentRevenueStakingFunding
+} from "src/autolaunch/interfaces/IRegentRevenueStakingFunding.sol";
 import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 import {LaunchFeeRegistry} from "src/autolaunch/LaunchFeeRegistry.sol";
 import {LaunchFeeVault} from "src/autolaunch/LaunchFeeVault.sol";
@@ -59,6 +62,7 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
     address private immutable identityRegistry;
     address private immutable operationsSafe;
     address private immutable subjectRegistry;
+    uint256 public launchFee = 1_000_000e18;
     uint256 private _launchLock = 1;
 
     struct LaunchStack {
@@ -188,6 +192,13 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
         _launchLock = 1;
     }
 
+    function setLaunchFee(uint256 newLaunchFee) external {
+        require(msg.sender == SubjectRegistry(subjectRegistry).governance(), "ONLY_GOVERNANCE");
+        uint256 previousLaunchFee = launchFee;
+        launchFee = newLaunchFee;
+        emit LaunchFeeUpdated(previousLaunchFee, newLaunchFee);
+    }
+
     // The vesting start is timestamp-bound; direct launch and rollback tests cover every postcheck.
     // The one-slot nonReentrantLaunch guard protects the sole external state-mutating entrypoint;
     // LaunchCreated is success-only and needs complete results, while
@@ -198,6 +209,8 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
         nonReentrantLaunch
         returns (LaunchResult memory result)
     {
+        uint256 currentLaunchFee = launchFee;
+        require(params.expectedFee == currentLaunchFee, "LAUNCH_FEE_CHANGED");
         uint256 entryUsdcBalance = IERC20LaunchAsset(USDC).balanceOf(address(this));
         BaseMainnetChainConfig.requireBaseMainnet();
         _validateLaunch(params);
@@ -215,6 +228,8 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
             IERC721Identity(identityRegistry).ownerOf(params.agentId) == stack.agentSafe,
             "IDENTITY_NOT_OWNED"
         );
+
+        _fundLaunchFee(stack.agentSafe, currentLaunchFee);
 
         result.token = _createToken(params, stack.agentSafe);
         result.subjectId = keccak256(abi.encode(block.chainid, result.token));
@@ -292,6 +307,44 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
             result.defaultIngress,
             result.canonicalPaymentLink,
             result.poolId
+        );
+    }
+
+    function _fundLaunchFee(address agentSafe, uint256 fee) private {
+        if (fee == 0) return;
+
+        IERC20LaunchAsset regent = IERC20LaunchAsset(REGENT);
+        uint256 safeBalanceBefore = regent.balanceOf(agentSafe);
+        uint256 factoryBalanceBefore = regent.balanceOf(address(this));
+        uint256 stakingBalanceBefore = regent.balanceOf(LIVE_STAKING);
+        uint256 totalFundedBefore =
+            IRegentRevenueStakingAccounting(LIVE_STAKING).totalFundedRegent();
+
+        require(regent.transferFrom(agentSafe, address(this), fee), "FEE_PULL_FAILED");
+        require(safeBalanceBefore - regent.balanceOf(agentSafe) == fee, "FEE_SAFE_DELTA_MISMATCH");
+        require(
+            regent.balanceOf(address(this)) - factoryBalanceBefore == fee,
+            "FEE_FACTORY_DELTA_MISMATCH"
+        );
+        require(regent.allowance(agentSafe, address(this)) == 0, "FEE_SAFE_ALLOWANCE_REMAINS");
+
+        require(regent.approve(LIVE_STAKING, fee), "FEE_APPROVAL_FAILED");
+        require(regent.allowance(address(this), LIVE_STAKING) == fee, "FEE_ALLOWANCE_MISMATCH");
+        require(
+            IRegentRevenueStakingFunding(LIVE_STAKING).fundRegentRewards(fee) == fee,
+            "FEE_FUNDING_MISMATCH"
+        );
+        require(regent.approve(LIVE_STAKING, 0), "FEE_CLEAR_FAILED");
+        require(regent.allowance(address(this), LIVE_STAKING) == 0, "FEE_ALLOWANCE_REMAINS");
+        require(regent.balanceOf(address(this)) == factoryBalanceBefore, "FEE_BALANCE_REMAINS");
+        require(
+            regent.balanceOf(LIVE_STAKING) - stakingBalanceBefore == fee,
+            "FEE_STAKING_DELTA_MISMATCH"
+        );
+        require(
+            IRegentRevenueStakingAccounting(LIVE_STAKING).totalFundedRegent() - totalFundedBefore
+                == fee,
+            "FEE_ACCOUNTING_DELTA_MISMATCH"
         );
     }
 
@@ -476,8 +529,14 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
 
 interface IERC20LaunchAsset {
     function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
     function allowance(address owner, address spender) external view returns (uint256);
+}
+
+interface IRegentRevenueStakingAccounting {
+    function totalFundedRegent() external view returns (uint256);
 }
 
 interface IERC721Identity {

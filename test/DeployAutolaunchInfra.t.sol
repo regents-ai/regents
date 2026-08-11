@@ -36,7 +36,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
     bytes32 internal constant BINDING_TYPEHASH =
         0xece30424d68a49316340bac7da891d7930b005201ccaea7ba1bcf2ef915ea7e6;
     bytes32 internal constant ABI_SHA256 =
-        0xfc54a41c85077366fe7df844dbbd539bf992f1a6c30593cee3f0b0d5b31cf1ba;
+        0x1e0001e35eecd2ca7503566b38df824e400de455173d080c73d4d70b9cea92f1;
 
     DeployAutolaunchInfraScript internal script;
 
@@ -126,11 +126,11 @@ contract DeployAutolaunchInfraScriptTest is Test {
             deployer.deployFactory(TOKEN_FACTORY, IDENTITY_REGISTRY, OPERATIONS_SAFE);
         assertEq(address(factory), expected.factory);
         assertEq(vm.getNonce(D), N + 9);
-        assertEq(address(factory).code.length, 14_777);
+        assertEq(address(factory).code.length, 17_952);
         assertLe(address(factory).code.length, 23_576);
         assertEq(
             address(factory).codehash,
-            0x26fbb4084d4e17058476a1d255453e36494d2e96e70135ad47f037a2cf9a76cd
+            0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a
         );
 
         bytes memory args = abi.encode(
@@ -143,7 +143,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             IDENTITY_REGISTRY,
             OPERATIONS_SAFE
         );
-        assertEq(type(AutolaunchFactoryV1).creationCode.length + args.length, 20_242);
+        assertEq(type(AutolaunchFactoryV1).creationCode.length + args.length, 23_436);
         assertLe(type(AutolaunchFactoryV1).creationCode.length + args.length, 48_152);
 
         bytes32 constructorHash = keccak256(
@@ -189,7 +189,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
                     liveHash
                 )
             ),
-            0xc7b3c6119f5a2f8f8973c3a5d063963b5e0c3e853314e7bff96fa0ef1ab4c35d
+            0xac8b51b7851a5755484d14c298b3c38a861f13dd8a5d3c6d88fa34217c7f8615
         );
         _assertRetiredSelectorsReject(address(factory), deployer, expected);
     }
@@ -248,9 +248,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
     // out/AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json with jq.
     function testAuxiliaryNormalizedInterfaceAbiVector() external pure {
         bytes memory normalized = bytes(
-            '[{"inputs":[{"components":[{"name":"agentId","type":"uint256"},{"name":"tokenName","type":"string"},{"name":"tokenSymbol","type":"string"},{"name":"startBlock","type":"uint64"},{"name":"floorPrice","type":"uint256"},{"name":"requiredRegentRaised","type":"uint128"},{"name":"launchFeeHookSalt","type":"bytes32"}],"name":"params","type":"tuple"}],"name":"launch","outputs":[{"components":[{"name":"token","type":"address"},{"name":"auction","type":"address"},{"name":"strategy","type":"address"},{"name":"vestingWallet","type":"address"},{"name":"revenueShare","type":"address"},{"name":"defaultIngress","type":"address"},{"name":"canonicalPaymentLink","type":"address"},{"name":"subjectId","type":"bytes32"},{"name":"poolId","type":"bytes32"}],"name":"result","type":"tuple"}],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"launchId","type":"bytes32"},{"indexed":true,"name":"agentId","type":"uint256"},{"indexed":true,"name":"agentSafe","type":"address"},{"indexed":false,"name":"token","type":"address"},{"indexed":false,"name":"auction","type":"address"},{"indexed":false,"name":"strategy","type":"address"},{"indexed":false,"name":"vestingWallet","type":"address"},{"indexed":false,"name":"revenueShare","type":"address"},{"indexed":false,"name":"defaultIngress","type":"address"},{"indexed":false,"name":"canonicalPaymentLink","type":"address"},{"indexed":false,"name":"poolId","type":"bytes32"}],"name":"LaunchCreated","type":"event"}]'
+            '[{"inputs":[{"components":[{"name":"agentId","type":"uint256"},{"name":"tokenName","type":"string"},{"name":"tokenSymbol","type":"string"},{"name":"startBlock","type":"uint64"},{"name":"floorPrice","type":"uint256"},{"name":"requiredRegentRaised","type":"uint128"},{"name":"expectedFee","type":"uint256"},{"name":"launchFeeHookSalt","type":"bytes32"}],"name":"params","type":"tuple"}],"name":"launch","outputs":[{"components":[{"name":"token","type":"address"},{"name":"auction","type":"address"},{"name":"strategy","type":"address"},{"name":"vestingWallet","type":"address"},{"name":"revenueShare","type":"address"},{"name":"defaultIngress","type":"address"},{"name":"canonicalPaymentLink","type":"address"},{"name":"subjectId","type":"bytes32"},{"name":"poolId","type":"bytes32"}],"name":"result","type":"tuple"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"launchFee","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"name":"newLaunchFee","type":"uint256"}],"name":"setLaunchFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"launchId","type":"bytes32"},{"indexed":true,"name":"agentId","type":"uint256"},{"indexed":true,"name":"agentSafe","type":"address"},{"indexed":false,"name":"token","type":"address"},{"indexed":false,"name":"auction","type":"address"},{"indexed":false,"name":"strategy","type":"address"},{"indexed":false,"name":"vestingWallet","type":"address"},{"indexed":false,"name":"revenueShare","type":"address"},{"indexed":false,"name":"defaultIngress","type":"address"},{"indexed":false,"name":"canonicalPaymentLink","type":"address"},{"indexed":false,"name":"poolId","type":"bytes32"}],"name":"LaunchCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"previousLaunchFee","type":"uint256"},{"indexed":false,"name":"newLaunchFee","type":"uint256"}],"name":"LaunchFeeUpdated","type":"event"}]'
         );
-        assertEq(normalized.length, 1496);
+        assertEq(normalized.length, 1982);
         assertEq(sha256(normalized), ABI_SHA256);
     }
 
@@ -262,12 +262,15 @@ contract DeployAutolaunchInfraScriptTest is Test {
             startBlock: 1234,
             floorPrice: 5678,
             requiredRegentRaised: 90,
+            expectedFee: 123,
             launchFeeHookSalt: bytes32(uint256(11))
         });
         bytes memory callData = abi.encodeCall(IAutolaunchFactoryV1.launch, (params));
         assertEq(
             IAutolaunchFactoryV1.launch.selector,
-            bytes4(keccak256("launch((uint256,string,string,uint64,uint256,uint128,bytes32))"))
+            bytes4(
+                keccak256("launch((uint256,string,string,uint64,uint256,uint128,uint256,bytes32))")
+            )
         );
         assertEq(bytes4(callData), IAutolaunchFactoryV1.launch.selector);
         IAutolaunchFactoryV1.LaunchParams memory decoded =
@@ -278,6 +281,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(decoded.startBlock, params.startBlock);
         assertEq(decoded.floorPrice, params.floorPrice);
         assertEq(decoded.requiredRegentRaised, params.requiredRegentRaised);
+        assertEq(decoded.expectedFee, params.expectedFee);
         assertEq(decoded.launchFeeHookSalt, params.launchFeeHookSalt);
 
         IAutolaunchFactoryV1.LaunchResult memory result = IAutolaunchFactoryV1.LaunchResult({
@@ -343,7 +347,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         AutolaunchInfraDeployerV1 deployer,
         DeployAutolaunchInfraScript.DeploymentAddresses memory expected
     ) private {
-        bytes[13] memory probes;
+        bytes[14] memory probes;
         probes[0] = abi.encodeWithSelector(
             bytes4(keccak256("deploy(bytes,bytes,bytes,bytes)")),
             bytes(""),
@@ -387,6 +391,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         probes[10] = abi.encodeWithSelector(bytes4(keccak256("acceptOwnership()")));
         probes[11] = abi.encodeWithSelector(bytes4(keccak256("rescueNative(address)")), ATTACKER);
         probes[12] = abi.encodeWithSelector(bytes4(0x032876d3), TOKEN_FACTORY, uint256(1), ATTACKER);
+        probes[13] = abi.encodeWithSelector(bytes4(keccak256("refundLaunchFee(address)")), ATTACKER);
 
         address[9] memory targets = _targets(expected);
         bytes32[9] memory codehashes;

@@ -3,6 +3,14 @@ status: draft
 approval: founder_approval_pending
 purpose: exact fixed economics for minimal atomic AutolaunchFactoryV1
 warning: Draft evidence only; this file does not deploy, admit, sign, or move value.
+launch_fee:
+  initial_regent_wei: "1000000000000000000000000"
+  authority: subject_registry_governance
+  zero_allowed: true
+  preparation_source: onchain_factory_getter
+  destination_base_mainnet: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+  funding_method: fundRegentRewards
+  atomic_no_refund: true
 token:
   total_supply_wei: "100000000000000000000000000000"
   decimals: 18

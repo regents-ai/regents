@@ -8,12 +8,20 @@ import {IAutolaunchFactoryV1} from "src/autolaunch/interfaces/IAutolaunchFactory
 import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 
 contract PreparedLaunchFactoryMock is IAutolaunchFactoryV1 {
+    uint256 public launchFee = 1_000_000e18;
     address public lastCaller;
     uint256 public lastAgentId;
     uint64 public lastStartBlock;
     uint256 public lastFloorPrice;
     uint128 public lastRequiredRegentRaised;
+    uint256 public lastExpectedFee;
     bytes32 public lastHookSalt;
+
+    function setLaunchFee(uint256 newLaunchFee) external {
+        uint256 previousLaunchFee = launchFee;
+        launchFee = newLaunchFee;
+        emit LaunchFeeUpdated(previousLaunchFee, newLaunchFee);
+    }
 
     function launch(LaunchParams calldata params) external returns (LaunchResult memory result) {
         lastCaller = msg.sender;
@@ -21,6 +29,7 @@ contract PreparedLaunchFactoryMock is IAutolaunchFactoryV1 {
         lastStartBlock = params.startBlock;
         lastFloorPrice = params.floorPrice;
         lastRequiredRegentRaised = params.requiredRegentRaised;
+        lastExpectedFee = params.expectedFee;
         lastHookSalt = params.launchFeeHookSalt;
         result.subjectId = keccak256(abi.encode(block.chainid, msg.sender, params.agentId));
     }
@@ -52,6 +61,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     }
 
     function testPrepareProducesExactDirectSafeCall() external {
+        factory.setLaunchFee(7);
         ExampleCCADeploymentScript.PreparedSafeCall memory prepared = script.prepare(_config());
         assertEq(prepared.from, address(agentSafe));
         assertEq(prepared.to, address(factory));
@@ -66,6 +76,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(factory.lastStartBlock(), 1300);
         assertEq(factory.lastFloorPrice(), TICK * 100);
         assertEq(factory.lastRequiredRegentRaised(), 100e18);
+        assertEq(factory.lastExpectedFee(), 7);
         assertEq(factory.lastHookSalt(), prepared.launchFeeHookSalt);
     }
 

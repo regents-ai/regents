@@ -9,6 +9,7 @@ interface IAutolaunchFactoryV1 {
         uint64 startBlock;
         uint256 floorPrice;
         uint128 requiredRegentRaised;
+        uint256 expectedFee;
         bytes32 launchFeeHookSalt;
     }
 
@@ -25,6 +26,12 @@ interface IAutolaunchFactoryV1 {
     }
 
     function launch(LaunchParams calldata params) external returns (LaunchResult memory result);
+
+    function launchFee() external view returns (uint256);
+
+    function setLaunchFee(uint256 newLaunchFee) external;
+
+    event LaunchFeeUpdated(uint256 previousLaunchFee, uint256 newLaunchFee);
 
     event LaunchCreated(
         bytes32 indexed launchId,

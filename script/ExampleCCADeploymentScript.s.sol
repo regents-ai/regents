@@ -44,6 +44,7 @@ contract ExampleCCADeploymentScript is Script {
         _validate(cfg);
         uint64 nonce = vm.getNonce(cfg.feeInfraDeployer);
         bytes32 salt = _launchFeeHookSalt(cfg.feeInfraDeployer, nonce);
+        uint256 expectedFee = IAutolaunchFactoryV1(cfg.factory).launchFee();
         IAutolaunchFactoryV1.LaunchParams memory params = IAutolaunchFactoryV1.LaunchParams({
             agentId: cfg.agentId,
             tokenName: cfg.tokenName,
@@ -51,6 +52,7 @@ contract ExampleCCADeploymentScript is Script {
             startBlock: cfg.startBlock,
             floorPrice: cfg.floorPrice,
             requiredRegentRaised: cfg.requiredRegentRaised,
+            expectedFee: expectedFee,
             launchFeeHookSalt: salt
         });
         call = PreparedSafeCall({

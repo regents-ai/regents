@@ -6,7 +6,9 @@ import {Test} from "forge-std/Test.sol";
 import {ExampleCCADeploymentScript} from "script/ExampleCCADeploymentScript.s.sol";
 import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 
-contract ExampleConfigFactoryMock {}
+contract ExampleConfigFactoryMock {
+    uint256 public launchFee = 1_000_000e18;
+}
 
 contract ExampleConfigSafeMock {}
 

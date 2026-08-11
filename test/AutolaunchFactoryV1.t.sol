@@ -80,6 +80,30 @@ contract Permit2Mock {
 
 interface IERC20Permit2Token {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
+contract RegentStakingFundingMock {
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
+    uint256 public totalFundedRegent;
+    uint256 public callCount;
+    bool public failAfterPull;
+
+    function setFailAfterPull(bool fail) external {
+        failAfterPull = fail;
+    }
+
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        ++callCount;
+        require(
+            IERC20Permit2Token(REGENT).transferFrom(msg.sender, address(this), amount),
+            "TRANSFER_FAILED"
+        );
+        totalFundedRegent += amount;
+        require(!failAfterPull, "FUNDING_FAILED");
+        return amount;
+    }
 }
 
 contract IdentityRegistryMock {
@@ -110,10 +134,15 @@ contract StakingRouterBindingMock {
 }
 
 contract AgentSafeWalletMock {
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
+
     function launch(AutolaunchFactoryV1 factory, IAutolaunchFactoryV1.LaunchParams calldata params)
         external
         returns (IAutolaunchFactoryV1.LaunchResult memory)
     {
+        if (params.expectedFee != 0) {
+            IERC20Permit2Token(REGENT).approve(address(factory), params.expectedFee);
+        }
         return factory.launch(params);
     }
 
@@ -162,6 +191,7 @@ contract ReentrantTokenFactory is ITokenFactory {
                 startBlock: uint64(block.number + 300),
                 floorPrice: 79_228_162_514_264_337_593_543_950,
                 requiredRegentRaised: 1,
+                expectedFee: factory.launchFee(),
                 launchFeeHookSalt: bytes32(0)
             });
         (bool ok,) = address(factory)
@@ -342,8 +372,14 @@ contract AutolaunchFactoryV1Test is Test {
         uint64 ccaFactoryNonce;
         uint256 entryUsdcBalance;
         uint256 entryRegentBalance;
+        uint256 entrySafeRegentBalance;
+        uint256 entryStakingRegentBalance;
+        uint256 entryTotalFundedRegent;
+        uint256 entryFundingCallCount;
         uint256 entryUsdcAllowance;
         uint256 entryRegentAllowance;
+        uint256 entrySafeRegentAllowance;
+        uint256 entryStakingRegentAllowance;
         bytes32 ingressSentinelCodehash;
     }
 
@@ -361,6 +397,7 @@ contract AutolaunchFactoryV1Test is Test {
     IdentityRegistryMock internal identityRegistry;
     MintableERC20Mock internal usdc;
     MintableERC20Mock internal regent;
+    RegentStakingFundingMock internal staking;
 
     function setUp() external {
         vm.chainId(8453);
@@ -379,7 +416,110 @@ contract AutolaunchFactoryV1Test is Test {
         operationsSafe = new AgentSafeWalletMock();
         tokenFactory = new UERC20Factory();
         _deployFactory(address(tokenFactory));
+        staking = new RegentStakingFundingMock();
+        vm.etch(LIVE_STAKING, address(staking).code);
+        staking = RegentStakingFundingMock(LIVE_STAKING);
+        regent.mint(address(agentSafe), 10_000_000e18);
         identityRegistry.setOwner(0, address(agentSafe));
+    }
+
+    function testLAUNCH_FEE_STATE_AND_ADMINInitialGetterGovernanceSetterAndZero() external {
+        assertEq(factory.launchFee(), 1_000_000e18);
+
+        vm.expectRevert("ONLY_GOVERNANCE");
+        vm.prank(address(agentSafe));
+        factory.setLaunchFee(7);
+
+        vm.expectEmit(false, false, false, true, address(factory));
+        emit IAutolaunchFactoryV1.LaunchFeeUpdated(1_000_000e18, 0);
+        factory.setLaunchFee(0);
+        assertEq(factory.launchFee(), 0);
+    }
+
+    function testFuzzLAUNCH_FEE_STATE_AND_ADMINRejectsEveryNonGovernance(
+        address caller,
+        uint256 fee
+    ) external {
+        vm.assume(caller != address(this));
+        vm.expectRevert("ONLY_GOVERNANCE");
+        vm.prank(caller);
+        factory.setLaunchFee(fee);
+        assertEq(factory.launchFee(), 1_000_000e18);
+    }
+
+    function testPOSITIVE_FEE_FUNDINGExactPullFundingAllowanceClearAndFinality() external {
+        uint256 fee = factory.launchFee();
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint256 stakingBefore = regent.balanceOf(LIVE_STAKING);
+
+        IAutolaunchFactoryV1.LaunchResult memory result =
+            agentSafe.launch(factory, _params(0, "Positive Fee", "PFEE"));
+
+        assertTrue(result.token.code.length != 0);
+        assertEq(safeBefore - regent.balanceOf(address(agentSafe)), fee);
+        assertEq(regent.balanceOf(LIVE_STAKING) - stakingBefore, fee);
+        assertEq(staking.totalFundedRegent(), fee);
+        assertEq(staking.callCount(), 1);
+        assertEq(regent.balanceOf(address(factory)), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+    }
+
+    function testZERO_FEE_BRANCHSkipsFeeCallsAndResidue() external {
+        factory.setLaunchFee(0);
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint256 factoryBefore = regent.balanceOf(address(factory));
+        uint256 stakingBefore = regent.balanceOf(LIVE_STAKING);
+
+        IAutolaunchFactoryV1.LaunchResult memory result =
+            agentSafe.launch(factory, _params(0, "Zero Fee", "ZFEE"));
+
+        assertTrue(result.token.code.length != 0);
+        assertEq(regent.balanceOf(address(agentSafe)), safeBefore);
+        assertEq(regent.balanceOf(address(factory)), factoryBefore);
+        assertEq(regent.balanceOf(LIVE_STAKING), stakingBefore);
+        assertEq(staking.totalFundedRegent(), 0);
+        assertEq(staking.callCount(), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+    }
+
+    function testREVIEWED_FEE_FRESHNESSStaleExpectedFeeRollsBackBeforePull() external {
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Stale Fee", "STALE");
+        factory.setLaunchFee(params.expectedFee + 1);
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint64 factoryNonceBefore = vm.getNonce(address(factory));
+
+        vm.expectRevert("LAUNCH_FEE_CHANGED");
+        agentSafe.launch(factory, params);
+
+        assertEq(regent.balanceOf(address(agentSafe)), safeBefore);
+        assertEq(regent.balanceOf(address(factory)), 0);
+        assertEq(regent.balanceOf(LIVE_STAKING), 0);
+        assertEq(staking.totalFundedRegent(), 0);
+        assertEq(staking.callCount(), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+        assertEq(vm.getNonce(address(factory)), factoryNonceBefore);
+    }
+
+    function testATOMIC_FEE_FINALITYFundingFailureRestoresAllFeeResidue() external {
+        staking.setFailAfterPull(true);
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Funding Fail", "FAIL");
+        uint256 safeBefore = regent.balanceOf(address(agentSafe));
+        uint64 factoryNonceBefore = vm.getNonce(address(factory));
+
+        vm.expectRevert("FUNDING_FAILED");
+        agentSafe.launch(factory, params);
+
+        assertEq(regent.balanceOf(address(agentSafe)), safeBefore);
+        assertEq(regent.balanceOf(address(factory)), 0);
+        assertEq(regent.balanceOf(LIVE_STAKING), 0);
+        assertEq(staking.totalFundedRegent(), 0);
+        assertEq(staking.callCount(), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+        assertEq(regent.allowance(address(factory), LIVE_STAKING), 0);
+        assertEq(vm.getNonce(address(factory)), factoryNonceBefore);
     }
 
     function testDirectSafeLaunchCreatesExactCanonicalStackAndVectors() external {
@@ -503,18 +643,21 @@ contract AutolaunchFactoryV1Test is Test {
     function testRejectsEoaNonownerAndOperationsSafeCallers() external {
         address eoa = address(0xE0A);
         identityRegistry.setOwner(7, eoa);
+        IAutolaunchFactoryV1.LaunchParams memory eoaParams = _params(7, "EOA", "EOA");
         vm.prank(eoa);
         vm.expectRevert("CALLER_NOT_CONTRACT");
-        factory.launch(_params(7, "EOA", "EOA"));
+        factory.launch(eoaParams);
 
         AgentSafeWalletMock nonowner = new AgentSafeWalletMock();
         identityRegistry.setOwner(8, address(agentSafe));
+        IAutolaunchFactoryV1.LaunchParams memory nonownerParams = _params(8, "No", "NO");
         vm.expectRevert("IDENTITY_NOT_OWNED");
-        nonowner.launch(factory, _params(8, "No", "NO"));
+        nonowner.launch(factory, nonownerParams);
 
         identityRegistry.setOwner(9, address(operationsSafe));
+        IAutolaunchFactoryV1.LaunchParams memory operationsParams = _params(9, "Ops", "OPS");
         vm.expectRevert("OPERATIONS_SAFE_FORBIDDEN");
-        operationsSafe.launch(factory, _params(9, "Ops", "OPS"));
+        operationsSafe.launch(factory, operationsParams);
     }
 
     function testRejectsAllOmittedOperationsSafeDependencyCollisions() external {
@@ -564,8 +707,9 @@ contract AutolaunchFactoryV1Test is Test {
         _deployFactory(address(reentrant));
         reentrant.setFactory(factory);
         identityRegistry.setOwner(0, address(agentSafe));
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Reentry", "RE");
         vm.expectRevert("REENTRY_REJECTED");
-        agentSafe.launch(factory, _params(0, "Reentry", "RE"));
+        agentSafe.launch(factory, params);
         assertEq(subjectRegistry.subjectForIdentity(8453, IDENTITY_REGISTRY, 0), bytes32(0));
     }
 
@@ -671,7 +815,9 @@ contract AutolaunchFactoryV1Test is Test {
     function testSelectorEventConstructorAndScheduleVectorsAreExact() external pure {
         assertEq(
             IAutolaunchFactoryV1.launch.selector,
-            bytes4(keccak256("launch((uint256,string,string,uint64,uint256,uint128,bytes32))"))
+            bytes4(
+                keccak256("launch((uint256,string,string,uint64,uint256,uint128,uint256,bytes32))")
+            )
         );
         assertEq(_schedule().length, 104);
         assertEq(
@@ -848,8 +994,14 @@ contract AutolaunchFactoryV1Test is Test {
         state.ccaFactoryNonce = vm.getNonce(CCA_FACTORY);
         state.entryUsdcBalance = usdc.balanceOf(address(factory));
         state.entryRegentBalance = regent.balanceOf(address(factory));
+        state.entrySafeRegentBalance = regent.balanceOf(address(agentSafe));
+        state.entryStakingRegentBalance = regent.balanceOf(LIVE_STAKING);
+        state.entryTotalFundedRegent = staking.totalFundedRegent();
+        state.entryFundingCallCount = staking.callCount();
         state.entryUsdcAllowance = usdc.allowance(address(factory), state.splitter);
         state.entryRegentAllowance = regent.allowance(address(factory), state.strategy);
+        state.entrySafeRegentAllowance = regent.allowance(address(agentSafe), address(factory));
+        state.entryStakingRegentAllowance = regent.allowance(address(factory), LIVE_STAKING);
     }
 
     function _assertRollbackState(
@@ -887,11 +1039,21 @@ contract AutolaunchFactoryV1Test is Test {
 
         assertEq(usdc.balanceOf(address(factory)), state.entryUsdcBalance);
         assertEq(regent.balanceOf(address(factory)), state.entryRegentBalance);
+        assertEq(regent.balanceOf(address(agentSafe)), state.entrySafeRegentBalance);
+        assertEq(regent.balanceOf(LIVE_STAKING), state.entryStakingRegentBalance);
+        assertEq(staking.totalFundedRegent(), state.entryTotalFundedRegent);
+        assertEq(staking.callCount(), state.entryFundingCallCount);
         assertEq(state.entryRegentBalance, 0);
         assertEq(usdc.allowance(address(factory), state.splitter), state.entryUsdcAllowance);
         assertEq(state.entryUsdcAllowance, 0);
         assertEq(regent.allowance(address(factory), state.strategy), state.entryRegentAllowance);
         assertEq(state.entryRegentAllowance, 0);
+        assertEq(
+            regent.allowance(address(agentSafe), address(factory)), state.entrySafeRegentAllowance
+        );
+        assertEq(
+            regent.allowance(address(factory), LIVE_STAKING), state.entryStakingRegentAllowance
+        );
 
         assertEq(vm.getNonce(address(factory)), state.factoryNonce);
         assertEq(vm.getNonce(address(tokenFactory)), state.tokenFactoryNonce);
@@ -1046,6 +1208,7 @@ contract AutolaunchFactoryV1Test is Test {
             startBlock: uint64(block.number + 300),
             floorPrice: TICK * 100,
             requiredRegentRaised: 100e18,
+            expectedFee: factory.launchFee(),
             launchFeeHookSalt: _launchFeeHookSalt()
         });
     }

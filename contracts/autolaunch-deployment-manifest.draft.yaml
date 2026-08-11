@@ -10,7 +10,7 @@ consumer:
   contract: AutolaunchFactoryV1
   interface: IAutolaunchFactoryV1
   method: launch
-  launch_inputs: [agentId, tokenName, tokenSymbol, startBlock, floorPrice, requiredRegentRaised, launchFeeHookSalt]
+  launch_inputs: [agentId, tokenName, tokenSymbol, startBlock, floorPrice, requiredRegentRaised, expectedFee, launchFeeHookSalt]
   direct_authority: msg.sender_is_agent_safe_and_canonical_identity_owner
   prepared_safe_call: {value: 0, operation: CALL, keyless: true, signed: false, broadcast: false}
   retired_controller_compatibility: none
@@ -19,8 +19,8 @@ abi_evidence:
   interface_artifact: out/IAutolaunchFactoryV1.sol/IAutolaunchFactoryV1.json
   implementation_artifact: out/AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json
   normalization: recursively_delete_internalType_sort_object_keys_preserve_array_order_compact_utf8
-  normalized_bytes: 1496
-  interface_abi_sha256: "0xfc54a41c85077366fe7df844dbbd539bf992f1a6c30593cee3f0b0d5b31cf1ba"
+  normalized_bytes: 1982
+  interface_abi_sha256: "0x1e0001e35eecd2ca7503566b38df824e400de455173d080c73d4d70b9cea92f1"
   implementation_comparison: constructor_excluded_then_byte_equal
 constructor_bindings:
   order: [tokenFactory, strategyFactory, revenueShareFactory, revenueIngressFactory, paymentLinkFactory, feeInfraDeployer, identityRegistry, operationsSafe]
@@ -73,13 +73,13 @@ deterministic_vector:
     strategy_factory: "0xEA3b1315A1d214bA7f9Afe726860571D76f8b82c"
     fee_infra_deployer: "0x3eE590DCD55FCD21F8F65F1e208c619188079330"
     factory: "0xDc883b4bf20Ee92d81c390A4E57896cd81532184"
-  runtime_code_bytes: 14777
-  complete_initcode_bytes: 20242
-  runtime_code_hash: "0x26fbb4084d4e17058476a1d255453e36494d2e96e70135ad47f037a2cf9a76cd"
+  runtime_code_bytes: 17952
+  complete_initcode_bytes: 23436
+  runtime_code_hash: "0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a"
   constructor_bindings_hash: "0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d"
   fixed_bindings_hash: "0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f"
   live_readbacks_hash: "0xdd3da8abc137bbe448b87405f36120c2684fa0d34fbd992862ec0a3df2a9d8cc"
-  factory_binding_digest: "0xc7b3c6119f5a2f8f8973c3a5d063963b5e0c3e853314e7bff96fa0ef1ab4c35d"
+  factory_binding_digest: "0xac8b51b7851a5755484d14c298b3c38a861f13dd8a5d3c6d88fa34217c7f8615"
 release_state:
   deployed: false
   publicly_exposed: false
