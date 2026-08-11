@@ -73,8 +73,7 @@ contract RevenueIngressAccountTest is Test {
 
     function testSweepRecognizesRevenueInsideSplitter() external {
         uint256 gross = 1000e18;
-        uint256 protocolShare =
-            (gross * feeRouter.protocolSkimBps()) / splitter.BPS_DENOMINATOR();
+        uint256 protocolShare = (gross * feeRouter.protocolSkimBps()) / splitter.BPS_DENOMINATOR();
         uint256 subjectShare = gross - protocolShare;
         usdc.mint(address(ingress), gross);
 
