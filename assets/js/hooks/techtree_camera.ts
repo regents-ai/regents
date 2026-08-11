@@ -363,6 +363,12 @@ export const TechtreeCamera = {
       }
     }
 
+    const onPointerCancel = (event: PointerEvent) => {
+      onPointerEnd(event)
+      pointerLink = null
+      dragged = false
+    }
+
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
       const unit =
@@ -418,16 +424,28 @@ export const TechtreeCamera = {
 
       const target = event.target instanceof Element ? event.target : null
       const source = event.detail === 0 ? "keyboard" : "pointer"
-      const link =
-        target?.closest<HTMLAnchorElement>("a[href]") ??
-        (source === "pointer" ? pointerLink : null)
+      const targetLink =
+        target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]") ?? null
+      const modified =
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      const recoveredLink =
+        source === "pointer" && !modified && !targetLink ? pointerLink : null
+      const link = targetLink ?? recoveredLink
       pointerLink = null
+      if (modified) return
+
       const node = target?.closest<HTMLElement>("[data-node-id]") ??
         link?.closest<HTMLElement>("[data-node-id]")
       if (!node?.dataset.nodeId || !link) return
       if (continuingLinks.delete(link)) return
 
       focusNode(node.dataset.nodeId, source)
+      if (!recoveredLink) return
+
       event.preventDefault()
       event.stopPropagation()
       continuingLinks.add(link)
@@ -478,7 +496,7 @@ export const TechtreeCamera = {
     stage.addEventListener("pointerdown", onPointerDown)
     stage.addEventListener("pointermove", onPointerMove)
     stage.addEventListener("pointerup", onPointerEnd)
-    stage.addEventListener("pointercancel", onPointerEnd)
+    stage.addEventListener("pointercancel", onPointerCancel)
     stage.addEventListener("wheel", onWheel, {passive: false})
     stage.addEventListener("click", onClick)
     stage.addEventListener("keydown", onKeydown)
@@ -489,7 +507,7 @@ export const TechtreeCamera = {
       stage.removeEventListener("pointerdown", onPointerDown)
       stage.removeEventListener("pointermove", onPointerMove)
       stage.removeEventListener("pointerup", onPointerEnd)
-      stage.removeEventListener("pointercancel", onPointerEnd)
+      stage.removeEventListener("pointercancel", onPointerCancel)
       stage.removeEventListener("wheel", onWheel)
       stage.removeEventListener("click", onClick)
       stage.removeEventListener("keydown", onKeydown)
