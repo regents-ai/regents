@@ -1,9 +1,10 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   CAMERA_ENTRY_DURATION,
   CAMERA_GLIDE_DURATION,
   CAMERA_RESET_DURATION,
+  TechtreeCamera,
   createCameraController,
   type CameraDriver,
 } from "../js/hooks/techtree_camera"
@@ -33,6 +34,164 @@ const harness = () => {
 
   return {animations, controller, render}
 }
+
+type FakeEvent = {
+  target: FakeElement
+  pointerType?: string
+  button?: number
+  pointerId?: number
+  clientX?: number
+  clientY?: number
+  detail?: number
+  preventDefault: ReturnType<typeof vi.fn>
+  stopPropagation: ReturnType<typeof vi.fn>
+}
+
+class FakeElement {
+  dataset: Record<string, string> = {}
+  style: Record<string, string> = {}
+  parentElement: FakeElement | null = null
+  offsetWidth = 0
+  offsetHeight = 0
+  clientWidth = 1_000
+  clientHeight = 600
+  clickCount = 0
+  queryResult: FakeElement | null = null
+  private listeners = new Map<string, Set<(event: FakeEvent) => void>>()
+  private capturedPointers = new Set<number>()
+
+  constructor(
+    readonly kind: "stage" | "world" | "node" | "link",
+    private readonly stage?: FakeElement,
+  ) {}
+
+  closest<T>(selector: string): T | null {
+    let current: FakeElement | null = this
+    while (current) {
+      if (selector.startsWith("a[") && current.kind === "link") return current as T
+      if (selector === "[data-node-id]" && current.dataset.nodeId) return current as T
+      current = current.parentElement
+    }
+    return null
+  }
+
+  querySelector<T>(selector: string): T | null {
+    if (this.kind === "stage" && selector === "[data-techtree-map-world]") {
+      return this.queryResult as T
+    }
+    return null
+  }
+
+  querySelectorAll<T>(selector: string): T[] {
+    if (this.kind !== "world") return []
+    if (selector === "[data-node-id]" && this.queryResult) {
+      return [this.queryResult as T]
+    }
+    return []
+  }
+
+  addEventListener(type: string, listener: (event: FakeEvent) => void) {
+    const listeners = this.listeners.get(type) ?? new Set()
+    listeners.add(listener)
+    this.listeners.set(type, listeners)
+  }
+
+  removeEventListener(type: string, listener: (event: FakeEvent) => void) {
+    this.listeners.get(type)?.delete(listener)
+  }
+
+  emit(type: string, event: FakeEvent) {
+    for (const listener of this.listeners.get(type) ?? []) listener(event)
+  }
+
+  setPointerCapture(pointerId: number) {
+    this.capturedPointers.add(pointerId)
+  }
+
+  hasPointerCapture(pointerId: number) {
+    return this.capturedPointers.has(pointerId)
+  }
+
+  releasePointerCapture(pointerId: number) {
+    this.capturedPointers.delete(pointerId)
+  }
+
+  getBoundingClientRect() {
+    return {left: 0, top: 0, width: this.offsetWidth, height: this.offsetHeight}
+  }
+
+  focus() {}
+
+  click() {
+    this.clickCount += 1
+    this.stage?.emit("click", fakeEvent(this, {detail: 0}))
+  }
+}
+
+const fakeEvent = (target: FakeElement, values: Partial<FakeEvent> = {}): FakeEvent => ({
+  target,
+  preventDefault: vi.fn(),
+  stopPropagation: vi.fn(),
+  ...values,
+})
+
+const hookHarness = (reducedMotion = false) => {
+  const stage = new FakeElement("stage")
+  const world = new FakeElement("world")
+  const node = new FakeElement("node")
+  const link = new FakeElement("link", stage)
+  const animations: Array<Parameters<CameraDriver["animate"]>[1]> = []
+
+  stage.queryResult = world
+  world.queryResult = node
+  world.dataset = {worldWidth: "800", worldHeight: "400"}
+  node.parentElement = world
+  node.dataset = {nodeId: "canonical-node", nodeX: "120", nodeY: "80"}
+  node.offsetWidth = 240
+  node.offsetHeight = 112
+  link.parentElement = node
+
+  vi.stubGlobal("Element", FakeElement)
+  vi.stubGlobal("window", {
+    matchMedia: () => ({matches: reducedMotion}),
+    requestAnimationFrame: vi.fn(() => 1),
+    cancelAnimationFrame: vi.fn(),
+  })
+
+  const state = {
+    el: stage,
+    cameraDriver: {
+      animate: vi.fn((_target, options) => {
+        animations.push(options)
+        return {cancel: vi.fn()}
+      }),
+    },
+  }
+  TechtreeCamera.mounted.call(state as never)
+
+  const pointerDown = () =>
+    stage.emit(
+      "pointerdown",
+      fakeEvent(link, {
+        pointerType: "mouse",
+        button: 0,
+        pointerId: 1,
+        clientX: 140,
+        clientY: 100,
+      }),
+    )
+  const pointerUp = () =>
+    stage.emit(
+      "pointerup",
+      fakeEvent(stage, {pointerId: 1, clientX: 140, clientY: 100}),
+    )
+
+  return {animations, link, pointerDown, pointerUp, stage, state}
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("Techtree camera math", () => {
   it("fits and centers a world rectangle inside the viewport margin", () => {
@@ -180,5 +339,52 @@ describe("Techtree camera controller", () => {
     expect(active?.cancel).toHaveBeenCalledOnce()
     expect(controller.active).toBeNull()
     expect(controller.state).toEqual({x: 12, y: 18, zoom: 0.9})
+  })
+})
+
+describe("Techtree camera node activation invariants", () => {
+  it("U1 canonical activation navigates exactly once for pointer, keyboard, and reduced motion", () => {
+    for (const mode of ["pointer", "keyboard", "reduced"] as const) {
+      const {link, pointerDown, pointerUp, stage, state} = hookHarness(mode === "reduced")
+
+      if (mode === "keyboard") {
+        stage.emit("click", fakeEvent(link, {detail: 0}))
+      } else {
+        pointerDown()
+        pointerUp()
+        stage.emit("click", fakeEvent(stage, {detail: 1}))
+      }
+
+      expect(link.clickCount, mode).toBe(1)
+      TechtreeCamera.destroyed.call(state as never)
+    }
+  })
+
+  it("U2 gesture separation never navigates after a drag", () => {
+    const {link, pointerDown, stage, state} = hookHarness()
+    pointerDown()
+    stage.emit(
+      "pointermove",
+      fakeEvent(stage, {pointerId: 1, clientX: 180, clientY: 140}),
+    )
+    stage.emit("click", fakeEvent(stage, {detail: 1}))
+
+    expect(link.clickCount).toBe(0)
+    TechtreeCamera.destroyed.call(state as never)
+  })
+
+  it("U3 motion independence continues synchronously and never repeats on animation settlement", () => {
+    const {animations, link, pointerDown, pointerUp, stage, state} = hookHarness()
+    pointerDown()
+    pointerUp()
+    stage.emit("click", fakeEvent(stage, {detail: 1}))
+
+    expect(link.clickCount).toBe(1)
+    const focusAnimation = animations.at(-1)
+    expect(focusAnimation?.duration).toBe(CAMERA_GLIDE_DURATION)
+    focusAnimation?.onComplete()
+    expect(link.clickCount).toBe(1)
+
+    TechtreeCamera.destroyed.call(state as never)
   })
 })

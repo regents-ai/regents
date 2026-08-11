@@ -252,6 +252,7 @@ export const TechtreeCamera = {
         }
       | undefined
     let dragged = false
+    let pointerLink: HTMLAnchorElement | null = null
 
     this.cameraWorld = world
     this.camera = camera
@@ -295,6 +296,10 @@ export const TechtreeCamera = {
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse" && event.button !== 0) return
+      const target = event.target instanceof Element ? event.target : null
+      const link = target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]")
+      const node = target?.closest<HTMLElement>("[data-node-id]")
+      pointerLink = link && link.parentElement === node ? link : null
       camera.interrupt()
       const point = localPoint(stage, event.clientX, event.clientY)
       pointers.set(event.pointerId, {...point, id: event.pointerId})
@@ -379,7 +384,6 @@ export const TechtreeCamera = {
     const focusNode = (
       nodeId: string,
       source: "pointer" | "keyboard",
-      onSettled?: () => void,
     ) => {
       const currentWorld = this.cameraWorld
       if (!currentWorld) return false
@@ -398,7 +402,6 @@ export const TechtreeCamera = {
           kind: "focus",
           source,
           reducedMotion: motionPreference.matches,
-          onSettled,
         },
       )
       return true
@@ -406,6 +409,7 @@ export const TechtreeCamera = {
 
     const onClick = (event: MouseEvent) => {
       if (dragged) {
+        pointerLink = null
         event.preventDefault()
         event.stopPropagation()
         dragged = false
@@ -413,24 +417,21 @@ export const TechtreeCamera = {
       }
 
       const target = event.target instanceof Element ? event.target : null
-      const node = target?.closest<HTMLElement>("[data-node-id]")
-      const link = target?.closest<HTMLAnchorElement>("a[href]")
+      const source = event.detail === 0 ? "keyboard" : "pointer"
+      const link =
+        target?.closest<HTMLAnchorElement>("a[href]") ??
+        (source === "pointer" ? pointerLink : null)
+      pointerLink = null
+      const node = target?.closest<HTMLElement>("[data-node-id]") ??
+        link?.closest<HTMLElement>("[data-node-id]")
       if (!node?.dataset.nodeId || !link) return
       if (continuingLinks.delete(link)) return
 
-      const source = event.detail === 0 ? "keyboard" : "pointer"
-      if (source === "pointer" && !motionPreference.matches) {
-        const focused = focusNode(node.dataset.nodeId, source, () => {
-          continuingLinks.add(link)
-          link.click()
-        })
-        if (focused) {
-          event.preventDefault()
-          event.stopPropagation()
-        }
-      } else {
-        focusNode(node.dataset.nodeId, source)
-      }
+      focusNode(node.dataset.nodeId, source)
+      event.preventDefault()
+      event.stopPropagation()
+      continuingLinks.add(link)
+      link.click()
     }
 
     const onKeydown = (event: KeyboardEvent) => {
