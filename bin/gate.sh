@@ -568,6 +568,7 @@ submodules_complete_for_paths "$required_paths_log"
 echo "Derived and completeness-verified required submodule paths:"
 sort -u "$required_paths_log"
 
+forge clean
 forge build
 
 forge_test_status=0
