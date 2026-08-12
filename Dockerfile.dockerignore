@@ -2,6 +2,7 @@
 !ash-platform/
 !ash-platform/assets/**
 !ash-platform/config/**
+!ash-platform/contracts/**
 !ash-platform/deps/**
 !ash-platform/lib/**
 !ash-platform/priv/**

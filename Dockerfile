@@ -36,8 +36,9 @@ COPY ash-platform/lib lib
 COPY ash-platform/priv priv
 COPY ash-platform/rel rel
 COPY ash-platform/assets assets
+COPY ash-platform/contracts contracts
 COPY --from=assets /workspace/ash-platform/node_modules node_modules
-RUN mix assets.deploy && mix compile && mix release
+RUN mix compile && mix assets.deploy && mix release
 
 FROM elixir AS app
 

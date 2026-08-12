@@ -11,11 +11,13 @@ defmodule AshPlatform.ReleasePackageTest do
 
     assert dockerfile =~ "COPY ash-platform/mix.exs ash-platform/mix.lock ./"
     assert dockerfile =~ "COPY elixir-utils/privy /workspace/elixir-utils/privy"
+    assert dockerfile =~ "COPY ash-platform/contracts contracts"
     assert dockerfile =~ "COPY npm-cache/_cacache /root/.npm/_cacache"
     assert dockerfile =~ "COPY rustler-precompiled /workspace/rustler-precompiled"
     assert dockerfile =~ "COPY esbuild-linux-arm64 _build/esbuild-linux-arm64"
 
     assert dockerignore =~ "!ash-platform/"
+    assert dockerignore =~ "!ash-platform/contracts/**"
     assert dockerignore =~ "!elixir-utils/privy/**"
     assert dockerignore =~ "!npm-cache/**"
     assert dockerignore =~ "!rustler-precompiled/**"
@@ -42,7 +44,7 @@ defmodule AshPlatform.ReleasePackageTest do
              ])
 
     assert dockerfile =~ "RUN npm ci --offline --ignore-scripts --no-audit --no-fund"
-    assert dockerfile =~ "RUN mix assets.deploy && mix compile && mix release"
+    assert dockerfile =~ "RUN mix compile && mix assets.deploy && mix release"
     assert dockerfile =~ ~s(CMD ["/app/bin/ash_platform", "start"])
     refute dockerfile =~ ~r/\b(?:apt|apk|curl|wget)\b/
   end
