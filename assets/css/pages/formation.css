@@ -69,7 +69,7 @@
 }
 
 .formation-link:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-fg);
   outline-offset: 3px;
 }
 
