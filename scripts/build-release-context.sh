@@ -8,7 +8,8 @@
 #     elixir-utils/privy/      the sibling source mix.exs resolves by path
 #     mix-cache/               Mix, Hex and rebar3, extracted from the sealed archive
 #     npm-cache/_cacache/      the npm content cache
-#     rustler-precompiled/     the precompiled native artifact cache
+#     rustler-precompiled/     the precompiled native artifact, one per target
+#                              architecture
 #     esbuild-linux-arm64      the bundler executable, one per target architecture
 #     esbuild-linux-x64
 #
@@ -17,8 +18,9 @@
 # and it never reaches the network. Re-running it against the same destination
 # is safe: the destination is rebuilt from scratch each time.
 #
-# The bundler executable is architecture-specific, so the context is built for
-# one target architecture: arm64 or amd64.
+# The bundler executable and the precompiled native artifact are
+# architecture-specific, so the context is built for one target architecture:
+# arm64 or amd64. Each comes from the sealed supply that carries it.
 #
 # Usage: scripts/build-release-context.sh <destination> <arch> [supply-root]
 
@@ -28,6 +30,7 @@ readonly DEFAULT_SUPPLY_ROOT="/Users/sean/Documents/regent/archive/release-suppl
 readonly BASE_SUPPLY="regent-ece.2-20260812"
 readonly ARM64_ESBUILD_SUPPLY="regent-ece.2-esbuild-linux-arm64-0.25.4-20260812"
 readonly AMD64_ESBUILD_SUPPLY="regent-49a-amd64-slim-20260812"
+readonly AMD64_NATIVE_SUPPLY="regent-49a-mdex-native-x86-64-0.2.5-20260812"
 readonly MIX_SUPPLY="regent-ece.2-mix-hex-rebar-20260812"
 
 usage() {
@@ -51,20 +54,35 @@ siblings="$(cd -- "$repo_root/.." && pwd)"
 privy_source="$siblings/elixir-utils/privy"
 regent_ui_source="$siblings/design-system/regent_ui"
 
+# The arm64 native artifact is part of the base supply; the amd64 one arrived
+# in its own sealed directory. Both declare it under the same manifest keys.
 case "$arch" in
-  arm64) esbuild_supply_dir="$ARM64_ESBUILD_SUPPLY" esbuild_binary="esbuild-linux-arm64" ;;
-  amd64) esbuild_supply_dir="$AMD64_ESBUILD_SUPPLY" esbuild_binary="esbuild-linux-x64" ;;
+  arm64)
+    esbuild_supply_dir="$ARM64_ESBUILD_SUPPLY"
+    esbuild_binary="esbuild-linux-arm64"
+    native_supply_dir="$BASE_SUPPLY"
+    native_manifest_name="SUPPLY-MANIFEST.txt"
+    ;;
+  amd64)
+    esbuild_supply_dir="$AMD64_ESBUILD_SUPPLY"
+    esbuild_binary="esbuild-linux-x64"
+    native_supply_dir="$AMD64_NATIVE_SUPPLY"
+    native_manifest_name="SUPPLY-ADDENDUM.txt"
+    ;;
   *) usage ;;
 esac
 
 base_supply="$supply_root/$BASE_SUPPLY"
 esbuild_supply="$supply_root/$esbuild_supply_dir"
+native_supply="$supply_root/$native_supply_dir"
 mix_supply="$supply_root/$MIX_SUPPLY"
 manifest="$base_supply/SUPPLY-MANIFEST.txt"
 mix_addendum="$mix_supply/SUPPLY-ADDENDUM.txt"
 esbuild_addendum="$esbuild_supply/SUPPLY-ADDENDUM.txt"
+native_manifest="$native_supply/$native_manifest_name"
 
-for required in "$manifest" "$mix_addendum" "$esbuild_addendum" "$privy_source" "$regent_ui_source"; do
+for required in "$manifest" "$mix_addendum" "$esbuild_addendum" "$native_manifest" \
+  "$privy_source" "$regent_ui_source"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
 
@@ -108,9 +126,9 @@ expect_sha256 "$esbuild_binary" \
   "$esbuild_supply/$esbuild_binary" \
   "$(manifest_value "$esbuild_addendum" "$esbuild_binary.sha256")"
 
-expect_sha256 "$(manifest_value "$manifest" mdex_native_file)" \
-  "$base_supply/$(manifest_value "$manifest" mdex_native_file)" \
-  "$(manifest_value "$manifest" mdex_native_sha256)"
+expect_sha256 "$(manifest_value "$native_manifest" mdex_native_file)" \
+  "$native_supply/$(manifest_value "$native_manifest" mdex_native_file)" \
+  "$(manifest_value "$native_manifest" mdex_native_sha256)"
 
 printf 'assembling context at %s\n' "$destination"
 
@@ -132,7 +150,7 @@ rsync -a --exclude '.git' --exclude '_build/' --exclude 'node_modules/' \
 # The sealed npm directory is the cache payload itself, so it lands one level
 # down: npm resolves its content under <cache>/_cacache.
 rsync -a --chmod=u+rwX "$base_supply/npm-cache/" "$staging/npm-cache/_cacache/"
-rsync -a --chmod=u+rwX "$base_supply/rustler-precompiled/" "$staging/rustler-precompiled/"
+rsync -a --chmod=u+rwX "$native_supply/rustler-precompiled/" "$staging/rustler-precompiled/"
 
 install -m 0755 "$esbuild_supply/$esbuild_binary" "$staging/$esbuild_binary"
 
