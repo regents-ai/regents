@@ -106,7 +106,7 @@ for (const viewport of [
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
     if (viewport.width <= 390) {
-      expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(2)
+      expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(4)
       const collisionCount = await cards.evaluateAll(elements =>
         elements.reduce((count, card) => {
           const voxels = card.querySelector(".rl-card-voxels")?.getBoundingClientRect()
@@ -130,6 +130,46 @@ for (const viewport of [
     }
   })
 }
+
+test("[U1][U2] the hero bento gives Techtree the dominant area at every viewport", async ({page}) => {
+  for (const viewport of focusViewports) {
+    await page.setViewportSize({width: viewport.width, height: viewport.height})
+    await page.goto("/")
+    await waitForHomepage(page)
+    await assertNoOverflow(page)
+
+    const cards = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
+      elements.map(element => {
+        const box = element.getBoundingClientRect()
+        return {area: box.width * box.height, id: element.id, left: box.left, top: box.top}
+      }),
+    )
+
+    expect(cards.map(card => card.id)).toEqual([
+      "home-card-techtree",
+      "home-card-autolaunch",
+      "home-card-formation",
+      "home-card-regent",
+    ])
+
+    const [lead, second, ...secondary] = cards
+    expect(lead.top).toBeLessThanOrEqual(Math.min(...cards.map(card => card.top)))
+    expect(lead.left).toBeLessThanOrEqual(Math.min(...cards.map(card => card.left)))
+    expect(lead.area).toBeGreaterThanOrEqual(second.area * 1.4)
+
+    for (const card of secondary) {
+      expect(second.area).toBeGreaterThanOrEqual(card.area)
+    }
+
+    if (viewport.width >= 1440) {
+      expect(lead.area).toBeGreaterThanOrEqual(second.area * 1.9)
+
+      for (const card of secondary) {
+        expect(lead.area).toBeGreaterThanOrEqual(card.area * 3.5)
+      }
+    }
+  }
+})
 
 test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async ({page}, testInfo) => {
   await page.setViewportSize({width: 640, height: 900})
@@ -184,7 +224,7 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 test("[U2] the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
-  const action = page.getByRole("link", {name: "Form a Regent"}).first()
+  const action = page.getByRole("link", {name: "Run your Regent"}).first()
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}

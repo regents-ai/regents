@@ -251,22 +251,58 @@
   align-self: end;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
   margin-block-start: clamp(3rem, 8vw, 7rem);
-  border-block: 1px solid var(--rl-line);
-  border-inline-start: 1px solid var(--rl-line);
+  border: 1px solid var(--rl-line);
+  background: var(--rl-line);
 }
 
 .rl-hero-card {
   --card-accent: var(--rl-regent);
+  --card-ground: color-mix(in oklch, var(--rl-panel) 90%, transparent);
+  --voxel-size: 0.45rem;
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 11.5rem;
+  min-height: 8.5rem;
   padding: 1rem;
   overflow: hidden;
-  border-inline-end: 1px solid var(--rl-line);
-  background: color-mix(in oklch, var(--rl-panel) 90%, transparent);
+  background: var(--card-ground);
+}
+
+/* Card order is product priority: the lead card owns half the mat, the second spans the rest of its row. */
+.rl-hero-card:first-child {
+  --card-ground: color-mix(in oklch, var(--rl-panel-strong) 92%, transparent);
+  --voxel-size: 0.6rem;
+  grid-column: span 2;
+  grid-row: span 2;
+  min-height: 14rem;
+  padding: clamp(1rem, 2.2vw, 1.75rem);
+  background:
+    linear-gradient(
+      152deg,
+      color-mix(in oklch, var(--card-accent) 16%, transparent),
+      transparent 62%
+    ),
+    var(--card-ground);
+}
+
+.rl-hero-card:nth-child(2) {
+  grid-column: span 2;
+}
+
+.rl-hero-card:first-child strong {
+  font-size: clamp(1.75rem, 3.4vw, 3rem);
+}
+
+.rl-hero-card:nth-child(2) strong {
+  font-size: clamp(1.35rem, 2.1vw, 1.9rem);
+}
+
+.rl-hero-card:first-child > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels) {
+  max-width: 26rem;
+  font-size: 0.95rem;
 }
 
 .rl-hero-card--formation { --card-accent: var(--rl-formation); }
@@ -310,7 +346,7 @@
   position: absolute;
   inset: 0.75rem auto auto 50%;
   display: grid;
-  grid-template-columns: repeat(3, 0.45rem);
+  grid-template-columns: repeat(3, var(--voxel-size));
   gap: 0.18rem;
   padding: 0;
   opacity: 0.55;
@@ -318,14 +354,14 @@
 }
 
 .rl-card-voxels i {
-  width: 0.45rem;
-  height: 0.45rem;
+  width: var(--voxel-size);
+  height: var(--voxel-size);
   background: var(--card-accent);
 }
 
 @media (hover: hover) {
   .rl-hero-card:hover {
-    background: color-mix(in oklch, var(--card-accent) 10%, var(--rl-panel));
+    --card-ground: color-mix(in oklch, var(--card-accent) 10%, var(--rl-panel));
   }
 }
 
@@ -467,8 +503,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .rl-hero-card:nth-child(-n + 2) {
-    border-block-end: 1px solid var(--rl-line);
+  .rl-hero-card:first-child {
+    grid-row: auto;
   }
 }
 
@@ -484,6 +520,15 @@
 
   .rl-hero-copy h1 {
     font-size: clamp(2.5rem, 14vw, 4.25rem);
+  }
+
+  .rl-hero-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rl-hero-card:first-child,
+  .rl-hero-card:nth-child(2) {
+    grid-area: auto;
   }
 
   .rl-hero-card {

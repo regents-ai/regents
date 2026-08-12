@@ -99,7 +99,7 @@ test("the public homepage presents the four-product mat hero and marketing chapt
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
-  const action = page.getByRole("link", {name: "Form a Regent"}).first()
+  const action = page.getByRole("link", {name: "Run your Regent"}).first()
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}

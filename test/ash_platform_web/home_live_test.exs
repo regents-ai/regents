@@ -46,7 +46,40 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute html =~ ~s(id="home-card-techtree" href="#techtree")
     refute html =~ ~s(id="home-card-regent" href="#regents-labs")
     assert has_element?(view, ~s(.rl-header-actions a[href="/app"]), "Sign In")
-    assert has_element?(view, ~s(.rl-header-actions a[href="/formation"]), "Form a Regent")
+    assert has_element?(view, ~s(.rl-header-actions a[href="/formation"]), "Run your Regent")
+  end
+
+  test "the hero bento leads with Techtree and places Autolaunch second", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    card_positions =
+      Enum.map(~w(techtree autolaunch formation regent), fn card_key ->
+        {position, _} = :binary.match(html, ~s(id="home-card-#{card_key}"))
+        position
+      end)
+
+    assert card_positions == Enum.sort(card_positions)
+  end
+
+  test "Formation copy claims only the Nous Portal route to a cloud runtime", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(view, "#home-card-formation", "Run your Regent in Nous Portal.")
+    assert html =~ "Nous Portal is where you create and manage your Regent’s cloud runtime."
+    assert has_element?(view, "#formation .rl-proof-grid article", "Open Nous Portal")
+    assert has_element?(view, "#formation .rl-proof-grid article", "Your session stays open")
+
+    for retired <- [
+          "Form and operate",
+          "One active Regent",
+          "Private cloud",
+          "Provision and inspect",
+          "private cloud runtime",
+          "Hermes Skills",
+          "guided lifecycle"
+        ] do
+      refute html =~ retired
+    end
   end
 
   test "each marketing chapter has an ordered, labelled heading and its app action", %{conn: conn} do
@@ -85,7 +118,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
 
     assert html =~ "Open infrastructure for sovereign agents"
-    assert html =~ "Form a Regent"
+
+    assert has_element?(
+             view,
+             ~s(.rl-hero-actions a.rl-action--strong[href="/formation"]),
+             "Run your Regent"
+           )
+
     assert html =~ "Build public signal before launch."
     assert html =~ "Make knowledge inspectable."
     assert html =~ "Keep identity and value actions together."

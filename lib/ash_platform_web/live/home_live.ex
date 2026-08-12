@@ -50,7 +50,7 @@ defmodule AshPlatformWeb.HomeLive do
         <div class="rl-header-actions">
           <.link navigate={~p"/app"} class="rl-header-entry">Sign In</.link>
           <.link navigate={~p"/formation"} class="rl-header-entry rl-header-entry--strong">
-            Form a Regent <span aria-hidden="true">↗</span>
+            Run your Regent <span aria-hidden="true">↗</span>
           </.link>
         </div>
       </div>
@@ -82,7 +82,7 @@ defmodule AshPlatformWeb.HomeLive do
         </p>
         <div class="rl-hero-actions">
           <.link navigate={~p"/formation"} class="rl-action rl-action--strong">
-            Form a Regent <span aria-hidden="true">↗</span>
+            Run your Regent <span aria-hidden="true">↗</span>
           </.link>
           <a href="#techtree" class="rl-action">Explore the stack</a>
         </div>
@@ -90,7 +90,7 @@ defmodule AshPlatformWeb.HomeLive do
 
       <div class="rl-hero-cards" data-home-hero-cards aria-label="Open a Regent product">
         <.link
-          :for={product <- products()}
+          :for={product <- bento_cards()}
           id={"home-card-#{product.card_key}"}
           navigate={product.href}
           class={["rl-hero-card", "rl-hero-card--#{product.anchor}"]}
@@ -162,35 +162,35 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
+  # The bento reads top-left first: card order carries product priority, and the page
+  # stylesheet sizes the first and second cards from that order.
+  defp bento_cards, do: Enum.sort_by(products(), & &1.bento_rank)
+
   defp products do
     [
       %{
         index: "01",
         anchor: "formation",
         card_key: "formation",
+        bento_rank: 3,
         name: "Formation",
         status: "Preview",
         href: ~p"/formation",
         cta: "Open Formation",
-        short: "Form and operate your cloud Regent.",
+        short: "Run your Regent in Nous Portal.",
         title: "Give one Regent a place to work.",
         description:
-          "Bring identity, a private cloud runtime, Hermes Skills, and practical prepaid operations into one guided lifecycle.",
+          "Nous Portal is where you create and manage your Regent’s cloud runtime. Formation opens it in a new tab and leaves your session here.",
         proofs: [
           %{
             state: "Live",
-            title: "One active Regent",
-            copy: "Form the Regent connected to your signed-in account."
+            title: "Open Nous Portal",
+            copy: "One link takes you to Nous Portal, where your Regent’s cloud runtime lives."
           },
           %{
             state: "Live",
-            title: "Private cloud",
-            copy: "Provision and inspect its private cloud workspace."
-          },
-          %{
-            state: "Preview",
-            title: "Hermes Skills",
-            copy: "Keep runtime skills in the same Formation lifecycle."
+            title: "Your session stays open",
+            copy: "Nous Portal opens in a new tab, so your Regent session stays where it is."
           }
         ]
       },
@@ -198,6 +198,7 @@ defmodule AshPlatformWeb.HomeLive do
         index: "02",
         anchor: "autolaunch",
         card_key: "autolaunch",
+        bento_rank: 2,
         name: "Autolaunch",
         status: "Preview",
         href: ~p"/autolaunch",
@@ -229,6 +230,7 @@ defmodule AshPlatformWeb.HomeLive do
         index: "03",
         anchor: "techtree",
         card_key: "techtree",
+        bento_rank: 1,
         name: "Techtree",
         status: "Preview",
         href: ~p"/techtree",
@@ -265,6 +267,7 @@ defmodule AshPlatformWeb.HomeLive do
         index: "04",
         anchor: "regents-labs",
         card_key: "regent",
+        bento_rank: 4,
         name: "Regents Labs",
         status: "Live",
         href: ~p"/app",
