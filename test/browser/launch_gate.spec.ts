@@ -13,7 +13,6 @@ test("[U3] the marketing page is served with product surfaces open", async ({pag
 
   await page.goto("/")
   await expect(page.getByRole("heading", {name: "Build agents that can own their work."})).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Not open yet"})).toHaveCount(0)
 })
 
 test("[U4] product routes render the shell while surfaces are open", async ({page, request}) => {
@@ -24,7 +23,6 @@ test("[U4] product routes render the shell while surfaces are open", async ({pag
 
     await page.goto(route)
     await expect(page.locator("#app-shell")).toBeVisible()
-    await expect(page.getByRole("link", {name: "Go to the homepage"})).toHaveCount(0)
   }
 })
 

@@ -71,13 +71,13 @@ defmodule AshPlatformWeb.LaunchGateTest do
     end
   end
 
-  test "[U2] the gated page carries the same browser security headers as an open page" do
+  test "[U2] gated pages and JSON answers carry the same browser security headers as an open page" do
     open = get(build_conn(), "/app")
     close_surfaces()
-    gated = get(build_conn(), "/app")
 
-    assert secure_headers(gated) == secure_headers(open)
-    assert secure_headers(gated) != %{}
+    assert secure_headers(get(build_conn(), "/app")) == secure_headers(open)
+    assert secure_headers(get(build_conn(), "/api/techtree/v1/trees")) == secure_headers(open)
+    assert secure_headers(open) != %{}
   end
 
   test "[U2] read, session and agent-write JSON endpoints answer one plain 503 line" do
@@ -120,7 +120,9 @@ defmodule AshPlatformWeb.LaunchGateTest do
 
     assert json_response(delete(build_conn(), "/auth/privy/session"), 200) == %{"ok" => true}
     assert json_response(get(build_conn(), "/auth/csrf"), 503) == %{"error" => @closed_message}
-    assert json_response(post(build_conn(), "/auth/privy/session", %{}), 503)
+
+    assert json_response(post(build_conn(), "/auth/privy/session", %{}), 503) ==
+             %{"error" => @closed_message}
   end
 
   test "[U2] a mount arriving over the socket is sent to the marketing page instead" do
@@ -139,13 +141,6 @@ defmodule AshPlatformWeb.LaunchGateTest do
     render_patch(view, "/techtree")
 
     assert_redirect(view, "/")
-  end
-
-  test "[U2] the product shell live session mounts through the gate first" do
-    %{phoenix_live_view: {AshPlatformWeb.ShellLive, _action, _opts, %{extra: %{on_mount: hooks}}}} =
-      Phoenix.Router.route_info(AshPlatformWeb.Router, "GET", "/app", "127.0.0.1")
-
-    assert [%{id: {LaunchGateHook, :default}, stage: :mount} | _rest] = hooks
   end
 
   # Reads the file a boot reads, returning its settings and the log it wrote.

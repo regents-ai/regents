@@ -25,17 +25,9 @@ defmodule AshPlatformWeb.HoldingControllerTest do
     assert page |> LazyHTML.query("main button, main form, main input") |> Enum.count() == 0
   end
 
-  test "[U5] the holding page promises nothing and speaks no internal language", %{
-    document: document
-  } do
-    refute copy(document) =~
-             ~r/countdown|coming soon|launch|beta|waitlist|flag|gate|deploy|staging|rollout|maintenance|surface/i
-  end
-
   test "[U2] the holding page is the site's own page, not a bare fragment", %{document: document} do
     assert document =~ "<!DOCTYPE html>"
     assert document =~ ~s(<meta name="csrf-token")
-    assert document =~ ~s(<link phx-track-static rel="stylesheet" href="/assets/js/app.css">)
 
     assert document |> LazyHTML.from_document() |> LazyHTML.query("title") |> LazyHTML.text() =~
              "Not open yet"

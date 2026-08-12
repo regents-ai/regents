@@ -32,7 +32,11 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   defp response_format(conn), do: get_format(conn)
 
   defp closed(conn, "json"),
-    do: conn |> unavailable() |> json(%{error: "This part of Regent isn't open yet."})
+    do:
+      conn
+      |> put_secure_browser_headers()
+      |> unavailable()
+      |> json(%{error: "This part of Regent isn't open yet."})
 
   defp closed(conn, "html"),
     do: conn |> put_secure_browser_headers() |> unavailable() |> HoldingController.call(:show)
