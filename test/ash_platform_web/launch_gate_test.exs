@@ -102,14 +102,21 @@ defmodule AshPlatformWeb.LaunchGateTest do
   end
 
   test "[U2] a mount arriving over the socket is sent to the marketing page instead" do
-    socket = %Phoenix.LiveView.Socket{}
-
-    assert {:cont, ^socket} = LaunchGateHook.on_mount(:default, %{}, %{}, socket)
-
     close_surfaces()
 
-    assert {:halt, halted} = LaunchGateHook.on_mount(:default, %{}, %{}, socket)
+    assert {:halt, halted} =
+             LaunchGateHook.on_mount(:default, %{}, %{}, %Phoenix.LiveView.Socket{})
+
     assert halted.redirected == {:redirect, %{to: "/", status: 302}}
+  end
+
+  test "[U2] a page open when the gate closes cannot keep browsing product routes", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app")
+
+    close_surfaces()
+    render_patch(view, "/techtree")
+
+    assert_redirect(view, "/")
   end
 
   test "[U2] the product shell live session mounts through the gate first" do
