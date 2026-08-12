@@ -81,10 +81,10 @@ test("the public homepage presents the four-product mat hero and marketing chapt
     "/images/home/hero-bg-dark.svg",
   )
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
-  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "/formation")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "/autolaunch")
-  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "/techtree")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "/app")
+  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "#formation")
+  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
+  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
+  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regents-labs")
 
   const sectionTops = await page
     .locator("#formation, #autolaunch, #techtree, #regents-labs")
@@ -99,7 +99,7 @@ test("the public homepage presents the four-product mat hero and marketing chapt
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
-  const action = page.getByRole("link", {name: "Run your Regent"}).first()
+  const action = page.getByRole("link", {name: "See how it works"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}

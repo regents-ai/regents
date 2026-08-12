@@ -36,7 +36,6 @@
   outline-offset: -2px;
 }
 
-.rl-root .rl-header-entry--strong:focus-visible,
 .rl-root .rl-action--strong:focus-visible {
   outline-color: var(--rl-bg);
 }
@@ -52,7 +51,7 @@
 .rl-root h2,
 .rl-root h3,
 .rl-brand,
-.rl-open-label {
+.rl-card-label {
   font-family: var(--font-family-display);
   font-weight: 400;
 }
@@ -80,16 +79,12 @@
   border-inline: 1px solid var(--rl-line);
 }
 
-.rl-brand,
-.rl-header-entry {
+.rl-brand {
   display: flex;
   align-items: center;
+  gap: 0.65rem;
   min-height: 2.75rem;
   padding-inline: 1rem;
-}
-
-.rl-brand {
-  gap: 0.65rem;
   font-size: 1rem;
 }
 
@@ -122,38 +117,21 @@
   border-inline-end: 1px solid var(--rl-line);
 }
 
-.rl-product-tab span {
-  color: var(--rl-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.rl-header-actions {
+.rl-header-note {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-}
-
-.rl-header-entry {
-  justify-content: flex-end;
-  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  color: var(--rl-muted);
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.rl-header-entry--strong {
-  background: var(--rl-ink);
-  color: var(--rl-bg) !important;
+  text-align: end;
+  text-wrap: balance;
 }
 
 @media (hover: hover) {
-  .rl-product-tab:hover,
-  .rl-header-entry:hover {
+  .rl-product-tab:hover {
     background: color-mix(in oklch, var(--rl-ink) 6%, transparent);
-  }
-
-  .rl-header-entry--strong:hover {
-    background: var(--rl-ink);
-    color: var(--rl-bg) !important;
   }
 }
 
@@ -205,7 +183,7 @@
 }
 
 .rl-hero-copy h1 {
-  max-width: 14ch;
+  max-width: 17ch;
   margin-block: 1rem 1.25rem;
   font-size: clamp(2.7rem, 7vw, 6.8rem);
   line-height: 0.93;
@@ -320,7 +298,7 @@
   font-family: var(--font-family-pixel);
 }
 
-.rl-open-label {
+.rl-card-label {
   color: var(--card-accent);
 }
 
@@ -389,6 +367,7 @@
 }
 
 .rl-chapter-intro {
+  grid-template-columns: minmax(3rem, 0.25fr) minmax(0, 1.5fr);
   row-gap: clamp(1.5rem, 4vw, 4rem);
 }
 
@@ -461,7 +440,7 @@
 
 .rl-footer {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 2rem;
   max-width: var(--rl-max);
@@ -474,8 +453,7 @@
 }
 
 .rl-footer-brand,
-.rl-footer-brand div,
-.rl-footer nav {
+.rl-footer-brand div {
   display: flex;
 }
 
@@ -493,11 +471,6 @@
   font-family: var(--font-family-display);
   font-size: 1rem;
   font-weight: 400;
-}
-
-.rl-footer nav {
-  flex-wrap: wrap;
-  gap: 1rem;
 }
 
 @media (max-width: 68rem) {

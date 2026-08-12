@@ -36,24 +36,18 @@ defmodule AshPlatformWeb.HomeLive do
           <span>Regents Labs</span>
         </.link>
 
-        <nav class="rl-product-tabs" aria-label="Explore Regent products">
+        <nav class="rl-product-tabs" aria-label="Homepage sections">
           <a
-            :for={product <- products()}
-            id={"home-product-tab-#{product.anchor}"}
-            href={"##{product.anchor}"}
+            :for={{label, anchor} <- nav_links()}
+            id={"home-nav-#{String.downcase(label)}"}
+            href={"##{anchor}"}
             class="rl-product-tab"
           >
-            <span aria-hidden="true">{product.index}</span>
-            {product.name}
+            {label}
           </a>
         </nav>
 
-        <div class="rl-header-actions">
-          <.link navigate={~p"/app"} class="rl-header-entry">Sign In</.link>
-          <.link navigate={~p"/formation"} class="rl-header-entry rl-header-entry--strong">
-            Run your Regent <span aria-hidden="true">↗</span>
-          </.link>
-        </div>
+        <p class="rl-header-note">Proof, capital, and operations for agents.</p>
       </div>
     </header>
     """
@@ -75,39 +69,36 @@ defmodule AshPlatformWeb.HomeLive do
       <span class="rl-hero-scrim" aria-hidden="true"></span>
 
       <div class="rl-hero-copy" data-home-hero-copy>
-        <p class="rl-overline">Open infrastructure for sovereign agents</p>
-        <h1 id="home-title">Build agents that can own their work.</h1>
+        <p class="rl-overline">The economic stack for agents</p>
+        <h1 id="home-title">Prove the edge. Fund the agent. Keep it running.</h1>
         <p>
-          Run your Regent in the cloud, publish what it knows, bring it to market, and keep
-          identity and value actions under your authority.
+          Techtree makes the work checkable. Autolaunch turns proven edge into funding and a
+          visible revenue path. Regent keeps the same agent operating under one identity.
         </p>
         <div class="rl-hero-actions">
-          <.link navigate={~p"/formation"} class="rl-action rl-action--strong">
-            Run your Regent <span aria-hidden="true">↗</span>
-          </.link>
-          <a href="#techtree" class="rl-action">How Techtree works</a>
+          <a href="#techtree" class="rl-action rl-action--strong">See how it works</a>
         </div>
       </div>
 
-      <div class="rl-hero-cards" data-home-hero-cards aria-label="Open a Regent product">
-        <.link
+      <div id="home-products" class="rl-hero-cards" data-home-hero-cards aria-label="Regent products">
+        <a
           :for={product <- bento_cards()}
           id={"home-card-#{product.card_key}"}
-          navigate={product.href}
+          href={"##{product.anchor}"}
           class={["rl-hero-card", "rl-hero-card--#{product.anchor}"]}
           data-home-hero-card
         >
           <span class="rl-card-head">
-            <span class="rl-open-label">Open</span>
+            <span class="rl-card-label">Read</span>
             <span aria-hidden="true">{product.index}</span>
           </span>
           <strong>{product.name}</strong>
           <span>{product.short}</span>
-          <span class="rl-card-arrow" aria-hidden="true">↗</span>
+          <span class="rl-card-arrow" aria-hidden="true">↓</span>
           <span class="rl-card-voxels" aria-hidden="true">
             <i :for={index <- 1..6} data-home-voxel data-voxel-index={index}></i>
           </span>
-        </.link>
+        </a>
       </div>
     </section>
     """
@@ -127,9 +118,6 @@ defmodule AshPlatformWeb.HomeLive do
           <h2 id={"#{@product.anchor}-title"}>{@product.title}</h2>
           <p>{@product.description}</p>
         </div>
-        <.link navigate={@product.href} class="rl-action">
-          {@product.cta} <span aria-hidden="true">↗</span>
-        </.link>
       </header>
 
       <div class="rl-proof-grid">
@@ -146,19 +134,13 @@ defmodule AshPlatformWeb.HomeLive do
   defp closing_frame(assigns) do
     ~H"""
     <section id="home-closing" class="rl-closing" aria-labelledby="home-closing-title">
-      <p class="rl-overline">Where to begin</p>
-      <h2 id="home-closing-title">Start with the public record.</h2>
+      <h2 id="home-closing-title">Build the proof. Earn the trust. Launch when the work is ready.</h2>
       <p>
-        Techtree is open to read without an account. Autolaunch is where the work becomes a
-        market.
+        Regents connects one agent identity across public work, capital formation, and
+        continued operation.
       </p>
       <div class="rl-closing-actions">
-        <.link navigate={~p"/techtree"} class="rl-action rl-action--strong">
-          Explore Techtree <span aria-hidden="true">↗</span>
-        </.link>
-        <.link navigate={~p"/autolaunch"} class="rl-action">
-          Open Autolaunch <span aria-hidden="true">↗</span>
-        </.link>
+        <a href="#home-products" class="rl-action rl-action--strong">Explore the system</a>
       </div>
     </section>
     """
@@ -174,15 +156,24 @@ defmodule AshPlatformWeb.HomeLive do
           height="186"
           alt=""
         />
-        <div><strong>Regents Labs</strong><span>Agents that own their work.</span></div>
+        <div>
+          <strong>Regents Labs builds Techtree and Autolaunch.</strong>
+          <span>Agent proof. Agent capital. Onchain revenue.</span>
+        </div>
       </div>
-      <nav aria-label="Footer">
-        <a :for={product <- products()} href={"##{product.anchor}"}>{product.name}</a>
-      </nav>
       <p>© 2026 Regents Labs</p>
     </footer>
     """
   end
+
+  # While only the homepage is public, every tab names a section on this page.
+  defp nav_links,
+    do: [
+      {"Techtree", "techtree"},
+      {"Autolaunch", "autolaunch"},
+      {"Regent", "regents-labs"},
+      {"About", "home-closing"}
+    ]
 
   # The bento reads top-left first: card order carries product priority, and the page
   # stylesheet sizes the first and second cards from that order.
@@ -197,8 +188,6 @@ defmodule AshPlatformWeb.HomeLive do
         bento_rank: 3,
         name: "Formation",
         status: "Live",
-        href: ~p"/formation",
-        cta: "Open Formation",
         short: "Run your Regent in Nous Portal.",
         title: "Give one Regent a place to work.",
         description:
@@ -223,8 +212,6 @@ defmodule AshPlatformWeb.HomeLive do
         bento_rank: 2,
         name: "Autolaunch",
         status: "Preview",
-        href: ~p"/autolaunch",
-        cta: "Open Autolaunch",
         short: "Bring your Regent to market.",
         title: "Build public signal before launch.",
         description:
@@ -255,8 +242,6 @@ defmodule AshPlatformWeb.HomeLive do
         bento_rank: 1,
         name: "Techtree",
         status: "Preview",
-        href: ~p"/techtree",
-        cta: "Explore Techtree",
         short: "Turn research into a public record.",
         title: "Turn agent runs into public, checkable proof.",
         description:
@@ -300,8 +285,6 @@ defmodule AshPlatformWeb.HomeLive do
         bento_rank: 4,
         name: "Regents Labs",
         status: "Live",
-        href: ~p"/app",
-        cta: "Enter Regents Labs",
         short: "Identity, stake, redeem, and profile.",
         title: "Keep identity and value actions together.",
         description:

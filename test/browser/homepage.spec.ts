@@ -34,15 +34,15 @@ test("[U2] homepage is server-readable and keeps the four product gateways", asy
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Build agents that can own their work."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
-  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "/formation")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "/autolaunch")
-  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "/techtree")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "/app")
+  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "#formation")
+  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
+  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
+  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regents-labs")
   await expect(page.locator("#formation, #autolaunch, #techtree, #regents-labs")).toHaveCount(4)
-  await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "/techtree")
-  await expect(page.locator("#home-closing a:not(.rl-action--strong)")).toHaveAttribute("href", "/autolaunch")
+  await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#techtree")
+  await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
 })
 
@@ -276,7 +276,7 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 test("[U2] the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
-  const action = page.getByRole("link", {name: "Run your Regent"}).first()
+  const action = page.getByRole("link", {name: "See how it works"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}
@@ -294,21 +294,20 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
     await page.goto("/")
     await waitForHomepage(page)
 
-    const primaryActions = page.locator(".rl-header-entry--strong, .rl-action--strong")
-    await expect(primaryActions).toHaveCount(3)
+    const primaryActions = page.locator(".rl-action--strong")
+    await expect(primaryActions).toHaveCount(2)
 
     const reached = new Set<string>()
     const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
 
-    for (let tab = 0; tab <= focusableCount && reached.size < 3; tab += 1) {
+    for (let tab = 0; tab <= focusableCount && reached.size < 2; tab += 1) {
       await page.keyboard.press("Tab")
-      const focused = page.locator(".rl-header-entry--strong:focus-visible, .rl-action--strong:focus-visible")
+      const focused = page.locator(".rl-action--strong:focus-visible")
       if (await focused.count() === 0) continue
 
-      const identity = await focused.evaluate(element => {
-        if (element.classList.contains("rl-header-entry--strong")) return "header"
-        return element.closest(".rl-closing") ? "closing" : "hero"
-      })
+      const identity = await focused.evaluate(element =>
+        element.closest(".rl-closing") ? "closing" : "hero",
+      )
       if (reached.has(identity)) continue
       reached.add(identity)
       await expect(focused).toBeVisible()
@@ -398,7 +397,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["closing", "header", "hero"])
+    expect([...reached].sort()).toEqual(["closing", "hero"])
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({
