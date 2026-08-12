@@ -368,7 +368,6 @@
 
 .rl-chapter,
 .rl-closing {
-  --chapter-accent: var(--rl-regent);
   max-width: var(--rl-max);
   margin-inline: auto;
   padding: clamp(4.5rem, 9vw, 8rem) clamp(1rem, 3vw, 2.5rem);
@@ -376,14 +375,32 @@
   border-block-end: 1px solid var(--rl-line);
 }
 
+.rl-chapter { --chapter-accent: var(--rl-regent); }
 .rl-chapter--formation { --chapter-accent: var(--rl-formation); }
 .rl-chapter--autolaunch { --chapter-accent: var(--rl-autolaunch); }
 .rl-chapter--techtree { --chapter-accent: var(--rl-techtree); }
 
-.rl-chapter-intro {
+.rl-chapter-intro,
+.rl-closing {
   display: grid;
   grid-template-columns: minmax(3rem, 0.25fr) minmax(0, 1.5fr) auto;
-  gap: clamp(1.5rem, 4vw, 4rem);
+  column-gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: start;
+}
+
+.rl-chapter-intro {
+  row-gap: clamp(1.5rem, 4vw, 4rem);
+}
+
+/* The closing frame wears chapter chrome: copy in the headline column, actions in the action column. */
+.rl-closing > * {
+  grid-column: 2;
+}
+
+.rl-closing-actions {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  flex-direction: column;
   align-items: start;
 }
 
@@ -539,8 +556,14 @@
     --card-height: 9.5rem;
   }
 
-  .rl-chapter-intro {
+  .rl-chapter-intro,
+  .rl-closing {
     grid-template-columns: 1fr;
+  }
+
+  .rl-closing > * {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .rl-chapter-index {

@@ -78,14 +78,14 @@ defmodule AshPlatformWeb.HomeLive do
         <p class="rl-overline">Open infrastructure for sovereign agents</p>
         <h1 id="home-title">Build agents that can own their work.</h1>
         <p>
-          Run your Regent in Nous Portal, publish what it knows, bring it to market, and keep
+          Run your Regent in the cloud, publish what it knows, bring it to market, and keep
           identity and value actions under your authority.
         </p>
         <div class="rl-hero-actions">
           <.link navigate={~p"/formation"} class="rl-action rl-action--strong">
             Run your Regent <span aria-hidden="true">↗</span>
           </.link>
-          <a href="#techtree" class="rl-action">See Techtree below</a>
+          <a href="#techtree" class="rl-action">How Techtree works</a>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ defmodule AshPlatformWeb.HomeLive do
       class={["rl-chapter", "rl-chapter--#{@product.anchor}"]}
       aria-labelledby={"#{@product.anchor}-title"}
     >
-      <header class="rl-chapter-intro" data-home-reveal>
+      <header class="rl-chapter-intro">
         <p class="rl-chapter-index" aria-hidden="true">{@product.index}</p>
         <div>
           <p class="rl-overline">{@product.name} / {@product.status}</p>
@@ -132,7 +132,7 @@ defmodule AshPlatformWeb.HomeLive do
         </.link>
       </header>
 
-      <div class="rl-proof-grid" data-home-reveal>
+      <div class="rl-proof-grid">
         <article :for={proof <- @product.proofs}>
           <p class="rl-proof-state">{proof.state}</p>
           <h3>{proof.title}</h3>
@@ -146,11 +146,11 @@ defmodule AshPlatformWeb.HomeLive do
   defp closing_frame(assigns) do
     ~H"""
     <section id="home-closing" class="rl-closing" aria-labelledby="home-closing-title">
-      <p class="rl-overline">Where to start</p>
+      <p class="rl-overline">Where to begin</p>
       <h2 id="home-closing-title">Start with the public record.</h2>
       <p>
-        Browse connected research anyone can inspect, then prepare a private launch draft when
-        your Regent is ready.
+        Techtree is open to read without an account. Autolaunch is where the work becomes a
+        market.
       </p>
       <div class="rl-closing-actions">
         <.link navigate={~p"/techtree"} class="rl-action rl-action--strong">

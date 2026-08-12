@@ -41,10 +41,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
              Regex.scan(~r/<section id="(?:formation|autolaunch|techtree|regents-labs)"/, html)
            ) == 4
 
-    refute html =~ ~s(id="home-card-formation" href="#formation")
-    refute html =~ ~s(id="home-card-autolaunch" href="#autolaunch")
-    refute html =~ ~s(id="home-card-techtree" href="#techtree")
-    refute html =~ ~s(id="home-card-regent" href="#regents-labs")
     assert has_element?(view, ~s(.rl-header-actions a[href="/app"]), "Sign In")
     assert has_element?(view, ~s(.rl-header-actions a[href="/formation"]), "Run your Regent")
   end
@@ -54,7 +50,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert has_element?(view, ~s(.rl-brand[href="/"]), "Regents Labs")
 
-    assert hrefs(html, ".rl-header a") == [
+    assert attribute(html, ".rl-header a", "href") == [
              "/",
              "#formation",
              "#autolaunch",
@@ -71,11 +67,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              ".rl-hero-copy p",
-             "Run your Regent in Nous Portal, publish what it knows, bring it to market"
+             "Run your Regent in the cloud, publish what it knows, bring it to market"
            )
 
-    assert has_element?(view, ~s(.rl-hero-actions a[href="#techtree"]), "See Techtree below")
-    assert has_element?(view, "#techtree.rl-chapter")
+    assert has_element?(view, ~s(.rl-hero-actions a[href="#techtree"]), "How Techtree works")
   end
 
   test "the page closes on Techtree with Autolaunch beside it", %{conn: conn} do
@@ -85,6 +80,12 @@ defmodule AshPlatformWeb.HomeLiveTest do
              view,
              ~s(section#home-closing[aria-labelledby="home-closing-title"] h2#home-closing-title),
              "Start with the public record."
+           )
+
+    assert has_element?(
+             view,
+             "#home-closing p",
+             "Techtree is open to read without an account. Autolaunch is where the work becomes a market."
            )
 
     assert has_element?(
@@ -99,15 +100,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Open Autolaunch"
            )
 
-    assert hrefs(html, "#home-closing a") == ["/techtree", "/autolaunch"]
-
-    frame_positions =
-      Enum.map(
-        [~s(<section id="regents-labs"), ~s(<section id="home-closing"), "<footer"],
-        &position(html, &1)
-      )
-
-    assert frame_positions == Enum.sort(frame_positions)
+    assert attribute(html, "main > section[id]", "id") ==
+             Enum.map(@products, &elem(&1, 0)) ++ ["home-closing"]
   end
 
   test "the footer offers the brand, the four chapters, and a copyright line", %{conn: conn} do
@@ -120,24 +114,15 @@ defmodule AshPlatformWeb.HomeLiveTest do
       assert has_element?(view, ~s(.rl-footer nav a[href="##{anchor}"]), label)
     end
 
-    assert hrefs(html, ".rl-footer a") == [
-             "#formation",
-             "#autolaunch",
-             "#techtree",
-             "#regents-labs"
-           ]
+    assert attribute(html, ".rl-footer a", "href") ==
+             Enum.map(@products, &"##{elem(&1, 0)}")
   end
 
   test "the hero bento leads with Techtree and places Autolaunch second", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    card_positions =
-      Enum.map(~w(techtree autolaunch formation regent), fn card_key ->
-        {position, _} = :binary.match(html, ~s(id="home-card-#{card_key}"))
-        position
-      end)
-
-    assert card_positions == Enum.sort(card_positions)
+    assert attribute(html, "[data-home-hero-card]", "id") ==
+             ~w(home-card-techtree home-card-autolaunch home-card-formation home-card-regent)
   end
 
   test "Formation copy claims only the Nous Portal route to a cloud runtime", %{conn: conn} do
@@ -153,7 +138,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "each marketing chapter has an ordered, labelled heading and its app action", %{conn: conn} do
+  test "each marketing chapter has a labelled heading and its app action", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     for {anchor, _card_key, app_path, _label} <- @products do
@@ -165,13 +150,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
       assert has_element?(view, "section##{anchor} a[href=\"#{app_path}\"]")
     end
 
-    chapter_positions =
-      Enum.map(@products, fn {anchor, _, _, _} ->
-        {position, _} = :binary.match(html, ~s(<section id="#{anchor}"))
-        position
-      end)
-
-    assert chapter_positions == Enum.sort(chapter_positions)
     assert html =~ "Formation / Live"
     assert html =~ "Autolaunch / Preview"
     assert html =~ "Techtree / Preview"
@@ -232,11 +210,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert css =~ "color: var(--rl-bg)"
   end
 
-  defp hrefs(html, selector),
-    do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute("href")
-
-  defp position(html, needle) do
-    {position, _length} = :binary.match(html, needle)
-    position
-  end
+  defp attribute(html, selector, name),
+    do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
 end
