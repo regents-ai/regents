@@ -1,9 +1,10 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   CAMERA_ENTRY_DURATION,
   CAMERA_GLIDE_DURATION,
   CAMERA_RESET_DURATION,
+  TechtreeCamera,
   createCameraController,
   type CameraDriver,
 } from "../js/hooks/techtree_camera"
@@ -33,6 +34,270 @@ const harness = () => {
 
   return {animations, controller, render}
 }
+
+type FakeEvent = {
+  target: FakeElement
+  pointerType?: string
+  button?: number
+  isPrimary?: boolean
+  pointerId?: number
+  clientX?: number
+  clientY?: number
+  detail?: number
+  metaKey?: boolean
+  ctrlKey?: boolean
+  shiftKey?: boolean
+  altKey?: boolean
+  defaultPrevented: boolean
+  propagationStopped: boolean
+  preventDefault: ReturnType<typeof vi.fn>
+  stopPropagation: ReturnType<typeof vi.fn>
+}
+
+class FakeElement {
+  dataset: Record<string, string> = {}
+  style: Record<string, string> = {}
+  parentElement: FakeElement | null = null
+  offsetWidth = 0
+  offsetHeight = 0
+  clientWidth = 1_000
+  clientHeight = 600
+  clickCount = 0
+  outboundNavigationCount = 0
+  outboundNavigationEvents: FakeEvent[] = []
+  href: string | null = null
+  readonly children: FakeElement[] = []
+  private listeners = new Map<string, Set<(event: FakeEvent) => void>>()
+  private capturedPointers = new Set<number>()
+
+  constructor(
+    readonly kind: "stage" | "world" | "node" | "link",
+    private readonly stage?: FakeElement,
+  ) {}
+
+  append(child: FakeElement) {
+    child.parentElement = this
+    this.children.push(child)
+  }
+
+  closest<T>(selector: string): T | null {
+    let current: FakeElement | null = this
+    while (current) {
+      if (
+        selector === "a[data-phx-link=patch][href]" &&
+        current.kind === "link" &&
+        current.dataset.phxLink === "patch" &&
+        current.href
+      ) {
+        return current as T
+      }
+      if (selector === "[data-node-id]" && current.dataset.nodeId) return current as T
+      current = current.parentElement
+    }
+    return null
+  }
+
+  querySelector<T>(selector: string): T | null {
+    if (this.kind === "stage" && selector === "[data-techtree-map-world]") {
+      return (this.children.find((child) => child.kind === "world") as T) ?? null
+    }
+    return null
+  }
+
+  querySelectorAll<T>(selector: string): T[] {
+    if (this.kind !== "world") return []
+    if (selector === "[data-node-id]") {
+      return this.children.filter((child) => child.dataset.nodeId) as T[]
+    }
+    return []
+  }
+
+  addEventListener(type: string, listener: (event: FakeEvent) => void) {
+    const listeners = this.listeners.get(type) ?? new Set()
+    listeners.add(listener)
+    this.listeners.set(type, listeners)
+  }
+
+  removeEventListener(type: string, listener: (event: FakeEvent) => void) {
+    this.listeners.get(type)?.delete(listener)
+  }
+
+  emit(type: string, event: FakeEvent) {
+    for (const listener of this.listeners.get(type) ?? []) listener(event)
+    if (
+      type === "click" &&
+      !event.defaultPrevented &&
+      !event.propagationStopped &&
+      event.target.closest("a[data-phx-link=patch][href]")
+    ) {
+      this.outboundNavigationCount += 1
+      this.outboundNavigationEvents.push(event)
+    }
+  }
+
+  setPointerCapture(pointerId: number) {
+    this.capturedPointers.add(pointerId)
+  }
+
+  hasPointerCapture(pointerId: number) {
+    return this.capturedPointers.has(pointerId)
+  }
+
+  releasePointerCapture(pointerId: number) {
+    this.capturedPointers.delete(pointerId)
+  }
+
+  getBoundingClientRect() {
+    return {left: 0, top: 0, width: this.offsetWidth, height: this.offsetHeight}
+  }
+
+  focus() {}
+
+  click() {
+    this.clickCount += 1
+    this.stage?.emit("click", fakeEvent(this, {detail: 0}))
+  }
+}
+
+const fakeEvent = (target: FakeElement, values: Partial<FakeEvent> = {}): FakeEvent => {
+  const event = {
+    target,
+    defaultPrevented: false,
+    propagationStopped: false,
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    ...values,
+  }
+  event.preventDefault.mockImplementation(() => {
+    event.defaultPrevented = true
+  })
+  event.stopPropagation.mockImplementation(() => {
+    event.propagationStopped = true
+  })
+  return event
+}
+
+const hookHarness = (reducedMotion = false) => {
+  const stage = new FakeElement("stage")
+  const world = new FakeElement("world")
+  const node = new FakeElement("node")
+  const link = new FakeElement("link", stage)
+  const otherNode = new FakeElement("node")
+  const otherLink = new FakeElement("link", stage)
+  let pointerHitTarget: FakeElement | null = null
+  const animations: Array<{
+    cancel: ReturnType<typeof vi.fn>
+    options: Parameters<CameraDriver["animate"]>[1]
+  }> = []
+
+  stage.append(world)
+  world.append(node)
+  node.append(link)
+  world.append(otherNode)
+  otherNode.append(otherLink)
+  world.dataset = {worldWidth: "800", worldHeight: "400"}
+  node.dataset = {nodeId: "canonical-node", nodeX: "120", nodeY: "80"}
+  node.offsetWidth = 240
+  node.offsetHeight = 112
+  link.dataset = {phxLink: "patch"}
+  link.href = "/techtree/nodes/canonical-node"
+  otherNode.dataset = {nodeId: "other-node", nodeX: "420", nodeY: "80"}
+  otherNode.offsetWidth = 240
+  otherNode.offsetHeight = 112
+  otherLink.dataset = {phxLink: "patch"}
+  otherLink.href = "/techtree/nodes/other-node"
+
+  const canonicalLink = link.closest<HTMLAnchorElement>(
+    "a[data-phx-link=patch][href]",
+  )
+  if (!canonicalLink) throw new Error("canonical LiveView patch anchor is required")
+
+  vi.stubGlobal("Element", FakeElement)
+  vi.stubGlobal("document", {
+    elementFromPoint: vi.fn(() => pointerHitTarget),
+  })
+  vi.stubGlobal("window", {
+    matchMedia: () => ({matches: reducedMotion}),
+    requestAnimationFrame: vi.fn(() => 1),
+    cancelAnimationFrame: vi.fn(),
+  })
+
+  const state = {
+    el: stage,
+    cameraDriver: {
+      animate: vi.fn((_target, options) => {
+        const animation = {cancel: vi.fn()}
+        animations.push({...animation, options})
+        return animation
+      }),
+    },
+  }
+  TechtreeCamera.mounted.call(state as never)
+
+  const pointerDown = (
+    values: Partial<FakeEvent> = {},
+    target: FakeElement = link,
+  ) =>
+    stage.emit(
+      "pointerdown",
+      fakeEvent(target, {
+        pointerType: "mouse",
+        button: 0,
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 140,
+        clientY: 100,
+        ...values,
+      }),
+    )
+  const pointerUp = (
+    values: Partial<FakeEvent> = {},
+    target: FakeElement = stage,
+  ) =>
+    stage.emit(
+      "pointerup",
+      fakeEvent(target, {
+        pointerId: 1,
+        clientX: 140,
+        clientY: 100,
+        ...values,
+      }),
+    )
+  const pointerCancel = (values: Partial<FakeEvent> = {}) =>
+    stage.emit(
+      "pointercancel",
+      fakeEvent(stage, {
+        pointerId: 1,
+        clientX: 180,
+        clientY: 140,
+        ...values,
+      }),
+    )
+  const losePointerCapture = (values: Partial<FakeEvent> = {}) =>
+    stage.emit(
+      "lostpointercapture",
+      fakeEvent(stage, {pointerId: 1, ...values}),
+    )
+
+  return {
+    animations,
+    link,
+    losePointerCapture,
+    otherNode,
+    pointerCancel,
+    pointerDown,
+    setPointerHitTarget(target: FakeElement | null) {
+      pointerHitTarget = target
+    },
+    pointerUp,
+    stage,
+    state,
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("Techtree camera math", () => {
   it("fits and centers a world rectangle inside the viewport margin", () => {
@@ -180,5 +445,213 @@ describe("Techtree camera controller", () => {
     expect(active?.cancel).toHaveBeenCalledOnce()
     expect(controller.active).toBeNull()
     expect(controller.state).toEqual({x: 12, y: 18, zoom: 0.9})
+  })
+})
+
+describe("Techtree camera node activation invariants", () => {
+  it("U1 canonical activation continues the canonical link exactly once for pointer, keyboard, and reduced motion", () => {
+    for (const mode of [
+      "recovered-pointer",
+      "direct-pointer",
+      "keyboard",
+      "reduced",
+      "cancel-keyboard",
+    ] as const) {
+      const {link, pointerCancel, pointerDown, pointerUp, stage, state} = hookHarness(
+        mode === "reduced",
+      )
+
+      if (mode === "keyboard" || mode === "direct-pointer") {
+        const directActivation = fakeEvent(link, {
+          detail: mode === "keyboard" ? 0 : 1,
+        })
+        stage.emit("click", directActivation)
+
+        expect(directActivation.defaultPrevented).toBe(false)
+        expect(directActivation.propagationStopped).toBe(false)
+        expect(stage.outboundNavigationEvents).toEqual([directActivation])
+      } else if (mode === "cancel-keyboard") {
+        pointerDown()
+        pointerCancel()
+        stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
+
+        expect(stage.outboundNavigationCount).toBe(0)
+        expect(link.clickCount).toBe(0)
+
+        const keyboardActivation = fakeEvent(link, {detail: 0})
+        stage.emit("click", keyboardActivation)
+
+        expect(keyboardActivation.defaultPrevented).toBe(false)
+        expect(keyboardActivation.propagationStopped).toBe(false)
+      } else {
+        pointerDown()
+        pointerUp()
+        stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
+      }
+
+      expect(stage.outboundNavigationCount, mode).toBe(1)
+      expect(link.clickCount, mode).toBe(
+        mode === "recovered-pointer" || mode === "reduced" ? 1 : 0,
+      )
+      TechtreeCamera.destroyed.call(state as never)
+    }
+
+    for (const modifier of ["metaKey", "ctrlKey", "shiftKey", "altKey"] as const) {
+      const {animations, link, stage, state} = hookHarness()
+      const animationCount = animations.length
+      const activation = fakeEvent(link, {detail: 0, [modifier]: true})
+
+      stage.emit("click", activation)
+
+      expect(activation.preventDefault, modifier).not.toHaveBeenCalled()
+      expect(activation.stopPropagation, modifier).not.toHaveBeenCalled()
+      expect(stage.outboundNavigationEvents, modifier).toEqual([activation])
+      expect(link.clickCount, modifier).toBe(0)
+      expect(animations, modifier).toHaveLength(animationCount)
+      TechtreeCamera.destroyed.call(state as never)
+    }
+
+    const {animations, link, stage, state} = hookHarness()
+    const animationCount = animations.length
+    const defaultPreventedActivation = fakeEvent(link, {
+      detail: 0,
+      defaultPrevented: true,
+    })
+
+    stage.emit("click", defaultPreventedActivation)
+
+    expect(defaultPreventedActivation.preventDefault).not.toHaveBeenCalled()
+    expect(defaultPreventedActivation.stopPropagation).not.toHaveBeenCalled()
+    expect(stage.outboundNavigationCount).toBe(0)
+    expect(link.clickCount).toBe(0)
+    expect(animations).toHaveLength(animationCount)
+    TechtreeCamera.destroyed.call(state as never)
+
+    for (const {down, click, navigationCount} of [
+      {down: {metaKey: true}, click: {metaKey: true}, navigationCount: 1},
+      {down: {ctrlKey: true}, click: {ctrlKey: true}, navigationCount: 1},
+      {down: {shiftKey: true}, click: {shiftKey: true}, navigationCount: 1},
+      {down: {altKey: true}, click: {altKey: true}, navigationCount: 1},
+      {
+        down: {defaultPrevented: true},
+        click: {defaultPrevented: true},
+        navigationCount: 0,
+      },
+      {down: {isPrimary: false}, click: {}, navigationCount: 1},
+      {down: {button: 1}, click: {}, navigationCount: 1},
+    ]) {
+      const {animations, link, pointerDown, pointerUp, stage, state} = hookHarness()
+      const animationCount = animations.length
+      const diagnostic = JSON.stringify(down)
+
+      pointerDown(down)
+      pointerUp()
+      expect(animations, diagnostic).toHaveLength(animationCount)
+      expect(animations.at(-1)?.cancel, diagnostic).not.toHaveBeenCalled()
+      expect(stage.hasPointerCapture(1), diagnostic).toBe(false)
+      const activation = fakeEvent(link, {detail: 1, pointerId: 1, ...click})
+      stage.emit("click", activation)
+
+      expect(activation.propagationStopped, diagnostic).toBe(false)
+      expect(stage.outboundNavigationCount, diagnostic).toBe(navigationCount)
+      expect(link.clickCount, diagnostic).toBe(0)
+      TechtreeCamera.destroyed.call(state as never)
+    }
+  })
+
+  it("U2 gesture separation binds recovery to one pointer and origin node without stale activation", () => {
+    const {
+      link,
+      losePointerCapture,
+      otherNode,
+      pointerCancel,
+      pointerDown,
+      pointerUp,
+      setPointerHitTarget,
+      stage,
+      state,
+    } = hookHarness()
+    pointerDown()
+    stage.emit(
+      "pointermove",
+      fakeEvent(stage, {pointerId: 1, clientX: 180, clientY: 140}),
+    )
+    pointerUp()
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
+
+    expect(link.clickCount).toBe(0)
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 2})
+    pointerUp({pointerId: 3})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 3}))
+    expect(stage.outboundNavigationCount).toBe(0)
+    pointerUp({pointerId: 2})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 3}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 4})
+    pointerDown({pointerId: 5})
+    pointerUp({pointerId: 5})
+    pointerUp({pointerId: 4})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 4}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 6})
+    pointerCancel({pointerId: 6})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 6}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 7})
+    losePointerCapture({pointerId: 7})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 7}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 8})
+    setPointerHitTarget(otherNode)
+    pointerUp({pointerId: 8})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 8}))
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    setPointerHitTarget(null)
+    pointerDown({pointerId: 9})
+    pointerUp({pointerId: 9})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 9}))
+    expect(link.clickCount).toBe(1)
+    expect(stage.outboundNavigationCount).toBe(1)
+    TechtreeCamera.destroyed.call(state as never)
+  })
+
+  it("U3 motion independence continues the canonical link exactly once before animation settlement", () => {
+    for (const outcome of ["completion", "interruption"] as const) {
+      const {animations, link, pointerCancel, pointerDown, pointerUp, stage, state} =
+        hookHarness()
+      pointerDown()
+      pointerUp()
+      stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
+
+      expect(link.clickCount, outcome).toBe(1)
+      expect(stage.outboundNavigationCount, outcome).toBe(1)
+      const focusAnimation = animations.at(-1)
+      expect(focusAnimation, outcome).toBeDefined()
+      if (!focusAnimation) throw new Error("focus animation is required")
+      expect(focusAnimation.options.duration, outcome).toBe(CAMERA_GLIDE_DURATION)
+      const settle = focusAnimation.options.onComplete
+      expect(settle, outcome).toEqual(expect.any(Function))
+      if (!settle) throw new Error("focus animation settlement callback is required")
+
+      if (outcome === "completion") {
+        settle()
+      } else {
+        pointerDown()
+        expect(focusAnimation.cancel, outcome).toHaveBeenCalledOnce()
+        pointerCancel()
+        settle()
+      }
+
+      expect(link.clickCount, outcome).toBe(1)
+      expect(stage.outboundNavigationCount, outcome).toBe(1)
+      TechtreeCamera.destroyed.call(state as never)
+    }
   })
 })

@@ -359,11 +359,6 @@ test("a Techtree notebook runs interactively in a credentialless cross-origin lo
   const notebookResponse = await page.request.get(runUrl!)
   expect(notebookResponse.headers()["access-control-allow-origin"]).toBe("*")
   expect(notebookResponse.headers()["content-security-policy"]).toContain("default-src 'none'")
-  expect(
-    await page.evaluate(() =>
-      document.querySelector<HTMLIFrameElement>("#local-notebook iframe")?.contentDocument === null
-    ),
-  ).toBe(true)
 
   const notebook = page.frameLocator("#local-notebook iframe")
   const notebookBody = notebook.locator("body")
@@ -371,6 +366,11 @@ test("a Techtree notebook runs interactively in a credentialless cross-origin lo
   await expect(notebookBody).toContainText("Local result: 6", {
     timeout: 90_000,
   })
+  expect(
+    await page.evaluate(() =>
+      document.querySelector<HTMLIFrameElement>("#local-notebook iframe")?.contentDocument === null
+    ),
+  ).toBe(true)
 
   const slider = notebook.getByRole("slider")
   await expect(slider).toBeVisible({timeout: 90_000})
