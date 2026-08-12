@@ -24,9 +24,10 @@ defmodule AshPlatform.ReleasePackageTest do
     output = temporary_directory("release-context-out")
 
     # A miniature stand-in for the real parent context, holding one file for
-    # every rule: package sources, the sibling Privy source, the sealed offline
-    # inputs, and the things that must never enter -- notebook output, host
-    # build artifacts under a dependency's priv, environment files, and
+    # every rule: package sources, the sibling Privy and RegentUI sources, the
+    # sealed offline inputs including one bundler executable per target
+    # architecture, and the things that must never enter -- notebook output,
+    # host build artifacts under a dependency's priv, environment files, and
     # everything outside the declared allowlist.
     write_files(context, [
       {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
@@ -53,10 +54,14 @@ defmodule AshPlatform.ReleasePackageTest do
       {"ash-platform/.envrc", "export SECRET=nope\n"},
       {"elixir-utils/privy/lib/privy.ex", "defmodule Privy do\nend\n"},
       {"elixir-utils/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
+      {"design-system/regent_ui/lib/regent_ui.ex", "defmodule RegentUi do\nend\n"},
+      {"design-system/regent_ui/assets/css/regent.css", ":root{}\n"},
+      {"design-system/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
       {"mix-cache/archives/hex", "hex archive\n"},
       {"npm-cache/_cacache/content", "cache payload\n"},
       {"rustler-precompiled/nif.tar.gz", "precompiled artifact\n"},
       {"esbuild-linux-arm64", "bundler\n"},
+      {"esbuild-linux-x64", "bundler\n"},
       {"stray.txt", "outside the allowlist\n"}
     ])
 
@@ -97,8 +102,11 @@ defmodule AshPlatform.ReleasePackageTest do
              "ash-platform/package.json",
              "ash-platform/priv/static/app.css",
              "ash-platform/rel/overlays/bin/migrate",
+             "design-system/regent_ui/assets/css/regent.css",
+             "design-system/regent_ui/lib/regent_ui.ex",
              "elixir-utils/privy/lib/privy.ex",
              "esbuild-linux-arm64",
+             "esbuild-linux-x64",
              "mix-cache/archives/hex",
              "npm-cache/_cacache/content",
              "rustler-precompiled/nif.tar.gz"

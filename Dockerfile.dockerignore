@@ -10,11 +10,13 @@
 !ash-platform/mix.lock
 !ash-platform/package.json
 !ash-platform/package-lock.json
+!design-system/regent_ui/**
 !elixir-utils/privy/**
 !mix-cache/**
 !npm-cache/**
 !rustler-precompiled/**
 !esbuild-linux-arm64
+!esbuild-linux-x64
 
 # Notebook output is generated on a developer machine and is not source.
 ash-platform/priv/static/notebooks/**
