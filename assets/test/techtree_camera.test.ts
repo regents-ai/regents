@@ -80,15 +80,35 @@ class FakeElement {
     this.children.push(child)
   }
 
+  removeChild(child: FakeElement) {
+    const index = this.children.indexOf(child)
+    if (index === -1) return
+    this.children.splice(index, 1)
+    child.parentElement = null
+  }
+
+  get isConnected() {
+    return this.kind === "stage" || this.parentElement?.isConnected === true
+  }
+
+  contains(element: FakeElement) {
+    return element === this || this.children.some((child) => child.contains(element))
+  }
+
+  matches(selector: string) {
+    return (
+      (selector === 'a[data-phx-link="patch"][href]' ||
+        selector === "a[data-phx-link=patch][href]") &&
+      this.kind === "link" &&
+      this.dataset.phxLink === "patch" &&
+      Boolean(this.href)
+    )
+  }
+
   closest<T>(selector: string): T | null {
     let current: FakeElement | null = this
     while (current) {
-      if (
-        selector === "a[data-phx-link=patch][href]" &&
-        current.kind === "link" &&
-        current.dataset.phxLink === "patch" &&
-        current.href
-      ) {
+      if (current.matches(selector)) {
         return current as T
       }
       if (selector === "[data-node-id]" && current.dataset.nodeId) return current as T
@@ -127,7 +147,6 @@ class FakeElement {
     if (
       type === "click" &&
       !event.defaultPrevented &&
-      !event.propagationStopped &&
       event.target.closest("a[data-phx-link=patch][href]")
     ) {
       this.outboundNavigationCount += 1
@@ -159,6 +178,18 @@ class FakeElement {
   }
 }
 
+class FakeHTMLLIElement extends FakeElement {
+  constructor() {
+    super("node")
+  }
+}
+
+class FakeHTMLAnchorElement extends FakeElement {
+  constructor(stage: FakeElement) {
+    super("link", stage)
+  }
+}
+
 const fakeEvent = (target: FakeElement, values: Partial<FakeEvent> = {}): FakeEvent => {
   const event = {
     target,
@@ -180,10 +211,10 @@ const fakeEvent = (target: FakeElement, values: Partial<FakeEvent> = {}): FakeEv
 const hookHarness = (reducedMotion = false) => {
   const stage = new FakeElement("stage")
   const world = new FakeElement("world")
-  const node = new FakeElement("node")
-  const link = new FakeElement("link", stage)
-  const otherNode = new FakeElement("node")
-  const otherLink = new FakeElement("link", stage)
+  const node = new FakeHTMLLIElement()
+  const link = new FakeHTMLAnchorElement(stage)
+  const otherNode = new FakeHTMLLIElement()
+  const otherLink = new FakeHTMLAnchorElement(stage)
   let pointerHitTarget: FakeElement | null = null
   const animations: Array<{
     cancel: ReturnType<typeof vi.fn>
@@ -207,12 +238,14 @@ const hookHarness = (reducedMotion = false) => {
   otherLink.dataset = {phxLink: "patch"}
   otherLink.href = "/techtree/nodes/other-node"
 
-  const canonicalLink = link.closest<HTMLAnchorElement>(
-    "a[data-phx-link=patch][href]",
-  )
-  if (!canonicalLink) throw new Error("canonical LiveView patch anchor is required")
+  if (!link.matches('a[data-phx-link="patch"][href]')) {
+    throw new Error("canonical HTML anchor is required")
+  }
 
   vi.stubGlobal("Element", FakeElement)
+  vi.stubGlobal("HTMLElement", FakeElement)
+  vi.stubGlobal("HTMLLIElement", FakeHTMLLIElement)
+  vi.stubGlobal("HTMLAnchorElement", FakeHTMLAnchorElement)
   vi.stubGlobal("document", {
     elementFromPoint: vi.fn(() => pointerHitTarget),
   })
@@ -284,6 +317,7 @@ const hookHarness = (reducedMotion = false) => {
     link,
     losePointerCapture,
     otherNode,
+    node,
     pointerCancel,
     pointerDown,
     setPointerHitTarget(target: FakeElement | null) {
@@ -292,6 +326,7 @@ const hookHarness = (reducedMotion = false) => {
     pointerUp,
     stage,
     state,
+    world,
   }
 }
 
@@ -457,9 +492,15 @@ describe("Techtree camera node activation invariants", () => {
       "reduced",
       "cancel-keyboard",
     ] as const) {
-      const {link, pointerCancel, pointerDown, pointerUp, stage, state} = hookHarness(
-        mode === "reduced",
-      )
+      const {
+        link,
+        pointerCancel,
+        pointerDown,
+        pointerUp,
+        setPointerHitTarget,
+        stage,
+        state,
+      } = hookHarness(mode === "reduced")
 
       if (mode === "keyboard" || mode === "direct-pointer") {
         const directActivation = fakeEvent(link, {
@@ -485,6 +526,7 @@ describe("Techtree camera node activation invariants", () => {
         expect(keyboardActivation.propagationStopped).toBe(false)
       } else {
         pointerDown()
+        setPointerHitTarget(link)
         pointerUp()
         stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
       }
@@ -559,7 +601,7 @@ describe("Techtree camera node activation invariants", () => {
     }
   })
 
-  it("U2 gesture separation binds recovery to one pointer and origin node without stale activation", () => {
+  it("U2 gesture separation rejects unresolved, displaced, and stale recovery while binding one pointer to its exact origin", () => {
     const {
       link,
       losePointerCapture,
@@ -617,16 +659,65 @@ describe("Techtree camera node activation invariants", () => {
     pointerDown({pointerId: 9})
     pointerUp({pointerId: 9})
     stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 9}))
-    expect(link.clickCount).toBe(1)
-    expect(stage.outboundNavigationCount).toBe(1)
+    expect(link.clickCount).toBe(0)
+    expect(stage.outboundNavigationCount).toBe(0)
+
+    pointerDown({pointerId: 10, clientX: -1, clientY: -1})
+    pointerUp({pointerId: 10, clientX: -1, clientY: -1})
+    stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 10}))
+    expect(stage.outboundNavigationCount).toBe(0)
     TechtreeCamera.destroyed.call(state as never)
+
+    for (const staleState of [
+      "detached",
+      "replaced",
+      "noncanonical",
+      "reparented",
+    ] as const) {
+      const stale = hookHarness()
+      stale.pointerDown()
+      stale.setPointerHitTarget(stale.link)
+      stale.pointerUp()
+
+      if (staleState === "detached" || staleState === "replaced") {
+        stale.world.removeChild(stale.node)
+      }
+      if (staleState === "replaced") {
+        const replacementNode = new FakeHTMLLIElement()
+        const replacementLink = new FakeHTMLAnchorElement(stale.stage)
+        replacementNode.dataset = {...stale.node.dataset}
+        replacementLink.dataset = {...stale.link.dataset}
+        replacementLink.href = stale.link.href
+        replacementNode.append(replacementLink)
+        stale.world.append(replacementNode)
+      }
+      if (staleState === "noncanonical") stale.link.href = null
+      if (staleState === "reparented") {
+        stale.node.removeChild(stale.link)
+        stale.otherNode.append(stale.link)
+      }
+
+      stale.stage.emit("click", fakeEvent(stale.stage, {detail: 1, pointerId: 1}))
+      expect(stale.link.clickCount, staleState).toBe(0)
+      expect(stale.stage.outboundNavigationCount, staleState).toBe(0)
+      TechtreeCamera.destroyed.call(stale.state as never)
+    }
   })
 
   it("U3 motion independence continues the canonical link exactly once before animation settlement", () => {
     for (const outcome of ["completion", "interruption"] as const) {
-      const {animations, link, pointerCancel, pointerDown, pointerUp, stage, state} =
-        hookHarness()
+      const {
+        animations,
+        link,
+        pointerCancel,
+        pointerDown,
+        pointerUp,
+        setPointerHitTarget,
+        stage,
+        state,
+      } = hookHarness()
       pointerDown()
+      setPointerHitTarget(link)
       pointerUp()
       stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 1}))
 

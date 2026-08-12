@@ -21,6 +21,8 @@ export const CAMERA_FOCUS_MARGIN = 72
 export const CAMERA_INITIAL_ZOOM_MAX = 1
 export const CAMERA_FOCUS_ZOOM_MAX = 1.6
 
+const CANONICAL_NODE_LINK_SELECTOR = 'a[data-phx-link="patch"][href]'
+
 export type CameraAnimation = {
   cancel(): unknown
 }
@@ -319,7 +321,7 @@ export const TechtreeCamera = {
       }
 
       const target = event.target instanceof Element ? event.target : null
-      const link = target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]")
+      const link = target?.closest<HTMLAnchorElement>(CANONICAL_NODE_LINK_SELECTOR)
       const node = target?.closest<HTMLElement>("[data-node-id]")
       recoveredActivation = undefined
       suppressedClick = undefined
@@ -391,19 +393,17 @@ export const TechtreeCamera = {
         return
       }
 
-      const target = event.target instanceof Element ? event.target : null
       const hitTarget =
         typeof document === "undefined"
           ? null
           : document.elementFromPoint(event.clientX, event.clientY)
-      const terminalNode =
-        hitTarget?.closest<HTMLElement>("[data-node-id]") ??
-        target?.closest<HTMLElement>("[data-node-id]") ??
-        null
-      const originResolved = hitTarget instanceof Element || target !== stage
       const gesture =
         activationGesture?.pointerId === event.pointerId ? activationGesture : undefined
-      const originMatches = !originResolved || terminalNode === gesture?.node
+      const terminalNode =
+        hitTarget instanceof Element
+          ? hitTarget.closest<HTMLElement>("[data-node-id]")
+          : null
+      const originMatches = terminalNode !== null && terminalNode === gesture?.node
 
       if (allowRecovery && gesture && originMatches && !draggedPointers.has(event.pointerId)) {
         recoveredActivation = gesture
@@ -503,7 +503,7 @@ export const TechtreeCamera = {
 
       const source = event.detail === 0 ? "keyboard" : "pointer"
       const targetLink =
-        target?.closest<HTMLAnchorElement>("a[data-phx-link=patch][href]") ?? null
+        target?.closest<HTMLAnchorElement>(CANONICAL_NODE_LINK_SELECTOR) ?? null
       const modified =
         event.defaultPrevented ||
         event.metaKey ||
@@ -532,10 +532,22 @@ export const TechtreeCamera = {
       focusNode(node.dataset.nodeId, source)
       if (!recoveredLink) return
 
+      const currentWorld = this.cameraWorld
+      const recoveryIsCurrent =
+        recovery?.node.isConnected === true &&
+        recoveredLink.isConnected &&
+        recoveredLink.matches(CANONICAL_NODE_LINK_SELECTOR) &&
+        recoveredLink.parentElement === recovery.node &&
+        recoveredLink.closest<HTMLElement>("[data-node-id]") === recovery.node &&
+        currentWorld?.isConnected === true &&
+        stage.contains(currentWorld) &&
+        currentWorld.contains(recovery.node)
+      if (!recoveryIsCurrent) return
+
       event.preventDefault()
       event.stopPropagation()
-      continuingLinks.add(link)
-      link.click()
+      continuingLinks.add(recoveredLink)
+      recoveredLink.click()
     }
 
     const onKeydown = (event: KeyboardEvent) => {
