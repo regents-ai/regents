@@ -193,6 +193,34 @@ test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at ever
   }
 })
 
+// The Techtree story stays inside the chapter shape: one intro paragraph the stylesheet mutes
+// (a second one would take the muted rule with it) above a proof grid at its five-card cap.
+test("[U1] the Techtree chapter keeps five proofs under one muted description", async ({page}) => {
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(5)
+
+  const description = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
+  await expect(description).toHaveCount(1)
+
+  const colors = await description.evaluate(element => {
+    const probe = document.createElement("p")
+    probe.style.color = "var(--rl-muted)"
+    element.after(probe)
+    const muted = getComputedStyle(probe).color
+    probe.remove()
+    return {
+      description: getComputedStyle(element).color,
+      heading: getComputedStyle(element.parentElement!.querySelector("h2")!).color,
+      muted,
+    }
+  })
+
+  expect(colors.description).toBe(colors.muted)
+  expect(colors.description).not.toBe(colors.heading)
+})
+
 test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async ({page}, testInfo) => {
   await page.setViewportSize({width: 640, height: 900})
   await page.goto("/")

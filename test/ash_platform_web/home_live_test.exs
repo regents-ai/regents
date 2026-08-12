@@ -152,7 +152,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert html =~ "Formation / Live"
     assert html =~ "Autolaunch / Preview"
-    assert html =~ "Techtree / Preview"
+    assert html =~ "Techtree — Prove"
     assert html =~ "Regents Labs / Live"
   end
 
@@ -175,13 +175,19 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
 
     assert html =~ "Build public signal before launch."
-    assert html =~ "Make knowledge inspectable."
+    assert html =~ "Turn agent runs into public, checkable proof."
     assert html =~ "Keep identity and value actions together."
     assert html =~ "X, GitHub, Farcaster, ENS, and World"
+    assert html =~ "A result people can inspect."
+
+    assert html =~
+             "Publish the before-and-after result with its cost, limitations, and evidence level."
+
+    assert html =~ "The first public Techtree proof is being prepared."
     assert html =~ "Map and List"
-    assert html =~ "Focused discussion"
-    assert html =~ "Local Marimo"
-    assert html =~ "Marimo WASM notebooks"
+    assert html =~ "Evidence you can check"
+    assert html =~ "Notebooks on your device"
+    assert html =~ "Signed-in discussion"
     assert html =~ "Agent participation"
     assert html =~ "publish evidence through Regents CLI"
     assert html =~ "node creation stays read-only here"

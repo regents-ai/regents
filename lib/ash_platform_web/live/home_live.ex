@@ -123,7 +123,7 @@ defmodule AshPlatformWeb.HomeLive do
       <header class="rl-chapter-intro">
         <p class="rl-chapter-index" aria-hidden="true">{@product.index}</p>
         <div>
-          <p class="rl-overline">{@product.name} / {@product.status}</p>
+          <p class="rl-overline">{@product.eyebrow}</p>
           <h2 id={"#{@product.anchor}-title"}>{@product.title}</h2>
           <p>{@product.description}</p>
         </div>
@@ -131,6 +131,12 @@ defmodule AshPlatformWeb.HomeLive do
           {@product.cta} <span aria-hidden="true">↗</span>
         </.link>
       </header>
+
+      <div :if={@product[:story]} class="rl-chapter-story">
+        <h3>{@product.story.headline}</h3>
+        <p>{@product.story.body}</p>
+        <p>{@product.story.pending}</p>
+      </div>
 
       <div class="rl-proof-grid">
         <article :for={proof <- @product.proofs}>
@@ -196,7 +202,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "formation",
         bento_rank: 3,
         name: "Formation",
-        status: "Live",
+        eyebrow: "Formation / Live",
         href: ~p"/formation",
         cta: "Open Formation",
         short: "Run your Regent in Nous Portal.",
@@ -222,7 +228,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "autolaunch",
         bento_rank: 2,
         name: "Autolaunch",
-        status: "Preview",
+        eyebrow: "Autolaunch / Preview",
         href: ~p"/autolaunch",
         cta: "Open Autolaunch",
         short: "Bring your Regent to market.",
@@ -254,28 +260,43 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "techtree",
         bento_rank: 1,
         name: "Techtree",
-        status: "Preview",
+        eyebrow: "Techtree — Prove",
         href: ~p"/techtree",
         cta: "Explore Techtree",
         short: "Turn research into a public record.",
-        title: "Make knowledge inspectable.",
+        title: "Turn agent runs into public, checkable proof.",
         description:
-          "Browse connected research in Map and List, inspect evidence, discuss public nodes, and run approved notebooks locally.",
+          "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is. Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage.",
+        story: %{
+          headline: "A result people can inspect.",
+          body:
+            "Hold the model, tasks, runtime, and permissions fixed. Change one skill. Publish the before-and-after result with its cost, limitations, and evidence level.",
+          pending:
+            "The first public Techtree proof is being prepared. It will show the full evaluation setup, result, limitations, and evidence class—not just a final score."
+        },
         proofs: [
           %{
             state: "Live",
             title: "Map and List",
-            copy: "Move between two views of the same tree on one route."
+            copy:
+              "One route holds both views: the Map draws how nodes connect, the List reads them newest first."
           },
           %{
             state: "Live",
-            title: "Focused discussion",
-            copy: "Read public comments and add a signed human reaction."
+            title: "Evidence you can check",
+            copy:
+              "A node records the earlier work it derives from, supports, or contradicts, and any payload it attaches is fetched and checked against the manifest hash on display."
           },
           %{
             state: "Live",
-            title: "Local Marimo",
-            copy: "Run approved Marimo WASM notebooks locally in your browser."
+            title: "Notebooks on your device",
+            copy:
+              "Approved Marimo notebooks run in your browser, and your Regent session is never shared with them."
+          },
+          %{
+            state: "Live",
+            title: "Signed-in discussion",
+            copy: "Anyone can read a node’s comments; signed-in humans add their own."
           },
           %{
             state: "Planned",
@@ -291,7 +312,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "regent",
         bento_rank: 4,
         name: "Regents Labs",
-        status: "Live",
+        eyebrow: "Regents Labs / Live",
         href: ~p"/app",
         cta: "Enter Regents Labs",
         short: "Identity, stake, redeem, and profile.",

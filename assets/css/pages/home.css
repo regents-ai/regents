@@ -381,6 +381,7 @@
 .rl-chapter--techtree { --chapter-accent: var(--rl-techtree); }
 
 .rl-chapter-intro,
+.rl-chapter-story,
 .rl-closing {
   display: grid;
   grid-template-columns: minmax(3rem, 0.25fr) minmax(0, 1.5fr) auto;
@@ -392,7 +393,8 @@
   row-gap: clamp(1.5rem, 4vw, 4rem);
 }
 
-/* The closing frame wears chapter chrome: copy in the headline column, actions in the action column. */
+/* The closing frame and the chapter story wear chapter chrome: copy in the headline column. */
+.rl-chapter-story > *,
 .rl-closing > * {
   grid-column: 2;
 }
@@ -427,6 +429,30 @@
   max-width: 47rem;
   color: var(--rl-muted);
   font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+}
+
+.rl-chapter-story {
+  row-gap: 1rem;
+  margin-block-start: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.rl-chapter-story h3 {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  letter-spacing: -0.02em;
+}
+
+.rl-chapter-story p {
+  max-width: 47rem;
+  color: var(--rl-muted);
+  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+}
+
+/* The pre-result line reads as a state, not a claim: chapter accent rule over panel ground. */
+.rl-chapter-story p:last-child {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border-inline-start: 2px solid var(--chapter-accent);
+  background: var(--rl-panel);
+  font-size: 0.88rem;
 }
 
 .rl-proof-grid {
@@ -557,10 +583,12 @@
   }
 
   .rl-chapter-intro,
+  .rl-chapter-story,
   .rl-closing {
     grid-template-columns: 1fr;
   }
 
+  .rl-chapter-story > *,
   .rl-closing > * {
     grid-column: 1;
     grid-row: auto;
