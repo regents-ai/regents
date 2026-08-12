@@ -38,9 +38,11 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri) do
-      # verify_none matches the archived production posture; CA verification is a recorded follow-up.
-      # Managed Postgres publishes only an AAAA record, so resolve over IPv6.
-      [url: value, ssl: [verify: :verify_none], socket_options: [:inet6]]
+      # Connections traverse Fly's WireGuard-encrypted private network, where managed Postgres
+      # publishes only an AAAA record, so resolve over IPv6. TLS is not used because OTP 28 cannot
+      # decode the managed-Postgres certificate (asn1 bad_range), matching the platform-standard
+      # in-network posture; revisit if the endpoint ever leaves the private network.
+      [url: value, socket_options: [:inet6]]
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"
