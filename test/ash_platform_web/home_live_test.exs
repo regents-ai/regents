@@ -297,7 +297,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
   test "the evidence record quotes only checked wording and labels every other entry", %{
     conn: conn
   } do
-    {:ok, _view, html} = live(conn, "/")
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(view, ~s(#evidence ul.rl-evidence-entries[role="list"]))
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-entry .rl-evidence-claim",
+             "Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent."
+           )
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-entry .rl-evidence-claim",
+             "Snowflake AI Research open-sourced data-eng-bench, a repository-level benchmark that hands an agent a live dbt project on an enterprise-scale data warehouse."
+           )
 
     assert texts(html, "#evidence blockquote") == [
              "“We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.”",
@@ -330,13 +344,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Research Scientist, Snorkel AI",
              "Environments Hub",
              "Hugging Face",
-             "Agent World Model",
+             "Data-eng-bench",
              "Lambda"
            ]
-
-    assert attribute(html, "#evidence .rl-evidence-entry", "data-evidence-rail") ==
-             List.duplicate("evaluation-and-harnesses", 3) ++
-               List.duplicate("environments-and-experimentation", 4)
   end
 
   test "every primary source is an outbound link that leaves the page safely", %{conn: conn} do
@@ -350,7 +360,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "https://snorkel.ai/leaderboard/os-world-2-0/",
              "https://www.primeintellect.ai/blog/environments",
              "https://youtu.be/CJwn302-TBE?t=1082",
-             "https://github.com/Snowflake-Labs/agent-world-model",
+             "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
              "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
            ]
 

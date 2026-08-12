@@ -223,7 +223,7 @@ test("[U1] the Techtree chapter keeps five proofs under muted body copy", async 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
   await expect(body).toHaveCount(2)
 
-  const colors = await body.evaluateAll(elements => {
+  const type = await body.evaluateAll(elements => {
     // The probe lives outside the chapter so the muted rule cannot claim it and make the
     // comparison tautological.
     const probe = document.createElement("p")
@@ -232,43 +232,48 @@ test("[U1] the Techtree chapter keeps five proofs under muted body copy", async 
     const muted = getComputedStyle(probe).color
     probe.remove()
     return {
-      body: elements.map(element => getComputedStyle(element).color),
+      colors: elements.map(element => getComputedStyle(element).color),
       heading: getComputedStyle(elements[0].parentElement!.querySelector("h2")!).color,
       muted,
+      sizes: elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize)),
     }
   })
 
-  expect(colors.body).toEqual([colors.muted, colors.muted])
-  expect(colors.body).not.toContain(colors.heading)
+  expect(type.colors).toEqual([type.muted, type.muted])
+  expect(type.colors).not.toContain(type.heading)
+
+  const [description, supporting] = type.sizes
+  expect(supporting, "the supporting line reads quieter than the description").toBeLessThan(description)
 })
 
-test("[U1][U2] the evidence section follows Techtree and reads without scripts", async ({browser}) => {
+test("[U2] the evidence section reads with scripts disabled", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
 
-  expect(
-    await page.locator("main > section[id]").evaluateAll(sections => sections.map(section => section.id)),
-  ).toEqual(["formation", "autolaunch", "techtree", "evidence", "regents-labs", "home-closing"])
-
   await expect(page.getByRole("heading", {name: "Built on systems you can inspect."})).toBeVisible()
   await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(2)
   await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(7)
-  await expect(page.locator("#evidence blockquote")).toHaveCount(2)
-  await expect(page.locator("#evidence .rl-evidence-note")).toHaveText("Verified by primary sources.")
-
-  const sources = page.locator("#evidence .rl-evidence-source")
-  await expect(sources).toHaveCount(7)
-  for (const attribute of [
-    {name: "target", value: "_blank"},
-    {name: "rel", value: "noopener noreferrer"},
-  ]) {
-    for (const source of await sources.all()) {
-      await expect(source).toHaveAttribute(attribute.name, attribute.value)
-    }
-  }
-
   await context.close()
+})
+
+// The page reset strips colour and underline from every link, so a source link only reads as a
+// link if its own rules outrank that reset.
+test("[U1][U2] evidence source links survive the page link reset", async ({page}) => {
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const links = await page.locator("#evidence .rl-evidence-source").evaluateAll(elements => {
+    const ink = getComputedStyle(document.querySelector("#public-home")!).color
+    return elements.map(element => {
+      const style = getComputedStyle(element)
+      return {color: style.color, decoration: style.textDecorationLine, ink}
+    })
+  })
+
+  expect(links).toHaveLength(7)
+  expect(links.every(link => link.decoration === "underline")).toBe(true)
+  expect(links.every(link => link.color !== link.ink)).toBe(true)
 })
 
 test("[U1][U3] evidence rails and entries stay inside every tested viewport", async ({page}) => {

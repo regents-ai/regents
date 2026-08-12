@@ -12,6 +12,7 @@
   --rl-techtree: oklch(72% 0.11 250);
   --rl-regent: oklch(82% 0.11 91);
   --rl-max: 88rem;
+  --rl-quiet: 0.88rem;
 
   min-height: 100vh;
   background: var(--rl-bg);
@@ -172,7 +173,8 @@
 }
 
 .rl-overline,
-.rl-proof-state {
+.rl-proof-state,
+.rl-evidence-class {
   color: var(--rl-muted);
   font-size: 0.67rem;
   letter-spacing: 0.18em;
@@ -347,7 +349,8 @@
 .rl-chapter--evidence { --chapter-accent: var(--rl-techtree); }
 
 .rl-chapter-intro,
-.rl-closing {
+.rl-closing,
+.rl-story {
   display: grid;
   grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr);
   column-gap: clamp(1.5rem, 4vw, 4rem);
@@ -377,9 +380,6 @@
 }
 
 .rl-story {
-  display: grid;
-  grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr);
-  column-gap: clamp(1.5rem, 4vw, 4rem);
   margin-block-start: clamp(3rem, 7vw, 6rem);
 }
 
@@ -406,7 +406,7 @@
   max-width: 17ch;
 }
 
-.rl-chapter-intro div > p:not(.rl-overline),
+.rl-chapter-intro div > p:not(.rl-overline, .rl-chapter-support),
 .rl-closing > p:last-of-type,
 .rl-story > div > p:not(.rl-story-state) {
   max-width: 47rem;
@@ -414,12 +414,41 @@
   font-size: clamp(0.95rem, 1.5vw, 1.1rem);
 }
 
+/* Hairline grid: each cell draws its own end and bottom edge, the container draws the other two. */
+.rl-proof-grid,
+.rl-evidence-rails,
+.rl-evidence-entries {
+  --hairline-column: 16rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--hairline-column), 100%), 1fr));
+  border-block-start: 1px solid var(--rl-line);
+  border-inline-start: 1px solid var(--rl-line);
+}
+
+.rl-proof-grid > article,
+.rl-evidence-rail,
+.rl-evidence-entry {
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border-inline-end: 1px solid var(--rl-line);
+  border-block-end: 1px solid var(--rl-line);
+}
+
+/* The quiet voice: every supporting line, pre-result note and rail body reads at one size. */
+.rl-chapter-support,
+.rl-story-state,
+.rl-evidence-rail > p:not(.rl-evidence-sources),
+.rl-proof-grid article > p:last-child {
+  max-width: 47rem;
+  color: var(--rl-muted);
+  font-size: var(--rl-quiet);
+}
+
 /* The supporting line names the systems behind the chapter, so it sits under its own hairline. */
 .rl-chapter-intro .rl-chapter-support {
   margin-block-start: clamp(1.25rem, 2.5vw, 2rem);
   padding-block-start: clamp(1.25rem, 2.5vw, 2rem);
   border-block-start: 1px solid var(--rl-line);
-  font-size: 0.88rem;
 }
 
 .rl-story h3,
@@ -432,49 +461,28 @@
 
 /* No public receipt exists yet: the pre-result panel holds the place the result card will take. */
 .rl-story .rl-story-state {
-  max-width: 47rem;
   margin-block-start: clamp(1.5rem, 3vw, 2.25rem);
   padding: clamp(1rem, 2.5vw, 2rem);
   border: 1px solid var(--rl-line);
   background: var(--rl-panel);
-  color: var(--rl-muted);
-  font-size: 0.88rem;
-}
-
-.rl-evidence-rails,
-.rl-evidence-entries {
-  display: grid;
-  border-inline-start: 1px solid var(--rl-line);
 }
 
 .rl-evidence-rails {
-  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  --hairline-column: 20rem;
   margin-block-start: clamp(3rem, 7vw, 6rem);
-  border-block-start: 1px solid var(--rl-line);
 }
 
+/* The rails already close their own bottom edge, so the record hangs straight off it. */
 .rl-evidence-entries {
-  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+  --hairline-column: 17rem;
   margin: 0;
   padding: 0;
+  border-block-start: 0;
   list-style: none;
-}
-
-.rl-evidence-rail,
-.rl-evidence-entry {
-  min-width: 0;
-  padding: clamp(1rem, 2.5vw, 2rem);
-  border-inline-end: 1px solid var(--rl-line);
-  border-block-end: 1px solid var(--rl-line);
 }
 
 .rl-evidence-rail {
   background: var(--rl-panel);
-}
-
-.rl-evidence-rail > p:not(.rl-evidence-sources) {
-  color: var(--rl-muted);
-  font-size: 0.88rem;
 }
 
 /* Source labels read as a technical byline, so they keep the ink colour and the pixel face. */
@@ -491,18 +499,10 @@
   gap: 0.4rem;
 }
 
-.rl-evidence-class {
-  color: var(--chapter-accent);
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: var(--font-family-pixel);
-}
-
 /* The claim takes the free space so every attribution in the row sits on the same baseline. */
 .rl-evidence-entry > .rl-evidence-claim {
   margin: 0.6rem 0 auto;
-  font-size: 0.88rem;
+  font-size: var(--rl-quiet);
   text-wrap: pretty;
 }
 
@@ -512,12 +512,13 @@
 }
 
 .rl-evidence-affiliation,
-.rl-evidence-source {
+.rl-root .rl-evidence-source {
   color: var(--rl-muted);
   font-size: 0.75rem;
 }
 
-.rl-evidence-source {
+/* The page reset strips link colour and underline, so the source link must outrank it. */
+.rl-root .rl-evidence-source {
   overflow-wrap: anywhere;
   text-decoration: underline;
   text-underline-offset: 0.25em;
@@ -528,39 +529,28 @@
 }
 
 @media (hover: hover) {
-  .rl-evidence-source:hover {
+  .rl-root .rl-evidence-source:hover {
     color: var(--rl-ink);
   }
 }
 
 .rl-proof-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   margin-block-start: clamp(3rem, 7vw, 6rem);
-  border-block-start: 1px solid var(--rl-line);
-  border-inline-start: 1px solid var(--rl-line);
 }
 
-.rl-proof-grid article {
+.rl-proof-grid > article {
   min-height: 13rem;
-  padding: clamp(1rem, 2.5vw, 2rem);
-  border-inline-end: 1px solid var(--rl-line);
-  border-block-end: 1px solid var(--rl-line);
   background: var(--rl-panel);
 }
 
-.rl-proof-state {
+.rl-proof-state,
+.rl-evidence-class {
   color: var(--chapter-accent);
 }
 
 .rl-proof-grid h3 {
   margin-block: 2.5rem 0.6rem;
   font-size: clamp(1.1rem, 2vw, 1.45rem);
-}
-
-.rl-proof-grid article > p:last-child {
-  color: var(--rl-muted);
-  font-size: 0.88rem;
 }
 
 .rl-footer {

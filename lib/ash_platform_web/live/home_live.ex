@@ -119,7 +119,7 @@ defmodule AshPlatformWeb.HomeLive do
           <p class="rl-overline">{@product.eyebrow}</p>
           <h2 id={"#{@product.anchor}-title"}>{@product.title}</h2>
           <p>{@product.description}</p>
-          <p :if={@product[:supporting]} class="rl-chapter-support">{@product.supporting}</p>
+          <p :if={@product.supporting} class="rl-chapter-support">{@product.supporting}</p>
         </div>
       </header>
 
@@ -131,7 +131,7 @@ defmodule AshPlatformWeb.HomeLive do
         </article>
       </div>
 
-      <div :if={@product[:story]} class="rl-story">
+      <div :if={@product.story} class="rl-story">
         <div>
           <h3>{@product.story.title}</h3>
           <p>{@product.story.body}</p>
@@ -164,12 +164,8 @@ defmodule AshPlatformWeb.HomeLive do
         </article>
       </div>
 
-      <ol class="rl-evidence-entries">
-        <li
-          :for={entry <- @entries}
-          class="rl-evidence-entry"
-          data-evidence-rail={entry.rail}
-        >
+      <ul class="rl-evidence-entries" role="list">
+        <li :for={entry <- @entries} class="rl-evidence-entry">
           <p class="rl-evidence-class">{evidence_class(entry)}</p>
           <blockquote :if={entry.quoted} class="rl-evidence-claim">“{entry.claim}”</blockquote>
           <p :if={!entry.quoted} class="rl-evidence-claim">{entry.claim}</p>
@@ -184,7 +180,7 @@ defmodule AshPlatformWeb.HomeLive do
             {entry.source}
           </a>
         </li>
-      </ol>
+      </ul>
 
       <p class="rl-overline rl-evidence-note">{@copy.note}</p>
     </section>
@@ -265,22 +261,20 @@ defmodule AshPlatformWeb.HomeLive do
     }
   end
 
-  # Recorded evidence, in the order the ticket records it. `quoted` is only true where the exact
-  # wording was found in the primary source; everything else reads as a labelled paraphrase.
+  # One flat record of primary sources, in the order the ticket records them. `quoted` is only true
+  # where the exact wording was found in the source; everything else reads as a labelled paraphrase.
   defp evidence_entries do
     [
       %{
-        rail: "evaluation-and-harnesses",
         quoted: false,
         claim:
-          "Evaluation cannot sit outside the agent as a report or leaderboard. It has to become part of the machinery that improves the agent.",
+          "Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent.",
         author: "Michele Catasta",
         affiliation: "President, Replit",
         source: "Closing the loop: Evaluating and improving Replit Agent at scale",
         source_url: "https://replit.com/blog/evaluating-and-improving-agent-at-scale"
       },
       %{
-        rail: "evaluation-and-harnesses",
         quoted: false,
         claim:
           "NVIDIA’s open harness research shows that the architecture around a model can materially change benchmark outcomes.",
@@ -291,7 +285,6 @@ defmodule AshPlatformWeb.HomeLive do
           "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/"
       },
       %{
-        rail: "evaluation-and-harnesses",
         quoted: false,
         claim:
           "Qi’s OSWorld 2.0 work scores progress across long workflows instead of relying on binary completion alone.",
@@ -301,7 +294,6 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://snorkel.ai/leaderboard/os-world-2-0/"
       },
       %{
-        rail: "environments-and-experimentation",
         quoted: false,
         claim:
           "Prime Intellect treats environments as shared infrastructure for reinforcement-learning training and downstream evaluation.",
@@ -311,7 +303,6 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://www.primeintellect.ai/blog/environments"
       },
       %{
-        rail: "environments-and-experimentation",
         quoted: true,
         claim:
           "We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.",
@@ -322,18 +313,16 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://youtu.be/CJwn302-TBE?t=1082"
       },
       %{
-        rail: "environments-and-experimentation",
         quoted: false,
         claim:
-          "Snowflake AI Research open-sourced executable, database-backed tool environments for multi-turn agent training and evaluation.",
+          "Snowflake AI Research open-sourced data-eng-bench, a repository-level benchmark that hands an agent a live dbt project on an enterprise-scale data warehouse.",
         author: "Snowflake AI Research",
-        affiliation: "Agent World Model",
-        source:
-          "Agent World Model: Infinity Synthetic Environments for Agentic Reinforcement Learning",
-        source_url: "https://github.com/Snowflake-Labs/agent-world-model"
+        affiliation: "Data-eng-bench",
+        source: "A Data Engineering Benchmark for AI Agents",
+        source_url:
+          "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/"
       },
       %{
-        rail: "environments-and-experimentation",
         quoted: true,
         claim:
           "Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.",
@@ -359,6 +348,8 @@ defmodule AshPlatformWeb.HomeLive do
         title: "Give one Regent a place to work.",
         description:
           "Nous Portal is where you create and manage your Regent’s cloud runtime. Formation opens it in a new tab and leaves your session here.",
+        supporting: nil,
+        story: nil,
         proofs: [
           %{
             state: "Live",
@@ -383,6 +374,8 @@ defmodule AshPlatformWeb.HomeLive do
         title: "Build public signal before launch.",
         description:
           "Prepare a private launch draft, inspect auctions and tokens, and approve every market action in your wallet.",
+        supporting: nil,
+        story: nil,
         proofs: [
           %{
             state: "Live",
@@ -465,6 +458,8 @@ defmodule AshPlatformWeb.HomeLive do
         title: "Keep identity and value actions together.",
         description:
           "See your Regent, manage its public identity, prepare REGENT staking, and redeem supported NFTs with wallet approval.",
+        supporting: nil,
+        story: nil,
         proofs: [
           %{
             state: "Live",
