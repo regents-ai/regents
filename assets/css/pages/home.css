@@ -50,8 +50,7 @@
 .rl-root h1,
 .rl-root h2,
 .rl-root h3,
-.rl-brand,
-.rl-card-label {
+.rl-brand {
   font-family: var(--font-family-display);
   font-weight: 400;
 }
@@ -103,7 +102,6 @@
 .rl-product-tab {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
   min-height: 2.75rem;
   padding: 0.5rem 0.85rem;
   border-inline-start: 1px solid var(--rl-line);
@@ -201,16 +199,12 @@
 .rl-hero-actions,
 .rl-closing-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
   margin-block-start: 1.75rem;
 }
 
 .rl-action {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
   min-height: 2.75rem;
   padding: 0.7rem 1rem;
   border: 1px solid var(--rl-line-strong);
@@ -289,17 +283,11 @@
 .rl-hero-card--techtree { --card-accent: var(--rl-techtree); }
 
 .rl-card-head {
-  display: flex;
-  justify-content: space-between;
   color: var(--rl-muted);
   font-size: 0.66rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-family: var(--font-family-pixel);
-}
-
-.rl-card-label {
-  color: var(--card-accent);
 }
 
 .rl-hero-card strong {
@@ -317,7 +305,6 @@
 .rl-card-arrow {
   position: absolute;
   inset: var(--card-pad) var(--card-pad) auto auto;
-  transform: translateY(1.5rem);
   color: var(--card-accent);
 }
 
@@ -361,14 +348,17 @@
 .rl-chapter-intro,
 .rl-closing {
   display: grid;
-  grid-template-columns: minmax(3rem, 0.25fr) minmax(0, 1.5fr) auto;
+  grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr);
   column-gap: clamp(1.5rem, 4vw, 4rem);
   align-items: start;
 }
 
 .rl-chapter-intro {
-  grid-template-columns: minmax(3rem, 0.25fr) minmax(0, 1.5fr);
   row-gap: clamp(1.5rem, 4vw, 4rem);
+}
+
+.rl-closing {
+  grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr) auto;
 }
 
 /* The closing frame wears chapter chrome: copy in the headline column, actions in the action column. */
@@ -378,8 +368,7 @@
 
 .rl-closing-actions {
   grid-column: 3;
-  grid-row: 1 / span 3;
-  flex-direction: column;
+  grid-row: 1;
   align-items: start;
 }
 
@@ -399,6 +388,11 @@
   line-height: 0.98;
   letter-spacing: -0.025em;
   text-wrap: balance;
+}
+
+/* Three sentences: the measure holds each one to its own line, as the hero headline does. */
+.rl-closing h2 {
+  max-width: 17ch;
 }
 
 .rl-chapter-intro div > p:last-child,

@@ -41,9 +41,28 @@ test("[U2] homepage is server-readable and keeps the four product gateways", asy
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
   await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regents-labs")
   await expect(page.locator("#formation, #autolaunch, #techtree, #regents-labs")).toHaveCount(4)
-  await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#techtree")
+  await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#home-products")
   await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
+})
+
+// A tab is only useful if its section arrives below the sticky header rather than under it.
+test("[U1] a navigation tab lands its section clear of the sticky header", async ({page}) => {
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  await page.locator("#home-nav-about").click()
+  await expect(page).toHaveURL(/#home-closing$/)
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const header = document.querySelector(".rl-header")!.getBoundingClientRect()
+        const section = document.querySelector("#home-closing")!.getBoundingClientRect()
+        return section.top - header.bottom
+      }),
+    )
+    .toBeGreaterThanOrEqual(0)
 })
 
 test("[U2] homepage settles immediately for reduced motion", async ({browser}) => {

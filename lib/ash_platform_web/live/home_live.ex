@@ -76,7 +76,7 @@ defmodule AshPlatformWeb.HomeLive do
           visible revenue path. Regent keeps the same agent operating under one identity.
         </p>
         <div class="rl-hero-actions">
-          <a href="#techtree" class="rl-action rl-action--strong">See how it works</a>
+          <a href="#home-products" class="rl-action rl-action--strong">See how it works</a>
         </div>
       </div>
 
@@ -88,10 +88,7 @@ defmodule AshPlatformWeb.HomeLive do
           class={["rl-hero-card", "rl-hero-card--#{product.anchor}"]}
           data-home-hero-card
         >
-          <span class="rl-card-head">
-            <span class="rl-card-label">Read</span>
-            <span aria-hidden="true">{product.index}</span>
-          </span>
+          <span class="rl-card-head" aria-hidden="true">{product.index}</span>
           <strong>{product.name}</strong>
           <span>{product.short}</span>
           <span class="rl-card-arrow" aria-hidden="true">↓</span>

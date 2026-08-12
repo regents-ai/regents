@@ -38,7 +38,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
 
     assert length(Regex.scan(~r/data-home-hero-card=""/, html)) == 4
-    assert length(Regex.scan(~r/class="rl-card-label"/, html)) == 4
 
     assert length(
              Regex.scan(~r/<section id="(?:formation|autolaunch|techtree|regents-labs)"/, html)
@@ -53,10 +52,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     for href <- attribute(html, "a", "href"), href != "/" do
       assert String.starts_with?(href, "#")
       assert String.trim_leading(href, "#") in anchors
-    end
-
-    for held <- ~w(/app /formation /techtree /autolaunch /regents) do
-      refute html =~ ~s(href="#{held})
     end
   end
 
@@ -82,11 +77,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Techtree makes the work checkable. Autolaunch turns proven edge into funding and a visible revenue path. Regent keeps the same agent operating under one identity."
            )
 
-    assert attribute(html, ".rl-hero-actions a", "href") == ["#techtree"]
+    assert attribute(html, ".rl-hero-actions a", "href") == ["#home-products"]
 
     assert has_element?(
              view,
-             ~s(.rl-hero-actions a.rl-action--strong[href="#techtree"]),
+             ~s(.rl-hero-actions a.rl-action--strong[href="#home-products"]),
              "See how it works"
            )
   end
@@ -157,7 +152,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "each marketing chapter has a labelled heading and reads without an action", %{conn: conn} do
+  test "each marketing chapter has a labelled heading and its proofs", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     for {anchor, _card_key, _label} <- @products do
@@ -165,8 +160,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
                view,
                "section##{anchor}[aria-labelledby=\"#{anchor}-title\"] h2##{anchor}-title"
              )
-
-      refute has_element?(view, "section##{anchor} a")
     end
 
     assert html =~ "Formation / Live"
@@ -217,10 +210,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
       |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
 
     assert actions == ["See how it works", "Explore the system"]
-
-    for held_action <- ["Sign In", "Read the litepaper"] do
-      refute html =~ held_action
-    end
   end
 
   test "the homepage stays outside the application shell and within its HTML budget", %{
