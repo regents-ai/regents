@@ -8,6 +8,13 @@ export type ShellState = {
   supportsFormationPanel: boolean
 }
 
+export type ShellBrand = "platform" | "autolaunch" | "techtree"
+
+export function brandForShellApp(app: string | undefined): ShellBrand {
+  if (app === "autolaunch" || app === "techtree") return app
+  return "platform"
+}
+
 export function reconcileShellState(
   current: ShellState,
   incoming: Pick<

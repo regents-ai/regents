@@ -17,8 +17,23 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
   }
 
   @background_dir Path.expand("../../../priv/static/images/backgrounds", __DIR__)
+  @root_template Path.expand(
+                   "../../../lib/ash_platform_web/components/layouts/root.html.heex",
+                   __DIR__
+                 )
   @material_css Path.expand("../../../assets/css/tokens/material.css", __DIR__)
   @shell_css Path.expand("../../../assets/css/components/shell.css", __DIR__)
+
+  test "[U2][U3] seeds application branding before paint and isolates the public landing" do
+    root = File.read!(@root_template)
+
+    refute root =~ ~s(data-brand="platform")
+    assert root =~ ~s|isPath("/techtree")|
+    assert root =~ ~s|isPath("/autolaunch")|
+    assert root =~ ~s|root.removeAttribute("data-brand")|
+    assert root =~ ~s(root.dataset.theme = "light")
+    refute root =~ "localStorage.setItem"
+  end
 
   test "renders every canonical background slot as inert themed mask content" do
     for {slot, source} <- @backgrounds do
@@ -57,13 +72,16 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     end
   end
 
-  test "explicit Regent theme owns neutral grounds and all approved guide palettes" do
+  test "[U4] RegentUI owns neutral grounds and all approved guide palettes" do
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
 
-    assert material =~ "--shell-background-ground: oklch(98.5% 0 0)"
-    assert material =~ ":root[data-theme=\"dark\"]"
-    assert material =~ "--shell-background-ground: oklch(14.5% 0 0)"
+    assert material =~ "--shell-background-ground: var(--color-bg)"
+    assert material =~ "--material-fill: var(--glass-panel-bg)"
+    assert material =~ "--material-fill-strong: var(--glass-shell-bg)"
+    assert material =~ "--material-stroke: var(--glass-panel-border)"
+    assert material =~ "--material-blur: var(--glass-blur)"
+    assert material =~ "--material-shadow: var(--glass-panel-shadow)"
     assert shell =~ "background: var(--shell-background-ground)"
     assert shell =~ "mask: var(--shell-background-mask) center / cover no-repeat"
 
@@ -83,15 +101,14 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     refute shell =~ "prefers-color-scheme"
   end
 
-  test "structural material is square, neutral, high opacity, and motion independent" do
+  test "[U1][U4] structural material is square, RegentUI-backed, and motion independent" do
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
 
-    assert material =~ "--material-radius: 4px"
+    assert material =~ "--material-radius: var(--radius-sm)"
     assert material =~ "--material-focus-radius: 0"
-    assert material =~ "var(--color-surface-elevated) 96%"
-    assert material =~ "var(--color-surface) 91%"
-    refute material =~ ~r/product-(formation|autolaunch|techtree)/
+    refute material =~ ~r/oklch\(/
+    refute material =~ ~r/color-mix\(/
 
     assert shell =~ "background: var(--material-fill) padding-box"
     assert shell =~ "@media (prefers-reduced-transparency: reduce)"

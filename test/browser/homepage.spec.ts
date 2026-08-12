@@ -54,6 +54,20 @@ test("[U2] homepage settles immediately for reduced motion", async ({browser}) =
   await context.close()
 })
 
+test("[U3] public landing stays light and unbranded without changing saved appearance", async ({browser}) => {
+  const context = await browser.newContext()
+  await context.addInitScript(() => localStorage.setItem("regent:theme", "dark"))
+  const page = await context.newPage()
+
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(page.locator("html")).not.toHaveAttribute("data-brand", /.+/)
+  expect(await page.evaluate(() => localStorage.getItem("regent:theme"))).toBe("dark")
+  await context.close()
+})
+
 for (const viewport of [
   {name: "mobile-320", width: 320, height: 720},
   {name: "mobile-390", width: 390, height: 844},

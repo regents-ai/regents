@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="platform">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,16 +17,32 @@
     </script>
     <script>
       (() => {
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.setItem("regent:theme", theme);
-            document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          } else {
-            localStorage.setItem("regent:theme", theme);
-            document.documentElement.dataset.theme = theme;
-          }
-        };
-        setTheme(localStorage.getItem("regent:theme") || "system");
+        const root = document.documentElement;
+        const pathname = window.location.pathname;
+        const isPath = (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+        if (pathname === "/") {
+          root.removeAttribute("data-brand");
+          root.dataset.theme = "light";
+          root.removeAttribute("data-theme-choice");
+          return;
+        }
+
+        root.dataset.brand = isPath("/techtree")
+          ? "techtree"
+          : isPath("/autolaunch")
+            ? "autolaunch"
+            : "platform";
+
+        const storedTheme = localStorage.getItem("regent:theme");
+        const choice = ["system", "light", "dark"].includes(storedTheme)
+          ? storedTheme
+          : "system";
+        const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+        root.dataset.theme = choice === "dark" || (choice === "system" && prefersDark)
+          ? "dark"
+          : "light";
+        root.dataset.themeChoice = choice;
       })();
     </script>
   </head>

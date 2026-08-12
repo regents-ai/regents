@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 
 import {
+  brandForShellApp,
   reconcileShellState,
   shellDestinationChanged,
   type ShellState,
@@ -15,6 +16,15 @@ const state = (overrides: Partial<ShellState> = {}): ShellState => ({
   formationPanel: "none",
   supportsFormationPanel: false,
   ...overrides,
+})
+
+describe("shell brand reconciliation", () => {
+  it("[U2] maps shell applications to the canonical RegentUI brands", () => {
+    expect(brandForShellApp("techtree")).toBe("techtree")
+    expect(brandForShellApp("autolaunch")).toBe("autolaunch")
+    expect(brandForShellApp("formation")).toBe("platform")
+    expect(brandForShellApp(undefined)).toBe("platform")
+  })
 })
 
 describe("shell state restoration", () => {

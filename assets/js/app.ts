@@ -7,6 +7,7 @@ import {hooks as colocatedHooks} from "phoenix-colocated/ash_platform"
 import {composeHooks, type Hook} from "./hook_composition"
 import {installAccountAuthLazyLoader} from "./auth_lazy"
 import {
+  brandForShellApp,
   reconcileShellState,
   shellDestinationChanged,
   type ShellState,
@@ -32,6 +33,10 @@ type ShellHook = Hook & {
 
 let cachedShellState: ShellState | undefined
 
+const syncBrand = (root: HTMLElement, app: string | undefined) => {
+  root.dataset.brand = brandForShellApp(app)
+}
+
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
@@ -49,6 +54,7 @@ const shellBehavior: Hook = {
       supportsFormationPanel:
         shell.querySelectorAll("[data-formation-panel-choice]").length > 0,
     }
+    syncBrand(root, shell.dataset.app)
     this.shellState = cachedShellState
       ? reconcileShellState(cachedShellState, initialState)
       : initialState
@@ -254,6 +260,7 @@ const shellBehavior: Hook = {
   },
 
   updated(this: ShellHook) {
+    syncBrand(document.documentElement, this.el.dataset.app)
     const incoming = {
       routeId: this.el.dataset.routeId ?? "",
       destination: this.el.dataset.destination ?? "",

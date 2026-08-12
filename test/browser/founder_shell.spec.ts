@@ -26,6 +26,18 @@ async function switchApp(page: Page, label: string) {
   await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
 }
 
+test("[U2] direct application loads seed the canonical RegentUI brand", async ({page}) => {
+  for (const [route, brand] of [
+    ["/formation", "platform"],
+    ["/techtree", "techtree"],
+    ["/autolaunch", "autolaunch"],
+  ] as const) {
+    await page.goto(route)
+    await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  }
+})
+
 test("all approved routes render within their page budget", async ({page, request}) => {
   const home = await request.get("/")
   expect(home.status()).toBe(200)
@@ -248,9 +260,10 @@ test("an unknown public Regent profile is honest and keeps shell navigation avai
   )
 })
 
-test("navigation keeps the document and shell identity and starts at the top", async ({page}) => {
+test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   const shellInstance = await page.locator("#app-shell").getAttribute("data-shell-instance")
   await page.evaluate(() => {
     ;(window as Window & {founderShellDocument?: object}).founderShellDocument = {}
@@ -261,6 +274,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
 
   await switchApp(page, "Techtree")
   await expect(page).toHaveURL(/\/techtree$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "techtree")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
 
   expect(
@@ -270,6 +284,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
 
   await switchApp(page, "Autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
   await page.evaluate(() => {
     document
       .querySelector("#route-content")
@@ -279,6 +294,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
 
   await page.goBack()
   await expect(page).toHaveURL(/\/techtree$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "techtree")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
@@ -290,6 +306,7 @@ test("navigation keeps the document and shell identity and starts at the top", a
   })
   await page.goForward()
   await expect(page).toHaveURL(/\/autolaunch$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 })

@@ -1,53 +1,11 @@
-/* Canonical neutral subset and structural material for the Ash Platform shell. */
+/* Ash-owned structural material aliases backed by RegentUI. */
 :root {
-  --color-bg: oklch(98.5% 0 0);
-  --color-surface: oklch(97% 0 0);
-  --color-surface-elevated: oklch(99.5% 0 0);
-  --color-fg: oklch(22% 0 0);
-  --hairline: color-mix(in oklch, var(--color-fg) 14%, transparent);
-  --hairline-strong: color-mix(in oklch, var(--color-fg) 26%, transparent);
-  --shell-background-ground: oklch(98.5% 0 0);
-  --material-radius: 4px;
+  --material-radius: var(--radius-sm);
   --material-focus-radius: 0;
-  --material-blur: 12px;
-  --material-fill: linear-gradient(
-    145deg,
-    color-mix(in oklch, var(--color-surface-elevated) 96%, transparent),
-    color-mix(in oklch, var(--color-surface) 91%, transparent)
-  );
-  --material-fill-strong: linear-gradient(
-    145deg,
-    color-mix(in oklch, var(--color-surface-elevated) 98%, transparent),
-    color-mix(in oklch, var(--color-surface) 95%, transparent)
-  );
-  --material-stroke: linear-gradient(
-    135deg,
-    var(--hairline-strong),
-    var(--hairline) 42%,
-    var(--hairline-strong)
-  );
-  --material-shadow: 0 1px 0 color-mix(in oklch, var(--color-fg) 7%, transparent),
-    0 16px 40px color-mix(in oklch, var(--color-bg) 34%, transparent);
-}
-
-:root[data-theme="dark"] {
-  --color-bg: oklch(14.5% 0 0);
-  --color-surface: oklch(17.5% 0 0);
-  --color-surface-elevated: oklch(20.5% 0 0);
-  --color-fg: oklch(97% 0 0);
-  --shell-background-ground: oklch(14.5% 0 0);
-  --material-shadow: 0 1px 0 color-mix(in oklch, var(--color-fg) 8%, transparent),
-    0 18px 44px color-mix(in oklch, var(--color-bg) 58%, transparent);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) {
-    --color-bg: oklch(14.5% 0 0);
-    --color-surface: oklch(17.5% 0 0);
-    --color-surface-elevated: oklch(20.5% 0 0);
-    --color-fg: oklch(97% 0 0);
-    --shell-background-ground: oklch(14.5% 0 0);
-    --material-shadow: 0 1px 0 color-mix(in oklch, var(--color-fg) 8%, transparent),
-      0 18px 44px color-mix(in oklch, var(--color-bg) 58%, transparent);
-  }
+  --material-blur: var(--glass-blur);
+  --material-fill: var(--glass-panel-bg);
+  --material-fill-strong: var(--glass-shell-bg);
+  --material-stroke: var(--glass-panel-border);
+  --material-shadow: var(--glass-panel-shadow);
+  --shell-background-ground: var(--color-bg);
 }

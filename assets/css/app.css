@@ -1,3 +1,4 @@
+@import "../../../design-system/regent_ui/assets/css/regent.css";
 @import "./tokens/material.css";
 @import "./components/shell.css";
 @import "./components/comment_ledger.css";

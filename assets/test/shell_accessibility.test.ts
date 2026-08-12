@@ -193,6 +193,7 @@ function shellFixture() {
 describe("mobile shell navigation", () => {
   beforeEach(() => {
     fakeDocument.activeElement = null
+    fakeDocument.documentElement.dataset = {}
     fakeStorage.clear()
   })
 
@@ -310,25 +311,49 @@ describe("mobile shell navigation", () => {
     expect(page.mapLink.getAttribute("aria-pressed")).toBe("true")
     expect(page.listLink.getAttribute("aria-pressed")).toBe("false")
   })
+
+  it("[U2] reconciles RegentUI brand from authoritative shell app patches", () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    page.shell.dataset.app = "techtree"
+    hook.mounted?.call(context)
+    expect(fakeDocument.documentElement.dataset.brand).toBe("techtree")
+
+    page.shell.dataset.app = "autolaunch"
+    hook.updated?.call(context)
+    expect(fakeDocument.documentElement.dataset.brand).toBe("autolaunch")
+
+    page.shell.dataset.app = "formation"
+    hook.updated?.call(context)
+    expect(fakeDocument.documentElement.dataset.brand).toBe("platform")
+  })
 })
 
 describe("shell material contract", () => {
   const readCss = (path: string) =>
     new TextDecoder().decode(readFileSync(new URL(path, import.meta.url)))
 
-  it("loads canonical material before shell and preserves existing page/status imports", () => {
+  it("[U1][U4] loads RegentUI before shell and preserves existing page/status imports", () => {
     const appCss = readCss("../css/app.css")
     expect(appCss).toMatch(
-      /^@import "\.\/tokens\/material\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
+      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
     )
   })
 
-  it("keeps structural material square, responsive, and free of fabricated artwork", () => {
+  it("[U4][U6] keeps structural material square, responsive, and free of fabricated artwork", () => {
     const material = readCss("../css/tokens/material.css")
     const shell = readCss("../css/components/shell.css")
 
-    expect(material).toContain("--material-radius: 4px")
-    expect(material).toContain(':root:not([data-theme="light"]):not([data-theme="dark"])')
+    expect(material).toContain("--material-radius: var(--radius-sm)")
+    expect(material).toContain("--material-fill: var(--glass-panel-bg)")
+    expect(material).toContain("--material-fill-strong: var(--glass-shell-bg)")
+    expect(material).toContain("--material-stroke: var(--glass-panel-border)")
+    expect(material).toContain("--material-blur: var(--glass-blur)")
+    expect(material).toContain("--material-shadow: var(--glass-panel-shadow)")
+    expect(material).not.toContain("oklch(")
+    expect(material).not.toContain("color-mix(")
     expect(shell).toContain("min-height: 2.75rem")
     expect(shell).toContain("100dvh")
     expect(shell).toContain("prefers-reduced-transparency: reduce")
