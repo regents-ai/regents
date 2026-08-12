@@ -15,7 +15,10 @@ defmodule AshPlatform.RuntimeConfigTest do
       "ASH_PLATFORM_DATABASE_CLUSTER_NAME",
       "ASH_PLATFORM_DATABASE_TARGET_MODE",
       "ASH_PLATFORM_RELEASE_COMMAND",
-      "FLY_APP_NAME"
+      "FLY_APP_NAME",
+      "PHX_HOST",
+      "PORT",
+      "SECRET_KEY_BASE"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
@@ -85,11 +88,20 @@ defmodule AshPlatform.RuntimeConfigTest do
     pooled = "postgresql://pooled:secret@pool.example.test/ash_platform"
     System.put_env("DATABASE_POOLED_URL", pooled)
     System.put_env("DATABASE_DIRECT_URL", "postgresql://direct:secret@direct.example.test/db")
+    System.put_env("PHX_HOST", "shadow.example.test")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
 
     config = read_runtime_config(:prod)
 
     assert get_in(config, [:ash_platform, :database_startup_enabled])
     assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: pooled]
+
+    assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == [
+             server: true,
+             url: [host: "shadow.example.test", port: 443, scheme: "https"],
+             http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: 4000],
+             secret_key_base: String.duplicate("s", 64)
+           ]
   end
 
   test "production runtime fails closed without pooled access" do
@@ -125,6 +137,48 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert_raise RuntimeError,
                  "production migration requires separate Chief-authorized production migration configuration",
                  fn -> runtime_repo_config(:prod) end
+  end
+
+  test "PKG-RUNTIME serving fails closed for missing or malformed endpoint configuration" do
+    System.put_env(
+      "DATABASE_POOLED_URL",
+      "postgresql://pooled:secret@pool.example.test/ash_platform"
+    )
+
+    assert_raise System.EnvError, ~r/PHX_HOST/, fn -> read_runtime_config(:prod) end
+
+    System.put_env("PHX_HOST", " ")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+
+    assert_raise RuntimeError, "PHX_HOST must not be empty", fn ->
+      read_runtime_config(:prod)
+    end
+
+    System.put_env("PHX_HOST", "shadow.example.test")
+    System.put_env("SECRET_KEY_BASE", "too-short")
+
+    assert_raise RuntimeError, "SECRET_KEY_BASE must be at least 64 bytes", fn ->
+      read_runtime_config(:prod)
+    end
+
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+    System.put_env("PORT", "invalid")
+
+    assert_raise ArgumentError, fn -> read_runtime_config(:prod) end
+  end
+
+  test "PKG-RUNTIME migration startup does not require serving-only endpoint values" do
+    direct = "postgresql://direct:secret@direct.example.test/ash_platform"
+    System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
+    System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "nvwq9ozp9ye03kl1")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-pg-test")
+    System.put_env("DATABASE_DIRECT_URL", direct)
+
+    config = read_runtime_config(:prod)
+
+    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: direct]
+    assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == nil
   end
 
   defp privy_config do

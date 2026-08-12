@@ -52,6 +52,25 @@ end
 if config_env() == :prod do
   config :ash_platform, :session_options, secure: true, http_only: true
 
-  config :ash_platform, AshPlatformWeb.Endpoint,
-    http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+  unless System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate" do
+    host = System.fetch_env!("PHX_HOST")
+    secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
+
+    if String.trim(host) == "" do
+      raise "PHX_HOST must not be empty"
+    end
+
+    if byte_size(secret_key_base) < 64 do
+      raise "SECRET_KEY_BASE must be at least 64 bytes"
+    end
+
+    config :ash_platform, AshPlatformWeb.Endpoint,
+      server: true,
+      url: [host: host, port: 443, scheme: "https"],
+      http: [
+        ip: {0, 0, 0, 0, 0, 0, 0, 0},
+        port: String.to_integer(System.get_env("PORT", "4000"))
+      ],
+      secret_key_base: secret_key_base
+  end
 end

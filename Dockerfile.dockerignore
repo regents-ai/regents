@@ -1,0 +1,22 @@
+*
+!ash-platform/
+!ash-platform/assets/**
+!ash-platform/config/**
+!ash-platform/deps/**
+!ash-platform/lib/**
+!ash-platform/priv/**
+!ash-platform/rel/**
+!ash-platform/mix.exs
+!ash-platform/mix.lock
+!ash-platform/package.json
+!ash-platform/package-lock.json
+!elixir-utils/
+!elixir-utils/privy/**
+!mix-cache/**
+!npm-cache/**
+!rustler-precompiled/**
+!esbuild-linux-arm64
+
+# The copied source trees must never carry runtime environment files.
+**/.env
+**/.env.*

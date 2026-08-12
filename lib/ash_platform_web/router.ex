@@ -32,6 +32,10 @@ defmodule AshPlatformWeb.Router do
     AshPlatformWeb.PrivySessionController.enforce_logout_epoch(conn)
   end
 
+  scope "/", AshPlatformWeb do
+    get "/healthz", HealthController, :show
+  end
+
   scope "/api", AshPlatformWeb do
     pipe_through :api
 

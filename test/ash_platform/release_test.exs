@@ -24,7 +24,7 @@ defmodule AshPlatform.ReleaseTest do
                  end
   end
 
-  test "migration launcher invokes the release migration function without printing variables" do
+  test "PKG-MIGRATION launcher invokes the guarded release migration without printing variables" do
     script = File.read!("rel/overlays/bin/migrate")
 
     assert script =~ "AshPlatform.Release.migrate()"
