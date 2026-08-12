@@ -18,11 +18,15 @@ defmodule AshPlatform.RuntimeConfigTest do
       "FLY_APP_NAME",
       "PHX_HOST",
       "PORT",
-      "SECRET_KEY_BASE"
+      "SECRET_KEY_BASE",
+      "ASH_PLATFORM_APP_SURFACES"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
     Enum.each(names, &System.delete_env/1)
+
+    # Production demands an explicit gate setting; these tests cover the rest of the file.
+    System.put_env("ASH_PLATFORM_APP_SURFACES", "on")
 
     on_exit(fn ->
       Enum.each(previous, fn {name, value} -> restore_env(name, value) end)

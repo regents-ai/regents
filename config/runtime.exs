@@ -1,5 +1,7 @@
 import Config
 
+require Logger
+
 privy_verification_key =
   case System.get_env("PRIVY_VERIFICATION_KEY") do
     nil ->
@@ -37,8 +39,25 @@ config :ash_platform, :techtree_publication_rate_limit,
   window_seconds:
     String.to_integer(System.get_env("TECHTREE_PUBLICATION_RATE_WINDOW_SECONDS", "60"))
 
-# Product surfaces are open unless a deploy sets ASH_PLATFORM_APP_SURFACES to something other than "on".
-config :ash_platform, :app_surfaces, System.get_env("ASH_PLATFORM_APP_SURFACES", "on") == "on"
+# Production must say out loud whether the product surfaces are open. Anything
+# but "on" keeps them closed, so a typo closes rather than opens.
+app_surfaces_setting =
+  case {config_env(), System.get_env("ASH_PLATFORM_APP_SURFACES")} do
+    {:prod, nil} ->
+      raise ~s(ASH_PLATFORM_APP_SURFACES must be set to "on" or "off")
+
+    {_env, nil} ->
+      "on"
+
+    {_env, setting} ->
+      setting
+  end
+
+app_surfaces? = app_surfaces_setting == "on"
+
+config :ash_platform, :app_surfaces, app_surfaces?
+
+Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
 
 migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
 

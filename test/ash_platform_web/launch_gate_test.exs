@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.LaunchGateTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias AshPlatformWeb.Live.LaunchGateHook
   alias AshPlatformWeb.Plugs.LaunchGate
 
@@ -34,6 +36,26 @@ defmodule AshPlatformWeb.LaunchGateTest do
 
     open_surfaces()
     assert get(build_conn(), "/app").status == 200
+  end
+
+  test "[U1] production refuses to boot without an explicit setting, and records the state" do
+    original = System.get_env("ASH_PLATFORM_APP_SURFACES")
+    on_exit(fn -> restore_setting(original) end)
+    System.delete_env("ASH_PLATFORM_APP_SURFACES")
+
+    assert_raise RuntimeError, ~s(ASH_PLATFORM_APP_SURFACES must be set to "on" or "off"), fn ->
+      read_runtime_config(:prod)
+    end
+
+    assert {config, log} = read_runtime_config(:test)
+    assert config[:ash_platform][:app_surfaces]
+    assert log =~ "App surfaces enabled"
+
+    System.put_env("ASH_PLATFORM_APP_SURFACES", "yes")
+
+    assert {config, log} = read_runtime_config(:test)
+    refute config[:ash_platform][:app_surfaces]
+    assert log =~ "App surfaces disabled"
   end
 
   test "[U2] every product route answers 503 with no product markup and no caching" do
@@ -125,6 +147,21 @@ defmodule AshPlatformWeb.LaunchGateTest do
 
     assert [%{id: {LaunchGateHook, :default}, stage: :mount} | _rest] = hooks
   end
+
+  # Reads the file a boot reads, returning its settings and the log it wrote.
+  defp read_runtime_config(env) do
+    level = Logger.level()
+    Logger.configure(level: :info)
+
+    try do
+      with_log(fn -> Config.Reader.read!("config/runtime.exs", env: env) end)
+    after
+      Logger.configure(level: level)
+    end
+  end
+
+  defp restore_setting(nil), do: System.delete_env("ASH_PLATFORM_APP_SURFACES")
+  defp restore_setting(setting), do: System.put_env("ASH_PLATFORM_APP_SURFACES", setting)
 
   defp publish_as_signed_in_person do
     build_conn()
