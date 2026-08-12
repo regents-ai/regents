@@ -285,7 +285,9 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     }
 
     assert Process.alive?(view.pid)
-    assert render_click(view, "refresh_verified_connections", %{}) =~ "Run your Regent in Nous Portal"
+
+    assert render_click(view, "refresh_verified_connections", %{}) =~
+             "Run your Regent in Nous Portal"
   end
 
   test "same-account refresh renews every incomplete socket form without broadcasting it", %{
