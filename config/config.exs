@@ -30,7 +30,6 @@ config :ash_platform, AshPlatform.Repo,
   port: 1,
   pool_size: 1
 
-config :ash_platform, :privy, clock: fn -> System.system_time(:second) end
 config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvider
 config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
