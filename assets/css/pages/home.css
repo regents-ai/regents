@@ -220,7 +220,8 @@
   text-wrap: pretty;
 }
 
-.rl-hero-actions {
+.rl-hero-actions,
+.rl-closing-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
@@ -365,7 +366,8 @@
   }
 }
 
-.rl-chapter {
+.rl-chapter,
+.rl-closing {
   --chapter-accent: var(--rl-regent);
   max-width: var(--rl-max);
   margin-inline: auto;
@@ -393,7 +395,8 @@
   font-family: var(--font-family-pixel);
 }
 
-.rl-chapter-intro h2 {
+.rl-chapter-intro h2,
+.rl-closing h2 {
   max-width: 15ch;
   margin-block: 0.75rem 1rem;
   font-size: clamp(2rem, 5vw, 4.6rem);
@@ -402,7 +405,8 @@
   text-wrap: balance;
 }
 
-.rl-chapter-intro div > p:last-child {
+.rl-chapter-intro div > p:last-child,
+.rl-closing > p:last-of-type {
   max-width: 47rem;
   color: var(--rl-muted);
   font-size: clamp(0.95rem, 1.5vw, 1.1rem);

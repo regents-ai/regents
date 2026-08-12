@@ -14,6 +14,7 @@ defmodule AshPlatformWeb.HomeLive do
       <main>
         <.hero />
         <.product_chapter :for={product <- products()} product={product} />
+        <.closing_frame />
       </main>
 
       <.landing_footer />
@@ -77,14 +78,14 @@ defmodule AshPlatformWeb.HomeLive do
         <p class="rl-overline">Open infrastructure for sovereign agents</p>
         <h1 id="home-title">Build agents that can own their work.</h1>
         <p>
-          Form a Regent, develop its public knowledge, bring it to market, and keep identity
-          and value actions under your authority.
+          Run your Regent in Nous Portal, publish what it knows, bring it to market, and keep
+          identity and value actions under your authority.
         </p>
         <div class="rl-hero-actions">
           <.link navigate={~p"/formation"} class="rl-action rl-action--strong">
             Run your Regent <span aria-hidden="true">↗</span>
           </.link>
-          <a href="#techtree" class="rl-action">Explore the stack</a>
+          <a href="#techtree" class="rl-action">See Techtree below</a>
         </div>
       </div>
 
@@ -137,6 +138,27 @@ defmodule AshPlatformWeb.HomeLive do
           <h3>{proof.title}</h3>
           <p>{proof.copy}</p>
         </article>
+      </div>
+    </section>
+    """
+  end
+
+  defp closing_frame(assigns) do
+    ~H"""
+    <section id="home-closing" class="rl-closing" aria-labelledby="home-closing-title">
+      <p class="rl-overline">Where to start</p>
+      <h2 id="home-closing-title">Start with the public record.</h2>
+      <p>
+        Browse connected research anyone can inspect, then prepare a private launch draft when
+        your Regent is ready.
+      </p>
+      <div class="rl-closing-actions">
+        <.link navigate={~p"/techtree"} class="rl-action rl-action--strong">
+          Explore Techtree <span aria-hidden="true">↗</span>
+        </.link>
+        <.link navigate={~p"/autolaunch"} class="rl-action">
+          Open Autolaunch <span aria-hidden="true">↗</span>
+        </.link>
       </div>
     </section>
     """

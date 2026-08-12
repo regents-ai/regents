@@ -49,6 +49,85 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(view, ~s(.rl-header-actions a[href="/formation"]), "Run your Regent")
   end
 
+  test "every header control names a real destination", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(view, ~s(.rl-brand[href="/"]), "Regents Labs")
+
+    assert hrefs(html, ".rl-header a") == [
+             "/",
+             "#formation",
+             "#autolaunch",
+             "#techtree",
+             "#regents-labs",
+             "/app",
+             "/formation"
+           ]
+  end
+
+  test "the hero promises a hosted Regent and says where its second action goes", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             ".rl-hero-copy p",
+             "Run your Regent in Nous Portal, publish what it knows, bring it to market"
+           )
+
+    assert has_element?(view, ~s(.rl-hero-actions a[href="#techtree"]), "See Techtree below")
+    assert has_element?(view, "#techtree.rl-chapter")
+  end
+
+  test "the page closes on Techtree with Autolaunch beside it", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             ~s(section#home-closing[aria-labelledby="home-closing-title"] h2#home-closing-title),
+             "Start with the public record."
+           )
+
+    assert has_element?(
+             view,
+             ~s(#home-closing a.rl-action--strong[href="/techtree"]),
+             "Explore Techtree"
+           )
+
+    assert has_element?(
+             view,
+             "#home-closing a.rl-action:not(.rl-action--strong)[href=\"/autolaunch\"]",
+             "Open Autolaunch"
+           )
+
+    assert hrefs(html, "#home-closing a") == ["/techtree", "/autolaunch"]
+
+    frame_positions =
+      Enum.map(
+        [~s(<section id="regents-labs"), ~s(<section id="home-closing"), "<footer"],
+        &position(html, &1)
+      )
+
+    assert frame_positions == Enum.sort(frame_positions)
+  end
+
+  test "the footer offers the brand, the four chapters, and a copyright line", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(view, ".rl-footer .rl-footer-brand strong", "Regents Labs")
+    assert has_element?(view, ".rl-footer p", "© 2026 Regents Labs")
+
+    for {anchor, _card_key, _app_path, label} <- @products do
+      assert has_element?(view, ~s(.rl-footer nav a[href="##{anchor}"]), label)
+    end
+
+    assert hrefs(html, ".rl-footer a") == [
+             "#formation",
+             "#autolaunch",
+             "#techtree",
+             "#regents-labs"
+           ]
+  end
+
   test "the hero bento leads with Techtree and places Autolaunch second", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
@@ -151,5 +230,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert css =~ ".rl-header-entry--strong:hover"
     assert css =~ "background: var(--rl-ink)"
     assert css =~ "color: var(--rl-bg)"
+  end
+
+  defp hrefs(html, selector),
+    do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute("href")
+
+  defp position(html, needle) do
+    {position, _length} = :binary.match(html, needle)
+    position
   end
 end

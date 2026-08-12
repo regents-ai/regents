@@ -41,6 +41,8 @@ test("[U2] homepage is server-readable and keeps the four product gateways", asy
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "/techtree")
   await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "/app")
   await expect(page.locator("#formation, #autolaunch, #techtree, #regents-labs")).toHaveCount(4)
+  await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "/techtree")
+  await expect(page.locator("#home-closing a:not(.rl-action--strong)")).toHaveAttribute("href", "/autolaunch")
   await context.close()
 })
 
@@ -263,19 +265,20 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
     await waitForHomepage(page)
 
     const primaryActions = page.locator(".rl-header-entry--strong, .rl-action--strong")
-    await expect(primaryActions).toHaveCount(2)
+    await expect(primaryActions).toHaveCount(3)
 
     const reached = new Set<string>()
     const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
 
-    for (let tab = 0; tab <= focusableCount && reached.size < 2; tab += 1) {
+    for (let tab = 0; tab <= focusableCount && reached.size < 3; tab += 1) {
       await page.keyboard.press("Tab")
       const focused = page.locator(".rl-header-entry--strong:focus-visible, .rl-action--strong:focus-visible")
       if (await focused.count() === 0) continue
 
-      const identity = await focused.evaluate(element =>
-        element.classList.contains("rl-header-entry--strong") ? "header" : "hero",
-      )
+      const identity = await focused.evaluate(element => {
+        if (element.classList.contains("rl-header-entry--strong")) return "header"
+        return element.closest(".rl-closing") ? "closing" : "hero"
+      })
       if (reached.has(identity)) continue
       reached.add(identity)
       await expect(focused).toBeVisible()
@@ -365,7 +368,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["header", "hero"])
+    expect([...reached].sort()).toEqual(["closing", "header", "hero"])
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({
