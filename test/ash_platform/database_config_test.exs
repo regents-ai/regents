@@ -5,6 +5,7 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   @pooled "postgresql://pooled_user:pooled-secret@pool.example.test:5432/ash_platform"
   @direct "postgresql://direct_user:direct-secret@direct.example.test:5432/ash_platform"
+  @ssl [verify: :verify_none]
 
   test "test always keeps the fixed local database" do
     config =
@@ -28,7 +29,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @pooled]
+           ) == [url: @pooled, ssl: @ssl]
   end
 
   test "production runtime fails closed when pooled URL is missing" do
@@ -52,7 +53,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @direct]
+           ) == [url: @direct, ssl: @ssl]
   end
 
   test "release fails closed when direct URL is missing" do
@@ -138,7 +139,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @pooled]
+           ) == [url: @pooled, ssl: @ssl]
   end
 
   test "development rejects incomplete, wrong, production, and deployed-app targets" do
@@ -208,6 +209,21 @@ defmodule AshPlatform.DatabaseConfigTest do
       refute Exception.message(error) =~ "sentinel"
       refute Exception.message(error) =~ "secret"
     end
+  end
+
+  test "every remote connection negotiates TLS while the local database stays plaintext" do
+    remote =
+      env(rehearsal_env(%{"DATABASE_POOLED_URL" => @pooled, "DATABASE_DIRECT_URL" => @direct}))
+
+    for config <- [
+          DatabaseConfig.runtime_config!(:prod, remote),
+          DatabaseConfig.runtime_config!(:dev, remote),
+          DatabaseConfig.release_config!(remote)
+        ] do
+      assert config[:ssl] == @ssl
+    end
+
+    refute DatabaseConfig.runtime_config!(:dev, env(%{"USER" => "local-user"}))[:ssl]
   end
 
   defp env(values), do: &Map.get(values, &1)

@@ -38,7 +38,8 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri) do
-      [url: value]
+      # verify_none matches the archived production posture; CA verification is a recorded follow-up.
+      [url: value, ssl: [verify: :verify_none]]
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"

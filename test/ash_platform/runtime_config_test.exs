@@ -98,7 +98,11 @@ defmodule AshPlatform.RuntimeConfigTest do
     config = read_runtime_config(:prod)
 
     assert get_in(config, [:ash_platform, :database_startup_enabled])
-    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: pooled]
+
+    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [
+             url: pooled,
+             ssl: [verify: :verify_none]
+           ]
 
     endpoint = get_in(config, [:ash_platform, AshPlatformWeb.Endpoint])
 
@@ -139,7 +143,7 @@ defmodule AshPlatform.RuntimeConfigTest do
     System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-pg-test")
     System.put_env("DATABASE_DIRECT_URL", direct)
 
-    assert runtime_repo_config(:prod) == [url: direct]
+    assert runtime_repo_config(:prod) == [url: direct, ssl: [verify: :verify_none]]
   end
 
   test "migration runtime rejects an arbitrary direct URL without rehearsal identity" do
@@ -203,7 +207,11 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     config = read_runtime_config(:prod)
 
-    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: direct]
+    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [
+             url: direct,
+             ssl: [verify: :verify_none]
+           ]
+
     assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == nil
   end
 

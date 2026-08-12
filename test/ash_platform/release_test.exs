@@ -13,7 +13,10 @@ defmodule AshPlatform.ReleaseTest do
       _name -> nil
     end
 
-    assert AshPlatform.Release.migration_config!(getenv) == [url: @direct]
+    assert AshPlatform.Release.migration_config!(getenv) == [
+             url: @direct,
+             ssl: [verify: :verify_none]
+           ]
   end
 
   test "migration configuration fails closed without an explicit rehearsal target" do
