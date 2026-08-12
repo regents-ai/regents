@@ -21,12 +21,10 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
     adapter = Keyword.get(opts, :adapter, __MODULE__.RepoAdapter)
     %{privy_user_id: privy_user_id, wallet_address: wallet_address} = fixture_identity!()
 
-    case apply(adapter, :transaction, [
-           fn ->
-             account_id = ensure_account!(adapter, privy_user_id, wallet_address)
-             ensure_regent!(adapter, account_id)
-           end
-         ]) do
+    case adapter.transaction(fn ->
+           account_id = ensure_account!(adapter, privy_user_id, wallet_address)
+           ensure_regent!(adapter, account_id)
+         end) do
       {:ok, :ok} -> :ok
       {:error, error} -> raise error
     end
@@ -60,11 +58,11 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
   end
 
   defp ensure_account!(adapter, privy_user_id, wallet_address) do
-    rows = apply(adapter, :find_accounts_by_privy_id, [privy_user_id])
+    rows = adapter.find_accounts_by_privy_id(privy_user_id)
 
     case rows do
       [] ->
-        apply(adapter, :insert_account, [privy_user_id, wallet_address])
+        adapter.insert_account(privy_user_id, wallet_address)
         |> case do
           [[account_id]] -> account_id
           _ -> raise "browser Autolaunch draft owner seed account insert was ambiguous"
@@ -83,14 +81,14 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
   end
 
   defp ensure_regent!(adapter, account_id) do
-    rows = apply(adapter, :find_regents, [account_id, @regent_slug])
+    rows = adapter.find_regents(account_id, @regent_slug)
 
     account_regents = Enum.filter(rows, &(&1 |> Enum.at(3) == account_id))
     slug_regents = Enum.filter(rows, &(&1 |> Enum.at(1) == @regent_slug))
 
     case {account_regents, slug_regents} do
       {[], []} ->
-        apply(adapter, :insert_regent, [@regent_slug, @regent_display_name, account_id])
+        adapter.insert_regent(@regent_slug, @regent_display_name, account_id)
 
         :ok
 

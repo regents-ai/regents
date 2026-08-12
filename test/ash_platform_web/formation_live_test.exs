@@ -79,8 +79,8 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
-  alias Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner, as: SeedDraftOwner
   alias AshPlatformWeb.FormationLiveTest.SeedAdapter
+  alias Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner, as: SeedDraftOwner
 
   @fixture_token "valid-autolaunch-draft"
   @regent_slug "draft-browser-regent"
