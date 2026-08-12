@@ -257,28 +257,32 @@
   background: var(--rl-line);
 }
 
+/* Card order is product priority: each rank sets its own height, padding, and type scale. */
 .rl-hero-card {
   --card-accent: var(--rl-regent);
   --card-ground: color-mix(in oklch, var(--rl-panel) 90%, transparent);
+  --card-height: 8.5rem;
+  --card-pad: 1rem;
+  --card-title: clamp(1.15rem, 1.6vw, 1.55rem);
   --voxel-size: 0.45rem;
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 8.5rem;
-  padding: 1rem;
+  min-height: var(--card-height);
+  padding: var(--card-pad);
   overflow: hidden;
   background: var(--card-ground);
 }
 
-/* Card order is product priority: the lead card owns half the mat, the second spans the rest of its row. */
 .rl-hero-card:first-child {
   --card-ground: color-mix(in oklch, var(--rl-panel-strong) 92%, transparent);
+  --card-height: 14rem;
+  --card-pad: clamp(1rem, 2.2vw, 1.75rem);
+  --card-title: clamp(1.75rem, 3.4vw, 3rem);
   --voxel-size: 0.6rem;
   grid-column: span 2;
   grid-row: span 2;
-  min-height: 14rem;
-  padding: clamp(1rem, 2.2vw, 1.75rem);
   background:
     linear-gradient(
       152deg,
@@ -289,15 +293,11 @@
 }
 
 .rl-hero-card:nth-child(2) {
+  --card-height: 11.5rem;
+  --card-pad: clamp(1rem, 1.4vw, 1.25rem);
+  --card-title: clamp(1.35rem, 2.1vw, 1.9rem);
+  --voxel-size: 0.5rem;
   grid-column: span 2;
-}
-
-.rl-hero-card:first-child strong {
-  font-size: clamp(1.75rem, 3.4vw, 3rem);
-}
-
-.rl-hero-card:nth-child(2) strong {
-  font-size: clamp(1.35rem, 2.1vw, 1.9rem);
 }
 
 .rl-hero-card:first-child > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels) {
@@ -326,7 +326,7 @@
 .rl-hero-card strong {
   margin-block-start: auto;
   font-family: var(--font-family-display);
-  font-size: clamp(1.15rem, 1.6vw, 1.55rem);
+  font-size: var(--card-title);
   font-weight: 400;
 }
 
@@ -337,14 +337,14 @@
 
 .rl-card-arrow {
   position: absolute;
-  inset: 1rem 1rem auto auto;
+  inset: var(--card-pad) var(--card-pad) auto auto;
   transform: translateY(1.5rem);
   color: var(--card-accent);
 }
 
 .rl-card-voxels {
   position: absolute;
-  inset: 0.75rem auto auto 50%;
+  inset: calc(var(--card-pad) * 0.75) auto auto 50%;
   display: grid;
   grid-template-columns: repeat(3, var(--voxel-size));
   gap: 0.18rem;
@@ -532,7 +532,7 @@
   }
 
   .rl-hero-card {
-    min-height: 9.5rem;
+    --card-height: 9.5rem;
   }
 
   .rl-chapter-intro {

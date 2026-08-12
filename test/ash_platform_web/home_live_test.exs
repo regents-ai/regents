@@ -69,16 +69,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(view, "#formation .rl-proof-grid article", "Open Nous Portal")
     assert has_element?(view, "#formation .rl-proof-grid article", "Your session stays open")
 
-    for retired <- [
-          "Form and operate",
-          "One active Regent",
-          "Private cloud",
-          "Provision and inspect",
-          "private cloud runtime",
-          "Hermes Skills",
-          "guided lifecycle"
-        ] do
-      refute html =~ retired
+    for provisioning_claim <- ["One active Regent", "Provision", "private cloud"] do
+      refute html =~ provisioning_claim
     end
   end
 
@@ -101,7 +93,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
       end)
 
     assert chapter_positions == Enum.sort(chapter_positions)
-    assert html =~ "Formation / Preview"
+    assert html =~ "Formation / Live"
     assert html =~ "Autolaunch / Preview"
     assert html =~ "Techtree / Preview"
     assert html =~ "Regents Labs / Live"

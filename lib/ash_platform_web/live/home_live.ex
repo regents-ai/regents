@@ -174,7 +174,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "formation",
         bento_rank: 3,
         name: "Formation",
-        status: "Preview",
+        status: "Live",
         href: ~p"/formation",
         cta: "Open Formation",
         short: "Run your Regent in Nous Portal.",

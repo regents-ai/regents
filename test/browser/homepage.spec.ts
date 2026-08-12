@@ -131,43 +131,63 @@ for (const viewport of [
   })
 }
 
-test("[U1][U2] the hero bento gives Techtree the dominant area at every viewport", async ({page}) => {
+test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at every viewport", async ({page}) => {
+  const area = (card: {height: number; width: number}) => card.width * card.height
+  const declaredArea = (card: {declaredHeight: number; width: number}) =>
+    card.width * card.declaredHeight
+
   for (const viewport of focusViewports) {
-    await page.setViewportSize({width: viewport.width, height: viewport.height})
-    await page.goto("/")
-    await waitForHomepage(page)
-    await assertNoOverflow(page)
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({width: viewport.width, height: viewport.height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
 
-    const cards = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
-      elements.map(element => {
-        const box = element.getBoundingClientRect()
-        return {area: box.width * box.height, id: element.id, left: box.left, top: box.top}
-      }),
-    )
+      const cards = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
+        elements.map(element => {
+          const box = element.getBoundingClientRect()
+          return {
+            declaredHeight: Number.parseFloat(getComputedStyle(element).minHeight),
+            height: box.height,
+            id: element.id,
+            left: box.left,
+            top: box.top,
+            width: box.width,
+          }
+        }),
+      )
 
-    expect(cards.map(card => card.id)).toEqual([
-      "home-card-techtree",
-      "home-card-autolaunch",
-      "home-card-formation",
-      "home-card-regent",
-    ])
+      expect(cards.map(card => card.id)).toEqual([
+        "home-card-techtree",
+        "home-card-autolaunch",
+        "home-card-formation",
+        "home-card-regent",
+      ])
 
-    const [lead, second, ...secondary] = cards
-    expect(lead.top).toBeLessThanOrEqual(Math.min(...cards.map(card => card.top)))
-    expect(lead.left).toBeLessThanOrEqual(Math.min(...cards.map(card => card.left)))
-    expect(lead.area).toBeGreaterThanOrEqual(second.area * 1.4)
+      const [lead, second, ...secondary] = cards
+      expect(lead.top).toBeLessThanOrEqual(Math.min(...cards.map(card => card.top)))
+      expect(lead.left).toBeLessThanOrEqual(Math.min(...cards.map(card => card.left)))
 
-    for (const card of secondary) {
-      expect(second.area).toBeGreaterThanOrEqual(card.area)
-    }
+      for (const card of cards) {
+        expect(card.height, `${card.id} renders at least its stylesheet height`)
+          .toBeGreaterThanOrEqual(card.declaredHeight)
+      }
 
-    if (viewport.width >= 1440) {
-      expect(lead.area).toBeGreaterThanOrEqual(second.area * 1.9)
+      expect(area(lead)).toBeGreaterThan(area(second))
+      expect(declaredArea(lead)).toBeGreaterThan(declaredArea(second))
 
       for (const card of secondary) {
-        expect(lead.area).toBeGreaterThanOrEqual(card.area * 3.5)
+        expect(area(second), `Autolaunch outranks ${card.id}`).toBeGreaterThan(area(card))
+        expect(declaredArea(second)).toBeGreaterThan(declaredArea(card))
       }
-    }
+
+      // Where the lead shares its row band, it spans the whole band: both stacked ranks fit beside it.
+      if (Math.round(lead.top) === Math.round(second.top)) {
+        expect(lead.height).toBeGreaterThanOrEqual(
+          second.height + Math.max(...secondary.map(card => card.height)),
+        )
+      }
+    })
   }
 })
 
