@@ -4,7 +4,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   alias AshPlatformWeb.{NotFoundError, RouteCatalog, Router}
 
   alias AshPlatformWeb.RouteCatalog.{
-    FormationPanelTarget,
     RouteTarget,
     TreeTarget,
     ViewerProfileTarget
@@ -92,19 +91,21 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     end
   end
 
-  test "sidebars exactly match founder order and target behavior" do
+  test "Formation keeps its route truth without local panel targets or state" do
     formation = RouteCatalog.fetch!(:formation)
 
-    assert formation.sidebar_model.targets == [
-             %FormationPanelTarget{panel: :overview, label: "Overview"},
-             %FormationPanelTarget{panel: :cloud, label: "Cloud"},
-             %FormationPanelTarget{panel: :hermes_skills, label: "Hermes Skills"},
-             %FormationPanelTarget{panel: :billing, label: "Billing"}
-           ]
-
-    assert formation.local_state == %{
-             panel: %{default: :overview, values: [:overview, :cloud, :hermes_skills, :billing]}
-           }
+    assert formation.route_id == :formation
+    assert formation.destination == "/formation"
+    assert formation.app_id == :formation
+    assert formation.app_display_label == "Nous Portal"
+    assert formation.page_display_label == "Formation"
+    assert formation.canonical_root == "/formation"
+    assert formation.background_slot == :formation
+    assert formation.header_controls == [:profile_actions]
+    assert formation.content_transition_kind == :lifecycle
+    assert formation.scroll_policy == :top
+    assert formation.sidebar_model.targets == []
+    assert formation.local_state == %{}
 
     assert RouteCatalog.fetch!(:autolaunch).sidebar_model.targets == [
              %RouteTarget{
@@ -242,10 +243,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              when is_binary(path) and is_binary(route_id) ->
                true
 
-             %{"type" => "formation_panel", "destination" => "/formation", "panel" => panel}
-             when is_binary(panel) ->
-               true
-
              %{
                "type" => "tree",
                "destination" => path,
@@ -264,6 +261,11 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              _target ->
                false
            end)
+
+    assert %{"sidebar_model" => %{"targets" => []}} =
+             Enum.find(decoded["routes"], &(&1["route_id"] == "formation"))
+
+    refute Enum.any?(targets, &(&1["type"] == "formation_panel"))
   end
 
   defp sample_params(:techtree_tree), do: %{"tree_slug" => "genebench-pro-reference-lab"}

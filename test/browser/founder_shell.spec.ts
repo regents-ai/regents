@@ -121,7 +121,7 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   await expect(appSelector.getByRole("link", {name: "Regents Labs"})).toHaveCount(0)
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
   await expect(appSelector.getByRole("button", {name: "Sign In"})).toHaveCount(0)
-  await expect(accountControl.getByRole("link", {name: "Formation"})).toHaveCount(0)
+  await expect(accountControl.getByRole("link", {name: "Nous Portal"})).toHaveCount(0)
 
   await page.evaluate(() => {
     const link = document.createElement("a")
@@ -502,13 +502,6 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await page.goto("/formation")
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
-  const formationForm = page.locator("#form-regent")
-  if (await formationForm.isVisible()) {
-    await formationForm.getByLabel("Public name").fill("Draft Browser Regent")
-    await formationForm.getByLabel("Profile URL").fill("draft-browser-regent")
-    await formationForm.getByRole("button", {name: "Form Regent"}).click()
-    await expect(page.getByRole("heading", {name: "Draft Browser Regent is formed"})).toBeVisible()
-  }
 
   await page.goto("/autolaunch/create")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -545,52 +538,60 @@ test("tree names preserve presentation while explicit selectors force it", async
   await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "map")
 })
 
-test("Formation panels remain local and survive LiveView content patches", async ({page}) => {
+test("Formation keeps one in-shell heading and an exact inactive Nous handoff", async ({page}) => {
+  const requests: string[] = []
+  page.on("request", request => requests.push(request.url()))
+
   await page.goto("/formation")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await expect(page.getByRole("heading", {name: "Form your Regent"})).toBeVisible()
-  const historyLength = await page.evaluate(() => history.length)
-  await page.getByRole("button", {name: "Billing"}).click()
+  await expect(page.getByRole("heading")).toHaveCount(1)
+  await expect(
+    page.getByRole("heading", {level: 1, name: "Run your Regent in Nous Portal"}),
+  ).toBeVisible()
+  await expect(
+    page.getByText(
+      "Formation remains in Regent as the explanation of this handoff. For v0.1, create and manage your Regent’s cloud runtime in Nous Portal.",
+    ),
+  ).toBeVisible()
 
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-formation-panel", "billing")
-  expect(await page.evaluate(() => history.length)).toBe(historyLength)
-  await expect(page).toHaveURL(/\/formation$/)
-  await expect(page.locator('[data-formation-panel-content="overview"]')).toBeHidden()
-  await expect(page.locator('[data-formation-panel-content="billing"]')).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Billing"})).toBeVisible()
-  await expect(page.getByText("Prepaid credit funds Sprite runtime and hosted AI use")).toBeVisible()
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-formation-panel", "billing")
+  const portal = page.getByRole("link", {name: "Open Nous Portal"})
+  await expect(portal).toHaveAttribute("href", "https://portal.nousresearch.com/cloud")
+  await expect(portal).toHaveAttribute("target", "_blank")
+  await expect(portal).toHaveAttribute("rel", "noopener noreferrer")
+  await expect(
+    page.getByText("Nous Portal opens in a new tab. Your Regent session stays open here."),
+  ).toBeVisible()
+
+  await expect(page.locator("#formation-lifecycle form")).toHaveCount(0)
+  await expect(page.locator("#formation-lifecycle button")).toHaveCount(0)
+  await expect(
+    page.locator("#formation-lifecycle [phx-click], #formation-lifecycle [phx-submit]"),
+  ).toHaveCount(0)
+  await expect(page.getByText("Form your Regent", {exact: true})).toHaveCount(0)
+  await expect(page.getByText("Provision Sprite", {exact: true})).toHaveCount(0)
+  expect(requests.some(url => url.startsWith("https://portal.nousresearch.com/"))).toBe(false)
 })
 
-test("a signed-in Regent owner provisions one verified Sprite from Formation Cloud", async ({page}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid-formation-cloud")
-  await auth.establishLocalSession()
+test("Formation handoff keeps focus visible and fits narrow, landscape, and zoom viewports", async ({page}) => {
+  for (const viewport of [
+    {width: 320, height: 720},
+    {width: 390, height: 844},
+    {width: 844, height: 390},
+    {width: 640, height: 900},
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/formation")
+    await expect(page.locator("#formation-nous-portal-link")).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      viewport.width,
+    )
 
-  await page.goto("/formation")
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
-  const formationForm = page.locator("#form-regent")
-  if (await formationForm.isVisible()) {
-    await formationForm.getByLabel("Public name").fill("Cloud Browser Regent")
-    await formationForm.getByLabel("Profile URL").fill("cloud-browser-regent")
-    await formationForm.getByRole("button", {name: "Form Regent"}).click()
-    await expect(page.getByRole("heading", {name: "Cloud Browser Regent is formed"})).toBeVisible()
+    await page.locator("#formation-nous-portal-link").evaluate(element => {
+      ;(element as HTMLElement).focus({focusVisible: true})
+    })
+    await expect(page.locator("#formation-nous-portal-link:focus-visible")).toBeVisible()
+    await expect(page.locator("#formation-nous-portal-link")).toHaveCSS("outline-style", "solid")
   }
-
-  await page.getByRole("button", {name: "Cloud"}).click()
-  await expect(page.locator('[data-formation-panel-content="cloud"]')).toBeVisible()
-
-  const provision = page.getByRole("button", {name: "Provision Sprite"})
-  if (await provision.isVisible()) await provision.click()
-
-  const runtime = page.locator("#formation-cloud-runtime")
-  await expect(runtime).toContainText("Cloud Browser Regent")
-  await expect(runtime).toContainText("cold")
-  await expect(runtime).toContainText("sprites.app")
-  await runtime.getByRole("button", {name: "Refresh status"}).click()
-  await expect(page.getByText("Sprite status refreshed.")).toBeVisible()
-  await expect(page.getByRole("button", {name: "Pause"})).toHaveCount(0)
-  await expect(page.getByRole("button", {name: "Resume"})).toHaveCount(0)
 })
 
 test("theme and reduced-motion preferences apply immediately", async ({browser}) => {

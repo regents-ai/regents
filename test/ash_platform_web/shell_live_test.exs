@@ -65,9 +65,10 @@ defmodule AshPlatformWeb.ShellLiveTest do
            )
 
     refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
-    refute has_element?(view, "#account-control a", "Formation")
+    refute has_element?(view, "#account-control a", "Nous Portal")
 
-    assert has_element?(view, "#app-selector nav a", "Formation")
+    assert has_element?(view, "#app-selector nav a", "Nous Portal")
+    refute has_element?(view, "#app-selector nav a", "Formation")
     assert has_element?(view, "#app-selector nav a", "Autolaunch")
     assert has_element?(view, "#app-selector nav a", "Techtree")
     refute has_element?(view, "#app-selector nav a", "Regents Labs")
@@ -265,23 +266,28 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, ~s([data-tree-presentation][phx-click]))
   end
 
-  test "Formation panels are accessible client-only controls in exact order", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/formation")
+  test "Formation remains owned by ShellLive with its background and only the handoff", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/formation")
 
-    panels =
-      ~r/data-formation-panel-choice="[^"]+"[^>]*>\s*([^<]+)\s*<\/button>/
-      |> Regex.scan(render(view), capture: :all_but_first)
-      |> List.flatten()
-      |> Enum.map(&String.trim/1)
-
-    assert panels == ["Overview", "Cloud", "Hermes Skills", "Billing"]
+    assert html =~ ~s(id="app-shell")
+    assert html =~ ~s(id="app-shell-scroller")
+    assert has_element?(view, ~s(.shell-background[data-background-slot="formation"]))
+    assert has_element?(view, "#formation-lifecycle")
 
     assert has_element?(
              view,
-             ~s(button[data-formation-panel-choice="overview"][aria-pressed="true"])
+             ~s(#formation-nous-portal-link[href="https://portal.nousresearch.com/cloud"][target="_blank"][rel="noopener noreferrer"]),
+             "Open Nous Portal"
            )
 
-    refute has_element?(view, ~s([data-formation-panel-choice][phx-click]))
+    refute has_element?(view, "#formation-lifecycle form")
+    refute has_element?(view, "#formation-lifecycle button")
+    refute has_element?(view, "#formation-lifecycle [phx-click]")
+    refute has_element?(view, "#formation-lifecycle [phx-submit]")
+    refute has_element?(view, "[data-formation-panel-choice]")
+    refute has_element?(view, "[data-formation-panel-content]")
   end
 
   test "a newer destination cancels blocked scaffold work and becomes the only content", %{

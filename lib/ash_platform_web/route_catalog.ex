@@ -171,7 +171,7 @@ defmodule AshPlatformWeb.RouteCatalog do
   ]
 
   @app_targets [
-    %AppTarget{app_id: :formation, label: "Formation", path: "/formation"},
+    %AppTarget{app_id: :formation, label: "Nous Portal", path: "/formation"},
     %AppTarget{app_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
     %AppTarget{app_id: :techtree, label: "Techtree", path: "/techtree"},
     %AppTarget{app_id: :regent_ops, label: "Regents Labs", path: "/app"}
@@ -186,14 +186,8 @@ defmodule AshPlatformWeb.RouteCatalog do
       {:settings, :regent_ops, "Regents Labs", "Settings", "/app", [:profile_actions], :none,
        :regents_labs, :detail, %{}},
     formation:
-      {:formation, :formation, "Formation", "Formation", "/formation",
-       [:provisioning_status, :runtime_action, :profile_actions], :none, :formation, :lifecycle,
-       %{
-         panel: %{
-           default: :overview,
-           values: [:overview, :cloud, :hermes_skills, :billing]
-         }
-       }},
+      {:formation, :formation, "Nous Portal", "Formation", "/formation", [:profile_actions],
+       :none, :formation, :lifecycle, %{}},
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regent_record, :detail, %{}},
@@ -314,12 +308,7 @@ defmodule AshPlatformWeb.RouteCatalog do
   defp sidebar_model(:formation) do
     %SidebarModel{
       id: :formation,
-      targets: [
-        %FormationPanelTarget{panel: :overview, label: "Overview"},
-        %FormationPanelTarget{panel: :cloud, label: "Cloud"},
-        %FormationPanelTarget{panel: :hermes_skills, label: "Hermes Skills"},
-        %FormationPanelTarget{panel: :billing, label: "Billing"}
-      ]
+      targets: []
     }
   end
 
