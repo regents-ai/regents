@@ -632,8 +632,8 @@ describe("Techtree camera node activation invariants", () => {
     stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 3}))
     expect(stage.outboundNavigationCount).toBe(0)
 
-    pointerDown({pointerId: 4})
-    pointerDown({pointerId: 5})
+    pointerDown({pointerId: 4, pointerType: "touch", isPrimary: true})
+    pointerDown({pointerId: 5, pointerType: "touch", isPrimary: false})
     pointerUp({pointerId: 5})
     pointerUp({pointerId: 4})
     stage.emit("click", fakeEvent(stage, {detail: 1, pointerId: 4}))

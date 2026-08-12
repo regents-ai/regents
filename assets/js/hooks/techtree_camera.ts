@@ -171,7 +171,7 @@ const createFrameRenderer = (initialWorld: HTMLElement): FrameRenderer => {
   }
 }
 
-type PointerPosition = CameraPoint & {id: number}
+type PointerPosition = CameraPoint & {id: number; pointerType: string}
 
 type TechtreeCameraHookState = {
   el: HTMLElement
@@ -305,9 +305,13 @@ export const TechtreeCamera = {
     }
 
     const onPointerDown = (event: PointerEvent) => {
+      const joinsActiveTouchGesture =
+        event.pointerType === "touch" &&
+        event.isPrimary === false &&
+        [...pointers.values()].some(pointer => pointer.pointerType === "touch")
       const nativePreserved =
         event.defaultPrevented ||
-        event.isPrimary === false ||
+        (event.isPrimary === false && !joinsActiveTouchGesture) ||
         event.button !== 0 ||
         event.metaKey ||
         event.ctrlKey ||
@@ -331,21 +335,26 @@ export const TechtreeCamera = {
           : undefined
       camera.interrupt()
       const point = localPoint(stage, event.clientX, event.clientY)
-      pointers.set(event.pointerId, {...point, id: event.pointerId})
+      pointers.set(event.pointerId, {
+        ...point,
+        id: event.pointerId,
+        pointerType: event.pointerType,
+      })
       stage.setPointerCapture(event.pointerId)
 
       if (pointers.size > 1) {
         activationGesture = undefined
         beginPinch()
       } else {
-        beginPan({...point, id: event.pointerId})
+        beginPan({...point, id: event.pointerId, pointerType: event.pointerType})
       }
     }
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!pointers.has(event.pointerId)) return
+      const pointer = pointers.get(event.pointerId)
+      if (!pointer) return
       const point = localPoint(stage, event.clientX, event.clientY)
-      pointers.set(event.pointerId, {...point, id: event.pointerId})
+      pointers.set(event.pointerId, {...pointer, ...point})
 
       if (pointers.size > 1) {
         if (!pinch) beginPinch()
