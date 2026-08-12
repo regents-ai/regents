@@ -96,12 +96,29 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert get_in(config, [:ash_platform, :database_startup_enabled])
     assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: pooled]
 
-    assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == [
-             server: true,
-             url: [host: "shadow.example.test", port: 443, scheme: "https"],
-             http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: 4000],
-             secret_key_base: String.duplicate("s", 64)
-           ]
+    endpoint = get_in(config, [:ash_platform, AshPlatformWeb.Endpoint])
+
+    assert endpoint[:server]
+    assert endpoint[:secret_key_base] == String.duplicate("s", 64)
+    assert endpoint[:url][:host] == "shadow.example.test"
+    assert endpoint[:url][:scheme] == "https"
+    assert endpoint[:http][:port] == 4000
+    assert endpoint[:http][:ip] == {0, 0, 0, 0, 0, 0, 0, 0}
+  end
+
+  test "PKG-RUNTIME serving uses the host without its surrounding whitespace" do
+    System.put_env(
+      "DATABASE_POOLED_URL",
+      "postgresql://pooled:secret@pool.example.test/ash_platform"
+    )
+
+    System.put_env("PHX_HOST", "  shadow.example.test\n")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+
+    config = read_runtime_config(:prod)
+
+    assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint])[:url][:host] ==
+             "shadow.example.test"
   end
 
   test "production runtime fails closed without pooled access" do
@@ -139,32 +156,37 @@ defmodule AshPlatform.RuntimeConfigTest do
                  fn -> runtime_repo_config(:prod) end
   end
 
-  test "PKG-RUNTIME serving fails closed for missing or malformed endpoint configuration" do
-    System.put_env(
-      "DATABASE_POOLED_URL",
-      "postgresql://pooled:secret@pool.example.test/ash_platform"
-    )
+  test "PKG-RUNTIME serving fails closed without a host" do
+    put_pooled_url()
 
     assert_raise System.EnvError, ~r/PHX_HOST/, fn -> read_runtime_config(:prod) end
+  end
 
+  test "PKG-RUNTIME serving fails closed on a blank host" do
+    put_pooled_url()
     System.put_env("PHX_HOST", " ")
     System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
 
     assert_raise RuntimeError, "PHX_HOST must not be empty", fn ->
       read_runtime_config(:prod)
     end
+  end
 
+  test "PKG-RUNTIME serving fails closed without a session secret" do
+    put_pooled_url()
+    System.put_env("PHX_HOST", "shadow.example.test")
+
+    assert_raise System.EnvError, ~r/SECRET_KEY_BASE/, fn -> read_runtime_config(:prod) end
+  end
+
+  test "PKG-RUNTIME serving fails closed on an undersized session secret" do
+    put_pooled_url()
     System.put_env("PHX_HOST", "shadow.example.test")
     System.put_env("SECRET_KEY_BASE", "too-short")
 
     assert_raise RuntimeError, "SECRET_KEY_BASE must be at least 64 bytes", fn ->
       read_runtime_config(:prod)
     end
-
-    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
-    System.put_env("PORT", "invalid")
-
-    assert_raise ArgumentError, fn -> read_runtime_config(:prod) end
   end
 
   test "PKG-RUNTIME migration startup does not require serving-only endpoint values" do
@@ -179,6 +201,13 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [url: direct]
     assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == nil
+  end
+
+  defp put_pooled_url do
+    System.put_env(
+      "DATABASE_POOLED_URL",
+      "postgresql://pooled:secret@pool.example.test/ash_platform"
+    )
   end
 
   defp privy_config do

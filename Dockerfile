@@ -9,7 +9,7 @@ WORKDIR /workspace/ash-platform
 COPY --from=node /usr/local /usr/local
 COPY npm-cache/_cacache /root/.npm/_cacache
 COPY ash-platform/package.json ash-platform/package-lock.json ./
-RUN npm ci --offline --ignore-scripts --no-audit --no-fund
+RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
 
 FROM native AS build
 
@@ -46,7 +46,12 @@ ENV HOME=/app
 ENV MIX_ENV=prod
 WORKDIR /app
 
-COPY --from=build /workspace/ash-platform/_build/prod/rel/ash_platform ./
+RUN groupadd --system --gid 1001 app \
+  && useradd --system --uid 1001 --gid app --home-dir /app app
+
+COPY --from=build --chown=app:app /workspace/ash-platform/_build/prod/rel/ash_platform ./
+
+USER app
 
 EXPOSE 4000
 

@@ -12,7 +12,7 @@
   force_https = true
 
 [[http_service.checks]]
-  grace_period = "5s"
+  grace_period = "30s"
   interval = "10s"
   method = "GET"
   path = "/healthz"

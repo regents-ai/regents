@@ -37,8 +37,10 @@ config :ash_platform, :techtree_publication_rate_limit,
   window_seconds:
     String.to_integer(System.get_env("TECHTREE_PUBLICATION_RATE_WINDOW_SECONDS", "60"))
 
+migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
+
 database_config =
-  if config_env() == :prod and System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate" do
+  if config_env() == :prod and migrating? do
     AshPlatform.DatabaseConfig.release_config!()
   else
     AshPlatform.DatabaseConfig.runtime_config!(config_env())
@@ -52,11 +54,11 @@ end
 if config_env() == :prod do
   config :ash_platform, :session_options, secure: true, http_only: true
 
-  unless System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate" do
-    host = System.fetch_env!("PHX_HOST")
+  unless migrating? do
+    host = String.trim(System.fetch_env!("PHX_HOST"))
     secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
 
-    if String.trim(host) == "" do
+    if host == "" do
       raise "PHX_HOST must not be empty"
     end
 
