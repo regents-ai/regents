@@ -87,12 +87,12 @@ class FakeElement {
     child.parentElement = null
   }
 
-  get isConnected() {
+  get isConnected(): boolean {
     return this.kind === "stage" || this.parentElement?.isConnected === true
   }
 
-  contains(element: FakeElement) {
-    return element === this || this.children.some((child) => child.contains(element))
+  contains(element: FakeElement): boolean {
+    return element === this || this.children.some((child): boolean => child.contains(element))
   }
 
   matches(selector: string) {
