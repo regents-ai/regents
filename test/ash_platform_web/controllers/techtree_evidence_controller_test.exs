@@ -41,8 +41,7 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
       wallet: @wallet
     }
 
-    issued = Formation.issue_agent_pairing_code!(regent.id, actor: human)
-    link = Formation.claim_agent_link!(regent.id, issued.code, identity, actor: %System{})
+    link = pair_link(identity, regent.id, account.id)
     :ok = Techtree.ensure_seed_trees(actor: %System{})
     tree = Techtree.get_tree_by_slug!("skill-training-lab")
 
