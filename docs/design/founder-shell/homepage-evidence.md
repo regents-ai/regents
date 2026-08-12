@@ -3,17 +3,16 @@
 ## Target
 
 The public slash route follows the old Platform landing page outside the hero:
-sticky header, runs-on strip, four-part Formation story, two principle cards,
-Techtree grid, stack cards, Autolaunch band and market grid, Techtree research
-band, three-card action row, two story cards, closing band, and four-column
-footer. Typography, spacing, grid breakpoints, borders, and dark-stock section
-rhythm use the old page as the visual reference.
+sticky header, numbered product chapters with their proof grids, a sourced
+evidence section, the revenue and Nous beats, the product summary, a closing
+band, and a brand footer. Typography, spacing, grid breakpoints, borders, and
+dark-stock section rhythm use the old page as the visual reference.
 
 The hero is intentionally different. It uses the founder-supplied cutting-mat
-SVG behind four high-opacity, square material cards for Formation,
-Autolaunch, Techtree, and Regents Labs. The complete hero is readable before
-JavaScript. Anime.js enhances all four cards together after first paint and
-cleans up on teardown; reduced-motion users retain the static render.
+SVG behind three high-opacity, square material cards for Techtree, Autolaunch,
+and Regent. The complete hero is readable before JavaScript. Anime.js enhances
+all three cards together after first paint and cleans up on teardown;
+reduced-motion users retain the static render.
 
 Visual parity does not import old behavior. Public chat, rooms, fabricated
 testimonials and market figures, unadmitted routes, stale CLI commands, and
@@ -65,19 +64,18 @@ differ intentionally.
 
 The closing/footer pair is farther apart (`0.31843`) because the old reference
 contains a public-chat control, social destinations, and retired links that
-the founder explicitly excluded. The retained structure still matches: wide
-closing artwork, centered call to action, brand block, four link columns, and
-legal row.
+the founder explicitly excluded. The retained structure still matches: closing
+band, one call to action, brand block, and legal row.
 
 ## Executable proof
 
-- homepage LiveView tests pin the old section order, exact four destinations,
-  five founder tree roots, mat asset, no chat, no unadmitted docs/CLI links,
-  no application shell, and the HTML budget;
+- homepage LiveView tests pin the founder section order, exact three
+  destinations, mat asset, no chat, no unadmitted docs/CLI links, no
+  application shell, and the HTML budget;
 - HomeHero tests pin same-time four-card entry, 400 ms voxel delight,
   reduced-motion behavior, pending-frame cancellation, active-animation
   cancellation, and clean teardown;
-- browser tests pin the exact mat path, four card routes, section order, real
+- browser tests pin the exact mat path, three card anchors, section order, real
   Geist Pixel font load, no chat, mobile single-column order, and zero
   horizontal overflow;
 - full frontend, Phoenix, budget, and browser suites cover the shared shell,

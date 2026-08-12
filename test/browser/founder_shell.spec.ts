@@ -71,7 +71,7 @@ test("all approved routes render within their page budget", async ({page, reques
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
-test("the public homepage presents the four-product mat hero and marketing chapters", async ({page}) => {
+test("the public homepage presents the three-product mat hero and marketing chapters", async ({page}) => {
   await page.goto("/")
 
   const home = page.locator("#public-home")
@@ -80,16 +80,15 @@ test("the public homepage presents the four-product mat hero and marketing chapt
     "src",
     "/images/home/hero-bg-dark.svg",
   )
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
   await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
-  await expect(page.locator("#home-card-nous")).toHaveAttribute("href", "#nous")
   await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
 
   const sectionTops = await page
-    .locator("#techtree, #autolaunch, #nous, #regent")
+    .locator("#techtree, #autolaunch, #regent")
     .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
-  expect(sectionTops).toHaveLength(4)
+  expect(sectionTops).toHaveLength(3)
   expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))
   expect(await page.evaluate(() => document.fonts.check('16px "GeistPixel Square"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
@@ -117,7 +116,7 @@ test("the primary homepage action keeps its contrast on hover", async ({page}) =
     .toEqual(before)
 })
 
-test("the four homepage destinations remain full-width and ordered on mobile", async ({page}) => {
+test("the three homepage destinations remain full-width and ordered on mobile", async ({page}) => {
   await page.setViewportSize({width: 390, height: 844})
   await page.goto("/")
 
@@ -128,7 +127,7 @@ test("the four homepage destinations remain full-width and ordered on mobile", a
     }),
   )
 
-  expect(boxes).toHaveLength(4)
+  expect(boxes).toHaveLength(3)
   expect(boxes.map(box => box.top)).toEqual(
     [...boxes].map(box => box.top).sort((left, right) => left - right),
   )

@@ -6,9 +6,9 @@ Status: implementation evidence only. Browser acceptance remains with the Platfo
 
 - Uses Prime Intellect only as a structural reference for a strong indexed header and thesis-led hero. No Prime assets, branding, claims, partner marks, announcements, or metrics are present.
 - Keeps the exact founder-provided cutting-mat artwork as the hero background.
-- Gives the header four contiguous marketing links: `#formation`, `#autolaunch`, `#techtree`, and `#regents-labs`.
-- Keeps the four `OPEN` hero cards as product gateways to `/formation`, `/autolaunch`, `/techtree`, and `/app`.
-- Presents exactly four major chapters in that same product order. Each chapter contains its own supporting proof and app-entry action.
+- Gives the header four contiguous marketing links: `#techtree`, `#autolaunch`, `#regent`, and `#home-closing`.
+- Keeps three hero cards as product gateways to the `#techtree`, `#autolaunch`, and `#regent` sections; while the launch gate holds the product routes, no card leaves the homepage.
+- Presents three numbered product chapters in that same order, with the evidence, revenue, Nous, and summary beats between and after them. Each chapter carries its own supporting proof; no chapter offers an app-entry action while the routes are held.
 - Uses square Regent geometry, the canonical crown, Regent type, one product accent per chapter, and plain inner proof surfaces.
 
 ## Verification performed

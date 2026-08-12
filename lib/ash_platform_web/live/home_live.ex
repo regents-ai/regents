@@ -15,13 +15,16 @@ defmodule AshPlatformWeb.HomeLive do
         <.hero />
 
         <%!-- Two beats hang off the product they belong to: the sourced evidence stands behind
-              Techtree, and revenue is what a funded launch is meant to produce. --%>
+              Techtree, and revenue is what a funded launch is meant to produce. Nous is the
+              runtime the products run on rather than a Regents product, so it closes the story
+              beside the summary instead of taking a number. --%>
         <%= for product <- products() do %>
           <.chapter chapter={product} />
           <.evidence_section :if={product.anchor == "techtree"} />
           <.chapter :if={product.anchor == "autolaunch"} chapter={revenue()} />
         <% end %>
 
+        <.chapter chapter={nous()} />
         <.chapter chapter={product_summary()} />
         <.closing_frame />
       </main>
@@ -156,7 +159,7 @@ defmodule AshPlatformWeb.HomeLive do
 
     ~H"""
     <section id="evidence" class="rl-chapter rl-chapter--evidence" aria-labelledby="evidence-title">
-      <header class="rl-chapter-intro rl-evidence-intro">
+      <header class="rl-chapter-intro">
         <div>
           <h2 id="evidence-title">{@copy.heading}</h2>
           <p>{@copy.intro}</p>
@@ -338,8 +341,8 @@ defmodule AshPlatformWeb.HomeLive do
     ]
   end
 
-  # Page order is the founder narrative: prove, fund, run, operate. The chapter number is the
-  # position in that story, and the hero bento reads the same order.
+  # The three Regents products, in the founder narrative: prove, fund, operate. The chapter number
+  # is the position in that story, and the hero bento reads the same order.
   defp products do
     [
       %{
@@ -423,18 +426,6 @@ defmodule AshPlatformWeb.HomeLive do
       },
       %{
         index: "03",
-        anchor: "nous",
-        name: "Nous",
-        eyebrow: "Nous — Run",
-        title: "Hermes does the work.",
-        description:
-          "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity.",
-        supporting: nil,
-        story: nil,
-        proofs: []
-      },
-      %{
-        index: "04",
         anchor: "regent",
         name: "Regent",
         eyebrow: "Regent — Operate",
@@ -447,6 +438,20 @@ defmodule AshPlatformWeb.HomeLive do
         proofs: []
       }
     ]
+  end
+
+  defp nous do
+    %{
+      index: nil,
+      anchor: "nous",
+      eyebrow: "Nous — Run",
+      title: "Hermes does the work.",
+      description:
+        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity.",
+      supporting: nil,
+      story: nil,
+      proofs: []
+    }
   end
 
   defp revenue do

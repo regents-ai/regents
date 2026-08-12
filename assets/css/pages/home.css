@@ -225,14 +225,15 @@
 .rl-hero-cards {
   align-self: end;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   margin-block-start: clamp(3rem, 8vw, 7rem);
   border: 1px solid var(--rl-line);
   background: var(--rl-line);
 }
 
-/* Card order is product priority: each rank sets its own height, padding, and type scale. */
+/* Card order is product priority: the lead holds the left half across both rows, the other two
+   products stack beside it, and each rank sets its own height, padding, and type scale. */
 .rl-hero-card {
   --card-accent: var(--rl-regent);
   --card-ground: color-mix(in oklch, var(--rl-panel) 90%, transparent);
@@ -256,7 +257,6 @@
   --card-pad: clamp(1rem, 2.2vw, 1.75rem);
   --card-title: clamp(1.75rem, 3.4vw, 3rem);
   --voxel-size: 0.6rem;
-  grid-column: span 2;
   grid-row: span 2;
   background:
     linear-gradient(
@@ -272,7 +272,6 @@
   --card-pad: clamp(1rem, 1.4vw, 1.25rem);
   --card-title: clamp(1.35rem, 2.1vw, 1.9rem);
   --voxel-size: 0.5rem;
-  grid-column: span 2;
 }
 
 .rl-hero-card:first-child > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels) {
@@ -365,12 +364,11 @@
   grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr) auto;
 }
 
-/* The closing frame, the evidence section, the Techtree story and the numberless chapters carry no
-   chapter number, so their copy starts in the headline column and every section on the page shares
-   one left edge. */
+/* The closing frame, the Techtree story and every chapter intro without a number carry no chapter
+   number, so their copy starts in the headline column and every section on the page shares one
+   left edge. The evidence intro is one of those numberless chapter intros. */
 .rl-closing > *,
 .rl-chapter-intro > div:only-child,
-.rl-evidence-intro > div,
 .rl-story > div {
   grid-column: 2;
 }
@@ -609,14 +607,6 @@
   .rl-root [id] {
     scroll-margin-block-start: 7rem;
   }
-
-  .rl-hero-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .rl-hero-card:first-child {
-    grid-row: auto;
-  }
 }
 
 @media (max-width: 44rem) {
@@ -637,8 +627,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .rl-hero-card:first-child,
-  .rl-hero-card:nth-child(2) {
+  .rl-hero-card:first-child {
     grid-area: auto;
   }
 
@@ -659,7 +648,6 @@
 
   /* One column: the numberless copy must come back to it rather than open an implicit second. */
   .rl-chapter-intro > div:only-child,
-  .rl-evidence-intro > div,
   .rl-story > div {
     grid-column: 1;
   }

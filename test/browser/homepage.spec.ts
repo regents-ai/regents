@@ -29,18 +29,17 @@ const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   ).toBe(true)
 }
 
-test("[U2] homepage is server-readable and keeps the four product gateways", async ({browser}) => {
+test("[U2] homepage is server-readable and keeps the three product gateways", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
 
   await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
   await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
-  await expect(page.locator("#home-card-nous")).toHaveAttribute("href", "#nous")
   await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
-  await expect(page.locator("#techtree, #autolaunch, #nous, #regent")).toHaveCount(4)
+  await expect(page.locator("#techtree, #autolaunch, #regent")).toHaveCount(3)
   await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#home-products")
   await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
@@ -71,7 +70,7 @@ test("[U2] homepage settles immediately for reduced motion", async ({browser}) =
   await page.goto("/")
   await waitForHomepage(page)
   await expect(page.locator("[data-home-hero-copy]")).toBeVisible()
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await context.close()
 })
 
@@ -117,7 +116,7 @@ for (const viewport of [
     await assertNoOverflow(page)
 
     const cards = page.locator("[data-home-hero-card]")
-    await expect(cards).toHaveCount(4)
+    await expect(cards).toHaveCount(3)
     const boxes = await cards.evaluateAll(elements =>
       elements.map(element => {
         const box = element.getBoundingClientRect()
@@ -127,7 +126,7 @@ for (const viewport of [
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
     if (viewport.width <= 390) {
-      expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(4)
+      expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(3)
       const collisionCount = await cards.evaluateAll(elements =>
         elements.reduce((count, card) => {
           const voxels = card.querySelector(".rl-card-voxels")?.getBoundingClientRect()
@@ -152,7 +151,7 @@ for (const viewport of [
   })
 }
 
-test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at every viewport", async ({page}) => {
+test("[U1][U2] the hero bento ranks Techtree, then Autolaunch, then Regent at every viewport", async ({page}) => {
   const area = (card: {height: number; width: number}) => card.width * card.height
   const declaredArea = (card: {declaredHeight: number; width: number}) =>
     card.width * card.declaredHeight
@@ -181,7 +180,6 @@ test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at ever
       expect(cards.map(card => card.id)).toEqual([
         "home-card-techtree",
         "home-card-autolaunch",
-        "home-card-nous",
         "home-card-regent",
       ])
 
@@ -246,9 +244,10 @@ test("[U1] the Techtree chapter keeps five proofs under muted body copy", async 
   expect(supporting, "the supporting line reads quieter than the description").toBeLessThan(description)
 })
 
-// Revenue, the product summary and the evidence section carry no chapter number, so their copy has
-// to be placed into the headline column explicitly — and released from it when the grid collapses
-// to one column, or it would open an implicit column and push the page sideways.
+// Revenue, Nous, the product summary, the evidence section and the closing frame carry no chapter
+// number, so their copy has to be placed into the headline column explicitly — and released from it
+// when the grid collapses to one column, or it would open an implicit column and push the page
+// sideways.
 test("[U1][U3] numberless sections share the chapter headline column", async ({page}) => {
   for (const viewport of [
     {name: "desktop", width: 1440, height: 1000},
@@ -263,11 +262,11 @@ test("[U1][U3] numberless sections share the chapter headline column", async ({p
       await assertNoOverflow(page)
 
       const edges = await page
-        .locator("#techtree h2, #evidence h2, #revenue h2, #product-summary h2")
+        .locator("#techtree h2, #evidence h2, #revenue h2, #nous h2, #product-summary h2, #home-closing h2")
         .evaluateAll(elements =>
           elements.map(element => Math.round(element.getBoundingClientRect().left)),
         )
-      expect(edges).toHaveLength(4)
+      expect(edges).toHaveLength(6)
       expect(new Set(edges).size, "every section starts on one left edge").toBe(1)
 
       const copy = await page

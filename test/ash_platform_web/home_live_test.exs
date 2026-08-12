@@ -1,10 +1,10 @@
 defmodule AshPlatformWeb.HomeLiveTest do
   use AshPlatformWeb.ConnCase, async: true
 
+  # Nous is the runtime the products run on, not a Regents product: it has no tile and no number.
   @products [
     {"techtree", "Techtree", "Turn agent runs into public, checkable proof."},
     {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
-    {"nous", "Nous", "Hermes does the work."},
     {"regent", "Regent", "Keep the agent working."}
   ]
 
@@ -15,9 +15,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {"about", "About", "#home-closing"}
   ]
 
-  # Prove, fund, earn, run, operate: the evidence follows the Techtree chapter it stands behind,
-  # revenue follows the launch that produces it, and the summary closes the product story.
-  @sections ~w(techtree evidence autolaunch revenue nous regent product-summary home-closing)
+  # Prove, fund, earn, operate, run: the evidence follows the Techtree chapter it stands behind,
+  # revenue follows the launch that produces it, and Nous and the summary close the product story.
+  @sections ~w(techtree evidence autolaunch revenue regent nous product-summary home-closing)
 
   # Every section's founder copy: the eyebrows it shows, its headline, and its body paragraphs
   # in order, so a dropped or reordered supporting line fails here.
@@ -50,20 +50,20 @@ defmodule AshPlatformWeb.HomeLiveTest do
       ]
     },
     %{
-      anchor: "nous",
-      eyebrows: ["Nous — Run"],
-      title: "Hermes does the work.",
-      body: [
-        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity."
-      ]
-    },
-    %{
       anchor: "regent",
       eyebrows: ["Regent — Operate"],
       title: "Keep the agent working.",
       body: [
         "Regent gives an agent one identity, one operator path, and a place to keep working after the benchmark or launch.",
         "Humans get a guided path. Agents get a direct command path. Both connect to the same identity."
+      ]
+    },
+    %{
+      anchor: "nous",
+      eyebrows: ["Nous — Run"],
+      title: "Hermes does the work.",
+      body: [
+        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity."
       ]
     },
     %{
@@ -98,9 +98,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
       assert has_element?(view, "##{anchor}.rl-chapter")
     end
 
-    assert length(Regex.scan(~r/data-home-hero-card=""/, html)) == 4
+    assert length(Regex.scan(~r/data-home-hero-card=""/, html)) == 3
 
-    assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|nous|regent)"/, html)) == 4
+    assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
   end
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
@@ -226,15 +226,15 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "the four product labels read prove, fund, run, and operate", %{conn: conn} do
+  test "the section labels read prove, fund, earn, operate, and run", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     assert texts(html, "main .rl-chapter-intro .rl-overline") == [
              "Techtree — Prove",
              "Autolaunch — Fund",
              "Earn",
-             "Nous — Run",
-             "Regent — Operate"
+             "Regent — Operate",
+             "Nous — Run"
            ]
   end
 
@@ -276,8 +276,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              ~s(img.rl-hero-art[src="/images/home/hero-bg-dark.svg"][loading="eager"])
            )
 
-    for {_anchor, _label, headline} <- @products, do: assert(html =~ headline)
-    assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 24
+    assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 18
 
     refute html =~ "partners"
     refute html =~ "customers"
@@ -327,7 +326,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert has_element?(
              view,
-             "#evidence .rl-evidence-intro p",
+             "#evidence .rl-chapter-intro p",
              "Every technical claim on this page should link to the primary source, deployed contract, or public receipt that supports it."
            )
 
