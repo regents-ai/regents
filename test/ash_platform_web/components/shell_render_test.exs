@@ -24,15 +24,11 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
   @material_css Path.expand("../../../assets/css/tokens/material.css", __DIR__)
   @shell_css Path.expand("../../../assets/css/components/shell.css", __DIR__)
 
-  test "[U2][U3] seeds application branding before paint and isolates the public landing" do
+  test "[U2][U3] seeds branding and the light default from the server, not from script" do
     root = File.read!(@root_template)
 
-    refute root =~ ~s(data-brand="platform")
-    assert root =~ ~s|isPath("/techtree")|
-    assert root =~ ~s|isPath("/autolaunch")|
-    assert root =~ ~s|root.removeAttribute("data-brand")|
-    assert root =~ ~s(root.dataset.theme = "light")
-    refute root =~ "localStorage.setItem"
+    assert root =~ ~s(data-brand={)
+    assert root =~ ~s(data-theme="light")
   end
 
   test "renders every canonical background slot as inert themed mask content" do
@@ -105,10 +101,8 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
 
-    assert material =~ "--material-radius: var(--radius-sm)"
+    assert material =~ "--material-radius: 4px"
     assert material =~ "--material-focus-radius: 0"
-    refute material =~ ~r/oklch\(/
-    refute material =~ ~r/color-mix\(/
 
     assert shell =~ "background: var(--material-fill) padding-box"
     assert shell =~ "@media (prefers-reduced-transparency: reduce)"

@@ -33,10 +33,6 @@ type ShellHook = Hook & {
 
 let cachedShellState: ShellState | undefined
 
-const syncBrand = (root: HTMLElement, app: string | undefined) => {
-  root.dataset.brand = brandForShellApp(app)
-}
-
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
@@ -54,7 +50,7 @@ const shellBehavior: Hook = {
       supportsFormationPanel:
         shell.querySelectorAll("[data-formation-panel-choice]").length > 0,
     }
-    syncBrand(root, shell.dataset.app)
+    root.dataset.brand = brandForShellApp(shell.dataset.app)
     this.shellState = cachedShellState
       ? reconcileShellState(cachedShellState, initialState)
       : initialState
@@ -260,7 +256,7 @@ const shellBehavior: Hook = {
   },
 
   updated(this: ShellHook) {
-    syncBrand(document.documentElement, this.el.dataset.app)
+    document.documentElement.dataset.brand = brandForShellApp(this.el.dataset.app)
     const incoming = {
       routeId: this.el.dataset.routeId ?? "",
       destination: this.el.dataset.destination ?? "",

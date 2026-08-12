@@ -94,6 +94,17 @@ a {
   color: currentColor;
 }
 
+/* RegentUI sets every heading in the display face; Ash headings stay on the surrounding
+   face unless a page opts in. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: inherit;
+}
+
 button,
 input {
   border: 1px solid currentColor;

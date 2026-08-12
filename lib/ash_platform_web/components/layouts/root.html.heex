@@ -1,5 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html
+  lang="en"
+  data-brand={
+    case Path.split(@conn.request_path) do
+      ["/"] -> nil
+      ["/", "techtree" | _] -> "techtree"
+      ["/", "autolaunch" | _] -> "autolaunch"
+      _ -> "platform"
+    end
+  }
+  data-theme="light"
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,28 +28,20 @@
     </script>
     <script>
       (() => {
+        if (window.location.pathname === "/") return;
+
+        // Blocked storage throws on read; the server-rendered light default already stands.
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem("regent:theme");
+        } catch {}
+
         const root = document.documentElement;
-        const pathname = window.location.pathname;
-        const isPath = (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`);
-
-        if (pathname === "/") {
-          root.removeAttribute("data-brand");
-          root.dataset.theme = "light";
-          root.removeAttribute("data-theme-choice");
-          return;
-        }
-
-        root.dataset.brand = isPath("/techtree")
-          ? "techtree"
-          : isPath("/autolaunch")
-            ? "autolaunch"
-            : "platform";
-
-        const storedTheme = localStorage.getItem("regent:theme");
         const choice = ["system", "light", "dark"].includes(storedTheme)
           ? storedTheme
           : "system";
         const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+
         root.dataset.theme = choice === "dark" || (choice === "system" && prefersDark)
           ? "dark"
           : "light";

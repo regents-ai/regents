@@ -1,6 +1,6 @@
 /* Ash-owned structural material aliases backed by RegentUI. */
 :root {
-  --material-radius: var(--radius-sm);
+  --material-radius: 4px;
   --material-focus-radius: 0;
   --material-blur: var(--glass-blur);
   --material-fill: var(--glass-panel-bg);

@@ -59,6 +59,10 @@ test("[U3] public landing stays light and unbranded without changing saved appea
   await context.addInitScript(() => localStorage.setItem("regent:theme", "dark"))
   const page = await context.newPage()
 
+  const served = await (await context.request.get("/")).text()
+  expect(served).toContain('data-theme="light"')
+  expect(served).not.toContain("data-brand")
+
   await page.goto("/")
   await waitForHomepage(page)
 
@@ -66,6 +70,17 @@ test("[U3] public landing stays light and unbranded without changing saved appea
   await expect(page.locator("html")).not.toHaveAttribute("data-brand", /.+/)
   expect(await page.evaluate(() => localStorage.getItem("regent:theme"))).toBe("dark")
   await context.close()
+})
+
+test("the landing keeps its opted-in display face for headings", async ({page}) => {
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  expect(
+    await page
+      .locator(".rl-hero-copy h1")
+      .evaluate(element => getComputedStyle(element).fontFamily),
+  ).toContain("GeistPixel Circle")
 })
 
 for (const viewport of [

@@ -26,16 +26,34 @@ async function switchApp(page: Page, label: string) {
   await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
 }
 
-test("[U2] direct application loads seed the canonical RegentUI brand", async ({page}) => {
+test("[U2] direct application loads seed the canonical RegentUI brand", async ({
+  page,
+  request,
+}) => {
   for (const [route, brand] of [
     ["/formation", "platform"],
     ["/techtree", "techtree"],
     ["/autolaunch", "autolaunch"],
   ] as const) {
+    const served = await (await request.get(route)).text()
+    expect(served).toContain(`data-brand="${brand}"`)
+    expect(served).toContain('data-theme="light"')
+
     await page.goto(route)
     await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   }
+})
+
+test("product headings keep the interface face RegentUI would otherwise reface", async ({page}) => {
+  await page.goto("/formation")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  expect(
+    await page
+      .locator(".formation-heading h1")
+      .evaluate(element => getComputedStyle(element).fontFamily),
+  ).toContain("Geist UI Sans")
 })
 
 test("all approved routes render within their page budget", async ({page, request}) => {
