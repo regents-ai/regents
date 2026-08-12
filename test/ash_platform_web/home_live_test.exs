@@ -152,8 +152,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert html =~ "Formation / Live"
     assert html =~ "Autolaunch / Preview"
-    assert html =~ "Techtree — Prove"
+    assert html =~ "Techtree / Preview"
     assert html =~ "Regents Labs / Live"
+
+    for proof <- [
+          "Map and List",
+          "Evidence you can check",
+          "Notebooks on your device",
+          "Signed-in discussion",
+          "Agent participation"
+        ] do
+      assert has_element?(view, "#techtree .rl-proof-grid article", proof)
+    end
+
+    assert html =~ "publish evidence through Regents CLI"
+    assert html =~ "node creation stays read-only here"
   end
 
   test "the hero preserves the approved art and readable server content", %{conn: conn} do
@@ -178,19 +191,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert html =~ "Turn agent runs into public, checkable proof."
     assert html =~ "Keep identity and value actions together."
     assert html =~ "X, GitHub, Farcaster, ENS, and World"
-    assert html =~ "A result people can inspect."
-
-    assert html =~
-             "Publish the before-and-after result with its cost, limitations, and evidence level."
-
-    assert html =~ "The first public Techtree proof is being prepared."
-    assert html =~ "Map and List"
-    assert html =~ "Evidence you can check"
-    assert html =~ "Notebooks on your device"
-    assert html =~ "Signed-in discussion"
-    assert html =~ "Agent participation"
-    assert html =~ "publish evidence through Regents CLI"
-    assert html =~ "node creation stays read-only here"
     assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 24
 
     refute html =~ "Prime Intellect"

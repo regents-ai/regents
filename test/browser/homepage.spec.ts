@@ -193,7 +193,7 @@ test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at ever
   }
 })
 
-// The Techtree story stays inside the chapter shape: one intro paragraph the stylesheet mutes
+// The Techtree chapter stays in the sibling shape: one intro paragraph the stylesheet mutes
 // (a second one would take the muted rule with it) above a proof grid at its five-card cap.
 test("[U1] the Techtree chapter keeps five proofs under one muted description", async ({page}) => {
   await page.goto("/")
@@ -205,6 +205,8 @@ test("[U1] the Techtree chapter keeps five proofs under one muted description", 
   await expect(description).toHaveCount(1)
 
   const colors = await description.evaluate(element => {
+    // The muted rule matches on :last-child, so the probe must be gone before the description is
+    // measured — reading its colour while the probe is still attached measures an unstyled element.
     const probe = document.createElement("p")
     probe.style.color = "var(--rl-muted)"
     element.after(probe)
