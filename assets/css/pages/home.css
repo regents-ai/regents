@@ -36,6 +36,11 @@
   outline-offset: -2px;
 }
 
+.rl-root .rl-header-entry--strong:focus-visible,
+.rl-root .rl-action--strong:focus-visible {
+  outline-color: var(--rl-bg);
+}
+
 .rl-root h1,
 .rl-root h2,
 .rl-root h3,
