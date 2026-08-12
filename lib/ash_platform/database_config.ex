@@ -39,7 +39,8 @@ defmodule AshPlatform.DatabaseConfig do
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri) do
       # verify_none matches the archived production posture; CA verification is a recorded follow-up.
-      [url: value, ssl: [verify: :verify_none]]
+      # Managed Postgres publishes only an AAAA record, so resolve over IPv6.
+      [url: value, ssl: [verify: :verify_none], socket_options: [:inet6]]
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"

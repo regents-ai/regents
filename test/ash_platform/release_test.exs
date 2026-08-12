@@ -15,7 +15,8 @@ defmodule AshPlatform.ReleaseTest do
 
     assert AshPlatform.Release.migration_config!(getenv) == [
              url: @direct,
-             ssl: [verify: :verify_none]
+             ssl: [verify: :verify_none],
+             socket_options: [:inet6]
            ]
   end
 

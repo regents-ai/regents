@@ -6,6 +6,7 @@ defmodule AshPlatform.DatabaseConfigTest do
   @pooled "postgresql://pooled_user:pooled-secret@pool.example.test:5432/ash_platform"
   @direct "postgresql://direct_user:direct-secret@direct.example.test:5432/ash_platform"
   @ssl [verify: :verify_none]
+  @socket_options [:inet6]
 
   test "test always keeps the fixed local database" do
     config =
@@ -29,7 +30,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @pooled, ssl: @ssl]
+           ) == [url: @pooled, ssl: @ssl, socket_options: @socket_options]
   end
 
   test "production runtime fails closed when pooled URL is missing" do
@@ -53,7 +54,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @direct, ssl: @ssl]
+           ) == [url: @direct, ssl: @ssl, socket_options: @socket_options]
   end
 
   test "release fails closed when direct URL is missing" do
@@ -139,7 +140,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @pooled, ssl: @ssl]
+           ) == [url: @pooled, ssl: @ssl, socket_options: @socket_options]
   end
 
   test "development rejects incomplete, wrong, production, and deployed-app targets" do
@@ -211,7 +212,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     end
   end
 
-  test "every remote connection negotiates TLS while the local database stays plaintext" do
+  test "every remote connection negotiates TLS over IPv6 while the local database stays plaintext" do
     remote =
       env(rehearsal_env(%{"DATABASE_POOLED_URL" => @pooled, "DATABASE_DIRECT_URL" => @direct}))
 
@@ -221,9 +222,13 @@ defmodule AshPlatform.DatabaseConfigTest do
           DatabaseConfig.release_config!(remote)
         ] do
       assert config[:ssl] == @ssl
+      assert config[:socket_options] == @socket_options
     end
 
-    refute DatabaseConfig.runtime_config!(:dev, env(%{"USER" => "local-user"}))[:ssl]
+    local = DatabaseConfig.runtime_config!(:dev, env(%{"USER" => "local-user"}))
+
+    refute local[:ssl]
+    refute local[:socket_options]
   end
 
   defp env(values), do: &Map.get(values, &1)
