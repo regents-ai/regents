@@ -15,6 +15,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {"about", "About", "#home-closing"}
   ]
 
+  # The sourced evidence follows the Techtree chapter it stands behind.
+  @sections ~w(formation autolaunch techtree evidence regents-labs home-closing)
+
   test "the header indexes the page and the bento reaches every chapter", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
@@ -49,7 +52,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     anchors = attribute(html, "[id]", "id")
 
-    for href <- attribute(html, "a", "href"), href != "/" do
+    for href <- attribute(html, "a", "href"),
+        href != "/",
+        not String.starts_with?(href, "https://") do
       assert String.starts_with?(href, "#")
       assert String.trim_leading(href, "#") in anchors
     end
@@ -109,8 +114,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Explore the system"
            )
 
-    assert attribute(html, "main > section[id]", "id") ==
-             Enum.map(@products, &elem(&1, 0)) ++ ["home-closing"]
+    assert attribute(html, "main > section[id]", "id") == @sections
   end
 
   test "the footer carries the two company lines, a copyright, and no links", %{conn: conn} do
@@ -164,7 +168,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert html =~ "Formation / Live"
     assert html =~ "Autolaunch / Preview"
-    assert html =~ "Techtree / Preview"
+    assert html =~ "Techtree — Prove"
     assert html =~ "Regents Labs / Live"
 
     for proof <- [
@@ -195,7 +199,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert html =~ "X, GitHub, Farcaster, ENS, and World"
     assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 24
 
-    refute html =~ "Prime Intellect"
     refute html =~ "partners"
     refute html =~ "customers"
   end
@@ -203,13 +206,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
   test "the page offers only the two actions the copy promises", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    actions =
-      html
-      |> LazyHTML.from_document()
-      |> LazyHTML.query("a.rl-action")
-      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
-
-    assert actions == ["See how it works", "Explore the system"]
+    assert texts(html, "a.rl-action") == ["See how it works", "Explore the system"]
   end
 
   test "the homepage stays outside the application shell and within its HTML budget", %{
@@ -221,6 +218,158 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert byte_size(html) <= 60 * 1024
   end
 
+  test "the Techtree chapter carries the founder proof story", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(view, "#techtree .rl-overline", "Techtree — Prove")
+
+    assert has_element?(
+             view,
+             "h2#techtree-title",
+             "Turn agent runs into public, checkable proof."
+           )
+
+    assert has_element?(
+             view,
+             "#techtree .rl-chapter-intro div > p",
+             "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is."
+           )
+
+    assert has_element?(
+             view,
+             "#techtree .rl-chapter-support",
+             "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage."
+           )
+
+    assert has_element?(view, "#techtree .rl-story h3", "A result people can inspect.")
+
+    assert has_element?(
+             view,
+             "#techtree .rl-story p",
+             "Hold the model, tasks, runtime, and permissions fixed. Change one skill. Publish the before-and-after result with its cost, limitations, and evidence level."
+           )
+
+    assert has_element?(
+             view,
+             "#techtree .rl-story-state",
+             "The first public Techtree proof is being prepared. It will show the full evaluation setup, result, limitations, and evidence class—not just a final score."
+           )
+  end
+
+  test "the evidence section states both claim rails and their source labels", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             ~s(section#evidence[aria-labelledby="evidence-title"] h2#evidence-title),
+             "Built on systems you can inspect."
+           )
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-intro p",
+             "Every technical claim on this page should link to the primary source, deployed contract, or public receipt that supports it."
+           )
+
+    assert texts(html, "#evidence .rl-evidence-rail h3") ==
+             ["Evaluation you can trace.", "Rules enforced onchain."]
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-rail p",
+             "Prime Verifiers runs the experiment. Nous Hermes operates the agent. Techtree binds the result to identity, evidence, and lineage."
+           )
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-rail p",
+             "Uniswap handles price discovery. Safe protects custody. ERC-8004 identifies the agent. Autolaunch defines the launch, ownership, and revenue rules."
+           )
+
+    assert texts(html, "#evidence .rl-evidence-sources") == [
+             "Prime Intellect · Nous Research · Public Techtree receipt",
+             "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
+           ]
+
+    assert has_element?(view, "#evidence .rl-evidence-note", "Verified by primary sources.")
+  end
+
+  test "the evidence record quotes only checked wording and labels every other entry", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert texts(html, "#evidence blockquote") == [
+             "“We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.”",
+             "“Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.”"
+           ]
+
+    assert texts(html, "#evidence .rl-evidence-class") == [
+             "Paraphrase",
+             "Paraphrase",
+             "Paraphrase",
+             "Paraphrase",
+             "Verified quote",
+             "Paraphrase",
+             "Verified quote"
+           ]
+
+    assert texts(html, "#evidence .rl-evidence-author") == [
+             "Michele Catasta",
+             "NVIDIA Labs",
+             "Zhengyang Qi",
+             "Prime Intellect",
+             "Ben Burtenshaw",
+             "Snowflake AI Research",
+             "David Hartmann"
+           ]
+
+    assert texts(html, "#evidence .rl-evidence-affiliation") == [
+             "President, Replit",
+             "Agent harness research",
+             "Research Scientist, Snorkel AI",
+             "Environments Hub",
+             "Hugging Face",
+             "Agent World Model",
+             "Lambda"
+           ]
+
+    assert attribute(html, "#evidence .rl-evidence-entry", "data-evidence-rail") ==
+             List.duplicate("evaluation-and-harnesses", 3) ++
+               List.duplicate("environments-and-experimentation", 4)
+  end
+
+  test "every primary source is an outbound link that leaves the page safely", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    sources = attribute(html, "#evidence .rl-evidence-source", "href")
+
+    assert sources == [
+             "https://replit.com/blog/evaluating-and-improving-agent-at-scale",
+             "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/",
+             "https://snorkel.ai/leaderboard/os-world-2-0/",
+             "https://www.primeintellect.ai/blog/environments",
+             "https://youtu.be/CJwn302-TBE?t=1082",
+             "https://github.com/Snowflake-Labs/agent-world-model",
+             "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
+           ]
+
+    assert attribute(html, ~s(a[href^="https://"]), "href") == sources
+
+    assert attribute(html, "#evidence .rl-evidence-source", "target") ==
+             List.duplicate("_blank", 7)
+
+    assert attribute(html, "#evidence .rl-evidence-source", "rel") ==
+             List.duplicate("noopener noreferrer", 7)
+  end
+
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
+
+  defp texts(html, selector) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query(selector)
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+  end
 end

@@ -212,34 +212,88 @@ test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at ever
   }
 })
 
-// The Techtree chapter stays in the sibling shape: one intro paragraph the stylesheet mutes
-// (a second one would take the muted rule with it) above a proof grid at its five-card cap.
-test("[U1] the Techtree chapter keeps five proofs under one muted description", async ({page}) => {
+// The Techtree chapter reads as description then supporting line: both muted, both distinct from
+// the heading, above a proof grid at its five-card cap.
+test("[U1] the Techtree chapter keeps five proofs under muted body copy", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
   await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(5)
 
-  const description = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
-  await expect(description).toHaveCount(1)
+  const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
+  await expect(body).toHaveCount(2)
 
-  const colors = await description.evaluate(element => {
-    // The muted rule matches on :last-child, so the probe must be gone before the description is
-    // measured — reading its colour while the probe is still attached measures an unstyled element.
+  const colors = await body.evaluateAll(elements => {
+    // The probe lives outside the chapter so the muted rule cannot claim it and make the
+    // comparison tautological.
     const probe = document.createElement("p")
     probe.style.color = "var(--rl-muted)"
-    element.after(probe)
+    document.querySelector(".rl-root")!.append(probe)
     const muted = getComputedStyle(probe).color
     probe.remove()
     return {
-      description: getComputedStyle(element).color,
-      heading: getComputedStyle(element.parentElement!.querySelector("h2")!).color,
+      body: elements.map(element => getComputedStyle(element).color),
+      heading: getComputedStyle(elements[0].parentElement!.querySelector("h2")!).color,
       muted,
     }
   })
 
-  expect(colors.description).toBe(colors.muted)
-  expect(colors.description).not.toBe(colors.heading)
+  expect(colors.body).toEqual([colors.muted, colors.muted])
+  expect(colors.body).not.toContain(colors.heading)
+})
+
+test("[U1][U2] the evidence section follows Techtree and reads without scripts", async ({browser}) => {
+  const context = await browser.newContext({javaScriptEnabled: false})
+  const page = await context.newPage()
+  await page.goto("/")
+
+  expect(
+    await page.locator("main > section[id]").evaluateAll(sections => sections.map(section => section.id)),
+  ).toEqual(["formation", "autolaunch", "techtree", "evidence", "regents-labs", "home-closing"])
+
+  await expect(page.getByRole("heading", {name: "Built on systems you can inspect."})).toBeVisible()
+  await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(2)
+  await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(7)
+  await expect(page.locator("#evidence blockquote")).toHaveCount(2)
+  await expect(page.locator("#evidence .rl-evidence-note")).toHaveText("Verified by primary sources.")
+
+  const sources = page.locator("#evidence .rl-evidence-source")
+  await expect(sources).toHaveCount(7)
+  for (const attribute of [
+    {name: "target", value: "_blank"},
+    {name: "rel", value: "noopener noreferrer"},
+  ]) {
+    for (const source of await sources.all()) {
+      await expect(source).toHaveAttribute(attribute.name, attribute.value)
+    }
+  }
+
+  await context.close()
+})
+
+test("[U1][U3] evidence rails and entries stay inside every tested viewport", async ({page}) => {
+  for (const viewport of focusViewports) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({width: viewport.width, height: viewport.height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const boxes = await page
+        .locator("#evidence .rl-evidence-rail, #evidence .rl-evidence-entry")
+        .evaluateAll(elements =>
+          elements.map(element => {
+            const box = element.getBoundingClientRect()
+            return {left: box.left, right: box.right, width: box.width}
+          }),
+        )
+
+      expect(boxes).toHaveLength(9)
+      expect(
+        boxes.every(box => box.left >= 0 && box.right <= viewport.width && box.width > 0),
+      ).toBe(true)
+    })
+  }
 })
 
 test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async ({page}, testInfo) => {

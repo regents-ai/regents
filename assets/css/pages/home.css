@@ -343,7 +343,8 @@
 .rl-chapter { --chapter-accent: var(--rl-regent); }
 .rl-chapter--formation { --chapter-accent: var(--rl-formation); }
 .rl-chapter--autolaunch { --chapter-accent: var(--rl-autolaunch); }
-.rl-chapter--techtree { --chapter-accent: var(--rl-techtree); }
+.rl-chapter--techtree,
+.rl-chapter--evidence { --chapter-accent: var(--rl-techtree); }
 
 .rl-chapter-intro,
 .rl-closing {
@@ -361,8 +362,11 @@
   grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr) auto;
 }
 
-/* The closing frame wears chapter chrome: copy in the headline column, actions in the action column. */
-.rl-closing > * {
+/* The closing frame, the evidence section, and the Techtree story carry no chapter number, so their
+   copy starts in the headline column and every section on the page shares one left edge. */
+.rl-closing > *,
+.rl-evidence-intro > div,
+.rl-story > div {
   grid-column: 2;
 }
 
@@ -370,6 +374,13 @@
   grid-column: 3;
   grid-row: 1;
   align-items: start;
+}
+
+.rl-story {
+  display: grid;
+  grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr);
+  column-gap: clamp(1.5rem, 4vw, 4rem);
+  margin-block-start: clamp(3rem, 7vw, 6rem);
 }
 
 .rl-chapter-index {
@@ -395,11 +406,131 @@
   max-width: 17ch;
 }
 
-.rl-chapter-intro div > p:last-child,
-.rl-closing > p:last-of-type {
+.rl-chapter-intro div > p:not(.rl-overline),
+.rl-closing > p:last-of-type,
+.rl-story > div > p:not(.rl-story-state) {
   max-width: 47rem;
   color: var(--rl-muted);
   font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+}
+
+/* The supporting line names the systems behind the chapter, so it sits under its own hairline. */
+.rl-chapter-intro .rl-chapter-support {
+  margin-block-start: clamp(1.25rem, 2.5vw, 2rem);
+  padding-block-start: clamp(1.25rem, 2.5vw, 2rem);
+  border-block-start: 1px solid var(--rl-line);
+  font-size: 0.88rem;
+}
+
+.rl-story h3,
+.rl-evidence-rail h3 {
+  margin-block-end: 0.9rem;
+  font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* No public receipt exists yet: the pre-result panel holds the place the result card will take. */
+.rl-story .rl-story-state {
+  max-width: 47rem;
+  margin-block-start: clamp(1.5rem, 3vw, 2.25rem);
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border: 1px solid var(--rl-line);
+  background: var(--rl-panel);
+  color: var(--rl-muted);
+  font-size: 0.88rem;
+}
+
+.rl-evidence-rails,
+.rl-evidence-entries {
+  display: grid;
+  border-inline-start: 1px solid var(--rl-line);
+}
+
+.rl-evidence-rails {
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  margin-block-start: clamp(3rem, 7vw, 6rem);
+  border-block-start: 1px solid var(--rl-line);
+}
+
+.rl-evidence-entries {
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-evidence-rail,
+.rl-evidence-entry {
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border-inline-end: 1px solid var(--rl-line);
+  border-block-end: 1px solid var(--rl-line);
+}
+
+.rl-evidence-rail {
+  background: var(--rl-panel);
+}
+
+.rl-evidence-rail > p:not(.rl-evidence-sources) {
+  color: var(--rl-muted);
+  font-size: 0.88rem;
+}
+
+/* Source labels read as a technical byline, so they keep the ink colour and the pixel face. */
+.rl-evidence-rail > .rl-evidence-sources {
+  margin-block-start: 1.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  font-family: var(--font-family-pixel);
+}
+
+.rl-evidence-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rl-evidence-class {
+  color: var(--chapter-accent);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--font-family-pixel);
+}
+
+/* The claim takes the free space so every attribution in the row sits on the same baseline. */
+.rl-evidence-entry > .rl-evidence-claim {
+  margin: 0.6rem 0 auto;
+  font-size: 0.88rem;
+  text-wrap: pretty;
+}
+
+.rl-evidence-entry > .rl-evidence-author {
+  margin-block-start: 1.25rem;
+  font-family: var(--font-family-display);
+}
+
+.rl-evidence-affiliation,
+.rl-evidence-source {
+  color: var(--rl-muted);
+  font-size: 0.75rem;
+}
+
+.rl-evidence-source {
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.rl-chapter--evidence .rl-evidence-note {
+  margin-block-start: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+@media (hover: hover) {
+  .rl-evidence-source:hover {
+    color: var(--rl-ink);
+  }
 }
 
 .rl-proof-grid {
@@ -524,13 +655,19 @@
   }
 
   .rl-chapter-intro,
-  .rl-closing {
+  .rl-closing,
+  .rl-story {
     grid-template-columns: 1fr;
   }
 
   .rl-closing > * {
     grid-column: 1;
     grid-row: auto;
+  }
+
+  .rl-evidence-intro > div,
+  .rl-story > div {
+    grid-column: 1;
   }
 
   .rl-chapter-index {

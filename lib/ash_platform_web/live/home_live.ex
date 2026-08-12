@@ -13,7 +13,12 @@ defmodule AshPlatformWeb.HomeLive do
 
       <main>
         <.hero />
-        <.product_chapter :for={product <- products()} product={product} />
+
+        <%= for product <- products() do %>
+          <.product_chapter product={product} />
+          <.evidence_section :if={product.anchor == "techtree"} />
+        <% end %>
+
         <.closing_frame />
       </main>
 
@@ -111,9 +116,10 @@ defmodule AshPlatformWeb.HomeLive do
       <header class="rl-chapter-intro">
         <p class="rl-chapter-index" aria-hidden="true">{@product.index}</p>
         <div>
-          <p class="rl-overline">{@product.name} / {@product.status}</p>
+          <p class="rl-overline">{@product.eyebrow}</p>
           <h2 id={"#{@product.anchor}-title"}>{@product.title}</h2>
           <p>{@product.description}</p>
+          <p :if={@product[:supporting]} class="rl-chapter-support">{@product.supporting}</p>
         </div>
       </header>
 
@@ -124,9 +130,69 @@ defmodule AshPlatformWeb.HomeLive do
           <p>{proof.copy}</p>
         </article>
       </div>
+
+      <div :if={@product[:story]} class="rl-story">
+        <div>
+          <h3>{@product.story.title}</h3>
+          <p>{@product.story.body}</p>
+          <p class="rl-story-state">{@product.story.state}</p>
+        </div>
+      </div>
     </section>
     """
   end
+
+  # Sourced evidence: two claim rails the founder copy fixes, then the primary-source record
+  # behind them. Quotation marks only where the exact wording was checked against the source.
+  defp evidence_section(assigns) do
+    assigns = assign(assigns, copy: evidence_copy(), entries: evidence_entries())
+
+    ~H"""
+    <section id="evidence" class="rl-chapter rl-chapter--evidence" aria-labelledby="evidence-title">
+      <header class="rl-chapter-intro rl-evidence-intro">
+        <div>
+          <h2 id="evidence-title">{@copy.heading}</h2>
+          <p>{@copy.intro}</p>
+        </div>
+      </header>
+
+      <div class="rl-evidence-rails">
+        <article :for={rail <- @copy.rails} class="rl-evidence-rail">
+          <h3>{rail.headline}</h3>
+          <p>{rail.body}</p>
+          <p class="rl-evidence-sources">{rail.sources}</p>
+        </article>
+      </div>
+
+      <ol class="rl-evidence-entries">
+        <li
+          :for={entry <- @entries}
+          class="rl-evidence-entry"
+          data-evidence-rail={entry.rail}
+        >
+          <p class="rl-evidence-class">{evidence_class(entry)}</p>
+          <blockquote :if={entry.quoted} class="rl-evidence-claim">“{entry.claim}”</blockquote>
+          <p :if={!entry.quoted} class="rl-evidence-claim">{entry.claim}</p>
+          <p class="rl-evidence-author">{entry.author}</p>
+          <p class="rl-evidence-affiliation">{entry.affiliation}</p>
+          <a
+            class="rl-evidence-source"
+            href={entry.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {entry.source}
+          </a>
+        </li>
+      </ol>
+
+      <p class="rl-overline rl-evidence-note">{@copy.note}</p>
+    </section>
+    """
+  end
+
+  defp evidence_class(%{quoted: true}), do: "Verified quote"
+  defp evidence_class(%{quoted: false}), do: "Paraphrase"
 
   defp closing_frame(assigns) do
     ~H"""
@@ -176,6 +242,110 @@ defmodule AshPlatformWeb.HomeLive do
   # stylesheet sizes the first and second cards from that order.
   defp bento_cards, do: Enum.sort_by(products(), & &1.bento_rank)
 
+  defp evidence_copy do
+    %{
+      heading: "Built on systems you can inspect.",
+      intro:
+        "Every technical claim on this page should link to the primary source, deployed contract, or public receipt that supports it.",
+      note: "Verified by primary sources.",
+      rails: [
+        %{
+          headline: "Evaluation you can trace.",
+          body:
+            "Prime Verifiers runs the experiment. Nous Hermes operates the agent. Techtree binds the result to identity, evidence, and lineage.",
+          sources: "Prime Intellect · Nous Research · Public Techtree receipt"
+        },
+        %{
+          headline: "Rules enforced onchain.",
+          body:
+            "Uniswap handles price discovery. Safe protects custody. ERC-8004 identifies the agent. Autolaunch defines the launch, ownership, and revenue rules.",
+          sources: "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
+        }
+      ]
+    }
+  end
+
+  # Recorded evidence, in the order the ticket records it. `quoted` is only true where the exact
+  # wording was found in the primary source; everything else reads as a labelled paraphrase.
+  defp evidence_entries do
+    [
+      %{
+        rail: "evaluation-and-harnesses",
+        quoted: false,
+        claim:
+          "Evaluation cannot sit outside the agent as a report or leaderboard. It has to become part of the machinery that improves the agent.",
+        author: "Michele Catasta",
+        affiliation: "President, Replit",
+        source: "Closing the loop: Evaluating and improving Replit Agent at scale",
+        source_url: "https://replit.com/blog/evaluating-and-improving-agent-at-scale"
+      },
+      %{
+        rail: "evaluation-and-harnesses",
+        quoted: false,
+        claim:
+          "NVIDIA’s open harness research shows that the architecture around a model can materially change benchmark outcomes.",
+        author: "NVIDIA Labs",
+        affiliation: "Agent harness research",
+        source: "Six Agent Harness Capabilities for Higher Model Performance",
+        source_url:
+          "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/"
+      },
+      %{
+        rail: "evaluation-and-harnesses",
+        quoted: false,
+        claim:
+          "Qi’s OSWorld 2.0 work scores progress across long workflows instead of relying on binary completion alone.",
+        author: "Zhengyang Qi",
+        affiliation: "Research Scientist, Snorkel AI",
+        source: "OSWorld 2.0",
+        source_url: "https://snorkel.ai/leaderboard/os-world-2-0/"
+      },
+      %{
+        rail: "environments-and-experimentation",
+        quoted: false,
+        claim:
+          "Prime Intellect treats environments as shared infrastructure for reinforcement-learning training and downstream evaluation.",
+        author: "Prime Intellect",
+        affiliation: "Environments Hub",
+        source: "Environments Hub: A Community Hub To Scale RL To Open AGI",
+        source_url: "https://www.primeintellect.ai/blog/environments"
+      },
+      %{
+        rail: "environments-and-experimentation",
+        quoted: true,
+        claim:
+          "We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.",
+        author: "Ben Burtenshaw",
+        affiliation: "Hugging Face",
+        source:
+          "Workshop: The Open Agentic Stack: Building the Future of AI Systems with Open Source, Open Standards · 18:02",
+        source_url: "https://youtu.be/CJwn302-TBE?t=1082"
+      },
+      %{
+        rail: "environments-and-experimentation",
+        quoted: false,
+        claim:
+          "Snowflake AI Research open-sourced executable, database-backed tool environments for multi-turn agent training and evaluation.",
+        author: "Snowflake AI Research",
+        affiliation: "Agent World Model",
+        source:
+          "Agent World Model: Infinity Synthetic Environments for Agentic Reinforcement Learning",
+        source_url: "https://github.com/Snowflake-Labs/agent-world-model"
+      },
+      %{
+        rail: "environments-and-experimentation",
+        quoted: true,
+        claim:
+          "Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.",
+        author: "David Hartmann",
+        affiliation: "Lambda",
+        source: "What happens when Claude Code gets an experiment tracker",
+        source_url:
+          "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
+      }
+    ]
+  end
+
   defp products do
     [
       %{
@@ -184,7 +354,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "formation",
         bento_rank: 3,
         name: "Formation",
-        status: "Live",
+        eyebrow: "Formation / Live",
         short: "Run your Regent in Nous Portal.",
         title: "Give one Regent a place to work.",
         description:
@@ -208,7 +378,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "autolaunch",
         bento_rank: 2,
         name: "Autolaunch",
-        status: "Preview",
+        eyebrow: "Autolaunch / Preview",
         short: "Bring your Regent to market.",
         title: "Build public signal before launch.",
         description:
@@ -238,11 +408,20 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "techtree",
         bento_rank: 1,
         name: "Techtree",
-        status: "Preview",
+        eyebrow: "Techtree — Prove",
         short: "Turn research into a public record.",
         title: "Turn agent runs into public, checkable proof.",
         description:
-          "Read published research nodes with what each result says, what it cost, and the earlier work it builds on.",
+          "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is.",
+        supporting:
+          "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage.",
+        story: %{
+          title: "A result people can inspect.",
+          body:
+            "Hold the model, tasks, runtime, and permissions fixed. Change one skill. Publish the before-and-after result with its cost, limitations, and evidence level.",
+          state:
+            "The first public Techtree proof is being prepared. It will show the full evaluation setup, result, limitations, and evidence class—not just a final score."
+        },
         proofs: [
           %{
             state: "Live",
@@ -281,7 +460,7 @@ defmodule AshPlatformWeb.HomeLive do
         card_key: "regent",
         bento_rank: 4,
         name: "Regents Labs",
-        status: "Live",
+        eyebrow: "Regents Labs / Live",
         short: "Identity, stake, redeem, and profile.",
         title: "Keep identity and value actions together.",
         description:
