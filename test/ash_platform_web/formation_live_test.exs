@@ -97,8 +97,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
     assert has_element?(view, "#formation-lifecycle h1", "Run your Regent in Nous Portal")
     assert Regex.scan(~r/<h[1-6]\b/, html) |> length() == 1
 
-    assert html =~
-             "Formation remains in Regent as the explanation of this handoff. For v0.1, create and manage your Regent’s cloud runtime in Nous Portal."
+    assert html =~ "Create and manage your Regent’s cloud runtime in Nous Portal."
 
     assert has_element?(
              view,

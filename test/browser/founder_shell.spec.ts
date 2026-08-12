@@ -549,9 +549,7 @@ test("Formation keeps one in-shell heading and an exact inactive Nous handoff", 
     page.getByRole("heading", {level: 1, name: "Run your Regent in Nous Portal"}),
   ).toBeVisible()
   await expect(
-    page.getByText(
-      "Formation remains in Regent as the explanation of this handoff. For v0.1, create and manage your Regent’s cloud runtime in Nous Portal.",
-    ),
+    page.getByText("Create and manage your Regent’s cloud runtime in Nous Portal."),
   ).toBeVisible()
 
   const portal = page.getByRole("link", {name: "Open Nous Portal"})

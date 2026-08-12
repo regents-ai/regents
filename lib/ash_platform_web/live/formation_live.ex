@@ -10,12 +10,11 @@ defmodule AshPlatformWeb.FormationLive do
         <p class="formation-kicker">Formation</p>
         <h1>Run your Regent in Nous Portal</h1>
         <p>
-          Formation remains in Regent as the explanation of this handoff. For v0.1, create and
-          manage your Regent’s cloud runtime in Nous Portal.
+          Create and manage your Regent’s cloud runtime in Nous Portal.
         </p>
       </header>
 
-      <section class="formation-handoff" aria-label="Nous Portal handoff">
+      <section class="formation-handoff" aria-label="Nous Portal">
         <a
           id="formation-nous-portal-link"
           class="formation-link"
