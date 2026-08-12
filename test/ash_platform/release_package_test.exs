@@ -22,6 +22,8 @@ defmodule AshPlatform.ReleasePackageTest do
     assert dockerignore =~ "!npm-cache/**"
     assert dockerignore =~ "!rustler-precompiled/**"
     assert dockerignore =~ "!esbuild-linux-arm64"
+    assert dockerignore =~ "ash-platform/deps/**/*.so"
+    assert dockerignore =~ "ash-platform/deps/**/*.dylib"
     assert dockerignore =~ "**/.env"
     assert dockerignore =~ "**/.env.*"
     refute dockerignore =~ ~r/^!.*\.env/m

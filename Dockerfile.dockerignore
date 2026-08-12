@@ -18,6 +18,13 @@
 !rustler-precompiled/**
 !esbuild-linux-arm64
 
+# Dependencies enter as source only. Host-compiled native output would be
+# treated as current by mix and shipped for the wrong architecture.
+ash-platform/deps/**/*.so
+ash-platform/deps/**/*.dylib
+ash-platform/deps/**/*.o
+ash-platform/deps/**/*.a
+
 # The copied source trees must never carry runtime environment files.
 **/.env
 **/.env.*
