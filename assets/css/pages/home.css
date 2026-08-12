@@ -7,7 +7,7 @@
   --rl-line: color-mix(in oklch, var(--rl-ink) 16%, transparent);
   --rl-line-strong: color-mix(in oklch, var(--rl-ink) 28%, transparent);
   --rl-accent: oklch(74% 0.11 250);
-  --rl-formation: oklch(68% 0.16 45);
+  --rl-nous: oklch(68% 0.16 45);
   --rl-autolaunch: oklch(78% 0.17 155);
   --rl-techtree: oklch(72% 0.11 250);
   --rl-regent: oklch(82% 0.11 91);
@@ -280,7 +280,7 @@
   font-size: 0.95rem;
 }
 
-.rl-hero-card--formation { --card-accent: var(--rl-formation); }
+.rl-hero-card--nous { --card-accent: var(--rl-nous); }
 .rl-hero-card--autolaunch { --card-accent: var(--rl-autolaunch); }
 .rl-hero-card--techtree { --card-accent: var(--rl-techtree); }
 
@@ -343,7 +343,7 @@
 }
 
 .rl-chapter { --chapter-accent: var(--rl-regent); }
-.rl-chapter--formation { --chapter-accent: var(--rl-formation); }
+.rl-chapter--nous { --chapter-accent: var(--rl-nous); }
 .rl-chapter--autolaunch { --chapter-accent: var(--rl-autolaunch); }
 .rl-chapter--techtree,
 .rl-chapter--evidence { --chapter-accent: var(--rl-techtree); }
@@ -365,9 +365,11 @@
   grid-template-columns: minmax(3rem, 14%) minmax(0, 1fr) auto;
 }
 
-/* The closing frame, the evidence section, and the Techtree story carry no chapter number, so their
-   copy starts in the headline column and every section on the page shares one left edge. */
+/* The closing frame, the evidence section, the Techtree story and the numberless chapters carry no
+   chapter number, so their copy starts in the headline column and every section on the page shares
+   one left edge. */
 .rl-closing > *,
+.rl-chapter-intro > div:only-child,
 .rl-evidence-intro > div,
 .rl-story > div {
   grid-column: 2;
@@ -655,6 +657,8 @@
     grid-row: auto;
   }
 
+  /* One column: the numberless copy must come back to it rather than open an implicit second. */
+  .rl-chapter-intro > div:only-child,
   .rl-evidence-intro > div,
   .rl-story > div {
     grid-column: 1;

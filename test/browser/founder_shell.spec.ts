@@ -81,13 +81,13 @@ test("the public homepage presents the four-product mat hero and marketing chapt
     "/images/home/hero-bg-dark.svg",
   )
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
-  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "#formation")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regents-labs")
+  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
+  await expect(page.locator("#home-card-nous")).toHaveAttribute("href", "#nous")
+  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
 
   const sectionTops = await page
-    .locator("#formation, #autolaunch, #techtree, #regents-labs")
+    .locator("#techtree, #autolaunch, #nous, #regent")
     .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
   expect(sectionTops).toHaveLength(4)
   expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))

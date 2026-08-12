@@ -2,21 +2,79 @@ defmodule AshPlatformWeb.HomeLiveTest do
   use AshPlatformWeb.ConnCase, async: true
 
   @products [
-    {"formation", "formation", "Formation"},
-    {"autolaunch", "autolaunch", "Autolaunch"},
-    {"techtree", "techtree", "Techtree"},
-    {"regents-labs", "regent", "Regents Labs"}
+    {"techtree", "Techtree", "Turn agent runs into public, checkable proof."},
+    {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
+    {"nous", "Nous", "Hermes does the work."},
+    {"regent", "Regent", "Keep the agent working."}
   ]
 
   @nav [
     {"techtree", "Techtree", "#techtree"},
     {"autolaunch", "Autolaunch", "#autolaunch"},
-    {"regent", "Regent", "#regents-labs"},
+    {"regent", "Regent", "#regent"},
     {"about", "About", "#home-closing"}
   ]
 
-  # The sourced evidence follows the Techtree chapter it stands behind.
-  @sections ~w(formation autolaunch techtree evidence regents-labs home-closing)
+  # Prove, fund, earn, run, operate: the evidence follows the Techtree chapter it stands behind,
+  # revenue follows the launch that produces it, and the summary closes the product story.
+  @sections ~w(techtree evidence autolaunch revenue nous regent product-summary home-closing)
+
+  # Every section's founder copy: the eyebrows it shows, its headline, and its body paragraphs
+  # in order, so a dropped or reordered supporting line fails here.
+  @founder_copy [
+    %{
+      anchor: "techtree",
+      eyebrows: ["Techtree — Prove"],
+      title: "Turn agent runs into public, checkable proof.",
+      body: [
+        "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is.",
+        "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage."
+      ]
+    },
+    %{
+      anchor: "autolaunch",
+      eyebrows: ["Autolaunch — Fund"],
+      title: "Turn proven edge into runway.",
+      body: [
+        "Autolaunch creates the token, auction, liquidity, vesting, and revenue path with one wallet confirmation. The agent keeps control. The contracts fix the rules.",
+        "Uniswap discovers the price. Autolaunch defines who may launch, where funds go, and what remains true after launch."
+      ]
+    },
+    %{
+      anchor: "revenue",
+      eyebrows: ["Earn"],
+      title: "Revenue makes the loop real.",
+      body: [
+        "When an agent earns eligible stablecoin revenue, the contracts route it through the defined treasury and staking paths.",
+        "The launch funds the next phase of work. Revenue shows whether the business can keep going."
+      ]
+    },
+    %{
+      anchor: "nous",
+      eyebrows: ["Nous — Run"],
+      title: "Hermes does the work.",
+      body: [
+        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity."
+      ]
+    },
+    %{
+      anchor: "regent",
+      eyebrows: ["Regent — Operate"],
+      title: "Keep the agent working.",
+      body: [
+        "Regent gives an agent one identity, one operator path, and a place to keep working after the benchmark or launch.",
+        "Humans get a guided path. Agents get a direct command path. Both connect to the same identity."
+      ]
+    },
+    %{
+      anchor: "product-summary",
+      eyebrows: [],
+      title: "From benchmark to business.",
+      body: [
+        "Techtree proves the work. Autolaunch funds the next phase. Regent keeps the agent operating."
+      ]
+    }
+  ]
 
   test "the header indexes the page and the bento reaches every chapter", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
@@ -30,10 +88,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
       assert has_element?(view, "#home-nav-#{slug}[href=\"#{target}\"]", label)
     end
 
-    for {anchor, card_key, label} <- @products do
+    for {anchor, label, _tagline} <- @products do
       assert has_element?(
                view,
-               "#home-card-#{card_key}[data-home-hero-card][href=\"##{anchor}\"]",
+               "#home-card-#{anchor}[data-home-hero-card][href=\"##{anchor}\"]",
                label
              )
 
@@ -42,9 +100,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert length(Regex.scan(~r/data-home-hero-card=""/, html)) == 4
 
-    assert length(
-             Regex.scan(~r/<section id="(?:formation|autolaunch|techtree|regents-labs)"/, html)
-           ) == 4
+    assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|nous|regent)"/, html)) == 4
   end
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
@@ -136,40 +192,54 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert attribute(html, ".rl-footer a", "href") == []
   end
 
-  test "the hero bento leads with Techtree and places Autolaunch second", %{conn: conn} do
+  test "the hero bento reads the page order and names each product in founder words", %{
+    conn: conn
+  } do
     {:ok, _view, html} = live(conn, "/")
 
     assert attribute(html, "[data-home-hero-card]", "id") ==
-             ~w(home-card-techtree home-card-autolaunch home-card-formation home-card-regent)
+             Enum.map(@products, fn {anchor, _label, _tagline} -> "home-card-#{anchor}" end)
+
+    assert texts(html, "[data-home-hero-card] strong") ==
+             Enum.map(@products, &elem(&1, 1))
+
+    assert texts(
+             html,
+             "[data-home-hero-card] > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels)"
+           ) == Enum.map(@products, &elem(&1, 2))
   end
 
-  test "Formation copy claims only the Nous Portal route to a cloud runtime", %{conn: conn} do
+  test "every section states its founder copy in order", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "#home-card-formation", "Run your Regent in Nous Portal.")
-    assert html =~ "Nous Portal is where you create and manage your Regent’s cloud runtime."
-    assert has_element?(view, "#formation .rl-proof-grid article", "Open Nous Portal")
-    assert has_element?(view, "#formation .rl-proof-grid article", "Your session stays open")
+    for section <- @founder_copy do
+      assert texts(html, "##{section.anchor} .rl-chapter-intro .rl-overline") == section.eyebrows
 
-    for provisioning_claim <- ["One active Regent", "Provision", "private cloud"] do
-      refute html =~ provisioning_claim
-    end
-  end
-
-  test "each marketing chapter has a labelled heading and its proofs", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/")
-
-    for {anchor, _card_key, _label} <- @products do
       assert has_element?(
                view,
-               "section##{anchor}[aria-labelledby=\"#{anchor}-title\"] h2##{anchor}-title"
+               "section##{section.anchor}[aria-labelledby=\"#{section.anchor}-title\"] h2##{section.anchor}-title",
+               section.title
              )
-    end
 
-    assert html =~ "Formation / Live"
-    assert html =~ "Autolaunch / Preview"
-    assert html =~ "Techtree — Prove"
-    assert html =~ "Regents Labs / Live"
+      assert texts(html, "##{section.anchor} .rl-chapter-intro div > p:not(.rl-overline)") ==
+               section.body
+    end
+  end
+
+  test "the four product labels read prove, fund, run, and operate", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert texts(html, "main .rl-chapter-intro .rl-overline") == [
+             "Techtree — Prove",
+             "Autolaunch — Fund",
+             "Earn",
+             "Nous — Run",
+             "Regent — Operate"
+           ]
+  end
+
+  test "the proof grids stand under the two products whose surfaces they describe", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
 
     for proof <- [
           "Map and List",
@@ -181,8 +251,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
       assert has_element?(view, "#techtree .rl-proof-grid article", proof)
     end
 
-    assert html =~ "publish evidence through Regents CLI"
-    assert html =~ "node creation stays read-only here"
+    for proof <- ["Private drafts", "Market discovery", "Connected reputation"] do
+      assert has_element?(view, "#autolaunch .rl-proof-grid article", proof)
+    end
+
+    assert has_element?(
+             view,
+             "#techtree .rl-proof-grid article",
+             "publish evidence through Regents CLI"
+           )
+
+    assert has_element?(
+             view,
+             "#autolaunch .rl-proof-grid article",
+             "X, GitHub, Farcaster, ENS, and World"
+           )
   end
 
   test "the hero preserves the approved art and readable server content", %{conn: conn} do
@@ -193,10 +276,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              ~s(img.rl-hero-art[src="/images/home/hero-bg-dark.svg"][loading="eager"])
            )
 
-    assert html =~ "Build public signal before launch."
-    assert html =~ "Turn agent runs into public, checkable proof."
-    assert html =~ "Keep identity and value actions together."
-    assert html =~ "X, GitHub, Farcaster, ENS, and World"
+    for {_anchor, _label, headline} <- @products, do: assert(html =~ headline)
     assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 24
 
     refute html =~ "partners"
@@ -220,26 +300,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
   test "the Techtree chapter carries the founder proof story", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
-
-    assert has_element?(view, "#techtree .rl-overline", "Techtree — Prove")
-
-    assert has_element?(
-             view,
-             "h2#techtree-title",
-             "Turn agent runs into public, checkable proof."
-           )
-
-    assert has_element?(
-             view,
-             "#techtree .rl-chapter-intro div > p",
-             "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is."
-           )
-
-    assert has_element?(
-             view,
-             "#techtree .rl-chapter-support",
-             "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage."
-           )
 
     assert has_element?(view, "#techtree .rl-story h3", "A result people can inspect.")
 

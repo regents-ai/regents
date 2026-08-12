@@ -36,11 +36,11 @@ test("[U2] homepage is server-readable and keeps the four product gateways", asy
 
   await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
-  await expect(page.locator("#home-card-formation")).toHaveAttribute("href", "#formation")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regents-labs")
-  await expect(page.locator("#formation, #autolaunch, #techtree, #regents-labs")).toHaveCount(4)
+  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
+  await expect(page.locator("#home-card-nous")).toHaveAttribute("href", "#nous")
+  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
+  await expect(page.locator("#techtree, #autolaunch, #nous, #regent")).toHaveCount(4)
   await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#home-products")
   await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
@@ -181,7 +181,7 @@ test("[U1][U2] the hero bento ranks Techtree first and Autolaunch second at ever
       expect(cards.map(card => card.id)).toEqual([
         "home-card-techtree",
         "home-card-autolaunch",
-        "home-card-formation",
+        "home-card-nous",
         "home-card-regent",
       ])
 
@@ -244,6 +244,44 @@ test("[U1] the Techtree chapter keeps five proofs under muted body copy", async 
 
   const [description, supporting] = type.sizes
   expect(supporting, "the supporting line reads quieter than the description").toBeLessThan(description)
+})
+
+// Revenue, the product summary and the evidence section carry no chapter number, so their copy has
+// to be placed into the headline column explicitly — and released from it when the grid collapses
+// to one column, or it would open an implicit column and push the page sideways.
+test("[U1][U3] numberless sections share the chapter headline column", async ({page}) => {
+  for (const viewport of [
+    {name: "desktop", width: 1440, height: 1000},
+    {name: "review-1024x768", width: 1024, height: 768},
+    {name: "mobile-390", width: 390, height: 844},
+    {name: "mobile-320", width: 320, height: 720},
+  ]) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({width: viewport.width, height: viewport.height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const edges = await page
+        .locator("#techtree h2, #evidence h2, #revenue h2, #product-summary h2")
+        .evaluateAll(elements =>
+          elements.map(element => Math.round(element.getBoundingClientRect().left)),
+        )
+      expect(edges).toHaveLength(4)
+      expect(new Set(edges).size, "every section starts on one left edge").toBe(1)
+
+      const copy = await page
+        .locator("#revenue .rl-chapter-intro > div")
+        .evaluate(element => ({
+          column: getComputedStyle(element).gridColumnStart,
+          parentRight: element.parentElement!.getBoundingClientRect().right,
+          right: element.getBoundingClientRect().right,
+        }))
+
+      expect(copy.column).toBe(viewport.width > 704 ? "2" : "1")
+      expect(copy.right).toBeLessThanOrEqual(copy.parentRight + 0.5)
+    })
+  }
 })
 
 test("[U2] the evidence section reads with scripts disabled", async ({browser}) => {

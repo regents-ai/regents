@@ -14,11 +14,15 @@ defmodule AshPlatformWeb.HomeLive do
       <main>
         <.hero />
 
+        <%!-- Two beats hang off the product they belong to: the sourced evidence stands behind
+              Techtree, and revenue is what a funded launch is meant to produce. --%>
         <%= for product <- products() do %>
-          <.product_chapter product={product} />
+          <.chapter chapter={product} />
           <.evidence_section :if={product.anchor == "techtree"} />
+          <.chapter :if={product.anchor == "autolaunch"} chapter={revenue()} />
         <% end %>
 
+        <.chapter chapter={product_summary()} />
         <.closing_frame />
       </main>
 
@@ -85,17 +89,19 @@ defmodule AshPlatformWeb.HomeLive do
         </div>
       </div>
 
+      <%!-- The bento reads top-left first, so it takes the page order: the stylesheet gives the
+            first and second cards the size their place in the story earns. --%>
       <div id="home-products" class="rl-hero-cards" data-home-hero-cards aria-label="Regent products">
         <a
-          :for={product <- bento_cards()}
-          id={"home-card-#{product.card_key}"}
+          :for={product <- products()}
+          id={"home-card-#{product.anchor}"}
           href={"##{product.anchor}"}
           class={["rl-hero-card", "rl-hero-card--#{product.anchor}"]}
           data-home-hero-card
         >
           <span class="rl-card-head" aria-hidden="true">{product.index}</span>
           <strong>{product.name}</strong>
-          <span>{product.short}</span>
+          <span>{product.title}</span>
           <span class="rl-card-arrow" aria-hidden="true">↓</span>
           <span class="rl-card-voxels" aria-hidden="true">
             <i :for={index <- 1..6} data-home-voxel data-voxel-index={index}></i>
@@ -106,36 +112,37 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  defp product_chapter(assigns) do
+  # A chapter carries a numbered product or, without a number, one of the beats between them.
+  defp chapter(assigns) do
     ~H"""
     <section
-      id={@product.anchor}
-      class={["rl-chapter", "rl-chapter--#{@product.anchor}"]}
-      aria-labelledby={"#{@product.anchor}-title"}
+      id={@chapter.anchor}
+      class={["rl-chapter", "rl-chapter--#{@chapter.anchor}"]}
+      aria-labelledby={"#{@chapter.anchor}-title"}
     >
       <header class="rl-chapter-intro">
-        <p class="rl-chapter-index" aria-hidden="true">{@product.index}</p>
+        <p :if={@chapter.index} class="rl-chapter-index" aria-hidden="true">{@chapter.index}</p>
         <div>
-          <p class="rl-overline">{@product.eyebrow}</p>
-          <h2 id={"#{@product.anchor}-title"}>{@product.title}</h2>
-          <p>{@product.description}</p>
-          <p :if={@product.supporting} class="rl-chapter-support">{@product.supporting}</p>
+          <p :if={@chapter.eyebrow} class="rl-overline">{@chapter.eyebrow}</p>
+          <h2 id={"#{@chapter.anchor}-title"}>{@chapter.title}</h2>
+          <p>{@chapter.description}</p>
+          <p :if={@chapter.supporting} class="rl-chapter-support">{@chapter.supporting}</p>
         </div>
       </header>
 
-      <div class="rl-proof-grid">
-        <article :for={proof <- @product.proofs}>
+      <div :if={@chapter.proofs != []} class="rl-proof-grid">
+        <article :for={proof <- @chapter.proofs}>
           <p class="rl-proof-state">{proof.state}</p>
           <h3>{proof.title}</h3>
           <p>{proof.copy}</p>
         </article>
       </div>
 
-      <div :if={@product.story} class="rl-story">
+      <div :if={@chapter.story} class="rl-story">
         <div>
-          <h3>{@product.story.title}</h3>
-          <p>{@product.story.body}</p>
-          <p class="rl-story-state">{@product.story.state}</p>
+          <h3>{@chapter.story.title}</h3>
+          <p>{@chapter.story.body}</p>
+          <p class="rl-story-state">{@chapter.story.state}</p>
         </div>
       </div>
     </section>
@@ -230,13 +237,9 @@ defmodule AshPlatformWeb.HomeLive do
     do: [
       {"Techtree", "techtree"},
       {"Autolaunch", "autolaunch"},
-      {"Regent", "regents-labs"},
+      {"Regent", "regent"},
       {"About", "home-closing"}
     ]
-
-  # The bento reads top-left first: card order carries product priority, and the page
-  # stylesheet sizes the first and second cards from that order.
-  defp bento_cards, do: Enum.sort_by(products(), & &1.bento_rank)
 
   defp evidence_copy do
     %{
@@ -335,74 +338,15 @@ defmodule AshPlatformWeb.HomeLive do
     ]
   end
 
+  # Page order is the founder narrative: prove, fund, run, operate. The chapter number is the
+  # position in that story, and the hero bento reads the same order.
   defp products do
     [
       %{
         index: "01",
-        anchor: "formation",
-        card_key: "formation",
-        bento_rank: 3,
-        name: "Formation",
-        eyebrow: "Formation / Live",
-        short: "Run your Regent in Nous Portal.",
-        title: "Give one Regent a place to work.",
-        description:
-          "Nous Portal is where you create and manage your Regent’s cloud runtime. Formation opens it in a new tab and leaves your session here.",
-        supporting: nil,
-        story: nil,
-        proofs: [
-          %{
-            state: "Live",
-            title: "Open Nous Portal",
-            copy: "One link takes you to Nous Portal, where your Regent’s cloud runtime lives."
-          },
-          %{
-            state: "Live",
-            title: "Your session stays open",
-            copy: "Nous Portal opens in a new tab, so your Regent session stays where it is."
-          }
-        ]
-      },
-      %{
-        index: "02",
-        anchor: "autolaunch",
-        card_key: "autolaunch",
-        bento_rank: 2,
-        name: "Autolaunch",
-        eyebrow: "Autolaunch / Preview",
-        short: "Bring your Regent to market.",
-        title: "Build public signal before launch.",
-        description:
-          "Prepare a private launch draft, inspect auctions and tokens, and approve every market action in your wallet.",
-        supporting: nil,
-        story: nil,
-        proofs: [
-          %{
-            state: "Live",
-            title: "Private drafts",
-            copy: "Shape a launch before it becomes a public market record."
-          },
-          %{
-            state: "Preview",
-            title: "Market discovery",
-            copy:
-              "Explore auctions, leading tokens, and recent graduates without invented totals."
-          },
-          %{
-            state: "Preview",
-            title: "Connected reputation",
-            copy: "Optionally add verified X, GitHub, Farcaster, ENS, and World signals."
-          }
-        ]
-      },
-      %{
-        index: "03",
         anchor: "techtree",
-        card_key: "techtree",
-        bento_rank: 1,
         name: "Techtree",
         eyebrow: "Techtree — Prove",
-        short: "Turn research into a public record.",
         title: "Turn agent runs into public, checkable proof.",
         description:
           "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is.",
@@ -448,36 +392,89 @@ defmodule AshPlatformWeb.HomeLive do
         ]
       },
       %{
-        index: "04",
-        anchor: "regents-labs",
-        card_key: "regent",
-        bento_rank: 4,
-        name: "Regents Labs",
-        eyebrow: "Regents Labs / Live",
-        short: "Identity, stake, redeem, and profile.",
-        title: "Keep identity and value actions together.",
+        index: "02",
+        anchor: "autolaunch",
+        name: "Autolaunch",
+        eyebrow: "Autolaunch — Fund",
+        title: "Turn proven edge into runway.",
         description:
-          "See your Regent, manage its public identity, prepare REGENT staking, and redeem supported NFTs with wallet approval.",
-        supporting: nil,
+          "Autolaunch creates the token, auction, liquidity, vesting, and revenue path with one wallet confirmation. The agent keeps control. The contracts fix the rules.",
+        supporting:
+          "Uniswap discovers the price. Autolaunch defines who may launch, where funds go, and what remains true after launch.",
         story: nil,
         proofs: [
           %{
             state: "Live",
-            title: "Regent overview",
-            copy: "See the Regent connected to your account."
+            title: "Private drafts",
+            copy: "Shape a launch before it becomes a public market record."
           },
           %{
-            state: "Live",
-            title: "Stake REGENT",
-            copy: "Prepare a stake and approve the value action in your wallet."
+            state: "Preview",
+            title: "Market discovery",
+            copy:
+              "Explore auctions, leading tokens, and recent graduates without invented totals."
           },
           %{
-            state: "Live",
-            title: "Redeem supported NFTs",
-            copy: "Prepare redemption and verify the completed result."
+            state: "Preview",
+            title: "Connected reputation",
+            copy: "Optionally add verified X, GitHub, Farcaster, ENS, and World signals."
           }
         ]
+      },
+      %{
+        index: "03",
+        anchor: "nous",
+        name: "Nous",
+        eyebrow: "Nous — Run",
+        title: "Hermes does the work.",
+        description:
+          "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity.",
+        supporting: nil,
+        story: nil,
+        proofs: []
+      },
+      %{
+        index: "04",
+        anchor: "regent",
+        name: "Regent",
+        eyebrow: "Regent — Operate",
+        title: "Keep the agent working.",
+        description:
+          "Regent gives an agent one identity, one operator path, and a place to keep working after the benchmark or launch.",
+        supporting:
+          "Humans get a guided path. Agents get a direct command path. Both connect to the same identity.",
+        story: nil,
+        proofs: []
       }
     ]
+  end
+
+  defp revenue do
+    %{
+      index: nil,
+      anchor: "revenue",
+      eyebrow: "Earn",
+      title: "Revenue makes the loop real.",
+      description:
+        "When an agent earns eligible stablecoin revenue, the contracts route it through the defined treasury and staking paths.",
+      supporting:
+        "The launch funds the next phase of work. Revenue shows whether the business can keep going.",
+      story: nil,
+      proofs: []
+    }
+  end
+
+  defp product_summary do
+    %{
+      index: nil,
+      anchor: "product-summary",
+      eyebrow: nil,
+      title: "From benchmark to business.",
+      description:
+        "Techtree proves the work. Autolaunch funds the next phase. Regent keeps the agent operating.",
+      supporting: nil,
+      story: nil,
+      proofs: []
+    }
   end
 end
