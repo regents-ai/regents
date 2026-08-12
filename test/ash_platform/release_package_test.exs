@@ -24,11 +24,13 @@ defmodule AshPlatform.ReleasePackageTest do
     output = temporary_directory("release-context-out")
 
     # A miniature stand-in for the real parent context, holding one file for
-    # every rule: package sources, the sibling Privy and RegentUI sources, the
-    # sealed offline inputs including one bundler executable per target
-    # architecture, and the things that must never enter -- notebook output,
-    # host build artifacts under a dependency's priv, environment files, and
-    # everything outside the declared allowlist.
+    # every rule: package sources, the sibling Privy source, the narrow slice of
+    # the RegentUI source the build compiles and styles from, the sealed offline
+    # inputs, and the things that must never enter -- notebook output, host
+    # build artifacts under a dependency's priv, a sibling's tests, lockfile,
+    # tooling files, digested output and JavaScript, environment files, and
+    # everything outside the declared allowlist. A real context carries one
+    # bundler executable; the rules admit either architecture's name.
     write_files(context, [
       {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
       {"ash-platform/config/config.exs", "import Config\n"},
@@ -54,8 +56,16 @@ defmodule AshPlatform.ReleasePackageTest do
       {"ash-platform/.envrc", "export SECRET=nope\n"},
       {"elixir-utils/privy/lib/privy.ex", "defmodule Privy do\nend\n"},
       {"elixir-utils/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
+      {"design-system/regent_ui/mix.exs", "defmodule RegentUi.MixProject do\nend\n"},
       {"design-system/regent_ui/lib/regent_ui.ex", "defmodule RegentUi do\nend\n"},
       {"design-system/regent_ui/assets/css/regent.css", ":root{}\n"},
+      {"design-system/regent_ui/assets/js/regent.ts", "export const regent = 1\n"},
+      {"design-system/regent_ui/priv/static/regent/sigil-3f9a.svg", "<svg/>\n"},
+      {"design-system/regent_ui/test/regent/components_test.exs", "defmodule T do\nend\n"},
+      {"design-system/regent_ui/deps/dependency/priv/nif.so", "host build output\n"},
+      {"design-system/regent_ui/.claude/settings.json", "{}\n"},
+      {"design-system/regent_ui/mix.lock", "%{}\n"},
+      {"design-system/regent_ui/.formatter.exs", "[]\n"},
       {"design-system/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
       {"mix-cache/archives/hex", "hex archive\n"},
       {"npm-cache/_cacache/content", "cache payload\n"},
@@ -104,6 +114,7 @@ defmodule AshPlatform.ReleasePackageTest do
              "ash-platform/rel/overlays/bin/migrate",
              "design-system/regent_ui/assets/css/regent.css",
              "design-system/regent_ui/lib/regent_ui.ex",
+             "design-system/regent_ui/mix.exs",
              "elixir-utils/privy/lib/privy.ex",
              "esbuild-linux-arm64",
              "esbuild-linux-x64",

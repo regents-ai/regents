@@ -14,12 +14,6 @@ RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
 
 FROM native AS build
 
-# The bundler executable is architecture-specific and comes from the sealed
-# supply under its own name. Pass the target the build is for:
-# linux-arm64 or linux-x64. scripts/build-release-context.sh stages the
-# matching executable and prints the matching build command.
-ARG ESBUILD_TARGET
-
 ENV MIX_ENV=prod
 ENV HOME=/root
 ENV RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=/workspace/rustler-precompiled
@@ -32,7 +26,9 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 COPY mix-cache /root/.mix
 COPY rustler-precompiled /workspace/rustler-precompiled
-COPY esbuild-${ESBUILD_TARGET} _build/esbuild-${ESBUILD_TARGET}
+# The context carries exactly one bundler executable, the one for the target
+# it was assembled for, and Mix looks it up by that architecture-specific name.
+COPY esbuild-linux-* _build/
 COPY ash-platform/deps deps
 COPY ash-platform/mix.exs ash-platform/mix.lock ./
 COPY elixir-utils/privy /workspace/elixir-utils/privy
@@ -51,14 +47,25 @@ RUN mix compile && mix assets.deploy && mix release
 # The release carries its own ERTS, so the runtime image needs no Elixir and no
 # Erlang install. Two things it does still need are absent from the slim base:
 # the OpenSSL library the crypto NIF links against, and the CA bundle outbound
-# TLS verifies against. Both come from the builder image, which is the same
-# Debian release as the runtime base. This stage lifts them to a fixed path so
-# the runtime stage never names an architecture-specific library directory.
+# TLS verifies against. Both are lifted from the builder image, which is only
+# sound while the two images are the same Debian release, so this stage asserts
+# that first and the build stops here if a base ever moves. Lifting to a fixed
+# path also keeps the runtime stage from naming a library directory that
+# differs per architecture.
 FROM elixir AS runtime-support
 
-RUN mkdir /runtime-support \
-  && cp /usr/lib/*-linux-gnu/libcrypto.so.3 /runtime-support/ \
-  && cp /etc/ssl/certs/ca-certificates.crt /runtime-support/
+COPY --from=slim /etc/os-release /slim-os-release
+RUN set -eu; \
+  builder="$(. /etc/os-release; printf '%s' "$VERSION_CODENAME")"; \
+  runtime="$(. /slim-os-release; printf '%s' "$VERSION_CODENAME")"; \
+  if [ "$builder" != "$runtime" ]; then \
+    echo "runtime base is Debian $runtime but the builder is Debian $builder;" \
+      "the OpenSSL library and CA bundle may not be lifted across releases" >&2; \
+    exit 1; \
+  fi; \
+  mkdir /runtime-support; \
+  cp /usr/lib/*-linux-gnu/libcrypto.so.3 /runtime-support/; \
+  cp /etc/ssl/certs/ca-certificates.crt /runtime-support/
 
 FROM slim AS app
 
@@ -66,12 +73,10 @@ FROM slim AS app
 # runs with latin1 name encoding, which Elixir warns about at boot.
 ENV LANG=C.UTF-8
 ENV HOME=/app
-ENV MIX_ENV=prod
 WORKDIR /app
 
-COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/local/lib/
+COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
-RUN ldconfig
 
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app
