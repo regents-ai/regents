@@ -37,6 +37,9 @@ config :ash_platform, :techtree_publication_rate_limit,
   window_seconds:
     String.to_integer(System.get_env("TECHTREE_PUBLICATION_RATE_WINDOW_SECONDS", "60"))
 
+# Product surfaces are open unless a deploy sets ASH_PLATFORM_APP_SURFACES to something other than "on".
+config :ash_platform, :app_surfaces, System.get_env("ASH_PLATFORM_APP_SURFACES", "on") == "on"
+
 migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
 
 database_config =

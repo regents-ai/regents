@@ -45,6 +45,7 @@ config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
 config :ash_platform, :notebook_static_server, false
+config :ash_platform, :app_surfaces, true
 
 config :ash_platform, :session_options,
   store: :cookie,

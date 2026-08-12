@@ -7,21 +7,25 @@ defmodule AshPlatformWeb.Router do
     plug :enforce_privy_logout_epoch
     plug :fetch_live_flash
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
+    plug AshPlatformWeb.Plugs.LaunchGate
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug AshPlatformWeb.Plugs.LaunchGate
   end
 
   pipeline :agent_write_api do
     plug :accepts, ["json"]
+    plug AshPlatformWeb.Plugs.LaunchGate
     plug AshPlatform.AgentAuth.TechtreeWritePlug
   end
 
   pipeline :session_api do
     plug :accepts, ["json"]
+    plug AshPlatformWeb.Plugs.LaunchGate
     plug :fetch_session
     plug :enforce_privy_logout_epoch
     plug :protect_from_forgery
@@ -82,7 +86,7 @@ defmodule AshPlatformWeb.Router do
     delete "/auth/privy/session", PrivySessionController, :delete
 
     live_session :product_shell,
-      on_mount: [{AshPlatformWeb.Live.Session, :load_human}] do
+      on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/settings", ShellLive, :settings
       live "/formation", ShellLive, :formation
