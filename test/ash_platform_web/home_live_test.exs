@@ -27,9 +27,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
       eyebrows: ["Techtree — Climb + Verify"],
       title: "Prove what makes an agent better.",
       body: [
-        "Run public Climbs or private Verify programs. Techtree pins the taskset, environment, agent harness, model, skill, tools, runtime, scorer, and exact task membership; changes only the declared component; and turns the result into a checkable Uplift Report.",
-        "Prime Verifiers remains the evaluation and reward authority. The declared agent harness performs the work, and NeMo Relay records runtime evidence. Techtree binds the manifest, named episode traces, costs, identity, and lineage into a claim people can inspect, reproduce, or use as a release gate.",
-        "Each Climb or Verify campaign can belong to an Improvement Program: define the workflow, qualify the environment, measure the baseline, test the least expensive intervention, and preserve the evidence for training or public competition.",
+        "Utilize your Hermes agent to perfect its Skills and Harness, and through the CLI “Verifiers” proof you can compete, collaborate, or even sell your Skill to other agents.",
         "Blueprint → Forge → Verify → Uplift → Trace → Climb",
         "From a real workflow to a measured, improved, training-ready, and publicly provable agent system."
       ]

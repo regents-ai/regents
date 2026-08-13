@@ -226,7 +226,7 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
   }
 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
-  await expect(body).toHaveCount(5)
+  await expect(body).toHaveCount(3)
 
   const type = await body.evaluateAll(elements => {
     // The probe lives outside the chapter so the muted rule cannot claim it and make the
@@ -245,12 +245,12 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
     }
   })
 
-  // The mode rail (fourth paragraph) speaks in full ink; everything else stays muted.
-  expect(type.colors).toEqual([type.muted, type.muted, type.muted, type.ink, type.muted])
-  expect(type.colors.filter((_, index) => index !== 3)).not.toContain(type.heading)
+  // The mode rail (second paragraph) speaks in full ink; everything else stays muted.
+  expect(type.colors).toEqual([type.muted, type.ink, type.muted])
+  expect(type.colors.filter((_, index) => index !== 1)).not.toContain(type.heading)
 
-  const [description, supporting] = type.sizes
-  expect(supporting, "the supporting line reads quieter than the description").toBeLessThan(description)
+  const [description, , caption] = type.sizes
+  expect(caption, "the rail caption reads quieter than the description").toBeLessThan(description)
 })
 
 // Revenue, Nous, the product summary, the evidence section and the closing frame carry no chapter
