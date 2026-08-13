@@ -30,7 +30,8 @@ contract ExampleCCADeploymentScriptConfigTest is Test {
     }
 
     function testConfigAcceptsExactEightLaunchInputsIncludingAgentIdZero() external view {
-        ExampleCCADeploymentScript.PreparedSafeCall memory prepared = script.prepare(_config());
+        ExampleCCADeploymentScript.PreparedSafeCall memory prepared =
+            script.prepareFactoryCall(_config());
         assertEq(prepared.from, address(agentSafe));
         assertEq(prepared.to, address(factory));
         assertEq(prepared.value, 0);
@@ -41,14 +42,14 @@ contract ExampleCCADeploymentScriptConfigTest is Test {
         ExampleCCADeploymentScript.ScriptConfig memory cfg = _config();
         cfg.feeInfraDeployer = address(new LaunchFeeInfraDeployer(address(0xBEEF)));
         vm.expectRevert("FEE_DEPLOYER_FACTORY_MISMATCH");
-        script.prepare(cfg);
+        script.prepareFactoryCall(cfg);
     }
 
     function testConfigRejectsRequiredRegentZero() external {
         ExampleCCADeploymentScript.ScriptConfig memory cfg = _config();
         cfg.requiredRegentRaised = 0;
         vm.expectRevert("REQUIRED_REGENT_ZERO");
-        script.prepare(cfg);
+        script.prepareFactoryCall(cfg);
     }
 
     function _config() private view returns (ExampleCCADeploymentScript.ScriptConfig memory) {

@@ -40,7 +40,11 @@ contract ExampleCCADeploymentScript is Script {
         bytes32 launchFeeHookSalt;
     }
 
-    function prepare(ScriptConfig memory cfg) public view returns (PreparedSafeCall memory call) {
+    function prepareFactoryCall(ScriptConfig memory cfg)
+        public
+        view
+        returns (PreparedSafeCall memory call)
+    {
         _validate(cfg);
         uint64 nonce = vm.getNonce(cfg.feeInfraDeployer);
         bytes32 salt = _launchFeeHookSalt(cfg.feeInfraDeployer, nonce);
@@ -80,7 +84,7 @@ contract ExampleCCADeploymentScript is Script {
     }
 
     function run() external view returns (PreparedSafeCall memory) {
-        return prepare(loadConfigFromEnv());
+        return prepareFactoryCall(loadConfigFromEnv());
     }
 
     function _validate(ScriptConfig memory cfg) private view {

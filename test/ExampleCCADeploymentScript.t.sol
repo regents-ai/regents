@@ -62,7 +62,8 @@ contract ExampleCCADeploymentScriptTest is Test {
 
     function testPrepareProducesExactDirectSafeCall() external {
         factory.setLaunchFee(7);
-        ExampleCCADeploymentScript.PreparedSafeCall memory prepared = script.prepare(_config());
+        ExampleCCADeploymentScript.PreparedSafeCall memory prepared =
+            script.prepareFactoryCall(_config());
         assertEq(prepared.from, address(agentSafe));
         assertEq(prepared.to, address(factory));
         assertEq(prepared.value, 0);
@@ -81,9 +82,11 @@ contract ExampleCCADeploymentScriptTest is Test {
     }
 
     function testPreparationMinesFreshWitnessFromCurrentNonce() external {
-        ExampleCCADeploymentScript.PreparedSafeCall memory first = script.prepare(_config());
+        ExampleCCADeploymentScript.PreparedSafeCall memory first =
+            script.prepareFactoryCall(_config());
         vm.setNonce(address(feeInfraDeployer), first.feeInfraDeployerNonce + 2);
-        ExampleCCADeploymentScript.PreparedSafeCall memory second = script.prepare(_config());
+        ExampleCCADeploymentScript.PreparedSafeCall memory second =
+            script.prepareFactoryCall(_config());
         assertEq(second.feeInfraDeployerNonce, first.feeInfraDeployerNonce + 2);
         assertTrue(second.launchFeeHookSalt != first.launchFeeHookSalt);
     }
@@ -91,14 +94,14 @@ contract ExampleCCADeploymentScriptTest is Test {
     function testPreparationRejectsNonMainnetChain() external {
         vm.chainId(1);
         vm.expectRevert("BASE_MAINNET_ONLY");
-        script.prepare(_config());
+        script.prepareFactoryCall(_config());
     }
 
     function testPreparationRejectsMisalignedFloorPrice() external {
         ExampleCCADeploymentScript.ScriptConfig memory cfg = _config();
         cfg.floorPrice++;
         vm.expectRevert("FLOOR_PRICE_TICK_MISALIGNED");
-        script.prepare(cfg);
+        script.prepareFactoryCall(cfg);
     }
 
     function _config() internal view returns (ExampleCCADeploymentScript.ScriptConfig memory) {
