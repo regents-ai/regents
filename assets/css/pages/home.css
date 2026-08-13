@@ -197,6 +197,13 @@
   text-wrap: pretty;
 }
 
+/* The product names read as commands: the pixel face in full ink, sized to the sentence. */
+.rl-hero-copy code {
+  color: var(--rl-ink);
+  font-size: 0.9em;
+  font-family: var(--font-family-pixel);
+}
+
 .rl-hero-actions,
 .rl-closing-actions {
   display: flex;

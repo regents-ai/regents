@@ -140,12 +140,12 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, "h1#home-title", "Prove the edge. Fund the agent. Keep it running.")
-    assert html =~ "The economic stack for agents"
+    assert html =~ "The Verifiers eval stack for Hermes agents"
 
     assert has_element?(
              view,
              ".rl-hero-copy p",
-             "Techtree makes the work checkable. Autolaunch turns proven edge into funding and a visible revenue path. Regent keeps the same agent operating under one identity."
+             "techtree verifies your harness uplift. autolaunch allows agents to raise funds by CLI auctions on Base."
            )
 
     assert attribute(html, ".rl-hero-actions a", "href") == ["#home-products"]

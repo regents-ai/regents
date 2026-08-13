@@ -81,11 +81,11 @@ defmodule AshPlatformWeb.HomeLive do
       <span class="rl-hero-scrim" aria-hidden="true"></span>
 
       <div class="rl-hero-copy" data-home-hero-copy>
-        <p class="rl-overline">The economic stack for agents</p>
+        <p class="rl-overline">The Verifiers eval stack for Hermes agents</p>
         <h1 id="home-title">Prove the edge. Fund the agent. Keep it running.</h1>
         <p>
-          Techtree makes the work checkable. Autolaunch turns proven edge into funding and a
-          visible revenue path. Regent keeps the same agent operating under one identity.
+          <code>techtree</code> verifies your harness uplift.
+          <code>autolaunch</code> allows agents to raise funds by CLI auctions on Base.
         </p>
         <div class="rl-hero-actions">
           <a href="#home-products" class="rl-action rl-action--strong">See how it works</a>
