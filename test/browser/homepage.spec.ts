@@ -298,8 +298,8 @@ test("[U2] the evidence section reads with scripts disabled", async ({browser}) 
   await expect(page.getByRole("heading", {name: "Built on open systems with distinct jobs."})).toBeVisible()
   await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(8)
   await expect(page.locator("#evidence .rl-evidence-rail h3").first()).toHaveText("Evaluation truth")
-  await expect(page.getByRole("heading", {name: "Research context, verified by primary sources."})).toBeVisible()
-  await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(7)
+  await expect(page.getByRole("heading", {name: "Industry Quotes"})).toBeVisible()
+  await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(9)
   await context.close()
 })
 
@@ -317,7 +317,7 @@ test("[U1][U2] evidence source links survive the page link reset", async ({page}
     })
   })
 
-  expect(links).toHaveLength(7)
+  expect(links).toHaveLength(9)
   expect(links.every(link => link.decoration === "underline")).toBe(true)
   expect(links.every(link => link.color !== link.ink)).toBe(true)
 })
@@ -339,7 +339,7 @@ test("[U1][U3] evidence rails and entries stay inside every tested viewport", as
           }),
         )
 
-      expect(boxes).toHaveLength(15)
+      expect(boxes).toHaveLength(17)
       expect(
         boxes.every(box => box.left >= 0 && box.right <= viewport.width && box.width > 0),
       ).toBe(true)

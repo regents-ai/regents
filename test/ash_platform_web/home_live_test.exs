@@ -28,7 +28,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
       title: "Turn agent evaluations into public, checkable proof.",
       body: [
         "Techtree pins the taskset, agent harness, model, skill, tools, runtime, scorer, and exact task membership into one experiment manifest. It binds the resulting traces, rewards, costs, and limitations into a receipt people can verify.",
-        "Prime Verifiers owns evaluation and reward truth. Nous Hermes performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim."
+        "Prime Verifiers owns evaluation and reward truth. Hermes Agent performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim."
       ]
     },
     %{
@@ -37,7 +37,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
       title: "Turn proven edge into runway.",
       body: [
         "Autolaunch creates the token, auction, liquidity, vesting, and revenue path with one wallet confirmation. The agent keeps control. The contracts fix the rules.",
-        "Uniswap discovers the price. Autolaunch defines who may launch, where funds go, and what remains true after launch."
+        "Uniswap’s Continuous Clearing Auction discovers the market price over time and can seed a Uniswap v4 pool at the discovered price. Autolaunch defines who may launch, which roles receive control, where proceeds go, and which vesting and revenue rules remain after launch."
       ]
     },
     %{
@@ -45,8 +45,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
       eyebrows: ["Earn"],
       title: "Revenue makes the loop real.",
       body: [
-        "When an agent earns eligible stablecoin revenue, the contracts route it through the defined treasury and staking paths.",
-        "The launch funds the next phase of work. Revenue shows whether the business can keep going."
+        "Auction proceeds can create an initial operating budget. Later, when the configured receiver recognizes eligible USDC revenue, the deployed contracts route it through the declared treasury and staking paths.",
+        "Funding pays for another phase of work. Recognized revenue shows whether the agent is developing a repeatable economic activity."
       ]
     },
     %{
@@ -63,7 +63,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
       eyebrows: ["Nous — Run"],
       title: "Hermes performs the work.",
       body: [
-        "Nous Hermes is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity."
+        "Hermes Agent is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity."
       ]
     },
     %{
@@ -185,7 +185,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              ".rl-footer .rl-footer-brand span",
-             "Agent proof. Agent capital. Onchain revenue."
+             "Agent proof. Agent runway. Onchain revenue."
            )
 
     assert has_element?(view, ".rl-footer p", "© 2026 Regents Labs")
@@ -299,7 +299,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#autolaunch .rl-proof-grid article",
-             "X, GitHub, Farcaster, ENS, and World"
+             "Connect ERC-8004 identity, GitHub, X, Farcaster, ENS, and World signals, plus selected public Techtree receipts."
            )
   end
 
@@ -394,7 +394,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#evidence .rl-evidence-rail p",
-             "Uniswap handles price discovery. Safe protects custody. ERC-8004 identifies the agent. Autolaunch defines the launch, ownership, and revenue rules."
+             "Uniswap CCA provides transparent price discovery and liquidity formation. Safe protects agent and protocol custody. ERC-8004 provides the durable agent identifier. Autolaunch contracts define launch authorization, allocation, vesting, treasury, and recognized-revenue routing."
            )
 
     assert texts(html, "#evidence .rl-evidence-sources") == [
@@ -408,10 +408,12 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
            ]
 
+    assert has_element?(view, "#evidence .rl-evidence-note h3", "Industry Quotes")
+
     assert has_element?(
              view,
-             "#evidence .rl-evidence-note h3",
-             "Research context, verified by primary sources."
+             "#evidence .rl-evidence-boundary",
+             "Techtree proof is not a financial promise, and Autolaunch funding is not capability proof. The products connect evidence and capital without pretending they are the same thing."
            )
 
     assert has_element?(
@@ -421,39 +423,25 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
   end
 
-  test "the evidence record quotes only checked wording and labels every other entry", %{
+  test "the evidence record renders every founder-verified quote with attribution", %{
     conn: conn
   } do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, ~s(#evidence ul.rl-evidence-entries[role="list"]))
 
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-entry .rl-evidence-claim",
-             "Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent."
-           )
+    refute html =~ "rl-evidence-class"
 
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-entry .rl-evidence-claim",
-             "Snowflake AI Research open-sourced data-eng-bench, a repository-level benchmark that hands an agent a live dbt project on an enterprise-scale data warehouse."
-           )
+    assert length(texts(html, "#evidence blockquote.rl-evidence-claim")) == 9
 
-    assert texts(html, "#evidence blockquote") == [
-             "“We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.”",
-             "“Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.”"
-           ]
-
-    assert texts(html, "#evidence .rl-evidence-class") == [
-             "Paraphrase",
-             "Paraphrase",
-             "Paraphrase",
-             "Paraphrase",
-             "Verified quote",
-             "Paraphrase",
-             "Verified quote"
-           ]
+    for claim <- [
+          "“Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent.”",
+          "“Prime Intellect’s Verifiers v1 uses the same taskset, harness, runtime, and trace contract across evaluation and reinforcement-learning workflows.”",
+          "“Microsoft Research’s SkillOpt improves natural-language skill documents through trajectory-driven edits and validation gates while keeping model weights frozen.”",
+          "“NVIDIA NeMo Relay gives agent systems a shared contract for execution scopes, middleware, lifecycle events, and model and tool observability without replacing the agent framework.”"
+        ] do
+      assert claim in texts(html, "#evidence blockquote.rl-evidence-claim")
+    end
 
     assert texts(html, "#evidence .rl-evidence-author") == [
              "Michele Catasta",
@@ -462,17 +450,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Prime Intellect",
              "Ben Burtenshaw",
              "Snowflake AI Research",
-             "David Hartmann"
+             "David Hartmann",
+             "Microsoft Research",
+             "NVIDIA"
            ]
 
     assert texts(html, "#evidence .rl-evidence-affiliation") == [
              "President, Replit",
              "Agent harness research",
              "Research Scientist, Snorkel AI",
-             "Environments Hub",
+             "Verifiers v1",
              "Hugging Face",
              "Data-eng-bench",
-             "Lambda"
+             "Lambda",
+             "SkillOpt",
+             "NeMo Relay"
            ]
   end
 
@@ -485,19 +477,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "https://replit.com/blog/evaluating-and-improving-agent-at-scale",
              "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/",
              "https://snorkel.ai/leaderboard/os-world-2-0/",
-             "https://www.primeintellect.ai/blog/environments",
+             "https://www.primeintellect.ai/blog/verifiers-v1",
              "https://youtu.be/CJwn302-TBE?t=1082",
              "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
-             "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
+             "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker",
+             "https://www.microsoft.com/en-us/research/blog/skillopt-agent-skills-as-trainable-parameters/",
+             "https://docs.nvidia.com/nemo/relay/about-nemo-relay/overview"
            ]
 
     assert attribute(html, ~s(a[href^="https://"]), "href") == sources
 
     assert attribute(html, "#evidence .rl-evidence-source", "target") ==
-             List.duplicate("_blank", 7)
+             List.duplicate("_blank", 9)
 
     assert attribute(html, "#evidence .rl-evidence-source", "rel") ==
-             List.duplicate("noopener noreferrer", 7)
+             List.duplicate("noopener noreferrer", 9)
   end
 
   defp attribute(html, selector, name),

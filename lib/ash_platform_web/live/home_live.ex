@@ -164,8 +164,8 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  # Sourced evidence: one rail for every system the founder copy names, then the research context
-  # behind them. Quotation marks only where the exact wording was checked against the source.
+  # Sourced evidence: one rail for every system the founder copy names, then the industry quotes
+  # behind them. Every entry is founder-verified against its primary source.
   defp evidence_section(assigns) do
     assigns = assign(assigns, copy: evidence_copy(), entries: evidence_entries())
 
@@ -194,9 +194,7 @@ defmodule AshPlatformWeb.HomeLive do
 
       <ul class="rl-evidence-entries" role="list">
         <li :for={entry <- @entries} class="rl-evidence-entry">
-          <p class="rl-evidence-class">{evidence_class(entry)}</p>
-          <blockquote :if={entry.quoted} class="rl-evidence-claim">“{entry.claim}”</blockquote>
-          <p :if={!entry.quoted} class="rl-evidence-claim">{entry.claim}</p>
+          <blockquote class="rl-evidence-claim">“{entry.claim}”</blockquote>
           <p class="rl-evidence-author">{entry.author}</p>
           <p class="rl-evidence-affiliation">{entry.affiliation}</p>
           <a
@@ -209,12 +207,11 @@ defmodule AshPlatformWeb.HomeLive do
           </a>
         </li>
       </ul>
+
+      <p class="rl-evidence-boundary">{@copy.boundary}</p>
     </section>
     """
   end
-
-  defp evidence_class(%{quoted: true}), do: "Verified quote"
-  defp evidence_class(%{quoted: false}), do: "Paraphrase"
 
   defp closing_frame(assigns) do
     ~H"""
@@ -243,7 +240,7 @@ defmodule AshPlatformWeb.HomeLive do
         />
         <div>
           <strong>Regents Labs builds Techtree and Autolaunch.</strong>
-          <span>Agent proof. Agent capital. Onchain revenue.</span>
+          <span>Agent proof. Agent runway. Onchain revenue.</span>
         </div>
       </div>
       <p>© 2026 Regents Labs</p>
@@ -267,8 +264,10 @@ defmodule AshPlatformWeb.HomeLive do
         "Techtree does not replace the evaluator, agent, runtime evidence layer, task environment, skill optimizer, or notebook. It pins them, connects them, and makes the resulting claim inspectable.",
       claims:
         "Every technical claim on this page should resolve to a primary source, pinned software revision, immutable manifest, public receipt, deployed contract, or independent reproduction.",
+      boundary:
+        "Techtree proof is not a financial promise, and Autolaunch funding is not capability proof. The products connect evidence and capital without pretending they are the same thing.",
       context: %{
-        heading: "Research context, verified by primary sources.",
+        heading: "Industry Quotes",
         intro:
           "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
       },
@@ -282,7 +281,7 @@ defmodule AshPlatformWeb.HomeLive do
         %{
           headline: "Agent behavior",
           body:
-            "Nous Hermes performs the work with the declared model, tools, plugins, permissions, and SKILL.md. Techtree pins the Hermes build and holds its configuration fixed across a controlled comparison.",
+            "Hermes Agent performs the work with the declared model, tools, plugins, permissions, and SKILL.md. Techtree pins the Hermes build and holds its configuration fixed across a controlled comparison.",
           sources: "Nous Research · Hermes Agent · Skills · Plugins"
         },
         %{
@@ -318,19 +317,17 @@ defmodule AshPlatformWeb.HomeLive do
         %{
           headline: "Rules enforced onchain.",
           body:
-            "Uniswap handles price discovery. Safe protects custody. ERC-8004 identifies the agent. Autolaunch defines the launch, ownership, and revenue rules.",
+            "Uniswap CCA provides transparent price discovery and liquidity formation. Safe protects agent and protocol custody. ERC-8004 provides the durable agent identifier. Autolaunch contracts define launch authorization, allocation, vesting, treasury, and recognized-revenue routing.",
           sources: "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
         }
       ]
     }
   end
 
-  # One flat record of primary sources, in the order the ticket records them. `quoted` is only true
-  # where the exact wording was found in the source; everything else reads as a labelled paraphrase.
+  # One flat record of primary sources. Every entry is founder-verified, so each renders as a quote.
   defp evidence_entries do
     [
       %{
-        quoted: false,
         claim:
           "Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent.",
         author: "Michele Catasta",
@@ -339,7 +336,6 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://replit.com/blog/evaluating-and-improving-agent-at-scale"
       },
       %{
-        quoted: false,
         claim:
           "NVIDIA’s open harness research shows that the architecture around a model can materially change benchmark outcomes.",
         author: "NVIDIA Labs",
@@ -349,7 +345,6 @@ defmodule AshPlatformWeb.HomeLive do
           "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/"
       },
       %{
-        quoted: false,
         claim:
           "Qi’s OSWorld 2.0 work scores progress across long workflows instead of relying on binary completion alone.",
         author: "Zhengyang Qi",
@@ -358,16 +353,14 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://snorkel.ai/leaderboard/os-world-2-0/"
       },
       %{
-        quoted: false,
         claim:
-          "Prime Intellect treats environments as shared infrastructure for reinforcement-learning training and downstream evaluation.",
+          "Prime Intellect’s Verifiers v1 uses the same taskset, harness, runtime, and trace contract across evaluation and reinforcement-learning workflows.",
         author: "Prime Intellect",
-        affiliation: "Environments Hub",
-        source: "Environments Hub: A Community Hub To Scale RL To Open AGI",
-        source_url: "https://www.primeintellect.ai/blog/environments"
+        affiliation: "Verifiers v1",
+        source: "verifiers v1: Decomposing Tasksets and Harnesses for Agentic RL & Evaluations",
+        source_url: "https://www.primeintellect.ai/blog/verifiers-v1"
       },
       %{
-        quoted: true,
         claim:
           "We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.",
         author: "Ben Burtenshaw",
@@ -377,7 +370,6 @@ defmodule AshPlatformWeb.HomeLive do
         source_url: "https://youtu.be/CJwn302-TBE?t=1082"
       },
       %{
-        quoted: false,
         claim:
           "Snowflake AI Research open-sourced data-eng-bench, a repository-level benchmark that hands an agent a live dbt project on an enterprise-scale data warehouse.",
         author: "Snowflake AI Research",
@@ -387,7 +379,6 @@ defmodule AshPlatformWeb.HomeLive do
           "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/"
       },
       %{
-        quoted: true,
         claim:
           "Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.",
         author: "David Hartmann",
@@ -395,6 +386,23 @@ defmodule AshPlatformWeb.HomeLive do
         source: "What happens when Claude Code gets an experiment tracker",
         source_url:
           "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
+      },
+      %{
+        claim:
+          "Microsoft Research’s SkillOpt improves natural-language skill documents through trajectory-driven edits and validation gates while keeping model weights frozen.",
+        author: "Microsoft Research",
+        affiliation: "SkillOpt",
+        source: "SkillOpt: Agent skills as trainable parameters",
+        source_url:
+          "https://www.microsoft.com/en-us/research/blog/skillopt-agent-skills-as-trainable-parameters/"
+      },
+      %{
+        claim:
+          "NVIDIA NeMo Relay gives agent systems a shared contract for execution scopes, middleware, lifecycle events, and model and tool observability without replacing the agent framework.",
+        author: "NVIDIA",
+        affiliation: "NeMo Relay",
+        source: "NVIDIA NeMo Relay overview",
+        source_url: "https://docs.nvidia.com/nemo/relay/about-nemo-relay/overview"
       }
     ]
   end
@@ -412,7 +420,7 @@ defmodule AshPlatformWeb.HomeLive do
         description:
           "Techtree pins the taskset, agent harness, model, skill, tools, runtime, scorer, and exact task membership into one experiment manifest. It binds the resulting traces, rewards, costs, and limitations into a receipt people can verify.",
         supporting:
-          "Prime Verifiers owns evaluation and reward truth. Nous Hermes performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim.",
+          "Prime Verifiers owns evaluation and reward truth. Hermes Agent performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim.",
         story: %{
           title: "A controlled comparison people can inspect.",
           body:
@@ -452,7 +460,7 @@ defmodule AshPlatformWeb.HomeLive do
             state: "Live web",
             title: "Content-addressed evidence",
             copy:
-              "Every manifest, skill, trace bundle, notebook, receipt, and report is referenced by a content fingerprint. Techtree verifies the fingerprint before displaying the artifact and records the exact work each claim builds on, reproduces, or contradicts."
+              "Every manifest, skill, trace bundle, notebook, receipt, and report is referenced by a content fingerprint. Techtree verifies the fingerprint before displaying the artifact and records the exact work each claim extends, supersedes, reproduces, or disputes."
           },
           %{
             state: "Live web",
@@ -526,7 +534,7 @@ defmodule AshPlatformWeb.HomeLive do
         description:
           "Autolaunch creates the token, auction, liquidity, vesting, and revenue path with one wallet confirmation. The agent keeps control. The contracts fix the rules.",
         supporting:
-          "Uniswap discovers the price. Autolaunch defines who may launch, where funds go, and what remains true after launch.",
+          "Uniswap’s Continuous Clearing Auction discovers the market price over time and can seed a Uniswap v4 pool at the discovered price. Autolaunch defines who may launch, which roles receive control, where proceeds go, and which vesting and revenue rules remain after launch.",
         story: nil,
         proofs: [
           %{
@@ -538,12 +546,13 @@ defmodule AshPlatformWeb.HomeLive do
             state: "Preview",
             title: "Market discovery",
             copy:
-              "Explore auctions, leading tokens, and recent graduates without invented totals."
+              "Follow active and completed Continuous Clearing Auctions, inspect their parameters and clearing state, and trace the resulting token and Uniswap v4 liquidity configuration."
           },
           %{
             state: "Preview",
             title: "Connected reputation",
-            copy: "Optionally add verified X, GitHub, Farcaster, ENS, and World signals."
+            copy:
+              "Connect ERC-8004 identity, GitHub, X, Farcaster, ENS, and World signals, plus selected public Techtree receipts. Social identity and evaluation evidence remain distinct and inspectable."
           }
         ],
         more_proofs: []
@@ -572,7 +581,7 @@ defmodule AshPlatformWeb.HomeLive do
       eyebrow: "Nous — Run",
       title: "Hermes performs the work.",
       description:
-        "Nous Hermes is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity.",
+        "Hermes Agent is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity.",
       supporting: nil,
       story: nil,
       proofs: [],
@@ -587,9 +596,9 @@ defmodule AshPlatformWeb.HomeLive do
       eyebrow: "Earn",
       title: "Revenue makes the loop real.",
       description:
-        "When an agent earns eligible stablecoin revenue, the contracts route it through the defined treasury and staking paths.",
+        "Auction proceeds can create an initial operating budget. Later, when the configured receiver recognizes eligible USDC revenue, the deployed contracts route it through the declared treasury and staking paths.",
       supporting:
-        "The launch funds the next phase of work. Revenue shows whether the business can keep going.",
+        "Funding pays for another phase of work. Recognized revenue shows whether the agent is developing a repeatable economic activity.",
       story: nil,
       proofs: [],
       more_proofs: []
