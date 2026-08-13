@@ -408,7 +408,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
            ]
 
-    assert has_element?(view, "#evidence .rl-evidence-note h3", "Industry Quotes")
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-note h3",
+             "Evals + RL Environment Recent Quotes"
+           )
 
     assert has_element?(
              view,
@@ -423,49 +427,47 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
   end
 
-  test "the evidence record renders every founder-verified quote with attribution", %{
-    conn: conn
-  } do
+  test "the evidence record renders the six founder quotes with attribution", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, ~s(#evidence ul.rl-evidence-entries[role="list"]))
 
-    refute html =~ "rl-evidence-class"
-
-    assert length(texts(html, "#evidence blockquote.rl-evidence-claim")) == 9
-
-    for claim <- [
-          "“Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent.”",
-          "“Prime Intellect’s Verifiers v1 uses the same taskset, harness, runtime, and trace contract across evaluation and reinforcement-learning workflows.”",
-          "“Microsoft Research’s SkillOpt improves natural-language skill documents through trajectory-driven edits and validation gates while keeping model weights frozen.”",
-          "“NVIDIA NeMo Relay gives agent systems a shared contract for execution scopes, middleware, lifecycle events, and model and tool observability without replacing the agent framework.”"
-        ] do
-      assert claim in texts(html, "#evidence blockquote.rl-evidence-claim")
-    end
+    assert texts(html, "#evidence blockquote.rl-evidence-claim") == [
+             "“Evaluation stops being the last check before shipping. It becomes the engine that ships better agents.”",
+             "“The harness really matters. Harness design alone moves benchmark scores by double digits, same model.”",
+             "“Coding agents are going to higher levels of abstraction. We can do this with environment and reward design as well.”",
+             "“Binary task success compresses a long-horizon workflow into one label. Milestone-based evaluation preserves which states were reached, which transitions succeeded, and which downstream work became unreachable after a specific failure.”",
+             "“Data-eng-bench is open source. Whether you build agents, harnesses or the models underneath them, it’s a realistic, hard-to-saturate testbed for measuring autonomous data engineering.”",
+             "“Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.”"
+           ]
 
     assert texts(html, "#evidence .rl-evidence-author") == [
              "Michele Catasta",
-             "NVIDIA Labs",
+             "Jonathan Cohen",
+             "Will Brown",
              "Zhengyang Qi",
-             "Prime Intellect",
-             "Ben Burtenshaw",
-             "Snowflake AI Research",
-             "David Hartmann",
-             "Microsoft Research",
-             "NVIDIA"
+             "Snowflake Labs",
+             "David Hartmann"
            ]
 
     assert texts(html, "#evidence .rl-evidence-affiliation") == [
              "President, Replit",
-             "Agent harness research",
-             "Research Scientist, Snorkel AI",
-             "Verifiers v1",
-             "Hugging Face",
-             "Data-eng-bench",
-             "Lambda",
-             "SkillOpt",
-             "NeMo Relay"
+             "VP of Applied Research, NVIDIA",
+             "Prime Intellect",
+             "Snorkel AI",
+             "Lambda Labs"
            ]
+
+    assert attribute(html, "#evidence .rl-evidence-source", "aria-label") == [
+             "Watch the source video on YouTube",
+             "Watch the source video on YouTube",
+             "Watch the source video on YouTube",
+             "Read the source post on X",
+             "Read the source article",
+             "Watch the source video on YouTube"
+           ]
+
+    assert length(Regex.scan(~r/<svg/, html)) >= 6
   end
 
   test "every primary source is an outbound link that leaves the page safely", %{conn: conn} do
@@ -474,24 +476,21 @@ defmodule AshPlatformWeb.HomeLiveTest do
     sources = attribute(html, "#evidence .rl-evidence-source", "href")
 
     assert sources == [
-             "https://replit.com/blog/evaluating-and-improving-agent-at-scale",
-             "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/",
-             "https://snorkel.ai/leaderboard/os-world-2-0/",
-             "https://www.primeintellect.ai/blog/verifiers-v1",
-             "https://youtu.be/CJwn302-TBE?t=1082",
+             "https://www.youtube.com/watch?v=Klnodm4WZLg",
+             "https://www.youtube.com/watch?v=qQYxwyidnUk",
+             "https://www.youtube.com/watch?v=AQv3qRCG6Gw",
+             "https://x.com/qi_zhengyang/status/2085089415253078018",
              "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
-             "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker",
-             "https://www.microsoft.com/en-us/research/blog/skillopt-agent-skills-as-trainable-parameters/",
-             "https://docs.nvidia.com/nemo/relay/about-nemo-relay/overview"
+             "https://www.youtube.com/watch?v=8uGfxNehSUc"
            ]
 
     assert attribute(html, ~s(a[href^="https://"]), "href") == sources
 
     assert attribute(html, "#evidence .rl-evidence-source", "target") ==
-             List.duplicate("_blank", 9)
+             List.duplicate("_blank", 6)
 
     assert attribute(html, "#evidence .rl-evidence-source", "rel") ==
-             List.duplicate("noopener noreferrer", 9)
+             List.duplicate("noopener noreferrer", 6)
   end
 
   defp attribute(html, selector, name),

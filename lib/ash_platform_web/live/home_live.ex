@@ -196,20 +196,50 @@ defmodule AshPlatformWeb.HomeLive do
         <li :for={entry <- @entries} class="rl-evidence-entry">
           <blockquote class="rl-evidence-claim">“{entry.claim}”</blockquote>
           <p class="rl-evidence-author">{entry.author}</p>
-          <p class="rl-evidence-affiliation">{entry.affiliation}</p>
+          <p :if={entry.affiliation} class="rl-evidence-affiliation">{entry.affiliation}</p>
           <a
             class="rl-evidence-source"
             href={entry.source_url}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label={source_label(entry.source_kind)}
           >
-            {entry.source}
+            <.source_icon kind={entry.source_kind} />
           </a>
         </li>
       </ul>
 
       <p class="rl-evidence-boundary">{@copy.boundary}</p>
     </section>
+    """
+  end
+
+  defp source_label(:youtube), do: "Watch the source video on YouTube"
+  defp source_label(:x), do: "Read the source post on X"
+  defp source_label(:web), do: "Read the source article"
+
+  defp source_icon(%{kind: :youtube} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+    """
+  end
+
+  defp source_icon(%{kind: :x} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+    """
+  end
+
+  defp source_icon(%{kind: :web} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.25" />
+      <path d="M2.75 12h18.5M12 2.75a14.2 14.2 0 0 1 0 18.5M12 2.75a14.2 14.2 0 0 0 0 18.5" />
+    </svg>
     """
   end
 
@@ -267,7 +297,7 @@ defmodule AshPlatformWeb.HomeLive do
       boundary:
         "Techtree proof is not a financial promise, and Autolaunch funding is not capability proof. The products connect evidence and capital without pretending they are the same thing.",
       context: %{
-        heading: "Industry Quotes",
+        heading: "Evals + RL Environment Recent Quotes",
         intro:
           "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
       },
@@ -324,57 +354,48 @@ defmodule AshPlatformWeb.HomeLive do
     }
   end
 
-  # One flat record of primary sources. Every entry is founder-verified, so each renders as a quote.
+  # The founder-supplied quote record: six voices on evals and RL environments, each linking
+  # to its primary source as an icon.
   defp evidence_entries do
     [
       %{
         claim:
-          "Catasta’s Replit Agent work moves evaluation from a launch check into the loop that improves the agent.",
+          "Evaluation stops being the last check before shipping. It becomes the engine that ships better agents.",
         author: "Michele Catasta",
         affiliation: "President, Replit",
-        source: "Closing the loop: Evaluating and improving Replit Agent at scale",
-        source_url: "https://replit.com/blog/evaluating-and-improving-agent-at-scale"
+        source_kind: :youtube,
+        source_url: "https://www.youtube.com/watch?v=Klnodm4WZLg"
       },
       %{
         claim:
-          "NVIDIA’s open harness research shows that the architecture around a model can materially change benchmark outcomes.",
-        author: "NVIDIA Labs",
-        affiliation: "Agent harness research",
-        source: "Six Agent Harness Capabilities for Higher Model Performance",
-        source_url:
-          "https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/"
+          "The harness really matters. Harness design alone moves benchmark scores by double digits, same model.",
+        author: "Jonathan Cohen",
+        affiliation: "VP of Applied Research, NVIDIA",
+        source_kind: :youtube,
+        source_url: "https://www.youtube.com/watch?v=qQYxwyidnUk"
       },
       %{
         claim:
-          "Qi’s OSWorld 2.0 work scores progress across long workflows instead of relying on binary completion alone.",
+          "Coding agents are going to higher levels of abstraction. We can do this with environment and reward design as well.",
+        author: "Will Brown",
+        affiliation: "Prime Intellect",
+        source_kind: :youtube,
+        source_url: "https://www.youtube.com/watch?v=AQv3qRCG6Gw"
+      },
+      %{
+        claim:
+          "Binary task success compresses a long-horizon workflow into one label. Milestone-based evaluation preserves which states were reached, which transitions succeeded, and which downstream work became unreachable after a specific failure.",
         author: "Zhengyang Qi",
-        affiliation: "Research Scientist, Snorkel AI",
-        source: "OSWorld 2.0",
-        source_url: "https://snorkel.ai/leaderboard/os-world-2-0/"
+        affiliation: "Snorkel AI",
+        source_kind: :x,
+        source_url: "https://x.com/qi_zhengyang/status/2085089415253078018"
       },
       %{
         claim:
-          "Prime Intellect’s Verifiers v1 uses the same taskset, harness, runtime, and trace contract across evaluation and reinforcement-learning workflows.",
-        author: "Prime Intellect",
-        affiliation: "Verifiers v1",
-        source: "verifiers v1: Decomposing Tasksets and Harnesses for Agentic RL & Evaluations",
-        source_url: "https://www.primeintellect.ai/blog/verifiers-v1"
-      },
-      %{
-        claim:
-          "We think that if people can start to build their own environments and try them out, and then we put them into leaderboards, and we figure out which ones are good and which ones are contributing to model success.",
-        author: "Ben Burtenshaw",
-        affiliation: "Hugging Face",
-        source:
-          "Workshop: The Open Agentic Stack: Building the Future of AI Systems with Open Source, Open Standards · 18:02",
-        source_url: "https://youtu.be/CJwn302-TBE?t=1082"
-      },
-      %{
-        claim:
-          "Snowflake AI Research open-sourced data-eng-bench, a repository-level benchmark that hands an agent a live dbt project on an enterprise-scale data warehouse.",
-        author: "Snowflake AI Research",
-        affiliation: "Data-eng-bench",
-        source: "A Data Engineering Benchmark for AI Agents",
+          "Data-eng-bench is open source. Whether you build agents, harnesses or the models underneath them, it’s a realistic, hard-to-saturate testbed for measuring autonomous data engineering.",
+        author: "Snowflake Labs",
+        affiliation: nil,
+        source_kind: :web,
         source_url:
           "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/"
       },
@@ -382,27 +403,9 @@ defmodule AshPlatformWeb.HomeLive do
         claim:
           "Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.",
         author: "David Hartmann",
-        affiliation: "Lambda",
-        source: "What happens when Claude Code gets an experiment tracker",
-        source_url:
-          "https://lambda.ai/blog/what-happens-when-claude-code-gets-an-experiment-tracker"
-      },
-      %{
-        claim:
-          "Microsoft Research’s SkillOpt improves natural-language skill documents through trajectory-driven edits and validation gates while keeping model weights frozen.",
-        author: "Microsoft Research",
-        affiliation: "SkillOpt",
-        source: "SkillOpt: Agent skills as trainable parameters",
-        source_url:
-          "https://www.microsoft.com/en-us/research/blog/skillopt-agent-skills-as-trainable-parameters/"
-      },
-      %{
-        claim:
-          "NVIDIA NeMo Relay gives agent systems a shared contract for execution scopes, middleware, lifecycle events, and model and tool observability without replacing the agent framework.",
-        author: "NVIDIA",
-        affiliation: "NeMo Relay",
-        source: "NVIDIA NeMo Relay overview",
-        source_url: "https://docs.nvidia.com/nemo/relay/about-nemo-relay/overview"
+        affiliation: "Lambda Labs",
+        source_kind: :youtube,
+        source_url: "https://www.youtube.com/watch?v=8uGfxNehSUc"
       }
     ]
   end
