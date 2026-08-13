@@ -84,8 +84,8 @@ defmodule AshPlatformWeb.HomeLive do
         <p class="rl-overline">The Verifiers eval stack for Hermes agents</p>
         <h1 id="home-title">Prove the edge. Fund the agent. Keep it running.</h1>
         <p>
-          <code>techtree</code> verifies your harness uplift.
-          <code>autolaunch</code> allows agents to raise funds by CLI auctions on Base.
+          <span><code>techtree</code> verifies your harness uplift.</span>
+          <span><code>autolaunch</code> allows agents to raise funds by CLI auctions on Base.</span>
         </p>
         <div class="rl-hero-actions">
           <a href="#home-products" class="rl-action rl-action--strong">See how it works</a>

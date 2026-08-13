@@ -197,10 +197,15 @@
   text-wrap: pretty;
 }
 
-/* The product names read as commands: the pixel face in full ink, sized to the sentence. */
+/* Each product sentence stands on its own line. */
+.rl-hero-copy > p:last-of-type span {
+  display: block;
+}
+
+/* The product names read as commands: the pixel face in full ink, 4pt above the sentence. */
 .rl-hero-copy code {
   color: var(--rl-ink);
-  font-size: 0.9em;
+  font-size: calc(1em + 4pt);
   font-family: var(--font-family-pixel);
 }
 
