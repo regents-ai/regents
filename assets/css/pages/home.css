@@ -530,7 +530,15 @@
   font-size: 0.75rem;
 }
 
-/* The source is an icon link: sized to the byline row, muted until hovered. */
+/* The card closes with the source icon on the left and the company mark on the right. */
+.rl-evidence-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-start: 0.6rem;
+}
+
 .rl-root .rl-evidence-source {
   display: inline-flex;
   width: 1.1rem;
@@ -540,6 +548,12 @@
 .rl-evidence-source svg {
   width: 100%;
   height: 100%;
+}
+
+.rl-evidence-logo {
+  height: 1.15rem;
+  width: auto;
+  max-width: 8.5rem;
 }
 
 .rl-chapter--evidence .rl-evidence-note {

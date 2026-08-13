@@ -197,15 +197,18 @@ defmodule AshPlatformWeb.HomeLive do
           <blockquote class="rl-evidence-claim">“{entry.claim}”</blockquote>
           <p class="rl-evidence-author">{entry.author}</p>
           <p :if={entry.affiliation} class="rl-evidence-affiliation">{entry.affiliation}</p>
-          <a
-            class="rl-evidence-source"
-            href={entry.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={source_label(entry.source_kind)}
-          >
-            <.source_icon kind={entry.source_kind} />
-          </a>
+          <div class="rl-evidence-footer">
+            <a
+              class="rl-evidence-source"
+              href={entry.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={source_label(entry.source_kind)}
+            >
+              <.source_icon kind={entry.source_kind} />
+            </a>
+            <img class="rl-evidence-logo" src={entry.logo} alt={entry.logo_alt} />
+          </div>
         </li>
       </ul>
 
@@ -364,7 +367,9 @@ defmodule AshPlatformWeb.HomeLive do
         author: "Michele Catasta",
         affiliation: "President, Replit",
         source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=Klnodm4WZLg"
+        source_url: "https://www.youtube.com/watch?v=Klnodm4WZLg",
+        logo: "/images/brand/quotes/replit.svg",
+        logo_alt: "Replit"
       },
       %{
         claim:
@@ -372,7 +377,9 @@ defmodule AshPlatformWeb.HomeLive do
         author: "Jonathan Cohen",
         affiliation: "VP of Applied Research, NVIDIA",
         source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=qQYxwyidnUk"
+        source_url: "https://www.youtube.com/watch?v=qQYxwyidnUk",
+        logo: "/images/brand/quotes/nvidia.svg",
+        logo_alt: "NVIDIA"
       },
       %{
         claim:
@@ -380,7 +387,9 @@ defmodule AshPlatformWeb.HomeLive do
         author: "Will Brown",
         affiliation: "Prime Intellect",
         source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=AQv3qRCG6Gw"
+        source_url: "https://www.youtube.com/watch?v=AQv3qRCG6Gw",
+        logo: "/images/brand/quotes/prime-intellect.svg",
+        logo_alt: "Prime Intellect"
       },
       %{
         claim:
@@ -388,7 +397,9 @@ defmodule AshPlatformWeb.HomeLive do
         author: "Zhengyang Qi",
         affiliation: "Snorkel AI",
         source_kind: :x,
-        source_url: "https://x.com/qi_zhengyang/status/2085089415253078018"
+        source_url: "https://x.com/qi_zhengyang/status/2085089415253078018",
+        logo: "/images/brand/quotes/snorkel-ai.svg",
+        logo_alt: "Snorkel AI"
       },
       %{
         claim:
@@ -397,7 +408,9 @@ defmodule AshPlatformWeb.HomeLive do
         affiliation: nil,
         source_kind: :web,
         source_url:
-          "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/"
+          "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
+        logo: "/images/brand/quotes/snowflake.svg",
+        logo_alt: "Snowflake"
       },
       %{
         claim:
@@ -405,7 +418,9 @@ defmodule AshPlatformWeb.HomeLive do
         author: "David Hartmann",
         affiliation: "Lambda Labs",
         source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=8uGfxNehSUc"
+        source_url: "https://www.youtube.com/watch?v=8uGfxNehSUc",
+        logo: "/images/brand/quotes/lambda.svg",
+        logo_alt: "Lambda"
       }
     ]
   end

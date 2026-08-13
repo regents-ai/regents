@@ -468,6 +468,24 @@ defmodule AshPlatformWeb.HomeLiveTest do
            ]
 
     assert length(Regex.scan(~r/<svg/, html)) >= 6
+
+    assert attribute(html, "#evidence .rl-evidence-logo", "alt") == [
+             "Replit",
+             "NVIDIA",
+             "Prime Intellect",
+             "Snorkel AI",
+             "Snowflake",
+             "Lambda"
+           ]
+
+    assert attribute(html, "#evidence .rl-evidence-logo", "src") == [
+             "/images/brand/quotes/replit.svg",
+             "/images/brand/quotes/nvidia.svg",
+             "/images/brand/quotes/prime-intellect.svg",
+             "/images/brand/quotes/snorkel-ai.svg",
+             "/images/brand/quotes/snowflake.svg",
+             "/images/brand/quotes/lambda.svg"
+           ]
   end
 
   test "every primary source is an outbound link that leaves the page safely", %{conn: conn} do
