@@ -107,7 +107,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
     home = get(build_conn(), "/")
 
     assert home.status == 200
-    assert home.resp_body =~ "Prove the edge. Fund the agent. Keep it running."
+    assert home.resp_body =~ "Prove the edge. Fund the agent."
     refute home.resp_body =~ "Not open yet"
 
     assert get(build_conn(), "/healthz").status == 200

@@ -116,18 +116,6 @@
   border-inline-end: 1px solid var(--rl-line);
 }
 
-.rl-header-note {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 2.75rem;
-  padding: 0.5rem 1rem;
-  color: var(--rl-muted);
-  font-size: 0.72rem;
-  text-align: end;
-  text-wrap: balance;
-}
-
 @media (hover: hover) {
   .rl-product-tab:hover {
     background: color-mix(in oklch, var(--rl-ink) 6%, transparent);

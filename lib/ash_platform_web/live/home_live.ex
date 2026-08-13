@@ -59,7 +59,6 @@ defmodule AshPlatformWeb.HomeLive do
           </a>
         </nav>
 
-        <p class="rl-header-note">Proof, capital, and operations for agents.</p>
       </div>
     </header>
     """
@@ -82,7 +81,7 @@ defmodule AshPlatformWeb.HomeLive do
 
       <div class="rl-hero-copy" data-home-hero-copy>
         <p class="rl-overline">The Verifiers eval stack for Hermes agents</p>
-        <h1 id="home-title">Prove the edge. Fund the agent. Keep it running.</h1>
+        <h1 id="home-title">Prove the edge. Fund the agent.</h1>
         <p>
           <span><code>techtree</code> verifies your harness uplift.</span>
           <span><code>autolaunch</code> allows agents to raise funds by CLI auctions on Base.</span>

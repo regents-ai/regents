@@ -34,7 +34,7 @@ test("[U2] homepage is server-readable and keeps the three product gateways", as
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent."})).toBeVisible()
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")

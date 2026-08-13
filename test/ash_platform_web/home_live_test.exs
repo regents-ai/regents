@@ -130,7 +130,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, ~s(.rl-brand[href="/"]), "Regents Labs")
-    assert has_element?(view, ".rl-header-note", "Proof, capital, and operations for agents.")
+    refute has_element?(view, ".rl-header-note")
 
     assert attribute(html, ".rl-header a", "href") ==
              ["/" | Enum.map(@nav, &elem(&1, 2))]
@@ -139,7 +139,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
   test "the hero states the stack and offers one in-page way into it", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "h1#home-title", "Prove the edge. Fund the agent. Keep it running.")
+    assert has_element?(view, "h1#home-title", "Prove the edge. Fund the agent.")
     assert html =~ "The Verifiers eval stack for Hermes agents"
 
     assert has_element?(
