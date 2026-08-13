@@ -132,9 +132,7 @@ defmodule AshPlatformWeb.HomeLive do
           <p :if={@chapter.supporting} class="rl-chapter-support">{@chapter.supporting}</p>
           <p :if={@chapter[:program]}>{@chapter[:program]}</p>
           <p :if={@chapter[:modes]} class="rl-mode-rail">{@chapter[:modes]}</p>
-          <p :if={@chapter[:modes_caption]} class="rl-chapter-support rl-mode-caption">
-            {@chapter[:modes_caption]}
-          </p>
+          <p :if={@chapter[:modes_caption]} class="rl-mode-caption">{@chapter[:modes_caption]}</p>
         </div>
       </header>
 

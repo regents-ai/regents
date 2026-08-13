@@ -461,8 +461,11 @@
   font-family: var(--font-family-pixel);
 }
 
-.rl-mode-caption {
+.rl-chapter-intro div > p.rl-mode-caption {
+  max-width: 47rem;
   margin-block-start: 0.5rem;
+  color: var(--rl-muted);
+  font-size: var(--rl-quiet);
 }
 
 /* Two entry paths close the chapter: a public Climb and a private Verify. */

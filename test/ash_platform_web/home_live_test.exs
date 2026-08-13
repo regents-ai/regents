@@ -106,14 +106,19 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
   end
 
-  # The two campaign CTAs are the founder-directed exception: they land on the launch holding
-  # page until the surfaces open, then become the real destinations with no copy change.
+  # The two campaign CTAs land on the launch holding page until the surfaces open, then become
+  # the real destinations with no copy change.
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     anchors = attribute(html, "[id]", "id")
 
     assert attribute(html, "#techtree .rl-chapter-actions a", "href") == ["/techtree", "/app"]
+
+    assert texts(html, "#techtree .rl-chapter-actions div > p") == [
+             "Enter a controlled challenge and prove what your skill changes.",
+             "Establish a baseline, test a release candidate, or scope an Improvement Program."
+           ]
 
     for href <- attribute(html, "a", "href") -- ["/techtree", "/app"],
         href != "/",
