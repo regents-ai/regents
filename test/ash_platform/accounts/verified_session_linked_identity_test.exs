@@ -2,19 +2,19 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.{Accounts, VerifiedPrivyIdentity}
-  alias AshPlatform.Accounts.VerifiedSession
+  alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.{Human, System}
 
   test "session refresh adds and removes verified social identities" do
     verified = verified_identity("reconcile", [social(:x, "x-42", "regent")])
 
-    assert {:ok, account, []} = VerifiedSession.establish(verified)
+    assert {:ok, account, []} = establish(verified)
 
     assert {:ok, [%{provider: :x, subject: "x-42", username: "regent"}]} =
              Accounts.list_my_linked_identities(actor: %Human{human_account_id: account.id})
 
     assert {:ok, ^account, []} =
-             VerifiedSession.establish(%{verified | linked_socials: []})
+             establish(%{verified | linked_socials: []})
 
     assert {:ok, []} =
              Accounts.list_my_linked_identities(actor: %Human{human_account_id: account.id})
@@ -22,7 +22,7 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
 
   test "session refresh leaves ENS and World identities untouched" do
     verified = verified_identity("preserve", [social(:github, "github-7", "regents-ai")])
-    assert {:ok, account, []} = VerifiedSession.establish(verified)
+    assert {:ok, account, []} = establish(verified)
 
     for {provider, subject} <- [ens: "regent.eth", world: "world-nullifier"] do
       assert {:ok, _identity} =
@@ -39,7 +39,7 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
     end
 
     assert {:ok, ^account, []} =
-             VerifiedSession.establish(%{verified | linked_socials: []})
+             establish(%{verified | linked_socials: []})
 
     assert {:ok, identities} =
              Accounts.list_linked_identities_for_account(account.id, actor: %System{})
@@ -49,12 +49,12 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
 
   test "a subject owned by another account is skipped without ending the session" do
     assert {:ok, owner, []} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("conflict-owner", [social(:farcaster, "12345", "owner")])
              )
 
     assert {:ok, other, [:farcaster]} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("conflict-other", [social(:farcaster, "12345", "other")])
              )
 
@@ -65,17 +65,17 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
 
   test "a subject conflict preserves the existing provider row and reports the conflict" do
     verified = verified_identity("preserve-conflict", [social(:x, "x-old", "old-user")])
-    assert {:ok, account, []} = VerifiedSession.establish(verified)
+    assert {:ok, account, []} = establish(verified)
 
     assert {:ok, _owner, []} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("preserve-conflict-owner", [
                  social(:x, "x-shared", "shared-user")
                ])
              )
 
     assert {:ok, ^account, [:x]} =
-             VerifiedSession.establish(%{
+             establish(%{
                verified
                | linked_socials: [social(:x, "x-shared", "shared-user")]
              })
@@ -86,14 +86,14 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
 
   test "the first valid entry wins when a token repeats a provider" do
     assert {:ok, owner, []} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("duplicate-provider-owner", [
                  social(:github, "github-second", "second-user")
                ])
              )
 
     assert {:ok, account, []} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("duplicate-provider", [
                  social(:github, "github-first", "first-user"),
                  social(:github, "github-second", "second-user")
@@ -116,17 +116,17 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
         social(:github, "github-pruning-old", "old-org")
       ])
 
-    assert {:ok, account, []} = VerifiedSession.establish(verified)
+    assert {:ok, account, []} = establish(verified)
 
     assert {:ok, _owner, []} =
-             VerifiedSession.establish(
+             establish(
                verified_identity("conflict-pruning-owner", [
                  social(:x, "x-pruning-shared", "shared-user")
                ])
              )
 
     assert {:ok, ^account, [:x]} =
-             VerifiedSession.establish(%{
+             establish(%{
                verified
                | linked_socials: [
                    social(:x, "x-pruning-shared", "shared-user"),
@@ -141,6 +141,37 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
              x: "x-pruning-old",
              farcaster: "98765"
            }
+  end
+
+  test "a revoked lineage refuses every identity evidence write" do
+    verified = verified_identity("revoked-evidence", [social(:x, "x-revoked", "revoked")])
+    lineage = SessionAuthority.mint_lineage()
+
+    assert {:ok, %{revoked_at: revoked_at}} = SessionAuthority.revoke(lineage)
+    refute is_nil(revoked_at)
+
+    assert {:error, :session_revoked} = VerifiedSession.establish(verified, lineage)
+
+    assert {:ok, nil} =
+             Accounts.get_linked_identity_by_subject(:x, "x-revoked", actor: %System{})
+
+    # Account-first establishment observes the uniqueness winner before the
+    # authority seam, so the account survives while no session authority does.
+    assert {:ok, account} =
+             Accounts.get_by_privy_did(verified.privy_user_id, actor: %System{})
+
+    assert SessionAuthority.capture(lineage, account.id) == nil
+  end
+
+  # Every establishment binds a fresh server-generated lineage at generation
+  # zero, so the identity evidence below is written under a live authority.
+  defp establish(verified) do
+    lineage = SessionAuthority.mint_lineage()
+
+    with {:ok, account, conflicts, %{lineage: ^lineage, generation: 0, revoked_at: nil}} <-
+           VerifiedSession.establish(verified, lineage) do
+      {:ok, account, conflicts}
+    end
   end
 
   defp verified_identity(suffix, linked_socials) do

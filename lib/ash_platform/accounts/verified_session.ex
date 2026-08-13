@@ -2,31 +2,54 @@ defmodule AshPlatform.Accounts.VerifiedSession do
   @moduledoc "Exchanges verified Privy evidence for the canonical human account."
 
   alias AshPlatform.Accounts
+  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.System
 
   @social_providers [:x, :github, :farcaster]
 
-  def establish(%AshPlatform.VerifiedPrivyIdentity{privy_user_id: did} = verified)
+  def establish(%AshPlatform.VerifiedPrivyIdentity{privy_user_id: did} = verified, lineage)
       when is_binary(did) and did != "" do
     actor = %System{}
 
     case linked_wallet_evidence(verified) do
       {:ok, primary, addresses} ->
-        with {:ok, account} <-
-               Accounts.register_verified(did, primary, addresses, actor: actor),
-             {:ok, account} <-
-               Accounts.refresh_verified(account, primary, addresses, actor: actor),
-             {:ok, conflicts} <-
-               reconcile_linked_identities(account, verified.linked_socials, actor) do
-          {:ok, account, conflicts}
-        end
+        bind_verified_account(did, primary, addresses, verified.linked_socials, lineage, actor)
 
       {:error, :missing_linked_wallet} ->
-        invalidate_wallet_evidence(did, actor)
+        invalidate_wallet_evidence(did, lineage, actor)
     end
   end
 
-  def establish(_verified), do: {:error, :invalid_verified_identity}
+  def establish(_verified, _lineage), do: {:error, :invalid_verified_identity}
+
+  defp bind_verified_account(did, primary, addresses, linked_socials, lineage, actor) do
+    with {:ok, upserted} <- Accounts.register_verified(did, primary, addresses, actor: actor),
+         {:ok, account} <- uniqueness_winner(upserted, actor) do
+      SessionAuthority.bind(
+        lineage,
+        account.id,
+        &write_verified_evidence(&1, account, primary, addresses, linked_socials, actor)
+      )
+    end
+  end
+
+  defp write_verified_evidence(authority, account, primary, addresses, linked_socials, actor) do
+    with {:ok, account} <- Accounts.refresh_verified(account, primary, addresses, actor: actor),
+         {:ok, conflicts} <- reconcile_linked_identities(account, linked_socials, actor) do
+      {:ok, account, conflicts, authority}
+    end
+  end
+
+  # The verified-identity upsert must release the target row before the ordered
+  # account locks are taken, so the uniqueness winner is requeried and matched
+  # byte for byte before any authority, evidence, or local-session write.
+  defp uniqueness_winner(%{id: id, privy_user_id: did}, actor) do
+    case Accounts.get_by_privy_did(did, actor: actor) do
+      {:ok, %{id: ^id, privy_user_id: ^did} = winner} -> {:ok, winner}
+      {:ok, _superseded} -> {:error, :account_uniqueness_conflict}
+      error -> error
+    end
+  end
 
   def current?(%{wallet_address: primary, wallet_addresses: addresses})
       when is_binary(primary) and is_list(addresses) do
@@ -186,8 +209,12 @@ defmodule AshPlatform.Accounts.VerifiedSession do
 
   defp linked_wallet_evidence(_verified), do: {:error, :missing_linked_wallet}
 
-  defp invalidate_wallet_evidence(did, actor) do
-    with {:ok, account} when not is_nil(account) <-
+  # Missing wallet evidence terminates the session, so the lineage is revoked
+  # before the account evidence is invalidated and before the caller clears the
+  # local session.
+  defp invalidate_wallet_evidence(did, lineage, actor) do
+    with {:ok, _authority} <- SessionAuthority.revoke(lineage),
+         {:ok, account} when not is_nil(account) <-
            Accounts.get_by_privy_did(did, actor: actor),
          {:ok, _account} <- Accounts.refresh_verified(account, nil, [], actor: actor) do
       {:error, :missing_linked_wallet}

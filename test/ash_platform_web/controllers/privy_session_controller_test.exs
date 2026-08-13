@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   @logout_epoch_cookie "_ash_platform_logout_epoch"
 
   alias AshPlatform.Accounts
+  alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Formation
 
@@ -38,7 +39,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert get_session(signed_in) |> Map.keys() |> Enum.sort() == [
              "human_account_id",
-             "live_socket_id"
+             "live_socket_id",
+             "session_lineage"
            ]
 
     assert_canonical_live_socket_id(get_session(signed_in, :live_socket_id))
@@ -67,6 +69,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   test "verified registration is idempotent under concurrent attempts" do
+    lineage = SessionAuthority.mint_lineage()
+
     verified = %AshPlatform.VerifiedPrivyIdentity{
       privy_user_id: "did:privy:concurrent",
       session_id: "concurrent-session",
@@ -76,13 +80,13 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     results =
       1..2
-      |> Task.async_stream(fn _ -> AshPlatform.Accounts.VerifiedSession.establish(verified) end,
+      |> Task.async_stream(fn _ -> VerifiedSession.establish(verified, lineage) end,
         max_concurrency: 2,
         ordered: false
       )
       |> Enum.to_list()
 
-    assert Enum.all?(results, &match?({:ok, {:ok, _, []}}, &1))
+    assert Enum.all?(results, &match?({:ok, {:ok, _, [], %{lineage: ^lineage}}}, &1))
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:concurrent", actor: %System{})
     assert account.wallet_address == verified.wallet_address
   end
@@ -104,7 +108,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     payload =
       conn
-      |> init_test_session(%{human_account_id: account.id})
+      |> init_test_session(authenticated_session(account.id))
       |> get("/auth/session")
       |> json_response(200)
 
@@ -582,6 +586,174 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
     assert get_session(refreshed) == expected_session
     refute_receive %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"}
+  end
+
+  test "the preauthentication lineage candidate is issued once and never leaves the server", %{
+    conn: conn
+  } do
+    bootstrap = csrf_bootstrap(init_test_session(conn, %{}))
+    lineage = get_session(bootstrap, :session_lineage)
+
+    assert is_binary(lineage)
+    assert {:ok, _uuid} = Ecto.UUID.cast(lineage)
+    refute json_response(bootstrap, 200) |> Jason.encode!() =~ lineage
+    refute bootstrap.resp_headers |> Enum.map_join(" ", &inspect/1) =~ lineage
+
+    repeated =
+      build_conn() |> init_test_session(get_session(bootstrap)) |> csrf_bootstrap()
+
+    assert get_session(repeated, :session_lineage) == lineage
+  end
+
+  test "logout revokes the server authority before the local session is cleared", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    lineage = get_session(signed_in, :session_lineage)
+    account_id = get_session(signed_in, :human_account_id)
+    assert %{generation: 0} = SessionAuthority.capture(lineage, account_id)
+
+    deleted =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> delete("/auth/privy/session")
+
+    assert %{"ok" => true} = json_response(deleted, 200)
+    assert SessionAuthority.capture(lineage, account_id) == nil
+
+    assert {:ok, %{revoked_at: revoked_at, human_account_id: ^account_id}} =
+             SessionAuthority.revoke(lineage)
+
+    refute is_nil(revoked_at)
+  end
+
+  test "a sign-in released after a logout cannot restore authenticated access", %{conn: conn} do
+    bootstrap = conn |> init_test_session(%{}) |> csrf_bootstrap()
+    lineage = get_session(bootstrap, :session_lineage)
+
+    deleted =
+      build_conn()
+      |> init_test_session(get_session(bootstrap))
+      |> put_valid_csrf()
+      |> delete("/auth/privy/session")
+
+    assert %{"ok" => true} = json_response(deleted, 200)
+
+    released =
+      build_conn()
+      |> init_test_session(%{session_lineage: lineage})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"error" => "unauthorized"} = json_response(released, 401)
+    assert released.private[:plug_session_info] == :drop
+    assert get_session(released) == %{}
+  end
+
+  test "an account switch keeps one lineage and advances its generation", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    lineage = get_session(signed_in, :session_lineage)
+    former_id = get_session(signed_in, :human_account_id)
+
+    switched =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer other-account")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(switched, 200)
+    assert get_session(switched, :session_lineage) == lineage
+    current_id = get_session(switched, :human_account_id)
+    refute current_id == former_id
+
+    assert SessionAuthority.capture(lineage, former_id) == nil
+    assert %{generation: 1} = SessionAuthority.capture(lineage, current_id)
+  end
+
+  test "invalid-account inspection revokes the lineage before dropping the session", %{
+    conn: conn
+  } do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    lineage = get_session(signed_in, :session_lineage)
+    account_id = get_session(signed_in, :human_account_id)
+    account = Accounts.get_human_account!(account_id, actor: %Human{human_account_id: account_id})
+    assert {:ok, _invalidated} = Accounts.refresh_verified(account, nil, [], actor: %System{})
+
+    inspected =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> get("/auth/session")
+
+    assert %{"authenticated" => false} = json_response(inspected, 200)
+    assert inspected.private[:plug_session_info] == :drop
+    assert SessionAuthority.capture(lineage, account_id) == nil
+
+    assert {:ok, %{revoked_at: revoked_at}} = SessionAuthority.revoke(lineage)
+    refute is_nil(revoked_at)
+  end
+
+  test "the mounted LiveView captures the authority bound at authorization time", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    lineage = get_session(signed_in, :session_lineage)
+    account_id = get_session(signed_in, :human_account_id)
+    {:ok, view, html} = signed_in |> recycle() |> live("/formation")
+
+    assert %{lineage: ^lineage, generation: 0, human_account_id: ^account_id, revoked_at: nil} =
+             :sys.get_state(view.pid).socket.assigns.session_authority
+
+    refute html =~ lineage
+  end
+
+  test "a revoked lineage refuses the protected write its capture asked for", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    lineage = get_session(signed_in, :session_lineage)
+    account_id = get_session(signed_in, :human_account_id)
+    capture = SessionAuthority.capture(lineage, account_id)
+
+    build_conn()
+    |> init_test_session(get_session(signed_in))
+    |> put_valid_csrf()
+    |> delete("/auth/privy/session")
+
+    assert {:error, :session_revoked} =
+             SessionAuthority.authorize(capture, fn _current -> flunk("write escaped") end)
+  end
+
+  defp authenticated_session(account_id) do
+    lineage = SessionAuthority.mint_lineage()
+    assert {:ok, _authority} = SessionAuthority.bind(lineage, account_id, &{:ok, &1})
+    %{human_account_id: account_id, session_lineage: lineage}
   end
 
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")

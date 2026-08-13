@@ -3,11 +3,12 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   @logout_epoch_cookie "_ash_platform_logout_epoch"
   @logout_epoch_session_key :privy_logout_epoch
+  @lineage_session_key :session_lineage
   @live_socket_prefix "privy_sessions:"
   @live_socket_token_pattern ~r/\A[A-Za-z0-9_-]{43}\z/
 
   alias AshPlatform.{AccessContext, Formation}
-  alias AshPlatform.Accounts.VerifiedSession
+  alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.Human
   alias AshPlatform.Privy
 
@@ -16,17 +17,20 @@ defmodule AshPlatformWeb.PrivySessionController do
 
     conn
     |> put_session("_csrf_token", Plug.CSRFProtection.dump_state())
+    |> put_session(@lineage_session_key, session_lineage(conn))
     |> json(%{csrf_token: token})
   end
 
   def create(conn, _untrusted_params) do
     conn = fetch_cookies(conn)
+    lineage = session_lineage(conn)
     previous_account_id = get_session(conn, :human_account_id)
     logout_epoch = conn.req_cookies[@logout_epoch_cookie]
 
     with {:ok, token} <- bearer_token(conn),
          {:ok, verified} <- verifier().verify_access_token(token),
-         {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
+         {:ok, account, identity_conflicts, _authority} <-
+           VerifiedSession.establish(verified, lineage) do
       {conn, session_changed?} =
         if previous_account_id == account.id and
              canonical_live_socket_id(get_session(conn, :live_socket_id)) do
@@ -36,6 +40,7 @@ defmodule AshPlatformWeb.PrivySessionController do
         end
 
       conn
+      |> put_session(@lineage_session_key, lineage)
       |> put_identity_conflict_header(identity_conflicts)
       |> put_resp_header(
         "x-ash-session-changed",
@@ -50,7 +55,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   def show(conn, _params) do
     account_id = get_session(conn, :human_account_id)
 
-    case current_account(account_id) do
+    case current_account(conn, account_id) do
       nil when is_integer(account_id) ->
         conn
         |> drop_local_session()
@@ -63,16 +68,27 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   defp verifier, do: Application.get_env(:ash_platform, :privy_verifier, Privy)
 
-  defp current_account(id) when is_integer(id) do
-    case AshPlatform.Accounts.get_human_account(id,
-           actor: %AshPlatform.Actors.Human{human_account_id: id}
-         ) do
+  # One stable lineage candidate is issued before verification or any provider
+  # delay, so a sign-in attempt and a concurrent logout address the same one.
+  defp session_lineage(conn) do
+    get_session(conn, @lineage_session_key) || SessionAuthority.mint_lineage()
+  end
+
+  defp current_account(conn, account_id) do
+    conn
+    |> get_session(@lineage_session_key)
+    |> SessionAuthority.capture(account_id)
+    |> verified_account()
+  end
+
+  defp verified_account(%SessionAuthority{human_account_id: id}) do
+    case AshPlatform.Accounts.get_human_account(id, actor: %Human{human_account_id: id}) do
       {:ok, account} -> if VerifiedSession.current?(account), do: account
       _ -> nil
     end
   end
 
-  defp current_account(_id), do: nil
+  defp verified_account(nil), do: nil
 
   defp session_payload(nil),
     do: %{
@@ -134,7 +150,17 @@ defmodule AshPlatformWeb.PrivySessionController do
   end
 
   defp drop_local_session(conn, options \\ []) do
-    reset_local_session(conn, Keyword.put(options, :drop, true))
+    conn
+    |> revoke_session_authority()
+    |> reset_local_session(Keyword.put(options, :drop, true))
+  end
+
+  # Every authenticated-session termination revokes its lineage first, so the
+  # revocation commits before the local session is cleared, before the canonical
+  # socket is disconnected, and before any success is reported.
+  defp revoke_session_authority(conn) do
+    {:ok, _authority} = conn |> get_session(@lineage_session_key) |> SessionAuthority.revoke()
+    conn
   end
 
   defp replace_authenticated_session(conn, account_id, logout_epoch) do

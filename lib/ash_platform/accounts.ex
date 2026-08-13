@@ -53,5 +53,7 @@ defmodule AshPlatform.Accounts do
 
       define :remove_linked_identity, action: :remove_verified
     end
+
+    resource AshPlatform.Accounts.SessionAuthority
   end
 end

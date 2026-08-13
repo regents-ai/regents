@@ -408,6 +408,16 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   expect(staleSessionCookie).toBeTruthy()
   expect(staleSessionCookie).not.toBe(sessionCookieBefore)
 
+  // Revocation is durable server state, not a browser marker: with the logout
+  // cookie removed the released sign-in cookie is still anonymous.
+  await page.context().clearCookies({name: "_ash_platform_logout_epoch"})
+  expect(
+    (await page.context().cookies()).find(cookie => cookie.name === "_ash_platform_key")?.value,
+  ).toBe(staleSessionCookie)
+  const sessionWithoutLogoutMarker = await page.request.get("/auth/session")
+  expect(sessionWithoutLogoutMarker.status()).toBe(200)
+  expect((await sessionWithoutLogoutMarker.json()).authenticated).toBe(false)
+
   const session = await page.request.get("/auth/session")
   expect((await session.json()).authenticated).toBe(false)
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()

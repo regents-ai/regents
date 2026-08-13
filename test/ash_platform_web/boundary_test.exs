@@ -106,6 +106,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [agent_pairing_migration] =
              Path.wildcard("priv/repo/migrations/*_agent_pairing.exs")
 
+    assert [session_authorities_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_6eb_12_session_authorities.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -135,7 +138,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                public_profile_migration,
                billing_kernel_migration,
                ash_functions_migration,
-               agent_pairing_migration
+               agent_pairing_migration,
+               session_authorities_migration
              ])
 
     assert_additive_migration(
@@ -546,6 +550,39 @@ defmodule AshPlatformWeb.BoundaryTest do
       agent_pairing_migration,
       ["drop(table(:agent_links))", "drop(table(:agent_pairing_codes))"]
     )
+
+    assert_additive_migration(
+      session_authorities_migration,
+      [
+        "create table(:session_authorities",
+        "add(:lineage, :uuid, null: false, primary_key: true)",
+        "add(:generation, :bigint, null: false, default: 0)",
+        "add(:revoked_at, :utc_datetime_usec)",
+        "add(:inserted_at, :utc_datetime_usec,\n        null: false,",
+        "add(:updated_at, :utc_datetime_usec,\n        null: false,",
+        "references(:platform_human_users",
+        "on_delete: :restrict",
+        "on_update: :restrict",
+        ":session_authorities_generation_non_negative",
+        "generation >= 0",
+        ":session_authorities_terminal_revocation",
+        "(revoked_at IS NULL AND human_account_id IS NOT NULL AND generation < 9223372036854775807) OR (revoked_at IS NOT NULL AND generation = 9223372036854775807)"
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      session_authorities_migration,
+      ["drop(table(:session_authorities))"]
+    )
+
+    session_authorities = File.read!(session_authorities_migration)
+    [session_authorities_up, _down] = String.split(session_authorities, "  def down do", parts: 2)
+
+    for backfill <- ["INSERT", "UPDATE ", "flush()", "repo()."] do
+      refute session_authorities_up =~ backfill,
+             "the session authority rollout must stay a fail-closed empty table"
+    end
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do
