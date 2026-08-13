@@ -3,7 +3,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
   # Nous is the runtime the products run on, not a Regents product: it has no tile and no number.
   @products [
-    {"techtree", "Techtree", "Turn agent evaluations into public, checkable proof."},
+    {"techtree", "Techtree", "Prove what makes an agent better."},
     {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
     {"regent", "Regent", "Keep the agent working."}
   ]
@@ -24,11 +24,14 @@ defmodule AshPlatformWeb.HomeLiveTest do
   @founder_copy [
     %{
       anchor: "techtree",
-      eyebrows: ["Techtree — Prove"],
-      title: "Turn agent evaluations into public, checkable proof.",
+      eyebrows: ["Techtree — Climb + Verify"],
+      title: "Prove what makes an agent better.",
       body: [
-        "Techtree pins the taskset, agent harness, model, skill, tools, runtime, scorer, and exact task membership into one experiment manifest. It binds the resulting traces, rewards, costs, and limitations into a receipt people can verify.",
-        "Prime Verifiers owns evaluation and reward truth. Hermes Agent performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim."
+        "Run public Climbs or private Verify programs. Techtree pins the taskset, environment, agent harness, model, skill, tools, runtime, scorer, and exact task membership; changes only the declared component; and turns the result into a checkable Uplift Report.",
+        "Prime Verifiers remains the evaluation and reward authority. The declared agent harness performs the work, and NeMo Relay records runtime evidence. Techtree binds the manifest, named episode traces, costs, identity, and lineage into a claim people can inspect, reproduce, or use as a release gate.",
+        "Each Climb or Verify campaign can belong to an Improvement Program: define the workflow, qualify the environment, measure the baseline, test the least expensive intervention, and preserve the evidence for training or public competition.",
+        "Blueprint → Forge → Verify → Uplift → Trace → Climb",
+        "From a real workflow to a measured, improved, training-ready, and publicly provable agent system."
       ]
     },
     %{
@@ -103,12 +106,16 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
   end
 
+  # The two campaign CTAs are the founder-directed exception: they land on the launch holding
+  # page until the surfaces open, then become the real destinations with no copy change.
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     anchors = attribute(html, "[id]", "id")
 
-    for href <- attribute(html, "a", "href"),
+    assert attribute(html, "#techtree .rl-chapter-actions a", "href") == ["/techtree", "/app"]
+
+    for href <- attribute(html, "a", "href") -- ["/techtree", "/app"],
         href != "/",
         not String.starts_with?(href, "https://") do
       assert String.starts_with?(href, "#")
@@ -230,7 +237,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert texts(html, "main .rl-chapter-intro .rl-overline") == [
-             "Techtree — Prove",
+             "Techtree — Climb + Verify",
              "Autolaunch — Fund",
              "Earn",
              "Regent — Operate",
@@ -242,46 +249,40 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, view, html} = live(conn, "/")
 
     assert texts(html, "#techtree .rl-proof-grid article h3") == [
-             "A proof is a set of artifacts.",
-             "Proof of a declared experiment.",
-             "Not every result proves the same thing.",
-             "Proof graph and run list",
-             "Content-addressed evidence",
-             "Reproducible analysis with marimo",
-             "Claims and comments stay separate",
-             "Agent-native operation",
-             "Start on a laptop. Reproduce in a sandbox.",
+             "Every result carries its evidence.",
+             "One declared change. Everything else fixed.",
+             "Proof strength is explicit.",
+             "Public Climbs and proof graph",
+             "Every claim links to exact evidence",
+             "Inspect the result, not just the score",
+             "Start with the workflow, not the benchmark",
+             "Agents can enter and run Climbs",
+             "Start local. Upgrade the proof.",
              "Validate the task before judging the agent.",
-             "Proof gets stronger when someone else can rerun it.",
-             "Tasksets from the open ecosystem",
-             "Improve the skill without changing the model.",
-             "One proof format, from one agent to many.",
-             "The same environment can continue into training."
+             "Independent reruns strengthen the claim",
+             "One TasksetRef across the open ecosystem",
+             "Find the cheapest change that works",
+             "One campaign format, from one agent to many",
+             "Qualified evidence can continue into training"
            ]
 
     assert texts(html, "#techtree .rl-proof-grid article .rl-proof-state") == [
              "Working prototype",
              "Working prototype",
              "Working prototype",
-             "Live web",
-             "Live web",
-             "Live web",
-             "Live web",
-             "In build",
-             "In build",
-             "In build",
-             "Planned",
-             "Planned",
-             "Planned",
-             "Planned",
-             "Planned"
+             "Climb · Live web",
+             "Proof · Live web",
+             "Verify · Live web",
+             "Blueprint · Planned",
+             "Climb · In build",
+             "Verify · In build",
+             "Forge · In build",
+             "Climb · Planned",
+             "Forge · Planned",
+             "Uplift · Planned",
+             "Verify · Planned",
+             "Trace · Planned"
            ]
-
-    assert has_element?(
-             view,
-             "#techtree .rl-proof-grid article .rl-proof-note",
-             "The optimizer can propose the change. It cannot grade its own work."
-           )
 
     for proof <- ["Private drafts", "Market discovery", "Connected reputation"] do
       assert has_element?(view, "#autolaunch .rl-proof-grid article", proof)
@@ -293,7 +294,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#techtree .rl-proof-grid article",
-             "resolve manifests, start runs, inspect receipts, compare skills"
+             "inspect campaigns, prepare a candidate, review the exact mutation and budget"
            )
 
     assert has_element?(
@@ -320,7 +321,14 @@ defmodule AshPlatformWeb.HomeLiveTest do
   test "the page offers only the two actions the copy promises", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert texts(html, "a.rl-action") == ["See how it works", "Explore the system"]
+    assert texts(html, "a.rl-action") == [
+             "See how it works",
+             "Browse public Climbs",
+             "Run a private Verify",
+             "Explore the system"
+           ]
+
+    assert attribute(html, "#techtree .rl-chapter-actions a", "href") == ["/techtree", "/app"]
   end
 
   test "the homepage stays outside the application shell and within its HTML budget", %{
@@ -338,25 +346,25 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#techtree .rl-story h3",
-             "A controlled comparison people can inspect."
+             "Climb in public. Verify before you ship."
            )
 
     assert has_element?(
              view,
              "#techtree .rl-story p",
-             "Hold the task membership, model, Hermes version, tools, runtime, sampling settings, and scorer fixed. Change only the declared skill. Techtree verifies that boundary, pairs results task by task, and publishes uplift, regressions, cost, latency, limitations, and evidence grade."
+             "Climb opens a controlled campaign to agents, skill authors, and independent reproducer nodes. Verify applies the same protocol privately to baselines, POCs, release candidates, and ongoing performance reviews. In both modes, Techtree holds the taskset and agent system fixed, changes only the declared component, and reports uplift, regressions, cost, latency, limitations, and proof strength—not just a score."
            )
 
     assert has_element?(
              view,
              "#techtree .rl-story-state strong",
-             "The first proof starts small on purpose."
+             "The first Climb proves one thing well."
            )
 
     assert has_element?(
              view,
              "#techtree .rl-story-state",
-             "The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
+             "A neutral Hermes baseline and one procedure skill run on unseen inputs under the same Prime Verifiers contract. Techtree issues a Taskset Validation Receipt, named Episode Receipts, and an Uplift Report. The same execution and proof kernel becomes the foundation for private Verify programs."
            )
   end
 

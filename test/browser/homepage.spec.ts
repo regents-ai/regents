@@ -35,7 +35,7 @@ test("[U2] homepage is server-readable and keeps the three product gateways", as
   await page.goto("/")
 
   await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Turn agent evaluations into public, checkable proof."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
   await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
@@ -219,14 +219,14 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
 
   await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(2)
   await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(15)
-  await expect(page.locator("#techtree .rl-story h3")).toHaveText("A controlled comparison people can inspect.")
+  await expect(page.locator("#techtree .rl-story h3")).toHaveText("Climb in public. Verify before you ship.")
 
   for (const state of ["Live web", "Working prototype", "In build", "Planned"]) {
     await expect(page.locator("#techtree .rl-proof-state", {hasText: state}).first()).toBeVisible()
   }
 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
-  await expect(body).toHaveCount(2)
+  await expect(body).toHaveCount(5)
 
   const type = await body.evaluateAll(elements => {
     // The probe lives outside the chapter so the muted rule cannot claim it and make the
@@ -239,13 +239,15 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
     return {
       colors: elements.map(element => getComputedStyle(element).color),
       heading: getComputedStyle(elements[0].parentElement!.querySelector("h2")!).color,
+      ink: getComputedStyle(document.querySelector(".rl-root")!).color,
       muted,
       sizes: elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize)),
     }
   })
 
-  expect(type.colors).toEqual([type.muted, type.muted])
-  expect(type.colors).not.toContain(type.heading)
+  // The mode rail (fourth paragraph) speaks in full ink; everything else stays muted.
+  expect(type.colors).toEqual([type.muted, type.muted, type.muted, type.ink, type.muted])
+  expect(type.colors.filter((_, index) => index !== 3)).not.toContain(type.heading)
 
   const [description, supporting] = type.sizes
   expect(supporting, "the supporting line reads quieter than the description").toBeLessThan(description)
@@ -423,19 +425,20 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
     await waitForHomepage(page)
 
     const primaryActions = page.locator(".rl-action--strong")
-    await expect(primaryActions).toHaveCount(2)
+    await expect(primaryActions).toHaveCount(3)
 
     const reached = new Set<string>()
     const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
 
-    for (let tab = 0; tab <= focusableCount && reached.size < 2; tab += 1) {
+    for (let tab = 0; tab <= focusableCount && reached.size < 3; tab += 1) {
       await page.keyboard.press("Tab")
       const focused = page.locator(".rl-action--strong:focus-visible")
       if (await focused.count() === 0) continue
 
-      const identity = await focused.evaluate(element =>
-        element.closest(".rl-closing") ? "closing" : "hero",
-      )
+      const identity = await focused.evaluate(element => {
+        if (element.closest(".rl-closing")) return "closing"
+        return element.closest(".rl-chapter-actions") ? "techtree" : "hero"
+      })
       if (reached.has(identity)) continue
       reached.add(identity)
       await expect(focused).toBeVisible()
@@ -525,7 +528,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["closing", "hero"])
+    expect([...reached].sort()).toEqual(["closing", "hero", "techtree"])
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({

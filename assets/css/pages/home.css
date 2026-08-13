@@ -443,18 +443,41 @@
   font-size: var(--rl-quiet);
 }
 
-/* The card note is the card's own verdict, so it reads in full ink on its own line. */
-.rl-proof-grid article > .rl-proof-note {
-  margin-block-start: 0.75rem;
-  color: var(--rl-ink);
-}
-
 /* The pre-result panel opens with the founder's headline before its quiet paragraph. */
 .rl-story-state strong {
   display: block;
   margin-block-end: 0.6rem;
   color: var(--rl-ink);
   font-size: 1rem;
+}
+
+/* The mode rail names the six campaign modes in the pixel voice, Climb and Verify dominant. */
+.rl-chapter-intro div > p.rl-mode-rail {
+  margin-block-start: clamp(1.25rem, 2.5vw, 2rem);
+  color: var(--rl-ink);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: var(--font-family-pixel);
+}
+
+.rl-mode-caption {
+  margin-block-start: 0.5rem;
+}
+
+/* Two entry paths close the chapter: a public Climb and a private Verify. */
+.rl-chapter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 3vw, 3rem);
+  margin-block-start: clamp(2.5rem, 5vw, 4rem);
+}
+
+.rl-chapter-actions p {
+  max-width: 22rem;
+  margin-block-start: 0.75rem;
+  color: var(--rl-muted);
+  font-size: var(--rl-quiet);
 }
 
 /* The supporting line names the systems behind the chapter, so it sits under its own hairline. */
