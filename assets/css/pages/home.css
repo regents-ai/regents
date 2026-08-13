@@ -438,10 +438,24 @@
 .rl-chapter-support,
 .rl-story-state,
 .rl-evidence-rail > p:not(.rl-evidence-sources),
-.rl-proof-grid article > p:last-child {
+.rl-proof-grid article > p:not(.rl-proof-state) {
   max-width: 47rem;
   color: var(--rl-muted);
   font-size: var(--rl-quiet);
+}
+
+/* The card note is the card's own verdict, so it reads in full ink on its own line. */
+.rl-proof-grid article > .rl-proof-note {
+  margin-block-start: 0.75rem;
+  color: var(--rl-ink);
+}
+
+/* The pre-result panel opens with the founder's headline before its quiet paragraph. */
+.rl-story-state strong {
+  display: block;
+  margin-block-end: 0.6rem;
+  color: var(--rl-ink);
+  font-size: 1rem;
 }
 
 /* The supporting line names the systems behind the chapter, so it sits under its own hairline. */
@@ -473,7 +487,7 @@
 }
 
 /* The research-context note stands between the rails and the record, so the record draws its
-   own top edge again. */
+   own top edge. */
 .rl-evidence-entries {
   --hairline-column: 17rem;
   margin: clamp(1.5rem, 3vw, 2.5rem) 0 0;

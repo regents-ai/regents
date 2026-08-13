@@ -239,27 +239,56 @@ defmodule AshPlatformWeb.HomeLiveTest do
   end
 
   test "the proof grids stand under the two products whose surfaces they describe", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/")
+    {:ok, view, html} = live(conn, "/")
 
-    for proof <- [
-          "A proof is a set of artifacts.",
-          "Proof of a declared experiment.",
-          "Not every result proves the same thing.",
-          "Proof graph and run list",
-          "Agent-native operation",
-          "Validate the task before judging the agent.",
-          "The same environment can continue into training."
-        ] do
-      assert has_element?(view, "#techtree .rl-proof-grid article", proof)
-    end
+    assert texts(html, "#techtree .rl-proof-grid article h3") == [
+             "A proof is a set of artifacts.",
+             "Proof of a declared experiment.",
+             "Not every result proves the same thing.",
+             "Proof graph and run list",
+             "Content-addressed evidence",
+             "Reproducible analysis with marimo",
+             "Claims and comments stay separate",
+             "Agent-native operation",
+             "Start on a laptop. Reproduce in a sandbox.",
+             "Validate the task before judging the agent.",
+             "Proof gets stronger when someone else can rerun it.",
+             "Tasksets from the open ecosystem",
+             "Improve the skill without changing the model.",
+             "One proof format, from one agent to many.",
+             "The same environment can continue into training."
+           ]
 
-    for state <- ["Live web", "Working prototype", "In build", "Planned"] do
-      assert has_element?(view, "#techtree .rl-proof-grid article .rl-proof-state", state)
-    end
+    assert texts(html, "#techtree .rl-proof-grid article .rl-proof-state") == [
+             "Working prototype",
+             "Working prototype",
+             "Working prototype",
+             "Live web",
+             "Live web",
+             "Live web",
+             "Live web",
+             "In build",
+             "In build",
+             "In build",
+             "Planned",
+             "Planned",
+             "Planned",
+             "Planned",
+             "Planned"
+           ]
+
+    assert has_element?(
+             view,
+             "#techtree .rl-proof-grid article .rl-proof-note",
+             "The optimizer can propose the change. It cannot grade its own work."
+           )
 
     for proof <- ["Private drafts", "Market discovery", "Connected reputation"] do
       assert has_element?(view, "#autolaunch .rl-proof-grid article", proof)
     end
+
+    assert texts(html, "#autolaunch .rl-proof-grid article .rl-proof-state") ==
+             ["Live", "Preview", "Preview"]
 
     assert has_element?(
              view,
@@ -320,8 +349,14 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert has_element?(
              view,
+             "#techtree .rl-story-state strong",
+             "The first proof starts small on purpose."
+           )
+
+    assert has_element?(
+             view,
              "#techtree .rl-story-state",
-             "The first proof starts small on purpose. The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
+             "The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
            )
   end
 

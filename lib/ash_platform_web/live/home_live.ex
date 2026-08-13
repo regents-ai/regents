@@ -139,7 +139,10 @@ defmodule AshPlatformWeb.HomeLive do
         <div>
           <h3>{@chapter.story.title}</h3>
           <p>{@chapter.story.body}</p>
-          <p class="rl-story-state">{@chapter.story.state}</p>
+          <p class="rl-story-state">
+            <strong>{@chapter.story.state_title}</strong>
+            {@chapter.story.state}
+          </p>
         </div>
       </div>
 
@@ -155,6 +158,7 @@ defmodule AshPlatformWeb.HomeLive do
         <p class="rl-proof-state">{proof.state}</p>
         <h3>{proof.title}</h3>
         <p>{proof.copy}</p>
+        <p :if={proof[:note]} class="rl-proof-note">{proof[:note]}</p>
       </article>
     </div>
     """
@@ -413,8 +417,9 @@ defmodule AshPlatformWeb.HomeLive do
           title: "A controlled comparison people can inspect.",
           body:
             "Hold the task membership, model, Hermes version, tools, runtime, sampling settings, and scorer fixed. Change only the declared skill. Techtree verifies that boundary, pairs results task by task, and publishes uplift, regressions, cost, latency, limitations, and evidence grade.",
+          state_title: "The first proof starts small on purpose.",
           state:
-            "The first proof starts small on purpose. The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
+            "The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
         },
         proofs: [
           %{
@@ -495,7 +500,8 @@ defmodule AshPlatformWeb.HomeLive do
             state: "Planned",
             title: "Improve the skill without changing the model.",
             copy:
-              "Microsoft SkillOpt proposes trajectory-driven edits to a reusable SKILL.md. Techtree snapshots every candidate, evaluates it through the same Prime Verifiers contract, and promotes it only after validation. The optimizer can propose the change. It cannot grade its own work."
+              "Microsoft SkillOpt proposes trajectory-driven edits to a reusable SKILL.md. Techtree snapshots every candidate, evaluates it through the same Prime Verifiers contract, and promotes it only after validation.",
+            note: "The optimizer can propose the change. It cannot grade its own work."
           },
           %{
             state: "Planned",
