@@ -1375,4 +1375,72 @@ contract AutolaunchFactoryV1Test is Test {
     function _schedule() internal pure returns (bytes memory) {
         return hex"0000360000002a8e000044000000214500004b0000001e7b00004f0000001ccd0000530000001b9c0000550000001ab300005800000019f700005a000000195a00005c00000018d400005e000000185e00005f00000017f8000061000000179b2d97e60000000001";
     }
+
+    function testCHAIN_GATE_PRIMACYNonBaseChainRevertsBeforeStaleFeeAndPull() external {
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Non Base", "NB");
+        uint256 unpullableFee = regent.balanceOf(address(agentSafe)) + 1;
+        factory.setLaunchFee(unpullableFee);
+        assertTrue(params.expectedFee != unpullableFee);
+        assertGt(unpullableFee, regent.balanceOf(address(agentSafe)));
+
+        vm.expectRevert("LAUNCH_FEE_CHANGED");
+        agentSafe.launch(factory, params);
+
+        vm.chainId(1);
+        vm.expectRevert("BASE_MAINNET_ONLY");
+        agentSafe.launch(factory, params);
+
+        vm.chainId(8453);
+        assertEq(factory.launchFee(), unpullableFee);
+        assertEq(staking.callCount(), 0);
+        assertEq(staking.totalFundedRegent(), 0);
+        assertEq(regent.allowance(address(agentSafe), address(factory)), 0);
+    }
+
+    function testCHAIN_GATE_PRIMACYNonBaseChainLeavesZeroResidue() external {
+        uint256 agentId = 200;
+        identityRegistry.setOwner(agentId, address(agentSafe));
+        IAutolaunchFactoryV1.LaunchParams memory params =
+            _params(agentId, "Non Base Residue", "NBR");
+        usdc.mint(address(factory), 7);
+        RollbackState memory state = _rollbackState(params);
+
+        vm.chainId(1);
+        vm.recordLogs();
+        vm.expectRevert("BASE_MAINNET_ONLY");
+        agentSafe.launch(factory, params);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        vm.chainId(8453);
+
+        _assertRollbackState(state, agentId, false, entries);
+    }
+
+    function testCHAIN_GATE_PRIMACYPrecedesReentrancyGuard() external {
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Locked", "LOCK");
+        assertEq(uint256(vm.load(address(factory), bytes32(uint256(0)))), factory.launchFee());
+        assertEq(uint256(vm.load(address(factory), bytes32(uint256(1)))), 1);
+        vm.store(address(factory), bytes32(uint256(1)), bytes32(uint256(2)));
+        assertEq(uint256(vm.load(address(factory), bytes32(uint256(1)))), 2);
+
+        vm.chainId(1);
+        vm.expectRevert("BASE_MAINNET_ONLY");
+        agentSafe.launch(factory, params);
+
+        vm.chainId(8453);
+        vm.expectRevert("REENTRANT");
+        agentSafe.launch(factory, params);
+
+        assertEq(uint256(vm.load(address(factory), bytes32(uint256(1)))), 2);
+    }
+
+    function testFuzzCHAIN_GATE_PRIMACYRejectsEveryNonBaseChainId(uint64 chainId) external {
+        vm.assume(chainId != 8453);
+        vm.assume(chainId != 0);
+        vm.assume(chainId < type(uint64).max);
+        IAutolaunchFactoryV1.LaunchParams memory params = _params(0, "Fuzz Chain", "FUZZ");
+
+        vm.chainId(chainId);
+        vm.expectRevert("BASE_MAINNET_ONLY");
+        agentSafe.launch(factory, params);
+    }
 }

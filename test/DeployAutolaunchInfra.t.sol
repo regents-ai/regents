@@ -137,7 +137,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertLe(address(factory).code.length, EIP170_MAX_RUNTIME_BYTES);
         assertEq(
             address(factory).codehash,
-            0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a
+            0xb39f796695214bd07efe39cac7e1ea38d61f854a72cb4abeb7279c57eee73ad0
         );
 
         bytes memory args = abi.encode(
@@ -209,7 +209,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
                     liveHash
                 )
             ),
-            0x526713e578e96be8580ad71fd7daeb9c50670322043f6cfc73363a5aa997d6a2
+            0x99655d0fb679d108ada2a97f42a9363567e5d259f7c6396bfc662fae20db6d61
         );
         _assertRetiredSelectorsReject(address(factory), deployer, expected);
     }

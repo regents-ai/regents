@@ -185,6 +185,11 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
         subjectRegistry = address(registry);
     }
 
+    modifier onlyBaseMainnet() {
+        BaseMainnetChainConfig.requireBaseMainnet();
+        _;
+    }
+
     modifier nonReentrantLaunch() {
         require(_launchLock == 1, "REENTRANT");
         _launchLock = 2;
@@ -206,13 +211,13 @@ contract AutolaunchFactoryV1 is IAutolaunchFactoryV1 {
     // slither-disable-next-line timestamp,reentrancy-events
     function launch(LaunchParams calldata params)
         external
+        onlyBaseMainnet
         nonReentrantLaunch
         returns (LaunchResult memory result)
     {
         uint256 currentLaunchFee = launchFee;
         require(params.expectedFee == currentLaunchFee, "LAUNCH_FEE_CHANGED");
         uint256 entryUsdcBalance = IERC20LaunchAsset(USDC).balanceOf(address(this));
-        BaseMainnetChainConfig.requireBaseMainnet();
         _validateLaunch(params);
 
         LaunchStack memory stack = LaunchStack({
