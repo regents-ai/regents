@@ -133,7 +133,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute has_element?(view, ".rl-header-note")
 
     assert attribute(html, ".rl-header a", "href") ==
-             ["/" | Enum.map(@nav, &elem(&1, 2))]
+             ["/" | Enum.map(@nav, &elem(&1, 2))] ++
+               ["https://x.com/regents_sh", "https://github.com/regents-ai"]
+
+    assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on X"]))
+    assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on GitHub"]))
+    assert has_element?(view, ".rl-header-links span.rl-action--disabled", "App Upgrading")
+    refute has_element?(view, "a.rl-action--disabled")
   end
 
   test "the hero states the stack and offers one in-page way into it", %{conn: conn} do
@@ -513,7 +519,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "https://www.youtube.com/watch?v=8uGfxNehSUc"
            ]
 
-    assert attribute(html, ~s(a[href^="https://"]), "href") == sources
+    assert attribute(html, ~s(a[href^="https://"]), "href") ==
+             ["https://x.com/regents_sh", "https://github.com/regents-ai" | sources]
 
     assert attribute(html, "#evidence .rl-evidence-source", "target") ==
              List.duplicate("_blank", 6)
