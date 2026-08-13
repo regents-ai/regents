@@ -3,7 +3,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
   # Nous is the runtime the products run on, not a Regents product: it has no tile and no number.
   @products [
-    {"techtree", "Techtree", "Turn agent runs into public, checkable proof."},
+    {"techtree", "Techtree", "Turn agent evaluations into public, checkable proof."},
     {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
     {"regent", "Regent", "Keep the agent working."}
   ]
@@ -25,10 +25,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
     %{
       anchor: "techtree",
       eyebrows: ["Techtree — Prove"],
-      title: "Turn agent runs into public, checkable proof.",
+      title: "Turn agent evaluations into public, checkable proof.",
       body: [
-        "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is.",
-        "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage."
+        "Techtree pins the taskset, agent harness, model, skill, tools, runtime, scorer, and exact task membership into one experiment manifest. It binds the resulting traces, rewards, costs, and limitations into a receipt people can verify.",
+        "Prime Verifiers owns evaluation and reward truth. Nous Hermes performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim."
       ]
     },
     %{
@@ -61,9 +61,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
     %{
       anchor: "nous",
       eyebrows: ["Nous — Run"],
-      title: "Hermes does the work.",
+      title: "Hermes performs the work.",
       body: [
-        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity."
+        "Nous Hermes is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity."
       ]
     },
     %{
@@ -242,13 +242,19 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, view, _html} = live(conn, "/")
 
     for proof <- [
-          "Map and List",
-          "Evidence you can check",
-          "Notebooks on your device",
-          "Signed-in discussion",
-          "Agent participation"
+          "A proof is a set of artifacts.",
+          "Proof of a declared experiment.",
+          "Not every result proves the same thing.",
+          "Proof graph and run list",
+          "Agent-native operation",
+          "Validate the task before judging the agent.",
+          "The same environment can continue into training."
         ] do
       assert has_element?(view, "#techtree .rl-proof-grid article", proof)
+    end
+
+    for state <- ["Live web", "Working prototype", "In build", "Planned"] do
+      assert has_element?(view, "#techtree .rl-proof-grid article .rl-proof-state", state)
     end
 
     for proof <- ["Private drafts", "Market discovery", "Connected reputation"] do
@@ -258,7 +264,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              "#techtree .rl-proof-grid article",
-             "publish evidence through Regents CLI"
+             "resolve manifests, start runs, inspect receipts, compare skills"
            )
 
     assert has_element?(
@@ -300,43 +306,54 @@ defmodule AshPlatformWeb.HomeLiveTest do
   test "the Techtree chapter carries the founder proof story", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "#techtree .rl-story h3", "A result people can inspect.")
+    assert has_element?(
+             view,
+             "#techtree .rl-story h3",
+             "A controlled comparison people can inspect."
+           )
 
     assert has_element?(
              view,
              "#techtree .rl-story p",
-             "Hold the model, tasks, runtime, and permissions fixed. Change one skill. Publish the before-and-after result with its cost, limitations, and evidence level."
+             "Hold the task membership, model, Hermes version, tools, runtime, sampling settings, and scorer fixed. Change only the declared skill. Techtree verifies that boundary, pairs results task by task, and publishes uplift, regressions, cost, latency, limitations, and evidence grade."
            )
 
     assert has_element?(
              view,
              "#techtree .rl-story-state",
-             "The first public Techtree proof is being prepared. It will show the full evaluation setup, result, limitations, and evidence class—not just a final score."
+             "The first proof starts small on purpose. The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
            )
   end
 
-  test "the evidence section states both claim rails and their source labels", %{conn: conn} do
+  test "the evidence section states every stack rail and its source labels", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(
              view,
              ~s(section#evidence[aria-labelledby="evidence-title"] h2#evidence-title),
-             "Built on systems you can inspect."
+             "Built on open systems with distinct jobs."
            )
 
-    assert has_element?(
-             view,
-             "#evidence .rl-chapter-intro p",
-             "Every technical claim on this page should link to the primary source, deployed contract, or public receipt that supports it."
-           )
+    assert texts(html, "#evidence .rl-chapter-intro div > p") == [
+             "Techtree does not replace the evaluator, agent, runtime evidence layer, task environment, skill optimizer, or notebook. It pins them, connects them, and makes the resulting claim inspectable.",
+             "Every technical claim on this page should resolve to a primary source, pinned software revision, immutable manifest, public receipt, deployed contract, or independent reproduction."
+           ]
 
-    assert texts(html, "#evidence .rl-evidence-rail h3") ==
-             ["Evaluation you can trace.", "Rules enforced onchain."]
+    assert texts(html, "#evidence .rl-evidence-rail h3") == [
+             "Evaluation truth",
+             "Agent behavior",
+             "Runtime evidence",
+             "Tasks and environments",
+             "Skill optimization",
+             "Reproducible analysis",
+             "Proof and lineage",
+             "Rules enforced onchain."
+           ]
 
     assert has_element?(
              view,
              "#evidence .rl-evidence-rail p",
-             "Prime Verifiers runs the experiment. Nous Hermes operates the agent. Techtree binds the result to identity, evidence, and lineage."
+             "Prime Verifiers composes the taskset, agent harness, and runtime, intercepts model traffic, emits the typed Trace, and applies the task’s scoring contract. Techtree records the exact Verifiers revision and resolved configuration."
            )
 
     assert has_element?(
@@ -346,11 +363,27 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
 
     assert texts(html, "#evidence .rl-evidence-sources") == [
-             "Prime Intellect · Nous Research · Public Techtree receipt",
+             "Prime Intellect · Verifiers · Taskset · Trace · Scoring contract",
+             "Nous Research · Hermes Agent · Skills · Plugins",
+             "NVIDIA · NeMo Relay · ATOF · ATIF",
+             "Prime research-environments · Harbor · Hugging Face OpenEnv",
+             "Microsoft · SkillOpt · SKILL.md",
+             "marimo · Reproducible Python notebooks",
+             "Techtree SDK/CLI · Web app · Operator skill · Hermes plugin · Public receipt",
              "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
            ]
 
-    assert has_element?(view, "#evidence .rl-evidence-note", "Verified by primary sources.")
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-note h3",
+             "Research context, verified by primary sources."
+           )
+
+    assert has_element?(
+             view,
+             "#evidence .rl-evidence-note p",
+             "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
+           )
   end
 
   test "the evidence record quotes only checked wording and labels every other entry", %{

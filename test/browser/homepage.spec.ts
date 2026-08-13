@@ -35,6 +35,7 @@ test("[U2] homepage is server-readable and keeps the three product gateways", as
   await page.goto("/")
 
   await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent. Keep it running."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Turn agent evaluations into public, checkable proof."})).toBeVisible()
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
   await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
@@ -211,12 +212,18 @@ test("[U1][U2] the hero bento ranks Techtree, then Autolaunch, then Regent at ev
 })
 
 // The Techtree chapter reads as description then supporting line: both muted, both distinct from
-// the heading, above a proof grid at its five-card cap.
-test("[U1] the Techtree chapter keeps five proofs under muted body copy", async ({page}) => {
+// the heading, with the proof story standing between the two card grids.
+test("[U1] the Techtree chapter keeps its proofs under muted body copy", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(5)
+  await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(2)
+  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(15)
+  await expect(page.locator("#techtree .rl-story h3")).toHaveText("A controlled comparison people can inspect.")
+
+  for (const state of ["Live web", "Working prototype", "In build", "Planned"]) {
+    await expect(page.locator("#techtree .rl-proof-state", {hasText: state}).first()).toBeVisible()
+  }
 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
   await expect(body).toHaveCount(2)
@@ -288,8 +295,10 @@ test("[U2] the evidence section reads with scripts disabled", async ({browser}) 
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Built on systems you can inspect."})).toBeVisible()
-  await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(2)
+  await expect(page.getByRole("heading", {name: "Built on open systems with distinct jobs."})).toBeVisible()
+  await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(8)
+  await expect(page.locator("#evidence .rl-evidence-rail h3").first()).toHaveText("Evaluation truth")
+  await expect(page.getByRole("heading", {name: "Research context, verified by primary sources."})).toBeVisible()
   await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(7)
   await context.close()
 })
@@ -330,7 +339,7 @@ test("[U1][U3] evidence rails and entries stay inside every tested viewport", as
           }),
         )
 
-      expect(boxes).toHaveLength(9)
+      expect(boxes).toHaveLength(15)
       expect(
         boxes.every(box => box.left >= 0 && box.right <= viewport.width && box.width > 0),
       ).toBe(true)

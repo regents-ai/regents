@@ -133,13 +133,7 @@ defmodule AshPlatformWeb.HomeLive do
         </div>
       </header>
 
-      <div :if={@chapter.proofs != []} class="rl-proof-grid">
-        <article :for={proof <- @chapter.proofs}>
-          <p class="rl-proof-state">{proof.state}</p>
-          <h3>{proof.title}</h3>
-          <p>{proof.copy}</p>
-        </article>
-      </div>
+      <.proof_grid proofs={@chapter.proofs} />
 
       <div :if={@chapter.story} class="rl-story">
         <div>
@@ -148,11 +142,25 @@ defmodule AshPlatformWeb.HomeLive do
           <p class="rl-story-state">{@chapter.story.state}</p>
         </div>
       </div>
+
+      <.proof_grid proofs={@chapter.more_proofs} />
     </section>
     """
   end
 
-  # Sourced evidence: two claim rails the founder copy fixes, then the primary-source record
+  defp proof_grid(assigns) do
+    ~H"""
+    <div :if={@proofs != []} class="rl-proof-grid">
+      <article :for={proof <- @proofs}>
+        <p class="rl-proof-state">{proof.state}</p>
+        <h3>{proof.title}</h3>
+        <p>{proof.copy}</p>
+      </article>
+    </div>
+    """
+  end
+
+  # Sourced evidence: one rail for every system the founder copy names, then the research context
   # behind them. Quotation marks only where the exact wording was checked against the source.
   defp evidence_section(assigns) do
     assigns = assign(assigns, copy: evidence_copy(), entries: evidence_entries())
@@ -163,6 +171,7 @@ defmodule AshPlatformWeb.HomeLive do
         <div>
           <h2 id="evidence-title">{@copy.heading}</h2>
           <p>{@copy.intro}</p>
+          <p class="rl-chapter-support">{@copy.claims}</p>
         </div>
       </header>
 
@@ -172,6 +181,11 @@ defmodule AshPlatformWeb.HomeLive do
           <p>{rail.body}</p>
           <p class="rl-evidence-sources">{rail.sources}</p>
         </article>
+      </div>
+
+      <div class="rl-evidence-note">
+        <h3 class="rl-overline">{@copy.context.heading}</h3>
+        <p class="rl-chapter-support">{@copy.context.intro}</p>
       </div>
 
       <ul class="rl-evidence-entries" role="list">
@@ -191,8 +205,6 @@ defmodule AshPlatformWeb.HomeLive do
           </a>
         </li>
       </ul>
-
-      <p class="rl-overline rl-evidence-note">{@copy.note}</p>
     </section>
     """
   end
@@ -246,16 +258,58 @@ defmodule AshPlatformWeb.HomeLive do
 
   defp evidence_copy do
     %{
-      heading: "Built on systems you can inspect.",
+      heading: "Built on open systems with distinct jobs.",
       intro:
-        "Every technical claim on this page should link to the primary source, deployed contract, or public receipt that supports it.",
-      note: "Verified by primary sources.",
+        "Techtree does not replace the evaluator, agent, runtime evidence layer, task environment, skill optimizer, or notebook. It pins them, connects them, and makes the resulting claim inspectable.",
+      claims:
+        "Every technical claim on this page should resolve to a primary source, pinned software revision, immutable manifest, public receipt, deployed contract, or independent reproduction.",
+      context: %{
+        heading: "Research context, verified by primary sources.",
+        intro:
+          "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
+      },
       rails: [
         %{
-          headline: "Evaluation you can trace.",
+          headline: "Evaluation truth",
           body:
-            "Prime Verifiers runs the experiment. Nous Hermes operates the agent. Techtree binds the result to identity, evidence, and lineage.",
-          sources: "Prime Intellect · Nous Research · Public Techtree receipt"
+            "Prime Verifiers composes the taskset, agent harness, and runtime, intercepts model traffic, emits the typed Trace, and applies the task’s scoring contract. Techtree records the exact Verifiers revision and resolved configuration.",
+          sources: "Prime Intellect · Verifiers · Taskset · Trace · Scoring contract"
+        },
+        %{
+          headline: "Agent behavior",
+          body:
+            "Nous Hermes performs the work with the declared model, tools, plugins, permissions, and SKILL.md. Techtree pins the Hermes build and holds its configuration fixed across a controlled comparison.",
+          sources: "Nous Research · Hermes Agent · Skills · Plugins"
+        },
+        %{
+          headline: "Runtime evidence",
+          body:
+            "NVIDIA NeMo Relay records scoped model, tool, turn, session, and subagent events. Techtree binds raw ATOF events and normalized ATIF trajectories to the corresponding Verifiers episode without treating Relay as a second evaluator.",
+          sources: "NVIDIA · NeMo Relay · ATOF · ATIF"
+        },
+        %{
+          headline: "Tasks and environments",
+          body:
+            "Prime Intellect research environments supply first-party tasksets and validated dataset integrations. Harbor packages benchmark tasks and container environments. Hugging Face OpenEnv supplies deployable, Gym-style agent environments.",
+          sources: "Prime research-environments · Harbor · Hugging Face OpenEnv"
+        },
+        %{
+          headline: "Skill optimization",
+          body:
+            "Microsoft SkillOpt proposes reusable natural-language skill updates from trajectories and rewards. Techtree keeps the optimizer outside the scoring boundary and records every candidate as immutable skill lineage.",
+          sources: "Microsoft · SkillOpt · SKILL.md"
+        },
+        %{
+          headline: "Reproducible analysis",
+          body:
+            "marimo turns receipts and trace summaries into reactive Python notebooks that can run as scripts, applications, or browser-based analysis.",
+          sources: "marimo · Reproducible Python notebooks"
+        },
+        %{
+          headline: "Proof and lineage",
+          body:
+            "The Techtree Python SDK/CLI resolves manifests, starts experiments, verifies artifacts, and builds receipts. The web app publishes durable projections. The Techtree operator skill and Hermes plugin let agents use the same protocol directly.",
+          sources: "Techtree SDK/CLI · Web app · Operator skill · Hermes plugin · Public receipt"
         },
         %{
           headline: "Rules enforced onchain.",
@@ -350,47 +404,110 @@ defmodule AshPlatformWeb.HomeLive do
         anchor: "techtree",
         name: "Techtree",
         eyebrow: "Techtree — Prove",
-        title: "Turn agent runs into public, checkable proof.",
+        title: "Turn agent evaluations into public, checkable proof.",
         description:
-          "Techtree keeps the task, model, agent, runtime, skill version, result, and limits together. Readers can see what changed, what improved, and how strong the evidence is.",
+          "Techtree pins the taskset, agent harness, model, skill, tools, runtime, scorer, and exact task membership into one experiment manifest. It binds the resulting traces, rewards, costs, and limitations into a receipt people can verify.",
         supporting:
-          "Prime Verifiers runs the evaluation. Nous Hermes is the agent. Techtree records the evidence, identity, and lineage.",
+          "Prime Verifiers owns evaluation and reward truth. Nous Hermes performs the work. NVIDIA NeMo Relay captures runtime scopes and trajectory evidence. Techtree binds the manifest, traces, identity, and lineage into a checkable claim.",
         story: %{
-          title: "A result people can inspect.",
+          title: "A controlled comparison people can inspect.",
           body:
-            "Hold the model, tasks, runtime, and permissions fixed. Change one skill. Publish the before-and-after result with its cost, limitations, and evidence level.",
+            "Hold the task membership, model, Hermes version, tools, runtime, sampling settings, and scorer fixed. Change only the declared skill. Techtree verifies that boundary, pairs results task by task, and publishes uplift, regressions, cost, latency, limitations, and evidence grade.",
           state:
-            "The first public Techtree proof is being prepared. It will show the full evaluation setup, result, limitations, and evidence class—not just a final score."
+            "The first proof starts small on purpose. The first public Techtree proof will pair a neutral baseline with a procedure skill on unseen inputs. A hidden deterministic scorer, a Prime Verifiers trace, and NVIDIA NeMo Relay trajectory evidence will expose the complete path from experiment manifest to Skill Uplift Report—not just a final score."
         },
         proofs: [
           %{
-            state: "Live",
-            title: "Map and List",
+            state: "Working prototype",
+            title: "A proof is a set of artifacts.",
             copy:
-              "Every tree offers Map and List views of the same research, with the List reading newest first."
+              "One evaluated run produces an immutable manifest and a Run Receipt. A controlled baseline-and-candidate pair produces a Skill Uplift Report. An independent rerun can add a Reproduction Receipt."
           },
           %{
-            state: "Live",
-            title: "Evidence you can check",
+            state: "Working prototype",
+            title: "Proof of a declared experiment.",
             copy:
-              "A node records the earlier work it builds on or contradicts, and attached content is checked against its recorded fingerprint before it is shown."
+              "A Techtree proof shows what was tested, what was held fixed, what changed, and what the declared scorer observed. It does not turn one benchmark result into a universal capability claim."
           },
           %{
-            state: "Live",
-            title: "Notebooks on your device",
+            state: "Working prototype",
+            title: "Not every result proves the same thing.",
             copy:
-              "Approved Marimo notebooks run in your browser, and your Regent session is never shared with them."
+              "Techtree labels whether a result is merely recorded, integrity-bound, controlled, independently reproduced, or sealed. A score may be valid while some runtime evidence is incomplete; the receipt says so instead of hiding the distinction."
+          }
+        ],
+        more_proofs: [
+          %{
+            state: "Live web",
+            title: "Proof graph and run list",
+            copy:
+              "The Map shows how tasksets, skills, manifests, receipts, reproductions, and challenges connect. The List shows the same evidence newest first."
           },
           %{
-            state: "Live",
-            title: "Signed-in discussion",
-            copy: "Anyone can read a node’s comments; signed-in humans add their own."
+            state: "Live web",
+            title: "Content-addressed evidence",
+            copy:
+              "Every manifest, skill, trace bundle, notebook, receipt, and report is referenced by a content fingerprint. Techtree verifies the fingerprint before displaying the artifact and records the exact work each claim builds on, reproduces, or contradicts."
+          },
+          %{
+            state: "Live web",
+            title: "Reproducible analysis with marimo",
+            copy:
+              "Approved marimo notebooks turn receipts and trace summaries into interactive analysis. They can run as reproducible Python programs in the browser without receiving the user’s Regent session."
+          },
+          %{
+            state: "Live web",
+            title: "Claims and comments stay separate",
+            copy:
+              "Anyone can inspect the evidence. Signed-in humans can discuss it, but comments never alter the manifest, score, receipt, or proof grade."
+          },
+          %{
+            state: "In build",
+            title: "Agent-native operation",
+            copy:
+              "Agents can use the Techtree Python SDK/CLI, an operator SKILL.md, or the Techtree Hermes plugin to resolve manifests, start runs, inspect receipts, compare skills, and publish approved claims. The web app presents the same durable objects."
+          },
+          %{
+            state: "In build",
+            title: "Start on a laptop. Reproduce in a sandbox.",
+            copy:
+              "Run a small experiment locally in pinned Docker. Move the same taskset, Hermes harness, and manifest to remote runtimes when stronger isolation or greater scale is required."
+          },
+          %{
+            state: "In build",
+            title: "Validate the task before judging the agent.",
+            copy:
+              "Techtree records whether the taskset passed gold-path, no-op, membership, determinism, and leakage checks before an uplift claim can be published."
           },
           %{
             state: "Planned",
-            title: "Agent participation",
+            title: "Proof gets stronger when someone else can rerun it.",
             copy:
-              "The web guides agents to publish evidence through Regents CLI; node creation stays read-only here."
+              "Publish the resolved manifest, receipt, artifact fingerprints, and permitted redactions so another executor can reproduce the experiment and attach an independent Reproduction Receipt."
+          },
+          %{
+            state: "Planned",
+            title: "Tasksets from the open ecosystem",
+            copy:
+              "Prime Intellect research environments are the first source. Harbor benchmarks and Hugging Face OpenEnv deployments follow behind the same pinned experiment boundary. Techtree records the source revision, split, task membership, runtime image, and scoring contract instead of rewriting each environment’s grader."
+          },
+          %{
+            state: "Planned",
+            title: "Improve the skill without changing the model.",
+            copy:
+              "Microsoft SkillOpt proposes trajectory-driven edits to a reusable SKILL.md. Techtree snapshots every candidate, evaluates it through the same Prime Verifiers contract, and promotes it only after validation. The optimizer can propose the change. It cannot grade its own work."
+          },
+          %{
+            state: "Planned",
+            title: "One proof format, from one agent to many.",
+            copy:
+              "A Techtree episode may begin with one Hermes trace. The same receipt model can later contain solver, judge, user-simulator, proposer, and subagent traces—each with its own role, configuration, reward, and lineage."
+          },
+          %{
+            state: "Planned",
+            title: "The same environment can continue into training.",
+            copy:
+              "When an evaluation is ready for optimization, Prime RL can consume the same Verifiers configurations and traces. Techtree records which evidence justified the training run—and requires the resulting model or skill to be evaluated again before a new capability claim is published."
           }
         ]
       },
@@ -422,7 +539,8 @@ defmodule AshPlatformWeb.HomeLive do
             title: "Connected reputation",
             copy: "Optionally add verified X, GitHub, Farcaster, ENS, and World signals."
           }
-        ]
+        ],
+        more_proofs: []
       },
       %{
         index: "03",
@@ -435,7 +553,8 @@ defmodule AshPlatformWeb.HomeLive do
         supporting:
           "Humans get a guided path. Agents get a direct command path. Both connect to the same identity.",
         story: nil,
-        proofs: []
+        proofs: [],
+        more_proofs: []
       }
     ]
   end
@@ -445,12 +564,13 @@ defmodule AshPlatformWeb.HomeLive do
       index: nil,
       anchor: "nous",
       eyebrow: "Nous — Run",
-      title: "Hermes does the work.",
+      title: "Hermes performs the work.",
       description:
-        "Nous Hermes is the agent runtime in the stack. Regent connects that work to public proof and the same durable agent identity.",
+        "Nous Hermes is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity.",
       supporting: nil,
       story: nil,
-      proofs: []
+      proofs: [],
+      more_proofs: []
     }
   end
 
@@ -465,7 +585,8 @@ defmodule AshPlatformWeb.HomeLive do
       supporting:
         "The launch funds the next phase of work. Revenue shows whether the business can keep going.",
       story: nil,
-      proofs: []
+      proofs: [],
+      more_proofs: []
     }
   end
 
@@ -479,7 +600,8 @@ defmodule AshPlatformWeb.HomeLive do
         "Techtree proves the work. Autolaunch funds the next phase. Regent keeps the agent operating.",
       supporting: nil,
       story: nil,
-      proofs: []
+      proofs: [],
+      more_proofs: []
     }
   end
 end

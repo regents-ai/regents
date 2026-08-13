@@ -472,12 +472,12 @@
   margin-block-start: clamp(3rem, 7vw, 6rem);
 }
 
-/* The rails already close their own bottom edge, so the record hangs straight off it. */
+/* The research-context note stands between the rails and the record, so the record draws its
+   own top edge again. */
 .rl-evidence-entries {
   --hairline-column: 17rem;
-  margin: 0;
+  margin: clamp(1.5rem, 3vw, 2.5rem) 0 0;
   padding: 0;
-  border-block-start: 0;
   list-style: none;
 }
 
@@ -526,6 +526,10 @@
 
 .rl-chapter--evidence .rl-evidence-note {
   margin-block-start: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.rl-chapter--evidence .rl-evidence-note h3 {
+  margin-block-end: 0.75rem;
 }
 
 @media (hover: hover) {
