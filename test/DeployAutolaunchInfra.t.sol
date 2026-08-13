@@ -29,6 +29,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
     address internal constant IDENTITY_REGISTRY = 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432;
     address internal constant LIVE_STAKING = 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5;
     uint64 internal constant N = 7;
+    uint256 internal constant EIP170_MAX_RUNTIME_BYTES = 24_576;
+    uint256 internal constant EIP3860_MAX_INITCODE_BYTES = 49_152;
+    string internal constant FACTORY_ARTIFACT = "AutolaunchFactoryV1.sol:AutolaunchFactoryV1";
 
     bytes32 internal constant CONSTRUCTOR_TYPEHASH =
         0x6e1e8f7b1a5de15fa2aadd33503de85b47cdbc151c53c83df2df74862a6e0fba;
@@ -130,8 +133,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
             deployer.deployFactory(TOKEN_FACTORY, IDENTITY_REGISTRY, OPERATIONS_SAFE);
         assertEq(address(factory), expected.factory);
         assertEq(vm.getNonce(D), N + 9);
-        assertEq(address(factory).code.length, 17_952);
-        assertLe(address(factory).code.length, 23_576);
+        _assertRuntimeMatchesCandidateArtifact(address(factory));
+        assertLe(address(factory).code.length, EIP170_MAX_RUNTIME_BYTES);
         assertEq(
             address(factory).codehash,
             0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a
@@ -147,8 +150,9 @@ contract DeployAutolaunchInfraScriptTest is Test {
             IDENTITY_REGISTRY,
             OPERATIONS_SAFE
         );
-        assertEq(type(AutolaunchFactoryV1).creationCode.length + args.length, 23_436);
-        assertLe(type(AutolaunchFactoryV1).creationCode.length + args.length, 48_152);
+        assertLe(
+            type(AutolaunchFactoryV1).creationCode.length + args.length, EIP3860_MAX_INITCODE_BYTES
+        );
 
         IRegentStakingRevenueRouter deployedRouter =
             IRegentStakingRevenueRouter(address(deployer.stakingRouter()));
@@ -439,6 +443,18 @@ contract DeployAutolaunchInfraScriptTest is Test {
                 RegentLBPStrategyFactory(expected.strategyFactory).authorizedCreators(factory)
             );
         }
+    }
+
+    function _assertRuntimeMatchesCandidateArtifact(address deployed) private view {
+        bytes memory candidate = vm.getDeployedCode(FACTORY_ARTIFACT);
+        bytes memory runtime = deployed.code;
+        assertEq(runtime.length, candidate.length);
+        for (uint256 i; i < candidate.length; ++i) {
+            if (candidate[i] == 0) {
+                runtime[i] = 0;
+            }
+        }
+        assertEq(keccak256(runtime), keccak256(candidate));
     }
 
     function _assertPristineDeployer(

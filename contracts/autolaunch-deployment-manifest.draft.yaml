@@ -96,12 +96,18 @@ deterministic_vector:
     factory: "0xDc883b4bf20Ee92d81c390A4E57896cd81532184"
   runtime_code_bytes: 17952
   complete_initcode_bytes: 23436
+  size_evidence_class: generated_observation_not_acceptance
   runtime_code_hash: "0x5ec32f8c9a7619a53722ea31122b7480113c9524c8888b5c68d3eaf006f05c3a"
   constructor_bindings_hash: "0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d"
   fixed_bindings_hash: "0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f"
   live_readbacks_hash: "0x55cda8a466450076424bfdfd65cc1720fb10b3ca2e47321eb84b86745252b513"
   factory_binding_digest: "0x526713e578e96be8580ad71fd7daeb9c50670322043f6cfc73363a5aa997d6a2"
 candidate_deployability:
+  runtime_code_limit_bytes: 24576
+  complete_initcode_limit_bytes: 49152
+  limit_source: [EIP-170, EIP-3860]
+  acceptance_authority: runtime_code_hash_identity_and_protocol_limits
+  runtime_code_hash_derivation: compiled_artifact_deployed_bytecode_after_immutable_substitution
   revenue_share_splitter_v2:
     runtime_bytes: 20817
     runtime_margin_bytes: 3759
