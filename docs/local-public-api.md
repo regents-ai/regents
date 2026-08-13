@@ -14,13 +14,8 @@ The browser proof uses two deterministic records in the local test database. The
 commands are safe to repeat. Reset refuses every environment except `MIX_ENV=test`, every
 non-loopback database host, and every database name that does not end in `_test`.
 
-From `/Users/sean/Documents/regent/ash-platform`, prepare the local test database:
-
-```sh
-MIX_ENV=test mix ash_platform.setup_local_auth
-```
-
-Seed the browser records, then start the test server:
+From `/Users/sean/Documents/regent/ash-platform`, seed the browser records, then start the test
+server. The seed command prepares the local test database itself:
 
 ```sh
 MIX_ENV=test mix ash_platform.seed_browser_comments

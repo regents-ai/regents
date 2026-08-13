@@ -5,7 +5,7 @@ defmodule AshPlatformWeb.FormationLive do
 
   def page(assigns) do
     ~H"""
-    <section id="formation-lifecycle" class="formation-page">
+    <section id="formation" class="formation-page">
       <header class="formation-heading">
         <p class="formation-kicker">Formation</p>
         <h1>Run your Regent in Nous Portal</h1>

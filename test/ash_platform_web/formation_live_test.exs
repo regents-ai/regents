@@ -93,8 +93,8 @@ defmodule AshPlatformWeb.FormationLiveTest do
     {:ok, view, _html} = live(conn, "/formation")
     html = view |> render_async() |> normalize_whitespace()
 
-    assert has_element?(view, "#formation-lifecycle")
-    assert has_element?(view, "#formation-lifecycle h1", "Run your Regent in Nous Portal")
+    assert has_element?(view, "#formation")
+    assert has_element?(view, "#formation h1", "Run your Regent in Nous Portal")
     assert Regex.scan(~r/<h[1-6]\b/, html) |> length() == 1
 
     assert html =~ "Create and manage your Regent’s cloud runtime in Nous Portal."
@@ -112,16 +112,15 @@ defmodule AshPlatformWeb.FormationLiveTest do
            )
 
     for selector <- [
-          "#formation-lifecycle form",
-          "#formation-lifecycle button",
+          "#formation form",
+          "#formation button",
           "#form-regent",
           "#update-regent-profile",
           "#provision-cloud-runtime",
           "#refresh-cloud-runtime",
           "#request-agent-pairing-code",
           "#agent-pairing",
-          "#formation-cloud-runtime",
-          "[data-formation-panel-content]"
+          "#formation-cloud-runtime"
         ] do
       refute has_element?(view, selector)
     end
@@ -149,9 +148,9 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
     assert html =~ "Run your Regent in Nous Portal"
     assert html =~ "Open Nous Portal"
-    refute has_element?(view, "#formation-lifecycle", "0x1111")
-    refute has_element?(view, "#formation-lifecycle [phx-click]")
-    refute has_element?(view, "#formation-lifecycle [phx-submit]")
+    refute has_element?(view, "#formation", "0x1111")
+    refute has_element?(view, "#formation [phx-click]")
+    refute has_element?(view, "#formation [phx-submit]")
   end
 
   test "the exact DID seed inserts beside another account sharing its wallet", %{conn: _conn} do

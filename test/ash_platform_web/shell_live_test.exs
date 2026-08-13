@@ -274,7 +274,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="app-shell-scroller")
     assert has_element?(view, ~s(.shell-background[data-background-slot="formation"]))
-    assert has_element?(view, "#formation-lifecycle")
+    assert has_element?(view, "#formation")
 
     assert has_element?(
              view,
@@ -282,12 +282,10 @@ defmodule AshPlatformWeb.ShellLiveTest do
              "Open Nous Portal"
            )
 
-    refute has_element?(view, "#formation-lifecycle form")
-    refute has_element?(view, "#formation-lifecycle button")
-    refute has_element?(view, "#formation-lifecycle [phx-click]")
-    refute has_element?(view, "#formation-lifecycle [phx-submit]")
-    refute has_element?(view, "[data-formation-panel-choice]")
-    refute has_element?(view, "[data-formation-panel-content]")
+    refute has_element?(view, "#formation form")
+    refute has_element?(view, "#formation button")
+    refute has_element?(view, "#formation [phx-click]")
+    refute has_element?(view, "#formation [phx-submit]")
   end
 
   test "a newer destination cancels blocked scaffold work and becomes the only content", %{
@@ -354,7 +352,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
       account_control: account_control,
       content_status: :ready,
       presentation: :none,
-      formation_panel: :none,
       shell_instance: 1,
       content: [%{inner_block: fn _, _ -> "Fixture content" end}]
     )

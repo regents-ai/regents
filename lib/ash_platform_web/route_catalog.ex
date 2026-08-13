@@ -6,7 +6,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   alias __MODULE__.{
     AppTarget,
     Entry,
-    FormationPanelTarget,
     RouteTarget,
     SidebarModel,
     Spec,
@@ -413,15 +412,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       "route_id" => target.route_id,
       "label" => target.label,
       "destination" => target.path
-    }
-  end
-
-  defp sidebar_target_handoff(%FormationPanelTarget{} = target) do
-    %{
-      "type" => "formation_panel",
-      "label" => target.label,
-      "destination" => "/formation",
-      "panel" => target.panel
     }
   end
 

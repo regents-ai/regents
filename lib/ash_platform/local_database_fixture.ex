@@ -142,11 +142,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
     validate_acceptance_target!(env, config, expected_username)
     validate_acceptance_run!(run_id, config)
 
-    case adapter.exists?(config) do
-      true -> true
-      false -> false
-      other -> raise "local acceptance database status failed: #{inspect(other)}"
-    end
+    adapter.exists?(config)
   end
 
   def ensure_human_accounts!(opts \\ []) do
@@ -198,7 +194,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
     host = to_string(repo[:hostname])
     database = to_string(repo[:database])
 
-    if env in [:dev, :test] and host in ["127.0.0.1", "localhost", "::1"] and
+    if env in [:dev, :test] and host in ["127.0.0.1", "::1"] and
          (String.ends_with?(database, "_dev") or String.ends_with?(database, "_test")) do
       :ok
     else

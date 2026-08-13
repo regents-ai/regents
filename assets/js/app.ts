@@ -46,9 +46,6 @@ const shellBehavior: Hook = {
       menuOpen: shell.dataset.menuOpen === "true",
       presentation: shell.dataset.presentation ?? "none",
       supportsPresentation: shell.querySelectorAll("[data-tree-presentation]").length > 0,
-      formationPanel: shell.dataset.formationPanel ?? "none",
-      supportsFormationPanel:
-        shell.querySelectorAll("[data-formation-panel-choice]").length > 0,
     }
     root.dataset.brand = brandForShellApp(shell.dataset.app)
     this.shellState = cachedShellState
@@ -103,7 +100,6 @@ const shellBehavior: Hook = {
 
       shell.dataset.menuOpen = String(state.menuOpen)
       shell.dataset.presentation = state.presentation
-      shell.dataset.formationPanel = state.formationPanel
       cachedShellState = state
       menuButton()?.setAttribute("aria-expanded", String(state.menuOpen))
       syncMenuAccessibility()
@@ -116,14 +112,6 @@ const shellBehavior: Hook = {
           ),
         )
       })
-      shell
-        .querySelectorAll<HTMLButtonElement>("[data-formation-panel-choice]")
-        .forEach(button => {
-          button.setAttribute(
-            "aria-pressed",
-            String(button.dataset.formationPanelChoice === state.formationPanel),
-          )
-        })
     }
 
     const onClick = (event: Event) => {
@@ -132,9 +120,6 @@ const shellBehavior: Hook = {
         event instanceof MouseEvent && event.detail === 0 ? "keyboard" : "pointer"
       const themeButton = target?.closest<HTMLElement>("[data-theme-choice]")
       const presentationLink = target?.closest<HTMLAnchorElement>("[data-tree-presentation]")
-      const formationPanelButton = target?.closest<HTMLButtonElement>(
-        "[data-formation-panel-choice]",
-      )
       const themeChoice = themeButton?.dataset.themeChoice ?? null
 
       if (isThemeChoice(themeChoice)) {
@@ -158,12 +143,6 @@ const shellBehavior: Hook = {
         if (this.shellState && presentation) this.shellState.presentation = presentation
         this.restoreState?.()
         if (treePath === this.shellState?.destination) event.preventDefault()
-      }
-
-      if (formationPanelButton) {
-        const panel = formationPanelButton.dataset.formationPanelChoice
-        if (this.shellState && panel) this.shellState.formationPanel = panel
-        this.restoreState?.()
       }
 
       if (target?.closest("#shell-sidebar a")) closeMenu()
@@ -262,9 +241,6 @@ const shellBehavior: Hook = {
       destination: this.el.dataset.destination ?? "",
       presentation: this.el.dataset.presentation ?? "none",
       supportsPresentation: this.el.querySelectorAll("[data-tree-presentation]").length > 0,
-      formationPanel: this.el.dataset.formationPanel ?? "none",
-      supportsFormationPanel:
-        this.el.querySelectorAll("[data-formation-panel-choice]").length > 0,
     }
 
     const menuWasOpen = this.shellState?.menuOpen === true

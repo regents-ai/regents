@@ -24,7 +24,7 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserIdentity do
           proof
 
         :error ->
-          environment = Keyword.get(opts, :environment, System.get_env())
+          environment = Keyword.get_lazy(opts, :environment, &System.get_env/0)
           preflight!(environment["ASH_PLATFORM_ACCEPTANCE_RUN_ID"], opts)
 
         _ ->
@@ -62,8 +62,8 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserIdentity do
 
   def preflight!(run_id, opts \\ []) do
     env = Keyword.get(opts, :env, current_env())
-    repo_config = Keyword.get(opts, :repo_config, AshPlatform.Repo.config())
-    environment = Keyword.get(opts, :environment, System.get_env())
+    repo_config = Keyword.get_lazy(opts, :repo_config, &AshPlatform.Repo.config/0)
+    environment = Keyword.get_lazy(opts, :environment, &System.get_env/0)
     adapter = Keyword.get(opts, :adapter, __MODULE__.RepoAdapter)
 
     validate_target!(env, repo_config, environment, run_id)

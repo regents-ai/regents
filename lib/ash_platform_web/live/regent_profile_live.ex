@@ -55,10 +55,6 @@ defmodule AshPlatformWeb.RegentProfileLive do
             <dd>Regent formed</dd>
           </div>
           <div>
-            <dt>Cloud</dt>
-            <dd>{cloud_status(@regent.cloud_connected?)}</dd>
-          </div>
-          <div>
             <dt>Hermes</dt>
             <dd>Hermes not connected</dd>
           </div>
@@ -67,7 +63,4 @@ defmodule AshPlatformWeb.RegentProfileLive do
     </section>
     """
   end
-
-  defp cloud_status(true), do: "Cloud connected"
-  defp cloud_status(false), do: "Cloud not connected"
 end

@@ -18,43 +18,42 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserComments do
 
   def reset!(opts \\ []) do
     env = Keyword.get(opts, :env, current_env())
-    repo_config = Keyword.get(opts, :repo_config, AshPlatform.Repo.config())
-    environment = Keyword.get(opts, :environment, System.get_env())
+    repo_config = Keyword.get_lazy(opts, :repo_config, &AshPlatform.Repo.config/0)
+    environment = Keyword.get_lazy(opts, :environment, &System.get_env/0)
     validate_test_target!(env, repo_config, environment)
 
-    AshPlatform.Repo.transaction(fn ->
-      node_ids = fixture_node_ids!()
+    {:ok, count} =
+      AshPlatform.Repo.transaction(fn ->
+        node_ids = fixture_node_ids!()
 
-      unless node_ids == [] do
-        query!(
-          """
-          DELETE FROM discussions.comment_reactions
-          WHERE comment_id IN (
-            SELECT id FROM discussions.comments
-            WHERE target_type = 'techtree_node' AND target_id = ANY($1::uuid[])
+        unless node_ids == [] do
+          query!(
+            """
+            DELETE FROM discussions.comment_reactions
+            WHERE comment_id IN (
+              SELECT id FROM discussions.comments
+              WHERE target_type = 'techtree_node' AND target_id = ANY($1::uuid[])
+            )
+            """,
+            [node_ids]
           )
-          """,
-          [node_ids]
-        )
 
-        query!(
-          "DELETE FROM discussions.comments WHERE target_type = 'techtree_node' AND target_id = ANY($1::uuid[])",
-          [node_ids]
-        )
+          query!(
+            "DELETE FROM discussions.comments WHERE target_type = 'techtree_node' AND target_id = ANY($1::uuid[])",
+            [node_ids]
+          )
 
-        query!("DELETE FROM techtree.notebook_artifacts WHERE node_id = ANY($1::uuid[])", [
-          node_ids
-        ])
+          query!("DELETE FROM techtree.notebook_artifacts WHERE node_id = ANY($1::uuid[])", [
+            node_ids
+          ])
 
-        query!("DELETE FROM techtree.nodes WHERE id = ANY($1::uuid[])", [node_ids])
-      end
+          query!("DELETE FROM techtree.nodes WHERE id = ANY($1::uuid[])", [node_ids])
+        end
 
-      length(node_ids)
-    end)
-    |> case do
-      {:ok, count} -> count
-      {:error, error} -> raise error
-    end
+        length(node_ids)
+      end)
+
+    count
   end
 
   def validate_test_target!(env, repo_config, environment \\ System.get_env()) do

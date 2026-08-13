@@ -164,7 +164,6 @@ function shellFixture() {
   shell.dataset.destination = "/techtree"
   shell.dataset.menuOpen = "false"
   shell.dataset.presentation = "map"
-  shell.dataset.formationPanel = "none"
 
   return {
     shell,

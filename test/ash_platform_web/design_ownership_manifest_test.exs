@@ -37,7 +37,6 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
              "account_control",
              "content_status",
              "presentation",
-             "formation_panel",
              "shell_instance"
            ]
 

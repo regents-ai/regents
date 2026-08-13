@@ -75,7 +75,6 @@ defmodule AshPlatformWeb.RegentProfileLiveTest do
            )
 
     assert has_element?(view, ~s(code[title="#{wallet}"]), "0x2222…2222")
-    assert html =~ "Cloud connected"
     assert html =~ "Hermes not connected"
     refute html =~ account.privy_user_id
     refute html =~ runtime.provider_sprite_id

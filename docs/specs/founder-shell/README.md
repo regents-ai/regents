@@ -32,7 +32,7 @@ Inside one persistent shell: `/app`, `/formation`, `/regents/:slug`, `/techtree`
 
 The node-detail route precedes the generic tree route and `nodes` is never a valid tree slug. No other product route is admitted.
 
-The four app identities are Formation, Autolaunch, Techtree, and Regent Ops, displayed as Regents Labs. The app selector always opens `/formation`, `/autolaunch`, `/techtree`, or `/app`. Public records and signed-in workflows use the same shell; authentication changes actions, not page architecture.
+The four app identities are Formation, displayed as Nous Portal, Autolaunch, Techtree, and Regent Ops, displayed as Regents Labs. The app selector always opens `/formation`, `/autolaunch`, `/techtree`, or `/app`. Public records and signed-in workflows use the same shell; authentication changes actions, not page architecture.
 
 Techtree has exactly five root datasets: GeneBench-Pro Reference Lab, Question Forge Metaskills, New Question Candidates, BixBench Capsule Lab, and Skill Training Lab. Map and List are local presentations on one tree route. Initial web Techtree has no publishing or paid-payload capability.
 
@@ -40,7 +40,7 @@ Techtree has exactly five root datasets: GeneBench-Pro Reference Lab, Question F
 
 `AshPlatformWeb.RouteCatalog` is the sole owner. Each route exposes path pattern, LiveView action, parameter schema, reserved values, route id, app id, app display label, page label, canonical root, sidebar model, header controls, search kind, background slot, content transition kind, scroll policy, and local state.
 
-Sidebar targets are typed as route targets, Formation local panels, Techtree tree/presentation targets, or the auth-neutral viewer profile. Header controls use the closed set: provisioning status, runtime action, search, filters, view switcher, wallet status, network status, and profile actions. Search exists only in Autolaunch and Techtree.
+Sidebar targets are typed as route targets, Techtree tree/presentation targets, or the auth-neutral viewer profile. Header controls use the closed set: search, filters, view switcher, wallet status, network status, and profile actions. Search exists only in Autolaunch and Techtree.
 
 Route metadata is behavior authority, not presentation. It is exported once as generated Design handoff JSON plus a digest.
 

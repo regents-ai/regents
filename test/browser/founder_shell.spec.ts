@@ -594,10 +594,10 @@ test("Formation keeps one in-shell heading and an exact inactive Nous handoff", 
     page.getByText("Nous Portal opens in a new tab. Your Regent session stays open here."),
   ).toBeVisible()
 
-  await expect(page.locator("#formation-lifecycle form")).toHaveCount(0)
-  await expect(page.locator("#formation-lifecycle button")).toHaveCount(0)
+  await expect(page.locator("#formation form")).toHaveCount(0)
+  await expect(page.locator("#formation button")).toHaveCount(0)
   await expect(
-    page.locator("#formation-lifecycle [phx-click], #formation-lifecycle [phx-submit]"),
+    page.locator("#formation [phx-click], #formation [phx-submit]"),
   ).toHaveCount(0)
   await expect(page.getByText("Form your Regent", {exact: true})).toHaveCount(0)
   await expect(page.getByText("Provision Sprite", {exact: true})).toHaveCount(0)
@@ -618,9 +618,16 @@ test("Formation handoff keeps focus visible and fits narrow, landscape, and zoom
       viewport.width,
     )
 
-    await page.locator("#formation-nous-portal-link").evaluate(element => {
-      ;(element as HTMLElement).focus({focusVisible: true})
-    })
+    let reachedByTab = false
+
+    for (let press = 0; press < 30 && !reachedByTab; press += 1) {
+      await page.keyboard.press("Tab")
+      reachedByTab = await page.evaluate(
+        () => document.activeElement?.id === "formation-nous-portal-link",
+      )
+    }
+
+    expect(reachedByTab, `${viewport.width}x${viewport.height}`).toBe(true)
     await expect(page.locator("#formation-nous-portal-link:focus-visible")).toBeVisible()
     await expect(page.locator("#formation-nous-portal-link")).toHaveCSS("outline-style", "solid")
   }

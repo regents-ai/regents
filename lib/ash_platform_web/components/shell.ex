@@ -6,7 +6,6 @@ defmodule AshPlatformWeb.Components.Shell do
   alias AshPlatformWeb.Components.Background
 
   alias AshPlatformWeb.RouteCatalog.{
-    FormationPanelTarget,
     RouteTarget,
     TreeTarget,
     ViewerProfileTarget
@@ -17,7 +16,6 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:content_status, :atom, required: true)
   attr(:presentation, :atom, required: true)
-  attr(:formation_panel, :atom, required: true)
   attr(:shell_instance, :integer, required: true)
   slot(:content, required: true)
 
@@ -32,7 +30,6 @@ defmodule AshPlatformWeb.Components.Shell do
       data-content-transition={@route_spec.content_transition_kind}
       data-menu-open="false"
       data-presentation={@presentation}
-      data-formation-panel={@formation_panel}
       data-route-id={@route_spec.route_id}
       data-destination={@route_spec.destination}
       data-shell-instance={@shell_instance}
@@ -201,7 +198,6 @@ defmodule AshPlatformWeb.Components.Shell do
               route_spec={@route_spec}
               account_control={@account_control}
               presentation={@presentation}
-              formation_panel={@formation_panel}
             />
           </li>
         </ul>
@@ -233,7 +229,6 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:presentation, :atom, required: true)
-  attr(:formation_panel, :atom, required: true)
 
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
     assigns = assign(assigns, :target, target)
@@ -274,20 +269,6 @@ defmodule AshPlatformWeb.Components.Shell do
         </.link>
       </span>
     </div>
-    """
-  end
-
-  defp sidebar_target(%{target: %FormationPanelTarget{} = target} = assigns) do
-    assigns = assign(assigns, :target, target)
-
-    ~H"""
-    <button
-      type="button"
-      data-formation-panel-choice={@target.panel}
-      aria-pressed={to_string(@formation_panel == @target.panel)}
-    >
-      {@target.label}
-    </button>
     """
   end
 

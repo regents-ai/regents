@@ -73,7 +73,6 @@
     "account_control",
     "content_status",
     "presentation",
-    "formation_panel",
     "shell_instance"
   ],
   "shell_slots": ["content"],

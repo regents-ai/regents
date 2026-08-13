@@ -22,12 +22,6 @@ defmodule AshPlatformWeb.RouteCatalog.RouteTarget do
   defstruct @enforce_keys
 end
 
-defmodule AshPlatformWeb.RouteCatalog.FormationPanelTarget do
-  @moduledoc false
-  @enforce_keys [:panel, :label]
-  defstruct @enforce_keys
-end
-
 defmodule AshPlatformWeb.RouteCatalog.TreeTarget do
   @moduledoc false
   @enforce_keys [:tree_slug, :label, :path, :presentations]

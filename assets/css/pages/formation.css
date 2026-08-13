@@ -27,8 +27,7 @@
   margin-block: 0;
 }
 
-.formation-heading h1,
-.formation-handoff h2 {
+.formation-heading h1 {
   margin-block: 0.25rem;
   overflow-wrap: anywhere;
 }

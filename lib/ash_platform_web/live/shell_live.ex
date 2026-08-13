@@ -104,14 +104,8 @@ defmodule AshPlatformWeb.ShellLive do
        techtree_notebook_artifact: nil,
        techtree_status: :loading,
        regent: socket.assigns.current_regent,
-       regent_notice: nil,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
-       formation_fields: %{"display_name" => "", "slug" => ""},
-       cloud_runtime: nil,
-       cloud_status: :empty,
-       cloud_notice: nil,
        presentation: initial_presentation(route_spec),
-       formation_panel: initial_formation_panel(route_spec),
        redemption: nil,
        redemption_collection: "animata_i",
        redemption_token_id: "",
@@ -161,7 +155,6 @@ defmodule AshPlatformWeb.ShellLive do
         content_generation: generation,
         content_status: :loading,
         presentation: initial_presentation(route_spec),
-        formation_panel: initial_formation_panel(route_spec),
         route_spec: route_spec,
         route_params: params
       )
@@ -683,27 +676,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   @impl true
   def handle_event(
-        "form_regent",
-        %{"regent" => %{"display_name" => display_name, "slug" => slug} = fields},
-        socket
-      ) do
-    case Formation.form_regent(slug, display_name, actor: human_actor(socket)) do
-      {:ok, regent} ->
-        {:noreply, regent_saved(socket, regent, "#{regent.display_name} is ready.")}
-
-      {:error, _error} ->
-        {:noreply,
-         assign(socket,
-           formation_fields: fields,
-           regent_notice: %{
-             tone: :error,
-             message: "That Regent could not be formed. Check the name and profile URL."
-           }
-         )}
-    end
-  end
-
-  def handle_event(
         "post_comment",
         %{"comment" => %{"body" => body, "client_request_id" => client_request_id}},
         socket
@@ -734,59 +706,6 @@ defmodule AshPlatformWeb.ShellLive do
            comment_notice: %{
              tone: :error,
              message: "That comment could not be posted. Check its length and formatting."
-           }
-         )}
-    end
-  end
-
-  def handle_event("provision_cloud_runtime", _params, socket) do
-    case Formation.provision_cloud_runtime(actor: human_actor(socket)) do
-      {:ok, runtime} ->
-        {:noreply,
-         assign(socket,
-           cloud_runtime: runtime,
-           cloud_status: :ready,
-           cloud_notice: %{
-             tone: :success,
-             message: "Sprite provisioned and verified."
-           }
-         )}
-
-      {:error, _error} ->
-        {:noreply,
-         assign(socket,
-           cloud_status: :error,
-           cloud_notice: %{
-             tone: :error,
-             message:
-               "The Sprite could not be provisioned. Check the provider setup and try again."
-           }
-         )}
-    end
-  end
-
-  def handle_event(
-        "refresh_cloud_runtime",
-        _params,
-        %{assigns: %{cloud_runtime: runtime}} = socket
-      )
-      when not is_nil(runtime) do
-    case Formation.refresh_cloud_runtime(runtime, actor: human_actor(socket)) do
-      {:ok, refreshed} ->
-        {:noreply,
-         assign(socket,
-           cloud_runtime: refreshed,
-           cloud_status: :ready,
-           cloud_notice: %{tone: :success, message: "Sprite status refreshed."}
-         )}
-
-      {:error, _error} ->
-        {:noreply,
-         assign(socket,
-           cloud_status: :error,
-           cloud_notice: %{
-             tone: :error,
-             message: "The Sprite status could not be refreshed. Try again shortly."
            }
          )}
     end
@@ -920,40 +839,6 @@ defmodule AshPlatformWeb.ShellLive do
      assign(socket,
        comment_notice: %{tone: :error, message: "Reactions are available on Techtree comments."}
      )}
-  end
-
-  def handle_event(
-        "update_regent_profile",
-        %{
-          "profile" => %{
-            "avatar_url" => avatar_url,
-            "display_name" => display_name,
-            "summary" => summary
-          }
-        },
-        %{assigns: %{regent: regent}} = socket
-      )
-      when not is_nil(regent) do
-    case Formation.update_profile(
-           regent,
-           display_name,
-           empty_to_nil(summary),
-           %{avatar_url: empty_to_nil(avatar_url)},
-           actor: human_actor(socket)
-         ) do
-      {:ok, updated} ->
-        {:noreply, regent_saved(socket, updated, "Public profile saved.")}
-
-      {:error, _error} ->
-        {:noreply,
-         assign(socket,
-           regent_notice: %{
-             tone: :error,
-             message:
-               "The public profile could not be saved. Check the name, summary, and avatar URL."
-           }
-         )}
-    end
   end
 
   def handle_event("staking_amount_changed", %{"amount" => amount}, socket) do
@@ -1824,7 +1709,6 @@ defmodule AshPlatformWeb.ShellLive do
       account_control={@account_control}
       content_status={@content_status}
       presentation={@presentation}
-      formation_panel={@formation_panel}
       shell_instance={@shell_instance}
     >
       <:content>
@@ -1906,17 +1790,7 @@ defmodule AshPlatformWeb.ShellLive do
           notebook_artifact={@techtree_notebook_artifact}
         />
 
-        <FormationLive.page
-          :if={@route_spec.route_id == :formation}
-          account_control={@account_control}
-          regent={@regent}
-          regent_status={@regent_status}
-          regent_notice={@regent_notice}
-          formation_fields={@formation_fields}
-          cloud_runtime={@cloud_runtime}
-          cloud_status={@cloud_status}
-          cloud_notice={@cloud_notice}
-        />
+        <FormationLive.page :if={@route_spec.route_id == :formation} />
 
         <RegentProfileLive.page
           :if={@route_spec.route_id == :regent_profile}
@@ -2090,9 +1964,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp initial_presentation(_route_spec), do: :none
 
-  defp initial_formation_panel(%{local_state: %{panel: %{default: panel}}}), do: panel
-  defp initial_formation_panel(_route_spec), do: :none
-
   defp maybe_start_staking(socket, %{route_id: route_id}, generation)
        when route_id in [:app, :stake] do
     actor = staking_actor(socket)
@@ -2164,24 +2035,6 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp identity_request(_action, _provider, _identities), do: {:error, :invalid_action}
-
-  defp load_regent_route(socket, %{route_id: :formation}, _params) do
-    regent = socket.assigns.current_regent
-
-    socket = assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
-
-    case human_actor(socket) do
-      %Human{} = actor when not is_nil(regent) ->
-        case Formation.get_my_cloud_runtime(actor: actor) do
-          {:ok, []} -> assign(socket, cloud_runtime: nil, cloud_status: :empty)
-          {:ok, [runtime]} -> assign(socket, cloud_runtime: runtime, cloud_status: :ready)
-          {:error, _error} -> assign(socket, cloud_runtime: nil, cloud_status: :error)
-        end
-
-      _actor ->
-        assign(socket, cloud_runtime: nil, cloud_status: :empty)
-    end
-  end
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do
@@ -2682,18 +2535,6 @@ defmodule AshPlatformWeb.ShellLive do
   defp reaction_value("off_topic"), do: {:ok, :off_topic}
   defp reaction_value("negative"), do: {:ok, :negative}
   defp reaction_value(_value), do: {:error, :invalid_reaction}
-
-  defp regent_saved(socket, regent, message) do
-    assign(socket,
-      account_control:
-        AshPlatform.AccessContext.account_control(socket.assigns.access_context, regent),
-      current_regent: regent,
-      formation_fields: %{"display_name" => "", "slug" => ""},
-      regent: regent,
-      regent_notice: %{tone: :success, message: message},
-      regent_status: :ready
-    )
-  end
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id}

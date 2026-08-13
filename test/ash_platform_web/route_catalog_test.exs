@@ -191,8 +191,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     allowed_controls =
       MapSet.new([
-        :provisioning_status,
-        :runtime_action,
         :search,
         :filters,
         :view_switcher,
@@ -264,8 +262,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert %{"sidebar_model" => %{"targets" => []}} =
              Enum.find(decoded["routes"], &(&1["route_id"] == "formation"))
-
-    refute Enum.any?(targets, &(&1["type"] == "formation_panel"))
   end
 
   defp sample_params(:techtree_tree), do: %{"tree_slug" => "genebench-pro-reference-lab"}

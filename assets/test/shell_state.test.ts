@@ -13,8 +13,6 @@ const state = (overrides: Partial<ShellState> = {}): ShellState => ({
   menuOpen: false,
   presentation: "none",
   supportsPresentation: false,
-  formationPanel: "none",
-  supportsFormationPanel: false,
   ...overrides,
 })
 
@@ -85,23 +83,6 @@ describe("shell state restoration", () => {
     })
 
     expect(reconcileShellState(state(), incoming).presentation).toBe("map")
-  })
-
-  it("preserves Formation panel selection across same-destination patches", () => {
-    const current = state({
-      routeId: "formation",
-      destination: "/formation",
-      formationPanel: "billing",
-      supportsFormationPanel: true,
-    })
-    const incoming = state({
-      routeId: "formation",
-      destination: "/formation",
-      formationPanel: "overview",
-      supportsFormationPanel: true,
-    })
-
-    expect(reconcileShellState(current, incoming).formationPanel).toBe("billing")
   })
 
   it("closes the menu and resets local state outside its contexts", () => {
