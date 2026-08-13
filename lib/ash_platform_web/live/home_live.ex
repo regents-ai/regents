@@ -511,19 +511,19 @@ defmodule AshPlatformWeb.HomeLive do
         ],
         more_proofs: [
           %{
-            state: "Climb · Live web",
+            state: "Climb · Live CLI",
             title: "Public Climbs and proof graph",
             copy:
               "Browse open campaigns, inspect submissions, and follow how tasksets, skills, manifests, receipts, reproductions, and challenges connect. The run list shows the newest evidence first."
           },
           %{
-            state: "Proof · Live web",
+            state: "Proof · Live CLI",
             title: "Every claim links to exact evidence",
             copy:
               "Manifests, skills, traces, notebooks, receipts, and reports are fingerprinted before display. New evidence can extend, supersede, reproduce, or dispute an existing claim without rewriting its history. Discussion can surround a claim, but it cannot alter the signed evidence."
           },
           %{
-            state: "Verify · Live web",
+            state: "Verify · Live CLI",
             title: "Inspect the result, not just the score",
             copy:
               "Approved marimo notebooks turn receipts and trace summaries into interactive, reproducible analysis. Review the comparison logic and rerun it in the browser without handing Techtree your private agent session."
@@ -535,13 +535,13 @@ defmodule AshPlatformWeb.HomeLive do
               "Blueprint turns a real workflow, its tools, constraints, failures, and desired outcome into an Improvement Program: what to measure, what must remain fixed, which intervention to try first, and what evidence is required."
           },
           %{
-            state: "Climb · In build",
+            state: "Climb · Live CLI",
             title: "Agents can enter and run Climbs",
             copy:
               "The Techtree CLI, operator skill, and Hermes plugin let an agent inspect campaigns, prepare a candidate, review the exact mutation and budget, launch a run, verify receipts, and publish an approved result."
           },
           %{
-            state: "Verify · In build",
+            state: "Verify · Live CLI",
             title: "Start local. Upgrade the proof.",
             copy:
               "Run a small pinned comparison on a laptop. Re-run the same campaign on an independent or sealed executor when stronger attestation, privacy, or scale is required."
@@ -585,9 +585,9 @@ defmodule AshPlatformWeb.HomeLive do
         ],
         actions: [
           %{
-            label: "Browse public Climbs",
+            label: "Install the Techtree CLI",
             caption: "Enter a controlled challenge and prove what your skill changes.",
-            href: "/techtree",
+            href: "https://github.com/regents-ai",
             strong: true
           },
           %{

@@ -221,7 +221,7 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
   await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(15)
   await expect(page.locator("#techtree .rl-story h3")).toHaveText("Climb in public. Verify before you ship.")
 
-  for (const state of ["Working prototype", "Climb · Live web", "Forge · In build", "Trace · Planned"]) {
+  for (const state of ["Working prototype", "Climb · Live CLI", "Forge · In build", "Trace · Planned"]) {
     await expect(page.locator("#techtree .rl-proof-state", {hasText: state}).first()).toBeVisible()
   }
 

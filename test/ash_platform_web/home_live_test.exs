@@ -111,14 +111,15 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     anchors = attribute(html, "[id]", "id")
 
-    assert attribute(html, "#techtree .rl-chapter-actions a", "href") == ["/techtree", "/app"]
+    assert attribute(html, "#techtree .rl-chapter-actions a", "href") ==
+             ["https://github.com/regents-ai", "/app"]
 
     assert texts(html, "#techtree .rl-chapter-actions div > p") == [
              "Enter a controlled challenge and prove what your skill changes.",
              "Establish a baseline, test a release candidate, or scope an Improvement Program."
            ]
 
-    for href <- attribute(html, "a", "href") -- ["/techtree", "/app"],
+    for href <- attribute(html, "a", "href") -- ["/app"],
         href != "/",
         not String.starts_with?(href, "https://") do
       assert String.starts_with?(href, "#")
@@ -279,12 +280,12 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Working prototype",
              "Working prototype",
              "Working prototype",
-             "Climb · Live web",
-             "Proof · Live web",
-             "Verify · Live web",
+             "Climb · Live CLI",
+             "Proof · Live CLI",
+             "Verify · Live CLI",
              "Blueprint · Planned",
-             "Climb · In build",
-             "Verify · In build",
+             "Climb · Live CLI",
+             "Verify · Live CLI",
              "Forge · In build",
              "Climb · Planned",
              "Forge · Planned",
@@ -332,12 +333,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert texts(html, "a.rl-action") == [
              "See how it works",
-             "Browse public Climbs",
+             "Install the Techtree CLI",
              "Run a private Verify",
              "Explore the system"
            ]
 
-    assert attribute(html, "#techtree .rl-chapter-actions a", "href") == ["/techtree", "/app"]
+    assert attribute(html, "#techtree .rl-chapter-actions a", "href") ==
+             ["https://github.com/regents-ai", "/app"]
   end
 
   test "the homepage stays outside the application shell and within its HTML budget", %{
@@ -520,7 +522,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
            ]
 
     assert attribute(html, ~s(a[href^="https://"]), "href") ==
-             ["https://x.com/regents_sh", "https://github.com/regents-ai" | sources]
+             [
+               "https://x.com/regents_sh",
+               "https://github.com/regents-ai",
+               "https://github.com/regents-ai" | sources
+             ]
 
     assert attribute(html, "#evidence .rl-evidence-source", "target") ==
              List.duplicate("_blank", 6)
