@@ -10,6 +10,7 @@ import {
   holdSocketDuringCookieRotation,
   installAccountAuthLazyLoader,
   installCrossTabCsrf,
+  type PinnedSocket,
 } from "./auth_lazy"
 import {
   brandForShellApp,
@@ -298,8 +299,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
 })
 
 // Installed before the first connect, so even the page's opening attempt is
-// subject to the barrier.
-holdSocketDuringCookieRotation(liveSocket.getSocket())
+// subject to the barrier. `types.d.ts` describes only the LiveSocket surface
+// this application calls, so the transport entry point is named at the cast.
+holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()

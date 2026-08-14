@@ -93,21 +93,37 @@ export function browserCsrfToken(): string {
 export async function csrfToken(
   fetcher: typeof fetch = fetch,
   signal?: AbortSignal,
+  renewed: () => void = () => {},
 ): Promise<string> {
   const response = await fetcher("/auth/csrf", {
     credentials: "same-origin",
     ...(signal ? {signal} : {}),
   })
-  const lifecycle = await sessionLifecycleError(response)
-  if (lifecycle) throw lifecycle
-  if (!response.ok) throw new Error("Unable to start a secure session change.")
-  const body = (await response.json()) as {csrf_token?: unknown}
-  if (typeof body.csrf_token !== "string" || body.csrf_token.length === 0) {
-    throw new Error("Unable to start a secure session change.")
+
+  try {
+    const lifecycle = await sessionLifecycleError(response)
+    if (lifecycle) throw lifecycle
+    if (!response.ok) throw new Error("Unable to start a secure session change.")
+    const body = (await response.json()) as {csrf_token?: unknown}
+    if (typeof body.csrf_token !== "string" || body.csrf_token.length === 0) {
+      throw new Error("Unable to start a secure session change.")
+    }
+    const meta = csrfMeta()
+    if (meta) meta.content = body.csrf_token
+    return body.csrf_token
+  } catch (refusal) {
+    // The browser took whatever cookie this response carried when its headers
+    // landed, so only the body can say what that was. A 200 is a bootstrap that
+    // rotated or an observation that wrote nothing, and only the token in it
+    // separates them and adopts the result; a 409 is a revoked lineage that
+    // dropped unless the body says superseded. A status no branch writes a
+    // session on left the cookie alone, and only an adopted token proves this
+    // tab reads what it now carries.
+    const wroteNothing =
+      refusal instanceof SessionLifecycleError && refusal.lifecycle === "session_superseded"
+    if ((response.ok || response.status === 409) && !wroteNothing) renewed()
+    throw refusal
   }
-  const meta = csrfMeta()
-  if (meta) meta.content = body.csrf_token
-  return body.csrf_token
 }
 
 let openRotations = 0
@@ -118,45 +134,53 @@ const heldSockets = new Set<() => void>()
 // would connect under.
 const csrfStateIsCurrent = () => openRotations === 0 && !unreadRenewal
 
-// Phoenix 1.8.9 establishes every socket through `Socket.connect`: the page's
-// first attempt arrives from `LiveSocket.connect` and every automatic retry
-// from the socket's own reconnect timer. Replacing it is therefore the one
-// place a connection can be refused outright, rather than merely ordered behind
-// an auth promise that an independent reconnect never waits for. A socket that
-// is already open is left alone: `connect` is a no-op while its transport
-// lives, so a mounted same-account socket survives the rotation.
-export function holdSocketDuringCookieRotation(socket: {connect: () => void}): void {
-  const connect = socket.connect.bind(socket)
+// The pinned phoenix 1.8.9 socket. `types.d.ts` names only the LiveSocket
+// surface this application calls, so the transport entry point the barrier owns
+// is named here.
+export type PinnedSocket = {connect: () => void; transportConnect: () => void}
+
+// `Socket.transportConnect` is the single place phoenix 1.8.9 builds a
+// transport. `connect` reaches it for the page's first attempt, every reconnect
+// and the pageshow and visibility recoveries; `connectWithFallback` reaches it
+// again from both its long-poll timer and its transport-error path, which call
+// it directly rather than through `connect`. Refusing it there is what makes
+// the barrier real rather than an ordering an independent reconnect never waits
+// for. An open socket never reaches it, so a mounted same-account socket
+// survives the rotation.
+export function holdSocketDuringCookieRotation(socket: PinnedSocket): void {
+  const transportConnect = socket.transportConnect.bind(socket)
   let held = false
 
   heldSockets.add(() => {
     if (!held) return
     held = false
-    connect()
+    transportConnect()
   })
 
-  socket.connect = () => {
-    if (csrfStateIsCurrent()) return connect()
+  socket.transportConnect = () => {
+    if (csrfStateIsCurrent()) return transportConnect()
     held = true
   }
 }
 
-// The interval between a response renewing the cookie and this tab reading the
-// CSRF state that cookie now carries. No socket may be established inside it,
-// because the token it would send belongs to the retired session. A rotation
-// that fails ends the interval having renewed the cookie but never read it, so
-// it fails closed: only a later rotation that does read the current state, or
-// the fresh module state a full document reload brings, admits a connection.
-export async function acrossCookieRotation<T>(rotation: () => Promise<T>): Promise<T> {
+// The interval between a response that rotated or dropped the cookie and this
+// tab reading the CSRF state that cookie now carries. No transport may be
+// established inside it, because the token it would send belongs to the retired
+// session. Callers name the exact endpoint outcomes that write a session and
+// call `renewed` for those alone: a rotation failing before one of them changed
+// no cookie and leaves reconnects available, while one failing after it stays
+// closed until a later rotation reads the current state.
+export async function acrossCookieRotation<T>(
+  rotation: (renewed: () => void) => Promise<T>,
+): Promise<T> {
   openRotations += 1
 
   try {
-    const adopted = await rotation()
+    const adopted = await rotation(() => {
+      unreadRenewal = true
+    })
     unreadRenewal = false
     return adopted
-  } catch (unread) {
-    unreadRenewal = true
-    throw unread
   } finally {
     openRotations -= 1
     if (csrfStateIsCurrent()) heldSockets.forEach(release => release())
@@ -183,9 +207,13 @@ export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
   const channel = csrfChannel()
   const adopt = (event: MessageEvent) => {
     if (event.data !== csrfRotated) return
-    // Another tab renewed the cookie both tabs share, so this tab is inside the
-    // same interval and holds its socket until it has read the new state.
-    void acrossCookieRotation(() => csrfToken(fetcher)).catch(() => undefined)
+    // The renewal already happened in the tab that sent the notice, so this tab
+    // is inside the interval before its own read begins and stays closed if that
+    // read fails.
+    void acrossCookieRotation(renewed => {
+      renewed()
+      return csrfToken(fetcher)
+    }).catch(() => undefined)
   }
 
   channel?.addEventListener("message", adopt)

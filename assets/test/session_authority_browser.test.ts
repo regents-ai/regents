@@ -12,6 +12,7 @@ import {
   holdSocketDuringCookieRotation,
   installCrossTabCsrf,
   recoverOnce,
+  type PinnedSocket,
 } from "../js/auth_lazy"
 import {createLocalSession} from "../js/privy_bridge"
 
@@ -42,6 +43,13 @@ function signedInResponse(sessionChanged: "true" | "false") {
     headers: {"x-ash-session-changed": sessionChanged},
   })
 }
+
+// A sign in that rotates: the read before the bind, the bind itself, then the
+// adoption of the token the renewed cookie carries.
+const signingIn = (adopted: string) =>
+  vi.fn(async (input: RequestInfo | URL) =>
+    input === "/auth/csrf" ? csrfResponse(adopted) : signedInResponse("true"),
+  ) as unknown as typeof fetch
 
 describe("DYNAMIC_BROWSER_CSRF", () => {
   it("reads the token the page holds on every call", async () => {
@@ -146,21 +154,25 @@ describe("DYNAMIC_BROWSER_CSRF", () => {
 // The exact establishment surface of the pinned phoenix 1.8.9 socket: the first
 // attempt arrives from `LiveSocket.connect`, every automatic retry from the
 // socket's own reconnect timer, both through `Socket.connect`, which returns
-// without work while a transport is live and reads the CSRF param at the moment
-// it builds the endpoint URL.
+// without work while a transport is live and otherwise reaches
+// `Socket.transportConnect`, where the endpoint URL and its CSRF param are read.
 function pinnedSocket() {
   const attempts: string[] = []
   let live = false
-
-  return {
+  const socket = {
     attempts,
-    connect() {
+    connect: () => {
       if (live) return
+      socket.transportConnect()
+    },
+    transportConnect: () => {
       live = true
       attempts.push(browserCsrfToken())
     },
     isConnected: () => live,
   }
+
+  return socket
 }
 
 describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
@@ -247,16 +259,22 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
 
     // Exactly the rotation an adoption notice runs: the other tab renewed the
     // cookie both share and this one could not read what it carries.
-    await expect(acrossCookieRotation(() => csrfToken(unreadable))).rejects.toThrow(
-      "Unable to start a secure session change.",
-    )
+    await expect(
+      acrossCookieRotation(renewed => {
+        renewed()
+        return csrfToken(unreadable)
+      }),
+    ).rejects.toThrow("Unable to start a secure session change.")
 
     socket.connect()
     expect(socket.attempts).toEqual([])
     expect(meta.content).toBe("stale-token")
 
     const readable = vi.fn(async () => csrfResponse("renewed-token")) as unknown as typeof fetch
-    await acrossCookieRotation(() => csrfToken(readable))
+    await acrossCookieRotation(renewed => {
+      renewed()
+      return csrfToken(readable)
+    })
 
     expect(socket.attempts).toEqual(["renewed-token"])
   })
@@ -286,6 +304,301 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
       stopAdopting()
       peer.close()
     }
+  })
+})
+
+// The pinned phoenix 1.8.9 client itself, loaded from `deps` exactly as the
+// asset build resolves it. Its `connect` arms `connectWithFallback`, whose
+// long-poll timer and transport-error path each replace the transport and call
+// `transportConnect` directly, never returning through `connect`.
+const {Socket: PinnedPhoenixSocket} = (await import(
+  new URL("../../deps/phoenix/priv/static/phoenix.mjs", import.meta.url).href
+)) as {
+  Socket: new (
+    endPoint: string,
+    options: Record<string, unknown>,
+  ) => PinnedSocket & {conn: {onerror: (reason: unknown) => void; pollEndpoint?: string} | null}
+}
+
+// Records every transport the socket builds, so an establishment refused inside
+// the interval is the absence of a constructed transport rather than a claim
+// about one.
+function pinnedPhoenixSocketBuilding(built: string[]) {
+  vi.stubGlobal("location", {protocol: "https:", host: "socket.test"})
+
+  return new PinnedPhoenixSocket("/live", {
+    transport: class {
+      binaryType = ""
+      timeout = 0
+      onopen: () => void = () => {}
+      onerror: (reason: unknown) => void = () => {}
+      onmessage: (event: unknown) => void = () => {}
+      onclose: (event: unknown) => void = () => {}
+
+      constructor(url: string) {
+        built.push(url)
+      }
+
+      close() {}
+    },
+    // The exact options app.ts gives LiveSocket.
+    longPollFallbackMs: 2500,
+    params: () => ({_csrf_token: browserCsrfToken()}),
+  })
+}
+
+const longPollEndpoint = (token: string) =>
+  `https://socket.test/live/longpoll?_csrf_token=${token}&vsn=2.0.0`
+
+describe("PINNED_LONG_POLL_FALLBACK_OBEYS_THE_BARRIER", () => {
+  afterEach(() => vi.useRealTimers())
+
+  it("builds no transport when the fallback timer fires inside the interval", async () => {
+    vi.useFakeTimers()
+    pageWithCsrfMeta("page-token")
+    const built: string[] = []
+    const socket = pinnedPhoenixSocketBuilding(built)
+    holdSocketDuringCookieRotation(socket)
+    // The page's opening attempt, whose websocket handshake is still pending
+    // when the rotation begins. It armed the fallback timer, which owes nothing
+    // to `connect` when it expires.
+    socket.connect()
+
+    expect(built).toEqual(["wss://socket.test/live/websocket?_csrf_token=page-token&vsn=2.0.0"])
+
+    const tokens = ["before-post", "after-renewal"]
+    const insideInterval: {built: number; connected: boolean}[] = []
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") return csrfResponse(tokens.shift() ?? "exhausted")
+      vi.advanceTimersByTime(2500)
+      insideInterval.push({built: built.length, connected: Boolean(socket.conn)})
+      return signedInResponse("true")
+    }) as unknown as typeof fetch
+
+    await createLocalSession("verified", fetcher)
+
+    expect(insideInterval).toEqual([{built: 1, connected: false}])
+    // The fallback had already swapped the transport before it was refused, so
+    // the single attempt admitted after adoption is the long poll, carrying the
+    // token this tab has just read.
+    expect(socket.conn?.pollEndpoint).toBe(longPollEndpoint("after-renewal"))
+  })
+
+  it("builds no transport when the fallback error path fires inside the interval", async () => {
+    vi.useFakeTimers()
+    pageWithCsrfMeta("page-token")
+    const built: string[] = []
+    const socket = pinnedPhoenixSocketBuilding(built)
+    holdSocketDuringCookieRotation(socket)
+    socket.connect()
+
+    expect(built).toEqual(["wss://socket.test/live/websocket?_csrf_token=page-token&vsn=2.0.0"])
+
+    const tokens = ["before-post", "after-renewal"]
+    const insideInterval: {built: number; connected: boolean}[] = []
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") return csrfResponse(tokens.shift() ?? "exhausted")
+      // The primary transport fails as the renewed cookie lands: the fallback
+      // takes its error path rather than its timer.
+      socket.conn?.onerror("primary refused")
+      insideInterval.push({built: built.length, connected: Boolean(socket.conn)})
+      return signedInResponse("true")
+    }) as unknown as typeof fetch
+
+    await createLocalSession("verified", fetcher)
+
+    expect(insideInterval).toEqual([{built: 1, connected: false}])
+    expect(socket.conn?.pollEndpoint).toBe(longPollEndpoint("after-renewal"))
+  })
+})
+
+describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
+  it("leaves reconnects available when nothing landed before the failure", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const offline = vi.fn(async () => {
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+
+    // The opening CSRF read never returns a response, so no cookie changed and
+    // the token this tab holds still matches the one it would connect under.
+    await expect(createLocalSession("verified", offline)).rejects.toThrow("offline")
+
+    socket.connect()
+    expect(socket.attempts).toEqual(["page-token"])
+    expect(socket.isConnected()).toBe(true)
+  })
+
+  it("leaves reconnects available when an exact CSRF read is followed by a sign in that never lands", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      // Exact and current: the server writes no session and emits no cookie,
+      // and this tab has adopted the token that observation returned.
+      if (input === "/auth/csrf") return csrfResponse("current-token")
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+
+    socket.connect()
+    expect(socket.attempts).toEqual(["current-token"])
+  })
+
+  it("leaves reconnects available when the CSRF read fails without writing a session", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const unavailable = vi.fn(async () => new Response("", {status: 503})) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", unavailable)).rejects.toThrow(
+      "Unable to start a secure session change.",
+    )
+
+    socket.connect()
+    expect(socket.attempts).toEqual(["page-token"])
+  })
+
+  it("leaves reconnects available when a superseded sign in is retried and the retry never lands", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    let posts = 0
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") {
+        posts += 1
+        // A superseded claim emits no cookie, so the recovery attempt starts
+        // with the cookie exactly as this tab already read it.
+        return lifecycleResponse("session_superseded")
+      }
+      if (posts === 0) return csrfResponse("current-token")
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+
+    socket.connect()
+    expect(socket.attempts).toEqual(["current-token"])
+  })
+
+  it("stays closed when a refused bearer drops the cookie and no adoption follows", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const refused = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf"
+        ? csrfResponse("current-token")
+        : new Response(JSON.stringify({error: "unauthorized"}), {status: 401}),
+    ) as unknown as typeof fetch
+
+    // The refusal revoked the lineage and dropped its cookie, so the token this
+    // tab holds names a session the browser no longer carries.
+    await expect(createLocalSession("verified", refused)).rejects.toThrow(
+      "Sign in could not be completed.",
+    )
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession("verified", signingIn("after-reset"))
+
+    expect(socket.attempts).toEqual(["after-reset"])
+  })
+
+  // A cookie takes effect when the response headers land, so a body that cannot
+  // be read afterwards leaves this tab holding an unread session, not a proof
+  // that nothing was written.
+  it.each([
+    ["truncated", '{"csrf_token":"after-boot'],
+    ["carrying no token", '{"ok":true}'],
+  ])("stays closed when a rotating CSRF read returns a body %s", async (_shape, body) => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    // A bootstrap rotates the cookie; only the token in this body would say so
+    // and adopt it, and an exact observation is indistinguishable without it.
+    const unadoptable = vi.fn(
+      async () => new Response(body, {status: 200}),
+    ) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", unadoptable)).rejects.toThrow()
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession("verified", signingIn("after-bootstrap"))
+
+    expect(socket.attempts).toEqual(["after-bootstrap"])
+  })
+
+  it("stays closed when a sign-in conflict cannot be read to rule out a drop", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const unreadableConflict = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf"
+        ? csrfResponse("current-token")
+        : // An account switch and a revoked lineage both drop the cookie at
+          // header time and both answer 409. This body cannot say it was neither.
+          new Response('{"error":"account_switch_requ', {status: 409}),
+    ) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", unreadableConflict)).rejects.toThrow()
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession("verified", signingIn("after-switch"))
+
+    expect(socket.attempts).toEqual(["after-switch"])
+  })
+
+  it("stays closed when the CSRF read drops a revoked lineage and the retry never lands", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    let reads = 0
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") return signedInResponse("true")
+      reads += 1
+      // The revoked lineage is dropped here; the recovery attempt that would
+      // have bootstrapped a fresh one never reaches the server.
+      if (reads === 1) return lifecycleResponse("session_reset_required")
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession("verified", signingIn("after-reset"))
+
+    expect(socket.attempts).toEqual(["after-reset"])
+  })
+
+  it("stays closed when the sign-in response landed and its adoption never did", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    let reads = 0
+    const unreadable = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") return signedInResponse("true")
+      reads += 1
+      if (reads === 1) return csrfResponse("before-post")
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", unreadable)).rejects.toThrow("offline")
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession("verified", signingIn("after-renewal"))
+
+    expect(socket.attempts).toEqual(["after-renewal"])
   })
 })
 

@@ -775,9 +775,10 @@ test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the 
   await expect.poll(connected).toBe(false)
 
   // The cookie is already the renewed one and this tab has not read the state
-  // it carries. `Socket.connect` builds its transport synchronously, so a
-  // still-closed state right after the call means no connection was started at
-  // all, rather than one that was started and refused by the server.
+  // it carries. `Socket.connect` reaches `transportConnect`, which builds its
+  // transport synchronously, so a still-closed state right after the call means
+  // no connection was started at all, rather than one that was started and
+  // refused by the server.
   expect(
     await page.evaluate(() => {
       const socket = (

@@ -171,11 +171,13 @@ export async function createLocalSession(
   identityError?: "already-connected"
 }> {
   // The barrier spans the whole establishment, including the recovery attempt
-  // that follows a dropped lineage: every response inside it may leave a cookie
-  // whose CSRF state this tab has not read yet.
+  // that follows a dropped lineage. Only the outcomes that actually write a
+  // session leave this tab holding a token it has not confirmed, so an attempt
+  // refused before one of those lands renews nothing and leaves reconnects
+  // available.
   return sessionMutations.establish((signal, commit) =>
-    acrossCookieRotation(() =>
-      recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit)),
+    acrossCookieRotation(renewed =>
+      recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit, renewed)),
     ),
   )
 }
@@ -185,8 +187,9 @@ async function establishLocalSession(
   fetcher: typeof fetch,
   signal: AbortSignal,
   commit: () => void,
+  renewed: () => void,
 ): Promise<{sessionChanged: boolean; identityError?: "already-connected"}> {
-  const csrf = await csrfToken(fetcher, signal)
+  const csrf = await csrfToken(fetcher, signal, renewed)
   if (signal.aborted) throw signal.reason
   // From here the response may renew the cookie, so it is never abandoned: an
   // abandoned renewal would leave this tab holding a retired token.
@@ -196,7 +199,22 @@ async function establishLocalSession(
     credentials: "same-origin",
     headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
   })
-  const lifecycle = await sessionLifecycleError(response)
+  const lifecycle = await sessionLifecycleError(response).catch(unreadable => {
+    // An account switch and a revoked lineage both drop the cookie at header
+    // time and both answer 409, so a conflict this tab cannot read counts as
+    // the drop it has not adopted.
+    renewed()
+    throw unreadable
+  })
+  // The exact sign-in outcomes that leave a different cookie in this browser: a
+  // bind or refresh rotates it, and a refused bearer, an account switch or a
+  // revoked lineage drop it. Only a superseded claim writes no session, and only
+  // its own parsed body proves that.
+  const wroteSession =
+    response.status === 409
+      ? lifecycle?.lifecycle !== "session_superseded"
+      : response.ok || response.status === 401
+  if (wroteSession) renewed()
   if (lifecycle) throw lifecycle
   if (!response.ok) throw new Error("Sign in could not be completed.")
   const sessionChanged = response.headers.get("x-ash-session-changed")
