@@ -27,6 +27,8 @@ defmodule AshPlatform.Accounts do
       define :set_avatar, action: :set_avatar
     end
 
+    resource AshPlatform.Accounts.SessionAuthority
+
     resource AshPlatform.Accounts.LinkedIdentity do
       define :upsert_linked_identity,
         action: :upsert_verified,

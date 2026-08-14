@@ -279,6 +279,17 @@ test("canonical same-account direct load runs the real reconciler without reload
   })
 
   await establishLocalSession(page)
+  const sessionCookieBefore = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_key",
+  )?.value
+
+  let renderedCsrfToken = ""
+  page.on("response", async response => {
+    if (!response.request().isNavigationRequest()) return
+    const html = await response.text()
+    renderedCsrfToken =
+      /name="csrf-token" content="([^"]+)"/.exec(html)?.[1] ?? renderedCsrfToken
+  })
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -306,6 +317,23 @@ test("canonical same-account direct load runs the real reconciler without reload
       () => (window as Window & {__u3SessionChanged?: boolean}).__u3SessionChanged,
     ),
   ).toBe(false)
+  // Policy C: the refresh advances the authority generation, so the signed
+  // session cookie advances with it while nothing else about the page changes,
+  // and the browser adopts the CSRF token the renewed session rotated to.
+  const sessionCookieAfter = (await page.context().cookies()).find(
+    cookie => cookie.name === "_ash_platform_key",
+  )?.value
+  expect(sessionCookieBefore).toBeTruthy()
+  expect(sessionCookieAfter).toBeTruthy()
+  expect(sessionCookieAfter).not.toBe(sessionCookieBefore)
+  expect(renderedCsrfToken).toBeTruthy()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content ?? "",
+      ),
+    )
+    .not.toBe(renderedCsrfToken)
   expect(
     await page.evaluate(() =>
       Boolean((window as Window & {__u3ReloadAttempted?: boolean}).__u3ReloadAttempted),
@@ -382,6 +410,9 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   await postProcessed
   expect(heldSetCookie).toContain("_ash_platform_key=")
 
+  // The held response has already renewed this browser's session, so sign out
+  // adopts the rotated token before it revokes the lineage the response is
+  // still carrying.
   const deleteCsrfToken = await page.evaluate(async () => {
     const response = await fetch("/auth/csrf", {credentials: "same-origin"})
     return ((await response.json()) as {csrf_token: string}).csrf_token
@@ -395,10 +426,6 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
     return response.status
   }, deleteCsrfToken)
   expect(deleted).toBe(200)
-  const logoutEpoch = (await page.context().cookies()).find(
-    cookie => cookie.name === "_ash_platform_logout_epoch",
-  )?.value
-  expect(logoutEpoch).toBeTruthy()
 
   releaseHeldResponse?.()
   await expect(heldPost).resolves.toEqual({status: 200, sessionChanged: "true"})
@@ -472,9 +499,6 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   )
 
   await establishLocalSession(page)
-  const epochBefore = (await page.context().cookies()).find(
-    cookie => cookie.name === "_ash_platform_logout_epoch",
-  )?.value
 
   await page.goto("/app")
   await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
@@ -483,11 +507,10 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await expect.poll(() => sessionDeletes).toBe(1)
 
   await expect.poll(() => documentRequests.length).toBe(2)
-  const epochAfter = (await page.context().cookies()).find(
-    cookie => cookie.name === "_ash_platform_logout_epoch",
-  )?.value
-  expect(epochAfter).toBeTruthy()
-  expect(epochAfter).not.toBe(epochBefore)
+  // The retired logout-epoch cookie is gone; revocation is the only authority.
+  expect(
+    (await page.context().cookies()).map(cookie => cookie.name),
+  ).not.toContain("_ash_platform_logout_epoch")
   expect(eventOrder.indexOf("delete-response")).toBeLessThan(
     eventOrder.indexOf("document-2"),
   )
@@ -662,3 +685,135 @@ for (const failure of [
     expect(sessionDeletes).toBe(1)
   })
 }
+
+function metaCsrfToken(page: import("@playwright/test").Page): Promise<string> {
+  return page.evaluate(
+    () => document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content ?? "",
+  )
+}
+
+function trackDocuments(page: import("@playwright/test").Page): string[] {
+  const documents: string[] = []
+  page.on("request", request => {
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documents.push(request.url())
+    }
+  })
+  return documents
+}
+
+// The deferred bridge is inert here: these tests drive the renewal themselves.
+function stubBridge(page: import("@playwright/test").Page) {
+  return page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
+  )
+}
+
+// Runs the real in-page establishment, so the renewal rotates this browser's
+// CSRF state and announces it the way the product does.
+async function refreshInPage(page: import("@playwright/test").Page) {
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await page.evaluate(async () => {
+    const source = "/assets/js/privy_bridge.js"
+    const bridge = (await import(source)) as {
+      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
+    }
+    await bridge.createLocalSession("valid")
+  })
+}
+
+test("a refresh between another tab's dead render and its connect recovers in one reload", async ({
+  context,
+}) => {
+  const refreshingTab = await context.newPage()
+  const waitingTab = await context.newPage()
+  await stubBridge(refreshingTab)
+  await stubBridge(waitingTab)
+  await establishLocalSession(refreshingTab)
+  const documents = trackDocuments(waitingTab)
+
+  // Barrier: the waiting tab's entrypoint is held, so its dead render lands
+  // while its socket cannot start yet.
+  let releaseEntrypoint: (() => void) | undefined
+  const heldEntrypoint = new Promise<void>(resolve => (releaseEntrypoint = resolve))
+  let held = false
+  await waitingTab.route("**/assets/js/app.js", async route => {
+    if (!held) {
+      held = true
+      await heldEntrypoint
+    }
+    await route.continue()
+  })
+
+  await waitingTab.goto("/app", {waitUntil: "commit"})
+  await expect(waitingTab.locator("#app-shell")).toBeVisible()
+  const renderedToken = await metaCsrfToken(waitingTab)
+
+  await refreshInPage(refreshingTab)
+  releaseEntrypoint?.()
+
+  // The held tab missed the notice, so its first connect carries the retired
+  // token; it recovers through exactly one full reload.
+  await expect(waitingTab.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await expect
+    .poll(() =>
+      waitingTab.evaluate(() =>
+        Boolean(
+          (window.liveSocket as unknown as {isConnected(): boolean} | undefined)?.isConnected(),
+        ),
+      ),
+    )
+    .toBe(true)
+  expect(await metaCsrfToken(waitingTab)).not.toBe(renderedToken)
+  expect(documents.length).toBeLessThanOrEqual(2)
+  await expect(waitingTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+})
+
+test("a refresh in one tab leaves another tab mounted and its next reconnect uses the current token", async ({
+  context,
+}) => {
+  const refreshingTab = await context.newPage()
+  const mountedTab = await context.newPage()
+  await stubBridge(refreshingTab)
+  await stubBridge(mountedTab)
+  await establishLocalSession(refreshingTab)
+  const documents = trackDocuments(mountedTab)
+
+  await mountedTab.goto("/app")
+  await expect(mountedTab.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const mountedToken = await metaCsrfToken(mountedTab)
+  const mountedView = await mountedTab.locator("[data-phx-session]").first().getAttribute("id")
+
+  await refreshInPage(refreshingTab)
+
+  // The notice reaches the mounted tab, which adopts the token without losing
+  // the socket it already had.
+  await expect.poll(() => metaCsrfToken(mountedTab)).not.toBe(mountedToken)
+  expect(await mountedTab.locator("[data-phx-session]").first().getAttribute("id")).toBe(
+    mountedView,
+  )
+  expect(documents).toHaveLength(1)
+
+  const connected = () =>
+    mountedTab.evaluate(() =>
+      Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
+    )
+
+  await mountedTab.evaluate(
+    () =>
+      new Promise<void>(resolve =>
+        (window.liveSocket as unknown as {disconnect(callback: () => void): void}).disconnect(
+          resolve,
+        ),
+      ),
+  )
+  await expect.poll(connected).toBe(false)
+
+  await mountedTab.evaluate(() => window.liveSocket.connect())
+  await expect.poll(connected).toBe(true)
+
+  // A deploy-style reconnect carries the adopted token, so nothing reloads.
+  expect(documents).toHaveLength(1)
+  await expect(mountedTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+})

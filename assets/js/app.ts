@@ -5,7 +5,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ash_platform"
 
 import {composeHooks, type Hook} from "./hook_composition"
-import {installAccountAuthLazyLoader} from "./auth_lazy"
+import {browserCsrfToken, installAccountAuthLazyLoader, installCrossTabCsrf} from "./auth_lazy"
 import {
   brandForShellApp,
   reconcileShellState,
@@ -282,16 +282,17 @@ const hooks = {
   TechtreeCamera,
   VerifiedConnections,
 }
-const csrfToken = document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content
+if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
-if (!csrfToken) throw new Error("Missing CSRF token")
-
+// Sign in and refresh renew the session and rotate its CSRF state, so every
+// connection and reconnection reads the token the browser holds now.
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
+  params: () => ({_csrf_token: browserCsrfToken()}),
   hooks,
 })
 
 liveSocket.connect()
 installAccountAuthLazyLoader()
+installCrossTabCsrf()
 window.liveSocket = liveSocket

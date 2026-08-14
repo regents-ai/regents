@@ -47,6 +47,49 @@ const consumedHandoffDocuments = new WeakSet<Document>()
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
+export const sessionLifecycles = [
+  "session_superseded",
+  "session_reset_required",
+  "account_switch_required",
+] as const
+
+export type SessionLifecycle = (typeof sessionLifecycles)[number]
+
+export class SessionLifecycleError extends Error {
+  constructor(readonly lifecycle: SessionLifecycle) {
+    super("This browser session changed. Starting it again.")
+  }
+}
+
+export async function sessionLifecycleError(
+  response: Response,
+): Promise<SessionLifecycleError | null> {
+  if (response.status !== 409) return null
+  const {error} = (await response.json()) as {error?: SessionLifecycle}
+  return error && sessionLifecycles.includes(error) ? new SessionLifecycleError(error) : null
+}
+
+// A superseded, reset or switched lineage recovers from the cookie the winning
+// response already left in this browser, in exactly one further attempt.
+export async function recoverOnce<T>(attempt: () => Promise<T>): Promise<T> {
+  try {
+    return await attempt()
+  } catch (error) {
+    if (!(error instanceof SessionLifecycleError)) throw error
+    return attempt()
+  }
+}
+
+// The page's meta tag is the one place the browser's current CSRF token lives,
+// so the lazily imported bridge and the socket always read the same value.
+function csrfMeta(): HTMLMetaElement | null {
+  return globalThis.document?.querySelector<HTMLMetaElement>("meta[name='csrf-token']") ?? null
+}
+
+export function browserCsrfToken(): string {
+  return csrfMeta()?.content ?? ""
+}
+
 export async function csrfToken(
   fetcher: typeof fetch = fetch,
   signal?: AbortSignal,
@@ -55,20 +98,52 @@ export async function csrfToken(
     credentials: "same-origin",
     ...(signal ? {signal} : {}),
   })
+  const lifecycle = await sessionLifecycleError(response)
+  if (lifecycle) throw lifecycle
   if (!response.ok) throw new Error("Unable to start a secure session change.")
   const body = (await response.json()) as {csrf_token?: unknown}
   if (typeof body.csrf_token !== "string" || body.csrf_token.length === 0) {
     throw new Error("Unable to start a secure session change.")
   }
+  const meta = csrfMeta()
+  if (meta) meta.content = body.csrf_token
   return body.csrf_token
 }
 
+export const csrfRotated = "regent:csrf-rotated:v1"
+
+let crossTabCsrf: BroadcastChannel | null | undefined
+
+function csrfChannel(): BroadcastChannel | null {
+  crossTabCsrf ??= globalThis.BroadcastChannel ? new BroadcastChannel(csrfRotated) : null
+  return crossTabCsrf
+}
+
+// The notice carries no claim and no token. A tab that receives it asks the
+// server under the cookie every tab already shares, so nothing secret crosses
+// the channel and a tab that misses it simply recovers on its next connection.
+export function announceCsrfRotation(): void {
+  csrfChannel()?.postMessage(csrfRotated)
+}
+
+export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
+  const channel = csrfChannel()
+  const adopt = (event: MessageEvent) => {
+    if (event.data === csrfRotated) void csrfToken(fetcher).catch(() => undefined)
+  }
+
+  channel?.addEventListener("message", adopt)
+  return () => channel?.removeEventListener("message", adopt)
+}
+
+// Sign out never asks for a fresh token: the one this page holds already matches
+// the cookie it is signing out, even when a held response has moved the lineage
+// on beneath it.
 export async function clearLocalSession(fetcher: typeof fetch = fetch): Promise<void> {
-  const csrf = await csrfToken(fetcher)
   const response = await fetcher("/auth/privy/session", {
     method: "DELETE",
     credentials: "same-origin",
-    headers: {"x-csrf-token": csrf},
+    headers: {"x-csrf-token": browserCsrfToken()},
   })
   if (!response.ok) throw new Error("Sign out could not be completed.")
 }
@@ -194,61 +269,43 @@ export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Prom
   }
 }
 
+export type SessionMutation<T> = (signal: AbortSignal, commit: () => void) => Promise<T>
+
 export type SessionMutationCoordinator = {
-  establish<T>(mutation: (signal: AbortSignal) => Promise<T>): Promise<T>
+  establish<T>(mutation: SessionMutation<T>): Promise<T>
   signOut(clearSession: () => Promise<void>): Promise<void>
 }
-
-type SessionMutationCoordinatorOptions = {
-  cancellationWaitMs?: number
-}
-
-const defaultCancellationWaitMs = 250
 
 function cancelledSessionEstablishment(signal: AbortSignal): never {
   throw signal.reason ?? new Error("Local sign out has already started.")
 }
 
-function settleWithin(promise: Promise<void>, timeoutMs: number): Promise<void> {
-  return new Promise(resolve => {
-    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined
-    const finish = () => {
-      if (timeout !== undefined) globalThis.clearTimeout(timeout)
-      resolve()
-    }
-    timeout = globalThis.setTimeout(finish, timeoutMs)
-    void promise.then(finish, finish)
-  })
-}
-
-export function createSessionMutationCoordinator({
-  cancellationWaitMs = defaultCancellationWaitMs,
-}: SessionMutationCoordinatorOptions = {}): SessionMutationCoordinator {
+export function createSessionMutationCoordinator(): SessionMutationCoordinator {
   let establishmentTail: Promise<void> = Promise.resolve()
   let signingOut = false
   let signOutAttempt: Promise<void> | null = null
-  const activeEstablishments = new Set<AbortController>()
+  const cancellable = new Set<AbortController>()
 
   return {
-    establish<T>(mutation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    establish<T>(mutation: SessionMutation<T>): Promise<T> {
       if (signingOut) {
         return Promise.reject(new Error("Local sign out has already started."))
       }
 
       const controller = new AbortController()
-      activeEstablishments.add(controller)
-      const attempt = establishmentTail.then(async () => {
+      cancellable.add(controller)
+      // A mutation commits at the point a response could renew the cookie.
+      // After that it is no longer cancellable, so sign out can never run
+      // against a renewed cookie whose token this tab has not adopted yet.
+      const commit = () => cancellable.delete(controller)
+      const attempt = establishmentTail.then(() => {
         if (signingOut || controller.signal.aborted) {
           cancelledSessionEstablishment(controller.signal)
         }
-        const value = await mutation(controller.signal)
-        if (signingOut || controller.signal.aborted) {
-          cancelledSessionEstablishment(controller.signal)
-        }
-        return value
+        return mutation(controller.signal, commit)
       })
-      const removeController = () => activeEstablishments.delete(controller)
-      void attempt.then(removeController, removeController)
+
+      void attempt.then(commit, commit)
       establishmentTail = attempt.then(
         () => undefined,
         () => undefined,
@@ -258,9 +315,9 @@ export function createSessionMutationCoordinator({
     signOut(clearSession: () => Promise<void>): Promise<void> {
       if (signOutAttempt) return signOutAttempt
       signingOut = true
-      activeEstablishments.forEach(controller => controller.abort())
+      cancellable.forEach(controller => controller.abort())
 
-      const attempt = settleWithin(establishmentTail, cancellationWaitMs).then(clearSession)
+      const attempt = establishmentTail.then(clearSession)
       signOutAttempt = attempt
       void attempt.catch(() => {
         if (signOutAttempt === attempt) signOutAttempt = null

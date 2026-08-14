@@ -13,9 +13,12 @@ import React from "react"
 import {createRoot} from "react-dom/client"
 
 import {
+  announceCsrfRotation,
   browserSessionMutations,
   clearLocalSession,
   csrfToken,
+  recoverOnce,
+  sessionLifecycleError,
   type AccountRequest,
   type IdentityRequest,
   type PrivyBridgeHandle,
@@ -172,32 +175,47 @@ export async function createLocalSession(
   sessionChanged: boolean
   identityError?: "already-connected"
 }> {
-  return sessionMutations.establish(async signal => {
-    const csrf = await csrfToken(fetcher, signal)
-    if (signal.aborted) throw signal.reason
-    const response = await fetcher("/auth/privy/session", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
-      signal,
-    })
-    if (signal.aborted) throw signal.reason
-    if (!response.ok) throw new LocalSessionEstablishmentError(response.status === 401)
-    const sessionChanged = response.headers.get("x-ash-session-changed")
-    if (sessionChanged !== "true" && sessionChanged !== "false") {
-      throw new LocalSessionEstablishmentError(false)
-    }
-    const identityError = response.headers.get("x-ash-identity-error")
-    if (identityError && identityError !== "already-connected") {
-      throw new LocalSessionEstablishmentError(false)
-    }
-    const verifiedIdentityError =
-      identityError === "already-connected" ? identityError : undefined
-    return {
-      sessionChanged: sessionChanged === "true",
-      ...(verifiedIdentityError ? {identityError: verifiedIdentityError} : {}),
-    }
+  return sessionMutations.establish((signal, commit) =>
+    recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit)),
+  )
+}
+
+async function establishLocalSession(
+  accessToken: string,
+  fetcher: typeof fetch,
+  signal: AbortSignal,
+  commit: () => void,
+): Promise<{sessionChanged: boolean; identityError?: "already-connected"}> {
+  const csrf = await csrfToken(fetcher, signal)
+  if (signal.aborted) throw signal.reason
+  // From here the response may renew the cookie, so it is never abandoned: an
+  // abandoned renewal would leave this tab holding a retired token.
+  commit()
+  const response = await fetcher("/auth/privy/session", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
   })
+  const lifecycle = await sessionLifecycleError(response)
+  if (lifecycle) throw lifecycle
+  if (!response.ok) throw new LocalSessionEstablishmentError(response.status === 401)
+  const sessionChanged = response.headers.get("x-ash-session-changed")
+  if (sessionChanged !== "true" && sessionChanged !== "false") {
+    throw new LocalSessionEstablishmentError(false)
+  }
+  const identityError = response.headers.get("x-ash-identity-error")
+  if (identityError && identityError !== "already-connected") {
+    throw new LocalSessionEstablishmentError(false)
+  }
+  const verifiedIdentityError = identityError === "already-connected" ? identityError : undefined
+  // The renewed session rotated its CSRF state: this tab adopts the new token
+  // and tells the other tabs sharing the cookie to adopt it too.
+  await csrfToken(fetcher)
+  announceCsrfRotation()
+  return {
+    sessionChanged: sessionChanged === "true",
+    ...(verifiedIdentityError ? {identityError: verifiedIdentityError} : {}),
+  }
 }
 
 type ProviderSessionReconcilerOptions = {

@@ -1,20 +1,28 @@
 defmodule AshPlatformWeb.PrivySessionControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  @logout_epoch_cookie "_ash_platform_logout_epoch"
-
   alias AshPlatform.Accounts
+  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Formation
 
-  test "verified Privy evidence creates and renews a canonical local session", %{conn: conn} do
+  @canonical_session_keys [
+    "_csrf_token",
+    "live_socket_id",
+    "session_generation",
+    "session_lineage"
+  ]
+
+  test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
+    conn: conn
+  } do
     visitor = conn |> init_test_session(%{visitor: "discard-me"}) |> csrf_bootstrap()
     visitor_cookie = session_cookie(visitor)
     csrf = json_response(visitor, 200)["csrf_token"]
 
     signed_in =
       visitor
-      |> recycle()
+      |> recycled()
       |> enforce_csrf()
       |> put_req_header("authorization", "Bearer valid")
       |> put_req_header("x-csrf-token", csrf)
@@ -29,25 +37,262 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert payload["authenticated"] == true
     assert get_resp_header(signed_in, "x-ash-session-changed") == ["true"]
     assert payload["account_control"]["profile_path"] == nil
-
-    assert payload["account_control"]["avatar_data_uri"] =~
-             "data:image/svg+xml;base64,"
+    assert payload["account_control"]["avatar_data_uri"] =~ "data:image/svg+xml;base64,"
 
     assert signed_in.private[:plug_session_info] == :renew
     assert session_cookie(signed_in) != visitor_cookie
 
-    assert get_session(signed_in) |> Map.keys() |> Enum.sort() == [
-             "human_account_id",
-             "live_socket_id"
-           ]
+    assert get_session(signed_in) |> Map.keys() |> Enum.sort() == @canonical_session_keys
+    refute get_session(signed_in, :human_account_id)
 
-    assert_canonical_live_socket_id(get_session(signed_in, :live_socket_id))
+    assert get_session(signed_in, :session_lineage) == get_session(visitor, :session_lineage)
+    assert get_session(signed_in, :session_generation) == 1
 
-    assert {:ok, account} =
-             Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+    assert get_session(signed_in, :live_socket_id) ==
+             SessionAuthority.topic(get_session(signed_in, :session_lineage))
 
+    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
     assert account.wallet_address == "0x1111111111111111111111111111111111111111"
     assert account.display_name == nil
+  end
+
+  test "EXACT_CSRF_MATRIX: a cookie-less request bootstraps and an exact claim only observes" do
+    bootstrapped = csrf_bootstrap(build_conn())
+
+    assert %{"csrf_token" => token} = json_response(bootstrapped, 200)
+    assert String.length(token) > 0
+    assert bootstrapped.private[:plug_session_info] == :renew
+    assert get_session(bootstrapped) |> Map.keys() |> Enum.sort() == @canonical_session_keys
+    lineage = get_session(bootstrapped, :session_lineage)
+    assert get_session(bootstrapped, :session_generation) == 0
+    assert SessionAuthority.exact(claim(bootstrapped)) == {:ok, nil}
+
+    observed = bootstrapped |> recycled() |> csrf_bootstrap()
+
+    assert json_response(observed, 200)["csrf_token"]
+    assert get_session(observed, :session_lineage) == lineage
+    assert get_session(observed, :session_generation) == 0
+    refute observed.private[:plug_session_info] == :renew
+  end
+
+  test "EXACT_CSRF_MATRIX: a superseded claim is refused without touching the cookie" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+
+    # Another tab refreshes the same lineage, stranding this browser's cookie.
+    assert {:ok, :refresh, current} = SessionAuthority.sign_in(claim(signed_in), account_id)
+
+    refused = csrf_bootstrap(browser)
+
+    assert json_response(refused, 409) == %{"error" => "session_superseded"}
+    refute session_cookie(refused)
+    assert SessionAuthority.exact(current) == {:ok, account_id}
+  end
+
+  test "EXACT_CSRF_MATRIX: a revoked claim drops the cookie and only a later request mints" do
+    {browser, signed_in} = signed_in_browser()
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    refused = csrf_bootstrap(browser)
+
+    assert json_response(refused, 409) == %{"error" => "session_reset_required"}
+    assert refused.private[:plug_session_info] == :drop
+
+    minted = csrf_bootstrap(build_conn())
+
+    assert json_response(minted, 200)["csrf_token"]
+    refute get_session(minted, :session_lineage) == get_session(signed_in, :session_lineage)
+  end
+
+  test "FIRST_BIND_AND_REFRESH_ROTATE: a same-account refresh advances, renews and keeps the socket",
+       %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(signed_in, 200)
+    topic = get_session(signed_in, :live_socket_id)
+    lineage = get_session(signed_in, :session_lineage)
+    AshPlatformWeb.Endpoint.subscribe(topic)
+
+    {:ok, view, _html} =
+      build_conn() |> init_test_session(get_session(signed_in)) |> live("/formation")
+
+    assert Process.alive?(view.pid)
+
+    refreshed =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(refreshed, 200)
+    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_session(refreshed, :session_lineage) == lineage
+
+    assert get_session(refreshed, :session_generation) ==
+             get_session(signed_in, :session_generation) + 1
+
+    assert get_session(refreshed, :live_socket_id) == topic
+    assert refreshed.private[:plug_session_info] == :renew
+    assert session_cookie(refreshed) != session_cookie(signed_in)
+
+    refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
+    assert Process.alive?(view.pid)
+
+    assert render_click(view, "refresh_verified_connections", %{}) =~
+             "Run your Regent in Nous Portal"
+  end
+
+  test "FIRST_BIND_AND_REFRESH_ROTATE: a superseded sign-in is refused and emits no cookie" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+    {browser, csrf} = refreshed_csrf(browser)
+
+    # The winning tab advances the row while this request is still in flight.
+    assert {:ok, :refresh, current} = SessionAuthority.sign_in(claim(signed_in), account_id)
+
+    loser =
+      browser
+      |> enforce_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> put_req_header("x-csrf-token", csrf)
+      |> post("/auth/privy/session", %{})
+
+    assert json_response(loser, 409) == %{"error" => "session_superseded"}
+    refute session_cookie(loser)
+    assert SessionAuthority.exact(current) == {:ok, account_id}
+  end
+
+  test "TWO_STEP_ACCOUNT_SWITCH: a different account revokes, drops and disconnects first", %{
+    conn: conn
+  } do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
+
+    topic = get_session(signed_in, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(topic)
+    flush_test_messages()
+
+    switched =
+      build_conn()
+      |> init_test_session(get_session(signed_in))
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer other-account")
+      |> post("/auth/privy/session", %{})
+
+    assert_response_sent_then_disconnect(topic)
+    assert json_response(switched, 409) == %{"error" => "account_switch_required"}
+    assert switched.private[:plug_session_info] == :drop
+    assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
+
+    rebound =
+      build_conn()
+      |> init_test_session(%{})
+      |> delete_session(:session_lineage)
+      |> csrf_bootstrap()
+      |> recycled()
+      |> put_req_header("authorization", "Bearer other-account")
+      |> put_req_header("x-csrf-token", Plug.CSRFProtection.get_csrf_token())
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(rebound, 200)
+    assert get_resp_header(rebound, "x-ash-session-changed") == ["true"]
+    refute get_session(rebound, :session_lineage) == get_session(signed_in, :session_lineage)
+  end
+
+  test "STALE_LOGOUT_REVOKES: logout revokes a superseded claim, drops, then disconnects", %{
+    conn: conn
+  } do
+    account = account!("logout")
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    held = get_session(signed_in)
+    topic = get_session(signed_in, :live_socket_id)
+
+    assert {:ok, :refresh, _advanced} = SessionAuthority.sign_in(claim(signed_in), account.id)
+    AshPlatformWeb.Endpoint.subscribe(topic)
+    flush_test_messages()
+
+    deleted =
+      build_conn() |> init_test_session(held) |> put_valid_csrf() |> delete("/auth/privy/session")
+
+    assert_response_sent_then_disconnect(topic)
+    assert %{"ok" => true} = json_response(deleted, 200)
+    assert deleted.private[:plug_session_info] == :drop
+    assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
+
+    repeated =
+      build_conn() |> init_test_session(held) |> put_valid_csrf() |> delete("/auth/privy/session")
+
+    assert %{"ok" => true} = json_response(repeated, 200)
+  end
+
+  test "STALE_LOGOUT_REVOKES: logout without a claim still answers and drops", %{conn: conn} do
+    deleted =
+      conn
+      |> init_test_session(%{})
+      |> delete_session(:session_lineage)
+      |> put_valid_csrf()
+      |> delete("/auth/privy/session")
+
+    assert %{"ok" => true} = json_response(deleted, 200)
+    assert deleted.private[:plug_session_info] == :drop
+  end
+
+  test "CENTRAL_CURRENT_ACTOR: inspection follows the row, not the request", %{conn: conn} do
+    account = account!("inspection")
+
+    assert %{"authenticated" => false} =
+             conn
+             |> put_req_header("authorization", "Bearer valid")
+             |> get("/auth/session")
+             |> json_response(200)
+
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    assert %{"authenticated" => true} = signed_in |> get("/auth/session") |> json_response(200)
+
+    superseded =
+      build_conn() |> init_test_session(put_in(get_session(signed_in), ["session_generation"], 0))
+
+    assert %{"authenticated" => false} = superseded |> get("/auth/session") |> json_response(200)
+
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    revoked = build_conn() |> init_test_session(get_session(signed_in))
+    assert %{"authenticated" => false} = revoked |> get("/auth/session") |> json_response(200)
+  end
+
+  test "session inspection exposes Profile only from the account's canonical Regent", %{
+    conn: conn
+  } do
+    wallet = "0x1111111111111111111111111111111111111111"
+
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:u3-profile", wallet, [wallet],
+               actor: %System{}
+             )
+
+    assert {:ok, _regent} =
+             Formation.form_regent("u3-profile", "U3 Profile",
+               actor: %Human{human_account_id: account.id}
+             )
+
+    payload =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> get("/auth/session")
+      |> json_response(200)
+
+    assert payload["account_control"]["profile_path"] == "/regents/u3-profile"
+    assert payload["account_control"]["label"] == "U3 Profile"
   end
 
   test "missing, invalid, and wrong-token-type bearers are rejected before a write", %{conn: conn} do
@@ -87,31 +332,6 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert account.wallet_address == verified.wallet_address
   end
 
-  test "session inspection exposes Profile only from the account's canonical Regent", %{
-    conn: conn
-  } do
-    wallet = "0x1111111111111111111111111111111111111111"
-
-    assert {:ok, account} =
-             Accounts.register_verified("did:privy:u3-profile", wallet, [wallet],
-               actor: %System{}
-             )
-
-    assert {:ok, _regent} =
-             Formation.form_regent("u3-profile", "U3 Profile",
-               actor: %Human{human_account_id: account.id}
-             )
-
-    payload =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> get("/auth/session")
-      |> json_response(200)
-
-    assert payload["account_control"]["profile_path"] == "/regents/u3-profile"
-    assert payload["account_control"]["label"] == "U3 Profile"
-  end
-
   test "an upsert conflict without linked accounts cannot erase wallet evidence" do
     actor = %System{}
     wallet = "0x4444444444444444444444444444444444444444"
@@ -122,8 +342,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert {:ok, _account} =
              Accounts.register_verified("did:privy:wallet-race", nil, [], actor: actor)
 
-    assert {:ok, account} =
-             Accounts.get_by_privy_did("did:privy:wallet-race", actor: actor)
+    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:wallet-race", actor: actor)
 
     assert account.wallet_address == wallet
     assert account.wallet_addresses == [wallet]
@@ -140,251 +359,10 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert_error_sent 403, fn ->
       conn
-      |> init_test_session(%{human_account_id: 42})
+      |> init_test_session(%{})
       |> enforce_csrf()
       |> delete("/auth/privy/session")
     end
-  end
-
-  test "session inspection is cookie-only and logout drops the local session", %{conn: conn} do
-    anonymous =
-      conn
-      |> put_req_header("authorization", "Bearer valid")
-      |> get("/auth/session")
-      |> json_response(200)
-
-    assert anonymous["authenticated"] == false
-    assert anonymous["account_control"]["kind"] == "sign_in"
-
-    deleted =
-      conn
-      |> init_test_session(%{human_account_id: 42})
-      |> put_valid_csrf()
-      |> delete("/auth/privy/session")
-
-    assert %{"ok" => true} = json_response(deleted, 200)
-    assert deleted.private[:plug_session_info] == :drop
-
-    logout_epoch_cookie =
-      deleted
-      |> get_resp_header("set-cookie")
-      |> Enum.find(&String.contains?(&1, @logout_epoch_cookie <> "="))
-
-    assert logout_epoch_cookie =~ "; HttpOnly"
-    assert logout_epoch_cookie =~ "; SameSite=Lax"
-  end
-
-  test "logout is idempotent without an authenticated cookie when CSRF is valid", %{conn: conn} do
-    deleted =
-      conn
-      |> init_test_session(%{visitor: "discard-me"})
-      |> put_valid_csrf()
-      |> delete("/auth/privy/session")
-
-    assert %{"ok" => true} = json_response(deleted, 200)
-    assert deleted.private[:plug_session_info] == :drop
-    assert get_session(deleted) == %{}
-  end
-
-  test "logout disconnects an already-open Formation LiveView", %{conn: conn} do
-    signed_in =
-      conn
-      |> init_test_session(%{})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
-
-    assert %{"authenticated" => true} = json_response(signed_in, 200)
-
-    live_socket_id = get_session(signed_in, :live_socket_id)
-    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
-    {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
-    assert Process.alive?(view.pid)
-    flush_test_messages()
-
-    deleted =
-      build_conn()
-      |> init_test_session(get_session(signed_in))
-      |> put_valid_csrf()
-      |> delete("/auth/privy/session")
-
-    assert_response_sent_then_disconnect(live_socket_id)
-
-    assert %{"ok" => true} = json_response(deleted, 200)
-  end
-
-  test "stale-epoch logout sends the dropped-session response before one disconnect", %{
-    conn: conn
-  } do
-    conn
-    |> init_test_session(%{})
-    |> put_valid_csrf()
-    |> put_req_header("authorization", "Bearer valid")
-    |> post("/auth/privy/session", %{})
-
-    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
-    live_socket_id = canonical_live_socket_id()
-    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
-    flush_test_messages()
-
-    deleted =
-      build_conn()
-      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
-      |> init_test_session(%{
-        human_account_id: account.id,
-        live_socket_id: live_socket_id,
-        privy_logout_epoch: "stale-epoch"
-      })
-      |> put_valid_csrf()
-      |> delete("/auth/privy/session")
-
-    assert_response_sent_then_disconnect(live_socket_id)
-
-    refute_receive %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"}
-    assert %{"ok" => true} = json_response(deleted, 200)
-    assert deleted.private[:plug_session_info] == :drop
-  end
-
-  test "canonical same-account refresh preserves the mounted Formation LiveView session", %{
-    conn: conn
-  } do
-    signed_in =
-      conn
-      |> init_test_session(%{})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
-
-    assert %{"authenticated" => true} = json_response(signed_in, 200)
-
-    previous_socket_id = get_session(signed_in, :live_socket_id)
-    previous_account_id = get_session(signed_in, :human_account_id)
-    AshPlatformWeb.Endpoint.subscribe(previous_socket_id)
-    {:ok, view, _html} = signed_in |> recycle() |> live("/formation")
-    assert Process.alive?(view.pid)
-
-    refresh_request =
-      build_conn()
-      |> init_test_session(get_session(signed_in))
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-
-    expected_session = get_session(refresh_request)
-    refreshed = post(refresh_request, "/auth/privy/session", %{})
-
-    assert %{"authenticated" => true} = json_response(refreshed, 200)
-    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
-    assert get_session(refreshed, :human_account_id) == previous_account_id
-    assert get_session(refreshed) == expected_session
-    assert get_session(refreshed, :live_socket_id) == previous_socket_id
-    refute refreshed.private[:plug_session_info] in [:renew, :drop]
-
-    refute_receive %Phoenix.Socket.Broadcast{
-      topic: ^previous_socket_id,
-      event: "disconnect"
-    }
-
-    assert Process.alive?(view.pid)
-
-    assert render_click(view, "refresh_verified_connections", %{}) =~
-             "Run your Regent in Nous Portal"
-  end
-
-  test "same-account refresh renews every incomplete socket form without broadcasting it", %{
-    conn: conn
-  } do
-    signed_in =
-      conn
-      |> init_test_session(%{})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
-
-    account_id = get_session(signed_in, :human_account_id)
-    canonical_token = Base.url_encode64(:binary.copy(<<0>>, 32), padding: false)
-
-    malformed_socket_ids = [
-      nil,
-      "",
-      "privy_sessions:",
-      "privy_sessions:short",
-      "privy_sessions:" <> String.duplicate("a", 43),
-      "privy_sessions:" <> String.duplicate("+", 43),
-      "privy_sessions:" <> Base.url_encode64(:binary.copy(<<0>>, 31), padding: false),
-      "privy_sessions:" <> canonical_token <> "="
-    ]
-
-    for malformed_socket_id <- malformed_socket_ids do
-      if malformed_socket_id, do: AshPlatformWeb.Endpoint.subscribe(malformed_socket_id)
-
-      refreshed =
-        build_conn()
-        |> init_test_session(%{
-          human_account_id: account_id,
-          live_socket_id: malformed_socket_id,
-          unrelated: "discard-me"
-        })
-        |> put_valid_csrf()
-        |> put_req_header("authorization", "Bearer valid")
-        |> post("/auth/privy/session", %{})
-
-      assert %{"authenticated" => true} = json_response(refreshed, 200)
-      assert get_resp_header(refreshed, "x-ash-session-changed") == ["true"]
-      assert refreshed.private[:plug_session_info] == :renew
-      assert_canonical_live_socket_id(get_session(refreshed, :live_socket_id))
-      refute get_session(refreshed, :live_socket_id) == malformed_socket_id
-      refute get_session(refreshed, :unrelated)
-
-      if malformed_socket_id do
-        refute_receive %Phoenix.Socket.Broadcast{
-          topic: ^malformed_socket_id,
-          event: "disconnect"
-        }
-      end
-    end
-  end
-
-  test "the current logout epoch rejects a late pre-logout session and admits a fresh sign-in", %{
-    conn: conn
-  } do
-    wallet = "0x7777777777777777777777777777777777777777"
-
-    assert {:ok, account} =
-             Accounts.register_verified("did:privy:logout-epoch", wallet, [wallet],
-               actor: %System{}
-             )
-
-    live_socket_id = "privy_sessions:superseded"
-    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
-
-    superseded =
-      conn
-      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
-      |> init_test_session(%{
-        human_account_id: account.id,
-        live_socket_id: live_socket_id,
-        privy_logout_epoch: "pre-logout-epoch"
-      })
-      |> get("/auth/session")
-
-    assert %{"authenticated" => false} = json_response(superseded, 200)
-    assert superseded.private[:plug_session_info] == :drop
-
-    refute_receive %Phoenix.Socket.Broadcast{
-      topic: ^live_socket_id,
-      event: "disconnect"
-    }
-
-    fresh =
-      build_conn()
-      |> put_req_cookie(@logout_epoch_cookie, "current-epoch")
-      |> init_test_session(%{})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
-
-    assert %{"authenticated" => true} = json_response(fresh, 200)
-    assert get_session(fresh, :privy_logout_epoch) == "current-epoch"
   end
 
   test "SIWA headers cannot enter the browser-human rail", %{conn: conn} do
@@ -417,9 +395,10 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert String.downcase(secure_cookie) =~ "; secure"
   end
 
-  test "missing current linked-wallet evidence invalidates the account and local session", %{
-    conn: conn
-  } do
+  test "missing current linked-wallet evidence leaves the claim intact and the actor anonymous",
+       %{
+         conn: conn
+       } do
     valid =
       conn
       |> init_test_session(%{})
@@ -427,98 +406,49 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       |> put_req_header("authorization", "Bearer valid")
       |> post("/auth/privy/session", %{})
 
-    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+    assert json_response(valid, 200)["authenticated"] == true
 
     rejected =
       build_conn()
-      |> init_test_session(%{human_account_id: account.id})
+      |> init_test_session(get_session(valid))
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer no-wallet")
       |> post("/auth/privy/session", %{})
 
     assert %{"error" => "unauthorized"} = json_response(rejected, 401)
-    assert rejected.private[:plug_session_info] == :drop
-    assert get_session(rejected) == %{}
 
-    assert {:ok, invalidated} =
-             Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
-
+    assert {:ok, invalidated} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
     assert invalidated.wallet_address == nil
     assert invalidated.wallet_addresses == []
 
-    stale_cookie =
-      build_conn()
-      |> init_test_session(%{human_account_id: account.id})
-      |> get("/auth/session")
+    stale_evidence = build_conn() |> init_test_session(get_session(valid)) |> get("/auth/session")
 
-    assert %{"authenticated" => false} = json_response(stale_cookie, 200)
-    assert stale_cookie.private[:plug_session_info] == :drop
-    assert get_session(stale_cookie) == %{}
-    assert json_response(valid, 200)["authenticated"] == true
-  end
-
-  test "provider and server account mismatch replaces the local session deterministically", %{
-    conn: conn
-  } do
-    conn
-    |> init_test_session(%{})
-    |> put_valid_csrf()
-    |> put_req_header("authorization", "Bearer valid")
-    |> post("/auth/privy/session", %{})
-
-    assert {:ok, former} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
-
-    former_socket_id = canonical_live_socket_id()
-    AshPlatformWeb.Endpoint.subscribe(former_socket_id)
-
-    replaced =
-      build_conn()
-      |> init_test_session(%{human_account_id: former.id, live_socket_id: former_socket_id})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer other-account")
-      |> post("/auth/privy/session", %{})
-
-    assert %{"authenticated" => true} = json_response(replaced, 200)
-    assert get_resp_header(replaced, "x-ash-session-changed") == ["true"]
-
-    assert {:ok, current} = Accounts.get_by_privy_did("did:privy:other", actor: %System{})
-    assert current.id != former.id
-    assert get_session(replaced, :human_account_id) == current.id
-
-    assert_receive %Phoenix.Socket.Broadcast{
-      topic: ^former_socket_id,
-      event: "disconnect"
-    }
+    assert %{"authenticated" => false} = json_response(stale_evidence, 200)
   end
 
   test "current provider evidence refreshes a stale former wallet without changing identity", %{
     conn: conn
   } do
-    conn
-    |> init_test_session(%{})
-    |> put_valid_csrf()
-    |> put_req_header("authorization", "Bearer valid")
-    |> post("/auth/privy/session", %{})
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> post("/auth/privy/session", %{})
 
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
-
-    live_socket_id = canonical_live_socket_id()
+    topic = get_session(signed_in, :live_socket_id)
 
     refreshed =
       build_conn()
-      |> init_test_session(%{
-        human_account_id: account.id,
-        live_socket_id: live_socket_id,
-        preserved: "session-state"
-      })
+      |> init_test_session(get_session(signed_in))
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer changed-wallet")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
     assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
-    assert get_session(refreshed, :live_socket_id) == live_socket_id
-    assert get_session(refreshed, :preserved) == "session-state"
+    assert get_session(refreshed, :live_socket_id) == topic
 
     assert {:ok, current} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
     assert current.id == account.id
@@ -527,13 +457,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   test "a social account conflict preserves login and reports a connection error", %{conn: conn} do
-    owner =
-      Accounts.register_verified!(
-        "did:privy:conflict-owner",
-        nil,
-        [],
-        actor: %System{}
-      )
+    owner = Accounts.register_verified!("did:privy:conflict-owner", nil, [], actor: %System{})
 
     assert {:ok, _identity} =
              Accounts.upsert_linked_identity(
@@ -557,34 +481,68 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert %{"authenticated" => true} = json_response(response, 200)
     assert get_resp_header(response, "x-ash-identity-error") == ["already-connected"]
 
-    account =
-      Accounts.get_by_privy_did!("did:privy:conflicting-social", actor: %System{})
+    account = Accounts.get_by_privy_did!("did:privy:conflicting-social", actor: %System{})
+    assert SessionAuthority.exact(claim(response)) == {:ok, account.id}
+    assert {:ok, []} = Accounts.list_linked_identities_for_account(account.id, actor: %System{})
 
-    assert get_session(response, :human_account_id) == account.id
+    topic = get_session(response, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(topic)
 
-    assert {:ok, []} =
-             Accounts.list_linked_identities_for_account(account.id, actor: %System{})
-
-    live_socket_id = get_session(response, :live_socket_id)
-    AshPlatformWeb.Endpoint.subscribe(live_socket_id)
-
-    refresh_request =
+    refreshed =
       build_conn()
       |> init_test_session(get_session(response))
       |> put_valid_csrf()
       |> put_req_header("authorization", "Bearer conflicting-social")
-
-    expected_session = get_session(refresh_request)
-    refreshed = post(refresh_request, "/auth/privy/session", %{})
+      |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
     assert get_resp_header(refreshed, "x-ash-identity-error") == ["already-connected"]
     assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
-    assert get_session(refreshed) == expected_session
-    refute_receive %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"}
+    assert get_session(refreshed, :live_socket_id) == topic
+    refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
   end
 
+  @wallet "0x1111111111111111111111111111111111111111"
+
+  defp account!(suffix) do
+    Accounts.register_verified!(
+      "did:privy:privy-session:#{suffix}:#{Elixir.System.unique_integer([:positive])}",
+      @wallet,
+      [@wallet],
+      actor: %System{}
+    )
+  end
+
+  # A browser that reached signed-in state through the real HTTP flow, so its
+  # session travels only as a cookie and no test-side write marks it dirty.
+  defp signed_in_browser do
+    bootstrapped = csrf_bootstrap(build_conn())
+
+    signed_in =
+      bootstrapped
+      |> recycled()
+      |> enforce_csrf()
+      |> put_req_header("authorization", "Bearer valid")
+      |> put_req_header("x-csrf-token", json_response(bootstrapped, 200)["csrf_token"])
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(signed_in, 200)
+    {recycled(signed_in), signed_in}
+  end
+
+  # What the browser does after a renewing response: adopt the rotated token.
+  defp refreshed_csrf(browser) do
+    response = csrf_bootstrap(browser)
+    {recycled(response), json_response(response, 200)["csrf_token"]}
+  end
+
+  defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()
+
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")
+
+  # Carries the response's own cookie into the next request the way a browser
+  # does, without losing the connect info a mount needs.
+  defp recycled(conn), do: conn |> Phoenix.ConnTest.recycle() |> connects_with_own_cookie()
 
   defp put_valid_csrf(conn) do
     token = Plug.CSRFProtection.get_csrf_token()
@@ -602,17 +560,6 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     conn |> get_resp_header("set-cookie") |> Enum.find(&String.contains?(&1, "_ash_platform_key"))
   end
 
-  defp canonical_live_socket_id do
-    "privy_sessions:" <> Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
-  end
-
-  defp assert_canonical_live_socket_id("privy_sessions:" <> token) do
-    assert byte_size(token) == 43
-    assert {:ok, decoded} = Base.url_decode64(token, padding: false)
-    assert byte_size(decoded) == 32
-    assert Base.url_encode64(decoded, padding: false) == token
-  end
-
   defp flush_test_messages do
     receive do
       _message -> flush_test_messages()
@@ -621,21 +568,20 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     end
   end
 
-  defp assert_response_sent_then_disconnect(live_socket_id) do
-    events = receive_until_disconnect(live_socket_id, [])
-    assert events == [:response_sent, :socket_disconnect]
+  defp assert_response_sent_then_disconnect(topic) do
+    assert receive_until_disconnect(topic, []) == [:response_sent, :socket_disconnect]
   end
 
-  defp receive_until_disconnect(live_socket_id, events) do
+  defp receive_until_disconnect(topic, events) do
     receive do
       {:plug_conn, :sent} ->
-        receive_until_disconnect(live_socket_id, [:response_sent | events])
+        receive_until_disconnect(topic, [:response_sent | events])
 
-      %Phoenix.Socket.Broadcast{topic: ^live_socket_id, event: "disconnect"} ->
+      %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"} ->
         Enum.reverse([:socket_disconnect | events])
 
       _message ->
-        receive_until_disconnect(live_socket_id, events)
+        receive_until_disconnect(topic, events)
     after
       100 -> flunk("expected response send followed by socket disconnect")
     end
@@ -643,7 +589,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
   defp account_evidence(nil), do: nil
 
-  defp account_evidence(account) do
-    Map.take(account, [:id, :privy_user_id, :wallet_address, :wallet_addresses, :display_name])
-  end
+  defp account_evidence(account),
+    do:
+      Map.take(account, [:id, :privy_user_id, :wallet_address, :wallet_addresses, :display_name])
 end

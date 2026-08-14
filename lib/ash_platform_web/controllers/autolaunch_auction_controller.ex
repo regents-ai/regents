@@ -1,7 +1,6 @@
 defmodule AshPlatformWeb.AutolaunchAuctionController do
   use AshPlatformWeb, :controller
 
-  alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
 
@@ -104,17 +103,13 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
     end
   end
 
-  defp current_human(conn) do
-    with id when is_integer(id) <- get_session(conn, :human_account_id),
-         actor = %Human{human_account_id: id},
-         {:ok, account} <- AshPlatform.Accounts.get_human_account(id, actor: actor),
-         true <- VerifiedSession.current?(account),
-         wallet when is_binary(wallet) <- account.wallet_address do
-      {:ok, actor, wallet}
-    else
-      _ -> {:error, :authentication_required}
-    end
-  end
+  # The session authority boundary already resolved and verified this account
+  # from its locked row; the cookie names none.
+  defp current_human(%{assigns: %{current_human_account: %{id: id, wallet_address: wallet}}})
+       when is_binary(wallet),
+       do: {:ok, %Human{human_account_id: id}, wallet}
+
+  defp current_human(_anonymous), do: {:error, :authentication_required}
 
   defp autolaunch(conn),
     do: conn.private[:autolaunch_auction_controller_autolaunch] || Autolaunch

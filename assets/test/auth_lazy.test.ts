@@ -87,49 +87,70 @@ function accountDocument({
 }
 
 describe("lazy browser authentication", () => {
-  it("aborts an in-flight session establishment before one local deletion and blocks later writes", async () => {
-    vi.useFakeTimers()
+  it("cancels an uncommitted establishment before one local deletion and blocks later writes", async () => {
+    const sessionMutations = createSessionMutationCoordinator()
+    const order: string[] = []
+    const establishment = sessionMutations.establish(
+      signal =>
+        new Promise<void>((_resolve, reject) => {
+          order.push("establish")
+          signal.addEventListener(
+            "abort",
+            () => {
+              order.push("abort")
+              reject(signal.reason)
+            },
+            {once: true},
+          )
+        }),
+    )
+    await Promise.resolve()
+    expect(order).toEqual(["establish"])
+    const establishmentFailure = expect(establishment).rejects.toMatchObject({name: "AbortError"})
 
-    try {
-      const sessionMutations = createSessionMutationCoordinator({cancellationWaitMs: 10})
-      const order: string[] = []
-      let finishLate: (() => void) | undefined
-      const establishment = sessionMutations.establish(
-        signal =>
-          new Promise<void>(resolve => {
-            order.push("establish")
-            finishLate = resolve
-            signal.addEventListener("abort", () => order.push("abort"), {once: true})
-          }),
-      )
-      await vi.advanceTimersByTimeAsync(0)
-      expect(order).toEqual(["establish"])
-      const establishmentFailure = expect(establishment).rejects.toMatchObject({
-        name: "AbortError",
-      })
+    const clearSession = vi.fn(async () => void order.push("delete"))
+    await sessionMutations.signOut(clearSession)
+    expect(order).toEqual(["establish", "abort", "delete"])
+    await establishmentFailure
 
-      const clearSession = vi.fn(async () => {
-        order.push("delete")
-      })
-      const signOut = sessionMutations.signOut(clearSession)
-      expect(clearSession).not.toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(10)
-      await signOut
-      expect(order).toEqual(["establish", "abort", "delete"])
+    const lateEstablishment = vi.fn(async () => undefined)
+    await expect(sessionMutations.establish(lateEstablishment)).rejects.toThrow(
+      "Local sign out has already started.",
+    )
+    await sessionMutations.signOut(clearSession)
+    expect(lateEstablishment).not.toHaveBeenCalled()
+    expect(clearSession).toHaveBeenCalledOnce()
+  })
 
-      finishLate?.()
-      await establishmentFailure
+  it("waits for a committed establishment rather than racing its cookie renewal", async () => {
+    const sessionMutations = createSessionMutationCoordinator()
+    const order: string[] = []
+    let finishRenewal: (() => void) | undefined
+    const establishment = sessionMutations.establish(
+      (signal, commit) =>
+        new Promise<void>(resolve => {
+          commit()
+          order.push("renewing")
+          signal.addEventListener("abort", () => order.push("abort"), {once: true})
+          finishRenewal = () => {
+            order.push("adopted")
+            resolve()
+          }
+        }),
+    )
+    await Promise.resolve()
 
-      const lateEstablishment = vi.fn(async () => undefined)
-      await expect(sessionMutations.establish(lateEstablishment)).rejects.toThrow(
-        "Local sign out has already started.",
-      )
-      await sessionMutations.signOut(clearSession)
-      expect(lateEstablishment).not.toHaveBeenCalled()
-      expect(clearSession).toHaveBeenCalledOnce()
-    } finally {
-      vi.useRealTimers()
-    }
+    const clearSession = vi.fn(async () => void order.push("delete"))
+    const signOut = sessionMutations.signOut(clearSession)
+    expect(clearSession).not.toHaveBeenCalled()
+
+    finishRenewal?.()
+    await establishment
+    await signOut
+
+    // No abort reaches a committed renewal, and sign out only runs once its
+    // token adoption has finished.
+    expect(order).toEqual(["renewing", "adopted", "delete"])
   })
 
   it("replaces pending sync with sign out until the bridge is ready", async () => {

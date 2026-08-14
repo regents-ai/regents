@@ -1,7 +1,6 @@
 defmodule AshPlatformWeb.AgentLinkController do
   use AshPlatformWeb, :controller
 
-  alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.AgentAuth.{ClaimRateLimiter, VerificationClient}
   alias AshPlatform.Formation
@@ -78,17 +77,12 @@ defmodule AshPlatformWeb.AgentLinkController do
     Enum.any?(get_req_header(conn, "content-type"), &String.starts_with?(&1, "text/plain"))
   end
 
-  defp current_human(conn) do
-    with id when is_integer(id) <- get_session(conn, :human_account_id),
-         actor = %Human{human_account_id: id},
-         {:ok, account} when not is_nil(account) <-
-           AshPlatform.Accounts.get_human_account(id, actor: actor),
-         true <- VerifiedSession.current?(account) do
-      {:ok, actor}
-    else
-      _ -> {:error, :authentication_required}
-    end
-  end
+  # The session authority boundary already resolved and verified this account
+  # from its locked row; the cookie names none.
+  defp current_human(%{assigns: %{current_human_account: %{id: id}}}),
+    do: {:ok, %Human{human_account_id: id}}
+
+  defp current_human(_anonymous), do: {:error, :authentication_required}
 
   defp public_link(link) do
     %{

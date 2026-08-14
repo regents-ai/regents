@@ -8,7 +8,11 @@ const captured = vi.hoisted(() => ({hooks: {} as Record<string, Hook>}))
 
 vi.mock("phoenix", () => ({Socket: class Socket {}}))
 vi.mock("phoenix-colocated/ash_platform", () => ({hooks: {}}))
-vi.mock("../js/auth_lazy", () => ({installAccountAuthLazyLoader: vi.fn()}))
+vi.mock("../js/auth_lazy", () => ({
+  browserCsrfToken: () => "csrf-token",
+  installAccountAuthLazyLoader: vi.fn(),
+  installCrossTabCsrf: vi.fn(),
+}))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
 vi.mock("../js/hooks/techtree_camera", () => ({TechtreeCamera: {}}))

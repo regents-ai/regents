@@ -1,15 +1,9 @@
 defmodule AshPlatformWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :ash_platform
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
-  @session_options [
-    store: :cookie,
-    key: "_ash_platform_key",
-    signing_salt: "OLoeAaio",
-    same_site: "Lax"
-  ]
+  # A connected mount reads the cookie the socket handshake carried, so the
+  # transport must decode it with the same options the request plug runs with.
+  @session_options {Application, :fetch_env!, [:ash_platform, :session_options]}
 
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],

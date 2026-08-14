@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.Router do
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
-    plug :enforce_privy_logout_epoch
+    plug :enforce_session_authority
     plug :fetch_live_flash
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug AshPlatformWeb.Plugs.LaunchGate
@@ -27,13 +27,13 @@ defmodule AshPlatformWeb.Router do
     plug :accepts, ["json"]
     plug AshPlatformWeb.Plugs.LaunchGate
     plug :fetch_session
-    plug :enforce_privy_logout_epoch
+    plug :enforce_session_authority
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
 
-  def enforce_privy_logout_epoch(conn, _opts) do
-    AshPlatformWeb.PrivySessionController.enforce_logout_epoch(conn)
+  def enforce_session_authority(conn, _opts) do
+    AshPlatformWeb.PrivySessionController.enforce_authority(conn)
   end
 
   scope "/", AshPlatformWeb do
@@ -86,6 +86,7 @@ defmodule AshPlatformWeb.Router do
     delete "/auth/privy/session", PrivySessionController, :delete
 
     live_session :product_shell,
+      session: {AshPlatformWeb.Live.Session, :render_lineage, []},
       on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/settings", ShellLive, :settings

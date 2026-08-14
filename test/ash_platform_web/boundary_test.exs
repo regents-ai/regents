@@ -106,6 +106,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [agent_pairing_migration] =
              Path.wildcard("priv/repo/migrations/*_agent_pairing.exs")
 
+    assert [session_authorities_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_6eb_12_session_authorities.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -135,7 +138,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                public_profile_migration,
                billing_kernel_migration,
                ash_functions_migration,
-               agent_pairing_migration
+               agent_pairing_migration,
+               session_authorities_migration
              ])
 
     assert_additive_migration(
@@ -546,6 +550,32 @@ defmodule AshPlatformWeb.BoundaryTest do
       agent_pairing_migration,
       ["drop(table(:agent_links))", "drop(table(:agent_pairing_codes))"]
     )
+
+    assert_additive_migration(
+      session_authorities_migration,
+      [
+        "create table(:session_authorities",
+        "add(:lineage_digest, :binary, null: false)",
+        "add(:generation, :bigint, null: false, default: 0)",
+        "add(:revoked_at, :utc_datetime_usec)",
+        "references(:platform_human_users",
+        "on_delete: :restrict",
+        "create unique_index(:session_authorities, [:lineage_digest]",
+        "create constraint(:session_authorities, :session_authorities_generation_nonnegative",
+        "generation >= 0"
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      session_authorities_migration,
+      ["drop(table(:session_authorities))"]
+    )
+
+    session_authorities = File.read!(session_authorities_migration)
+    refute session_authorities =~ "execute"
+    # The raw lineage is never a column; only its digest is stored.
+    refute session_authorities =~ "add(:lineage,"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

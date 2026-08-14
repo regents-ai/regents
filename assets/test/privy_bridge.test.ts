@@ -107,6 +107,16 @@ function installAccountBridgeRenderer() {
   }
 }
 
+// Yields to the event loop until `reached` holds, so an ordering assertion waits
+// on the work itself rather than on a duration.
+async function until(reached: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 200 && !reached(); attempt += 1) {
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
+
+  if (!reached()) throw new Error("The awaited step never happened.")
+}
+
 describe("Privy session bridge", () => {
   it("synchronizes wallets without changing the local or provider session", async () => {
     const requestLogin = vi.fn()
@@ -160,7 +170,6 @@ describe("Privy session bridge", () => {
         method: "POST",
         credentials: "same-origin",
         headers: {authorization: "Bearer verified", "x-csrf-token": "csrf"},
-        signal: expect.any(AbortSignal),
       },
     ])
   })
@@ -237,91 +246,68 @@ describe("Privy session bridge", () => {
     )
   })
 
-  it.each(["csrf", "session POST"])(
-    "aborts a never-settling %s before one local deletion",
-    async phase => {
-      vi.useFakeTimers()
+  it("aborts a never-settling bootstrap before one local deletion", async () => {
+    const sessionMutations = createSessionMutationCoordinator()
+    let bootstrapStarted = false
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (input !== "/auth/csrf") throw new Error("The session POST was never reachable.")
+      bootstrapStarted = true
+      return new Promise<Response>((_resolve, reject) =>
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), {once: true}),
+      )
+    })
+    const fetcher = fetchMock as unknown as typeof fetch
 
-      try {
-        const sessionMutations = createSessionMutationCoordinator({
-          cancellationWaitMs: 10,
-        })
-        let finishLate: (() => void) | undefined
-        let hangingRequestStarted = false
-        const fetchMock = vi.fn((input: RequestInfo | URL) => {
-          const hangs =
-            (phase === "csrf" && input === "/auth/csrf") ||
-            (phase === "session POST" && input === "/auth/privy/session")
+    const establishment = createLocalSession("verified", fetcher, sessionMutations)
+    await until(() => bootstrapStarted)
+    const establishmentFailure = expect(establishment).rejects.toMatchObject({name: "AbortError"})
 
-          if (hangs) {
-            hangingRequestStarted = true
-            return new Promise<Response>(resolve => {
-              finishLate = () =>
-                resolve(
-                  input === "/auth/csrf"
-                    ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
-                    : new Response("{}", {
-                        status: 200,
-                        headers: {"x-ash-session-changed": "false"},
-                      }),
-                )
-            })
-          }
+    const clearSession = vi.fn(async () => undefined)
+    await sessionMutations.signOut(clearSession)
+    expect(clearSession).toHaveBeenCalledOnce()
 
-          return Promise.resolve(
-            input === "/auth/csrf"
-              ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
-              : new Response("{}", {
-                  status: 200,
-                  headers: {"x-ash-session-changed": "false"},
-                }),
-          )
-        })
-        const fetcher = fetchMock as typeof fetch
-        let localAuthenticated = true
-        const establishment = createLocalSession("verified", fetcher, sessionMutations).then(
-          result => {
-            localAuthenticated = true
-            return result
-          },
-        )
-        await vi.advanceTimersByTimeAsync(0)
-        expect(hangingRequestStarted).toBe(true)
-        const establishmentFailure = expect(establishment).rejects.toMatchObject({
-          name: "AbortError",
-        })
+    await establishmentFailure
+    expect(fetchMock).not.toHaveBeenCalledWith("/auth/privy/session", expect.anything())
 
-        const clearSession = vi.fn(async () => {
-          localAuthenticated = false
-        })
-        const signOut = sessionMutations.signOut(clearSession)
-        expect(clearSession).not.toHaveBeenCalled()
-        await vi.advanceTimersByTimeAsync(10)
-        await signOut
-        expect(clearSession).toHaveBeenCalledOnce()
-        expect(localAuthenticated).toBe(false)
+    const fetchCallCount = fetchMock.mock.calls.length
+    await expect(createLocalSession("verified", fetcher, sessionMutations)).rejects.toThrow(
+      "Local sign out has already started.",
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(fetchCallCount)
+  })
 
-        finishLate?.()
-        await establishmentFailure
-        expect(localAuthenticated).toBe(false)
-        await sessionMutations.signOut(clearSession)
-        const fetchCallCount = fetchMock.mock.calls.length
-        await expect(
-          createLocalSession("verified", fetcher, sessionMutations),
-        ).rejects.toThrow("Local sign out has already started.")
-        expect(fetchMock).toHaveBeenCalledTimes(fetchCallCount)
-        expect(clearSession).toHaveBeenCalledOnce()
-        if (phase === "csrf") {
-          expect(fetchMock).not.toHaveBeenCalledWith(
-            "/auth/privy/session",
-            expect.anything(),
-          )
-        }
-      } finally {
-        vi.useRealTimers()
+  it("holds a queued sign out until a dispatched session POST has adopted its token", async () => {
+    const sessionMutations = createSessionMutationCoordinator()
+    const order: string[] = []
+    let releasePost: (() => void) | undefined
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") {
+        order.push("csrf")
+        return Promise.resolve(new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200}))
       }
-    },
-  )
+      order.push("post")
+      return new Promise<Response>(resolve => {
+        releasePost = () =>
+          resolve(new Response("{}", {status: 200, headers: {"x-ash-session-changed": "false"}}))
+      })
+    })
+    const fetcher = fetchMock as unknown as typeof fetch
+
+    const establishment = createLocalSession("verified", fetcher, sessionMutations)
+    await until(() => order.includes("post"))
+
+    const clearSession = vi.fn(async () => void order.push("delete"))
+    const signOut = sessionMutations.signOut(clearSession)
+    expect(clearSession).not.toHaveBeenCalled()
+
+    releasePost?.()
+    await expect(establishment).resolves.toEqual({sessionChanged: false})
+    await signOut
+
+    // The dispatched POST may already have renewed the cookie, so sign out runs
+    // only after the adoption fetch that follows it.
+    expect(order).toEqual(["csrf", "post", "csrf", "delete"])
+  })
 
   it("completes the local session from Privy's access-token grant", async () => {
     const reload = vi.fn()
