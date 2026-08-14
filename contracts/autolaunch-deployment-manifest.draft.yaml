@@ -1,11 +1,12 @@
 version: 5
 schema_change_reason: >-
-  Every recorded size now names its producing Foundry artifact and the exact
-  resolved toolchain, the local preparation preflight is recorded as its own
-  object, and the ceremony preflight and local-evidence boundary are stated
-  explicitly. Shape and meaning changed, so the schema version advances. No
-  bytecode hash, binding digest, deployment output, child initcode, predicted
-  address, gas ceiling, compiler setting, or deployed-contract source changed.
+  Every recorded size now names the exact 0.8.28 Foundry artifact variant that
+  produced it, the repository's resolved compiler groups are stated in full, the
+  local preparation preflight is recorded as its own object, and the ceremony
+  preflight and local-evidence boundary are stated explicitly. Shape and meaning
+  changed, so the schema version advances. No bytecode hash, binding digest,
+  deployment output, child initcode, predicted address, gas ceiling, compiler
+  setting, or deployed-contract source changed.
 status: draft
 approval: founder_approval_pending
 purpose: minimal atomic AutolaunchFactoryV1 deployment and binding evidence
@@ -15,15 +16,31 @@ warning: >-
 network: {name: base-mainnet, chain_id: 8453}
 toolchain:
   build: foundry_forge_1_4_4
-  solc_resolution: exact_source_pragma_under_auto_detect_solc
+  solc_resolution: auto_detect_solc_per_source_unit
   foundry_toml_solc_pin: none
   solc: 0.8.28+commit.7893614a
-  solc_applies_to: every_artifact_named_in_this_manifest
+  solc_applies_to: every_artifact_path_named_in_this_manifest
+  resolved_compiler_groups:
+    - solc: 0.8.26+commit.8a97fa7a
+      ceremony_group: false
+      reason: reached_only_from_the_single_exact_0_8_26_source_unit
+    - solc: 0.8.28+commit.7893614a
+      ceremony_group: true
+      reason: reached_from_the_exact_0_8_28_script_and_test_units_that_build_this_packet
+    - solc: newest_installed_compiler_satisfying_caret_0_8_26
+      ceremony_group: false
+      observed_on_this_gate: 0.8.33+commit.64118f21
+      reason: no_source_unit_or_repository_setting_pins_this_group
+  caret_pragma_is_not_a_version: >-
+    Almost every source behind this ceremony declares `^0.8.26`, which is a range
+    and never means 0.8.26 or 0.8.28. Under auto_detect_solc that range resolves
+    to the newest installed compatible compiler, so it tracks the machine rather
+    than the repository. Only the exact-0.8.28 artifact variants named in this
+    manifest are ceremony provenance.
   other_repository_source_units: >-
-    auto_detect_solc resolves per source unit, so unrelated repository sources
-    outside this manifest still compile at 0.8.28 or 0.8.26 as their own pragmas
-    require. No compiler setting is changed and no cross-compiler equivalence is
-    claimed here.
+    Sources outside this manifest compile in whichever of the three groups above
+    their own pragmas and importers place them. No compiler setting is changed
+    and no cross-compiler equivalence is claimed here.
   optimizer: {enabled: true, runs: 200}
   via_ir: true
   evm_version: prague
@@ -38,8 +55,8 @@ consumer:
   retired_controller_compatibility: none
 abi_evidence:
   source: compiler_generated_IAutolaunchFactoryV1
-  interface_artifact: out/IAutolaunchFactoryV1.sol/IAutolaunchFactoryV1.json
-  implementation_artifact: out/AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json
+  interface_artifact: out/IAutolaunchFactoryV1.sol/IAutolaunchFactoryV1.0.8.28.json
+  implementation_artifact: out/AutolaunchFactoryV1.sol/AutolaunchFactoryV1.0.8.28.json
   normalization: recursively_delete_internalType_sort_object_keys_preserve_array_order_compact_utf8
   normalized_bytes: 1982
   interface_abi_sha256: "0x1e0001e35eecd2ca7503566b38df824e400de455173d080c73d4d70b9cea92f1"
@@ -210,7 +227,26 @@ candidate_deployability:
   evidence_source: real_create_from_the_prepared_initcodes_no_etched_or_manufactured_account_state
   exact_sizes_are: informational_tests_assert_protocol_bounds_not_these_byte_counts
   artifact_root: out
-  every_artifact_below_resolves_to: 0.8.28+commit.7893614a
+  artifact_resolution:
+    observed_after: bin/gate.sh
+    every_artifact_path_below_resolves_to: 0.8.28+commit.7893614a
+    verify_each_path_by: reading_metadata_compiler_version_in_the_named_file
+    unsuffixed_paths_are_not_provenance: >-
+      When one contract resolves in more than one compiler group, Forge keeps a
+      single unsuffixed artifact path and writes version-suffixed paths for the
+      remaining groups. Which group keeps the unsuffixed path follows the order
+      the gate happened to write it, so an unsuffixed path is machine- and
+      build-order-dependent and is never named here when a suffixed exact-0.8.28
+      variant exists.
+    unsuffixed_paths_named_below:
+      - artifact: AutolaunchCreateSequencerV1.sol/AutolaunchCreateSequencerV1.json
+        unambiguous_because: source_pragma_is_exactly_0_8_28_so_only_one_group_resolves
+      - artifact: RegentStakingRevenueRouter.sol/RegentStakingRevenueRouter.json
+        unambiguous_because: >-
+          Forge separated this contract's groups by directory instead of by file
+          suffix and wrote the newest-installed variant under
+          out/revenue/RegentStakingRevenueRouter.sol/ instead, so the named path
+          carries no suffixed twin and holds the 0.8.28 build.
   sequencer:
     artifact: AutolaunchCreateSequencerV1.sol/AutolaunchCreateSequencerV1.json
     runtime_bytes: 2695
@@ -218,20 +254,20 @@ candidate_deployability:
     complete_initcode_bytes: 3549
     initcode_margin_bytes: 45603
   ceremony_created:
-    - {nonce: 1, contract: SubjectRegistry, artifact: SubjectRegistry.sol/SubjectRegistry.json, runtime_bytes: 13439, complete_initcode_bytes: 14235}
+    - {nonce: 1, contract: SubjectRegistry, artifact: SubjectRegistry.sol/SubjectRegistry.0.8.28.json, runtime_bytes: 13439, complete_initcode_bytes: 14235}
     - {nonce: 2, contract: RegentStakingRevenueRouter, artifact: RegentStakingRevenueRouter.sol/RegentStakingRevenueRouter.json, runtime_bytes: 5199, complete_initcode_bytes: 6126}
-    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, artifact: RevenueShareSplitterV2Deployer.sol/RevenueShareSplitterV2Deployer.json, runtime_bytes: 23570, complete_initcode_bytes: 23596}
-    - {nonce: 4, contract: RevenueShareFactory, artifact: RevenueShareFactory.sol/RevenueShareFactory.json, runtime_bytes: 3795, complete_initcode_bytes: 4739}
-    - {nonce: 5, contract: RevenueIngressFactory, artifact: RevenueIngressFactory.sol/RevenueIngressFactory.json, runtime_bytes: 14199, complete_initcode_bytes: 14923}
-    - {nonce: 6, contract: PaymentLinkFactory, artifact: PaymentLinkFactory.sol/PaymentLinkFactory.json, runtime_bytes: 15966, complete_initcode_bytes: 16697}
-    - {nonce: 7, contract: RegentLBPStrategyFactory, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyFactory.json, runtime_bytes: 5689, complete_initcode_bytes: 29362}
-    - {nonce: 8, contract: LaunchFeeInfraDeployer, artifact: LaunchFeeInfraDeployer.sol/LaunchFeeInfraDeployer.json, runtime_bytes: 23415, complete_initcode_bytes: 23658}
-    - {nonce: 9, contract: AutolaunchFactoryV1, artifact: AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json, runtime_bytes: 17952, complete_initcode_bytes: 23436}
+    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, artifact: RevenueShareSplitterV2Deployer.sol/RevenueShareSplitterV2Deployer.0.8.28.json, runtime_bytes: 23570, complete_initcode_bytes: 23596}
+    - {nonce: 4, contract: RevenueShareFactory, artifact: RevenueShareFactory.sol/RevenueShareFactory.0.8.28.json, runtime_bytes: 3795, complete_initcode_bytes: 4739}
+    - {nonce: 5, contract: RevenueIngressFactory, artifact: RevenueIngressFactory.sol/RevenueIngressFactory.0.8.28.json, runtime_bytes: 14199, complete_initcode_bytes: 14923}
+    - {nonce: 6, contract: PaymentLinkFactory, artifact: PaymentLinkFactory.sol/PaymentLinkFactory.0.8.28.json, runtime_bytes: 15966, complete_initcode_bytes: 16697}
+    - {nonce: 7, contract: RegentLBPStrategyFactory, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyFactory.0.8.28.json, runtime_bytes: 5689, complete_initcode_bytes: 29362}
+    - {nonce: 8, contract: LaunchFeeInfraDeployer, artifact: LaunchFeeInfraDeployer.sol/LaunchFeeInfraDeployer.0.8.28.json, runtime_bytes: 23415, complete_initcode_bytes: 23658}
+    - {nonce: 9, contract: AutolaunchFactoryV1, artifact: AutolaunchFactoryV1.sol/AutolaunchFactoryV1.0.8.28.json, runtime_bytes: 17952, complete_initcode_bytes: 23436}
   nested_ceremony_created:
-    - {creator: RegentLBPStrategyFactory, creator_nonce: 1, contract: RegentLBPStrategyDeployer, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyDeployer.json, runtime_bytes: 23153}
+    - {creator: RegentLBPStrategyFactory, creator_nonce: 1, contract: RegentLBPStrategyDeployer, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyDeployer.0.8.28.json, runtime_bytes: 23153}
   revenue_share_splitter_v2:
     created_at_launch_time_not_during_this_ceremony: true
-    artifact: RevenueShareSplitterV2.sol/RevenueShareSplitterV2.json
+    artifact: RevenueShareSplitterV2.sol/RevenueShareSplitterV2.0.8.28.json
     runtime_bytes: 20817
     runtime_margin_bytes: 3759
     creation_code_bytes: 23090

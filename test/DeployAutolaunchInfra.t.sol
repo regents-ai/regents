@@ -123,11 +123,16 @@ contract DeployAutolaunchInfraScriptTest is Test {
     uint256 internal constant EIP3860_MAX_INITCODE_BYTES = 49_152;
     uint256 internal constant MAX_CALLDATA_BYTES = 100_000;
     uint256 internal constant MAX_TOTAL_GAS = 20_000_000;
-    string internal constant FACTORY_ARTIFACT = "AutolaunchFactoryV1.sol:AutolaunchFactoryV1";
+    // Version-qualified artifact identifiers. Most of these sources declare `^0.8.26`, so the
+    // repository gate resolves each of them at several compilers and Forge keeps the unsuffixed
+    // artifact path for whichever one it wrote first. Naming 0.8.28 explicitly is what makes these
+    // reads the same evidence the draft manifest records.
+    string internal constant FACTORY_ARTIFACT =
+        "AutolaunchFactoryV1.sol:AutolaunchFactoryV1:0.8.28";
     string internal constant SEQUENCER_ARTIFACT =
-        "AutolaunchCreateSequencerV1.sol:AutolaunchCreateSequencerV1";
+        "AutolaunchCreateSequencerV1.sol:AutolaunchCreateSequencerV1:0.8.28";
     string internal constant SPLITTER_ARTIFACT =
-        "RevenueShareSplitterV2.sol:RevenueShareSplitterV2";
+        "RevenueShareSplitterV2.sol:RevenueShareSplitterV2:0.8.28";
 
     // Canonical Safe 1.4.1 Base mainnet deployment, pinned by
     // test/fixtures/safe-1.4.1-base-8453-deployment-evidence.json. Harness-only fixed external
@@ -814,6 +819,25 @@ contract DeployAutolaunchInfraScriptTest is Test {
         emit log_named_uint(
             "revenueShareSplitterV2 initcode bytes at MAX_TOKEN_NAME_BYTES",
             declaredTokenNameInitcode
+        );
+    }
+
+    /// @notice EXACT_ARTIFACT_PROVENANCE: every artifact this suite reads by name is byte-identical
+    /// to the compilation unit that actually builds the ceremony packet. This file is pinned to
+    /// 0.8.28, so an identifier that silently resolved to another resolved compiler group would
+    /// stop matching here before it could be recorded as ceremony evidence.
+    function testNamedArtifactsAreTheSameUnitThatBuildsThePacket() external view {
+        assertEq(
+            keccak256(vm.getCode(SEQUENCER_ARTIFACT)),
+            keccak256(type(AutolaunchCreateSequencerV1).creationCode)
+        );
+        assertEq(
+            keccak256(vm.getCode(FACTORY_ARTIFACT)),
+            keccak256(type(AutolaunchFactoryV1).creationCode)
+        );
+        assertEq(
+            keccak256(vm.getCode(SPLITTER_ARTIFACT)),
+            keccak256(type(RevenueShareSplitterV2).creationCode)
         );
     }
 
