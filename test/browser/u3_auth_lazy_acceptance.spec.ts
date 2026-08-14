@@ -111,6 +111,30 @@ export async function startPrivyBridge() {
 }
 `
 
+const rejectedBearerBridgeStub = `
+import {
+  createLocalSession,
+  createProviderSessionReconciler
+} from "/assets/js/privy_bridge.js?u3_original=1"
+
+export async function startPrivyBridge() {
+  return {
+    async request(request) {
+      if (request !== "sync") return
+      const reconcile = createProviderSessionReconciler({
+        clearSession: async () => { window.__u3BridgeDelete = true },
+        establishSession: createLocalSession,
+        getAccessToken: async () => "invalid",
+        hasLinkedWallet: () => true,
+        providerAuthenticated: () => true,
+        reload: () => { window.location.reload() }
+      })
+      await reconcile().catch(() => undefined)
+    }
+  }
+}
+`
+
 async function establishLocalSession(page: import("@playwright/test").Page) {
   const csrfResponse = await page.request.get("/auth/csrf")
   const {csrf_token: csrfToken} = await csrfResponse.json()
@@ -860,4 +884,34 @@ test("a tab holding a stale token still signs out, and the revoked lineage canno
   await expect(
     refreshingTab.locator("#account-control [data-account-target='sign-in']"),
   ).toBeVisible()
+})
+
+test("a rejected bearer leaves the browser anonymous without a duplicate delete or a reload loop", async ({
+  page,
+}) => {
+  const deletes: string[] = []
+  const documents: string[] = []
+  page.on("request", request => {
+    if (request.method() === "DELETE") deletes.push(request.url())
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documents.push(new URL(request.url()).pathname)
+    }
+  })
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: rejectedBearerBridgeStub, contentType: "application/javascript"}),
+  )
+
+  await establishLocalSession(page)
+  await page.goto("/app")
+
+  // The server already revoked and dropped the authority with its 401, so the
+  // bridge adds no delete of its own and the single reload lands anonymous.
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  await page.waitForLoadState("networkidle")
+
+  expect(deletes).toEqual([])
+  expect(documents).toEqual(["/app", "/app"])
+
+  const session = await page.request.get("/auth/session")
+  expect((await session.json()).authenticated).toBe(false)
 })

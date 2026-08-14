@@ -5,7 +5,6 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.System
   alias AshPlatform.Autolaunch
-  alias AshPlatformWeb.Live.Session
 
   @wallet "0x1111111111111111111111111111111111111111"
   @auction_address "0x3333333333333333333333333333333333333333"
@@ -14,28 +13,39 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   @sign_in "#account-control [data-account-target=sign-in]"
   @signed_in_markup ~s(data-account-target="sign-out")
 
-  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: the static token names what the render knew", %{
-    conn: conn
-  } do
-    # Phoenix LiveView 1.2.7 hands mount/3 `Map.merge(handshake_session,
-    # static_token_session)`, so the static token carries no authority field. It
-    # names a lineage only while that render's claim was current, and carries the
-    # route because a connected mount has no other way to learn it.
-    signed_in = init_test_session(conn, %{human_account_id: account!().id})
-    lineage = get_session(signed_in, :session_lineage)
+  test "CANONICAL_AUTHORITY_ROW: the signed static token carries no credential", %{conn: conn} do
+    account = account!()
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    %{"session_lineage" => lineage, "live_socket_id" => cookie_topic} = get_session(signed_in)
 
-    assert %{"render_lineage" => ^lineage, "render_route" => "/formation"} =
-             Session.render_context(%{
-               get(signed_in, "/formation")
-               | request_path: "/formation",
-                 query_string: ""
-             })
+    markup = html_response(get(signed_in, "/formation"), 200)
 
-    assert Session.render_context(%{
-             get(build_conn(), "/formation")
-             | request_path: "/formation",
-               query_string: "tab=links"
-           }) == %{"render_route" => "/formation?tab=links"}
+    # Phoenix.LiveView.Static signs this token with Phoenix.Token, which is
+    # integrity-only: anyone holding the markup can read what it carries.
+    assert %{session: session} = static_session!(markup)
+
+    assert session == %{
+             "render_topic" => SessionAuthority.topic(lineage),
+             "render_route" => "/formation"
+           }
+
+    refute markup =~ lineage
+    refute markup =~ Base.encode64(lineage)
+    refute markup =~ Base.encode16(:crypto.hash(:sha256, lineage))
+
+    for credential <- ["session_lineage", "session_generation", "live_socket_id"] do
+      refute Map.has_key?(session, credential)
+    end
+
+    # The topic it does carry is the one the cookie already names publicly.
+    assert session["render_topic"] == cookie_topic
+  end
+
+  test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route" do
+    assert %{session: %{"render_route" => "/formation"} = session} =
+             build_conn() |> get("/formation") |> html_response(200) |> static_session!()
+
+    assert Map.keys(session) == ["render_route"]
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an already-sent static render loses to the current handshake",
@@ -257,6 +267,18 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   end
 
   defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()
+
+  # Verifies the token exactly as Phoenix.LiveView.Static does: Phoenix.Token
+  # over the endpoint's live_view signing salt, wrapping {token_vsn, data}.
+  defp static_session!(markup) do
+    [_match, token] = Regex.run(~r/data-phx-session="([^"]+)"/, markup)
+    salt = AshPlatformWeb.Endpoint.config(:live_view)[:signing_salt]
+
+    {:ok, {_version, data}} =
+      Phoenix.Token.verify(AshPlatformWeb.Endpoint, salt, token, max_age: 1_209_600)
+
+    data
+  end
 
   defp other_lineage, do: SessionAuthority.bootstrap().lineage
 

@@ -28,7 +28,7 @@ defmodule AshPlatformWeb.PrivySessionController do
          {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
       bind(conn, account, identity_conflicts)
     else
-      _unverified -> conn |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
+      _unverified -> unauthorized(conn)
     end
   end
 
@@ -80,6 +80,19 @@ defmodule AshPlatformWeb.PrivySessionController do
       {:error, :reset} ->
         conn |> drop_session() |> lifecycle_error("session_reset_required")
     end
+  end
+
+  # The provider attempt is over before any authority work starts, so no external
+  # call sits inside the transaction: a bearer this browser cannot prove revokes
+  # the lineage it was offered for instead of leaving it bound and current.
+  defp unauthorized(conn) do
+    topic = SessionAuthority.revoke(claim(conn))
+
+    %Plug.Conn{state: :sent} =
+      conn = conn |> drop_session() |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
+
+    broadcast_disconnect(topic)
+    conn
   end
 
   defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()

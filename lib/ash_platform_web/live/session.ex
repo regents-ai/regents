@@ -13,17 +13,22 @@ defmodule AshPlatformWeb.Live.Session do
   @doc """
   What the render knew, signed into the static LiveView token.
 
+  `Phoenix.LiveView.Static.sign_token/2` signs with `Phoenix.Token`, which is
+  integrity-only and readable by anyone holding the markup, so this carries the
+  lineage-stable topic rather than the lineage itself: a digest that names the
+  browser session without being able to authenticate as it. The route travels
+  with it because a connected mount cannot otherwise learn it — `connect_info`
+  `:uri` is the transport's own `/live/websocket` address and `socket.host_uri`
+  carries no path, so only `handle_params` sees the page route, and that is too
+  late to refuse a mount.
+
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
-  static_token_session)`, so these use their own keys and can never stand in for
-  the authority the socket connected with. The lineage is named only while that
-  render's own claim was current. The route travels with them because a connected
-  mount cannot otherwise learn it: `connect_info` `:uri` is the transport's own
-  `/live/websocket` address and `socket.host_uri` carries no path, so only
-  `handle_params` sees the page route and that is too late to refuse a mount.
+  static_token_session)`, so both keys are the render's own and can never stand
+  in for the authority the socket connected with.
   """
   def render_context(conn) do
     conn.assigns.current_lineage
-    |> rendered_lineage()
+    |> rendered_topic()
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
   end
 
@@ -43,7 +48,7 @@ defmodule AshPlatformWeb.Live.Session do
   # authority refuses, or none at all under a page that named a lineage — lands
   # on the public root, which is outside the product shell and so cannot raise
   # the same rejection again.
-  defp connected(socket, %{"render_lineage" => rendered} = static, handshake),
+  defp connected(socket, %{"render_topic" => rendered} = static, handshake),
     do: admit(socket, rendered, static["render_route"], SessionAuthority.claim(handshake))
 
   defp connected(socket, static, handshake) do
@@ -55,10 +60,12 @@ defmodule AshPlatformWeb.Live.Session do
   defp admit(socket, _rendered, _route, nil), do: {:halt, redirect(socket, to: @public_root)}
 
   defp admit(socket, rendered, route, %{lineage: lineage, generation: generation} = claim) do
-    case SessionAuthority.resolve(claim) do
+    with {^lineage, account} <- SessionAuthority.resolve(claim),
+         ^rendered <- SessionAuthority.topic(lineage) do
+      {:cont, hold(socket, lineage, generation, account)}
+    else
       {nil, nil} -> {:halt, redirect(socket, to: @public_root)}
-      {^rendered, account} -> {:cont, hold(socket, lineage, generation, account)}
-      {^lineage, _account} -> {:halt, redirect(socket, to: route)}
+      _other_session -> {:halt, redirect(socket, to: route)}
     end
   end
 
@@ -91,8 +98,8 @@ defmodule AshPlatformWeb.Live.Session do
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)
 
-  defp rendered_lineage(nil), do: %{}
-  defp rendered_lineage(lineage), do: %{"render_lineage" => lineage}
+  defp rendered_topic(nil), do: %{}
+  defp rendered_topic(lineage), do: %{"render_topic" => SessionAuthority.topic(lineage)}
 
   defp disconnected_account(session) do
     {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()

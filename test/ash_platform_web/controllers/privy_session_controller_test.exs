@@ -395,35 +395,57 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert String.downcase(secure_cookie) =~ "; secure"
   end
 
-  test "missing current linked-wallet evidence leaves the claim intact and the actor anonymous",
-       %{
-         conn: conn
-       } do
-    valid =
-      conn
-      |> init_test_session(%{})
-      |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
-      |> post("/auth/privy/session", %{})
-
-    assert json_response(valid, 200)["authenticated"] == true
+  test "STALE_LOGOUT_REVOKES: an unverifiable bearer revokes the bound lineage it was offered for" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+    topic = get_session(signed_in, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(topic)
+    {browser, csrf} = refreshed_csrf(browser)
+    flush_test_messages()
 
     rejected =
-      build_conn()
-      |> init_test_session(get_session(valid))
-      |> put_valid_csrf()
+      browser
+      |> enforce_csrf()
+      |> put_req_header("authorization", "Bearer invalid")
+      |> put_req_header("x-csrf-token", csrf)
+      |> post("/auth/privy/session", %{})
+
+    assert_response_sent_then_disconnect(topic)
+    assert %{"error" => "unauthorized"} = json_response(rejected, 401)
+    assert rejected.private[:plug_session_info] == :drop
+
+    # The lineage the bearer was offered for is terminally revoked, so the
+    # cookie the browser was still holding can neither authenticate nor mount.
+    assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
+    assert SessionAuthority.sign_in(claim(signed_in), account_id) == {:error, :reset}
+
+    held = build_conn() |> Phoenix.ConnTest.init_test_session(get_session(signed_in))
+    assert %{"authenticated" => false} = held |> get("/auth/session") |> json_response(200)
+
+    assert {:error, {:redirect, %{to: "/"}}} =
+             build_conn()
+             |> init_test_session(get_session(signed_in))
+             |> live("/formation")
+  end
+
+  test "STALE_LOGOUT_REVOKES: lapsed wallet evidence fails closed on the same rule" do
+    {browser, signed_in} = signed_in_browser()
+    {browser, csrf} = refreshed_csrf(browser)
+
+    rejected =
+      browser
+      |> enforce_csrf()
       |> put_req_header("authorization", "Bearer no-wallet")
+      |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
     assert %{"error" => "unauthorized"} = json_response(rejected, 401)
+    assert rejected.private[:plug_session_info] == :drop
 
     assert {:ok, invalidated} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
     assert invalidated.wallet_address == nil
     assert invalidated.wallet_addresses == []
-
-    stale_evidence = build_conn() |> init_test_session(get_session(valid)) |> get("/auth/session")
-
-    assert %{"authenticated" => false} = json_response(stale_evidence, 200)
+    assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
   end
 
   test "current provider evidence refreshes a stale former wallet without changing identity", %{
