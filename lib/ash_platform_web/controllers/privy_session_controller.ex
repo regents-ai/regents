@@ -12,11 +12,14 @@ defmodule AshPlatformWeb.PrivySessionController do
   A browser with no claim is bootstrapped onto a fresh unbound lineage; an exact
   claim is only observed; a superseded or unrecoverable one is told which of the
   two it is instead of being silently reset.
+
+  Observation writes no session, so this response carries no `Set-Cookie` and a
+  delayed one cannot put an older generation back over a later winner's cookie.
   """
   def csrf(conn, _params) do
     case SessionAuthority.renew(claim(conn)) do
       {:bootstrap, claim} -> conn |> rotate_session(claim) |> issue_token()
-      {:current, _claim} -> conn |> put_csrf_state() |> issue_token()
+      {:current, _claim} -> issue_token(conn)
       {:error, :superseded} -> lifecycle_error(conn, "session_superseded")
       {:error, :reset} -> conn |> drop_session() |> lifecycle_error("session_reset_required")
     end

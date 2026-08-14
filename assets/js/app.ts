@@ -5,7 +5,12 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ash_platform"
 
 import {composeHooks, type Hook} from "./hook_composition"
-import {browserCsrfToken, installAccountAuthLazyLoader, installCrossTabCsrf} from "./auth_lazy"
+import {
+  browserCsrfToken,
+  holdSocketDuringCookieRotation,
+  installAccountAuthLazyLoader,
+  installCrossTabCsrf,
+} from "./auth_lazy"
 import {
   brandForShellApp,
   reconcileShellState,
@@ -292,6 +297,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks,
 })
 
+// Installed before the first connect, so even the page's opening attempt is
+// subject to the barrier.
+holdSocketDuringCookieRotation(liveSocket.getSocket())
 liveSocket.connect()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()

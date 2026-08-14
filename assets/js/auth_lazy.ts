@@ -110,6 +110,59 @@ export async function csrfToken(
   return body.csrf_token
 }
 
+let openRotations = 0
+let unreadRenewal = false
+const heldSockets = new Set<() => void>()
+
+// True only while this tab is known to hold the CSRF state of the cookie it
+// would connect under.
+const csrfStateIsCurrent = () => openRotations === 0 && !unreadRenewal
+
+// Phoenix 1.8.9 establishes every socket through `Socket.connect`: the page's
+// first attempt arrives from `LiveSocket.connect` and every automatic retry
+// from the socket's own reconnect timer. Replacing it is therefore the one
+// place a connection can be refused outright, rather than merely ordered behind
+// an auth promise that an independent reconnect never waits for. A socket that
+// is already open is left alone: `connect` is a no-op while its transport
+// lives, so a mounted same-account socket survives the rotation.
+export function holdSocketDuringCookieRotation(socket: {connect: () => void}): void {
+  const connect = socket.connect.bind(socket)
+  let held = false
+
+  heldSockets.add(() => {
+    if (!held) return
+    held = false
+    connect()
+  })
+
+  socket.connect = () => {
+    if (csrfStateIsCurrent()) return connect()
+    held = true
+  }
+}
+
+// The interval between a response renewing the cookie and this tab reading the
+// CSRF state that cookie now carries. No socket may be established inside it,
+// because the token it would send belongs to the retired session. A rotation
+// that fails ends the interval having renewed the cookie but never read it, so
+// it fails closed: only a later rotation that does read the current state, or
+// the fresh module state a full document reload brings, admits a connection.
+export async function acrossCookieRotation<T>(rotation: () => Promise<T>): Promise<T> {
+  openRotations += 1
+
+  try {
+    const adopted = await rotation()
+    unreadRenewal = false
+    return adopted
+  } catch (unread) {
+    unreadRenewal = true
+    throw unread
+  } finally {
+    openRotations -= 1
+    if (csrfStateIsCurrent()) heldSockets.forEach(release => release())
+  }
+}
+
 export const csrfRotated = "regent:csrf-rotated:v1"
 
 let crossTabCsrf: BroadcastChannel | null | undefined
@@ -129,7 +182,10 @@ export function announceCsrfRotation(): void {
 export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
   const channel = csrfChannel()
   const adopt = (event: MessageEvent) => {
-    if (event.data === csrfRotated) void csrfToken(fetcher).catch(() => undefined)
+    if (event.data !== csrfRotated) return
+    // Another tab renewed the cookie both tabs share, so this tab is inside the
+    // same interval and holds its socket until it has read the new state.
+    void acrossCookieRotation(() => csrfToken(fetcher)).catch(() => undefined)
   }
 
   channel?.addEventListener("message", adopt)

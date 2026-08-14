@@ -13,6 +13,7 @@ import React from "react"
 import {createRoot} from "react-dom/client"
 
 import {
+  acrossCookieRotation,
   announceCsrfRotation,
   browserSessionMutations,
   clearLocalSession,
@@ -161,12 +162,6 @@ export function createSignOutOnlyBridgeState({
 
 export {clearLocalSession, csrfToken}
 
-export class LocalSessionEstablishmentError extends Error {
-  constructor(readonly localSessionDropped: boolean) {
-    super("Sign in could not be completed.")
-  }
-}
-
 export async function createLocalSession(
   accessToken: string,
   fetcher: typeof fetch = fetch,
@@ -175,8 +170,13 @@ export async function createLocalSession(
   sessionChanged: boolean
   identityError?: "already-connected"
 }> {
+  // The barrier spans the whole establishment, including the recovery attempt
+  // that follows a dropped lineage: every response inside it may leave a cookie
+  // whose CSRF state this tab has not read yet.
   return sessionMutations.establish((signal, commit) =>
-    recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit)),
+    acrossCookieRotation(() =>
+      recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit)),
+    ),
   )
 }
 
@@ -198,14 +198,14 @@ async function establishLocalSession(
   })
   const lifecycle = await sessionLifecycleError(response)
   if (lifecycle) throw lifecycle
-  if (!response.ok) throw new LocalSessionEstablishmentError(response.status === 401)
+  if (!response.ok) throw new Error("Sign in could not be completed.")
   const sessionChanged = response.headers.get("x-ash-session-changed")
   if (sessionChanged !== "true" && sessionChanged !== "false") {
-    throw new LocalSessionEstablishmentError(false)
+    throw new Error("Sign in could not be completed.")
   }
   const identityError = response.headers.get("x-ash-identity-error")
   if (identityError && identityError !== "already-connected") {
-    throw new LocalSessionEstablishmentError(false)
+    throw new Error("Sign in could not be completed.")
   }
   const verifiedIdentityError = identityError === "already-connected" ? identityError : undefined
   // The renewed session rotated its CSRF state: this tab adopts the new token
@@ -220,51 +220,29 @@ async function establishLocalSession(
 
 type ProviderSessionReconcilerOptions = {
   clearSession: () => Promise<void>
-  establishSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
   getAccessToken: () => Promise<string | null>
   hasLinkedWallet: () => boolean
   providerAuthenticated: () => boolean
   reload: () => void
 }
 
+// Startup reconciliation only reads the provider. Remaining signed in is not a
+// session event: this can end a local session the provider no longer supports,
+// but it can never establish or refresh one, so an ordinary signed-in load
+// advances no generation, renews no cookie and rotates no CSRF state.
 export function createProviderSessionReconciler({
   clearSession,
-  establishSession,
   getAccessToken,
   hasLinkedWallet,
   providerAuthenticated,
   reload,
 }: ProviderSessionReconcilerOptions): () => Promise<boolean> {
   return async () => {
-    if (!providerAuthenticated()) {
-      await clearSession()
-      reload()
-      return false
-    }
+    if (providerAuthenticated() && (await getAccessToken()) && hasLinkedWallet()) return true
 
-    const accessToken = await getAccessToken()
-    if (!accessToken) {
-      await clearSession()
-      reload()
-      return false
-    }
-
-    try {
-      const {sessionChanged} = await establishSession(accessToken)
-      if (!hasLinkedWallet()) {
-        await clearSession()
-        reload()
-        return false
-      }
-      if (sessionChanged) reload()
-      return true
-    } catch (error) {
-      if (!(error instanceof LocalSessionEstablishmentError && error.localSessionDropped)) {
-        await clearSession()
-      }
-      reload()
-      throw error
-    }
+    await clearSession()
+    reload()
+    return false
   }
 }
 
@@ -424,7 +402,6 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     () =>
       createProviderSessionReconciler({
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
-        establishSession: createLocalSession,
         getAccessToken,
         hasLinkedWallet: () => wallets.length > 0,
         providerAuthenticated: () => authenticated,

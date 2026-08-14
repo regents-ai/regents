@@ -3,9 +3,11 @@ declare module "phoenix" {
 }
 
 declare module "phoenix_live_view" {
+  // The exact surface this application uses from phoenix_live_view 1.2.7.
   export class LiveSocket {
     constructor(path: string, socket: unknown, options: Record<string, unknown>)
     connect(): void
+    getSocket(): {connect: () => void}
   }
 }
 

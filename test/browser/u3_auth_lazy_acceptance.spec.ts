@@ -83,10 +83,7 @@ export function startPrivyBridge() {
 `
 
 const realReconciliationBridgeStub = `
-import {
-  createLocalSession,
-  createProviderSessionReconciler
-} from "/assets/js/privy_bridge.js?u3_original=1"
+import {createProviderSessionReconciler} from "/assets/js/privy_bridge.js?u3_original=1"
 
 export async function startPrivyBridge() {
   return {
@@ -95,11 +92,6 @@ export async function startPrivyBridge() {
       if (request !== "sync") return
       const reconcile = createProviderSessionReconciler({
         clearSession: async () => { window.__u3UnexpectedDelete = true },
-        establishSession: async token => {
-          const result = await createLocalSession(token)
-          window.__u3SessionChanged = result.sessionChanged
-          return result
-        },
         getAccessToken: async () => "valid",
         hasLinkedWallet: () => true,
         providerAuthenticated: () => true,
@@ -111,25 +103,17 @@ export async function startPrivyBridge() {
 }
 `
 
+// A bearer the server refuses only ever reaches it through an explicit
+// establishment; startup reconciliation offers none.
 const rejectedBearerBridgeStub = `
-import {
-  createLocalSession,
-  createProviderSessionReconciler
-} from "/assets/js/privy_bridge.js?u3_original=1"
+import {createLocalSession} from "/assets/js/privy_bridge.js?u3_original=1"
 
 export async function startPrivyBridge() {
   return {
     async request(request) {
       if (request !== "sync") return
-      const reconcile = createProviderSessionReconciler({
-        clearSession: async () => { window.__u3BridgeDelete = true },
-        establishSession: createLocalSession,
-        getAccessToken: async () => "invalid",
-        hasLinkedWallet: () => true,
-        providerAuthenticated: () => true,
-        reload: () => { window.location.reload() }
-      })
-      await reconcile().catch(() => undefined)
+      await createLocalSession("invalid").catch(() => undefined)
+      window.location.reload()
     }
   }
 }
@@ -277,17 +261,20 @@ for (const viewport of retryViewports) {
   })
 }
 
-test("canonical same-account direct load runs the real reconciler without reload", async ({page}) => {
+test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no session", async ({
+  page,
+}) => {
   let bridgeRequests = 0
   let sessionDeletes = 0
+  let sessionPosts = 0
   const documentRequests: string[] = []
   await page.addInitScript(() => {
     ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
   })
   page.on("request", request => {
-    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
-      sessionDeletes += 1
-    }
+    if (!request.url().endsWith("/auth/privy/session")) return
+    if (request.method() === "DELETE") sessionDeletes += 1
+    if (request.method() === "POST") sessionPosts += 1
   })
   page.on("request", request => {
     if (request.isNavigationRequest() && request.resourceType() === "document") {
@@ -336,28 +323,17 @@ test("canonical same-account direct load runs the real reconciler without reload
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)
   expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__u3SessionChanged?: boolean}).__u3SessionChanged,
-    ),
-  ).toBe(false)
-  // Policy C: the refresh advances the authority generation, so the signed
-  // session cookie advances with it while nothing else about the page changes,
-  // and the browser adopts the CSRF token the renewed session rotated to.
+  // Remaining signed in is not a session event: startup reaches the session
+  // endpoint not at all, so the signed cookie and the token the page was
+  // rendered with are the ones it still holds afterwards.
+  expect(sessionPosts).toBe(0)
   const sessionCookieAfter = (await page.context().cookies()).find(
     cookie => cookie.name === "_ash_platform_key",
   )?.value
   expect(sessionCookieBefore).toBeTruthy()
-  expect(sessionCookieAfter).toBeTruthy()
-  expect(sessionCookieAfter).not.toBe(sessionCookieBefore)
+  expect(sessionCookieAfter).toBe(sessionCookieBefore)
   expect(renderedCsrfToken).toBeTruthy()
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content ?? "",
-      ),
-    )
-    .not.toBe(renderedCsrfToken)
+  expect(await metaCsrfToken(page)).toBe(renderedCsrfToken)
   expect(
     await page.evaluate(() =>
       Boolean((window as Window & {__u3ReloadAttempted?: boolean}).__u3ReloadAttempted),
@@ -746,6 +722,81 @@ async function refreshInPage(page: import("@playwright/test").Page) {
     await bridge.createLocalSession("valid")
   })
 }
+
+test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the token is read", async ({
+  page,
+}) => {
+  await stubBridge(page)
+  await establishLocalSession(page)
+  const documents = trackDocuments(page)
+
+  // The adoption that follows the renewing response is held, so the browser
+  // sits inside the interval for as long as this test needs it to.
+  let csrfRequests = 0
+  let releaseAdoption: (() => void) | undefined
+  const heldAdoption = new Promise<void>(resolve => (releaseAdoption = resolve))
+  let markHeld: (() => void) | undefined
+  const adoptionHeld = new Promise<void>(resolve => (markHeld = resolve))
+  await page.route("**/auth/csrf", async route => {
+    csrfRequests += 1
+    if (csrfRequests === 2) {
+      markHeld?.()
+      await heldAdoption
+    }
+    await route.continue()
+  })
+
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const connected = () =>
+    page.evaluate(() =>
+      Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
+    )
+  await expect.poll(connected).toBe(true)
+
+  const establishment = page.evaluate(async () => {
+    const source = "/assets/js/privy_bridge.js"
+    const bridge = (await import(source)) as {
+      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
+    }
+    await bridge.createLocalSession("valid")
+  })
+  await adoptionHeld
+  const heldToken = await metaCsrfToken(page)
+
+  await page.evaluate(
+    () =>
+      new Promise<void>(resolve =>
+        (window.liveSocket as unknown as {disconnect(callback: () => void): void}).disconnect(
+          resolve,
+        ),
+      ),
+  )
+  await expect.poll(connected).toBe(false)
+
+  // The cookie is already the renewed one and this tab has not read the state
+  // it carries. `Socket.connect` builds its transport synchronously, so a
+  // still-closed state right after the call means no connection was started at
+  // all, rather than one that was started and refused by the server.
+  expect(
+    await page.evaluate(() => {
+      const socket = (
+        window.liveSocket as unknown as {getSocket(): {connectionState(): string}}
+      ).getSocket()
+      window.liveSocket.connect()
+      return socket.connectionState()
+    }),
+  ).toBe("closed")
+  expect(await metaCsrfToken(page)).toBe(heldToken)
+
+  releaseAdoption?.()
+  await establishment
+
+  // Released, the held reconnect goes out once and lands, with no reload.
+  await expect.poll(connected).toBe(true)
+  expect(documents.map(url => new URL(url).pathname)).toEqual(["/app"])
+  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+})
 
 test("a refresh between another tab's dead render and its connect recovers in one reload", async ({
   context,

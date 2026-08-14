@@ -2,12 +2,14 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   SessionLifecycleError,
+  acrossCookieRotation,
   announceCsrfRotation,
   browserCsrfToken,
   clearLocalSession,
   createSessionMutationCoordinator,
   csrfRotated,
   csrfToken,
+  holdSocketDuringCookieRotation,
   installCrossTabCsrf,
   recoverOnce,
 } from "../js/auth_lazy"
@@ -138,6 +140,152 @@ describe("DYNAMIC_BROWSER_CSRF", () => {
         },
       ],
     ])
+  })
+})
+
+// The exact establishment surface of the pinned phoenix 1.8.9 socket: the first
+// attempt arrives from `LiveSocket.connect`, every automatic retry from the
+// socket's own reconnect timer, both through `Socket.connect`, which returns
+// without work while a transport is live and reads the CSRF param at the moment
+// it builds the endpoint URL.
+function pinnedSocket() {
+  const attempts: string[] = []
+  let live = false
+
+  return {
+    attempts,
+    connect() {
+      if (live) return
+      live = true
+      attempts.push(browserCsrfToken())
+    },
+    isConnected: () => live,
+  }
+}
+
+describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
+  it("admits no connection between the renewed cookie and the token it carries", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const tokens = ["before-post", "after-renewal"]
+    const insideInterval: number[] = []
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") return csrfResponse(tokens.shift() ?? "exhausted")
+      // The reconnect timer fires on its own, with no knowledge of the auth
+      // promise, at the instant the renewed cookie lands.
+      socket.connect()
+      insideInterval.push(socket.attempts.length)
+      return signedInResponse("true")
+    }) as unknown as typeof fetch
+
+    await createLocalSession("verified", fetcher)
+
+    expect(insideInterval).toEqual([0])
+    expect(socket.attempts).toEqual(["after-renewal"])
+    expect(socket.isConnected()).toBe(true)
+  })
+
+  it("leaves an already-mounted socket connected across the rotation", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    socket.connect()
+    const tokens = ["before-post", "after-renewal"]
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") return csrfResponse(tokens.shift() ?? "exhausted")
+      socket.connect()
+      return signedInResponse("false")
+    }) as unknown as typeof fetch
+
+    await createLocalSession("verified", fetcher)
+
+    // Policy C: the mounted same-account socket is never torn down, so the
+    // rotation costs it no re-establishment.
+    expect(socket.isConnected()).toBe(true)
+    expect(socket.attempts).toEqual(["page-token"])
+  })
+
+  it("stays closed when the adoption after a renewal fails, until one succeeds", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    let reads = 0
+    const unreadable = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") return signedInResponse("true")
+      reads += 1
+      // The sign-in response has already renewed the cookie; what fails is the
+      // read of the CSRF state that cookie now carries.
+      return reads === 1 ? csrfResponse("before-post") : new Response("", {status: 503})
+    }) as unknown as typeof fetch
+
+    await expect(createLocalSession("verified", unreadable)).rejects.toThrow(
+      "Unable to start a secure session change.",
+    )
+
+    // Admitting anything now would pair the renewed cookie with the retired
+    // token, so the reconnect arriving after the failure is refused as well.
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+    expect(socket.isConnected()).toBe(false)
+
+    const readable = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf" ? csrfResponse("after-renewal") : signedInResponse("true"),
+    ) as unknown as typeof fetch
+
+    await createLocalSession("verified", readable)
+
+    expect(socket.attempts).toEqual(["after-renewal"])
+    expect(socket.isConnected()).toBe(true)
+  })
+
+  it("stays closed when an adopting tab cannot read the cookie it now shares", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const unreadable = vi.fn(async () => new Response("", {status: 503})) as unknown as typeof fetch
+
+    // Exactly the rotation an adoption notice runs: the other tab renewed the
+    // cookie both share and this one could not read what it carries.
+    await expect(acrossCookieRotation(() => csrfToken(unreadable))).rejects.toThrow(
+      "Unable to start a secure session change.",
+    )
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+    expect(meta.content).toBe("stale-token")
+
+    const readable = vi.fn(async () => csrfResponse("renewed-token")) as unknown as typeof fetch
+    await acrossCookieRotation(() => csrfToken(readable))
+
+    expect(socket.attempts).toEqual(["renewed-token"])
+  })
+
+  it("holds an adopting tab's reconnect and converges without a loop", async () => {
+    pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket)
+    const insideInterval: number[] = []
+    const fetcher = vi.fn(async () => {
+      // A deploy-style reconnect in the tab that only adopted the notice.
+      socket.connect()
+      insideInterval.push(socket.attempts.length)
+      return csrfResponse("renewed-token")
+    }) as unknown as typeof fetch
+    const peer = new BroadcastChannel(csrfRotated)
+    const stopAdopting = installCrossTabCsrf(fetcher)
+
+    try {
+      peer.postMessage(csrfRotated)
+      await until(() => socket.attempts.length > 0)
+
+      expect(insideInterval).toEqual([0])
+      expect(socket.attempts).toEqual(["renewed-token"])
+      expect(fetcher).toHaveBeenCalledOnce()
+    } finally {
+      stopAdopting()
+      peer.close()
+    }
   })
 })
 

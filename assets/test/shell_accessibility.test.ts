@@ -10,6 +10,7 @@ vi.mock("phoenix", () => ({Socket: class Socket {}}))
 vi.mock("phoenix-colocated/ash_platform", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({
   browserCsrfToken: () => "csrf-token",
+  holdSocketDuringCookieRotation: vi.fn(),
   installAccountAuthLazyLoader: vi.fn(),
   installCrossTabCsrf: vi.fn(),
 }))
@@ -28,6 +29,10 @@ vi.mock("phoenix_live_view", () => ({
     }
 
     connect() {}
+
+    getSocket() {
+      return {connect() {}}
+    }
   },
 }))
 

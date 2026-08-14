@@ -52,7 +52,6 @@ const {
   createReadyLoginGate,
   createPrivySessionCompletion,
   createPrivyTokenCallbacks,
-  LocalSessionEstablishmentError,
 } = bridge
 
 type HookSlot = {
@@ -595,11 +594,9 @@ describe("Privy session bridge", () => {
 
   it("clears a stale server session when Privy is unauthenticated", async () => {
     const clearSession = vi.fn(async () => undefined)
-    const establishSession = vi.fn()
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      establishSession,
       getAccessToken: vi.fn(),
       hasLinkedWallet: () => false,
       providerAuthenticated: () => false,
@@ -608,17 +605,16 @@ describe("Privy session bridge", () => {
 
     await expect(reconcile()).resolves.toBe(false)
     expect(clearSession).toHaveBeenCalledOnce()
-    expect(establishSession).not.toHaveBeenCalled()
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it("reloads when current provider evidence replaces a different server account", async () => {
+  it("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a still-signed-in account writes no session", async () => {
     const clearSession = vi.fn(async () => undefined)
-    const establishSession = vi.fn(async () => ({sessionChanged: true}))
     const reload = vi.fn()
+    const fetcher = vi.fn()
+    vi.stubGlobal("fetch", fetcher)
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      establishSession,
       getAccessToken: vi.fn(async () => "current-token"),
       hasLinkedWallet: () => true,
       providerAuthenticated: () => true,
@@ -626,9 +622,12 @@ describe("Privy session bridge", () => {
     })
 
     await expect(reconcile()).resolves.toBe(true)
-    expect(establishSession).toHaveBeenCalledWith("current-token")
+
+    // Startup reconciliation only reads the provider, so nothing reaches the
+    // server: no generation advances, no cookie renews and nothing reloads.
+    expect(fetcher).not.toHaveBeenCalled()
     expect(clearSession).not.toHaveBeenCalled()
-    expect(reload).toHaveBeenCalledOnce()
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("drops the local session when the provider has no current linked wallet", async () => {
@@ -636,7 +635,6 @@ describe("Privy session bridge", () => {
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      establishSession: vi.fn(async () => ({sessionChanged: false})),
       getAccessToken: vi.fn(async () => "current-token"),
       hasLinkedWallet: () => false,
       providerAuthenticated: () => true,
@@ -648,21 +646,19 @@ describe("Privy session bridge", () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it("does not duplicate deletion after the server rejects stale wallet evidence", async () => {
+  it("drops the local session when the provider has no usable access token", async () => {
     const clearSession = vi.fn(async () => undefined)
     const reload = vi.fn()
-    const rejected = new LocalSessionEstablishmentError(true)
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      establishSession: vi.fn().mockRejectedValue(rejected),
-      getAccessToken: vi.fn(async () => "stale-token"),
-      hasLinkedWallet: () => false,
+      getAccessToken: vi.fn(async () => null),
+      hasLinkedWallet: () => true,
       providerAuthenticated: () => true,
       reload,
     })
 
-    await expect(reconcile()).rejects.toBe(rejected)
-    expect(clearSession).not.toHaveBeenCalled()
+    await expect(reconcile()).resolves.toBe(false)
+    expect(clearSession).toHaveBeenCalledOnce()
     expect(reload).toHaveBeenCalledOnce()
   })
 

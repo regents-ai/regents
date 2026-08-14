@@ -72,7 +72,38 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert json_response(observed, 200)["csrf_token"]
     assert get_session(observed, :session_lineage) == lineage
     assert get_session(observed, :session_generation) == 0
-    refute observed.private[:plug_session_info] == :renew
+    refute observed.private[:plug_session_info]
+    refute session_cookie(observed)
+  end
+
+  test "EXACT_CSRF_MATRIX: an exact bound claim is observed without touching the cookie" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+
+    observed = csrf_bootstrap(browser)
+
+    assert json_response(observed, 200)["csrf_token"]
+    refute observed.private[:plug_session_info]
+    refute session_cookie(observed)
+    assert get_session(observed) == get_session(signed_in)
+    assert SessionAuthority.exact(claim(signed_in)) == {:ok, account_id}
+  end
+
+  test "EXACT_CSRF_MATRIX: a held exact response cannot put an older generation back" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+
+    # Computed while the claim is still exact, then held in flight.
+    held = csrf_bootstrap(browser)
+    assert json_response(held, 200)["csrf_token"]
+
+    # Another tab wins the lineage and hands this browser its only new cookie.
+    assert {:ok, :refresh, winner} = SessionAuthority.sign_in(claim(signed_in), account_id)
+
+    # Delivered late, the held response carries nothing to apply over the winner.
+    refute session_cookie(held)
+    assert SessionAuthority.exact(winner) == {:ok, account_id}
+    assert SessionAuthority.exact(claim(signed_in)) == {:error, :superseded}
   end
 
   test "EXACT_CSRF_MATRIX: a superseded claim is refused without touching the cookie" do
@@ -146,6 +177,25 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert render_click(view, "refresh_verified_connections", %{}) =~
              "Run your Regent in Nous Portal"
+  end
+
+  test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+    topic = get_session(signed_in, :live_socket_id)
+    AshPlatformWeb.Endpoint.subscribe(topic)
+
+    for read <- [&get(&1, "/app"), &get(&1, "/auth/session"), &get(&1, "/auth/csrf")] do
+      refute browser |> recycled() |> read.() |> session_cookie()
+    end
+
+    {:ok, view, _html} = browser |> recycled() |> live("/formation")
+    assert Process.alive?(view.pid)
+
+    # Remaining signed in is not a session event: the generation this browser
+    # already holds is still the current one.
+    assert SessionAuthority.exact(claim(signed_in)) == {:ok, account_id}
+    refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
   end
 
   test "FIRST_BIND_AND_REFRESH_ROTATE: a superseded sign-in is refused and emits no cookie" do
