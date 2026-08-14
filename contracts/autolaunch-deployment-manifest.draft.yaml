@@ -1,4 +1,11 @@
-version: 4
+version: 5
+schema_change_reason: >-
+  Every recorded size now names its producing Foundry artifact and the exact
+  resolved toolchain, the local preparation preflight is recorded as its own
+  object, and the ceremony preflight and local-evidence boundary are stated
+  explicitly. Shape and meaning changed, so the schema version advances. No
+  bytecode hash, binding digest, deployment output, child initcode, predicted
+  address, gas ceiling, compiler setting, or deployed-contract source changed.
 status: draft
 approval: founder_approval_pending
 purpose: minimal atomic AutolaunchFactoryV1 deployment and binding evidence
@@ -6,6 +13,21 @@ warning: >-
   Draft preparation evidence only. This manifest does not deploy, admit, sign,
   broadcast, transact, access a provider, or move value.
 network: {name: base-mainnet, chain_id: 8453}
+toolchain:
+  build: foundry_forge_1_4_4
+  solc_resolution: exact_source_pragma_under_auto_detect_solc
+  foundry_toml_solc_pin: none
+  solc: 0.8.28+commit.7893614a
+  solc_applies_to: every_artifact_named_in_this_manifest
+  other_repository_source_units: >-
+    auto_detect_solc resolves per source unit, so unrelated repository sources
+    outside this manifest still compile at 0.8.28 or 0.8.26 as their own pragmas
+    require. No compiler setting is changed and no cross-compiler equivalence is
+    claimed here.
+  optimizer: {enabled: true, runs: 200}
+  via_ir: true
+  evm_version: prague
+  bytecode_hash: none
 consumer:
   contract: AutolaunchFactoryV1
   interface: IAutolaunchFactoryV1
@@ -73,6 +95,24 @@ prepared_outputs:
     - {index: 2, name: dependencies_phase_two, to: sequencer, value: 0}
     - {index: 3, name: authorize_strategy_factory, to: strategy_factory, value: 0}
     - {index: 4, name: deploy_factory, to: sequencer, value: 0}
+preparation_preflight:
+  evidence_class: local_offchain_preparation_only_never_a_provider_backed_ceremony
+  producer: script/DeployAutolaunchInfra.s.sol
+  effect: a_failed_check_returns_no_prepared_packet_at_all
+  deployed_roles:
+    governance: {zero: rejected, nonzero_without_code: rejected, code_required: true}
+    guardian: {zero: rejected, nonzero_without_code: rejected, code_required: true}
+    proves_about_the_live_safe: nothing
+  fixed_dependencies:
+    code_required: [usdc, identity_registry, live_staking]
+    live_binding_reader: live_staking_usdc_selector_must_decode_to_canonical_usdc
+    refused: [revert, short_or_non_decodable_return_data, dirty_address_high_bits, different_binding]
+    accepted: harmless_trailing_return_data
+    reader_form: typed_solidity_call_no_raw_low_level_decoding
+  relation_to_the_frozen_router_constructor: >-
+    This is an earlier preparation failure only. RegentStakingRevenueRouter's
+    frozen constructor readback remains the onchain enforcement point and is
+    unchanged.
 ceremony_preflight_gate:
   when: once_before_the_first_ceremony_transaction_is_broadcast
   never: after_phase_one
@@ -80,10 +120,20 @@ ceremony_preflight_gate:
   revalidate:
     - then_current_creator_address_and_nonce
     - chain_id_and_deployed_code_assumptions_for_every_fixed_external_dependency
-    - exact_live_governance_safe_address_owners_threshold_and_wrapper_encoding
+    - exact_code_presence_for_usdc_identity_registry_and_live_staking
+    - live_staking_usdc_binding_read_from_chain_equals_canonical_usdc
+    - exact_live_governance_safe_address_owners_threshold_and_then_current_nonce
+    - exact_live_governance_safe_guard_enabled_modules_and_fallback_handler
+    - exact_live_guardian_safe_address_owners_threshold_guard_modules_and_handler
+    - safe_wrapper_encoding_and_base_client_acceptance_of_each_prepared_transaction
     - base_client_acceptance_of_each_prepared_transaction_size_and_gas_limit
     - complete_gas_envelopes_including_calldata_intrinsic_gas_and_63_64_forwarding
   abandoning_the_fixed_factory_address_requires: fresh_sequencer_and_all_eight_dependencies
+local_evidence_boundary:
+  local_safe_harness_results: harness_only_never_live_safe_identity_or_configuration_evidence
+  local_code_presence_and_readbacks: preparation_evidence_only
+  substitutes_for_provider_backed_one_shot_preflight: false
+  substitutes_for_founder_approval: false
 initial_state_readbacks:
   launch_fee:
     getter: launchFee()
@@ -158,29 +208,47 @@ candidate_deployability:
   limit_source: [EIP-170, EIP-3860]
   acceptance_authority: runtime_code_hash_identity_and_protocol_limits
   evidence_source: real_create_from_the_prepared_initcodes_no_etched_or_manufactured_account_state
+  exact_sizes_are: informational_tests_assert_protocol_bounds_not_these_byte_counts
+  artifact_root: out
+  every_artifact_below_resolves_to: 0.8.28+commit.7893614a
   sequencer:
+    artifact: AutolaunchCreateSequencerV1.sol/AutolaunchCreateSequencerV1.json
     runtime_bytes: 2695
     runtime_margin_bytes: 21881
     complete_initcode_bytes: 3549
     initcode_margin_bytes: 45603
   ceremony_created:
-    - {nonce: 1, contract: SubjectRegistry, runtime_bytes: 13439, complete_initcode_bytes: 14235}
-    - {nonce: 2, contract: RegentStakingRevenueRouter, runtime_bytes: 5199, complete_initcode_bytes: 6126}
-    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, runtime_bytes: 23570, complete_initcode_bytes: 23596}
-    - {nonce: 4, contract: RevenueShareFactory, runtime_bytes: 3795, complete_initcode_bytes: 4739}
-    - {nonce: 5, contract: RevenueIngressFactory, runtime_bytes: 14199, complete_initcode_bytes: 14923}
-    - {nonce: 6, contract: PaymentLinkFactory, runtime_bytes: 15966, complete_initcode_bytes: 16697}
-    - {nonce: 7, contract: RegentLBPStrategyFactory, runtime_bytes: 5689, complete_initcode_bytes: 29362}
-    - {nonce: 8, contract: LaunchFeeInfraDeployer, runtime_bytes: 23415, complete_initcode_bytes: 23658}
-    - {nonce: 9, contract: AutolaunchFactoryV1, runtime_bytes: 17952, complete_initcode_bytes: 23436}
+    - {nonce: 1, contract: SubjectRegistry, artifact: SubjectRegistry.sol/SubjectRegistry.json, runtime_bytes: 13439, complete_initcode_bytes: 14235}
+    - {nonce: 2, contract: RegentStakingRevenueRouter, artifact: RegentStakingRevenueRouter.sol/RegentStakingRevenueRouter.json, runtime_bytes: 5199, complete_initcode_bytes: 6126}
+    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, artifact: RevenueShareSplitterV2Deployer.sol/RevenueShareSplitterV2Deployer.json, runtime_bytes: 23570, complete_initcode_bytes: 23596}
+    - {nonce: 4, contract: RevenueShareFactory, artifact: RevenueShareFactory.sol/RevenueShareFactory.json, runtime_bytes: 3795, complete_initcode_bytes: 4739}
+    - {nonce: 5, contract: RevenueIngressFactory, artifact: RevenueIngressFactory.sol/RevenueIngressFactory.json, runtime_bytes: 14199, complete_initcode_bytes: 14923}
+    - {nonce: 6, contract: PaymentLinkFactory, artifact: PaymentLinkFactory.sol/PaymentLinkFactory.json, runtime_bytes: 15966, complete_initcode_bytes: 16697}
+    - {nonce: 7, contract: RegentLBPStrategyFactory, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyFactory.json, runtime_bytes: 5689, complete_initcode_bytes: 29362}
+    - {nonce: 8, contract: LaunchFeeInfraDeployer, artifact: LaunchFeeInfraDeployer.sol/LaunchFeeInfraDeployer.json, runtime_bytes: 23415, complete_initcode_bytes: 23658}
+    - {nonce: 9, contract: AutolaunchFactoryV1, artifact: AutolaunchFactoryV1.sol/AutolaunchFactoryV1.json, runtime_bytes: 17952, complete_initcode_bytes: 23436}
   nested_ceremony_created:
-    - {creator: RegentLBPStrategyFactory, creator_nonce: 1, contract: RegentLBPStrategyDeployer, runtime_bytes: 23153}
+    - {creator: RegentLBPStrategyFactory, creator_nonce: 1, contract: RegentLBPStrategyDeployer, artifact: RegentLBPStrategyFactory.sol/RegentLBPStrategyDeployer.json, runtime_bytes: 23153}
   revenue_share_splitter_v2:
     created_at_launch_time_not_during_this_ceremony: true
+    artifact: RevenueShareSplitterV2.sol/RevenueShareSplitterV2.json
     runtime_bytes: 20817
     runtime_margin_bytes: 3759
-    complete_initcode_bytes_for_384_byte_constructor_args: 23474
-    initcode_margin_bytes: 25678
+    creation_code_bytes: 23090
+    constructor_encoding: ten_arguments_320_byte_head_plus_32_byte_string_length_plus_padded_label
+    label_source: AutolaunchFactoryV1_launch_params_tokenName
+    maximum_complete_initcode:
+      label_bytes: 96
+      label_bound: InputBounds.MAX_LABEL_BYTES_enforced_by_the_splitter_constructor
+      constructor_args_bytes: 448
+      complete_initcode_bytes: 23538
+      initcode_margin_bytes: 25614
+    declared_token_name_bound:
+      label_bytes: 64
+      label_bound: InputBounds.MAX_TOKEN_NAME_BYTES_declared_but_not_enforced_on_the_launch_path
+      constructor_args_bytes: 416
+      complete_initcode_bytes: 23506
+      initcode_margin_bytes: 25646
 transaction_budget:
   calldata_limit_bytes: 100000
   total_gas_limit: 20000000
@@ -190,10 +258,18 @@ transaction_budget:
   forwarding: measured_by_executing_each_call_with_exactly_the_ceiling_minus_intrinsic_gas
   measured:
     - {output: create_sequencer, kind: creation, calldata_bytes: 3549, total_gas: 674188}
-    - {output: dependencies_phase_one, kind: safe_call, calldata_bytes: 49636, intrinsic_gas: 769672, total_gas: 10368226}
+    - {output: dependencies_phase_one, kind: safe_call, calldata_bytes: 49636, intrinsic_gas: 769672, total_gas: 10365726}
     - {output: dependencies_phase_two, kind: safe_call, calldata_bytes: 85572, intrinsic_gas: 1303812, total_gas: 18204835}
     - {output: authorize_strategy_factory, kind: safe_call, calldata_bytes: 644, intrinsic_gas: 25784, total_gas: 64706}
-    - {output: deploy_factory, kind: safe_call, calldata_bytes: 24100, intrinsic_gas: 380284, total_gas: 4123998}
+    - {output: deploy_factory, kind: safe_call, calldata_bytes: 24100, intrinsic_gas: 380284, total_gas: 4121498}
+  measurement_frame_caveat: >-
+    All five outputs are measured inside one harness frame in which the local
+    preparation preflight has already read the fixed dependencies, so EIP-2929
+    account access for them is warm. Phase one and factory deployment therefore
+    measure 2,500 gas each below the same measurement at the predecessor
+    candidate. Ceilings, calldata sizes, and every other measured value are
+    unchanged, and the complete gas envelope remains a ceremony-preflight
+    obligation rather than a locally certified fact.
   tightest_margin: {output: dependencies_phase_two, gas_headroom: 1795165, calldata_headroom_bytes: 14428}
   repartitioning_phases_or_raising_a_ceiling: forbidden
 release_state:

@@ -8,6 +8,11 @@ import {AutolaunchCreateSequencerV1} from "src/autolaunch/AutolaunchCreateSequen
 import {AutolaunchFactoryV1} from "src/autolaunch/AutolaunchFactoryV1.sol";
 import {IAutolaunchFactoryV1} from "src/autolaunch/interfaces/IAutolaunchFactoryV1.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
+import {RevenueShareSplitterV2} from "src/autolaunch/revenue/RevenueShareSplitterV2.sol";
+import {InputBounds} from "src/autolaunch/revenue/libraries/InputBounds.sol";
+import {
+    IRegentRevenueStakingMinimal
+} from "src/autolaunch/revenue/interfaces/IRegentRevenueStakingMinimal.sol";
 import {
     IRegentStakingRevenueRouter
 } from "src/autolaunch/revenue/interfaces/IRegentStakingRevenueRouter.sol";
@@ -121,6 +126,8 @@ contract DeployAutolaunchInfraScriptTest is Test {
     string internal constant FACTORY_ARTIFACT = "AutolaunchFactoryV1.sol:AutolaunchFactoryV1";
     string internal constant SEQUENCER_ARTIFACT =
         "AutolaunchCreateSequencerV1.sol:AutolaunchCreateSequencerV1";
+    string internal constant SPLITTER_ARTIFACT =
+        "RevenueShareSplitterV2.sol:RevenueShareSplitterV2";
 
     // Canonical Safe 1.4.1 Base mainnet deployment, pinned by
     // test/fixtures/safe-1.4.1-base-8453-deployment-evidence.json. Harness-only fixed external
@@ -153,9 +160,13 @@ contract DeployAutolaunchInfraScriptTest is Test {
     function setUp() external {
         vm.chainId(8453);
         script = new DeployAutolaunchInfraScript();
+        // Placeholder code only. It satisfies the preflight's code-presence rule and is never
+        // evidence about the live Safe identity, owners, threshold, guard, modules, or handler.
         vm.etch(TOKEN_FACTORY, hex"00");
         vm.etch(OPERATIONS_SAFE, hex"00");
         vm.etch(IDENTITY_REGISTRY, hex"00");
+        vm.etch(GUARDIAN, hex"00");
+        vm.etch(USDC, hex"00");
         vm.etch(LIVE_STAKING, address(new LiveStakingBindingMock()).code);
         _installPinnedSafeFixture();
         governanceSafe = _createGovernanceSafe();
@@ -517,32 +528,53 @@ contract DeployAutolaunchInfraScriptTest is Test {
     }
 
     // ---------------------------------------------------------------------
-    // ATOMIC_REACHABLE_FAILURES / EXISTING_FACTORY_AUTHORIZATION
+    // ATOMIC_REACHABLE_FAILURES / EXISTING_FACTORY_AUTHORIZATION /
+    // PREMATURE_AUTHORIZATION_IS_INEFFECTIVE
     // ---------------------------------------------------------------------
 
-    /// @notice ATOMIC_REACHABLE_FAILURES and EXISTING_FACTORY_AUTHORIZATION: running the reviewed
-    /// factory deployment before the separate governance authorization makes the frozen factory
-    /// constructor revert; the sequencer restores its prior phase and nonce and the retry after
-    /// authorization succeeds.
-    function testFactoryPhaseBeforeAuthorizationRollsBackAndRetrySucceeds() external {
+    /// @notice ATOMIC_REACHABLE_FAILURES, EXISTING_FACTORY_AUTHORIZATION and
+    /// PREMATURE_AUTHORIZATION_IS_INEFFECTIVE: against the pinned Safe 1.4.1 harness, the
+    /// authorization call sent to the predicted but still codeless strategy-factory address reports
+    /// a successful Safe execution and advances the Safe nonce while granting no creator authority.
+    /// Once the dependency phases have really created that factory, the reviewed factory deployment
+    /// still makes the frozen factory constructor revert, and the sequencer restores its prior phase
+    /// and nonce; only the real authorization lets the exact factory payload succeed.
+    function testPrematureAuthorizationIsIneffectiveThenFactoryPhaseRetrySucceeds() external {
         DeployAutolaunchInfraScript.PreparedDeployment memory prepared = script.prepare(_config());
+        DeployAutolaunchInfraScript.DeploymentAddresses memory a = prepared.addresses;
         address sequencer = _createSequencer(prepared);
+        uint256 safeNonceBefore = ISafe(governanceSafe).nonce();
+
+        // The Safe forwards a plain CALL, which the EVM completes successfully against an account
+        // with no code, so the Safe reports success and spends its nonce for nothing.
+        assertEq(a.strategyFactory.code.length, 0);
+        (bool ok, bytes memory ret) =
+            governanceSafe.call(_safeWrappedCalldata(prepared.authorizeStrategyFactory));
+        assertTrue(ok);
+        assertTrue(abi.decode(ret, (bool)));
+        assertEq(ISafe(governanceSafe).nonce(), safeNonceBefore + 1);
+        assertEq(a.strategyFactory.code.length, 0);
+
         _safeExecute(prepared.dependenciesPhaseOne);
         _safeExecute(prepared.dependenciesPhaseTwo);
+        assertGt(a.strategyFactory.code.length, 0);
+        assertFalse(RegentLBPStrategyFactory(a.strategyFactory).authorizedCreators(a.factory));
 
-        assertFalse(
-            RegentLBPStrategyFactory(prepared.addresses.strategyFactory)
-                .authorizedCreators(prepared.addresses.factory)
-        );
+        // The unapproved factory payload reaches the frozen constructor readback and fails there,
+        // not at the phase gate. This step uses the direct Governance caller path, so the exact
+        // sequencer reason is observable and the Safe nonce is untouched by it.
         _expectGovernanceRejection(sequencer, prepared.deployFactory.data, "CREATE_FAILED");
         assertEq(uint256(AutolaunchCreateSequencerV1(sequencer).phase()), 4);
         assertEq(vm.getNonce(sequencer), 9);
-        assertEq(prepared.addresses.factory.code.length, 0);
+        assertEq(ISafe(governanceSafe).nonce(), safeNonceBefore + 3);
+        assertEq(a.factory.code.length, 0);
 
         _safeExecute(prepared.authorizeStrategyFactory);
+        assertTrue(RegentLBPStrategyFactory(a.strategyFactory).authorizedCreators(a.factory));
         _safeExecute(prepared.deployFactory);
         assertEq(uint256(AutolaunchCreateSequencerV1(sequencer).phase()), 6);
-        assertGt(prepared.addresses.factory.code.length, 0);
+        assertGt(a.factory.code.length, 0);
+        assertEq(ISafe(governanceSafe).nonce(), safeNonceBefore + 5);
     }
 
     /// @notice ATOMIC_REACHABLE_FAILURES: an early, middle, or final failure inside a phase
@@ -659,6 +691,150 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setNonce(CREATOR, CREATOR_NONCE + 1);
         vm.expectRevert("CREATOR_NONCE_CHANGED");
         script.prepare(_config());
+    }
+
+    // ---------------------------------------------------------------------
+    // DEPLOYED_ROLE_PREFLIGHT / FIXED_DEPENDENCY_PREFLIGHT
+    // ---------------------------------------------------------------------
+
+    /// @notice DEPLOYED_ROLE_PREFLIGHT: preparation yields the five-output packet only when the
+    /// configured nonzero Governance and Guardian addresses both contain deployed code, and a
+    /// configured zero address stays invalid under the existing rules.
+    function testPrepareRequiresDeployedGovernanceAndGuardian() external view {
+        DeployAutolaunchInfraScript.ScriptConfig memory cfg = _config();
+        assertGt(cfg.governance.code.length, 0);
+        assertGt(cfg.guardian.code.length, 0);
+        (bool ok,) = _prepareOutcome(cfg);
+        assertTrue(ok);
+
+        cfg.governance = ATTACKER;
+        assertEq(ATTACKER.code.length, 0);
+        _assertPrepareFails(cfg, "GOVERNANCE_NOT_DEPLOYED");
+
+        cfg = _config();
+        cfg.guardian = ATTACKER;
+        _assertPrepareFails(cfg, "GUARDIAN_NOT_DEPLOYED");
+
+        cfg = _config();
+        cfg.governance = address(0);
+        _assertPrepareFails(cfg, "GOVERNANCE_ZERO");
+
+        cfg = _config();
+        cfg.guardian = address(0);
+        _assertPrepareFails(cfg, "GUARDIAN_ZERO");
+    }
+
+    /// @notice FIXED_DEPENDENCY_PREFLIGHT: preparation yields no packet unless canonical USDC, the
+    /// canonical identity registry, and LIVE_STAKING each contain code and LIVE_STAKING decodes
+    /// canonical USDC through `usdc()`. Harmless trailing return data is not a malformed answer.
+    function testPrepareRequiresFixedDependencyCodeAndLiveStakingUsdcBinding() external {
+        _assertPrepareFailsWithoutCode(USDC, "USDC_NOT_DEPLOYED");
+        _assertPrepareFailsWithoutCode(IDENTITY_REGISTRY, "IDENTITY_REGISTRY_NOT_DEPLOYED");
+        _assertPrepareFailsWithoutCode(LIVE_STAKING, "LIVE_STAKING_NOT_DEPLOYED");
+
+        _mockUsdcReturn(abi.encode(ATTACKER));
+        _assertPrepareFails(_config(), "LIVE_STAKING_USDC_MISMATCH");
+
+        vm.clearMockedCalls();
+        vm.mockCallRevert(LIVE_STAKING, _usdcCall(), bytes("LIVE_STAKING_READER_DOWN"));
+        _assertPrepareRejected();
+
+        _mockUsdcReturn(hex"");
+        _assertPrepareRejected();
+        _mockUsdcReturn(_slice(abi.encode(USDC), 1));
+        _assertPrepareRejected();
+        _mockUsdcReturn(abi.encode(uint256(uint160(USDC)) | (uint256(1) << 160)));
+        _assertPrepareRejected();
+
+        _mockUsdcReturn(bytes.concat(abi.encode(USDC), bytes32(0)));
+        (bool ok,) = _prepareOutcome(_config());
+        assertTrue(ok);
+    }
+
+    // ---------------------------------------------------------------------
+    // PHASE_ONE_RETRY_PROOF
+    // ---------------------------------------------------------------------
+
+    /// @notice PHASE_ONE_RETRY_PROOF: a harness-induced LIVE_STAKING/USDC mismatch stands in for a
+    /// fixed-dependency change between preparation and execution; it is not evidence that such
+    /// drift is reachable on Base mainnet. The frozen router constructor reverts, the whole
+    /// external phase-one call discards every child creation and its phase and nonce effects, and
+    /// the byte-identical retry after the reviewed binding is restored succeeds once at the same
+    /// predicted addresses. The failing call uses the direct Governance caller path so the exact
+    /// sequencer reason is observable and the Safe nonce is untouched; the retry uses the Safe
+    /// wrapper and advances that nonce by one.
+    function testPhaseOneRollsBackOnFixedDependencyMismatchAndRetriesByteIdentically() external {
+        DeployAutolaunchInfraScript.PreparedDeployment memory prepared = script.prepare(_config());
+        DeployAutolaunchInfraScript.DeploymentAddresses memory a = prepared.addresses;
+        address sequencer = _createSequencer(prepared);
+        bytes memory reviewedPhaseOne = bytes.concat(prepared.dependenciesPhaseOne.data);
+        uint256 safeNonceBefore = ISafe(governanceSafe).nonce();
+
+        vm.mockCall(LIVE_STAKING, _usdcCall(), abi.encode(ATTACKER));
+        _expectGovernanceRejection(sequencer, reviewedPhaseOne, "CREATE_FAILED");
+        assertEq(ISafe(governanceSafe).nonce(), safeNonceBefore);
+        address[9] memory children = _children(a);
+        for (uint256 i; i < 9; ++i) {
+            assertEq(children[i].code.length, 0);
+        }
+
+        vm.clearMockedCalls();
+        assertEq(reviewedPhaseOne, prepared.dependenciesPhaseOne.data);
+        _safeExecute(prepared.dependenciesPhaseOne);
+        assertEq(ISafe(governanceSafe).nonce(), safeNonceBefore + 1);
+        assertEq(uint256(AutolaunchCreateSequencerV1(sequencer).phase()), 2);
+        assertEq(vm.getNonce(sequencer), 5);
+        for (uint256 i; i < 4; ++i) {
+            assertEq(children[i], vm.computeCreateAddress(sequencer, i + 1));
+            assertGt(children[i].code.length, 0);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // EXACT_ARTIFACT_PROVENANCE
+    // ---------------------------------------------------------------------
+
+    /// @notice EXACT_ARTIFACT_PROVENANCE: the launch-time RevenueShareSplitterV2 sizes recorded in
+    /// the draft manifest are recomputed from its own artifact and the real ten-argument
+    /// constructor encoding, at the longest label its constructor accepts rather than at a shorter
+    /// sample. The exact byte counts stay informational; only the protocol limits are asserted.
+    function testRevenueShareSplitterV2SizesAreRecomputedFromItsArtifact() external {
+        bytes memory runtime = vm.getDeployedCode(SPLITTER_ARTIFACT);
+        assertLe(runtime.length, EIP170_MAX_RUNTIME_BYTES);
+        emit log_named_uint("revenueShareSplitterV2 runtime bytes", runtime.length);
+
+        uint256 enforcedMaximumInitcode = _splitterInitcodeLength(InputBounds.MAX_LABEL_BYTES);
+        uint256 declaredTokenNameInitcode =
+            _splitterInitcodeLength(InputBounds.MAX_TOKEN_NAME_BYTES);
+        assertLe(enforcedMaximumInitcode, EIP3860_MAX_INITCODE_BYTES);
+        assertGt(enforcedMaximumInitcode, declaredTokenNameInitcode);
+        emit log_named_uint(
+            "revenueShareSplitterV2 initcode bytes at MAX_LABEL_BYTES", enforcedMaximumInitcode
+        );
+        emit log_named_uint(
+            "revenueShareSplitterV2 initcode bytes at MAX_TOKEN_NAME_BYTES",
+            declaredTokenNameInitcode
+        );
+    }
+
+    /// @dev The launch-time label is the token name, bounded by the splitter constructor itself.
+    function _splitterInitcodeLength(uint256 labelBytes) private pure returns (uint256) {
+        return bytes.concat(
+            type(RevenueShareSplitterV2).creationCode,
+            abi.encode(
+                address(1),
+                USDC,
+                address(2),
+                address(3),
+                bytes32(uint256(4)),
+                address(5),
+                address(6),
+                uint256(7),
+                string(new bytes(labelBytes)),
+                address(8)
+            )
+        )
+        .length;
     }
 
     // ---------------------------------------------------------------------
@@ -938,6 +1114,47 @@ contract DeployAutolaunchInfraScriptTest is Test {
             tokenFactory: TOKEN_FACTORY,
             operationsSafe: OPERATIONS_SAFE
         });
+    }
+
+    /// @dev A refused preflight must return no packet at all, so the outcome is observed as the
+    /// raw call result rather than as a decoded return value.
+    function _prepareOutcome(DeployAutolaunchInfraScript.ScriptConfig memory cfg)
+        private
+        view
+        returns (bool ok, bytes memory ret)
+    {
+        (ok, ret) = address(script)
+            .staticcall(abi.encodeCall(DeployAutolaunchInfraScript.prepare, (cfg)));
+    }
+
+    function _assertPrepareFails(
+        DeployAutolaunchInfraScript.ScriptConfig memory cfg,
+        string memory reason
+    ) private view {
+        (bool ok, bytes memory ret) = _prepareOutcome(cfg);
+        assertFalse(ok);
+        assertEq(_revertReason(ret), reason);
+    }
+
+    function _assertPrepareFailsWithoutCode(address dependency, string memory reason) private {
+        bytes memory restored = dependency.code;
+        vm.etch(dependency, hex"");
+        _assertPrepareFails(_config(), reason);
+        vm.etch(dependency, restored);
+    }
+
+    function _assertPrepareRejected() private view {
+        (bool ok,) = _prepareOutcome(_config());
+        assertFalse(ok);
+    }
+
+    function _mockUsdcReturn(bytes memory returnData) private {
+        vm.clearMockedCalls();
+        vm.mockCall(LIVE_STAKING, _usdcCall(), returnData);
+    }
+
+    function _usdcCall() private pure returns (bytes memory) {
+        return abi.encodeCall(IRegentRevenueStakingMinimal.usdc, ());
     }
 
     function _createSequencer(DeployAutolaunchInfraScript.PreparedDeployment memory prepared)

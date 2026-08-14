@@ -15,6 +15,9 @@ import {
     RevenueShareSplitterV2Deployer
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
+import {
+    IRegentRevenueStakingMinimal
+} from "src/autolaunch/revenue/interfaces/IRegentRevenueStakingMinimal.sol";
 
 /// @notice Offchain builder for the Autolaunch ceremony. It produces one unsigned sequencer
 /// creation record and four unsigned zero-value governance calls. It never starts a broadcast,
@@ -225,6 +228,8 @@ contract DeployAutolaunchInfraScript is Script {
         );
     }
 
+    /// @dev Code presence here is local preparation evidence only. The future ceremony preflight
+    /// revalidates it, and the exact live Safe identity and configuration, against a provider.
     function _validate(ScriptConfig memory cfg) private view {
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
         require(cfg.creator != address(0), "CREATOR_ZERO");
@@ -233,7 +238,17 @@ contract DeployAutolaunchInfraScript is Script {
         require(cfg.governance != address(0), "GOVERNANCE_ZERO");
         require(cfg.guardian != address(0), "GUARDIAN_ZERO");
         require(cfg.governance != cfg.guardian, "GOVERNANCE_IS_GUARDIAN");
+        require(cfg.governance.code.length != 0, "GOVERNANCE_NOT_DEPLOYED");
+        require(cfg.guardian.code.length != 0, "GUARDIAN_NOT_DEPLOYED");
         require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
         require(cfg.operationsSafe.code.length != 0, "OPERATIONS_SAFE_NOT_DEPLOYED");
+        require(USDC.code.length != 0, "USDC_NOT_DEPLOYED");
+        require(IDENTITY_REGISTRY.code.length != 0, "IDENTITY_REGISTRY_NOT_DEPLOYED");
+        require(LIVE_STAKING.code.length != 0, "LIVE_STAKING_NOT_DEPLOYED");
+        // The typed reader is the check: a revert, short or dirty return word, or different
+        // binding fails here, while harmless trailing return data stays acceptable.
+        require(
+            IRegentRevenueStakingMinimal(LIVE_STAKING).usdc() == USDC, "LIVE_STAKING_USDC_MISMATCH"
+        );
     }
 }
