@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
+import {AutolaunchCreateSequencerV1} from "src/autolaunch/AutolaunchCreateSequencerV1.sol";
 import {AutolaunchFactoryV1} from "src/autolaunch/AutolaunchFactoryV1.sol";
 import {LaunchFeeInfraDeployer} from "src/autolaunch/LaunchFeeInfraDeployer.sol";
 import {RegentLBPStrategyFactory} from "src/autolaunch/RegentLBPStrategyFactory.sol";
@@ -15,65 +16,9 @@ import {
 } from "src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/autolaunch/revenue/SubjectRegistry.sol";
 
-/// @notice Disposable CREATE deployer. Its nonce must be N before the first call.
-contract AutolaunchInfraDeployerV1 {
-    address public immutable governance;
-    SubjectRegistry public subjectRegistry;
-    RegentStakingRevenueRouter public stakingRouter;
-    RevenueShareSplitterV2Deployer public splitterDeployer;
-    RevenueShareFactory public revenueShareFactory;
-    RevenueIngressFactory public revenueIngressFactory;
-    PaymentLinkFactory public paymentLinkFactory;
-    RegentLBPStrategyFactory public strategyFactory;
-    LaunchFeeInfraDeployer public feeInfraDeployer;
-
-    constructor(address governance_) {
-        require(governance_ != address(0), "GOVERNANCE_ZERO");
-        governance = governance_;
-    }
-
-    function deployDependencies(
-        address predictedFactory,
-        address guardian,
-        address usdc,
-        address liveStaking
-    ) external {
-        require(msg.sender == governance, "ONLY_GOVERNANCE");
-        require(address(subjectRegistry) == address(0), "DEPENDENCIES_ALREADY_DEPLOYED");
-        subjectRegistry = new SubjectRegistry(predictedFactory, governance, guardian);
-        stakingRouter =
-            new RegentStakingRevenueRouter(governance, usdc, address(subjectRegistry), liveStaking);
-        splitterDeployer = new RevenueShareSplitterV2Deployer();
-        revenueShareFactory = new RevenueShareFactory(
-            governance, usdc, subjectRegistry, address(stakingRouter), address(splitterDeployer)
-        );
-        revenueIngressFactory =
-            new RevenueIngressFactory(usdc, address(subjectRegistry), governance);
-        paymentLinkFactory = new PaymentLinkFactory(governance, usdc, address(subjectRegistry));
-        strategyFactory = new RegentLBPStrategyFactory(governance);
-        feeInfraDeployer = new LaunchFeeInfraDeployer(predictedFactory);
-    }
-
-    function deployFactory(address tokenFactory, address identityRegistry, address operationsSafe)
-        external
-        returns (AutolaunchFactoryV1 factory)
-    {
-        require(msg.sender == governance, "ONLY_GOVERNANCE");
-        require(address(feeInfraDeployer) != address(0), "DEPENDENCIES_NOT_DEPLOYED");
-        factory = new AutolaunchFactoryV1(
-            tokenFactory,
-            address(strategyFactory),
-            address(revenueShareFactory),
-            address(revenueIngressFactory),
-            address(paymentLinkFactory),
-            address(feeInfraDeployer),
-            identityRegistry,
-            operationsSafe
-        );
-    }
-}
-
-/// @notice Produces unsigned, zero-value calls only. It never starts a broadcast.
+/// @notice Offchain builder for the Autolaunch ceremony. It produces one unsigned sequencer
+/// creation record and four unsigned zero-value governance calls. It never starts a broadcast,
+/// signs, deploys, or reads chain state beyond the local preflight assumptions it validates.
 contract DeployAutolaunchInfraScript is Script {
     uint256 internal constant BASE_MAINNET_CHAIN_ID = 8453;
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
@@ -81,12 +26,23 @@ contract DeployAutolaunchInfraScript is Script {
     address internal constant LIVE_STAKING = 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5;
 
     struct ScriptConfig {
-        address deployer;
-        uint64 startingNonce;
+        address creator;
+        uint64 creatorNonce;
         address governance;
         address guardian;
         address tokenFactory;
         address operationsSafe;
+    }
+
+    /// @notice A direct contract-creation transaction. It has no `to` and carries initcode.
+    struct PreparedCreation {
+        address sender;
+        uint64 nonce;
+        uint256 value;
+        bytes initcode;
+        bytes32 initcodeHash;
+        address expectedAddress;
+        bytes32[9] childInitcodeHashes;
     }
 
     struct PreparedCall {
@@ -97,6 +53,7 @@ contract DeployAutolaunchInfraScript is Script {
     }
 
     struct DeploymentAddresses {
+        address sequencer;
         address subjectRegistry;
         address stakingRouter;
         address splitterDeployer;
@@ -110,8 +67,10 @@ contract DeployAutolaunchInfraScript is Script {
 
     struct PreparedDeployment {
         DeploymentAddresses addresses;
-        PreparedCall deployDependencies;
-        PreparedCall authorizeFactory;
+        PreparedCreation createSequencer;
+        PreparedCall dependenciesPhaseOne;
+        PreparedCall dependenciesPhaseTwo;
+        PreparedCall authorizeStrategyFactory;
         PreparedCall deployFactory;
     }
 
@@ -121,17 +80,45 @@ contract DeployAutolaunchInfraScript is Script {
         returns (PreparedDeployment memory prepared)
     {
         _validate(cfg);
-        prepared.addresses = predictedAddresses(cfg.deployer, cfg.startingNonce);
-        prepared.deployDependencies = PreparedCall({
-            sender: cfg.governance,
-            to: cfg.deployer,
+        prepared.addresses = predictedAddresses(cfg.creator, cfg.creatorNonce);
+        bytes[9] memory initcodes = _childInitcodes(cfg, prepared.addresses);
+        bytes32[9] memory hashes;
+        for (uint256 i; i < 9; ++i) {
+            hashes[i] = keccak256(initcodes[i]);
+        }
+
+        bytes memory sequencerInitcode = bytes.concat(
+            type(AutolaunchCreateSequencerV1).creationCode, abi.encode(cfg.governance, hashes)
+        );
+        prepared.createSequencer = PreparedCreation({
+            sender: cfg.creator,
+            nonce: cfg.creatorNonce,
             value: 0,
-            data: abi.encodeCall(
-                AutolaunchInfraDeployerV1.deployDependencies,
-                (prepared.addresses.factory, cfg.guardian, USDC, LIVE_STAKING)
-            )
+            initcode: sequencerInitcode,
+            initcodeHash: keccak256(sequencerInitcode),
+            expectedAddress: prepared.addresses.sequencer,
+            childInitcodeHashes: hashes
         });
-        prepared.authorizeFactory = PreparedCall({
+
+        bytes[4] memory phaseOne;
+        bytes[4] memory phaseTwo;
+        for (uint256 i; i < 4; ++i) {
+            phaseOne[i] = initcodes[i];
+            phaseTwo[i] = initcodes[i + 4];
+        }
+        prepared.dependenciesPhaseOne = PreparedCall({
+            sender: cfg.governance,
+            to: prepared.addresses.sequencer,
+            value: 0,
+            data: abi.encodeCall(AutolaunchCreateSequencerV1.deployDependenciesPhaseOne, (phaseOne))
+        });
+        prepared.dependenciesPhaseTwo = PreparedCall({
+            sender: cfg.governance,
+            to: prepared.addresses.sequencer,
+            value: 0,
+            data: abi.encodeCall(AutolaunchCreateSequencerV1.deployDependenciesPhaseTwo, (phaseTwo))
+        });
+        prepared.authorizeStrategyFactory = PreparedCall({
             sender: cfg.governance,
             to: prepared.addresses.strategyFactory,
             value: 0,
@@ -141,34 +128,41 @@ contract DeployAutolaunchInfraScript is Script {
         });
         prepared.deployFactory = PreparedCall({
             sender: cfg.governance,
-            to: cfg.deployer,
+            to: prepared.addresses.sequencer,
             value: 0,
-            data: abi.encodeCall(
-                AutolaunchInfraDeployerV1.deployFactory,
-                (cfg.tokenFactory, IDENTITY_REGISTRY, cfg.operationsSafe)
-            )
+            data: abi.encodeCall(AutolaunchCreateSequencerV1.deployFactory, (initcodes[8]))
         });
     }
 
-    function predictedAddresses(address deployer, uint64 nonce)
+    /// @notice The nine reviewed complete initcodes in ceremony order, dependencies then factory.
+    function childInitcodes(ScriptConfig memory cfg) public view returns (bytes[9] memory) {
+        _validate(cfg);
+        return _childInitcodes(cfg, predictedAddresses(cfg.creator, cfg.creatorNonce));
+    }
+
+    /// @dev An ordinarily created sequencer starts at nonce one, so the ceremony has no
+    /// operator-supplied starting nonce.
+    function predictedAddresses(address creator, uint64 creatorNonce)
         public
         pure
         returns (DeploymentAddresses memory addresses)
     {
-        addresses.subjectRegistry = vm.computeCreateAddress(deployer, nonce);
-        addresses.stakingRouter = vm.computeCreateAddress(deployer, nonce + 1);
-        addresses.splitterDeployer = vm.computeCreateAddress(deployer, nonce + 2);
-        addresses.revenueShareFactory = vm.computeCreateAddress(deployer, nonce + 3);
-        addresses.revenueIngressFactory = vm.computeCreateAddress(deployer, nonce + 4);
-        addresses.paymentLinkFactory = vm.computeCreateAddress(deployer, nonce + 5);
-        addresses.strategyFactory = vm.computeCreateAddress(deployer, nonce + 6);
-        addresses.feeInfraDeployer = vm.computeCreateAddress(deployer, nonce + 7);
-        addresses.factory = vm.computeCreateAddress(deployer, nonce + 8);
+        address sequencer = vm.computeCreateAddress(creator, creatorNonce);
+        addresses.sequencer = sequencer;
+        addresses.subjectRegistry = vm.computeCreateAddress(sequencer, 1);
+        addresses.stakingRouter = vm.computeCreateAddress(sequencer, 2);
+        addresses.splitterDeployer = vm.computeCreateAddress(sequencer, 3);
+        addresses.revenueShareFactory = vm.computeCreateAddress(sequencer, 4);
+        addresses.revenueIngressFactory = vm.computeCreateAddress(sequencer, 5);
+        addresses.paymentLinkFactory = vm.computeCreateAddress(sequencer, 6);
+        addresses.strategyFactory = vm.computeCreateAddress(sequencer, 7);
+        addresses.feeInfraDeployer = vm.computeCreateAddress(sequencer, 8);
+        addresses.factory = vm.computeCreateAddress(sequencer, 9);
     }
 
     function loadConfigFromEnv() public view returns (ScriptConfig memory cfg) {
-        cfg.deployer = vm.envAddress("AUTOLAUNCH_DISPOSABLE_DEPLOYER_ADDRESS");
-        cfg.startingNonce = uint64(vm.envUint("AUTOLAUNCH_DISPOSABLE_DEPLOYER_NONCE"));
+        cfg.creator = vm.envAddress("AUTOLAUNCH_SEQUENCER_CREATOR_ADDRESS");
+        cfg.creatorNonce = uint64(vm.envUint("AUTOLAUNCH_SEQUENCER_CREATOR_NONCE"));
         cfg.governance = vm.envAddress("AUTOLAUNCH_GOVERNANCE_ADDRESS");
         cfg.guardian = vm.envAddress("AUTOLAUNCH_GUARDIAN_ADDRESS");
         cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
@@ -180,15 +174,63 @@ contract DeployAutolaunchInfraScript is Script {
         return prepare(loadConfigFromEnv());
     }
 
+    function _childInitcodes(ScriptConfig memory cfg, DeploymentAddresses memory addresses)
+        private
+        pure
+        returns (bytes[9] memory initcodes)
+    {
+        initcodes[0] = bytes.concat(
+            type(SubjectRegistry).creationCode,
+            abi.encode(addresses.factory, cfg.governance, cfg.guardian)
+        );
+        initcodes[1] = bytes.concat(
+            type(RegentStakingRevenueRouter).creationCode,
+            abi.encode(cfg.governance, USDC, addresses.subjectRegistry, LIVE_STAKING)
+        );
+        initcodes[2] = type(RevenueShareSplitterV2Deployer).creationCode;
+        initcodes[3] = bytes.concat(
+            type(RevenueShareFactory).creationCode,
+            abi.encode(
+                cfg.governance,
+                USDC,
+                addresses.subjectRegistry,
+                addresses.stakingRouter,
+                addresses.splitterDeployer
+            )
+        );
+        initcodes[4] = bytes.concat(
+            type(RevenueIngressFactory).creationCode,
+            abi.encode(USDC, addresses.subjectRegistry, cfg.governance)
+        );
+        initcodes[5] = bytes.concat(
+            type(PaymentLinkFactory).creationCode,
+            abi.encode(cfg.governance, USDC, addresses.subjectRegistry)
+        );
+        initcodes[6] =
+            bytes.concat(type(RegentLBPStrategyFactory).creationCode, abi.encode(cfg.governance));
+        initcodes[7] =
+            bytes.concat(type(LaunchFeeInfraDeployer).creationCode, abi.encode(addresses.factory));
+        initcodes[8] = bytes.concat(
+            type(AutolaunchFactoryV1).creationCode,
+            abi.encode(
+                cfg.tokenFactory,
+                addresses.strategyFactory,
+                addresses.revenueShareFactory,
+                addresses.revenueIngressFactory,
+                addresses.paymentLinkFactory,
+                addresses.feeInfraDeployer,
+                IDENTITY_REGISTRY,
+                cfg.operationsSafe
+            )
+        );
+    }
+
     function _validate(ScriptConfig memory cfg) private view {
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
-        require(cfg.deployer.code.length != 0, "DEPLOYER_NOT_DEPLOYED");
-        require(vm.getNonce(cfg.deployer) == cfg.startingNonce, "DEPLOYER_NONCE_CHANGED");
+        require(cfg.creator != address(0), "CREATOR_ZERO");
+        require(cfg.creator.code.length == 0, "CREATOR_IS_CONTRACT");
+        require(vm.getNonce(cfg.creator) == cfg.creatorNonce, "CREATOR_NONCE_CHANGED");
         require(cfg.governance != address(0), "GOVERNANCE_ZERO");
-        require(
-            AutolaunchInfraDeployerV1(cfg.deployer).governance() == cfg.governance,
-            "DEPLOYER_GOVERNANCE_MISMATCH"
-        );
         require(cfg.guardian != address(0), "GUARDIAN_ZERO");
         require(cfg.governance != cfg.guardian, "GOVERNANCE_IS_GUARDIAN");
         require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");

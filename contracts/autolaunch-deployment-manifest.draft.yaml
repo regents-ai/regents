@@ -1,4 +1,4 @@
-version: 3
+version: 4
 status: draft
 approval: founder_approval_pending
 purpose: minimal atomic AutolaunchFactoryV1 deployment and binding evidence
@@ -33,23 +33,57 @@ fixed_bindings:
   position_manager: "0x7C5f5A4bBd8fD63184577525326123B519429bDc"
   live_staking: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
 deployment_algorithm:
-  version: ordinary_create_v1
-  disposable_deployer: D
-  starting_nonce: N
+  version: fixed_two_phase_create_sequencer_v1
+  sequencer_contract: AutolaunchCreateSequencerV1
+  sequencer_source: src/autolaunch/AutolaunchCreateSequencerV1.sol
+  retired_helper: {name: AutolaunchInfraDeployerV1, reason: undeployable_runtime_157988_bytes, retained: false}
+  creator: founder_selected_externally_owned_account
+  creator_nonce: chosen_at_preflight_and_bound_into_all_five_outputs
+  sequencer_create_nonces: {dependencies: "1..8", factory: 9, operator_supplied_starting_nonce: none}
+  initcode_delivery: complete_reviewed_initcodes_arrive_as_calldata_never_embedded_in_runtime
+  initcode_binding: nine_immutable_position_specific_keccak256_hashes
+  address_binding: every_result_must_equal_the_internally_derived_create_address_and_contain_code
+  phase_state: {written_before_each_create_loop: true, running_states_close_reentrancy: true, reverts_with_the_call: true}
   order:
-    - {nonce: N, contract: SubjectRegistry}
-    - {nonce: N+1, contract: RegentStakingRevenueRouter}
-    - {nonce: N+2, contract: RevenueShareSplitterV2Deployer}
-    - {nonce: N+3, contract: RevenueShareFactory}
-    - {nonce: N+4, contract: RevenueIngressFactory}
-    - {nonce: N+5, contract: PaymentLinkFactory}
-    - {nonce: N+6, contract: RegentLBPStrategyFactory}
-    - {nonce: N+7, contract: LaunchFeeInfraDeployer}
-    - {sender: governance, action: authorize_factory_in_strategy_factory, deployer_nonce_unchanged: N+8}
-    - {nonce: N+8, contract: AutolaunchFactoryV1}
-  prepared_calls: 3
-  prepared_call_values: [0, 0, 0]
+    - {phase: dependencies_one, nonce: 1, contract: SubjectRegistry}
+    - {phase: dependencies_one, nonce: 2, contract: RegentStakingRevenueRouter}
+    - {phase: dependencies_one, nonce: 3, contract: RevenueShareSplitterV2Deployer}
+    - {phase: dependencies_one, nonce: 4, contract: RevenueShareFactory}
+    - {phase: dependencies_two, nonce: 5, contract: RevenueIngressFactory}
+    - {phase: dependencies_two, nonce: 6, contract: PaymentLinkFactory}
+    - {phase: dependencies_two, nonce: 7, contract: RegentLBPStrategyFactory}
+    - {phase: dependencies_two, nonce: 8, contract: LaunchFeeInfraDeployer}
+    - {sender: governance, action: authorize_factory_in_strategy_factory, sequencer_nonce_unchanged: 9}
+    - {phase: factory, nonce: 9, contract: AutolaunchFactoryV1}
+  authorization_enforcement_point: frozen_AutolaunchFactoryV1_constructor_readback
+  sequencer_duplicate_authorization_readback: none
   circular_create2: false
+prepared_outputs:
+  count: 5
+  signed: false
+  broadcast: false
+  sender_selection: deferred_to_founder
+  creation:
+    kind: direct_contract_creation_transaction
+    to: null
+    fields: [sender, nonce, value, initcode, initcode_hash, expected_address, child_initcode_hashes]
+    value: 0
+  governance_calls:
+    - {index: 1, name: dependencies_phase_one, to: sequencer, value: 0}
+    - {index: 2, name: dependencies_phase_two, to: sequencer, value: 0}
+    - {index: 3, name: authorize_strategy_factory, to: strategy_factory, value: 0}
+    - {index: 4, name: deploy_factory, to: sequencer, value: 0}
+ceremony_preflight_gate:
+  when: once_before_the_first_ceremony_transaction_is_broadcast
+  never: after_phase_one
+  all_five_outputs_must_exist_together: true
+  revalidate:
+    - then_current_creator_address_and_nonce
+    - chain_id_and_deployed_code_assumptions_for_every_fixed_external_dependency
+    - exact_live_governance_safe_address_owners_threshold_and_wrapper_encoding
+    - base_client_acceptance_of_each_prepared_transaction_size_and_gas_limit
+    - complete_gas_envelopes_including_calldata_intrinsic_gas_and_63_64_forwarding
+  abandoning_the_fixed_factory_address_requires: fresh_sequencer_and_all_eight_dependencies
 initial_state_readbacks:
   launch_fee:
     getter: launchFee()
@@ -80,42 +114,88 @@ binding_digest:
     fixed: "0x32ba980f8a2e1edef01731a3c84113908d409e004d68bd4677bf33faad970eba"
     live_readbacks: "0xc7bf3d7286599e3dbfa59b4515bf7c7da7a5b8bff68f3b29b54be0c52402c67f"
     final: "0xece30424d68a49316340bac7da891d7930b005201ccaea7ba1bcf2ef915ea7e6"
-deterministic_vector:
+candidate_vector:
+  evidence_class: candidate_test_vector_not_a_ceremony_choice
+  recomputed_by: test/DeployAutolaunchInfra.t.sol
   chain_id: 8453
-  deployer: "0x000000000000000000000000000000000000D00D"
-  starting_nonce: 7
+  creator: "0x000000000000000000000000000000000000C4EA"
+  creator_nonce: 0
+  governance: "0x26a01Fa4aA5292821c8Ca62F2933D86969F462A2"
+  governance_kind: safe_1_4_1_two_of_three_at_canonical_base_addresses
+  guardian: "0x4444444444444444444444444444444444444444"
+  token_factory: "0x1111111111111111111111111111111111111111"
+  operations_safe: "0x2222222222222222222222222222222222222222"
   addresses:
-    subject_registry: "0x2dC7D6fFE49D504c5750C978c81849d56B5780e8"
-    staking_router: "0xe14F22aFB374FC775850EB75892b47c2541FdB82"
-    splitter_deployer: "0xb561120f4265BcBCC353b5795d11A39b449f6bb3"
-    revenue_share_factory: "0x968415090eC0cFaBE7a33bAc28Ad9342cC1CBF12"
-    revenue_ingress_factory: "0x65944B0bE4FaA92b196F4Bf779A6F36EE3A9516E"
-    payment_link_factory: "0xd60eA133cf0EF4030c3Ef136700081Adb95ebBD9"
-    strategy_factory: "0xEA3b1315A1d214bA7f9Afe726860571D76f8b82c"
-    fee_infra_deployer: "0x3eE590DCD55FCD21F8F65F1e208c619188079330"
-    factory: "0xDc883b4bf20Ee92d81c390A4E57896cd81532184"
-  runtime_code_bytes: 17952
-  complete_initcode_bytes: 23436
-  size_evidence_class: generated_observation_not_acceptance
-  runtime_code_hash: "0xb39f796695214bd07efe39cac7e1ea38d61f854a72cb4abeb7279c57eee73ad0"
-  constructor_bindings_hash: "0x38e8be9d89750ebe652b1fef010a53b9e487b7bba2803d3d20cc02ce8e41c13d"
+    sequencer: "0xf05358E6880ed2b8Af3407cC296E2d994A6d7BE3"
+    subject_registry: "0x8CF0292787AAA4B728281daD16D178142CA1b290"
+    staking_router: "0xCc99CE29bf071c7986eb29C12bEd973e0D6C6390"
+    splitter_deployer: "0x36E43665b8ED43cE85f1966D5ba29D184547aB99"
+    revenue_share_factory: "0x138605F49375239eae0197D68ecc3630099025dD"
+    revenue_ingress_factory: "0xAb707A94e6Af3dc23E47A5DADF9d39C005c81651"
+    payment_link_factory: "0x278048Ca4B6E5164f789b4355fBb922A1BC07c94"
+    strategy_factory: "0x2e612cE79A916276D24370290D102f2EED26F69F"
+    fee_infra_deployer: "0x3F664c2Ca8aDfAd88De1a3965C32cAf2FE4854b9"
+    factory: "0xF916521bf0AE0E520A0e179743e20F0Cd91d36f6"
+  sequencer_initcode_hash: "0x59859f466259129df57532544142c54ac31cdc0fdd191ad1949c99e1461e0ef4"
+  child_initcode_hashes:
+    - {nonce: 1, contract: SubjectRegistry, hash: "0x21bf5664bce630094128dc01278503ae3ea7cea123fd8d1da58cfacece57c37e"}
+    - {nonce: 2, contract: RegentStakingRevenueRouter, hash: "0x8e18860604c47177b281de6b70f18a4e56574abf8af55a88a1a6738e0c448359"}
+    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, hash: "0xc17b27bc6f5a861698094174041ee41a149f39b20f220733caeda253a64ad3b6"}
+    - {nonce: 4, contract: RevenueShareFactory, hash: "0xb2f52e64f3e30dae89802bea9776b6c109f507808cdac703e6648f4f7886087d"}
+    - {nonce: 5, contract: RevenueIngressFactory, hash: "0x49621d7d0bc6e117e962c41ceca776b41f1bc2495aeaf96163658dc4f03bcb9f"}
+    - {nonce: 6, contract: PaymentLinkFactory, hash: "0xd3538683cc44680faaebeaac7dd77b7ced62441342bc390416abe561f70db7c4"}
+    - {nonce: 7, contract: RegentLBPStrategyFactory, hash: "0xf55e1729f747ea4fd65e87ffc7423e38685f1b8ab552dd2dec5633e2e5e03bdd"}
+    - {nonce: 8, contract: LaunchFeeInfraDeployer, hash: "0xdea8c536f3de42a1ed8c8b23e53db4363b03e2c940ad970d787539576b7424d9"}
+    - {nonce: 9, contract: AutolaunchFactoryV1, hash: "0x1dd5d1799f46f116ff2bea776039ff1683ae915957e647c63635e31f7701bd31"}
+  factory_runtime_code_hash: "0xb73321bfe0953160466ee38a3ca235b908c165dfdfe76270f329a4cda905ae38"
+  constructor_bindings_hash: "0xeb467fcf358652bf25f6a34005deb87d86a9d0ee9ae41ccfe25201f60ba031c5"
   fixed_bindings_hash: "0x7fd468b6a0bc2dab66815bb15e6aa4ab42ec56e5f7aae62f4431bc94a58df03f"
-  live_readbacks_hash: "0x55cda8a466450076424bfdfd65cc1720fb10b3ca2e47321eb84b86745252b513"
-  factory_binding_digest: "0x99655d0fb679d108ada2a97f42a9363567e5d259f7c6396bfc662fae20db6d61"
+  live_readbacks_hash: "0xbbdd4971cb8d0b08abe9bafa3fa25b761c49a3ae92de7c453927f68e3c93607b"
+  factory_binding_digest: "0xf89577524e953e1cfee15260e3aa31234c434c38b56389b808c01e32dd0747eb"
 candidate_deployability:
   runtime_code_limit_bytes: 24576
   complete_initcode_limit_bytes: 49152
   limit_source: [EIP-170, EIP-3860]
   acceptance_authority: runtime_code_hash_identity_and_protocol_limits
-  runtime_code_hash_derivation: compiled_artifact_deployed_bytecode_after_immutable_substitution
+  evidence_source: real_create_from_the_prepared_initcodes_no_etched_or_manufactured_account_state
+  sequencer:
+    runtime_bytes: 2695
+    runtime_margin_bytes: 21881
+    complete_initcode_bytes: 3549
+    initcode_margin_bytes: 45603
+  ceremony_created:
+    - {nonce: 1, contract: SubjectRegistry, runtime_bytes: 13439, complete_initcode_bytes: 14235}
+    - {nonce: 2, contract: RegentStakingRevenueRouter, runtime_bytes: 5199, complete_initcode_bytes: 6126}
+    - {nonce: 3, contract: RevenueShareSplitterV2Deployer, runtime_bytes: 23570, complete_initcode_bytes: 23596}
+    - {nonce: 4, contract: RevenueShareFactory, runtime_bytes: 3795, complete_initcode_bytes: 4739}
+    - {nonce: 5, contract: RevenueIngressFactory, runtime_bytes: 14199, complete_initcode_bytes: 14923}
+    - {nonce: 6, contract: PaymentLinkFactory, runtime_bytes: 15966, complete_initcode_bytes: 16697}
+    - {nonce: 7, contract: RegentLBPStrategyFactory, runtime_bytes: 5689, complete_initcode_bytes: 29362}
+    - {nonce: 8, contract: LaunchFeeInfraDeployer, runtime_bytes: 23415, complete_initcode_bytes: 23658}
+    - {nonce: 9, contract: AutolaunchFactoryV1, runtime_bytes: 17952, complete_initcode_bytes: 23436}
+  nested_ceremony_created:
+    - {creator: RegentLBPStrategyFactory, creator_nonce: 1, contract: RegentLBPStrategyDeployer, runtime_bytes: 23153}
   revenue_share_splitter_v2:
+    created_at_launch_time_not_during_this_ceremony: true
     runtime_bytes: 20817
     runtime_margin_bytes: 3759
     complete_initcode_bytes_for_384_byte_constructor_args: 23474
     initcode_margin_bytes: 25678
-  revenue_share_splitter_v2_deployer:
-    runtime_bytes: 23570
-    runtime_margin_bytes: 1006
+transaction_budget:
+  calldata_limit_bytes: 100000
+  total_gas_limit: 20000000
+  base_documented_transaction_maximum_gas: 25000000
+  accounting: standard_intrinsic_gas_plus_eip_7623_calldata_floor_plus_measured_execution
+  governance_wrapper: safe_1_4_1_exec_transaction_two_of_three_ecdsa_operation_call_zero_gas_price
+  forwarding: measured_by_executing_each_call_with_exactly_the_ceiling_minus_intrinsic_gas
+  measured:
+    - {output: create_sequencer, kind: creation, calldata_bytes: 3549, total_gas: 674188}
+    - {output: dependencies_phase_one, kind: safe_call, calldata_bytes: 49636, intrinsic_gas: 769672, total_gas: 10368226}
+    - {output: dependencies_phase_two, kind: safe_call, calldata_bytes: 85572, intrinsic_gas: 1303812, total_gas: 18204835}
+    - {output: authorize_strategy_factory, kind: safe_call, calldata_bytes: 644, intrinsic_gas: 25784, total_gas: 64706}
+    - {output: deploy_factory, kind: safe_call, calldata_bytes: 24100, intrinsic_gas: 380284, total_gas: 4123998}
+  tightest_margin: {output: dependencies_phase_two, gas_headroom: 1795165, calldata_headroom_bytes: 14428}
+  repartitioning_phases_or_raising_a_ceiling: forbidden
 release_state:
   deployed: false
   publicly_exposed: false
