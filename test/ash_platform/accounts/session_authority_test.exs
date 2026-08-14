@@ -470,6 +470,68 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
     assert unboxed(fn -> SessionAuthority.exact(bound) end) == {:error, :reset}
   end
 
+  test "TRANSACTION_CURRENTNESS_PRIMITIVES: a protected write ahead of an evidence lapse commits and then lapses" do
+    account = shared_account!("evidence-write-first")
+
+    {:ok, :bind, bound} =
+      unboxed(fn -> SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id) end)
+
+    discard_on_exit([bound])
+    test = self()
+
+    writer =
+      holding(fn ->
+        SessionAuthority.transact_exact(bound, fn _account ->
+          {:ok, send(test, {:written, SessionAuthority.bootstrap()}) && :written}
+        end)
+      end)
+
+    lapse = contending(fn -> expire_provider_evidence!(account) end)
+    assert_blocked_by(lapse, writer)
+
+    assert release(writer) == {:ok, :written}
+    assert settled(lapse).id == account.id
+    assert_received {:written, committed}
+    discard_on_exit([committed])
+    assert unboxed(fn -> Repo.exists?(digest_query(committed.lineage)) end)
+
+    # The evidence the callback committed under is gone the moment the lapse it
+    # held up commits, so the next protected write is refused.
+    assert unboxed(fn ->
+             SessionAuthority.transact_exact(bound, fn _account ->
+               flunk("lapsed provider evidence reached it")
+             end)
+           end) == {:error, :stale_authority}
+  end
+
+  test "TRANSACTION_CURRENTNESS_PRIMITIVES: a protected write behind an evidence lapse is refused and writes nothing" do
+    account = shared_account!("evidence-lapse-first")
+
+    {:ok, :bind, bound} =
+      unboxed(fn -> SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id) end)
+
+    discard_on_exit([bound])
+    test = self()
+
+    lapse = holding(fn -> expire_provider_evidence!(account) end)
+
+    writer =
+      contending(fn ->
+        SessionAuthority.transact_lease(bound.lineage, account.id, fn _account ->
+          {:ok, send(test, {:written, SessionAuthority.bootstrap()}) && :written}
+        end)
+      end)
+
+    # Nothing but the account row can be holding this writer up: its own lineage
+    # row is uncontended, so the write is waiting on the evidence itself.
+    assert_blocked_by(writer, lapse)
+
+    assert release(lapse).id == account.id
+    assert settled(writer) == {:error, :stale_authority}
+    refute_received {:written, _never_ran}
+    refute unboxed(fn -> SessionAuthority.leased_account(bound.lineage, account.id) end)
+  end
+
   defp canonical_keys,
     do: Enum.sort(["live_socket_id", "session_generation", "session_lineage"])
 

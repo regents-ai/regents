@@ -48,6 +48,62 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert Map.keys(session) == ["render_route"]
   end
 
+  # A LiveView outside the product shell, so what this characterizes is the
+  # pinned library's own merge and not this application's authority hook. It
+  # reports through the pid the render session carries, because the merged map
+  # only ever exists inside the mounted process.
+  defmodule PinnedMergeLive do
+    use Phoenix.LiveView
+
+    def mount(_params, session, socket) do
+      if connected?(socket),
+        do: send(session["reply_to"], {:merged, session, get_connect_info(socket, :session)})
+
+      {:ok, socket}
+    end
+
+    def render(assigns), do: ~H|<div id="pinned-merge"></div>|
+  end
+
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: pinned LiveView hands mount the render's value for a colliding key",
+       %{conn: conn} do
+    render_session = %{"reply_to" => self(), "collision" => "render", "render_only" => "static"}
+    handshake_session = %{"collision" => "handshake", "handshake_only" => "socket"}
+
+    {:ok, _view, _html} =
+      conn
+      |> connects_with(handshake_session)
+      |> live_isolated(PinnedMergeLive, session: render_session)
+
+    assert_receive {:merged, mounted, handshake}
+
+    # Phoenix LiveView 1.2.7 mounts with Map.merge(handshake, render): the
+    # render's signed value wins every collision, so no handshake can put a
+    # render_topic or render_route under the authority hook, and the hook can
+    # never read the socket's own claim from this argument.
+    assert mounted == %{
+             "reply_to" => self(),
+             "collision" => "render",
+             "render_only" => "static",
+             "handshake_only" => "socket"
+           }
+
+    # The connected authority the hook does read is the unmerged handshake.
+    assert handshake == handshake_session
+  end
+
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a colliding handshake route cannot steer the realigning reload",
+       %{conn: conn} do
+    page = init_test_session(conn, %{human_account_id: account!().id})
+    browser = init_test_session(build_conn(), %{human_account_id: account!().id})
+
+    # The socket's own session names a different lineage and a decoy route.
+    handshake = Map.put(get_session(browser), "render_route", "/settings")
+
+    assert {:error, {:redirect, %{to: "/formation"}}} =
+             page |> connects_with(handshake) |> live("/formation")
+  end
+
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an already-sent static render loses to the current handshake",
        %{conn: conn} do
     account = account!()

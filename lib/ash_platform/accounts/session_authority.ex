@@ -406,14 +406,16 @@ defmodule AshPlatform.Accounts.SessionAuthority do
   defp lookup(digest),
     do: Ash.Query.for_read(__MODULE__, :by_lineage_digest, %{lineage_digest: digest})
 
-  # The lock, the account's provider evidence and the callback share one
-  # transaction, so nothing the callback writes can outlive a concurrent lapse.
+  # Every protected write locks the authority row and then the account row, in
+  # that one order, and reads the provider evidence only from behind the second
+  # lock. A concurrent lapse therefore either waits for the callback to commit or
+  # commits first and is seen, and two protected writes cannot deadlock.
   defp guarded(lineage, current?, callback) do
     Repo.transaction(fn ->
       row = lineage |> digest() |> lock()
 
       with true <- current?.(row),
-           account when not is_nil(account) <- verified(row.human_account_id) do
+           account when not is_nil(account) <- verified(row.human_account_id, :for_update) do
         commit(callback.(account))
       else
         _lapsed -> Repo.rollback(:stale_authority)
@@ -421,11 +423,16 @@ defmodule AshPlatform.Accounts.SessionAuthority do
     end)
   end
 
-  defp verified(nil), do: nil
+  defp verified(account_id, lock \\ nil)
 
-  defp verified(account_id) do
+  defp verified(nil, _lock), do: nil
+
+  defp verified(account_id, lock) do
     with {:ok, account} when not is_nil(account) <-
-           Accounts.get_human_account(account_id, actor: %Human{human_account_id: account_id}),
+           Accounts.get_human_account(account_id,
+             actor: %Human{human_account_id: account_id},
+             query: [lock: lock]
+           ),
          true <- VerifiedSession.current?(account) do
       account
     else
