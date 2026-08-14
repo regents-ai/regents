@@ -86,7 +86,7 @@ defmodule AshPlatformWeb.Router do
     delete "/auth/privy/session", PrivySessionController, :delete
 
     live_session :product_shell,
-      session: {AshPlatformWeb.Live.Session, :render_lineage, []},
+      session: {AshPlatformWeb.Live.Session, :render_context, []},
       on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/settings", ShellLive, :settings

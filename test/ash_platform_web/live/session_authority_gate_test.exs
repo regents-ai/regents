@@ -14,14 +14,28 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   @sign_in "#account-control [data-account-target=sign-in]"
   @signed_in_markup ~s(data-account-target="sign-out")
 
-  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: the static token names only a lineage the render proved" do
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: the static token names what the render knew", %{
+    conn: conn
+  } do
     # Phoenix LiveView 1.2.7 hands mount/3 `Map.merge(handshake_session,
-    # static_token_session)`. The static token therefore carries no authority
-    # field, and names a lineage only while that render's own claim was current.
-    assert Session.render_lineage(%{assigns: %{current_lineage: "a-lineage"}}) ==
-             %{"render_lineage" => "a-lineage"}
+    # static_token_session)`, so the static token carries no authority field. It
+    # names a lineage only while that render's claim was current, and carries the
+    # route because a connected mount has no other way to learn it.
+    signed_in = init_test_session(conn, %{human_account_id: account!().id})
+    lineage = get_session(signed_in, :session_lineage)
 
-    assert Session.render_lineage(%{assigns: %{current_lineage: nil}}) == %{}
+    assert %{"render_lineage" => ^lineage, "render_route" => "/formation"} =
+             Session.render_context(%{
+               get(signed_in, "/formation")
+               | request_path: "/formation",
+                 query_string: ""
+             })
+
+    assert Session.render_context(%{
+             get(build_conn(), "/formation")
+             | request_path: "/formation",
+               query_string: "tab=links"
+           }) == %{"render_route" => "/formation?tab=links"}
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an already-sent static render loses to the current handshake",
@@ -42,47 +56,64 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert has_element?(view, @profile)
   end
 
-  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an invalid handshake reloads once and never mounts anonymous",
-       %{conn: conn} do
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an invalid handshake is refused onto the public root",
+       %{
+         conn: conn
+       } do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
     current = get_session(signed_in)
 
     for handshake <- [
+          # stale, ahead of the row, malformed topic, malformed shape, and the
+          # handshake a page that named a lineage must never mount without.
           %{current | "session_generation" => current["session_generation"] - 1},
           %{current | "session_generation" => current["session_generation"] + 1},
           %{current | "live_socket_id" => SessionAuthority.topic(other_lineage())},
           Map.delete(current, "live_socket_id"),
           %{}
         ] do
-      assert {:error, {:redirect, %{to: "/formation"}}} =
+      assert {:error, {:redirect, %{to: "/"}}} =
                signed_in |> connects_with(handshake) |> live("/formation")
     end
 
-    # A page rendered while the claim was still current, then revoked under it.
     static = get(signed_in, "/formation")
     assert SessionAuthority.revoke(claim(signed_in))
 
-    assert {:error, {:redirect, %{to: "/formation"}}} =
-             static |> connects_with(current) |> live()
+    assert {:error, {:redirect, %{to: "/"}}} = static |> connects_with(current) |> live()
   end
 
-  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: the reload settles without looping", %{conn: conn} do
-    account = account!()
-    signed_in = init_test_session(conn, %{human_account_id: account.id})
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a claim-shaped handshake under an anonymous render is refused" do
+    signed_in = init_test_session(build_conn(), %{human_account_id: account!().id})
     current = get_session(signed_in)
     assert SessionAuthority.revoke(claim(signed_in))
 
-    # The reloaded page renders under the same revoked cookie, so it names no
-    # lineage and the next connect mounts anonymous instead of reloading again.
-    reloaded = get(signed_in, "/formation")
-    refute html_response(reloaded, 200) =~ @signed_in_markup
+    # The render names no lineage, but the handshake still asserts one.
+    anonymous = get(build_conn(), "/formation")
+    refute html_response(anonymous, 200) =~ @signed_in_markup
 
-    {:ok, view, _html} = reloaded |> connects_with(current) |> live()
-    assert has_element?(view, @sign_in, "Sign In")
+    assert {:error, {:redirect, %{to: "/"}}} = anonymous |> connects_with(current) |> live()
+
+    assert {:error, {:redirect, %{to: "/"}}} =
+             anonymous |> connects_with(%{"session_lineage" => "not-a-lineage"}) |> live()
   end
 
-  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a cookie-less first visit mounts anonymous" do
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a current handshake under an anonymous render reloads the route",
+       %{conn: conn} do
+    browser = init_test_session(conn, %{human_account_id: account!().id})
+
+    # The page was fetched without the cookie the socket then connects with.
+    anonymous = get(build_conn(), "/formation")
+
+    assert {:error, {:redirect, %{to: "/formation"}}} =
+             anonymous |> connects_with(get_session(browser)) |> live()
+
+    # The realigned request names that lineage, so the next mount accepts it.
+    {:ok, view, _html} = live(browser, "/formation")
+    assert has_element?(view, @profile)
+  end
+
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a handshake and render with no claim mount anonymous" do
     {:ok, view, _html} = live(build_conn(), "/formation")
 
     assert has_element?(view, @sign_in, "Sign In")
@@ -120,6 +151,9 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert SessionAuthority.revoke(claim(signed_in))
     render_click(view, "refresh_verified_connections", %{})
     assert has_element?(view, @sign_in, "Sign In")
+
+    # The revoked lease halts navigation at the authority hook itself.
+    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/formation")
   end
 
   test "MOUNTED_LEASE_POLICY_C: a mounted socket dies when the account's provider evidence lapses",
@@ -135,8 +169,9 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     render_click(view, "refresh_verified_connections", %{})
     assert has_element?(view, @sign_in, "Sign In")
 
-    # The lapsed lease can no longer navigate into private routes either.
-    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/settings")
+    # /formation renders for anonymous visitors, so only the authority hook can
+    # be refusing this navigation.
+    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/formation")
   end
 
   test "MOUNTED_LEASE_POLICY_C: an invalid claim exposes no private dead render", %{conn: conn} do
@@ -184,8 +219,9 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert %{"ok" => true} = json_response(deleted, 200)
     assert_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
 
-    {:ok, reconnected, _html} = live(signed_in, "/formation")
-    assert has_element?(reconnected, @sign_in, "Sign In")
+    # The browser still holds the revoked claim, so its reconnect is refused
+    # rather than quietly downgraded.
+    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/formation")
   end
 
   test "CENTRAL_CURRENT_ACTOR: revocation denies later wallet-action preparation at the boundary",

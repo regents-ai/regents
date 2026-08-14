@@ -159,7 +159,7 @@ export function createSignOutOnlyBridgeState({
   }
 }
 
-export {csrfToken}
+export {clearLocalSession, csrfToken}
 
 export class LocalSessionEstablishmentError extends Error {
   constructor(readonly localSessionDropped: boolean) {

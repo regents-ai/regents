@@ -136,16 +136,27 @@ export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
   return () => channel?.removeEventListener("message", adopt)
 }
 
-// Sign out never asks for a fresh token: the one this page holds already matches
-// the cookie it is signing out, even when a held response has moved the lineage
-// on beneath it.
+// Sign out leads with the token this page holds, which is what lets a stale
+// lineage still revoke itself. Only a CSRF refusal means another tab rotated the
+// shared cookie underneath this one; that alone earns a single adoption and one
+// more attempt at an idempotent delete. Every other failure is final.
 export async function clearLocalSession(fetcher: typeof fetch = fetch): Promise<void> {
+  const refused = await deleteLocalSession(fetcher, browserCsrfToken())
+  if (!refused) return
+
+  const retried = await deleteLocalSession(fetcher, await csrfToken(fetcher))
+  if (retried) throw new Error("Sign out could not be completed.")
+}
+
+async function deleteLocalSession(fetcher: typeof fetch, csrf: string): Promise<boolean> {
   const response = await fetcher("/auth/privy/session", {
     method: "DELETE",
     credentials: "same-origin",
-    headers: {"x-csrf-token": browserCsrfToken()},
+    headers: {"x-csrf-token": csrf},
   })
-  if (!response.ok) throw new Error("Sign out could not be completed.")
+  if (response.ok) return false
+  if (response.status === 403) return true
+  throw new Error("Sign out could not be completed.")
 }
 
 type SignOutHandoff = {version: 1; issuedAtMs: number}

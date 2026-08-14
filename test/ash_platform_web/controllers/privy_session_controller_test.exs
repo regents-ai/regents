@@ -515,6 +515,53 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
   # A browser that reached signed-in state through the real HTTP flow, so its
   # session travels only as a cookie and no test-side write marks it dirty.
+  test "CENTRAL_CURRENT_ACTOR: an ordinary response under refused authority emits no Set-Cookie" do
+    {browser, signed_in} = signed_in_browser()
+    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
+    stale = get_session(signed_in)
+
+    # A delayed read must never be able to overwrite the cookie a later
+    # response already gave this browser, so an ordinary request under refused
+    # authority leaves the session untouched.
+    assert {:ok, :refresh, _current} = SessionAuthority.sign_in(claim(signed_in), account_id)
+    assert_no_session_cookie(browser)
+
+    assert SessionAuthority.revoke(claim(signed_in))
+    assert_no_session_cookie(browser)
+
+    malformed = %{stale | "live_socket_id" => SessionAuthority.topic(unrelated_lineage())}
+    assert_no_session_cookie(carrying(malformed))
+    assert_no_session_cookie(carrying(Map.delete(stale, "live_socket_id")))
+  end
+
+  defp assert_no_session_cookie(browser) do
+    for read <- [&get(&1, "/formation"), &get(&1, "/auth/session"), &get(&1, "/app")] do
+      refute browser |> recycled() |> read.() |> session_cookie()
+    end
+  end
+
+  # A browser holding `session` in a genuinely signed cookie rather than in the
+  # test process, so the response's own cookie decision is what is observed.
+  defp carrying(session) do
+    options =
+      :ash_platform
+      |> Application.fetch_env!(:session_options)
+      |> Keyword.drop([:store, :key])
+      |> Plug.Session.COOKIE.init()
+
+    cookie =
+      Plug.Session.COOKIE.put(
+        %{build_conn() | secret_key_base: AshPlatformWeb.Endpoint.config(:secret_key_base)},
+        nil,
+        session,
+        options
+      )
+
+    put_req_cookie(build_conn(), "_ash_platform_key", cookie)
+  end
+
+  defp unrelated_lineage, do: SessionAuthority.bootstrap().lineage
+
   defp signed_in_browser do
     bootstrapped = csrf_bootstrap(build_conn())
 

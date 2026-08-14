@@ -74,6 +74,50 @@ describe("DYNAMIC_BROWSER_CSRF", () => {
     expect(browserCsrfToken()).toBe("after-renewal")
   })
 
+  it("adopts the current token and retries exactly once when sign out is refused", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const sent: string[] = []
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/auth/csrf") return csrfResponse("current-token")
+      sent.push(String(new Headers(init?.headers).get("x-csrf-token")))
+      return sent.length === 1
+        ? new Response("", {status: 403})
+        : new Response("{}", {status: 200})
+    }) as unknown as typeof fetch
+
+    await clearLocalSession(fetcher)
+
+    // The page token leads, so a stale lineage still reaches logout; only the
+    // CSRF refusal earns the adoption and the single idempotent retry.
+    expect(sent).toEqual(["stale-token", "current-token"])
+    expect(meta.content).toBe("current-token")
+  })
+
+  it("gives up rather than looping when the retried sign out is refused again", async () => {
+    pageWithCsrfMeta("stale-token")
+    let deletes = 0
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input === "/auth/csrf") return csrfResponse("current-token")
+      deletes += 1
+      return new Response("", {status: 403})
+    }) as unknown as typeof fetch
+
+    await expect(clearLocalSession(fetcher)).rejects.toThrow("Sign out could not be completed.")
+    expect(deletes).toBe(2)
+  })
+
+  it("treats any failure that is not a CSRF refusal as final", async () => {
+    pageWithCsrfMeta("page-token")
+    const requests: Array<RequestInfo | URL> = []
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(input)
+      return new Response("", {status: 500})
+    }) as unknown as typeof fetch
+
+    await expect(clearLocalSession(fetcher)).rejects.toThrow("Sign out could not be completed.")
+    expect(requests).toEqual(["/auth/privy/session"])
+  })
+
   it("signs out with the token the page already holds", async () => {
     pageWithCsrfMeta("held-token")
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = []

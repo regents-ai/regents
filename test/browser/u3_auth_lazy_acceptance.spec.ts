@@ -754,20 +754,19 @@ test("a refresh between another tab's dead render and its connect recovers in on
   releaseEntrypoint?.()
 
   // The held tab missed the notice, so its first connect carries the retired
-  // token; it recovers through exactly one full reload.
-  await expect(waitingTab.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await expect
-    .poll(() =>
-      waitingTab.evaluate(() =>
-        Boolean(
-          (window.liveSocket as unknown as {isConnected(): boolean} | undefined)?.isConnected(),
-        ),
-      ),
-    )
-    .toBe(true)
-  expect(await metaCsrfToken(waitingTab)).not.toBe(renderedToken)
-  expect(documents.length).toBeLessThanOrEqual(2)
+  // token. Phoenix refuses that handshake at the transport, before any mount
+  // hook runs, and LiveView falls back to exactly one further request for the
+  // same route, which then carries the current token.
   await expect(waitingTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await waitingTab.waitForLoadState("networkidle")
+
+  expect(documents.map(url => new URL(url).pathname)).toEqual(["/app", "/app"])
+  expect(await metaCsrfToken(waitingTab)).not.toBe(renderedToken)
+  expect(
+    await waitingTab.evaluate(() =>
+      Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
+    ),
+  ).toBe(true)
 })
 
 test("a refresh in one tab leaves another tab mounted and its next reconnect uses the current token", async ({
@@ -816,4 +815,49 @@ test("a refresh in one tab leaves another tab mounted and its next reconnect use
   // A deploy-style reconnect carries the adopted token, so nothing reloads.
   expect(documents).toHaveLength(1)
   await expect(mountedTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+})
+
+test("a tab holding a stale token still signs out, and the revoked lineage cannot reconnect", async ({
+  context,
+}) => {
+  const refreshingTab = await context.newPage()
+  const signingOutTab = await context.newPage()
+  await stubBridge(refreshingTab)
+  await stubBridge(signingOutTab)
+  await establishLocalSession(refreshingTab)
+
+  // Barrier: the signing-out tab never adopts the notice, so it reaches logout
+  // holding the token its own render carried.
+  await signingOutTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {value: undefined})
+  })
+  await signingOutTab.goto("/app")
+  await expect(signingOutTab.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const staleToken = await metaCsrfToken(signingOutTab)
+
+  await refreshInPage(refreshingTab)
+  expect(await metaCsrfToken(signingOutTab)).toBe(staleToken)
+
+  const deletes: number[] = []
+  signingOutTab.on("response", response => {
+    if (response.request().method() === "DELETE") deletes.push(response.status())
+  })
+
+  await signingOutTab.evaluate(async () => {
+    const source = "/assets/js/privy_bridge.js"
+    const bridge = (await import(source)) as {clearLocalSession: () => Promise<void>}
+    await bridge.clearLocalSession()
+  })
+
+  // The page token is refused, the current one is adopted, and the retry revokes.
+  expect(deletes).toEqual([403, 200])
+
+  const session = await signingOutTab.request.get("/auth/session")
+  expect((await session.json()).authenticated).toBe(false)
+
+  // The refreshing tab still holds the revoked lineage and cannot reconnect it.
+  await refreshingTab.reload()
+  await expect(
+    refreshingTab.locator("#account-control [data-account-target='sign-in']"),
+  ).toBeVisible()
 })

@@ -8,50 +8,58 @@ defmodule AshPlatformWeb.Live.Session do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
 
+  @public_root "/"
+
   @doc """
-  The lineage the page was rendered for, signed into the static LiveView token.
+  What the render knew, signed into the static LiveView token.
 
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
-  static_token_session)`, so this uses its own key and only ever names a lineage
-  the render already proved current. A page rendered without one cannot make a
-  connected mount reload, which is what keeps the reload rule loop-free.
+  static_token_session)`, so these use their own keys and can never stand in for
+  the authority the socket connected with. The lineage is named only while that
+  render's own claim was current. The route travels with them because a connected
+  mount cannot otherwise learn it: `connect_info` `:uri` is the transport's own
+  `/live/websocket` address and `socket.host_uri` carries no path, so only
+  `handle_params` sees the page route and that is too late to refuse a mount.
   """
-  def render_lineage(%{assigns: %{current_lineage: nil}}), do: %{}
-  def render_lineage(%{assigns: %{current_lineage: lineage}}), do: %{"render_lineage" => lineage}
+  def render_context(conn) do
+    conn.assigns.current_lineage
+    |> rendered_lineage()
+    |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
+  end
 
   def on_mount(:load_human, _params, session, socket) do
     if connected?(socket) do
-      connected(
-        socket,
-        session["render_lineage"],
-        SessionAuthority.claim(get_connect_info(socket, :session))
-      )
+      connected(socket, session, get_connect_info(socket, :session))
     else
       {:cont, assign_principal(socket, disconnected_account(session))}
     end
   end
 
-  # A page rendered for no lineage is an ordinary anonymous visit and mounts as
-  # one. Otherwise the markup was built for a browser session, and only that
-  # session's exactly current cookie may drive the socket: anything else is
-  # reloaded once over HTTP rather than quietly continuing as anonymous.
-  defp connected(socket, nil, _handshake), do: {:cont, assign_principal(socket, nil)}
+  # The cookie the socket connected with is the only authority, and a mount that
+  # cannot honour it is refused there and then rather than left to a later hook.
+  # An exactly current claim drives the socket when the page was rendered for its
+  # lineage; when it was not, one full request for the same route realigns them.
+  # Anything else — a claim-shaped handshake that will not parse, one the
+  # authority refuses, or none at all under a page that named a lineage — lands
+  # on the public root, which is outside the product shell and so cannot raise
+  # the same rejection again.
+  defp connected(socket, %{"render_lineage" => rendered} = static, handshake),
+    do: admit(socket, rendered, static["render_route"], SessionAuthority.claim(handshake))
 
-  defp connected(socket, lineage, %{lineage: lineage, generation: generation} = handshake) do
-    case SessionAuthority.resolve(handshake) do
-      {nil, nil} -> {:cont, reload(socket)}
-      {^lineage, account} -> {:cont, hold(socket, lineage, generation, account)}
-    end
+  defp connected(socket, static, handshake) do
+    if SessionAuthority.claim_shaped?(handshake),
+      do: admit(socket, nil, static["render_route"], SessionAuthority.claim(handshake)),
+      else: {:cont, assign_principal(socket, nil)}
   end
 
-  defp connected(socket, _rendered, _other_lineage), do: {:cont, reload(socket)}
+  defp admit(socket, _rendered, _route, nil), do: {:halt, redirect(socket, to: @public_root)}
 
-  defp reload(socket) do
-    socket
-    |> assign_principal(nil)
-    |> attach_hook(:session_authority_reload, :handle_params, fn _params, uri, socket ->
-      {:halt, redirect(socket, to: local_route(uri))}
-    end)
+  defp admit(socket, rendered, route, %{lineage: lineage, generation: generation} = claim) do
+    case SessionAuthority.resolve(claim) do
+      {nil, nil} -> {:halt, redirect(socket, to: @public_root)}
+      {^rendered, account} -> {:cont, hold(socket, lineage, generation, account)}
+      {^lineage, _account} -> {:halt, redirect(socket, to: route)}
+    end
   end
 
   defp hold(socket, _lineage, _generation, nil), do: assign_principal(socket, nil)
@@ -67,7 +75,10 @@ defmodule AshPlatformWeb.Live.Session do
     socket
     |> assign_principal(account)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
-      {:cont, assign_principal(socket, leased(lease))}
+      case leased(lease) do
+        nil -> {:halt, redirect(assign_principal(socket, nil), to: @public_root)}
+        account -> {:cont, assign_principal(socket, account)}
+      end
     end)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
       case leased(lease) do
@@ -80,15 +91,16 @@ defmodule AshPlatformWeb.Live.Session do
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)
 
+  defp rendered_lineage(nil), do: %{}
+  defp rendered_lineage(lineage), do: %{"render_lineage" => lineage}
+
   defp disconnected_account(session) do
     {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
     account
   end
 
-  defp local_route(uri) do
-    %URI{path: path, query: query} = URI.parse(uri)
-    URI.to_string(%URI{path: path, query: query})
-  end
+  defp local_route(path, ""), do: path
+  defp local_route(path, query), do: path <> "?" <> query
 
   defp assign_principal(socket, account) do
     access_context = access_context(account)

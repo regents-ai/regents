@@ -36,6 +36,7 @@ defmodule AshPlatform.Accounts.SessionAuthority do
   @lineage_bytes 32
   @maximum_generation 9_223_372_036_854_775_807
   @topic_prefix "session_authority:"
+  @canonical_keys ["session_lineage", "session_generation", "live_socket_id"]
 
   @typedoc "Everything a browser carries. There is no account here by design."
   @type claim :: %{lineage: String.t(), generation: non_neg_integer()}
@@ -145,6 +146,18 @@ defmodule AshPlatform.Accounts.SessionAuthority do
   end
 
   def claim(_session), do: nil
+
+  @doc """
+  Whether `session` is trying to carry a claim at all.
+
+  A session holding any canonical field is making an authority statement, so a
+  malformed one is refused rather than read as the absence of a claim.
+  """
+  @spec claim_shaped?(map() | nil) :: boolean()
+  def claim_shaped?(session) when is_map(session),
+    do: Enum.any?(@canonical_keys, &Map.has_key?(session, &1))
+
+  def claim_shaped?(_session), do: false
 
   @doc "The canonical claim fields, and only those, that a response restores."
   @spec session(claim()) :: %{String.t() => term()}
