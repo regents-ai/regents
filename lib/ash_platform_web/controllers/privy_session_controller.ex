@@ -19,7 +19,8 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   Only a browser carrying no claim can create a lineage, so only that request
   spends the anonymous bootstrap budget, and it spends it before `renew/1` can
-  insert a row, so a denial commits nothing at all.
+  insert a row: a denial therefore leaves behind no `SessionAuthority` lineage
+  and no CSRF session state.
   """
   def csrf(conn, _params), do: admit_bootstrap(conn, claim(conn))
 

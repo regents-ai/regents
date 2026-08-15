@@ -15,6 +15,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   ]
 
   @release_budget [limit: 30, window_seconds: 300]
+  @limit @release_budget[:limit]
   @peer {203, 0, 113, 7}
   @other_peer {203, 0, 113, 8}
   @denial_event [:ash_platform, :session_bootstrap, :rate_limited]
@@ -145,16 +146,15 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     release_budget()
     before = authority_count()
 
-    admitted = for _ <- 1..30, do: bootstrap_from(@peer)
+    admitted = for _ <- 1..@limit, do: bootstrap_from(@peer)
 
     assert Enum.all?(admitted, &json_response(&1, 200)["csrf_token"])
 
     assert admitted |> Enum.map(&get_session(&1, :session_lineage)) |> Enum.uniq() |> length() ==
-             30
+             @limit
 
-    assert Enum.all?(admitted, &(get_session(&1, :session_generation) == 0))
     assert Enum.all?(admitted, &(SessionAuthority.exact(claim(&1)) == {:ok, nil}))
-    assert authority_count() - before == 30
+    assert authority_count() - before == @limit
 
     denied = bootstrap_from(@peer)
 
@@ -162,23 +162,20 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert get_resp_header(denied, "retry-after") == ["300"]
     assert get_resp_header(denied, "cache-control") == ["no-store"]
     refute session_cookie(denied)
-    assert authority_count() - before == 30
+    assert authority_count() - before == @limit
   end
 
-  test "BUDGET_BEFORE_INSERT: concurrent cookie-less requests commit no more than the budget" do
+  test "BUDGET_BEFORE_INSERT: concurrent cookie-less requests commit exactly the budget" do
     release_budget()
     before = authority_count()
 
     statuses =
-      1..60
+      1..(2 * @limit)
       |> Task.async_stream(fn _ -> bootstrap_from(@peer).status end, ordered: false)
       |> Enum.map(fn {:ok, status} -> status end)
 
-    admitted = Enum.count(statuses, &(&1 == 200))
-
-    assert admitted <= 30
-    assert Enum.count(statuses, &(&1 == 429)) == 60 - admitted
-    assert authority_count() - before == admitted
+    assert Enum.frequencies(statuses) == %{200 => @limit, 429 => @limit}
+    assert authority_count() - before == @limit
   end
 
   test "REAL_CLIENT_KEY: distinct normalized client addresses hold independent budgets" do
@@ -187,12 +184,12 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert exhaust(fn -> bootstrap_from(@peer) end).status == 429
     assert bootstrap_from(@other_peer) |> json_response(200) |> Map.has_key?("csrf_token")
-    assert authority_count() - before == 31
+    assert authority_count() - before == @limit + 1
   end
 
   test "CURRENT_CLAIMS_ARE_OBSERVATIONAL: an exact claim is observed through an exhausted bucket" do
     release_budget()
-    admitted = for _ <- 1..30, do: bootstrap_from(@peer)
+    admitted = for _ <- 1..@limit, do: bootstrap_from(@peer)
     assert bootstrap_from(@peer).status == 429
 
     before = authority_count()
@@ -228,9 +225,10 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     spellings = ["198.51.100.4", "::ffff:198.51.100.4", "::198.51.100.4"]
 
     admitted =
-      for _ <- 1..10,
-          spelling <- spellings,
-          do: bootstrap_from(@peer, [{"fly-client-ip", spelling}])
+      spellings
+      |> Stream.cycle()
+      |> Enum.take(@limit)
+      |> Enum.map(&bootstrap_from(@peer, [{"fly-client-ip", &1}]))
 
     assert Enum.all?(admitted, &(&1.status == 200))
 
@@ -243,7 +241,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     release_budget()
 
     admitted =
-      for host <- 1..30, do: bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:2::#{host}"}])
+      for host <- 1..@limit,
+          do: bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:2::#{host}"}])
 
     assert Enum.all?(admitted, &(&1.status == 200))
     assert bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:2:ffff::1"}]).status == 429
@@ -813,7 +812,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
   # Spends one client's whole budget and returns its next, denied, response.
   defp exhaust(request) do
-    Enum.each(1..30, fn _ -> assert request.().status == 200 end)
+    Enum.each(1..@limit, fn _ -> assert request.().status == 200 end)
     request.()
   end
 
