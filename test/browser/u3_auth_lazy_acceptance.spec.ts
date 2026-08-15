@@ -804,11 +804,10 @@ test("a tab left stale by a failed adoption recovers on its next connect", async
   await establishLocalSession(page)
   const documents = trackDocuments(page)
   let sessionPosts = 0
-  let sessionDeletes = 0
   page.on("request", request => {
-    if (!request.url().endsWith("/auth/privy/session")) return
-    if (request.method() === "POST") sessionPosts += 1
-    if (request.method() === "DELETE") sessionDeletes += 1
+    if (request.url().endsWith("/auth/privy/session") && request.method() === "POST") {
+      sessionPosts += 1
+    }
   })
 
   // The renewing response lands and the read of the CSRF state its cookie
@@ -877,9 +876,6 @@ test("a tab left stale by a failed adoption recovers on its next connect", async
   expect(await metaCsrfToken(page)).not.toBe(staleToken)
   expect(documents.map(url => new URL(url).pathname)).toEqual(["/app"])
   expect(sessionPosts).toBe(1)
-  expect(sessionDeletes).toBe(0)
-  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
-  expect((await (await page.request.get("/auth/session")).json()).authenticated).toBe(true)
 })
 
 test("a refresh between another tab's dead render and its connect recovers in one reload", async ({

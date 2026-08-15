@@ -175,7 +175,11 @@ export function holdSocketDuringCookieRotation(
 function adoptUnreadRenewal(fetcher: typeof fetch): void {
   if (adoptingRenewal) return
 
-  const attempt = browserSessionMutations.establish(async signal => {
+  const settled = () => {
+    adoptingRenewal = null
+  }
+
+  adoptingRenewal = browserSessionMutations.establish(async signal => {
     // Sign in, refresh, switch and sign out are ordered ahead of this retry, so
     // one of them may already have read what the cookie carries by the time it
     // runs. Reading again would answer for a renewal this tab no longer has,
@@ -185,12 +189,7 @@ function adoptUnreadRenewal(fetcher: typeof fetch): void {
     unreadRenewal = false
     if (csrfStateIsCurrent()) heldSockets.forEach(release => release())
   })
-  const settle = () => {
-    if (adoptingRenewal === attempt) adoptingRenewal = null
-  }
-
-  adoptingRenewal = attempt
-  void attempt.then(settle, settle)
+  void adoptingRenewal.then(settled, settled)
 }
 
 // The interval between a response that rotated or dropped the cookie and this
@@ -239,11 +238,17 @@ export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
     if (event.data !== csrfRotated) return
     // The renewal already happened in the tab that sent the notice, so this tab
     // is inside the interval before its own read begins and stays closed if that
-    // read fails.
-    void acrossCookieRotation(renewed => {
-      renewed()
-      return csrfToken(fetcher)
-    }).catch(() => undefined)
+    // read fails. It takes the same queue as sign in, refresh, switch, sign out
+    // and the reconnect retry, so no other read of the cookie can be in flight
+    // beside it and answer for a renewal this one has not read yet.
+    void browserSessionMutations
+      .establish(signal =>
+        acrossCookieRotation(renewed => {
+          renewed()
+          return csrfToken(fetcher, signal)
+        }),
+      )
+      .catch(() => undefined)
   }
 
   channel?.addEventListener("message", adopt)

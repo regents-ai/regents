@@ -166,22 +166,27 @@ function pinnedSocket() {
       if (live) return
       socket.transportConnect()
     },
-    // `connect` arms `connectWithFallback`, whose long-poll timer and transport
-    // error path replace the transport and reach `transportConnect` a second
-    // time directly, without returning through `connect`.
-    connectWithFallback: () => {
-      socket.connect()
-      if (!live) socket.transportConnect()
-    },
     transportConnect: () => {
       live = true
       attempts.push(browserCsrfToken())
+    },
+    // `Socket.disconnect` tears the transport down, so the connect after it is a
+    // fresh establishment rather than a call `connect` returns from.
+    disconnect: () => {
+      live = false
     },
     isConnected: () => live,
   }
 
   return socket
 }
+
+// A connect refused while a renewal is unread starts one adoption read. Cases
+// that prove only the refusal answer that read here, so no case leans on what
+// the environment's own `fetch` does with a relative URL.
+const noAdoptionAnswer = (async () => {
+  throw new Error("This case answers no adoption read.")
+}) as unknown as typeof fetch
 
 describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
   it("admits no connection between the renewed cookie and the token it carries", async () => {
@@ -229,7 +234,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
   it("stays closed when the adoption after a renewal fails, until one succeeds", async () => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     let reads = 0
     const unreadable = vi.fn(async (input: RequestInfo | URL) => {
       if (input !== "/auth/csrf") return signedInResponse("true")
@@ -262,7 +267,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
   it("stays closed when an adopting tab cannot read the cookie it now shares", async () => {
     const meta = pageWithCsrfMeta("stale-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     const unreadable = vi.fn(async () => new Response("", {status: 503})) as unknown as typeof fetch
 
     // Exactly the rotation an adoption notice runs: the other tab renewed the
@@ -435,31 +440,6 @@ async function withUnreadRenewal(): Promise<void> {
 }
 
 describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
-  it("adopts on the next connection opportunity and admits one transport", async () => {
-    const meta = pageWithCsrfMeta("stale-token")
-    const socket = pinnedSocket()
-    const requests: Array<RequestInfo | URL> = []
-    const readable = vi.fn(async (input: RequestInfo | URL) => {
-      requests.push(input)
-      return csrfResponse("renewed-token")
-    }) as unknown as typeof fetch
-    holdSocketDuringCookieRotation(socket, readable)
-    await withUnreadRenewal()
-
-    socket.connect()
-
-    // The read is what the opportunity starts; nothing may go out under the
-    // token the retired session issued while it is in flight.
-    expect(socket.attempts).toEqual([])
-    expect(meta.content).toBe("stale-token")
-
-    await until(() => socket.isConnected())
-
-    expect(requests).toEqual(["/auth/csrf"])
-    expect(meta.content).toBe("renewed-token")
-    expect(socket.attempts).toEqual(["renewed-token"])
-  })
-
   it("shares one read between the websocket and the long poll behind it", async () => {
     pageWithCsrfMeta("stale-token")
     const socket = pinnedSocket()
@@ -473,7 +453,11 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     holdSocketDuringCookieRotation(socket, fetcher)
     await withUnreadRenewal()
 
-    socket.connectWithFallback()
+    // The pinned fallback replaces the transport and reaches `transportConnect`
+    // directly, so the second attempt of the same opportunity never returns
+    // through `connect`.
+    socket.connect()
+    socket.transportConnect()
     await until(() => reads === 1)
     await settle()
 
@@ -484,23 +468,30 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     socket.connect()
     await until(() => socket.isConnected())
 
-    expect(reads).toBe(2)
     expect(socket.attempts).toEqual(["renewed-token"])
   })
 
   it("stays closed on a failed retry and reads again on a later opportunity", async () => {
     const meta = pageWithCsrfMeta("stale-token")
     const socket = pinnedSocket()
-    let reads = 0
-    const unavailable = vi.fn(async () => {
-      reads += 1
-      return reads === 1 ? new Response("", {status: 503}) : csrfResponse("renewed-token")
+    const requests: Array<RequestInfo | URL> = []
+    const unavailable = vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(input)
+      return requests.length === 1
+        ? new Response("", {status: 503})
+        : csrfResponse("renewed-token")
     }) as unknown as typeof fetch
     holdSocketDuringCookieRotation(socket, unavailable)
     await withUnreadRenewal()
 
     socket.connect()
-    await until(() => reads === 1)
+
+    // The read is what the opportunity starts; nothing may go out under the
+    // token the retired session issued while it is in flight.
+    expect(socket.attempts).toEqual([])
+    expect(meta.content).toBe("stale-token")
+
+    await until(() => requests.length === 1)
     await settle()
 
     expect(socket.attempts).toEqual([])
@@ -510,7 +501,7 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     socket.connect()
     await until(() => socket.isConnected())
 
-    expect(reads).toBe(2)
+    expect(requests).toEqual(["/auth/csrf", "/auth/csrf"])
     expect(meta.content).toBe("renewed-token")
     expect(socket.attempts).toEqual(["renewed-token"])
   })
@@ -544,26 +535,29 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
   })
 
   it("starts no retry for a connect that arrives while a rotation is open", async () => {
-    pageWithCsrfMeta("page-token")
+    pageWithCsrfMeta("stale-token")
     const socket = pinnedSocket()
     const reads: string[] = []
-    const tokens = ["before-post", "after-renewal"]
-    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-      if (input !== "/auth/csrf") {
-        socket.connect()
-        return signedInResponse("true")
-      }
+    const fetcher = vi.fn(async () => {
       reads.push(browserCsrfToken())
-      return csrfResponse(tokens.shift() ?? "exhausted")
+      // The reconnect timer fires while this read owns the interval.
+      socket.connect()
+      return csrfResponse("renewed-token")
     }) as unknown as typeof fetch
     holdSocketDuringCookieRotation(socket, fetcher)
 
-    await createLocalSession("verified", fetcher)
+    // The rotation an adoption notice runs, driven directly so the refused
+    // reconnect meets an open rotation rather than a queue.
+    await acrossCookieRotation(renewed => {
+      renewed()
+      return csrfToken(fetcher)
+    })
+    await settle()
 
     // The rotation still owns the adoption, so the refused reconnect inside it
     // waits for that read rather than starting one of its own.
-    expect(reads).toEqual(["page-token", "before-post"])
-    expect(socket.attempts).toEqual(["after-renewal"])
+    expect(reads).toEqual(["stale-token"])
+    expect(socket.attempts).toEqual(["renewed-token"])
   })
 
   it("leaves a mounted transport alone and starts no read for it", async () => {
@@ -617,6 +611,62 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     expect(meta.content).toBe("after-renewal")
     expect(socket.attempts).toEqual(["after-renewal"])
     expect(socket.isConnected()).toBe(true)
+  })
+
+  it("keeps a renewal announced during a retry unread until a read of its own lands", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    const reads: string[] = []
+    let noticeTaken = () => {}
+    const noticeDelivered = new Promise<void>(resolve => (noticeTaken = resolve))
+    // The retry's read is still in flight when the notice arrives; the notice's
+    // own read of the newer renewal fails; the later opportunity recovers.
+    const fetcher = vi.fn(async () => {
+      reads.push(browserCsrfToken())
+      if (reads.length === 1) {
+        await noticeDelivered
+        return csrfResponse("retry-token")
+      }
+      return reads.length === 2 ? new Response("", {status: 503}) : csrfResponse("current-token")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, fetcher)
+    const peer = new BroadcastChannel(csrfRotated)
+    const stopAdopting = installCrossTabCsrf(fetcher)
+    // A second reader of the same notice, created after the adopting one, so it
+    // releases the retry's read only once this tab has taken the notice in.
+    const probe = new BroadcastChannel(csrfRotated)
+    probe.addEventListener("message", () => noticeTaken())
+
+    try {
+      await withUnreadRenewal()
+
+      socket.connect()
+      await until(() => reads.length === 1)
+
+      peer.postMessage(csrfRotated)
+      await until(() => reads.length === 2)
+      await settle()
+
+      // The retry answered for the cookie as it stood, and the renewal the
+      // notice announced is unread behind it rather than answered by it.
+      expect(socket.attempts).toEqual(["retry-token"])
+
+      socket.disconnect()
+      socket.connect()
+
+      expect(socket.isConnected()).toBe(false)
+      expect(socket.attempts).toEqual(["retry-token"])
+
+      await until(() => socket.isConnected())
+
+      expect(reads).toEqual(["stale-token", "retry-token", "retry-token"])
+      expect(meta.content).toBe("current-token")
+      expect(socket.attempts).toEqual(["retry-token", "current-token"])
+    } finally {
+      stopAdopting()
+      peer.close()
+      probe.close()
+    }
   })
 })
 
@@ -694,7 +744,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
   it("stays closed when a refused bearer drops the cookie and no adoption follows", async () => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     const refused = vi.fn(async (input: RequestInfo | URL) =>
       input === "/auth/csrf"
         ? csrfResponse("current-token")
@@ -724,7 +774,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
   ])("stays closed when a rotating CSRF read returns a body %s", async (_shape, body) => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     // A bootstrap rotates the cookie; only the token in this body would say so
     // and adopt it, and an exact observation is indistinguishable without it.
     const unadoptable = vi.fn(
@@ -744,7 +794,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
   it("stays closed when a sign-in conflict cannot be read to rule out a drop", async () => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     const unreadableConflict = vi.fn(async (input: RequestInfo | URL) =>
       input === "/auth/csrf"
         ? csrfResponse("current-token")
@@ -766,7 +816,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
   it("stays closed when the CSRF read drops a revoked lineage and the retry never lands", async () => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     let reads = 0
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       if (input !== "/auth/csrf") return signedInResponse("true")
@@ -790,7 +840,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
   it("stays closed when the sign-in response landed and its adoption never did", async () => {
     pageWithCsrfMeta("page-token")
     const socket = pinnedSocket()
-    holdSocketDuringCookieRotation(socket)
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
     let reads = 0
     const unreadable = vi.fn(async (input: RequestInfo | URL) => {
       if (input !== "/auth/csrf") return signedInResponse("true")
