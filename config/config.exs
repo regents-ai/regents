@@ -35,6 +35,7 @@ config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
 config :ash_platform, :siwa, base_url: nil, audience: nil
 config :ash_platform, :techtree_publication_rate_limit, limit: 10, window_seconds: 60
+config :ash_platform, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 config :ash_platform, :techtree_payload,
   gateway_url: "https://ipfs.io/ipfs",

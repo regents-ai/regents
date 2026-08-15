@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.AgentAuth.ClaimRateLimiter
   alias AshPlatform.Formation
 
   @canonical_session_keys [
@@ -12,6 +13,11 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     "session_generation",
     "session_lineage"
   ]
+
+  @release_budget [limit: 30, window_seconds: 300]
+  @peer {203, 0, 113, 7}
+  @other_peer {203, 0, 113, 8}
+  @denial_event [:ash_platform, :session_bootstrap, :rate_limited]
 
   test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
     conn: conn
@@ -133,6 +139,130 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert json_response(minted, 200)["csrf_token"]
     refute get_session(minted, :session_lineage) == get_session(signed_in, :session_lineage)
+  end
+
+  test "BUDGET_BEFORE_INSERT: the budget commits its lineages and the request past it commits none" do
+    release_budget()
+    before = authority_count()
+
+    admitted = for _ <- 1..30, do: bootstrap_from(@peer)
+
+    assert Enum.all?(admitted, &json_response(&1, 200)["csrf_token"])
+
+    assert admitted |> Enum.map(&get_session(&1, :session_lineage)) |> Enum.uniq() |> length() ==
+             30
+
+    assert Enum.all?(admitted, &(get_session(&1, :session_generation) == 0))
+    assert Enum.all?(admitted, &(SessionAuthority.exact(claim(&1)) == {:ok, nil}))
+    assert authority_count() - before == 30
+
+    denied = bootstrap_from(@peer)
+
+    assert json_response(denied, 429) == %{"error" => "rate_limited"}
+    assert get_resp_header(denied, "retry-after") == ["300"]
+    assert get_resp_header(denied, "cache-control") == ["no-store"]
+    refute session_cookie(denied)
+    assert authority_count() - before == 30
+  end
+
+  test "BUDGET_BEFORE_INSERT: concurrent cookie-less requests commit no more than the budget" do
+    release_budget()
+    before = authority_count()
+
+    statuses =
+      1..60
+      |> Task.async_stream(fn _ -> bootstrap_from(@peer).status end, ordered: false)
+      |> Enum.map(fn {:ok, status} -> status end)
+
+    admitted = Enum.count(statuses, &(&1 == 200))
+
+    assert admitted <= 30
+    assert Enum.count(statuses, &(&1 == 429)) == 60 - admitted
+    assert authority_count() - before == admitted
+  end
+
+  test "REAL_CLIENT_KEY: distinct normalized client addresses hold independent budgets" do
+    release_budget()
+    before = authority_count()
+
+    assert exhaust(fn -> bootstrap_from(@peer) end).status == 429
+    assert bootstrap_from(@other_peer) |> json_response(200) |> Map.has_key?("csrf_token")
+    assert authority_count() - before == 31
+  end
+
+  test "CURRENT_CLAIMS_ARE_OBSERVATIONAL: an exact claim is observed through an exhausted bucket" do
+    release_budget()
+    admitted = for _ <- 1..30, do: bootstrap_from(@peer)
+    assert bootstrap_from(@peer).status == 429
+
+    before = authority_count()
+    browser = %{recycled(List.first(admitted)) | remote_ip: @peer}
+    observed = csrf_bootstrap(browser)
+
+    assert json_response(observed, 200)["csrf_token"]
+    refute observed.private[:plug_session_info]
+    refute session_cookie(observed)
+    assert authority_count() == before
+  end
+
+  test "REAL_CLIENT_KEY: only one syntactically valid Fly address escapes the peer bucket" do
+    release_budget()
+    assert exhaust(fn -> bootstrap_from(@peer) end).status == 429
+
+    assert bootstrap_from(@peer, [{"fly-client-ip", "not-an-ip"}]).status == 429
+    assert bootstrap_from(@peer, [{"fly-client-ip", "203.0.113.9:80"}]).status == 429
+
+    assert bootstrap_from(@peer, [
+             {"fly-client-ip", "198.51.100.1"},
+             {"fly-client-ip", "198.51.100.2"}
+           ]).status == 429
+
+    # The proxy sets `Fly-Client-IP` itself; `X-Forwarded-For` is a client-supplied
+    # header and buys nobody a budget of their own.
+    assert bootstrap_from(@peer, [{"x-forwarded-for", "198.51.100.3"}]).status == 429
+    assert bootstrap_from(@peer, [{"fly-client-ip", "198.51.100.1"}]).status == 200
+  end
+
+  test "REAL_CLIENT_KEY: the IPv6 spellings of one IPv4 address share its bucket" do
+    release_budget()
+    spellings = ["198.51.100.4", "::ffff:198.51.100.4", "::198.51.100.4"]
+
+    admitted =
+      for _ <- 1..10,
+          spelling <- spellings,
+          do: bootstrap_from(@peer, [{"fly-client-ip", spelling}])
+
+    assert Enum.all?(admitted, &(&1.status == 200))
+
+    for spelling <- spellings do
+      assert bootstrap_from(@peer, [{"fly-client-ip", spelling}]).status == 429
+    end
+  end
+
+  test "REAL_CLIENT_KEY: genuine IPv6 clients share one budget per /64" do
+    release_budget()
+
+    admitted =
+      for host <- 1..30, do: bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:2::#{host}"}])
+
+    assert Enum.all?(admitted, &(&1.status == 200))
+    assert bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:2:ffff::1"}]).status == 429
+    assert bootstrap_from(@peer, [{"fly-client-ip", "2001:db8:1:3::1"}]).status == 200
+  end
+
+  test "STABLE_DENIAL: a denial counts once and names only where the client key came from" do
+    release_budget()
+    handler = attach_denial_telemetry()
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    assert exhaust(fn -> bootstrap_from(@peer) end).status == 429
+    assert_receive {:denial, %{count: 1}, peer_metadata}
+    assert peer_metadata == %{source: :peer_fallback}
+
+    header = [{"fly-client-ip", "198.51.100.6"}]
+    assert exhaust(fn -> bootstrap_from(@peer, header) end).status == 429
+    assert_receive {:denial, %{count: 1}, header_metadata}
+    assert header_metadata == %{source: :client_header}
   end
 
   test "FIRST_BIND_AND_REFRESH_ROTATE: a same-account refresh advances, renews and keeps the socket",
@@ -658,6 +788,52 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()
 
   defp csrf_bootstrap(conn), do: get(conn, "/auth/csrf")
+
+  # Restores the release budget this file's bound is specified in, and hands the
+  # limiter back the way the next case expects to find it. Every case that spends
+  # the budget lives in this synchronous file, so no reset can race an admission.
+  defp release_budget do
+    raised = Application.fetch_env!(:ash_platform, :session_bootstrap_rate_limit)
+    Application.put_env(:ash_platform, :session_bootstrap_rate_limit, @release_budget)
+    ClaimRateLimiter.reset()
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :session_bootstrap_rate_limit, raised)
+      ClaimRateLimiter.reset()
+    end)
+  end
+
+  # A cookie-less browser whose peer address is `peer`, carrying `headers`
+  # exactly as given so a duplicated or forged address header travels the way a
+  # client would actually send it.
+  defp bootstrap_from(peer, headers \\ []) do
+    conn = %{build_conn() | remote_ip: peer}
+    csrf_bootstrap(%{conn | req_headers: conn.req_headers ++ headers})
+  end
+
+  # Spends one client's whole budget and returns its next, denied, response.
+  defp exhaust(request) do
+    Enum.each(1..30, fn _ -> assert request.().status == 200 end)
+    request.()
+  end
+
+  defp authority_count, do: Ash.count!(SessionAuthority, actor: %System{})
+
+  defp attach_denial_telemetry do
+    handler = "session-bootstrap-denial-#{Elixir.System.unique_integer([:positive])}"
+    test = self()
+
+    :telemetry.attach(
+      handler,
+      @denial_event,
+      fn _event, measurements, metadata, _config ->
+        send(test, {:denial, measurements, metadata})
+      end,
+      nil
+    )
+
+    handler
+  end
 
   # Carries the response's own cookie into the next request the way a browser
   # does, without losing the connect info a mount needs.

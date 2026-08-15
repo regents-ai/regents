@@ -31,6 +31,12 @@ config :ash_platform,
        :autolaunch_indexer_http_client,
        AshPlatform.TestAutolaunchIndexerChainClient
 
+# Every test case here reaches one node holding one anonymous bootstrap budget
+# for the loopback address they all share, so the release-sized allowance is
+# raised rather than let unrelated cases spend one another's. The focused
+# controller tests restore the release 30/300 themselves.
+config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
+
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
 
 config :ash_platform,

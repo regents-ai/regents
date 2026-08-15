@@ -53,6 +53,30 @@ defmodule AshPlatformWeb.ApiContractTest do
                            }
                          }
                        }
+                     },
+                     "429" => %{
+                       "description" =>
+                         "Too many new browser sessions were started from the client address",
+                       "headers" => %{
+                         "Retry-After" => %{
+                           "schema" => %{"type" => "string", "const" => "300"}
+                         },
+                         "Cache-Control" => %{
+                           "schema" => %{"type" => "string", "const" => "no-store"}
+                         }
+                       },
+                       "content" => %{
+                         "application/json" => %{
+                           "schema" => %{
+                             "type" => "object",
+                             "additionalProperties" => false,
+                             "required" => ["error"],
+                             "properties" => %{
+                               "error" => %{"type" => "string", "const" => "rate_limited"}
+                             }
+                           }
+                         }
+                       }
                      }
                    }
                  }

@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.Human
+  alias AshPlatform.AgentAuth.ClaimRateLimiter
   alias AshPlatform.Privy
 
   @doc """
@@ -15,15 +16,12 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   Observation writes no session, so this response carries no `Set-Cookie` and a
   delayed one cannot put an older generation back over a later winner's cookie.
+
+  Only a browser carrying no claim can create a lineage, so only that request
+  spends the anonymous bootstrap budget, and it spends it before `renew/1` can
+  insert a row, so a denial commits nothing at all.
   """
-  def csrf(conn, _params) do
-    case SessionAuthority.renew(claim(conn)) do
-      {:bootstrap, claim} -> conn |> rotate_session(claim) |> issue_token()
-      {:current, _claim} -> issue_token(conn)
-      {:error, :superseded} -> lifecycle_error(conn, "session_superseded")
-      {:error, :reset} -> conn |> drop_session() |> lifecycle_error("session_reset_required")
-    end
-  end
+  def csrf(conn, _params), do: admit_bootstrap(conn, claim(conn))
 
   def create(conn, _untrusted_params) do
     with {:ok, token} <- bearer_token(conn),
@@ -59,6 +57,71 @@ defmodule AshPlatformWeb.PrivySessionController do
 
     conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
   end
+
+  defp admit_bootstrap(conn, nil) do
+    budget = Application.fetch_env!(:ash_platform, :session_bootstrap_rate_limit)
+    window = Keyword.fetch!(budget, :window_seconds)
+    {key, source} = client_key(conn)
+
+    case ClaimRateLimiter.admit({:session_bootstrap, key}, Keyword.fetch!(budget, :limit), window) do
+      :ok -> renew(conn, nil)
+      {:error, :rate_limited} -> rate_limited(conn, source, window)
+    end
+  end
+
+  defp admit_bootstrap(conn, claim), do: renew(conn, claim)
+
+  defp renew(conn, claim) do
+    case SessionAuthority.renew(claim) do
+      {:bootstrap, claim} -> conn |> rotate_session(claim) |> issue_token()
+      {:current, _claim} -> issue_token(conn)
+      {:error, :superseded} -> lifecycle_error(conn, "session_superseded")
+      {:error, :reset} -> conn |> drop_session() |> lifecycle_error("session_reset_required")
+    end
+  end
+
+  defp rate_limited(conn, source, window) do
+    :telemetry.execute([:ash_platform, :session_bootstrap, :rate_limited], %{count: 1}, %{
+      source: source
+    })
+
+    conn
+    |> put_resp_header("retry-after", to_string(window))
+    |> put_resp_header("cache-control", "no-store")
+    |> put_status(:too_many_requests)
+    |> json(%{error: "rate_limited"})
+  end
+
+  # Fly terminates the connection, so the peer is the proxy and the client
+  # address arrives in one header the proxy sets itself. Anything but exactly one
+  # parseable value keys the proxy-wide peer bucket rather than a second header a
+  # client could forge itself a private budget with.
+  defp client_key(conn) do
+    case get_req_header(conn, "fly-client-ip") do
+      [value] -> parsed(value, conn.remote_ip)
+      _absent_or_duplicated -> {normalized(conn.remote_ip), :peer_fallback}
+    end
+  end
+
+  defp parsed(value, remote_ip) do
+    case value |> :binary.bin_to_list() |> :inet.parse_strict_address() do
+      {:ok, address} -> {normalized(address), :client_header}
+      {:error, :einval} -> {normalized(remote_ip), :peer_fallback}
+    end
+  end
+
+  # The mapped and compatible IPv6 spellings of one IPv4 address share its
+  # bucket, and a genuine IPv6 client is keyed by its /64 so one host cannot
+  # spend the budget once per address in the block it was handed. The key is
+  # never persisted, rendered or logged; it lives only in the limiter.
+  defp normalized({_, _, _, _} = ipv4), do: ipv4
+
+  defp normalized({0, 0, 0, 0, 0, embedding, high, low}) when embedding in [0, 0xFFFF] do
+    <<a, b, c, d>> = <<high::16, low::16>>
+    {a, b, c, d}
+  end
+
+  defp normalized({a, b, c, d, _, _, _, _}), do: {a, b, c, d, 0, 0, 0, 0}
 
   # Privy is verified before the row lock, so only the transition itself is
   # serialized. A different account is a two-step cutover: this response revokes
