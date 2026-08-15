@@ -186,8 +186,12 @@ function adoptUnreadRenewal(fetcher: typeof fetch): void {
     // and closing it again would strand a transport that is already current.
     if (!unreadRenewal) return
     await csrfToken(fetcher, signal)
+    // A rotation that opened while this read was in flight latched a renewal
+    // newer than the one it answers for, and only that rotation can say this
+    // tab has read it.
+    if (openRotations > 0) return
     unreadRenewal = false
-    if (csrfStateIsCurrent()) heldSockets.forEach(release => release())
+    heldSockets.forEach(release => release())
   })
   void adoptingRenewal.then(settled, settled)
 }
@@ -208,7 +212,10 @@ export async function acrossCookieRotation<T>(
     const adopted = await rotation(() => {
       unreadRenewal = true
     })
-    unreadRenewal = false
+    // A rotation that opened while this one was reading latched a renewal newer
+    // than the read that just landed, so only the rotation `openRotations` still
+    // represents alone may say this tab holds what the cookie carries.
+    if (openRotations === 1) unreadRenewal = false
     return adopted
   } finally {
     openRotations -= 1
@@ -236,19 +243,16 @@ export function installCrossTabCsrf(fetcher: typeof fetch = fetch): () => void {
   const channel = csrfChannel()
   const adopt = (event: MessageEvent) => {
     if (event.data !== csrfRotated) return
-    // The renewal already happened in the tab that sent the notice, so this tab
-    // is inside the interval before its own read begins and stays closed if that
-    // read fails. It takes the same queue as sign in, refresh, switch, sign out
-    // and the reconnect retry, so no other read of the cookie can be in flight
-    // beside it and answer for a renewal this one has not read yet.
-    void browserSessionMutations
-      .establish(signal =>
-        acrossCookieRotation(renewed => {
-          renewed()
-          return csrfToken(fetcher, signal)
-        }),
-      )
-      .catch(() => undefined)
+    // The renewal already happened in the tab that sent the notice, so the
+    // shared cookie has changed by the time it lands here: the interval opens on
+    // delivery, and a connect arriving before the queue reaches the read is held
+    // rather than sent under the token that cookie retired. Only the read takes
+    // the queue, so no other read of the cookie answers for this renewal first,
+    // and a read that fails leaves this tab closed.
+    void acrossCookieRotation(renewed => {
+      renewed()
+      return browserSessionMutations.establish(signal => csrfToken(fetcher, signal))
+    }).catch(() => undefined)
   }
 
   channel?.addEventListener("message", adopt)

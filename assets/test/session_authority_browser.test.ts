@@ -170,11 +170,6 @@ function pinnedSocket() {
       live = true
       attempts.push(browserCsrfToken())
     },
-    // `Socket.disconnect` tears the transport down, so the connect after it is a
-    // fresh establishment rather than a call `connect` returns from.
-    disconnect: () => {
-      live = false
-    },
     isConnected: () => live,
   }
 
@@ -316,6 +311,54 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
     } finally {
       stopAdopting()
       peer.close()
+    }
+  })
+
+  it("holds a reconnect that arrives before the notice's queued read begins", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    // No retry may start inside an open interval, so an adoption read reaching
+    // this fetcher would be the failure rather than a stub the case leans on.
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
+    let releaseQueue = () => {}
+    const blocking = browserSessionMutations.establish(
+      () => new Promise<void>(resolve => (releaseQueue = resolve)),
+    )
+    const fetcher = vi.fn(async () => csrfResponse("renewed-token")) as unknown as typeof fetch
+    let noticeTaken = false
+    const peer = new BroadcastChannel(csrfRotated)
+    const stopAdopting = installCrossTabCsrf(fetcher)
+    // A second reader of the same notice, created after the adopting one, so it
+    // observes delivery only once this tab has taken the notice in.
+    const probe = new BroadcastChannel(csrfRotated)
+    probe.addEventListener("message", () => (noticeTaken = true))
+
+    try {
+      peer.postMessage(csrfRotated)
+      await until(() => noticeTaken)
+
+      // The queue is still held by the mutation ahead of the notice, so the
+      // notice's own read has not begun. The shared cookie changed anyway, and
+      // the interval delivery opened is what refuses the reconnect in this turn.
+      expect(fetcher).not.toHaveBeenCalled()
+      socket.connect()
+
+      expect(socket.attempts).toEqual([])
+      expect(socket.isConnected()).toBe(false)
+      expect(meta.content).toBe("stale-token")
+
+      releaseQueue()
+      await until(() => socket.isConnected())
+
+      expect(fetcher).toHaveBeenCalledOnce()
+      expect(meta.content).toBe("renewed-token")
+      expect(socket.attempts).toEqual(["renewed-token"])
+    } finally {
+      releaseQueue()
+      await blocking
+      stopAdopting()
+      peer.close()
+      probe.close()
     }
   })
 })
@@ -613,7 +656,7 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     expect(socket.isConnected()).toBe(true)
   })
 
-  it("keeps a renewal announced during a retry unread until a read of its own lands", async () => {
+  it("releases nothing for a retry a newer notice outran, and reads again later", async () => {
     const meta = pageWithCsrfMeta("stale-token")
     const socket = pinnedSocket()
     const reads: string[] = []
@@ -647,21 +690,18 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
       await until(() => reads.length === 2)
       await settle()
 
-      // The retry answered for the cookie as it stood, and the renewal the
-      // notice announced is unread behind it rather than answered by it.
-      expect(socket.attempts).toEqual(["retry-token"])
-
-      socket.disconnect()
-      socket.connect()
-
+      // The retry answers for the cookie as it stood before the notice, so the
+      // newer renewal it never read keeps this tab closed, and the notice's own
+      // read failed. Nothing may go out under a token that answers for neither.
+      expect(socket.attempts).toEqual([])
       expect(socket.isConnected()).toBe(false)
-      expect(socket.attempts).toEqual(["retry-token"])
 
+      socket.connect()
       await until(() => socket.isConnected())
 
       expect(reads).toEqual(["stale-token", "retry-token", "retry-token"])
       expect(meta.content).toBe("current-token")
-      expect(socket.attempts).toEqual(["retry-token", "current-token"])
+      expect(socket.attempts).toEqual(["current-token"])
     } finally {
       stopAdopting()
       peer.close()
