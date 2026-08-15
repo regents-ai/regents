@@ -3,6 +3,7 @@ import {encodeFunctionData, getAddress, parseAbi, type Address, type Hash} from 
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../contracts/abi/animata-redeemer.json"
+import {connectedEthereumWallet} from "../js/wallet_actions/connected_wallet"
 import {
   recordSubmittedRedemption,
   RedemptionWallet,
@@ -16,10 +17,10 @@ import {
 } from "../js/wallet_actions/redemption"
 
 vi.mock("../js/wallet_actions/connected_wallet", () => ({
-  connectedEthereumWallet: () => ({
+  connectedEthereumWallet: vi.fn(() => ({
     address: "0x1111111111111111111111111111111111111111",
     provider: {request: vi.fn()},
-  }),
+  })),
 }))
 
 // Only the hook's own call is steered; every other test in this file keeps the
@@ -248,17 +249,95 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
   })
 })
 
+describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", () => {
+  const execute = vi.mocked(executePreparedRedemptionAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("reports the unknown key instead of the provider's own message", async () => {
+    const hook = mountRedemptionWallet()
+    execute.mockImplementationOnce(async () => {
+      throw new Error("execution reverted: allowance 0xdeadbeef (Safe transaction service)")
+    })
+
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "failed"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_wallet_failed",
+      payload: {reason: "unknown"},
+    })
+    expect(JSON.stringify(hook.pushed)).not.toContain("execution reverted")
+  })
+
+  it("reports the unavailable review wallet without naming any provider", async () => {
+    vi.mocked(connectedEthereumWallet).mockReturnValueOnce(null)
+    const hook = mountRedemptionWallet()
+
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "absent"})})
+
+    expect(hook.pushed).toEqual([
+      {event: "redemption_wallet_failed", payload: {reason: "wallet_unavailable"}},
+    ])
+  })
+})
+
+describe("U2_NEUTRAL_REJECTION: the rejection is the whole outcome", () => {
+  const execute = vi.mocked(executePreparedRedemptionAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  // A failure event after the rejection would replace the neutral "nothing was
+  // sent" notice with an error the customer did not cause.
+  it("sends the rejection and nothing that could overwrite its neutral notice", async () => {
+    const hook = mountRedemptionWallet()
+    execute.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("User rejected the request."), {code: 4001})
+    })
+
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "rejected"})})
+
+    expect(hook.pushed).toEqual([
+      {event: "redemption_wallet_rejected", payload: {action_id: "rejected", code: 4001}},
+    ])
+  })
+})
+
+describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer", () => {
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("copies the exact address the review rendered", () => {
+    const writeText = vi.fn()
+    vi.stubGlobal("navigator", {clipboard: {writeText}})
+    const hook = mountRedemptionWallet()
+
+    hook.click(copyButton(wallet))
+    expect(writeText).toHaveBeenCalledWith(wallet)
+
+    hook.click(copyButton())
+    expect(writeText).toHaveBeenCalledOnce()
+  })
+})
+
 type Emitted = {event: string; payload: unknown}
 
 function mountRedemptionWallet(): {
   pushed: Emitted[]
   emit(event: string, payload: unknown): unknown
+  click(target: unknown): void
 } {
   const pushed: Emitted[] = []
   const handlers = new Map<string, (payload: unknown) => unknown>()
+  const clicks: Array<(event: Event) => void> = []
   const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
   const hook = {
-    el: {dataset: {} as DOMStringMap, querySelectorAll: () => buttons},
+    el: {
+      dataset: {} as DOMStringMap,
+      querySelectorAll: () => buttons,
+      addEventListener: (_type: string, listener: (event: Event) => void) => clicks.push(listener),
+    },
     handleEvent: (event: string, callback: (payload: unknown) => unknown) =>
       handlers.set(event, callback),
     pushEvent: (event: string, payload: unknown) => pushed.push({event, payload}),
@@ -266,7 +345,16 @@ function mountRedemptionWallet(): {
 
   ;(RedemptionWallet.mounted as (this: typeof hook) => void).call(hook)
 
-  return {pushed, emit: (event, payload) => handlers.get(event)?.(payload)}
+  return {
+    pushed,
+    emit: (event, payload) => handlers.get(event)?.(payload),
+    click: target => clicks.forEach(listener => listener({target} as unknown as Event)),
+  }
+}
+
+// A click target that answers `closest` the way the reviewed markup does.
+function copyButton(signer?: string): unknown {
+  return {closest: () => (signer ? {dataset: {copySigner: signer}} : null)}
 }
 
 function stubSessionStorage(): void {

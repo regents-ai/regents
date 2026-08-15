@@ -9,6 +9,10 @@ import {
 const inFlightActionIds = new Set<string>()
 const pendingKey = "regent:staking:submitted"
 
+// The closed set of failures this surface can describe. Provider, viem, revert
+// and wallet-vendor text is never a customer message, so it is never sent.
+type FailureReason = "wallet_unavailable" | "unknown"
+
 type StoredSubmission = {
   envelope: PreparedStakingAction
   approval_transaction_hash?: `0x${string}`
@@ -29,6 +33,15 @@ export const StakeWallet: Hook = {
     const restored = readStoredSubmission()
     let currentSubmission = restored
     if (restored) this.pushEvent("restore_staking_submission", restored)
+
+    const failed = (reason: FailureReason) => this.pushEvent("staking_wallet_failed", {reason})
+
+    this.el.addEventListener("click", event => {
+      const signer = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+        "[data-copy-signer]",
+      )?.dataset.copySigner
+      if (signer) void navigator.clipboard.writeText(signer)
+    })
 
     this.handleEvent("staking:confirmed", () => sessionStorage.removeItem(pendingKey))
     this.handleEvent("staking:approval-reverted", () => sessionStorage.removeItem(pendingKey))
@@ -52,7 +65,7 @@ export const StakeWallet: Hook = {
       const connected = connectedEthereumWallet(envelope.expected_signer)
 
       if (!connected) {
-        this.pushEvent("staking_wallet_failed", {message: "Connect your wallet before continuing."})
+        failed("wallet_unavailable")
         unlock(this.el, envelope.action_id)
         return
       }
@@ -105,16 +118,18 @@ export const StakeWallet: Hook = {
         }
         // Reported unconditionally: browser state is evidence, never authority.
         // The database refuses `not_sent` once a hash is bound, so withholding
-        // this would only strand a claim the server can no longer close.
+        // this would only strand a claim the server can no longer close. The
+        // rejection is the whole outcome, so nothing follows it that could
+        // overwrite the neutral notice with a failure the user did not cause.
         if (userRejected(error)) {
           this.pushEvent("staking_wallet_rejected", {
             action_id: envelope.action_id,
             phase,
             code: 4001,
           })
+          return
         }
-        const message = error instanceof Error ? error.message : "The wallet action could not be completed."
-        this.pushEvent("staking_wallet_failed", {message})
+        failed("unknown")
       } finally {
         unlock(this.el, envelope.action_id)
       }

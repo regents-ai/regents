@@ -270,6 +270,129 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute html =~ "Check the wallet and selection"
   end
 
+  test "U6_INLINE_SIGN_IN: the signed-out branch offers the existing sign-in bridge target", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/redeem")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(.redeem-actions button[data-account-target="sign-in"]),
+             "Sign in to redeem"
+           )
+  end
+
+  # A signed-in account whose reviewed wallet is not connected is told exactly
+  # that, in fixed copy. The bridge has no add-wallet action, so no bridge
+  # button appears, and no browser or provider text ever reaches the page.
+  test "U1_BOUNDED_WALLET_COPY: a closed reason key renders fixed copy and offers no bridge button",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-bounded", @wallet, [@wallet], actor: %System{})
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    render_async(view)
+    render_hook(view, "redemption_wallet_failed", %{"reason" => "wallet_unavailable"})
+
+    assert render(view) =~
+             "The wallet in this review is not connected in this browser. Connect it to continue."
+
+    refute has_element?(view, ~s([data-account-target="sign-in"]))
+
+    render_hook(view, "redemption_wallet_failed", %{"reason" => "unknown"})
+    assert render(view) =~ "The wallet action did not complete."
+  end
+
+  # The exact rejection is the whole outcome: the neutral notice stays on screen
+  # and the operation is closed. A rejection the server cannot bind to the
+  # reviewed action never fabricates that copy.
+  test "U2_NEUTRAL_REJECTION: the exact rejection leaves neutral copy that no failure overwrites",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-rejected", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    render_async(view)
+
+    render_hook(view, "redemption_wallet_rejected", %{"action_id" => "other", "code" => 4001})
+    refute render(view) =~ "Nothing was sent"
+
+    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    action_id = prepared_action_id(render(view))
+    render_hook(view, "sign_prepared_redemption", %{"action-id" => action_id})
+
+    render_hook(view, "redemption_wallet_rejected", %{"action_id" => action_id, "code" => 4001})
+
+    html = render(view)
+    assert html =~ "You rejected the request in your wallet. Nothing was sent."
+    refute html =~ "Review before signing"
+  end
+
+  test "U4_BASE_EXPLORER_TRUTH: the submitted hash links to that exact transaction on Base", %{
+    conn: conn
+  } do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-explorer", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    render_async(view)
+    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    action_id = prepared_action_id(render(view))
+
+    submit(view, action_id)
+
+    assert has_element?(
+             view,
+             ~s(.redeem-submission a[href="https://basescan.org/tx/#{@tx_hash}"])
+           )
+
+    # An unbound hash is refused before it can be rendered at all, so no
+    # malformed transaction link can exist.
+    render_hook(view, "redemption_submitted", %{
+      "action_id" => action_id,
+      "transaction_hash" => "0xnot-a-hash"
+    })
+
+    refute render(view) =~ "basescan.org/tx/0xnot-a-hash"
+  end
+
+  test "U5_EXPECTED_SIGNER_TRUTH: the review copies exactly the prepared signer", %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-signer", @wallet, [@wallet], actor: %System{})
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    render_async(view)
+    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+
+    assert has_element?(view, ".redeem-review .redeem-mono", "0x1111…1111")
+
+    assert has_element?(
+             view,
+             ~s(.redeem-review button[data-copy-signer="#{@wallet}"][aria-label="Copy the full wallet address"])
+           )
+  end
+
   defp prepared_action_id(html) do
     [id] = Regex.run(~r/phx-value-action-id="([a-f0-9]+)"/, html, capture: :all_but_first)
     id

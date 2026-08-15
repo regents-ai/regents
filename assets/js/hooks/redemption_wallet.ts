@@ -9,6 +9,10 @@ import {
 const pendingKey = "regent:redemption:submitted"
 const inFlightActionIds = new Set<string>()
 
+// The closed set of failures this surface can describe. Provider, viem, revert
+// and wallet-vendor text is never a customer message, so it is never sent.
+type FailureReason = "wallet_unavailable" | "unknown"
+
 export type StoredRedemptionSubmission = {
   envelope: PreparedRedemptionAction
   transaction_hash: `0x${string}`
@@ -27,6 +31,15 @@ export const RedemptionWallet: Hook = {
     const restored = readStoredSubmission()
     if (restored) this.pushEvent("restore_redemption_submission", restored)
 
+    const failed = (reason: FailureReason) => this.pushEvent("redemption_wallet_failed", {reason})
+
+    this.el.addEventListener("click", event => {
+      const signer = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+        "[data-copy-signer]",
+      )?.dataset.copySigner
+      if (signer) void navigator.clipboard.writeText(signer)
+    })
+
     for (const event of ["redemption:confirmed", "redemption:reverted", "redemption:abandoned"]) {
       this.handleEvent(event, () => sessionStorage.removeItem(pendingKey))
     }
@@ -40,9 +53,7 @@ export const RedemptionWallet: Hook = {
 
       const connected = connectedEthereumWallet(envelope.expected_signer)
       if (!connected) {
-        this.pushEvent("redemption_wallet_failed", {
-          message: "Connect the wallet shown on this account before continuing.",
-        })
+        failed("wallet_unavailable")
         unlock(this.el, envelope.action_id)
         return
       }
@@ -74,14 +85,16 @@ export const RedemptionWallet: Hook = {
           // Reported unconditionally: browser state is evidence, never
           // authority. The database refuses `not_sent` once a hash is bound, so
           // withholding this would only strand a claim it can no longer close.
+          // The rejection is the whole outcome, so nothing follows it that could
+          // overwrite the neutral notice with a failure the user did not cause.
           if (userRejected(error)) {
             this.pushEvent("redemption_wallet_rejected", {
               action_id: envelope.action_id,
               code: 4001,
             })
+            return
           }
-          const message = error instanceof Error ? error.message : "The wallet action did not complete."
-          this.pushEvent("redemption_wallet_failed", {message})
+          failed("unknown")
         }
       } finally {
         unlock(this.el, envelope.action_id)

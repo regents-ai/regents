@@ -104,6 +104,9 @@ test("each Animata action needs its own wallet action, and a reload never repeat
   await review(page, "Review REGENT claim", "Claim unlocked REGENT")
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
   await expect(page.locator(".redeem-review")).toHaveCount(0)
+  await expect(
+    page.getByText("You rejected the request in your wallet. Nothing was sent."),
+  ).toBeVisible()
   expect(await sendCount(page)).toBe(3)
 
   // The last action reloads after its transaction was submitted: the exact hash

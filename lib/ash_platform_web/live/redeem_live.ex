@@ -56,6 +56,7 @@ defmodule AshPlatformWeb.RedeemLive do
         <section :if={!@authenticated} class="redeem-actions">
           <h2>Connect your account</h2>
           <p>Sign in with the wallet that holds your Animata token to redeem or claim.</p>
+          <button type="button" data-account-target="sign-in">Sign in to redeem</button>
         </section>
 
         <section :if={@authenticated} class="redeem-actions" aria-label="Redemption actions">
@@ -92,8 +93,7 @@ defmodule AshPlatformWeb.RedeemLive do
 
           <section :if={@submission} class="redeem-submission" aria-label="Submitted transaction">
             <p>
-              Submitted transaction:
-              <span class="redeem-mono">{short_hash(@submission.transaction_hash)}</span>
+              Submitted transaction: <.transaction hash={@submission.transaction_hash} />
             </p>
             <button
               :if={@prepared && @submission.status != :confirmed}
@@ -162,7 +162,17 @@ defmodule AshPlatformWeb.RedeemLive do
                 <dt>Network</dt><dd>Base</dd>
               </div>
               <div>
-                <dt>Wallet</dt><dd class="redeem-mono">{short(@prepared.expected_signer)}</dd>
+                <dt>Wallet</dt>
+                <dd>
+                  <span class="redeem-mono">{short(@prepared.expected_signer)}</span>
+                  <button
+                    type="button"
+                    data-copy-signer={@prepared.expected_signer}
+                    aria-label="Copy the full wallet address"
+                  >
+                    Copy
+                  </button>
+                </dd>
               </div>
               <div>
                 <dt>Contract</dt><dd class="redeem-mono">{short(@prepared.to)}</dd>
@@ -198,6 +208,18 @@ defmodule AshPlatformWeb.RedeemLive do
       <p class="redeem-metric-label">{@label}</p>
       <p class="redeem-metric-value">{@value}</p>
     </div>
+    """
+  end
+
+  attr :hash, :string, required: true
+
+  defp transaction(assigns) do
+    assigns = assign(assigns, :url, explorer_url(assigns.hash))
+
+    ~H"""
+    <a :if={@url} class="redeem-mono" href={@url} target="_blank" rel="noopener">
+      {short_hash(@hash)}
+    </a>
     """
   end
 
@@ -263,6 +285,11 @@ defmodule AshPlatformWeb.RedeemLive do
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
-  defp short_hash("0x" <> hash) when byte_size(hash) == 64,
+  defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
+
+  # Only the one canonical hash shape becomes a link to the Base explorer.
+  defp explorer_url(hash) do
+    if String.match?(hash, ~r/^0x[0-9a-fA-F]{64}$/), do: "https://basescan.org/tx/" <> hash
+  end
 end

@@ -17,7 +17,7 @@ defmodule AshPlatformWeb.StakeLive do
       <header class="stake-heading">
         <p class="stake-kicker">Regents Labs · Base</p>
         <h1>Stake REGENT</h1>
-        <p>Stake REGENT and claim the rewards available to your connected wallet.</p>
+        <p>Stake <span class="stake-mono">$REGENT</span>. Follow the shared revenue rail.</p>
       </header>
 
       <div :if={@status == :loading} class="stake-status" aria-busy="true">
@@ -43,6 +43,7 @@ defmodule AshPlatformWeb.StakeLive do
         <section :if={!@authenticated} class="stake-actions">
           <h2>Connect your account</h2>
           <p>Sign in with the wallet you use for REGENT to stake or claim rewards.</p>
+          <button type="button" data-account-target="sign-in">Sign in to stake</button>
         </section>
 
         <section :if={@authenticated} class="stake-actions" aria-label="Staking actions">
@@ -55,12 +56,10 @@ defmodule AshPlatformWeb.StakeLive do
 
           <section :if={@submission} class="stake-submission" aria-label="Submitted transaction">
             <p :if={@submission[:approval_transaction_hash]}>
-              Approval transaction:
-              <span class="stake-mono">{short_hash(@submission.approval_transaction_hash)}</span>
+              Approval transaction: <.transaction hash={@submission.approval_transaction_hash} />
             </p>
             <p :if={@submission[:transaction_hash]}>
-              Staking transaction:
-              <span class="stake-mono">{short_hash(@submission.transaction_hash)}</span>
+              Staking transaction: <.transaction hash={@submission.transaction_hash} />
             </p>
             <button
               :if={
@@ -138,25 +137,35 @@ defmodule AshPlatformWeb.StakeLive do
                 type="button"
                 phx-click="prepare_staking"
                 phx-value-action="stake"
-                disabled={@staking.paused}
+                disabled={pending?(@submission) or @staking.paused}
               >
                 Review stake
               </button>
-              <button type="button" phx-click="prepare_staking" phx-value-action="unstake">
+              <button
+                type="button"
+                phx-click="prepare_staking"
+                phx-value-action="unstake"
+                disabled={pending?(@submission)}
+              >
                 Review unstake
               </button>
             </div>
           </form>
 
           <div class="stake-button-row">
-            <button type="button" phx-click="prepare_staking" phx-value-action="claim_usdc">
+            <button
+              type="button"
+              phx-click="prepare_staking"
+              phx-value-action="claim_usdc"
+              disabled={pending?(@submission)}
+            >
               Review USDC claim
             </button>
             <button
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_regent"
-              disabled={!regent_rewards_funded?(@staking)}
+              disabled={pending?(@submission) or !regent_rewards_funded?(@staking)}
             >
               Review REGENT claim
             </button>
@@ -164,7 +173,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_and_restake_regent"
-              disabled={!regent_rewards_funded?(@staking)}
+              disabled={pending?(@submission) or !regent_rewards_funded?(@staking)}
             >
               Review claim and restake
             </button>
@@ -185,7 +194,17 @@ defmodule AshPlatformWeb.StakeLive do
                 <dt>Network</dt><dd>Base</dd>
               </div>
               <div>
-                <dt>Wallet</dt><dd class="stake-mono">{short(@prepared.expected_signer)}</dd>
+                <dt>Wallet</dt>
+                <dd>
+                  <span class="stake-mono">{short(@prepared.expected_signer)}</span>
+                  <button
+                    type="button"
+                    data-copy-signer={@prepared.expected_signer}
+                    aria-label="Copy the full wallet address"
+                  >
+                    Copy
+                  </button>
+                </dd>
               </div>
               <div>
                 <dt>Contract</dt><dd class="stake-mono">{short(@prepared.to)}</dd>
@@ -224,6 +243,18 @@ defmodule AshPlatformWeb.StakeLive do
     """
   end
 
+  attr :hash, :string, required: true
+
+  defp transaction(assigns) do
+    assigns = assign(assigns, :url, explorer_url(assigns.hash))
+
+    ~H"""
+    <a :if={@url} class="stake-mono" href={@url} target="_blank" rel="noopener">
+      {short_hash(@hash)}
+    </a>
+    """
+  end
+
   attr :notice, :map, required: true
 
   defp notice(assigns) do
@@ -259,6 +290,14 @@ defmodule AshPlatformWeb.StakeLive do
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
+
+  # Only the one canonical hash shape becomes a link to the Base explorer.
+  defp explorer_url(hash) do
+    if String.match?(hash, ~r/^0x[0-9a-fA-F]{64}$/), do: "https://basescan.org/tx/" <> hash
+  end
+
+  defp pending?(%{status: status}), do: status != :confirmed
+  defp pending?(nil), do: false
 
   defp recipient(arguments), do: arguments[:receiver] || arguments[:recipient]
 

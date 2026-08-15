@@ -1055,17 +1055,12 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, maybe_start_staking(socket, socket.assigns.route_spec, generation)}
   end
 
-  def handle_event("staking_wallet_failed", %{"message" => message}, socket) do
-    message =
-      if is_binary(message) and byte_size(message) <= 180,
-        do: message,
-        else: "The wallet action did not complete."
-
+  def handle_event("staking_wallet_failed", %{"reason" => reason}, socket) do
     notice =
       if socket.assigns.staking_submission do
         %{tone: :info, message: "Transaction submitted. Verification can be retried safely."}
       else
-        %{tone: :error, message: message}
+        %{tone: :error, message: wallet_failure_copy(reason)}
       end
 
     {:noreply, assign(socket, staking_signing?: false, staking_notice: notice)}
@@ -1598,17 +1593,12 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, start_redemption_read(socket)}
   end
 
-  defp handle_redemption_event("redemption_wallet_failed", %{"message" => message}, socket) do
+  defp handle_redemption_event("redemption_wallet_failed", %{"reason" => reason}, socket) do
     notice =
       if socket.assigns.redemption_submission do
         %{tone: :info, message: "Transaction submitted. Verification can be retried safely."}
       else
-        message =
-          if is_binary(message) and byte_size(message) <= 180,
-            do: message,
-            else: "The wallet action did not complete."
-
-        %{tone: :error, message: message}
+        %{tone: :error, message: wallet_failure_copy(reason)}
       end
 
     {:noreply, assign(socket, redemption_signing?: false, redemption_notice: notice)}
@@ -2729,6 +2719,13 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp staking_preparation_error(_reason),
     do: "That action could not be prepared. Check the amount and wallet."
+
+  # The browser reports a closed reason key, never text, so no provider, revert
+  # or wallet-vendor wording can reach a customer through this path.
+  defp wallet_failure_copy("wallet_unavailable"),
+    do: "The wallet in this review is not connected in this browser. Connect it to continue."
+
+  defp wallet_failure_copy(_unknown), do: "The wallet action did not complete."
 
   defp cancel_staking_confirmation(%{assigns: %{staking_confirmation_name: nil}} = socket),
     do: socket

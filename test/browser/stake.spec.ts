@@ -120,6 +120,9 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 
   await expect(page.locator(".stake-review")).toHaveCount(0)
+  await expect(
+    page.getByText("You rejected the request in your wallet. Nothing was sent."),
+  ).toBeVisible()
   expect(await sendCount(page)).toBe(2)
 
   // A reload after a submitted phase recovers the exact hash the server bound,
