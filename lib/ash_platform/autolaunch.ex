@@ -5,6 +5,10 @@ defmodule AshPlatform.Autolaunch do
   require Ash.Query
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
+  @indexer_source Module.concat(__MODULE__, "Indexer.Source")
+  @indexer_cursor Module.concat(__MODULE__, "Indexer.Cursor")
+  @indexer_block Module.concat(__MODULE__, "Indexer.Block")
+  @indexer_log Module.concat(__MODULE__, "Indexer.Log")
 
   resources do
     resource AshPlatform.Autolaunch.LaunchDraft do
@@ -185,6 +189,13 @@ defmodule AshPlatform.Autolaunch do
         action: :set_chain_identity,
         args: [:auction_address, :onchain_bid_id]
     end
+
+    # The Base log ledger is written only by its own SystemActor actions, so it
+    # is registered without a code interface of any kind.
+    resource @indexer_source
+    resource @indexer_cursor
+    resource @indexer_block
+    resource @indexer_log
   end
 
   def quote_auction_bid(auction_id, amount, max_price, opts \\ []),

@@ -22,6 +22,15 @@ config :ash_platform,
 
 config :ash_platform, :siwa, base_url: "https://siwa.test", audience: "ash-platform-test"
 config :ash_platform, :database_startup_enabled, true
+
+# The Base log ledger never runs under test: the tests drive its handler
+# directly against a fake endpoint, and nothing in the shell can turn it on.
+config :ash_platform, :autolaunch_indexer_rpc_url, nil
+
+config :ash_platform,
+       :autolaunch_indexer_http_client,
+       AshPlatform.TestAutolaunchIndexerChainClient
+
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
 
 config :ash_platform,

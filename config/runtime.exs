@@ -59,6 +59,15 @@ config :ash_platform, :app_surfaces, app_surfaces?
 
 Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
 
+# The Base log ledger reads its own dedicated endpoint, separate from the
+# simple-read RPC. The test environment owns this setting outright so a shell
+# that exports one cannot start an indexer under a test run.
+if config_env() != :test do
+  config :ash_platform,
+         :autolaunch_indexer_rpc_url,
+         System.get_env("AUTOLAUNCH_INDEXER_RPC_URL")
+end
+
 migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
 
 database_config =

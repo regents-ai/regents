@@ -109,6 +109,14 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [session_authorities_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_6eb_12_session_authorities.exs")
 
+    assert [indexer_ledger_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_490_8_1_autolaunch_chain_ledger.exs")
+
+    assert [indexer_canonical_height_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_regent_490_8_1_canonical_height_and_finality.exs"
+             )
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -139,7 +147,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                billing_kernel_migration,
                ash_functions_migration,
                agent_pairing_migration,
-               session_authorities_migration
+               session_authorities_migration,
+               indexer_ledger_migration,
+               indexer_canonical_height_migration
              ])
 
     assert_additive_migration(
@@ -576,6 +586,38 @@ defmodule AshPlatformWeb.BoundaryTest do
     refute session_authorities =~ "execute"
     # The raw lineage is never a column; only its digest is stored.
     refute session_authorities =~ "add(:lineage,"
+
+    assert_additive_migration(
+      indexer_ledger_migration,
+      [
+        "create table(:indexer_sources",
+        "create table(:indexer_logs",
+        "create table(:indexer_cursors",
+        "create table(:indexer_blocks",
+        "references(:indexer_blocks",
+        ~s(prefix: "autolaunch")
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    # One canonical block per height, and finality only ever on a canonical
+    # block, are database facts rather than conventions the writer keeps.
+    assert_additive_migration(
+      indexer_canonical_height_migration,
+      [
+        ~s(name: "indexer_blocks_canonical_height_index"),
+        "unique: true",
+        ~s(where: "canonical"),
+        ":indexer_blocks_finalized_is_canonical",
+        "canonical or not finalized"
+      ],
+      []
+    )
+
+    assert_reversible_migration(indexer_canonical_height_migration, [
+      ":indexer_blocks_finalized_is_canonical",
+      ~s(name: "indexer_blocks_canonical_height_index")
+    ])
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do
