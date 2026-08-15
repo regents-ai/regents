@@ -4,12 +4,14 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 const wallet = "0x1111111111111111111111111111111111111111"
 const sendsKey = "regent:test:redemption-wallet-sends"
 const holdKey = "regent:test:redemption-hold-receipt"
+const rejectKey = "regent:test:redemption-reject-next"
 
 // Every submitted hash is unique for the life of the database and the browser
-// database is never reset, so each run mints its own four.
-const run = Date.now().toString(16).padStart(12, "0")
+// database is never reset, so each run mints its own. The file discriminator
+// keeps a Redeem run from colliding with a Stake run in the same millisecond.
+const run = `${Date.now().toString(16).padStart(12, "0")}7b`
 const hashes = [1, 2, 3, 4].map(
-  nonce => `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(48)}`,
+  nonce => `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(46)}`,
 )
 
 test("each Animata action needs its own wallet action, and a reload never repeats one", async ({
@@ -17,7 +19,7 @@ test("each Animata action needs its own wallet action, and a reload never repeat
 }) => {
   const auth = await installAuthenticatedPrivy(page, "valid-redemption")
   await page.addInitScript(
-    ({wallet, hashes, sendsKey, holdKey}) => {
+    ({wallet, hashes, sendsKey, holdKey, rejectKey}) => {
       // The send count lives in session storage so a document reload cannot
       // hide a second wallet request behind a fresh counter.
       const sends = () => Number(sessionStorage.getItem(sendsKey) ?? "0")
@@ -35,6 +37,12 @@ test("each Animata action needs its own wallet action, and a reload never repeat
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
+                // A real wallet rejection: nothing is broadcast and nothing is
+                // counted, exactly as EIP-1193 4001 means.
+                if (sessionStorage.getItem(rejectKey)) {
+                  sessionStorage.removeItem(rejectKey)
+                  throw Object.assign(new Error("User rejected the request."), {code: 4001})
+                }
                 const nth = sends() + 1
                 sessionStorage.setItem(sendsKey, String(nth))
                 return hashes[nth - 1]
@@ -69,7 +77,7 @@ test("each Animata action needs its own wallet action, and a reload never repeat
         },
       }
     },
-    {wallet, hashes, sendsKey, holdKey},
+    {wallet, hashes, sendsKey, holdKey, rejectKey},
   )
 
   await auth.establishLocalSession()
@@ -88,11 +96,23 @@ test("each Animata action needs its own wallet action, and a reload never repeat
   await explicitAction(page, "Review redemption", "Redeem Animata", 3)
   await expect(page.getByText("Result token #1123", {exact: true})).toBeVisible()
 
+  // A further action in the same page session, rejected in the wallet with the
+  // exact EIP-1193 4001 while the completed redemption's hash is still in
+  // browser memory. The server claimed this dispatch before the wallet opened,
+  // so the rejection has to reach it: the review clearing is that fact arriving.
+  await page.evaluate(key => sessionStorage.setItem(key, "1"), rejectKey)
+  await review(page, "Review REGENT claim", "Claim unlocked REGENT")
+  await page.getByRole("button", {name: "Confirm in wallet"}).click()
+  await expect(page.locator(".redeem-review")).toHaveCount(0)
+  expect(await sendCount(page)).toBe(3)
+
   // The last action reloads after its transaction was submitted: the exact hash
   // the server bound comes back, verification alone finishes it, and the wallet
-  // is never asked again.
+  // is never asked again. Preparing it at all proves the rejected operation
+  // closed; had the rejection been withheld it would be refused as outstanding.
   await page.evaluate(key => sessionStorage.setItem(key, "1"), holdKey)
   await review(page, "Review REGENT claim", "Claim unlocked REGENT")
+  await expect(page.getByText("An earlier redemption action is still outstanding")).toHaveCount(0)
   expect(await sendCount(page)).toBe(3)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 

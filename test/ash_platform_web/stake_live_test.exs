@@ -213,7 +213,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_push_event(view, "staking:abandoned", %{})
   end
 
-  test "a pending approval can be abandoned while preserving its uncertain hash", %{conn: conn} do
+  # Identity change: this used to say a pending approval "can be abandoned". The
+  # database refuses to close a submitted-but-unverified approval, and the shell
+  # used to clear the screen anyway, announcing a withdrawal that never happened.
+  test "DATABASE_DECIDES_THE_RACE: a submitted-but-unverified approval is not withdrawn and says it is still pending",
+       %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
 
     {:ok, account} =
@@ -238,17 +242,55 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     html = render(view)
     assert html =~ "0xcdcdcd…cdcd"
+    assert html =~ "this review stays open"
     assert html =~ "may still confirm later"
     assert html =~ "before relying on the allowance state"
     refute html =~ "exact REGENT allowance remains onchain"
-    refute html =~ "Submitted transaction"
-    assert_push_event(view, "staking:abandoned", %{})
+    refute_push_event(view, "staking:abandoned", _)
+
+    assert {:ok, %{state: :approval_submitted, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The slot is still held, so no fresh review can replace it.
+    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    assert render(view) =~ "Verify the submitted transaction before preparing another action."
   end
 
-  # Identity change: this used to end by preparing a fresh action. A
+  # The database holds one active operation per account and capability, so a
+  # dispatch already sent to the wallet refuses the next review. Naming the
+  # amount and the wallet would be false.
+  test "DIRECT_TRUTHFUL_UI: a review refused by an outstanding operation says so instead of blaming the amount",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:stake-outstanding", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    render_async(view)
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+
+    # The dispatch is claimed and the wallet is open. No hash exists yet, so the
+    # shell holds no submission of its own and only the database knows.
+    sign(view, prepared_action_id(render(view)))
+
+    view |> element(~s(button[phx-value-action="unstake"]), "Review unstake") |> render_click()
+
+    html = render(view)
+    assert html =~ "An earlier staking action is still outstanding"
+    refute html =~ "Check the amount and wallet"
+  end
+
+  # Identity change: this used to end by preparing a fresh action, then said an
+  # expired restored approval "clears the review". Both were wrong. A
   # submitted-but-unverified approval cannot be withdrawn, so it keeps the
-  # account's one active Stake slot and that ending was wrong.
-  test "DATABASE_DECIDES_THE_RACE: an expired restored approval clears the review but not the outstanding approval",
+  # account's one active Stake slot and the review stays on screen.
+  test "DATABASE_DECIDES_THE_RACE: an expired restored approval keeps both the review and the outstanding approval",
        %{conn: conn} do
     expired_at = DateTime.utc_now() |> DateTime.add(-11, :minute)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> expired_at end)
@@ -277,20 +319,19 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_hook(view, "restore_staking_submission", %{})
 
     html = render(view)
-    assert html =~ "approval review expired"
+    assert html =~ "this review stays open"
     assert html =~ "0xcdcdcd…cdcd"
     assert html =~ "may still confirm later"
     assert html =~ "before relying on the allowance state"
     refute html =~ "exact REGENT allowance remains onchain"
-    refute html =~ "Submitted transaction"
-    assert_push_event(view, "staking:abandoned", %{})
+    refute_push_event(view, "staking:abandoned", _)
 
     # The approval was broadcast and has not been verified, so it cannot be
     # withdrawn: it still holds this account's one active Stake slot and no
     # fresh action can be prepared against it.
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
-    refute render(view) =~ "Review before signing"
+    assert render(view) =~ "Verify the submitted transaction before preparing another action."
 
     assert {:ok, %{state: :approval_submitted, approval_transaction_hash: @approval_hash}} =
              StakeRedeemOperations.active(account.id, :stake)

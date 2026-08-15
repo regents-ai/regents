@@ -103,7 +103,10 @@ export const StakeWallet: Hook = {
             })
           }
         }
-        if (userRejected(error) && !submittedHash(currentSubmission, phase)) {
+        // Reported unconditionally: browser state is evidence, never authority.
+        // The database refuses `not_sent` once a hash is bound, so withholding
+        // this would only strand a claim the server can no longer close.
+        if (userRejected(error)) {
           this.pushEvent("staking_wallet_rejected", {
             action_id: envelope.action_id,
             phase,
@@ -158,13 +161,6 @@ export function userRejected(error: unknown): boolean {
   }
 
   return false
-}
-
-function submittedHash(
-  submission: StoredSubmission | null,
-  phase: "approval" | "action",
-): `0x${string}` | undefined {
-  return phase === "approval" ? submission?.approval_transaction_hash : submission?.transaction_hash
 }
 
 function readStoredSubmission(): StoredSubmission | null {

@@ -24,8 +24,8 @@ type RedemptionHook = Hook & {
 
 export const RedemptionWallet: Hook = {
   mounted(this: RedemptionHook) {
-    let currentSubmission = readStoredSubmission()
-    if (currentSubmission) this.pushEvent("restore_redemption_submission", currentSubmission)
+    const restored = readStoredSubmission()
+    if (restored) this.pushEvent("restore_redemption_submission", restored)
 
     for (const event of ["redemption:confirmed", "redemption:reverted", "redemption:abandoned"]) {
       this.handleEvent(event, () => sessionStorage.removeItem(pendingKey))
@@ -52,14 +52,13 @@ export const RedemptionWallet: Hook = {
           envelope,
           connected.provider,
           undefined,
-          submittedHash => {
-            currentSubmission = recordSubmittedRedemption(
+          submittedHash =>
+            recordSubmittedRedemption(
               envelope,
               submittedHash,
               payload => this.pushEvent("redemption_submitted", payload),
               sessionStorage,
-            )
-          },
+            ),
         )
         this.pushEvent("confirm_redemption", {
           action_id: envelope.action_id,
@@ -72,7 +71,10 @@ export const RedemptionWallet: Hook = {
             transaction_hash: error.transactionHash,
           })
         } else {
-          if (userRejected(error) && !currentSubmission?.transaction_hash) {
+          // Reported unconditionally: browser state is evidence, never
+          // authority. The database refuses `not_sent` once a hash is bound, so
+          // withholding this would only strand a claim it can no longer close.
+          if (userRejected(error)) {
             this.pushEvent("redemption_wallet_rejected", {
               action_id: envelope.action_id,
               code: 4001,

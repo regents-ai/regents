@@ -4,12 +4,14 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 const wallet = "0x1111111111111111111111111111111111111111"
 const sendsKey = "regent:test:staking-wallet-sends"
 const holdKey = "regent:test:staking-hold-receipt"
+const rejectKey = "regent:test:staking-reject-next"
 
 // Every submitted hash is unique for the life of the database and the browser
-// database is never reset, so each run mints its own three.
-const run = Date.now().toString(16).padStart(12, "0")
+// database is never reset, so each run mints its own. The file discriminator
+// keeps a Stake run from colliding with a Redeem run in the same millisecond.
+const run = `${Date.now().toString(16).padStart(12, "0")}5a`
 const submittedHash = (nonce: number) =>
-  `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(48)}`
+  `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(46)}`
 const approvalHash = submittedHash(1)
 const stakeHash = submittedHash(2)
 const unstakeHash = submittedHash(3)
@@ -17,7 +19,7 @@ const unstakeHash = submittedHash(3)
 test("signed-in staking confirms once, survives a reload and never sends twice", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-staking")
   await page.addInitScript(
-    ({wallet, hashes, sendsKey, holdKey}) => {
+    ({wallet, hashes, sendsKey, holdKey, rejectKey}) => {
       // The send count lives in session storage so a document reload cannot
       // hide a second wallet request behind a fresh counter.
       const sends = () => Number(sessionStorage.getItem(sendsKey) ?? "0")
@@ -52,6 +54,12 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
+                // A real wallet rejection: nothing is broadcast and nothing is
+                // counted, exactly as EIP-1193 4001 means.
+                if (sessionStorage.getItem(rejectKey)) {
+                  sessionStorage.removeItem(rejectKey)
+                  throw Object.assign(new Error("User rejected the request."), {code: 4001})
+                }
                 const nth = sends() + 1
                 sessionStorage.setItem(sendsKey, String(nth))
                 return hashes[nth - 1]
@@ -71,7 +79,7 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
         },
       }
     },
-    {wallet, hashes: [approvalHash, stakeHash, unstakeHash], sendsKey, holdKey},
+    {wallet, hashes: [approvalHash, stakeHash, unstakeHash], sendsKey, holdKey, rejectKey},
   )
 
   await auth.establishLocalSession()
@@ -102,11 +110,26 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await expect(page.getByText("Confirmed on Base. Your staking details are current.")).toBeVisible()
   expect(await sendCount(page)).toBe(2)
 
+  // A second action in the same page session, rejected in the wallet with the
+  // exact EIP-1193 4001 while the completed stake's hash is still in browser
+  // memory. The server claimed this dispatch before the wallet opened, so the
+  // rejection has to reach it: the review clearing is that fact arriving.
+  await page.evaluate(key => sessionStorage.setItem(key, "1"), rejectKey)
+  await page.getByRole("button", {name: "Review USDC claim"}).click()
+  await expect(page.locator(".stake-review")).toBeVisible()
+  await page.getByRole("button", {name: "Confirm in wallet"}).click()
+
+  await expect(page.locator(".stake-review")).toHaveCount(0)
+  expect(await sendCount(page)).toBe(2)
+
   // A reload after a submitted phase recovers the exact hash the server bound,
   // finishes through verification alone, and never opens the wallet again.
+  // Preparing it at all proves the rejected operation closed: had the rejection
+  // been withheld, this review would be refused as outstanding.
   await page.evaluate(key => sessionStorage.setItem(key, "1"), holdKey)
   await page.getByRole("button", {name: "Review unstake"}).click()
   await expect(page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"})).toBeVisible()
+  await expect(page.getByText("An earlier staking action is still outstanding")).toHaveCount(0)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 
   const submitted = page.locator(".stake-submission")

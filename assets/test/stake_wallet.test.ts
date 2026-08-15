@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {encodeFunctionData, parseAbi, type Address, type Hash} from "viem"
 
 import {
@@ -6,7 +6,21 @@ import {
   type PreparedStakingAction,
   type StakingClients,
 } from "../js/wallet_actions/staking"
-import {recordSubmittedAction, userRejected} from "../js/hooks/stake_wallet"
+import {recordSubmittedAction, StakeWallet, userRejected} from "../js/hooks/stake_wallet"
+
+vi.mock("../js/wallet_actions/connected_wallet", () => ({
+  connectedEthereumWallet: () => ({
+    address: "0x1111111111111111111111111111111111111111",
+    provider: {request: vi.fn()},
+  }),
+}))
+
+// Only the hook's own call is steered; every other test in this file keeps the
+// real executor, so the envelope and ABI assertions below still bind it.
+vi.mock("../js/wallet_actions/staking", async importOriginal => {
+  const actual = await importOriginal<typeof import("../js/wallet_actions/staking")>()
+  return {...actual, executePreparedStakingAction: vi.fn(actual.executePreparedStakingAction)}
+})
 
 const wallet = "0x1111111111111111111111111111111111111111" as Address
 const staking = "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5" as Address
@@ -219,3 +233,84 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
     expect(userRejected(cyclic)).toBe(false)
   })
 })
+
+describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", () => {
+  const execute = vi.mocked(executePreparedStakingAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  // The server claimed the second dispatch before the wallet opened. If the
+  // browser withheld the rejection because a previous action left a hash in
+  // memory, that claim could never be closed and the account's one Stake slot
+  // would be consumed for good.
+  it("reports the exact 4001 for the second action even though the first one succeeded", async () => {
+    const hook = mountStakeWallet()
+
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSubmitted?.("action", mainHash)
+      return {phase: "action", transactionHash: mainHash}
+    })
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "first", approval: null})})
+    expect(hook.pushed).toContainEqual({
+      event: "confirm_staking",
+      payload: {action_id: "first", transaction_hash: mainHash, approval_transaction_hash: null},
+    })
+
+    await hook.emit("staking:confirmed", {})
+
+    execute.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("User rejected the request."), {code: 4001})
+    })
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "second", approval: null})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "staking_wallet_rejected",
+      payload: {action_id: "second", phase: "action", code: 4001},
+    })
+  })
+
+  it("reports the rejection for the approval phase the wallet was actually asked for", async () => {
+    const hook = mountStakeWallet()
+
+    execute.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("User rejected the request."), {code: 4001})
+    })
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "approval-only"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "staking_wallet_rejected",
+      payload: {action_id: "approval-only", phase: "approval", code: 4001},
+    })
+  })
+})
+
+type Emitted = {event: string; payload: unknown}
+
+function mountStakeWallet(): {
+  pushed: Emitted[]
+  emit(event: string, payload: unknown): unknown
+} {
+  const pushed: Emitted[] = []
+  const handlers = new Map<string, (payload: unknown) => unknown>()
+  const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
+  const hook = {
+    el: {dataset: {} as DOMStringMap, querySelectorAll: () => buttons},
+    handleEvent: (event: string, callback: (payload: unknown) => unknown) =>
+      handlers.set(event, callback),
+    pushEvent: (event: string, payload: unknown) => pushed.push({event, payload}),
+  }
+
+  ;(StakeWallet.mounted as (this: typeof hook) => void).call(hook)
+
+  return {pushed, emit: (event, payload) => handlers.get(event)?.(payload)}
+}
+
+function stubSessionStorage(): void {
+  const entries = new Map<string, string>()
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => entries.set(key, value),
+    removeItem: (key: string) => entries.delete(key),
+  })
+}

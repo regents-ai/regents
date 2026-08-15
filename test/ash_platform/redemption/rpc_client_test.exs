@@ -228,6 +228,35 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     end
   end
 
+  # The reread is `allowance(wallet_address, redeemer_address)`. An envelope that
+  # intended a different spender is answered by a number about somebody else, so
+  # the spender is compared as explicitly as the owner, token and exact amount.
+  test "RECEIPT_AND_REREAD_BOTH_REQUIRED: exact-USDC approval compares owner, token, spender and amount" do
+    redeemer = RedemptionAbi.redeemer_address()
+    exact = String.to_integer(RedemptionAbi.price_atomic())
+
+    intended = usdc_approval_envelope(redeemer, exact)
+    put_receipt("0x1")
+    put_transaction(intended)
+
+    assert {:ok, %{receipt_verified: true, reread_verified: true, reason: nil}} =
+             RpcClient.confirm(intended, @tx_hash)
+
+    for drifted <- [
+          usdc_approval_envelope(@other, exact),
+          usdc_approval_envelope(redeemer, exact + 1)
+        ] do
+      put_transaction(drifted)
+
+      assert {:ok,
+              %{
+                receipt_verified: true,
+                reread_verified: false,
+                reason: :usdc_allowance_not_current
+              }} = RpcClient.confirm(drifted, @tx_hash)
+    end
+  end
+
   test "timeouts are bounded and transport logs never reveal the provider URL" do
     Application.put_env(:ash_platform, :redemption_http_client, TimeoutStub)
 
@@ -243,6 +272,23 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     Application.put_env(:ash_platform, :redemption_http_client, SlowStub)
     Application.put_env(:ash_platform, :redemption_overview_timeout, 10)
     assert {:error, :chain_timeout} = RpcClient.overview(nil, nil, nil)
+  end
+
+  defp usdc_approval_envelope(spender, amount) do
+    Envelope.new(
+      "approve_exact_usdc",
+      @wallet,
+      RedemptionAbi.encode_erc20("approve", [spender, amount]),
+      resource: "animata_redemption",
+      to: RedemptionAbi.usdc_address(),
+      contract_name: "USDC",
+      risk_copy: "Approve exactly 80 USDC for the verified Animata redeemer.",
+      arguments: %{
+        spender: String.downcase(spender),
+        amount_atomic: Integer.to_string(amount),
+        mode: "exact"
+      }
+    )
   end
 
   defp put_receipt(status) do

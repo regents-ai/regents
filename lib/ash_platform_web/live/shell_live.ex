@@ -419,8 +419,7 @@ defmodule AshPlatformWeb.ShellLive do
             staking_confirmation_name: {:staking_confirmation, action_id}
           }
         } = socket
-      )
-      when not is_nil(staking) do
+      ) do
     {:noreply,
      socket
      |> assign(
@@ -904,14 +903,11 @@ defmodule AshPlatformWeb.ShellLive do
           {:noreply, socket}
         end
 
-      {false, {:error, _reason}} ->
+      {false, {:error, reason}} ->
         {:noreply,
          assign(socket,
            staking_prepared: nil,
-           staking_notice: %{
-             tone: :error,
-             message: "That action could not be prepared. Check the amount and wallet."
-           }
+           staking_notice: %{tone: :error, message: staking_preparation_error(refusal(reason))}
          )}
     end
   end
@@ -1499,7 +1495,7 @@ defmodule AshPlatformWeb.ShellLive do
             {:noreply,
              assign(socket,
                redemption_prepared: nil,
-               redemption_notice: %{tone: :error, message: preparation_error(reason)}
+               redemption_notice: %{tone: :error, message: preparation_error(refusal(reason))}
              )}
         end
     end
@@ -1579,19 +1575,12 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp handle_redemption_event("cancel_redemption_review", _params, socket) do
-    if is_nil(socket.assigns.redemption_submission) do
-      {:noreply,
-       socket
-       |> withdraw_redemption_operation(prepared_action_id(socket.assigns.redemption_prepared))
-       |> cancel_redemption_expiry()
-       |> assign(
-         redemption_prepared: nil,
-         redemption_signing?: false,
-         redemption_notice: %{tone: :info, message: "The wallet review was cancelled."}
-       )
-       |> push_event("redemption:abandoned", %{})}
-    else
-      {:noreply, socket}
+    case {socket.assigns.redemption_submission, socket.assigns.redemption_prepared} do
+      {nil, %{action_id: action_id}} ->
+        {:noreply, withdraw_redemption(socket, action_id, "The wallet review was cancelled.")}
+
+      _submitted ->
+        {:noreply, socket}
     end
   end
 
@@ -1629,18 +1618,11 @@ defmodule AshPlatformWeb.ShellLive do
     case {socket.assigns.redemption_prepared, socket.assigns.redemption_submission} do
       {%{action_id: ^action_id}, nil} ->
         {:noreply,
-         socket
-         |> withdraw_redemption_operation(action_id)
-         |> cancel_redemption_expiry()
-         |> assign(
-           redemption_prepared: nil,
-           redemption_signing?: false,
-           redemption_notice: %{
-             tone: :info,
-             message: "This wallet review expired. Prepare the action again when ready."
-           }
-         )
-         |> push_event("redemption:abandoned", %{})}
+         withdraw_redemption(
+           socket,
+           action_id,
+           "This wallet review expired. Prepare the action again when ready."
+         )}
 
       _ ->
         {:noreply, socket}
@@ -2717,6 +2699,17 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp parsed_token_id(_value), do: nil
 
+  # Ash wraps a generic action's error in an error class, so the typed refusal
+  # the operation boundary returned is read back out of it and the copy can name
+  # what actually happened.
+  defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
+    do: reason
+
+  defp refusal(reason), do: reason
+
+  defp preparation_error(:operation_in_flight),
+    do: "An earlier redemption action is still outstanding. Finish or withdraw it first."
+
   defp preparation_error(:nft_not_owned),
     do: "This wallet does not own the selected Animata token."
 
@@ -2730,6 +2723,12 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp preparation_error(_reason),
     do: "That action could not be prepared. Check the wallet and selection."
+
+  defp staking_preparation_error(:operation_in_flight),
+    do: "An earlier staking action is still outstanding. Finish or withdraw it first."
+
+  defp staking_preparation_error(_reason),
+    do: "That action could not be prepared. Check the amount and wallet."
 
   defp cancel_staking_confirmation(%{assigns: %{staking_confirmation_name: nil}} = socket),
     do: socket
@@ -3002,51 +3001,69 @@ defmodule AshPlatformWeb.ShellLive do
     assign(socket, staking_expiry_ref: nil)
   end
 
+  # The review is only cleared when the database actually closed the row. An
+  # approval that is submitted but unverified may still confirm on Base, so
+  # saying it was withdrawn would claim a wallet request had ended when it had
+  # not; it keeps the account's one Stake slot and says so instead.
   defp abandon_approval(socket, reason) do
     submission = socket.assigns.staking_submission
-    hash = short_hash(submission[:approval_transaction_hash])
 
-    message =
-      case {reason, submission[:status]} do
-        {:expired, :approval_verified} ->
-          "This approval review expired. No staking transaction was sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance."
+    case Staking.cancel_operation(submission[:action_id], wallet_opts(socket)) do
+      {:ok, _closed} ->
+        socket
+        |> cancel_staking_expiry()
+        |> assign(
+          staking_prepared: nil,
+          staking_submission: nil,
+          staking_signing?: false,
+          staking_notice: %{tone: :info, message: withdrawn_approval_copy(reason)}
+        )
+        |> push_event("staking:abandoned", %{})
 
-        {:user, :approval_verified} ->
-          "Staking was not sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance. You can prepare a new action."
-
-        {:expired, _pending} ->
-          "This approval review expired and no staking transaction was sent. Approval transaction #{hash} may still confirm later. Check this hash in your wallet or on Base before relying on the allowance state."
-
-        {:user, _pending} ->
-          "Staking was not sent. Approval transaction #{hash} may still confirm later. Check this hash in your wallet or on Base before relying on the allowance state."
-      end
-
-    socket
-    |> withdraw_staking_operation(submission[:action_id])
-    |> cancel_staking_expiry()
-    |> assign(
-      staking_prepared: nil,
-      staking_submission: nil,
-      staking_signing?: false,
-      staking_notice: %{tone: :info, message: message}
-    )
-    |> push_event("staking:abandoned", %{})
+      {:error, _outstanding} ->
+        assign(socket,
+          staking_signing?: false,
+          staking_notice: %{
+            tone: :info,
+            message:
+              "Approval transaction #{short_hash(submission[:approval_transaction_hash])} is still pending, so this review stays open. It may still confirm later — check this hash in your wallet or on Base before relying on the allowance state."
+          }
+        )
+    end
   end
 
-  # Withdrawing the review closes the row too, so the account's single active
-  # slot is released. A dispatched action transaction refuses and stays open.
-  defp withdraw_staking_operation(socket, nil), do: socket
+  defp withdrawn_approval_copy(:expired),
+    do:
+      "This approval review expired. No staking transaction was sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance."
 
-  defp withdraw_staking_operation(socket, action_id) do
-    Staking.cancel_operation(action_id, wallet_opts(socket))
-    socket
-  end
+  defp withdrawn_approval_copy(:user),
+    do:
+      "Staking was not sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance. You can prepare a new action."
 
-  defp withdraw_redemption_operation(socket, nil), do: socket
+  # Same rule for Redeem: a dispatch already claimed for the wallet may still
+  # reach Base, so its review stays visible rather than reading as withdrawn.
+  defp withdraw_redemption(socket, action_id, withdrawn_message) do
+    case Redemption.cancel_operation(action_id, wallet_opts(socket)) do
+      {:ok, _closed} ->
+        socket
+        |> cancel_redemption_expiry()
+        |> assign(
+          redemption_prepared: nil,
+          redemption_signing?: false,
+          redemption_notice: %{tone: :info, message: withdrawn_message}
+        )
+        |> push_event("redemption:abandoned", %{})
 
-  defp withdraw_redemption_operation(socket, action_id) do
-    Redemption.cancel_operation(action_id, wallet_opts(socket))
-    socket
+      {:error, _outstanding} ->
+        assign(socket,
+          redemption_signing?: false,
+          redemption_notice: %{
+            tone: :info,
+            message:
+              "This request already went to your wallet, so the review stays open. Complete or reject it there."
+          }
+        )
+    end
   end
 
   defp start_approval_verification(socket, envelope, hash) do
@@ -3143,9 +3160,6 @@ defmodule AshPlatformWeb.ShellLive do
       _no_active_operation -> socket
     end
   end
-
-  defp prepared_action_id(%{action_id: action_id}), do: action_id
-  defp prepared_action_id(_prepared), do: nil
 
   defp redemption_submission_from(%{action_transaction_hash: nil}), do: nil
 

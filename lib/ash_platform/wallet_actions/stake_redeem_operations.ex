@@ -229,8 +229,14 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
                transition(operation, capability, :cancel, "replaced by a newer review"),
              do: :ok
 
+      # A typed Ash error, so the refusal survives the action's error class and
+      # the presenter can say which fact holds the slot.
       {:ok, _dispatched} ->
-        {:error, :operation_in_flight}
+        {:error,
+         Ash.Error.Invalid.Unavailable.exception(
+           resource: StakeRedeemOperation,
+           reason: :operation_in_flight
+         )}
 
       {:error, reason} ->
         {:error, reason}

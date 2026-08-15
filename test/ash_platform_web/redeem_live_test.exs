@@ -231,6 +231,45 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute first_id == expiring_id
   end
 
+  # Cancelling is a claim that the request ended. Once the dispatch is claimed
+  # the transaction may still reach Base, so the database refuses to close it and
+  # the review has to stay on screen rather than read as withdrawn.
+  test "DATABASE_DECIDES_THE_RACE: a claimed dispatch is not cancelled and the review stays visible",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-claimed", @wallet, [@wallet], actor: %System{})
+
+    session_conn = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(session_conn, "/redeem")
+    render_async(view)
+
+    # A second tab, mounted before anything was prepared, carries no review of
+    # its own, so only the database knows one is outstanding.
+    {:ok, other_tab, _html} = live(session_conn, "/redeem")
+    render_async(other_tab)
+
+    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    action_id = prepared_action_id(render(view))
+
+    # The wallet is open and no hash exists yet, so the shell holds no
+    # submission of its own and only the database knows the dispatch was claimed.
+    render_hook(view, "sign_prepared_redemption", %{"action-id" => action_id})
+    render_hook(view, "cancel_redemption_review", %{})
+
+    html = render(view)
+    assert html =~ "Review before signing"
+    assert html =~ "already went to your wallet"
+    refute html =~ "wallet review was cancelled"
+    refute_push_event(view, "redemption:abandoned", _)
+
+    # The slot is still held, and the other tab's refusal says which fact holds
+    # it rather than blaming the wallet or the selection.
+    other_tab |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    html = render(other_tab)
+    assert html =~ "An earlier redemption action is still outstanding"
+    refute html =~ "Check the wallet and selection"
+  end
+
   defp prepared_action_id(html) do
     [id] = Regex.run(~r/phx-value-action-id="([a-f0-9]+)"/, html, capture: :all_but_first)
     id

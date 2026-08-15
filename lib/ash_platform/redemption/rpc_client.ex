@@ -293,8 +293,11 @@ defmodule AshPlatform.Redemption.RpcClient do
          },
          refreshed
        ) do
+    # The reread allowance is `allowance(wallet_address, redeemer_address)`, so
+    # owner, token, spender and exact amount are each compared to the envelope.
     if refreshed.usdc_allowance_raw == field(arguments, :amount_atomic) and
          Address.equal?(refreshed.usdc_address, token) and
+         Address.equal?(refreshed.redeemer_address, field(arguments, :spender)) and
          Address.equal?(refreshed.wallet_address, signer),
        do: :ok,
        else: {:error, :usdc_allowance_not_current}

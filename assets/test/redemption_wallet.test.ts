@@ -1,15 +1,33 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {encodeFunctionData, getAddress, parseAbi, type Address, type Hash} from "viem"
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../contracts/abi/animata-redeemer.json"
-import {recordSubmittedRedemption, userRejected} from "../js/hooks/redemption_wallet"
+import {
+  recordSubmittedRedemption,
+  RedemptionWallet,
+  userRejected,
+} from "../js/hooks/redemption_wallet"
 import {
   assertRedemptionEnvelope,
   executePreparedRedemptionAction,
   type PreparedRedemptionAction,
   type RedemptionClients,
 } from "../js/wallet_actions/redemption"
+
+vi.mock("../js/wallet_actions/connected_wallet", () => ({
+  connectedEthereumWallet: () => ({
+    address: "0x1111111111111111111111111111111111111111",
+    provider: {request: vi.fn()},
+  }),
+}))
+
+// Only the hook's own call is steered; every other test in this file keeps the
+// real executor, so the envelope and ABI assertions below still bind it.
+vi.mock("../js/wallet_actions/redemption", async importOriginal => {
+  const actual = await importOriginal<typeof import("../js/wallet_actions/redemption")>()
+  return {...actual, executePreparedRedemptionAction: vi.fn(actual.executePreparedRedemptionAction)}
+})
 
 const manifest = chainManifest.contracts.animata_redeemer
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
@@ -192,3 +210,70 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
     expect(userRejected(null)).toBe(false)
   })
 })
+
+describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", () => {
+  const execute = vi.mocked(executePreparedRedemptionAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  // The server claimed the second dispatch before the wallet opened. If the
+  // browser withheld the rejection because a previous action left a hash in
+  // memory, that claim could never be closed and the account's one Redeem slot
+  // would be consumed for good.
+  it("reports the exact 4001 for the second action even though the first one succeeded", async () => {
+    const hook = mountRedemptionWallet()
+
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, onSubmitted) => {
+      onSubmitted?.(hash)
+      return hash
+    })
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "first"})})
+    expect(hook.pushed).toContainEqual({
+      event: "confirm_redemption",
+      payload: {action_id: "first", transaction_hash: hash},
+    })
+
+    await hook.emit("redemption:confirmed", {})
+
+    execute.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("User rejected the request."), {code: 4001})
+    })
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "second"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_wallet_rejected",
+      payload: {action_id: "second", code: 4001},
+    })
+  })
+})
+
+type Emitted = {event: string; payload: unknown}
+
+function mountRedemptionWallet(): {
+  pushed: Emitted[]
+  emit(event: string, payload: unknown): unknown
+} {
+  const pushed: Emitted[] = []
+  const handlers = new Map<string, (payload: unknown) => unknown>()
+  const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
+  const hook = {
+    el: {dataset: {} as DOMStringMap, querySelectorAll: () => buttons},
+    handleEvent: (event: string, callback: (payload: unknown) => unknown) =>
+      handlers.set(event, callback),
+    pushEvent: (event: string, payload: unknown) => pushed.push({event, payload}),
+  }
+
+  ;(RedemptionWallet.mounted as (this: typeof hook) => void).call(hook)
+
+  return {pushed, emit: (event, payload) => handlers.get(event)?.(payload)}
+}
+
+function stubSessionStorage(): void {
+  const entries = new Map<string, string>()
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => entries.set(key, value),
+    removeItem: (key: string) => entries.delete(key),
+  })
+}
