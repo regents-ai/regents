@@ -117,6 +117,11 @@ defmodule AshPlatformWeb.BoundaryTest do
                "priv/repo/migrations/*_regent_490_8_1_canonical_height_and_finality.exs"
              )
 
+    assert [indexer_block_frontiers_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_regent_490_8_4_autolaunch_indexer_block_frontiers.exs"
+             )
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -149,7 +154,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                agent_pairing_migration,
                session_authorities_migration,
                indexer_ledger_migration,
-               indexer_canonical_height_migration
+               indexer_canonical_height_migration,
+               indexer_block_frontiers_migration
              ])
 
     assert_additive_migration(
@@ -617,6 +623,24 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert_reversible_migration(indexer_canonical_height_migration, [
       ":indexer_blocks_finalized_is_canonical",
       ~s(name: "indexer_blocks_canonical_height_index")
+    ])
+
+    # The finalized frontier gets an ordinary index and nothing else: promotion
+    # and retirement rewrite `finalized` and `canonical`, so a partial predicate
+    # on either would move rows out of the index the frontier read depends on.
+    assert_additive_migration(
+      indexer_block_frontiers_migration,
+      [
+        ~s(name: "indexer_blocks_finalized_frontier_index"),
+        "[:chain_id, :finalized, :block_number]"
+      ],
+      []
+    )
+
+    refute File.read!(indexer_block_frontiers_migration) =~ "where:"
+
+    assert_reversible_migration(indexer_block_frontiers_migration, [
+      ~s(name: "indexer_blocks_finalized_frontier_index")
     ])
   end
 

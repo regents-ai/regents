@@ -32,9 +32,12 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
 
   The first admission creates the cursor at the source's start block; a later
   one behind the cursor rewinds it, so the new address is backfilled while the
-  logs already stored replay as no-ops. Re-stating an address the ledger already
-  watches from the same block is the same fact twice and moves nothing; naming a
-  different start block for it is a contradiction and fails closed.
+  logs already stored replay as no-ops. Any genuinely new address also clears
+  the current lease, because a range planned before this address existed would
+  otherwise commit past it and skip its logs. Re-stating an address the ledger
+  already watches from the same block is the same fact twice: it moves nothing
+  and disturbs no live lease. Naming a different start block for it is a
+  contradiction and fails closed.
   """
   @spec admit_source(pos_integer(), String.t(), non_neg_integer()) ::
           {:ok, Ash.Resource.record()} | {:error, term()}
@@ -121,9 +124,20 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
         actor: @actor
       )
 
-    move_to(cursor, min(cursor.next_block_to_fetch, start_block))
+    cursor
+    |> invalidate()
+    |> move_to(min(cursor.next_block_to_fetch, start_block))
+
     source
   end
+
+  # An in-flight plan was drawn from a source set this address was not in, so it
+  # may commit over the heights this address emits from without ever asking for
+  # them. Clearing the lease under the same lock refuses that commit outright,
+  # whether or not the new start block is low enough to move the cursor; the
+  # pass that follows is planned from the whole admitted set.
+  defp invalidate(cursor),
+    do: Ash.update!(cursor, %{}, action: :release_lease, actor: @actor)
 
   defp claim(cursor, now, lease_ms) do
     if leased?(cursor, now), do: Repo.rollback(:leased), else: grant(cursor, now, lease_ms)
@@ -202,22 +216,45 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
   defp diverged(%{block_hash: hash}, %{hash: hash}), do: nil
   defp diverged(_parted, header), do: {:forked, header.number}
 
-  # Finality is not revisable, so a divergence that reaches a finalized block
-  # refuses the whole rewind before a single row is demoted.
+  # Only the local suffix is retired: the run of canonical rows that starts at
+  # the height just above the ancestor and climbs by stored parent links. The
+  # first row is the divergent child, so it names whatever it forked from rather
+  # than the ancestor; every row after it must name the one beneath it. A gap or
+  # a second linkage break ends the run, and the higher canonical segment past
+  # it is left untouched for an ordinary later pass to rediscover.
   defp orphan(cursor, ancestor, bound) do
-    cursor.chain_id |> finalized_head() |> revisable(ancestor)
-
     cursor.chain_id
-    |> orphans(ancestor, bound)
+    |> suffix(ancestor, bound)
+    |> revisable(bound)
     |> Enum.each(&Ash.update!(&1, %{}, action: :mark_noncanonical, actor: @actor))
 
     cursor
   end
 
-  defp revisable(%{block_number: number}, ancestor) when number > ancestor,
+  defp suffix(chain_id, ancestor, bound) do
+    window = canonical_window(chain_id, ancestor + 1, ancestor + bound + 1)
+
+    case Map.get(window, ancestor + 1) do
+      nil -> []
+      divergent -> [divergent | ascending(window, ancestor + 2, divergent.block_hash)]
+    end
+  end
+
+  # The bound and finality are both refusals of the whole suffix rather than of
+  # part of it: a reorg this deep, or one reaching evidence the provider already
+  # called final, is not something to half-apply.
+  defp revisable(rows, bound) when length(rows) > bound,
+    do: Repo.rollback({:rewind_over_bound, List.last(rows).block_number})
+
+  defp revisable(rows, _bound) do
+    Enum.each(rows, &unfinalized/1)
+    rows
+  end
+
+  defp unfinalized(%{finalized: true, block_number: number}),
     do: Repo.rollback({:finalized_rewind, number})
 
-  defp revisable(_finality, _ancestor), do: :ok
+  defp unfinalized(_revisable), do: :ok
 
   # Insert-only: the identity decides the duplicate race, and every header in the
   # range must then be stored exactly as the provider just described it. A stored
@@ -277,21 +314,78 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
 
   defp verify_log(_stored, log), do: Repo.rollback({:log_conflict, log.log_index})
 
-  # Finality is the provider's exact finalized hash matching the canonical block
-  # stored at that height; the already validated parent chain beneath it is what
-  # makes the bounded batch below it promotable.
+  # The provider's exact finalized hash at a height the ledger holds as canonical
+  # is necessary but not sufficient: that block is the anchor, and only rows
+  # whose stored parent hashes chain it to that anchor are promoted with it. A
+  # segment sitting at a promotable height but linked to nothing stays exactly
+  # as unfinalized as it was.
   defp promote(chain_id, %{number: number, hash: hash}, bound) do
-    if match?(%{block_hash: ^hash}, canonical_block(chain_id, number)),
-      do: finalize(chain_id, number, bound)
+    case canonical_block(chain_id, number) do
+      %{block_hash: ^hash} = anchor -> finalize(chain_id, anchor, bound)
+      _unproven -> :ok
+    end
   end
 
-  defp finalize(chain_id, number, bound) do
-    Block
-    |> Ash.Query.for_read(:promotable, %{chain_id: chain_id, through_block_number: number})
-    |> Ash.Query.limit(bound)
-    |> Ash.read!(actor: @actor)
+  defp finalize(chain_id, anchor, bound) do
+    chain_id
+    |> connected(anchor, bound)
     |> Enum.each(&Ash.update!(&1, %{}, action: :mark_finalized, actor: @actor))
   end
+
+  # The first promotion is the anchor and the linked run beneath it. After that
+  # the stored segment already carries the anchor's authority, so it grows one
+  # bounded step at each end: up toward the anchor as later heights are proven,
+  # and down as a late backfill stores the links beneath it. A deep backfill is
+  # caught up over several passes rather than in one unbounded promotion.
+  defp connected(chain_id, anchor, bound) do
+    case finalized_head(chain_id) do
+      nil ->
+        beneath(chain_id, anchor.block_number, anchor.block_hash, bound)
+
+      head ->
+        chain_id
+        |> above(head, anchor.block_number, bound)
+        |> Enum.concat(beneath_base(chain_id, bound))
+    end
+  end
+
+  defp above(chain_id, head, ceiling, bound) do
+    chain_id
+    |> canonical_window(head.block_number + 1, min(head.block_number + bound, ceiling))
+    |> ascending(head.block_number + 1, head.block_hash)
+  end
+
+  defp beneath_base(chain_id, bound) do
+    base = finalized_base(chain_id)
+    beneath(chain_id, base.block_number - 1, base.parent_hash, bound)
+  end
+
+  defp beneath(chain_id, from, hash, bound) do
+    chain_id
+    |> canonical_window(from - bound + 1, from)
+    |> descending(from, hash)
+  end
+
+  # Every step is the stored canonical row the neighbour it came from names, so
+  # a gap or a linkage break ends the run rather than carrying it across.
+  defp ascending(window, height, linked) do
+    case Map.get(window, height) do
+      %{parent_hash: ^linked} = row -> [row | ascending(window, height + 1, row.block_hash)]
+      _disconnected -> []
+    end
+  end
+
+  defp descending(window, height, linked) do
+    case Map.get(window, height) do
+      %{block_hash: ^linked} = row -> [row | descending(window, height - 1, row.parent_hash)]
+      _disconnected -> []
+    end
+  end
+
+  # A bounded height window holds no more canonical rows than heights, because
+  # one canonical block per height is a database fact.
+  defp canonical_window(chain_id, from, to),
+    do: chain_id |> canonical_range(from, to) |> by_key(& &1.block_number)
 
   defp canonical_range(chain_id, from, to) do
     Block
@@ -303,17 +397,13 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
     |> Ash.read!(actor: @actor)
   end
 
-  defp finalized_head(chain_id) do
-    Block
-    |> Ash.Query.for_read(:finalized_head, %{chain_id: chain_id})
-    |> Ash.read_one!(actor: @actor)
-  end
+  defp finalized_head(chain_id), do: frontier(:finalized_head, chain_id)
+  defp finalized_base(chain_id), do: frontier(:finalized_base, chain_id)
 
-  defp orphans(chain_id, ancestor, bound) do
+  defp frontier(action, chain_id) do
     Block
-    |> Ash.Query.for_read(:canonical_after, %{chain_id: chain_id, block_number: ancestor})
-    |> Ash.Query.limit(bound)
-    |> Ash.read!(actor: @actor)
+    |> Ash.Query.for_read(action, %{chain_id: chain_id})
+    |> Ash.read_one!(actor: @actor)
   end
 
   defp stored_blocks(chain_id, hashes) do

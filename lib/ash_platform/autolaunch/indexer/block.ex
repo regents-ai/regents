@@ -35,12 +35,23 @@ defmodule AshPlatform.Autolaunch.Indexer.Block do
     end
 
     # One canonical block per height is a database fact, not a convention the
-    # writer is trusted to keep; the index also serves every canonical lookup.
+    # writer is trusted to keep; the index also serves every bounded canonical
+    # height window, because that window can hold no more rows than heights.
+    #
+    # The finalized frontier is the one read whose work would otherwise grow
+    # with the retained ledger, so it gets its own ordinary index. Promotion and
+    # retirement rewrite `finalized` and `canonical`, so neither may be a
+    # partial-index predicate here: an entry must move between index positions,
+    # never in and out of the index the frontier read depends on.
     custom_indexes do
       index([:chain_id, :block_number],
         unique: true,
         where: "canonical",
         name: "indexer_blocks_canonical_height_index"
+      )
+
+      index([:chain_id, :finalized, :block_number],
+        name: "indexer_blocks_finalized_frontier_index"
       )
     end
   end
@@ -82,34 +93,19 @@ defmodule AshPlatform.Autolaunch.Indexer.Block do
              )
     end
 
+    # The two ends of the finalized segment. Promotion grows it upward from the
+    # head and downward from the base, so these are the only two rows a steady
+    # pass has to find, and one index serves both.
     read :finalized_head do
       argument :chain_id, :integer, allow_nil?: false
       filter expr(chain_id == ^arg(:chain_id) and finalized == true)
       prepare build(sort: [block_number: :desc], limit: 1)
     end
 
-    read :canonical_after do
+    read :finalized_base do
       argument :chain_id, :integer, allow_nil?: false
-      argument :block_number, :integer, allow_nil?: false
-
-      filter expr(
-               chain_id == ^arg(:chain_id) and block_number > ^arg(:block_number) and
-                 canonical == true
-             )
-
-      prepare build(sort: [block_number: :desc])
-    end
-
-    read :promotable do
-      argument :chain_id, :integer, allow_nil?: false
-      argument :through_block_number, :integer, allow_nil?: false
-
-      filter expr(
-               chain_id == ^arg(:chain_id) and block_number <= ^arg(:through_block_number) and
-                 canonical == true and finalized == false
-             )
-
-      prepare build(sort: [block_number: :asc])
+      filter expr(chain_id == ^arg(:chain_id) and finalized == true)
+      prepare build(sort: [block_number: :asc], limit: 1)
     end
 
     read :by_hashes do

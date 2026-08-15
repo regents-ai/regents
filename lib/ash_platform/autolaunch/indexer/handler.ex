@@ -49,8 +49,8 @@ defmodule AshPlatform.Autolaunch.Indexer.Handler do
   How long a granted lease lasts, derived from the work it admits.
 
   Nothing renews it mid-pass, so it must outlive every request the bound permits
-  at the transport's own conservative ceiling, plus the commit after the last
-  answer.
+  at the enforced wall-clock deadline the transport boundary owns, plus the
+  commit after the last answer.
   """
   @spec lease_ms() :: pos_integer()
   def lease_ms, do: max_requests() * Rpc.max_request_ms() + @commit_margin_ms
