@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   alias AshPlatform.{Accounts, Staking}
   alias AshPlatform.Actors.System
+  alias AshPlatform.WalletActions.StakeRedeemOperations
 
   @wallet "0x1111111111111111111111111111111111111111"
   @tx_hash "0x" <> String.duplicate("ab", 32)
@@ -244,7 +245,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_push_event(view, "staking:abandoned", %{})
   end
 
-  test "an expired restored approval-only action clears without sending main", %{conn: conn} do
+  # Identity change: this used to end by preparing a fresh action. A
+  # submitted-but-unverified approval cannot be withdrawn, so it keeps the
+  # account's one active Stake slot and that ending was wrong.
+  test "DATABASE_DECIDES_THE_RACE: an expired restored approval clears the review but not the outstanding approval",
+       %{conn: conn} do
     expired_at = DateTime.utc_now() |> DateTime.add(-11, :minute)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> expired_at end)
 
@@ -280,9 +285,52 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute html =~ "Submitted transaction"
     assert_push_event(view, "staking:abandoned", %{})
 
+    # The approval was broadcast and has not been verified, so it cannot be
+    # withdrawn: it still holds this account's one active Stake slot and no
+    # fresh action can be prepared against it.
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
-    assert render(view) =~ "Review before signing"
+    refute render(view) =~ "Review before signing"
+
+    assert {:ok, %{state: :approval_submitted, approval_transaction_hash: @approval_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # The browser may report that the approval receipt reverted, but Base decides.
+  # That verification writes a terminal fact, so it runs under the mounted lease
+  # like every other protected write.
+  test "CURRENT_AUTHORITY_OWNS_EVERY_WRITE: a wallet-reported approval revert is verified on Base and made terminal",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
+
+    {:ok, account} =
+      Accounts.register_verified("did:privy:stake-approval-revert", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    render_async(view)
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    action_id = prepared_action_id(render(view))
+
+    submit_approval(view, action_id)
+    assert render_async(view) =~ "not confirmed yet"
+
+    Application.put_env(:ash_platform, :test_staking_approval_status, :reverted)
+
+    render_hook(view, "staking_approval_reverted", %{
+      "action_id" => action_id,
+      "transaction_hash" => @approval_hash
+    })
+
+    assert render_async(view) =~ "The REGENT approval was reverted"
+    assert_push_event(view, "staking:approval-reverted", %{})
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
   end
 
   test "an approval cannot be abandoned after the main transaction hash exists", %{conn: conn} do

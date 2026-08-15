@@ -277,13 +277,11 @@ defmodule AshPlatform.Redemption.RpcClient do
          %{action: "approve_nft_collection", arguments: arguments, expected_signer: signer},
          refreshed
        ) do
-    with true <- refreshed.nft_approved == true,
-         true <- Address.equal?(refreshed.selected_collection, field(arguments, :collection)),
-         true <- Address.equal?(refreshed.wallet_address, signer) do
-      :ok
-    else
-      _stale -> {:error, :nft_approval_not_current}
-    end
+    if refreshed.nft_approved == true and
+         Address.equal?(refreshed.selected_collection, field(arguments, :collection)) and
+         Address.equal?(refreshed.wallet_address, signer),
+       do: :ok,
+       else: {:error, :nft_approval_not_current}
   end
 
   defp postcondition(
@@ -295,13 +293,11 @@ defmodule AshPlatform.Redemption.RpcClient do
          },
          refreshed
        ) do
-    with true <- refreshed.usdc_allowance_raw == field(arguments, :amount_atomic),
-         true <- Address.equal?(refreshed.usdc_address, token),
-         true <- Address.equal?(refreshed.wallet_address, signer) do
-      :ok
-    else
-      _stale -> {:error, :usdc_allowance_not_current}
-    end
+    if refreshed.usdc_allowance_raw == field(arguments, :amount_atomic) and
+         Address.equal?(refreshed.usdc_address, token) and
+         Address.equal?(refreshed.wallet_address, signer),
+       do: :ok,
+       else: {:error, :usdc_allowance_not_current}
   end
 
   defp postcondition(%{action: "redeem"}, %{result_token_id: token_id})

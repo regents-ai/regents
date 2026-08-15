@@ -1,16 +1,28 @@
-import {expect, test} from "@playwright/test"
+import {expect, test, type Page} from "@playwright/test"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const wallet = "0x1111111111111111111111111111111111111111"
-const approvalHash = `0x${"cd".repeat(32)}`
-const stakingHash = `0x${"ab".repeat(32)}`
+const sendsKey = "regent:test:staking-wallet-sends"
+const holdKey = "regent:test:staking-hold-receipt"
 
-test("signed-in staking uses a deterministic wallet, confirms once and refreshes", async ({page}) => {
+// Every submitted hash is unique for the life of the database and the browser
+// database is never reset, so each run mints its own three.
+const run = Date.now().toString(16).padStart(12, "0")
+const submittedHash = (nonce: number) =>
+  `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(48)}`
+const approvalHash = submittedHash(1)
+const stakeHash = submittedHash(2)
+const unstakeHash = submittedHash(3)
+
+test("signed-in staking confirms once, survives a reload and never sends twice", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-staking")
   await page.addInitScript(
-    ({wallet, approvalHash, stakingHash}) => {
-      let sends = 0
-      const receipt = (hash: string) => ({
+    ({wallet, hashes, sendsKey, holdKey}) => {
+      // The send count lives in session storage so a document reload cannot
+      // hide a second wallet request behind a fresh counter.
+      const sends = () => Number(sessionStorage.getItem(sendsKey) ?? "0")
+
+      const receipt = (transactionHash: string) => ({
         blockHash: `0x${"01".repeat(32)}`,
         blockNumber: "0x10",
         contractAddress: null,
@@ -22,13 +34,12 @@ test("signed-in staking uses a deterministic wallet, confirms once and refreshes
         logsBloom: `0x${"00".repeat(256)}`,
         status: "0x1",
         to: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
-        transactionHash: hash,
+        transactionHash,
         transactionIndex: "0x0",
         type: "0x2",
       })
 
-      ;(window as Window & {__ashPlatformWalletSends?: number; __ashPlatformTestWallet?: unknown})
-        .__ashPlatformTestWallet = {
+      ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
         address: wallet,
         provider: {
           request: async ({method}: {method: string; params?: unknown[]}) => {
@@ -41,12 +52,16 @@ test("signed-in staking uses a deterministic wallet, confirms once and refreshes
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
-                sends += 1
-                ;(window as Window & {__ashPlatformWalletSends?: number}).__ashPlatformWalletSends = sends
-                return sends === 1 ? approvalHash : stakingHash
+                const nth = sends() + 1
+                sessionStorage.setItem(sendsKey, String(nth))
+                return hashes[nth - 1]
               }
               case "eth_getTransactionReceipt":
-                return receipt(sends === 1 ? approvalHash : stakingHash)
+                // A held receipt never arrives, so the transaction stays
+                // submitted and unverified for the reload to recover.
+                return sessionStorage.getItem(holdKey)
+                  ? new Promise(() => undefined)
+                  : receipt(hashes[sends() - 1])
               case "eth_blockNumber":
                 return "0x10"
               default:
@@ -56,7 +71,7 @@ test("signed-in staking uses a deterministic wallet, confirms once and refreshes
         },
       }
     },
-    {wallet, approvalHash, stakingHash},
+    {wallet, hashes: [approvalHash, stakeHash, unstakeHash], sendsKey, holdKey},
   )
 
   await auth.establishLocalSession()
@@ -81,13 +96,42 @@ test("signed-in staking uses a deterministic wallet, confirms once and refreshes
 
   const continueAfterApproval = page.getByRole("button", {name: "Continue after approval"})
   await expect(continueAfterApproval).toBeVisible()
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__ashPlatformWalletSends?: number}).__ashPlatformWalletSends,
-    ),
-  ).toBe(1)
+  expect(await sendCount(page)).toBe(1)
   await continueAfterApproval.click()
 
   await expect(page.getByText("Confirmed on Base. Your staking details are current.")).toBeVisible()
-  expect(await page.evaluate(() => (window as Window & {__ashPlatformWalletSends?: number}).__ashPlatformWalletSends)).toBe(2)
+  expect(await sendCount(page)).toBe(2)
+
+  // A reload after a submitted phase recovers the exact hash the server bound,
+  // finishes through verification alone, and never opens the wallet again.
+  await page.evaluate(key => sessionStorage.setItem(key, "1"), holdKey)
+  await page.getByRole("button", {name: "Review unstake"}).click()
+  await expect(page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"})).toBeVisible()
+  await page.getByRole("button", {name: "Confirm in wallet"}).click()
+
+  const submitted = page.locator(".stake-submission")
+  await expect(submitted.getByText(short(unstakeHash), {exact: true})).toBeVisible()
+  await expect(page.getByRole("button", {name: "Retry verification"})).toBeVisible()
+  expect(await sendCount(page)).toBe(3)
+
+  // Browser storage is emptied first, so the hash that comes back after the
+  // reload can only have come from the owning account's row in Postgres.
+  await page.evaluate(() => sessionStorage.removeItem("regent:staking:submitted"))
+  await page.reload()
+  await auth.expectAuthenticatedSession()
+  await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
+  await expect(submitted.getByText(short(unstakeHash), {exact: true})).toBeVisible()
+  expect(await sendCount(page)).toBe(3)
+
+  await page.getByRole("button", {name: "Retry verification"}).click()
+  await expect(page.getByText("Confirmed on Base. Your staking details are current.")).toBeVisible()
+  expect(await sendCount(page)).toBe(3)
 })
+
+function short(hash: string): string {
+  return `${hash.slice(0, 8)}…${hash.slice(-4)}`
+}
+
+async function sendCount(page: Page): Promise<number> {
+  return page.evaluate(key => Number(sessionStorage.getItem(key) ?? "0"), sendsKey)
+}

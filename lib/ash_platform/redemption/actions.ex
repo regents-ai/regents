@@ -7,6 +7,8 @@ defmodule AshPlatform.Redemption.Actions do
   alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi, StakeRedeemOperations}
 
   @capability :redeem
+  @rejection_reason "wallet reported an explicit user rejection"
+  @withdrawal_reason "review withdrawn"
   @resource "animata_redemption"
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
   @risk %{
@@ -113,53 +115,24 @@ defmodule AshPlatform.Redemption.Actions do
     do: StakeRedeemOperations.record_receipt(lease, @capability, envelope.action_id, :action)
 
   @doc false
-  def claim_dispatch(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.claim_dispatch(&1, @capability, input.arguments.action_id, :action)
-    )
-  end
+  def claim_dispatch(%{arguments: %{action_id: id}}, context),
+    do: operate(context, &StakeRedeemOperations.claim_dispatch(&1, @capability, id, :action))
 
   @doc false
-  def bind_hash(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.bind_hash(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        :action,
-        input.arguments.transaction_hash
-      )
-    )
-  end
+  def bind_hash(%{arguments: %{action_id: id, transaction_hash: hash}}, context),
+    do: operate(context, &StakeRedeemOperations.bind_hash(&1, @capability, id, :action, hash))
 
   @doc false
-  def close_not_sent(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.close_not_sent(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        :action,
-        "wallet reported an explicit user rejection"
+  def close_not_sent(%{arguments: %{action_id: id}}, context),
+    do:
+      operate(
+        context,
+        &StakeRedeemOperations.close_not_sent(&1, @capability, id, :action, @rejection_reason)
       )
-    )
-  end
 
   @doc false
-  def cancel_operation(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.cancel(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        "review withdrawn before dispatch"
-      )
-    )
-  end
+  def cancel_operation(%{arguments: %{action_id: id}}, context),
+    do: operate(context, &StakeRedeemOperations.cancel(&1, @capability, id, @withdrawal_reason))
 
   @doc false
   def active_operation(_input, %{actor: %Human{} = actor}) do

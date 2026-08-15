@@ -41,11 +41,11 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
   # needs no approval, and one whose approval receipt and allowance both hold.
   @action_claimable [:prepared, :approval_verified]
 
-  # A review may be withdrawn while the action dispatch has never been claimed
-  # and no approval dispatch is still outstanding. The approval is not the money
-  # action, and the presenter hands its uncertain hash back to the user; the
-  # action transaction is never withdrawn once it has been claimed.
-  @withdrawable [:prepared, :approval_submitted, :approval_verified]
+  # A review may be withdrawn before either dispatch is claimed, or once the
+  # approval is fully verified while the action dispatch is still unclaimed.
+  # A hashless claimed phase and a submitted-but-unverified approval stay open:
+  # a transaction that may yet land is never closed as though it had not.
+  @withdrawable [:prepared, :approval_verified]
 
   postgres do
     table "stake_redeem_operations"

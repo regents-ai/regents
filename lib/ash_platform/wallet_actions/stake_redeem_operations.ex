@@ -112,7 +112,12 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
     write(lease, capability, action_id, &transition(&1, capability, revert_action(phase), reason))
   end
 
-  @doc "Withdraws a review nobody has dispatched."
+  @doc """
+  Withdraws a review before either dispatch, or after the approval is verified.
+
+  A hashless claimed phase and a submitted-but-unverified approval stay open:
+  a transaction that may yet land is never closed as though it had not.
+  """
   @spec cancel(lease(), capability(), String.t(), String.t()) ::
           {:ok, struct()} | {:error, term()}
   def cancel(lease, capability, action_id, reason) do
@@ -164,20 +169,17 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
 
   def lease(_context), do: {:error, :session_lease_required}
 
-  @doc "The operation facts a presenter may hold. Timestamps and owner stay server-side."
+  @doc "The only operation facts a presenter restores from. Everything else stays server-side."
   @spec view(struct() | nil) :: map() | nil
   def view(nil), do: nil
 
   def view(operation) do
     Map.take(operation, [
       :action_id,
-      :capability,
-      :action,
       :state,
       :envelope,
       :approval_transaction_hash,
-      :action_transaction_hash,
-      :reason
+      :action_transaction_hash
     ])
   end
 
@@ -191,8 +193,6 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
 
   defp transact(%{lineage: lineage, account_id: account_id}, callback),
     do: SessionAuthority.transact_lease(lineage, account_id, callback)
-
-  defp transact(_lease, _callback), do: {:error, :stale_authority}
 
   defp locked(account_id, capability, action_id) do
     StakeRedeemOperation

@@ -4,7 +4,10 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
   The concurrency proofs run on real second connections and let PostgreSQL
   report the ordering through `pg_blocking_pids`, so no clock decides a race.
-  Those tests commit outside the sandbox and remove exactly the rows they mint.
+  Those tests commit outside the sandbox, so the whole file clears committed
+  operations before and after every test: the unique submitted-hash identities
+  make this suite order-dependent otherwise, and a crashed run would poison the
+  next one.
   """
 
   use AshPlatformWeb.ConnCase, async: false
@@ -20,6 +23,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @action_hash "0x" <> String.duplicate("ab", 32)
   @other_hash "0x" <> String.duplicate("ef", 32)
+
+  setup :clear_committed_operations
 
   test "CLAIM_BEFORE_WALLET_HANDOFF: prepare, claim, bind, receipt and confirm are one durable path" do
     {account, lease, envelope} = prepared("path")
@@ -157,6 +162,36 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert claimed.state == :action_dispatched
   end
 
+  test "DATABASE_DECIDES_THE_RACE: only an undispatched review or a verified approval is withdrawable" do
+    {_account, lease, envelope} = prepared("withdraw")
+
+    assert {:ok, _claimed} = claim(lease, envelope, :approval)
+    assert {:error, _hashless} = cancel(lease, envelope)
+
+    assert {:ok, _bound} = bind(lease, envelope, :approval, @action_hash)
+    assert {:error, _unverified} = cancel(lease, envelope)
+
+    assert {:ok, _receipted} =
+             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :approval)
+
+    assert {:ok, _verified} =
+             StakeRedeemOperations.verify_approval(lease, :stake, envelope.action_id)
+
+    assert {:ok, cancelled} = cancel(lease, envelope)
+    assert cancelled.state == :cancelled
+    refute is_nil(cancelled.terminal_at)
+  end
+
+  test "DATABASE_DECIDES_THE_RACE: a claimed action can never be withdrawn" do
+    {_account, lease, envelope} = prepared("withdraw-action")
+
+    assert {:ok, _claimed} = claim(lease, envelope, :action)
+    assert {:error, _claimed_action} = cancel(lease, envelope)
+
+    assert {:ok, _bound} = bind(lease, envelope, :action, @action_hash)
+    assert {:error, _submitted_action} = cancel(lease, envelope)
+  end
+
   test "DATABASE_DECIDES_THE_RACE: one account holds one active operation per capability" do
     {account, lease, first} = prepared("one-active")
 
@@ -205,8 +240,6 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
   end
 
   describe "on real second connections" do
-    setup :clean_committed_rows
-
     test "DATABASE_DECIDES_THE_RACE: two sockets racing one dispatch produce exactly one winner" do
       {_account, lease, envelope} = unboxed(fn -> committed_preparation("race-dispatch") end)
 
@@ -283,6 +316,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
   defp bind(lease, envelope, phase, hash),
     do: StakeRedeemOperations.bind_hash(lease, :stake, envelope.action_id, phase, hash)
 
+  defp cancel(lease, envelope),
+    do: StakeRedeemOperations.cancel(lease, :stake, envelope.action_id, "withdrawn")
+
   ## Committed setup and barriers for the second-connection proofs
 
   defp committed_preparation(seed) do
@@ -292,9 +328,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     {account, opts[:context].session_lease, envelope}
   end
 
-  # These tests commit outside the sandbox, so they remove exactly the rows they
-  # mint, dependent rows first.
-  defp clean_committed_rows(_context) do
+  # Committed operations outlive the sandbox, so they are cleared for every test
+  # rather than only around the ones that mint them, dependent rows first.
+  defp clear_committed_operations(_context) do
     remove = fn ->
       Repo.delete_all(StakeRedeemOperation)
       Repo.delete_all(from(row in SessionAuthority, where: not is_nil(row.human_account_id)))

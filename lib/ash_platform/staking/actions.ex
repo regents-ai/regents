@@ -7,6 +7,8 @@ defmodule AshPlatform.Staking.Actions do
   alias AshPlatform.WalletActions.{Abi, Envelope, StakeRedeemOperations}
 
   @capability :stake
+  @rejection_reason "wallet reported an explicit user rejection"
+  @withdrawal_reason "review withdrawn"
   @resource "regent_staking"
   @contract_name "RegentRevenueStaking"
   @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
@@ -75,7 +77,10 @@ defmodule AshPlatform.Staking.Actions do
              input.arguments.transaction_hash
            ) do
       envelope
-      |> chain_confirm(input.arguments)
+      |> ChainClient.module().confirm(
+        input.arguments.transaction_hash,
+        input.arguments.approval_transaction_hash
+      )
       |> record_action_outcome(lease, envelope, input.arguments.transaction_hash)
     else
       false -> {:error, :stale_or_invalid_action}
@@ -84,14 +89,6 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   def confirm(_input, _context), do: {:error, :authentication_required}
-
-  defp chain_confirm(envelope, arguments) do
-    ChainClient.module().confirm(
-      envelope,
-      arguments.transaction_hash,
-      arguments.approval_transaction_hash
-    )
-  end
 
   # Receipt and reread are recorded as they become known. Only their agreement
   # reaches the terminal `:confirmed` state.
@@ -133,58 +130,24 @@ defmodule AshPlatform.Staking.Actions do
     do: StakeRedeemOperations.record_receipt(lease, @capability, envelope.action_id, phase)
 
   @doc false
-  def claim_dispatch(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.claim_dispatch(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        input.arguments.phase
-      )
-    )
-  end
+  def claim_dispatch(%{arguments: %{action_id: id, phase: phase}}, context),
+    do: operate(context, &StakeRedeemOperations.claim_dispatch(&1, @capability, id, phase))
 
   @doc false
-  def bind_hash(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.bind_hash(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        input.arguments.phase,
-        input.arguments.transaction_hash
-      )
-    )
-  end
+  def bind_hash(%{arguments: %{action_id: id, phase: phase, transaction_hash: hash}}, context),
+    do: operate(context, &StakeRedeemOperations.bind_hash(&1, @capability, id, phase, hash))
 
   @doc false
-  def close_not_sent(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.close_not_sent(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        input.arguments.phase,
-        "wallet reported an explicit user rejection"
+  def close_not_sent(%{arguments: %{action_id: id, phase: phase}}, context),
+    do:
+      operate(
+        context,
+        &StakeRedeemOperations.close_not_sent(&1, @capability, id, phase, @rejection_reason)
       )
-    )
-  end
 
   @doc false
-  def cancel_operation(input, context) do
-    operate(
-      context,
-      &StakeRedeemOperations.cancel(
-        &1,
-        @capability,
-        input.arguments.action_id,
-        "review withdrawn before dispatch"
-      )
-    )
-  end
+  def cancel_operation(%{arguments: %{action_id: id}}, context),
+    do: operate(context, &StakeRedeemOperations.cancel(&1, @capability, id, @withdrawal_reason))
 
   @doc false
   def active_operation(_input, %{actor: %Human{} = actor}) do

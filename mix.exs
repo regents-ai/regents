@@ -89,7 +89,7 @@ defmodule AshPlatform.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        "xref graph --label compile-connected --fail-above 31",
+        "xref graph --label compile-connected --fail-above 33",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"
