@@ -105,10 +105,8 @@ defmodule AshPlatformWeb.StakeLive do
               @prepared && @submission[:approval_transaction_hash] &&
                 !@submission[:transaction_hash] && @submission.status == :approval_pending
             }>
-              Abandoning will not send the staking transaction. Approval transaction {short_hash(
-                @submission.approval_transaction_hash
-              )} may still confirm later; check it
-              in your wallet or on Base.
+              Abandoning will not send the staking transaction. The approval transaction may still
+              confirm later; check it in your wallet or on Base.
             </p>
             <button
               :if={@prepared && @submission[:transaction_hash] && @submission.status != :confirmed}
@@ -293,7 +291,7 @@ defmodule AshPlatformWeb.StakeLive do
 
   # Only the one canonical hash shape becomes a link to the Base explorer.
   defp explorer_url(hash) do
-    if String.match?(hash, ~r/^0x[0-9a-fA-F]{64}$/), do: "https://basescan.org/tx/" <> hash
+    if String.match?(hash, ~r/\A0x[0-9a-fA-F]{64}\z/), do: "https://basescan.org/tx/" <> hash
   end
 
   defp pending?(%{status: status}), do: status != :confirmed

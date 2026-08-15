@@ -285,11 +285,11 @@ defmodule AshPlatformWeb.RedeemLive do
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
-  defp short_hash("0x" <> hash),
+  defp short_hash("0x" <> hash) when byte_size(hash) == 64,
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 
   # Only the one canonical hash shape becomes a link to the Base explorer.
   defp explorer_url(hash) do
-    if String.match?(hash, ~r/^0x[0-9a-fA-F]{64}$/), do: "https://basescan.org/tx/" <> hash
+    if String.match?(hash, ~r/\A0x[0-9a-fA-F]{64}\z/), do: "https://basescan.org/tx/" <> hash
   end
 end

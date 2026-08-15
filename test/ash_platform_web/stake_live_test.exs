@@ -241,11 +241,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-click="abandon_staking_approval"])) |> render_click()
 
     html = render(view)
-    assert html =~ "0xcdcdcd…cdcd"
-    assert html =~ "this review stays open"
-    assert html =~ "may still confirm later"
-    assert html =~ "before relying on the allowance state"
-    refute html =~ "exact REGENT allowance remains onchain"
+
+    assert html =~
+             "The approval transaction is still pending, so this review stays open. It may still confirm later — check it in your wallet or on Base before relying on the allowance state."
+
+    assert shown_once?(html, short_hash(@approval_hash))
     refute_push_event(view, "staking:abandoned", _)
 
     assert {:ok, %{state: :approval_submitted, action_id: ^action_id}} =
@@ -322,11 +322,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_hook(view, "restore_staking_submission", %{})
 
     html = render(view)
-    assert html =~ "this review stays open"
-    assert html =~ "0xcdcdcd…cdcd"
-    assert html =~ "may still confirm later"
-    assert html =~ "before relying on the allowance state"
-    refute html =~ "exact REGENT allowance remains onchain"
+
+    assert html =~
+             "The approval transaction is still pending, so this review stays open. It may still confirm later — check it in your wallet or on Base before relying on the allowance state."
+
+    assert shown_once?(html, short_hash(@approval_hash))
     refute_push_event(view, "staking:abandoned", _)
 
     # The approval was broadcast and has not been verified, so it cannot be
@@ -589,6 +589,13 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
 
+    # That link is the only place either hash is shown: the status notice names
+    # what was submitted without repeating an unclickable copy of the hash.
+    html = render(view)
+    assert html =~ "Staking transaction submitted."
+    assert shown_once?(html, short_hash(@approval_hash))
+    assert shown_once?(html, short_hash(@tx_hash))
+
     # An unbound hash is refused before it can be rendered at all, so no
     # malformed transaction link can exist.
     render_hook(view, "staking_submitted", %{
@@ -650,6 +657,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, action_id)
     submit(view, action_id, "action", @tx_hash)
   end
+
+  defp short_hash("0x" <> hash),
+    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
+
+  defp shown_once?(html, text), do: length(String.split(html, text)) == 2
 
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore_env(key, value), do: Application.put_env(:ash_platform, key, value)

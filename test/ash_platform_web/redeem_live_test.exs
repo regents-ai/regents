@@ -363,6 +363,12 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              ~s(.redeem-submission a[href="https://basescan.org/tx/#{@tx_hash}"])
            )
 
+    # That link is the only place the hash is shown: the status notice names
+    # what was submitted without repeating an unclickable copy of the hash.
+    html = render(view)
+    assert html =~ "Redemption transaction submitted."
+    assert shown_once?(html, short_hash(@tx_hash))
+
     # An unbound hash is refused before it can be rendered at all, so no
     # malformed transaction link can exist.
     render_hook(view, "redemption_submitted", %{
@@ -411,4 +417,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
+
+  defp shown_once?(html, text), do: length(String.split(html, text)) == 2
 end

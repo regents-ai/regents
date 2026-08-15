@@ -308,35 +308,61 @@ describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer"
   beforeEach(() => stubSessionStorage())
   afterEach(() => vi.unstubAllGlobals())
 
-  it("copies the exact address the review rendered", () => {
-    const writeText = vi.fn()
+  it("copies the exact address the review rendered and says so on that button", async () => {
+    const writeText = vi.fn(async () => undefined)
     vi.stubGlobal("navigator", {clipboard: {writeText}})
     const hook = mountRedemptionWallet()
+    const button = copyButton(wallet)
 
-    hook.click(copyButton(wallet))
+    await hook.click(button)
     expect(writeText).toHaveBeenCalledWith(wallet)
+    expect(button.textContent).toBe("Copied")
 
-    hook.click(copyButton())
+    await hook.click({closest: () => null})
     expect(writeText).toHaveBeenCalledOnce()
+  })
+
+  // An absent Clipboard API and a refused write are one fixed outcome on the
+  // clicked button; the browser's own reason never becomes customer copy.
+  it("reports one fixed failure when the clipboard is absent or refuses", async () => {
+    const hook = mountRedemptionWallet()
+
+    vi.stubGlobal("navigator", {})
+    const absent = copyButton(wallet)
+    await hook.click(absent)
+    expect(absent.textContent).toBe("Copy failed")
+
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: async () => {
+          throw new DOMException("Write permission denied.", "NotAllowedError")
+        },
+      },
+    })
+    const refused = copyButton(wallet)
+    await hook.click(refused)
+    expect(refused.textContent).toBe("Copy failed")
   })
 })
 
 type Emitted = {event: string; payload: unknown}
+type CopyButton = {textContent: string; dataset: {copySigner: string}; closest: () => CopyButton}
 
 function mountRedemptionWallet(): {
   pushed: Emitted[]
   emit(event: string, payload: unknown): unknown
-  click(target: unknown): void
+  click(target: unknown): Promise<unknown[]>
 } {
   const pushed: Emitted[] = []
   const handlers = new Map<string, (payload: unknown) => unknown>()
-  const clicks: Array<(event: Event) => void> = []
+  const clicks: Array<(event: Event) => unknown> = []
   const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
   const hook = {
     el: {
       dataset: {} as DOMStringMap,
       querySelectorAll: () => buttons,
-      addEventListener: (_type: string, listener: (event: Event) => void) => clicks.push(listener),
+      addEventListener: (_type: string, listener: (event: Event) => unknown) =>
+        clicks.push(listener),
     },
     handleEvent: (event: string, callback: (payload: unknown) => unknown) =>
       handlers.set(event, callback),
@@ -348,13 +374,20 @@ function mountRedemptionWallet(): {
   return {
     pushed,
     emit: (event, payload) => handlers.get(event)?.(payload),
-    click: target => clicks.forEach(listener => listener({target} as unknown as Event)),
+    click: target => Promise.all(clicks.map(listener => listener({target} as unknown as Event))),
   }
 }
 
-// A click target that answers `closest` the way the reviewed markup does.
-function copyButton(signer?: string): unknown {
-  return {closest: () => (signer ? {dataset: {copySigner: signer}} : null)}
+// The reviewed markup puts the signer on the button itself, so the clicked
+// element is its own `closest` match and carries the text the copy replaces.
+function copyButton(signer: string): CopyButton {
+  const button: CopyButton = {
+    textContent: "Copy",
+    dataset: {copySigner: signer},
+    closest: () => button,
+  }
+
+  return button
 }
 
 function stubSessionStorage(): void {

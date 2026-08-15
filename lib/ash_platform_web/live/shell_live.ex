@@ -2635,10 +2635,7 @@ defmodule AshPlatformWeb.ShellLive do
              status: :pending
            },
            redemption_signing?: false,
-           redemption_notice: %{
-             tone: :info,
-             message: "Transaction submitted: #{short_hash(hash)}"
-           }
+           redemption_notice: %{tone: :info, message: "Redemption transaction submitted."}
          )}
 
       {:error, _refused} ->
@@ -3023,7 +3020,7 @@ defmodule AshPlatformWeb.ShellLive do
           staking_notice: %{
             tone: :info,
             message:
-              "Approval transaction #{short_hash(submission[:approval_transaction_hash])} is still pending, so this review stays open. It may still confirm later — check this hash in your wallet or on Base before relying on the allowance state."
+              "The approval transaction is still pending, so this review stays open. It may still confirm later — check it in your wallet or on Base before relying on the allowance state."
           }
         )
     end
@@ -3215,7 +3212,7 @@ defmodule AshPlatformWeb.ShellLive do
             staking_submission:
               record_submission(socket.assigns.staking_submission, action_id, phase, hash),
             staking_signing?: false,
-            staking_notice: %{tone: :info, message: submitted_copy(phase, hash)}
+            staking_notice: %{tone: :info, message: submitted_copy(phase)}
           )
 
         if phase == "approval",
@@ -3274,9 +3271,10 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp record_submission(submission, _action_id, _phase, _hash), do: submission
 
-  defp submitted_copy("approval", hash), do: "REGENT approval submitted: #{short_hash(hash)}"
-  defp submitted_copy("action", hash), do: "Staking transaction submitted: #{short_hash(hash)}"
-  defp submitted_copy(_phase, _hash), do: "Transaction submitted."
+  # The submission section renders the one canonical link to this hash, so the
+  # notice never repeats it. Phases follow `submitted_phase/1` exactly.
+  defp submitted_copy("approval"), do: "REGENT approval submitted."
+  defp submitted_copy(_phase), do: "Staking transaction submitted."
 
   defp short_hash("0x" <> hash) when byte_size(hash) == 64,
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

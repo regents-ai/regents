@@ -33,11 +33,21 @@ export const RedemptionWallet: Hook = {
 
     const failed = (reason: FailureReason) => this.pushEvent("redemption_wallet_failed", {reason})
 
-    this.el.addEventListener("click", event => {
-      const signer = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+    this.el.addEventListener("click", async event => {
+      const button = (event.target as HTMLElement | null)?.closest<HTMLElement>(
         "[data-copy-signer]",
-      )?.dataset.copySigner
-      if (signer) void navigator.clipboard.writeText(signer)
+      )
+      const signer = button?.dataset.copySigner
+      if (!button || !signer) return
+
+      try {
+        await navigator.clipboard.writeText(signer)
+        button.textContent = "Copied"
+      } catch {
+        // No Clipboard API, or the browser refused the write. Either way the
+        // reason is never customer copy; the full address stays on screen.
+        button.textContent = "Copy failed"
+      }
     })
 
     for (const event of ["redemption:confirmed", "redemption:reverted", "redemption:abandoned"]) {

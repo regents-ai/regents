@@ -36,11 +36,21 @@ export const StakeWallet: Hook = {
 
     const failed = (reason: FailureReason) => this.pushEvent("staking_wallet_failed", {reason})
 
-    this.el.addEventListener("click", event => {
-      const signer = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+    this.el.addEventListener("click", async event => {
+      const button = (event.target as HTMLElement | null)?.closest<HTMLElement>(
         "[data-copy-signer]",
-      )?.dataset.copySigner
-      if (signer) void navigator.clipboard.writeText(signer)
+      )
+      const signer = button?.dataset.copySigner
+      if (!button || !signer) return
+
+      try {
+        await navigator.clipboard.writeText(signer)
+        button.textContent = "Copied"
+      } catch {
+        // No Clipboard API, or the browser refused the write. Either way the
+        // reason is never customer copy; the full address stays on screen.
+        button.textContent = "Copy failed"
+      }
     })
 
     this.handleEvent("staking:confirmed", () => sessionStorage.removeItem(pendingKey))
@@ -97,24 +107,31 @@ export const StakeWallet: Hook = {
           })
         }
       } catch (error) {
-        if (error instanceof WalletExecutionError && error.code === "approval_reverted") {
-          const stored = currentSubmission
-          if (stored?.approval_transaction_hash) {
-            this.pushEvent("staking_approval_reverted", {
-              action_id: envelope.action_id,
-              transaction_hash: stored.approval_transaction_hash,
-            })
-          }
+        const stored = currentSubmission
+        // Each precise outcome is the whole outcome for its bound hash, so
+        // nothing follows it that could replace it with a generic failure.
+        if (
+          error instanceof WalletExecutionError &&
+          error.code === "approval_reverted" &&
+          stored?.approval_transaction_hash
+        ) {
+          this.pushEvent("staking_approval_reverted", {
+            action_id: envelope.action_id,
+            transaction_hash: stored.approval_transaction_hash,
+          })
+          return
         }
-        if (error instanceof WalletExecutionError && error.code === "action_reverted") {
-          const stored = currentSubmission
-          if (stored?.transaction_hash) {
-            this.pushEvent("confirm_staking", {
-              action_id: envelope.action_id,
-              transaction_hash: stored.transaction_hash,
-              approval_transaction_hash: stored.approval_transaction_hash ?? null,
-            })
-          }
+        if (
+          error instanceof WalletExecutionError &&
+          error.code === "action_reverted" &&
+          stored?.transaction_hash
+        ) {
+          this.pushEvent("confirm_staking", {
+            action_id: envelope.action_id,
+            transaction_hash: stored.transaction_hash,
+            approval_transaction_hash: stored.approval_transaction_hash ?? null,
+          })
+          return
         }
         // Reported unconditionally: browser state is evidence, never authority.
         // The database refuses `not_sent` once a hash is bound, so withholding

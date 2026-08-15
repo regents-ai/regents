@@ -6,6 +6,7 @@ import {
   executePreparedStakingAction,
   type PreparedStakingAction,
   type StakingClients,
+  WalletExecutionError,
 } from "../js/wallet_actions/staking"
 import {recordSubmittedAction, StakeWallet, userRejected} from "../js/hooks/stake_wallet"
 
@@ -319,6 +320,74 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
   })
 })
 
+describe("U1_BOUNDED_WALLET_COPY: a precise revert is the whole outcome", () => {
+  const execute = vi.mocked(executePreparedStakingAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  // A generic failure after a precise revert would replace the exact outcome
+  // the server can still bind to the stored hash with copy nobody can act on.
+  it("reports the reverted approval for its bound hash and nothing after it", async () => {
+    const hook = mountStakeWallet()
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSubmitted?.("approval", approvalHash)
+      throw new WalletExecutionError("approval_reverted", "reverted")
+    })
+
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "approval-revert"})})
+
+    expect(hook.pushed).toEqual([
+      {
+        event: "staking_submitted",
+        payload: {action_id: "approval-revert", phase: "approval", transaction_hash: approvalHash},
+      },
+      {
+        event: "staking_approval_reverted",
+        payload: {action_id: "approval-revert", transaction_hash: approvalHash},
+      },
+    ])
+  })
+
+  it("reports the reverted action for its bound hash and nothing after it", async () => {
+    const hook = mountStakeWallet()
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSubmitted?.("action", mainHash)
+      throw new WalletExecutionError("action_reverted", "reverted")
+    })
+
+    await hook.emit("staking:prepared", {
+      envelope: envelope({action_id: "action-revert", approval: null}),
+    })
+
+    expect(hook.pushed).toEqual([
+      {
+        event: "staking_submitted",
+        payload: {action_id: "action-revert", phase: "action", transaction_hash: mainHash},
+      },
+      {
+        event: "confirm_staking",
+        payload: {
+          action_id: "action-revert",
+          transaction_hash: mainHash,
+          approval_transaction_hash: null,
+        },
+      },
+    ])
+  })
+
+  it("keeps the fixed unknown failure when the revert has no bound hash", async () => {
+    const hook = mountStakeWallet()
+    execute.mockImplementationOnce(async () => {
+      throw new WalletExecutionError("action_reverted", "reverted")
+    })
+
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "unbound", approval: null})})
+
+    expect(hook.pushed).toEqual([{event: "staking_wallet_failed", payload: {reason: "unknown"}}])
+  })
+})
+
 describe("U2_NEUTRAL_REJECTION: the rejection is the whole outcome", () => {
   const execute = vi.mocked(executePreparedStakingAction)
 
@@ -350,35 +419,61 @@ describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer"
   beforeEach(() => stubSessionStorage())
   afterEach(() => vi.unstubAllGlobals())
 
-  it("copies the exact address the review rendered", () => {
-    const writeText = vi.fn()
+  it("copies the exact address the review rendered and says so on that button", async () => {
+    const writeText = vi.fn(async () => undefined)
     vi.stubGlobal("navigator", {clipboard: {writeText}})
     const hook = mountStakeWallet()
+    const button = copyButton(wallet)
 
-    hook.click(copyButton(wallet))
+    await hook.click(button)
     expect(writeText).toHaveBeenCalledWith(wallet)
+    expect(button.textContent).toBe("Copied")
 
-    hook.click(copyButton())
+    await hook.click({closest: () => null})
     expect(writeText).toHaveBeenCalledOnce()
+  })
+
+  // An absent Clipboard API and a refused write are one fixed outcome on the
+  // clicked button; the browser's own reason never becomes customer copy.
+  it("reports one fixed failure when the clipboard is absent or refuses", async () => {
+    const hook = mountStakeWallet()
+
+    vi.stubGlobal("navigator", {})
+    const absent = copyButton(wallet)
+    await hook.click(absent)
+    expect(absent.textContent).toBe("Copy failed")
+
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: async () => {
+          throw new DOMException("Write permission denied.", "NotAllowedError")
+        },
+      },
+    })
+    const refused = copyButton(wallet)
+    await hook.click(refused)
+    expect(refused.textContent).toBe("Copy failed")
   })
 })
 
 type Emitted = {event: string; payload: unknown}
+type CopyButton = {textContent: string; dataset: {copySigner: string}; closest: () => CopyButton}
 
 function mountStakeWallet(): {
   pushed: Emitted[]
   emit(event: string, payload: unknown): unknown
-  click(target: unknown): void
+  click(target: unknown): Promise<unknown[]>
 } {
   const pushed: Emitted[] = []
   const handlers = new Map<string, (payload: unknown) => unknown>()
-  const clicks: Array<(event: Event) => void> = []
+  const clicks: Array<(event: Event) => unknown> = []
   const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
   const hook = {
     el: {
       dataset: {} as DOMStringMap,
       querySelectorAll: () => buttons,
-      addEventListener: (_type: string, listener: (event: Event) => void) => clicks.push(listener),
+      addEventListener: (_type: string, listener: (event: Event) => unknown) =>
+        clicks.push(listener),
     },
     handleEvent: (event: string, callback: (payload: unknown) => unknown) =>
       handlers.set(event, callback),
@@ -390,13 +485,20 @@ function mountStakeWallet(): {
   return {
     pushed,
     emit: (event, payload) => handlers.get(event)?.(payload),
-    click: target => clicks.forEach(listener => listener({target} as unknown as Event)),
+    click: target => Promise.all(clicks.map(listener => listener({target} as unknown as Event))),
   }
 }
 
-// A click target that answers `closest` the way the reviewed markup does.
-function copyButton(signer?: string): unknown {
-  return {closest: () => (signer ? {dataset: {copySigner: signer}} : null)}
+// The reviewed markup puts the signer on the button itself, so the clicked
+// element is its own `closest` match and carries the text the copy replaces.
+function copyButton(signer: string): CopyButton {
+  const button: CopyButton = {
+    textContent: "Copy",
+    dataset: {copySigner: signer},
+    closest: () => button,
+  }
+
+  return button
 }
 
 function stubSessionStorage(): void {
