@@ -5,6 +5,7 @@ import {
   acrossCookieRotation,
   announceCsrfRotation,
   browserCsrfToken,
+  browserSessionMutations,
   clearLocalSession,
   createSessionMutationCoordinator,
   csrfRotated,
@@ -164,6 +165,13 @@ function pinnedSocket() {
     connect: () => {
       if (live) return
       socket.transportConnect()
+    },
+    // `connect` arms `connectWithFallback`, whose long-poll timer and transport
+    // error path replace the transport and reach `transportConnect` a second
+    // time directly, without returning through `connect`.
+    connectWithFallback: () => {
+      socket.connect()
+      if (!live) socket.transportConnect()
     },
     transportConnect: () => {
       live = true
@@ -409,6 +417,206 @@ describe("PINNED_LONG_POLL_FALLBACK_OBEYS_THE_BARRIER", () => {
 
     expect(insideInterval).toEqual([{built: 1, connected: false}])
     expect(socket.conn?.pollEndpoint).toBe(longPollEndpoint("after-renewal"))
+  })
+})
+
+// The exact state a renewal leaves behind when its own adoption fails: the
+// cookie in this browser is the renewed one and this tab has never read the
+// CSRF state that cookie carries.
+async function withUnreadRenewal(): Promise<void> {
+  const unreadable = vi.fn(async () => new Response("", {status: 503})) as unknown as typeof fetch
+
+  await expect(
+    acrossCookieRotation(renewed => {
+      renewed()
+      return csrfToken(unreadable)
+    }),
+  ).rejects.toThrow("Unable to start a secure session change.")
+}
+
+describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
+  it("adopts on the next connection opportunity and admits one transport", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    const requests: Array<RequestInfo | URL> = []
+    const readable = vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(input)
+      return csrfResponse("renewed-token")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, readable)
+    await withUnreadRenewal()
+
+    socket.connect()
+
+    // The read is what the opportunity starts; nothing may go out under the
+    // token the retired session issued while it is in flight.
+    expect(socket.attempts).toEqual([])
+    expect(meta.content).toBe("stale-token")
+
+    await until(() => socket.isConnected())
+
+    expect(requests).toEqual(["/auth/csrf"])
+    expect(meta.content).toBe("renewed-token")
+    expect(socket.attempts).toEqual(["renewed-token"])
+  })
+
+  it("shares one read between the websocket and the long poll behind it", async () => {
+    pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    let reads = 0
+    const fetcher = vi.fn(async () => {
+      reads += 1
+      // A failed read leaves the renewal unread, so a second read from the same
+      // opportunity would be a queued follow-on rather than a shared one.
+      return reads === 1 ? new Response("", {status: 503}) : csrfResponse("renewed-token")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, fetcher)
+    await withUnreadRenewal()
+
+    socket.connectWithFallback()
+    await until(() => reads === 1)
+    await settle()
+
+    // Both refused attempts joined the read the first of them started.
+    expect(reads).toBe(1)
+    expect(socket.attempts).toEqual([])
+
+    socket.connect()
+    await until(() => socket.isConnected())
+
+    expect(reads).toBe(2)
+    expect(socket.attempts).toEqual(["renewed-token"])
+  })
+
+  it("stays closed on a failed retry and reads again on a later opportunity", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    let reads = 0
+    const unavailable = vi.fn(async () => {
+      reads += 1
+      return reads === 1 ? new Response("", {status: 503}) : csrfResponse("renewed-token")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, unavailable)
+    await withUnreadRenewal()
+
+    socket.connect()
+    await until(() => reads === 1)
+    await settle()
+
+    expect(socket.attempts).toEqual([])
+    expect(socket.isConnected()).toBe(false)
+    expect(meta.content).toBe("stale-token")
+
+    socket.connect()
+    await until(() => socket.isConnected())
+
+    expect(reads).toBe(2)
+    expect(meta.content).toBe("renewed-token")
+    expect(socket.attempts).toEqual(["renewed-token"])
+  })
+
+  it("releases nothing when a retry reads a body carrying no token", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    let reads = 0
+    const unadoptable = vi.fn(async () => {
+      reads += 1
+      // A 200 that rotated the cookie and a 200 that wrote nothing are the same
+      // response without a token in it, so neither one may release.
+      return reads === 1
+        ? new Response('{"ok":true}', {status: 200})
+        : csrfResponse("renewed-token")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, unadoptable)
+    await withUnreadRenewal()
+
+    socket.connect()
+    await until(() => reads === 1)
+    await settle()
+
+    expect(socket.attempts).toEqual([])
+    expect(meta.content).toBe("stale-token")
+
+    socket.connect()
+    await until(() => socket.isConnected())
+
+    expect(socket.attempts).toEqual(["renewed-token"])
+  })
+
+  it("starts no retry for a connect that arrives while a rotation is open", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    const reads: string[] = []
+    const tokens = ["before-post", "after-renewal"]
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") {
+        socket.connect()
+        return signedInResponse("true")
+      }
+      reads.push(browserCsrfToken())
+      return csrfResponse(tokens.shift() ?? "exhausted")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, fetcher)
+
+    await createLocalSession("verified", fetcher)
+
+    // The rotation still owns the adoption, so the refused reconnect inside it
+    // waits for that read rather than starting one of its own.
+    expect(reads).toEqual(["page-token", "before-post"])
+    expect(socket.attempts).toEqual(["after-renewal"])
+  })
+
+  it("leaves a mounted transport alone and starts no read for it", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    const readable = vi.fn(async () => csrfResponse("renewed-token")) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, readable)
+    socket.connect()
+    await withUnreadRenewal()
+
+    socket.connect()
+
+    expect(readable).not.toHaveBeenCalled()
+    expect(socket.isConnected()).toBe(true)
+    expect(socket.attempts).toEqual(["page-token"])
+
+    await acrossCookieRotation(renewed => {
+      renewed()
+      return csrfToken(readable)
+    })
+
+    expect(browserCsrfToken()).toBe("renewed-token")
+  })
+
+  it("reads nothing when a sign in ordered ahead of the retry already recovered the tab", async () => {
+    const meta = pageWithCsrfMeta("stale-token")
+    const socket = pinnedSocket()
+    const reads: string[] = []
+    const tokens = ["before-post", "after-renewal"]
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (input !== "/auth/csrf") return signedInResponse("true")
+      reads.push(browserCsrfToken())
+      return csrfResponse(tokens.shift() ?? "exhausted")
+    }) as unknown as typeof fetch
+    holdSocketDuringCookieRotation(socket, fetcher)
+    await withUnreadRenewal()
+
+    // The sign in takes the queue first and its body has not run yet, so the
+    // connect in the same turn still sees an unread renewal and queues its
+    // retry behind a mutation that is about to recover the tab itself.
+    const signIn = createLocalSession("verified", fetcher)
+    socket.connect()
+    expect(reads).toEqual([])
+    expect(socket.attempts).toEqual([])
+
+    await signIn
+    // Queued behind the retry, so awaiting it proves the retry body has run.
+    await browserSessionMutations.establish(async () => undefined)
+
+    expect(reads).toEqual(["stale-token", "before-post"])
+    expect(meta.content).toBe("after-renewal")
+    expect(socket.attempts).toEqual(["after-renewal"])
+    expect(socket.isConnected()).toBe(true)
   })
 })
 

@@ -128,6 +128,7 @@ export async function csrfToken(
 
 let openRotations = 0
 let unreadRenewal = false
+let adoptingRenewal: Promise<void> | null = null
 const heldSockets = new Set<() => void>()
 
 // True only while this tab is known to hold the CSRF state of the cookie it
@@ -146,8 +147,13 @@ export type PinnedSocket = {connect: () => void; transportConnect: () => void}
 // it directly rather than through `connect`. Refusing it there is what makes
 // the barrier real rather than an ordering an independent reconnect never waits
 // for. An open socket never reaches it, so a mounted same-account socket
-// survives the rotation.
-export function holdSocketDuringCookieRotation(socket: PinnedSocket): void {
+// survives the rotation. A renewal whose own adoption failed left this tab
+// closed, and the refusal here is the connection opportunity that reads the
+// state the cookie now carries.
+export function holdSocketDuringCookieRotation(
+  socket: PinnedSocket,
+  fetcher: typeof fetch = fetch,
+): void {
   const transportConnect = socket.transportConnect.bind(socket)
   let held = false
 
@@ -160,7 +166,31 @@ export function holdSocketDuringCookieRotation(socket: PinnedSocket): void {
   socket.transportConnect = () => {
     if (csrfStateIsCurrent()) return transportConnect()
     held = true
+    if (openRotations === 0) adoptUnreadRenewal(fetcher)
   }
+}
+
+// One read, shared by every attempt overlapping it, including the long poll the
+// pinned `connectWithFallback` swaps in behind the websocket.
+function adoptUnreadRenewal(fetcher: typeof fetch): void {
+  if (adoptingRenewal) return
+
+  const attempt = browserSessionMutations.establish(async signal => {
+    // Sign in, refresh, switch and sign out are ordered ahead of this retry, so
+    // one of them may already have read what the cookie carries by the time it
+    // runs. Reading again would answer for a renewal this tab no longer has,
+    // and closing it again would strand a transport that is already current.
+    if (!unreadRenewal) return
+    await csrfToken(fetcher, signal)
+    unreadRenewal = false
+    if (csrfStateIsCurrent()) heldSockets.forEach(release => release())
+  })
+  const settle = () => {
+    if (adoptingRenewal === attempt) adoptingRenewal = null
+  }
+
+  adoptingRenewal = attempt
+  void attempt.then(settle, settle)
 }
 
 // The interval between a response that rotated or dropped the cookie and this

@@ -799,6 +799,89 @@ test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the 
   await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
 })
 
+test("a tab left stale by a failed adoption recovers on its next connect", async ({page}) => {
+  await stubBridge(page)
+  await establishLocalSession(page)
+  const documents = trackDocuments(page)
+  let sessionPosts = 0
+  let sessionDeletes = 0
+  page.on("request", request => {
+    if (!request.url().endsWith("/auth/privy/session")) return
+    if (request.method() === "POST") sessionPosts += 1
+    if (request.method() === "DELETE") sessionDeletes += 1
+  })
+
+  // The renewing response lands and the read of the CSRF state its cookie
+  // carries does not, which is the state this tab has to recover from.
+  let csrfRequests = 0
+  await page.route("**/auth/csrf", async route => {
+    csrfRequests += 1
+    if (csrfRequests === 2) {
+      await route.fulfill({status: 503, body: ""})
+      return
+    }
+    await route.continue()
+  })
+
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  const connected = () =>
+    page.evaluate(() =>
+      Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
+    )
+  await expect.poll(connected).toBe(true)
+
+  const renewal = await page.evaluate(async () => {
+    const source = "/assets/js/privy_bridge.js"
+    const bridge = (await import(source)) as {
+      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
+    }
+    return bridge.createLocalSession("valid").then(
+      () => "adopted",
+      () => "unread",
+    )
+  })
+  expect(renewal).toBe("unread")
+  const staleToken = await metaCsrfToken(page)
+
+  await page.evaluate(
+    () =>
+      new Promise<void>(resolve =>
+        (window.liveSocket as unknown as {disconnect(callback: () => void): void}).disconnect(
+          resolve,
+        ),
+      ),
+  )
+  await expect.poll(connected).toBe(false)
+
+  // `transportConnect` builds its transport synchronously, so a closed state
+  // read in the same turn as the call means the opportunity started the read
+  // rather than a connection under the token the retired session issued.
+  expect(
+    await page.evaluate(() => {
+      const socket = (
+        window.liveSocket as unknown as {getSocket(): {connectionState(): string}}
+      ).getSocket()
+      window.liveSocket.connect()
+      return {
+        state: socket.connectionState(),
+        token:
+          document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content ?? "",
+      }
+    }),
+  ).toEqual({state: "closed", token: staleToken})
+
+  // The handshake the server accepts is the proof the adopted token is the one
+  // the renewed cookie carries.
+  await expect.poll(connected).toBe(true)
+  expect(await metaCsrfToken(page)).not.toBe(staleToken)
+  expect(documents.map(url => new URL(url).pathname)).toEqual(["/app"])
+  expect(sessionPosts).toBe(1)
+  expect(sessionDeletes).toBe(0)
+  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  expect((await (await page.request.get("/auth/session")).json()).authenticated).toBe(true)
+})
+
 test("a refresh between another tab's dead render and its connect recovers in one reload", async ({
   context,
 }) => {
