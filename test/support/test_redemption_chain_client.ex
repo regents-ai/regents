@@ -55,8 +55,9 @@ defmodule AshPlatform.TestRedemptionChainClient do
          %{
            transaction_hash: transaction_hash,
            receipt_verified: true,
+           reread_verified: false,
            redemption: nil,
-           refresh_error: :chain_unavailable
+           reason: :chain_unavailable
          }}
       else
         {:ok, redemption} =
@@ -66,8 +67,9 @@ defmodule AshPlatform.TestRedemptionChainClient do
          %{
            transaction_hash: transaction_hash,
            receipt_verified: true,
+           reread_verified: true,
            redemption: redemption,
-           refresh_error: nil
+           reason: nil
          }}
       end
     else

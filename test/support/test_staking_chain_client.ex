@@ -35,15 +35,8 @@ defmodule AshPlatform.TestStakingChainClient do
   def confirm(envelope, "0x" <> hash = transaction_hash, _approval_hash)
       when byte_size(hash) == 64 do
     with :ok <- Application.get_env(:ash_platform, :test_staking_confirmation_result, :ok),
-         true <- envelope.expected_signer == @wallet,
-         {:ok, staking} <- overview(@wallet) do
-      {:ok,
-       %{
-         transaction_hash: transaction_hash,
-         receipt_verified: true,
-         staking: staking,
-         refresh_error: nil
-       }}
+         true <- envelope.expected_signer == @wallet do
+      confirmed(transaction_hash)
     else
       :reverted -> {:error, :transaction_reverted}
       _ -> {:error, :transaction_mismatch}
@@ -53,7 +46,43 @@ defmodule AshPlatform.TestStakingChainClient do
   def confirm(_envelope, _transaction_hash, _approval_hash),
     do: {:error, :invalid_confirmation}
 
+  # The authoritative reread is a fact of its own, so the fake can withhold it
+  # exactly the way an unavailable Base read does.
+  defp confirmed(transaction_hash) do
+    if Application.get_env(:ash_platform, :test_staking_refresh_error, false) do
+      {:ok,
+       %{
+         transaction_hash: transaction_hash,
+         receipt_verified: true,
+         reread_verified: false,
+         staking: nil,
+         reason: :chain_unavailable
+       }}
+    else
+      {:ok, staking} = overview(@wallet)
+
+      {:ok,
+       %{
+         transaction_hash: transaction_hash,
+         receipt_verified: true,
+         reread_verified: true,
+         staking: staking,
+         reason: nil
+       }}
+    end
+  end
+
+  # A successful approval receipt is only success once the allowance reread agrees.
   @impl true
-  def approval_status(_envelope, _transaction_hash),
-    do: {:ok, Application.get_env(:ash_platform, :test_staking_approval_status, :success)}
+  def approval_status(_envelope, _transaction_hash) do
+    case Application.get_env(:ash_platform, :test_staking_approval_status, :success) do
+      :success ->
+        if Application.get_env(:ash_platform, :test_staking_allowance_verified, true),
+          do: {:ok, :success},
+          else: {:ok, :pending}
+
+      status ->
+        {:ok, status}
+    end
+  end
 end

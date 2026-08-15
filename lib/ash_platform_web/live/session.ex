@@ -32,7 +32,12 @@ defmodule AshPlatformWeb.Live.Session do
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
   end
 
+  # The lease starts absent on every mount and is only ever granted by a
+  # connected mount that proved its claim, so a disconnected render can read but
+  # can never reach a protected write.
   def on_mount(:load_human, _params, session, socket) do
+    socket = Phoenix.Component.assign(socket, :session_lease, nil)
+
     if connected?(socket) do
       connected(socket, session, get_connect_info(socket, :session))
     else
@@ -81,19 +86,25 @@ defmodule AshPlatformWeb.Live.Session do
 
     socket
     |> assign_principal(account)
+    |> Phoenix.Component.assign(:session_lease, lease)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
       case leased(lease) do
-        nil -> {:halt, redirect(assign_principal(socket, nil), to: @public_root)}
+        nil -> {:halt, redirect(lapsed(socket), to: @public_root)}
         account -> {:cont, assign_principal(socket, account)}
       end
     end)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
       case leased(lease) do
-        nil -> {:halt, assign_principal(socket, nil)}
+        nil -> {:halt, lapsed(socket)}
         account -> {:cont, assign_principal(socket, account)}
       end
     end)
   end
+
+  # A lapsed lease is withdrawn along with the principal, so nothing downstream
+  # can still present it as authority for a write.
+  defp lapsed(socket),
+    do: socket |> assign_principal(nil) |> Phoenix.Component.assign(:session_lease, nil)
 
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)

@@ -72,6 +72,12 @@ export const RedemptionWallet: Hook = {
             transaction_hash: error.transactionHash,
           })
         } else {
+          if (userRejected(error) && !currentSubmission?.transaction_hash) {
+            this.pushEvent("redemption_wallet_rejected", {
+              action_id: envelope.action_id,
+              code: 4001,
+            })
+          }
           const message = error instanceof Error ? error.message : "The wallet action did not complete."
           this.pushEvent("redemption_wallet_failed", {message})
         }
@@ -96,6 +102,23 @@ export function recordSubmittedRedemption(
     // The connected LiveView already received the hash; storage is refresh recovery only.
   }
   return stored
+}
+
+/**
+ * The exact EIP-1193 user-rejection code, walked out of whatever wrapper viem
+ * put around it. Message text is never authority, so nothing else qualifies.
+ */
+export function userRejected(error: unknown): boolean {
+  const seen = new Set<unknown>()
+  let current: unknown = error
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current)
+    if ((current as {code?: unknown}).code === 4001) return true
+    current = (current as {cause?: unknown}).cause
+  }
+
+  return false
 }
 
 function readStoredSubmission(): StoredRedemptionSubmission | null {

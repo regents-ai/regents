@@ -51,6 +51,31 @@ defmodule AshPlatform.Redemption.Snapshot do
       argument :envelope, :map, allow_nil?: false
       run fn input, context -> Actions.restore(input, context) end
     end
+
+    action :claim_wallet_dispatch, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> Actions.claim_dispatch(input, context) end
+    end
+
+    action :bind_submitted_hash, :map do
+      argument :action_id, :string, allow_nil?: false
+      argument :transaction_hash, :string, allow_nil?: false
+      run fn input, context -> Actions.bind_hash(input, context) end
+    end
+
+    action :close_not_sent, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> Actions.close_not_sent(input, context) end
+    end
+
+    action :cancel_operation, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> Actions.cancel_operation(input, context) end
+    end
+
+    action :active_operation, :map do
+      run fn input, context -> Actions.active_operation(input, context) end
+    end
   end
 
   policies do
@@ -65,7 +90,12 @@ defmodule AshPlatform.Redemption.Snapshot do
              :prepare_redeem,
              :prepare_claim,
              :confirm_wallet_action,
-             :restore_submitted_action
+             :restore_submitted_action,
+             :claim_wallet_dispatch,
+             :bind_submitted_hash,
+             :close_not_sent,
+             :cancel_operation,
+             :active_operation
            ]) do
       authorize_if AshPlatform.Redemption.Checks.HumanActor
     end

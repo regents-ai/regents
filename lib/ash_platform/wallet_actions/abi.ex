@@ -1,6 +1,8 @@
 defmodule AshPlatform.WalletActions.Abi do
   @moduledoc false
 
+  alias AshPlatform.WalletActions.Address
+
   @manifest_path Path.expand("../../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../../contracts/abi/regent-revenue-staking.json", __DIR__)
   @external_resource @manifest_path
@@ -84,16 +86,10 @@ defmodule AshPlatform.WalletActions.Abi do
 
   defp encode_static(type, _value), do: raise(ArgumentError, "unsupported ABI input #{type}")
 
-  def normalize_address!(address) when is_binary(address) do
-    address = String.trim(address)
-
-    if String.match?(address, ~r/^0x[0-9a-fA-F]{40}$/) and
-         String.downcase(address) != "0x0000000000000000000000000000000000000000" do
-      String.downcase(address)
-    else
-      raise ArgumentError, "wallet address is invalid"
+  def normalize_address!(address) do
+    case Address.normalize(address) do
+      {:ok, normalized} -> normalized
+      :error -> raise ArgumentError, "wallet address is invalid"
     end
   end
-
-  def normalize_address!(_address), do: raise(ArgumentError, "wallet address is invalid")
 end

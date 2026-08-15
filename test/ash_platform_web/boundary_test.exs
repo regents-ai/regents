@@ -122,6 +122,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                "priv/repo/migrations/*_regent_490_8_4_autolaunch_indexer_block_frontiers.exs"
              )
 
+    assert [stake_redeem_operations_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_839_1_1_stake_redeem_operations.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -155,7 +158,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                session_authorities_migration,
                indexer_ledger_migration,
                indexer_canonical_height_migration,
-               indexer_block_frontiers_migration
+               indexer_block_frontiers_migration,
+               stake_redeem_operations_migration
              ])
 
     assert_additive_migration(
@@ -642,6 +646,39 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert_reversible_migration(indexer_block_frontiers_migration, [
       ~s(name: "indexer_blocks_finalized_frontier_index")
     ])
+
+    # One active Stake or Redeem operation per account and capability, one
+    # immutable action identity, and one owner per submitted hash are database
+    # facts rather than conventions a socket keeps.
+    assert_additive_migration(
+      stake_redeem_operations_migration,
+      [
+        "create table(:stake_redeem_operations",
+        "add(:action_id, :text, null: false)",
+        "add(:capability, :text, null: false)",
+        "add(:envelope, :map, null: false)",
+        ~s|add(:state, :text, null: false, default: "prepared")|,
+        "add(:approval_transaction_hash, :text)",
+        "add(:action_transaction_hash, :text)",
+        "add(:terminal_at, :utc_datetime_usec)",
+        "references(:platform_human_users",
+        "on_delete: :restrict",
+        ~s(name: "stake_redeem_operations_unique_action_id_index"),
+        ~s(name: "stake_redeem_operations_unique_approval_transaction_hash_index"),
+        ~s(name: "stake_redeem_operations_unique_action_transaction_hash_index"),
+        ~s(name: "stake_redeem_operations_one_active_per_capability_index"),
+        ~s|where: "(terminal_at IS NULL)"|
+      ],
+      []
+    )
+
+    assert_reversible_migration(
+      stake_redeem_operations_migration,
+      ["drop(table(:stake_redeem_operations))"]
+    )
+
+    # No raw session lineage is ever a column on an operation.
+    refute File.read!(stake_redeem_operations_migration) =~ "lineage"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

@@ -25,10 +25,17 @@ defmodule AshPlatform.Staking.RpcClientTest do
       Process.get(:transactions, %{}) |> Map.get(hash, Process.get(:transaction))
     end
 
+    @allowance_selector Abi.encode_erc20("allowance", [
+                          "0x0000000000000000000000000000000000000001",
+                          "0x0000000000000000000000000000000000000002"
+                        ])
+                        |> String.slice(0, 10)
+
     defp result(%{method: "eth_call", params: [%{data: data} | _]}) do
       cond do
         data == Abi.encode_read("stake_token") -> word_address(Abi.stake_token_address())
         data == Abi.encode_read("usdc") -> word_address(Abi.usdc_address())
+        String.starts_with?(data, @allowance_selector) -> word_uint(Process.get(:allowance, 0))
         true -> word_uint(5)
       end
     end
@@ -62,6 +69,7 @@ defmodule AshPlatform.Staking.RpcClientTest do
       Process.delete(:transaction)
       Process.delete(:receipts)
       Process.delete(:transactions)
+      Process.delete(:allowance)
     end)
 
     :ok
@@ -127,6 +135,10 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
     assert {:error, :approval_required} = RpcClient.confirm(envelope, @tx_hash, nil)
 
+    # The approval receipt alone is not enough: the current allowance must equal
+    # the prepared exact amount for this owner, token and spender.
+    Process.put(:allowance, amount)
+
     assert {:ok, %{receipt_verified: true}} =
              RpcClient.confirm(envelope, @tx_hash, approval_hash)
 
@@ -156,6 +168,49 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
     assert {:error, :transaction_reverted} =
              RpcClient.confirm(envelope, @tx_hash, approval_hash)
+  end
+
+  test "STAKE_APPROVAL_MEANS_ALLOWANCE: a successful approval receipt without the exact allowance is not success" do
+    approval_hash = "0x" <> String.duplicate("cd", 32)
+    amount = 1_500_000_000_000_000_000
+    approval_data = Abi.encode_erc20("approve", [Abi.staking_address(), amount])
+
+    envelope =
+      Envelope.new("stake", @wallet, Abi.encode_action("stake", [amount, @wallet]),
+        risk_copy: "Stake REGENT.",
+        arguments: %{amount_atomic: Integer.to_string(amount), receiver: @wallet},
+        approval: %{
+          token: Abi.stake_token_address(),
+          spender: Abi.staking_address(),
+          amount: Integer.to_string(amount),
+          data: approval_data,
+          mode: "exact"
+        }
+      )
+
+    Process.put(:receipt, %{
+      "status" => "0x1",
+      "blockNumber" => "0x10",
+      "transactionHash" => approval_hash
+    })
+
+    Process.put(:transaction, %{
+      "hash" => approval_hash,
+      "from" => @wallet,
+      "to" => Abi.stake_token_address(),
+      "input" => approval_data,
+      "value" => "0x0"
+    })
+
+    # Larger, smaller and absent allowances are all non-successful, so a
+    # receipt-only approval can never enable the action phase.
+    for allowance <- [0, amount - 1, amount + 1] do
+      Process.put(:allowance, allowance)
+      assert RpcClient.approval_status(envelope, approval_hash) == {:ok, :pending}
+    end
+
+    Process.put(:allowance, amount)
+    assert RpcClient.approval_status(envelope, approval_hash) == {:ok, :success}
   end
 
   test "confirmation requires a successful receipt and exact signer, target, value and calldata" do

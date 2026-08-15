@@ -28,6 +28,20 @@ defmodule AshPlatform.Redemption do
       define :restore_submitted_action,
         action: :restore_submitted_action,
         args: [:envelope]
+
+      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:action_id]
+
+      define :bind_submitted_hash,
+        action: :bind_submitted_hash,
+        args: [:action_id, :transaction_hash]
+
+      define :close_not_sent, action: :close_not_sent, args: [:action_id]
+      define :cancel_operation, action: :cancel_operation, args: [:action_id]
+      define :active_operation, action: :active_operation
     end
+
+    # The shared operation resource carries no domain of its own; Redemption owns
+    # every Redeem call against it and Staking owns every Stake call.
+    resource AshPlatform.WalletActions.StakeRedeemOperation
   end
 end

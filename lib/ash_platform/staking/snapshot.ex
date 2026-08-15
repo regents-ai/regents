@@ -61,6 +61,34 @@ defmodule AshPlatform.Staking.Snapshot do
       argument :transaction_hash, :string, allow_nil?: false
       run fn input, context -> Actions.approval_status(input, context) end
     end
+
+    action :claim_wallet_dispatch, :map do
+      argument :action_id, :string, allow_nil?: false
+      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
+      run fn input, context -> Actions.claim_dispatch(input, context) end
+    end
+
+    action :bind_submitted_hash, :map do
+      argument :action_id, :string, allow_nil?: false
+      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
+      argument :transaction_hash, :string, allow_nil?: false
+      run fn input, context -> Actions.bind_hash(input, context) end
+    end
+
+    action :close_not_sent, :map do
+      argument :action_id, :string, allow_nil?: false
+      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
+      run fn input, context -> Actions.close_not_sent(input, context) end
+    end
+
+    action :cancel_operation, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> Actions.cancel_operation(input, context) end
+    end
+
+    action :active_operation, :map do
+      run fn input, context -> Actions.active_operation(input, context) end
+    end
   end
 
   policies do
@@ -77,7 +105,12 @@ defmodule AshPlatform.Staking.Snapshot do
              :prepare_claim_and_restake_regent,
              :confirm_wallet_action,
              :restore_submitted_action,
-             :verify_approval_submission
+             :verify_approval_submission,
+             :claim_wallet_dispatch,
+             :bind_submitted_hash,
+             :close_not_sent,
+             :cancel_operation,
+             :active_operation
            ]) do
       authorize_if AshPlatform.Staking.Checks.HumanActor
     end

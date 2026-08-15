@@ -2,7 +2,7 @@ defmodule AshPlatform.Staking.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Staking.ChainClient
 
-  alias AshPlatform.WalletActions.{Abi, Envelope, Rpc}
+  alias AshPlatform.WalletActions.{Abi, Address, Envelope, Rpc}
 
   @overview_timeout 12_000
   @chain_id 8453
@@ -79,7 +79,7 @@ defmodule AshPlatform.Staking.RpcClient do
     with true <- valid_for_confirmation?(envelope),
          true <- Rpc.valid_hash?(hash),
          :ok <- Rpc.verify_base_chain(@rpc_opts),
-         result <-
+         {:ok, status} <-
            Rpc.submission_status(
              hash,
              signer,
@@ -87,7 +87,7 @@ defmodule AshPlatform.Staking.RpcClient do
              approval_field(approval, :data),
              @rpc_opts
            ) do
-      result
+      allowance_gated(status, approval, signer)
     else
       false -> {:error, :invalid_approval_confirmation}
       {:error, reason} -> {:error, reason}
@@ -96,6 +96,19 @@ defmodule AshPlatform.Staking.RpcClient do
 
   def approval_status(_envelope, _hash), do: {:error, :invalid_approval_confirmation}
 
+  # A successful approval receipt is only success once the exact allowance
+  # agrees; anything else stays retryable rather than enabling the action phase.
+  defp allowance_gated(:success, approval, signer) do
+    case allowance_matches(approval, signer) do
+      :ok -> {:ok, :success}
+      {:error, _reason} -> {:ok, :pending}
+    end
+  end
+
+  defp allowance_gated(status, _approval, _signer), do: {:ok, status}
+
+  # The receipt and the authoritative reread stay separate facts. A reread that
+  # did not happen is never a refreshed snapshot, so it can never read as success.
   defp confirmation_result(envelope, tx_hash) do
     case overview(envelope.expected_signer) do
       {:ok, refreshed} ->
@@ -103,8 +116,9 @@ defmodule AshPlatform.Staking.RpcClient do
          %{
            transaction_hash: String.downcase(tx_hash),
            receipt_verified: true,
+           reread_verified: true,
            staking: refreshed,
-           refresh_error: nil
+           reason: nil
          }}
 
       {:error, reason} ->
@@ -112,8 +126,9 @@ defmodule AshPlatform.Staking.RpcClient do
          %{
            transaction_hash: String.downcase(tx_hash),
            receipt_verified: true,
+           reread_verified: false,
            staking: nil,
-           refresh_error: reason
+           reason: reason
          }}
     end
   end
@@ -124,14 +139,35 @@ defmodule AshPlatform.Staking.RpcClient do
 
   defp verify_approval(%{approval: approval, expected_signer: signer}, hash) do
     with true <- Rpc.valid_hash?(hash),
-         token <- normalize_or_nil(approval_field(approval, :token)),
+         token when is_binary(token) <- normalize_or_nil(approval_field(approval, :token)),
          data <- String.downcase(approval_field(approval, :data) || ""),
-         :ok <- Rpc.confirmed_transaction(hash, signer, token, data, @rpc_opts) do
+         :ok <- Rpc.confirmed_transaction(hash, signer, token, data, @rpc_opts),
+         :ok <- allowance_matches(approval, signer) do
       :ok
     else
       false -> {:error, :invalid_approval_confirmation}
       nil -> {:error, :invalid_approval_confirmation}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # `allowance(owner, staking)` for the manifest REGENT token must equal the
+  # prepared exact amount. Larger, smaller, wrong owner, wrong token or wrong
+  # spender all fail, and so does a reread that could not be made.
+  defp allowance_matches(approval, signer) do
+    token = normalize_or_nil(approval_field(approval, :token))
+    spender = normalize_or_nil(approval_field(approval, :spender))
+    expected = approval_field(approval, :amount)
+
+    with true <- Address.equal?(token, Abi.stake_token_address()),
+         true <- Address.equal?(spender, Abi.staking_address()),
+         {:ok, allowance} <-
+           Rpc.call_uint(token, Abi.encode_erc20("allowance", [signer, spender]), @rpc_opts),
+         ^expected <- Integer.to_string(allowance) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _mismatch -> {:error, :approval_allowance_mismatch}
     end
   end
 

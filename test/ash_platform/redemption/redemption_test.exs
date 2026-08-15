@@ -75,8 +75,9 @@ defmodule AshPlatform.RedemptionTest do
            %{
              transaction_hash: transaction_hash,
              receipt_verified: true,
+             reread_verified: true,
              redemption: refreshed,
-             refresh_error: nil
+             reason: nil
            }}
       end
     end
@@ -97,7 +98,9 @@ defmodule AshPlatform.RedemptionTest do
     {:ok, account} =
       Accounts.register_verified("did:privy:redemption", @wallet, [@wallet], actor: %System{})
 
-    %{actor: %Human{human_account_id: account.id}}
+    # Preparation and confirmation are protected writes, so the test carries the
+    # same mounted lease a connected socket proves rather than a bare actor.
+    %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
   end
 
   test "public facts and wallet account state come from Base", %{actor: actor} do
@@ -111,8 +114,8 @@ defmodule AshPlatform.RedemptionTest do
     assert {:error, _} = Redemption.account("animata_i", 42)
   end
 
-  test "the four actions are separate signed exact-zero-value envelopes", %{actor: actor} do
-    assert {:ok, nft} = Redemption.prepare_nft_approval(@wallet, "animata_i", actor: actor)
+  test "the four actions are separate signed exact-zero-value envelopes", %{opts: opts} do
+    assert {:ok, nft} = Redemption.prepare_nft_approval(@wallet, "animata_i", opts)
     assert nft.action == "approve_nft_collection"
     assert nft.to == @animata_i
 
@@ -124,17 +127,17 @@ defmodule AshPlatform.RedemptionTest do
 
     assert Envelope.valid?(nft, resource: "animata_redemption", to: @animata_i)
 
-    assert {:ok, usdc} = Redemption.prepare_usdc_approval(@wallet, actor: actor)
+    assert {:ok, usdc} = Redemption.prepare_usdc_approval(@wallet, opts)
     assert usdc.action == "approve_exact_usdc"
     assert usdc.arguments.amount_atomic == "80000000"
     assert usdc.arguments.mode == "exact"
 
-    assert {:ok, redeem} = Redemption.prepare_redeem(@wallet, "animata_ii", 42, actor: actor)
+    assert {:ok, redeem} = Redemption.prepare_redeem(@wallet, "animata_ii", 42, opts)
     assert redeem.action == "redeem"
     assert redeem.arguments.collection == @animata_ii
     assert redeem.arguments.token_id == 42
 
-    assert {:ok, claim} = Redemption.prepare_claim(@wallet, actor: actor)
+    assert {:ok, claim} = Redemption.prepare_claim(@wallet, opts)
     assert claim.action == "claim"
 
     for envelope <- [nft, usdc, redeem, claim] do
@@ -146,57 +149,61 @@ defmodule AshPlatform.RedemptionTest do
     end
   end
 
-  test "wrong signer, collection, token id and result collection fail closed", %{actor: actor} do
-    assert {:error, _} = Redemption.prepare_claim(@other, actor: actor)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "result_collection", 1, actor: actor)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 0, actor: actor)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 1000, actor: actor)
+  test "wrong signer, collection, token id and result collection fail closed", %{opts: opts} do
+    assert {:error, _} = Redemption.prepare_claim(@other, opts)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "result_collection", 1, opts)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 0, opts)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 1000, opts)
   end
 
   test "redeem preparation requires ownership, NFT approval, sufficient balance and exact allowance",
        %{
-         actor: actor
+         opts: opts
        } do
     Process.put(:nft_owner, @other)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, actor: actor)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
 
     Process.put(:nft_owner, @wallet)
     Process.put(:nft_approved, false)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, actor: actor)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
 
     Process.put(:nft_approved, true)
     Process.put(:usdc_balance_raw, "79999999")
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, actor: actor)
+    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
 
     Process.put(:usdc_balance_raw, "100000000")
 
     for allowance <- ["79999999", "80000001", "160000000"] do
       Process.put(:usdc_allowance_raw, allowance)
-      assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, actor: actor)
+      assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
     end
 
     Process.put(:usdc_allowance_raw, "80000000")
 
     assert {:ok, %{action: "redeem"}} =
-             Redemption.prepare_redeem(@wallet, "animata_i", 42, actor: actor)
+             Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
   end
 
-  test "claim preparation requires a positive unlocked amount", %{actor: actor} do
+  test "claim preparation requires a positive unlocked amount", %{opts: opts} do
     Process.put(:claimable_raw, "0")
-    assert {:error, _} = Redemption.prepare_claim(@wallet, actor: actor)
+    assert {:error, _} = Redemption.prepare_claim(@wallet, opts)
 
     Process.put(:claimable_raw, "1")
-    assert {:ok, %{action: "claim"}} = Redemption.prepare_claim(@wallet, actor: actor)
+    assert {:ok, %{action: "claim"}} = Redemption.prepare_claim(@wallet, opts)
   end
 
   test "confirmation accepts an expired submitted action but rejects signed-field drift", %{
-    actor: actor
+    opts: opts
   } do
-    assert {:ok, envelope} = Redemption.prepare_claim(@wallet, actor: actor)
+    assert {:ok, envelope} = Redemption.prepare_claim(@wallet, opts)
     hash = "0x" <> String.duplicate("ab", 32)
 
+    # The dispatch is claimed before the wallet opens, exactly as the shell does,
+    # so confirmation runs against a dispatched operation.
+    {:ok, _claimed} = Redemption.claim_wallet_dispatch(envelope.action_id, opts)
+
     assert {:ok, %{transaction_hash: ^hash, receipt_verified: true}} =
-             Redemption.confirm_wallet_action(envelope, hash, actor: actor)
+             Redemption.confirm_wallet_action(envelope, hash, opts)
 
     assert_receive {:confirm, ^envelope, ^hash}
 
@@ -209,9 +216,7 @@ defmodule AshPlatform.RedemptionTest do
            )
 
     assert {:error, _} =
-             Redemption.confirm_wallet_action(%{envelope | data: "0xdeadbeef"}, hash,
-               actor: actor
-             )
+             Redemption.confirm_wallet_action(%{envelope | data: "0xdeadbeef"}, hash, opts)
 
     refute_receive {:confirm, _, _}
   end

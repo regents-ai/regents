@@ -3,7 +3,7 @@ import {encodeFunctionData, getAddress, parseAbi, type Address, type Hash} from 
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../contracts/abi/animata-redeemer.json"
-import {recordSubmittedRedemption} from "../js/hooks/redemption_wallet"
+import {recordSubmittedRedemption, userRejected} from "../js/hooks/redemption_wallet"
 import {
   assertRedemptionEnvelope,
   executePreparedRedemptionAction,
@@ -176,5 +176,19 @@ describe("prepared Animata redemption actions", () => {
     expect(push).toHaveBeenCalledOnce()
     expect(stored.transaction_hash).toBe(hash)
     expect(stored.envelope.action_id).toBe("action")
+  })
+})
+
+describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
+  it("recognises the exact EIP-1193 rejection code however viem wrapped it", () => {
+    expect(userRejected({code: 4001})).toBe(true)
+    expect(userRejected({cause: {cause: {code: 4001}}})).toBe(true)
+  })
+
+  it("treats every other failure as uncertainty rather than a rejection", () => {
+    expect(userRejected(new Error("User rejected the request."))).toBe(false)
+    expect(userRejected({code: -32603})).toBe(false)
+    expect(userRejected({code: "4001"})).toBe(false)
+    expect(userRejected(null)).toBe(false)
   })
 })

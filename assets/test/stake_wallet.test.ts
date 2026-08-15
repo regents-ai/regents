@@ -6,7 +6,7 @@ import {
   type PreparedStakingAction,
   type StakingClients,
 } from "../js/wallet_actions/staking"
-import {recordSubmittedAction} from "../js/hooks/stake_wallet"
+import {recordSubmittedAction, userRejected} from "../js/hooks/stake_wallet"
 
 const wallet = "0x1111111111111111111111111111111111111111" as Address
 const staking = "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5" as Address
@@ -191,5 +191,31 @@ describe("staking wallet action", () => {
         clients({receipt: vi.fn(async () => ({status: "reverted" as const}))}),
       ),
     ).rejects.toThrow("staking transaction was reverted")
+  })
+})
+
+describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
+  it("recognises the exact EIP-1193 rejection code however viem wrapped it", () => {
+    expect(userRejected({code: 4001})).toBe(true)
+    expect(userRejected({cause: {code: 4001}})).toBe(true)
+    expect(userRejected({cause: {cause: {name: "UserRejectedRequestError", code: 4001}}})).toBe(true)
+  })
+
+  it("treats every other failure as uncertainty rather than a rejection", () => {
+    // Message text is never authority, and neither is a near-miss code.
+    expect(userRejected(new Error("User rejected the request."))).toBe(false)
+    expect(userRejected({message: "user rejected"})).toBe(false)
+    expect(userRejected({code: -32603})).toBe(false)
+    expect(userRejected({code: "4001"})).toBe(false)
+    expect(userRejected({code: 4100})).toBe(false)
+    expect(userRejected(undefined)).toBe(false)
+    expect(userRejected(null)).toBe(false)
+  })
+
+  it("terminates on a cyclic error chain instead of hanging", () => {
+    const cyclic: {code: number; cause?: unknown} = {code: -1}
+    cyclic.cause = cyclic
+
+    expect(userRejected(cyclic)).toBe(false)
   })
 })

@@ -4,8 +4,9 @@ defmodule AshPlatform.Staking.Actions do
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.Human
   alias AshPlatform.Staking.ChainClient
-  alias AshPlatform.WalletActions.{Abi, Envelope}
+  alias AshPlatform.WalletActions.{Abi, Envelope, StakeRedeemOperations}
 
+  @capability :stake
   @resource "regent_staking"
   @contract_name "RegentRevenueStaking"
   @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
@@ -31,52 +32,51 @@ defmodule AshPlatform.Staking.Actions do
 
   def account(_input, _context), do: {:error, :authentication_required}
 
-  def prepare(action, input, %{actor: %Human{} = actor}) do
+  # The provider reads happen here, before the lease transaction; only the
+  # resulting operation row is written inside it.
+  def prepare(action, input, %{actor: %Human{} = actor} = context) do
     signer = input.arguments.expected_signer
 
     with {:ok, signer} <- normalize_address(signer),
          :ok <- verified_wallet(actor, signer),
          :ok <- ensure_funded(action, signer),
-         {:ok, data, approval, arguments} <- calldata(action, input.arguments, signer) do
-      {:ok,
-       Envelope.new(action, signer, data,
-         to: Abi.staking_address(),
-         resource: @resource,
-         contract_name: @contract_name,
-         risk_copy: Map.fetch!(@risk, action),
-         approval: approval,
-         arguments: arguments
-       )}
+         {:ok, data, approval, arguments} <- calldata(action, input.arguments, signer),
+         {:ok, lease} <- StakeRedeemOperations.lease(context),
+         envelope <-
+           Envelope.new(action, signer, data,
+             to: Abi.staking_address(),
+             resource: @resource,
+             contract_name: @contract_name,
+             risk_copy: Map.fetch!(@risk, action),
+             approval: approval,
+             arguments: arguments
+           ),
+         {:ok, _operation} <- StakeRedeemOperations.prepare(lease, @capability, envelope) do
+      {:ok, envelope}
     end
   end
 
   def prepare(_action, _input, _context), do: {:error, :authentication_required}
 
-  def confirm(input, %{actor: %Human{} = actor}) do
+  def confirm(input, %{actor: %Human{} = actor} = context) do
     envelope = atomize_envelope(input.arguments.envelope)
 
     with true <- valid_for_confirmation?(envelope),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      case ChainClient.module().confirm(
-             envelope,
-             input.arguments.transaction_hash,
-             input.arguments.approval_transaction_hash
+         :ok <- verified_wallet(actor, envelope.expected_signer),
+         {:ok, lease} <- StakeRedeemOperations.lease(context),
+         # Confirmation and every retry run against the stored submitted
+         # identity: an exact replay passes, a different hash is refused.
+         {:ok, _identity} <-
+           StakeRedeemOperations.bind_hash(
+             lease,
+             @capability,
+             envelope.action_id,
+             :action,
+             input.arguments.transaction_hash
            ) do
-        {:ok, result} ->
-          {:ok, result}
-
-        {:error, :transaction_reverted} ->
-          {:ok,
-           %{
-             transaction_hash: input.arguments.transaction_hash,
-             receipt_verified: true,
-             transaction_reverted: true,
-             staking: nil
-           }}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      envelope
+      |> chain_confirm(input.arguments)
+      |> record_action_outcome(lease, envelope, input.arguments.transaction_hash)
     else
       false -> {:error, :stale_or_invalid_action}
       {:error, reason} -> {:error, reason}
@@ -84,6 +84,124 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   def confirm(_input, _context), do: {:error, :authentication_required}
+
+  defp chain_confirm(envelope, arguments) do
+    ChainClient.module().confirm(
+      envelope,
+      arguments.transaction_hash,
+      arguments.approval_transaction_hash
+    )
+  end
+
+  # Receipt and reread are recorded as they become known. Only their agreement
+  # reaches the terminal `:confirmed` state.
+  defp record_action_outcome({:ok, %{reread_verified: true} = result}, lease, envelope, _hash) do
+    with {:ok, _receipt} <- record_receipt(lease, envelope, :action),
+         {:ok, _confirmed} <-
+           StakeRedeemOperations.confirm(lease, @capability, envelope.action_id) do
+      {:ok, result}
+    end
+  end
+
+  defp record_action_outcome({:ok, result}, lease, envelope, _hash) do
+    with {:ok, _receipt} <- record_receipt(lease, envelope, :action), do: {:ok, result}
+  end
+
+  defp record_action_outcome({:error, :transaction_reverted}, lease, envelope, hash) do
+    with {:ok, _reverted} <-
+           StakeRedeemOperations.record_revert(
+             lease,
+             @capability,
+             envelope.action_id,
+             :action,
+             "verified revert on Base"
+           ) do
+      {:ok,
+       %{
+         transaction_hash: hash,
+         receipt_verified: true,
+         transaction_reverted: true,
+         reread_verified: false,
+         staking: nil
+       }}
+    end
+  end
+
+  defp record_action_outcome({:error, reason}, _lease, _envelope, _hash), do: {:error, reason}
+
+  defp record_receipt(lease, envelope, phase),
+    do: StakeRedeemOperations.record_receipt(lease, @capability, envelope.action_id, phase)
+
+  @doc false
+  def claim_dispatch(input, context) do
+    operate(
+      context,
+      &StakeRedeemOperations.claim_dispatch(
+        &1,
+        @capability,
+        input.arguments.action_id,
+        input.arguments.phase
+      )
+    )
+  end
+
+  @doc false
+  def bind_hash(input, context) do
+    operate(
+      context,
+      &StakeRedeemOperations.bind_hash(
+        &1,
+        @capability,
+        input.arguments.action_id,
+        input.arguments.phase,
+        input.arguments.transaction_hash
+      )
+    )
+  end
+
+  @doc false
+  def close_not_sent(input, context) do
+    operate(
+      context,
+      &StakeRedeemOperations.close_not_sent(
+        &1,
+        @capability,
+        input.arguments.action_id,
+        input.arguments.phase,
+        "wallet reported an explicit user rejection"
+      )
+    )
+  end
+
+  @doc false
+  def cancel_operation(input, context) do
+    operate(
+      context,
+      &StakeRedeemOperations.cancel(
+        &1,
+        @capability,
+        input.arguments.action_id,
+        "review withdrawn before dispatch"
+      )
+    )
+  end
+
+  @doc false
+  def active_operation(_input, %{actor: %Human{} = actor}) do
+    with {:ok, operation} <- StakeRedeemOperations.active(actor.human_account_id, @capability),
+         do: {:ok, %{operation: StakeRedeemOperations.view(operation)}}
+  end
+
+  def active_operation(_input, _context), do: {:error, :authentication_required}
+
+  defp operate(%{actor: %Human{}} = context, transition) do
+    with {:ok, lease} <- StakeRedeemOperations.lease(context),
+         {:ok, operation} <- transition.(lease) do
+      {:ok, %{operation: StakeRedeemOperations.view(operation)}}
+    end
+  end
+
+  defp operate(_context, _transition), do: {:error, :authentication_required}
 
   def restore(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
@@ -98,18 +216,46 @@ defmodule AshPlatform.Staking.Actions do
 
   def restore(_input, _context), do: {:error, :authentication_required}
 
-  def approval_status(input, %{actor: %Human{} = actor}) do
+  def approval_status(input, %{actor: %Human{} = actor} = context) do
     envelope = atomize_envelope(input.arguments.envelope)
 
     with true <- valid_for_confirmation?(envelope),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      ChainClient.module().approval_status(envelope, input.arguments.transaction_hash)
+         :ok <- verified_wallet(actor, envelope.expected_signer),
+         {:ok, lease} <- StakeRedeemOperations.lease(context),
+         {:ok, status} <-
+           ChainClient.module().approval_status(envelope, input.arguments.transaction_hash) do
+      record_approval_outcome(status, lease, envelope)
     else
       _ -> {:error, :invalid_submitted_action}
     end
   end
 
   def approval_status(_input, _context), do: {:error, :authentication_required}
+
+  # `:success` already means receipt plus the exact allowance, so it is the only
+  # status that may complete the approval phase.
+  defp record_approval_outcome(:success, lease, envelope) do
+    with {:ok, _receipt} <- record_receipt(lease, envelope, :approval),
+         {:ok, _verified} <-
+           StakeRedeemOperations.verify_approval(lease, @capability, envelope.action_id) do
+      {:ok, :success}
+    end
+  end
+
+  defp record_approval_outcome(:reverted, lease, envelope) do
+    with {:ok, _reverted} <-
+           StakeRedeemOperations.record_revert(
+             lease,
+             @capability,
+             envelope.action_id,
+             :approval,
+             "verified approval revert on Base"
+           ) do
+      {:ok, :reverted}
+    end
+  end
+
+  defp record_approval_outcome(status, _lease, _envelope), do: {:ok, status}
 
   defp calldata("stake", arguments, signer) do
     with {:ok, amount} <- parse_amount(arguments.amount) do

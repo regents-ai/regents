@@ -43,6 +43,8 @@ export const StakeWallet: Hook = {
       const envelope = prepared.envelope
       if (inFlightActionIds.has(envelope.action_id)) return
       inFlightActionIds.add(envelope.action_id)
+      const phase: "approval" | "action" =
+        envelope.approval && !prepared.approval_transaction_hash ? "approval" : "action"
       this.el.dataset.walletActionPending = "true"
       this.el
         .querySelectorAll<HTMLButtonElement>("[phx-click='sign_prepared_staking']")
@@ -101,6 +103,13 @@ export const StakeWallet: Hook = {
             })
           }
         }
+        if (userRejected(error) && !submittedHash(currentSubmission, phase)) {
+          this.pushEvent("staking_wallet_rejected", {
+            action_id: envelope.action_id,
+            phase,
+            code: 4001,
+          })
+        }
         const message = error instanceof Error ? error.message : "The wallet action could not be completed."
         this.pushEvent("staking_wallet_failed", {message})
       } finally {
@@ -132,6 +141,30 @@ export function recordSubmittedAction(
     // The connected LiveView already has the hash; persistence is only refresh recovery.
   }
   return stored
+}
+
+/**
+ * The exact EIP-1193 user-rejection code, walked out of whatever wrapper viem
+ * put around it. Message text is never authority, so nothing else qualifies.
+ */
+export function userRejected(error: unknown): boolean {
+  const seen = new Set<unknown>()
+  let current: unknown = error
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current)
+    if ((current as {code?: unknown}).code === 4001) return true
+    current = (current as {cause?: unknown}).cause
+  }
+
+  return false
+}
+
+function submittedHash(
+  submission: StoredSubmission | null,
+  phase: "approval" | "action",
+): `0x${string}` | undefined {
+  return phase === "approval" ? submission?.approval_transaction_hash : submission?.transaction_hash
 }
 
 function readStoredSubmission(): StoredSubmission | null {

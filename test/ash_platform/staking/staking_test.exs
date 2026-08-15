@@ -41,7 +41,16 @@ defmodule AshPlatform.StakingTest do
       send(self_or_test(), {:confirm, envelope, hash, approval_hash})
 
       overview(envelope.expected_signer)
-      |> then(fn {:ok, staking} -> {:ok, %{transaction_hash: hash, staking: staking}} end)
+      |> then(fn {:ok, staking} ->
+        {:ok,
+         %{
+           transaction_hash: hash,
+           receipt_verified: true,
+           reread_verified: true,
+           staking: staking,
+           reason: nil
+         }}
+      end)
     end
 
     @impl true
@@ -67,7 +76,9 @@ defmodule AshPlatform.StakingTest do
     {:ok, account} =
       Accounts.register_verified("did:privy:staking", @wallet, [@wallet], actor: %System{})
 
-    %{actor: %Human{human_account_id: account.id}}
+    # Preparation and confirmation are protected writes, so the test carries the
+    # same mounted lease a connected socket proves rather than a bare actor.
+    %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
   end
 
   test "public overview reads chain truth without a wallet" do
@@ -81,8 +92,8 @@ defmodule AshPlatform.StakingTest do
     assert {:error, _error} = Staking.account()
   end
 
-  test "stake preparation binds signer, exact approval and ABI calldata", %{actor: actor} do
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.5", actor: actor)
+  test "stake preparation binds signer, exact approval and ABI calldata", %{opts: opts} do
+    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.5", opts)
 
     assert envelope.chain_id == 8453
     assert envelope.to == "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
@@ -105,47 +116,47 @@ defmodule AshPlatform.StakingTest do
     assert Envelope.valid?(envelope)
   end
 
-  test "the remaining four preparations use only the connected wallet", %{actor: actor} do
-    assert {:ok, unstake} = Staking.prepare_unstake(@wallet, "2", actor: actor)
+  test "the remaining four preparations use only the connected wallet", %{opts: opts} do
+    assert {:ok, unstake} = Staking.prepare_unstake(@wallet, "2", opts)
     assert String.starts_with?(unstake.data, "0x8381e182")
 
-    assert {:ok, usdc} = Staking.prepare_claim_usdc(@wallet, actor: actor)
+    assert {:ok, usdc} = Staking.prepare_claim_usdc(@wallet, opts)
     assert String.starts_with?(usdc.data, "0x42852610")
 
-    assert {:ok, regent} = Staking.prepare_claim_regent(@wallet, actor: actor)
+    assert {:ok, regent} = Staking.prepare_claim_regent(@wallet, opts)
     assert String.starts_with?(regent.data, "0x739c8d0d")
 
-    assert {:ok, restake} = Staking.prepare_claim_and_restake_regent(@wallet, actor: actor)
+    assert {:ok, restake} = Staking.prepare_claim_and_restake_regent(@wallet, opts)
     assert restake.data == "0xe72a8732"
     assert restake.risk_copy =~ "only when you choose"
   end
 
-  test "wrong signer and invalid amounts fail closed", %{actor: actor} do
-    assert {:error, _error} = Staking.prepare_stake(@other, "1", actor: actor)
-    assert {:error, _error} = Staking.prepare_stake(@wallet, "0", actor: actor)
-
-    assert {:error, _error} =
-             Staking.prepare_stake(@wallet, "1.0000000000000000001", actor: actor)
+  test "wrong signer and invalid amounts fail closed", %{opts: opts} do
+    assert {:error, _error} = Staking.prepare_stake(@other, "1", opts)
+    assert {:error, _error} = Staking.prepare_stake(@wallet, "0", opts)
+    assert {:error, _error} = Staking.prepare_stake(@wallet, "1.0000000000000000001", opts)
   end
 
   test "earned REGENT cannot be claimed or reinvested while reward inventory is unfunded", %{
-    actor: actor
+    opts: opts
   } do
     Process.put(:funded_regent_raw, "0")
 
-    assert {:error, _error} = Staking.prepare_claim_regent(@wallet, actor: actor)
-    assert {:error, _error} = Staking.prepare_claim_and_restake_regent(@wallet, actor: actor)
+    assert {:error, _error} = Staking.prepare_claim_regent(@wallet, opts)
+    assert {:error, _error} = Staking.prepare_claim_and_restake_regent(@wallet, opts)
     Process.delete(:funded_regent_raw)
   end
 
-  test "confirmation accepts an expired submitted envelope but refuses any drift", %{
-    actor: actor
-  } do
-    {:ok, envelope} = Staking.prepare_claim_usdc(@wallet, actor: actor)
+  test "confirmation accepts an expired submitted envelope but refuses any drift", %{opts: opts} do
+    {:ok, envelope} = Staking.prepare_claim_usdc(@wallet, opts)
     hash = "0x" <> String.duplicate("ab", 32)
 
+    # The action phase is claimed before the wallet opens, exactly as the shell
+    # does, so confirmation runs against a dispatched operation.
+    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope.action_id, :action, opts)
+
     assert {:ok, %{transaction_hash: ^hash, staking: %{wallet_address: @wallet}}} =
-             Staking.confirm_wallet_action(envelope, hash, nil, actor: actor)
+             Staking.confirm_wallet_action(envelope, hash, nil, opts)
 
     assert_receive {:confirm, ^envelope, ^hash, nil}
 
@@ -160,14 +171,12 @@ defmodule AshPlatform.StakingTest do
     assert Envelope.valid_for_confirmation?(envelope)
 
     assert {:ok, %{transaction_hash: ^hash}} =
-             Staking.confirm_wallet_action(envelope, hash, nil, actor: actor)
+             Staking.confirm_wallet_action(envelope, hash, nil, opts)
 
     assert_receive {:confirm, ^envelope, ^hash, nil}
 
     assert {:error, _error} =
-             Staking.confirm_wallet_action(%{envelope | data: "0xdeadbeef"}, hash, nil,
-               actor: actor
-             )
+             Staking.confirm_wallet_action(%{envelope | data: "0xdeadbeef"}, hash, nil, opts)
 
     refute_receive {:confirm, _, _, _}
   end

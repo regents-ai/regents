@@ -2,7 +2,7 @@ defmodule AshPlatform.Redemption.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Redemption.ChainClient
 
-  alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi, Rpc}
+  alias AshPlatform.WalletActions.{Abi, Address, Envelope, RedemptionAbi, Rpc}
 
   @chain_id 8453
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
@@ -231,42 +231,93 @@ defmodule AshPlatform.Redemption.RpcClient do
     }
   end
 
+  # The receipt and the authoritative reread stay separate facts, and the reread
+  # counts only when this action's own postcondition holds on the current state.
   defp confirmation_result(envelope, transaction_hash) do
     collection = field(envelope.arguments, :collection)
     token_id = field(envelope.arguments, :token_id)
 
     case overview(envelope.expected_signer, collection, token_id) do
       {:ok, refreshed} ->
-        refresh_error = postcondition(envelope.action, refreshed)
-
-        {:ok,
-         %{
-           transaction_hash: String.downcase(transaction_hash),
-           receipt_verified: true,
-           redemption: refreshed,
-           refresh_error: refresh_error
-         }}
+        {:ok, reread(transaction_hash, refreshed, postcondition(envelope, refreshed))}
 
       {:error, reason} ->
         {:ok,
          %{
            transaction_hash: String.downcase(transaction_hash),
            receipt_verified: true,
+           reread_verified: false,
            redemption: nil,
-           refresh_error: reason
+           reason: reason
          }}
     end
   end
 
-  defp postcondition("approve_nft_collection", %{nft_approved: true}), do: nil
+  defp reread(transaction_hash, refreshed, :ok),
+    do: %{
+      transaction_hash: String.downcase(transaction_hash),
+      receipt_verified: true,
+      reread_verified: true,
+      redemption: refreshed,
+      reason: nil
+    }
 
-  defp postcondition("approve_exact_usdc", %{usdc_allowance_raw: amount})
-       when amount == "80000000",
-       do: nil
+  defp reread(transaction_hash, refreshed, {:error, reason}),
+    do: %{
+      transaction_hash: String.downcase(transaction_hash),
+      receipt_verified: true,
+      reread_verified: false,
+      redemption: refreshed,
+      reason: reason
+    }
 
-  defp postcondition("redeem", %{result_token_id: token_id}) when is_integer(token_id), do: nil
-  defp postcondition("claim", _refreshed), do: nil
-  defp postcondition(_action, _refreshed), do: :chain_state_not_refreshed
+  # Each postcondition is the exact intent of the prepared envelope read back off
+  # the chain, never a repeated literal.
+  defp postcondition(
+         %{action: "approve_nft_collection", arguments: arguments, expected_signer: signer},
+         refreshed
+       ) do
+    with true <- refreshed.nft_approved == true,
+         true <- Address.equal?(refreshed.selected_collection, field(arguments, :collection)),
+         true <- Address.equal?(refreshed.wallet_address, signer) do
+      :ok
+    else
+      _stale -> {:error, :nft_approval_not_current}
+    end
+  end
+
+  defp postcondition(
+         %{
+           action: "approve_exact_usdc",
+           arguments: arguments,
+           expected_signer: signer,
+           to: token
+         },
+         refreshed
+       ) do
+    with true <- refreshed.usdc_allowance_raw == field(arguments, :amount_atomic),
+         true <- Address.equal?(refreshed.usdc_address, token),
+         true <- Address.equal?(refreshed.wallet_address, signer) do
+      :ok
+    else
+      _stale -> {:error, :usdc_allowance_not_current}
+    end
+  end
+
+  defp postcondition(%{action: "redeem"}, %{result_token_id: token_id})
+       when is_integer(token_id),
+       do: :ok
+
+  defp postcondition(%{action: "redeem"}, _refreshed), do: {:error, :result_token_not_visible}
+
+  defp postcondition(%{action: "claim"}, refreshed) do
+    if Enum.all?(
+         [:claimable_raw, :vest_pool_raw, :vest_released_raw, :vest_claimed_raw, :vest_start],
+         &(not is_nil(Map.fetch!(refreshed, &1)))
+       ),
+       do: :ok,
+       else: {:error, :vest_snapshot_not_current}
+  end
 
   defp verify_constants(
          animata_i,

@@ -9,6 +9,7 @@ defmodule AshPlatformWeb.SessionAuthorityHelpers do
   """
 
   alias AshPlatform.Accounts.SessionAuthority
+  alias AshPlatform.Actors.Human
 
   @doc "A test connection that reaches a connected mount the way a browser does."
   def build_conn, do: connects_with_own_cookie(Phoenix.ConnTest.build_conn())
@@ -31,6 +32,25 @@ defmodule AshPlatformWeb.SessionAuthorityHelpers do
     {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account_id)
     SessionAuthority.session(claim)
   end
+
+  @doc """
+  The mounted lease a connected socket for `account_id` proves.
+
+  Every protected Stake and Redeem write runs inside this lease, so a test that
+  drives those flows directly mints the same authority a connected mount would
+  rather than writing without one.
+  """
+  def current_lease(account_id) do
+    {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account_id)
+    %{lineage: claim.lineage, account_id: account_id}
+  end
+
+  @doc "Action options carrying the Human actor and that account's current lease."
+  def leased(account_id),
+    do: [
+      actor: %Human{human_account_id: account_id},
+      context: %{session_lease: current_lease(account_id)}
+    ]
 
   # The websocket transport hands a connected mount a plain map of connect info,
   # while the test transport defaults to the whole `Plug.Conn`. The map shape lets

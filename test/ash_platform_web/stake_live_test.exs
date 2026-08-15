@@ -2,7 +2,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.{Accounts, Staking}
-  alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Actors.System
 
   @wallet "0x1111111111111111111111111111111111111111"
   @tx_hash "0x" <> String.duplicate("ab", 32)
@@ -126,11 +126,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     action_id = prepared_action_id(render(view))
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "action",
-      "transaction_hash" => @tx_hash
-    })
+    submit_action(view, action_id)
 
     render_hook(view, "confirm_staking", %{
       "action_id" => action_id,
@@ -159,11 +155,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     action_id = prepared_action_id(render(view))
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "approval",
-      "transaction_hash" => @approval_hash
-    })
+    submit_approval(view, action_id)
 
     render_async(view)
     assert render(view) =~ "Continue after approval"
@@ -205,11 +197,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     action_id = prepared_action_id(render(view))
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "approval",
-      "transaction_hash" => @approval_hash
-    })
+    submit_approval(view, action_id)
 
     assert render_async(view) =~ "REGENT approval confirmed"
     send(view.pid, {:staking_envelope_expired, action_id})
@@ -242,11 +230,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     action_id = prepared_action_id(render(view))
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "approval",
-      "transaction_hash" => @approval_hash
-    })
+    submit_approval(view, action_id)
 
     render_async(view)
     view |> element(~s(button[phx-click="abandon_staking_approval"])) |> render_click()
@@ -267,8 +251,16 @@ defmodule AshPlatformWeb.StakeLiveTest do
     {:ok, account} =
       Accounts.register_verified("did:privy:stake-expired", @wallet, [@wallet], actor: %System{})
 
-    actor = %Human{human_account_id: account.id}
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1", actor: actor)
+    # The durable operation, not browser storage, carries the submitted approval
+    # across the restart, so the restore is set up through the same domain the
+    # shell uses.
+    opts = leased(account.id)
+    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1", opts)
+    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope.action_id, :approval, opts)
+
+    {:ok, _bound} =
+      Staking.bind_submitted_hash(envelope.action_id, :approval, @approval_hash, opts)
+
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end)
 
     {:ok, view, _html} =
@@ -277,11 +269,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
       |> live("/stake")
 
     render_async(view)
-
-    render_hook(view, "restore_staking_submission", %{
-      "envelope" => envelope,
-      "approval_transaction_hash" => @approval_hash
-    })
+    render_hook(view, "restore_staking_submission", %{})
 
     html = render(view)
     assert html =~ "approval review expired"
@@ -313,11 +301,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
     action_id = prepared_action_id(render(view))
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "action",
-      "transaction_hash" => @tx_hash
-    })
+    submit_action(view, action_id)
 
     render_hook(view, "abandon_staking_approval", %{})
 
@@ -368,6 +352,31 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp prepared_action_id(html) do
     [id] = Regex.run(~r/phx-value-action-id="([a-f0-9]+)"/, html, capture: :all_but_first)
     id
+  end
+
+  # The shell claims each dispatch before the wallet opens, so a submitted hash
+  # only ever arrives for a phase the database already granted.
+  defp sign(view, action_id),
+    do: render_hook(view, "sign_prepared_staking", %{"action-id" => action_id})
+
+  defp submit(view, action_id, phase, hash) do
+    render_hook(view, "staking_submitted", %{
+      "action_id" => action_id,
+      "phase" => phase,
+      "transaction_hash" => hash
+    })
+  end
+
+  defp submit_approval(view, action_id) do
+    sign(view, action_id)
+    submit(view, action_id, "approval", @approval_hash)
+  end
+
+  defp submit_action(view, action_id) do
+    submit_approval(view, action_id)
+    render_async(view)
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
   end
 
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)
