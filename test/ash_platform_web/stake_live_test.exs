@@ -419,6 +419,32 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ "does not match the reviewed action"
   end
 
+  test "REJECTION_WRITES_NOTHING: a newline-padded submitted hash reaches neither the shell nor the row",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:stake-malformed", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    render_async(view)
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+
+    submit(view, action_id, "approval", "0x" <> String.duplicate("a", 63) <> "\n")
+
+    refute has_element?(view, ".stake-submission")
+
+    assert {:ok, %{state: :approval_dispatched, approval_transaction_hash: nil}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
   test "a late confirmation from a departed route is ignored" do
     route_spec = AshPlatformWeb.RouteCatalog.fetch!(:techtree, %{})
 

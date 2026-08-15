@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   alias AshPlatform.{Accounts, Redemption}
   alias AshPlatform.Actors.System
+  alias AshPlatform.WalletActions.StakeRedeemOperations
 
   @wallet "0x1111111111111111111111111111111111111111"
   @tx_hash "0x" <> String.duplicate("ab", 32)
@@ -270,6 +271,30 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute html =~ "Check the wallet and selection"
   end
 
+  test "REJECTION_WRITES_NOTHING: a newline-padded submitted hash reaches neither the shell nor the row",
+       %{conn: conn} do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:redeem-malformed", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    render_async(view)
+    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    action_id = prepared_action_id(render(view))
+
+    submit(view, action_id, "0x" <> String.duplicate("a", 63) <> "\n")
+
+    refute has_element?(view, ".redeem-submission")
+
+    assert {:ok, %{state: :action_dispatched, action_transaction_hash: nil}} =
+             StakeRedeemOperations.active(account.id, :redeem)
+  end
+
   test "U6_INLINE_SIGN_IN: the signed-out branch offers the existing sign-in bridge target", %{
     conn: conn
   } do
@@ -406,12 +431,12 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   # The shell claims the dispatch before the wallet opens, so a submitted hash
   # only ever arrives for a dispatch the database already granted.
-  defp submit(view, action_id) do
+  defp submit(view, action_id, hash \\ @tx_hash) do
     render_hook(view, "sign_prepared_redemption", %{"action-id" => action_id})
 
     render_hook(view, "redemption_submitted", %{
       "action_id" => action_id,
-      "transaction_hash" => @tx_hash
+      "transaction_hash" => hash
     })
   end
 

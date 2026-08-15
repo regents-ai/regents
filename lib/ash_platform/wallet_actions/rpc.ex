@@ -114,8 +114,10 @@ defmodule AshPlatform.WalletActions.Rpc do
     |> Decimal.to_string(:normal)
   end
 
+  # `\z` and not `$`: `$` also matches before a trailing newline, which let
+  # "0x" <> 63 hex <> "\n" pass the 64-byte guard as a canonical hash.
   def valid_hash?("0x" <> hash),
-    do: byte_size(hash) == 64 and String.match?(hash, ~r/^[0-9a-fA-F]+$/)
+    do: byte_size(hash) == 64 and String.match?(hash, ~r/^[0-9a-fA-F]+\z/)
 
   def valid_hash?(_hash), do: false
 

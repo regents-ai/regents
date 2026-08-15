@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.Actors.Human
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
-  alias AshPlatform.WalletActions.Envelope
+  alias AshPlatform.WalletActions.{Envelope, Rpc}
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.RegentOpsLive
@@ -3298,8 +3298,5 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp pending_submission?(_submission), do: false
 
-  defp valid_transaction_hash?("0x" <> hash),
-    do: byte_size(hash) == 64 and String.match?(hash, ~r/^[0-9a-fA-F]+$/)
-
-  defp valid_transaction_hash?(_hash), do: false
+  defp valid_transaction_hash?(hash), do: Rpc.valid_hash?(hash)
 end

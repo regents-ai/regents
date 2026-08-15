@@ -43,6 +43,30 @@ defmodule AshPlatform.WalletActions.RpcTest do
     on_exit(fn -> restore(:wallet_http_client, previous) end)
   end
 
+  test "ONE_EXACT_HASH_LANGUAGE: lowercase 0x and exactly 64 hexadecimal characters, nothing else" do
+    hex = String.duplicate("ab", 32)
+    truncated = "0x" <> String.duplicate("a", 63)
+
+    for canonical <- [@hash, "0x" <> String.upcase(hex), "0x" <> String.duplicate("aB", 32)],
+        do: assert(Rpc.valid_hash?(canonical), "#{inspect(canonical)} is canonical")
+
+    for malformed <- [
+          truncated <> "\n",
+          "0x" <> hex <> "\n",
+          truncated <> " ",
+          truncated <> "\t",
+          truncated,
+          "0x" <> hex <> "a",
+          "0x" <> String.duplicate("g", 64),
+          "0X" <> hex,
+          "",
+          nil,
+          :hash,
+          String.to_charlist(@hash)
+        ],
+        do: refute(Rpc.valid_hash?(malformed), "#{inspect(malformed)} is not canonical")
+  end
+
   test "uses the generic wallet client by default" do
     assert :ok = Rpc.verify_base_chain()
     assert_received {:wallet_http_client, %{method: "eth_chainId"}}

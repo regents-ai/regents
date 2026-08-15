@@ -119,6 +119,29 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:error, :invalid_hash} = bind(lease, envelope, :action, "0xnope")
   end
 
+  test "REJECTION_WRITES_NOTHING: a malformed hash leaves the claimed dispatch exactly as it was" do
+    {account, lease, envelope} = prepared("malformed-hash")
+
+    assert {:ok, claimed} = claim(lease, envelope, :action)
+    assert claimed.state == :action_dispatched
+
+    assert {:error, :invalid_hash} =
+             bind(lease, envelope, :action, "0x" <> String.duplicate("a", 63) <> "\n")
+
+    assert {:error, :invalid_hash} =
+             bind(lease, envelope, :action, "0X" <> String.duplicate("ab", 32))
+
+    assert {:ok,
+            %{
+              state: :action_dispatched,
+              approval_transaction_hash: nil,
+              action_transaction_hash: nil,
+              action_receipt_at: nil,
+              action_reread_at: nil,
+              terminal_at: nil
+            }} = active(account.id)
+  end
+
   test "RECEIPT_AND_REREAD_BOTH_REQUIRED: a receipt without a reread never reaches confirmed" do
     {_account, lease, envelope} = prepared("receipt-only")
 
