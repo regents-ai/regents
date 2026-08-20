@@ -229,6 +229,37 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     assert_push_event(view, "autolaunch-bid:operation", %{terminal: true})
   end
 
+  test "ONLY_A_PROVEN_MISS_SAYS_NOTHING_WAS_SENT: each reported reason gets its own copy", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+    claim(view, action_id)
+
+    # The wallet may already hold this transaction, so nothing here may invite a
+    # retry or claim the send failed.
+    failed(view, "send_unconfirmed")
+
+    assert render(view) =~
+             "Your wallet may have sent this transaction. Check your wallet activity before you start another bid."
+
+    refute render(view) =~ "That did not go through"
+
+    # The wallet was never reachable to be asked, which is the one reason that
+    # proves nothing was sent.
+    failed(view, "wallet_unavailable")
+
+    assert render(view) =~
+             "Open the wallet you are bidding from, then try again. Nothing was sent."
+
+    failed(view, "unknown")
+
+    page = render(view)
+    assert page =~ "That did not go through. Try again in a moment."
+    refute page =~ "Nothing was sent"
+  end
+
   test "RELOAD_RECOVERS_THE_ROW: a stale browser hint restores nothing", %{
     conn: conn,
     auction: auction
@@ -267,6 +298,9 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
 
     view
   end
+
+  defp failed(view, reason),
+    do: render_hook(element(view, @panel), "bid_wallet_failed", %{"reason" => reason})
 
   defp claim(view, action_id),
     do: render_hook(element(view, @panel), "sign_bid_step", %{"action-id" => action_id})

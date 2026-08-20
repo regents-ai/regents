@@ -20,8 +20,6 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   @chain_id 8453
 
-  # Only a fact that proves the wallet was never asked to send may say nothing
-  # was sent. Everything else leaves the question open and says so.
   @copy %{
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
@@ -35,10 +33,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
     invalid_price: "Enter a maximum price above zero.",
     invalid_decimal: "Enter a maximum price above zero.",
     submitted_hash_conflict: "This step already has a transaction.",
-    submitted_step_mismatch: "That transaction is not the step this bid is waiting for.",
-    wallet_unavailable: "Open the wallet you are bidding from, then try again. Nothing was sent.",
-    send_unconfirmed:
-      "Your wallet may have sent this transaction. Check your wallet activity before you start another bid."
+    submitted_step_mismatch: "That transaction is not the step this bid is waiting for."
   }
 
   @generic "That did not go through. Try again in a moment."
@@ -296,7 +291,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   def handle_event("bid_wallet_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: notice(:error, reason))}
+    do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
 
   attr :notice, :map, required: true
 
@@ -467,6 +462,18 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   defp settled_copy(:reverted), do: "This transaction reverted on Base."
   defp settled_copy(:unverified), do: "This transaction did not record the bid you reviewed."
+
+  # The browser reports a closed reason key as a string, never text of its own.
+  # Only a key that proves the wallet was never asked to send may say nothing
+  # was sent; everything else leaves the question open and says so.
+  defp wallet_failure_copy("wallet_unavailable"),
+    do: "Open the wallet you are bidding from, then try again. Nothing was sent."
+
+  defp wallet_failure_copy("send_unconfirmed"),
+    do:
+      "Your wallet may have sent this transaction. Check your wallet activity before you start another bid."
+
+  defp wallet_failure_copy(_unknown), do: @generic
 
   defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
 
