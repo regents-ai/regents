@@ -975,6 +975,50 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, %{action_id: ^action_id}} = StakeRedeemOperations.active(account.id, :stake)
   end
 
+  # An active wallet the account does not hold removes itself and shows nothing
+  # private, but it cannot end a request another wallet already opened: that
+  # wallet's own late hash still binds, exactly once.
+  test "P3_UNLINKED_WALLET_CANNOT_END_A_CLAIMED_REVIEW: the original wallet's late hash still binds",
+       %{conn: conn} do
+    account = register("stake-unlinked-claimed", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+
+    # Privy moves to a wallet that is connected here but not on this account.
+    render_hook(view, "staking_active_wallet", %{"address" => @unlinked})
+    render_async(view)
+    html = render_async(view)
+
+    assert html =~ "not one of the wallets on your Regent account"
+    assert html =~ "100 REGENT"
+    refute html =~ "Your stake"
+    refute has_element?(view, "#staking-amount")
+    refute has_element?(view, "[data-stake-confirm]")
+
+    # The wallet that opened the request reports its transaction.
+    submit(view, action_id, "approval", @approval_hash)
+
+    assert {:ok,
+            %{
+              action_id: ^action_id,
+              state: :approval_submitted,
+              approval_transaction_hash: @approval_hash
+            }} = StakeRedeemOperations.active(account.id, :stake)
+
+    render_async(view)
+    render_hook(view, "staking_amount_changed", %{"amount" => "9"})
+    render_click(view, "prepare_staking", %{"action" => "stake"})
+
+    refute_push_event(view, "staking:prepared", _)
+    assert {:ok, %{action_id: ^action_id}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
   # A read that failed is not a claim of nothing. Preparation says Base could not
   # be read, and no durable operation is created on that evidence.
   test "P5_UNAVAILABLE_IS_NOT_ZERO: a failed read refuses claims without calling them empty",

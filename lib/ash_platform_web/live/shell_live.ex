@@ -1977,8 +1977,10 @@ defmodule AshPlatformWeb.ShellLive do
   # wallet: the position waits, and everything durable stays exactly as it is.
   defp staking_read_failed(socket, :wrong_signer, generation) do
     socket
-    |> clear_staking_form()
+    |> drop_unlocked_review()
     |> assign(
+      staking_wallet: nil,
+      staking_amount: "",
       staking_notice: %{
         tone: :error,
         message:
@@ -1990,6 +1992,15 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp staking_read_failed(socket, _unavailable, _generation),
     do: assign(socket, staking: nil, staking_status: :error)
+
+  # An unlinked wallet removes itself, never a request another wallet already
+  # opened: only that wallet's own hash or rejection can end it.
+  defp drop_unlocked_review(socket) do
+    if staking_locked?(socket.assigns),
+      do: socket,
+      else:
+        assign(socket, staking_action: "stake", staking_prepared: nil, staking_submission: nil)
+  end
 
   # Before an active wallet is known the page shows only public chain truth; the
   # private position is read for that exact wallet and for nothing else.
