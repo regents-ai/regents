@@ -23,6 +23,50 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     defdelegate approval_current(envelope), to: TestRedemptionChainClient
   end
 
+  # A snapshot read the test holds open, so a proof can look at the page exactly
+  # while that read is in flight rather than waiting out a duration.
+  defmodule HeldSnapshot do
+    @moduledoc false
+    @behaviour AshPlatform.Redemption.ChainClient
+
+    @impl true
+    def overview(wallet, collection, token_id) do
+      send(
+        Application.fetch_env!(:ash_platform, :test_redemption_snapshot_gate),
+        {:reading, self()}
+      )
+
+      receive do
+        :release_redemption_snapshot ->
+          TestRedemptionChainClient.overview(wallet, collection, token_id)
+      after
+        5_000 -> {:error, :chain_unavailable}
+      end
+    end
+
+    @impl true
+    defdelegate confirm(envelope, transaction_hash), to: TestRedemptionChainClient
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestRedemptionChainClient
+  end
+
+  # A snapshot read that crashes rather than answering. It says nothing about
+  # Base at all, so a proof can tell a task exit from an unavailable read.
+  defmodule CrashingSnapshot do
+    @moduledoc false
+    @behaviour AshPlatform.Redemption.ChainClient
+
+    @impl true
+    def overview(_wallet, _collection, _token_id), do: exit(:redemption_snapshot_crashed)
+
+    @impl true
+    defdelegate confirm(envelope, transaction_hash), to: TestRedemptionChainClient
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestRedemptionChainClient
+  end
+
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
   @tx_hash "0x" <> String.duplicate("ab", 32)
@@ -37,7 +81,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
             :test_redemption_result_ready,
             :test_redemption_owner_unavailable,
             :test_redemption_nft_owner,
-            :test_redemption_approvals_current
+            :test_redemption_approvals_current,
+            :test_redemption_snapshot_gate
           ] do
         Application.delete_env(:ash_platform, key)
       end
@@ -327,6 +372,146 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert {:ok, nil} = StakeRedeemOperations.active(account.id, :redeem)
     refute has_element?(view, "[data-redeem-confirm]")
     refute has_element?(view, "[phx-click=prepare_redemption]")
+  end
+
+  # Retrying that read is read-only. While it keeps failing the verdict, its hash
+  # and the amount its own event recorded stay exactly where they are, and no
+  # wallet is asked for anything. Only a retry that answers dismisses them.
+  test "SETTLED_REDEMPTION_SURVIVES_A_RETRY: only a fresh snapshot dismisses a settled verdict",
+       %{conn: conn} do
+    account = register("redeem-settled-retry", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    unreadable_snapshot()
+    submit(view, action_id)
+    assert_push_event(view, "redemption:prepared", %{envelope: %{action: "claim"}})
+
+    render_async(view)
+    render_async(view)
+
+    # The read-only retry still cannot reach Base.
+    render_click(view, "refresh_redemption", %{})
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ "Claimed 1 REGENT."
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Redemption details are unavailable right now"
+
+    assert has_element?(
+             view,
+             ~s(.redeem-status button[phx-click="refresh_redemption"]),
+             "Try again"
+           )
+
+    refute has_element?(view, "[data-redeem-confirm]")
+    refute_push_event(view, "redemption:prepared", _)
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :redeem)
+
+    # The next retry answers, and only then is the settled proof dismissed and
+    # the ordinary selection surface returned.
+    readable_snapshot()
+    render_click(view, "refresh_redemption", %{})
+    html = render_async(view)
+
+    refute html =~ "Confirmed on Base"
+    refute html =~ "Claimed 1 REGENT."
+    refute html =~ short_hash(@tx_hash)
+    assert html =~ "Claimable REGENT"
+    assert has_element?(view, "#redemption-selection")
+  end
+
+  # Refresh reads Base once. While its own read is in flight the control is
+  # disabled and the event is refused, the page keeps everything it is already
+  # showing, and the control is handed back when that read answers.
+  test "REDEEM_REFRESH_HOLDS_ONE_READ: a pending refresh blanks nothing and starts one read",
+       %{conn: conn} do
+    account = register("redeem-one-read", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    submit(view, action_id)
+
+    render_async(view)
+    html = render_async(view)
+
+    # The automatic read that follows a confirmation answered, and it did not
+    # dismiss the verdict it was started for.
+    assert html =~ "Confirmed on Base"
+    assert html =~ "Claimed 1 REGENT."
+    assert html =~ "Claimable REGENT"
+
+    Application.put_env(:ash_platform, :test_redemption_snapshot_gate, self())
+    snapshot_client(HeldSnapshot)
+
+    render_click(view, "refresh_redemption", %{})
+    assert_receive {:reading, reading}
+
+    # Nothing is blanked while the refresh is pending.
+    html = render(view)
+    assert html =~ "Claimable REGENT"
+    assert html =~ "Claimed 1 REGENT."
+    assert html =~ short_hash(@tx_hash)
+
+    assert has_element?(
+             view,
+             ~s(.redeem-submission button[phx-click="refresh_redemption"][disabled])
+           )
+
+    # The refused second click starts nothing, so the read already in flight is
+    # still the one that answers.
+    render_click(view, "refresh_redemption", %{})
+    send(reading, :release_redemption_snapshot)
+    html = render_async(view)
+
+    refute_received {:reading, _second}
+    refute html =~ "Confirmed on Base"
+    refute html =~ "Claimed 1 REGENT."
+    assert has_element?(view, "#redemption-selection")
+
+    # That read released its own marker, so the page may read again.
+    render_click(view, "refresh_redemption", %{})
+    assert_receive {:reading, released}
+    send(released, :release_redemption_snapshot)
+    render_async(view)
+  end
+
+  # A read that crashes says nothing about Base, so it can never withdraw the
+  # settled proof or the read-only retry the page owes for it.
+  @tag :capture_log
+  test "SETTLED_REDEMPTION_SURVIVES_A_CRASHED_READ: a crashed read keeps the verdict and retry",
+       %{conn: conn} do
+    account = register("redeem-crashed-read", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    submit(view, action_id)
+
+    render_async(view)
+    assert render_async(view) =~ "Claimed 1 REGENT."
+
+    snapshot_client(CrashingSnapshot)
+    render_click(view, "refresh_redemption", %{})
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ "Claimed 1 REGENT."
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Redemption details are unavailable right now"
+
+    assert has_element?(
+             view,
+             ~s(.redeem-status button[phx-click="refresh_redemption"]),
+             "Try again"
+           )
+
+    refute has_element?(view, ~s(button[phx-click="refresh_redemption"][disabled]))
+    refute has_element?(view, "[data-redeem-confirm]")
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :redeem)
   end
 
   # A reload recovers the durable operation, not a wallet step: the bound hash
@@ -704,9 +889,14 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   # The page's own snapshot stops answering, while the confirmation this page
   # already asked for still settles exactly as it would have.
-  defp unreadable_snapshot do
+  defp unreadable_snapshot, do: snapshot_client(UnreadableSnapshot)
+
+  # The page's own snapshot answers again, exactly as it did before it stopped.
+  defp readable_snapshot, do: snapshot_client(TestRedemptionChainClient)
+
+  defp snapshot_client(module) do
     previous = Application.get_env(:ash_platform, :redemption_chain_client)
-    Application.put_env(:ash_platform, :redemption_chain_client, UnreadableSnapshot)
+    Application.put_env(:ash_platform, :redemption_chain_client, module)
     on_exit(fn -> Application.put_env(:ash_platform, :redemption_chain_client, previous) end)
   end
 

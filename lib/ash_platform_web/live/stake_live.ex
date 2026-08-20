@@ -13,6 +13,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :submission, :map, default: nil
   attr :signing, :boolean, default: false
   attr :verifying, :boolean, default: false
+  attr :reading, :boolean, default: false
   attr :locked, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
@@ -39,7 +40,9 @@ defmodule AshPlatformWeb.StakeLive do
           <.submitted submission={@submission} />
         </section>
         <.notice :if={@notice} notice={@notice} />
-        <button type="button" phx-click="refresh_staking" disabled={@verifying}>Try again</button>
+        <button type="button" phx-click="refresh_staking" disabled={@verifying or @reading}>
+          Try again
+        </button>
       </div>
 
       <div :if={@status == :ready && @staking} class="stake-layout">
@@ -236,7 +239,7 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
 
           <div class="stake-footer">
-            <button type="button" phx-click="refresh_staking" disabled={@verifying}>
+            <button type="button" phx-click="refresh_staking" disabled={@verifying or @reading}>
               Refresh
             </button>
             <a href="/redeem">Redeem an Animata token</a>

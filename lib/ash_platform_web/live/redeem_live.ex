@@ -22,6 +22,7 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :prepared, :map, default: nil
   attr :submission, :map, default: nil
   attr :signing, :boolean, default: false
+  attr :reading, :boolean, default: false
   attr :step, :atom, default: nil
 
   def redemption_page(assigns) do
@@ -55,7 +56,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <.submitted submission={@submission} />
         </section>
         <.notice :if={@notice} notice={@notice} />
-        <button type="button" phx-click="refresh_redemption">Try again</button>
+        <button type="button" phx-click="refresh_redemption" disabled={@reading}>Try again</button>
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-layout">
@@ -142,6 +143,7 @@ defmodule AshPlatformWeb.RedeemLive do
               :if={@submission.status in [:confirmed, :unverified]}
               type="button"
               phx-click="refresh_redemption"
+              disabled={@reading}
             >
               Refresh redemption details
             </button>

@@ -122,7 +122,7 @@ defmodule AshPlatformWeb.ShellLive do
        redemption_prepared: nil,
        redemption_submission: nil,
        redemption_confirmation_name: nil,
-       redemption_async_name: nil,
+       redemption_read: nil,
        redemption_expiry_ref: nil,
        redemption_generation: 0,
        redemption_retry_ref: nil,
@@ -137,6 +137,7 @@ defmodule AshPlatformWeb.ShellLive do
        staking_prepared: nil,
        staking_submission: nil,
        staking_confirmation_name: nil,
+       staking_read: nil,
        staking_expiry_ref: nil,
        staking_retry_ref: nil,
        staking_signing?: false,
@@ -265,17 +266,21 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async({:content, _generation}, {:exit, _reason}, socket), do: {:noreply, socket}
 
   def handle_async(
-        {:staking, generation},
+        {:staking, generation} = name,
         {:ok, {generation, {:ok, staking}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, assign(socket, staking: staking, staking_status: :ready)}
+    {:noreply,
+     socket
+     |> dismiss_settled_staking(name)
+     |> release_staking_read(name)
+     |> assign(staking: staking, staking_status: :ready)}
   end
 
   # Only membership can unmake an active wallet, so the refusal decides what this
   # failure means before anything on the page is cleared.
   def handle_async(
-        {:staking, generation},
+        {:staking, generation} = name,
         {:ok, {generation, {:error, reason}}},
         %{
           assigns: %{
@@ -286,21 +291,38 @@ defmodule AshPlatformWeb.ShellLive do
         } = socket
       )
       when not is_nil(wallet) do
-    {:noreply, staking_read_failed(socket, refusal(reason), generation)}
+    {:noreply,
+     socket
+     |> release_staking_read(name)
+     |> staking_read_failed(refusal(reason), generation)}
   end
 
   def handle_async(
-        {:staking, generation},
+        {:staking, generation} = name,
         {:ok, {generation, {:error, _reason}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, assign(socket, staking: nil, staking_status: :error)}
+    {:noreply,
+     socket |> release_staking_read(name) |> assign(staking: nil, staking_status: :error)}
   end
 
-  def handle_async({:staking, _generation}, _result, socket), do: {:noreply, socket}
+  # A read that crashed answered nothing about Base, so it is the same
+  # unavailable page: the submitted transaction stays on screen behind the same
+  # read-only retry, which this releases rather than withdraws.
+  def handle_async(
+        {:staking, generation} = name,
+        {:exit, _reason},
+        %{assigns: %{content_generation: generation, route_spec: %{route_id: :stake}}} = socket
+      ) do
+    {:noreply,
+     socket |> release_staking_read(name) |> assign(staking: nil, staking_status: :error)}
+  end
+
+  def handle_async({:staking, _generation} = name, _result, socket),
+    do: {:noreply, release_staking_read(socket, name)}
 
   def handle_async(
-        {:redemption, generation},
+        {:redemption, generation} = name,
         {:ok, {generation, {:ok, redemption}}},
         %{
           assigns: %{
@@ -310,15 +332,14 @@ defmodule AshPlatformWeb.ShellLive do
         } = socket
       ) do
     {:noreply,
-     assign(socket,
-       redemption: redemption,
-       redemption_status: :ready,
-       redemption_async_name: nil
-     )}
+     socket
+     |> dismiss_settled_redemption(name)
+     |> release_redemption_read(name)
+     |> assign(redemption: redemption, redemption_status: :ready)}
   end
 
   def handle_async(
-        {:redemption, generation},
+        {:redemption, generation} = name,
         {:ok, {generation, {:error, reason}}},
         %{
           assigns: %{
@@ -327,10 +348,32 @@ defmodule AshPlatformWeb.ShellLive do
           }
         } = socket
       ) do
-    {:noreply, redemption_read_failed(socket, refusal(reason))}
+    {:noreply, socket |> release_redemption_read(name) |> redemption_read_failed(refusal(reason))}
   end
 
-  def handle_async({:redemption, _generation}, _result, socket), do: {:noreply, socket}
+  # A read that crashed answered nothing about Base, so it is the same
+  # unavailable page: the confirmed redemption stays on screen behind the same
+  # read-only retry, which this releases rather than withdraws.
+  def handle_async(
+        {:redemption, generation} = name,
+        {:exit, _reason},
+        %{
+          assigns: %{
+            route_spec: %{route_id: :redeem},
+            redemption_generation: generation
+          }
+        } = socket
+      ) do
+    {:noreply,
+     socket
+     |> release_redemption_read(name)
+     |> assign(redemption: nil, redemption_status: :error)}
+  end
+
+  # A read whose page has since moved on still releases its own marker, so the
+  # refresh control is never left disabled by a read nobody is waiting for.
+  def handle_async({:redemption, _generation} = name, _result, socket),
+    do: {:noreply, release_redemption_read(socket, name)}
 
   def handle_async(
         {:redemption_confirmation, action_id},
@@ -388,7 +431,7 @@ defmodule AshPlatformWeb.ShellLive do
        redemption_signing?: false,
        redemption_notice: %{tone: :success, message: @confirmed_copy}
      )
-     |> read_redemption()
+     |> read_redemption(:automatic)
      |> push_event("redemption:confirmed", %{})}
   end
 
@@ -478,7 +521,7 @@ defmodule AshPlatformWeb.ShellLive do
        staking_signing?: false,
        staking_notice: %{tone: :success, message: @confirmed_copy}
      )
-     |> start_staking_read(socket.assigns.content_generation)
+     |> start_staking_read(socket.assigns.content_generation, :automatic)
      |> push_event("staking:confirmed", %{})}
   end
 
@@ -1121,15 +1164,13 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   # Refresh re-reads the active wallet's position. It never touches a submitted
-  # operation and is unavailable while a verification is in flight.
+  # operation, is unavailable while a verification or another read of this page
+  # is in flight, and dismisses settled proof only once a fresh snapshot answers.
   def handle_event("refresh_staking", _params, socket) do
-    if staking_verifying?(socket.assigns) do
+    if staking_verifying?(socket.assigns) or staking_reading?(socket.assigns) do
       {:noreply, socket}
     else
-      {:noreply,
-       socket
-       |> clear_settled_staking()
-       |> start_staking_read(socket.assigns.content_generation)}
+      {:noreply, start_staking_read(socket, socket.assigns.content_generation, :explicit)}
     end
   end
 
@@ -1714,21 +1755,13 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  # Refresh re-reads this page's current facts. It is refused while another read
+  # of the page is in flight, keeps everything on screen until that read answers,
+  # and dismisses settled proof only once a fresh snapshot arrives.
   defp handle_redemption_event("refresh_redemption", _params, socket) do
-    socket =
-      if match?(
-           %{status: status} when status in [:confirmed, :unverified],
-           socket.assigns.redemption_submission
-         ) do
-        assign(socket,
-          redemption_submission: nil,
-          redemption_notice: nil
-        )
-      else
-        socket
-      end
-
-    {:noreply, start_redemption_read(socket)}
+    if redemption_reading?(socket.assigns),
+      do: {:noreply, socket},
+      else: {:noreply, read_redemption(socket, :explicit)}
   end
 
   defp handle_redemption_event("redemption_wallet_failed", %{"reason" => reason}, socket) do
@@ -1882,6 +1915,7 @@ defmodule AshPlatformWeb.ShellLive do
           submission={@staking_submission}
           signing={@staking_signing?}
           verifying={staking_verifying?(assigns)}
+          reading={staking_reading?(assigns)}
           locked={staking_locked?(assigns)}
           spendable={Staking.spendable(@staking, @staking_action)}
           amount_notice={staking_amount_notice(assigns)}
@@ -1900,6 +1934,7 @@ defmodule AshPlatformWeb.ShellLive do
           prepared={@redemption_prepared}
           submission={@redemption_submission}
           signing={@redemption_signing?}
+          reading={redemption_reading?(assigns)}
           step={@redemption && Redemption.next_step(@redemption, @redemption_wallet)}
         />
 
@@ -2050,7 +2085,7 @@ defmodule AshPlatformWeb.ShellLive do
     socket
     |> cancel_staking_confirmation()
     |> assign(staking: nil, staking_status: :loading)
-    |> start_staking_read(generation)
+    |> start_staking_read(generation, :automatic)
   end
 
   defp maybe_start_staking(socket, _route_spec, _generation) do
@@ -2089,7 +2124,7 @@ defmodule AshPlatformWeb.ShellLive do
           "That wallet is not one of the wallets on your Regent account. Switch to a wallet you signed in with, or sign in again with this one."
       }
     )
-    |> start_staking_read(generation)
+    |> start_staking_read(generation, :automatic)
   end
 
   defp staking_read_failed(socket, _unavailable, _generation),
@@ -2105,19 +2140,50 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   # Before an active wallet is known the page shows only public chain truth; the
-  # private position is read for that exact wallet and for nothing else.
-  defp start_staking_read(socket, generation) do
+  # private position is read for that exact wallet and for nothing else. The read
+  # is marked with its own name and with why it was started, so its own terminal
+  # result frees the refresh control and only an explicit refresh that answers
+  # may dismiss settled proof.
+  defp start_staking_read(socket, generation, kind) do
     name = {:staking, generation}
     wallet = socket.assigns.staking_wallet
     opts = wallet_opts(socket)
 
     socket
     |> cancel_async(name)
+    |> assign(staking_read: %{name: name, kind: kind})
     |> start_async(name, fn ->
       {generation,
        if(wallet, do: Staking.account_for_wallet(wallet, opts), else: Staking.overview())}
     end)
   end
+
+  # The exact read that set the marker is the only one that may release it, so a
+  # result from an older read never frees a newer read's control.
+  defp release_staking_read(%{assigns: %{staking_read: %{name: name}}} = socket, name),
+    do: assign(socket, staking_read: nil)
+
+  defp release_staking_read(socket, _stale), do: socket
+
+  # A settled transaction is proved by its own receipt and event, so only an
+  # explicit refresh answering with a fresh snapshot dismisses it. An automatic
+  # read, a failure and a crash all leave it exactly where it is.
+  defp dismiss_settled_staking(
+         %{
+           assigns: %{
+             staking_read: %{name: name, kind: :explicit},
+             staking_submission: %{status: status}
+           }
+         } = socket,
+         name
+       )
+       when status in [:confirmed, :unverified],
+       do: assign(socket, staking_submission: nil, staking_notice: nil)
+
+  defp dismiss_settled_staking(socket, _read), do: socket
+
+  defp staking_reading?(%{staking_read: nil}), do: false
+  defp staking_reading?(_assigns), do: true
 
   defp current_account(%{principal: {:human, account}}), do: account
   defp current_account(_access_context), do: nil
@@ -2703,10 +2769,13 @@ defmodule AshPlatformWeb.ShellLive do
   defp start_redemption_read(socket) do
     socket
     |> assign(redemption: nil, redemption_status: :loading)
-    |> read_redemption()
+    |> read_redemption(:automatic)
   end
 
-  defp read_redemption(socket) do
+  # The read is marked with its own name and with why it was started, so its own
+  # terminal result frees the refresh control and only an explicit refresh that
+  # answers may dismiss settled proof.
+  defp read_redemption(socket, kind) do
     socket = cancel_redemption_read(socket)
     generation = socket.assigns.redemption_generation + 1
     name = {:redemption, generation}
@@ -2716,7 +2785,7 @@ defmodule AshPlatformWeb.ShellLive do
     token_id = parsed_token_id(socket.assigns.redemption_token_id)
 
     socket
-    |> assign(redemption_generation: generation, redemption_async_name: name)
+    |> assign(redemption_generation: generation, redemption_read: %{name: name, kind: kind})
     |> restored_redemption()
     |> start_async(name, fn ->
       {generation,
@@ -2772,15 +2841,42 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp redemption_read_failed(socket, _unavailable),
-    do: assign(socket, redemption: nil, redemption_status: :error, redemption_async_name: nil)
+    do: assign(socket, redemption: nil, redemption_status: :error)
 
-  defp cancel_redemption_read(%{assigns: %{redemption_async_name: nil}} = socket), do: socket
+  defp cancel_redemption_read(%{assigns: %{redemption_read: nil}} = socket), do: socket
 
   defp cancel_redemption_read(socket) do
     socket
-    |> cancel_async(socket.assigns.redemption_async_name)
-    |> assign(redemption_async_name: nil)
+    |> cancel_async(socket.assigns.redemption_read.name)
+    |> assign(redemption_read: nil)
   end
+
+  # The exact read that set the marker is the only one that may release it, so a
+  # result from an older read never frees a newer read's control.
+  defp release_redemption_read(%{assigns: %{redemption_read: %{name: name}}} = socket, name),
+    do: assign(socket, redemption_read: nil)
+
+  defp release_redemption_read(socket, _stale), do: socket
+
+  # A settled redemption is proved by its own receipt and its own event result,
+  # so only an explicit refresh answering with a fresh snapshot dismisses it. An
+  # automatic read, a selection change, a failure and a crash all leave it.
+  defp dismiss_settled_redemption(
+         %{
+           assigns: %{
+             redemption_read: %{name: name, kind: :explicit},
+             redemption_submission: %{status: status}
+           }
+         } = socket,
+         name
+       )
+       when status in [:confirmed, :unverified],
+       do: assign(socket, redemption_submission: nil, redemption_notice: nil)
+
+  defp dismiss_settled_redemption(socket, _read), do: socket
+
+  defp redemption_reading?(%{redemption_read: nil}), do: false
+  defp redemption_reading?(_assigns), do: true
 
   defp cancel_redemption_confirmation(%{assigns: %{redemption_confirmation_name: nil}} = socket),
     do: socket
@@ -3568,7 +3664,7 @@ defmodule AshPlatformWeb.ShellLive do
       staking_amount: ""
     )
     |> release_unlocked_review(wallet)
-    |> start_staking_read(socket.assigns.content_generation)
+    |> start_staking_read(socket.assigns.content_generation, :automatic)
   end
 
   # A claimed phase or a submitted transaction owns this socket's review, so a
@@ -3700,12 +3796,6 @@ defmodule AshPlatformWeb.ShellLive do
       tone: :info,
       message: "Verify the submitted transaction before preparing another action."
     }
-
-  defp clear_settled_staking(%{assigns: %{staking_submission: %{status: status}}} = socket)
-       when status in [:confirmed, :unverified],
-       do: assign(socket, staking_submission: nil, staking_notice: nil)
-
-  defp clear_settled_staking(socket), do: socket
 
   defp portioned(balance, "half"), do: div(balance, 2)
   defp portioned(balance, "max"), do: balance

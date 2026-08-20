@@ -4,7 +4,54 @@ defmodule AshPlatformWeb.StakeLiveTest do
   alias AshPlatform.{Accounts, Staking}
   alias AshPlatform.Actors.System
   alias AshPlatform.BaseRpcStub, as: Stub
+  alias AshPlatform.TestStakingChainClient
   alias AshPlatform.WalletActions.{Abi, StakeRedeemOperations}
+
+  # A position read the test holds open, so a proof can look at the page exactly
+  # while that read is in flight rather than waiting out a duration.
+  defmodule HeldSnapshot do
+    @moduledoc false
+    @behaviour AshPlatform.Staking.ChainClient
+
+    @impl true
+    def overview(wallet) do
+      send(Application.fetch_env!(:ash_platform, :test_staking_snapshot_gate), {:reading, self()})
+
+      receive do
+        :release_staking_snapshot -> TestStakingChainClient.overview(wallet)
+      after
+        5_000 -> {:error, :chain_unavailable}
+      end
+    end
+
+    @impl true
+    defdelegate confirm(envelope, transaction_hash), to: TestStakingChainClient
+
+    @impl true
+    defdelegate approval_status(envelope, transaction_hash), to: TestStakingChainClient
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestStakingChainClient
+  end
+
+  # A position read that crashes rather than answering. It says nothing about
+  # Base at all, so a proof can tell a task exit from an unavailable read.
+  defmodule CrashingSnapshot do
+    @moduledoc false
+    @behaviour AshPlatform.Staking.ChainClient
+
+    @impl true
+    def overview(_wallet), do: exit(:staking_snapshot_crashed)
+
+    @impl true
+    defdelegate confirm(envelope, transaction_hash), to: TestStakingChainClient
+
+    @impl true
+    defdelegate approval_status(envelope, transaction_hash), to: TestStakingChainClient
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestStakingChainClient
+  end
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -24,6 +71,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
       Application.delete_env(:ash_platform, :test_staking_confirm_barrier)
       Application.delete_env(:ash_platform, :test_staking_overview_error)
       Application.delete_env(:ash_platform, :test_staking_read_watcher)
+      Application.delete_env(:ash_platform, :test_staking_snapshot_gate)
       Application.delete_env(:ash_platform, :test_staking_denominator)
       Application.delete_env(:ash_platform, :test_staking_paused)
       Application.delete_env(:ash_platform, :test_staking_allowance_current)
@@ -877,6 +925,128 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, %{state: :approval_verified}} = StakeRedeemOperations.active(account.id, :stake)
   end
 
+  # A confirmed transaction is settled by its own receipt on Base. The later read
+  # of the current position is a separate truth, so neither that read failing nor
+  # a read-only retry of it may take the verdict, the hash or the retry off the
+  # page. Only a retry that answers with a fresh snapshot dismisses them.
+  test "SETTLED_STAKE_SURVIVES_A_FAILED_READ: only a fresh snapshot dismisses a settled verdict",
+       %{conn: conn} do
+    account = register("stake-settled-read", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+
+    # The confirmation is held open, so the position read it starts afterwards is
+    # strictly later and is already unavailable by the time it runs.
+    Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    submit(view, action_id, "action", @tx_hash)
+
+    assert_receive {:staking_confirming, confirmation}
+    Application.put_env(:ash_platform, :test_staking_overview_error, :chain_unavailable)
+    send(confirmation, :release_staking_confirmation)
+
+    render_async(view)
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Staking details are unavailable right now"
+    assert has_element?(view, ~s(.stake-status button[phx-click="refresh_staking"]), "Try again")
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+
+    # The read-only retry still cannot reach Base. Everything settled stays on
+    # screen, no wallet is asked for anything, and the same retry is offered.
+    render_click(view, "refresh_staking", %{})
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Staking details are unavailable right now"
+    assert has_element?(view, ~s(.stake-status button[phx-click="refresh_staking"]), "Try again")
+    refute has_element?(view, "[data-stake-confirm]")
+    refute_push_event(view, "staking:prepared", _)
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+
+    # The next retry answers, and only then is the settled proof dismissed and
+    # the ordinary action surface returned.
+    Application.delete_env(:ash_platform, :test_staking_overview_error)
+    render_click(view, "refresh_staking", %{})
+    html = render_async(view)
+
+    refute html =~ "Confirmed on Base"
+    refute html =~ short_hash(@tx_hash)
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
+    assert has_element?(view, "#staking-amount")
+    assert has_element?(view, ~s(button[phx-value-action="claim_usdc"]))
+  end
+
+  # Refresh reads Base once. While its own read is in flight the control is
+  # disabled and the event is refused, so a second click can never leave two
+  # reads outstanding, and the control comes back when that read answers.
+  test "STAKE_REFRESH_HOLDS_ONE_READ: a second refresh while reading starts no second read",
+       %{conn: conn} do
+    view = signed_in(conn, "stake-one-read")
+    activate(view, @wallet)
+
+    Application.put_env(:ash_platform, :test_staking_snapshot_gate, self())
+    Application.put_env(:ash_platform, :staking_chain_client, HeldSnapshot)
+
+    render_click(view, "refresh_staking", %{})
+    assert_receive {:reading, reading}
+    assert has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+
+    # The refused second click starts nothing, so the read already in flight is
+    # still the one that answers.
+    render_click(view, "refresh_staking", %{})
+    send(reading, :release_staking_snapshot)
+    html = render_async(view)
+
+    refute_received {:reading, _second}
+    assert html =~ "Your stake"
+    refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+  end
+
+  # A read that crashes says nothing about Base, so it can never withdraw the
+  # settled proof or the read-only retry the page owes for it.
+  @tag :capture_log
+  test "SETTLED_STAKE_SURVIVES_A_CRASHED_READ: a crashed read frees refresh and keeps the proof",
+       %{conn: conn} do
+    account = register("stake-crashed-read", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    submit(view, action_id, "action", @tx_hash)
+
+    render_async(view)
+    html = render_async(view)
+
+    # The automatic read that follows a confirmation answered, and it did not
+    # dismiss the verdict it was started for.
+    assert html =~ "Confirmed on Base"
+    assert html =~ short_hash(@tx_hash)
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
+
+    Application.put_env(:ash_platform, :staking_chain_client, CrashingSnapshot)
+    render_click(view, "refresh_staking", %{})
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Staking details are unavailable right now"
+    refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+    assert has_element?(view, ~s(.stake-status button[phx-click="refresh_staking"]), "Try again")
+    refute has_element?(view, "[data-stake-confirm]")
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
   # A claimed phase owns this socket's review. Changing wallets takes the amount
   # and the position and nothing else, so the exact hash that comes back still
   # binds to the envelope that was claimed.
@@ -1058,6 +1228,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ".stake-metric dd", "7 REGENT")
     refute html =~ "5 REGENT"
+
+    # The confirmation reads the page again for the wallet now on screen. That
+    # read holds refresh only while it is in flight and hands it straight back.
+    render_async(view)
     refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
   end
 
