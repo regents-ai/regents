@@ -281,10 +281,27 @@ defmodule AshPlatform.Staking.Actions do
 
   defp parse_amount(_value), do: {:error, :invalid_amount}
 
+  # A claim of nothing is refused on current chain truth rather than on the
+  # screen's copy of it, and an unavailable read is its own refusal: it can
+  # never be reported as a claim of nothing.
   defp ensure_funded(action, signer)
        when action in ["claim_regent", "claim_and_restake_regent"] do
-    with {:ok, staking} <- ChainClient.module().overview(signer),
-         {earned, ""} <- Integer.parse(staking.wallet_claimable_regent_raw || "0"),
+    with {:ok, staking} <- current_position(signer), do: funded_regent(staking)
+  end
+
+  defp ensure_funded("claim_usdc", signer) do
+    with {:ok, staking} <- current_position(signer), do: claimable_usdc(staking)
+  end
+
+  defp ensure_funded(_action, _signer), do: :ok
+
+  defp current_position(signer) do
+    with {:error, _unavailable} <- ChainClient.module().overview(signer),
+         do: refusal(:chain_unavailable)
+  end
+
+  defp funded_regent(staking) do
+    with {earned, ""} <- Integer.parse(staking.wallet_claimable_regent_raw || "0"),
          {funded, ""} <- Integer.parse(staking.wallet_funded_claimable_regent_raw || "0"),
          true <- earned > 0 and funded >= earned do
       :ok
@@ -293,19 +310,14 @@ defmodule AshPlatform.Staking.Actions do
     end
   end
 
-  # A claim of nothing is refused on current chain truth rather than on the
-  # screen's copy of it. An unavailable provider read is unavailable, not zero.
-  defp ensure_funded("claim_usdc", signer) do
-    with {:ok, staking} <- ChainClient.module().overview(signer),
-         {claimable, ""} <- Integer.parse(staking.wallet_claimable_usdc_raw || "0"),
+  defp claimable_usdc(staking) do
+    with {claimable, ""} <- Integer.parse(staking.wallet_claimable_usdc_raw || "0"),
          true <- claimable > 0 do
       :ok
     else
       _ -> refusal(:no_claimable_usdc)
     end
   end
-
-  defp ensure_funded(_action, _signer), do: :ok
 
   # A typed Ash error, so the refusal survives the action's error class and the
   # presenter can name the fact that actually stopped the review.

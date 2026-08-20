@@ -44,6 +44,7 @@ import * as bridge from "../js/privy_bridge"
 import {clearLocalSession, createSessionMutationCoordinator} from "../js/auth_lazy"
 import {
   activeEthereumWallet,
+  replaceActiveEthereumWallet,
   selectConnectedEthereumWallet,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
@@ -701,6 +702,7 @@ describe("Privy session bridge", () => {
   // the selection, so that change has to reach the page as a wallet-state event.
   it("P1_ACTIVE_WALLET_ONLY: publishes the selection and announces a selection-only change", async () => {
     productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
     const dispatched = stubBrowserGlobals()
     const first = ethereumWallet("0x1111111111111111111111111111111111111111")
@@ -726,27 +728,84 @@ describe("Privy session bridge", () => {
     const accountElement = providerElement.props.children
     renderAccountBridge(accountElement)
     await startup
-    await until(() => dispatched.length === 1)
-    expect(activeEthereumWallet()?.provider).toBe(first.provider)
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+    expect(dispatched).toEqual(["ash:wallet-state"])
 
     // The connected set is identical; only the selection moved.
     providerState.activeWallet = second
     renderAccountBridge(accountElement)
-    await until(() => dispatched.length === 2)
-    expect(dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
-    expect(activeEthereumWallet()?.provider).toBe(second.provider)
+    await until(() => activeEthereumWallet()?.provider === second.provider)
 
     // A Solana selection is no Stake wallet, and no other wallet stands in.
     providerState.activeWallet = solana as unknown as typeof first
     renderAccountBridge(accountElement)
-    await until(() => dispatched.length === 3)
+    await until(() => dispatched.length === 5)
     expect(activeEthereumWallet()).toBeNull()
+    expect(new Set(dispatched)).toEqual(new Set(["ash:wallet-state"]))
+  })
+
+  // The customer's new choice is known before any of the reconciliation it
+  // starts can finish. The wallet they left has to stop being Stake's wallet at
+  // once, or the page could prepare and send for it during that gap.
+  it("P1_ACTIVE_WALLET_ONLY: the wallet left behind is unavailable before the new one resolves", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals()
+    const first = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const chosenProvider: EthereumProvider = {request: vi.fn()}
+    let release: (() => void) | undefined
+    let resolutions = 0
+    const chosen = {
+      address: "0x2222222222222222222222222222222222222222",
+      type: "ethereum",
+      getEthereumProvider: () =>
+        ++resolutions === 1
+          ? Promise.resolve(chosenProvider)
+          : new Promise<EthereumProvider>(resolve => {
+              release = () => resolve(chosenProvider)
+            }),
+    }
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      wallets: [first, chosen],
+      activeWallet: first,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+      children: React.ReactElement
+    }>
+    const accountElement = providerElement.props.children
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+
+    providerState.activeWallet = chosen as unknown as typeof first
+    renderAccountBridge(accountElement)
+
+    // The choice has only been made; nothing has resolved yet.
+    expect(activeEthereumWallet()).toBeNull()
+    await until(() => release !== undefined)
+    expect(activeEthereumWallet()).toBeNull()
+
+    release?.()
+    await until(() => activeEthereumWallet()?.provider === chosenProvider)
+    expect(activeEthereumWallet()?.address).toBe(chosen.address)
   })
 
   // A selection whose provider cannot be resolved is no Stake wallet. Keeping
   // the previous one would let a page act for a wallet the customer has left.
   it("P1_ACTIVE_WALLET_ONLY: a selection whose provider fails leaves no active wallet", async () => {
     productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
     const dispatched = stubBrowserGlobals()
     const first = ethereumWallet("0x1111111111111111111111111111111111111111")
@@ -777,14 +836,14 @@ describe("Privy session bridge", () => {
     const accountElement = providerElement.props.children
     renderAccountBridge(accountElement)
     await startup
-    await until(() => dispatched.length === 1)
-    expect(activeEthereumWallet()?.provider).toBe(first.provider)
+    await until(() => activeEthereumWallet()?.provider === first.provider)
 
     // The connected set is identical; only the selection moved, and this
     // wallet's provider does not resolve.
     providerState.activeWallet = unavailable as unknown as typeof first
     renderAccountBridge(accountElement)
-    await until(() => dispatched.length === 2)
+    const announced = dispatched.length
+    await until(() => dispatched.length > announced)
     expect(activeEthereumWallet()).toBeNull()
   })
 

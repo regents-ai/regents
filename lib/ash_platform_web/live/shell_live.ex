@@ -2822,6 +2822,9 @@ defmodule AshPlatformWeb.ShellLive do
     do:
       "This wallet is not one of the wallets on your account. Switch to a wallet you signed in with."
 
+  defp staking_preparation_error(:chain_unavailable),
+    do: "Base could not be reached to check this wallet. Nothing was prepared. Try again shortly."
+
   defp staking_preparation_error(_reason),
     do: "That action could not be prepared. Check the amount and wallet."
 
@@ -3240,24 +3243,38 @@ defmodule AshPlatformWeb.ShellLive do
     end)
   end
 
-  # A wallet change is a new signer, so the amount, the private position and the
-  # browser's review are all discarded before anything is read again.
+  # A wallet change is a new signer, so the amount and the private position go
+  # before anything is read again.
   defp adopt_staking_wallet(socket, wallet) do
     socket
-    |> withdraw_stale_staking_review(wallet)
-    |> cancel_staking_expiry()
     |> assign(
       staking: nil,
       staking_status: :loading,
       staking_wallet: wallet,
-      staking_amount: "",
-      staking_prepared: nil,
-      staking_submission: nil,
-      staking_signing?: false,
-      staking_notice: nil
+      staking_amount: ""
     )
-    |> restore_staking_operation()
+    |> release_unlocked_review(wallet)
     |> start_staking_read(socket.assigns.content_generation)
+  end
+
+  # A claimed phase or a submitted transaction owns this socket's review, so a
+  # wallet change leaves it exactly as it is: the hash that comes back still
+  # binds to the envelope that was claimed, and no form event can replace it.
+  defp release_unlocked_review(socket, wallet) do
+    if staking_locked?(socket.assigns) do
+      socket
+    else
+      socket
+      |> withdraw_stale_staking_review(wallet)
+      |> cancel_staking_expiry()
+      |> assign(
+        staking_prepared: nil,
+        staking_submission: nil,
+        staking_signing?: false,
+        staking_notice: nil
+      )
+      |> restore_staking_operation()
+    end
   end
 
   # Only a review nobody has dispatched is withdrawn. A claimed phase or a bound

@@ -29,8 +29,12 @@ defmodule AshPlatformWeb.StakeLive do
       </div>
       <div :if={@status == :error} class="stake-status">
         <p role="alert">
-          Staking details are unavailable right now. Nothing on this page has changed.
+          Staking details are unavailable right now. Anything you have already sent is unaffected,
+          and trying again only reads Base: it sends nothing.
         </p>
+        <section :if={@submission} class="stake-submission" aria-label="Submitted transaction">
+          <.submitted submission={@submission} />
+        </section>
         <.notice :if={@notice} notice={@notice} />
         <button type="button" phx-click="refresh_staking" disabled={@verifying}>Try again</button>
       </div>
@@ -86,12 +90,7 @@ defmodule AshPlatformWeb.StakeLive do
           </p>
 
           <section :if={@submission} class="stake-submission" aria-label="Submitted transaction">
-            <p :if={@submission[:approval_transaction_hash]}>
-              Approval transaction: <.transaction hash={@submission.approval_transaction_hash} />
-            </p>
-            <p :if={@submission[:transaction_hash]}>
-              Staking transaction: <.transaction hash={@submission.transaction_hash} />
-            </p>
+            <.submitted submission={@submission} />
             <button
               :if={
                 signable?(@prepared, @wallet) && @submission[:approval_transaction_hash] &&
@@ -317,6 +316,21 @@ defmodule AshPlatformWeb.StakeLive do
     <div class="stake-metric">
       <dt>{@label}</dt><dd>{@value}</dd>
     </div>
+    """
+  end
+
+  attr :submission, :map, required: true
+
+  # The one canonical link to each bound hash, shown wherever the page can
+  # still be reached, so a transaction is never hidden by a failed read.
+  defp submitted(assigns) do
+    ~H"""
+    <p :if={@submission[:approval_transaction_hash]}>
+      Approval transaction: <.transaction hash={@submission.approval_transaction_hash} />
+    </p>
+    <p :if={@submission[:transaction_hash]}>
+      Staking transaction: <.transaction hash={@submission.transaction_hash} />
+    </p>
     """
   end
 

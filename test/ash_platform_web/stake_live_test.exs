@@ -865,6 +865,16 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute html =~ "not one of the wallets on your Regent account"
     refute html =~ "0 REGENT"
 
+    # The transaction already sent is still on screen, on its own Base link, and
+    # no balance or action is offered beside it.
+    assert has_element?(
+             view,
+             ~s(.stake-submission a[href="https://basescan.org/tx/#{@approval_hash}"])
+           )
+
+    refute html =~ "Your stake"
+    refute has_element?(view, ~s(button[phx-click="prepare_staking"]))
+
     # The wallet is still the reviewed signer, so a dispatch attempted now says
     # only that Base could not be read, and claims nothing.
     sign(view, action_id)
@@ -886,6 +896,105 @@ defmodule AshPlatformWeb.StakeLiveTest do
            )
 
     assert {:ok, %{state: :approval_verified}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A claimed phase owns this socket's review. Changing wallets takes the amount
+  # and the position and nothing else, so the exact hash that comes back still
+  # binds to the envelope that was claimed.
+  test "P3_CLAIMED_WORK_TAKES_ITS_HASH_THROUGH_A_SWITCH: a late hash binds after the wallet changes",
+       %{conn: conn} do
+    account = register("stake-switch-hash", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+
+    activate(view, @other)
+
+    # The claimed review is still frozen, so nothing the form can send replaces it.
+    render_hook(view, "staking_amount_changed", %{"amount" => "9"})
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+
+    submit(view, action_id, "approval", @approval_hash)
+
+    assert {:ok,
+            %{
+              action_id: ^action_id,
+              state: :approval_submitted,
+              approval_transaction_hash: @approval_hash
+            }} = StakeRedeemOperations.active(account.id, :stake)
+
+    assert has_element?(
+             view,
+             ~s(.stake-submission a[href="https://basescan.org/tx/#{@approval_hash}"])
+           )
+
+    render_async(view)
+    refute_push_event(view, "staking:prepared", _)
+  end
+
+  # The same holds when the wallet goes away entirely: the claim is durable, so
+  # its hash is still the one that binds when the wallet reports it.
+  test "P3_CLAIMED_WORK_TAKES_ITS_HASH_THROUGH_A_DISCONNECT: a late hash binds after a disconnect",
+       %{conn: conn} do
+    account = register("stake-disconnect-hash", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+
+    activate(view, nil)
+    assert has_element?(view, ~s(button[data-stake-connect]))
+
+    submit(view, action_id, "approval", @approval_hash)
+
+    assert {:ok,
+            %{
+              action_id: ^action_id,
+              state: :approval_submitted,
+              approval_transaction_hash: @approval_hash
+            }} = StakeRedeemOperations.active(account.id, :stake)
+
+    # Reconnecting the same wallet finds the same review and the same hash.
+    activate(view, @wallet)
+
+    assert has_element?(
+             view,
+             ~s(.stake-submission a[href="https://basescan.org/tx/#{@approval_hash}"])
+           )
+
+    assert {:ok, %{action_id: ^action_id}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A read that failed is not a claim of nothing. Preparation says Base could not
+  # be read, and no durable operation is created on that evidence.
+  test "P5_UNAVAILABLE_IS_NOT_ZERO: a failed read refuses claims without calling them empty",
+       %{conn: conn} do
+    account = register("stake-claim-unavailable", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    Application.put_env(:ash_platform, :test_staking_overview_error, :chain_unavailable)
+
+    for action <- ~w(claim_usdc claim_regent claim_and_restake_regent) do
+      html = render_click(view, "prepare_staking", %{"action" => action})
+
+      assert html =~ "Base could not be reached to check this wallet"
+      refute html =~ "no USDC rewards to claim"
+      refute html =~ "not enough to claim or reinvest"
+      refute html =~ "Review before signing"
+    end
+
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
   end
 
   # A confirmation that finishes after the customer moved to another wallet

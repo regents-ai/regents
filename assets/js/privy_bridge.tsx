@@ -28,6 +28,7 @@ import {
   type SessionMutationCoordinator,
 } from "./auth_lazy"
 import {
+  activeEthereumWallet,
   eligibleActiveWallet,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
@@ -451,6 +452,17 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   // still announces `ash:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
+    const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase() ?? null
+
+    // The wallet the customer just left stops being Stake's wallet here, before
+    // any of the work below can await, so nothing can be prepared or sent for it
+    // while the newly selected provider is still resolving.
+    const cached = activeEthereumWallet()?.address ?? null
+    if (cached && cached !== selected) {
+      replaceActiveEthereumWallet(null)
+      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+    }
+
     if (!ready || !(await reconcileProviderSession())) {
       if (walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
@@ -463,7 +475,6 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     // taken from those resolved entries. A wallet whose provider does not
     // resolve is not a wallet here, so a failed selection leaves Stake with no
     // active wallet rather than with the previous one.
-    const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase()
     const resolved = await Promise.allSettled(
       wallets.map(
         async wallet =>
