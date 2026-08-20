@@ -260,12 +260,11 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, assign(socket, staking: staking, staking_status: :ready)}
   end
 
-  # An active wallet the verified account does not hold cannot name a position.
-  # The page drops back to public truth and says which recovery is available;
-  # it never reads some other wallet instead.
+  # Only membership can unmake an active wallet, so the refusal decides what this
+  # failure means before anything on the page is cleared.
   def handle_async(
         {:staking, generation},
-        {:ok, {generation, {:error, _reason}}},
+        {:ok, {generation, {:error, reason}}},
         %{
           assigns: %{
             content_generation: generation,
@@ -275,21 +274,7 @@ defmodule AshPlatformWeb.ShellLive do
         } = socket
       )
       when not is_nil(wallet) do
-    {:noreply,
-     socket
-     |> assign(
-       staking_wallet: nil,
-       staking_amount: "",
-       staking_prepared: nil,
-       staking_submission: nil,
-       staking_signing?: false,
-       staking_notice: %{
-         tone: :error,
-         message:
-           "That wallet is not one of the wallets on your Regent account. Switch to a wallet you signed in with, or sign in again with this one."
-       }
-     )
-     |> start_staking_read(generation)}
+    {:noreply, staking_read_failed(socket, refusal(reason), generation)}
   end
 
   def handle_async(
@@ -443,12 +428,14 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async({:redemption_confirmation, _action_id}, _result, socket),
     do: {:noreply, socket}
 
+  # The reread belongs to the wallet that signed it, so it is installed only
+  # while that wallet is still the active one. A confirmation that finishes
+  # after a switch can never show one wallet's balances under another's name.
   def handle_async(
         {:staking_confirmation, action_id},
         {:ok, {:ok, %{reread_verified: true, staking: staking}}},
         %{
           assigns: %{
-            route_spec: %{route_id: :stake},
             staking_prepared: %{action_id: action_id},
             staking_confirmation_name: {:staking_confirmation, action_id}
           }
@@ -457,8 +444,6 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply,
      socket
      |> assign(
-       staking: staking,
-       staking_status: :ready,
        staking_prepared: nil,
        staking_submission:
          Map.merge(socket.assigns.staking_submission || %{}, %{status: :confirmed}),
@@ -469,6 +454,7 @@ defmodule AshPlatformWeb.ShellLive do
          message: "Confirmed on Base. Your staking details are current."
        }
      )
+     |> install_active_snapshot(staking)
      |> push_event("staking:confirmed", %{})}
   end
 
@@ -477,7 +463,6 @@ defmodule AshPlatformWeb.ShellLive do
         {:ok, {:ok, %{receipt_verified: true, transaction_reverted: true}}},
         %{
           assigns: %{
-            route_spec: %{route_id: :stake},
             staking_prepared: %{action_id: action_id},
             staking_confirmation_name: {:staking_confirmation, action_id}
           }
@@ -505,7 +490,6 @@ defmodule AshPlatformWeb.ShellLive do
         {:ok, {:ok, %{receipt_verified: true, reread_verified: false}}},
         %{
           assigns: %{
-            route_spec: %{route_id: :stake},
             staking_prepared: %{action_id: action_id},
             staking_confirmation_name: {:staking_confirmation, action_id}
           }
@@ -526,12 +510,7 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async(
         {:staking_confirmation, action_id},
         {:ok, {:error, _reason}},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :stake},
-            staking_confirmation_name: {:staking_confirmation, action_id}
-          }
-        } = socket
+        %{assigns: %{staking_confirmation_name: {:staking_confirmation, action_id}}} = socket
       ) do
     {:noreply,
      assign(socket,
@@ -544,12 +523,7 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async(
         {:staking_confirmation, action_id},
         {:exit, _reason},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :stake},
-            staking_confirmation_name: {:staking_confirmation, action_id}
-          }
-        } = socket
+        %{assigns: %{staking_confirmation_name: {:staking_confirmation, action_id}}} = socket
       ) do
     {:noreply,
      assign(socket,
@@ -558,6 +532,16 @@ defmodule AshPlatformWeb.ShellLive do
        staking_notice: %{tone: :error, message: "The transaction could not be confirmed on Base."}
      )}
   end
+
+  # The latch belongs to this async name, so its own result always releases it,
+  # even when the wallet it was reviewed for is no longer the active one. Only
+  # the latch is released: the wallet now on screen keeps its own position.
+  def handle_async(
+        {:staking_confirmation, action_id},
+        _result,
+        %{assigns: %{staking_confirmation_name: {:staking_confirmation, action_id}}} = socket
+      ),
+      do: {:noreply, assign(socket, staking_confirmation_name: nil, staking_signing?: false)}
 
   def handle_async({:staking_confirmation, _action_id}, _result, socket), do: {:noreply, socket}
 
@@ -911,31 +895,58 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("staking_active_wallet", _params, socket), do: {:noreply, socket}
 
-  def handle_event("select_staking_action", %{"mode" => mode}, socket)
+  # Every control that could replace or clear the review is frozen from the
+  # moment a dispatch is claimed until that request is verified or ended, and
+  # each one is refused here rather than only disabled on screen. Switching
+  # between Stake and Unstake changes which balance the amount comes from, so
+  # the amount goes with it.
+  def handle_event(
+        "select_staking_action",
+        %{"mode" => mode},
+        %{assigns: %{route_spec: %{route_id: :stake}}} = socket
+      )
       when mode in ["stake", "unstake"] do
-    if pending_submission?(socket.assigns.staking_submission) do
+    if staking_locked?(socket.assigns) do
       {:noreply, socket}
     else
-      {:noreply, assign(socket, staking_action: mode, staking_prepared: nil, staking_notice: nil)}
+      {:noreply,
+       assign(socket,
+         staking_action: mode,
+         staking_amount: "",
+         staking_prepared: nil,
+         staking_notice: nil
+       )}
     end
   end
 
+  def handle_event("select_staking_action", _params, socket), do: {:noreply, socket}
+
   # Fifty percent is the integer floor of the exact raw balance and Max is that
   # balance itself, so neither shortcut can name more REGENT than exists.
-  def handle_event("fill_staking_amount", %{"portion" => portion}, socket)
+  def handle_event(
+        "fill_staking_amount",
+        %{"portion" => portion},
+        %{assigns: %{route_spec: %{route_id: :stake}}} = socket
+      )
       when portion in ["half", "max"] do
-    amount = balance(socket.assigns.staking, socket.assigns.staking_action)
+    if staking_locked?(socket.assigns) do
+      {:noreply, socket}
+    else
+      amount = balance(socket.assigns.staking, socket.assigns.staking_action)
 
-    {:noreply,
-     assign(socket,
-       staking_amount: token_amount(portioned(amount, portion)),
-       staking_prepared: nil,
-       staking_notice: nil
-     )}
+      {:noreply,
+       assign(socket,
+         staking_amount: token_amount(portioned(amount, portion)),
+         staking_prepared: nil,
+         staking_notice: nil
+       )}
+    end
   end
 
+  def handle_event("fill_staking_amount", _params, socket), do: {:noreply, socket}
+
   def handle_event("staking_amount_changed", %{"amount" => amount}, socket) do
-    if pending_submission?(socket.assigns.staking_submission) do
+    if staking_locked?(socket.assigns) do
       {:noreply, socket}
     else
       {:noreply,
@@ -943,54 +954,12 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  # Nothing is prepared while the page is locked: the refusal comes before the
+  # server is asked for a review that could replace the outstanding one.
   def handle_event("prepare_staking", params, socket) do
-    action = params["action"]
-    amount = params["amount"] || socket.assigns.staking_amount
-
-    case {pending_submission?(socket.assigns.staking_submission),
-          prepare_staking(action, amount, socket)} do
-      {true, _result} ->
-        {:noreply,
-         assign(socket,
-           staking_notice: %{
-             tone: :info,
-             message: "Verify the submitted transaction before preparing another action."
-           }
-         )}
-
-      {false, {:ok, envelope}} ->
-        if submitted_action?(socket.assigns.staking_submission, envelope.action_id) do
-          {:noreply,
-           assign(socket,
-             staking_notice: %{
-               tone: :error,
-               message: "This action was already submitted. Verify its transaction instead."
-             }
-           )}
-        else
-          socket =
-            socket
-            |> assign(
-              staking_prepared: envelope,
-              staking_submission: nil,
-              staking_signing?: false,
-              staking_notice: %{
-                tone: :info,
-                message: "Review the details before opening your wallet."
-              }
-            )
-            |> schedule_staking_expiry(envelope)
-
-          {:noreply, socket}
-        end
-
-      {false, {:error, reason}} ->
-        {:noreply,
-         assign(socket,
-           staking_prepared: nil,
-           staking_notice: %{tone: :error, message: staking_preparation_error(refusal(reason))}
-         )}
-    end
+    if staking_locked?(socket.assigns),
+      do: {:noreply, assign(socket, staking_notice: staking_locked_notice(socket.assigns))},
+      else: prepare_reviewed_staking(params, socket)
   end
 
   # The browser's preflight is necessary input, never authority: the reviewed
@@ -1129,10 +1098,13 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  # A failure the browser reports after a claim ends nothing: the request may
+  # still be open in that wallet, so the review stays locked until the exact
+  # rejection or a bound hash decides it. Before a claim there is nothing to
+  # hold, and the retry stays available.
   def handle_event("staking_wallet_failed", %{"reason" => reason}, socket) do
     {:noreply,
      assign(socket,
-       staking_signing?: false,
        staking_notice: staking_failure_notice(reason, socket.assigns.staking_submission)
      )}
   end
@@ -1815,6 +1787,7 @@ defmodule AshPlatformWeb.ShellLive do
           submission={@staking_submission}
           signing={@staking_signing?}
           verifying={staking_verifying?(assigns)}
+          locked={staking_locked?(assigns)}
         />
 
         <.redemption_page
@@ -1958,12 +1931,15 @@ defmodule AshPlatformWeb.ShellLive do
   defp initial_presentation(_route_spec), do: :none
 
   # `/app` keeps reading the account's stored primary position under its own
-  # label; only `/stake` follows the wallet active in this browser.
+  # label; only `/stake` follows the wallet active in this browser. Leaving
+  # `/stake` drops that wallet, so coming back reads nothing private until the
+  # browser publishes an active wallet again.
   defp maybe_start_staking(socket, %{route_id: :app}, generation) do
     actor = staking_actor(socket)
 
     socket
     |> cancel_staking_confirmation()
+    |> clear_staking_form()
     |> assign(staking: nil, staking_status: :loading)
     |> start_async({:staking, generation}, fn ->
       {generation, if(actor, do: Staking.account(actor: actor), else: Staking.overview())}
@@ -1980,16 +1956,40 @@ defmodule AshPlatformWeb.ShellLive do
   defp maybe_start_staking(socket, _route_spec, _generation) do
     socket
     |> cancel_staking_confirmation()
-    |> assign(
-      staking: nil,
-      staking_action: "stake",
-      staking_amount: "",
-      staking_wallet: nil,
-      staking_status: :loading,
-      staking_notice: nil,
-      staking_signing?: false
-    )
+    |> clear_staking_form()
+    |> assign(staking: nil, staking_status: :loading)
   end
+
+  defp clear_staking_form(socket),
+    do:
+      assign(socket,
+        staking_action: "stake",
+        staking_amount: "",
+        staking_wallet: nil,
+        staking_prepared: nil,
+        staking_submission: nil,
+        staking_signing?: false,
+        staking_notice: nil
+      )
+
+  # A wallet the account does not hold is the only read failure that unmakes the
+  # active wallet. Unavailable evidence is never zero and never someone else's
+  # wallet: the position waits, and everything durable stays exactly as it is.
+  defp staking_read_failed(socket, :wrong_signer, generation) do
+    socket
+    |> clear_staking_form()
+    |> assign(
+      staking_notice: %{
+        tone: :error,
+        message:
+          "That wallet is not one of the wallets on your Regent account. Switch to a wallet you signed in with, or sign in again with this one."
+      }
+    )
+    |> start_staking_read(generation)
+  end
+
+  defp staking_read_failed(socket, _unavailable, _generation),
+    do: assign(socket, staking: nil, staking_status: :error)
 
   # Before an active wallet is known the page shows only public chain truth; the
   # private position is read for that exact wallet and for nothing else.
@@ -2825,6 +2825,14 @@ defmodule AshPlatformWeb.ShellLive do
   defp staking_preparation_error(_reason),
     do: "That action could not be prepared. Check the amount and wallet."
 
+  # The check before a dispatch can fail because the wallet does not belong to
+  # this account or because Base could not be read. Only the first is about the
+  # wallet, and neither one sends anything.
+  defp staking_dispatch_refusal(:wrong_signer), do: staking_preparation_error(:wrong_signer)
+
+  defp staking_dispatch_refusal(_unavailable),
+    do: "Base could not be reached to check this wallet. Nothing was sent. Try again shortly."
+
   # The browser reports a closed reason key, never text, so no provider, revert
   # or wallet-vendor wording can reach a customer through this path.
   defp wallet_failure_copy("wallet_unavailable"),
@@ -2871,6 +2879,44 @@ defmodule AshPlatformWeb.ShellLive do
     do: account.wallet_address
 
   defp expected_wallet(_socket), do: nil
+
+  defp prepare_reviewed_staking(params, socket) do
+    action = params["action"]
+    amount = params["amount"] || socket.assigns.staking_amount
+
+    case prepare_staking(action, amount, socket) do
+      {:ok, envelope} ->
+        if submitted_action?(socket.assigns.staking_submission, envelope.action_id) do
+          {:noreply,
+           assign(socket,
+             staking_notice: %{
+               tone: :error,
+               message: "This action was already submitted. Verify its transaction instead."
+             }
+           )}
+        else
+          {:noreply,
+           socket
+           |> assign(
+             staking_prepared: envelope,
+             staking_submission: nil,
+             staking_signing?: false,
+             staking_notice: %{
+               tone: :info,
+               message: "Review the details before opening your wallet."
+             }
+           )
+           |> schedule_staking_expiry(envelope)}
+        end
+
+      {:error, reason} ->
+        {:noreply,
+         assign(socket,
+           staking_prepared: nil,
+           staking_notice: %{tone: :error, message: staking_preparation_error(refusal(reason))}
+         )}
+    end
+  end
 
   defp prepare_staking(action, amount, socket) do
     opts = wallet_opts(socket)
@@ -3279,12 +3325,12 @@ defmodule AshPlatformWeb.ShellLive do
             |> assign(staking: staking, staking_status: :ready)
             |> claim_staking_dispatch(envelope, submission)
 
-          {:error, _refused} ->
+          {:error, reason} ->
             {:noreply,
              assign(socket,
                staking_notice: %{
                  tone: :error,
-                 message: staking_preparation_error(:wrong_signer)
+                 message: staking_dispatch_refusal(refusal(reason))
                }
              )}
         end
@@ -3300,6 +3346,32 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp staking_verifying?(%{staking_confirmation_name: name, staking_signing?: signing}),
     do: name != nil or signing
+
+  # A claimed dispatch and a submitted transaction both own the review, so the
+  # form is frozen for either. Refresh is deliberately not part of this: it only
+  # re-reads the position and never touches the review, so it stays available
+  # while a submitted transaction waits.
+  defp staking_locked?(%{staking_signing?: true}), do: true
+  defp staking_locked?(%{staking_submission: submission}), do: pending_submission?(submission)
+
+  defp staking_locked_notice(%{staking_signing?: true}),
+    do: %{tone: :info, message: staking_preparation_error(:operation_in_flight)}
+
+  defp staking_locked_notice(_assigns),
+    do: %{
+      tone: :info,
+      message: "Verify the submitted transaction before preparing another action."
+    }
+
+  # A position is only ever shown under the wallet it was read for.
+  defp install_active_snapshot(
+         %{assigns: %{staking_wallet: wallet}} = socket,
+         %{wallet_address: address} = staking
+       ) do
+    if normalized_wallet(address) == wallet,
+      do: assign(socket, staking: staking, staking_status: :ready),
+      else: socket
+  end
 
   defp clear_confirmed_staking(%{assigns: %{staking_submission: %{status: :confirmed}}} = socket),
     do: assign(socket, staking_submission: nil, staking_notice: nil)

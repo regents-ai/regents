@@ -18,7 +18,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
       Application.delete_env(:ash_platform, :test_staking_approval_status)
       Application.delete_env(:ash_platform, :test_staking_confirmation_result)
       Application.delete_env(:ash_platform, :test_staking_balances)
-      Application.delete_env(:ash_platform, :test_staking_signer)
+      Application.delete_env(:ash_platform, :test_staking_confirm_barrier)
+      Application.delete_env(:ash_platform, :test_staking_overview_error)
+      Application.delete_env(:ash_platform, :test_staking_read_watcher)
       restore_env(:wallet_action_clock, previous_clock)
     end)
 
@@ -243,14 +245,21 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_click(view, "fill_staking_amount", %{"portion" => "max"})
     assert render(view) =~ ~s(value="10")
 
+    # Unstake spends a different balance, so the amount filled for Stake does
+    # not carry over to it.
     render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    assert render(view) =~ ~s(value="")
+
     render_click(view, "fill_staking_amount", %{"portion" => "max"})
     assert render(view) =~ ~s(value="5")
 
     render_click(view, "fill_staking_amount", %{"portion" => "half"})
     assert render(view) =~ ~s(value="2.5")
 
-    Application.put_env(:ash_platform, :test_staking_balances, %{token: "1", stake: "0"})
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{token: "1", stake: "0"}
+    })
+
     render_click(view, "select_staking_action", %{"mode" => "stake"})
     render_click(view, "refresh_staking", %{})
     render_async(view)
@@ -272,9 +281,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "P5_NO_ZERO_CLAIMS: zero USDC, REGENT and claim-and-restake controls are refused",
        %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_balances, %{
-      usdc_claimable: "0",
-      regent_claimable: "0",
-      regent_funded: "0"
+      @wallet => %{usdc_claimable: "0", regent_claimable: "0", regent_funded: "0"}
     })
 
     view = signed_in(conn, "stake-zero-claims")
@@ -456,12 +463,71 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # shell holds no submission of its own and only the database knows.
     sign(view, prepared_action_id(render(view)))
 
-    render_click(view, "select_staking_action", %{"mode" => "unstake"})
-    review(view, "unstake")
-
-    html = render(view)
+    html = render_click(view, "prepare_staking", %{"action" => "unstake"})
     assert html =~ "An earlier staking action is still outstanding"
     refute html =~ "Check the amount and wallet"
+  end
+
+  # From the claim to the hash the review is the only thing that may be signed,
+  # so every control that could replace or clear it is refused by the server as
+  # well as disabled on screen. The claimed envelope survives them all, the
+  # later hash still binds to it, and confirmation proceeds against it.
+  test "P4_CLAIM_FREEZES_THE_REVIEW: late form events cannot replace a claimed envelope",
+       %{conn: conn} do
+    account = register("stake-claim-freeze", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+
+    for control <- [
+          ~s(#staking-amount[disabled]),
+          ~s(button[phx-value-mode="unstake"][disabled]),
+          ~s(button[phx-value-portion="half"][disabled]),
+          ~s(button[phx-value-portion="max"][disabled]),
+          ~s(button[phx-value-action="stake"][disabled])
+        ] do
+      assert has_element?(view, control)
+    end
+
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+    render_hook(view, "staking_amount_changed", %{"amount" => "9"})
+    render_click(view, "prepare_staking", %{"action" => "stake"})
+
+    # The reviewed envelope is untouched: same action, same amount, same signer.
+    assert prepared_action_id(render(view)) == action_id
+    assert render(view) =~ "1 REGENT"
+
+    # The wallet reported something that is not the exact rejection, so the
+    # request may still be open there: nothing is closed, nothing is resent and
+    # the review stays exactly as locked as it was.
+    render_hook(view, "staking_wallet_failed", %{"reason" => "unknown"})
+    sign(view, action_id)
+    refute_push_event(view, "staking:prepared", _)
+    assert has_element?(view, ~s(#staking-amount[disabled]))
+    assert prepared_action_id(render(view)) == action_id
+
+    assert {:ok, %{state: :approval_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    submit(view, action_id, "approval", @approval_hash)
+    render_async(view)
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    assert render_async(view) =~ "Confirmed on Base"
+    assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
   end
 
   # Identity change: this used to end by preparing a fresh action, then said an
@@ -501,7 +567,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # The approval was broadcast and has not been verified, so it cannot be
     # withdrawn: it still holds this account's one active Stake slot and no
     # fresh action can be prepared against it.
-    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    assert has_element?(view, ~s(#staking-amount[disabled]))
     assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
 
     assert render_click(view, "prepare_staking", %{"action" => "stake"}) =~
@@ -773,6 +839,211 @@ defmodule AshPlatformWeb.StakeLiveTest do
            )
 
     refute has_element?(view, ~s(.stake-review [phx-click="sign_prepared_staking"]))
+  end
+
+  # Base being unreadable says nothing about whose wallet this is. The active
+  # wallet, the review and the transaction already sent all survive it, no zero
+  # or "not your wallet" is invented, and the retry recovers the position.
+  test "P2_UNAVAILABLE_IS_NOT_A_VERDICT: a failed read keeps the wallet and the submitted hash",
+       %{conn: conn} do
+    account = register("stake-read-failure", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_approval(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    render_async(view)
+
+    Application.put_env(:ash_platform, :test_staking_overview_error, :chain_unavailable)
+    render_click(view, "refresh_staking", %{})
+    html = render_async(view)
+
+    assert html =~ "Staking details are unavailable right now"
+    refute html =~ "not one of the wallets on your Regent account"
+    refute html =~ "0 REGENT"
+
+    # The wallet is still the reviewed signer, so a dispatch attempted now says
+    # only that Base could not be read, and claims nothing.
+    sign(view, action_id)
+    assert render(view) =~ "Base could not be reached to check this wallet"
+    refute_push_event(view, "staking:prepared", _)
+
+    assert {:ok, %{state: :approval_verified, approval_transaction_hash: @approval_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    Application.delete_env(:ash_platform, :test_staking_overview_error)
+    render_click(view, "refresh_staking", %{})
+    render_async(view)
+
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
+
+    assert has_element?(
+             view,
+             ~s(.stake-submission a[href="https://basescan.org/tx/#{@approval_hash}"])
+           )
+
+    assert {:ok, %{state: :approval_verified}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A confirmation that finishes after the customer moved to another wallet
+  # belongs to the wallet that signed it: it releases its own verification and
+  # never paints its balances over the wallet now on screen.
+  test "P3_CONFIRMATION_NEVER_OVERWRITES_ANOTHER_WALLET: a switch mid-verification keeps the new wallet's position",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{stake: "5000000000000000000"},
+      @other => %{stake: "7000000000000000000"}
+    })
+
+    account = register("stake-confirm-switch", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_action(view, action_id)
+
+    Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    # Base is being read for the first wallet when the customer switches.
+    assert_receive {:staking_confirming, confirmation}
+    Application.put_env(:ash_platform, :test_staking_read_watcher, self())
+    render_hook(view, "staking_active_wallet", %{"address" => @other})
+
+    # The second wallet's own position is read and delivered first, so the
+    # confirmation is strictly the later result and would overwrite it if it
+    # were allowed to.
+    assert_receive {:staking_read, reader}
+    monitor = Process.monitor(reader)
+    assert_receive {:DOWN, ^monitor, :process, ^reader, _reason}
+    send(confirmation, :release_staking_confirmation)
+
+    html = render_async(view)
+
+    assert has_element?(view, ".stake-metric dd", "7 REGENT")
+    refute html =~ "5 REGENT"
+    refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+  end
+
+  # The same result arriving after the wallet disappeared releases its
+  # verification too, so the page is never left permanently verifying.
+  test "P3_VERIFICATION_ALWAYS_RELEASES: a disconnect mid-verification leaves refresh usable",
+       %{conn: conn} do
+    account = register("stake-confirm-disconnect", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_action(view, action_id)
+
+    Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    assert_receive {:staking_confirming, confirmation}
+    render_hook(view, "staking_active_wallet", %{"address" => nil})
+    send(confirmation, :release_staking_confirmation)
+    render_async(view)
+
+    assert has_element?(view, ~s(button[data-stake-connect]))
+
+    # Reconnecting the same wallet reads its position again, and refresh works.
+    Application.delete_env(:ash_platform, :test_staking_confirm_barrier)
+    activate(view, @wallet)
+
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
+    refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+    render_click(view, "refresh_staking", %{})
+    assert render_async(view) =~ "Your stake"
+  end
+
+  # The approval is already verified, so nothing needs approving again. A
+  # preflight that cannot reach the active wallet sends no stake and leaves the
+  # verified approval exactly as it is, with its manual retry.
+  test "P4_CONTINUATION_FAILS_CLOSED: an unavailable wallet leaves the verified approval retryable",
+       %{conn: conn} do
+    account = register("stake-continue-retry", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_approval(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    render_async(view)
+
+    assert_push_event(view, "staking:continue", %{action_id: ^action_id})
+
+    render_hook(view, "staking_wallet_failed", %{"reason" => "wallet_unavailable"})
+
+    refute_push_event(view, "staking:prepared", _)
+    assert {:ok, %{state: :approval_verified}} = StakeRedeemOperations.active(account.id, :stake)
+
+    assert has_element?(
+             view,
+             ~s(button[data-stake-confirm="#{action_id}"]),
+             "Continue after approval"
+           )
+
+    sign(view, action_id)
+
+    assert_push_event(view, "staking:prepared", %{
+      approval_transaction_hash: @approval_hash,
+      envelope: %{action: "stake"}
+    })
+
+    assert {:ok, %{state: :action_dispatched, approval_transaction_hash: @approval_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # `/stake` follows the wallet active in this browser and `/app` keeps reading
+  # the account's stored primary wallet. Neither can be made to read the other's,
+  # and coming back to `/stake` reads nothing private until the browser says
+  # which wallet is active.
+  test "P1_STAKE_ONLY_ACTIVE_WALLET: /stake reads the active wallet while /app keeps the stored primary",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{stake: "5000000000000000000"},
+      @other => %{stake: "7000000000000000000"}
+    })
+
+    account = register("stake-app-witness", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @other)
+
+    assert has_element?(view, ".stake-metric dd", "7 REGENT")
+
+    render_patch(view, "/app")
+    html = render_async(view)
+
+    assert html =~ "5 REGENT"
+    refute html =~ "7 REGENT"
+
+    # The browser may still publish its selection; `/app` does not read it.
+    render_hook(view, "staking_active_wallet", %{"address" => @other})
+    refute render(view) =~ "7 REGENT"
+
+    render_patch(view, "/stake")
+    refute render_async(view) =~ "7 REGENT"
+    assert has_element?(view, ~s(button[data-stake-connect]))
+
+    activate(view, @other)
+    assert has_element?(view, ".stake-metric dd", "7 REGENT")
   end
 
   defp register(suffix, wallets) do

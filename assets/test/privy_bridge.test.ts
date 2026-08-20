@@ -743,6 +743,51 @@ describe("Privy session bridge", () => {
     expect(activeEthereumWallet()).toBeNull()
   })
 
+  // A selection whose provider cannot be resolved is no Stake wallet. Keeping
+  // the previous one would let a page act for a wallet the customer has left.
+  it("P1_ACTIVE_WALLET_ONLY: a selection whose provider fails leaves no active wallet", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const dispatched = stubBrowserGlobals()
+    const first = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const unavailable = {
+      address: "0x2222222222222222222222222222222222222222",
+      type: "ethereum",
+      getEthereumProvider: async () => {
+        throw new Error("provider unavailable")
+      },
+    }
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      wallets: [first, unavailable],
+      activeWallet: first,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+      children: React.ReactElement
+    }>
+    const accountElement = providerElement.props.children
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => dispatched.length === 1)
+    expect(activeEthereumWallet()?.provider).toBe(first.provider)
+
+    // The connected set is identical; only the selection moved, and this
+    // wallet's provider does not resolve.
+    providerState.activeWallet = unavailable as unknown as typeof first
+    renderAccountBridge(accountElement)
+    await until(() => dispatched.length === 2)
+    expect(activeEthereumWallet()).toBeNull()
+  })
+
   it("selects the signer-bound wallet regardless of provider order", () => {
     const first = {request: vi.fn()}
     const expected = {request: vi.fn()}

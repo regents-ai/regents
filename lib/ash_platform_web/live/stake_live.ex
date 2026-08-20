@@ -13,6 +13,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :submission, :map, default: nil
   attr :signing, :boolean, default: false
   attr :verifying, :boolean, default: false
+  attr :locked, :boolean, default: false
 
   def page(assigns) do
     ~H"""
@@ -26,8 +27,12 @@ defmodule AshPlatformWeb.StakeLive do
       <div :if={@status == :loading} class="stake-status" aria-busy="true">
         Loading staking details…
       </div>
-      <div :if={@status == :error} class="stake-status" role="alert">
-        Staking details are unavailable right now. Try again shortly.
+      <div :if={@status == :error} class="stake-status">
+        <p role="alert">
+          Staking details are unavailable right now. Nothing on this page has changed.
+        </p>
+        <.notice :if={@notice} notice={@notice} />
+        <button type="button" phx-click="refresh_staking" disabled={@verifying}>Try again</button>
       </div>
 
       <div :if={@status == :ready && @staking} class="stake-layout">
@@ -150,7 +155,7 @@ defmodule AshPlatformWeb.StakeLive do
               phx-click="select_staking_action"
               phx-value-mode={mode}
               aria-pressed={to_string(@action == mode)}
-              disabled={pending?(@submission)}
+              disabled={@locked}
             >
               {mode_label(mode)}
             </button>
@@ -166,12 +171,13 @@ defmodule AshPlatformWeb.StakeLive do
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="0.0"
+                disabled={@locked}
               />
               <button
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="half"
-                disabled={pending?(@submission) or div(balance(@staking, @action), 2) == 0}
+                disabled={@locked or div(balance(@staking, @action), 2) == 0}
               >
                 50%
               </button>
@@ -179,7 +185,7 @@ defmodule AshPlatformWeb.StakeLive do
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="max"
-                disabled={pending?(@submission) or balance(@staking, @action) == 0}
+                disabled={@locked or balance(@staking, @action) == 0}
               >
                 Max
               </button>
@@ -193,7 +199,7 @@ defmodule AshPlatformWeb.StakeLive do
               phx-click="prepare_staking"
               phx-value-action={@action}
               disabled={
-                pending?(@submission) or String.trim(@amount) == "" or
+                @locked or String.trim(@amount) == "" or
                   (@action == "stake" and @staking.paused)
               }
             >
@@ -206,7 +212,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_usdc"
-              disabled={pending?(@submission) or atomic(@staking.wallet_claimable_usdc_raw) == 0}
+              disabled={@locked or atomic(@staking.wallet_claimable_usdc_raw) == 0}
             >
               Review USDC claim
             </button>
@@ -214,7 +220,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_regent"
-              disabled={pending?(@submission) or !claimable_regent?(@staking)}
+              disabled={@locked or !claimable_regent?(@staking)}
             >
               Review REGENT claim
             </button>
@@ -222,7 +228,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_and_restake_regent"
-              disabled={pending?(@submission) or !claimable_regent?(@staking)}
+              disabled={@locked or !claimable_regent?(@staking)}
             >
               Review claim and restake
             </button>
@@ -385,7 +391,4 @@ defmodule AshPlatformWeb.StakeLive do
   defp explorer_url(hash) do
     if String.match?(hash, ~r/\A0x[0-9a-fA-F]{64}\z/), do: "https://basescan.org/tx/" <> hash
   end
-
-  defp pending?(%{status: status}), do: status != :confirmed
-  defp pending?(nil), do: false
 end

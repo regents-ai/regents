@@ -318,13 +318,15 @@ defmodule AshPlatform.Staking.Actions do
        )}
 
   # The lease, not the actor captured at mount, decides which account the
-  # reviewed wallet has to belong to before any provider read happens.
+  # reviewed wallet has to belong to before any provider read happens. The
+  # refusal is typed, so the page can tell a wallet that does not belong to this
+  # account from a chain read that was merely unavailable.
   defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer) do
     with %{wallet_addresses: wallets} <- SessionAuthority.leased_account(lineage, account_id),
          true <- Enum.any?(wallets || [], &(normalize_or_nil(&1) == signer)) do
       :ok
     else
-      _ -> {:error, :wrong_signer}
+      _ -> refusal(:wrong_signer)
     end
   end
 

@@ -452,35 +452,33 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
     if (!ready || !(await reconcileProviderSession())) {
+      if (walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
       return
     }
 
-    const eligible = eligibleActiveWallet(activeWallet, wallets)
-    const [entries, active] = await Promise.all([
-      Promise.all(
-        wallets.map(
-          async wallet =>
-            [
-              wallet.address.toLowerCase(),
-              (await wallet.getEthereumProvider()) as EthereumProvider,
-            ] as const,
-        ),
+    // Each connected wallet's provider is resolved once, and the selection is
+    // taken from those resolved entries. A wallet whose provider does not
+    // resolve is not a wallet here, so a failed selection leaves Stake with no
+    // active wallet rather than with the previous one.
+    const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase()
+    const resolved = await Promise.allSettled(
+      wallets.map(
+        async wallet =>
+          [
+            wallet.address.toLowerCase(),
+            (await wallet.getEthereumProvider()) as EthereumProvider,
+          ] as const,
       ),
-      eligible && "getEthereumProvider" in eligible
-        ? eligible
-            .getEthereumProvider()
-            .then(provider => ({
-              address: eligible.address,
-              provider: provider as EthereumProvider,
-            }))
-        : Promise.resolve(null),
-    ])
+    )
     if (walletSyncGeneration.current !== generation) return
+
+    const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
+    const active = entries.find(([address]) => address === selected)
     replaceConnectedEthereumWallets(entries)
-    replaceActiveEthereumWallet(active)
+    replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, [activeWallet, ready, reconcileProviderSession, wallets])
 
