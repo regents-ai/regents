@@ -76,12 +76,11 @@ describe("prepared Animata redemption actions", () => {
   it("submits exactly one reviewed action from the expected wallet", async () => {
     const rpc = clients()
     const onSubmitted = vi.fn()
-    const result = await executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, {
+    await executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, {
       onSendStarted: () => undefined,
       onSubmitted,
     })
 
-    expect(result).toBe(hash)
     expect(rpc.simulate).toHaveBeenCalledOnce()
     expect(rpc.send).toHaveBeenCalledOnce()
     expect(onSubmitted).toHaveBeenCalledWith(hash)
@@ -332,11 +331,10 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
       options?.onSendStarted()
       options?.onSubmitted?.(hash)
-      return hash
     })
     await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "first"})})
     expect(hook.pushed).toContainEqual({
-      event: "confirm_redemption",
+      event: "redemption_submitted",
       payload: {action_id: "first", transaction_hash: hash},
     })
 

@@ -198,6 +198,36 @@ defmodule AshPlatform.WalletActions.RpcTest do
     end
   end
 
+  # A hash the wallet has just broadcast may not have reached this read RPC yet.
+  # Nothing has been observed about it, so it stays pending on the same hash
+  # rather than becoming a transaction that can never be verified.
+  test "PROPAGATION_LAG_IS_PENDING: an unobserved just-broadcast hash waits instead of failing" do
+    Stub.install(:wallet_http_client, fn _data, _state -> Stub.uint(0) end)
+    safe = %{number: 0x20, hash: Stub.safe_hash()}
+
+    Stub.put(%{transactions: %{}, receipts: %{}})
+    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) == {:ok, :pending}
+    assert Rpc.submission_status(@hash, @signer, @target, @data) == {:ok, :pending}
+
+    # A transaction this RPC has observed is still proved against the envelope,
+    # so drift is a permanent refusal rather than another wait.
+    Stub.put(%{transactions: %{@hash => %{transaction() | "input" => "0xdead"}}})
+
+    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) ==
+             {:error, :transaction_mismatch}
+
+    # The same hash, once the RPC has caught up with the wallet.
+    logs = [%{"address" => @target, "topics" => [], "data" => "0x"}]
+
+    Stub.put(%{
+      transactions: %{@hash => transaction()},
+      receipts: %{@hash => Stub.receipt(@hash, "0x10", logs)}
+    })
+
+    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) ==
+             {:ok, {:success, logs}}
+  end
+
   # The safe block already proved the chain identity, so an outcome judged
   # against it never asks for that identity again.
   test "CANONICAL_BEFORE_STATUS: the outcome read issues no second chain-id request" do

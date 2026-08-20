@@ -73,10 +73,11 @@ defmodule AshPlatform.WalletActions.Rpc do
   @doc """
   The exact canonical outcome of one submitted transaction against one safe head.
 
-  `:pending` is every state that may still resolve differently: no receipt yet, a
-  receipt above the safe head, and a receipt whose block is no longer canonical.
-  Success and revert are both read only from a receipt that is already canonical,
-  so neither can be reported from a block this transaction may yet leave.
+  `:pending` is every state that may still resolve differently: a hash this RPC
+  has not observed yet, no receipt yet, a receipt above the safe head, and a
+  receipt whose block is no longer canonical. Success and revert are both read
+  only from a receipt that is already canonical, so neither can be reported from
+  a block this transaction may yet leave.
 
   The safe block passed in already proved the chain identity, so nothing here
   asks for it a second time.
@@ -184,13 +185,21 @@ defmodule AshPlatform.WalletActions.Rpc do
          {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
          {:ok, transaction} <- request("eth_getTransactionByHash", [hash], opts),
          :ok <- verify_receipt_hash(receipt, hash),
-         :ok <- verify_transaction(transaction, hash, signer, to, data) do
+         :ok <- observed_identity(receipt, transaction, hash, signer, to, data) do
       {:ok, receipt}
     else
       false -> {:error, :invalid_confirmation}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # A hash the wallet has just broadcast may not have reached this read RPC yet.
+  # With neither a receipt nor the transaction itself, nothing has been observed
+  # about it: the same hash stays pending rather than becoming unverifiable.
+  defp observed_identity(nil, nil, _hash, _signer, _to, _data), do: :ok
+
+  defp observed_identity(_receipt, transaction, hash, signer, to, data),
+    do: verify_transaction(transaction, hash, signer, to, data)
 
   # `{:ok, :pending}` here is the whole answer: the `with` above carries it out
   # unchanged rather than reading a status this receipt does not have yet.
@@ -272,10 +281,8 @@ defmodule AshPlatform.WalletActions.Rpc do
   defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
 
   defp decode_address("0x" <> hex) when byte_size(hex) == 64 do
-    case Address.normalize("0x" <> String.slice(hex, -40, 40)) do
-      {:ok, address} -> address
-      :error -> raise ArgumentError, "invalid address"
-    end
+    {:ok, address} = Address.normalize("0x" <> String.slice(hex, -40, 40))
+    address
   end
 
   defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64 do

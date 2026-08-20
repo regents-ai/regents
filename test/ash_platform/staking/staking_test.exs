@@ -120,7 +120,7 @@ defmodule AshPlatform.StakingTest do
 
     # Preparation and confirmation are protected writes, so the test carries the
     # same mounted lease a connected socket proves rather than a bare actor.
-    %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
+    %{account: account, actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
   end
 
   test "public overview reads chain truth without a wallet" do
@@ -150,25 +150,25 @@ defmodule AshPlatform.StakingTest do
     refute_receive {:overview, _wallet}
   end
 
-  # Membership is a session fact, not a chain fact, and it is decided inside the
-  # one locked dispatch action rather than in a separate call the page sequences.
-  # A wallet the leased account does not hold never reaches a claim.
+  # Membership is a session fact, not a chain fact, and it is decided by the one
+  # locked dispatch transaction: the account that transaction locked, against the
+  # signer its own stored envelope pinned. A wallet the account no longer holds
+  # cannot be handed a dispatch, however the review was prepared.
   test "MEMBERSHIP_IS_LOCAL: the dispatch proves the current wallet inside its own lock", %{
+    account: account,
     actor: actor,
     opts: opts
   } do
     {:ok, envelope} = Staking.prepare_claim_usdc(@wallet, opts)
+    {:ok, moved} = Accounts.refresh_verified(account, @other, [@other], actor: %System{})
 
-    {:ok, outsider} =
-      Accounts.register_verified("did:privy:staking-outsider", @other, [@other], actor: %System{})
-
-    assert {:error, unlinked} =
-             Staking.claim_wallet_dispatch(envelope, :action, leased(outsider.id))
-
+    assert {:error, unlinked} = Staking.claim_wallet_dispatch(envelope, :action, opts)
     assert refusal(unlinked) == :wrong_signer
 
     assert {:error, _leaseless} = Staking.claim_wallet_dispatch(envelope, :action, actor: actor)
     assert {:error, _anonymous} = Staking.claim_wallet_dispatch(envelope, :action)
+
+    {:ok, _restored} = Accounts.refresh_verified(moved, @wallet, [@wallet], actor: %System{})
 
     assert {:ok, %{operation: %{state: :action_dispatched}}} =
              Staking.claim_wallet_dispatch(envelope, :action, opts)

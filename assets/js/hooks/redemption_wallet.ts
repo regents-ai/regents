@@ -115,7 +115,9 @@ export const RedemptionWallet: Hook = {
       let sendStarted = false
 
       try {
-        const hash = await executePreparedRedemptionAction(envelope, connected.provider, undefined, {
+        // Reporting the hash is the whole handoff: the server binds it durably
+        // and owns every read after it, so nothing is reported a second time.
+        await executePreparedRedemptionAction(envelope, connected.provider, undefined, {
           onSendStarted: () => (sendStarted = true),
           onSubmitted: submittedHash =>
             recordSubmittedRedemption(
@@ -124,10 +126,6 @@ export const RedemptionWallet: Hook = {
               payload => this.pushEvent("redemption_submitted", payload),
               sessionStorage,
             ),
-        })
-        this.pushEvent("confirm_redemption", {
-          action_id: envelope.action_id,
-          transaction_hash: hash,
         })
       } catch (error) {
         // Below the send marker nothing was broadcast, whatever the wallet said,

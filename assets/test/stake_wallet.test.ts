@@ -127,23 +127,28 @@ describe("staking wallet action", () => {
       "0x7acb775700000000000000000000000000000000000000000000000014d1120d7b1600000000000000000000000000001111111111111111111111111111111111111111",
     )
 
+    // The approval send is the whole attempt: the stake is not also sent, and it
+    // follows only once an already-sent approval is carried back in.
     const approvalBoundary = clients()
-    await expect(
-      executePreparedStakingAction(prepared, provider, approvalBoundary, sendBoundary),
-    ).resolves.toEqual({
-      phase: "approval",
-      approvalHash,
+    const approvalSubmitted = vi.fn()
+    await executePreparedStakingAction(prepared, provider, approvalBoundary, {
+      ...sendBoundary,
+      onSubmitted: approvalSubmitted,
     })
+
     expect(approvalBoundary.send).toHaveBeenCalledOnce()
+    expect(approvalSubmitted).toHaveBeenCalledExactlyOnceWith("approval", approvalHash)
 
     const mainBoundary = clients({send: vi.fn(async () => mainHash)})
-    await expect(
-      executePreparedStakingAction(prepared, provider, mainBoundary, {
-        ...sendBoundary,
-        existingApprovalHash: approvalHash,
-      }),
-    ).resolves.toEqual({phase: "action", transactionHash: mainHash, approvalHash})
+    const mainSubmitted = vi.fn()
+    await executePreparedStakingAction(prepared, provider, mainBoundary, {
+      ...sendBoundary,
+      existingApprovalHash: approvalHash,
+      onSubmitted: mainSubmitted,
+    })
+
     expect(mainBoundary.send).toHaveBeenCalledOnce()
+    expect(mainSubmitted).toHaveBeenCalledExactlyOnceWith("action", mainHash)
   })
 
   it("notifies the server and retains the hash in memory when session storage throws", () => {
@@ -367,12 +372,11 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
       options.onSendStarted()
       options.onSubmitted?.("action", mainHash)
-      return {phase: "action", transactionHash: mainHash}
     })
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "first", approval: null})})
     expect(hook.pushed).toContainEqual({
-      event: "confirm_staking",
-      payload: {action_id: "first", transaction_hash: mainHash, approval_transaction_hash: null},
+      event: "staking_submitted",
+      payload: {action_id: "first", phase: "action", transaction_hash: mainHash},
     })
 
     await hook.emit("staking:confirmed", {})
@@ -587,7 +591,6 @@ describe("R1_SEND_MARKER_IS_THE_BOUNDARY: the marker alone decides what the page
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
       options.onSendStarted()
       options.onSubmitted?.("approval", approvalHash)
-      return {phase: "approval", approvalHash}
     })
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "two-phase"})})
 

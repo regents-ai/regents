@@ -98,7 +98,7 @@ defmodule AshPlatform.RedemptionTest do
 
     # Preparation and confirmation are protected writes, so the test carries the
     # same mounted lease a connected socket proves rather than a bare actor.
-    %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
+    %{account: account, actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
   end
 
   test "public facts and wallet account state come from Base", %{actor: actor, opts: opts} do
@@ -125,24 +125,24 @@ defmodule AshPlatform.RedemptionTest do
     refute_receive {:overview, _wallet, _collection, _token_id}
   end
 
-  # Membership is a session fact, not a chain fact, and it is decided inside the
-  # one locked dispatch action rather than in a separate call the page sequences.
+  # Membership is a session fact, not a chain fact, and it is decided by the one
+  # locked dispatch transaction: the account that transaction locked, against the
+  # signer its own stored envelope pinned.
   test "MEMBERSHIP_IS_LOCAL: the dispatch proves the current wallet inside its own lock", %{
+    account: account,
     actor: actor,
     opts: opts
   } do
     {:ok, envelope} = Redemption.prepare_claim(@wallet, opts)
+    {:ok, moved} = Accounts.refresh_verified(account, @other, [@other], actor: %System{})
 
-    {:ok, outsider} =
-      Accounts.register_verified("did:privy:redemption-outsider", @other, [@other],
-        actor: %System{}
-      )
-
-    assert {:error, unlinked} = Redemption.claim_wallet_dispatch(envelope, leased(outsider.id))
+    assert {:error, unlinked} = Redemption.claim_wallet_dispatch(envelope, opts)
     assert refusal(unlinked) == :wrong_signer
 
     assert {:error, _leaseless} = Redemption.claim_wallet_dispatch(envelope, actor: actor)
     assert {:error, _anonymous} = Redemption.claim_wallet_dispatch(envelope)
+
+    {:ok, _restored} = Accounts.refresh_verified(moved, @wallet, [@wallet], actor: %System{})
 
     assert {:ok, %{operation: %{state: :action_dispatched}}} =
              Redemption.claim_wallet_dispatch(envelope, opts)

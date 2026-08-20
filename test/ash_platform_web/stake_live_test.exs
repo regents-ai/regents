@@ -3,7 +3,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   alias AshPlatform.{Accounts, Staking}
   alias AshPlatform.Actors.System
-  alias AshPlatform.WalletActions.StakeRedeemOperations
+  alias AshPlatform.BaseRpcStub, as: Stub
+  alias AshPlatform.WalletActions.{Abi, StakeRedeemOperations}
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -13,8 +14,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   setup do
     previous_clock = Application.get_env(:ash_platform, :wallet_action_clock)
+    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
 
     on_exit(fn ->
+      restore_env(:staking_chain_client, previous_client)
       Application.delete_env(:ash_platform, :test_staking_approval_status)
       Application.delete_env(:ash_platform, :test_staking_confirmation_result)
       Application.delete_env(:ash_platform, :test_staking_balances)
@@ -74,6 +77,23 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(.stake-actions button[data-stake-connect]))
   end
 
+  # A signed-out visitor may still publish an active wallet. Nothing private is
+  # read for it, and the page stays the public one with its sign-in path.
+  test "PUBLIC_STAYS_PUBLIC: a signed-out wallet event never turns the page into an error", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/stake")
+    render_async(view)
+
+    render_hook(view, "staking_active_wallet", %{"address" => @wallet})
+    html = render_async(view)
+
+    assert html =~ "Sign in with the wallet"
+    assert html =~ "100 REGENT"
+    refute html =~ "unavailable right now"
+    refute has_element?(view, "#regent-staking [phx-click=prepare_staking]")
+  end
+
   test "a signed-in wallet reviews, explicitly signs, confirms and refreshes", %{conn: conn} do
     view = signed_in(conn, "stake-live")
     activate(view, @wallet)
@@ -129,11 +149,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute_push_event(view, "staking:prepared", _)
 
     submit(view, action_id, "action", @tx_hash)
-
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
 
     html = render_async(view)
     assert html =~ "Confirmed on Base"
@@ -314,11 +329,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     action_id = prepared_action_id(render(view))
     submit_action(view, action_id)
 
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     assert has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
     render_click(view, "refresh_staking", %{})
 
@@ -340,11 +350,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     action_id = prepared_action_id(render(view))
 
     submit_action(view, action_id)
-
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
 
     html = render_async(view)
     assert html =~ "staking transaction reverted"
@@ -523,11 +528,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, action_id)
     submit(view, action_id, "action", @tx_hash)
 
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     assert render_async(view) =~ "Confirmed on Base"
     assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
     assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
@@ -616,15 +616,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert render(view) =~ "Staking transaction:"
     refute_push_event(view, "staking:abandoned", _)
-  end
-
-  test "unknown or mismatched confirmations fail closed", %{conn: conn} do
-    view = signed_in(conn, "stake-mismatch")
-    activate(view, @wallet)
-
-    render_hook(view, "confirm_staking", %{"action_id" => "other", "transaction_hash" => @tx_hash})
-
-    assert render(view) =~ "does not match the reviewed action"
   end
 
   test "REJECTION_WRITES_NOTHING: a newline-padded submitted hash reaches neither the shell nor the row",
@@ -796,10 +787,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
 
-    # That link is the only place either hash is shown: the status notice names
-    # what was submitted without repeating an unclickable copy of the hash.
+    # That link is the only place either hash is shown: the status notice says
+    # what is happening without repeating an unclickable copy of the hash.
     html = render(view)
-    assert html =~ "Staking transaction submitted."
+    assert html =~ "Confirming this transaction on Base"
     assert shown_once?(html, short_hash(@approval_hash))
     assert shown_once?(html, short_hash(@tx_hash))
 
@@ -1050,11 +1041,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
 
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     # Base is being read for the first wallet when the customer switches.
     assert_receive {:staking_confirming, confirmation}
     Application.put_env(:ash_platform, :test_staking_read_watcher, self())
@@ -1089,11 +1075,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     submit_action(view, action_id)
 
     Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
-
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
 
     assert_receive {:staking_confirming, confirmation}
     render_hook(view, "staking_active_wallet", %{"address" => nil})
@@ -1473,11 +1454,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, action_id)
     submit(view, action_id, "action", @tx_hash)
 
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     html = render_async(view)
     refute html =~ "Confirmed on Base"
     assert html =~ "without recording the action"
@@ -1508,11 +1484,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, action_id)
     submit(view, action_id, "action", @tx_hash)
 
-    render_hook(view, "confirm_staking", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     html = render_async(view)
     assert html =~ "Waiting for Base confirmation"
     assert html =~ short_hash(@tx_hash)
@@ -1528,6 +1499,69 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_push_event(view, "staking:confirmed", %{})
   end
 
+  # The whole connected path over a real Base transport: the wallet's hash is
+  # bound, the read RPC has not seen it yet, and the page waits on that exact
+  # hash instead of calling a transaction it cannot yet read unverifiable.
+  test "PROPAGATION_LAG_IS_PENDING: a just-broadcast hash waits and confirms on the same hash",
+       %{conn: conn} do
+    account = register("stake-propagation", [@wallet])
+    Application.put_env(:ash_platform, :staking_chain_client, AshPlatform.Staking.RpcClient)
+    Stub.install(:staking_http_client, &staking_call/2)
+    Stub.put(%{transactions: %{}, receipts: %{}})
+
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+
+    html = render_async(view)
+    assert html =~ "Waiting for Base confirmation"
+    assert html =~ short_hash(@tx_hash)
+    refute html =~ "could not be verified from this session"
+
+    assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash} = operation} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The same hash, once the read RPC has caught up with the wallet.
+    observe(operation.envelope, claim_usdc_log())
+    send(view.pid, {:verification_retry, :stake, action_id})
+
+    assert render_async(view) =~ "Confirmed on Base"
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A verification that crashed says nothing about Base. It is not a pending
+  # receipt, so it never re-arms the read; the page says what to do instead.
+  @tag :capture_log
+  test "ONE_RETRY_AT_A_TIME: a crashed verification stops rather than re-arming", %{conn: conn} do
+    account = register("stake-crash", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :crashes)
+
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+
+    html = render_async(view)
+    assert html =~ "could not be verified from this session"
+    refute html =~ "Waiting for Base confirmation"
+
+    # The submitted hash and its state survive, and nothing is read again on its
+    # own: only the customer's own retry asks Base anything further.
+    assert html =~ short_hash(@tx_hash)
+
+    assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    refute armed_verification?(view)
+  end
+
   # Stale browser storage is told so exactly once rather than asking again on
   # every reload. No history copy is invented for work that already ended.
   test "STALE_STORAGE_CLEARS: a restore with no active operation clears the browser", %{
@@ -1541,6 +1575,22 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert_push_event(view, "staking:abandoned", %{})
     refute render(view) =~ "Submitted transaction"
+  end
+
+  # The claim controls ask the domain the same question preparation asks of the
+  # same snapshot, so the page cannot invite a compound the contract could not
+  # take even though the reward itself is fully funded.
+  test "AMOUNT_LIMITS: claim and restake is refused when the reward exceeds capacity", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_staking_denominator, "100000000000000000001")
+
+    view = signed_in(conn, "stake-compound-capacity")
+    activate(view, @wallet)
+
+    assert has_element?(view, ~s(button[phx-value-action="claim_and_restake_regent"][disabled]))
+    refute has_element?(view, ~s(button[phx-value-action="claim_regent"][disabled]))
+    refute has_element?(view, ~s(button[phx-value-action="claim_usdc"][disabled]))
   end
 
   # The cap the deployed contract enforces is page truth, and the amount controls
@@ -1657,6 +1707,50 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, action_id)
     submit(view, action_id, "action", @tx_hash)
   end
+
+  # The one automatic verification this socket may hold, read from the socket
+  # itself so a proof does not have to wait out a thirty-second interval.
+  defp armed_verification?(view),
+    do: not is_nil(:sys.get_state(view.pid).socket.assigns.staking_retry_ref)
+
+  # The read RPC catches up with the wallet: this exact transaction and a receipt
+  # carrying the action's own event.
+  defp observe(envelope, log) do
+    Stub.put(%{
+      transactions: %{
+        @tx_hash => %{
+          "hash" => @tx_hash,
+          "from" => envelope["expected_signer"],
+          "to" => envelope["to"],
+          "input" => envelope["data"],
+          "value" => "0x0"
+        }
+      },
+      receipts: %{@tx_hash => Stub.receipt(@tx_hash, "0x10", [log])}
+    })
+  end
+
+  defp claim_usdc_log do
+    %{
+      "address" => Abi.staking_address(),
+      "topics" => [Abi.event_topic(:usdc_reward_claimed), Stub.address_topic(@wallet)],
+      "data" => "0x" <> Stub.hex_word(5) <> Stub.address_word(@wallet)
+    }
+  end
+
+  # The pinned constants the overview proves before it accepts a snapshot; every
+  # other read answers with a small positive balance.
+  defp staking_call(data, _state) do
+    cond do
+      data == Abi.encode_read("stake_token") -> Stub.uint(word(Abi.stake_token_address()))
+      data == Abi.encode_read("usdc") -> Stub.uint(word(Abi.usdc_address()))
+      data == Abi.encode_read("paused") -> Stub.uint(0)
+      data == Abi.encode_supply_denominator() -> Stub.uint(1_000)
+      true -> Stub.uint(5)
+    end
+  end
+
+  defp word(address), do: String.to_integer(String.trim_leading(address, "0x"), 16)
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

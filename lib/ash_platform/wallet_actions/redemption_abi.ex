@@ -1,7 +1,7 @@
 defmodule AshPlatform.WalletActions.RedemptionAbi do
   @moduledoc false
 
-  alias AshPlatform.WalletActions.Abi
+  alias AshPlatform.WalletActions.{Abi, Address}
 
   @manifest_path Path.expand("../../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../../contracts/abi/animata-redeemer.json", __DIR__)
@@ -56,15 +56,46 @@ defmodule AshPlatform.WalletActions.RedemptionAbi do
   def collection(_collection), do: {:error, :invalid_collection}
 
   def collection_id(address) do
-    address = Abi.normalize_address!(address)
-
     cond do
-      address == Abi.normalize_address!(animata_i_address()) -> "animata_i"
-      address == Abi.normalize_address!(animata_ii_address()) -> "animata_ii"
+      Address.equal?(address, animata_i_address()) -> "animata_i"
+      Address.equal?(address, animata_ii_address()) -> "animata_ii"
       true -> nil
     end
-  rescue
-    _ -> nil
+  end
+
+  @doc """
+  The exact contract one prepared redemption action targets, and the name a
+  review shows for it.
+
+  The action layer and the chain client ask this one question of the pinned
+  manifest, so a review, a dispatch claim and a receipt can never disagree about
+  which contract this action belongs to.
+  """
+  @spec action_identity(map()) :: {:ok, String.t(), String.t()} | {:error, atom()}
+  def action_identity(%{action: "approve_nft_collection", arguments: arguments}) do
+    collection = Map.get(arguments, :collection, Map.get(arguments, "collection"))
+
+    case collection_name(collection) do
+      nil -> {:error, :invalid_collection}
+      name -> {:ok, Abi.normalize_address!(collection), name}
+    end
+  end
+
+  def action_identity(%{action: "approve_exact_usdc"}),
+    do: {:ok, Abi.normalize_address!(usdc_address()), "USDC"}
+
+  def action_identity(%{action: action}) when action in ["redeem", "claim"],
+    do: {:ok, Abi.normalize_address!(redeemer_address()), "AnimataRedeemer"}
+
+  def action_identity(_envelope), do: {:error, :invalid_action}
+
+  @doc "The name an eligible Animata collection is reviewed under, or `nil`."
+  def collection_name(address) do
+    case collection_id(address) do
+      "animata_i" -> "Animata I"
+      "animata_ii" -> "Animata II"
+      nil -> nil
+    end
   end
 
   def encode_action(id, arguments) when is_binary(id) and is_list(arguments) do

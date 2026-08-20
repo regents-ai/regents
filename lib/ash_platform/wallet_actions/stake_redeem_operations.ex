@@ -6,7 +6,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
   outermost transaction, so a claim, a hash bind or a confirmation cannot outlive
   a concurrent logout, revocation or lapse of provider evidence. The owner comes
   from the account that callback locked rather than an actor captured earlier,
-  and is rechecked against the prepared signer.
+  and is rechecked against the signer that operation's own envelope pinned.
 
   Provider reads happen before these calls. Only the resulting row write happens
   inside the lock, and the row is taken `FOR UPDATE` first, so two sockets racing
@@ -41,7 +41,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
   @spec prepare(lease(), capability(), map()) :: {:ok, struct()} | {:error, term()}
   def prepare(lease, capability, envelope) do
     transact(lease, fn account ->
-      with :ok <- signer_matches(account, envelope),
+      with :ok <- signer_matches(account, envelope.expected_signer),
            :ok <- release_undispatched(account.id, capability) do
         StakeRedeemOperation
         |> Ash.Changeset.for_create(
@@ -61,11 +61,23 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
     end)
   end
 
-  @doc "Atomically claims one phase's dispatch. Only this winner may open the wallet."
+  @doc """
+  Atomically claims one phase's dispatch. Only this winner may open the wallet.
+
+  The account the lease locked and the signer the stored envelope pinned decide
+  together, inside the same transaction that takes the row `FOR UPDATE`, so a
+  wallet the account no longer holds cannot be handed a dispatch by a membership
+  check that passed a moment earlier.
+  """
   @spec claim_dispatch(lease(), capability(), String.t(), phase()) ::
           {:ok, struct()} | {:error, term()}
   def claim_dispatch(lease, capability, action_id, phase) do
-    write(lease, capability, action_id, &transition(&1, capability, claim_action(phase)))
+    transact(lease, fn account ->
+      with {:ok, operation} <- locked(account.id, capability, action_id),
+           :ok <- signer_matches(account, operation.envelope["expected_signer"]) do
+        transition(operation, capability, claim_action(phase))
+      end
+    end)
   end
 
   @doc """
@@ -233,8 +245,15 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
     end)
   end
 
-  defp transact(%{lineage: lineage, account_id: account_id}, callback),
-    do: SessionAuthority.transact_lease(lineage, account_id, callback)
+  # A lease that no longer resolves its account has said nothing about whose
+  # wallet this is, so every durable path reports the one typed refusal and the
+  # page can tell it apart from a wallet the account does not hold.
+  defp transact(%{lineage: lineage, account_id: account_id}, callback) do
+    case SessionAuthority.transact_lease(lineage, account_id, callback) do
+      {:error, :stale_authority} -> unavailable(:session_unavailable)
+      result -> result
+    end
+  end
 
   defp locked(account_id, capability, action_id) do
     StakeRedeemOperation
@@ -271,14 +290,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
                transition(operation, capability, :cancel, "replaced by a newer review"),
              do: :ok
 
-      # A typed Ash error, so the refusal survives the action's error class and
-      # the presenter can say which fact holds the slot.
       {:ok, _dispatched} ->
-        {:error,
-         Ash.Error.Invalid.Unavailable.exception(
-           resource: StakeRedeemOperation,
-           reason: :operation_in_flight
-         )}
+        unavailable(:operation_in_flight)
 
       {:error, reason} ->
         {:error, reason}
@@ -312,11 +325,18 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
     |> Ash.update(actor: @actor)
   end
 
-  defp signer_matches(account, %{expected_signer: signer}) do
+  defp signer_matches(account, signer) do
     if Enum.any?(account.wallet_addresses || [], &Address.equal?(&1, signer)),
       do: :ok,
-      else: {:error, :wrong_signer}
+      else: unavailable(:wrong_signer)
   end
+
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # presenter can name the fact that actually stopped the operation.
+  defp unavailable(reason),
+    do:
+      {:error,
+       Ash.Error.Invalid.Unavailable.exception(resource: StakeRedeemOperation, reason: reason)}
 
   defp canonical_hash(hash) do
     if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: {:error, :invalid_hash}

@@ -196,7 +196,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:ok, _claimed} = claim(revoked, other, :action)
     SessionAuthority.revoke(%{lineage: revoked.lineage})
 
-    assert {:error, :stale_authority} = unstarted(revoked, other, :action)
+    assert lapsed_authority?(unstarted(revoked, other, :action))
     assert {:ok, %{state: :action_dispatched}} = active(revoked.account_id)
   end
 
@@ -353,7 +353,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
     SessionAuthority.revoke(%{lineage: lease.lineage})
 
-    assert {:error, :stale_authority} = claim(lease, envelope, :action)
+    assert lapsed_authority?(claim(lease, envelope, :action))
     assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(lease.account_id, :stake)
   end
 
@@ -432,7 +432,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
       unboxed(fn -> SessionAuthority.revoke(%{lineage: lease.lineage}) end)
 
-      assert unboxed(fn -> claim(lease, envelope, :action) end) == {:error, :stale_authority}
+      assert lapsed_authority?(unboxed(fn -> claim(lease, envelope, :action) end))
 
       assert unboxed(fn -> active(lease.account_id) end) |> elem(1) |> Map.get(:state) ==
                :prepared
@@ -454,8 +454,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
       assert unboxed(fn -> active(lease.account_id) end) |> elem(1) |> Map.get(:state) ==
                :action_dispatched
 
-      assert unboxed(fn -> bind(lease, envelope, :action, @action_hash) end) ==
-               {:error, :stale_authority}
+      assert lapsed_authority?(unboxed(fn -> bind(lease, envelope, :action, @action_hash) end))
     end
   end
 
@@ -478,6 +477,11 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
   end
 
   defp active(account_id), do: StakeRedeemOperations.active(account_id, :stake)
+
+  # Every durable path answers a lapsed lease with the one typed refusal, so the
+  # page can tell it apart from a wallet the account no longer holds.
+  defp lapsed_authority?(result),
+    do: match?({:error, %Ash.Error.Invalid.Unavailable{reason: :session_unavailable}}, result)
 
   defp claim(lease, envelope, phase),
     do: StakeRedeemOperations.claim_dispatch(lease, :stake, envelope.action_id, phase)

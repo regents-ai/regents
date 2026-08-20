@@ -17,6 +17,7 @@ defmodule AshPlatform.Staking.Actions do
   @resource "regent_staking"
   @contract_name "RegentRevenueStaking"
   @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
+  @claims ~w(claim_usdc claim_regent claim_and_restake_regent)
   @risk %{
     "stake" =>
       "Stake REGENT from your connected wallet. This may require a separate exact token approval before staking.",
@@ -116,9 +117,9 @@ defmodule AshPlatform.Staking.Actions do
 
   defp transient_refusal(result), do: result
 
-  # The reviewed action, the exact current approval and the account's current
-  # membership all decide this dispatch together. The provider read happens here,
-  # before the lease transaction; only the claim itself happens inside it.
+  # The reviewed action and the exact current approval are proved here, against
+  # the provider, before any transaction opens. The locked account and the stored
+  # envelope's signer decide the claim itself, inside it.
   @doc false
   def claim_dispatch(%{arguments: %{envelope: envelope, phase: phase}}, %{actor: %Human{}} = ctx) do
     envelope = atomize_envelope(envelope)
@@ -126,7 +127,6 @@ defmodule AshPlatform.Staking.Actions do
     with true <- valid_for_confirmation?(envelope),
          :ok <- dispatch_approval(envelope, phase),
          {:ok, lease} <- StakeRedeemOperations.lease(ctx),
-         :ok <- leased_wallet(lease, envelope.expected_signer),
          {:ok, operation} <-
            StakeRedeemOperations.claim_dispatch(lease, @capability, envelope.action_id, phase) do
       {:ok, %{operation: StakeRedeemOperations.view(operation)}}
@@ -301,8 +301,10 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   defp current_position(signer) do
-    with {:error, _unavailable} <- ChainClient.module().overview(signer),
-         do: refusal(:chain_unavailable)
+    case ChainClient.module().overview(signer) do
+      {:ok, staking} -> {:ok, staking}
+      {:error, _unavailable} -> refusal(:chain_unavailable)
+    end
   end
 
   @doc """
@@ -356,6 +358,18 @@ defmodule AshPlatform.Staking.Actions do
       refused -> refused
     end
   end
+
+  @doc """
+  The claim actions this snapshot permits, by the same rule preparation applies.
+
+  The page offers exactly these, so no control can invite a claim the contract
+  or the reward inventory would refuse a moment later.
+  """
+  @spec available_claims(map() | nil) :: [String.t()]
+  def available_claims(nil), do: []
+
+  def available_claims(staking),
+    do: Enum.filter(@claims, &is_nil(limit_refusal(staking, &1, nil)))
 
   @doc """
   The exact raw amount this action may spend on this snapshot, or zero.
@@ -428,12 +442,18 @@ defmodule AshPlatform.Staking.Actions do
     end
   end
 
-  defp primary_wallet(account) do
-    with :error <- Address.normalize(account.wallet_address), do: {:error, :wallet_required}
+  defp primary_wallet(%{wallet_address: address}) do
+    case Address.normalize(address) do
+      {:ok, wallet} -> {:ok, wallet}
+      :error -> {:error, :wallet_required}
+    end
   end
 
   defp normalize_address(value) do
-    with :error <- Address.normalize(value), do: {:error, :invalid_wallet}
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> {:error, :invalid_wallet}
+    end
   end
 
   defp valid_for_confirmation?(envelope) do

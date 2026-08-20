@@ -21,7 +21,7 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   @impl true
   def confirm(envelope, transaction_hash) do
-    with {:ok, target, contract_name} <- identity_for(envelope),
+    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
          true <- valid_for_confirmation?(envelope, target, contract_name),
          true <- Rpc.valid_hash?(transaction_hash),
          {:ok, block} <- Rpc.safe_block(@rpc_opts),
@@ -177,8 +177,6 @@ defmodule AshPlatform.Redemption.RpcClient do
          payout: Rpc.format_units(payout, 18),
          vest_duration_seconds: vest_duration
        })}
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -348,24 +346,6 @@ defmodule AshPlatform.Redemption.RpcClient do
       do: {:ok, normalized(collection)},
       else: {:error, :invalid_collection}
   end
-
-  defp identity_for(%{action: "approve_nft_collection", arguments: arguments}) do
-    collection = field(arguments, :collection)
-
-    case RedemptionAbi.collection_id(collection) do
-      "animata_i" -> {:ok, normalized(collection), "Animata I"}
-      "animata_ii" -> {:ok, normalized(collection), "Animata II"}
-      nil -> {:error, :invalid_collection}
-    end
-  end
-
-  defp identity_for(%{action: "approve_exact_usdc"}),
-    do: {:ok, normalized(RedemptionAbi.usdc_address()), "USDC"}
-
-  defp identity_for(%{action: action}) when action in ["redeem", "claim"],
-    do: {:ok, normalized(RedemptionAbi.redeemer_address()), "AnimataRedeemer"}
-
-  defp identity_for(_envelope), do: {:error, :invalid_action}
 
   defp valid_for_confirmation?(envelope, target, contract_name) do
     Envelope.valid_for_confirmation?(envelope,

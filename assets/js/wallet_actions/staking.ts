@@ -74,9 +74,6 @@ export type StakingClients = {
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
 }
 
-export type WalletActionResult =
-  | {phase: "approval"; approvalHash: Hash}
-  | {phase: "action"; transactionHash: Hash; approvalHash?: Hash}
 export type SubmissionPhase = "approval" | "action"
 export type ExecutionOptions = {
   existingApprovalHash?: Hash
@@ -117,7 +114,7 @@ export async function executePreparedStakingAction(
   provider: EthereumProvider,
   clients: StakingClients = clientsFor(provider),
   options: ExecutionOptions,
-): Promise<WalletActionResult> {
+): Promise<void> {
   assertEnvelope(envelope)
 
   let chainId = await clients.chainId()
@@ -132,18 +129,17 @@ export async function executePreparedStakingAction(
     throw new Error("Use the connected wallet shown on this account.")
   }
 
-  let approvalHash: Hash | undefined
+  // An approval this attempt has to send is the whole attempt: the stake follows
+  // only once the server has verified that approval and invited it back.
   if (envelope.approval) {
     assertApproval(envelope.approval, envelope)
-    if (options.existingApprovalHash) {
-      approvalHash = options.existingApprovalHash
-    } else {
+    if (!options.existingApprovalHash) {
       const approval = {account, to: STAKE_TOKEN, data: envelope.approval.data, value: 0n}
       await clients.simulate(approval)
       options.onSendStarted()
-      approvalHash = await clients.send(approval)
+      const approvalHash = await clients.send(approval)
       options.onSubmitted?.("approval", approvalHash)
-      return {phase: "approval", approvalHash}
+      return
     }
   }
 
@@ -151,11 +147,10 @@ export async function executePreparedStakingAction(
   await clients.simulate(transaction)
   options.onSendStarted()
   const transactionHash = await clients.send(transaction)
-  options.onSubmitted?.("action", transactionHash)
 
   // The hash is durably reported and the server owns every read after it, so
   // the browser never waits on a receipt and never decides an outcome.
-  return {phase: "action", transactionHash, approvalHash}
+  options.onSubmitted?.("action", transactionHash)
 }
 
 function assertEnvelope(envelope: PreparedStakingAction): void {

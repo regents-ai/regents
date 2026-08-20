@@ -114,7 +114,7 @@ export async function executePreparedRedemptionAction(
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
   options: RedemptionExecutionOptions = {onSendStarted: () => undefined},
-): Promise<Hash> {
+): Promise<void> {
   assertRedemptionEnvelope(envelope)
 
   let chainId = await clients.chainId()
@@ -136,11 +136,10 @@ export async function executePreparedRedemptionAction(
   // failure may have left a transaction on Base.
   options.onSendStarted()
   const hash = await clients.send(transaction)
-  options.onSubmitted?.(hash)
 
   // The hash is durably reported and the server owns every read after it, so
   // the browser never waits on a receipt and never decides an outcome.
-  return hash
+  options.onSubmitted?.(hash)
 }
 
 export function assertRedemptionEnvelope(envelope: PreparedRedemptionAction): void {

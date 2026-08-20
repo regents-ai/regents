@@ -100,11 +100,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     submit(view, action_id)
 
-    render_hook(view, "confirm_redemption", %{
-      "action_id" => action_id,
-      "transaction_hash" => @tx_hash
-    })
-
     html = render_async(view)
     assert html =~ "Confirmed on Base"
     assert html =~ "Redeemed for Regents Club token #1123"
@@ -225,7 +220,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     action_id = review_claim(view)
     Application.put_env(:ash_platform, :test_redemption_confirmation_result, :reverted)
     submit(view, action_id)
-    confirm(view, action_id)
 
     html = render_async(view)
     assert html =~ "transaction reverted"
@@ -245,7 +239,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     action_id = review_claim(view)
     Application.put_env(:ash_platform, :test_redemption_confirmation_result, :unverified)
     submit(view, action_id)
-    confirm(view, action_id)
 
     html = render_async(view)
     refute html =~ "Confirmed on Base"
@@ -270,7 +263,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     action_id = review_claim(view)
     Application.put_env(:ash_platform, :test_redemption_confirmation_result, :pending)
     submit(view, action_id)
-    confirm(view, action_id)
 
     assert render_async(view) =~ "Waiting for Base confirmation"
 
@@ -306,7 +298,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     activate(view, @wallet)
 
     action_id = review_claim(view)
-    submit(view, action_id)
 
     # Base could not be read, which may answer differently in thirty seconds.
     Application.put_env(
@@ -315,7 +306,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       {:error, :chain_unavailable}
     )
 
-    confirm(view, action_id)
+    submit(view, action_id)
     assert render_async(view) =~ "Waiting for Base confirmation"
 
     # This envelope is refused for good, so nothing about it can change.
@@ -325,7 +316,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       {:error, :transaction_mismatch}
     )
 
-    confirm(view, action_id)
+    render_hook(view, "retry_redemption_confirmation", %{})
     html = render_async(view)
 
     assert html =~ "could not be verified from this session"
@@ -515,10 +506,10 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              ~s(.redeem-submission a[href="https://basescan.org/tx/#{@tx_hash}"])
            )
 
-    # That link is the only place the hash is shown: the status notice names
-    # what was submitted without repeating an unclickable copy of the hash.
+    # That link is the only place the hash is shown: the status notice says what
+    # is happening without repeating an unclickable copy of the hash.
     html = render(view)
-    assert html =~ "Redemption transaction submitted."
+    assert html =~ "Confirming this transaction on Base"
     assert shown_once?(html, short_hash(@tx_hash))
 
     # An unbound hash is refused before it can be rendered at all, so no
@@ -606,13 +597,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       "transaction_hash" => hash
     })
   end
-
-  defp confirm(view, action_id),
-    do:
-      render_hook(view, "confirm_redemption", %{
-        "action_id" => action_id,
-        "transaction_hash" => @tx_hash
-      })
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

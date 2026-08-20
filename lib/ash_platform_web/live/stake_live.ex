@@ -16,6 +16,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :locked, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
+  attr :available_claims, :list, default: []
 
   def page(assigns) do
     ~H"""
@@ -212,7 +213,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_usdc"
-              disabled={@locked or atomic(@staking.wallet_claimable_usdc_raw) == 0}
+              disabled={@locked or "claim_usdc" not in @available_claims}
             >
               Review USDC claim
             </button>
@@ -220,7 +221,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_regent"
-              disabled={@locked or !claimable_regent?(@staking)}
+              disabled={@locked or "claim_regent" not in @available_claims}
             >
               Review REGENT claim
             </button>
@@ -228,7 +229,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_and_restake_regent"
-              disabled={@locked or !claimable_regent?(@staking)}
+              disabled={@locked or "claim_and_restake_regent" not in @available_claims}
             >
               Review claim and restake
             </button>
@@ -373,11 +374,6 @@ defmodule AshPlatformWeb.StakeLive do
   # left by another wallet stays visible for recovery without a signing control.
   defp signable?(%{expected_signer: signer}, wallet), do: signer == wallet
   defp signable?(_prepared, _wallet), do: false
-
-  defp claimable_regent?(staking) do
-    earned = atomic(staking.wallet_claimable_regent_raw)
-    earned > 0 and atomic(staking.wallet_funded_claimable_regent_raw) >= earned
-  end
 
   defp earned_but_unfunded?(staking) do
     earned = atomic(staking.wallet_claimable_regent_raw)

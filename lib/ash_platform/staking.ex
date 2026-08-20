@@ -55,5 +55,6 @@ defmodule AshPlatform.Staking do
   # preparation action can only ever answer the same way.
   defdelegate limit_refusal(snapshot, action, amount), to: AshPlatform.Staking.Actions
   defdelegate spendable(snapshot, action), to: AshPlatform.Staking.Actions
+  defdelegate available_claims(snapshot), to: AshPlatform.Staking.Actions
   defdelegate parse_amount(value), to: AshPlatform.Staking.Actions
 end

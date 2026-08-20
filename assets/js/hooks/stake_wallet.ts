@@ -129,32 +129,22 @@ export const StakeWallet: Hook = {
       let sendStarted = false
 
       try {
-        const result = await executePreparedStakingAction(
-          envelope,
-          connected.provider,
-          undefined,
-          {
-            existingApprovalHash: prepared.approval_transaction_hash ?? undefined,
-            onSendStarted: () => (sendStarted = true),
-            onSubmitted: (phase, hash) => {
-              currentSubmission = recordSubmittedAction(
-                currentSubmission,
-                envelope,
-                phase,
-                hash,
-                payload => this.pushEvent("staking_submitted", payload),
-                sessionStorage,
-              )
-            },
+        // Reporting the hash is the whole handoff: the server binds it durably
+        // and owns every read after it, so nothing is reported a second time.
+        await executePreparedStakingAction(envelope, connected.provider, undefined, {
+          existingApprovalHash: prepared.approval_transaction_hash ?? undefined,
+          onSendStarted: () => (sendStarted = true),
+          onSubmitted: (phase, hash) => {
+            currentSubmission = recordSubmittedAction(
+              currentSubmission,
+              envelope,
+              phase,
+              hash,
+              payload => this.pushEvent("staking_submitted", payload),
+              sessionStorage,
+            )
           },
-        )
-        if (result.phase === "action") {
-          this.pushEvent("confirm_staking", {
-            action_id: envelope.action_id,
-            transaction_hash: result.transactionHash,
-            approval_transaction_hash: result.approvalHash ?? null,
-          })
-        }
+        })
       } catch (error) {
         // Below the send marker nothing was broadcast, whatever the wallet said
         // and whatever it was asked for first, so the claim is released rather

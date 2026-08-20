@@ -71,9 +71,12 @@ defmodule AshPlatform.TestStakingChainClient do
   def confirm(_envelope, "0x" <> hash = transaction_hash) when byte_size(hash) == 64 do
     await_release(Application.get_env(:ash_platform, :test_staking_confirm_barrier))
 
-    outcome = Application.get_env(:ash_platform, :test_staking_confirmation_result, :confirmed)
-
-    {:ok, %{transaction_hash: transaction_hash, outcome: outcome, reason: nil}}
+    case Application.get_env(:ash_platform, :test_staking_confirmation_result, :confirmed) do
+      # A verification that crashed says nothing about Base at all, so a proof
+      # can tell a task exit from a pending receipt.
+      :crashes -> exit(:verification_crashed)
+      outcome -> {:ok, %{transaction_hash: transaction_hash, outcome: outcome, reason: nil}}
+    end
   end
 
   def confirm(_envelope, _transaction_hash), do: {:error, :invalid_confirmation}

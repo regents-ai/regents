@@ -16,6 +16,7 @@ defmodule AshPlatform.Redemption.Actions do
   @transient [:chain_unavailable, :chain_timeout, :invalid_chain_response, :invalid_block_header]
   @resource "animata_redemption"
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
+  @argument_keys ~w(collection token_id operator approved spender amount_atomic mode)a
   @risk %{
     "approve_nft_collection" =>
       "Allow the verified Animata redeemer to transfer NFTs from this collection. This approval applies to the whole selected collection until you revoke it.",
@@ -66,7 +67,7 @@ defmodule AshPlatform.Redemption.Actions do
   def confirm(input, %{actor: %Human{} = actor} = context) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with {:ok, target, contract_name} <- identity_for(envelope),
+    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
          true <- valid_for_confirmation?(envelope, target, contract_name),
          :ok <- verified_wallet(actor, envelope.expected_signer),
          {:ok, lease} <- StakeRedeemOperations.lease(context),
@@ -99,18 +100,17 @@ defmodule AshPlatform.Redemption.Actions do
 
   defp transient_refusal(result), do: result
 
-  # The reviewed action, both exact current approvals and the account's current
-  # membership all decide this dispatch together. The provider reads happen here,
-  # before the lease transaction; only the claim itself happens inside it.
+  # The reviewed action and both exact current approvals are proved here, against
+  # the provider, before any transaction opens. The locked account and the stored
+  # envelope's signer decide the claim itself, inside it.
   @doc false
   def claim_dispatch(%{arguments: %{envelope: envelope}}, %{actor: %Human{}} = context) do
     envelope = atomize_envelope(envelope)
 
-    with {:ok, target, contract_name} <- identity_for(envelope),
+    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
          true <- valid_for_confirmation?(envelope, target, contract_name),
          :ok <- dispatch_approvals(envelope),
          {:ok, lease} <- StakeRedeemOperations.lease(context),
-         :ok <- leased_wallet(lease, envelope.expected_signer),
          {:ok, operation} <-
            StakeRedeemOperations.claim_dispatch(lease, @capability, envelope.action_id, :action) do
       {:ok, %{operation: StakeRedeemOperations.view(operation)}}
@@ -173,7 +173,7 @@ defmodule AshPlatform.Redemption.Actions do
   def restore(input, %{actor: %Human{} = actor}) do
     envelope = atomize_envelope(input.arguments.envelope)
 
-    with {:ok, target, contract_name} <- identity_for(envelope),
+    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
          true <- valid_for_confirmation?(envelope, target, contract_name),
          :ok <- verified_wallet(actor, envelope.expected_signer) do
       {:ok, envelope}
@@ -193,7 +193,7 @@ defmodule AshPlatform.Redemption.Actions do
        Envelope.new("approve_nft_collection", signer, data,
          resource: @resource,
          to: collection,
-         contract_name: collection_name(collection),
+         contract_name: RedemptionAbi.collection_name(collection),
          risk_copy: @risk["approve_nft_collection"],
          arguments: %{collection: collection, operator: redeemer, approved: true}
        )}
@@ -316,23 +316,6 @@ defmodule AshPlatform.Redemption.Actions do
 
   defp optional_collection(_collection, _token_id), do: {:error, :invalid_token_selection}
 
-  defp identity_for(%{action: "approve_nft_collection", arguments: arguments}) do
-    collection = field(arguments, :collection)
-
-    case RedemptionAbi.collection_id(collection) do
-      nil -> {:error, :invalid_collection}
-      _id -> {:ok, Abi.normalize_address!(collection), collection_name(collection)}
-    end
-  end
-
-  defp identity_for(%{action: "approve_exact_usdc"}),
-    do: {:ok, Abi.normalize_address!(RedemptionAbi.usdc_address()), "USDC"}
-
-  defp identity_for(%{action: action}) when action in ["redeem", "claim"],
-    do: {:ok, Abi.normalize_address!(RedemptionAbi.redeemer_address()), "AnimataRedeemer"}
-
-  defp identity_for(_envelope), do: {:error, :invalid_action}
-
   defp valid_for_confirmation?(envelope, target, contract_name) do
     Envelope.valid_for_confirmation?(envelope,
       resource: @resource,
@@ -377,20 +360,16 @@ defmodule AshPlatform.Redemption.Actions do
   end
 
   defp normalize_address(value) do
-    with :error <- Address.normalize(value), do: {:error, :invalid_wallet}
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> {:error, :invalid_wallet}
+    end
   end
 
   defp atomic(value) do
     case Integer.parse(value || "") do
       {amount, ""} -> {:ok, amount}
       _unavailable -> :error
-    end
-  end
-
-  defp collection_name(collection) do
-    case RedemptionAbi.collection_id(collection) do
-      "animata_i" -> "Animata I"
-      "animata_ii" -> "Animata II"
     end
   end
 
@@ -409,20 +388,21 @@ defmodule AshPlatform.Redemption.Actions do
       expires_at: field(envelope, :expires_at),
       risk_copy: field(envelope, :risk_copy),
       approval: field(envelope, :approval),
-      arguments: atomize_arguments(field(envelope, :arguments) || %{}),
+      arguments: redemption_arguments(field(envelope, :arguments) || %{}),
       metadata: field(envelope, :metadata),
       confirmation_token: field(envelope, :confirmation_token)
     }
   end
 
-  defp atomize_arguments(arguments) when is_map(arguments) do
-    Map.new(arguments, fn
-      {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
-      pair -> pair
-    end)
-  rescue
-    _ -> %{}
-  end
+  # The stored envelope is a jsonb document, so its argument names arrive as
+  # strings. Only this family's own names are translated back, so no browser
+  # string ever becomes an atom, and every other pair is carried through exactly
+  # as it was signed.
+  defp redemption_arguments(arguments),
+    do: Map.new(arguments, fn {key, value} -> {argument_key(key), value} end)
+
+  defp argument_key(key) when is_atom(key), do: key
+  defp argument_key(key), do: Enum.find(@argument_keys, key, &(Atom.to_string(&1) == key))
 
   defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
 end
