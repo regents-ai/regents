@@ -3,19 +3,34 @@ defmodule AshPlatformWeb.LaunchGateTest do
 
   import ExUnit.CaptureLog
 
+  alias AshPlatform.{Accounts, Autolaunch, Formation}
+  alias AshPlatform.Actors.Human
   alias AshPlatformWeb.Live.LaunchGateHook
   alias AshPlatformWeb.Plugs.LaunchGate
 
   @gated_shell_paths ~w(/app /settings /formation /regents/example /techtree /autolaunch /stake /redeem)
+  @autolaunch_paths ~w(/autolaunch /autolaunch/auctions /autolaunch/holdings /autolaunch/create)
   @closed_message "This part of Regent isn't open yet."
+  @draft_fields %{
+    "title" => "Injected Launch",
+    "token_name" => "Injected",
+    "symbol" => "INJECT",
+    "summary" => "An injected draft that must never be recorded."
+  }
 
   setup do
-    on_exit(fn -> open_surfaces() end)
+    on_exit(fn ->
+      open_surfaces()
+      open_autolaunch()
+    end)
+
     :ok
   end
 
   defp close_surfaces, do: Application.put_env(:ash_platform, :app_surfaces, false)
   defp open_surfaces, do: Application.put_env(:ash_platform, :app_surfaces, true)
+  defp close_autolaunch, do: Application.put_env(:ash_platform, :autolaunch_surfaces, false)
+  defp open_autolaunch, do: Application.put_env(:ash_platform, :autolaunch_surfaces, true)
 
   test "[U1] one switch is open by default and reads both explicit states" do
     Application.delete_env(:ash_platform, :app_surfaces)
@@ -142,6 +157,115 @@ defmodule AshPlatformWeb.LaunchGateTest do
 
     assert_redirect(view, "/")
   end
+
+  test "[U4] the Autolaunch switch is closed when unset and reads both explicit states" do
+    Application.delete_env(:ash_platform, :autolaunch_surfaces)
+    refute LaunchGate.autolaunch_surfaces_enabled?()
+
+    open_autolaunch()
+    assert LaunchGate.autolaunch_surfaces_enabled?()
+
+    close_autolaunch()
+    refute LaunchGate.autolaunch_surfaces_enabled?()
+  end
+
+  test "[U4] Autolaunch pages and endpoints close while every other surface stays open" do
+    close_autolaunch()
+
+    for path <- @autolaunch_paths do
+      conn = get(build_conn(), path)
+
+      assert conn.status == 503, "#{path} stayed open"
+      assert get_resp_header(conn, "retry-after") == ["3600"]
+      assert get_resp_header(conn, "cache-control") == ["no-store"]
+      refute conn.resp_body =~ ~s(id="app-shell")
+    end
+
+    assert json_response(get(build_conn(), "/api/autolaunch/v1/auctions"), 503) ==
+             %{"error" => @closed_message}
+
+    for path <- ~w(/ /app /stake /redeem /techtree) do
+      assert get(build_conn(), path).status == 200, "#{path} closed with Autolaunch"
+    end
+
+    assert get(build_conn(), "/auth/csrf").status == 200
+    assert get(build_conn(), "/api/techtree/v1/trees").status == 200
+  end
+
+  test "[U4] an Autolaunch mount arriving over the socket is sent to the application home" do
+    close_autolaunch()
+
+    assert {:halt, halted} =
+             LaunchGateHook.on_mount(:default, %{}, %{}, autolaunch_socket())
+
+    assert halted.redirected == {:redirect, %{to: "/app", status: 302}}
+  end
+
+  test "[U4] a page open when Autolaunch closes cannot navigate into it", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app")
+
+    close_autolaunch()
+    render_patch(view, "/autolaunch/create")
+
+    assert_redirect(view, "/app")
+  end
+
+  test "[U4] a fresh page offers no Autolaunch application while it is closed", %{conn: conn} do
+    close_autolaunch()
+    {:ok, closed, _html} = live(conn, "/app")
+
+    refute has_element?(closed, ~s(nav[aria-label="Applications"] a[href="/autolaunch"]))
+    assert has_element?(closed, ~s(nav[aria-label="Applications"] a[href="/techtree"]))
+
+    open_autolaunch()
+    {:ok, open, _html} = live(conn, "/app")
+
+    assert has_element?(open, ~s(nav[aria-label="Applications"] a[href="/autolaunch"]))
+  end
+
+  test "[U4] injected draft events from Stake record nothing while Autolaunch is closed", %{
+    conn: conn
+  } do
+    account =
+      Accounts.register_verified!(
+        "did:privy:launch-gate-draft",
+        "0x4444444444444444444444444444444444444444",
+        ["0x4444444444444444444444444444444444444444"],
+        actor: %AshPlatform.Actors.System{}
+      )
+
+    actor = %Human{human_account_id: account.id}
+    Formation.form_regent!("gate-regent", "Gate Regent", actor: actor)
+
+    {:ok, draft} =
+      Autolaunch.create_launch_draft("Kept Launch", "Kept", "KEPT", "The only recorded draft.",
+        actor: actor
+      )
+
+    close_autolaunch()
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    render_hook(view, "create_launch_draft", %{"launch_draft" => @draft_fields})
+
+    render_hook(view, "revise_launch_draft", %{
+      "draft_id" => to_string(draft.id),
+      "launch_draft" => @draft_fields
+    })
+
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert {persisted.id, persisted.title, persisted.symbol} == {draft.id, "Kept Launch", "KEPT"}
+
+    assigns = :sys.get_state(view.pid).socket.assigns
+    assert assigns.autolaunch_launch_drafts == []
+    assert assigns.autolaunch_draft_notice == %{tone: :error, message: @closed_message}
+  end
+
+  defp autolaunch_socket,
+    do: Phoenix.Component.assign(%Phoenix.LiveView.Socket{}, :live_action, :autolaunch_create)
 
   # Reads the file a boot reads, returning its settings and the log it wrote.
   defp read_runtime_config(env) do

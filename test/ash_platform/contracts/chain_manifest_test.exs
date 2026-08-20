@@ -361,7 +361,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  test "chain admission admits nothing while the bidder interface stays reviewed evidence" do
+  test "chain admission admits the staking actions alone while the bidder interface stays evidence" do
     admission =
       @root
       |> Path.join("contracts/chain-contracts.yaml")
@@ -369,9 +369,25 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       |> get_in(["contracts"])
       |> List.first()
 
-    assert admission["admitted_prepared_actions"] == []
+    assert admission["authority"] == "evidence_only"
+
+    assert admission["admitted_prepared_actions"] == [
+             "regent_revenue_staking.stake",
+             "regent_revenue_staking.unstake",
+             "regent_revenue_staking.claim_usdc",
+             "regent_revenue_staking.claim_regent",
+             "regent_revenue_staking.claim_and_restake_regent"
+           ]
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
+
+    # Every other reviewed contract, including every Autolaunch one, is absent.
+    for {contract_id, entry} <- evidence,
+        contract_id != "regent_revenue_staking",
+        action_id <- entry["action_ids"] do
+      refute "#{contract_id}.#{action_id}" in admission["admitted_prepared_actions"]
+    end
+
     auction = evidence["continuous_clearing_auction"]
     permit2 = evidence["permit2"]
     erc20 = evidence["quote_token_erc20"]

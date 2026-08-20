@@ -20,6 +20,7 @@ defmodule AshPlatform.RuntimeConfigTest do
       "PORT",
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
+      "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
       "BASE_READ_RPC_URL"
     ]
 
@@ -239,6 +240,27 @@ defmodule AshPlatform.RuntimeConfigTest do
            |> Config.Reader.read!(env: :dev, target: :host)
            |> get_in([:ash_platform, :base_read_rpc_url]) == "https://base-rpc.publicnode.com"
   end
+
+  test "Autolaunch surfaces open by default only under test, and otherwise only on an exact on" do
+    put_pooled_url()
+    System.put_env("PHX_HOST", "shadow.example.test")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+
+    assert autolaunch_surfaces?(:test)
+    refute autolaunch_surfaces?(:dev)
+    refute autolaunch_surfaces?(:prod)
+
+    System.put_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES", "on")
+    assert Enum.all?([:test, :dev, :prod], &autolaunch_surfaces?/1)
+
+    for setting <- ["off", "ON", "true", ""] do
+      System.put_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES", setting)
+      refute Enum.any?([:test, :dev, :prod], &autolaunch_surfaces?/1)
+    end
+  end
+
+  defp autolaunch_surfaces?(environment),
+    do: get_in(read_runtime_config(environment), [:ash_platform, :autolaunch_surfaces])
 
   defp put_pooled_url do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")

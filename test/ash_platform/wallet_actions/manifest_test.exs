@@ -28,8 +28,8 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "claim" => {"claim()", "0x4e71d92d"}
     }
   }
-  # The bidder interface stays reviewed and digest-pinned while nothing is
-  # admitted, so these are proved against the pinned ABI without admitting one.
+  # The bidder interface stays reviewed and digest-pinned while no bidder action
+  # is admitted, so these are proved against the pinned ABI without admitting one.
   @bidder_actions %{
     "continuous_clearing_auction" => %{
       "submit_bid" => {"submitBid(uint256,uint128,address,uint256,bytes)", "0xa52c8728"}
@@ -41,6 +41,13 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
     }
   }
+  @admitted_actions [
+    "regent_revenue_staking.stake",
+    "regent_revenue_staking.unstake",
+    "regent_revenue_staking.claim_usdc",
+    "regent_revenue_staking.claim_regent",
+    "regent_revenue_staking.claim_and_restake_regent"
+  ]
   @retained_evidence_actions %{
     "payment_link_factory" => %{
       "create_payment_link" => {"createPaymentLink(bytes32,string,bytes32)", "0x96bc6c1a"},
@@ -109,9 +116,14 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
       evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
-      # Nothing is admitted while the runtime, predecessor source, projection and
-      # entitlement bindings are unfrozen.
-      assert admission["admitted_prepared_actions"] == []
+      # The five reviewed staking actions are admitted, each resolving to the
+      # evidence entry that reviewed it; nothing else is.
+      assert admission["admitted_prepared_actions"] == @admitted_actions
+
+      for dotted <- @admitted_actions do
+        [contract_id, action_id] = String.split(dotted, ".", parts: 2)
+        assert action_id in Map.fetch!(evidence, contract_id)["action_ids"]
+      end
 
       for {id, entry} <- evidence do
         abi_path = Path.join("contracts", entry["abi_path"])

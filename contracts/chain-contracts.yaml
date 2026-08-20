@@ -6,10 +6,17 @@ contracts:
     evidence_sha256: 015022d9e8ab67feddaf04178413aedd36cc3a4e7471da9dc13e36909051c587
     chain_target: base-mainnet
     authority: evidence_only
-    # Empty until regent-alv1.6, 490.8.2/.3 and 839.5.1 freeze the runtime,
-    # predecessor-hint source, projection and entitlement bindings. The evidence
-    # below stays reviewed and digest-pinned while nothing is admitted.
-    admitted_prepared_actions: []
+    # `authority` names the pinned evidence source; the list below separately
+    # records founder release authority. The runtime, predecessor-hint source,
+    # projection and entitlement freezes in regent-alv1.6, 490.8.2/.3 and
+    # 839.5.1 govern future Autolaunch admission and do not gate these
+    # separately reviewed staking actions.
+    admitted_prepared_actions:
+      - regent_revenue_staking.stake
+      - regent_revenue_staking.unstake
+      - regent_revenue_staking.claim_usdc
+      - regent_revenue_staking.claim_regent
+      - regent_revenue_staking.claim_and_restake_regent
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json

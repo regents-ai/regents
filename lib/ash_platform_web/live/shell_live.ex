@@ -21,6 +21,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.WalletActions.{Address, Envelope, Rpc}
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
+  alias AshPlatformWeb.Plugs.LaunchGate
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
@@ -55,7 +56,7 @@ defmodule AshPlatformWeb.ShellLive do
   defp mount_authorized(params, route_spec, socket) do
     {:ok,
      assign(socket,
-       app_targets: RouteCatalog.app_targets(),
+       app_targets: open_app_targets(),
        content: nil,
        content_error: nil,
        content_async_name: nil,
@@ -195,6 +196,13 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply, assign(socket, content_status: :ready)}
     end
   end
+
+  # The Autolaunch switch decides what this page offers; the route catalog it
+  # reads from is unchanged.
+  defp open_app_targets, do: Enum.filter(RouteCatalog.app_targets(), &app_target_open?/1)
+
+  defp app_target_open?(%{app_id: :autolaunch}), do: LaunchGate.autolaunch_surfaces_enabled?()
+  defp app_target_open?(_target), do: true
 
   defp authorize_route(
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
@@ -714,87 +722,20 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  def handle_event(
-        "create_launch_draft",
-        %{"launch_draft" => fields},
-        socket
-      ) do
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, _draft} <-
-           Autolaunch.create_launch_draft(
-             fields["title"],
-             fields["token_name"],
-             fields["symbol"],
-             empty_to_nil(fields["summary"]),
-             actor: actor
-           ),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:noreply,
-       assign(socket,
-         autolaunch_launch_drafts: drafts,
-         autolaunch_draft_fields: %{
-           "title" => "",
-           "token_name" => "",
-           "symbol" => "",
-           "summary" => ""
-         },
-         autolaunch_draft_notice: %{
-           tone: :success,
-           message: "Draft saved. No auction or wallet action has started."
-         }
-       )}
-    else
-      _error ->
-        {:noreply,
-         assign(socket,
-           autolaunch_draft_fields: fields,
-           autolaunch_draft_notice: %{
-             tone: :error,
-             message: "That draft could not be saved. Check the launch and token details."
-           }
-         )}
-    end
-  end
-
-  def handle_event(
-        "revise_launch_draft",
-        %{"draft_id" => draft_id, "launch_draft" => fields},
-        socket
-      ) do
-    with %Human{} = actor <- human_actor(socket),
-         draft when not is_nil(draft) <-
-           Enum.find(
-             socket.assigns.autolaunch_launch_drafts,
-             &(to_string(&1.id) == draft_id)
-           ),
-         {:ok, _draft} <-
-           Autolaunch.revise_launch_draft(
-             draft,
-             fields["title"],
-             fields["token_name"],
-             fields["symbol"],
-             empty_to_nil(fields["summary"]),
-             actor: actor
-           ),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:noreply,
-       assign(socket,
-         autolaunch_launch_drafts: drafts,
-         autolaunch_draft_notice: %{
-           tone: :success,
-           message: "Draft updated. No auction, token, wallet action, or publication has started."
-         }
-       )}
-    else
-      _error ->
+  # A draft event that arrives while Autolaunch is closed is answered before any
+  # actor is built or any record is read or written.
+  def handle_event(event, params, socket)
+      when event in ["create_launch_draft", "revise_launch_draft"] do
+    if LaunchGate.autolaunch_surfaces_enabled?(),
+      do: handle_draft_event(event, params, socket),
+      else:
         {:noreply,
          assign(socket,
            autolaunch_draft_notice: %{
              tone: :error,
-             message: "That draft could not be updated. Check the launch and token details."
+             message: "This part of Regent isn't open yet."
            }
          )}
-    end
   end
 
   def handle_event("delete_comment", %{"id" => id}, socket) do
@@ -1199,6 +1140,85 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:comment_reactions_changed, _target_type, _target_id}, socket),
     do: {:noreply, socket}
+
+  defp handle_draft_event("create_launch_draft", %{"launch_draft" => fields}, socket) do
+    with %Human{} = actor <- human_actor(socket),
+         {:ok, _draft} <-
+           Autolaunch.create_launch_draft(
+             fields["title"],
+             fields["token_name"],
+             fields["symbol"],
+             empty_to_nil(fields["summary"]),
+             actor: actor
+           ),
+         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
+      {:noreply,
+       assign(socket,
+         autolaunch_launch_drafts: drafts,
+         autolaunch_draft_fields: %{
+           "title" => "",
+           "token_name" => "",
+           "symbol" => "",
+           "summary" => ""
+         },
+         autolaunch_draft_notice: %{
+           tone: :success,
+           message: "Draft saved. No auction or wallet action has started."
+         }
+       )}
+    else
+      _error ->
+        {:noreply,
+         assign(socket,
+           autolaunch_draft_fields: fields,
+           autolaunch_draft_notice: %{
+             tone: :error,
+             message: "That draft could not be saved. Check the launch and token details."
+           }
+         )}
+    end
+  end
+
+  defp handle_draft_event(
+         "revise_launch_draft",
+         %{"draft_id" => draft_id, "launch_draft" => fields},
+         socket
+       ) do
+    with %Human{} = actor <- human_actor(socket),
+         draft when not is_nil(draft) <-
+           Enum.find(
+             socket.assigns.autolaunch_launch_drafts,
+             &(to_string(&1.id) == draft_id)
+           ),
+         {:ok, _draft} <-
+           Autolaunch.revise_launch_draft(
+             draft,
+             fields["title"],
+             fields["token_name"],
+             fields["symbol"],
+             empty_to_nil(fields["summary"]),
+             actor: actor
+           ),
+         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
+      {:noreply,
+       assign(socket,
+         autolaunch_launch_drafts: drafts,
+         autolaunch_draft_notice: %{
+           tone: :success,
+           message: "Draft updated. No auction, token, wallet action, or publication has started."
+         }
+       )}
+    else
+      _error ->
+        {:noreply,
+         assign(socket,
+           autolaunch_draft_notice: %{
+             tone: :error,
+             message: "That draft could not be updated. Check the launch and token details."
+           }
+         )}
+    end
+  end
 
   defp handle_redemption_event("redemption_active_wallet", params, socket) do
     wallet =

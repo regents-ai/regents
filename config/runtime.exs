@@ -59,6 +59,16 @@ config :ash_platform, :app_surfaces, app_surfaces?
 
 Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
 
+# Autolaunch is switched separately and stays closed unless a deployment says
+# "on". Only the test environment opens it without being asked.
+autolaunch_surfaces? =
+  case {config_env(), System.get_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES")} do
+    {:test, nil} -> true
+    {_env, setting} -> setting == "on"
+  end
+
+config :ash_platform, :autolaunch_surfaces, autolaunch_surfaces?
+
 # The Base log ledger reads its own dedicated endpoint, separate from the
 # simple-read RPC. The test environment owns this setting outright so a shell
 # that exports one cannot start an indexer under a test run.
