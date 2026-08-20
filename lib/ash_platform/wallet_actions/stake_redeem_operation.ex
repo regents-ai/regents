@@ -237,6 +237,36 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
       change set_attribute(:state, :not_sent)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
+
+    # The browser proved the claimed phase never reached its wallet send, so the
+    # review becomes signable again instead of ending. Each release clears only
+    # its own dispatch timestamp and keeps every approval fact, and a bound hash
+    # still has no way back out of a `*_dispatched` state.
+    update :release_unstarted_approval do
+      accept []
+      require_atomic? false
+      validate attribute_equals(:state, :approval_dispatched)
+      change set_attribute(:approval_dispatched_at, nil)
+      change set_attribute(:state, :prepared)
+    end
+
+    update :release_unstarted_action do
+      accept []
+      require_atomic? false
+      validate attribute_equals(:state, :action_dispatched)
+      change set_attribute(:action_dispatched_at, nil)
+      change set_attribute(:state, :prepared)
+    end
+
+    # Reachable only after the approval receipt and the exact allowance both
+    # held, so the stake is never asked to approve a second time.
+    update :release_unstarted_action_after_approval do
+      accept []
+      require_atomic? false
+      validate attribute_equals(:state, :action_dispatched)
+      change set_attribute(:action_dispatched_at, nil)
+      change set_attribute(:state, :approval_verified)
+    end
   end
 
   policies do

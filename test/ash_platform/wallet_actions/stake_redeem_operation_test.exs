@@ -22,6 +22,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @action_hash "0x" <> String.duplicate("ab", 32)
+  @approval_hash "0x" <> String.duplicate("cd", 32)
   @other_hash "0x" <> String.duplicate("ef", 32)
 
   setup :clear_committed_operations
@@ -102,6 +103,119 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
                :action,
                "rejected"
              )
+  end
+
+  # The browser proved this exact phase never reached its wallet send, so the
+  # review goes back to being signable rather than ending. The account's one
+  # Stake slot never moves and the same review is claimed again, exactly once.
+  test "UNSTARTED_RELEASE_RETURNS_ONE_PHASE: an approval nobody was asked to sign returns to prepared" do
+    {account, lease, envelope} = prepared("release-approval")
+
+    assert {:ok, claimed} = claim(lease, envelope, :approval)
+    refute is_nil(claimed.approval_dispatched_at)
+
+    assert {:ok, released} = unstarted(lease, envelope, :approval)
+    assert released.state == :prepared
+    assert is_nil(released.approval_dispatched_at)
+    assert is_nil(released.terminal_at)
+
+    assert {:ok, %{state: :prepared, action_id: action_id}} = active(account.id)
+    assert action_id == envelope.action_id
+
+    assert {:ok, %{state: :approval_dispatched}} = claim(lease, envelope, :approval)
+    assert {:error, _second} = claim(lease, envelope, :approval)
+  end
+
+  test "UNSTARTED_RELEASE_RETURNS_ONE_PHASE: an action with no approval returns to prepared" do
+    {account, lease, envelope} = prepared("release-action", &Staking.prepare_unstake/3)
+
+    assert {:ok, _claimed} = claim(lease, envelope, :action)
+    assert {:ok, released} = unstarted(lease, envelope, :action)
+
+    assert released.state == :prepared
+    assert is_nil(released.action_dispatched_at)
+    assert is_nil(released.approval_transaction_hash)
+    assert {:ok, %{state: :prepared}} = active(account.id)
+    assert {:ok, %{state: :action_dispatched}} = claim(lease, envelope, :action)
+  end
+
+  # The approval receipt and the exact allowance already held, so releasing the
+  # stake must never cost them: the review resumes at the stake alone.
+  test "UNSTARTED_RELEASE_KEEPS_A_VERIFIED_APPROVAL: an unsent stake returns to approval_verified" do
+    {_account, lease, envelope} = prepared("release-verified")
+
+    assert {:ok, _claimed} = claim(lease, envelope, :approval)
+    assert {:ok, _bound} = bind(lease, envelope, :approval, @approval_hash)
+
+    assert {:ok, _receipted} =
+             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :approval)
+
+    assert {:ok, verified} =
+             StakeRedeemOperations.verify_approval(lease, :stake, envelope.action_id)
+
+    assert {:ok, dispatched} = claim(lease, envelope, :action)
+    refute is_nil(dispatched.action_dispatched_at)
+
+    assert {:ok, released} = unstarted(lease, envelope, :action)
+    assert released.state == :approval_verified
+    assert is_nil(released.action_dispatched_at)
+    assert is_nil(released.terminal_at)
+
+    assert Map.take(released, [
+             :approval_dispatched_at,
+             :approval_transaction_hash,
+             :approval_receipt_at,
+             :approval_reread_at
+           ]) ==
+             Map.take(verified, [
+               :approval_dispatched_at,
+               :approval_transaction_hash,
+               :approval_receipt_at,
+               :approval_reread_at
+             ])
+
+    # The stake retries without ever asking for a second approval.
+    assert {:ok, %{state: :action_dispatched}} = claim(lease, envelope, :action)
+  end
+
+  test "UNSTARTED_RELEASE_IS_NARROW: only the exact claimed phase releases, once, and never after a hash" do
+    {_account, lease, envelope} = prepared("release-narrow")
+
+    assert {:error, :unstarted_phase_mismatch} = unstarted(lease, envelope, :approval)
+
+    assert {:ok, _claimed} = claim(lease, envelope, :approval)
+    assert {:error, :unstarted_phase_mismatch} = unstarted(lease, envelope, :action)
+
+    assert {:ok, %{state: :prepared}} = unstarted(lease, envelope, :approval)
+    assert {:error, :unstarted_phase_mismatch} = unstarted(lease, envelope, :approval)
+
+    assert {:ok, _reclaimed} = claim(lease, envelope, :approval)
+    assert {:ok, _bound} = bind(lease, envelope, :approval, @approval_hash)
+    assert {:error, :unstarted_phase_mismatch} = unstarted(lease, envelope, :approval)
+  end
+
+  test "UNSTARTED_RELEASE_IS_NARROW: a terminal row and a revoked lineage both refuse" do
+    {_account, lease, envelope} = prepared("release-terminal")
+
+    assert {:ok, _claimed} = claim(lease, envelope, :action)
+
+    assert {:ok, %{state: :not_sent}} =
+             StakeRedeemOperations.close_not_sent(
+               lease,
+               :stake,
+               envelope.action_id,
+               :action,
+               "rejected"
+             )
+
+    assert {:error, :unstarted_phase_mismatch} = unstarted(lease, envelope, :action)
+
+    {_account, revoked, other} = prepared("release-revoked")
+    assert {:ok, _claimed} = claim(revoked, other, :action)
+    SessionAuthority.revoke(%{lineage: revoked.lineage})
+
+    assert {:error, :stale_authority} = unstarted(revoked, other, :action)
+    assert {:ok, %{state: :action_dispatched}} = active(revoked.account_id)
   end
 
   test "EXACT_SUBMITTED_IDENTITY_SURVIVES: the first hash binds, an exact replay is a no-op, a different hash is refused" do
@@ -281,6 +395,42 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
                :action_dispatched
     end
 
+    # The row lock, not the arrival order of two browser events, settles this.
+    # Whichever reaches the operation first is the whole outcome for that phase.
+    test "DATABASE_DECIDES_THE_RACE: a hash that binds first beats a release, and a release first refuses the hash" do
+      {_account, lease, envelope} = unboxed(fn -> committed_preparation("race-hash-first") end)
+      assert {:ok, _claimed} = unboxed(fn -> claim(lease, envelope, :action) end)
+
+      binder = holding(fn -> bind(lease, envelope, :action, @action_hash) end)
+      releaser = contending(fn -> unstarted(lease, envelope, :action) end)
+
+      assert_blocked_by(releaser, binder)
+      assert {:ok, bound} = release(binder)
+      assert bound.action_transaction_hash == @action_hash
+      assert {:error, :unstarted_phase_mismatch} = settled(releaser)
+
+      assert unboxed(fn -> active(lease.account_id) end) |> elem(1) |> Map.get(:state) ==
+               :action_submitted
+
+      {_account, second, later} = unboxed(fn -> committed_preparation("race-release-first") end)
+      assert {:ok, _claimed} = unboxed(fn -> claim(second, later, :action) end)
+
+      first = holding(fn -> unstarted(second, later, :action) end)
+      late = contending(fn -> bind(second, later, :action, @other_hash) end)
+
+      assert_blocked_by(late, first)
+      assert {:ok, released} = release(first)
+      assert released.state == :prepared
+      assert {:error, _refused} = settled(late)
+
+      assert unboxed(fn -> active(second.account_id) end)
+             |> elem(1)
+             |> Map.take([
+               :state,
+               :action_transaction_hash
+             ]) == %{state: :prepared, action_transaction_hash: nil}
+    end
+
     test "BARRIER_AND_RESTART_PROOF: a logout that commits before a write leaves the write refused" do
       {_account, lease, envelope} = unboxed(fn -> committed_preparation("logout-first") end)
 
@@ -315,10 +465,10 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
   ## Sandbox setup
 
-  defp prepared(seed) do
+  defp prepared(seed, prepare \\ &Staking.prepare_stake/3) do
     account = register(seed)
     opts = leased(account.id)
-    {:ok, envelope} = Staking.prepare_stake(@wallet, "1", opts)
+    {:ok, envelope} = prepare.(@wallet, "1", opts)
     {account, opts[:context].session_lease, envelope}
   end
 
@@ -341,6 +491,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
   defp cancel(lease, envelope),
     do: StakeRedeemOperations.cancel(lease, :stake, envelope.action_id, "withdrawn")
+
+  defp unstarted(lease, envelope, phase),
+    do: StakeRedeemOperations.release_unstarted(lease, :stake, envelope.action_id, phase)
 
   ## Committed setup and barriers for the second-connection proofs
 

@@ -2,6 +2,7 @@ defmodule AshPlatform.StakingTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.{Accounts, Staking}
+  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.WalletActions.Envelope
 
@@ -124,6 +125,39 @@ defmodule AshPlatform.StakingTest do
     refute_receive {:overview, _wallet}
   end
 
+  # Membership is a session fact, not a chain fact. Proving it before a dispatch
+  # reads no provider at all, so an unreachable Base cannot stop a wallet the
+  # account really holds from being asked to sign.
+  test "MEMBERSHIP_IS_LOCAL: the dispatch check proves the wallet without reading Base", %{
+    actor: actor,
+    opts: opts
+  } do
+    assert {:ok, @wallet} = Staking.wallet_membership(@wallet, opts)
+
+    assert {:error, unlinked} = Staking.wallet_membership(@other, opts)
+    assert refusal(unlinked) == :wrong_signer
+
+    assert {:error, _malformed} = Staking.wallet_membership("0xnope", opts)
+    assert {:error, _leaseless} = Staking.wallet_membership(@wallet, actor: actor)
+    assert {:error, _anonymous} = Staking.wallet_membership(@wallet)
+
+    refute_receive {:overview, _wallet}
+  end
+
+  # A session that no longer resolves an account has said nothing about whose
+  # wallet this is, so it is never reported as a wallet the account does not hold.
+  test "MEMBERSHIP_IS_LOCAL: a lapsed session is unavailable rather than the wrong wallet", %{
+    opts: opts
+  } do
+    SessionAuthority.revoke(%{lineage: opts[:context].session_lease.lineage})
+
+    assert {:error, dispatch} = Staking.wallet_membership(@wallet, opts)
+    assert refusal(dispatch) == :session_unavailable
+
+    assert {:error, preparation} = Staking.prepare_stake(@wallet, "1", opts)
+    assert refusal(preparation) == :session_unavailable
+  end
+
   test "stake preparation binds signer, exact approval and ABI calldata", %{opts: opts} do
     assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.5", opts)
 
@@ -223,6 +257,9 @@ defmodule AshPlatform.StakingTest do
 
     refute_receive {:confirm, _, _, _}
   end
+
+  defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
+    do: reason
 
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore_env(key, value), do: Application.put_env(:ash_platform, key, value)

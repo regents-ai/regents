@@ -7,6 +7,7 @@ defmodule AshPlatform.Staking do
       define :overview, action: :overview
       define :account, action: :account
       define :account_for_wallet, action: :account_for_wallet, args: [:expected_signer]
+      define :wallet_membership, action: :wallet_membership, args: [:expected_signer]
       define :prepare_stake, action: :prepare_stake, args: [:expected_signer, :amount]
       define :prepare_unstake, action: :prepare_unstake, args: [:expected_signer, :amount]
       define :prepare_claim_usdc, action: :prepare_claim_usdc, args: [:expected_signer]
@@ -35,6 +36,11 @@ defmodule AshPlatform.Staking do
         args: [:action_id, :phase, :transaction_hash]
 
       define :close_not_sent, action: :close_not_sent, args: [:action_id, :phase]
+
+      define :release_unstarted_dispatch,
+        action: :release_unstarted_dispatch,
+        args: [:action_id, :phase]
+
       define :cancel_operation, action: :cancel_operation, args: [:action_id]
       define :active_operation, action: :active_operation
     end

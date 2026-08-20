@@ -714,9 +714,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     refute has_element?(view, ~s([data-account-target="sign-in"]))
 
-    render_hook(view, "staking_wallet_failed", %{"reason" => "signer_changed"})
-    assert render(view) =~ "This review belongs to a different wallet than the one now active."
-
     render_hook(view, "staking_wallet_failed", %{"reason" => "unknown"})
     assert render(view) =~ "The wallet action did not complete."
   end
@@ -875,12 +872,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute html =~ "Your stake"
     refute has_element?(view, ~s(button[phx-click="prepare_staking"]))
 
-    # The wallet is still the reviewed signer, so a dispatch attempted now says
-    # only that Base could not be read, and claims nothing.
-    sign(view, action_id)
-    assert render(view) =~ "Base could not be reached to check this wallet"
-    refute_push_event(view, "staking:prepared", _)
-
+    # Nothing about the review moved: the verified approval is still the fact
+    # the database holds for it.
     assert {:ok, %{state: :approval_verified, approval_transaction_hash: @approval_hash}} =
              StakeRedeemOperations.active(account.id, :stake)
 
@@ -1199,6 +1192,246 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-metric dd", "7 REGENT")
   end
 
+  # Membership comes from the mounted session, not from Base, so an unreadable
+  # chain can never stand between a customer and the wallet they may sign with.
+  test "R4_MEMBERSHIP_IS_LOCAL: a dispatch is claimed while Base cannot be read", %{conn: conn} do
+    account = register("stake-dispatch-no-base", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+
+    Application.put_env(:ash_platform, :test_staking_overview_error, :chain_unavailable)
+    sign(view, action_id)
+
+    assert_push_event(view, "staking:prepared", %{envelope: %{expected_signer: @wallet}})
+    refute render(view) =~ "Base could not be reached"
+
+    assert {:ok, %{state: :approval_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # The envelope is proven current again immediately before the durable claim,
+  # so a review that expired while the page sat open opens no wallet at all.
+  test "R1_EXPIRY_IS_PROVEN_BEFORE_THE_CLAIM: an expired review claims nothing", %{conn: conn} do
+    account = register("stake-expired-claim", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+
+    Application.put_env(:ash_platform, :wallet_action_clock, fn ->
+      DateTime.add(DateTime.utc_now(), 11, :minute)
+    end)
+
+    sign(view, action_id)
+
+    assert render(view) =~ "This review is no longer current. Prepare the action again."
+    refute_push_event(view, "staking:prepared", _)
+    assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # The browser proved the wallet was never asked for anything, so the exact
+  # claimed phase goes back to being signable instead of ending.
+  test "R1_UNSTARTED_DISPATCH_IS_RETRYABLE: an approval that never reached the wallet is released",
+       %{conn: conn} do
+    account = register("stake-unstarted-approval", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{envelope: %{expected_signer: @wallet}})
+
+    assert {:ok, %{state: :approval_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    not_started(view, action_id, "approval")
+
+    assert render(view) =~ "Nothing was sent. You can try this action again."
+
+    assert {:ok, %{state: :prepared, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The page is unlocked and the same review is the one still on screen.
+    refute has_element?(view, ~s(#staking-amount[disabled]))
+    assert has_element?(view, ~s(button[data-stake-confirm="#{action_id}"]))
+    assert render(view) =~ "1 REGENT"
+
+    # One retry claims exactly once.
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{envelope: %{expected_signer: @wallet}})
+
+    assert {:ok, %{state: :approval_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    sign(view, action_id)
+    refute_push_event(view, "staking:prepared", _)
+  end
+
+  # The approval receipt and the exact allowance already held. Releasing an
+  # unsent stake keeps them, so the retry sends the stake and never reapproves.
+  test "R1_UNSTARTED_DISPATCH_IS_RETRYABLE: an unsent stake keeps its verified approval",
+       %{conn: conn} do
+    account = register("stake-unstarted-main", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_approval(view, action_id)
+    render_async(view)
+
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: @approval_hash})
+
+    assert {:ok, %{state: :action_dispatched} = dispatched} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    not_started(view, action_id, "action")
+
+    assert {:ok, %{state: :approval_verified, action_id: ^action_id} = released} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    assert approval_facts(released) == approval_facts(dispatched)
+    assert is_nil(released.action_dispatched_at)
+
+    assert has_element?(
+             view,
+             ~s(button[data-stake-confirm="#{action_id}"]),
+             "Continue after approval"
+           )
+
+    sign(view, action_id)
+
+    assert_push_event(view, "staking:prepared", %{
+      approval_transaction_hash: @approval_hash,
+      envelope: %{action: "stake"}
+    })
+
+    assert {:ok, %{state: :action_dispatched, approval_transaction_hash: @approval_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  test "R1_UNSTARTED_DISPATCH_IS_RETRYABLE: an unsent action with no approval is released",
+       %{conn: conn} do
+    account = register("stake-unstarted-unstake", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "unstake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+
+    assert {:ok, %{state: :action_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    not_started(view, action_id, "action")
+
+    assert {:ok, %{state: :prepared, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{envelope: %{action: "unstake"}})
+
+    assert {:ok, %{state: :action_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # A released review is still only a review, so the next preparation replaces
+    # it through the existing rule rather than being refused as outstanding.
+    not_started(view, action_id, "action")
+    view |> form("#staking-amount-form", %{"amount" => "2"}) |> render_change()
+    review(view, "unstake")
+
+    assert {:ok, %{state: :prepared, action_id: replacement}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    refute replacement == action_id
+  end
+
+  # Only the socket that still holds this claim may say the wallet never saw it,
+  # and only for the phase the review is actually on. Everything else refuses
+  # without touching the row.
+  test "R2_ONLY_THE_HOLDING_SOCKET_RELEASES: a second socket, a stale phase, a stale action and a duplicate all refuse",
+       %{conn: conn} do
+    account = register("stake-release-admission", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+
+    # A restored second socket sees the same review but holds no claim of its own.
+    second = mount_stake(conn, account)
+    activate(second, @wallet)
+    not_started(second, action_id, "approval")
+    assert claimed_approval(account)
+
+    # The holding socket, but for the phase this review is not on.
+    not_started(view, action_id, "action")
+    assert claimed_approval(account)
+
+    # ...and for an action it never reviewed.
+    not_started(
+      view,
+      "0000000000000000000000000000000000000000000000000000000000000000",
+      "approval"
+    )
+
+    assert claimed_approval(account)
+
+    not_started(view, action_id, "approval")
+    assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(account.id, :stake)
+
+    # The latch went with the release, so a duplicate cannot start another one.
+    sign(view, action_id)
+    assert claimed_approval(account)
+    not_started(view, action_id, "approval")
+    assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(account.id, :stake)
+    not_started(view, action_id, "approval")
+    assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A release changes this socket's signing latch and its notice, and nothing
+  # else: the envelope, the operation slot and the original expiry timer are
+  # exactly as the claim left them.
+  test "R3_RELEASE_MOVES_NOTHING_ELSE: the review keeps its slot and its original expiry timer",
+       %{conn: conn} do
+    account = register("stake-release-untouched", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_approval(view, action_id)
+    render_async(view)
+    sign(view, action_id)
+
+    not_started(view, action_id, "action")
+
+    assert {:ok, %{state: :approval_verified, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The timer armed when this review was prepared is still the one that fires.
+    send(view.pid, {:staking_envelope_expired, action_id})
+
+    assert render(view) =~ "This approval review expired. No staking transaction was sent."
+    assert_push_event(view, "staking:abandoned", %{})
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
   defp register(suffix, wallets) do
     {:ok, account} =
       Accounts.register_verified("did:privy:#{suffix}", hd(wallets), wallets, actor: %System{})
@@ -1242,6 +1475,29 @@ defmodule AshPlatformWeb.StakeLiveTest do
         "action-id" => action_id,
         "address" => @wallet
       })
+
+  # The browser proved this exact phase never crossed its transaction-send
+  # boundary. It carries the action and the phase and nothing else.
+  defp not_started(view, action_id, phase),
+    do:
+      render_hook(view, "staking_dispatch_not_started", %{
+        "action_id" => action_id,
+        "phase" => phase
+      })
+
+  defp claimed_approval(account) do
+    {:ok, %{state: :approval_dispatched}} = StakeRedeemOperations.active(account.id, :stake)
+    true
+  end
+
+  defp approval_facts(operation),
+    do:
+      Map.take(operation, [
+        :approval_dispatched_at,
+        :approval_transaction_hash,
+        :approval_receipt_at,
+        :approval_reread_at
+      ])
 
   defp submit(view, action_id, phase, hash) do
     render_hook(view, "staking_submitted", %{

@@ -84,6 +84,10 @@ export type SubmissionPhase = "approval" | "action"
 export type ExecutionOptions = {
   existingApprovalHash?: Hash
   onSubmitted?: (phase: SubmissionPhase, hash: Hash) => void
+  // Called synchronously immediately before each wallet send, and required, so
+  // every caller can tell a failure that never asked the wallet for anything
+  // from one that may already have put a transaction on Base.
+  onSendStarted: () => void
 }
 
 export class WalletExecutionError extends Error {
@@ -125,7 +129,7 @@ export async function executePreparedStakingAction(
   envelope: PreparedStakingAction,
   provider: EthereumProvider,
   clients: StakingClients = clientsFor(provider),
-  options: ExecutionOptions = {},
+  options: ExecutionOptions,
 ): Promise<WalletActionResult> {
   assertEnvelope(envelope)
 
@@ -149,6 +153,7 @@ export async function executePreparedStakingAction(
     } else {
       const approval = {account, to: STAKE_TOKEN, data: envelope.approval.data, value: 0n}
       await clients.simulate(approval)
+      options.onSendStarted()
       approvalHash = await clients.send(approval)
       options.onSubmitted?.("approval", approvalHash)
       return {phase: "approval", approvalHash}
@@ -157,6 +162,7 @@ export async function executePreparedStakingAction(
 
   const transaction = {account, to: STAKING, data: envelope.data, value: 0n}
   await clients.simulate(transaction)
+  options.onSendStarted()
   const transactionHash = await clients.send(transaction)
   options.onSubmitted?.("action", transactionHash)
   const receipt = await clients.receipt(transactionHash)

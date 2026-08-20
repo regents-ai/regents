@@ -4,6 +4,7 @@ import {encodeFunctionData, parseAbi, type Address, type Hash} from "viem"
 import {activeEthereumWallet} from "../js/wallet_actions/connected_wallet"
 import {
   executePreparedStakingAction,
+  type ExecutionOptions,
   type PreparedStakingAction,
   type StakingClients,
   WalletExecutionError,
@@ -106,6 +107,16 @@ function clients(overrides: Partial<StakingClients> = {}): StakingClients {
 
 const provider = {request: vi.fn(async () => undefined)}
 
+// The executor demands its send boundary at every call site, so a caller can
+// never lose the one fact that separates "never asked" from "may have sent".
+const sendBoundary: ExecutionOptions = {onSendStarted: () => undefined}
+
+// The same boundary with the marker a test can read back.
+function markedBoundary(): {marker: {started: boolean}} & ExecutionOptions {
+  const marker = {started: false}
+  return {marker, onSendStarted: () => (marker.started = true)}
+}
+
 beforeEach(() => {
   walletStub.selected = walletStub.address
   walletStub.accounts = [walletStub.address]
@@ -119,7 +130,9 @@ describe("staking wallet action", () => {
     )
 
     const approvalBoundary = clients()
-    await expect(executePreparedStakingAction(prepared, provider, approvalBoundary)).resolves.toEqual({
+    await expect(
+      executePreparedStakingAction(prepared, provider, approvalBoundary, sendBoundary),
+    ).resolves.toEqual({
       phase: "approval",
       approvalHash,
     })
@@ -129,6 +142,7 @@ describe("staking wallet action", () => {
     const mainBoundary = clients({send: vi.fn(async () => mainHash)})
     await expect(
       executePreparedStakingAction(prepared, provider, mainBoundary, {
+        ...sendBoundary,
         existingApprovalHash: approvalHash,
       }),
     ).resolves.toEqual({phase: "action", transactionHash: mainHash, approvalHash})
@@ -158,7 +172,7 @@ describe("staking wallet action", () => {
     const chainId = vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(8453)
     const boundary = clients({chainId, allowance: vi.fn(async () => 2_000_000_000_000_000_000n)})
 
-    await executePreparedStakingAction(envelope(), provider, boundary)
+    await executePreparedStakingAction(envelope(), provider, boundary, sendBoundary)
 
     expect(boundary.switchToBase).toHaveBeenCalledOnce()
     expect(chainId).toHaveBeenCalledTimes(2)
@@ -174,19 +188,30 @@ describe("staking wallet action", () => {
             "0x2222222222222222222222222222222222222222" as Address,
           ]),
         }),
+        sendBoundary,
       ),
     ).rejects.toThrow("connected wallet")
 
     await expect(
-      executePreparedStakingAction(envelope(), provider, clients({chainId: vi.fn(async () => 1)})),
+      executePreparedStakingAction(
+        envelope(),
+        provider,
+        clients({chainId: vi.fn(async () => 1)}),
+        sendBoundary,
+      ),
     ).rejects.toThrow("Switch to Base")
 
     await expect(
-      executePreparedStakingAction(envelope({expires_at: new Date(0).toISOString()}), provider, clients()),
+      executePreparedStakingAction(
+        envelope({expires_at: new Date(0).toISOString()}),
+        provider,
+        clients(),
+        sendBoundary,
+      ),
     ).rejects.toThrow("expired")
 
     await expect(
-      executePreparedStakingAction(envelope({data: "0xdeadbeef"}), provider, clients()),
+      executePreparedStakingAction(envelope({data: "0xdeadbeef"}), provider, clients(), sendBoundary),
     ).rejects.toThrow("data changed")
 
     const changedAmount = 2_000_000_000_000_000_000n
@@ -200,6 +225,7 @@ describe("staking wallet action", () => {
         envelope({data: changedData, arguments: {amount_atomic: changedAmount.toString(), receiver: wallet}}),
         provider,
         clients(),
+        sendBoundary,
       ),
     ).rejects.toThrow("approval changed")
 
@@ -208,11 +234,17 @@ describe("staking wallet action", () => {
         envelope({arguments: {amount_atomic: "1500000000000000000", receiver: "0x2222222222222222222222222222222222222222"}}),
         provider,
         clients(),
+        sendBoundary,
       ),
     ).rejects.toThrow("recipient changed")
 
     await expect(
-      executePreparedStakingAction(envelope({expires_at: "not-a-date"}), provider, clients()),
+      executePreparedStakingAction(
+        envelope({expires_at: "not-a-date"}),
+        provider,
+        clients(),
+        sendBoundary,
+      ),
     ).rejects.toThrow("expired")
 
     await expect(
@@ -220,6 +252,7 @@ describe("staking wallet action", () => {
         envelope({to: "0x2222222222222222222222222222222222222222"}),
         provider,
         clients(),
+        sendBoundary,
       ),
     ).rejects.toThrow("target changed")
 
@@ -229,6 +262,7 @@ describe("staking wallet action", () => {
         envelope({approval: {...badApproval, spender: "0x2222222222222222222222222222222222222222"}}),
         provider,
         clients(),
+        sendBoundary,
       ),
     ).rejects.toThrow("approval changed")
 
@@ -237,8 +271,70 @@ describe("staking wallet action", () => {
         envelope({approval: null}),
         provider,
         clients({receipt: vi.fn(async () => ({status: "reverted" as const}))}),
+        sendBoundary,
       ),
     ).rejects.toThrow("staking transaction was reverted")
+  })
+})
+
+describe("R1_SEND_MARKER_IS_THE_BOUNDARY: the executor marks each send before making it", () => {
+  it("marks the boundary before an approval send and before an action send that both throw", async () => {
+    for (const prepared of [envelope(), envelope({approval: null})]) {
+      const marked = markedBoundary()
+      const boundary = clients({
+        send: vi.fn(async () => {
+          expect(marked.marker.started).toBe(true)
+          throw new Error("the wallet closed")
+        }),
+      })
+
+      await expect(
+        executePreparedStakingAction(prepared, provider, boundary, marked),
+      ).rejects.toThrow("the wallet closed")
+
+      expect(marked.marker.started).toBe(true)
+      expect(boundary.send).toHaveBeenCalledOnce()
+    }
+  })
+
+  it("leaves the boundary unmarked for every failure that precedes the send", async () => {
+    const rejectedSwitch = Object.assign(new Error("User rejected the request."), {code: 4001})
+    const cases = [
+      // An envelope that crossed its expiry in the server-to-browser gap.
+      {prepared: envelope({expires_at: new Date(0).toISOString()}), boundary: clients()},
+      // A chain switch the customer rejected: a prompt, never a transaction.
+      {
+        prepared: envelope(),
+        boundary: clients({
+          chainId: vi.fn(async () => 1),
+          switchToBase: vi.fn(async () => {
+            throw rejectedSwitch
+          }),
+        }),
+      },
+      // The provider's account is no longer the reviewed signer.
+      {prepared: envelope(), boundary: clients({addresses: vi.fn(async () => [])})},
+      // Simulation refused the call before it could be signed.
+      {
+        prepared: envelope(),
+        boundary: clients({
+          simulate: vi.fn(async () => {
+            throw new Error("execution reverted")
+          }),
+        }),
+      },
+    ]
+
+    for (const {prepared, boundary} of cases) {
+      const marked = markedBoundary()
+
+      await expect(
+        executePreparedStakingAction(prepared, provider, boundary, marked),
+      ).rejects.toThrow()
+
+      expect(marked.marker.started).toBe(false)
+      expect(boundary.send).not.toHaveBeenCalled()
+    }
   })
 })
 
@@ -282,7 +378,8 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
     const hook = mountStakeWallet()
 
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options?.onSubmitted?.("action", mainHash)
+      options.onSendStarted()
+      options.onSubmitted?.("action", mainHash)
       return {phase: "action", transactionHash: mainHash}
     })
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "first", approval: null})})
@@ -293,7 +390,8 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
 
     await hook.emit("staking:confirmed", {})
 
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
       throw Object.assign(new Error("User rejected the request."), {code: 4001})
     })
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "second", approval: null})})
@@ -307,7 +405,8 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
   it("reports the rejection for the approval phase the wallet was actually asked for", async () => {
     const hook = mountStakeWallet()
 
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
       throw Object.assign(new Error("User rejected the request."), {code: 4001})
     })
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "approval-only"})})
@@ -327,7 +426,8 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
 
   it("reports the unknown key instead of the provider's own message", async () => {
     const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
       throw new Error("execution reverted: allowance 0xdeadbeef (Safe transaction service)")
     })
 
@@ -340,6 +440,9 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
     expect(JSON.stringify(hook.pushed)).not.toContain("execution reverted")
   })
 
+  // The claim is already durable and the wallet was never asked for anything,
+  // so this releases the exact phase instead of describing a failure. The event
+  // names only the action and the phase: no provider text can ride out on it.
   it("reports the unavailable review wallet without naming any provider", async () => {
     const hook = mountStakeWallet()
     vi.mocked(activeEthereumWallet).mockReturnValueOnce(null)
@@ -347,7 +450,7 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "absent"})})
 
     expect(hook.pushed).toEqual([
-      {event: "staking_wallet_failed", payload: {reason: "wallet_unavailable"}},
+      {event: "staking_dispatch_not_started", payload: {action_id: "absent", phase: "approval"}},
     ])
   })
 })
@@ -432,9 +535,9 @@ describe("P4_PREFLIGHT_IS_INPUT: nothing is claimed before the signer is proven"
     ])
   })
 
-  // The dispatch is already claimed. A wallet that moved in between must not
-  // resubmit and must not report a rejection the customer never made: only the
-  // original wallet can end that request.
+  // The dispatch is already claimed. A wallet that moved in between never
+  // reaches the executor at all, so nothing was signed and nothing was
+  // broadcast: the claim is released and the same review stays retryable.
   it("preserves a claimed dispatch when the signer changed after the push", async () => {
     const hook = mountStakeWallet()
     const attempts = execute.mock.calls.length
@@ -445,9 +548,81 @@ describe("P4_PREFLIGHT_IS_INPUT: nothing is claimed before the signer is proven"
     })
 
     expect(hook.pushed).toEqual([
-      {event: "staking_wallet_failed", payload: {reason: "signer_changed"}},
+      {event: "staking_dispatch_not_started", payload: {action_id: "claimed", phase: "action"}},
     ])
     expect(execute.mock.calls).toHaveLength(attempts)
+  })
+})
+
+describe("R1_SEND_MARKER_IS_THE_BOUNDARY: the marker alone decides what the page may claim", () => {
+  const execute = vi.mocked(executePreparedStakingAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  // Validation, chain, account and simulation failures all land here. None of
+  // them is recognised by its message: the unmarked boundary is the whole proof.
+  it("releases the claimed phase for any failure the wallet never saw", async () => {
+    const hook = mountStakeWallet()
+    execute.mockImplementationOnce(async () => {
+      throw new Error("execution reverted: allowance 0xdeadbeef")
+    })
+
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "unsent", approval: null})})
+
+    expect(hook.pushed).toEqual([
+      {event: "staking_dispatch_not_started", payload: {action_id: "unsent", phase: "action"}},
+    ])
+  })
+
+  // A rejected chain-switch prompt is still a rejection, but nothing was ever
+  // offered to sign, so the review is retryable rather than closed.
+  it("releases the claimed phase when the rejection came before the send", async () => {
+    const hook = mountStakeWallet()
+    execute.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("User rejected the request."), {code: 4001})
+    })
+
+    await hook.emit("staking:prepared", {
+      envelope: envelope({action_id: "switch", approval: null}),
+    })
+
+    expect(hook.pushed).toEqual([
+      {event: "staking_dispatch_not_started", payload: {action_id: "switch", phase: "action"}},
+    ])
+  })
+
+  // The marker belongs to one dispatch, not to the page. An approval that was
+  // really sent must not make the stake that follows it look sent too.
+  it("starts the stake with a fresh marker after the approval was already sent", async () => {
+    const hook = mountStakeWallet()
+
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
+      options.onSubmitted?.("approval", approvalHash)
+      return {phase: "approval", approvalHash}
+    })
+    await hook.emit("staking:prepared", {envelope: envelope({action_id: "two-phase"})})
+
+    expect(hook.pushed).toEqual([
+      {
+        event: "staking_submitted",
+        payload: {action_id: "two-phase", phase: "approval", transaction_hash: approvalHash},
+      },
+    ])
+
+    hook.pushed.length = 0
+    execute.mockImplementationOnce(async () => {
+      throw new Error("the account moved")
+    })
+    await hook.emit("staking:prepared", {
+      envelope: envelope({action_id: "two-phase"}),
+      approval_transaction_hash: approvalHash,
+    })
+
+    expect(hook.pushed).toEqual([
+      {event: "staking_dispatch_not_started", payload: {action_id: "two-phase", phase: "action"}},
+    ])
   })
 })
 
@@ -462,7 +637,8 @@ describe("U1_BOUNDED_WALLET_COPY: a precise revert is the whole outcome", () => 
   it("reports the reverted approval for its bound hash and nothing after it", async () => {
     const hook = mountStakeWallet()
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options?.onSubmitted?.("approval", approvalHash)
+      options.onSendStarted()
+      options.onSubmitted?.("approval", approvalHash)
       throw new WalletExecutionError("approval_reverted", "reverted")
     })
 
@@ -483,7 +659,8 @@ describe("U1_BOUNDED_WALLET_COPY: a precise revert is the whole outcome", () => 
   it("reports the reverted action for its bound hash and nothing after it", async () => {
     const hook = mountStakeWallet()
     execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options?.onSubmitted?.("action", mainHash)
+      options.onSendStarted()
+      options.onSubmitted?.("action", mainHash)
       throw new WalletExecutionError("action_reverted", "reverted")
     })
 
@@ -509,7 +686,8 @@ describe("U1_BOUNDED_WALLET_COPY: a precise revert is the whole outcome", () => 
 
   it("keeps the fixed unknown failure when the revert has no bound hash", async () => {
     const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
       throw new WalletExecutionError("action_reverted", "reverted")
     })
 
@@ -529,7 +707,8 @@ describe("U2_NEUTRAL_REJECTION: the rejection is the whole outcome", () => {
   // sent" notice with an error the customer did not cause.
   it("sends the rejection and nothing that could overwrite its neutral notice", async () => {
     const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options.onSendStarted()
       throw Object.assign(new Error("User rejected the request."), {code: 4001})
     })
 

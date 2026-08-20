@@ -11,7 +11,7 @@ const pendingKey = "regent:staking:submitted"
 
 // The closed set of failures this surface can describe. Provider, viem, revert
 // and wallet-vendor text is never a customer message, so it is never sent.
-type FailureReason = "wallet_unavailable" | "signer_changed" | "unknown"
+type FailureReason = "wallet_unavailable" | "unknown"
 
 type StoredSubmission = {
   envelope: PreparedStakingAction
@@ -107,22 +107,23 @@ export const StakeWallet: Hook = {
       this.el
         .querySelectorAll<HTMLButtonElement>("[data-stake-confirm]")
         .forEach(button => (button.disabled = true))
+      // The claim is already durable, so a preflight that fails here is proof
+      // the wallet was never asked for anything: the exact phase is released
+      // and the same review stays signable.
+      const notStarted = () =>
+        this.pushEvent("staking_dispatch_not_started", {action_id: envelope.action_id, phase})
+
       const connected = activeEthereumWallet()
-
-      if (!connected) {
-        failed("wallet_unavailable")
+      if (!connected || !(await activeSigner(envelope.expected_signer))) {
+        notStarted()
         unlock(this.el, envelope.action_id)
         return
       }
 
-      // The claim is already durable. If the wallet moved between the claim and
-      // this push, nothing is sent and nothing is closed: the request may still
-      // be open in the original wallet, so only that wallet can end it.
-      if (!(await activeSigner(envelope.expected_signer))) {
-        failed("signer_changed")
-        unlock(this.el, envelope.action_id)
-        return
-      }
+      // One marker per attempt, set immediately before each wallet send. It is
+      // the whole boundary: below it nothing can have been broadcast, above it
+      // any failure may have left a transaction on Base.
+      let sendStarted = false
 
       try {
         const result = await executePreparedStakingAction(
@@ -131,6 +132,7 @@ export const StakeWallet: Hook = {
           undefined,
           {
             existingApprovalHash: prepared.approval_transaction_hash ?? undefined,
+            onSendStarted: () => (sendStarted = true),
             onSubmitted: (phase, hash) => {
               currentSubmission = recordSubmittedAction(
                 currentSubmission,
@@ -151,6 +153,14 @@ export const StakeWallet: Hook = {
           })
         }
       } catch (error) {
+        // Below the send marker nothing was broadcast, whatever the wallet said
+        // and whatever it was asked for first, so the claim is released rather
+        // than closed: an approval already verified stays verified.
+        if (!sendStarted) {
+          notStarted()
+          return
+        }
+
         const stored = currentSubmission
         // Each precise outcome is the whole outcome for its bound hash, so
         // nothing follows it that could replace it with a generic failure.
@@ -177,11 +187,12 @@ export const StakeWallet: Hook = {
           })
           return
         }
-        // Reported unconditionally: browser state is evidence, never authority.
-        // The database refuses `not_sent` once a hash is bound, so withholding
-        // this would only strand a claim the server can no longer close. The
-        // rejection is the whole outcome, so nothing follows it that could
-        // overwrite the neutral notice with a failure the user did not cause.
+        // A rejection of the transaction request itself, reported unconditionally:
+        // browser state is evidence, never authority. The database refuses
+        // `not_sent` once a hash is bound, so withholding this would only strand
+        // a claim the server can no longer close. The rejection is the whole
+        // outcome, so nothing follows it that could overwrite the neutral notice
+        // with a failure the user did not cause.
         if (userRejected(error)) {
           this.pushEvent("staking_wallet_rejected", {
             action_id: envelope.action_id,

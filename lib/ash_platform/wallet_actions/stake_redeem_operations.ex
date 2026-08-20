@@ -145,6 +145,27 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
     end)
   end
 
+  @doc """
+  Returns a claimed dispatch the browser proved never reached its wallet send.
+
+  Only the hash-free dispatch for the exact claimed phase moves, so a hash that
+  binds first wins and a released phase can no longer accept one. A verified
+  approval survives untouched: the review resumes at the stake.
+  """
+  @spec release_unstarted(lease(), capability(), String.t(), phase()) ::
+          {:ok, struct()} | {:error, term()}
+  def release_unstarted(lease, capability, action_id, phase) do
+    claimed = dispatched_state(phase)
+
+    write(lease, capability, action_id, fn
+      %{state: ^claimed} = operation ->
+        transition(operation, capability, unstarted_release(operation))
+
+      _other_phase ->
+        {:error, :unstarted_phase_mismatch}
+    end)
+  end
+
   @doc "The owning account's active operation, read without a lease and writing nothing."
   @spec active(integer(), capability()) :: {:ok, struct() | nil} | {:error, term()}
   def active(account_id, capability) do
@@ -297,6 +318,10 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
 
   defp dispatched_state(:approval), do: :approval_dispatched
   defp dispatched_state(:action), do: :action_dispatched
+
+  defp unstarted_release(%{state: :approval_dispatched}), do: :release_unstarted_approval
+  defp unstarted_release(%{approval_transaction_hash: nil}), do: :release_unstarted_action
+  defp unstarted_release(_verified_approval), do: :release_unstarted_action_after_approval
 
   defp domain(:stake), do: AshPlatform.Staking
   defp domain(:redeem), do: AshPlatform.Redemption

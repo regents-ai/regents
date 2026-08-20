@@ -1008,6 +1008,24 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("staking_wallet_rejected", _params, socket), do: {:noreply, socket}
 
+  # The browser proved this exact claimed phase never reached its wallet send.
+  # Only the socket still holding that claim may say so, and only for the exact
+  # action and phase it holds; the database decides the release itself.
+  def handle_event(
+        "staking_dispatch_not_started",
+        %{"action_id" => action_id, "phase" => phase},
+        %{assigns: %{staking_signing?: true} = assigns} = socket
+      )
+      when phase in ["approval", "action"] do
+    phase = submitted_phase(phase)
+
+    if claimed_staking_phase(assigns) == {action_id, phase},
+      do: release_unstarted_staking_dispatch(socket, action_id, phase),
+      else: {:noreply, socket}
+  end
+
+  def handle_event("staking_dispatch_not_started", _params, socket), do: {:noreply, socket}
+
   # Browser storage may prompt a restore; it never supplies the envelope, phase,
   # hash or verification facts. Those come from the owning account's row.
   def handle_event("restore_staking_submission", _params, socket),
@@ -2836,16 +2854,17 @@ defmodule AshPlatformWeb.ShellLive do
   defp staking_preparation_error(:chain_unavailable),
     do: "Base could not be reached to check this wallet. Nothing was prepared. Try again shortly."
 
+  defp staking_preparation_error(:session_unavailable),
+    do: "Your session changed. Reload and try again."
+
   defp staking_preparation_error(_reason),
     do: "That action could not be prepared. Check the amount and wallet."
 
-  # The check before a dispatch can fail because the wallet does not belong to
-  # this account or because Base could not be read. Only the first is about the
-  # wallet, and neither one sends anything.
+  # Membership is proven from the session alone, so a dispatch never waits on
+  # Base and never blames it. Only a resolved account can name a wallet as one
+  # this account does not hold; every other refusal is about the session itself.
   defp staking_dispatch_refusal(:wrong_signer), do: staking_preparation_error(:wrong_signer)
-
-  defp staking_dispatch_refusal(_unavailable),
-    do: "Base could not be reached to check this wallet. Nothing was sent. Try again shortly."
+  defp staking_dispatch_refusal(_session), do: staking_preparation_error(:session_unavailable)
 
   # The browser reports a closed reason key, never text, so no provider, revert
   # or wallet-vendor wording can reach a customer through this path.
@@ -3322,15 +3341,19 @@ defmodule AshPlatformWeb.ShellLive do
         signer_changed(socket)
 
       _stale ->
-        {:noreply,
-         assign(socket,
-           staking_notice: %{
-             tone: :error,
-             message: "This review is no longer current. Prepare the action again."
-           }
-         )}
+        stale_staking_review(socket)
     end
   end
+
+  defp stale_staking_review(socket),
+    do:
+      {:noreply,
+       assign(socket,
+         staking_notice: %{
+           tone: :error,
+           message: "This review is no longer current. Prepare the action again."
+         }
+       )}
 
   defp confirm_active_signer(socket, envelope, submission, address) do
     cond do
@@ -3347,11 +3370,9 @@ defmodule AshPlatformWeb.ShellLive do
          )}
 
       true ->
-        case Staking.account_for_wallet(address, wallet_opts(socket)) do
-          {:ok, staking} ->
-            socket
-            |> assign(staking: staking, staking_status: :ready)
-            |> claim_staking_dispatch(envelope, submission)
+        case Staking.wallet_membership(address, wallet_opts(socket)) do
+          {:ok, _member} ->
+            claim_staking_dispatch(socket, envelope, submission)
 
           {:error, reason} ->
             {:noreply,
@@ -3506,6 +3527,12 @@ defmodule AshPlatformWeb.ShellLive do
   # A reload, a second socket, an expiry or a generic error can never re-open a
   # request that was already claimed.
   defp claim_staking_dispatch(socket, envelope, submission) do
+    if Envelope.valid?(envelope),
+      do: claim_current_staking_dispatch(socket, envelope, submission),
+      else: stale_staking_review(socket)
+  end
+
+  defp claim_current_staking_dispatch(socket, envelope, submission) do
     phase = staking_phase(envelope, submission)
 
     case Staking.claim_wallet_dispatch(envelope.action_id, phase, wallet_opts(socket)) do
@@ -3536,6 +3563,12 @@ defmodule AshPlatformWeb.ShellLive do
     do: if(submission && submission[:approval_transaction_hash], do: :action, else: :approval)
 
   defp staking_phase(_envelope, _submission), do: :action
+
+  # The exact action and phase this socket's claim is on, or nothing at all.
+  defp claimed_staking_phase(%{staking_prepared: %{action_id: id} = envelope} = assigns),
+    do: {id, staking_phase(envelope, assigns.staking_submission)}
+
+  defp claimed_staking_phase(_assigns), do: nil
 
   defp bind_staking_hash(socket, action_id, phase, hash) do
     case Staking.bind_submitted_hash(
@@ -3589,6 +3622,27 @@ defmodule AshPlatformWeb.ShellLive do
 
       {:error, _refused} ->
         {:noreply, assign(socket, staking_signing?: false)}
+    end
+  end
+
+  # Nothing else about the review moves: its envelope, its expiry timer and the
+  # account's operation slot are exactly as the claim left them, so the same
+  # review is signable again. A refusal keeps the page locked, because a hash
+  # from that wallet may still be arriving.
+  defp release_unstarted_staking_dispatch(socket, action_id, phase) do
+    case Staking.release_unstarted_dispatch(action_id, phase, wallet_opts(socket)) do
+      {:ok, _released} ->
+        {:noreply,
+         assign(socket,
+           staking_signing?: false,
+           staking_notice: %{
+             tone: :info,
+             message: "Nothing was sent. You can try this action again."
+           }
+         )}
+
+      {:error, _refused} ->
+        {:noreply, socket}
     end
   end
 
