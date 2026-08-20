@@ -171,7 +171,7 @@ defmodule AshPlatform.TestAutolaunchBidChainClient do
            token_allowance: fixture.token_allowance,
            permit2_amount: fixture.permit2_amount,
            permit2_expiration: fixture.permit2_expiration,
-           predecessor_source: "fixture",
+           predecessor_source: fixture.predecessor_source,
            prev_tick_price_q96: predecessor(max_price_q96, fixture)
          }}
     end
@@ -270,6 +270,7 @@ defmodule AshPlatform.BidFixture do
       token_allowance: 0,
       permit2_amount: 0,
       permit2_expiration: 0,
+      predecessor_source: "fixture",
       prev_tick_price_q96: 2 * @q96,
       outcomes: %{}
     }

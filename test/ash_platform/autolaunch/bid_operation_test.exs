@@ -1,10 +1,26 @@
 defmodule AshPlatform.Autolaunch.BidOperationTest do
+  @moduledoc """
+  What the durable bid row guarantees.
+
+  The barrier proofs run on real second connections and let PostgreSQL report
+  the ordering through `pg_blocking_pids`, so no clock decides a race. They
+  commit outside the sandbox, which is why the whole block clears its own
+  committed rows before and after every test.
+  """
+
   use AshPlatformWeb.ConnCase, async: false
 
   import AshPlatform.BidFixture
+  import Ecto.Query
 
+  require Ash.Query
+
+  alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
+  alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.{Auction, BidOperation}
+  alias AshPlatform.Repo
   alias AshPlatform.TestAutolaunchBidChainClient, as: Chain
 
   @approval_hash "0x" <> String.duplicate("aa", 32)
@@ -132,20 +148,53 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     {:ok, %{operation: operation}} = Autolaunch.claim_bid_dispatch(operation.action_id, opts)
 
     assert {:ok, %{operation: bound}} =
-             Autolaunch.bind_bid_hash(operation.action_id, @approval_hash, opts)
+             Autolaunch.bind_bid_hash(operation.action_id, :token_approval, @approval_hash, opts)
 
     assert bound.state == :submitted
 
     assert {:ok, %{operation: replayed}} =
-             Autolaunch.bind_bid_hash(operation.action_id, mixed_case(@approval_hash), opts)
+             Autolaunch.bind_bid_hash(
+               operation.action_id,
+               :token_approval,
+               mixed_case(@approval_hash),
+               opts
+             )
 
     assert replayed.token_approval_transaction_hash == @approval_hash
 
-    assert {:error, error} = Autolaunch.bind_bid_hash(operation.action_id, @other_hash, opts)
+    assert {:error, error} =
+             Autolaunch.bind_bid_hash(operation.action_id, :token_approval, @other_hash, opts)
+
     assert refusal(error) == :submitted_hash_conflict
 
     # A claimed and submitted step is never offered a second dispatch.
     assert {:error, _claimed} = Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+  end
+
+  test "A_LOST_CALLBACK_REPLAYS: a delayed hash binds to its own step and never a later one", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    operation = confirm_step(review(auction, wallet, opts), :token_approval, @approval_hash, opts)
+    assert {operation.step, operation.state} == {:permit2_approval, :prepared}
+
+    # The browser replays the callback it never got an answer for. The row has
+    # moved on, so the only column this hash can reach is its own, which already
+    # holds it: the replay acknowledges and writes nothing.
+    assert {:ok, %{operation: replayed}} =
+             Autolaunch.bind_bid_hash(operation.action_id, :token_approval, @approval_hash, opts)
+
+    assert {replayed.step, replayed.state} == {:permit2_approval, :prepared}
+    assert replayed.token_approval_transaction_hash == @approval_hash
+    assert is_nil(replayed.permit2_approval_transaction_hash)
+
+    # A hash reported for a step this operation is not on reaches no column.
+    assert {:error, error} =
+             Autolaunch.bind_bid_hash(operation.action_id, :bid, @bid_hash, opts)
+
+    assert refusal(error) == :submitted_step_mismatch
+    assert {:ok, %{operation: %{bid_transaction_hash: nil}}} = Autolaunch.open_bid_operation(opts)
   end
 
   test "ONE_OPEN_BID_PER_ACCOUNT: an undispatched review is replaced, a claimed one blocks", %{
@@ -193,11 +242,15 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     {:ok, %{operation: ended}} = Autolaunch.start_new_bid(claimed.action_id, opts)
 
     assert {:ok, %{operation: attached}} =
-             Autolaunch.bind_bid_hash(ended.action_id, @approval_hash, opts)
+             Autolaunch.bind_bid_hash(ended.action_id, :token_approval, @approval_hash, opts)
 
     assert attached.token_approval_transaction_hash == @approval_hash
     assert attached.state == :submission_unknown
     assert attached.terminal_at == ended.terminal_at
+
+    # It attaches only to the step it was reported for, and never reopens it.
+    assert {:error, error} = Autolaunch.bind_bid_hash(ended.action_id, :bid, @bid_hash, opts)
+    assert refusal(error) == :submitted_step_mismatch
   end
 
   test "AN_EXPLICIT_REJECTION_ENDS_A_CLAIM: nothing was sent and nothing is bound", %{
@@ -244,18 +297,12 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     assert {:error, _claimed} = Autolaunch.cancel_bid_review(claimed.action_id, opts)
   end
 
-  test "EXPIRED_PERMIT2_WORK_IS_TERMINAL: recovery ends it and a new review rereads state", %{
-    auction: auction,
-    wallet: wallet,
-    opts: opts
-  } do
+  test "A_STALE_REVIEW_NEVER_REACHES_THE_WALLET: the ten-minute envelope ends a part-done sequence",
+       %{auction: auction, wallet: wallet, opts: opts} do
     operation = confirm_step(review(auction, wallet, opts), :token_approval, @approval_hash, opts)
     assert operation.step == :permit2_approval
 
-    {:ok, expires_at, _offset} =
-      DateTime.from_iso8601(operation.envelope["arguments"]["permit2_expires_at"])
-
-    freeze(DateTime.add(expires_at, 1, :second))
+    freeze(past(operation))
 
     assert {:ok, %{operation: %{state: :expired} = expired}} =
              Autolaunch.claim_bid_dispatch(operation.action_id, opts)
@@ -267,6 +314,27 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     assert {:ok, %{operation: fresh}} = Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
     refute fresh.action_id == operation.action_id
     assert fresh.state == :prepared
+  end
+
+  test "A_STALE_REVIEW_NEVER_REACHES_THE_WALLET: a lone bid on a long-lived allowance expires too",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    amount = Integer.pow(10, 18)
+
+    Chain.put(%{
+      token_allowance: amount,
+      permit2_amount: amount,
+      permit2_expiration: Integer.pow(2, 48) - 1
+    })
+
+    operation = review(auction, wallet, opts)
+    assert Enum.map(steps(operation), & &1["step"]) == ["bid"]
+
+    freeze(past(operation))
+
+    assert {:ok, %{operation: %{state: :expired, terminal_at: terminal_at}}} =
+             Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+
+    assert terminal_at
   end
 
   test "RELOAD_RECOVERS_THE_ROW: browser storage restores nothing of its own", %{
@@ -294,7 +362,9 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
 
     for refused <- [
           fn -> Autolaunch.claim_bid_dispatch(operation.action_id, opts) end,
-          fn -> Autolaunch.bind_bid_hash(operation.action_id, @approval_hash, opts) end,
+          fn ->
+            Autolaunch.bind_bid_hash(operation.action_id, :token_approval, @approval_hash, opts)
+          end,
           fn -> Autolaunch.verify_bid_step(operation.action_id, opts) end,
           fn -> Autolaunch.cancel_bid_review(operation.action_id, opts) end,
           fn -> Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts) end
@@ -317,6 +387,190 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     assert action_id == operation.action_id
   end
 
+  describe "second-connection barriers" do
+    setup :clear_committed_bids
+
+    test "BARRIER_AND_RESTART_PROOF: a logout that commits first leaves the bid write refused" do
+      {lease, operation} = unboxed(&committed_review/0)
+      claim = fn -> Autolaunch.claim_bid_dispatch(operation.action_id, barrier_opts(lease)) end
+
+      unboxed(fn -> SessionAuthority.revoke(lease) end)
+
+      assert {:error, error} = unboxed(claim)
+      assert refusal(error) == :session_unavailable
+      assert unboxed(fn -> committed(operation.action_id) end).state == :prepared
+    end
+
+    test "BARRIER_AND_RESTART_PROOF: a logout contending behind the write waits and does not undo it" do
+      {lease, operation} = unboxed(&committed_review/0)
+      claim = fn -> Autolaunch.claim_bid_dispatch(operation.action_id, barrier_opts(lease)) end
+
+      writer = holding(claim)
+      logout = contending(fn -> SessionAuthority.revoke(lease) end)
+
+      assert_blocked_by(logout, writer)
+      assert {:ok, %{operation: %{state: :dispatched}}} = release(writer)
+      assert settled(logout)
+
+      # The claim committed whole, and the lineage that ordered behind it can no
+      # longer authorize the next step of the same operation.
+      assert unboxed(fn -> committed(operation.action_id) end).state == :dispatched
+
+      assert {:error, error} =
+               unboxed(fn ->
+                 Autolaunch.bind_bid_hash(
+                   operation.action_id,
+                   :token_approval,
+                   @approval_hash,
+                   barrier_opts(lease)
+                 )
+               end)
+
+      assert refusal(error) == :session_unavailable
+    end
+  end
+
+  ## Committed setup and barriers for the second-connection proofs
+
+  defp committed_review do
+    unique = Elixir.System.unique_integer([:positive])
+
+    account =
+      Accounts.register_verified!("did:privy:bid-barrier-#{unique}", wallet(), [wallet()],
+        actor: system()
+      )
+
+    {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
+    lease = %{lineage: claim.lineage, account_id: account.id}
+    auction = auction!("Barrier bid auction #{unique}")
+
+    {:ok, %{operation: operation}} =
+      Autolaunch.prepare_bid(auction.id, wallet(), "1", "3", barrier_opts(lease))
+
+    {lease, operation}
+  end
+
+  defp barrier_opts(%{account_id: account_id} = lease),
+    do: [actor: %Human{human_account_id: account_id}, context: %{session_lease: lease}]
+
+  defp committed(action_id) do
+    BidOperation
+    |> Ash.Query.filter(action_id == ^action_id)
+    |> Ash.read_one!(domain: Autolaunch, actor: system())
+  end
+
+  # Committed rows outlive the sandbox, so they are cleared for every test in
+  # this block rather than only around the ones that mint them.
+  defp clear_committed_bids(_context) do
+    remove = fn ->
+      account_ids =
+        Repo.all(
+          from(account in Accounts.HumanAccount,
+            prefix: "platform",
+            where: like(account.privy_user_id, "did:privy:bid-barrier-%"),
+            select: account.id
+          )
+        )
+
+      Repo.delete_all(
+        from(row in BidOperation,
+          prefix: "autolaunch",
+          where: row.human_account_id in ^account_ids
+        )
+      )
+
+      Repo.delete_all(from(row in SessionAuthority, where: row.human_account_id in ^account_ids))
+
+      Repo.delete_all(
+        from(auction in Auction,
+          prefix: "autolaunch",
+          where: like(auction.title, "Barrier bid %")
+        )
+      )
+
+      Repo.delete_all(
+        from(account in Accounts.HumanAccount,
+          prefix: "platform",
+          where: like(account.privy_user_id, "did:privy:bid-barrier-%")
+        )
+      )
+    end
+
+    unboxed(remove)
+    on_exit(fn -> unboxed(remove) end)
+  end
+
+  defp unboxed(attempt), do: Ecto.Adapters.SQL.Sandbox.unboxed_run(Repo, attempt)
+
+  defp holding(attempt) do
+    test = self()
+    task = Task.async(fn -> unboxed(fn -> hold(attempt, test) end) end)
+    assert_receive {:holding, holder, backend}, 5_000
+    {task, holder, backend}
+  end
+
+  defp release({task, holder, _backend}) do
+    send(holder, :release)
+    {:ok, result} = Task.await(task, 15_000)
+    result
+  end
+
+  defp contending(attempt) do
+    test = self()
+
+    task =
+      Task.async(fn ->
+        unboxed(fn ->
+          send(test, {:contending, backend_pid()})
+          send(test, {:settled, attempt.()})
+        end)
+      end)
+
+    assert_receive {:contending, backend}, 5_000
+    {task, backend}
+  end
+
+  defp settled({task, _backend}) do
+    assert_receive {:settled, result}, 15_000
+    Task.await(task, 15_000)
+    result
+  end
+
+  # PostgreSQL itself reports the ordering, so no sleep decides the race.
+  defp assert_blocked_by({_rival, contender}, {_task, _holder, holder_backend}) do
+    assert Enum.reduce_while(1..2_000, false, fn _attempt, _blocked ->
+             if holder_backend in blocking_pids(contender),
+               do: {:halt, true},
+               else: {:cont, false}
+           end),
+           "the contender never blocked on the held authority row"
+  end
+
+  defp blocking_pids(backend) do
+    unboxed(fn ->
+      %{rows: [[blockers]]} = Repo.query!("SELECT pg_blocking_pids($1)", [backend])
+      blockers
+    end)
+  end
+
+  defp backend_pid do
+    %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
+    backend
+  end
+
+  defp hold(attempt, test) do
+    Repo.transaction(fn ->
+      result = attempt.()
+      send(test, {:holding, self(), backend_pid()})
+
+      receive do
+        :release -> result
+      after
+        15_000 -> result
+      end
+    end)
+  end
+
   defp review(auction, wallet, opts) do
     {:ok, %{operation: operation}} = Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
     operation
@@ -337,9 +591,20 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
   end
 
   defp submitted(operation, hash, opts) do
-    {:ok, %{operation: _claimed}} = Autolaunch.claim_bid_dispatch(operation.action_id, opts)
-    {:ok, %{operation: bound}} = Autolaunch.bind_bid_hash(operation.action_id, hash, opts)
+    {:ok, %{operation: claimed}} = Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+
+    {:ok, %{operation: bound}} =
+      Autolaunch.bind_bid_hash(claimed.action_id, claimed.step, hash, opts)
+
     bound
+  end
+
+  defp steps(operation), do: operation.envelope["arguments"]["steps"]
+
+  # One second past the deadline the reviewed envelope itself carries.
+  defp past(%{envelope: envelope}) do
+    {:ok, expires_at, _offset} = DateTime.from_iso8601(envelope["expires_at"])
+    DateTime.add(expires_at, 1, :second)
   end
 
   defp freeze(instant) do

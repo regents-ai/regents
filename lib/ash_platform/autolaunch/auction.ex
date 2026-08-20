@@ -128,8 +128,15 @@ defmodule AshPlatform.Autolaunch.Auction do
       run fn input, context -> BidActions.claim_dispatch(input, context) end
     end
 
+    # The step travels with the hash so a callback the browser replays after a
+    # reload cannot be bound to whatever step the operation has since reached.
     action :bind_bid_hash, :map do
       argument :action_id, :string, allow_nil?: false
+
+      argument :step, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:token_approval, :permit2_approval, :bid]]
+
       argument :transaction_hash, :string, allow_nil?: false
       run fn input, context -> BidActions.bind_hash(input, context) end
     end

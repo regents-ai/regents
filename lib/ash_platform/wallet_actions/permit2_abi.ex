@@ -51,13 +51,19 @@ defmodule AshPlatform.WalletActions.Permit2Abi do
   def encode_allowance(owner, token, spender),
     do: @allowance_selector <> address_word(owner) <> address_word(token) <> address_word(spender)
 
-  @doc "The allowed amount and its expiry from a three-word `allowance` answer."
-  @spec decode_allowance([non_neg_integer()]) :: %{
-          amount: non_neg_integer(),
-          expiration: non_neg_integer()
-        }
-  def decode_allowance([amount, expiration, _nonce]),
-    do: %{amount: amount, expiration: expiration}
+  @doc """
+  The allowed amount and its expiry from a three-word `allowance` answer.
+
+  The words are a provider's, so they are held to the widths the interface
+  declares: anything wider is a malformed answer rather than a huge allowance.
+  """
+  @spec decode_allowance([non_neg_integer()]) ::
+          {:ok, %{amount: non_neg_integer(), expiration: non_neg_integer()}} | :error
+  def decode_allowance([amount, expiration, _nonce])
+      when amount in 0..@uint160_max and expiration in 0..@uint48_max,
+      do: {:ok, %{amount: amount, expiration: expiration}}
+
+  def decode_allowance(_words), do: :error
 
   defp address_word(address),
     do:

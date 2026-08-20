@@ -37,7 +37,9 @@ defmodule AshPlatform.Autolaunch.RpcClient do
   defp settled({:success, logs}, envelope, step, block), do: proved(envelope, step, logs, block)
 
   # The approval's own event and the allowance it claims to have left behind are
-  # separate facts: a receipt whose allowance no longer holds never advances.
+  # separate facts. This transaction was prepared here to set one exact
+  # allowance, so only that exact allowance proves it did what it was reviewed
+  # to do; anything else is a state this review cannot vouch for.
   defp proved(envelope, :token_approval, logs, block) do
     %{"to" => token, "amount" => amount} = step(envelope, :token_approval)
     amount = String.to_integer(amount)
@@ -52,7 +54,7 @@ defmodule AshPlatform.Autolaunch.RpcClient do
              block,
              @rpc_opts
            ) do
-      {:ok, %{outcome: outcome(allowance >= amount)}}
+      {:ok, %{outcome: outcome(allowance == amount)}}
     else
       false -> {:ok, %{outcome: :unverified}}
       {:error, reason} -> {:error, reason}
@@ -60,7 +62,8 @@ defmodule AshPlatform.Autolaunch.RpcClient do
   end
 
   # Permit2 emits its own Approval, but only the stored allowance decides whether
-  # this auction may really draw the currency, so that is what is read.
+  # this auction may really draw the currency, so that is what is read — and it
+  # has to be exactly the amount and expiry this review granted.
   defp proved(envelope, :permit2_approval, _logs, block) do
     %{"amount" => amount, "expiration" => expiration} = step(envelope, :permit2_approval)
 
@@ -75,17 +78,21 @@ defmodule AshPlatform.Autolaunch.RpcClient do
              block,
              3,
              @rpc_opts
-           ) do
-      granted = Permit2Abi.decode_allowance(words)
-
+           ),
+         {:ok, granted} <- Permit2Abi.decode_allowance(words) do
       {:ok,
        %{
          outcome:
            outcome(
-             granted.amount >= String.to_integer(amount) and
-               granted.expiration >= String.to_integer(expiration)
+             granted == %{
+               amount: String.to_integer(amount),
+               expiration: String.to_integer(expiration)
+             }
            )
        }}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
     end
   end
 

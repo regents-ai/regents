@@ -71,22 +71,27 @@ defmodule AshPlatform.Autolaunch.RpcClientTest do
     assert {:ok, %{outcome: :pending}} = RpcClient.verify(envelope(), :bid, @hash)
   end
 
-  test "APPROVALS_NEED_THEIR_ALLOWANCE: the receipt alone never advances the sequence" do
+  test "APPROVALS_NEED_THEIR_ALLOWANCE: only the exact reviewed allowance advances the sequence" do
     approval = Abi.encode_erc20("approve", [Permit2Abi.address(), @amount])
     mine(@hash, approval, [approval_log(@regent, @wallet, Permit2Abi.address(), @amount)])
+    allowance = Abi.encode_erc20("allowance", [@wallet, Permit2Abi.address()])
 
-    calls(%{Abi.encode_erc20("allowance", [@wallet, Permit2Abi.address()]) => @amount})
+    calls(%{allowance => @amount})
 
     assert {:ok, %{outcome: :confirmed}} =
              RpcClient.verify(envelope(), :token_approval, @hash)
 
-    calls(%{Abi.encode_erc20("allowance", [@wallet, Permit2Abi.address()]) => @amount - 1})
+    # This transaction was prepared to leave one exact allowance behind, so any
+    # other standing amount is a state the review cannot vouch for.
+    for other <- [@amount - 1, @amount + 1] do
+      calls(%{allowance => other})
 
-    assert {:ok, %{outcome: :unverified}} =
-             RpcClient.verify(envelope(), :token_approval, @hash)
+      assert {:ok, %{outcome: :unverified}} =
+               RpcClient.verify(envelope(), :token_approval, @hash)
+    end
   end
 
-  test "APPROVALS_NEED_THEIR_ALLOWANCE: a Permit2 grant is read back for amount and expiry" do
+  test "APPROVALS_NEED_THEIR_ALLOWANCE: a Permit2 grant is read back for its exact amount and expiry" do
     data = Permit2Abi.encode_approve(@regent, @auction, @amount, @expiration)
     mine(@hash, data, [])
     allowance = Permit2Abi.encode_allowance(@wallet, @regent, @auction)
@@ -96,10 +101,31 @@ defmodule AshPlatform.Autolaunch.RpcClientTest do
     assert {:ok, %{outcome: :confirmed}} =
              RpcClient.verify(envelope(), :permit2_approval, @hash)
 
-    for insufficient <- [[@amount - 1, @expiration, 0], [@amount, @expiration - 1, 0]] do
-      calls(%{allowance => insufficient})
+    for other <- [
+          [@amount - 1, @expiration, 0],
+          [@amount + 1, @expiration, 0],
+          [@amount, @expiration - 1, 0],
+          [@amount, @expiration + 1, 0]
+        ] do
+      calls(%{allowance => other})
 
       assert {:ok, %{outcome: :unverified}} =
+               RpcClient.verify(envelope(), :permit2_approval, @hash)
+    end
+  end
+
+  test "APPROVALS_NEED_THEIR_ALLOWANCE: words wider than the declared interface settle nothing" do
+    data = Permit2Abi.encode_approve(@regent, @auction, @amount, @expiration)
+    mine(@hash, data, [])
+    allowance = Permit2Abi.encode_allowance(@wallet, @regent, @auction)
+
+    for malformed <- [
+          [Integer.pow(2, 160), @expiration, 0],
+          [@amount, Integer.pow(2, 48), 0]
+        ] do
+      calls(%{allowance => malformed})
+
+      assert {:error, :invalid_chain_response} =
                RpcClient.verify(envelope(), :permit2_approval, @hash)
     end
   end

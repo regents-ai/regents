@@ -8,10 +8,19 @@ import {
 } from "../wallet_actions/autolaunch_bids"
 
 const pendingKey = "regent:autolaunch-bid:open"
+const hashKey = "regent:autolaunch-bid:hash"
 
 // The closed set of failures this surface can describe. Provider, viem, revert
 // and wallet-vendor text is never a customer message, so it is never sent.
-type FailureReason = "wallet_unavailable" | "unknown"
+// `wallet_unavailable` is the only one that proves nothing was sent.
+type FailureReason = "wallet_unavailable" | "send_unconfirmed"
+
+/** The one transaction this browser reported, as it reported it. */
+export type ReportedHash = {
+  action_id: string
+  step: string
+  transaction_hash: string
+}
 
 type BidHook = Hook & {
   el: HTMLElement
@@ -23,7 +32,6 @@ type BidHook = Hook & {
 export const AutolaunchBidWallet: Hook = {
   mounted(this: BidHook) {
     let operation: BidOperation | null = null
-    let sending = false
 
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
     const failed = (reason: FailureReason) => push("bid_wallet_failed", {reason})
@@ -35,7 +43,13 @@ export const AutolaunchBidWallet: Hook = {
     window.addEventListener("ash:wallet-state", this.publishActiveWallet)
     this.publishActiveWallet()
 
-    if (sessionStorage.getItem(pendingKey)) push("restore_bid_operation", {})
+    if (stored(sessionStorage, pendingKey)) push("restore_bid_operation", {})
+
+    // A callback lost to a reload, a reconnect or a reauthentication: the hash
+    // is replayed until the server says that exact hash is durable. Nothing is
+    // resent, because a hash is all this ever reports.
+    const retained = retainedHash(sessionStorage)
+    if (retained) push("bid_submitted", retained)
 
     this.handleEvent("autolaunch-bid:operation", payload => {
       operation = payload as BidOperation
@@ -44,8 +58,10 @@ export const AutolaunchBidWallet: Hook = {
 
     this.handleEvent("autolaunch-bid:cleared", () => {
       operation = null
-      sessionStorage.removeItem(pendingKey)
+      forget(sessionStorage, pendingKey)
     })
+
+    this.handleEvent("autolaunch-bid:hash-durable", durable => releaseHash(durable, sessionStorage))
 
     // A claim is only asked for once the wallet in front of the customer really
     // is the reviewed signer. A negative preflight asks for nothing at all.
@@ -62,16 +78,14 @@ export const AutolaunchBidWallet: Hook = {
       const signer = confirm?.dataset.bidSigner
       if (!actionId || !signer) return
 
-      const address = await activeSigner(signer)
-      if (address) push("sign_bid_step", {"action-id": actionId, address})
+      if (await activeSigner(signer)) push("sign_bid_step", {"action-id": actionId})
       else failed("wallet_unavailable")
     })
 
     this.handleEvent("autolaunch-bid:send", async payload => {
       const {action_id: actionId, step: stepName} = payload as {action_id: string; step: string}
       const held = operation
-      if (!held || sending) return
-      sending = true
+      if (!held) return
 
       // The claim is already durable, so a failure below the send marker is
       // proof the wallet was never asked for anything: the exact step is
@@ -94,9 +108,12 @@ export const AutolaunchBidWallet: Hook = {
           () => (sendStarted = true),
         )
 
-        // The hash is reported once and the browser stops. It never waits on a
-        // receipt and never decides an outcome.
-        push("bid_submitted", {action_id: actionId, transaction_hash: hash})
+        // Retained synchronously, before the one callback: a reload between the
+        // send and the report must not lose the only record of this hash. The
+        // browser then reports it once and stops; it never decides an outcome.
+        const reported = {action_id: actionId, step: step.step, transaction_hash: hash}
+        retainHash(reported, sessionStorage)
+        push("bid_submitted", reported)
       } catch (error) {
         if (!sendStarted) {
           notStarted()
@@ -112,9 +129,7 @@ export const AutolaunchBidWallet: Hook = {
           return
         }
 
-        failed("unknown")
-      } finally {
-        sending = false
+        failed("send_unconfirmed")
       }
     })
   },
@@ -133,11 +148,11 @@ export const AutolaunchBidWallet: Hook = {
  */
 export async function activeSigner(expectedSigner: string): Promise<string | null> {
   const active = activeEthereumWallet()
-  if (!active || !sameAddress(active.address, expectedSigner)) return null
+  if (!active || !sameHex(active.address, expectedSigner)) return null
 
   const accounts = await active.provider.request({method: "eth_accounts"}).catch(() => null)
   const [account] = Array.isArray(accounts) ? accounts : []
-  return typeof account === "string" && sameAddress(account, expectedSigner) ? active.address : null
+  return typeof account === "string" && sameHex(account, expectedSigner) ? active.address : null
 }
 
 /**
@@ -157,6 +172,70 @@ export function rememberOperation(
   }
 }
 
-function sameAddress(left: string, right: string): boolean {
+/** Keeps a reported hash so a lost callback can be replayed rather than resent. */
+export function retainHash(reported: ReportedHash, storage: Pick<Storage, "setItem">): void {
+  try {
+    storage.setItem(hashKey, JSON.stringify(reported))
+  } catch {
+    // A browser refusing storage keeps its connected LiveView and nothing else.
+  }
+}
+
+/** Whatever this browser last reported, if it is still a whole report. */
+export function retainedHash(storage: Pick<Storage, "getItem">): ReportedHash | null {
+  const held = stored(storage, hashKey)
+  if (!held) return null
+
+  try {
+    const parsed: unknown = JSON.parse(held)
+    return whole(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+/** Drops the retained report only for the exact hash the server acknowledged. */
+export function releaseHash(
+  durable: unknown,
+  storage: Pick<Storage, "getItem" | "removeItem">,
+): void {
+  const held = retainedHash(storage)
+  if (!held || !whole(durable) || !sameReport(held, durable)) return
+
+  forget(storage, hashKey)
+}
+
+function whole(value: unknown): value is ReportedHash {
+  if (typeof value !== "object" || value === null) return false
+
+  const {action_id: id, step, transaction_hash: hash} = value as Partial<ReportedHash>
+  return typeof id === "string" && typeof step === "string" && typeof hash === "string"
+}
+
+function sameReport(left: ReportedHash, right: ReportedHash): boolean {
+  return (
+    left.action_id === right.action_id &&
+    left.step === right.step &&
+    sameHex(left.transaction_hash, right.transaction_hash)
+  )
+}
+
+function stored(storage: Pick<Storage, "getItem">, key: string): string | null {
+  try {
+    return storage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function forget(storage: Pick<Storage, "removeItem">, key: string): void {
+  try {
+    storage.removeItem(key)
+  } catch {
+    // There is nothing to forget in a browser that refuses storage at all.
+  }
+}
+
+function sameHex(left: string, right: string): boolean {
   return left.toLowerCase() === right.toLowerCase()
 }

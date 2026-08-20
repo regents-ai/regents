@@ -20,9 +20,11 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   @chain_id 8453
 
+  # Only a fact that proves the wallet was never asked to send may say nothing
+  # was sent. Everything else leaves the question open and says so.
   @copy %{
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
-    chain_unavailable: "Base could not be read just now. Nothing was sent.",
+    chain_unavailable: "Base could not be read just now. Try again in a moment.",
     wrong_signer: "Switch back to a wallet on this account to continue.",
     session_unavailable: "Sign in again to continue.",
     auction_not_biddable: "This auction is not taking bids.",
@@ -33,10 +35,13 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
     invalid_price: "Enter a maximum price above zero.",
     invalid_decimal: "Enter a maximum price above zero.",
     submitted_hash_conflict: "This step already has a transaction.",
-    wallet_unavailable: "Open the wallet you are bidding from, then try again."
+    submitted_step_mismatch: "That transaction is not the step this bid is waiting for.",
+    wallet_unavailable: "Open the wallet you are bidding from, then try again. Nothing was sent.",
+    send_unconfirmed:
+      "Your wallet may have sent this transaction. Check your wallet activity before you start another bid."
   }
 
-  @generic "That did not go through. Nothing was sent."
+  @generic "That did not go through. Try again in a moment."
 
   # The refusals that mean this browser is not offering a wallet this account
   # holds, so no private fact and no control belongs on screen.
@@ -53,7 +58,6 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
      |> assign_new(:max_price, fn -> "" end)
      |> assign_new(:estimate, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
-     |> assign_new(:signing?, fn -> false end)
      |> assign_new(:operation, fn -> nil end)}
   end
 
@@ -88,7 +92,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
         </dl>
 
         <form
-          :if={!@operation}
+          :if={!@operation && @balance}
           id={"#{@id}-form"}
           phx-change="bid_form_changed"
           phx-submit="review_bid"
@@ -104,14 +108,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
               autocomplete="off"
               placeholder="0.0"
             />
-            <button
-              type="button"
-              phx-click="fill_bid_amount"
-              phx-target={@myself}
-              disabled={is_nil(@balance)}
-            >
-              Max
-            </button>
+            <button type="button" phx-click="fill_bid_amount" phx-target={@myself}>Max</button>
           </div>
 
           <label for={"#{@id}-max-price"}>Maximum price</label>
@@ -146,7 +143,8 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             </div>
           </dl>
 
-          <ol class="bid-steps">
+          <%!-- The list styling drops list semantics, so the role is stated. --%>
+          <ol class="bid-steps" role="list" aria-label="Bid progress">
             <li :for={step <- BidActions.steps(@operation)} data-step={step["step"]}>
               <span>{step_label(step["step"])}</span>
               <span class="bid-step-state">{step_state(@operation, step["step"])}</span>
@@ -166,9 +164,8 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             type="button"
             data-bid-send={@operation.action_id}
             data-bid-signer={@operation.signer}
-            disabled={@signing?}
           >
-            {if @signing?, do: "Waiting for wallet", else: "Confirm in wallet"}
+            Confirm in wallet
           </button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This bid belongs to another wallet. Switch back to it to finish.
@@ -214,9 +211,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
     """
   end
 
-  # The wallet Privy has selected. A change abandons an undispatched review's
-  # form state and rereads the position; an operation already claimed stays on
-  # screen bound to the signer it was reviewed for.
+  # The wallet Privy has selected, whenever it changes.
   @impl true
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
@@ -226,9 +221,6 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
      socket |> assign(amount: amount, max_price: max_price, notice: nil) |> assign_estimate()}
   end
 
-  def handle_event("fill_bid_amount", _params, %{assigns: %{balance: nil}} = socket),
-    do: {:noreply, socket}
-
   def handle_event("fill_bid_amount", _params, socket) do
     {:noreply,
      socket
@@ -237,54 +229,56 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   def handle_event("review_bid", %{"amount" => amount, "max_price" => max_price}, socket) do
-    socket.assigns.auction.id
-    |> Autolaunch.prepare_bid(socket.assigns.wallet, amount, max_price, opts(socket))
-    |> settled(assign(socket, amount: amount, max_price: max_price))
+    {:noreply,
+     socket.assigns.auction.id
+     |> Autolaunch.prepare_bid(socket.assigns.wallet, amount, max_price, opts(socket))
+     |> settled(assign(socket, amount: amount, max_price: max_price))}
   end
 
   # The browser's preflight is necessary input, never authority: the locked
   # dispatch proves the account still holds this wallet, and only its winner is
   # handed the exact reviewed bytes.
-  def handle_event("sign_bid_step", %{"action-id" => action_id, "address" => address}, socket) do
-    if socket.assigns.signing? or address != socket.assigns.wallet do
-      {:noreply, socket}
-    else
-      action_id
-      |> Autolaunch.claim_bid_dispatch(opts(socket))
-      |> settled(assign(socket, signing?: true))
-      |> dispatch()
-    end
-  end
+  def handle_event("sign_bid_step", %{"action-id" => action_id}, socket),
+    do: action_id |> Autolaunch.claim_bid_dispatch(opts(socket)) |> claimed(socket)
 
+  # The bound row goes on screen before Base is asked anything, so a read that
+  # cannot answer leaves the transaction and its link exactly where they are.
   def handle_event(
         "bid_submitted",
-        %{"action_id" => action_id, "transaction_hash" => hash},
+        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
         socket
       ) do
-    case Autolaunch.bind_bid_hash(action_id, hash, opts(socket)) do
-      {:ok, _bound} -> action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)
-      refused -> settled(refused, socket)
+    case Autolaunch.bind_bid_hash(action_id, step, hash, opts(socket)) do
+      {:ok, %{operation: bound}} = result ->
+        socket = settled(result, socket)
+        socket = action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)
+        {:noreply, acknowledged(socket, bound, step)}
+
+      refused ->
+        {:noreply, settled(refused, socket)}
     end
   end
 
   def handle_event("check_bid_step", %{"action-id" => action_id}, socket),
-    do: action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)
+    do: {:noreply, action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)}
 
   # The exact EIP-1193 rejection of a claimed step: the wallet was asked and
   # said no, so nothing was broadcast and the operation ends.
   def handle_event("bid_wallet_rejected", %{"action_id" => action_id, "code" => 4001}, socket),
-    do: action_id |> Autolaunch.close_bid_not_sent(opts(socket)) |> settled(socket)
+    do: {:noreply, action_id |> Autolaunch.close_bid_not_sent(opts(socket)) |> settled(socket)}
 
   # The browser proved this claimed step never reached its wallet send, so the
   # same review becomes sendable again rather than ending.
   def handle_event("bid_dispatch_not_started", %{"action_id" => action_id}, socket),
-    do: action_id |> Autolaunch.release_unstarted_bid_dispatch(opts(socket)) |> settled(socket)
+    do:
+      {:noreply,
+       action_id |> Autolaunch.release_unstarted_bid_dispatch(opts(socket)) |> settled(socket)}
 
   def handle_event("cancel_bid_review", %{"action-id" => action_id}, socket),
-    do: action_id |> Autolaunch.cancel_bid_review(opts(socket)) |> settled(socket)
+    do: {:noreply, action_id |> Autolaunch.cancel_bid_review(opts(socket)) |> settled(socket)}
 
   def handle_event("start_new_bid", %{"action-id" => action_id}, socket),
-    do: action_id |> Autolaunch.start_new_bid(opts(socket)) |> settled(socket)
+    do: {:noreply, action_id |> Autolaunch.start_new_bid(opts(socket)) |> settled(socket)}
 
   def handle_event("clear_bid", _params, socket),
     do:
@@ -297,12 +291,12 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   def handle_event("restore_bid_operation", _params, socket) do
     case Autolaunch.open_bid_operation(opts(socket)) do
       {:ok, %{operation: nil}} -> {:noreply, cleared(socket)}
-      result -> settled(result, socket)
+      result -> {:noreply, settled(result, socket)}
     end
   end
 
   def handle_event("bid_wallet_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, signing?: false, notice: notice(:error, reason))}
+    do: {:noreply, assign(socket, notice: notice(:error, reason))}
 
   attr :notice, :map, required: true
 
@@ -324,6 +318,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
       href={"https://basescan.org/tx/#{@hash}"}
       target="_blank"
       rel="noopener"
+      aria-label="View this transaction on Basescan"
     >
       {short_hash(@hash)}
     </a>
@@ -331,24 +326,35 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   defp settled({:ok, %{operation: operation}}, socket),
-    do:
-      {:noreply,
-       socket |> assign(operation: operation, signing?: false, notice: nil) |> published()}
+    do: socket |> assign(operation: operation, notice: nil) |> published()
 
   defp settled({:error, error}, socket),
-    do: {:noreply, assign(socket, signing?: false, notice: notice(:error, refusal(error)))}
+    do: assign(socket, notice: notice(:error, refusal(error)))
 
-  # Only the dispatch this socket just won may open a wallet, and it is named by
-  # step alone: the bytes the browser signs are the ones it was already given.
-  defp dispatch({:noreply, %{assigns: %{operation: %{state: :dispatched} = operation}} = socket}) do
+  # Only the dispatch this claim just won may open a wallet, and it is read from
+  # that claim's own result rather than from whatever this socket last held. A
+  # refused or repeated claim therefore hands the browser nothing.
+  defp claimed({:ok, %{operation: %{state: :dispatched} = operation}} = result, socket) do
     {:noreply,
-     push_event(socket, "autolaunch-bid:send", %{
+     result
+     |> settled(socket)
+     |> push_event("autolaunch-bid:send", %{
        action_id: operation.action_id,
        step: Atom.to_string(operation.step)
      })}
   end
 
-  defp dispatch(result), do: result
+  defp claimed(result, socket), do: {:noreply, settled(result, socket)}
+
+  # The one acknowledgement the browser waits for before it drops its own copy
+  # of a reported hash: this exact hash is durable on this exact step.
+  defp acknowledged(socket, operation, step),
+    do:
+      push_event(socket, "autolaunch-bid:hash-durable", %{
+        action_id: operation.action_id,
+        step: step,
+        transaction_hash: BidActions.step_hash(operation, step)
+      })
 
   # The whole reviewed sequence, so the browser can check that what it is asked
   # to send really belongs to the operation it is holding.
@@ -366,13 +372,37 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   defp cleared(socket), do: push_event(socket, "autolaunch-bid:cleared", %{})
 
+  # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
+  # the customer. That is the ordinary empty state, not a refusal, and it reads
+  # nothing and says nothing.
+  defp adopt(socket, nil), do: assign(socket, wallet: nil, balance: nil, notice: nil)
+
   defp adopt(socket, address) do
     case Autolaunch.bid_position(socket.assigns.auction.id, address, opts(socket)) do
-      {:ok, %{signer: signer, balance: balance}} ->
-        assign(socket, wallet: signer, balance: balance, notice: nil)
+      {:ok, %{signer: signer, balance: balance}} -> switched(socket, signer, balance)
+      {:error, error} -> refused(socket, address, refusal(error))
+    end
+  end
 
-      {:error, error} ->
-        refused(socket, address, refusal(error))
+  # A review is prepared for one signer, so another wallet cannot spend it and
+  # it is withdrawn. Anything already claimed stays exactly where it is, bound
+  # to the wallet it was reviewed for.
+  defp switched(%{assigns: %{wallet: wallet}} = socket, signer, balance) when wallet != signer,
+    do: socket |> assign(wallet: signer, balance: balance, notice: nil) |> withdraw()
+
+  defp switched(socket, signer, balance),
+    do: assign(socket, wallet: signer, balance: balance, notice: nil)
+
+  defp withdraw(%{assigns: %{operation: %{state: :prepared} = operation}} = socket) do
+    if started?(operation), do: socket, else: cancel(socket, operation)
+  end
+
+  defp withdraw(socket), do: socket
+
+  defp cancel(socket, operation) do
+    case Autolaunch.cancel_bid_review(operation.action_id, opts(socket)) do
+      {:ok, _cancelled} -> socket |> assign(operation: nil, estimate: nil) |> cleared()
+      denied -> settled(denied, socket)
     end
   end
 

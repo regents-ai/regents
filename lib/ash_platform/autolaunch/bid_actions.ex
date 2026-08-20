@@ -45,7 +45,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
   @replaced "replaced by a newer review"
   @rejected "wallet reported an explicit user rejection"
   @withdrawn "review withdrawn"
-  @lapsed "Permit2 allowance expired before the bid was sent"
+  @lapsed "the reviewed bid expired before it was sent"
   @unresolved "account started a new bid while this one was unresolved"
   @reverted "verified revert on Base"
   @contradicted "canonical receipt contradicts the reviewed bid"
@@ -139,7 +139,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
          {:ok, max_price_q96} <- refusable(price_q96(arguments.max_price)),
          {:ok, snapshot} <- snapshot(address, signer, max_price_q96),
          :ok <- bound_currency(snapshot),
-         :ok <- bounded_predecessor(snapshot),
+         :ok <- bounded_predecessor(snapshot, max_price_q96),
          :ok <- affordable(snapshot, amount),
          {envelope, step} <- review(auction, address, signer, amount, max_price_q96, snapshot),
          {:ok, operation} <- open(lease, envelope, signer, step) do
@@ -159,15 +159,17 @@ defmodule AshPlatform.Autolaunch.BidActions do
   def claim_dispatch(input, context), do: write(context, input.arguments.action_id, &claim/2)
 
   @doc """
-  Binds the first valid hash for the claimed step.
+  Binds the first valid hash for the step the browser was actually sent.
 
-  An exact replay is a no-op so a retrying browser cannot fail, a different hash
-  is refused rather than overwriting the submitted identity, and a hash recovered
-  after the operation ended attaches to it without ever reopening it.
+  The step travels with the hash and has to be the one the row is on, so a
+  callback delayed past an advance can never land in a later step's column. An
+  exact replay is a no-op so a browser replaying a lost callback cannot fail, a
+  different hash is refused rather than overwriting the submitted identity, and
+  a hash recovered after the operation ended attaches without reopening it.
   """
-  def bind_hash(input, context) do
-    with {:ok, hash} <- canonical_hash(input.arguments.transaction_hash),
-         do: write(context, input.arguments.action_id, &bind(&1, &2, hash))
+  def bind_hash(%{arguments: %{step: step} = arguments}, context) do
+    with {:ok, hash} <- canonical_hash(arguments.transaction_hash),
+         do: write(context, arguments.action_id, fn _account, op -> bind(op, step, hash) end)
   end
 
   @doc """
@@ -281,8 +283,6 @@ defmodule AshPlatform.Autolaunch.BidActions do
           "predecessor_source" => snapshot.predecessor_source,
           "currency" => snapshot.currency,
           "permit2" => Permit2Abi.address(),
-          "permit2_expires_at" =>
-            steps |> permit2_expiry(snapshot, granted) |> DateTime.to_iso8601(),
           "steps" => steps
         }
       )
@@ -323,22 +323,19 @@ defmodule AshPlatform.Autolaunch.BidActions do
       ]
   end
 
+  # An existing allowance is reused only if it outlives the whole review window,
+  # so the envelope's own deadline is always the one the sequence expires on.
+  # Its expiry stays a plain integer: a canonical `uint48` maximum is a perfectly
+  # good allowance and no calendar can hold it.
   defp permit2_current?(%{permit2_amount: allowed, permit2_expiration: expires}, amount),
     do:
       allowed >= amount and
         expires >= DateTime.to_unix(Envelope.current_time()) + @review_seconds
 
-  # The window the whole sequence has to be spent inside: the one it grants, or
-  # the one the existing allowance already carries.
-  defp permit2_expiry(steps, snapshot, granted) do
-    if Enum.any?(steps, &(&1["step"] == "permit2_approval")),
-      do: granted,
-      else: DateTime.from_unix!(snapshot.permit2_expiration)
-  end
-
   defp open(lease, envelope, signer, step) do
     transact(lease, fn account ->
-      with :ok <- release_undispatched(account.id) do
+      with :ok <- signer_matches(account, signer),
+           :ok <- release_undispatched(account.id) do
         BidOperation
         |> Ash.Changeset.for_create(
           :prepare,
@@ -381,15 +378,22 @@ defmodule AshPlatform.Autolaunch.BidActions do
          do: update(operation, :claim_dispatch, %{})
   end
 
-  defp bind(_account, operation, hash) do
-    attribute = Map.fetch!(@hash_attributes, operation.step)
+  defp bind(operation, step, hash) do
+    attribute = Map.fetch!(@hash_attributes, step)
 
     case Map.fetch!(operation, attribute) do
-      nil -> update(operation, bind_action(operation), %{attribute => hash})
       ^hash -> {:ok, operation}
+      nil -> bind_step(operation, step, attribute, hash)
       _different -> unavailable(:submitted_hash_conflict)
     end
   end
+
+  # The hash was produced for one exact step, so it may only ever land in that
+  # step's own column, and only while the row is still on that step.
+  defp bind_step(%{step: step} = operation, step, attribute, hash),
+    do: update(operation, bind_action(operation), %{attribute => hash})
+
+  defp bind_step(_operation, _step, _attribute, _hash), do: unavailable(:submitted_step_mismatch)
 
   defp bind_action(%{terminal_at: nil}), do: :bind_hash
   defp bind_action(_terminal), do: :attach_late_hash
@@ -447,24 +451,20 @@ defmodule AshPlatform.Autolaunch.BidActions do
     |> String.to_existing_atom()
   end
 
-  # A prepared step whose Permit2 window has closed can no longer be spent, and
-  # an earlier step of the same sequence already confirmed. The operation ends
-  # so a new review rereads current allowance and auction state.
+  # The reviewed envelope lives ten minutes. Past that, no prepared step of it
+  # can be spent, whether it is a lone bid or the remainder of a longer
+  # sequence, so the operation ends here — inside the locked transaction, ahead
+  # of the claim — and a new review rereads current allowance and auction state.
   defp expire_lapsed(%{state: :prepared} = operation) do
-    if bound?(operation) and lapsed?(operation),
+    if expired?(operation),
       do: update(operation, :expire, %{reason: @lapsed}),
       else: {:ok, operation}
   end
 
   defp expire_lapsed(operation), do: {:ok, operation}
 
-  defp bound?(operation),
-    do: Enum.any?(@hash_attributes, fn {_step, attribute} -> Map.fetch!(operation, attribute) end)
-
-  defp lapsed?(%{envelope: envelope}) do
-    {:ok, expires_at, _offset} =
-      DateTime.from_iso8601(envelope["arguments"]["permit2_expires_at"])
-
+  defp expired?(%{envelope: %{"expires_at" => expires_at}}) do
+    {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
     DateTime.compare(expires_at, Envelope.current_time()) != :gt
   end
 
@@ -569,8 +569,20 @@ defmodule AshPlatform.Autolaunch.BidActions do
       else: unavailable(:auction_currency_is_not_regent)
   end
 
-  defp bounded_predecessor(%{prev_tick_price_q96: hint}) when is_integer(hint), do: :ok
-  defp bounded_predecessor(_snapshot), do: unavailable(:bid_preparation_unavailable)
+  # The predecessor tick is the one argument no reviewed production source
+  # supplies yet, so it has to be a word the auction could really hold below
+  # this bid's own price, and it has to come from a source that names itself.
+  defp bounded_predecessor(%{prev_tick_price_q96: hint} = snapshot, max_price_q96)
+       when hint in 0..@uint256_max and hint < max_price_q96,
+       do: reviewed_source(snapshot)
+
+  defp bounded_predecessor(_snapshot, _max_price_q96),
+    do: unavailable(:bid_preparation_unavailable)
+
+  defp reviewed_source(%{predecessor_source: source}) when is_binary(source) and source != "",
+    do: :ok
+
+  defp reviewed_source(_unnamed), do: unavailable(:bid_preparation_unavailable)
 
   defp affordable(%{regent_balance: balance}, amount) when balance >= amount, do: :ok
   defp affordable(_snapshot, _amount), do: unavailable(:amount_above_balance)

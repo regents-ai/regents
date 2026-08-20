@@ -1,7 +1,12 @@
 import {getAddress, type Address, type Hash, type Hex} from "viem"
 import {describe, expect, it, vi} from "vitest"
 
-import {rememberOperation} from "../js/hooks/autolaunch_bid_wallet"
+import {
+  releaseHash,
+  rememberOperation,
+  retainHash,
+  retainedHash,
+} from "../js/hooks/autolaunch_bid_wallet"
 import {
   sendBidStep,
   sendableStep,
@@ -117,5 +122,67 @@ describe("the browser sends only the step the server claimed", () => {
     expect(userRejected({cause: {cause: {code: 4001}}})).toBe(true)
     expect(userRejected(new Error("User rejected the request."))).toBe(false)
     expect(userRejected({code: 4100})).toBe(false)
+  })
+})
+
+describe("a reported hash survives the callback that carried it", () => {
+  const reported = {action_id: "bid", step: "token_approval", transaction_hash: approvalHash}
+
+  function storage(initial: Record<string, string> = {}) {
+    const items = new Map(Object.entries(initial))
+
+    return {
+      items,
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => void items.set(key, value),
+      removeItem: (key: string) => void items.delete(key),
+    }
+  }
+
+  it("retains the hash before the callback and replays exactly what it retained", () => {
+    const held = storage()
+
+    retainHash(reported, held)
+    expect(retainedHash(held)).toEqual(reported)
+  })
+
+  it("keeps replaying until the server acknowledges that exact hash", () => {
+    const held = storage()
+    retainHash(reported, held)
+
+    releaseHash({...reported, transaction_hash: `0x${"ef".repeat(32)}`}, held)
+    releaseHash({...reported, step: "bid"}, held)
+    releaseHash({...reported, action_id: "another"}, held)
+    releaseHash({durable: true}, held)
+    expect(retainedHash(held)).toEqual(reported)
+
+    // Only the server's word, and the server lowercases what it stores.
+    releaseHash({...reported, transaction_hash: approvalHash.toUpperCase()}, held)
+    expect(retainedHash(held)).toBeNull()
+  })
+
+  it("reads nothing back from a partial or unparseable record", () => {
+    expect(retainedHash(storage({"regent:autolaunch-bid:hash": "{"}))).toBeNull()
+    expect(retainedHash(storage({"regent:autolaunch-bid:hash": '{"action_id":"bid"}'}))).toBeNull()
+    expect(retainedHash(storage())).toBeNull()
+  })
+
+  it("never throws when the browser refuses storage", () => {
+    const denied = {
+      getItem: () => {
+        throw new Error("denied")
+      },
+      setItem: () => {
+        throw new Error("denied")
+      },
+      removeItem: () => {
+        throw new Error("denied")
+      },
+    }
+
+    expect(() => retainHash(reported, denied)).not.toThrow()
+    expect(retainedHash(denied)).toBeNull()
+    expect(() => releaseHash(reported, denied)).not.toThrow()
+    expect(() => rememberOperation(operation(), denied)).not.toThrow()
   })
 })

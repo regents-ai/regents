@@ -55,7 +55,7 @@ defmodule AshPlatform.Autolaunch do
         args: [:auction_id, :expected_signer, :amount, :max_price]
 
       define :claim_bid_dispatch, action: :claim_bid_dispatch, args: [:action_id]
-      define :bind_bid_hash, action: :bind_bid_hash, args: [:action_id, :transaction_hash]
+      define :bind_bid_hash, action: :bind_bid_hash, args: [:action_id, :step, :transaction_hash]
       define :verify_bid_step, action: :verify_bid_step, args: [:action_id]
       define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
       define :close_bid_not_sent, action: :close_bid_not_sent, args: [:action_id]

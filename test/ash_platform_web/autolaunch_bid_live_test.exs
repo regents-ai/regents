@@ -9,15 +9,19 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
   alias AshPlatform.TestAutolaunchBidChainClient, as: Chain
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @second "0x5555555555555555555555555555555555555555"
   @other "0x2222222222222222222222222222222222222222"
   @approval_hash "0x" <> String.duplicate("aa", 32)
+  @bid_hash "0x" <> String.duplicate("cc", 32)
   @panel "#autolaunch-bid"
 
   setup %{conn: conn} do
     install()
 
     account =
-      Accounts.register_verified!("did:privy:bid-live", @wallet, [@wallet], actor: %System{})
+      Accounts.register_verified!("did:privy:bid-live", @wallet, [@wallet, @second],
+        actor: %System{}
+      )
 
     %{
       conn: init_test_session(conn, %{human_account_id: account.id}),
@@ -72,7 +76,35 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     assert has_element?(view, "#autolaunch-bid-form")
   end
 
-  test "PRODUCTION_STAYS_CLOSED: the page says bidding is not open and asks for no wallet", %{
+  test "ACTIVE_WALLET_IS_THE_SIGNER: no Ethereum wallet is an empty state, not a refusal", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = mount_bidder(conn, auction)
+    assert has_element?(view, "#autolaunch-bid-form")
+
+    render_hook(element(view, @panel), "bid_active_wallet", %{"address" => nil})
+
+    assert render(view) =~ "Choose the wallet you want to bid from."
+    refute has_element?(view, ".bid-notice")
+    refute has_element?(view, "#autolaunch-bid-form")
+  end
+
+  test "ACTIVE_WALLET_IS_THE_SIGNER: switching wallets withdraws an undispatched review", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = reviewed(conn, auction)
+    assert has_element?(view, "#autolaunch-bid-review")
+
+    render_hook(element(view, @panel), "bid_active_wallet", %{"address" => @second})
+
+    assert_push_event(view, "autolaunch-bid:cleared", %{})
+    refute has_element?(view, "#autolaunch-bid-review")
+    assert has_element?(view, "#autolaunch-bid-form")
+  end
+
+  test "PRODUCTION_STAYS_CLOSED: the page says bidding is not open and offers no review", %{
     conn: conn,
     auction: auction
   } do
@@ -80,6 +112,7 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     view = mount_bidder(conn, auction)
 
     assert render(view) =~ "Bidding is not open on this auction yet."
+    refute has_element?(view, "#autolaunch-bid-form")
     refute render(view) =~ "Confirm in wallet"
   end
 
@@ -92,10 +125,7 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id, steps: steps})
     assert Enum.map(steps, & &1["step"]) == ~w(token_approval permit2_approval bid)
 
-    render_hook(element(view, @panel), "sign_bid_step", %{
-      "action-id" => action_id,
-      "address" => @wallet
-    })
+    claim(view, action_id)
 
     assert_push_event(view, "autolaunch-bid:send", %{
       action_id: ^action_id,
@@ -103,6 +133,11 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     })
 
     assert render(view) =~ "In your wallet"
+
+    # The step is already claimed, so a repeated confirmation cannot become a
+    # second wallet request from whatever this socket happens to be holding.
+    claim(view, action_id)
+    refute_push_event(view, "autolaunch-bid:send", %{})
   end
 
   test "THE_SERVER_DECIDES_TRUTH: a reported hash is verified here and never by the browser", %{
@@ -115,15 +150,66 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     claim(view, action_id)
     Chain.put(%{outcomes: %{token_approval: %{outcome: :confirmed}}})
 
-    render_hook(element(view, @panel), "bid_submitted", %{
-      "action_id" => action_id,
-      "transaction_hash" => @approval_hash
-    })
+    submit(view, action_id, "token_approval", @approval_hash)
 
     page = render(view)
     assert page =~ "Confirmed"
     assert page =~ "0xaaaaaa…aaaa"
     assert has_element?(view, ~s(#{@panel} li[data-step="permit2_approval"]), "Ready")
+  end
+
+  test "A_BOUND_HASH_IS_THE_TRUTH: a Base read that cannot answer keeps the sent transaction", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{token_approval: {:error, :chain_unavailable}}})
+
+    submit(view, action_id, "token_approval", @approval_hash)
+
+    page = render(view)
+    assert page =~ "Sent"
+    assert page =~ "0xaaaaaa…aaaa"
+    assert has_element?(view, "#{@panel} button", "Check again")
+    assert page =~ "Base could not be read just now."
+    refute page =~ "Nothing was sent"
+
+    # Nothing rolls back to the state before the hash bound.
+    refute has_element?(view, ~s(#{@panel} li[data-step="token_approval"]), "Ready")
+  end
+
+  test "A_LOST_CALLBACK_REPLAYS: the exact durable hash is acknowledged and nothing rebinds", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{token_approval: %{outcome: :confirmed}}})
+    submit(view, action_id, "token_approval", @approval_hash)
+
+    assert_push_event(view, "autolaunch-bid:hash-durable", %{
+      action_id: ^action_id,
+      step: "token_approval",
+      transaction_hash: @approval_hash
+    })
+
+    # A reload replays the callback it never got an answer for. The bid has
+    # advanced, so the hash reaches only its own column, which already holds it.
+    submit(view, action_id, "token_approval", @approval_hash)
+
+    assert_push_event(view, "autolaunch-bid:hash-durable", %{transaction_hash: @approval_hash})
+    assert has_element?(view, ~s(#{@panel} li[data-step="permit2_approval"]), "Ready")
+
+    # A replay naming a step this bid is not on binds nowhere at all.
+    submit(view, action_id, "bid", @bid_hash)
+
+    assert render(view) =~ "not the step this bid is waiting for"
+    refute render(view) =~ "0xcccccc…cccc"
   end
 
   test "A_REJECTION_ENDS_THE_CLAIM: nothing is resent and the browser storage is cleared", %{
@@ -182,10 +268,14 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     view
   end
 
-  defp claim(view, action_id) do
-    render_hook(element(view, @panel), "sign_bid_step", %{
-      "action-id" => action_id,
-      "address" => @wallet
+  defp claim(view, action_id),
+    do: render_hook(element(view, @panel), "sign_bid_step", %{"action-id" => action_id})
+
+  defp submit(view, action_id, step, hash) do
+    render_hook(element(view, @panel), "bid_submitted", %{
+      "action_id" => action_id,
+      "step" => step,
+      "transaction_hash" => hash
     })
   end
 end

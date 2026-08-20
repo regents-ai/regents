@@ -7,9 +7,9 @@ defmodule AshPlatform.Autolaunch.BidOperation do
   one transaction has got, so exactly one step is sendable at a time and its hash
   is bound before the next becomes so.
 
-  The database decides every race: `action_id` is unique, each bound hash is
-  unique among the hashes that exist, and a partial identity over
-  `terminal_at IS NULL` allows one open bid per account. A claimed step whose
+  The database decides every race: `action_id` is unique, each hash column is
+  unique within itself, and a partial identity over `terminal_at IS NULL`
+  allows one open bid per account. A claimed step whose
   outcome is unknown holds that slot until the account explicitly ends it; it
   never becomes a fresh send, and a hash that arrives late attaches to the
   operation it belongs to without reopening it.

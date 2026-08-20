@@ -22,6 +22,25 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
     assert refusal(error) == :bid_preparation_unavailable
   end
 
+  test "PRODUCTION_STAYS_CLOSED: an unnamed or unreachable predecessor refuses instead of raising",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    for unusable <- [
+          [prev_tick_price_q96: nil],
+          [prev_tick_price_q96: "2"],
+          [prev_tick_price_q96: -1],
+          [prev_tick_price_q96: Integer.pow(2, 256)],
+          # The predecessor has to sit below the price this bid is reviewed at.
+          [prev_tick_price_q96: 3 * @q96],
+          [predecessor_source: ""],
+          [predecessor_source: nil]
+        ] do
+      install(unusable)
+
+      assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+      assert refusal(error) == :bid_preparation_unavailable
+    end
+  end
+
   test "EXACT_STANDARD_SEQUENCE: one snapshot yields approve, Permit2 allowance, then the five-argument bid",
        %{auction: auction, wallet: wallet, opts: opts, regent: regent} do
     install(token_allowance: 0, permit2_amount: 0, permit2_expiration: 0)
@@ -86,6 +105,22 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
     assert operation.step == :bid
   end
 
+  test "EXACT_STANDARD_SEQUENCE: a canonical uint48 maximum expiration is an ordinary allowance",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    amount = 12_500_000_000_000_000_000
+
+    install(
+      token_allowance: amount,
+      permit2_amount: amount,
+      permit2_expiration: Integer.pow(2, 48) - 1
+    )
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+
+    assert Enum.map(operation.envelope["arguments"]["steps"], & &1["step"]) == ["bid"]
+  end
+
   test "EXACT_STANDARD_SEQUENCE: a Permit2 allowance lapsing inside the review is granted again",
        %{auction: auction, wallet: wallet, opts: opts} do
     amount = 12_500_000_000_000_000_000
@@ -142,7 +177,7 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
 
   test "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",
        %{auction: auction, wallet: wallet, opts: opts} do
-    install()
+    install(prev_tick_price_q96: div(@q96, 4))
 
     for invalid <- ["0", "-1", "garbage", "1e3", "1.", ".5", "1.0000000000000000001"] do
       assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, invalid, "3", opts)
