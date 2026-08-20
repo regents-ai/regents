@@ -2,15 +2,27 @@ defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
 
+  @unavailable_owner "Unable to verify this NFT. Check the collection and token ID."
+
+  @doc """
+  The one neutral line for a selected token whose owner could not be read.
+
+  A transport failure and a token that does not exist are indistinguishable, so
+  this says only that the selection could not be verified.
+  """
+  def unavailable_owner_copy, do: @unavailable_owner
+
   attr :redemption, :map, default: nil
   attr :status, :atom, required: true
   attr :authenticated, :boolean, required: true
+  attr :wallet, :string, default: nil
   attr :collection, :string, required: true
   attr :token_id, :string, required: true
   attr :notice, :map, default: nil
   attr :prepared, :map, default: nil
   attr :submission, :map, default: nil
   attr :signing, :boolean, default: false
+  attr :step, :atom, default: nil
 
   def redemption_page(assigns) do
     ~H"""
@@ -59,7 +71,25 @@ defmodule AshPlatformWeb.RedeemLive do
           <button type="button" data-account-target="sign-in">Sign in to redeem</button>
         </section>
 
-        <section :if={@authenticated} class="redeem-actions" aria-label="Redemption actions">
+        <section
+          :if={@authenticated && !@wallet}
+          class="redeem-actions"
+          aria-label="Choose a wallet"
+        >
+          <h2>Choose your wallet</h2>
+          <.notice :if={@notice} notice={@notice} />
+          <p>
+            Pick the wallet that holds your Animata token. Its balances and vest appear here once
+            it is active.
+          </p>
+          <button type="button" data-redeem-connect>Connect or switch wallet</button>
+        </section>
+
+        <section
+          :if={@authenticated && @wallet}
+          class="redeem-actions"
+          aria-label="Redemption actions"
+        >
           <.notice :if={@notice} notice={@notice} />
 
           <form id="redemption-selection" phx-change="redemption_selection_changed">
@@ -95,15 +125,16 @@ defmodule AshPlatformWeb.RedeemLive do
             <p>
               Submitted transaction: <.transaction hash={@submission.transaction_hash} />
             </p>
+            <p :if={confirmed_result(@submission)}>{confirmed_result(@submission)}</p>
             <button
-              :if={@prepared && @submission.status != :confirmed}
+              :if={@prepared && @submission.status not in [:confirmed, :unverified]}
               type="button"
               phx-click="retry_redemption_confirmation"
             >
               Retry verification
             </button>
             <button
-              :if={@submission.status == :confirmed}
+              :if={@submission.status in [:confirmed, :unverified]}
               type="button"
               phx-click="refresh_redemption"
             >
@@ -111,31 +142,20 @@ defmodule AshPlatformWeb.RedeemLive do
             </button>
           </section>
 
+          <section class="redeem-next-step" aria-label="Next step">
+            <p class="redeem-kicker">Next step</p>
+            <p>{step_label(@step)}</p>
+            <button
+              type="button"
+              phx-click="prepare_redemption"
+              phx-value-action={step_action(@step)}
+              disabled={locked?(@prepared, @submission) || is_nil(step_action(@step))}
+            >
+              {step_control(@step)}
+            </button>
+          </section>
+
           <div class="redeem-button-row">
-            <button
-              type="button"
-              phx-click="prepare_redemption"
-              phx-value-action="approve_nft_collection"
-              disabled={locked?(@prepared, @submission) || @redemption.nft_approved == true}
-            >
-              {if @redemption.nft_approved, do: "NFT collection approved", else: "Review NFT approval"}
-            </button>
-            <button
-              type="button"
-              phx-click="prepare_redemption"
-              phx-value-action="approve_exact_usdc"
-              disabled={locked?(@prepared, @submission) || exact_allowance?(@redemption)}
-            >
-              {if exact_allowance?(@redemption), do: "80 USDC approved", else: "Review USDC approval"}
-            </button>
-            <button
-              type="button"
-              phx-click="prepare_redemption"
-              phx-value-action="redeem"
-              disabled={locked?(@prepared, @submission) || !redeem_ready?(@redemption, @token_id)}
-            >
-              Review redemption
-            </button>
             <button
               type="button"
               phx-click="prepare_redemption"
@@ -181,11 +201,16 @@ defmodule AshPlatformWeb.RedeemLive do
                 <dt>Native value</dt><dd>0 ETH</dd>
               </div>
             </dl>
+            <p :if={!signable?(@prepared, @wallet)} role="status">
+              This review belongs to another wallet. Switch back to it to finish or dismiss the
+              request there.
+            </p>
             <div :if={!@submission} class="redeem-button-row">
               <button
+                :if={signable?(@prepared, @wallet)}
                 type="button"
-                phx-click="sign_prepared_redemption"
-                phx-value-action-id={@prepared.action_id}
+                data-redeem-confirm={@prepared.action_id}
+                data-redeem-signer={@prepared.expected_signer}
                 disabled={@signing}
               >
                 {if @signing, do: "Waiting for wallet", else: "Confirm in wallet"}
@@ -198,6 +223,36 @@ defmodule AshPlatformWeb.RedeemLive do
     </section>
     """
   end
+
+  # The domain decides the next step; this only says it. Claim is independent of
+  # the ladder and stays a separate control.
+  defp step_label(:token_selection_required),
+    do: "Choose a collection and a token ID between 1 and 999."
+
+  defp step_label(:nft_owner_unavailable), do: @unavailable_owner
+  defp step_label(:nft_not_owned), do: "This wallet does not own the selected Animata token."
+
+  defp step_label(:nft_approval_required),
+    do: "Approve the selected collection for the Animata redeemer."
+
+  defp step_label(:exact_usdc_approval_required),
+    do: "Approve exactly 80 USDC for the Animata redeemer."
+
+  defp step_label(:insufficient_usdc), do: "This wallet needs at least 80 USDC."
+
+  defp step_label(:ready),
+    do: "Redeem this Animata for a Regents Club token and the REGENT stream."
+
+  defp step_label(_unavailable), do: "Redemption details are unavailable."
+
+  defp step_action(:nft_approval_required), do: "approve_nft_collection"
+  defp step_action(:exact_usdc_approval_required), do: "approve_exact_usdc"
+  defp step_action(:ready), do: "redeem"
+  defp step_action(_blocked), do: nil
+
+  defp step_control(:nft_approval_required), do: "Review collection approval"
+  defp step_control(:exact_usdc_approval_required), do: "Review USDC approval"
+  defp step_control(_other), do: "Review redemption"
 
   attr :label, :string, required: true
   attr :value, :string, required: true
@@ -238,15 +293,24 @@ defmodule AshPlatformWeb.RedeemLive do
   defp regent(nil), do: "—"
   defp regent(value), do: value <> " REGENT"
 
-  defp locked?(_prepared, %{status: status}) when status != :confirmed, do: true
-  defp locked?(prepared, _submission), do: not is_nil(prepared)
-  defp exact_allowance?(redemption), do: redemption.usdc_allowance_raw == redemption.price_raw
+  # The exact result this transaction's own event recorded, which no later
+  # balance can replace.
+  defp confirmed_result(%{status: :confirmed, event: %{result_token_id: token_id}}),
+    do: "Redeemed for Regents Club token ##{token_id}."
 
-  defp redeem_ready?(redemption, token_id),
-    do:
-      valid_token_input?(token_id) and redemption.nft_owner == redemption.wallet_address and
-        redemption.nft_approved == true and exact_allowance?(redemption) and
-        parse_integer(redemption.usdc_balance_raw) >= parse_integer(redemption.price_raw)
+  defp confirmed_result(%{status: :confirmed, event: %{claimed: amount}}),
+    do: "Claimed #{amount} REGENT."
+
+  defp confirmed_result(_submission), do: nil
+
+  defp locked?(_prepared, %{status: status}) when status not in [:confirmed, :unverified],
+    do: true
+
+  defp locked?(prepared, _submission), do: not is_nil(prepared)
+
+  # Only the wallet a review was prepared for may open that wallet, so a review
+  # left by another wallet stays visible for recovery without a signing control.
+  defp signable?(%{expected_signer: signer}, wallet), do: signer == wallet
 
   defp claim_ready?(redemption), do: parse_integer(redemption.claimable_raw) > 0
   defp valid_token_input?(value), do: parse_integer(value) in 1..999

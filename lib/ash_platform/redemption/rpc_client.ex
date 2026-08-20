@@ -2,7 +2,7 @@ defmodule AshPlatform.Redemption.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Redemption.ChainClient
 
-  alias AshPlatform.WalletActions.{Abi, Address, Envelope, RedemptionAbi, Rpc}
+  alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi, Rpc}
 
   @chain_id 8453
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
@@ -15,64 +15,136 @@ defmodule AshPlatform.Redemption.RpcClient do
 
     case Task.yield(task, overview_timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
-      _ -> {:error, :chain_timeout}
+      _timeout -> {:error, :chain_timeout}
     end
   end
 
   @impl true
   def confirm(envelope, transaction_hash) do
     with {:ok, target, contract_name} <- identity_for(envelope),
-         true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: "animata_redemption",
-             to: target,
-             signer: envelope.expected_signer,
-             contract_name: contract_name,
-             actions: @actions
-           ),
-         :ok <- Rpc.verify_base_chain(@rpc_opts),
-         :ok <-
-           Rpc.confirmed_transaction(
+         true <- valid_for_confirmation?(envelope, target, contract_name),
+         true <- Rpc.valid_hash?(transaction_hash),
+         {:ok, block} <- Rpc.safe_block(@rpc_opts),
+         {:ok, outcome} <-
+           Rpc.canonical_outcome(
              transaction_hash,
              envelope.expected_signer,
              target,
              envelope.data,
+             block,
              @rpc_opts
            ) do
-      confirmation_result(envelope, transaction_hash)
+      {:ok, settled(envelope, transaction_hash, outcome)}
     else
       false -> {:error, :invalid_confirmation}
       {:error, reason} -> {:error, reason}
     end
   end
 
+  # The exact collection approval and the exact 80 USDC allowance, taken fresh
+  # immediately before the Redeem dispatch is claimed and never required again.
+  # A collection that is no longer approved is its own refusal and is never
+  # reported as a USDC failure.
+  @impl true
+  def approval_current(%{action: "redeem", expected_signer: signer, arguments: arguments}) do
+    redeemer = normalized(RedemptionAbi.redeemer_address())
+    usdc = normalized(RedemptionAbi.usdc_address())
+    price = String.to_integer(RedemptionAbi.price_atomic())
+
+    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
+         {:ok, block} <- Rpc.safe_block(@rpc_opts),
+         {:ok, true} <- approved_for_all(collection, signer, redeemer, block),
+         {:ok, ^price} <- allowance(usdc, signer, redeemer, block) do
+      :ok
+    else
+      {:ok, false} -> {:error, :nft_approval_required}
+      {:error, reason} -> {:error, reason}
+      _changed -> {:error, :exact_usdc_approval_required}
+    end
+  end
+
+  def approval_current(_envelope), do: :ok
+
+  # The exact receipt and the exact action event together are the whole proof.
+  # The page reads its own current snapshot after this verdict is durable, so
+  # nothing mutable is read here.
+  defp settled(envelope, hash, {:success, logs}) do
+    case action_event(envelope, logs) do
+      {:ok, event} -> Map.put(result(hash, :confirmed, nil), :event, event)
+      :error -> result(hash, :unverified, :action_event_contradiction)
+    end
+  end
+
+  defp settled(_envelope, hash, :reverted), do: result(hash, :reverted, :transaction_reverted)
+  defp settled(_envelope, hash, :pending), do: result(hash, :pending, nil)
+
+  defp result(hash, outcome, reason),
+    do: %{
+      transaction_hash: String.downcase(hash),
+      outcome: outcome,
+      reason: reason,
+      event: %{}
+    }
+
+  # Each action's own immutable event, decoded against the deployed layout.
+  defp action_event(
+         %{action: "approve_nft_collection", expected_signer: signer, arguments: arguments},
+         logs
+       ) do
+    redeemer = normalized(RedemptionAbi.redeemer_address())
+
+    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
+         true <- RedemptionAbi.collection_approved?(logs, collection, signer, redeemer) do
+      {:ok, %{}}
+    else
+      _contradiction -> :error
+    end
+  end
+
+  defp action_event(%{action: "approve_exact_usdc", expected_signer: signer}, logs) do
+    approved? =
+      Abi.approval_recorded?(
+        logs,
+        normalized(RedemptionAbi.usdc_address()),
+        signer,
+        normalized(RedemptionAbi.redeemer_address()),
+        String.to_integer(RedemptionAbi.price_atomic())
+      )
+
+    if approved?, do: {:ok, %{}}, else: :error
+  end
+
+  # `newId` is the mapped Regents Club token, never a USDC amount.
+  defp action_event(%{action: "redeem", expected_signer: signer, arguments: arguments}, logs) do
+    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
+         token_id when is_integer(token_id) <- field(arguments, :token_id),
+         {:ok, result_token_id} <- RedemptionAbi.redeemed(logs, signer, collection, token_id) do
+      {:ok, %{result_token_id: result_token_id}}
+    else
+      _contradiction -> :error
+    end
+  end
+
+  defp action_event(%{action: "claim", expected_signer: signer}, logs) do
+    with {:ok, amount} <- RedemptionAbi.claimed(logs, signer) do
+      {:ok, %{claimed_raw: Integer.to_string(amount), claimed: Rpc.format_units(amount, 18)}}
+    end
+  end
+
   defp do_overview(wallet, collection, token_id) do
     redeemer = normalized(RedemptionAbi.redeemer_address())
 
-    with :ok <- Rpc.verify_base_chain(@rpc_opts),
-         {:ok, animata_i} <-
-           Rpc.call_address(redeemer, RedemptionAbi.encode_read("animata_i"), @rpc_opts),
-         {:ok, animata_ii} <-
-           Rpc.call_address(redeemer, RedemptionAbi.encode_read("animata_ii"), @rpc_opts),
-         {:ok, result_collection} <-
-           Rpc.call_address(
-             redeemer,
-             RedemptionAbi.encode_read("result_collection"),
-             @rpc_opts
-           ),
-         {:ok, usdc} <- Rpc.call_address(redeemer, RedemptionAbi.encode_read("usdc"), @rpc_opts),
-         {:ok, regent} <-
-           Rpc.call_address(redeemer, RedemptionAbi.encode_read("regent"), @rpc_opts),
-         {:ok, price} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("usdc_price"), @rpc_opts),
-         {:ok, pure_price} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("price"), @rpc_opts),
-         {:ok, payout} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("regent_payout"), @rpc_opts),
-         {:ok, vest_duration} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("vest_duration"), @rpc_opts),
-         {:ok, max_token_id} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("max_source_token_id"), @rpc_opts),
+    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
+         {:ok, animata_i} <- read_address("animata_i", redeemer, block),
+         {:ok, animata_ii} <- read_address("animata_ii", redeemer, block),
+         {:ok, result_collection} <- read_address("result_collection", redeemer, block),
+         {:ok, usdc} <- read_address("usdc", redeemer, block),
+         {:ok, regent} <- read_address("regent", redeemer, block),
+         {:ok, price} <- read_uint("usdc_price", redeemer, block),
+         {:ok, pure_price} <- read_uint("price", redeemer, block),
+         {:ok, payout} <- read_uint("regent_payout", redeemer, block),
+         {:ok, vest_duration} <- read_uint("vest_duration", redeemer, block),
+         {:ok, max_token_id} <- read_uint("max_source_token_id", redeemer, block),
          :ok <-
            verify_constants(
              animata_i,
@@ -86,11 +158,13 @@ defmodule AshPlatform.Redemption.RpcClient do
              vest_duration,
              max_token_id
            ),
-         {:ok, account} <- account_reads(wallet, collection, token_id, usdc, redeemer) do
+         {:ok, account} <- account_reads(wallet, collection, token_id, usdc, redeemer, block) do
       {:ok,
        Map.merge(account, %{
          chain_id: @chain_id,
          chain_label: "Base",
+         block_number: block.number,
+         block_hash: block.hash,
          redeemer_address: redeemer,
          animata_i_address: animata_i,
          animata_ii_address: animata_ii,
@@ -108,26 +182,24 @@ defmodule AshPlatform.Redemption.RpcClient do
     end
   end
 
-  defp account_reads(nil, nil, nil, _usdc, _redeemer),
-    do: {:ok, empty_account()}
+  defp account_reads(nil, nil, nil, _usdc, _redeemer, _block), do: {:ok, empty_account()}
 
-  defp account_reads(wallet, collection, token_id, usdc, redeemer) do
+  defp account_reads(wallet, collection, token_id, usdc, redeemer, block) do
     wallet = normalized(wallet)
 
     with :ok <- valid_selection(collection, token_id),
-         {:ok, usdc_balance} <-
-           Rpc.call_uint(usdc, RedemptionAbi.encode_erc20("balance_of", [wallet]), @rpc_opts),
-         {:ok, usdc_allowance} <-
-           Rpc.call_uint(
-             usdc,
-             RedemptionAbi.encode_erc20("allowance", [wallet, redeemer]),
+         {:ok, usdc_balance} <- balance_of(usdc, wallet, block),
+         {:ok, usdc_allowance} <- allowance(usdc, wallet, redeemer, block),
+         {:ok, claimable} <- read_uint("claimable", [wallet], redeemer, block),
+         {:ok, [pool, released, claimed, start]} <-
+           Rpc.call_words(
+             redeemer,
+             RedemptionAbi.encode_read("vest", [wallet]),
+             block,
+             4,
              @rpc_opts
            ),
-         {:ok, claimable} <-
-           Rpc.call_uint(redeemer, RedemptionAbi.encode_read("claimable", [wallet]), @rpc_opts),
-         {:ok, [pool, released, claimed, start]} <-
-           Rpc.call_words(redeemer, RedemptionAbi.encode_read("vest", [wallet]), 4, @rpc_opts),
-         {:ok, token} <- token_reads(wallet, collection, token_id, redeemer) do
+         {:ok, token} <- token_reads(wallet, collection, token_id, redeemer, block) do
       {:ok,
        Map.merge(token, %{
          wallet_address: wallet,
@@ -148,62 +220,59 @@ defmodule AshPlatform.Redemption.RpcClient do
     end
   end
 
-  defp token_reads(_wallet, nil, nil, _redeemer) do
+  defp token_reads(_wallet, nil, nil, _redeemer, _block) do
     {:ok,
      %{
        selected_collection: nil,
        token_id: nil,
        nft_owner: nil,
+       nft_owner_unavailable: false,
        nft_approved: nil,
        result_token_id: nil
      }}
   end
 
-  defp token_reads(wallet, collection, nil, redeemer) do
-    with {:ok, approved} <-
-           Rpc.call_bool(
-             collection,
-             RedemptionAbi.encode_erc721("is_approved_for_all", [wallet, redeemer]),
-             @rpc_opts
-           ) do
+  defp token_reads(wallet, collection, nil, redeemer, block) do
+    with {:ok, approved} <- approved_for_all(collection, wallet, redeemer, block) do
       {:ok,
        %{
          selected_collection: collection,
          token_id: nil,
          nft_owner: nil,
+         nft_owner_unavailable: false,
          nft_approved: approved,
          result_token_id: nil
        }}
     end
   end
 
-  defp token_reads(wallet, collection, token_id, redeemer) do
-    with {:ok, owner} <-
-           Rpc.call_address(
-             collection,
-             RedemptionAbi.encode_erc721("owner_of", [token_id]),
-             @rpc_opts
-           ),
-         {:ok, approved} <-
-           Rpc.call_bool(
-             collection,
-             RedemptionAbi.encode_erc721("is_approved_for_all", [wallet, redeemer]),
-             @rpc_opts
-           ),
+  defp token_reads(wallet, collection, token_id, redeemer, block) do
+    with {:ok, approved} <- approved_for_all(collection, wallet, redeemer, block),
          {:ok, result_token_id} <-
-           Rpc.call_uint(
-             redeemer,
-             RedemptionAbi.encode_read("result_token_id", [collection, token_id]),
-             @rpc_opts
-           ) do
+           read_uint("result_token_id", [collection, token_id], redeemer, block) do
       {:ok,
-       %{
+       Map.merge(owner_read(collection, token_id, block), %{
          selected_collection: collection,
          token_id: token_id,
-         nft_owner: owner,
          nft_approved: approved,
          result_token_id: if(result_token_id == 0, do: nil, else: result_token_id)
-       }}
+       })}
+    end
+  end
+
+  # The core account facts do not depend on the selected token, so an `ownerOf`
+  # that cannot be read leaves them intact and says only that it is unknown. A
+  # transport failure and a token that does not exist are indistinguishable here
+  # and neither is reported as the other.
+  defp owner_read(collection, token_id, block) do
+    case Rpc.call_address(
+           collection,
+           RedemptionAbi.encode_erc721("owner_of", [token_id]),
+           block,
+           @rpc_opts
+         ) do
+      {:ok, owner} -> %{nft_owner: owner, nft_owner_unavailable: false}
+      {:error, _unavailable} -> %{nft_owner: nil, nft_owner_unavailable: true}
     end
   end
 
@@ -213,6 +282,7 @@ defmodule AshPlatform.Redemption.RpcClient do
       selected_collection: nil,
       token_id: nil,
       nft_owner: nil,
+      nft_owner_unavailable: false,
       nft_approved: nil,
       usdc_balance_raw: nil,
       usdc_balance: nil,
@@ -229,93 +299,6 @@ defmodule AshPlatform.Redemption.RpcClient do
       vest_start: nil,
       result_token_id: nil
     }
-  end
-
-  # The receipt and the authoritative reread stay separate facts, and the reread
-  # counts only when this action's own postcondition holds on the current state.
-  defp confirmation_result(envelope, transaction_hash) do
-    collection = field(envelope.arguments, :collection)
-    token_id = field(envelope.arguments, :token_id)
-
-    case overview(envelope.expected_signer, collection, token_id) do
-      {:ok, refreshed} ->
-        {:ok, reread(transaction_hash, refreshed, postcondition(envelope, refreshed))}
-
-      {:error, reason} ->
-        {:ok,
-         %{
-           transaction_hash: String.downcase(transaction_hash),
-           receipt_verified: true,
-           reread_verified: false,
-           redemption: nil,
-           reason: reason
-         }}
-    end
-  end
-
-  defp reread(transaction_hash, refreshed, :ok),
-    do: %{
-      transaction_hash: String.downcase(transaction_hash),
-      receipt_verified: true,
-      reread_verified: true,
-      redemption: refreshed,
-      reason: nil
-    }
-
-  defp reread(transaction_hash, refreshed, {:error, reason}),
-    do: %{
-      transaction_hash: String.downcase(transaction_hash),
-      receipt_verified: true,
-      reread_verified: false,
-      redemption: refreshed,
-      reason: reason
-    }
-
-  # Each postcondition is the exact intent of the prepared envelope read back off
-  # the chain, never a repeated literal.
-  defp postcondition(
-         %{action: "approve_nft_collection", arguments: arguments, expected_signer: signer},
-         refreshed
-       ) do
-    if refreshed.nft_approved == true and
-         Address.equal?(refreshed.selected_collection, field(arguments, :collection)) and
-         Address.equal?(refreshed.wallet_address, signer),
-       do: :ok,
-       else: {:error, :nft_approval_not_current}
-  end
-
-  defp postcondition(
-         %{
-           action: "approve_exact_usdc",
-           arguments: arguments,
-           expected_signer: signer,
-           to: token
-         },
-         refreshed
-       ) do
-    # The reread allowance is `allowance(wallet_address, redeemer_address)`, so
-    # owner, token, spender and exact amount are each compared to the envelope.
-    if refreshed.usdc_allowance_raw == field(arguments, :amount_atomic) and
-         Address.equal?(refreshed.usdc_address, token) and
-         Address.equal?(refreshed.redeemer_address, field(arguments, :spender)) and
-         Address.equal?(refreshed.wallet_address, signer),
-       do: :ok,
-       else: {:error, :usdc_allowance_not_current}
-  end
-
-  defp postcondition(%{action: "redeem"}, %{result_token_id: token_id})
-       when is_integer(token_id),
-       do: :ok
-
-  defp postcondition(%{action: "redeem"}, _refreshed), do: {:error, :result_token_not_visible}
-
-  defp postcondition(%{action: "claim"}, refreshed) do
-    if Enum.all?(
-         [:claimable_raw, :vest_pool_raw, :vest_released_raw, :vest_claimed_raw, :vest_start],
-         &(not is_nil(Map.fetch!(refreshed, &1)))
-       ),
-       do: :ok,
-       else: {:error, :vest_snapshot_not_current}
   end
 
   defp verify_constants(
@@ -360,6 +343,12 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   defp valid_selection(_collection, _token_id), do: {:error, :invalid_token_selection}
 
+  defp selected_collection(collection) do
+    if RedemptionAbi.collection_id(collection),
+      do: {:ok, normalized(collection)},
+      else: {:error, :invalid_collection}
+  end
+
   defp identity_for(%{action: "approve_nft_collection", arguments: arguments}) do
     collection = field(arguments, :collection)
 
@@ -377,6 +366,45 @@ defmodule AshPlatform.Redemption.RpcClient do
     do: {:ok, normalized(RedemptionAbi.redeemer_address()), "AnimataRedeemer"}
 
   defp identity_for(_envelope), do: {:error, :invalid_action}
+
+  defp valid_for_confirmation?(envelope, target, contract_name) do
+    Envelope.valid_for_confirmation?(envelope,
+      resource: "animata_redemption",
+      to: target,
+      signer: envelope.expected_signer,
+      contract_name: contract_name,
+      actions: @actions
+    )
+  end
+
+  defp approved_for_all(collection, owner, operator, block),
+    do:
+      Rpc.call_bool(
+        collection,
+        RedemptionAbi.encode_erc721("is_approved_for_all", [owner, operator]),
+        block,
+        @rpc_opts
+      )
+
+  defp allowance(token, owner, spender, block),
+    do:
+      Rpc.call_uint(
+        token,
+        RedemptionAbi.encode_erc20("allowance", [owner, spender]),
+        block,
+        @rpc_opts
+      )
+
+  defp balance_of(token, wallet, block),
+    do: Rpc.call_uint(token, RedemptionAbi.encode_erc20("balance_of", [wallet]), block, @rpc_opts)
+
+  defp read_uint(id, target, block), do: read_uint(id, [], target, block)
+
+  defp read_uint(id, arguments, target, block),
+    do: Rpc.call_uint(target, RedemptionAbi.encode_read(id, arguments), block, @rpc_opts)
+
+  defp read_address(id, target, block),
+    do: Rpc.call_address(target, RedemptionAbi.encode_read(id), block, @rpc_opts)
 
   defp normalized(address), do: Abi.normalize_address!(address)
   defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))

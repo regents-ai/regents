@@ -84,17 +84,6 @@ export type RedemptionClients = {
   switchToBase(): Promise<void>
   simulate(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<void>
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
-  receipt(hash: Hash): Promise<{status: "success" | "reverted"}>
-}
-
-export class RedemptionExecutionError extends Error {
-  constructor(
-    readonly code: "action_reverted",
-    readonly transactionHash: Hash,
-    message: string,
-  ) {
-    super(message)
-  }
 }
 
 export function clientsForRedemption(provider: EthereumProvider): RedemptionClients {
@@ -112,15 +101,19 @@ export function clientsForRedemption(provider: EthereumProvider): RedemptionClie
       await publicClient.call(request)
     },
     send: request => walletClient.sendTransaction(request),
-    receipt: hash => publicClient.waitForTransactionReceipt({hash, timeout: 60_000}),
   }
+}
+
+export type RedemptionExecutionOptions = {
+  onSendStarted: () => void
+  onSubmitted?: (hash: Hash) => void
 }
 
 export async function executePreparedRedemptionAction(
   envelope: PreparedRedemptionAction,
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
-  onSubmitted: (hash: Hash) => void = () => undefined,
+  options: RedemptionExecutionOptions = {onSendStarted: () => undefined},
 ): Promise<Hash> {
   assertRedemptionEnvelope(envelope)
 
@@ -138,16 +131,15 @@ export async function executePreparedRedemptionAction(
 
   const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
   await clients.simulate(transaction)
+  // One marker per attempt, set immediately before the wallet send. It is the
+  // whole boundary: below it nothing can have been broadcast, above it any
+  // failure may have left a transaction on Base.
+  options.onSendStarted()
   const hash = await clients.send(transaction)
-  onSubmitted(hash)
-  const receipt = await clients.receipt(hash)
-  if (receipt.status !== "success") {
-    throw new RedemptionExecutionError(
-      "action_reverted",
-      hash,
-      "The redemption transaction was reverted.",
-    )
-  }
+  options.onSubmitted?.(hash)
+
+  // The hash is durably reported and the server owns every read after it, so
+  // the browser never waits on a receipt and never decides an outcome.
   return hash
 }
 

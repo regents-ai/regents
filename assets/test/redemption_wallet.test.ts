@@ -1,14 +1,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {encodeFunctionData, getAddress, parseAbi, type Address, type Hash} from "viem"
+import {encodeFunctionData, getAddress, parseAbi, type Hash} from "viem"
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../contracts/abi/animata-redeemer.json"
-import {connectedEthereumWallet} from "../js/wallet_actions/connected_wallet"
-import {
-  recordSubmittedRedemption,
-  RedemptionWallet,
-  userRejected,
-} from "../js/hooks/redemption_wallet"
+import {activeEthereumWallet} from "../js/wallet_actions/connected_wallet"
+import {recordSubmittedRedemption, RedemptionWallet} from "../js/hooks/redemption_wallet"
+import {userRejected} from "../js/hooks/stake_wallet"
 import {
   assertRedemptionEnvelope,
   executePreparedRedemptionAction,
@@ -16,10 +13,14 @@ import {
   type RedemptionClients,
 } from "../js/wallet_actions/redemption"
 
+const wallet = getAddress("0x1111111111111111111111111111111111111111")
+const other = getAddress("0x2222222222222222222222222222222222222222")
+
+// Privy's selected wallet is the only wallet this surface reads.
 vi.mock("../js/wallet_actions/connected_wallet", () => ({
-  connectedEthereumWallet: vi.fn(() => ({
+  activeEthereumWallet: vi.fn(() => ({
     address: "0x1111111111111111111111111111111111111111",
-    provider: {request: vi.fn()},
+    provider: {request: vi.fn(async () => ["0x1111111111111111111111111111111111111111"])},
   })),
 }))
 
@@ -31,8 +32,6 @@ vi.mock("../js/wallet_actions/redemption", async importOriginal => {
 })
 
 const manifest = chainManifest.contracts.animata_redeemer
-const wallet = getAddress("0x1111111111111111111111111111111111111111")
-const other = getAddress("0x2222222222222222222222222222222222222222")
 const redeemer = getAddress(manifest.address)
 const animataI = getAddress(manifest.onchain_constants.animata_i)
 const resultCollection = getAddress(manifest.onchain_constants.result_collection)
@@ -69,7 +68,6 @@ function clients(overrides: Partial<RedemptionClients> = {}): RedemptionClients 
     switchToBase: vi.fn(async () => undefined),
     simulate: vi.fn(async () => undefined),
     send: vi.fn(async () => hash),
-    receipt: vi.fn(async () => ({status: "success" as const})),
     ...overrides,
   }
 }
@@ -77,20 +75,59 @@ function clients(overrides: Partial<RedemptionClients> = {}): RedemptionClients 
 describe("prepared Animata redemption actions", () => {
   it("submits exactly one reviewed action from the expected wallet", async () => {
     const rpc = clients()
-    const submitted = vi.fn()
-    const result = await executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, submitted)
+    const onSubmitted = vi.fn()
+    const result = await executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, {
+      onSendStarted: () => undefined,
+      onSubmitted,
+    })
 
     expect(result).toBe(hash)
     expect(rpc.simulate).toHaveBeenCalledOnce()
     expect(rpc.send).toHaveBeenCalledOnce()
-    expect(rpc.receipt).toHaveBeenCalledWith(hash)
-    expect(submitted).toHaveBeenCalledWith(hash)
+    expect(onSubmitted).toHaveBeenCalledWith(hash)
     expect(vi.mocked(rpc.send).mock.calls[0]?.[0]).toEqual({
       account: wallet,
       to: redeemer,
       data: baseEnvelope().data,
       value: 0n,
     })
+  })
+
+  // The marker is the whole pre-send boundary: below it nothing can have been
+  // broadcast, above it any failure may have left a transaction on Base.
+  it("marks the send boundary immediately before the wallet send and never before it", async () => {
+    const order: string[] = []
+    const rpc = clients({
+      simulate: vi.fn(async () => {
+        order.push("simulate")
+      }),
+      send: vi.fn(async () => {
+        order.push("send")
+        return hash
+      }),
+    })
+
+    await executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, {
+      onSendStarted: () => order.push("marker"),
+    })
+
+    expect(order).toEqual(["simulate", "marker", "send"])
+
+    // A refused simulation never crosses the boundary at all.
+    const marker = vi.fn()
+    await expect(
+      executePreparedRedemptionAction(
+        baseEnvelope(),
+        {request: vi.fn()},
+        clients({
+          simulate: vi.fn(async () => {
+            throw new Error("execution reverted")
+          }),
+        }),
+        {onSendStarted: marker},
+      ),
+    ).rejects.toBeInstanceOf(Error)
+    expect(marker).not.toHaveBeenCalled()
   })
 
   it("re-encodes and validates all four separate action shapes", () => {
@@ -161,20 +198,6 @@ describe("prepared Animata redemption actions", () => {
     expect(rpc.send).not.toHaveBeenCalled()
   })
 
-  it("captures a reverted hash for server verification without resubmitting", async () => {
-    const rpc = clients({receipt: vi.fn(async () => ({status: "reverted" as const}))})
-    const submitted = vi.fn()
-
-    await expect(
-      executePreparedRedemptionAction(baseEnvelope(), {request: vi.fn()}, rpc, submitted),
-    ).rejects.toMatchObject({
-      code: "action_reverted",
-      transactionHash: hash,
-    })
-    expect(submitted).toHaveBeenCalledOnce()
-    expect(rpc.send).toHaveBeenCalledOnce()
-  })
-
   it("notifies the server before best-effort session storage", () => {
     const order: string[] = []
     const storage = {setItem: vi.fn(() => order.push("storage"))}
@@ -198,7 +221,56 @@ describe("prepared Animata redemption actions", () => {
   })
 })
 
+describe("ACTIVE_WALLET_DRIVES_REDEEM: Privy's selection is what Redeem publishes", () => {
+  beforeEach(() => stubBrowser())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("publishes the active wallet on mount and on every wallet-state change", () => {
+    const hook = mountRedemptionWallet()
+
+    expect(hook.pushed).toEqual([
+      {event: "redemption_active_wallet", payload: {address: wallet}},
+    ])
+
+    vi.mocked(activeEthereumWallet).mockReturnValueOnce(null)
+    hook.walletStateChanged()
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_active_wallet",
+      payload: {address: null},
+    })
+  })
+
+  // The claim is only asked for once the wallet in front of the customer really
+  // is the reviewed signer. A negative preflight asks for nothing at all.
+  it("preflights the reviewed signer before asking the server for a dispatch", async () => {
+    const hook = mountRedemptionWallet()
+
+    await hook.click(confirmButton("review", wallet))
+    expect(hook.pushed).toContainEqual({
+      event: "sign_prepared_redemption",
+      payload: {"action-id": "review", address: wallet},
+    })
+
+    vi.mocked(activeEthereumWallet).mockReturnValueOnce({
+      address: other,
+      provider: {request: vi.fn(async () => [other])},
+    })
+    await hook.click(confirmButton("review", wallet))
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_wallet_failed",
+      payload: {reason: "wallet_unavailable"},
+    })
+  })
+})
+
 describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
+  const execute = vi.mocked(executePreparedRedemptionAction)
+
+  beforeEach(() => stubBrowser())
+  afterEach(() => vi.unstubAllGlobals())
+
   it("recognises the exact EIP-1193 rejection code however viem wrapped it", () => {
     expect(userRejected({code: 4001})).toBe(true)
     expect(userRejected({cause: {cause: {code: 4001}}})).toBe(true)
@@ -210,13 +282,45 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: the not-sent signal", () => {
     expect(userRejected({code: "4001"})).toBe(false)
     expect(userRejected(null)).toBe(false)
   })
-})
 
-describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", () => {
-  const execute = vi.mocked(executePreparedRedemptionAction)
+  // Below the send marker nothing was broadcast, whatever the wallet said, so
+  // the durable claim is released rather than closed.
+  it("releases a claim the wallet was never asked to sign", async () => {
+    const hook = mountRedemptionWallet()
 
-  beforeEach(() => stubSessionStorage())
-  afterEach(() => vi.unstubAllGlobals())
+    execute.mockImplementationOnce(async () => {
+      throw new Error("the provider went away before anything was sent")
+    })
+
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "unstarted"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_dispatch_not_started",
+      payload: {action_id: "unstarted", reason: null},
+    })
+    expect(hook.pushed).not.toContainEqual(
+      expect.objectContaining({event: "redemption_wallet_failed"}),
+    )
+  })
+
+  it("keeps a post-send failure uncertain rather than releasing the claim", async () => {
+    const hook = mountRedemptionWallet()
+
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSendStarted()
+      throw new Error("the wallet stopped answering after the send")
+    })
+
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "uncertain"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_wallet_failed",
+      payload: {reason: "unknown"},
+    })
+    expect(hook.pushed).not.toContainEqual(
+      expect.objectContaining({event: "redemption_dispatch_not_started"}),
+    )
+  })
 
   // The server claimed the second dispatch before the wallet opened. If the
   // browser withheld the rejection because a previous action left a hash in
@@ -225,8 +329,9 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
   it("reports the exact 4001 for the second action even though the first one succeeded", async () => {
     const hook = mountRedemptionWallet()
 
-    execute.mockImplementationOnce(async (_envelope, _provider, _clients, onSubmitted) => {
-      onSubmitted?.(hash)
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSendStarted()
+      options?.onSubmitted?.(hash)
       return hash
     })
     await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "first"})})
@@ -237,7 +342,8 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
 
     await hook.emit("redemption:confirmed", {})
 
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSendStarted()
       throw Object.assign(new Error("User rejected the request."), {code: 4001})
     })
     await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "second"})})
@@ -249,15 +355,37 @@ describe("CLAIM_BEFORE_WALLET_HANDOFF: a rejection after an earlier success", ()
   })
 })
 
+describe("TERMINAL_STORAGE_CLEARS: every ending clears the stored submission", () => {
+  beforeEach(() => stubBrowser())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("clears storage on confirmation, revert, contradiction and abandonment", async () => {
+    for (const event of [
+      "redemption:confirmed",
+      "redemption:reverted",
+      "redemption:unverified",
+      "redemption:abandoned",
+    ]) {
+      const hook = mountRedemptionWallet()
+      sessionStorage.setItem("regent:redemption:submitted", "{}")
+
+      await hook.emit(event, {})
+
+      expect(sessionStorage.getItem("regent:redemption:submitted")).toBeNull()
+    }
+  })
+})
+
 describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", () => {
   const execute = vi.mocked(executePreparedRedemptionAction)
 
-  beforeEach(() => stubSessionStorage())
+  beforeEach(() => stubBrowser())
   afterEach(() => vi.unstubAllGlobals())
 
   it("reports the unknown key instead of the provider's own message", async () => {
     const hook = mountRedemptionWallet()
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSendStarted()
       throw new Error("execution reverted: allowance 0xdeadbeef (Safe transaction service)")
     })
 
@@ -270,42 +398,54 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
     expect(JSON.stringify(hook.pushed)).not.toContain("execution reverted")
   })
 
-  it("reports the unavailable review wallet without naming any provider", async () => {
-    vi.mocked(connectedEthereumWallet).mockReturnValueOnce(null)
+  it("releases the claim and names the wallet to come back with", async () => {
     const hook = mountRedemptionWallet()
+    vi.mocked(activeEthereumWallet).mockReturnValueOnce(null)
 
     await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "absent"})})
 
-    expect(hook.pushed).toEqual([
-      {event: "redemption_wallet_failed", payload: {reason: "wallet_unavailable"}},
-    ])
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_dispatch_not_started",
+      payload: {action_id: "absent", reason: "wallet_unavailable"},
+    })
+
+    // The hook reads the active wallet, then the preflight reads it again.
+    const switched = {address: other, provider: {request: vi.fn(async () => [other])}}
+    vi.mocked(activeEthereumWallet).mockReturnValueOnce(switched).mockReturnValueOnce(switched)
+    await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "switched"})})
+
+    expect(hook.pushed).toContainEqual({
+      event: "redemption_dispatch_not_started",
+      payload: {action_id: "switched", reason: "signer_changed"},
+    })
   })
 })
 
 describe("U2_NEUTRAL_REJECTION: the rejection is the whole outcome", () => {
   const execute = vi.mocked(executePreparedRedemptionAction)
 
-  beforeEach(() => stubSessionStorage())
+  beforeEach(() => stubBrowser())
   afterEach(() => vi.unstubAllGlobals())
 
   // A failure event after the rejection would replace the neutral "nothing was
   // sent" notice with an error the customer did not cause.
   it("sends the rejection and nothing that could overwrite its neutral notice", async () => {
     const hook = mountRedemptionWallet()
-    execute.mockImplementationOnce(async () => {
+    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
+      options?.onSendStarted()
       throw Object.assign(new Error("User rejected the request."), {code: 4001})
     })
 
     await hook.emit("redemption:prepared", {envelope: baseEnvelope({action_id: "rejected"})})
 
-    expect(hook.pushed).toEqual([
+    expect(hook.pushed.filter(entry => entry.event !== "redemption_active_wallet")).toEqual([
       {event: "redemption_wallet_rejected", payload: {action_id: "rejected", code: 4001}},
     ])
   })
 })
 
 describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer", () => {
-  beforeEach(() => stubSessionStorage())
+  beforeEach(() => stubBrowser())
   afterEach(() => vi.unstubAllGlobals())
 
   it("copies the exact address the review rendered and says so on that button", async () => {
@@ -346,12 +486,13 @@ describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer"
 })
 
 type Emitted = {event: string; payload: unknown}
-type CopyButton = {textContent: string; dataset: {copySigner: string}; closest: () => CopyButton}
+type Selectable = {closest: (selector: string) => unknown}
 
 function mountRedemptionWallet(): {
   pushed: Emitted[]
   emit(event: string, payload: unknown): unknown
   click(target: unknown): Promise<unknown[]>
+  walletStateChanged(): void
 } {
   const pushed: Emitted[] = []
   const handlers = new Map<string, (payload: unknown) => unknown>()
@@ -375,26 +516,42 @@ function mountRedemptionWallet(): {
     pushed,
     emit: (event, payload) => handlers.get(event)?.(payload),
     click: target => Promise.all(clicks.map(listener => listener({target} as unknown as Event))),
+    walletStateChanged: () =>
+      (hook as {publishActiveWallet?: () => void}).publishActiveWallet?.(),
   }
 }
 
-// The reviewed markup puts the signer on the button itself, so the clicked
-// element is its own `closest` match and carries the text the copy replaces.
-function copyButton(signer: string): CopyButton {
-  const button: CopyButton = {
-    textContent: "Copy",
-    dataset: {copySigner: signer},
-    closest: () => button,
+// The reviewed markup puts the action and the signer on the confirm button
+// itself, so the clicked element is its own `closest` match.
+function confirmButton(actionId: string, signer: string): Selectable {
+  const button = {
+    dataset: {redeemConfirm: actionId, redeemSigner: signer},
+    closest: (selector: string) => (selector === "[data-redeem-confirm]" ? button : null),
   }
 
   return button
 }
 
-function stubSessionStorage(): void {
+function copyButton(signer: string): {textContent: string} & Selectable {
+  const button = {
+    textContent: "Copy",
+    dataset: {copySigner: signer},
+    closest: (selector: string) => (selector === "[data-copy-signer]" ? button : null),
+  }
+
+  return button
+}
+
+function stubBrowser(): void {
   const entries = new Map<string, string>()
   vi.stubGlobal("sessionStorage", {
     getItem: (key: string) => entries.get(key) ?? null,
     setItem: (key: string, value: string) => entries.set(key, value),
     removeItem: (key: string) => entries.delete(key),
+  })
+  vi.stubGlobal("window", {
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => true,
   })
 }

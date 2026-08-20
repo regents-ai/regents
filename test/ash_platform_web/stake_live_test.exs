@@ -21,6 +21,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
       Application.delete_env(:ash_platform, :test_staking_confirm_barrier)
       Application.delete_env(:ash_platform, :test_staking_overview_error)
       Application.delete_env(:ash_platform, :test_staking_read_watcher)
+      Application.delete_env(:ash_platform, :test_staking_denominator)
+      Application.delete_env(:ash_platform, :test_staking_paused)
+      Application.delete_env(:ash_platform, :test_staking_allowance_current)
       restore_env(:wallet_action_clock, previous_clock)
     end)
 
@@ -111,7 +114,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     })
 
     assert html =~
-             ~r/The approval transaction was\s+confirmed on Base, but we have not re-read the current REGENT allowance\./
+             ~r/The approval was confirmed on\s+Base, and the allowance it granted stays in place until you change it\./
 
     refute html =~ "The exact REGENT allowance remains onchain"
 
@@ -370,7 +373,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     html = render(view)
 
     assert html =~
-             "Staking was not sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance. You can prepare a new action."
+             "Staking was not sent. The approval was confirmed on Base, and the allowance it granted stays in place until you change it. You can prepare a new action."
 
     refute html =~ "The exact REGENT allowance remains onchain"
     refute html =~ "Submitted transaction"
@@ -384,7 +387,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ "Review before signing"
   end
 
-  test "an expired verified approval states that the current allowance was not reread", %{
+  test "an expired verified approval states that the granted allowance stays in place", %{
     conn: conn
   } do
     view = signed_in(conn, "stake-expired-verified")
@@ -402,7 +405,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     html = render(view)
 
     assert html =~
-             "This approval review expired. No staking transaction was sent. The approval transaction was confirmed on Base, but we have not re-read the current REGENT allowance."
+             "This approval review expired. No staking transaction was sent. The approval was confirmed on Base, and the allowance it granted stays in place until you change it."
 
     refute html =~ "The exact REGENT allowance remains onchain"
     refute html =~ "Submitted transaction"
@@ -546,7 +549,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # shell uses.
     opts = leased(account.id)
     assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1", opts)
-    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope.action_id, :approval, opts)
+    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope, :approval, opts)
 
     {:ok, _bound} =
       Staking.bind_submitted_hash(envelope.action_id, :approval, @approval_hash, opts)
@@ -577,12 +580,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
              StakeRedeemOperations.active(account.id, :stake)
   end
 
-  # The browser may report that the approval receipt reverted, but Base decides.
-  # That verification writes a terminal fact, so it runs under the mounted lease
+  # The browser never decides that an approval reverted; the server's own read of
+  # that hash does. It writes a terminal fact, so it runs under the mounted lease
   # like every other protected write.
-  test "CURRENT_AUTHORITY_OWNS_EVERY_WRITE: a wallet-reported approval revert is verified on Base and made terminal",
+  test "CURRENT_AUTHORITY_OWNS_EVERY_WRITE: an approval revert is verified on Base and made terminal",
        %{conn: conn} do
-    Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
+    Application.put_env(:ash_platform, :test_staking_approval_status, :reverted)
 
     account = register("stake-approval-revert", [@wallet])
     view = mount_stake(conn, account)
@@ -593,14 +596,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     action_id = prepared_action_id(render(view))
 
     submit_approval(view, action_id)
-    assert render_async(view) =~ "not confirmed yet"
-
-    Application.put_env(:ash_platform, :test_staking_approval_status, :reverted)
-
-    render_hook(view, "staking_approval_reverted", %{
-      "action_id" => action_id,
-      "transaction_hash" => @approval_hash
-    })
 
     assert render_async(view) =~ "The REGENT approval was reverted"
     assert_push_event(view, "staking:approval-reverted", %{})
@@ -1461,6 +1456,151 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp review(view, action),
     do: view |> element(~s(button[phx-value-action="#{action}"])) |> render_click()
 
+  # A safe successful receipt that never recorded the action is terminal and is
+  # never success. The hash stays on screen, the account's slot is freed, and
+  # nothing is ever sent again on its own.
+  test "FOUR_OUTCOMES: a contradicted receipt is terminal, non-success and frees the slot", %{
+    conn: conn
+  } do
+    account = register("stake-unverified", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :unverified)
+
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    html = render_async(view)
+    refute html =~ "Confirmed on Base"
+    assert html =~ "without recording the action"
+    assert html =~ short_hash(@tx_hash)
+    assert_push_event(view, "staking:unverified", %{})
+    refute_push_event(view, "staking:confirmed", _)
+
+    # The slot is free, so a fresh review can be prepared straight away and
+    # nothing was resent on the customer's behalf.
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+    review(view, "claim_usdc")
+    assert render(view) =~ "Review before signing"
+  end
+
+  # Base's safe head trails the chain head, so a submitted transaction waits
+  # rather than fails, and exactly one verification is outstanding at a time.
+  test "ONE_RETRY_AT_A_TIME: a pending transaction waits and confirms on the same hash", %{
+    conn: conn
+  } do
+    account = register("stake-pending", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :pending)
+
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    html = render_async(view)
+    assert html =~ "Waiting for Base confirmation"
+    assert html =~ short_hash(@tx_hash)
+
+    assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The same hash confirms once the safe head has advanced past it.
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :confirmed)
+    send(view.pid, {:verification_retry, :stake, action_id})
+
+    assert render_async(view) =~ "Confirmed on Base"
+    assert_push_event(view, "staking:confirmed", %{})
+  end
+
+  # Stale browser storage is told so exactly once rather than asking again on
+  # every reload. No history copy is invented for work that already ended.
+  test "STALE_STORAGE_CLEARS: a restore with no active operation clears the browser", %{
+    conn: conn
+  } do
+    account = register("stake-stale", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    render_hook(view, "restore_staking_submission", %{})
+
+    assert_push_event(view, "staking:abandoned", %{})
+    refute render(view) =~ "Submitted transaction"
+  end
+
+  # The cap the deployed contract enforces is page truth, and the amount controls
+  # are bounded by it exactly as preparation is.
+  test "AMOUNT_LIMITS: remaining capacity is shown and bounds Max, 50% and the review", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_staking_denominator, "105000000000000000000")
+
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{token: "10000000000000000000"}
+    })
+
+    account = register("stake-capacity", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    html = render(view)
+    assert html =~ "Remaining capacity"
+    assert html =~ "5 REGENT"
+
+    # Capacity is below the wallet balance, so it is what Max may name.
+    view |> element(~s(button[phx-value-portion="max"])) |> render_click()
+    assert has_element?(view, ~s(#staking-amount[value="5"]))
+
+    view |> element(~s(button[phx-value-portion="half"])) |> render_click()
+    assert has_element?(view, ~s(#staking-amount[value="2.5"]))
+
+    view |> form("#staking-amount-form", %{"amount" => "5.000000000000000001"}) |> render_change()
+    html = render(view)
+    assert html =~ "more REGENT than the staking contract can still take"
+    assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+
+    view |> form("#staking-amount-form", %{"amount" => "5"}) |> render_change()
+    refute has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+  end
+
+  test "AMOUNT_LIMITS: an amount above the wallet or in the wrong language is refused inline", %{
+    conn: conn
+  } do
+    account = register("stake-inline", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    for {amount, expected} <- [
+          {"10.000000000000000001", "more REGENT than this wallet holds"},
+          {"1.0000000000000000001", "Enter an amount in REGENT above zero."},
+          {"0", "Enter an amount in REGENT above zero."},
+          {"nope", "Enter an amount in REGENT above zero."}
+        ] do
+      view |> form("#staking-amount-form", %{"amount" => amount}) |> render_change()
+      html = render(view)
+      assert html =~ expected, "#{amount} should be refused inline"
+      assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+    end
+
+    view |> form("#staking-amount-form", %{"amount" => "10"}) |> render_change()
+    refute has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+  end
+
   defp prepared_action_id(html) do
     [id] = Regex.run(~r/data-stake-confirm="([a-f0-9]+)"/, html, capture: :all_but_first)
     id
@@ -1495,8 +1635,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
       Map.take(operation, [
         :approval_dispatched_at,
         :approval_transaction_hash,
-        :approval_receipt_at,
-        :approval_reread_at
+        :approval_receipt_at
       ])
 
   defp submit(view, action_id, phase, hash) do

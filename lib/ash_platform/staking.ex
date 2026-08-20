@@ -7,7 +7,6 @@ defmodule AshPlatform.Staking do
       define :overview, action: :overview
       define :account, action: :account
       define :account_for_wallet, action: :account_for_wallet, args: [:expected_signer]
-      define :wallet_membership, action: :wallet_membership, args: [:expected_signer]
       define :prepare_stake, action: :prepare_stake, args: [:expected_signer, :amount]
       define :prepare_unstake, action: :prepare_unstake, args: [:expected_signer, :amount]
       define :prepare_claim_usdc, action: :prepare_claim_usdc, args: [:expected_signer]
@@ -19,7 +18,7 @@ defmodule AshPlatform.Staking do
 
       define :confirm_wallet_action,
         action: :confirm_wallet_action,
-        args: [:envelope, :transaction_hash, :approval_transaction_hash]
+        args: [:envelope, :transaction_hash]
 
       define :restore_submitted_action,
         action: :restore_submitted_action,
@@ -29,7 +28,7 @@ defmodule AshPlatform.Staking do
         action: :verify_approval_submission,
         args: [:envelope, :transaction_hash]
 
-      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:action_id, :phase]
+      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:envelope, :phase]
 
       define :bind_submitted_hash,
         action: :bind_submitted_hash,
@@ -51,4 +50,10 @@ defmodule AshPlatform.Staking do
   end
 
   def refresh_position(opts), do: account(opts)
+
+  # The two Stake rules a presenter needs, owned here so the page and the named
+  # preparation action can only ever answer the same way.
+  defdelegate limit_refusal(snapshot, action, amount), to: AshPlatform.Staking.Actions
+  defdelegate spendable(snapshot, action), to: AshPlatform.Staking.Actions
+  defdelegate parse_amount(value), to: AshPlatform.Staking.Actions
 end

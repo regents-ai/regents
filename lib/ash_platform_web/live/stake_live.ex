@@ -14,6 +14,8 @@ defmodule AshPlatformWeb.StakeLive do
   attr :signing, :boolean, default: false
   attr :verifying, :boolean, default: false
   attr :locked, :boolean, default: false
+  attr :spendable, :integer, default: 0
+  attr :amount_notice, :string, default: nil
 
   def page(assigns) do
     ~H"""
@@ -42,6 +44,7 @@ defmodule AshPlatformWeb.StakeLive do
       <div :if={@status == :ready && @staking} class="stake-layout">
         <section class="stake-summary" aria-label="Staking summary">
           <.metric label="Total staked" value={regent(@staking.total_staked)} />
+          <.metric label="Remaining capacity" value={regent(@staking.remaining_capacity)} />
           <.metric :if={@wallet} label="Your wallet" value={regent(@staking.wallet_token_balance)} />
           <.metric :if={@wallet} label="Your stake" value={regent(@staking.wallet_stake_balance)} />
           <.metric
@@ -128,8 +131,8 @@ defmodule AshPlatformWeb.StakeLive do
               @prepared && @submission[:approval_transaction_hash] &&
                 !@submission[:transaction_hash] && @submission.status == :approval_verified
             }>
-              Abandoning will not send the staking transaction. The approval transaction was
-              confirmed on Base, but we have not re-read the current REGENT allowance.
+              Abandoning will not send the staking transaction. The approval was confirmed on
+              Base, and the allowance it granted stays in place until you change it.
             </p>
             <p :if={
               @prepared && @submission[:approval_transaction_hash] &&
@@ -176,7 +179,7 @@ defmodule AshPlatformWeb.StakeLive do
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="half"
-                disabled={@locked or div(balance(@staking, @action), 2) == 0}
+                disabled={@locked or div(@spendable, 2) == 0}
               >
                 50%
               </button>
@@ -184,23 +187,21 @@ defmodule AshPlatformWeb.StakeLive do
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="max"
-                disabled={@locked or balance(@staking, @action) == 0}
+                disabled={@locked or @spendable == 0}
               >
                 Max
               </button>
             </div>
             <p class="stake-available">
-              Available {regent(available(@staking, @action))}
+              Available {regent(token_amount(@spendable))}
             </p>
+            <p :if={@amount_notice} class="stake-amount-notice" role="status">{@amount_notice}</p>
             <button
               class="stake-primary"
               type="button"
               phx-click="prepare_staking"
               phx-value-action={@action}
-              disabled={
-                @locked or String.trim(@amount) == "" or
-                  (@action == "stake" and @staking.paused)
-              }
+              disabled={@locked or String.trim(@amount) == "" or not is_nil(@amount_notice)}
             >
               Review {@action}
             </button>
@@ -303,11 +304,6 @@ defmodule AshPlatformWeb.StakeLive do
     |> Decimal.to_string(:normal)
   end
 
-  @doc "The exact raw balance the chosen action spends, or zero when it is unavailable."
-  def balance(%{wallet_token_balance_raw: amount}, "stake"), do: atomic(amount)
-  def balance(%{wallet_stake_balance_raw: amount}, "unstake"), do: atomic(amount)
-  def balance(_unread, _action), do: 0
-
   attr :label, :string, required: true
   attr :value, :string, required: true
 
@@ -360,9 +356,6 @@ defmodule AshPlatformWeb.StakeLive do
   defp regent(value), do: value <> " REGENT"
   defp usdc(nil), do: "—"
   defp usdc(value), do: value <> " USDC"
-
-  defp available(%{wallet_token_balance: value}, "stake"), do: value
-  defp available(%{wallet_stake_balance: value}, "unstake"), do: value
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"

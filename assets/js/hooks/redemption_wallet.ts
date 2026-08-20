@@ -1,9 +1,9 @@
 import type {Hook} from "../hook_composition"
-import {connectedEthereumWallet} from "../wallet_actions/connected_wallet"
+import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
+import {activeSigner, userRejected} from "./stake_wallet"
 import {
   executePreparedRedemptionAction,
   type PreparedRedemptionAction,
-  RedemptionExecutionError,
 } from "../wallet_actions/redemption"
 
 const pendingKey = "regent:redemption:submitted"
@@ -11,7 +11,7 @@ const inFlightActionIds = new Set<string>()
 
 // The closed set of failures this surface can describe. Provider, viem, revert
 // and wallet-vendor text is never a customer message, so it is never sent.
-type FailureReason = "wallet_unavailable" | "unknown"
+type FailureReason = "wallet_unavailable" | "signer_changed" | "unknown"
 
 export type StoredRedemptionSubmission = {
   envelope: PreparedRedemptionAction
@@ -24,6 +24,7 @@ type RedemptionHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEvent(event: string, payload: unknown): void
+  publishActiveWallet?: () => void
 }
 
 export const RedemptionWallet: Hook = {
@@ -33,10 +34,37 @@ export const RedemptionWallet: Hook = {
 
     const failed = (reason: FailureReason) => this.pushEvent("redemption_wallet_failed", {reason})
 
+    // Privy's selection is what Redeem reads, so every change is republished and
+    // the server decides what that wallet is allowed to see.
+    this.publishActiveWallet = () =>
+      this.pushEvent("redemption_active_wallet", {
+        address: activeEthereumWallet()?.address ?? null,
+      })
+    window.addEventListener("ash:wallet-state", this.publishActiveWallet)
+    this.publishActiveWallet()
+
+    // A claim is only asked for once the wallet in front of the customer really
+    // is the reviewed signer. A negative preflight asks for nothing at all.
+    const requestDispatch = async (actionId: string, signer: string) => {
+      const address = await activeSigner(signer)
+      if (address) this.pushEvent("sign_prepared_redemption", {"action-id": actionId, address})
+      else failed("wallet_unavailable")
+    }
+
     this.el.addEventListener("click", async event => {
-      const button = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-        "[data-copy-signer]",
-      )
+      const target = (event.target as HTMLElement | null) ?? null
+      const confirm = target?.closest<HTMLElement>("[data-redeem-confirm]")
+      if (confirm?.dataset.redeemConfirm && confirm.dataset.redeemSigner) {
+        await requestDispatch(confirm.dataset.redeemConfirm, confirm.dataset.redeemSigner)
+        return
+      }
+
+      if (target?.closest("[data-redeem-connect]")) {
+        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
+        return
+      }
+
+      const button = target?.closest<HTMLElement>("[data-copy-signer]")
       const signer = button?.dataset.copySigner
       if (!button || !signer) return
 
@@ -50,7 +78,14 @@ export const RedemptionWallet: Hook = {
       }
     })
 
-    for (const event of ["redemption:confirmed", "redemption:reverted", "redemption:abandoned"]) {
+    // Every terminal outcome clears the stored submission, so a reload never
+    // asks the server to restore work that already ended.
+    for (const event of [
+      "redemption:confirmed",
+      "redemption:reverted",
+      "redemption:unverified",
+      "redemption:abandoned",
+    ]) {
       this.handleEvent(event, () => sessionStorage.removeItem(pendingKey))
     }
 
@@ -61,55 +96,68 @@ export const RedemptionWallet: Hook = {
       this.el.dataset.walletActionPending = "true"
       setSigningDisabled(this.el, true)
 
-      const connected = connectedEthereumWallet(envelope.expected_signer)
-      if (!connected) {
-        failed("wallet_unavailable")
+      // The claim is already durable, so a preflight that fails here is proof
+      // the wallet was never asked for anything: the claim is released and the
+      // reason says which wallet to come back with.
+      const notStarted = (reason: FailureReason | null = null) =>
+        this.pushEvent("redemption_dispatch_not_started", {
+          action_id: envelope.action_id,
+          reason,
+        })
+
+      const connected = activeEthereumWallet()
+      if (!connected || !(await activeSigner(envelope.expected_signer))) {
+        notStarted(connected ? "signer_changed" : "wallet_unavailable")
         unlock(this.el, envelope.action_id)
         return
       }
 
+      let sendStarted = false
+
       try {
-        const hash = await executePreparedRedemptionAction(
-          envelope,
-          connected.provider,
-          undefined,
-          submittedHash =>
+        const hash = await executePreparedRedemptionAction(envelope, connected.provider, undefined, {
+          onSendStarted: () => (sendStarted = true),
+          onSubmitted: submittedHash =>
             recordSubmittedRedemption(
               envelope,
               submittedHash,
               payload => this.pushEvent("redemption_submitted", payload),
               sessionStorage,
             ),
-        )
+        })
         this.pushEvent("confirm_redemption", {
           action_id: envelope.action_id,
           transaction_hash: hash,
         })
       } catch (error) {
-        if (error instanceof RedemptionExecutionError) {
-          this.pushEvent("confirm_redemption", {
-            action_id: envelope.action_id,
-            transaction_hash: error.transactionHash,
-          })
-        } else {
-          // Reported unconditionally: browser state is evidence, never
-          // authority. The database refuses `not_sent` once a hash is bound, so
-          // withholding this would only strand a claim it can no longer close.
-          // The rejection is the whole outcome, so nothing follows it that could
-          // overwrite the neutral notice with a failure the user did not cause.
-          if (userRejected(error)) {
-            this.pushEvent("redemption_wallet_rejected", {
-              action_id: envelope.action_id,
-              code: 4001,
-            })
-            return
-          }
-          failed("unknown")
+        // Below the send marker nothing was broadcast, whatever the wallet said,
+        // so the claim is released rather than closed.
+        if (!sendStarted) {
+          notStarted()
+          return
         }
+
+        // Reported unconditionally: browser state is evidence, never authority.
+        // The database refuses `not_sent` once a hash is bound, so withholding
+        // this would only strand a claim it can no longer close.
+        if (userRejected(error)) {
+          this.pushEvent("redemption_wallet_rejected", {
+            action_id: envelope.action_id,
+            code: 4001,
+          })
+          return
+        }
+        failed("unknown")
       } finally {
         unlock(this.el, envelope.action_id)
       }
     })
+  },
+
+  destroyed(this: RedemptionHook) {
+    if (this.publishActiveWallet) {
+      window.removeEventListener("ash:wallet-state", this.publishActiveWallet)
+    }
   },
 }
 
@@ -129,23 +177,6 @@ export function recordSubmittedRedemption(
   return stored
 }
 
-/**
- * The exact EIP-1193 user-rejection code, walked out of whatever wrapper viem
- * put around it. Message text is never authority, so nothing else qualifies.
- */
-export function userRejected(error: unknown): boolean {
-  const seen = new Set<unknown>()
-  let current: unknown = error
-
-  while (current && typeof current === "object" && !seen.has(current)) {
-    seen.add(current)
-    if ((current as {code?: unknown}).code === 4001) return true
-    current = (current as {cause?: unknown}).cause
-  }
-
-  return false
-}
-
 function readStoredSubmission(): StoredRedemptionSubmission | null {
   try {
     const value = sessionStorage.getItem(pendingKey)
@@ -158,7 +189,7 @@ function readStoredSubmission(): StoredRedemptionSubmission | null {
 
 function setSigningDisabled(root: HTMLElement, disabled: boolean): void {
   root
-    .querySelectorAll<HTMLButtonElement>("[phx-click='sign_prepared_redemption']")
+    .querySelectorAll<HTMLButtonElement>("[data-redeem-confirm]")
     .forEach(button => (button.disabled = disabled))
 }
 

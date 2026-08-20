@@ -11,8 +11,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
   Dispatch and submission are separate facts per phase. A claimed phase remains
   uncertain unless the wallet rejects its send or the browser proves that send
   never began; rejection closes it, while proven non-start returns it for retry.
-  Receipt identity and the authoritative reread are separate durable facts too:
-  neither alone confirms.
+  A canonical safe receipt and this action's own event are separate durable facts
+  too: neither alone confirms.
 
   The resource carries no domain of its own. It is registered with the existing
   Staking and Redemption domains, and every call names the owning one, so no
@@ -33,6 +33,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
     :action_dispatched,
     :action_submitted,
     :confirmed,
+    :unverified,
     :reverted,
     :not_sent,
     :cancelled
@@ -79,6 +80,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
       constraints: [min_length: 66, max_length: 66]
 
     attribute :approval_receipt_at, :utc_datetime_usec
+
+    # Frozen nullable columns from the earlier reread design. The exact event
+    # decides the outcome now, so no reread happens and nothing writes them.
     attribute :approval_reread_at, :utc_datetime_usec
 
     attribute :action_dispatched_at, :utc_datetime_usec
@@ -156,14 +160,13 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
       change set_attribute(:approval_receipt_at, &DateTime.utc_now/0)
     end
 
-    # The exact approval receipt plus the exact allowance reread. Receipt-only
+    # The exact approval receipt plus the approval's own event. Receipt-only
     # approval never reaches here, so it never enables the action phase.
     update :verify_approval do
       accept []
       require_atomic? false
       validate attribute_equals(:state, :approval_submitted)
       validate present(:approval_receipt_at)
-      change set_attribute(:approval_reread_at, &DateTime.utc_now/0)
       change set_attribute(:state, :approval_verified)
     end
 
@@ -195,8 +198,18 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
       require_atomic? false
       validate attribute_equals(:state, :action_submitted)
       validate present(:action_receipt_at)
-      change set_attribute(:action_reread_at, &DateTime.utc_now/0)
       change set_attribute(:state, :confirmed)
+      change set_attribute(:terminal_at, &DateTime.utc_now/0)
+    end
+
+    # A canonical safe successful receipt whose immutable logs contradict the
+    # action: terminal, never success, and it frees the account's slot without
+    # ever resending. Transient transport and safe-head failures never reach it.
+    update :record_unverified do
+      accept [:reason]
+      require_atomic? false
+      validate attribute_in(:state, [:approval_submitted, :action_submitted])
+      change set_attribute(:state, :unverified)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 

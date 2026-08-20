@@ -3,6 +3,7 @@ defmodule AshPlatform.WalletActions.RpcTest do
 
   import ExUnit.CaptureLog
 
+  alias AshPlatform.BaseRpcStub, as: Stub
   alias AshPlatform.WalletActions.Rpc
 
   @hash "0x" <> String.duplicate("ab", 32)
@@ -167,6 +168,53 @@ defmodule AshPlatform.WalletActions.RpcTest do
       Application.put_env(:ash_platform, :wallet_http_client, RoutedClient)
       refute match?({:ok, :success}, Rpc.submission_status(@hash, @signer, @target, @data))
     end
+  end
+
+  # Canonical comes before status. A receipt above the safe head, and one whose
+  # block is no longer the canonical block for its number, are both states this
+  # transaction may still leave, whether it says success or revert right now.
+  test "CANONICAL_BEFORE_STATUS: only a canonical safe receipt answers success or revert" do
+    Stub.install(:wallet_http_client, fn _data, _state -> Stub.uint(0) end)
+    Stub.put(%{transactions: %{@hash => transaction()}})
+    safe = %{number: 0x20, hash: Stub.safe_hash()}
+    moved = %{"0x10" => %{"number" => "0x10", "hash" => "0x" <> String.duplicate("99", 32)}}
+    logs = [%{"address" => @target, "topics" => [], "data" => "0x"}]
+
+    for {name, receipt, blocks, expected} <- [
+          {"no receipt", nil, %{}, {:ok, :pending}},
+          {"above-safe success", Stub.receipt(@hash, "0x21", logs), %{}, {:ok, :pending}},
+          {"above-safe revert", Stub.receipt(@hash, "0x21", [], "0x0"), %{}, {:ok, :pending}},
+          {"reorged success", Stub.receipt(@hash, "0x10", logs), moved, {:ok, :pending}},
+          {"reorged revert", Stub.receipt(@hash, "0x10", [], "0x0"), moved, {:ok, :pending}},
+          {"canonical success", Stub.receipt(@hash, "0x10", logs), %{}, {:ok, {:success, logs}}},
+          {"canonical revert", Stub.receipt(@hash, "0x10", [], "0x0"), %{}, {:ok, :reverted}},
+          {"unreadable canonical check", Stub.receipt(@hash, "0x10", logs),
+           %{"0x10" => :unavailable}, {:error, :chain_unavailable}}
+        ] do
+      Stub.put(%{receipts: %{@hash => receipt}, blocks: blocks})
+
+      assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) == expected,
+             "#{name} was classified wrongly"
+    end
+  end
+
+  # The safe block already proved the chain identity, so an outcome judged
+  # against it never asks for that identity again.
+  test "CANONICAL_BEFORE_STATUS: the outcome read issues no second chain-id request" do
+    Stub.install(:wallet_http_client, fn _data, _state -> Stub.uint(0) end)
+
+    Stub.put(%{
+      transactions: %{@hash => transaction()},
+      receipts: %{@hash => Stub.receipt(@hash, "0x10", [])}
+    })
+
+    assert {:ok, {:success, []}} =
+             Rpc.canonical_outcome(@hash, @signer, @target, @data, %{
+               number: 0x20,
+               hash: Stub.safe_hash()
+             })
+
+    refute_received {:rpc, "eth_chainId", _params}
   end
 
   defp transaction do

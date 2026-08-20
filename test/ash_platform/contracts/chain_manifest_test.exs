@@ -504,6 +504,65 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert Enum.all?(rows, &MapSet.member?(signatures, &1["signature"]))
   end
 
+  # The evidence manifests stay byte-for-byte frozen, so the one staking read the
+  # encoder needs beyond them is proved against the pinned ABI and against an
+  # independent Foundry derivation rather than against the encoder itself.
+  test "the local staking capacity read matches the pinned ABI and an independent derivation" do
+    signature = AshPlatform.WalletActions.Abi.supply_denominator_signature()
+    assert signature == "revenueShareSupplyDenominator()"
+
+    cast = System.find_executable("cast") || flunk("Foundry cast is required for chain checks")
+    {selector, 0} = System.cmd(cast, ["sig", signature], stderr_to_stdout: true)
+
+    assert String.trim(selector) == AshPlatform.WalletActions.Abi.encode_supply_denominator()
+    assert String.trim(selector) == "0xe3961f2a"
+
+    declaration =
+      @root
+      |> Path.join("contracts/abi/regent-revenue-staking.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> Enum.find(&(&1["name"] == "revenueShareSupplyDenominator"))
+
+    assert declaration["type"] == "function"
+    assert declaration["inputs"] == []
+    assert declaration["stateMutability"] == "view"
+    assert Enum.map(declaration["outputs"], & &1["type"]) == ["uint256"]
+  end
+
+  # Every topic the confirmation path decodes is derived from its exact deployed
+  # signature, and proved here against Foundry rather than against itself.
+  test "every decoded event topic is an independent Keccak-256 of its deployed signature" do
+    staking =
+      Map.new(
+        [
+          :approval,
+          :stake_updated,
+          :usdc_reward_claimed,
+          :reward_token_claimed,
+          :reward_token_compounded
+        ],
+        &{AshPlatform.WalletActions.Abi.event_signature(&1),
+         AshPlatform.WalletActions.Abi.event_topic(&1)}
+      )
+
+    redemption =
+      Map.new(
+        [:approval_for_all, :redeemed, :claimed],
+        &{AshPlatform.WalletActions.RedemptionAbi.event_signature(&1),
+         AshPlatform.WalletActions.RedemptionAbi.event_topic(&1)}
+      )
+
+    for {signature, topic} <- Map.merge(staking, redemption) do
+      assert keccak(signature) == topic, "#{signature} topic0 disagrees with cast keccak"
+    end
+
+    assert staking["StakeUpdated(address,uint256,uint256)"]
+    assert staking["RewardTokenCompounded(address,uint256,uint256,uint256)"]
+    assert redemption["Redeemed(address,address,uint256,uint256)"]
+    assert redemption["Claimed(address,uint256)"]
+  end
+
   defp assert_selectors(rows) do
     cast = System.find_executable("cast") || flunk("Foundry cast is required for chain checks")
 

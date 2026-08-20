@@ -3,317 +3,349 @@ defmodule AshPlatform.Redemption.RpcClientTest do
 
   import ExUnit.CaptureLog
 
+  alias AshPlatform.BaseRpcStub, as: Stub
   alias AshPlatform.Redemption.RpcClient
-  alias AshPlatform.WalletActions.{Envelope, RedemptionAbi}
+  alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi}
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
   @tx_hash "0x" <> String.duplicate("ab", 32)
-
-  defmodule HttpStub do
-    alias AshPlatform.WalletActions.RedemptionAbi
-
-    def post(_url, opts) do
-      request = opts[:json]
-      {:ok, %{status: 200, body: %{"jsonrpc" => "2.0", "id" => 1, "result" => result(request)}}}
-    end
-
-    defp result(%{method: "eth_chainId"}), do: "0x2105"
-
-    defp result(%{method: "eth_getTransactionReceipt"}),
-      do: Application.get_env(:ash_platform, :test_redemption_receipt)
-
-    defp result(%{method: "eth_getTransactionByHash"}),
-      do: Application.get_env(:ash_platform, :test_redemption_transaction)
-
-    defp result(%{method: "eth_call", params: [%{data: data} | _]}) do
-      overrides = Application.get_env(:ash_platform, :test_redemption_rpc_overrides, %{})
-      Map.get(overrides, data, default_call(data))
-    end
-
-    defp default_call(data) do
-      cond do
-        data == RedemptionAbi.encode_read("animata_i") ->
-          word_address(RedemptionAbi.animata_i_address())
-
-        data == RedemptionAbi.encode_read("animata_ii") ->
-          word_address(RedemptionAbi.animata_ii_address())
-
-        data == RedemptionAbi.encode_read("result_collection") ->
-          word_address(RedemptionAbi.result_collection_address())
-
-        data == RedemptionAbi.encode_read("usdc") ->
-          word_address(RedemptionAbi.usdc_address())
-
-        data == RedemptionAbi.encode_read("regent") ->
-          word_address(RedemptionAbi.regent_address())
-
-        data in [RedemptionAbi.encode_read("usdc_price"), RedemptionAbi.encode_read("price")] ->
-          word_uint(80_000_000)
-
-        data == RedemptionAbi.encode_read("regent_payout") ->
-          word_uint(5_000_000 * Integer.pow(10, 18))
-
-        data == RedemptionAbi.encode_read("vest_duration") ->
-          word_uint(604_800)
-
-        data == RedemptionAbi.encode_read("max_source_token_id") ->
-          word_uint(999)
-
-        String.starts_with?(data, "0x70a08231") ->
-          word_uint(100_000_000)
-
-        String.starts_with?(data, "0xdd62ed3e") ->
-          word_uint(80_000_000)
-
-        String.starts_with?(data, "0x402914f5") ->
-          word_uint(2 * Integer.pow(10, 18))
-
-        String.starts_with?(data, "0x474fc417") ->
-          words([
-            5_000_000 * Integer.pow(10, 18),
-            2 * Integer.pow(10, 18),
-            Integer.pow(10, 18),
-            1_700_000_000
-          ])
-
-        String.starts_with?(data, "0x6352211e") ->
-          word_address("0x1111111111111111111111111111111111111111")
-
-        String.starts_with?(data, "0xe985e9c5") ->
-          word_uint(1)
-
-        String.starts_with?(data, "0x6d970989") ->
-          word_uint(1123)
-
-        true ->
-          word_uint(0)
-      end
-    end
-
-    defp words(values),
-      do: "0x" <> Enum.map_join(values, &String.pad_leading(Integer.to_string(&1, 16), 64, "0"))
-
-    defp word_uint(value), do: "0x" <> String.pad_leading(Integer.to_string(value, 16), 64, "0")
-
-    defp word_address(address),
-      do: "0x" <> (address |> String.trim_leading("0x") |> String.pad_leading(64, "0"))
-  end
-
-  defmodule TimeoutStub do
-    def post(_url, _opts), do: {:error, %Req.TransportError{reason: :timeout}}
-  end
-
-  defmodule SlowStub do
-    def post(_url, _opts) do
-      Process.sleep(100)
-      {:ok, %{status: 200, body: %{"result" => "0x2105"}}}
-    end
-  end
+  @price 80_000_000
+  @token_id 42
 
   setup do
-    previous_http = Application.get_env(:ash_platform, :redemption_http_client)
-    previous_url = Application.get_env(:ash_platform, :base_read_rpc_url)
-    previous_timeout = Application.get_env(:ash_platform, :redemption_overview_timeout)
-
-    Application.put_env(:ash_platform, :redemption_http_client, HttpStub)
-    Application.put_env(:ash_platform, :base_read_rpc_url, "https://provider.invalid/private-key")
-
-    on_exit(fn ->
-      restore(:redemption_http_client, previous_http)
-      restore(:base_read_rpc_url, previous_url)
-      restore(:redemption_overview_timeout, previous_timeout)
-
-      for key <- [
-            :test_redemption_receipt,
-            :test_redemption_transaction,
-            :test_redemption_rpc_overrides
-          ],
-          do: Application.delete_env(:ash_platform, key)
-    end)
-
+    Stub.install(:redemption_http_client, &call/2)
+    Stub.put(%{owner: @wallet})
     :ok
   end
 
-  test "public and account reads verify every pinned constant and decode status" do
-    assert {:ok, public} = RpcClient.overview(nil, nil, nil)
-    assert public.chain_id == 8453
-    assert public.wallet_address == nil
-    assert public.price_raw == "80000000"
-    assert public.payout == "5000000"
-    assert public.regent_address == String.downcase(RedemptionAbi.regent_address())
+  defp call(data, state), do: selector(String.slice(data, 0, 10), state)
 
-    collection = String.downcase(RedemptionAbi.animata_i_address())
-    assert {:ok, account} = RpcClient.overview(@wallet, collection, 42)
-    assert account.nft_owner == @wallet
-    assert account.nft_approved
-    assert account.usdc_balance_raw == "100000000"
-    assert account.usdc_allowance_raw == "80000000"
-    assert account.claimable == "2"
-    assert account.vest_pool == "5000000"
-    assert account.vest_released == "2"
-    assert account.vest_claimed == "1"
-    assert account.vest_start == 1_700_000_000
-    assert account.result_token_id == 1123
+  defp selector("0x5817e9d1", _state), do: address(RedemptionAbi.animata_i_address())
+  defp selector("0x65d32f1e", _state), do: address(RedemptionAbi.animata_ii_address())
+  defp selector("0xe54b3581", _state), do: address(RedemptionAbi.result_collection_address())
+  defp selector("0x89a30271", _state), do: address(RedemptionAbi.usdc_address())
+  defp selector("0x6d667d87", _state), do: address(RedemptionAbi.regent_address())
+  defp selector("0xd8525aeb", _state), do: Stub.uint(@price)
+  defp selector("0xa035b1fe", _state), do: Stub.uint(@price)
+  defp selector("0xde12a91e", _state), do: Stub.uint(5_000_000_000_000_000_000_000_000)
+  defp selector("0x6e6941c5", _state), do: Stub.uint(604_800)
+  defp selector("0x17bac052", _state), do: Stub.uint(999)
+  defp selector("0x70a08231", state), do: Stub.uint(Map.get(state, :usdc_balance, 100_000_000))
+  defp selector("0xdd62ed3e", state), do: Stub.uint(Map.get(state, :allowance, @price))
+  defp selector("0x402914f5", _state), do: Stub.uint(1_000_000_000_000_000_000)
+  defp selector("0x474fc417", _state), do: "0x" <> String.duplicate(Stub.hex_word(1), 4)
+  defp selector("0x6d970989", state), do: Stub.uint(Map.get(state, :result_token_id, 0))
 
-    assert {:ok, approval_view} = RpcClient.overview(@wallet, collection, nil)
-    assert approval_view.nft_approved
-    assert approval_view.nft_owner == nil
-    assert approval_view.token_id == nil
-    assert approval_view.claimable == "2"
+  defp selector("0xe985e9c5", state),
+    do: Stub.uint(if(Map.get(state, :approved, true), do: 1, else: 0))
+
+  defp selector("0x6352211e", state), do: Map.get(state, :owner_of, address(state[:owner]))
+
+  defp address(value), do: "0x" <> Stub.address_word(value)
+
+  test "ONE_SAFE_BLOCK: every read of one overview is pinned to the same canonical block" do
+    assert {:ok, snapshot} = overview()
+
+    assert snapshot.block_number == 0x20
+    assert snapshot.block_hash == Stub.safe_hash()
+    assert snapshot.wallet_address == @wallet
+    assert snapshot.nft_owner == @wallet
+    refute snapshot.nft_owner_unavailable
+
+    assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
+
+    blocks = Stub.call_blocks()
+    assert length(blocks) >= 15
+    assert Enum.uniq(blocks) == [%{blockHash: Stub.safe_hash(), requireCanonical: true}]
   end
 
-  test "a constant mismatch fails the entire read" do
-    Application.put_env(:ash_platform, :test_redemption_rpc_overrides, %{
-      RedemptionAbi.encode_read("regent") => word_address(@other)
-    })
-
-    assert {:error, :contract_constants_mismatch} = RpcClient.overview(nil, nil, nil)
-  end
-
-  test "confirmation requires exact transaction identity for success and revert" do
-    envelope =
-      Envelope.new("claim", @wallet, RedemptionAbi.encode_action("claim", []),
-        resource: "animata_redemption",
-        to: RedemptionAbi.redeemer_address(),
-        contract_name: "AnimataRedeemer",
-        risk_copy: "Claim unlocked REGENT.",
-        arguments: %{}
-      )
-
-    put_receipt("0x1")
-    put_transaction(envelope)
-
-    assert {:ok, %{transaction_hash: @tx_hash, receipt_verified: true}} =
-             RpcClient.confirm(envelope, @tx_hash)
-
-    Application.put_env(:ash_platform, :test_redemption_transaction, %{
-      "hash" => @tx_hash,
-      "from" => @other,
-      "to" => envelope.to,
-      "input" => envelope.data,
-      "value" => "0x0"
-    })
-
-    assert {:error, :transaction_mismatch} = RpcClient.confirm(envelope, @tx_hash)
-
-    put_receipt("0x0")
-    assert {:error, :transaction_mismatch} = RpcClient.confirm(envelope, @tx_hash)
-
-    put_transaction(envelope)
-    assert {:error, :transaction_reverted} = RpcClient.confirm(envelope, @tx_hash)
-
-    Application.put_env(:ash_platform, :test_redemption_receipt, %{
-      "status" => "0x0",
-      "transactionHash" => @tx_hash
-    })
-
-    assert {:error, :invalid_receipt} = RpcClient.confirm(envelope, @tx_hash)
-
-    put_receipt("0x1")
-    put_transaction(envelope, &Map.put(&1, "hash", "0x" <> String.duplicate("ef", 32)))
-    assert {:error, :transaction_mismatch} = RpcClient.confirm(envelope, @tx_hash)
-
-    put_transaction(envelope, &Map.delete(&1, "hash"))
-    assert {:error, :transaction_mismatch} = RpcClient.confirm(envelope, @tx_hash)
-
-    for change <- [
-          fn tx -> %{tx | "to" => @other} end,
-          fn tx -> %{tx | "input" => "0xdeadbeef"} end,
-          fn tx -> %{tx | "value" => "0x1"} end
+  test "ONE_SAFE_BLOCK: a missing, malformed or wrong-chain snapshot fails closed" do
+    for {name, state} <- [
+          {"no safe tag", %{safe_block: :unavailable}},
+          {"header without a hash", %{safe_block: %{"number" => "0x20"}}},
+          {"malformed block hash", %{safe_block: %{"number" => "0x20", "hash" => "0xnope"}}},
+          {"wrong chain", %{chain_id: "0x1"}}
         ] do
-      put_receipt("0x1")
-      put_transaction(envelope, change)
-      assert {:error, :transaction_mismatch} = RpcClient.confirm(envelope, @tx_hash)
+      Stub.put(state)
+      assert {:error, _unavailable} = overview(), "#{name} should fail closed"
     end
   end
 
-  # The reread is `allowance(wallet_address, redeemer_address)`. An envelope that
-  # intended a different spender is answered by a number about somebody else, so
-  # the spender is compared as explicitly as the owner, token and exact amount.
-  test "RECEIPT_AND_REREAD_BOTH_REQUIRED: exact-USDC approval compares owner, token, spender and amount" do
-    redeemer = RedemptionAbi.redeemer_address()
-    exact = String.to_integer(RedemptionAbi.price_atomic())
+  # The core account facts do not depend on the selected token, so an owner that
+  # cannot be read leaves them intact. A transport failure and a token that does
+  # not exist are indistinguishable here, and neither is reported as the other.
+  test "OWNER_UNAVAILABLE: an unreadable owner preserves the core facts" do
+    Stub.put(%{owner_of: :unavailable})
 
-    intended = usdc_approval_envelope(redeemer, exact)
-    put_receipt("0x1")
-    put_transaction(intended)
+    assert {:ok, snapshot} = overview()
 
-    assert {:ok, %{receipt_verified: true, reread_verified: true, reason: nil}} =
-             RpcClient.confirm(intended, @tx_hash)
+    assert snapshot.nft_owner_unavailable
+    assert snapshot.nft_owner == nil
+    assert snapshot.usdc_balance_raw == "100000000"
+    assert snapshot.usdc_allowance_raw == "80000000"
+    assert snapshot.claimable_raw == "1000000000000000000"
+    assert snapshot.nft_approved == true
+  end
 
-    for drifted <- [
-          usdc_approval_envelope(@other, exact),
-          usdc_approval_envelope(redeemer, exact + 1)
+  test "OWNER_UNAVAILABLE: an exact owner mismatch is a known owner, not an unavailable one" do
+    Stub.put(%{owner: @other})
+
+    assert {:ok, %{nft_owner: @other, nft_owner_unavailable: false}} = overview()
+  end
+
+  # Each action's own event, decoded against the deployed layout.
+  test "EVENT_MATRIX: each action confirms on its exact event and nothing else" do
+    collection = Abi.normalize_address!(RedemptionAbi.animata_i_address())
+    redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
+    usdc = Abi.normalize_address!(RedemptionAbi.usdc_address())
+
+    for {name, envelope, logs, expected} <- [
+          {"collection approval", nft_approval_envelope(),
+           [approval_for_all(collection, @wallet, redeemer, 1)], :confirmed},
+          {"collection approval revoked", nft_approval_envelope(),
+           [approval_for_all(collection, @wallet, redeemer, 0)], :unverified},
+          {"collection approval for another operator", nft_approval_envelope(),
+           [approval_for_all(collection, @wallet, @other, 1)], :unverified},
+          {"collection approval from the wrong collection", nft_approval_envelope(),
+           [approval_for_all(@other, @wallet, redeemer, 1)], :unverified},
+          {"usdc approval", usdc_approval_envelope(), [approval(usdc, @wallet, redeemer, @price)],
+           :confirmed},
+          {"usdc approval of the wrong amount", usdc_approval_envelope(),
+           [approval(usdc, @wallet, redeemer, @price - 1)], :unverified},
+          {"usdc approval to another spender", usdc_approval_envelope(),
+           [approval(usdc, @wallet, @other, @price)], :unverified},
+          {"redeem", redeem_envelope(), [redeemed(@wallet, collection, @token_id, 1123)],
+           :confirmed},
+          {"redeem with no result token", redeem_envelope(),
+           [redeemed(@wallet, collection, @token_id, 0)], :unverified},
+          {"redeem of another token", redeem_envelope(),
+           [redeemed(@wallet, collection, @token_id + 1, 1123)], :unverified},
+          {"redeem of another collection", redeem_envelope(),
+           [redeemed(@wallet, @other, @token_id, 1123)], :unverified},
+          {"redeem by another account", redeem_envelope(),
+           [redeemed(@other, collection, @token_id, 1123)], :unverified},
+          {"redeem with no event", redeem_envelope(), [], :unverified},
+          {"claim", claim_envelope(), [claimed(@wallet, 7)], :confirmed},
+          {"claim of nothing", claim_envelope(), [claimed(@wallet, 0)], :unverified},
+          {"claim for another account", claim_envelope(), [claimed(@other, 7)], :unverified},
+          {"claim emitted twice", claim_envelope(), [claimed(@wallet, 7), claimed(@wallet, 7)],
+           :unverified}
         ] do
-      put_transaction(drifted)
+      put_transaction(transaction(envelope))
+      put_receipt(receipt("0x10", logs))
 
-      assert {:ok,
-              %{
-                receipt_verified: true,
-                reread_verified: false,
-                reason: :usdc_allowance_not_current
-              }} = RpcClient.confirm(drifted, @tx_hash)
+      assert {:ok, %{outcome: ^expected}} = RpcClient.confirm(envelope, @tx_hash),
+             "#{name} should be #{expected}"
     end
   end
 
-  test "timeouts are bounded and transport logs never reveal the provider URL" do
-    Application.put_env(:ash_platform, :redemption_http_client, TimeoutStub)
+  # The redemption event carries no USDC amount, so its result token is reported
+  # as a token and never as a value.
+  test "EVENT_MATRIX: a confirmed redemption reports its exact result token" do
+    collection = Abi.normalize_address!(RedemptionAbi.animata_i_address())
+    put_transaction(transaction(redeem_envelope()))
+    put_receipt(receipt("0x10", [redeemed(@wallet, collection, @token_id, 1123)]))
+
+    assert {:ok, %{outcome: :confirmed, event: %{result_token_id: 1123}}} =
+             RpcClient.confirm(redeem_envelope(), @tx_hash)
+  end
+
+  test "EVENT_MATRIX: a confirmed claim reports its exact amount" do
+    put_transaction(transaction(claim_envelope()))
+    put_receipt(receipt("0x10", [claimed(@wallet, 1_000_000_000_000_000_000)]))
+
+    assert {:ok, %{outcome: :confirmed, event: %{claimed: "1"}}} =
+             RpcClient.confirm(claim_envelope(), @tx_hash)
+  end
+
+  test "FOUR_OUTCOMES: pending, above-safe, reverted, confirmed and unverified" do
+    envelope = claim_envelope()
+    put_transaction(transaction(envelope))
+
+    put_receipt(nil)
+    assert {:ok, %{outcome: :pending}} = RpcClient.confirm(envelope, @tx_hash)
+
+    put_receipt(receipt("0x21", [claimed(@wallet, 7)]))
+    assert {:ok, %{outcome: :pending}} = RpcClient.confirm(envelope, @tx_hash)
+
+    put_receipt(receipt("0x10", [], "0x0"))
+    assert {:ok, %{outcome: :reverted}} = RpcClient.confirm(envelope, @tx_hash)
+
+    put_receipt(receipt("0x10", [claimed(@wallet, 7)]))
+    assert {:ok, %{outcome: :confirmed}} = RpcClient.confirm(envelope, @tx_hash)
+
+    put_receipt(receipt("0x10", []))
+    assert {:ok, %{outcome: :unverified}} = RpcClient.confirm(envelope, @tx_hash)
+  end
+
+  # Canonical comes before status: a revert this transaction may still leave is
+  # not a revert, exactly as a success it may still leave is not a success.
+  test "FOUR_OUTCOMES: a receipt whose block is above safe or no longer canonical stays open" do
+    envelope = claim_envelope()
+    put_transaction(transaction(envelope))
+    moved = %{"0x10" => %{"number" => "0x10", "hash" => "0x" <> String.duplicate("99", 32)}}
+
+    for {name, status, logs} <- [{"success", "0x1", [claimed(@wallet, 7)]}, {"revert", "0x0", []}] do
+      put_receipt(receipt("0x21", logs, status))
+      Stub.put(%{blocks: %{}})
+
+      assert {:ok, %{outcome: :pending}} = RpcClient.confirm(envelope, @tx_hash),
+             "an above-safe #{name} should stay open"
+
+      put_receipt(receipt("0x10", logs, status))
+      Stub.put(%{blocks: moved})
+
+      assert {:ok, %{outcome: :pending}} = RpcClient.confirm(envelope, @tx_hash),
+             "a reorged #{name} should stay open"
+    end
+  end
+
+  # Redeem spends both approvals, so both are read fresh at the dispatch that
+  # spends them, and neither is required to remain afterwards. A collection that
+  # is no longer approved is its own refusal and never a USDC failure.
+  test "FRESH_APPROVAL: the redeem dispatch requires both approvals right now" do
+    envelope = redeem_envelope()
+
+    assert RpcClient.approval_current(envelope) == :ok
+    assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
+
+    Stub.put(%{approved: false})
+    assert RpcClient.approval_current(envelope) == {:error, :nft_approval_required}
+
+    Stub.put(%{approved: true, allowance: @price - 1})
+    assert RpcClient.approval_current(envelope) == {:error, :exact_usdc_approval_required}
+
+    Stub.put(%{allowance: @price + 1})
+    assert RpcClient.approval_current(envelope) == {:error, :exact_usdc_approval_required}
+
+    # An approval action spends nothing, so it needs no current approval at all.
+    assert RpcClient.approval_current(usdc_approval_envelope()) == :ok
+  end
+
+  test "transport logs never reveal the provider URL" do
+    Application.put_env(:ash_platform, :redemption_http_client, Stub.Timeout)
 
     log =
       capture_log(fn ->
         assert {:error, :chain_unavailable} = RpcClient.overview(nil, nil, nil)
       end)
 
-    assert log =~ "redemption chain read failed"
-    refute log =~ "private-key"
+    assert log =~ "class: :timeout"
+    refute log =~ "super-secret"
     refute log =~ "provider.invalid"
-
-    Application.put_env(:ash_platform, :redemption_http_client, SlowStub)
-    Application.put_env(:ash_platform, :redemption_overview_timeout, 10)
-    assert {:error, :chain_timeout} = RpcClient.overview(nil, nil, nil)
   end
 
-  defp usdc_approval_envelope(spender, amount) do
+  defp overview,
+    do:
+      RpcClient.overview(
+        @wallet,
+        Abi.normalize_address!(RedemptionAbi.animata_i_address()),
+        @token_id
+      )
+
+  defp nft_approval_envelope do
+    collection = Abi.normalize_address!(RedemptionAbi.animata_i_address())
+    redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
+
     Envelope.new(
-      "approve_exact_usdc",
+      "approve_nft_collection",
       @wallet,
-      RedemptionAbi.encode_erc20("approve", [spender, amount]),
+      RedemptionAbi.encode_erc721("set_approval_for_all", [redeemer, true]),
       resource: "animata_redemption",
-      to: RedemptionAbi.usdc_address(),
-      contract_name: "USDC",
-      risk_copy: "Approve exactly 80 USDC for the verified Animata redeemer.",
-      arguments: %{
-        spender: String.downcase(spender),
-        amount_atomic: Integer.to_string(amount),
-        mode: "exact"
-      }
+      to: collection,
+      contract_name: "Animata I",
+      risk_copy: "Approve the collection.",
+      arguments: %{collection: collection, operator: redeemer, approved: true}
     )
   end
 
-  defp put_receipt(status) do
-    Application.put_env(:ash_platform, :test_redemption_receipt, %{
-      "status" => status,
-      "blockNumber" => "0x10",
-      "transactionHash" => @tx_hash
-    })
+  defp usdc_approval_envelope do
+    redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
+
+    Envelope.new(
+      "approve_exact_usdc",
+      @wallet,
+      RedemptionAbi.encode_erc20("approve", [redeemer, @price]),
+      resource: "animata_redemption",
+      to: Abi.normalize_address!(RedemptionAbi.usdc_address()),
+      contract_name: "USDC",
+      risk_copy: "Approve exactly 80 USDC.",
+      arguments: %{spender: redeemer, amount_atomic: Integer.to_string(@price), mode: "exact"}
+    )
   end
 
-  defp put_transaction(envelope, change \\ &Function.identity/1) do
-    transaction = %{
-      "hash" => @tx_hash,
-      "from" => @wallet,
-      "to" => envelope.to,
-      "input" => envelope.data,
-      "value" => "0x0"
+  defp redeem_envelope do
+    collection = Abi.normalize_address!(RedemptionAbi.animata_i_address())
+
+    Envelope.new(
+      "redeem",
+      @wallet,
+      RedemptionAbi.encode_action("redeem", [collection, @token_id]),
+      resource: "animata_redemption",
+      to: RedemptionAbi.redeemer_address(),
+      contract_name: "AnimataRedeemer",
+      risk_copy: "Redeem this Animata.",
+      arguments: %{collection: collection, token_id: @token_id}
+    )
+  end
+
+  defp claim_envelope do
+    Envelope.new("claim", @wallet, RedemptionAbi.encode_action("claim", []),
+      resource: "animata_redemption",
+      to: RedemptionAbi.redeemer_address(),
+      contract_name: "AnimataRedeemer",
+      risk_copy: "Claim unlocked REGENT.",
+      arguments: %{}
+    )
+  end
+
+  defp transaction(envelope), do: Stub.transaction(@tx_hash, envelope)
+
+  defp receipt(block_number, logs, status \\ "0x1"),
+    do: Stub.receipt(@tx_hash, block_number, logs, status)
+
+  defp approval_for_all(collection, owner, operator, approved),
+    do: %{
+      "address" => collection,
+      "topics" => [
+        RedemptionAbi.event_topic(:approval_for_all),
+        Stub.address_topic(owner),
+        Stub.address_topic(operator)
+      ],
+      "data" => Stub.uint(approved)
     }
 
-    Application.put_env(:ash_platform, :test_redemption_transaction, change.(transaction))
-  end
+  defp approval(token, owner, spender, value),
+    do: %{
+      "address" => token,
+      "topics" => [
+        Abi.event_topic(:approval),
+        Stub.address_topic(owner),
+        Stub.address_topic(spender)
+      ],
+      "data" => Stub.uint(value)
+    }
 
-  defp word_address(address),
-    do: "0x" <> (address |> String.trim_leading("0x") |> String.pad_leading(64, "0"))
+  defp redeemed(user, source, token_id, result_token_id),
+    do: %{
+      "address" => Abi.normalize_address!(RedemptionAbi.redeemer_address()),
+      "topics" => [
+        RedemptionAbi.event_topic(:redeemed),
+        Stub.address_topic(user),
+        Stub.address_topic(source),
+        Stub.uint(token_id)
+      ],
+      "data" => Stub.uint(result_token_id)
+    }
 
-  defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
-  defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
+  defp claimed(user, amount),
+    do: %{
+      "address" => Abi.normalize_address!(RedemptionAbi.redeemer_address()),
+      "topics" => [RedemptionAbi.event_topic(:claimed), Stub.address_topic(user)],
+      "data" => Stub.uint(amount)
+    }
+
+  defp put_receipt(receipt), do: Stub.put(%{receipts: %{@tx_hash => receipt}})
+  defp put_transaction(transaction), do: Stub.put(%{transactions: %{@tx_hash => transaction}})
 end

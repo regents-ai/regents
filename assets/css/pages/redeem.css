@@ -103,6 +103,24 @@
   border-left: 3px solid currentColor;
 }
 
+/* The single next step reads as the one thing to do, so it carries the page's
+   accent while Claim stays an ordinary secondary control beside it. */
+.redeem-next-step {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-left: 3px solid var(--color-accent, currentColor);
+}
+
+.redeem-next-step p {
+  margin: 0;
+}
+
+.redeem-next-step button {
+  justify-self: start;
+  min-height: 2.75rem;
+}
+
 .redeem-review dl {
   display: grid;
   gap: 0.5rem;

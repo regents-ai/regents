@@ -21,6 +21,8 @@ defmodule AshPlatform.RedemptionTest do
        %{
          chain_id: 8453,
          chain_label: "Base",
+         block_number: 42,
+         block_hash: "0x" <> String.duplicate("2c", 32),
          redeemer_address: "0x71065b775a590c43933f10c0055dc7d74afabb0e",
          animata_i_address: "0x78402119ec6349a0d41f12b54938de7bf783c923",
          animata_ii_address: "0x903c4c1e8b8532fbd3575482d942d493eb9266e2",
@@ -34,7 +36,12 @@ defmodule AshPlatform.RedemptionTest do
          wallet_address: wallet,
          selected_collection: collection,
          token_id: token_id,
-         nft_owner: if(wallet && token_id, do: Process.get(:nft_owner, wallet), else: nil),
+         nft_owner:
+           if(wallet && token_id && not Process.get(:owner_unavailable, false),
+             do: Process.get(:nft_owner, wallet)
+           ),
+         nft_owner_unavailable: token_id != nil and Process.get(:owner_unavailable, false),
+         regent_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
          nft_approved: if(wallet, do: Process.get(:nft_approved, true), else: nil),
          usdc_balance_raw: if(wallet, do: Process.get(:usdc_balance_raw, "100000000"), else: nil),
          usdc_balance: if(wallet, do: "100", else: nil),
@@ -58,27 +65,18 @@ defmodule AshPlatform.RedemptionTest do
     @impl true
     def confirm(envelope, transaction_hash) do
       send(Process.get(:redemption_test_pid, self()), {:confirm, envelope, transaction_hash})
+      outcome = Process.get(:redemption_confirmation, :confirmed)
 
-      case Process.get(:redemption_confirmation, :ok) do
-        :reverted ->
-          {:error, :transaction_reverted}
+      {:ok, %{transaction_hash: transaction_hash, outcome: outcome, reason: nil, event: %{}}}
+    end
 
-        :ok ->
-          {:ok, refreshed} =
-            overview(
-              envelope.expected_signer,
-              envelope.arguments[:collection],
-              envelope.arguments[:token_id]
-            )
+    @impl true
+    def approval_current(_envelope) do
+      send(Process.get(:redemption_test_pid, self()), :approval_current)
 
-          {:ok,
-           %{
-             transaction_hash: transaction_hash,
-             receipt_verified: true,
-             reread_verified: true,
-             redemption: refreshed,
-             reason: nil
-           }}
+      case Process.get(:approvals_current, true) do
+        true -> :ok
+        false -> {:error, :exact_usdc_approval_required}
       end
     end
   end
@@ -103,15 +101,66 @@ defmodule AshPlatform.RedemptionTest do
     %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
   end
 
-  test "public facts and wallet account state come from Base", %{actor: actor} do
+  test "public facts and wallet account state come from Base", %{actor: actor, opts: opts} do
     assert {:ok, %{price_raw: "80000000", wallet_address: nil}} = Redemption.overview()
     assert_receive {:overview, nil, nil, nil}
 
     assert {:ok, %{wallet_address: @wallet, token_id: 42, nft_owner: @wallet}} =
-             Redemption.account("animata_i", 42, actor: actor)
+             Redemption.account_for_wallet(@wallet, "animata_i", 42, opts)
 
     assert_receive {:overview, @wallet, @animata_i, 42}
-    assert {:error, _} = Redemption.account("animata_i", 42)
+    assert {:error, _anonymous} = Redemption.account_for_wallet(@wallet, "animata_i", 42)
+
+    assert {:error, _leaseless} =
+             Redemption.account_for_wallet(@wallet, "animata_i", 42, actor: actor)
+  end
+
+  # Redeem reads the wallet the browser reports, but only after the mounted lease
+  # resolves an account that still lists it. Nothing else can name private facts.
+  test "the redemption lookup reads only a wallet the leased account still holds", %{opts: opts} do
+    assert {:error, unlinked} = Redemption.account_for_wallet(@other, "animata_i", 42, opts)
+    assert refusal(unlinked) == :wrong_signer
+
+    assert {:error, _malformed} = Redemption.account_for_wallet("0xnope", "animata_i", 42, opts)
+    refute_receive {:overview, _wallet, _collection, _token_id}
+  end
+
+  # Membership is a session fact, not a chain fact, and it is decided inside the
+  # one locked dispatch action rather than in a separate call the page sequences.
+  test "MEMBERSHIP_IS_LOCAL: the dispatch proves the current wallet inside its own lock", %{
+    actor: actor,
+    opts: opts
+  } do
+    {:ok, envelope} = Redemption.prepare_claim(@wallet, opts)
+
+    {:ok, outsider} =
+      Accounts.register_verified("did:privy:redemption-outsider", @other, [@other],
+        actor: %System{}
+      )
+
+    assert {:error, unlinked} = Redemption.claim_wallet_dispatch(envelope, leased(outsider.id))
+    assert refusal(unlinked) == :wrong_signer
+
+    assert {:error, _leaseless} = Redemption.claim_wallet_dispatch(envelope, actor: actor)
+    assert {:error, _anonymous} = Redemption.claim_wallet_dispatch(envelope)
+
+    assert {:ok, %{operation: %{state: :action_dispatched}}} =
+             Redemption.claim_wallet_dispatch(envelope, opts)
+  end
+
+  # An owner that could not be read says nothing about who owns the token, so the
+  # core account facts survive and the refusal is never "someone else owns it".
+  test "OWNER_UNAVAILABLE: an unreadable owner preserves the core facts", %{opts: opts} do
+    Process.put(:owner_unavailable, true)
+
+    assert {:ok, facts} = Redemption.account_for_wallet(@wallet, "animata_i", 42, opts)
+    assert facts.nft_owner_unavailable
+    assert facts.nft_owner == nil
+    assert facts.usdc_balance_raw == "100000000"
+    assert facts.claimable_raw == "1000000000000000000"
+
+    assert {:error, refused} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
+    assert refusal(refused) == :nft_owner_unavailable
   end
 
   test "the four actions are separate signed exact-zero-value envelopes", %{opts: opts} do
@@ -200,9 +249,9 @@ defmodule AshPlatform.RedemptionTest do
 
     # The dispatch is claimed before the wallet opens, exactly as the shell does,
     # so confirmation runs against a dispatched operation.
-    {:ok, _claimed} = Redemption.claim_wallet_dispatch(envelope.action_id, opts)
+    {:ok, _claimed} = Redemption.claim_wallet_dispatch(envelope, opts)
 
-    assert {:ok, %{transaction_hash: ^hash, receipt_verified: true}} =
+    assert {:ok, %{transaction_hash: ^hash, outcome: :confirmed}} =
              Redemption.confirm_wallet_action(envelope, hash, opts)
 
     assert_receive {:confirm, ^envelope, ^hash}
@@ -220,6 +269,25 @@ defmodule AshPlatform.RedemptionTest do
 
     refute_receive {:confirm, _, _}
   end
+
+  # Redeem spends both approvals, so both are proved current on a fresh snapshot
+  # at the moment the dispatch is claimed, and a change claims nothing at all.
+  test "FRESH_APPROVAL: the redeem dispatch requires both approvals right now", %{opts: opts} do
+    {:ok, envelope} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
+
+    Process.put(:approvals_current, false)
+    assert {:error, changed} = Redemption.claim_wallet_dispatch(envelope, opts)
+    assert refusal(changed) == :approval_changed
+    assert_receive :approval_current
+
+    Process.put(:approvals_current, true)
+    assert {:ok, _claimed} = Redemption.claim_wallet_dispatch(envelope, opts)
+  end
+
+  defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
+    do: reason
+
+  defp refusal(_other), do: nil
 
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)

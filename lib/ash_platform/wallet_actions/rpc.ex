@@ -8,9 +8,11 @@ defmodule AshPlatform.WalletActions.Rpc do
   @timeout 8_000
   @chain_id 8453
 
+  @type block :: %{number: non_neg_integer(), hash: String.t()}
+
   def verify_base_chain(opts \\ []) do
     with {:ok, result} <- request("eth_chainId", [], opts),
-         {chain_id, ""} <- parse_chain_id(result),
+         {:ok, chain_id} <- quantity(result),
          true <- chain_id == @chain_id do
       :ok
     else
@@ -28,12 +30,8 @@ defmodule AshPlatform.WalletActions.Rpc do
   end
 
   def confirmed_transaction_receipt(hash, signer, to, data, opts \\ []) do
-    with true <- valid_hash?(hash),
-         :ok <- verify_base_chain(opts),
-         {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
-         {:ok, transaction} <- request("eth_getTransactionByHash", [hash], opts),
-         :ok <- verify_receipt_hash(receipt, hash),
-         :ok <- verify_transaction(transaction, hash, signer, to, data) do
+    with :ok <- verify_base_chain(opts),
+         {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts) do
       case receipt do
         %{"status" => "0x1", "blockNumber" => block} when is_binary(block) ->
           {:ok, receipt}
@@ -47,9 +45,6 @@ defmodule AshPlatform.WalletActions.Rpc do
         _ ->
           {:error, :invalid_receipt}
       end
-    else
-      false -> {:error, :invalid_confirmation}
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -62,12 +57,49 @@ defmodule AshPlatform.WalletActions.Rpc do
     end
   end
 
-  def call_uint(to, data, opts \\ []), do: call(to, data, &decode_uint/1, opts)
-  def call_bool(to, data, opts \\ []), do: call(to, data, &(decode_uint(&1) != 0), opts)
-  def call_address(to, data, opts \\ []), do: call(to, data, &decode_address/1, opts)
+  @doc """
+  One `safe` Base block, accepted only after the chain identity is proved.
 
-  def call_words(to, data, count, opts \\ []) when is_integer(count) and count > 0 do
-    call(to, data, &decode_words(&1, count), opts)
+  Every read of a snapshot is then executed against this exact block hash, so a
+  page never mixes two histories and a moved block fails rather than answering.
+  """
+  @spec safe_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def safe_block(opts \\ []) do
+    with :ok <- verify_base_chain(opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["safe", false], opts),
+         do: block_identity(header)
+  end
+
+  @doc """
+  The exact canonical outcome of one submitted transaction against one safe head.
+
+  `:pending` is every state that may still resolve differently: no receipt yet, a
+  receipt above the safe head, and a receipt whose block is no longer canonical.
+  Success and revert are both read only from a receipt that is already canonical,
+  so neither can be reported from a block this transaction may yet leave.
+
+  The safe block passed in already proved the chain identity, so nothing here
+  asks for it a second time.
+  """
+  @spec canonical_outcome(String.t(), String.t(), String.t(), String.t(), block(), keyword()) ::
+          {:ok, :pending | :reverted | {:success, [map()]}} | {:error, atom()}
+  def canonical_outcome(hash, signer, to, data, safe_block, opts \\ []) do
+    with {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts),
+         {:ok, number, block_hash} <- receipt_block(receipt),
+         :ok <- canonical(number, block_hash, safe_block, opts),
+         do: settled(receipt)
+  end
+
+  def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &decode_uint/1, opts)
+
+  def call_bool(to, data, block, opts \\ []),
+    do: call(to, data, block, &(decode_uint(&1) != 0), opts)
+
+  def call_address(to, data, block, opts \\ []),
+    do: call(to, data, block, &decode_address/1, opts)
+
+  def call_words(to, data, block, count, opts \\ []) when is_integer(count) and count > 0 do
+    call(to, data, block, &decode_words(&1, count), opts)
   end
 
   def request(method, params, opts \\ []) do
@@ -121,13 +153,90 @@ defmodule AshPlatform.WalletActions.Rpc do
 
   def valid_hash?(_hash), do: false
 
-  defp call(to, data, decoder, opts) do
-    with {:ok, result} <- request("eth_call", [%{to: to, data: data}, "latest"], opts) do
+  # EIP-1898: the block hash owns the read and `requireCanonical` refuses an
+  # answer from a block that is no longer part of the chain.
+  defp call(to, data, %{hash: hash}, decoder, opts) do
+    with {:ok, result} <-
+           request(
+             "eth_call",
+             [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}],
+             opts
+           ) do
       {:ok, decoder.(result)}
     end
   rescue
     _ -> {:error, :invalid_chain_response}
   end
+
+  defp block_identity(%{"number" => number, "hash" => hash}) do
+    with {:ok, number} <- quantity(number),
+         true <- valid_hash?(hash) do
+      {:ok, %{number: number, hash: String.downcase(hash)}}
+    else
+      _malformed -> {:error, :invalid_block_header}
+    end
+  end
+
+  defp block_identity(_header), do: {:error, :invalid_block_header}
+
+  defp identified_receipt(hash, signer, to, data, opts) do
+    with true <- valid_hash?(hash),
+         {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
+         {:ok, transaction} <- request("eth_getTransactionByHash", [hash], opts),
+         :ok <- verify_receipt_hash(receipt, hash),
+         :ok <- verify_transaction(transaction, hash, signer, to, data) do
+      {:ok, receipt}
+    else
+      false -> {:error, :invalid_confirmation}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # `{:ok, :pending}` here is the whole answer: the `with` above carries it out
+  # unchanged rather than reading a status this receipt does not have yet.
+  defp receipt_block(nil), do: {:ok, :pending}
+
+  defp receipt_block(%{"blockNumber" => number, "blockHash" => hash, "logs" => logs})
+       when is_list(logs) do
+    with {:ok, number} <- quantity(number),
+         true <- valid_hash?(hash) do
+      {:ok, number, String.downcase(hash)}
+    else
+      _malformed -> {:error, :invalid_receipt}
+    end
+  end
+
+  defp receipt_block(_receipt), do: {:error, :invalid_receipt}
+
+  # Above the safe head, and mined into a block that is no longer the canonical
+  # one, are both states this transaction may still leave: neither is an answer,
+  # whichever status the receipt carries right now.
+  defp canonical(number, _hash, %{number: safe}, _opts) when number > safe, do: {:ok, :pending}
+
+  defp canonical(number, hash, _safe, opts) do
+    with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
+         {:ok, %{hash: ^hash}} <- block_identity(header) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _moved -> {:ok, :pending}
+    end
+  end
+
+  defp settled(%{"status" => "0x1", "logs" => logs}), do: {:ok, {:success, logs}}
+  defp settled(%{"status" => "0x0"}), do: {:ok, :reverted}
+  defp settled(_receipt), do: {:error, :invalid_receipt}
+
+  defp quantity("0x" <> hex) when hex != "" do
+    case Integer.parse(hex, 16) do
+      {value, ""} -> {:ok, value}
+      _malformed -> :error
+    end
+  end
+
+  defp quantity(_value), do: :error
+
+  defp hex_quantity(value), do: "0x" <> (value |> Integer.to_string(16) |> String.downcase())
 
   defp verify_receipt_hash(nil, _hash), do: :ok
 
@@ -159,9 +268,6 @@ defmodule AshPlatform.WalletActions.Rpc do
 
   defp verify_transaction(_transaction, _hash, _signer, _to, _data),
     do: {:error, :transaction_missing}
-
-  defp parse_chain_id("0x" <> hex) when hex != "", do: Integer.parse(hex, 16)
-  defp parse_chain_id(_result), do: :error
 
   defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
 

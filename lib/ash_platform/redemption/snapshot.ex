@@ -12,10 +12,11 @@ defmodule AshPlatform.Redemption.Snapshot do
       run fn input, context -> Actions.overview(input, context) end
     end
 
-    action :account, :map do
+    action :account_for_wallet, :map do
+      argument :expected_signer, :string, allow_nil?: false
       argument :collection, :string
       argument :token_id, :integer, constraints: [min: 1, max: 999]
-      run fn input, context -> Actions.account(input, context) end
+      run fn input, context -> Actions.account_for_wallet(input, context) end
     end
 
     action :prepare_nft_approval, :map do
@@ -53,7 +54,7 @@ defmodule AshPlatform.Redemption.Snapshot do
     end
 
     action :claim_wallet_dispatch, :map do
-      argument :action_id, :string, allow_nil?: false
+      argument :envelope, :map, allow_nil?: false
       run fn input, context -> Actions.claim_dispatch(input, context) end
     end
 
@@ -66,6 +67,11 @@ defmodule AshPlatform.Redemption.Snapshot do
     action :close_not_sent, :map do
       argument :action_id, :string, allow_nil?: false
       run fn input, context -> Actions.close_not_sent(input, context) end
+    end
+
+    action :release_unstarted_dispatch, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> Actions.release_unstarted(input, context) end
     end
 
     action :cancel_operation, :map do
@@ -84,7 +90,7 @@ defmodule AshPlatform.Redemption.Snapshot do
     end
 
     policy action([
-             :account,
+             :account_for_wallet,
              :prepare_nft_approval,
              :prepare_usdc_approval,
              :prepare_redeem,
@@ -94,6 +100,7 @@ defmodule AshPlatform.Redemption.Snapshot do
              :claim_wallet_dispatch,
              :bind_submitted_hash,
              :close_not_sent,
+             :release_unstarted_dispatch,
              :cancel_operation,
              :active_operation
            ]) do

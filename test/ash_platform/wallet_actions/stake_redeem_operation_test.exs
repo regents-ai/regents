@@ -43,13 +43,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert bound.state == :action_submitted
     assert bound.action_transaction_hash == @action_hash
 
-    assert {:ok, _receipted} =
-             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :action)
-
-    assert {:ok, confirmed} = StakeRedeemOperations.confirm(lease, :stake, envelope.action_id)
+    assert {:ok, confirmed} = settle(lease, envelope, :action, :confirmed)
     assert confirmed.state == :confirmed
     refute is_nil(confirmed.action_receipt_at)
-    refute is_nil(confirmed.action_reread_at)
     refute is_nil(confirmed.terminal_at)
 
     # A terminal operation releases the account's single active slot.
@@ -147,11 +143,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:ok, _claimed} = claim(lease, envelope, :approval)
     assert {:ok, _bound} = bind(lease, envelope, :approval, @approval_hash)
 
-    assert {:ok, _receipted} =
-             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :approval)
-
-    assert {:ok, verified} =
-             StakeRedeemOperations.verify_approval(lease, :stake, envelope.action_id)
+    assert {:ok, verified} = settle(lease, envelope, :approval, :confirmed)
 
     assert {:ok, dispatched} = claim(lease, envelope, :action)
     refute is_nil(dispatched.action_dispatched_at)
@@ -161,18 +153,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert is_nil(released.action_dispatched_at)
     assert is_nil(released.terminal_at)
 
-    assert Map.take(released, [
-             :approval_dispatched_at,
-             :approval_transaction_hash,
-             :approval_receipt_at,
-             :approval_reread_at
-           ]) ==
-             Map.take(verified, [
-               :approval_dispatched_at,
-               :approval_transaction_hash,
-               :approval_receipt_at,
-               :approval_reread_at
-             ])
+    approval_facts = [:approval_dispatched_at, :approval_transaction_hash, :approval_receipt_at]
+    assert Map.take(released, approval_facts) == Map.take(verified, approval_facts)
 
     # The stake retries without ever asking for a second approval.
     assert {:ok, %{state: :action_dispatched}} = claim(lease, envelope, :action)
@@ -251,32 +233,53 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
               approval_transaction_hash: nil,
               action_transaction_hash: nil,
               action_receipt_at: nil,
-              action_reread_at: nil,
               terminal_at: nil
             }} = active(account.id)
   end
 
-  test "RECEIPT_AND_REREAD_BOTH_REQUIRED: a receipt without a reread never reaches confirmed" do
-    {_account, lease, envelope} = prepared("receipt-only")
+  # A safe successful receipt that never recorded the action is terminal and is
+  # never success. The hash and its receipt survive, and the account's slot is
+  # freed without anything being resent.
+  test "ONE_TERMINAL_OUTCOME: a contradicted receipt is terminal, non-success and frees the slot" do
+    {account, lease, envelope} = prepared("unverified")
 
     assert {:ok, _claimed} = claim(lease, envelope, :action)
     assert {:ok, _bound} = bind(lease, envelope, :action, @action_hash)
 
-    assert {:ok, receipted} =
-             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :action)
+    assert {:ok, unverified} = settle(lease, envelope, :action, :unverified)
 
-    assert receipted.state == :action_submitted
-    refute is_nil(receipted.action_receipt_at)
-    assert is_nil(receipted.action_reread_at)
-    assert is_nil(receipted.terminal_at)
+    assert unverified.state == :unverified
+    assert unverified.action_transaction_hash == @action_hash
+    refute is_nil(unverified.action_receipt_at)
+    refute is_nil(unverified.terminal_at)
+
+    assert {:ok, nil} = active(account.id)
   end
 
-  test "RECEIPT_AND_REREAD_BOTH_REQUIRED: confirmation refuses a hash whose receipt was never recorded" do
-    {_account, lease, envelope} = prepared("no-receipt")
+  # Only one terminal outcome exists per operation. Whichever lands first under
+  # the row lock wins, and every later or repeated callback is answered with that
+  # winner rather than an error.
+  test "ONE_TERMINAL_OUTCOME: late and repeated terminal callbacks are idempotent no-ops" do
+    for {index, name, first, second, winner} <- [
+          {1, "confirmation then contradiction", :confirmed, :unverified, :confirmed},
+          {2, "contradiction then confirmation", :unverified, :confirmed, :unverified},
+          {3, "revert then confirmation", :reverted, :confirmed, :reverted},
+          {4, "confirmation then revert", :confirmed, :reverted, :confirmed},
+          {5, "repeated confirmation", :confirmed, :confirmed, :confirmed},
+          {6, "repeated contradiction", :unverified, :unverified, :unverified},
+          {7, "repeated revert", :reverted, :reverted, :reverted}
+        ] do
+      {account, lease, envelope} = prepared("terminal-#{index}")
+      hash = "0x" <> String.duplicate("0#{index}", 32)
 
-    assert {:ok, _claimed} = claim(lease, envelope, :action)
-    assert {:ok, _bound} = bind(lease, envelope, :action, @action_hash)
-    assert {:error, _refused} = StakeRedeemOperations.confirm(lease, :stake, envelope.action_id)
+      assert {:ok, _claimed} = claim(lease, envelope, :action)
+      assert {:ok, _bound} = bind(lease, envelope, :action, hash)
+
+      assert {:ok, %{state: ^winner}} = settle(lease, envelope, :action, first), name
+      assert {:ok, %{state: ^winner}} = settle(lease, envelope, :action, second), name
+
+      assert {:ok, nil} = active(account.id)
+    end
   end
 
   test "STAKE_APPROVAL_MEANS_ALLOWANCE: the action phase is unclaimable until the approval is verified" do
@@ -288,11 +291,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:ok, _bound} = bind(lease, envelope, :approval, @action_hash)
     assert {:error, _refused} = claim(lease, envelope, :action)
 
-    assert {:ok, _receipted} =
-             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :approval)
-
-    assert {:ok, verified} =
-             StakeRedeemOperations.verify_approval(lease, :stake, envelope.action_id)
+    assert {:ok, verified} = settle(lease, envelope, :approval, :confirmed)
 
     assert verified.state == :approval_verified
     assert {:ok, claimed} = claim(lease, envelope, :action)
@@ -308,11 +307,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:ok, _bound} = bind(lease, envelope, :approval, @action_hash)
     assert {:error, _unverified} = cancel(lease, envelope)
 
-    assert {:ok, _receipted} =
-             StakeRedeemOperations.record_receipt(lease, :stake, envelope.action_id, :approval)
-
-    assert {:ok, _verified} =
-             StakeRedeemOperations.verify_approval(lease, :stake, envelope.action_id)
+    assert {:ok, _verified} = settle(lease, envelope, :approval, :confirmed)
 
     assert {:ok, cancelled} = cancel(lease, envelope)
     assert cancelled.state == :cancelled
@@ -362,17 +357,18 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
     assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(lease.account_id, :stake)
   end
 
-  test "CURRENT_AUTHORITY_OWNS_EVERY_WRITE: a failing callback rolls its whole transition back" do
+  # The receipt fact and the terminal verdict are one transition, so a settlement
+  # that cannot apply leaves neither of them behind.
+  test "CURRENT_AUTHORITY_OWNS_EVERY_WRITE: a failing settlement rolls its whole transition back" do
     {_account, lease, envelope} = prepared("rollback")
 
     assert {:ok, _claimed} = claim(lease, envelope, :action)
-    assert {:ok, _bound} = bind(lease, envelope, :action, @action_hash)
 
-    # The receipt is missing, so `confirm` refuses and nothing about the row moves.
-    assert {:error, _refused} = StakeRedeemOperations.confirm(lease, :stake, envelope.action_id)
+    # No hash bound, so this transaction has no submitted identity to settle.
+    assert {:error, _refused} = settle(lease, envelope, :action, :confirmed)
     assert {:ok, unchanged} = StakeRedeemOperations.active(lease.account_id, :stake)
-    assert unchanged.state == :action_submitted
-    assert is_nil(unchanged.action_reread_at)
+    assert unchanged.state == :action_dispatched
+    assert is_nil(unchanged.action_receipt_at)
     assert is_nil(unchanged.terminal_at)
   end
 
@@ -488,6 +484,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
 
   defp bind(lease, envelope, phase, hash),
     do: StakeRedeemOperations.bind_hash(lease, :stake, envelope.action_id, phase, hash)
+
+  defp settle(lease, envelope, phase, outcome),
+    do: StakeRedeemOperations.settle(lease, :stake, envelope.action_id, phase, outcome)
 
   defp cancel(lease, envelope),
     do: StakeRedeemOperations.cancel(lease, :stake, envelope.action_id, "withdrawn")

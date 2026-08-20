@@ -5,11 +5,15 @@ defmodule AshPlatform.Staking.Actions do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Staking.ChainClient
-  alias AshPlatform.WalletActions.{Abi, Envelope, StakeRedeemOperations}
+  alias AshPlatform.WalletActions.{Abi, Address, Envelope, StakeRedeemOperations}
 
   @capability :stake
   @rejection_reason "wallet reported an explicit user rejection"
   @withdrawal_reason "review withdrawn"
+
+  # A Base read that may answer differently later. Everything else refuses for
+  # good, so only these keep a submitted transaction open for another attempt.
+  @transient [:chain_unavailable, :chain_timeout, :invalid_chain_response, :invalid_block_header]
   @resource "regent_staking"
   @contract_name "RegentRevenueStaking"
   @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
@@ -35,22 +39,21 @@ defmodule AshPlatform.Staking.Actions do
 
   def account(_input, _context), do: {:error, :authentication_required}
 
-  # Membership is a session fact, not a chain fact. This proves the reported
-  # active wallet still belongs to the account the mounted lease resolves to,
-  # and reads no provider, so an unreachable Base cannot stop a dispatch.
-  def wallet_membership(input, %{actor: %Human{}} = context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+  # Stake's own lookup: membership is a session fact, not a chain fact, so the
+  # reported active wallet is proved against the account the mounted lease
+  # resolves to before that wallet's position is read.
+  def account_for_wallet(input, %{actor: %Human{}} = context) do
+    with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context),
+         do: ChainClient.module().overview(signer)
+  end
+
+  def account_for_wallet(_input, _context), do: {:error, :authentication_required}
+
+  defp current_wallet(address, context) do
+    with {:ok, signer} <- normalize_address(address),
          {:ok, lease} <- StakeRedeemOperations.lease(context),
          :ok <- leased_wallet(lease, signer),
          do: {:ok, signer}
-  end
-
-  def wallet_membership(_input, _context), do: {:error, :authentication_required}
-
-  # Stake's own lookup: the same proven wallet decides which position is read.
-  def account_for_wallet(input, context) do
-    with {:ok, signer} <- wallet_membership(input, context),
-         do: ChainClient.module().overview(signer)
   end
 
   # The provider reads happen here, before the lease transaction; only the
@@ -59,8 +62,9 @@ defmodule AshPlatform.Staking.Actions do
     with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
          {:ok, lease} <- StakeRedeemOperations.lease(context),
          :ok <- leased_wallet(lease, signer),
-         :ok <- ensure_funded(action, signer),
-         {:ok, data, approval, arguments} <- calldata(action, input.arguments, signer),
+         {:ok, amount} <- requested_amount(action, input.arguments),
+         :ok <- within_limits(action, amount, signer),
+         {:ok, data, approval, arguments} <- calldata(action, amount, signer),
          envelope <-
            Envelope.new(action, signer, data,
              to: Abi.staking_address(),
@@ -94,11 +98,9 @@ defmodule AshPlatform.Staking.Actions do
              input.arguments.transaction_hash
            ) do
       envelope
-      |> ChainClient.module().confirm(
-        input.arguments.transaction_hash,
-        input.arguments.approval_transaction_hash
-      )
-      |> record_action_outcome(lease, envelope, input.arguments.transaction_hash)
+      |> ChainClient.module().confirm(input.arguments.transaction_hash)
+      |> transient_refusal()
+      |> StakeRedeemOperations.settle_action(lease, @capability, envelope.action_id)
     else
       false -> {:error, :stale_or_invalid_action}
       {:error, reason} -> {:error, reason}
@@ -107,48 +109,47 @@ defmodule AshPlatform.Staking.Actions do
 
   def confirm(_input, _context), do: {:error, :authentication_required}
 
-  # Receipt and reread are recorded as they become known. Only their agreement
-  # reaches the terminal `:confirmed` state.
-  defp record_action_outcome({:ok, %{reread_verified: true} = result}, lease, envelope, _hash) do
-    with {:ok, _receipt} <- record_receipt(lease, envelope, :action),
-         {:ok, _confirmed} <-
-           StakeRedeemOperations.confirm(lease, @capability, envelope.action_id) do
-      {:ok, result}
-    end
-  end
+  # A read that may answer differently later becomes the typed refusal the page
+  # retries; every other refusal is settled and says so instead.
+  defp transient_refusal({:error, reason}) when reason in @transient,
+    do: refusal(:chain_unavailable)
 
-  defp record_action_outcome({:ok, result}, lease, envelope, _hash) do
-    with {:ok, _receipt} <- record_receipt(lease, envelope, :action), do: {:ok, result}
-  end
+  defp transient_refusal(result), do: result
 
-  defp record_action_outcome({:error, :transaction_reverted}, lease, envelope, hash) do
-    with {:ok, _reverted} <-
-           StakeRedeemOperations.record_revert(
-             lease,
-             @capability,
-             envelope.action_id,
-             :action,
-             "verified revert on Base"
-           ) do
-      {:ok,
-       %{
-         transaction_hash: hash,
-         receipt_verified: true,
-         transaction_reverted: true,
-         reread_verified: false,
-         staking: nil
-       }}
-    end
-  end
-
-  defp record_action_outcome({:error, reason}, _lease, _envelope, _hash), do: {:error, reason}
-
-  defp record_receipt(lease, envelope, phase),
-    do: StakeRedeemOperations.record_receipt(lease, @capability, envelope.action_id, phase)
-
+  # The reviewed action, the exact current approval and the account's current
+  # membership all decide this dispatch together. The provider read happens here,
+  # before the lease transaction; only the claim itself happens inside it.
   @doc false
-  def claim_dispatch(%{arguments: %{action_id: id, phase: phase}}, context),
-    do: operate(context, &StakeRedeemOperations.claim_dispatch(&1, @capability, id, phase))
+  def claim_dispatch(%{arguments: %{envelope: envelope, phase: phase}}, %{actor: %Human{}} = ctx) do
+    envelope = atomize_envelope(envelope)
+
+    with true <- valid_for_confirmation?(envelope),
+         :ok <- dispatch_approval(envelope, phase),
+         {:ok, lease} <- StakeRedeemOperations.lease(ctx),
+         :ok <- leased_wallet(lease, envelope.expected_signer),
+         {:ok, operation} <-
+           StakeRedeemOperations.claim_dispatch(lease, @capability, envelope.action_id, phase) do
+      {:ok, %{operation: StakeRedeemOperations.view(operation)}}
+    else
+      false -> {:error, :stale_or_invalid_action}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def claim_dispatch(_input, _context), do: {:error, :authentication_required}
+
+  # The stake spends the approval, so the exact allowance has to be current on a
+  # fresh safe snapshot at the moment this dispatch is claimed. If it changed,
+  # nothing is claimed and the verified review stays withdrawable.
+  defp dispatch_approval(envelope, :action) do
+    case ChainClient.module().approval_current(envelope) do
+      :ok -> :ok
+      {:error, reason} when reason in @transient -> refusal(:chain_unavailable)
+      {:error, _changed} -> refusal(:approval_changed)
+    end
+  end
+
+  defp dispatch_approval(_envelope, :approval), do: :ok
 
   @doc false
   def bind_hash(%{arguments: %{action_id: id, phase: phase, transaction_hash: hash}}, context),
@@ -200,15 +201,19 @@ defmodule AshPlatform.Staking.Actions do
 
   def restore(_input, _context), do: {:error, :authentication_required}
 
+  # The approval's own safe receipt and its own event complete the approval
+  # transaction. The mutable allowance is checked later, at the dispatch that
+  # spends it, and never here.
   def approval_status(input, %{actor: %Human{} = actor} = context) do
     envelope = atomize_envelope(input.arguments.envelope)
 
     with true <- valid_for_confirmation?(envelope),
          :ok <- verified_wallet(actor, envelope.expected_signer),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
-         {:ok, status} <-
-           ChainClient.module().approval_status(envelope, input.arguments.transaction_hash) do
-      record_approval_outcome(status, lease, envelope)
+         {:ok, lease} <- StakeRedeemOperations.lease(context) do
+      envelope
+      |> ChainClient.module().approval_status(input.arguments.transaction_hash)
+      |> transient_refusal()
+      |> settle_approval(lease, envelope.action_id)
     else
       _ -> {:error, :invalid_submitted_action}
     end
@@ -216,65 +221,58 @@ defmodule AshPlatform.Staking.Actions do
 
   def approval_status(_input, _context), do: {:error, :authentication_required}
 
-  # `:success` already means receipt plus the exact allowance, so it is the only
-  # status that may complete the approval phase.
-  defp record_approval_outcome(:success, lease, envelope) do
-    with {:ok, _receipt} <- record_receipt(lease, envelope, :approval),
-         {:ok, _verified} <-
-           StakeRedeemOperations.verify_approval(lease, @capability, envelope.action_id) do
-      {:ok, :success}
-    end
+  defp settle_approval({:ok, :pending}, _lease, _action_id), do: {:ok, :pending}
+
+  defp settle_approval({:ok, outcome}, lease, action_id) do
+    with {:ok, operation} <-
+           StakeRedeemOperations.settle(lease, @capability, action_id, :approval, outcome),
+         do: {:ok, approval_state(operation.state)}
   end
 
-  defp record_approval_outcome(:reverted, lease, envelope) do
-    with {:ok, _reverted} <-
-           StakeRedeemOperations.record_revert(
-             lease,
-             @capability,
-             envelope.action_id,
-             :approval,
-             "verified approval revert on Base"
-           ) do
-      {:ok, :reverted}
-    end
+  defp settle_approval({:error, reason}, _lease, _action_id), do: {:error, reason}
+
+  defp approval_state(:approval_verified), do: :confirmed
+  defp approval_state(terminal), do: terminal
+
+  defp calldata("stake", amount, signer) do
+    approval = %{
+      token: Abi.normalize_address!(Abi.stake_token_address()),
+      spender: Abi.normalize_address!(Abi.staking_address()),
+      amount: Integer.to_string(amount),
+      data: Abi.encode_erc20("approve", [Abi.staking_address(), amount]),
+      mode: "exact"
+    }
+
+    {:ok, Abi.encode_action("stake", [amount, signer]), approval,
+     %{amount_atomic: Integer.to_string(amount), receiver: signer}}
   end
 
-  defp record_approval_outcome(status, _lease, _envelope), do: {:ok, status}
-
-  defp calldata("stake", arguments, signer) do
-    with {:ok, amount} <- parse_amount(arguments.amount) do
-      approval_data = Abi.encode_erc20("approve", [Abi.staking_address(), amount])
-
-      approval = %{
-        token: Abi.normalize_address!(Abi.stake_token_address()),
-        spender: Abi.normalize_address!(Abi.staking_address()),
-        amount: Integer.to_string(amount),
-        data: approval_data,
-        mode: "exact"
-      }
-
-      {:ok, Abi.encode_action("stake", [amount, signer]), approval,
-       %{amount_atomic: Integer.to_string(amount), receiver: signer}}
-    end
-  end
-
-  defp calldata("unstake", arguments, signer) do
-    with {:ok, amount} <- parse_amount(arguments.amount) do
+  defp calldata("unstake", amount, signer),
+    do:
       {:ok, Abi.encode_action("unstake", [amount, signer]), nil,
        %{amount_atomic: Integer.to_string(amount), recipient: signer}}
-    end
-  end
 
-  defp calldata("claim_usdc", _arguments, signer),
+  defp calldata("claim_usdc", _amount, signer),
     do: {:ok, Abi.encode_action("claim_usdc", [signer]), nil, %{recipient: signer}}
 
-  defp calldata("claim_regent", _arguments, signer),
+  defp calldata("claim_regent", _amount, signer),
     do: {:ok, Abi.encode_action("claim_regent", [signer]), nil, %{recipient: signer}}
 
-  defp calldata("claim_and_restake_regent", _arguments, _signer),
+  defp calldata("claim_and_restake_regent", _amount, _signer),
     do: {:ok, Abi.encode_action("claim_and_restake_regent", []), nil, %{}}
 
-  defp parse_amount(value) when is_binary(value) do
+  defp requested_amount(action, arguments) when action in ["stake", "unstake"],
+    do: parse_amount(arguments.amount)
+
+  defp requested_amount(_action, _arguments), do: {:ok, nil}
+
+  @doc """
+  The one REGENT amount language: exact decimal digits, at most eighteen places.
+
+  The form validates against this so the page never invites an amount that
+  preparation would refuse.
+  """
+  def parse_amount(value) when is_binary(value) do
     value = String.trim(value)
 
     with true <- String.match?(value, ~r/^\d+(?:\.\d{1,18})?$/),
@@ -289,43 +287,109 @@ defmodule AshPlatform.Staking.Actions do
     end
   end
 
-  defp parse_amount(_value), do: {:error, :invalid_amount}
+  def parse_amount(_value), do: {:error, :invalid_amount}
 
-  # A claim of nothing is refused on current chain truth rather than on the
-  # screen's copy of it, and an unavailable read is its own refusal: it can
-  # never be reported as a claim of nothing.
-  defp ensure_funded(action, signer)
-       when action in ["claim_regent", "claim_and_restake_regent"] do
-    with {:ok, staking} <- current_position(signer), do: funded_regent(staking)
+  # Every limit comes from one canonical snapshot, taken here. The contract stays
+  # the final authority if that state changes afterwards.
+  defp within_limits(action, amount, signer) do
+    with {:ok, staking} <- current_position(signer) do
+      case limit_refusal(staking, action, amount) do
+        nil -> :ok
+        reason -> refusal(reason)
+      end
+    end
   end
-
-  defp ensure_funded("claim_usdc", signer) do
-    with {:ok, staking} <- current_position(signer), do: claimable_usdc(staking)
-  end
-
-  defp ensure_funded(_action, _signer), do: :ok
 
   defp current_position(signer) do
     with {:error, _unavailable} <- ChainClient.module().overview(signer),
          do: refusal(:chain_unavailable)
   end
 
-  defp funded_regent(staking) do
-    with {earned, ""} <- Integer.parse(staking.wallet_claimable_regent_raw || "0"),
-         {funded, ""} <- Integer.parse(staking.wallet_funded_claimable_regent_raw || "0"),
-         true <- earned > 0 and funded >= earned do
-      :ok
+  @doc """
+  The one fact that refuses this action against this snapshot, or `nil`.
+
+  Preparation and the Stake form ask this same question of the same snapshot, so
+  the page never invites an amount preparation would refuse. A value that could
+  not be read is unavailable evidence, never a balance or a reward of nothing.
+  """
+  @spec limit_refusal(map(), String.t(), pos_integer() | nil) :: atom() | nil
+  def limit_refusal(%{paused: true}, "stake", _amount), do: :staking_paused
+
+  def limit_refusal(staking, "stake", amount) do
+    with {:ok, balance} <- atomic(staking.wallet_token_balance_raw),
+         {:ok, capacity} <- atomic(staking.remaining_capacity_raw) do
+      cond do
+        amount > balance -> :amount_above_balance
+        amount > capacity -> :amount_above_capacity
+        true -> nil
+      end
     else
-      _ -> refusal(:regent_rewards_not_funded)
+      :error -> :chain_unavailable
     end
   end
 
-  defp claimable_usdc(staking) do
-    with {claimable, ""} <- Integer.parse(staking.wallet_claimable_usdc_raw || "0"),
-         true <- claimable > 0 do
-      :ok
+  def limit_refusal(staking, "unstake", amount) do
+    case atomic(staking.wallet_stake_balance_raw) do
+      {:ok, staked} when amount <= staked -> nil
+      {:ok, _above} -> :amount_above_stake
+      :error -> :chain_unavailable
+    end
+  end
+
+  def limit_refusal(staking, "claim_usdc", _amount) do
+    case atomic(staking.wallet_claimable_usdc_raw) do
+      {:ok, claimable} when claimable > 0 -> nil
+      {:ok, _nothing} -> :no_claimable_usdc
+      :error -> :chain_unavailable
+    end
+  end
+
+  def limit_refusal(staking, "claim_regent", _amount), do: funded_regent(staking)
+
+  def limit_refusal(staking, "claim_and_restake_regent", _amount) do
+    with nil <- funded_regent(staking),
+         {:ok, earned} <- atomic(staking.wallet_claimable_regent_raw),
+         {:ok, capacity} <- atomic(staking.remaining_capacity_raw) do
+      if earned > capacity, do: :amount_above_capacity
     else
-      _ -> refusal(:no_claimable_usdc)
+      :error -> :chain_unavailable
+      refused -> refused
+    end
+  end
+
+  @doc """
+  The exact raw amount this action may spend on this snapshot, or zero.
+
+  A stake is bounded by the wallet and by what the contract can still take, so
+  neither `50%` nor `Max` can name more REGENT than may actually be staked.
+  """
+  @spec spendable(map() | nil, String.t()) :: non_neg_integer()
+  def spendable(%{wallet_token_balance_raw: wallet, remaining_capacity_raw: capacity}, "stake"),
+    do: min(available(wallet), available(capacity))
+
+  def spendable(%{wallet_stake_balance_raw: staked}, "unstake"), do: available(staked)
+  def spendable(_unread, _action), do: 0
+
+  defp funded_regent(staking) do
+    with {:ok, earned} <- atomic(staking.wallet_claimable_regent_raw),
+         {:ok, funded} <- atomic(staking.wallet_funded_claimable_regent_raw) do
+      if earned > 0 and funded >= earned, do: nil, else: :regent_rewards_not_funded
+    else
+      :error -> :chain_unavailable
+    end
+  end
+
+  defp atomic(value) do
+    case Integer.parse(value || "") do
+      {amount, ""} -> {:ok, amount}
+      _unavailable -> :error
+    end
+  end
+
+  defp available(value) do
+    case atomic(value) do
+      {:ok, amount} -> amount
+      :error -> 0
     end
   end
 
@@ -349,7 +413,7 @@ defmodule AshPlatform.Staking.Actions do
   defp wallet_member(nil, _signer), do: refusal(:session_unavailable)
 
   defp wallet_member(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets || [], &(normalize_or_nil(&1) == signer)),
+    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
       do: :ok,
       else: refusal(:wrong_signer)
   end
@@ -357,7 +421,7 @@ defmodule AshPlatform.Staking.Actions do
   defp verified_wallet(%Human{} = actor, signer) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
          wallets when is_list(wallets) <- account.wallet_addresses,
-         true <- Enum.any?(wallets, &(normalize_or_nil(&1) == signer)) do
+         true <- Enum.any?(wallets, &Address.equal?(&1, signer)) do
       :ok
     else
       _ -> {:error, :wrong_signer}
@@ -365,22 +429,11 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   defp primary_wallet(account) do
-    case normalize_or_nil(account.wallet_address) do
-      nil -> {:error, :wallet_required}
-      wallet -> {:ok, wallet}
-    end
+    with :error <- Address.normalize(account.wallet_address), do: {:error, :wallet_required}
   end
 
   defp normalize_address(value) do
-    {:ok, Abi.normalize_address!(value)}
-  rescue
-    _ -> {:error, :invalid_wallet}
-  end
-
-  defp normalize_or_nil(value) do
-    Abi.normalize_address!(value)
-  rescue
-    _ -> nil
+    with :error <- Address.normalize(value), do: {:error, :invalid_wallet}
   end
 
   defp valid_for_confirmation?(envelope) do

@@ -5,7 +5,10 @@ defmodule AshPlatform.Redemption do
   resources do
     resource AshPlatform.Redemption.Snapshot do
       define :overview, action: :overview
-      define :account, action: :account, args: [:collection, :token_id]
+
+      define :account_for_wallet,
+        action: :account_for_wallet,
+        args: [:expected_signer, :collection, :token_id]
 
       define :prepare_nft_approval,
         action: :prepare_nft_approval,
@@ -29,13 +32,18 @@ defmodule AshPlatform.Redemption do
         action: :restore_submitted_action,
         args: [:envelope]
 
-      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:action_id]
+      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:envelope]
 
       define :bind_submitted_hash,
         action: :bind_submitted_hash,
         args: [:action_id, :transaction_hash]
 
       define :close_not_sent, action: :close_not_sent, args: [:action_id]
+
+      define :release_unstarted_dispatch,
+        action: :release_unstarted_dispatch,
+        args: [:action_id]
+
       define :cancel_operation, action: :cancel_operation, args: [:action_id]
       define :active_operation, action: :active_operation
     end
@@ -44,4 +52,8 @@ defmodule AshPlatform.Redemption do
     # every Redeem call against it and Staking owns every Stake call.
     resource AshPlatform.WalletActions.StakeRedeemOperation
   end
+
+  # The one Redeem ladder, owned here so the page's next step and the named
+  # preparation action can only ever answer the same way.
+  defdelegate next_step(facts, signer), to: AshPlatform.Redemption.Actions
 end

@@ -1,10 +1,6 @@
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
-import {
-  executePreparedStakingAction,
-  type PreparedStakingAction,
-  WalletExecutionError,
-} from "../wallet_actions/staking"
+import {executePreparedStakingAction, type PreparedStakingAction} from "../wallet_actions/staking"
 
 const inFlightActionIds = new Set<string>()
 const pendingKey = "regent:staking:submitted"
@@ -78,10 +74,17 @@ export const StakeWallet: Hook = {
       }
     })
 
-    this.handleEvent("staking:confirmed", () => sessionStorage.removeItem(pendingKey))
-    this.handleEvent("staking:approval-reverted", () => sessionStorage.removeItem(pendingKey))
-    this.handleEvent("staking:action-reverted", () => sessionStorage.removeItem(pendingKey))
-    this.handleEvent("staking:abandoned", () => sessionStorage.removeItem(pendingKey))
+    // Every terminal outcome clears the stored submission, so a reload never
+    // asks the server to restore work that already ended.
+    for (const event of [
+      "staking:confirmed",
+      "staking:approval-reverted",
+      "staking:action-reverted",
+      "staking:unverified",
+      "staking:abandoned",
+    ]) {
+      this.handleEvent(event, () => sessionStorage.removeItem(pendingKey))
+    }
 
     // The server verified the approval receipt and the exact allowance, so the
     // stake may follow through the same preflight. It never reapproves.
@@ -161,32 +164,6 @@ export const StakeWallet: Hook = {
           return
         }
 
-        const stored = currentSubmission
-        // Each precise outcome is the whole outcome for its bound hash, so
-        // nothing follows it that could replace it with a generic failure.
-        if (
-          error instanceof WalletExecutionError &&
-          error.code === "approval_reverted" &&
-          stored?.approval_transaction_hash
-        ) {
-          this.pushEvent("staking_approval_reverted", {
-            action_id: envelope.action_id,
-            transaction_hash: stored.approval_transaction_hash,
-          })
-          return
-        }
-        if (
-          error instanceof WalletExecutionError &&
-          error.code === "action_reverted" &&
-          stored?.transaction_hash
-        ) {
-          this.pushEvent("confirm_staking", {
-            action_id: envelope.action_id,
-            transaction_hash: stored.transaction_hash,
-            approval_transaction_hash: stored.approval_transaction_hash ?? null,
-          })
-          return
-        }
         // A rejection of the transaction request itself, reported unconditionally:
         // browser state is evidence, never authority. The database refuses
         // `not_sent` once a hash is bound, so withholding this would only strand

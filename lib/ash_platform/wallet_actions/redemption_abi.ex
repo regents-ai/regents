@@ -14,6 +14,27 @@ defmodule AshPlatform.WalletActions.RedemptionAbi do
   @actions Map.new(@redeemer["prepared_actions"], &{&1["id"], &1})
   @reads Map.new(@redeemer["reads"], &{&1["id"], &1})
 
+  @event_signatures %{
+    approval_for_all: "ApprovalForAll(address,address,bool)",
+    redeemed: "Redeemed(address,address,uint256,uint256)",
+    claimed: "Claimed(address,uint256)"
+  }
+  # `ApprovalForAll` belongs to the Animata collections, so only the redeemer's
+  # own events are proved against the redeemer ABI, the moment it is compiled.
+  @after_compile __MODULE__
+  @declared_events for(
+                     {id, signature} <- @event_signatures,
+                     id != :approval_for_all,
+                     do: signature
+                   )
+
+  @doc false
+  def __after_compile__(_env, _bytecode),
+    do: Enum.each(@declared_events, &Abi.declared!(@abi, "event", &1))
+
+  def event_signature(id), do: Map.fetch!(@event_signatures, id)
+  def event_topic(id), do: id |> event_signature() |> Abi.topic0()
+
   def redeemer_address, do: @redeemer["address"]
   def animata_i_address, do: get_in(@redeemer, ["onchain_constants", "animata_i"])
   def animata_ii_address, do: get_in(@redeemer, ["onchain_constants", "animata_ii"])
@@ -61,6 +82,48 @@ defmodule AshPlatform.WalletActions.RedemptionAbi do
   def encode_erc721(id, arguments)
       when id in ["owner_of", "is_approved_for_all", "set_approval_for_all"] do
     encode_standard("erc721", id, arguments)
+  end
+
+  @doc "The exact collection-wide operator approval this transaction had to record."
+  def collection_approved?(logs, collection, owner, operator) do
+    with {:ok, {[owner_word, operator_word], [1]}} <-
+           Abi.one_event(logs, event_topic(:approval_for_all), collection, 2, 1),
+         {:ok, ^owner} <- Abi.word_address(owner_word),
+         {:ok, ^operator} <- Abi.word_address(operator_word) do
+      true
+    else
+      _contradiction -> false
+    end
+  end
+
+  @doc """
+  The redemption this transaction recorded, as its positive result token ID.
+
+  The event carries no USDC amount, so `newId` is a Regents Club token and never
+  a value.
+  """
+  def redeemed(logs, signer, collection, token_id) do
+    with {:ok, {[user_word, source_word, ^token_id], [result_token_id]}} <-
+           Abi.one_event(logs, event_topic(:redeemed), redeemer_address(), 3, 1),
+         {:ok, ^signer} <- Abi.word_address(user_word),
+         {:ok, ^collection} <- Abi.word_address(source_word),
+         true <- result_token_id > 0 do
+      {:ok, result_token_id}
+    else
+      _contradiction -> :error
+    end
+  end
+
+  @doc "The positive account-wide claim this transaction recorded, which carries no NFT identity."
+  def claimed(logs, signer) do
+    with {:ok, {[user_word], [amount]}} <-
+           Abi.one_event(logs, event_topic(:claimed), redeemer_address(), 1, 1),
+         {:ok, ^signer} <- Abi.word_address(user_word),
+         true <- amount > 0 do
+      {:ok, amount}
+    else
+      _contradiction -> :error
+    end
   end
 
   defp encode(entry, arguments) do

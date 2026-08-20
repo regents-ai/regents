@@ -100,6 +100,7 @@
   justify-content: space-between;
 }
 
+.stake-amount-notice,
 .stake-notice,
 .stake-status {
   border-left: 3px solid var(--color-accent, currentColor);

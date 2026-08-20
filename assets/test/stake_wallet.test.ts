@@ -7,7 +7,6 @@ import {
   type ExecutionOptions,
   type PreparedStakingAction,
   type StakingClients,
-  WalletExecutionError,
 } from "../js/wallet_actions/staking"
 import {
   activeSigner,
@@ -100,7 +99,6 @@ function clients(overrides: Partial<StakingClients> = {}): StakingClients {
     allowance: vi.fn(async () => 0n),
     simulate: vi.fn(async () => undefined),
     send: vi.fn(async () => (++sends === 1 ? approvalHash : mainHash)),
-    receipt: vi.fn(async () => ({status: "success" as const})),
     ...overrides,
   }
 }
@@ -137,7 +135,6 @@ describe("staking wallet action", () => {
       approvalHash,
     })
     expect(approvalBoundary.send).toHaveBeenCalledOnce()
-    expect(approvalBoundary.receipt).not.toHaveBeenCalled()
 
     const mainBoundary = clients({send: vi.fn(async () => mainHash)})
     await expect(
@@ -147,7 +144,6 @@ describe("staking wallet action", () => {
       }),
     ).resolves.toEqual({phase: "action", transactionHash: mainHash, approvalHash})
     expect(mainBoundary.send).toHaveBeenCalledOnce()
-    expect(mainBoundary.receipt).toHaveBeenCalledOnce()
   })
 
   it("notifies the server and retains the hash in memory when session storage throws", () => {
@@ -178,7 +174,7 @@ describe("staking wallet action", () => {
     expect(chainId).toHaveBeenCalledTimes(2)
   })
 
-  it("fails closed on signer, chain, stale envelope, calldata, target and reverted receipt", async () => {
+  it("fails closed on signer, chain, stale envelope, calldata and target", async () => {
     await expect(
       executePreparedStakingAction(
         envelope(),
@@ -265,15 +261,6 @@ describe("staking wallet action", () => {
         sendBoundary,
       ),
     ).rejects.toThrow("approval changed")
-
-    await expect(
-      executePreparedStakingAction(
-        envelope({approval: null}),
-        provider,
-        clients({receipt: vi.fn(async () => ({status: "reverted" as const}))}),
-        sendBoundary,
-      ),
-    ).rejects.toThrow("staking transaction was reverted")
   })
 })
 
@@ -623,77 +610,6 @@ describe("R1_SEND_MARKER_IS_THE_BOUNDARY: the marker alone decides what the page
     expect(hook.pushed).toEqual([
       {event: "staking_dispatch_not_started", payload: {action_id: "two-phase", phase: "action"}},
     ])
-  })
-})
-
-describe("U1_BOUNDED_WALLET_COPY: a precise revert is the whole outcome", () => {
-  const execute = vi.mocked(executePreparedStakingAction)
-
-  beforeEach(() => stubSessionStorage())
-  afterEach(() => vi.unstubAllGlobals())
-
-  // A generic failure after a precise revert would replace the exact outcome
-  // the server can still bind to the stored hash with copy nobody can act on.
-  it("reports the reverted approval for its bound hash and nothing after it", async () => {
-    const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options.onSendStarted()
-      options.onSubmitted?.("approval", approvalHash)
-      throw new WalletExecutionError("approval_reverted", "reverted")
-    })
-
-    await hook.emit("staking:prepared", {envelope: envelope({action_id: "approval-revert"})})
-
-    expect(hook.pushed).toEqual([
-      {
-        event: "staking_submitted",
-        payload: {action_id: "approval-revert", phase: "approval", transaction_hash: approvalHash},
-      },
-      {
-        event: "staking_approval_reverted",
-        payload: {action_id: "approval-revert", transaction_hash: approvalHash},
-      },
-    ])
-  })
-
-  it("reports the reverted action for its bound hash and nothing after it", async () => {
-    const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options.onSendStarted()
-      options.onSubmitted?.("action", mainHash)
-      throw new WalletExecutionError("action_reverted", "reverted")
-    })
-
-    await hook.emit("staking:prepared", {
-      envelope: envelope({action_id: "action-revert", approval: null}),
-    })
-
-    expect(hook.pushed).toEqual([
-      {
-        event: "staking_submitted",
-        payload: {action_id: "action-revert", phase: "action", transaction_hash: mainHash},
-      },
-      {
-        event: "confirm_staking",
-        payload: {
-          action_id: "action-revert",
-          transaction_hash: mainHash,
-          approval_transaction_hash: null,
-        },
-      },
-    ])
-  })
-
-  it("keeps the fixed unknown failure when the revert has no bound hash", async () => {
-    const hook = mountStakeWallet()
-    execute.mockImplementationOnce(async (_envelope, _provider, _clients, options) => {
-      options.onSendStarted()
-      throw new WalletExecutionError("action_reverted", "reverted")
-    })
-
-    await hook.emit("staking:prepared", {envelope: envelope({action_id: "unbound", approval: null})})
-
-    expect(hook.pushed).toEqual([{event: "staking_wallet_failed", payload: {reason: "unknown"}}])
   })
 })
 

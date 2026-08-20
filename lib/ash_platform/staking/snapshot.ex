@@ -21,11 +21,6 @@ defmodule AshPlatform.Staking.Snapshot do
       run fn input, context -> Actions.account_for_wallet(input, context) end
     end
 
-    action :wallet_membership, :string do
-      argument :expected_signer, :string, allow_nil?: false
-      run fn input, context -> Actions.wallet_membership(input, context) end
-    end
-
     action :prepare_stake, :map do
       argument :expected_signer, :string, allow_nil?: false
       argument :amount, :string, allow_nil?: false
@@ -56,7 +51,6 @@ defmodule AshPlatform.Staking.Snapshot do
     action :confirm_wallet_action, :map do
       argument :envelope, :map, allow_nil?: false
       argument :transaction_hash, :string, allow_nil?: false
-      argument :approval_transaction_hash, :string
       run fn input, context -> Actions.confirm(input, context) end
     end
 
@@ -66,14 +60,14 @@ defmodule AshPlatform.Staking.Snapshot do
     end
 
     action :verify_approval_submission, :atom do
-      constraints one_of: [:success, :reverted, :pending]
+      constraints one_of: [:confirmed, :unverified, :reverted, :pending]
       argument :envelope, :map, allow_nil?: false
       argument :transaction_hash, :string, allow_nil?: false
       run fn input, context -> Actions.approval_status(input, context) end
     end
 
     action :claim_wallet_dispatch, :map do
-      argument :action_id, :string, allow_nil?: false
+      argument :envelope, :map, allow_nil?: false
       argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
       run fn input, context -> Actions.claim_dispatch(input, context) end
     end
@@ -115,7 +109,6 @@ defmodule AshPlatform.Staking.Snapshot do
     policy action([
              :account,
              :account_for_wallet,
-             :wallet_membership,
              :prepare_stake,
              :prepare_unstake,
              :prepare_claim_usdc,

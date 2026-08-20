@@ -19,7 +19,8 @@ defmodule AshPlatform.RuntimeConfigTest do
       "PHX_HOST",
       "PORT",
       "SECRET_KEY_BASE",
-      "ASH_PLATFORM_APP_SURFACES"
+      "ASH_PLATFORM_APP_SURFACES",
+      "BASE_READ_RPC_URL"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
@@ -89,6 +90,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "production runtime enables the repository with pooled access" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
     pooled = "postgresql://pooled:secret@pool.example.test/ash_platform"
     System.put_env("DATABASE_POOLED_URL", pooled)
     System.put_env("DATABASE_DIRECT_URL", "postgresql://direct:secret@direct.example.test/db")
@@ -115,6 +117,8 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME serving uses the host without its surrounding whitespace" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
+
     System.put_env(
       "DATABASE_POOLED_URL",
       "postgresql://pooled:secret@pool.example.test/ash_platform"
@@ -136,6 +140,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "migration runtime selects direct access only for the exact rehearsal target" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
     direct = "postgresql://direct:secret@direct.example.test/ash_platform"
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
@@ -198,6 +203,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME migration startup does not require serving-only endpoint values" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
     direct = "postgresql://direct:secret@direct.example.test/ash_platform"
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
@@ -215,7 +221,28 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == nil
   end
 
+  # Production must name the Base endpoint it trusts, so every production-path
+  # case here supplies one and one case proves the boot without it.
+  test "PKG-RUNTIME production fails closed without a Base read endpoint" do
+    put_pooled_url()
+    System.put_env("PHX_HOST", "shadow.example.test")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+    System.delete_env("BASE_READ_RPC_URL")
+
+    assert_raise System.EnvError, ~r/BASE_READ_RPC_URL/, fn -> read_runtime_config(:prod) end
+  end
+
+  test "PKG-RUNTIME development keeps its default Base read endpoint" do
+    assert get_in(read_runtime_config(:dev), [:ash_platform, :base_read_rpc_url]) == nil
+
+    assert "config/config.exs"
+           |> Config.Reader.read!(env: :dev, target: :host)
+           |> get_in([:ash_platform, :base_read_rpc_url]) == "https://base-rpc.publicnode.com"
+  end
+
   defp put_pooled_url do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
+
     System.put_env(
       "DATABASE_POOLED_URL",
       "postgresql://pooled:secret@pool.example.test/ash_platform"

@@ -24,6 +24,15 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
 
   @actor %System{}
 
+  # The outcomes a verified transaction may end at. Whichever lands first under
+  # the row lock is the only one that exists.
+  @terminal [:confirmed, :unverified, :reverted]
+  @unverified_reason "safe receipt without this action's event"
+  @revert_reason %{
+    approval: "verified approval revert on Base",
+    action: "verified revert on Base"
+  }
+
   @type lease :: %{lineage: String.t(), account_id: integer()}
   @type capability :: :stake | :redeem
   @type phase :: :approval | :action
@@ -72,45 +81,57 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
   end
 
   @doc """
-  Records the exact successful receipt for a phase, which alone confirms nothing.
+  Records one verified receipt and its outcome for a phase, under the row lock.
 
-  A confirmed operation replays as an authority no-op, so a retrying browser or
-  a late async result cannot fail against work that is already terminal.
+  Confirmed, unverified and reverted are all terminal winners: the lock
+  serializes every one of them for an operation, exactly one exists, and a race
+  or a late repeat of any callback is answered with the row's own outcome rather
+  than an Ash validation error. A verified approval is not terminal, so it
+  enables the action phase instead of ending the operation.
   """
-  @spec record_receipt(lease(), capability(), String.t(), phase()) ::
+  @spec settle(lease(), capability(), String.t(), phase(), :confirmed | :unverified | :reverted) ::
           {:ok, struct()} | {:error, term()}
-  def record_receipt(lease, capability, action_id, phase) do
+  def settle(lease, capability, action_id, phase, outcome) do
     write(lease, capability, action_id, fn
-      %{state: :confirmed} = confirmed -> {:ok, confirmed}
-      operation -> transition(operation, capability, receipt_action(phase))
+      %{state: state} = terminal when state in @terminal -> {:ok, terminal}
+      operation -> settle_phase(operation, capability, phase, outcome)
     end)
-  end
-
-  @doc "Completes the approval phase once its receipt and the exact allowance both hold."
-  @spec verify_approval(lease(), capability(), String.t()) :: {:ok, struct()} | {:error, term()}
-  def verify_approval(lease, capability, action_id) do
-    write(lease, capability, action_id, &transition(&1, capability, :verify_approval))
   end
 
   @doc """
-  Terminal success: the exact receipt and the authoritative reread agree.
+  Settles one chain client's action-phase result and reports the row's outcome.
 
-  Confirming an already-confirmed operation replays as an authority no-op.
+  A pending transaction writes nothing at all: its hash and state survive so the
+  same hash can be read again later.
   """
-  @spec confirm(lease(), capability(), String.t()) :: {:ok, struct()} | {:error, term()}
-  def confirm(lease, capability, action_id) do
-    write(lease, capability, action_id, fn
-      %{state: :confirmed} = confirmed -> {:ok, confirmed}
-      operation -> transition(operation, capability, :confirm)
-    end)
+  @spec settle_action({:ok, map()} | {:error, term()}, lease(), capability(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  def settle_action({:ok, %{outcome: :pending} = result}, _lease, _capability, _action_id),
+    do: {:ok, result}
+
+  def settle_action({:ok, %{outcome: outcome} = result}, lease, capability, action_id) do
+    with {:ok, operation} <- settle(lease, capability, action_id, :action, outcome),
+         do: {:ok, %{result | outcome: operation.state}}
   end
 
-  @doc "Terminal failure: the receipt for this phase says the transaction reverted."
-  @spec record_revert(lease(), capability(), String.t(), phase(), String.t()) ::
-          {:ok, struct()} | {:error, term()}
-  def record_revert(lease, capability, action_id, phase, reason) do
-    write(lease, capability, action_id, &transition(&1, capability, revert_action(phase), reason))
+  def settle_action({:error, reason}, _lease, _capability, _action_id), do: {:error, reason}
+
+  defp settle_phase(operation, capability, phase, :reverted),
+    do: transition(operation, capability, revert_action(phase), Map.fetch!(@revert_reason, phase))
+
+  defp settle_phase(operation, capability, phase, outcome) do
+    with {:ok, operation} <- transition(operation, capability, receipt_action(phase)),
+         do: outcome_transition(operation, capability, phase, outcome)
   end
+
+  defp outcome_transition(operation, capability, :approval, :confirmed),
+    do: transition(operation, capability, :verify_approval)
+
+  defp outcome_transition(operation, capability, :action, :confirmed),
+    do: transition(operation, capability, :confirm)
+
+  defp outcome_transition(operation, capability, _phase, :unverified),
+    do: transition(operation, capability, :record_unverified, @unverified_reason)
 
   @doc """
   Withdraws a review before either dispatch, or after the approval is verified.

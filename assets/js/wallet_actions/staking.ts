@@ -65,8 +65,6 @@ export type PreparedStakingAction = {
   }
 }
 
-export type WalletReceipt = {status: "success" | "reverted"}
-
 export type StakingClients = {
   addresses(): Promise<Address[]>
   chainId(): Promise<number>
@@ -74,7 +72,6 @@ export type StakingClients = {
   allowance(owner: Address, spender: Address): Promise<bigint>
   simulate(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<void>
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
-  receipt(hash: Hash): Promise<WalletReceipt>
 }
 
 export type WalletActionResult =
@@ -88,15 +85,6 @@ export type ExecutionOptions = {
   // every caller can tell a failure that never asked the wallet for anything
   // from one that may already have put a transaction on Base.
   onSendStarted: () => void
-}
-
-export class WalletExecutionError extends Error {
-  constructor(
-    readonly code: "approval_reverted" | "action_reverted",
-    message: string,
-  ) {
-    super(message)
-  }
 }
 
 export function clientsFor(provider: EthereumProvider): StakingClients {
@@ -121,7 +109,6 @@ export function clientsFor(provider: EthereumProvider): StakingClients {
       await publicClient.call(request)
     },
     send: request => walletClient.sendTransaction(request),
-    receipt: hash => publicClient.waitForTransactionReceipt({hash, timeout: 60_000}),
   }
 }
 
@@ -165,11 +152,9 @@ export async function executePreparedStakingAction(
   options.onSendStarted()
   const transactionHash = await clients.send(transaction)
   options.onSubmitted?.("action", transactionHash)
-  const receipt = await clients.receipt(transactionHash)
-  if (receipt.status !== "success") {
-    throw new WalletExecutionError("action_reverted", "The staking transaction was reverted.")
-  }
 
+  // The hash is durably reported and the server owns every read after it, so
+  // the browser never waits on a receipt and never decides an outcome.
   return {phase: "action", transactionHash, approvalHash}
 }
 
