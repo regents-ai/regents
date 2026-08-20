@@ -8,10 +8,11 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
   per human account and capability — deliberately serializing all Stake actions
   against each other and all Redeem actions against each other.
 
-  Dispatch and submission are separate one-way facts per phase, so a phase that
-  was claimed without a bound hash is uncertain rather than unsent, and only the
-  explicit browser user-rejection rule can close it. Receipt identity and the
-  authoritative reread are separate durable facts too: neither alone confirms.
+  Dispatch and submission are separate facts per phase. A claimed phase remains
+  uncertain unless the wallet rejects its send or the browser proves that send
+  never began; rejection closes it, while proven non-start returns it for retry.
+  Receipt identity and the authoritative reread are separate durable facts too:
+  neither alone confirms.
 
   The resource carries no domain of its own. It is registered with the existing
   Staking and Redemption domains, and every call names the owning one, so no
@@ -225,11 +226,9 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
-    # The one narrow escape from a claimed but hash-free dispatch. The browser's
-    # exact EIP-1193 4001 for this action and phase is the only thing that
-    # reaches it; a timeout, a generic error or a reload never does. Binding a
-    # hash is the only way out of a `*_dispatched` state, so these two states are
-    # exactly the ones holding no hash for the claimed phase.
+    # The terminal exit for a transaction-send request the wallet explicitly
+    # rejected with EIP-1193 4001. Pre-send failures use the retry actions below;
+    # timeouts, reloads and other failures after send begins remain uncertain.
     update :close_not_sent do
       accept [:reason]
       require_atomic? false
@@ -240,8 +239,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperation do
 
     # The browser proved the claimed phase never reached its wallet send, so the
     # review becomes signable again instead of ending. Each release clears only
-    # its own dispatch timestamp and keeps every approval fact, and a bound hash
-    # still has no way back out of a `*_dispatched` state.
+    # its own dispatch timestamp and keeps every approval fact. If a hash bound
+    # first, the state is already submitted and these validations refuse it.
     update :release_unstarted_approval do
       accept []
       require_atomic? false

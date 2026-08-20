@@ -990,8 +990,9 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  # The exact EIP-1193 user rejection for this action and phase is the only
-  # signal that releases a claimed dispatch. Anything else stays uncertain.
+  # Exact EIP-1193 rejection after the transaction-send boundary closes this
+  # phase as not sent. Pre-send failures use the retry event below; every other
+  # post-send failure remains uncertain.
   def handle_event(
         "staking_wallet_rejected",
         %{"action_id" => action_id, "phase" => phase, "code" => 4001},
@@ -3524,8 +3525,8 @@ defmodule AshPlatformWeb.ShellLive do
     }
 
   # The database decides the dispatch, and only its winner reaches the wallet.
-  # A reload, a second socket, an expiry or a generic error can never re-open a
-  # request that was already claimed.
+  # Known expiry is refused before claim; afterward only the holding socket's
+  # proven pre-send failure can reopen it without a hash.
   defp claim_staking_dispatch(socket, envelope, submission) do
     if Envelope.valid?(envelope),
       do: claim_current_staking_dispatch(socket, envelope, submission),
