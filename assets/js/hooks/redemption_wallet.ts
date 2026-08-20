@@ -115,8 +115,6 @@ export const RedemptionWallet: Hook = {
       let sendStarted = false
 
       try {
-        // Reporting the hash is the whole handoff: the server binds it durably
-        // and owns every read after it, so nothing is reported a second time.
         await executePreparedRedemptionAction(envelope, connected.provider, undefined, {
           onSendStarted: () => (sendStarted = true),
           onSubmitted: submittedHash =>

@@ -127,7 +127,7 @@ test("each Animata action needs its own wallet action, and a reload never repeat
 })
 
 async function review(page: Page, buttonName: string, reviewHeading: string): Promise<void> {
-  await page.getByRole("button", {name: buttonName}).click()
+  await page.getByRole("button", {name: buttonName, exact: true}).click()
   await expect(
     page.getByRole("region", {name: "Wallet action review"}).getByRole("heading", {name: reviewHeading}),
   ).toBeVisible()

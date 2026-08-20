@@ -1448,7 +1448,6 @@ defmodule AshPlatformWeb.ShellLive do
              "redemption_wallet_rejected",
              "redemption_dispatch_not_started",
              "restore_redemption_submission",
-             "confirm_redemption",
              "retry_redemption_confirmation",
              "cancel_redemption_review",
              "refresh_redemption",
@@ -2922,8 +2921,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp unstarted(reason), do: %{tone: :error, message: wallet_failure_copy(reason)}
 
-  # The durable bind is what starts verification: the hash this wallet broadcast
-  # is the server's from here on, and the browser is never asked for it again.
   defp bind_redemption_hash(socket, action_id, hash) do
     case Redemption.bind_submitted_hash(action_id, hash, wallet_opts(socket)) do
       {:ok, _bound} ->
@@ -3885,8 +3882,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp claimed_staking_phase(_assigns), do: nil
 
-  # The durable bind is what starts verification: the hash this wallet broadcast
-  # is the server's from here on, and the browser is never asked for it again.
   defp bind_staking_hash(socket, action_id, phase, hash) do
     case Staking.bind_submitted_hash(
            action_id,

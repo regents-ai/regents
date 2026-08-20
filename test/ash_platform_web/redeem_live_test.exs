@@ -309,6 +309,17 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     submit(view, action_id)
     assert render_async(view) =~ "Waiting for Base confirmation"
 
+    # A transaction identity a load-balanced provider has not returned yet is
+    # unavailable evidence too, so the same hash waits rather than failing.
+    Application.put_env(
+      :ash_platform,
+      :test_redemption_confirmation_result,
+      {:error, :transaction_missing}
+    )
+
+    render_hook(view, "retry_redemption_confirmation", %{})
+    assert render_async(view) =~ "Waiting for Base confirmation"
+
     # This envelope is refused for good, so nothing about it can change.
     Application.put_env(
       :ash_platform,

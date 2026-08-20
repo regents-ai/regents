@@ -11,9 +11,16 @@ defmodule AshPlatform.Redemption.Actions do
   @rejection_reason "wallet reported an explicit user rejection"
   @withdrawal_reason "review withdrawn"
 
-  # A Base read that may answer differently later. Everything else refuses for
-  # good, so only these keep a submitted transaction open for another attempt.
-  @transient [:chain_unavailable, :chain_timeout, :invalid_chain_response, :invalid_block_header]
+  # A Base read that may answer differently later. A transaction identity a
+  # load-balanced provider has not returned yet is unavailable evidence, never a
+  # contradicted one, so only these keep a submitted transaction open.
+  @transient [
+    :chain_unavailable,
+    :chain_timeout,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :transaction_missing
+  ]
   @resource "animata_redemption"
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
   @argument_keys ~w(collection token_id operator approved spender amount_atomic mode)a

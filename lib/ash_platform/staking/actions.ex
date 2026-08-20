@@ -11,9 +11,16 @@ defmodule AshPlatform.Staking.Actions do
   @rejection_reason "wallet reported an explicit user rejection"
   @withdrawal_reason "review withdrawn"
 
-  # A Base read that may answer differently later. Everything else refuses for
-  # good, so only these keep a submitted transaction open for another attempt.
-  @transient [:chain_unavailable, :chain_timeout, :invalid_chain_response, :invalid_block_header]
+  # A Base read that may answer differently later. A transaction identity a
+  # load-balanced provider has not returned yet is unavailable evidence, never a
+  # contradicted one, so only these keep a submitted transaction open.
+  @transient [
+    :chain_unavailable,
+    :chain_timeout,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :transaction_missing
+  ]
   @resource "regent_staking"
   @contract_name "RegentRevenueStaking"
   @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)

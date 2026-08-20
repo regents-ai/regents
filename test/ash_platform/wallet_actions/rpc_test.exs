@@ -198,34 +198,33 @@ defmodule AshPlatform.WalletActions.RpcTest do
     end
   end
 
-  # A hash the wallet has just broadcast may not have reached this read RPC yet.
-  # Nothing has been observed about it, so it stays pending on the same hash
-  # rather than becoming a transaction that can never be verified.
-  test "PROPAGATION_LAG_IS_PENDING: an unobserved just-broadcast hash waits instead of failing" do
+  # A hash the wallet has just broadcast may not have reached this read RPC yet,
+  # and a load-balanced provider may answer with its receipt before its
+  # transaction. Identity that is merely unavailable waits on the same hash; only
+  # a transaction this RPC did return, drifted from the envelope, is refused.
+  test "PROPAGATION_LAG_IS_TRANSIENT: an unobserved transaction waits instead of failing" do
     Stub.install(:wallet_http_client, fn _data, _state -> Stub.uint(0) end)
     safe = %{number: 0x20, hash: Stub.safe_hash()}
-
-    Stub.put(%{transactions: %{}, receipts: %{}})
-    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) == {:ok, :pending}
-    assert Rpc.submission_status(@hash, @signer, @target, @data) == {:ok, :pending}
-
-    # A transaction this RPC has observed is still proved against the envelope,
-    # so drift is a permanent refusal rather than another wait.
-    Stub.put(%{transactions: %{@hash => %{transaction() | "input" => "0xdead"}}})
-
-    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) ==
-             {:error, :transaction_mismatch}
-
-    # The same hash, once the RPC has caught up with the wallet.
     logs = [%{"address" => @target, "topics" => [], "data" => "0x"}]
 
-    Stub.put(%{
-      transactions: %{@hash => transaction()},
-      receipts: %{@hash => Stub.receipt(@hash, "0x10", logs)}
-    })
+    Stub.put(%{transactions: %{}, receipts: %{}})
+    assert Rpc.submission_status(@hash, @signer, @target, @data) == {:ok, :pending}
 
-    assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) ==
-             {:ok, {:success, logs}}
+    for {name, state, expected} <- [
+          {"nothing observed", %{}, {:ok, :pending}},
+          {"receipt ahead of the transaction",
+           %{receipts: %{@hash => Stub.receipt(@hash, "0x10", logs)}},
+           {:error, :transaction_missing}},
+          {"drifted transaction",
+           %{transactions: %{@hash => %{transaction() | "input" => "0xdead"}}},
+           {:error, :transaction_mismatch}},
+          {"caught up", %{transactions: %{@hash => transaction()}}, {:ok, {:success, logs}}}
+        ] do
+      Stub.put(state)
+
+      assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) == expected,
+             "#{name} was classified wrongly"
+    end
   end
 
   # The safe block already proved the chain identity, so an outcome judged

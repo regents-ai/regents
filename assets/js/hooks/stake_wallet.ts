@@ -129,8 +129,6 @@ export const StakeWallet: Hook = {
       let sendStarted = false
 
       try {
-        // Reporting the hash is the whole handoff: the server binds it durably
-        // and owns every read after it, so nothing is reported a second time.
         await executePreparedStakingAction(envelope, connected.provider, undefined, {
           existingApprovalHash: prepared.approval_transaction_hash ?? undefined,
           onSendStarted: () => (sendStarted = true),

@@ -1502,7 +1502,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # The whole connected path over a real Base transport: the wallet's hash is
   # bound, the read RPC has not seen it yet, and the page waits on that exact
   # hash instead of calling a transaction it cannot yet read unverifiable.
-  test "PROPAGATION_LAG_IS_PENDING: a just-broadcast hash waits and confirms on the same hash",
+  test "PROPAGATION_LAG_IS_TRANSIENT: a just-broadcast hash waits and confirms on the same hash",
        %{conn: conn} do
     account = register("stake-propagation", [@wallet])
     Application.put_env(:ash_platform, :staking_chain_client, AshPlatform.Staking.RpcClient)
@@ -1525,8 +1525,18 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash} = operation} =
              StakeRedeemOperations.active(account.id, :stake)
 
+    # A load-balanced provider can answer with the receipt while its transaction
+    # lookup still cannot. That identity is unavailable, not contradicted, so the
+    # bound hash and its state survive and the same hash is read again.
+    Stub.put(%{receipts: %{@tx_hash => Stub.receipt(@tx_hash, "0x10", [claim_usdc_log()])}})
+    send(view.pid, {:verification_retry, :stake, action_id})
+    assert render_async(view) =~ "Waiting for Base confirmation"
+
+    assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
     # The same hash, once the read RPC has caught up with the wallet.
-    observe(operation.envelope, claim_usdc_log())
+    observe_transaction(operation.envelope)
     send(view.pid, {:verification_retry, :stake, action_id})
 
     assert render_async(view) =~ "Confirmed on Base"
@@ -1713,9 +1723,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp armed_verification?(view),
     do: not is_nil(:sys.get_state(view.pid).socket.assigns.staking_retry_ref)
 
-  # The read RPC catches up with the wallet: this exact transaction and a receipt
-  # carrying the action's own event.
-  defp observe(envelope, log) do
+  # The read RPC catches up with the wallet: this exact transaction, as the
+  # operation's own stored envelope pinned it.
+  defp observe_transaction(envelope) do
     Stub.put(%{
       transactions: %{
         @tx_hash => %{
@@ -1725,8 +1735,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
           "input" => envelope["data"],
           "value" => "0x0"
         }
-      },
-      receipts: %{@tx_hash => Stub.receipt(@tx_hash, "0x10", [log])}
+      }
     })
   end
 
