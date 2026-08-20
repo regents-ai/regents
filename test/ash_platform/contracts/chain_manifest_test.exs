@@ -5,7 +5,10 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @manifest_path Path.join(@root, "contracts/base-mainnet.json")
   @staking_abi_sha256 "c8c5570f76f32b72e3bdb0a062fc97cb7f74aacadf03683d796b57a765f1ca23"
   @redeemer_abi_sha256 "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
-  @auction_abi_sha256 "901e5873cc24b52eac61553bcdee68c208fb4c210e081337fdbad28f5ac61b76"
+  @auction_abi_sha256 "f687d42ad0fd981e38ba7f43baad6428014f5056a129a7bf13906f5704e5194b"
+  @permit2_abi_sha256 "ced6a1b558e80e4a80c5bc1920da8cca21fa63806ac379b5c1c8ab4b6c866832"
+  @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
+  @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
   @payment_link_abi_sha256 "121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343"
   @payment_link_created_signature "PaymentLinkCreated(bytes32,address,address,string,bool)"
@@ -358,7 +361,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  test "chain admission pins auction bid actions and exact quote-token approval" do
+  test "chain admission admits nothing while the bidder interface stays reviewed evidence" do
     admission =
       @root
       |> Path.join("contracts/chain-contracts.yaml")
@@ -366,16 +369,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       |> get_in(["contracts"])
       |> List.first()
 
-    assert admission["admitted_prepared_actions"] == [
-             "continuous_clearing_auction.submit_bid",
-             "continuous_clearing_auction.exit_bid",
-             "continuous_clearing_auction.return_quote_token",
-             "continuous_clearing_auction.claim_bid",
-             "quote_token_erc20.approve_exact"
-           ]
+    assert admission["admitted_prepared_actions"] == []
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
     auction = evidence["continuous_clearing_auction"]
+    permit2 = evidence["permit2"]
     erc20 = evidence["quote_token_erc20"]
     payment_links = evidence["payment_link_factory"]
     ingress = evidence["revenue_ingress_account"]
@@ -384,13 +382,28 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert auction["contract_name"] == "IContinuousClearingAuction"
     assert auction["target"] == "stored_auction_address"
+    assert auction["source_commit"] == "7d7602d257733315434570f2a0c2f94f1c7b207a"
+    assert auction["action_ids"] == ["submit_bid"]
+    assert auction["confirmation_event_signature"] == @bid_submitted_signature
+    assert auction["confirmation_event_topic0"] == @bid_submitted_topic0
+    assert keccak(@bid_submitted_signature) == @bid_submitted_topic0
 
-    assert auction["interface_note"] ==
-             "submit_bid uses the upstream four-argument convenience overload of the canonical five-argument submitBid and defaults prevTickPriceQ96 to FLOOR_PRICE_Q96; see Uniswap/continuous-clearing-auction src/ContinuousClearingAuction.sol lines 635-641."
+    # The obsolete four-argument overload and every position action are gone.
+    assert auction["interface_note"] =~ "canonical five-argument submitBid"
+    assert auction["interface_note"] =~ "src/ContinuousClearingAuction.sol lines 464-482"
+    assert auction["interface_note"] =~ "Permit2 at line 479"
 
-    assert auction["action_ids"] == ~w(submit_bid exit_bid return_quote_token claim_bid)
+    assert permit2["contract_name"] == "IAllowanceTransfer"
+    assert permit2["address"] == "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+    assert permit2["source_commit"] == "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+    assert permit2["address_provenance"] =~ "Solady"
+    assert permit2["address_provenance"] =~ "2af06408b6a204824c2ecb245779ed400b535fb5"
+    assert permit2["address_provenance"] =~ "src/utils/SafeTransferLib.sol line 64"
+    assert permit2["action_ids"] == ["approve"]
+
     assert erc20["target"] == "stored_quote_token_address"
     assert erc20["action_ids"] == ["approve_exact"]
+    assert erc20["interface_note"] =~ "canonical Permit2 spender"
     refute Map.has_key?(evidence, "regent_staking_revenue_router")
     assert payment_links["target"] == "stored_subject_factory_address"
     assert payment_links["implementation_provenance"] =~ "PaymentLinkFactory.sol:30-36,64-115,197"
@@ -410,6 +423,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     for {entry, digest} <- [
           {auction, @auction_abi_sha256},
+          {permit2, @permit2_abi_sha256},
           {erc20, @erc20_approve_abi_sha256},
           {payment_links, @payment_link_abi_sha256},
           {ingress, @ingress_abi_sha256},
@@ -422,12 +436,103 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       assert Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower) == digest
     end
 
-    assert_selectors([
-      %{"signature" => "submitBid(uint256,uint128,address,bytes)", "selector" => "0x140fe8ee"},
-      %{"signature" => "exitBid(uint256)", "selector" => "0x8e4deb17"},
-      %{"signature" => "claimTokens(uint256)", "selector" => "0x46e04a2f"},
-      %{"signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"}
-    ])
+    assert_selectors(
+      auction["reads"] ++
+        permit2["reads"] ++
+        [
+          %{
+            "signature" => "submitBid(uint256,uint128,address,uint256,bytes)",
+            "selector" => "0xa52c8728"
+          },
+          %{"signature" => "approve(address,address,uint160,uint48)", "selector" => "0x87517c45"},
+          %{"signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"}
+        ]
+    )
+  end
+
+  # The bidder ABI is derived from exact pinned source, so the shapes the
+  # confirmation path decodes are proved against the file rather than assumed.
+  test "the pinned auction ABI declares only the canonical bid interface" do
+    abi =
+      @root
+      |> Path.join("contracts/abi/continuous-clearing-auction.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
+             {"function", "submitBid"},
+             {"function", "currency"},
+             {"event", "BidSubmitted"}
+           ]
+
+    [submit_bid, currency, event] = abi
+
+    assert submit_bid["stateMutability"] == "payable"
+
+    assert Enum.map(submit_bid["inputs"], &{&1["name"], &1["type"]}) == [
+             {"maxPriceQ96", "uint256"},
+             {"amount", "uint128"},
+             {"owner", "address"},
+             {"prevTickPriceQ96", "uint256"},
+             {"hookData", "bytes"}
+           ]
+
+    assert submit_bid["notice"] =~ "src/interfaces/IContinuousClearingAuction.sol:136-142"
+    assert submit_bid["notice"] =~ "collects a non-native currency only through Permit2"
+
+    assert currency["stateMutability"] == "view"
+    assert currency["inputs"] == []
+    assert Enum.map(currency["outputs"], & &1["type"]) == ["address"]
+
+    assert event["anonymous"] == false
+
+    assert Enum.map(event["inputs"], &{&1["name"], &1["type"], &1["indexed"]}) == [
+             {"id", "uint256", true},
+             {"owner", "address", true},
+             {"priceQ96", "uint256", false},
+             {"amount", "uint128", false}
+           ]
+  end
+
+  test "the pinned Permit2 ABI declares the exact allowance interface the auction needs" do
+    abi =
+      @root
+      |> Path.join("contracts/abi/permit2.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.new(&{&1["name"], &1})
+
+    assert Enum.map(abi["approve"]["inputs"], &{&1["name"], &1["type"]}) == [
+             {"token", "address"},
+             {"spender", "address"},
+             {"amount", "uint160"},
+             {"expiration", "uint48"}
+           ]
+
+    assert abi["approve"]["stateMutability"] == "nonpayable"
+    assert abi["approve"]["outputs"] == []
+
+    assert Enum.map(abi["allowance"]["inputs"], &{&1["name"], &1["type"]}) == [
+             {"user", "address"},
+             {"token", "address"},
+             {"spender", "address"}
+           ]
+
+    assert Enum.map(abi["allowance"]["outputs"], &{&1["name"], &1["type"]}) == [
+             {"amount", "uint160"},
+             {"expiration", "uint48"},
+             {"nonce", "uint48"}
+           ]
+
+    # A zero expiration lasts only the current block, so the encoder refuses one.
+    assert_raise FunctionClauseError, fn ->
+      AshPlatform.WalletActions.Permit2Abi.encode_approve(
+        "0x1111111111111111111111111111111111111111",
+        "0x2222222222222222222222222222222222222222",
+        1,
+        0
+      )
+    end
   end
 
   test "S3 ABI mutability and returns match the vendored revenue implementations" do

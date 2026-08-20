@@ -1,91 +1,117 @@
 defmodule AshPlatform.Autolaunch.RpcClient do
-  @moduledoc false
+  @moduledoc """
+  The production Base client for bidding, which prepares nothing yet.
+
+  `submitBid` takes `prevTickPriceQ96`, and the only sources for it today are an
+  unbounded walk from the floor price or the floor itself. Neither is a reviewed
+  answer, so `snapshot/1` refuses before it opens a connection; `regent-alv1.6`
+  and `490.8.2/.3` own the bounded source that replaces this refusal.
+
+  `verify/3` is complete, because a hash may still have to be told the truth
+  about. It reads only canonical state: a receipt above the safe head, or one in
+  a block that is no longer canonical, stays pending rather than becoming an
+  answer, and an approval advances only once its own allowance really holds.
+  """
+
   @behaviour AshPlatform.Autolaunch.ChainClient
 
-  alias AshPlatform.WalletActions.{Envelope, Rpc}
+  alias AshPlatform.WalletActions.{Abi, AuctionAbi, Permit2Abi, Rpc}
 
-  @auction_resource "autolaunch_auction"
-  @bid_resource "autolaunch_bid"
-  @contract_name "IContinuousClearingAuction"
-  @actions ~w(submit_bid exit_bid return_quote_token claim_bid)
   @rpc_opts [client_key: :autolaunch_bid_http_client, log_scope: "autolaunch bid"]
 
   @impl true
-  def confirm(envelope, transaction_hash, approval_transaction_hash) do
-    with true <- valid_for_confirmation?(envelope),
-         true <- Rpc.valid_hash?(transaction_hash),
-         :ok <- Rpc.verify_base_chain(@rpc_opts),
-         :ok <- verify_approval(envelope, approval_transaction_hash),
-         :ok <-
-           Rpc.confirmed_transaction(
-             transaction_hash,
-             envelope.expected_signer,
-             envelope.to,
-             envelope.data,
-             @rpc_opts
-           ) do
-      {:ok,
-       %{
-         transaction_hash: String.downcase(transaction_hash),
-         receipt_verified: true
-       }}
-    else
-      false -> {:error, :invalid_confirmation}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  def snapshot(_request), do: {:error, :bid_preparation_unavailable}
 
   @impl true
-  def approval_status(%{approval: approval, expected_signer: signer} = envelope, hash)
-      when is_map(approval) do
-    with true <- valid_for_confirmation?(envelope),
-         true <- Rpc.valid_hash?(hash),
-         :ok <- Rpc.verify_base_chain(@rpc_opts) do
-      Rpc.submission_status(
-        hash,
-        signer,
-        field(approval, :token),
-        field(approval, :data),
-        @rpc_opts
-      )
-    else
-      false -> {:error, :invalid_approval_confirmation}
-      {:error, reason} -> {:error, reason}
-    end
+  def verify(envelope, step, hash) do
+    %{"to" => to, "data" => data} = step(envelope, step)
+
+    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
+         {:ok, settled} <-
+           Rpc.canonical_outcome(hash, envelope["expected_signer"], to, data, block, @rpc_opts),
+         do: settled(settled, envelope, step, block)
   end
 
-  def approval_status(_envelope, _hash), do: {:error, :invalid_approval_confirmation}
+  defp settled(:pending, _envelope, _step, _block), do: {:ok, %{outcome: :pending}}
+  defp settled(:reverted, _envelope, _step, _block), do: {:ok, %{outcome: :reverted}}
+  defp settled({:success, logs}, envelope, step, block), do: proved(envelope, step, logs, block)
 
-  defp verify_approval(%{approval: nil}, nil), do: :ok
-  defp verify_approval(%{approval: nil}, _hash), do: {:error, :unexpected_approval}
-  defp verify_approval(%{approval: _approval}, nil), do: {:error, :approval_required}
+  # The approval's own event and the allowance it claims to have left behind are
+  # separate facts: a receipt whose allowance no longer holds never advances.
+  defp proved(envelope, :token_approval, logs, block) do
+    %{"to" => token, "amount" => amount} = step(envelope, :token_approval)
+    amount = String.to_integer(amount)
+    signer = envelope["expected_signer"]
+    permit2 = Permit2Abi.address()
 
-  defp verify_approval(%{approval: approval, expected_signer: signer}, hash) do
-    with true <- Rpc.valid_hash?(hash),
-         :ok <-
-           Rpc.confirmed_transaction(
-             hash,
-             signer,
-             field(approval, :token),
-             field(approval, :data),
+    with true <- Abi.approval_recorded?(logs, token, signer, permit2, amount),
+         {:ok, allowance} <-
+           Rpc.call_uint(
+             token,
+             Abi.encode_erc20("allowance", [signer, permit2]),
+             block,
              @rpc_opts
            ) do
-      :ok
+      {:ok, %{outcome: outcome(allowance >= amount)}}
     else
-      false -> {:error, :invalid_approval_confirmation}
+      false -> {:ok, %{outcome: :unverified}}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp valid_for_confirmation?(envelope) do
-    Envelope.valid_for_confirmation?(envelope,
-      resource: envelope.resource,
-      to: envelope.to,
-      signer: envelope.expected_signer,
-      contract_name: @contract_name,
-      actions: @actions
-    ) and envelope.resource in [@auction_resource, @bid_resource]
+  # Permit2 emits its own Approval, but only the stored allowance decides whether
+  # this auction may really draw the currency, so that is what is read.
+  defp proved(envelope, :permit2_approval, _logs, block) do
+    %{"amount" => amount, "expiration" => expiration} = step(envelope, :permit2_approval)
+
+    with {:ok, words} <-
+           Rpc.call_words(
+             Permit2Abi.address(),
+             Permit2Abi.encode_allowance(
+               envelope["expected_signer"],
+               argument(envelope, "currency"),
+               envelope["to"]
+             ),
+             block,
+             3,
+             @rpc_opts
+           ) do
+      granted = Permit2Abi.decode_allowance(words)
+
+      {:ok,
+       %{
+         outcome:
+           outcome(
+             granted.amount >= String.to_integer(amount) and
+               granted.expiration >= String.to_integer(expiration)
+           )
+       }}
+    end
   end
 
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
+  # The event, not the receipt, carries the bid: its id is adopted from the one
+  # `BidSubmitted` this auction emitted for this owner at exactly these terms.
+  defp proved(envelope, :bid, logs, _block) do
+    case AuctionAbi.submitted_bid_id(
+           logs,
+           envelope["to"],
+           envelope["expected_signer"],
+           integer_argument(envelope, "max_price_q96"),
+           integer_argument(envelope, "amount_atomic")
+         ) do
+      {:ok, bid_id} -> {:ok, %{outcome: :confirmed, onchain_bid_id: Integer.to_string(bid_id)}}
+      :error -> {:ok, %{outcome: :unverified}}
+    end
+  end
+
+  defp outcome(true), do: :confirmed
+  defp outcome(false), do: :unverified
+
+  defp step(envelope, step) do
+    current = Atom.to_string(step)
+    Enum.find(argument(envelope, "steps"), &(&1["step"] == current))
+  end
+
+  defp argument(envelope, key), do: envelope["arguments"][key]
+  defp integer_argument(envelope, key), do: envelope |> argument(key) |> String.to_integer()
 end

@@ -1,28 +1,75 @@
 defmodule AshPlatform.Autolaunch.BidActions do
-  @moduledoc false
+  @moduledoc """
+  The one boundary between a bidder and Base.
 
-  alias AshPlatform.{Accounts, Autolaunch}
-  alias AshPlatform.Actors.Human
-  alias AshPlatform.Autolaunch.ChainClient
-  alias AshPlatform.WalletActions.{Abi, AuctionAbi, Envelope}
+  Preparation reads Base once, proves the auction really raises the bound REGENT,
+  and writes the whole reviewed sequence as a single immutable envelope. Every
+  durable write after that runs inside `SessionAuthority.transact_lease/3` as the
+  outermost transaction, against the account that callback locked, so a claim, a
+  bound hash or a settled outcome cannot outlive a concurrent logout.
 
-  @auction_resource "autolaunch_auction"
-  @bid_resource "autolaunch_bid"
+  Provider reads always happen before the lease transaction; only the row write
+  happens inside it, and the row is taken `FOR UPDATE` first, so two sockets
+  racing the same step serialize and exactly one of them wins.
+  """
+
+  require Ash.Query
+
+  alias AshPlatform.Accounts.SessionAuthority
+  alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.{BidOperation, ChainClient}
+  alias AshPlatform.WalletActions.{Abi, Address, AuctionAbi, Envelope, Permit2Abi, Rpc}
+
+  @actor %System{}
+  @domain AshPlatform.Autolaunch
+
+  @resource "autolaunch_auction"
   @contract_name "IContinuousClearingAuction"
+  @action "submit_bid"
+  @risk "Your wallet signs only the steps this bid still needs, then the bid itself."
+
+  # The auction's currency has to be the bound REGENT, so a bid amount is always
+  # REGENT's eighteen decimals.
+  @decimals 18
   @q96 79_228_162_514_264_337_593_543_950_336
   @uint128_max Integer.pow(2, 128) - 1
   @uint256_max Integer.pow(2, 256) - 1
-  @auction_actions ~w(submit_bid)
-  @bid_actions ~w(exit_bid return_quote_token claim_bid)
-  @risk %{
-    "submit_bid" =>
-      "Approve the exact quote-token amount, then submit this bid from your connected wallet.",
-    "exit_bid" => "Exit this bid and return its available quote tokens to the bid owner.",
-    "return_quote_token" => "Return the available quote tokens from this failed auction bid.",
-    "claim_bid" => "Claim the launch tokens purchased by this bid to the bid owner."
+
+  # The reviewed envelope lives ten minutes, so a Permit2 allowance that would
+  # lapse inside that window is granted again rather than relied on, and a
+  # granted one outlives the review it belongs to without lingering.
+  @review_seconds 600
+  @permit2_seconds 900
+
+  @replaced "replaced by a newer review"
+  @rejected "wallet reported an explicit user rejection"
+  @withdrawn "review withdrawn"
+  @lapsed "Permit2 allowance expired before the bid was sent"
+  @unresolved "account started a new bid while this one was unresolved"
+  @reverted "verified revert on Base"
+  @contradicted "canonical receipt contradicts the reviewed bid"
+
+  # A Base read that may answer differently later never settles anything.
+  @transient [
+    :chain_unavailable,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :transaction_missing
+  ]
+
+  @hash_attributes %{
+    token_approval: :token_approval_transaction_hash,
+    permit2_approval: :permit2_approval_transaction_hash,
+    bid: :bid_transaction_hash
   }
 
-  def quote(auction_id, amount, max_price, opts) do
+  # Everything a Base read was answered about. A settlement applies only to a row
+  # still carrying all of it.
+  @identity [:state, :step, :envelope | Map.values(@hash_attributes)]
+
+  @doc "The public estimate for one auction, from its stored snapshot."
+  def quote(auction_id, amount, max_price, opts \\ []) do
     with {:ok, auction} <- auction(auction_id, opts),
          {:ok, amount} <- positive_decimal(amount),
          {:ok, max_price} <- positive_decimal(max_price) do
@@ -55,221 +102,545 @@ defmodule AshPlatform.Autolaunch.BidActions do
     end
   end
 
-  def prepare_bid(auction_id, signer, amount, max_price, opts) do
-    actor = Keyword.get(opts, :actor)
+  @doc """
+  What the wallet Privy has selected may actually spend on this auction.
 
-    with %Human{} <- actor,
-         {:ok, signer} <- normalize_address(signer),
-         :ok <- verified_wallet(actor, signer),
-         {:ok, auction} <- auction(auction_id, opts),
-         {:ok, auction_address} <- normalize_address(auction.auction_address),
-         {:ok, quote_token} <- normalize_address(auction.quote_token_address),
-         {:ok, decimals} <- token_decimals(auction.quote_token_decimals),
-         {:ok, amount_decimal} <- positive_decimal(amount),
-         {:ok, max_price_decimal} <- positive_decimal(max_price),
-         {:ok, amount_raw} <- token_units(amount_decimal, decimals),
-         {:ok, max_price_q96} <- price_q96(max_price_decimal),
-         {:ok, data} <-
-           encode(fn ->
-             AuctionAbi.encode_submit_bid(max_price_q96, amount_raw, signer)
-           end),
-         {:ok, approval_data} <-
-           encode(fn -> AuctionAbi.encode_approval(auction_address, amount_raw) end) do
-      approval = %{
-        token: quote_token,
-        spender: auction_address,
-        amount: Integer.to_string(amount_raw),
-        data: approval_data,
-        mode: "exact"
-      }
-
-      {:ok,
-       Envelope.new("submit_bid", signer, data,
-         to: auction_address,
-         resource: @auction_resource,
-         contract_name: @contract_name,
-         risk_copy: @risk["submit_bid"],
-         approval: approval,
-         arguments: %{
-           auction_id: auction.id,
-           amount: decimal_string(amount_decimal),
-           amount_atomic: Integer.to_string(amount_raw),
-           max_price: decimal_string(max_price_decimal),
-           max_price_q96: Integer.to_string(max_price_q96),
-           quote_token: quote_token,
-           quote_token_decimals: decimals,
-           recipient: signer
-         }
-       )}
-    else
-      nil -> {:error, :authentication_required}
-      {:error, reason} -> {:error, reason}
-      _ -> {:error, :authentication_required}
+  The reported address is untrusted: it is proved against the account the mounted
+  lease resolves to before any private fact is read, so a wallet the account does
+  not hold is refused rather than answered about.
+  """
+  def position(input, %{actor: %Human{}} = context) do
+    with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context),
+         {:ok, auction} <- auction(input.arguments.auction_id),
+         {:ok, auction_address} <- normalize(auction.auction_address),
+         {:ok, snapshot} <- snapshot(auction_address, signer, nil),
+         :ok <- bound_currency(snapshot) do
+      {:ok, %{signer: signer, balance: Integer.to_string(snapshot.regent_balance)}}
     end
   end
 
-  def prepare_position(action, bid_id, opts) when action in @bid_actions do
-    actor = Keyword.get(opts, :actor)
+  def position(_input, _context), do: {:error, :authentication_required}
 
-    with %Human{} <- actor,
-         {:ok, bid} <- owned_bid(bid_id, actor),
-         :ok <- action_available(action, bid.status),
-         {:ok, auction_address} <- normalize_address(bid.auction_address),
-         {:ok, onchain_bid_id} <- onchain_bid_id(bid.onchain_bid_id),
-         {:ok, data} <- encode(fn -> AuctionAbi.encode_position(action, onchain_bid_id) end) do
-      {:ok,
-       Envelope.new(action, bid.owner_address, data,
-         to: auction_address,
-         resource: @bid_resource,
-         contract_name: @contract_name,
-         risk_copy: Map.fetch!(@risk, action),
-         arguments: %{
-           bid_id: bid.bid_id,
-           auction_id: bid.auction_id,
-           onchain_bid_id: Integer.to_string(onchain_bid_id),
-           recipient: bid.owner_address
-         }
-       )}
-    else
-      nil -> {:error, :authentication_required}
-      {:error, reason} -> {:error, reason}
-      _ -> {:error, :authentication_required}
+  @doc """
+  Reviews one bid: one snapshot, one immutable sequence, one durable operation.
+
+  The sequence carries only the transactions this wallet still needs — an exact
+  REGENT approval to canonical Permit2, an exact short-lived Permit2 allowance
+  for this auction, then the canonical five-argument bid.
+  """
+  def prepare(input, %{actor: %Human{}} = context) do
+    arguments = input.arguments
+
+    with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
+         {:ok, lease} <- lease(context),
+         {:ok, auction} <- biddable(arguments.auction_id),
+         {:ok, address} <- normalize(auction.auction_address),
+         {:ok, amount} <- refusable(atomic_amount(arguments.amount)),
+         {:ok, max_price_q96} <- refusable(price_q96(arguments.max_price)),
+         {:ok, snapshot} <- snapshot(address, signer, max_price_q96),
+         :ok <- bound_currency(snapshot),
+         :ok <- bounded_predecessor(snapshot),
+         :ok <- affordable(snapshot, amount),
+         {envelope, step} <- review(auction, address, signer, amount, max_price_q96, snapshot),
+         {:ok, operation} <- open(lease, envelope, signer, step) do
+      {:ok, %{operation: view(operation)}}
     end
   end
 
-  def confirm(envelope, transaction_hash, approval_transaction_hash, opts) do
-    actor = Keyword.get(opts, :actor)
-    envelope = atomize_envelope(envelope)
+  def prepare(_input, _context), do: {:error, :authentication_required}
 
-    with %Human{} <- actor,
-         {:ok, stored} <- stored_identity(envelope, actor),
-         true <- valid_for_confirmation?(envelope, stored),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      case ChainClient.module().confirm(
-             envelope,
-             transaction_hash,
-             approval_transaction_hash
-           ) do
-        {:ok, result} ->
-          {:ok, Map.put(result, stored_key(envelope.resource), stored)}
+  @doc """
+  Claims the current step's dispatch. Only this winner may open the wallet.
 
-        {:error, :transaction_reverted} ->
-          {:ok,
-           %{
-             transaction_hash: String.downcase(transaction_hash),
-             receipt_verified: true,
-             transaction_reverted: true
-           }}
+  The locked account and the signer the stored envelope pinned decide together,
+  inside the transaction that takes the row, so a wallet the account no longer
+  holds cannot be handed a dispatch by a check that passed a moment earlier.
+  """
+  def claim_dispatch(input, context), do: write(context, input.arguments.action_id, &claim/2)
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      false -> {:error, :stale_or_invalid_action}
-      {:error, reason} -> {:error, reason}
-      _ -> {:error, :authentication_required}
-    end
+  @doc """
+  Binds the first valid hash for the claimed step.
+
+  An exact replay is a no-op so a retrying browser cannot fail, a different hash
+  is refused rather than overwriting the submitted identity, and a hash recovered
+  after the operation ended attaches to it without ever reopening it.
+  """
+  def bind_hash(input, context) do
+    with {:ok, hash} <- canonical_hash(input.arguments.transaction_hash),
+         do: write(context, input.arguments.action_id, &bind(&1, &2, hash))
   end
 
-  def restore(envelope, opts) do
-    actor = Keyword.get(opts, :actor)
-    envelope = atomize_envelope(envelope)
+  @doc """
+  Reads the exact bound hash and records whatever it truthfully settles as.
 
-    with %Human{} <- actor,
-         {:ok, stored} <- stored_identity(envelope, actor),
-         true <- valid_for_confirmation?(envelope, stored),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      {:ok, envelope}
-    else
-      _ -> {:error, :invalid_submitted_action}
-    end
+  Base is read from the candidate row alone, before any lease transaction opens,
+  so no provider call ever happens under a row lock. The locked row then has to
+  still be that same candidate — same state, step, bound hashes and reviewed
+  envelope — or the outcome is dropped rather than applied to a step it never
+  described.
+
+  A hash the chain has not resolved writes nothing at all, so the same hash can
+  be read again later; an approval advances the sequence only once its own
+  allowance really holds, and only the auction's own event confirms a bid.
+  """
+  def verify(input, %{actor: %Human{}} = context) do
+    action_id = input.arguments.action_id
+
+    with {:ok, lease} <- lease(context),
+         {:ok, candidate} <- operation(lease.account_id, action_id, false),
+         {:ok, outcome} <- read_chain(candidate),
+         do: transact(lease, &locked_transition(&1, action_id, settle(candidate, outcome)))
   end
 
-  def approval_status(envelope, transaction_hash, opts) do
-    actor = Keyword.get(opts, :actor)
-    envelope = atomize_envelope(envelope)
+  def verify(_input, _context), do: unavailable(:authentication_required)
 
-    with %Human{} <- actor,
-         {:ok, stored} <- stored_identity(envelope, actor),
-         true <- valid_for_confirmation?(envelope, stored),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      ChainClient.module().approval_status(envelope, transaction_hash)
-    else
-      _ -> {:error, :invalid_submitted_action}
-    end
-  end
+  def cancel(input, context),
+    do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @withdrawn}))
 
-  defp auction(auction_id, _opts) do
-    case Autolaunch.get_public_auction(auction_id, actor: nil) do
-      {:ok, nil} -> {:error, :auction_not_found}
-      result -> result
-    end
-  end
+  def close_not_sent(input, context),
+    do:
+      write(context, input.arguments.action_id, transition(:close_not_sent, %{reason: @rejected}))
 
-  defp owned_bid(bid_id, actor) do
-    case Autolaunch.get_my_bid_position(bid_id, actor: actor) do
-      {:ok, nil} -> {:error, :bid_not_found}
-      result -> result
-    end
-  end
+  def release_unstarted(input, context),
+    do: write(context, input.arguments.action_id, transition(:release_unstarted, %{}))
 
-  defp stored_identity(%{resource: @auction_resource} = envelope, _actor) do
-    with auction_id when is_binary(auction_id) <- argument(envelope, :auction_id),
-         {:ok, auction} <- auction(auction_id, []) do
-      {:ok, auction}
-    else
-      _ -> {:error, :invalid_auction_identity}
-    end
-  end
+  @doc """
+  Ends an operation whose claimed step never resolved, at the account's request.
 
-  defp stored_identity(%{resource: @bid_resource} = envelope, actor) do
-    with bid_id when is_binary(bid_id) <- argument(envelope, :bid_id),
-         {:ok, bid} <- owned_bid(bid_id, actor) do
-      {:ok, bid}
-    else
-      _ -> {:error, :invalid_bid_identity}
-    end
-  end
-
-  defp stored_identity(_envelope, _actor), do: {:error, :invalid_resource}
-
-  defp valid_for_confirmation?(%{resource: @auction_resource} = envelope, auction) do
-    case normalize_address(auction.auction_address) do
-      {:ok, to} ->
-        Envelope.valid_for_confirmation?(envelope,
-          resource: @auction_resource,
-          to: to,
-          signer: envelope.expected_signer,
-          contract_name: @contract_name,
-          actions: @auction_actions
-        )
-
-      _ ->
-        false
-    end
-  end
-
-  defp valid_for_confirmation?(%{resource: @bid_resource} = envelope, bid) do
-    with {:ok, to} <- normalize_address(bid.auction_address),
-         {:ok, owner} <- normalize_address(bid.owner_address),
-         true <- owner == envelope.expected_signer,
-         true <- argument(envelope, :onchain_bid_id) == bid.onchain_bid_id do
-      Envelope.valid_for_confirmation?(envelope,
-        resource: @bid_resource,
-        to: to,
-        signer: owner,
-        contract_name: @contract_name,
-        actions: @bid_actions
+  Its calldata is never resent and its bound hashes stay exactly where they are.
+  The row remains for the canonical projector; only the account's open slot is
+  released, and a new review is a new bid, which the protocol permits.
+  """
+  def start_new_bid(input, context),
+    do:
+      write(
+        context,
+        input.arguments.action_id,
+        transition(:close_submission_unknown, %{reason: @unresolved})
       )
-    else
-      _ -> false
+
+  @doc "The account's open operation, recovered without a lease and writing nothing."
+  def open_operation(_input, %{actor: %Human{} = actor}) do
+    with {:ok, operation} <- open_row(actor.human_account_id, false),
+         do: {:ok, %{operation: view(operation)}}
+  end
+
+  def open_operation(_input, _context), do: {:error, :authentication_required}
+
+  @doc "The presenter's whole view of one operation. Everything else stays server-side."
+  @spec view(Ash.Resource.record() | nil) :: map() | nil
+  def view(nil), do: nil
+
+  def view(operation) do
+    Map.take(operation, [
+      :action_id,
+      :state,
+      :step,
+      :signer,
+      :envelope,
+      :onchain_bid_id,
+      :terminal_at
+      | Map.values(@hash_attributes)
+    ])
+  end
+
+  @doc "The reviewed sequence, in order, as the progress list renders it."
+  @spec steps(map()) :: [map()]
+  def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
+
+  @doc "The hash bound for one step of an operation, or `nil`."
+  @spec step_hash(map(), String.t()) :: String.t() | nil
+  def step_hash(operation, step),
+    do: Map.get(operation, Map.fetch!(@hash_attributes, String.to_existing_atom(step)))
+
+  # Reviews and operations
+
+  defp review(auction, address, signer, amount, max_price_q96, snapshot) do
+    granted = DateTime.add(Envelope.current_time(), @permit2_seconds, :second)
+
+    data =
+      AuctionAbi.encode_submit_bid(max_price_q96, amount, signer, snapshot.prev_tick_price_q96)
+
+    steps =
+      required_steps(snapshot, amount, DateTime.to_unix(granted)) ++
+        [%{"step" => "bid", "to" => address, "data" => data}]
+
+    envelope =
+      Envelope.new(@action, signer, data,
+        to: address,
+        resource: @resource,
+        contract_name: @contract_name,
+        risk_copy: @risk,
+        arguments: %{
+          "auction_id" => auction.id,
+          "amount" => units(amount),
+          "amount_atomic" => Integer.to_string(amount),
+          "max_price" => Decimal.to_string(price_decimal(max_price_q96), :normal),
+          "max_price_q96" => Integer.to_string(max_price_q96),
+          "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
+          "predecessor_source" => snapshot.predecessor_source,
+          "currency" => snapshot.currency,
+          "permit2" => Permit2Abi.address(),
+          "permit2_expires_at" =>
+            steps |> permit2_expiry(snapshot, granted) |> DateTime.to_iso8601(),
+          "steps" => steps
+        }
+      )
+
+    {stored(envelope), steps |> hd() |> Map.fetch!("step") |> String.to_existing_atom()}
+  end
+
+  # Only the transactions this wallet still needs. An allowance that already
+  # covers the amount and outlives the review is spent exactly as it stands.
+  defp required_steps(snapshot, amount, expiration) do
+    token_approval(snapshot, amount) ++ permit2_approval(snapshot, amount, expiration)
+  end
+
+  defp token_approval(%{token_allowance: allowance}, amount) when allowance >= amount, do: []
+
+  defp token_approval(snapshot, amount),
+    do: [
+      %{
+        "step" => "token_approval",
+        "to" => snapshot.currency,
+        "data" => Abi.encode_erc20("approve", [Permit2Abi.address(), amount]),
+        "amount" => Integer.to_string(amount)
+      }
+    ]
+
+  defp permit2_approval(snapshot, amount, expiration) do
+    if permit2_current?(snapshot, amount),
+      do: [],
+      else: [
+        %{
+          "step" => "permit2_approval",
+          "to" => Permit2Abi.address(),
+          "data" =>
+            Permit2Abi.encode_approve(snapshot.currency, snapshot.auction, amount, expiration),
+          "amount" => Integer.to_string(amount),
+          "expiration" => Integer.to_string(expiration)
+        }
+      ]
+  end
+
+  defp permit2_current?(%{permit2_amount: allowed, permit2_expiration: expires}, amount),
+    do:
+      allowed >= amount and
+        expires >= DateTime.to_unix(Envelope.current_time()) + @review_seconds
+
+  # The window the whole sequence has to be spent inside: the one it grants, or
+  # the one the existing allowance already carries.
+  defp permit2_expiry(steps, snapshot, granted) do
+    if Enum.any?(steps, &(&1["step"] == "permit2_approval")),
+      do: granted,
+      else: DateTime.from_unix!(snapshot.permit2_expiration)
+  end
+
+  defp open(lease, envelope, signer, step) do
+    transact(lease, fn account ->
+      with :ok <- release_undispatched(account.id) do
+        BidOperation
+        |> Ash.Changeset.for_create(
+          :prepare,
+          %{
+            action_id: envelope["action_id"],
+            envelope: envelope,
+            signer: signer,
+            step: step,
+            human_account_id: account.id
+          },
+          domain: @domain,
+          actor: @actor
+        )
+        |> Ash.create(actor: @actor)
+      end
+    end)
+  end
+
+  # A review nobody has dispatched may be replaced; anything already claimed
+  # holds the account's open slot until it reaches a terminal state.
+  defp release_undispatched(account_id) do
+    case open_row(account_id, true) do
+      {:ok, nil} -> :ok
+      {:ok, %{state: :prepared} = open} -> released(update(open, :cancel, %{reason: @replaced}))
+      {:ok, _claimed} -> unavailable(:bid_in_flight)
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp action_available("return_quote_token", "returnable"), do: :ok
-  defp action_available("exit_bid", status) when status in ~w(active borderline inactive), do: :ok
-  defp action_available("claim_bid", "claimable"), do: :ok
-  defp action_available(_action, _status), do: {:error, :bid_action_unavailable}
+  defp released({:ok, _cancelled}), do: :ok
+  defp released(error), do: error
+
+  # Transitions
+
+  defp transition(action, input),
+    do: fn _account, operation -> update(operation, action, input) end
+
+  defp claim(account, operation) do
+    with :ok <- signer_matches(account, operation.signer),
+         do: update(operation, :claim_dispatch, %{})
+  end
+
+  defp bind(_account, operation, hash) do
+    attribute = Map.fetch!(@hash_attributes, operation.step)
+
+    case Map.fetch!(operation, attribute) do
+      nil -> update(operation, bind_action(operation), %{attribute => hash})
+      ^hash -> {:ok, operation}
+      _different -> unavailable(:submitted_hash_conflict)
+    end
+  end
+
+  defp bind_action(%{terminal_at: nil}), do: :bind_hash
+  defp bind_action(_terminal), do: :attach_late_hash
+
+  # The one Base read a settlement makes, with no transaction and no lock open.
+  # A candidate with nothing sent to read about asks nothing.
+  defp read_chain(%{state: :submitted} = candidate) do
+    hash = Map.fetch!(candidate, Map.fetch!(@hash_attributes, candidate.step))
+
+    case ChainClient.module().verify(candidate.envelope, candidate.step, hash) do
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+      result -> result
+    end
+  end
+
+  defp read_chain(_settled), do: {:ok, nil}
+
+  # The read answered about one exact candidate. A locked row that has moved on
+  # since — another socket bound a hash, advanced the step, or the account ended
+  # the operation — is left exactly as it stands.
+  defp settle(candidate, outcome) do
+    fn _account, operation ->
+      if identity(operation) == identity(candidate),
+        do: record(operation, outcome),
+        else: {:ok, operation}
+    end
+  end
+
+  defp identity(operation), do: Map.take(operation, @identity)
+
+  defp record(operation, %{outcome: :confirmed} = result), do: advance(operation, result)
+
+  defp record(operation, %{outcome: :reverted}),
+    do: update(operation, :record_revert, %{reason: @reverted})
+
+  defp record(operation, %{outcome: :unverified}),
+    do: update(operation, :record_unverified, %{reason: @contradicted})
+
+  # A hash the chain has not resolved yet, and a candidate that had nothing to
+  # read, both leave the row bound and readable again.
+  defp record(operation, _unresolved), do: {:ok, operation}
+
+  defp advance(%{step: :bid} = operation, %{onchain_bid_id: bid_id}),
+    do: update(operation, :confirm, %{onchain_bid_id: bid_id})
+
+  defp advance(operation, _result), do: update(operation, :advance, %{step: next_step(operation)})
+
+  defp next_step(%{envelope: envelope, step: step}) do
+    current = Atom.to_string(step)
+
+    envelope["arguments"]["steps"]
+    |> Enum.map(& &1["step"])
+    |> Enum.drop_while(&(&1 != current))
+    |> Enum.at(1)
+    |> String.to_existing_atom()
+  end
+
+  # A prepared step whose Permit2 window has closed can no longer be spent, and
+  # an earlier step of the same sequence already confirmed. The operation ends
+  # so a new review rereads current allowance and auction state.
+  defp expire_lapsed(%{state: :prepared} = operation) do
+    if bound?(operation) and lapsed?(operation),
+      do: update(operation, :expire, %{reason: @lapsed}),
+      else: {:ok, operation}
+  end
+
+  defp expire_lapsed(operation), do: {:ok, operation}
+
+  defp bound?(operation),
+    do: Enum.any?(@hash_attributes, fn {_step, attribute} -> Map.fetch!(operation, attribute) end)
+
+  defp lapsed?(%{envelope: envelope}) do
+    {:ok, expires_at, _offset} =
+      DateTime.from_iso8601(envelope["arguments"]["permit2_expires_at"])
+
+    DateTime.compare(expires_at, Envelope.current_time()) != :gt
+  end
+
+  # Durable write plumbing
+
+  defp write(%{actor: %Human{}} = context, action_id, transition) do
+    with {:ok, lease} <- lease(context),
+         do: transact(lease, &locked_transition(&1, action_id, transition))
+  end
+
+  defp write(_context, _action_id, _transition), do: unavailable(:authentication_required)
+
+  defp locked_transition(account, action_id, transition) do
+    with {:ok, operation} <- operation(account.id, action_id, true),
+         {:ok, operation} <- expire_lapsed(operation),
+         {:ok, operation} <- resume(operation, account, transition),
+         do: {:ok, %{operation: view(operation)}}
+  end
+
+  # An operation the lapse just ended is itself the outcome, and it commits:
+  # nothing further is asked of a sequence that can no longer be spent.
+  defp resume(%{state: :expired} = operation, _account, _transition), do: {:ok, operation}
+  defp resume(operation, account, transition), do: transition.(account, operation)
+
+  defp transact(%{lineage: lineage, account_id: account_id}, callback) do
+    case SessionAuthority.transact_lease(lineage, account_id, callback) do
+      {:error, :stale_authority} -> unavailable(:session_unavailable)
+      result -> result
+    end
+  end
+
+  defp operation(account_id, action_id, lock?) do
+    BidOperation
+    |> Ash.Query.new(domain: @domain)
+    |> Ash.Query.filter(action_id == ^action_id and human_account_id == ^account_id)
+    |> then(&if lock?, do: Ash.Query.lock(&1, :for_update), else: &1)
+    |> Ash.read_one(domain: @domain, actor: @actor)
+    |> case do
+      {:ok, nil} -> unavailable(:bid_operation_not_found)
+      other -> other
+    end
+  end
+
+  defp open_row(account_id, lock?) do
+    BidOperation
+    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain)
+    |> then(&if lock?, do: Ash.Query.lock(&1, :for_update), else: &1)
+    |> Ash.read_one(domain: @domain, actor: @actor)
+  end
+
+  defp update(operation, action, input) do
+    operation
+    |> Ash.Changeset.for_update(action, input, domain: @domain, actor: @actor)
+    |> Ash.update(actor: @actor)
+  end
+
+  # Session and wallet identity
+
+  @doc "The mounted lease an Ash action context carries, or the refusal to write at all."
+  @spec lease(map()) :: {:ok, map()} | {:error, :session_lease_required}
+  def lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
+      when is_binary(lineage) and is_integer(account_id),
+      do: {:ok, %{lineage: lineage, account_id: account_id}}
+
+  def lease(_context), do: unavailable(:session_lease_required)
+
+  defp current_wallet(address, context) do
+    with {:ok, signer} <- normalize(address),
+         {:ok, lease} <- lease(context),
+         :ok <- leased_wallet(lease, signer),
+         do: {:ok, signer}
+  end
+
+  defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer),
+    do: lineage |> SessionAuthority.leased_account(account_id) |> signer_matches(signer)
+
+  defp signer_matches(nil, _signer), do: unavailable(:session_unavailable)
+
+  defp signer_matches(%{wallet_addresses: wallets}, signer) do
+    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
+      do: :ok,
+      else: unavailable(:wrong_signer)
+  end
+
+  # Chain snapshot
+
+  defp snapshot(address, signer, max_price_q96) do
+    case ChainClient.module().snapshot(%{
+           auction: address,
+           signer: signer,
+           max_price_q96: max_price_q96
+         }) do
+      {:ok, snapshot} -> {:ok, Map.put(snapshot, :auction, address)}
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp bound_currency(%{currency: currency}) do
+    if Address.equal?(currency, Abi.stake_token_address()),
+      do: :ok,
+      else: unavailable(:auction_currency_is_not_regent)
+  end
+
+  defp bounded_predecessor(%{prev_tick_price_q96: hint}) when is_integer(hint), do: :ok
+  defp bounded_predecessor(_snapshot), do: unavailable(:bid_preparation_unavailable)
+
+  defp affordable(%{regent_balance: balance}, amount) when balance >= amount, do: :ok
+  defp affordable(_snapshot, _amount), do: unavailable(:amount_above_balance)
+
+  # Stored auctions
+
+  defp auction(auction_id, opts \\ []) do
+    case Autolaunch.get_public_auction(auction_id, Keyword.put(opts, :actor, nil)) do
+      {:ok, nil} -> unavailable(:auction_not_found)
+      result -> result
+    end
+  end
+
+  defp biddable(auction_id) do
+    case auction(auction_id) do
+      {:ok, %{state: :active} = auction} -> {:ok, auction}
+      {:ok, _closed} -> unavailable(:auction_not_biddable)
+      error -> error
+    end
+  end
+
+  # Amounts and prices
+
+  @doc """
+  The one bid-amount language: exact decimal digits, at most eighteen places.
+
+  The form validates against this, so the page never invites an amount that
+  preparation would refuse.
+  """
+  @spec atomic_amount(term()) :: {:ok, pos_integer()} | {:error, atom()}
+  def atomic_amount(value) when is_binary(value) do
+    value = String.trim(value)
+
+    with true <- String.match?(value, ~r/^\d+(?:\.\d{1,18})?$/),
+         {decimal, ""} <- Decimal.parse(value),
+         scaled <- Decimal.mult(decimal, Decimal.new(Integer.pow(10, @decimals))),
+         rounded <- Decimal.round(scaled, 0),
+         :eq <- Decimal.compare(scaled, rounded),
+         amount when amount in 1..@uint128_max <- Decimal.to_integer(rounded) do
+      {:ok, amount}
+    else
+      _refused -> {:error, :invalid_amount}
+    end
+  end
+
+  def atomic_amount(_value), do: {:error, :invalid_amount}
+
+  @doc "The exact decimal REGENT rendering of an atomic amount, never rounded up."
+  @spec units(non_neg_integer()) :: String.t()
+  def units(amount), do: Rpc.format_units(amount, @decimals)
+
+  @doc "The exact Q96 price a decimal maximum price names."
+  @spec price_q96(term()) :: {:ok, pos_integer()} | {:error, atom()}
+  def price_q96(value) do
+    with {:ok, decimal} <- positive_decimal(value) do
+      [whole, fraction] =
+        decimal |> Decimal.to_string(:normal) |> Kernel.<>(".") |> String.split(".", parts: 2)
+
+      fraction = String.trim_trailing(fraction, ".")
+      scaled = String.to_integer(whole <> fraction) * @q96
+      denominator = Integer.pow(10, String.length(fraction))
+      quotient = div(scaled, denominator)
+      rounded = if rem(scaled, denominator) * 2 >= denominator, do: quotient + 1, else: quotient
+
+      if rounded in 1..@uint256_max, do: {:ok, rounded}, else: {:error, :invalid_price}
+    end
+  end
+
+  defp price_decimal(q96),
+    do: q96 |> Decimal.new() |> Decimal.div(Decimal.new(@q96)) |> Decimal.normalize()
 
   defp positive_decimal(value) when is_binary(value) do
     value = String.trim(value)
@@ -280,7 +651,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
          :gt <- Decimal.compare(decimal, 0) do
       {:ok, decimal}
     else
-      _ -> {:error, :invalid_decimal}
+      _refused -> {:error, :invalid_decimal}
     end
   end
 
@@ -291,80 +662,14 @@ defmodule AshPlatform.Autolaunch.BidActions do
       {decimal, ""} ->
         if Decimal.compare(decimal, 0) in [:eq, :gt], do: decimal, else: Decimal.new(0)
 
-      _ ->
+      _unreadable ->
         Decimal.new(0)
     end
   end
 
   defp nonnegative_decimal_or_zero(_value), do: Decimal.new(0)
 
-  defp token_units(decimal, decimals) do
-    scale = Integer.pow(10, decimals)
-    scaled = Decimal.mult(decimal, scale)
-    rounded = Decimal.round(scaled, 0)
-
-    if Decimal.equal?(scaled, rounded) do
-      amount = Decimal.to_integer(rounded)
-      if amount in 1..@uint128_max, do: {:ok, amount}, else: {:error, :invalid_amount}
-    else
-      {:error, :invalid_amount_precision}
-    end
-  end
-
-  defp price_q96(decimal) do
-    text = Decimal.to_string(decimal, :normal)
-    [whole, fraction] = String.split(text <> ".", ".", parts: 2)
-    fraction = String.trim_trailing(fraction, ".")
-    numerator = String.to_integer(whole <> fraction)
-    denominator = Integer.pow(10, String.length(fraction))
-    scaled = numerator * @q96
-    quotient = div(scaled, denominator)
-    rounded = if rem(scaled, denominator) * 2 >= denominator, do: quotient + 1, else: quotient
-
-    if rounded in 1..@uint256_max, do: {:ok, rounded}, else: {:error, :invalid_price}
-  rescue
-    _ -> {:error, :invalid_price}
-  end
-
-  defp token_decimals(value) when is_integer(value) and value in 0..36, do: {:ok, value}
-  defp token_decimals(_value), do: {:error, :invalid_quote_token}
-
-  defp onchain_bid_id(value) when is_binary(value) do
-    case Integer.parse(String.trim(value)) do
-      {integer, ""} when integer in 0..@uint256_max -> {:ok, integer}
-      _ -> {:error, :invalid_onchain_bid_id}
-    end
-  end
-
-  defp onchain_bid_id(_value), do: {:error, :invalid_onchain_bid_id}
-
-  defp normalize_address(value) do
-    {:ok, Abi.normalize_address!(value)}
-  rescue
-    _ -> {:error, :invalid_address}
-  end
-
-  defp verified_wallet(%Human{} = actor, signer) do
-    with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
-         wallets when is_list(wallets) <- account.wallet_addresses,
-         true <- Enum.any?(wallets, &(normalize_or_nil(&1) == signer)) do
-      :ok
-    else
-      _ -> {:error, :wrong_signer}
-    end
-  end
-
-  defp normalize_or_nil(value) do
-    Abi.normalize_address!(value)
-  rescue
-    _ -> nil
-  end
-
-  defp encode(fun) do
-    {:ok, fun.()}
-  rescue
-    _ -> {:error, :invalid_calldata}
-  end
+  defp decimal_string(decimal), do: decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
 
   defp status_band(false, _max_price, _projected_price), do: "inactive"
 
@@ -380,37 +685,31 @@ defmodule AshPlatform.Autolaunch.BidActions do
 
   defp maybe_warning(warnings, true, warning), do: [warning | warnings]
   defp maybe_warning(warnings, false, _warning), do: warnings
-  defp decimal_string(decimal), do: decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
-  defp stored_key(@auction_resource), do: :auction
-  defp stored_key(@bid_resource), do: :bid
 
-  defp argument(envelope, key) do
-    envelope
-    |> Map.get(:arguments, %{})
-    |> field(key)
+  # Shared helpers
+
+  defp canonical_hash(hash) do
+    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
   end
 
-  defp atomize_envelope(envelope) when is_map(envelope) do
-    %{
-      action_id: field(envelope, :action_id),
-      idempotency_key: field(envelope, :idempotency_key),
-      resource: field(envelope, :resource),
-      action: field(envelope, :action),
-      chain_id: field(envelope, :chain_id),
-      to: field(envelope, :to),
-      value: field(envelope, :value),
-      data: field(envelope, :data),
-      expected_signer: field(envelope, :expected_signer),
-      prepared_at: field(envelope, :prepared_at),
-      expires_at: field(envelope, :expires_at),
-      risk_copy: field(envelope, :risk_copy),
-      approval: field(envelope, :approval),
-      arguments: field(envelope, :arguments),
-      metadata: field(envelope, :metadata),
-      confirmation_token: field(envelope, :confirmation_token)
-    }
+  defp normalize(value) do
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> unavailable(:invalid_address)
+    end
   end
 
-  defp atomize_envelope(_envelope), do: %{}
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
+  # The form asks the amount and price helpers the same question the page does,
+  # so their plain answers become the one typed refusal here.
+  defp refusable({:error, reason}), do: unavailable(reason)
+  defp refusable(result), do: result
+
+  # One stored shape: the envelope is written, read and rendered exactly as the
+  # confirmation token signed it.
+  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
+
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # presenter can name the fact that actually stopped the bid.
+  defp unavailable(reason),
+    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: BidOperation, reason: reason)}
 end

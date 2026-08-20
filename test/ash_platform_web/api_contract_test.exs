@@ -13,10 +13,6 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/autolaunch/v1/auctions",
              "/api/autolaunch/v1/auctions/{id}",
              "/api/autolaunch/v1/auctions/{id}/bid-quote",
-             "/api/autolaunch/v1/auctions/{id}/bids",
-             "/api/autolaunch/v1/bids/{id}/claim",
-             "/api/autolaunch/v1/bids/{id}/exit",
-             "/api/autolaunch/v1/bids/{id}/return",
              "/api/autolaunch/v1/tokens",
              "/api/formation/v1/regents/{regent_id}/agent-links",
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
@@ -465,6 +461,19 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert contract["components"]["schemas"]["ApiError"]["properties"]["error"]["properties"][
              "code"
            ]["enum"] == ["invalid_request", "internal_error"]
+
+    # The superseded protected bidder-preparation operations and every component
+    # only they referenced are gone; the public quote is all that remains.
+    for orphaned <- ~w(PreparedAuctionWalletAction ExactTokenApproval) do
+      refute Map.has_key?(schemas, orphaned)
+    end
+
+    refute Map.has_key?(contract["components"]["responses"], "PreparedWalletAction")
+    refute Map.has_key?(contract["components"]["parameters"], "BidId")
+
+    for action <- ~w(submit_bid exit_bid return_quote_token claim_bid) do
+      refute File.read!(@contract) =~ action
+    end
 
     assert schemas["NotFoundApiError"] == %{
              "type" => "object",

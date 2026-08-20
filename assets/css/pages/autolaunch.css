@@ -214,3 +214,131 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+.bid-panel {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid transparent;
+  border-radius: var(--material-radius, 4px);
+  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(var(--material-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+}
+
+.bid-panel > *,
+.bid-heading > *,
+.bid-body > * {
+  margin-block: 0;
+}
+
+.bid-heading h1,
+.bid-heading h2 {
+  margin-block: 0 0.35rem;
+}
+
+.bid-body,
+.bid-empty,
+.bid-review {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.bid-wallet {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.bid-wallet dt,
+.bid-review dt {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bid-wallet dd,
+.bid-review dd {
+  margin: 0;
+}
+
+.bid-mono {
+  font-family: var(--font-family-mono, monospace);
+}
+
+.bid-amount {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bid-amount input {
+  flex: 1;
+}
+
+.bid-panel input {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  width: 100%;
+}
+
+.bid-panel button {
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+}
+
+.bid-panel button[disabled] {
+  opacity: 0.55;
+}
+
+.bid-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--hairline);
+}
+
+.bid-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-elevated);
+}
+
+.bid-step-state {
+  font-size: 0.8rem;
+}
+
+.bid-notice,
+.bid-estimate,
+.bid-settled {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--hairline-strong);
+}
+
+.bid-notice[role="alert"] {
+  border-inline-start-color: var(--color-danger, #d93636);
+}
+
+@media (max-width: 44rem) {
+  .bid-wallet {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .bid-panel {
+    background: var(--color-surface-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

@@ -5,6 +5,7 @@ defmodule AshPlatform.Autolaunch do
   require Ash.Query
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
+  @bid_operation Module.concat(__MODULE__, "BidOperation")
   @indexer_source Module.concat(__MODULE__, "Indexer.Source")
   @indexer_cursor Module.concat(__MODULE__, "Indexer.Cursor")
   @indexer_block Module.concat(__MODULE__, "Indexer.Block")
@@ -46,7 +47,30 @@ defmodule AshPlatform.Autolaunch do
           :quote_token_decimals,
           :current_clearing_price
         ]
+
+      define :bid_position, action: :bid_position, args: [:auction_id, :expected_signer]
+
+      define :prepare_bid,
+        action: :prepare_bid,
+        args: [:auction_id, :expected_signer, :amount, :max_price]
+
+      define :claim_bid_dispatch, action: :claim_bid_dispatch, args: [:action_id]
+      define :bind_bid_hash, action: :bind_bid_hash, args: [:action_id, :transaction_hash]
+      define :verify_bid_step, action: :verify_bid_step, args: [:action_id]
+      define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
+      define :close_bid_not_sent, action: :close_bid_not_sent, args: [:action_id]
+
+      define :release_unstarted_bid_dispatch,
+        action: :release_unstarted_bid_dispatch,
+        args: [:action_id]
+
+      define :start_new_bid, action: :start_new_bid, args: [:action_id]
+      define :open_bid_operation, action: :open_bid_operation
     end
+
+    # The durable bidder operation is written only by `BidActions` under a
+    # session lease, so it is registered without a code interface of any kind.
+    resource @bid_operation
 
     resource AshPlatform.Autolaunch.Token do
       define :list_tokens, action: :list_public
@@ -201,39 +225,10 @@ defmodule AshPlatform.Autolaunch do
   def quote_auction_bid(auction_id, amount, max_price, opts \\ []),
     do: AshPlatform.Autolaunch.BidActions.quote(auction_id, amount, max_price, opts)
 
-  def prepare_auction_bid(auction_id, signer, amount, max_price, opts \\ []) do
-    AshPlatform.Autolaunch.BidActions.prepare_bid(
-      auction_id,
-      signer,
-      amount,
-      max_price,
-      opts
-    )
-  end
-
-  def prepare_bid_return(bid_id, opts \\ []),
-    do: AshPlatform.Autolaunch.BidActions.prepare_position("return_quote_token", bid_id, opts)
-
-  def prepare_bid_exit(bid_id, opts \\ []),
-    do: AshPlatform.Autolaunch.BidActions.prepare_position("exit_bid", bid_id, opts)
-
-  def prepare_bid_claim(bid_id, opts \\ []),
-    do: AshPlatform.Autolaunch.BidActions.prepare_position("claim_bid", bid_id, opts)
-
-  def confirm_bid_wallet_action(envelope, transaction_hash, approval_transaction_hash, opts \\ []) do
-    AshPlatform.Autolaunch.BidActions.confirm(
-      envelope,
-      transaction_hash,
-      approval_transaction_hash,
-      opts
-    )
-  end
-
-  def restore_submitted_bid_action(envelope, opts \\ []),
-    do: AshPlatform.Autolaunch.BidActions.restore(envelope, opts)
-
-  def verify_bid_approval_submission(envelope, transaction_hash, opts \\ []),
-    do: AshPlatform.Autolaunch.BidActions.approval_status(envelope, transaction_hash, opts)
+  # The two bidder rules a presenter needs, owned here so the page and the named
+  # preparation action can only ever answer the same way.
+  defdelegate parse_bid_amount(value), to: AshPlatform.Autolaunch.BidActions, as: :atomic_amount
+  defdelegate bid_amount_units(amount), to: AshPlatform.Autolaunch.BidActions, as: :units
 
   def prepare_subject_payment_link(
         subject_id,

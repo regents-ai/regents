@@ -1,188 +1,121 @@
-import {encodeFunctionData, getAddress, parseAbi, type Address, type Hash} from "viem"
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {getAddress, type Address, type Hash, type Hex} from "viem"
+import {describe, expect, it, vi} from "vitest"
 
-import auctionAbiJson from "../../contracts/abi/continuous-clearing-auction.json"
-import {recordAutolaunchBidSubmission} from "../js/hooks/autolaunch_bid_wallet"
+import {rememberOperation} from "../js/hooks/autolaunch_bid_wallet"
 import {
-  assertAuctionBidEnvelope,
-  executePreparedAuctionBidAction,
-  type AuctionBidClients,
-  type PreparedAuctionBidAction,
+  sendBidStep,
+  sendableStep,
+  userRejected,
+  type BidClients,
+  type BidOperation,
 } from "../js/wallet_actions/autolaunch_bids"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
+const other = getAddress("0x4444444444444444444444444444444444444444")
 const auction = getAddress("0x2222222222222222222222222222222222222222")
-const token = getAddress("0x3333333333333333333333333333333333333333")
+const regent = getAddress("0x6f89bcA4eA5931EdFCB09786267b251DeE752b07")
+const permit2 = getAddress("0x000000000022D473030F116dDEE9F6B43aC78BA3")
 const approvalHash = `0x${"cd".repeat(32)}` as Hash
-const actionHash = `0x${"ab".repeat(32)}` as Hash
-const amount = 12_500_000n
-const price = 3n * 79_228_162_514_264_337_593_543_950_336n
-const approvalAbi = parseAbi(["function approve(address spender,uint256 amount)"])
 
-function envelope(overrides: Partial<PreparedAuctionBidAction> = {}): PreparedAuctionBidAction {
-  const data = encodeFunctionData({
-    abi: auctionAbiJson,
-    functionName: "submitBid",
-    args: [price, amount, wallet, "0x"],
-  })
-  const approvalData = encodeFunctionData({
-    abi: approvalAbi,
-    functionName: "approve",
-    args: [auction, amount],
-  })
-
+function operation(overrides: Partial<BidOperation> = {}): BidOperation {
   return {
-    action_id: "action",
-    idempotency_key: "action",
-    confirmation_token: "signed",
-    resource: "autolaunch_auction",
-    action: "submit_bid",
+    action_id: "bid",
+    signer: wallet,
     chain_id: 8453,
-    to: auction,
-    value: "0",
-    data,
-    expected_signer: wallet,
-    prepared_at: new Date(Date.now() - 1000).toISOString(),
-    expires_at: new Date(Date.now() + 120_000).toISOString(),
-    risk_copy: "Review this bid.",
-    arguments: {
-      auction_id: "auction",
-      amount_atomic: amount.toString(),
-      max_price_q96: price.toString(),
-      recipient: wallet,
-    },
-    approval: {
-      token,
-      spender: auction,
-      amount: amount.toString(),
-      data: approvalData,
-      mode: "exact",
-    },
+    terminal: false,
+    steps: [
+      {step: "token_approval", to: regent, data: "0x095ea7b3ff" as Hex},
+      {step: "permit2_approval", to: permit2, data: "0x87517c45ff" as Hex},
+      {step: "bid", to: auction, data: "0xa52c8728ff" as Hex},
+    ],
     ...overrides,
   }
 }
 
-function clients(overrides: Partial<AuctionBidClients> = {}): AuctionBidClients {
-  let sends = 0
+function clients(overrides: Partial<BidClients> = {}): BidClients {
   return {
     addresses: vi.fn(async () => [wallet]),
     chainId: vi.fn(async () => 8453),
     switchToBase: vi.fn(async () => undefined),
-    send: vi.fn(async () => (++sends === 1 ? approvalHash : actionHash)),
-    receipt: vi.fn(async () => ({status: "success" as const})),
+    send: vi.fn(async () => approvalHash),
     ...overrides,
   }
 }
 
-afterEach(() => vi.useRealTimers())
-
-describe("Autolaunch bid wallet action", () => {
-  it("waits for the exact approval before submitting the reviewed bid", async () => {
+describe("the browser sends only the step the server claimed", () => {
+  it("hands the wallet the exact reviewed bytes and reports the hash once", async () => {
+    const held = operation()
     const boundary = clients()
-    const submitted = vi.fn()
+    const onSendStarted = vi.fn()
 
-    await expect(
-      executePreparedAuctionBidAction(envelope(), {request: vi.fn()}, boundary, {
-        onSubmitted: submitted,
-      }),
-    ).resolves.toEqual({approvalHash, transactionHash: actionHash})
+    const hash = await sendBidStep(
+      held,
+      sendableStep(held, "bid", "token_approval"),
+      {request: vi.fn()},
+      onSendStarted,
+      boundary,
+    )
 
-    expect(boundary.send).toHaveBeenNthCalledWith(1, {
+    expect(hash).toBe(approvalHash)
+    expect(boundary.send).toHaveBeenCalledWith({
       account: wallet,
-      to: token,
-      data: envelope().approval!.data,
+      to: regent,
+      data: "0x095ea7b3ff",
       value: 0n,
     })
-    expect(boundary.send).toHaveBeenNthCalledWith(2, {
-      account: wallet,
-      to: auction,
-      data: envelope().data,
-      value: 0n,
-    })
-    expect(submitted.mock.calls.map(call => call[0])).toEqual(["approval", "action"])
+    expect(onSendStarted).toHaveBeenCalledOnce()
   })
 
-  it("fails closed on signer, expiry, calldata and approval drift", async () => {
-    const other = getAddress("0x4444444444444444444444444444444444444444")
+  it("refuses another operation, a terminal one, an unknown step and a foreign chain", () => {
+    expect(() => sendableStep(operation(), "other", "bid")).toThrow("different bid")
+    expect(() => sendableStep(operation({terminal: true}), "bid", "bid")).toThrow("already finished")
+    expect(() => sendableStep(operation(), "bid", "exit_bid")).toThrow("not part of the reviewed bid")
+    expect(() => sendableStep(operation({chain_id: 1}), "bid", "bid")).toThrow("not for Base")
+  })
+
+  it("never sends from a wallet other than the reviewed signer", async () => {
+    const held = operation()
+    const onSendStarted = vi.fn()
 
     await expect(
-      executePreparedAuctionBidAction(
-        envelope(),
+      sendBidStep(
+        held,
+        sendableStep(held, "bid", "bid"),
         {request: vi.fn()},
+        onSendStarted,
         clients({addresses: vi.fn(async () => [other])}),
       ),
-    ).rejects.toThrow("connected wallet")
+    ).rejects.toThrow("wallet this bid was reviewed for")
 
-    for (const changed of [
-      envelope({expires_at: new Date(Date.now() - 1000).toISOString()}),
-      envelope({data: "0xdeadbeef"}),
-      envelope({to: other}),
-      envelope({approval: {...envelope().approval!, amount: "1"}}),
-      envelope({idempotency_key: "changed"}),
-    ]) {
-      expect(() => assertAuctionBidEnvelope(changed)).toThrow()
-    }
+    expect(onSendStarted).not.toHaveBeenCalled()
   })
 
-  it("does not submit the action if approval confirmation outlives the envelope", async () => {
-    vi.useFakeTimers()
-    const prepared = envelope({expires_at: new Date(Date.now() + 61_000).toISOString()})
-    const boundary = clients({
-      receipt: vi.fn(async () => {
-        vi.setSystemTime(Date.now() + 62_000)
-        return {status: "success" as const}
-      }),
-    })
+  it("never sends while the wallet is on another chain", async () => {
+    const held = operation()
+    const boundary = clients({chainId: vi.fn(async () => 1), switchToBase: vi.fn(async () => undefined)})
 
     await expect(
-      executePreparedAuctionBidAction(prepared, {request: vi.fn()}, boundary),
-    ).rejects.toThrow("expired")
-    expect(boundary.send).toHaveBeenCalledTimes(1)
+      sendBidStep(held, sendableStep(held, "bid", "bid"), {request: vi.fn()}, vi.fn(), boundary),
+    ).rejects.toThrow("Switch to Base")
+
+    expect(boundary.send).not.toHaveBeenCalled()
   })
 
-  it("requires more than 60 seconds before opening the signing flow", async () => {
-    vi.useFakeTimers()
+  it("stores only the operation identity, and forgets it once the bid ends", () => {
+    const storage = {setItem: vi.fn(), removeItem: vi.fn()}
 
-    for (const remaining of [60_000, 59_999, 0]) {
-      const boundary = clients()
+    rememberOperation(operation(), storage)
+    expect(storage.setItem).toHaveBeenCalledWith("regent:autolaunch-bid:open", "bid")
 
-      await expect(
-        executePreparedAuctionBidAction(
-          envelope({expires_at: new Date(Date.now() + remaining).toISOString()}),
-          {request: vi.fn()},
-          boundary,
-        ),
-      ).rejects.toThrow("Prepare it again")
-
-      expect(boundary.chainId).not.toHaveBeenCalled()
-      expect(boundary.addresses).not.toHaveBeenCalled()
-      expect(boundary.send).not.toHaveBeenCalled()
-    }
+    rememberOperation(operation({terminal: true}), storage)
+    expect(storage.removeItem).toHaveBeenCalledWith("regent:autolaunch-bid:open")
+    expect(storage.setItem).toHaveBeenCalledOnce()
   })
 
-  it("stores both submitted hashes for refresh recovery", () => {
-    const storage = {setItem: vi.fn()}
-    const prepared = envelope()
-
-    const approval = recordAutolaunchBidSubmission(
-      null,
-      prepared,
-      "approval",
-      approvalHash,
-      storage,
-    )
-    const action = recordAutolaunchBidSubmission(
-      approval,
-      prepared,
-      "action",
-      actionHash,
-      storage,
-    )
-
-    expect(action).toMatchObject({
-      approval_transaction_hash: approvalHash,
-      transaction_hash: actionHash,
-    })
-    expect(storage.setItem).toHaveBeenCalledTimes(2)
+  it("treats only the exact EIP-1193 rejection code as a rejection", () => {
+    expect(userRejected({code: 4001})).toBe(true)
+    expect(userRejected({cause: {cause: {code: 4001}}})).toBe(true)
+    expect(userRejected(new Error("User rejected the request."))).toBe(false)
+    expect(userRejected({code: 4100})).toBe(false)
   })
 })

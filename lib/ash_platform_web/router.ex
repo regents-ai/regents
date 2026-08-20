@@ -67,11 +67,6 @@ defmodule AshPlatformWeb.Router do
   scope "/api", AshPlatformWeb do
     pipe_through :session_api
 
-    post "/autolaunch/v1/auctions/:id/bids", AutolaunchAuctionController, :prepare_bid
-    post "/autolaunch/v1/bids/:id/exit", AutolaunchAuctionController, :prepare_bid_exit
-    post "/autolaunch/v1/bids/:id/return", AutolaunchAuctionController, :prepare_bid_return
-    post "/autolaunch/v1/bids/:id/claim", AutolaunchAuctionController, :prepare_bid_claim
-
     get "/formation/v1/regents/:regent_id/agent-links", AgentLinkController, :index
   end
 

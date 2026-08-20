@@ -125,6 +125,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [stake_redeem_operations_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_839_1_1_stake_redeem_operations.exs")
 
+    assert [bid_operations_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_839_5_2_clean_v1_bid_operations.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -159,7 +162,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                indexer_ledger_migration,
                indexer_canonical_height_migration,
                indexer_block_frontiers_migration,
-               stake_redeem_operations_migration
+               stake_redeem_operations_migration,
+               bid_operations_migration
              ])
 
     assert_additive_migration(
@@ -679,6 +683,43 @@ defmodule AshPlatformWeb.BoundaryTest do
 
     # No raw session lineage is ever a column on an operation.
     refute File.read!(stake_redeem_operations_migration) =~ "lineage"
+
+    # One open bid per account, one immutable reviewed identity, and one owner
+    # per bound hash are database facts rather than conventions a socket keeps.
+    assert_additive_migration(
+      bid_operations_migration,
+      [
+        "create table(:bid_operations",
+        "add(:action_id, :text, null: false)",
+        "add(:envelope, :map, null: false)",
+        "add(:signer, :text, null: false)",
+        "add(:step, :text, null: false)",
+        ~s|add(:state, :text, null: false, default: "prepared")|,
+        "add(:token_approval_transaction_hash, :text)",
+        "add(:permit2_approval_transaction_hash, :text)",
+        "add(:bid_transaction_hash, :text)",
+        "add(:onchain_bid_id, :text)",
+        "add(:terminal_at, :utc_datetime_usec)",
+        "references(:platform_human_users",
+        "on_delete: :restrict",
+        ~s(name: "bid_operations_unique_action_id_index"),
+        ~s(name: "bid_operations_unique_token_approval_transaction_hash_index"),
+        ~s(name: "bid_operations_unique_permit2_approval_transaction_hash_index"),
+        ~s(name: "bid_operations_unique_bid_transaction_hash_index"),
+        ~s(name: "bid_operations_one_open_per_account_index"),
+        ~s|where: "(terminal_at IS NULL)"|,
+        ~s|prefix: "autolaunch"|
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_reversible_migration(
+      bid_operations_migration,
+      [~s|drop(table(:bid_operations, prefix: "autolaunch"))|]
+    )
+
+    # No raw session lineage is ever a column on a bid operation either.
+    refute File.read!(bid_operations_migration) =~ "lineage"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

@@ -1,9 +1,20 @@
 defmodule AshPlatform.Autolaunch.ChainClient do
-  @moduledoc false
+  @moduledoc """
+  The one Base boundary a bid has: one snapshot before review, one read after each hash.
 
-  @callback confirm(map(), String.t(), String.t() | nil) :: {:ok, map()} | {:error, atom()}
-  @callback approval_status(map(), String.t()) ::
-              {:ok, :success | :reverted | :pending} | {:error, atom()}
+  `snapshot/1` answers the whole reviewed question at once — the auction's own
+  currency, the wallet's REGENT, both allowances that stand between it and the
+  auction, and the bounded predecessor tick the canonical call needs. There is no
+  partial answer: a review is derived from one snapshot or from none.
+
+  `verify/3` is read-only. The browser reports a hash and stops; whether that hash
+  confirmed, reverted or contradicted its own review is decided here.
+  """
+
+  @type outcome :: %{outcome: :pending | :confirmed | :reverted | :unverified}
+
+  @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
+  @callback verify(map(), atom(), String.t()) :: {:ok, outcome()} | {:error, atom()}
 
   def module do
     Application.get_env(

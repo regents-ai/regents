@@ -1,386 +1,216 @@
 defmodule AshPlatform.Autolaunch.BidActionsTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Autolaunch}
-  alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.WalletActions.Envelope
+  import AshPlatform.BidFixture
 
-  @wallet "0x1111111111111111111111111111111111111111"
-  @paired "0x2222222222222222222222222222222222222222"
-  @other "0x3333333333333333333333333333333333333333"
-  @auction_address "0x4444444444444444444444444444444444444444"
-  @quote_token "0x5555555555555555555555555555555555555555"
-  @hash "0x" <> String.duplicate("ab", 32)
-  @approval_hash "0x" <> String.duplicate("cd", 32)
+  alias AshPlatform.Autolaunch
+  alias AshPlatform.WalletActions.{Abi, Permit2Abi}
+
   @q96 79_228_162_514_264_337_593_543_950_336
+  @other "0x2222222222222222222222222222222222222222"
 
-  defmodule ChainStub do
-    @behaviour AshPlatform.Autolaunch.ChainClient
+  setup :bidder
 
-    @impl true
-    def confirm(envelope, transaction_hash, approval_transaction_hash) do
-      send(self_or_test(), {:confirm, envelope, transaction_hash, approval_transaction_hash})
+  test "PRODUCTION_STAYS_CLOSED: preparation is unavailable with no bounded predecessor source",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    Application.delete_env(:ash_platform, :autolaunch_bid_chain_client)
 
-      case Process.get(:autolaunch_confirmation, :success) do
-        :success ->
-          {:ok,
-           %{
-             transaction_hash: String.downcase(transaction_hash),
-             receipt_verified: true
-           }}
+    assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+    assert refusal(error) == :bid_preparation_unavailable
 
-        reason ->
-          {:error, reason}
-      end
-    end
-
-    @impl true
-    def approval_status(envelope, transaction_hash) do
-      send(self_or_test(), {:approval_status, envelope, transaction_hash})
-      {:ok, Process.get(:autolaunch_approval_status, :success)}
-    end
-
-    defp self_or_test, do: Process.get(:autolaunch_test_pid, self())
+    assert {:error, error} = Autolaunch.bid_position(auction.id, wallet, opts)
+    assert refusal(error) == :bid_preparation_unavailable
   end
 
-  setup do
-    previous_client = Application.get_env(:ash_platform, :autolaunch_bid_chain_client)
-    previous_clock = Application.get_env(:ash_platform, :wallet_action_clock)
-    test_pid = self()
+  test "EXACT_STANDARD_SEQUENCE: one snapshot yields approve, Permit2 allowance, then the five-argument bid",
+       %{auction: auction, wallet: wallet, opts: opts, regent: regent} do
+    install(token_allowance: 0, permit2_amount: 0, permit2_expiration: 0)
 
-    Application.put_env(:ash_platform, :autolaunch_bid_chain_client, ChainStub)
-    Application.put_env(:ash_platform, :wallet_action_clock, fn -> ~U[2026-07-31 12:00:00Z] end)
-    Process.put(:autolaunch_test_pid, test_pid)
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
 
-    on_exit(fn ->
-      restore_env(:autolaunch_bid_chain_client, previous_client)
-      restore_env(:wallet_action_clock, previous_clock)
-      Process.delete(:autolaunch_confirmation)
-      Process.delete(:autolaunch_approval_status)
+    arguments = operation.envelope["arguments"]
+    amount = 12_500_000_000_000_000_000
+
+    assert Enum.map(arguments["steps"], & &1["step"]) ==
+             ~w(token_approval permit2_approval bid)
+
+    [approve, permit2, bid] = arguments["steps"]
+
+    assert approve["to"] == regent
+    assert approve["data"] == Abi.encode_erc20("approve", [Permit2Abi.address(), amount])
+
+    assert permit2["to"] == Permit2Abi.address()
+
+    assert permit2["data"] ==
+             Permit2Abi.encode_approve(
+               regent,
+               auction_address(),
+               amount,
+               String.to_integer(permit2["expiration"])
+             )
+
+    assert bid["to"] == auction_address()
+    assert bid["data"] == operation.envelope["data"]
+    assert String.starts_with?(bid["data"], "0xa52c8728")
+
+    # maxPriceQ96, amount, owner, prevTickPriceQ96, then the offset of an empty
+    # hookData past the five-word head and its zero length.
+    assert byte_size(bid["data"]) == 10 + 6 * 64
+    assert String.ends_with?(bid["data"], word(160) <> word(0))
+
+    assert arguments["amount_atomic"] == Integer.to_string(amount)
+    assert arguments["max_price_q96"] == Integer.to_string(3 * @q96)
+    assert arguments["prev_tick_price_q96"] == Integer.to_string(2 * @q96)
+    assert arguments["predecessor_source"] == "fixture"
+    assert arguments["currency"] == regent
+    assert operation.envelope["value"] == "0"
+    assert operation.envelope["chain_id"] == 8453
+    assert operation.step == :token_approval
+  end
+
+  test "EXACT_STANDARD_SEQUENCE: an allowance that already covers the review is not asked for again",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    amount = 12_500_000_000_000_000_000
+
+    install(
+      token_allowance: amount,
+      permit2_amount: amount,
+      permit2_expiration: DateTime.to_unix(DateTime.utc_now()) + 3_600
+    )
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+
+    assert Enum.map(operation.envelope["arguments"]["steps"], & &1["step"]) == ["bid"]
+    assert operation.step == :bid
+  end
+
+  test "EXACT_STANDARD_SEQUENCE: a Permit2 allowance lapsing inside the review is granted again",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    amount = 12_500_000_000_000_000_000
+
+    install(
+      token_allowance: amount,
+      permit2_amount: amount,
+      permit2_expiration: DateTime.to_unix(DateTime.utc_now()) + 60
+    )
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+
+    assert Enum.map(operation.envelope["arguments"]["steps"], & &1["step"]) ==
+             ~w(permit2_approval bid)
+  end
+
+  test "BOUND_REGENT_CURRENCY: an auction raising anything else can neither be read nor bid on",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    install(currency: @other)
+
+    assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+    assert refusal(error) == :auction_currency_is_not_regent
+
+    assert {:error, error} = Autolaunch.bid_position(auction.id, wallet, opts)
+    assert refusal(error) == :auction_currency_is_not_regent
+  end
+
+  test "ACTIVE_WALLET_IS_THE_SIGNER: an unlinked wallet exposes nothing and prepares nothing", %{
+    auction: auction,
+    opts: opts
+  } do
+    install()
+
+    assert {:error, error} = Autolaunch.bid_position(auction.id, @other, opts)
+    assert refusal(error) == :wrong_signer
+
+    assert {:error, error} = Autolaunch.prepare_bid(auction.id, @other, "1", "3", opts)
+    assert refusal(error) == :wrong_signer
+  end
+
+  test "ACTIVE_WALLET_IS_THE_SIGNER: a socket with no session lease cannot prepare", %{
+    auction: auction,
+    wallet: wallet,
+    actor: actor
+  } do
+    install()
+
+    assert {:error, error} =
+             Autolaunch.prepare_bid(auction.id, wallet, "1", "3", actor: actor)
+
+    assert refusal(error) == :session_lease_required
+  end
+
+  test "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",
+       %{auction: auction, wallet: wallet, opts: opts} do
+    install()
+
+    for invalid <- ["0", "-1", "garbage", "1e3", "1.", ".5", "1.0000000000000000001"] do
+      assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, invalid, "3", opts)
+      assert refusal(error) == :invalid_amount
+    end
+
+    for invalid <- ["0", "-1", "garbage", "1e3"] do
+      assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "1", invalid, opts)
+      assert refusal(error) == :invalid_decimal
+    end
+
+    # An empty field is refused by the action's own required argument, before
+    # any amount language is consulted.
+    assert {:error, _required} = Autolaunch.prepare_bid(auction.id, wallet, "", "3", opts)
+    assert {:error, _required} = Autolaunch.prepare_bid(auction.id, wallet, "1", "", opts)
+
+    assert {:ok, %{operation: half}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "1", "0.5", opts)
+
+    assert half.envelope["arguments"]["max_price_q96"] == Integer.to_string(div(@q96, 2))
+
+    assert {:error, error} =
+             Autolaunch.prepare_bid(auction.id, wallet, "1", tiny_price(), opts)
+
+    assert refusal(error) == :invalid_price
+  end
+
+  test "AFFORDABLE_ONLY: an amount above the active wallet's REGENT never reviews", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    install(regent_balance: 1_000_000_000_000_000_000)
+
+    assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "2", "3", opts)
+    assert refusal(error) == :amount_above_balance
+  end
+
+  test "CLOSED_AUCTIONS_TAKE_NO_BIDS: a graduated auction refuses preparation", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    install()
+
+    Autolaunch.import_auction!("Closed", nil, false, :graduated, nil, actor: system())
+    |> Autolaunch.set_auction_bid_terms!(auction_address(), regent(), "REGENT", 18, "2.5",
+      actor: system()
+    )
+    |> then(fn closed ->
+      assert {:error, error} = Autolaunch.prepare_bid(closed.id, wallet, "1", "3", opts)
+      assert refusal(error) == :auction_not_biddable
     end)
 
-    account =
-      Accounts.register_verified!(
-        "did:privy:autolaunch-bid-actions",
-        @wallet,
-        [@wallet, @paired],
-        actor: %System{}
-      )
-
-    other_account =
-      Accounts.register_verified!(
-        "did:privy:autolaunch-bid-actions-other",
-        @other,
-        [@other],
-        actor: %System{}
-      )
-
-    auction =
-      Autolaunch.import_auction!(
-        "Prepared action auction",
-        nil,
-        false,
-        :active,
-        ~U[2026-07-31 11:00:00Z],
-        actor: %System{}
-      )
-
-    auction =
-      Autolaunch.set_auction_bid_terms!(
-        auction,
-        @auction_address,
-        @quote_token,
-        "QUOTE",
-        6,
-        "2.5",
-        actor: %System{}
-      )
-
-    %{
-      actor: %Human{human_account_id: account.id},
-      other_actor: %Human{human_account_id: other_account.id},
-      auction: auction
-    }
+    assert {:ok, _open} = Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
   end
 
-  test "quote and bid preparation preserve decimal, Q96, approval and legacy calldata", %{
-    actor: actor,
+  test "PUBLIC_QUOTE_IS_STORED_ONLY: the estimate reads the snapshot and prepares nothing", %{
     auction: auction
   } do
     assert {:ok, quote} = Autolaunch.quote_auction_bid(auction.id, "12.5", "3")
-    assert quote.amount == "12.5"
-    assert quote.max_price == "3"
-    assert quote.current_clearing_price == "2.5"
-    assert quote.projected_clearing_price == "2.5"
     assert quote.estimated_tokens_if_end_now == "5"
+    assert quote.current_clearing_price == "2.5"
     assert quote.status_band == "active"
-    assert quote.warnings == []
-    assert quote.quote_token == %{address: @quote_token, symbol: "QUOTE", decimals: 6}
-
-    assert {:ok, envelope} =
-             Autolaunch.prepare_auction_bid(auction.id, @wallet, "12.5", "3", actor: actor)
-
-    assert envelope.resource == "autolaunch_auction"
-    assert envelope.action == "submit_bid"
-    assert envelope.to == @auction_address
-    assert envelope.expected_signer == @wallet
-    assert envelope.value == "0"
-    assert envelope.arguments.amount_atomic == "12500000"
-    assert envelope.arguments.max_price_q96 == Integer.to_string(3 * @q96)
-    assert String.starts_with?(envelope.data, "0x140fe8ee")
-    assert byte_size(envelope.data) == 10 + 5 * 64
-
-    assert envelope.approval == %{
-             token: @quote_token,
-             spender: @auction_address,
-             amount: "12500000",
-             data:
-               "0x095ea7b3" <>
-                 String.pad_leading(String.trim_leading(@auction_address, "0x"), 64, "0") <>
-                 String.pad_leading(
-                   Integer.to_string(12_500_000, 16) |> String.downcase(),
-                   64,
-                   "0"
-                 ),
-             mode: "exact"
-           }
-
-    assert Envelope.valid?(envelope,
-             resource: "autolaunch_auction",
-             to: @auction_address,
-             signer: @wallet,
-             contract_name: "IContinuousClearingAuction",
-             action: "submit_bid"
-           )
   end
 
-  test "decimal and signer boundaries fail closed", %{actor: actor, auction: auction} do
-    for invalid <- ["0", "-1", "garbage", "1e3", "1.", ".5", ""] do
-      assert {:error, :invalid_decimal} =
-               Autolaunch.prepare_auction_bid(auction.id, @wallet, invalid, "3", actor: actor)
+  defp tiny_price, do: "0." <> String.duplicate("0", 79) <> "1"
 
-      assert {:error, :invalid_decimal} =
-               Autolaunch.prepare_auction_bid(auction.id, @wallet, "1", invalid, actor: actor)
-    end
-
-    assert {:error, :invalid_amount_precision} =
-             Autolaunch.prepare_auction_bid(
-               auction.id,
-               @wallet,
-               "1.0000001",
-               "3",
-               actor: actor
-             )
-
-    assert {:ok, trailing_zeroes} =
-             Autolaunch.prepare_auction_bid(
-               auction.id,
-               @wallet,
-               "1.0000000",
-               "3",
-               actor: actor
-             )
-
-    assert trailing_zeroes.arguments.amount_atomic == "1000000"
-
-    assert {:error, :wrong_signer} =
-             Autolaunch.prepare_auction_bid(auction.id, @other, "1", "3", actor: actor)
-
-    assert {:error, :invalid_address} =
-             Autolaunch.prepare_auction_bid(auction.id, "not-a-wallet", "1", "3", actor: actor)
-
-    assert {:error, :authentication_required} =
-             Autolaunch.prepare_auction_bid(auction.id, @wallet, "1", "3")
-  end
-
-  test "Q96 preserves fractional prices and rejects values outside uint256", %{
-    actor: actor,
-    auction: auction
-  } do
-    assert {:ok, half} =
-             Autolaunch.prepare_auction_bid(
-               auction.id,
-               @wallet,
-               "1",
-               "0.5",
-               actor: actor
-             )
-
-    assert half.arguments.max_price_q96 == Integer.to_string(div(@q96, 2))
-
-    assert {:error, :invalid_price} =
-             Autolaunch.prepare_auction_bid(
-               auction.id,
-               @wallet,
-               "1",
-               "0.00000000000000000000000000000000000000000000000000000000000000000000000000000001",
-               actor: actor
-             )
-
-    too_large = Integer.to_string(Integer.pow(2, 256))
-
-    assert {:error, :invalid_decimal} =
-             Autolaunch.prepare_auction_bid(
-               auction.id,
-               @wallet,
-               "1",
-               too_large,
-               actor: actor
-             )
-  end
-
-  test "post-bid actions require the stored owner, identity and eligible status", %{
-    actor: actor,
-    other_actor: other_actor,
-    auction: auction
-  } do
-    returnable = bid!(auction, @paired, "returnable", "7")
-    active = bid!(auction, @wallet, "active", "8")
-    claimable = bid!(auction, @wallet, "claimable", "9")
-
-    assert {:ok, returned} = Autolaunch.prepare_bid_return(returnable.bid_id, actor: actor)
-    assert returned.expected_signer == @paired
-    assert returned.to == @auction_address
-    assert returned.data == "0x8e4deb17" <> String.pad_leading("7", 64, "0")
-
-    assert {:ok, exited} = Autolaunch.prepare_bid_exit(active.bid_id, actor: actor)
-    assert exited.data == "0x8e4deb17" <> String.pad_leading("8", 64, "0")
-
-    assert {:ok, claimed} = Autolaunch.prepare_bid_claim(claimable.bid_id, actor: actor)
-    assert claimed.data == "0x46e04a2f" <> String.pad_leading("9", 64, "0")
-
-    assert {:error, _reason} =
-             Autolaunch.prepare_bid_exit(active.bid_id, actor: other_actor)
-
-    assert {:error, :bid_action_unavailable} =
-             Autolaunch.prepare_bid_claim(active.bid_id, actor: actor)
-
-    missing_identity =
-      Autolaunch.import_bid_position!(
-        "missing-chain-identity",
-        auction.id,
-        @wallet,
-        "1",
-        "3",
-        "2.5",
-        "0.4",
-        "active",
-        nil,
-        nil,
-        actor: %System{}
-      )
-
-    assert {:error, :invalid_address} =
-             Autolaunch.prepare_bid_exit(missing_identity.bid_id, actor: actor)
-  end
-
-  test "confirmation is receipt-only, post-expiry, idempotent and bound to stored identity", %{
-    actor: actor,
-    auction: auction
-  } do
-    assert {:ok, envelope} =
-             Autolaunch.prepare_auction_bid(auction.id, @wallet, "12.5", "3", actor: actor)
-
-    Application.put_env(:ash_platform, :wallet_action_clock, fn -> ~U[2026-07-31 12:11:00Z] end)
-    refute Envelope.valid?(envelope)
-    assert Envelope.valid_for_confirmation?(envelope)
-
-    for _ <- 1..2 do
-      assert {:ok,
-              %{
-                transaction_hash: @hash,
-                receipt_verified: true,
-                auction: %{id: auction_id}
-              }} =
-               Autolaunch.confirm_bid_wallet_action(
-                 envelope,
-                 @hash,
-                 @approval_hash,
-                 actor: actor
-               )
-
-      assert auction_id == auction.id
-      assert_receive {:confirm, ^envelope, @hash, @approval_hash}
-    end
-
-    for drifted <- [
-          %{envelope | data: "0xdeadbeef"},
-          %{envelope | expected_signer: @paired},
-          %{envelope | to: @other},
-          %{envelope | approval: %{envelope.approval | amount: "1"}}
-        ] do
-      assert {:error, _reason} =
-               Autolaunch.confirm_bid_wallet_action(
-                 drifted,
-                 @hash,
-                 @approval_hash,
-                 actor: actor
-               )
-    end
-
-    refute_receive {:confirm, _, _, _}
-  end
-
-  test "reverted, pending and approval receipts stay read-only", %{actor: actor, auction: auction} do
-    assert {:ok, envelope} =
-             Autolaunch.prepare_auction_bid(auction.id, @wallet, "1", "3", actor: actor)
-
-    Process.put(:autolaunch_confirmation, :transaction_reverted)
-
-    assert {:ok, %{receipt_verified: true, transaction_reverted: true}} =
-             Autolaunch.confirm_bid_wallet_action(
-               envelope,
-               @hash,
-               @approval_hash,
-               actor: actor
-             )
-
-    Process.put(:autolaunch_confirmation, :transaction_pending)
-
-    assert {:error, :transaction_pending} =
-             Autolaunch.confirm_bid_wallet_action(
-               envelope,
-               @hash,
-               @approval_hash,
-               actor: actor
-             )
-
-    Process.put(:autolaunch_approval_status, :pending)
-
-    assert {:ok, :pending} =
-             Autolaunch.verify_bid_approval_submission(
-               envelope,
-               @approval_hash,
-               actor: actor
-             )
-
-    assert_receive {:approval_status, ^envelope, @approval_hash}
-  end
-
-  defp bid!(auction, owner, status, onchain_bid_id) do
-    bid =
-      Autolaunch.import_bid_position!(
-        "bid-#{status}-#{onchain_bid_id}",
-        auction.id,
-        owner,
-        "12.5",
-        "3",
-        "2.5",
-        "5",
-        status,
-        nil,
-        nil,
-        actor: %System{}
-      )
-
-    Autolaunch.set_bid_chain_identity!(
-      bid,
-      @auction_address,
-      onchain_bid_id,
-      actor: %System{}
-    )
-  end
-
-  defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)
-  defp restore_env(key, value), do: Application.put_env(:ash_platform, key, value)
+  defp word(value),
+    do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
 end

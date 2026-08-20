@@ -5,6 +5,8 @@ defmodule AshPlatform.Autolaunch.Auction do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias AshPlatform.Autolaunch.BidActions
+
   attributes do
     uuid_primary_key :id
 
@@ -103,6 +105,63 @@ defmodule AshPlatform.Autolaunch.Auction do
         :current_clearing_price
       ]
     end
+
+    # The bidder lifecycle. Every one of these names the exact wallet or the
+    # exact operation it acts on, and `BidActions` proves both against the
+    # account the mounted lease locks before anything durable moves.
+    action :bid_position, :map do
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :expected_signer, :string, allow_nil?: false
+      run fn input, context -> BidActions.position(input, context) end
+    end
+
+    action :prepare_bid, :map do
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :expected_signer, :string, allow_nil?: false
+      argument :amount, :string, allow_nil?: false
+      argument :max_price, :string, allow_nil?: false
+      run fn input, context -> BidActions.prepare(input, context) end
+    end
+
+    action :claim_bid_dispatch, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.claim_dispatch(input, context) end
+    end
+
+    action :bind_bid_hash, :map do
+      argument :action_id, :string, allow_nil?: false
+      argument :transaction_hash, :string, allow_nil?: false
+      run fn input, context -> BidActions.bind_hash(input, context) end
+    end
+
+    action :verify_bid_step, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.verify(input, context) end
+    end
+
+    action :cancel_bid_review, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.cancel(input, context) end
+    end
+
+    action :close_bid_not_sent, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.close_not_sent(input, context) end
+    end
+
+    action :release_unstarted_bid_dispatch, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.release_unstarted(input, context) end
+    end
+
+    action :start_new_bid, :map do
+      argument :action_id, :string, allow_nil?: false
+      run fn input, context -> BidActions.start_new_bid(input, context) end
+    end
+
+    action :open_bid_operation, :map do
+      run fn input, context -> BidActions.open_operation(input, context) end
+    end
   end
 
   policies do
@@ -116,6 +175,21 @@ defmodule AshPlatform.Autolaunch.Auction do
 
     policy action(:set_bid_terms) do
       authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action([
+             :bid_position,
+             :prepare_bid,
+             :claim_bid_dispatch,
+             :bind_bid_hash,
+             :verify_bid_step,
+             :cancel_bid_review,
+             :close_bid_not_sent,
+             :release_unstarted_bid_dispatch,
+             :start_new_bid,
+             :open_bid_operation
+           ]) do
+      authorize_if AshPlatform.Formation.Checks.HumanActor
     end
   end
 

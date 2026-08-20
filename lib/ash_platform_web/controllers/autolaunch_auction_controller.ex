@@ -1,7 +1,6 @@
 defmodule AshPlatformWeb.AutolaunchAuctionController do
   use AshPlatformWeb, :controller
 
-  alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
 
   @modes ~w(all biddable live failed_minimum graduated)
@@ -51,35 +50,6 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
     end
   end
 
-  def prepare_bid(conn, %{"id" => id} = params) do
-    with {:ok, actor, wallet} <- current_human(conn),
-         true <- Map.keys(params) |> Enum.sort() == ~w(amount id max_price),
-         {:ok, envelope} <-
-           autolaunch(conn).prepare_auction_bid(
-             id,
-             wallet,
-             params["amount"],
-             params["max_price"],
-             actor: actor
-           ) do
-      json(conn, %{data: envelope})
-    else
-      {:error, :authentication_required} -> unauthorized(conn)
-      false -> invalid_request(conn)
-      {:error, :auction_not_found} -> not_found(conn)
-      {:error, _reason} -> invalid_request(conn)
-    end
-  end
-
-  def prepare_bid_exit(conn, %{"id" => id} = params),
-    do: prepare_position(conn, params, id, :prepare_bid_exit)
-
-  def prepare_bid_return(conn, %{"id" => id} = params),
-    do: prepare_position(conn, params, id, :prepare_bid_return)
-
-  def prepare_bid_claim(conn, %{"id" => id} = params),
-    do: prepare_position(conn, params, id, :prepare_bid_claim)
-
   defp list_options(params) do
     with true <- Enum.all?(Map.keys(params), &(&1 in @query_parameters)),
          mode when mode in @modes <- Map.get(params, "mode", "all"),
@@ -90,26 +60,6 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
       _error -> {:error, :invalid_query}
     end
   end
-
-  defp prepare_position(conn, params, id, function) do
-    with {:ok, actor, _wallet} <- current_human(conn),
-         true <- Map.keys(params) == ["id"],
-         {:ok, envelope} <- apply(autolaunch(conn), function, [id, [actor: actor]]) do
-      json(conn, %{data: envelope})
-    else
-      {:error, :authentication_required} -> unauthorized(conn)
-      false -> invalid_request(conn)
-      {:error, _reason} -> invalid_request(conn)
-    end
-  end
-
-  # The session authority boundary already resolved and verified this account
-  # from its locked row; the cookie names none.
-  defp current_human(%{assigns: %{current_human_account: %{id: id, wallet_address: wallet}}})
-       when is_binary(wallet),
-       do: {:ok, %Human{human_account_id: id}, wallet}
-
-  defp current_human(_anonymous), do: {:error, :authentication_required}
 
   defp autolaunch(conn),
     do: conn.private[:autolaunch_auction_controller_autolaunch] || Autolaunch
@@ -170,11 +120,5 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
         message: "The request could not be completed."
       }
     })
-  end
-
-  defp unauthorized(conn) do
-    conn
-    |> put_status(:unauthorized)
-    |> json(%{error: "unauthorized"})
   end
 end

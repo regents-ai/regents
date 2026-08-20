@@ -4,11 +4,8 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.System
-  alias AshPlatform.Autolaunch
 
   @wallet "0x1111111111111111111111111111111111111111"
-  @auction_address "0x3333333333333333333333333333333333333333"
-  @quote_token "0x4444444444444444444444444444444444444444"
   @profile "#account-control [data-account-target=profile]"
   @sign_in "#account-control [data-account-target=sign-in]"
   @signed_in_markup ~s(data-account-target="sign-out")
@@ -292,25 +289,35 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
 
   test "CENTRAL_CURRENT_ACTOR: revocation denies later wallet-action preparation at the boundary",
        %{conn: conn} do
+    AshPlatform.BidFixture.install()
+
     account =
       Accounts.register_verified!("did:privy:session-gate-prepare", @wallet, [@wallet],
         actor: %System{}
       )
 
-    path = "/api/autolaunch/v1/auctions/#{auction!().id}/bids"
-    params = %{"amount" => "12.5", "max_price" => "3"}
+    auction = auction!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, "/autolaunch/auctions/#{auction.id}")
 
-    assert %{"data" => prepared} = signed_in |> post(path, params) |> json_response(200)
-    assert prepared["expected_signer"] == @wallet
+    render_hook(element(view, "#autolaunch-bid"), "bid_active_wallet", %{"address" => @wallet})
+
+    assert view
+           |> form("#autolaunch-bid-form", %{amount: "1", max_price: "3"})
+           |> render_submit() =~ "Place the bid"
 
     assert SessionAuthority.revoke(claim(signed_in))
 
-    assert %{"error" => "unauthorized"} =
-             build_conn()
-             |> Phoenix.ConnTest.init_test_session(get_session(signed_in))
-             |> post(path, params)
-             |> json_response(401)
+    # The lease this socket mounted with no longer resolves, so the very next
+    # protected write is refused inside its own transaction rather than trusted
+    # from the socket that already passed the gate.
+    assert view
+           |> element(~s(#autolaunch-bid button[phx-click="cancel_bid_review"]))
+           |> render_click() =~ "Sign in again to continue."
+
+    # A reconnect carrying the revoked claim is refused outright.
+    assert {:error, {:redirect, %{to: "/"}}} =
+             live(signed_in, "/autolaunch/auctions/#{auction.id}")
   end
 
   defp account! do
@@ -338,13 +345,7 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
 
   defp other_lineage, do: SessionAuthority.bootstrap().lineage
 
-  defp auction! do
-    "Gate bid preparation"
-    |> Autolaunch.import_auction!(nil, false, :active, ~U[2026-07-31 11:00:00Z], actor: %System{})
-    |> Autolaunch.set_auction_bid_terms!(@auction_address, @quote_token, "QUOTE", 6, "2.5",
-      actor: %System{}
-    )
-  end
+  defp auction!, do: AshPlatform.BidFixture.auction!("Gate bid preparation")
 
   defp put_valid_csrf(conn) do
     token = Plug.CSRFProtection.get_csrf_token()

@@ -1,77 +1,84 @@
 defmodule AshPlatform.WalletActions.AuctionAbi do
   @moduledoc """
-  Encodes the admitted auction actions.
+  The canonical Continuous Clearing Auction bid interface, derived from source.
 
-  `submit_bid` uses the upstream four-argument convenience overload of the canonical
-  five-argument `submitBid`. That overload defaults `prevTickPriceQ96` to
-  `FLOOR_PRICE_Q96`; see Uniswap/continuous-clearing-auction
-  `src/ContinuousClearingAuction.sol` lines 635-641.
+  Everything here comes from Uniswap/continuous-clearing-auction
+  `7d7602d257733315434570f2a0c2f94f1c7b207a`: `submitBid` from
+  `src/interfaces/IContinuousClearingAuction.sol:136-142`, `currency` from line
+  211, and `BidSubmitted` from line 103. The four-argument overload is absent on
+  purpose — it defaults `prevTickPriceQ96` to the floor and walks every tick.
   """
 
   alias AshPlatform.WalletActions.Abi
 
   @abi_path Path.expand("../../../contracts/abi/continuous-clearing-auction.json", __DIR__)
   @external_resource @abi_path
-
   @abi @abi_path |> File.read!() |> Jason.decode!()
+
+  @submit_bid "submitBid(uint256,uint128,address,uint256,bytes)"
+  @submit_bid_selector "0xa52c8728"
+  @currency "currency()"
+  @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
+
   @uint128_max Integer.pow(2, 128) - 1
   @uint256_max Integer.pow(2, 256) - 1
-  @entries %{
-    "submit_bid" => {"submitBid(uint256,uint128,address,bytes)", "0x140fe8ee"},
-    "exit_bid" => {"exitBid(uint256)", "0x8e4deb17"},
-    "return_quote_token" => {"exitBid(uint256)", "0x8e4deb17"},
-    "claim_bid" => {"claimTokens(uint256)", "0x46e04a2f"}
-  }
 
-  for {_id, {signature, _selector}} <- @entries do
-    unless Enum.any?(@abi, fn
-             %{"type" => "function", "name" => name, "inputs" => inputs} ->
-               "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+  # `hookData` is always empty: this auction family validates no hook data, and
+  # a bid that carried any would be a different reviewed action.
+  @empty_bytes_offset 160
 
-             _ ->
-               false
-           end) do
-      raise "pinned auction ABI is missing #{signature}"
+  @after_compile __MODULE__
+
+  @doc false
+  def __after_compile__(_env, _bytecode) do
+    Abi.declared!(@abi, "function", @submit_bid)
+    Abi.declared!(@abi, "function", @currency)
+    Abi.declared!(@abi, "event", @bid_submitted)
+  end
+
+  @doc "Exact calldata for the canonical five-argument bid with empty hook data."
+  @spec encode_submit_bid(non_neg_integer(), pos_integer(), String.t(), non_neg_integer()) ::
+          String.t()
+  def encode_submit_bid(max_price_q96, amount, owner, prev_tick_price_q96)
+      when is_integer(amount) and amount in 1..@uint128_max do
+    @submit_bid_selector <>
+      word(max_price_q96) <>
+      word(amount) <>
+      address_word(owner) <>
+      word(prev_tick_price_q96) <>
+      word(@empty_bytes_offset) <>
+      word(0)
+  end
+
+  @spec bid_submitted_topic() :: String.t()
+  def bid_submitted_topic, do: Abi.topic0(@bid_submitted)
+
+  @doc """
+  The bid id of the one `BidSubmitted` this receipt records for `owner`.
+
+  Emitter, topic, the two indexed words and the two data words all have to be
+  exact, and the decoded price and `uint128` amount have to be the reviewed ones,
+  so a receipt whose logs describe another bid is `:error` rather than a bid id.
+  """
+  @spec submitted_bid_id([map()], String.t(), String.t(), non_neg_integer(), pos_integer()) ::
+          {:ok, non_neg_integer()} | :error
+  def submitted_bid_id(logs, auction, owner, price_q96, amount) do
+    with {:ok, {[id, owner_word], [^price_q96, ^amount]}} <-
+           Abi.one_event(logs, bid_submitted_topic(), auction, 2, 2),
+         {:ok, ^owner} <- Abi.word_address(owner_word) do
+      {:ok, id}
+    else
+      _contradiction -> :error
     end
   end
 
-  def encode_submit_bid(max_price_q96, amount_raw, owner_address)
-      when is_integer(amount_raw) and amount_raw in 0..@uint128_max do
-    {_signature, selector} = Map.fetch!(@entries, "submit_bid")
+  defp address_word(address),
+    do:
+      address
+      |> Abi.normalize_address!()
+      |> String.trim_leading("0x")
+      |> String.pad_leading(64, "0")
 
-    selector <>
-      encode_uint256!(max_price_q96) <>
-      encode_uint256!(amount_raw) <>
-      encode_address!(owner_address) <>
-      encode_uint256!(128) <>
-      encode_uint256!(0)
-  end
-
-  def encode_submit_bid(_max_price_q96, _amount_raw, _owner_address),
-    do: raise(ArgumentError, "bid amount exceeds uint128")
-
-  def encode_position(action, onchain_bid_id)
-      when action in ["exit_bid", "return_quote_token", "claim_bid"] do
-    {_signature, selector} = Map.fetch!(@entries, action)
-    selector <> encode_uint256!(onchain_bid_id)
-  end
-
-  def encode_approval(spender, amount_raw),
-    do: Abi.encode_erc20("approve", [spender, amount_raw])
-
-  defp encode_address!(address) do
-    address
-    |> Abi.normalize_address!()
-    |> String.trim_leading("0x")
-    |> String.pad_leading(64, "0")
-  end
-
-  defp encode_uint256!(value) when is_integer(value) and value in 0..@uint256_max do
-    value
-    |> Integer.to_string(16)
-    |> String.downcase()
-    |> String.pad_leading(64, "0")
-  end
-
-  defp encode_uint256!(_value), do: raise(ArgumentError, "uint256 value is invalid")
+  defp word(value) when is_integer(value) and value in 0..@uint256_max,
+    do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
 end

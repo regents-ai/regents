@@ -28,12 +28,14 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "claim" => {"claim()", "0x4e71d92d"}
     }
   }
-  @admitted_actions %{
+  # The bidder interface stays reviewed and digest-pinned while nothing is
+  # admitted, so these are proved against the pinned ABI without admitting one.
+  @bidder_actions %{
     "continuous_clearing_auction" => %{
-      "submit_bid" => {"submitBid(uint256,uint128,address,bytes)", "0x140fe8ee"},
-      "exit_bid" => {"exitBid(uint256)", "0x8e4deb17"},
-      "return_quote_token" => {"exitBid(uint256)", "0x8e4deb17"},
-      "claim_bid" => {"claimTokens(uint256)", "0x46e04a2f"}
+      "submit_bid" => {"submitBid(uint256,uint128,address,uint256,bytes)", "0xa52c8728"}
+    },
+    "permit2" => %{
+      "approve" => {"approve(address,address,uint160,uint48)", "0x87517c45"}
     },
     "quote_token_erc20" => %{
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
@@ -107,8 +109,9 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
       evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
-      assert evidence["continuous_clearing_auction"]["interface_note"] =~
-               "defaults prevTickPriceQ96 to FLOOR_PRICE_Q96"
+      # Nothing is admitted while the runtime, predecessor source, projection and
+      # entitlement bindings are unfrozen.
+      assert admission["admitted_prepared_actions"] == []
 
       for {id, entry} <- evidence do
         abi_path = Path.join("contracts", entry["abi_path"])
@@ -117,38 +120,33 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
         expected_actions =
           Map.get(@actions, id) ||
-            Map.get(@admitted_actions, id) ||
+            Map.get(@bidder_actions, id) ||
             Map.fetch!(@retained_evidence_actions, id)
 
         assert MapSet.new(entry["action_ids"]) == MapSet.new(Map.keys(expected_actions))
       end
 
-      for admitted <- admission["admitted_prepared_actions"] do
-        [contract_id, action_id] = String.split(admitted, ".", parts: 2)
+      for {contract_id, actions} <- @bidder_actions,
+          {action_id, {signature, selector}} <- actions do
         entry = Map.fetch!(evidence, contract_id)
         assert action_id in entry["action_ids"]
 
-        {signature, selector} =
-          @admitted_actions
-          |> Map.fetch!(contract_id)
-          |> Map.fetch!(action_id)
-
-        abi =
-          "contracts"
-          |> Path.join(entry["abi_path"])
-          |> File.read!()
-          |> Jason.decode!()
+        abi = "contracts" |> Path.join(entry["abi_path"]) |> File.read!() |> Jason.decode!()
 
         assert signature_present?(abi, signature)
         assert selector_for(signature) == selector
-
-        if action_id == "submit_bid" do
-          submit_bid = Enum.find(abi, &(&1["name"] == "submitBid"))
-
-          assert submit_bid["notice"] =~ "four-argument convenience overload"
-          assert submit_bid["notice"] =~ "lines 635-641"
-        end
       end
+
+      auction = Map.fetch!(evidence, "continuous_clearing_auction")
+      assert auction["source_commit"] == "7d7602d257733315434570f2a0c2f94f1c7b207a"
+      assert auction["interface_note"] =~ "canonical five-argument submitBid"
+      assert auction["interface_note"] =~ "collects a non-native currency only through Permit2"
+      refute auction["interface_note"] =~ "four-argument convenience overload"
+
+      permit2 = Map.fetch!(evidence, "permit2")
+      assert permit2["address"] == "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+      assert permit2["address_provenance"] =~ "2af06408b6a204824c2ecb245779ed400b535fb5"
+      assert permit2["address_provenance"] =~ "src/utils/SafeTransferLib.sol line 64"
     end
   end
 
