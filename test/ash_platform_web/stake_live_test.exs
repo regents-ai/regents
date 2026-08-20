@@ -199,7 +199,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     submit(view, action_id, "action", @tx_hash)
 
     html = render_async(view)
-    assert html =~ "Confirmed on Base"
+    assert has_element?(view, ".stake-notice", ~r/\A\s*Confirmed on Base\.\s*\z/)
     assert html =~ "5 REGENT"
     refute html =~ "Review before signing"
   end
@@ -1141,11 +1141,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_click(view, "fill_staking_amount", %{"portion" => "max"})
 
     submit(view, action_id, "approval", @approval_hash)
+    render_async(view, 1_000)
 
     assert {:ok,
             %{
               action_id: ^action_id,
-              state: :approval_submitted,
+              state: :approval_verified,
               approval_transaction_hash: @approval_hash
             }} = StakeRedeemOperations.active(account.id, :stake)
 
@@ -1154,7 +1155,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
              ~s(.stake-submission a[href="https://basescan.org/tx/#{@approval_hash}"])
            )
 
-    render_async(view)
     refute_push_event(view, "staking:prepared", _)
   end
 
@@ -1176,11 +1176,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(button[data-stake-connect]))
 
     submit(view, action_id, "approval", @approval_hash)
+    render_async(view, 1_000)
 
     assert {:ok,
             %{
               action_id: ^action_id,
-              state: :approval_submitted,
+              state: :approval_verified,
               approval_transaction_hash: @approval_hash
             }} = StakeRedeemOperations.active(account.id, :stake)
 
@@ -1223,15 +1224,15 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     # The wallet that opened the request reports its transaction.
     submit(view, action_id, "approval", @approval_hash)
+    render_async(view, 1_000)
 
     assert {:ok,
             %{
               action_id: ^action_id,
-              state: :approval_submitted,
+              state: :approval_verified,
               approval_transaction_hash: @approval_hash
             }} = StakeRedeemOperations.active(account.id, :stake)
 
-    render_async(view)
     render_hook(view, "staking_amount_changed", %{"amount" => "9"})
     render_click(view, "prepare_staking", %{"action" => "stake"})
 

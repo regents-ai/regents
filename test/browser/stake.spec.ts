@@ -125,7 +125,7 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
     button.click()
   })
 
-  await expect(page.getByText("Confirmed on Base. The current details are being read again.")).toBeVisible()
+  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
   expect(await sendCount(page)).toBe(2)
 
   // A second action in the same page session, rejected in the wallet with the
@@ -158,7 +158,7 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await page.evaluate(key => sessionStorage.removeItem(key), moveKey)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 
-  await expect(page.getByText("Confirmed on Base. The current details are being read again.")).toBeVisible()
+  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
   expect(await sendCount(page)).toBe(3)
 
   // The last action reports its hash and stops: the browser asks Base for

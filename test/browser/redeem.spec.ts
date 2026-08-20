@@ -143,7 +143,7 @@ async function explicitAction(
   await review(page, buttonName, reviewHeading)
   expect(await sendCount(page)).toBe(expectedSends - 1)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
-  await expect(page.getByText("Confirmed on Base. The current details are being read again.")).toBeVisible()
+  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
   // The action's own event is what the page reports, before any later read.
   if (confirmedResult) await expect(page.getByText(confirmedResult)).toBeVisible()
   expect(await sendCount(page)).toBe(expectedSends)

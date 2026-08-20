@@ -175,7 +175,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     submit(view, action_id)
 
     html = render_async(view)
-    assert html =~ "Confirmed on Base"
+    assert has_element?(view, ".redeem-notice", ~r/\A\s*Confirmed on Base\.\s*\z/)
     assert html =~ "Redeemed for Regents Club token #1123"
     assert_push_event(view, "redemption:confirmed", %{})
   end

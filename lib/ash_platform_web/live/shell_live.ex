@@ -33,7 +33,9 @@ defmodule AshPlatformWeb.ShellLive do
   @verification_retry_ms 30_000
   @checking_copy "Checking the submitted transaction on Base…"
   @waiting_copy "Waiting for the submitted transaction to become safe on Base"
-  @confirmed_copy "Confirmed on Base. The current details are being read again."
+  # The account-detail read that follows a confirmation is separate and may be
+  # pending, succeed, fail, or exit, so this sentence claims only the receipt.
+  @confirmed_copy "Confirmed on Base."
   @verification_refused_copy "This transaction could not be verified from this session. Reload the page to try again."
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
 

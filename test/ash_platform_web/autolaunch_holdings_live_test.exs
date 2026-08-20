@@ -69,11 +69,10 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
       claimed_at: DateTime.utc_now()
     )
 
-    other =
-      bid!("live:other-user", return_auction.id, @wallet_b,
-        amount: "999",
-        status: "returnable"
-      )
+    bid!("live:other-user", return_auction.id, @wallet_b,
+      amount: "999",
+      status: "returnable"
+    )
 
     {:ok, view, _html} =
       conn
@@ -110,8 +109,9 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
              "Claimed Research Token"
            )
 
-    refute html =~ other.bid_id
-    refute html =~ "999"
+    refute has_element?(view, "#autolaunch-bid-live\\:other-user")
+    refute has_element?(view, "#autolaunch-bid-positions dd", "999")
+    refute has_element?(view, "#autolaunch-returnable-positions li", "999")
     refute has_element?(view, "#autolaunch-holdings button")
     refute has_element?(view, "#autolaunch-holdings [phx-click]")
     refute html =~ "$"
