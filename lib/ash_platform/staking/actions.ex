@@ -2,6 +2,7 @@ defmodule AshPlatform.Staking.Actions do
   @moduledoc false
 
   alias AshPlatform.Accounts
+  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Staking.ChainClient
   alias AshPlatform.WalletActions.{Abi, Envelope, StakeRedeemOperations}
@@ -34,16 +35,26 @@ defmodule AshPlatform.Staking.Actions do
 
   def account(_input, _context), do: {:error, :authentication_required}
 
+  # Stake's own lookup: the reviewed active wallet, proven against the account
+  # the mounted lease still resolves to, decides which position is read.
+  def account_for_wallet(input, %{actor: %Human{}} = context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+         {:ok, lease} <- StakeRedeemOperations.lease(context),
+         :ok <- leased_wallet(lease, signer) do
+      ChainClient.module().overview(signer)
+    end
+  end
+
+  def account_for_wallet(_input, _context), do: {:error, :authentication_required}
+
   # The provider reads happen here, before the lease transaction; only the
   # resulting operation row is written inside it.
-  def prepare(action, input, %{actor: %Human{} = actor} = context) do
-    signer = input.arguments.expected_signer
-
-    with {:ok, signer} <- normalize_address(signer),
-         :ok <- verified_wallet(actor, signer),
+  def prepare(action, input, %{actor: %Human{}} = context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+         {:ok, lease} <- StakeRedeemOperations.lease(context),
+         :ok <- leased_wallet(lease, signer),
          :ok <- ensure_funded(action, signer),
          {:ok, data, approval, arguments} <- calldata(action, input.arguments, signer),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
          envelope <-
            Envelope.new(action, signer, data,
              to: Abi.staking_address(),
@@ -278,11 +289,44 @@ defmodule AshPlatform.Staking.Actions do
          true <- earned > 0 and funded >= earned do
       :ok
     else
-      _ -> {:error, :regent_rewards_not_funded}
+      _ -> refusal(:regent_rewards_not_funded)
+    end
+  end
+
+  # A claim of nothing is refused on current chain truth rather than on the
+  # screen's copy of it. An unavailable provider read is unavailable, not zero.
+  defp ensure_funded("claim_usdc", signer) do
+    with {:ok, staking} <- ChainClient.module().overview(signer),
+         {claimable, ""} <- Integer.parse(staking.wallet_claimable_usdc_raw || "0"),
+         true <- claimable > 0 do
+      :ok
+    else
+      _ -> refusal(:no_claimable_usdc)
     end
   end
 
   defp ensure_funded(_action, _signer), do: :ok
+
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # presenter can name the fact that actually stopped the review.
+  defp refusal(reason),
+    do:
+      {:error,
+       Ash.Error.Invalid.Unavailable.exception(
+         resource: AshPlatform.Staking.Snapshot,
+         reason: reason
+       )}
+
+  # The lease, not the actor captured at mount, decides which account the
+  # reviewed wallet has to belong to before any provider read happens.
+  defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer) do
+    with %{wallet_addresses: wallets} <- SessionAuthority.leased_account(lineage, account_id),
+         true <- Enum.any?(wallets || [], &(normalize_or_nil(&1) == signer)) do
+      :ok
+    else
+      _ -> {:error, :wrong_signer}
+    end
+  end
 
   defp verified_wallet(%Human{} = actor, signer) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),

@@ -66,10 +66,38 @@
   padding: 0.5rem 0.75rem;
 }
 
-.stake-button-row {
+.stake-mode,
+.stake-amount,
+.stake-button-row,
+.stake-footer {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.stake-amount input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.stake-mode button[aria-pressed="true"] {
+  border-color: var(--color-accent, currentColor);
+  font-weight: 600;
+}
+
+.stake-available {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.stake-primary {
+  min-height: 2.75rem;
+}
+
+.stake-footer {
+  justify-content: space-between;
 }
 
 .stake-notice,

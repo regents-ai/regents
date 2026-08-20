@@ -6,6 +6,7 @@ defmodule AshPlatform.Staking do
     resource AshPlatform.Staking.Snapshot do
       define :overview, action: :overview
       define :account, action: :account
+      define :account_for_wallet, action: :account_for_wallet, args: [:expected_signer]
       define :prepare_stake, action: :prepare_stake, args: [:expected_signer, :amount]
       define :prepare_unstake, action: :prepare_unstake, args: [:expected_signer, :amount]
       define :prepare_claim_usdc, action: :prepare_claim_usdc, args: [:expected_signer]

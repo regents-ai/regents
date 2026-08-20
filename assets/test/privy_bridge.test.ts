@@ -9,6 +9,7 @@ const productionPrivyHooks = vi.hoisted(() => ({
   linkFarcaster: vi.fn(),
   unlinkOAuth: vi.fn(async () => undefined),
   unlinkFarcaster: vi.fn(async () => undefined),
+  connectActiveWallet: vi.fn(async () => ({})),
 }))
 
 vi.mock("react-dom/client", () => ({
@@ -19,6 +20,10 @@ vi.mock("@privy-io/react-auth", () => ({
   PrivyProvider: "privy-provider",
   usePrivy: () => ({authenticated: false, logout: vi.fn(), ready: true}),
   useWallets: () => ({wallets: []}),
+  useActiveWallet: () => ({
+    wallet: undefined,
+    connect: productionPrivyHooks.connectActiveWallet,
+  }),
   useToken: () => ({getAccessToken: vi.fn(async () => null)}),
   useLogin: () => ({login: productionPrivyHooks.login}),
   useLinkAccount: () => ({
@@ -38,6 +43,7 @@ afterEach(() => {
 import * as bridge from "../js/privy_bridge"
 import {clearLocalSession, createSessionMutationCoordinator} from "../js/auth_lazy"
 import {
+  activeEthereumWallet,
   selectConnectedEthereumWallet,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
@@ -104,6 +110,35 @@ function installAccountBridgeRenderer() {
     pendingEffects = []
     effects.forEach(effect => effect())
   }
+}
+
+function stubBrowserGlobals(): string[] {
+  const dispatched: string[] = []
+
+  vi.stubGlobal("document", {
+    body: {append: vi.fn()},
+    createElement: () => ({hidden: false}),
+    querySelector: () => null,
+  })
+  vi.stubGlobal("window", {
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: (event: {type: string}) => dispatched.push(event.type),
+    location: {origin: "https://regents.sh"},
+  })
+  vi.stubGlobal(
+    "CustomEvent",
+    class {
+      constructor(readonly type: string) {}
+    },
+  )
+
+  return dispatched
+}
+
+function ethereumWallet(address: string) {
+  const provider: EthereumProvider = {request: vi.fn()}
+  return {address, type: "ethereum", provider, getEthereumProvider: async () => provider}
 }
 
 // Yields to the event loop until `reached` holds, so an ordering assertion waits
@@ -523,11 +558,7 @@ describe("Privy session bridge", () => {
       const order: string[] = []
       productionPrivyHooks.login = firstLogin
       productionPrivyHooks.linkGithub = firstLinkGithub
-      vi.stubGlobal("document", {
-        body: {append: vi.fn()},
-        createElement: () => ({hidden: false}),
-        querySelector: () => null,
-      })
+      stubBrowserGlobals()
 
       let resolveProvider: (() => void) | undefined
       let rejectProvider: ((error: Error) => void) | undefined
@@ -664,6 +695,52 @@ describe("Privy session bridge", () => {
 
   it("does not own or inject server-rendered account markup", () => {
     expect(bridge).not.toHaveProperty("loadLocalSession")
+  })
+
+  // Privy can move the selection without changing the connected set. Stake reads
+  // the selection, so that change has to reach the page as a wallet-state event.
+  it("P1_ACTIVE_WALLET_ONLY: publishes the selection and announces a selection-only change", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const dispatched = stubBrowserGlobals()
+    const first = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const second = ethereumWallet("0x2222222222222222222222222222222222222222")
+    const solana = {address: "SoLaNa1111111111111111111111111111111111111", type: "solana"}
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      wallets: [first, second],
+      activeWallet: first,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+      children: React.ReactElement
+    }>
+    const accountElement = providerElement.props.children
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => dispatched.length === 1)
+    expect(activeEthereumWallet()?.provider).toBe(first.provider)
+
+    // The connected set is identical; only the selection moved.
+    providerState.activeWallet = second
+    renderAccountBridge(accountElement)
+    await until(() => dispatched.length === 2)
+    expect(dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+    expect(activeEthereumWallet()?.provider).toBe(second.provider)
+
+    // A Solana selection is no Stake wallet, and no other wallet stands in.
+    providerState.activeWallet = solana as unknown as typeof first
+    renderAccountBridge(accountElement)
+    await until(() => dispatched.length === 3)
+    expect(activeEthereumWallet()).toBeNull()
   })
 
   it("selects the signer-bound wallet regardless of provider order", () => {

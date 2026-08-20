@@ -1,6 +1,7 @@
 import {
   PrivyProvider,
   type PrivyEvents,
+  useActiveWallet,
   useLogin,
   useLinkAccount,
   usePrivy,
@@ -27,6 +28,8 @@ import {
   type SessionMutationCoordinator,
 } from "./auth_lazy"
 import {
+  eligibleActiveWallet,
+  replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
@@ -354,15 +357,20 @@ export type PrivyBridgeProviderState = {
   logout: () => Promise<void>
   ready: boolean
   wallets: ReturnType<typeof useWallets>["wallets"]
+  activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
+  connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
 }
 
 function AccountBridge({mode, providerState, publishRequestHandler}: AccountBridgeProps) {
   const privy = usePrivy()
   const providerWallets = useWallets()
+  const providerActiveWallet = useActiveWallet()
   const authenticated = providerState?.authenticated ?? privy.authenticated
   const logout = providerState?.logout ?? privy.logout
   const ready = providerState?.ready ?? privy.ready
   const wallets = providerState?.wallets ?? providerWallets.wallets
+  const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
+  const connectActiveWallet = providerState?.connectActiveWallet ?? providerActiveWallet.connect
   const signOutOnly = mode === "sign-out-only"
   const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
     signOutOnly ? "preterminal" : "terminal",
@@ -438,27 +446,43 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     })
   }, [authenticated, completeAutomaticLogin, getAccessToken, ready, signOutOnly])
 
+  // The active selection is published alongside the connected set and depends on
+  // it, so a selection change with an unchanged wallets array still runs this and
+  // still announces `ash:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
     if (!ready || !(await reconcileProviderSession())) {
       replaceConnectedEthereumWallets([])
+      replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
       return
     }
 
-    const entries = await Promise.all(
-      wallets.map(
-        async wallet =>
-          [
-            wallet.address.toLowerCase(),
-            (await wallet.getEthereumProvider()) as EthereumProvider,
-          ] as const,
+    const eligible = eligibleActiveWallet(activeWallet, wallets)
+    const [entries, active] = await Promise.all([
+      Promise.all(
+        wallets.map(
+          async wallet =>
+            [
+              wallet.address.toLowerCase(),
+              (await wallet.getEthereumProvider()) as EthereumProvider,
+            ] as const,
+        ),
       ),
-    )
+      eligible && "getEthereumProvider" in eligible
+        ? eligible
+            .getEthereumProvider()
+            .then(provider => ({
+              address: eligible.address,
+              provider: provider as EthereumProvider,
+            }))
+        : Promise.resolve(null),
+    ])
     if (walletSyncGeneration.current !== generation) return
     replaceConnectedEthereumWallets(entries)
+    replaceActiveEthereumWallet(active)
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-  }, [ready, reconcileProviderSession, wallets])
+  }, [activeWallet, ready, reconcileProviderSession, wallets])
 
   React.useEffect(() => {
     if (signOutOnly) return
@@ -467,6 +491,14 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       walletSyncGeneration.current += 1
     }
   }, [signOutOnly, synchronizeWallets])
+
+  // Stake's connect-or-switch affordance opens Privy's own chooser. Nothing here
+  // picks a wallet: the customer's selection is the only thing that changes.
+  React.useEffect(() => {
+    const openChooser = () => void Promise.resolve(connectActiveWallet()).catch(() => undefined)
+    window.addEventListener("ash:wallet-connect", openChooser)
+    return () => window.removeEventListener("ash:wallet-connect", openChooser)
+  }, [connectActiveWallet])
 
   const markSignOutTerminal = React.useCallback(() => {
     signOutOnlyState.current = "terminal"

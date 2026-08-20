@@ -16,6 +16,11 @@ defmodule AshPlatform.Staking.Snapshot do
       run fn input, context -> Actions.account(input, context) end
     end
 
+    action :account_for_wallet, :map do
+      argument :expected_signer, :string, allow_nil?: false
+      run fn input, context -> Actions.account_for_wallet(input, context) end
+    end
+
     action :prepare_stake, :map do
       argument :expected_signer, :string, allow_nil?: false
       argument :amount, :string, allow_nil?: false
@@ -98,6 +103,7 @@ defmodule AshPlatform.Staking.Snapshot do
 
     policy action([
              :account,
+             :account_for_wallet,
              :prepare_stake,
              :prepare_unstake,
              :prepare_claim_usdc,

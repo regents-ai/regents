@@ -11,30 +11,46 @@ defmodule AshPlatform.StakingTest do
   defmodule ChainStub do
     @behaviour AshPlatform.Staking.ChainClient
 
+    @public %{
+      chain_id: 8453,
+      chain_label: "Base",
+      contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
+      paused: false,
+      total_staked: "100",
+      total_staked_raw: "100000000000000000000"
+    }
+    @position %{
+      wallet_token_balance_raw: "10000000000000000000",
+      wallet_token_balance: "10",
+      wallet_usdc_balance: "4.25",
+      wallet_stake_balance_raw: "5000000000000000000",
+      wallet_stake_balance: "5",
+      wallet_claimable_usdc_raw: "1500000",
+      wallet_claimable_usdc: "1.5",
+      wallet_claimable_regent_raw: "2000000000000000000",
+      wallet_claimable_regent: "2",
+      wallet_funded_claimable_regent_raw: "2000000000000000000",
+      wallet_funded_claimable_regent: "2"
+    }
+
     @impl true
     def overview(wallet) do
       send(self_or_test(), {:overview, wallet})
 
-      {:ok,
-       %{
-         chain_id: 8453,
-         chain_label: "Base",
-         contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
-         paused: false,
-         total_staked: "100",
-         total_staked_raw: "100000000000000000000",
-         wallet_address: wallet,
-         wallet_token_balance: if(wallet, do: "10", else: nil),
-         wallet_usdc_balance: if(wallet, do: "4.25", else: nil),
-         wallet_stake_balance: if(wallet, do: "5", else: nil),
-         wallet_claimable_usdc: if(wallet, do: "1.5", else: nil),
-         wallet_claimable_regent_raw: if(wallet, do: "2000000000000000000", else: nil),
-         wallet_claimable_regent: if(wallet, do: "2", else: nil),
-         wallet_funded_claimable_regent_raw:
-           if(wallet, do: Process.get(:funded_regent_raw, "2000000000000000000"), else: nil),
-         wallet_funded_claimable_regent: if(wallet, do: "2", else: nil)
-       }}
+      {:ok, @public |> Map.put(:wallet_address, wallet) |> Map.merge(position(wallet))}
     end
+
+    # A public read carries no position at all; a wallet read carries the raw
+    # fields the amount and claim proofs consume, overridable per test.
+    defp position(nil), do: Map.new(@position, fn {field, _value} -> {field, nil} end)
+
+    defp position(_wallet),
+      do:
+        Map.merge(@position, %{
+          wallet_claimable_usdc_raw: Process.get(:claimable_usdc_raw, "1500000"),
+          wallet_funded_claimable_regent_raw:
+            Process.get(:funded_regent_raw, "2000000000000000000")
+        })
 
     @impl true
     def confirm(envelope, hash, approval_hash) do
@@ -92,6 +108,22 @@ defmodule AshPlatform.StakingTest do
     assert {:error, _error} = Staking.account()
   end
 
+  # Stake reads the wallet the browser reports, but only after the mounted lease
+  # resolves an account that still lists it. Nothing else can name a position.
+  test "the staking lookup reads only a wallet the leased account still holds", %{
+    actor: actor,
+    opts: opts
+  } do
+    assert {:ok, %{wallet_address: @wallet}} = Staking.account_for_wallet(@wallet, opts)
+    assert_receive {:overview, @wallet}
+
+    assert {:error, _unlinked} = Staking.account_for_wallet(@other, opts)
+    assert {:error, _malformed} = Staking.account_for_wallet("0xnope", opts)
+    assert {:error, _leaseless} = Staking.account_for_wallet(@wallet, actor: actor)
+    assert {:error, _anonymous} = Staking.account_for_wallet(@wallet)
+    refute_receive {:overview, _wallet}
+  end
+
   test "stake preparation binds signer, exact approval and ABI calldata", %{opts: opts} do
     assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.5", opts)
 
@@ -145,6 +177,17 @@ defmodule AshPlatform.StakingTest do
     assert {:error, _error} = Staking.prepare_claim_regent(@wallet, opts)
     assert {:error, _error} = Staking.prepare_claim_and_restake_regent(@wallet, opts)
     Process.delete(:funded_regent_raw)
+  end
+
+  # The screen may be stale, so the amount available to claim is proved against
+  # current chain truth rather than against what the page last rendered.
+  test "a USDC claim of nothing is refused on current chain truth", %{opts: opts} do
+    Process.put(:claimable_usdc_raw, "0")
+    assert {:error, _error} = Staking.prepare_claim_usdc(@wallet, opts)
+
+    Process.put(:claimable_usdc_raw, "1")
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet, opts)
+    Process.delete(:claimable_usdc_raw)
   end
 
   test "confirmation accepts an expired submitted envelope but refuses any drift", %{opts: opts} do

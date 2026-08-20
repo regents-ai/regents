@@ -1,21 +1,48 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {encodeFunctionData, parseAbi, type Address, type Hash} from "viem"
 
-import {connectedEthereumWallet} from "../js/wallet_actions/connected_wallet"
+import {activeEthereumWallet} from "../js/wallet_actions/connected_wallet"
 import {
   executePreparedStakingAction,
   type PreparedStakingAction,
   type StakingClients,
   WalletExecutionError,
 } from "../js/wallet_actions/staking"
-import {recordSubmittedAction, StakeWallet, userRejected} from "../js/hooks/stake_wallet"
+import {
+  activeSigner,
+  recordSubmittedAction,
+  StakeWallet,
+  userRejected,
+} from "../js/hooks/stake_wallet"
+
+// The active wallet stub answers `eth_accounts` with the reviewed signer, so a
+// test that wants a failed preflight has to say so explicitly.
+const walletStub = vi.hoisted(() => {
+  const address = "0x1111111111111111111111111111111111111111"
+  return {
+    address,
+    accounts: [address] as unknown,
+    selected: address as string | null,
+  }
+})
 
 vi.mock("../js/wallet_actions/connected_wallet", () => ({
-  connectedEthereumWallet: vi.fn(() => ({
-    address: "0x1111111111111111111111111111111111111111",
-    provider: {request: vi.fn()},
-  })),
+  connectedEthereumWallet: vi.fn(() => activeWalletStub()),
+  activeEthereumWallet: vi.fn(() => activeWalletStub()),
 }))
+
+function activeWalletStub() {
+  return walletStub.selected
+    ? {
+        address: walletStub.selected,
+        provider: {
+          request: vi.fn(async ({method}: {method: string}) =>
+            method === "eth_accounts" ? walletStub.accounts : undefined,
+          ),
+        },
+      }
+    : null
+}
 
 // Only the hook's own call is steered; every other test in this file keeps the
 // real executor, so the envelope and ABI assertions below still bind it.
@@ -78,6 +105,11 @@ function clients(overrides: Partial<StakingClients> = {}): StakingClients {
 }
 
 const provider = {request: vi.fn(async () => undefined)}
+
+beforeEach(() => {
+  walletStub.selected = walletStub.address
+  walletStub.accounts = [walletStub.address]
+})
 
 describe("staking wallet action", () => {
   it("matches viem ABI bytes and completes exact approval before the stake", async () => {
@@ -309,14 +341,113 @@ describe("U1_BOUNDED_WALLET_COPY: only closed reason keys leave the browser", ()
   })
 
   it("reports the unavailable review wallet without naming any provider", async () => {
-    vi.mocked(connectedEthereumWallet).mockReturnValueOnce(null)
     const hook = mountStakeWallet()
+    vi.mocked(activeEthereumWallet).mockReturnValueOnce(null)
 
     await hook.emit("staking:prepared", {envelope: envelope({action_id: "absent"})})
 
     expect(hook.pushed).toEqual([
       {event: "staking_wallet_failed", payload: {reason: "wallet_unavailable"}},
     ])
+  })
+})
+
+describe("P1_ACTIVE_WALLET_ONLY: Stake follows Privy's selection", () => {
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("reports the active wallet on mount and nothing when there is none", () => {
+    expect(mountStakeWallet().mountPushed).toEqual([
+      {event: "staking_active_wallet", payload: {address: walletStub.address}},
+    ])
+
+    walletStub.selected = null
+    expect(mountStakeWallet().mountPushed).toEqual([
+      {event: "staking_active_wallet", payload: {address: null}},
+    ])
+  })
+
+  it("asks Privy's own chooser to open instead of picking a wallet itself", async () => {
+    const hook = mountStakeWallet()
+
+    await hook.click(stubElement({stakeConnect: ""}))
+
+    expect(hook.windowEvents).toEqual(["ash:wallet-connect"])
+    expect(hook.pushed).toEqual([])
+  })
+})
+
+describe("P4_PREFLIGHT_IS_INPUT: nothing is claimed before the signer is proven", () => {
+  const execute = vi.mocked(executePreparedStakingAction)
+
+  beforeEach(() => stubSessionStorage())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("recognises the reviewed signer only when the provider's account is exactly it", async () => {
+    await expect(activeSigner(wallet)).resolves.toBe(wallet)
+
+    walletStub.accounts = ["0x2222222222222222222222222222222222222222"]
+    await expect(activeSigner(wallet)).resolves.toBeNull()
+
+    walletStub.accounts = []
+    await expect(activeSigner(wallet)).resolves.toBeNull()
+
+    walletStub.accounts = "not-a-list"
+    await expect(activeSigner(wallet)).resolves.toBeNull()
+
+    walletStub.accounts = [wallet]
+    walletStub.selected = "0x2222222222222222222222222222222222222222"
+    await expect(activeSigner(wallet)).resolves.toBeNull()
+
+    walletStub.selected = null
+    await expect(activeSigner(wallet)).resolves.toBeNull()
+  })
+
+  it("asks for the dispatch only after a matching preflight", async () => {
+    const hook = mountStakeWallet()
+
+    await hook.click(stubElement({stakeConfirm: "reviewed", stakeSigner: wallet}))
+    expect(hook.pushed).toEqual([
+      {event: "sign_prepared_staking", payload: {"action-id": "reviewed", address: wallet}},
+    ])
+
+    // The wallet moved to another account: nothing is claimed, and the copy says
+    // which wallet the review still needs.
+    hook.pushed.length = 0
+    walletStub.accounts = ["0x2222222222222222222222222222222222222222"]
+    await hook.click(stubElement({stakeConfirm: "reviewed", stakeSigner: wallet}))
+    expect(hook.pushed).toEqual([
+      {event: "staking_wallet_failed", payload: {reason: "wallet_unavailable"}},
+    ])
+  })
+
+  // The server verified the approval receipt and the exact allowance. The stake
+  // follows through the same preflight and never reapproves.
+  it("continues into the stake through the same preflight", async () => {
+    const hook = mountStakeWallet()
+
+    await hook.emit("staking:continue", {action_id: "reviewed", expected_signer: wallet})
+    expect(hook.pushed).toEqual([
+      {event: "sign_prepared_staking", payload: {"action-id": "reviewed", address: wallet}},
+    ])
+  })
+
+  // The dispatch is already claimed. A wallet that moved in between must not
+  // resubmit and must not report a rejection the customer never made: only the
+  // original wallet can end that request.
+  it("preserves a claimed dispatch when the signer changed after the push", async () => {
+    const hook = mountStakeWallet()
+    const attempts = execute.mock.calls.length
+    walletStub.accounts = ["0x2222222222222222222222222222222222222222"]
+
+    await hook.emit("staking:prepared", {
+      envelope: envelope({action_id: "claimed", approval: null}),
+    })
+
+    expect(hook.pushed).toEqual([
+      {event: "staking_wallet_failed", payload: {reason: "signer_changed"}},
+    ])
+    expect(execute.mock.calls).toHaveLength(attempts)
   })
 })
 
@@ -457,17 +588,32 @@ describe("U5_EXPECTED_SIGNER_TRUTH: the copy button carries the reviewed signer"
 })
 
 type Emitted = {event: string; payload: unknown}
-type CopyButton = {textContent: string; dataset: {copySigner: string}; closest: () => CopyButton}
+type StubElement = {
+  textContent: string
+  dataset: Record<string, string>
+  closest: (selector: string) => StubElement | null
+}
 
 function mountStakeWallet(): {
   pushed: Emitted[]
+  mountPushed: Emitted[]
+  windowEvents: string[]
   emit(event: string, payload: unknown): unknown
   click(target: unknown): Promise<unknown[]>
 } {
   const pushed: Emitted[] = []
   const handlers = new Map<string, (payload: unknown) => unknown>()
   const clicks: Array<(event: Event) => unknown> = []
+  const windowEvents: string[] = []
   const buttons = [] as unknown as NodeListOf<HTMLButtonElement>
+  vi.stubGlobal("window", {
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: (event: {type: string}) => windowEvents.push(event.type),
+  })
+  vi.stubGlobal("CustomEvent", class {
+    constructor(readonly type: string) {}
+  })
   const hook = {
     el: {
       dataset: {} as DOMStringMap,
@@ -481,24 +627,37 @@ function mountStakeWallet(): {
   }
 
   ;(StakeWallet.mounted as (this: typeof hook) => void).call(hook)
+  const mountPushed = [...pushed]
+  pushed.length = 0
 
   return {
     pushed,
+    mountPushed,
+    windowEvents,
     emit: (event, payload) => handlers.get(event)?.(payload),
     click: target => Promise.all(clicks.map(listener => listener({target} as unknown as Event))),
   }
 }
 
-// The reviewed markup puts the signer on the button itself, so the clicked
-// element is its own `closest` match and carries the text the copy replaces.
-function copyButton(signer: string): CopyButton {
-  const button: CopyButton = {
+// The reviewed markup puts each behaviour on the button itself, so the clicked
+// element is its own `closest` match for exactly the selector it carries.
+function stubElement(dataset: Record<string, string>): StubElement {
+  const element: StubElement = {
     textContent: "Copy",
-    dataset: {copySigner: signer},
-    closest: () => button,
+    dataset,
+    closest: selector =>
+      Object.keys(dataset).some(key => selector === `[${kebab(key)}]`) ? element : null,
   }
 
-  return button
+  return element
+}
+
+function copyButton(signer: string): StubElement {
+  return stubElement({copySigner: signer})
+}
+
+function kebab(key: string): string {
+  return `data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`
 }
 
 function stubSessionStorage(): void {

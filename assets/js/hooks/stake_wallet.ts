@@ -1,5 +1,5 @@
 import type {Hook} from "../hook_composition"
-import {connectedEthereumWallet} from "../wallet_actions/connected_wallet"
+import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {
   executePreparedStakingAction,
   type PreparedStakingAction,
@@ -11,7 +11,7 @@ const pendingKey = "regent:staking:submitted"
 
 // The closed set of failures this surface can describe. Provider, viem, revert
 // and wallet-vendor text is never a customer message, so it is never sent.
-type FailureReason = "wallet_unavailable" | "unknown"
+type FailureReason = "wallet_unavailable" | "signer_changed" | "unknown"
 
 type StoredSubmission = {
   envelope: PreparedStakingAction
@@ -25,7 +25,7 @@ type StakeHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEvent(event: string, payload: unknown): void
-  removePrepared?: () => void
+  publishActiveWallet?: () => void
 }
 
 export const StakeWallet: Hook = {
@@ -36,10 +36,35 @@ export const StakeWallet: Hook = {
 
     const failed = (reason: FailureReason) => this.pushEvent("staking_wallet_failed", {reason})
 
+    // Privy's selection is what Stake reads, so every change is republished and
+    // the server decides what that wallet is allowed to see.
+    this.publishActiveWallet = () =>
+      this.pushEvent("staking_active_wallet", {address: activeEthereumWallet()?.address ?? null})
+    window.addEventListener("ash:wallet-state", this.publishActiveWallet)
+    this.publishActiveWallet()
+
+    // A claim is only asked for once the wallet in front of the customer really
+    // is the reviewed signer. A negative preflight asks for nothing at all.
+    const requestDispatch = async (actionId: string, signer: string) => {
+      const address = await activeSigner(signer)
+      if (address) this.pushEvent("sign_prepared_staking", {"action-id": actionId, address})
+      else failed("wallet_unavailable")
+    }
+
     this.el.addEventListener("click", async event => {
-      const button = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-        "[data-copy-signer]",
-      )
+      const target = (event.target as HTMLElement | null) ?? null
+      const confirm = target?.closest<HTMLElement>("[data-stake-confirm]")
+      if (confirm?.dataset.stakeConfirm && confirm.dataset.stakeSigner) {
+        await requestDispatch(confirm.dataset.stakeConfirm, confirm.dataset.stakeSigner)
+        return
+      }
+
+      if (target?.closest("[data-stake-connect]")) {
+        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
+        return
+      }
+
+      const button = target?.closest<HTMLElement>("[data-copy-signer]")
       const signer = button?.dataset.copySigner
       if (!button || !signer) return
 
@@ -58,6 +83,16 @@ export const StakeWallet: Hook = {
     this.handleEvent("staking:action-reverted", () => sessionStorage.removeItem(pendingKey))
     this.handleEvent("staking:abandoned", () => sessionStorage.removeItem(pendingKey))
 
+    // The server verified the approval receipt and the exact allowance, so the
+    // stake may follow through the same preflight. It never reapproves.
+    this.handleEvent("staking:continue", async payload => {
+      const {action_id: actionId, expected_signer: signer} = payload as {
+        action_id: string
+        expected_signer: string
+      }
+      await requestDispatch(actionId, signer)
+    })
+
     const onPrepared = async (payload: unknown) => {
       const prepared = payload as {
         envelope: PreparedStakingAction
@@ -70,12 +105,21 @@ export const StakeWallet: Hook = {
         envelope.approval && !prepared.approval_transaction_hash ? "approval" : "action"
       this.el.dataset.walletActionPending = "true"
       this.el
-        .querySelectorAll<HTMLButtonElement>("[phx-click='sign_prepared_staking']")
+        .querySelectorAll<HTMLButtonElement>("[data-stake-confirm]")
         .forEach(button => (button.disabled = true))
-      const connected = connectedEthereumWallet(envelope.expected_signer)
+      const connected = activeEthereumWallet()
 
       if (!connected) {
         failed("wallet_unavailable")
+        unlock(this.el, envelope.action_id)
+        return
+      }
+
+      // The claim is already durable. If the wallet moved between the claim and
+      // this push, nothing is sent and nothing is closed: the request may still
+      // be open in the original wallet, so only that wallet can end it.
+      if (!(await activeSigner(envelope.expected_signer))) {
+        failed("signer_changed")
         unlock(this.el, envelope.action_id)
         return
       }
@@ -154,6 +198,28 @@ export const StakeWallet: Hook = {
 
     this.handleEvent("staking:prepared", onPrepared)
   },
+
+  destroyed(this: StakeHook) {
+    if (this.publishActiveWallet) {
+      window.removeEventListener("ash:wallet-state", this.publishActiveWallet)
+    }
+  },
+}
+
+/**
+ * The active wallet's own address when both the Privy selection and the
+ * provider's current account are exactly the reviewed signer, or `null`.
+ * A missing provider, a refused read and a changed account are all `null`.
+ */
+export async function activeSigner(expectedSigner: string): Promise<string | null> {
+  const active = activeEthereumWallet()
+  if (!active || !sameAddress(active.address, expectedSigner)) return null
+
+  const accounts = await active.provider
+    .request({method: "eth_accounts"})
+    .catch(() => null)
+  const [account] = Array.isArray(accounts) ? accounts : []
+  return typeof account === "string" && sameAddress(account, expectedSigner) ? active.address : null
 }
 
 export function recordSubmittedAction(
@@ -195,6 +261,10 @@ export function userRejected(error: unknown): boolean {
   return false
 }
 
+function sameAddress(left: string, right: string): boolean {
+  return left.toLowerCase() === right.toLowerCase()
+}
+
 function readStoredSubmission(): StoredSubmission | null {
   try {
     const value = sessionStorage.getItem(pendingKey)
@@ -209,6 +279,6 @@ function unlock(root: HTMLElement, actionId: string): void {
   inFlightActionIds.delete(actionId)
   root.dataset.walletActionPending = "false"
   root
-    .querySelectorAll<HTMLButtonElement>("[phx-click='sign_prepared_staking']")
+    .querySelectorAll<HTMLButtonElement>("[data-stake-confirm]")
     .forEach(button => (button.disabled = false))
 }

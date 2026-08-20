@@ -2,6 +2,7 @@ import {expect, test, type Page} from "@playwright/test"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const wallet = "0x1111111111111111111111111111111111111111"
+const otherWallet = "0x2222222222222222222222222222222222222222"
 const sendsKey = "regent:test:staking-wallet-sends"
 const holdKey = "regent:test:staking-hold-receipt"
 const rejectKey = "regent:test:staking-reject-next"
@@ -23,6 +24,11 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
       // The send count lives in session storage so a document reload cannot
       // hide a second wallet request behind a fresh counter.
       const sends = () => Number(sessionStorage.getItem(sendsKey) ?? "0")
+      // The seam stands in for Privy's active selection, so the address it
+      // reports is the address the whole page has to follow.
+      const active = () =>
+        (window as Window & {__ashPlatformTestWallet?: {address: string}}).__ashPlatformTestWallet
+          ?.address ?? wallet
 
       const receipt = (transactionHash: string) => ({
         blockHash: `0x${"01".repeat(32)}`,
@@ -30,7 +36,7 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
         contractAddress: null,
         cumulativeGasUsed: "0x5208",
         effectiveGasPrice: "0x1",
-        from: wallet,
+        from: active(),
         gasUsed: "0x5208",
         logs: [],
         logsBloom: `0x${"00".repeat(256)}`,
@@ -50,7 +56,7 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
                 return "0x2105"
               case "eth_accounts":
               case "eth_requestAccounts":
-                return [wallet]
+                return [active()]
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
@@ -90,22 +96,36 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await expect(page.getByRole("heading", {name: "Stake REGENT"})).toBeVisible()
   await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
 
+  // The wallet active in the browser is what /stake reads. Selecting a wallet
+  // this account does not hold leaves no position and no action, and never
+  // falls back to the account's stored wallet.
+  await selectWallet(page, otherWallet)
+  await expect(page.getByRole("button", {name: "Connect or switch wallet"})).toBeVisible()
+  await expect(page.getByLabel("REGENT amount")).toHaveCount(0)
+
+  await selectWallet(page, wallet)
+  await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
+
+  // Max names the exact staked balance rather than a rounded rendering of it.
+  await page.getByRole("button", {name: "Max"}).click()
+  await expect(page.getByLabel("REGENT amount")).toHaveValue("10")
+
   await page.getByLabel("REGENT amount").fill("1")
   await page.getByRole("button", {name: "Review stake"}).click()
   await expect(page.getByRole("heading", {name: "Stake REGENT"}).last()).toBeVisible()
   await expect(page.getByText("1 REGENT", {exact: true})).toBeVisible()
-  await expect(page.locator(".stake-review").getByText("0x1111…1111", {exact: true}).first()).toBeVisible()
+  await expect(
+    page.locator(".stake-review").getByText("0x1111…1111", {exact: true}).first(),
+  ).toBeVisible()
 
+  // One click. The approval is sent, the server verifies its receipt and the
+  // exact allowance, and the stake follows automatically through the same
+  // preflight — without a second approval and without a second stake.
   const confirm = page.getByRole("button", {name: "Confirm in wallet"})
   await confirm.evaluate(button => {
     button.click()
     button.click()
   })
-
-  const continueAfterApproval = page.getByRole("button", {name: "Continue after approval"})
-  await expect(continueAfterApproval).toBeVisible()
-  expect(await sendCount(page)).toBe(1)
-  await continueAfterApproval.click()
 
   await expect(page.getByText("Confirmed on Base. Your staking details are current.")).toBeVisible()
   expect(await sendCount(page)).toBe(2)
@@ -130,8 +150,12 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   // Preparing it at all proves the rejected operation closed: had the rejection
   // been withheld, this review would be refused as outstanding.
   await page.evaluate(key => sessionStorage.setItem(key, "1"), holdKey)
+  await page.getByRole("button", {name: "Unstake", exact: true}).click()
+  await page.getByLabel("REGENT amount").fill("1")
   await page.getByRole("button", {name: "Review unstake"}).click()
-  await expect(page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"})).toBeVisible()
+  await expect(
+    page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"}),
+  ).toBeVisible()
   await expect(page.getByText("An earlier staking action is still outstanding")).toHaveCount(0)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 
@@ -160,4 +184,15 @@ function short(hash: string): string {
 
 async function sendCount(page: Page): Promise<number> {
   return page.evaluate(key => Number(sessionStorage.getItem(key) ?? "0"), sendsKey)
+}
+
+// Moves the browser's active wallet the way Privy does, then announces it the
+// way the bridge does.
+async function selectWallet(page: Page, address: string): Promise<void> {
+  await page.evaluate(next => {
+    const seam = (window as Window & {__ashPlatformTestWallet?: {address: string}})
+      .__ashPlatformTestWallet
+    if (seam) seam.address = next
+    window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+  }, address)
 }

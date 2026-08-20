@@ -6,6 +6,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
   alias AshPlatform.WalletActions.StakeRedeemOperations
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @other "0x2222222222222222222222222222222222222222"
+  @unlinked "0x3333333333333333333333333333333333333333"
   @tx_hash "0x" <> String.duplicate("ab", 32)
   @approval_hash "0x" <> String.duplicate("cd", 32)
 
@@ -15,6 +17,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     on_exit(fn ->
       Application.delete_env(:ash_platform, :test_staking_approval_status)
       Application.delete_env(:ash_platform, :test_staking_confirmation_result)
+      Application.delete_env(:ash_platform, :test_staking_balances)
+      Application.delete_env(:ash_platform, :test_staking_signer)
       restore_env(:wallet_action_clock, previous_clock)
     end)
 
@@ -30,16 +34,45 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "#regent-staking [phx-click=prepare_staking]")
   end
 
-  test "a signed-in wallet reviews, explicitly signs, confirms and refreshes", %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-live", @wallet, [@wallet], actor: %System{})
+  # The account is signed in, but no wallet is active in Privy yet. Nothing
+  # private is read and the account's stored primary wallet is never substituted.
+  test "P1_ACTIVE_WALLET_ONLY: a signed-in account without an active wallet gets no position",
+       %{conn: conn} do
+    view = signed_in(conn, "stake-no-active")
+    html = render_async(view)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
+    assert html =~ "100 REGENT"
+    assert has_element?(view, ~s(.stake-actions button[data-stake-connect]), "Connect or switch")
+    refute has_element?(view, "#staking-amount")
+    refute has_element?(view, "#regent-staking [phx-click=prepare_staking]")
+    refute html =~ "Your stake"
 
+    # A Solana or disconnected selection reaches the server as no address at all
+    # and lands in exactly the same state.
+    render_hook(view, "staking_active_wallet", %{"address" => nil})
+    refute has_element?(view, "#staking-amount")
+  end
+
+  # An address the verified account does not hold cannot name a private position,
+  # and the page says which recovery is available instead of guessing a wallet.
+  test "P2_MEMBERSHIP_PROVEN: an unlinked active wallet reads nothing private", %{conn: conn} do
+    view = signed_in(conn, "stake-unlinked")
     render_async(view)
+
+    render_hook(view, "staking_active_wallet", %{"address" => @unlinked})
+    render_async(view)
+    html = render_async(view)
+    assert html =~ "not one of the wallets on your Regent account"
+    assert html =~ "100 REGENT"
+    refute html =~ "Your stake"
+    refute has_element?(view, "#staking-amount")
+    assert has_element?(view, ~s(.stake-actions button[data-stake-connect]))
+  end
+
+  test "a signed-in wallet reviews, explicitly signs, confirms and refreshes", %{conn: conn} do
+    view = signed_in(conn, "stake-live")
+    activate(view, @wallet)
+
     assert has_element?(view, "#staking-amount")
     assert render(view) =~ "5 REGENT"
 
@@ -47,9 +80,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     |> form("#staking-amount-form", %{"amount" => "1"})
     |> render_change()
 
-    view
-    |> element(~s(button[phx-value-action="stake"]), "Review stake")
-    |> render_click()
+    review(view, "stake")
 
     assert has_element?(view, ".stake-review", "Stake REGENT")
     assert render(view) =~ "separate exact token approval"
@@ -57,48 +88,42 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ "0x1111…1111"
     action_id = prepared_action_id(render(view))
 
-    view
-    |> element(".stake-review button", "Confirm in wallet")
-    |> render_click()
+    sign(view, action_id)
 
     assert_push_event(view, "staking:prepared", %{
       envelope: %{action: "stake", expected_signer: @wallet},
       approval_transaction_hash: nil
     })
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "approval",
-      "transaction_hash" => @approval_hash
-    })
+    submit(view, action_id, "approval", @approval_hash)
 
     html = render_async(view)
     assert html =~ "REGENT approval confirmed"
     assert html =~ "Continue after approval"
+
+    # The server verified the receipt and the exact allowance, so it invites the
+    # browser to preflight the same wallet rather than asking for a reapproval.
+    assert_push_event(view, "staking:continue", %{
+      action_id: ^action_id,
+      expected_signer: @wallet
+    })
 
     assert html =~
              ~r/The approval transaction was\s+confirmed on Base, but we have not re-read the current REGENT allowance\./
 
     refute html =~ "The exact REGENT allowance remains onchain"
 
-    view
-    |> element(".stake-submission button", "Continue after approval")
-    |> render_click()
+    sign(view, action_id)
 
     assert_push_event(view, "staking:prepared", %{
       envelope: %{action: "stake", expected_signer: @wallet},
       approval_transaction_hash: @approval_hash
     })
 
-    render_hook(view, "sign_prepared_staking", %{"action-id" => action_id})
-
+    sign(view, action_id)
     refute_push_event(view, "staking:prepared", _)
 
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "action",
-      "transaction_hash" => @tx_hash
-    })
+    submit(view, action_id, "action", @tx_hash)
 
     render_hook(view, "confirm_staking", %{
       "action_id" => action_id,
@@ -111,20 +136,197 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute html =~ "Review before signing"
   end
 
+  # The preflight is necessary input and never authority: a readiness event that
+  # does not carry the reviewed signer claims nothing at all.
+  test "P4_PREFLIGHT_IS_INPUT: a dispatch reported for another address claims nothing",
+       %{conn: conn} do
+    account = register("stake-preflight", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+
+    render_hook(view, "sign_prepared_staking", %{"action-id" => action_id, "address" => @other})
+
+    refute_push_event(view, "staking:prepared", _)
+    assert render(view) =~ "This review belongs to a different wallet"
+    assert {:ok, %{state: :prepared}} = StakeRedeemOperations.active(account.id, :stake)
+
+    # The same review, reported by the wallet that actually prepared it, still
+    # goes through the full server revalidation before the wallet opens.
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{envelope: %{expected_signer: @wallet}})
+
+    assert {:ok, %{state: :approval_dispatched}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A wallet switch is a new signer. The amount and the private position go, and
+  # a review nobody dispatched is withdrawn rather than rebound.
+  test "P3_SWITCH_CLEARS_UNDISPATCHED_WORK: an undispatched review is withdrawn on a switch",
+       %{conn: conn} do
+    account = register("stake-switch", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    assert render(view) =~ "Review before signing"
+
+    activate(view, @other)
+
+    html = render(view)
+    refute html =~ "Review before signing"
+    assert html =~ ~s(value="")
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # The wallet that prepared a review is the wallet reporting itself active, so
+  # nothing is withdrawn: the review comes back exactly as it was left.
+  test "P3_MATCHING_SIGNER_SURVIVES: a prepared review for the active wallet is restored",
+       %{conn: conn} do
+    account = register("stake-restore-prepared", [@wallet])
+    {:ok, envelope} = Staking.prepare_stake(@wallet, "1", leased(account.id))
+
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    assert render(view) =~ "Review before signing"
+    action_id = envelope.action_id
+
+    assert has_element?(view, ~s(button[data-stake-confirm="#{action_id}"]))
+
+    assert {:ok, %{state: :prepared, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+  end
+
+  # A claimed dispatch may already be open in its own wallet, so switching never
+  # closes it. It stays visible for recovery and offers the new wallet no way to
+  # sign it.
+  test "P3_CLAIMED_WORK_STAYS_WITH_ITS_SIGNER: a switch neither cancels nor rebinds a dispatch",
+       %{conn: conn} do
+    account = register("stake-claimed-switch", [@wallet, @other])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+
+    activate(view, @other)
+
+    html = render(view)
+    assert html =~ "This review belongs to another wallet"
+    refute has_element?(view, "[data-stake-confirm]")
+
+    assert {:ok, %{state: :approval_dispatched, action_id: ^action_id}} =
+             StakeRedeemOperations.active(account.id, :stake)
+
+    # The outstanding dispatch still holds this account's one Stake slot.
+    assert render_click(view, "prepare_staking", %{"action" => "claim_usdc"}) =~
+             "An earlier staking action is still outstanding"
+  end
+
+  # Fifty percent is the integer floor of the raw balance and Max is that
+  # balance exactly, so a one-wei position can be moved in full but not halved.
+  test "P5_EXACT_AMOUNTS: quick fills use exact raw balances and refuse a result of zero",
+       %{conn: conn} do
+    view = signed_in(conn, "stake-amounts")
+    activate(view, @wallet)
+
+    render_click(view, "fill_staking_amount", %{"portion" => "half"})
+    assert render(view) =~ ~s(value="5")
+
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+    assert render(view) =~ ~s(value="10")
+
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+    assert render(view) =~ ~s(value="5")
+
+    render_click(view, "fill_staking_amount", %{"portion" => "half"})
+    assert render(view) =~ ~s(value="2.5")
+
+    Application.put_env(:ash_platform, :test_staking_balances, %{token: "1", stake: "0"})
+    render_click(view, "select_staking_action", %{"mode" => "stake"})
+    render_click(view, "refresh_staking", %{})
+    render_async(view)
+
+    # One wei: half of it is nothing, so that shortcut is refused while Max
+    # still names the exact wei available.
+    assert has_element?(view, ~s(button[phx-value-portion="half"][disabled]))
+    refute has_element?(view, ~s(button[phx-value-portion="max"][disabled]))
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+    assert render(view) =~ ~s(value="0.000000000000000001")
+
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    assert has_element?(view, ~s(button[phx-value-portion="half"][disabled]))
+    assert has_element?(view, ~s(button[phx-value-portion="max"][disabled]))
+  end
+
+  # A claim of nothing is not an action. The controls say so, and the server
+  # refuses the event even when it is sent anyway.
+  test "P5_NO_ZERO_CLAIMS: zero USDC, REGENT and claim-and-restake controls are refused",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      usdc_claimable: "0",
+      regent_claimable: "0",
+      regent_funded: "0"
+    })
+
+    view = signed_in(conn, "stake-zero-claims")
+    activate(view, @wallet)
+
+    for action <- ~w(claim_usdc claim_regent claim_and_restake_regent) do
+      assert has_element?(view, ~s(button[phx-value-action="#{action}"][disabled]))
+    end
+
+    assert render_click(view, "prepare_staking", %{"action" => "claim_usdc"}) =~
+             "no USDC rewards to claim"
+
+    assert render_click(view, "prepare_staking", %{"action" => "claim_regent"}) =~
+             "not enough to claim or reinvest"
+  end
+
+  # Refresh re-reads the active wallet. It is unavailable while a verification is
+  # in flight, so it can never discard a submitted transaction.
+  test "P5_REFRESH_NEVER_CANCELS_VERIFICATION: refresh is disabled while confirming",
+       %{conn: conn} do
+    account = register("stake-refresh", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_action(view, action_id)
+
+    render_hook(view, "confirm_staking", %{
+      "action_id" => action_id,
+      "transaction_hash" => @tx_hash
+    })
+
+    assert has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+    render_click(view, "refresh_staking", %{})
+
+    # The refresh could not discard the submitted transaction: verification still
+    # runs to completion and its hash is still the one on screen.
+    assert render_async(view) =~ "Confirmed on Base"
+    assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+  end
+
   test "a server-verified reverted main action resets the flow for a fresh prepare", %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_confirmation_result, :reverted)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-reverted", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-reverted")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_action(view, action_id)
@@ -143,17 +345,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   test "a verified approval can be abandoned without sending main and a fresh action can be prepared",
        %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-abandon", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-abandon")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_approval(view, action_id)
@@ -176,26 +372,19 @@ defmodule AshPlatformWeb.StakeLiveTest do
     send(view.pid, {:staking_envelope_expired, action_id})
     refute render(view) =~ "approval review expired"
 
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
     assert render(view) =~ "Review before signing"
   end
 
   test "an expired verified approval states that the current allowance was not reread", %{
     conn: conn
   } do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-expired-verified", @wallet, [@wallet],
-        actor: %System{}
-      )
+    view = signed_in(conn, "stake-expired-verified")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_approval(view, action_id)
@@ -220,19 +409,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
        %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-pending-abandon", @wallet, [@wallet],
-        actor: %System{}
-      )
+    account = register("stake-pending-abandon", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_approval(view, action_id)
@@ -264,25 +446,18 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # amount and the wallet would be false.
   test "DIRECT_TRUTHFUL_UI: a review refused by an outstanding operation says so instead of blaming the amount",
        %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-outstanding", @wallet, [@wallet],
-        actor: %System{}
-      )
+    view = signed_in(conn, "stake-outstanding")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
 
     # The dispatch is claimed and the wallet is open. No hash exists yet, so the
     # shell holds no submission of its own and only the database knows.
     sign(view, prepared_action_id(render(view)))
 
-    view |> element(~s(button[phx-value-action="unstake"]), "Review unstake") |> render_click()
+    render_click(view, "select_staking_action", %{"mode" => "unstake"})
+    review(view, "unstake")
 
     html = render(view)
     assert html =~ "An earlier staking action is still outstanding"
@@ -298,8 +473,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     expired_at = DateTime.utc_now() |> DateTime.add(-11, :minute)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> expired_at end)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-expired", @wallet, [@wallet], actor: %System{})
+    account = register("stake-expired", [@wallet])
 
     # The durable operation, not browser storage, carries the submitted approval
     # across the restart, so the restore is set up through the same domain the
@@ -313,13 +487,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
-    render_hook(view, "restore_staking_submission", %{})
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
 
     html = render(view)
 
@@ -349,19 +518,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
        %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-approval-revert", @wallet, [@wallet],
-        actor: %System{}
-      )
+    account = register("stake-approval-revert", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_approval(view, action_id)
@@ -380,19 +542,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   test "an approval cannot be abandoned after the main transaction hash exists", %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-no-abandon", @wallet, [@wallet],
-        actor: %System{}
-      )
+    view = signed_in(conn, "stake-no-abandon")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_action(view, action_id)
@@ -404,15 +558,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   test "unknown or mismatched confirmations fail closed", %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-mismatch", @wallet, [@wallet], actor: %System{})
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
+    view = signed_in(conn, "stake-mismatch")
+    activate(view, @wallet)
 
     render_hook(view, "confirm_staking", %{"action_id" => "other", "transaction_hash" => @tx_hash})
 
@@ -421,19 +568,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   test "REJECTION_WRITES_NOTHING: a newline-padded submitted hash reaches neither the shell nor the row",
        %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-malformed", @wallet, [@wallet],
-        actor: %System{}
-      )
+    account = register("stake-malformed", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
     sign(view, action_id)
 
@@ -498,21 +638,18 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # button appears, and no browser or provider text ever reaches the page.
   test "U1_BOUNDED_WALLET_COPY: a closed reason key renders fixed copy and offers no bridge button",
        %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-bounded", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-bounded")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     render_hook(view, "staking_wallet_failed", %{"reason" => "wallet_unavailable"})
 
     assert render(view) =~
              "The wallet in this review is not connected in this browser. Connect it to continue."
 
     refute has_element?(view, ~s([data-account-target="sign-in"]))
+
+    render_hook(view, "staking_wallet_failed", %{"reason" => "signer_changed"})
+    assert render(view) =~ "This review belongs to a different wallet than the one now active."
 
     render_hook(view, "staking_wallet_failed", %{"reason" => "unknown"})
     assert render(view) =~ "The wallet action did not complete."
@@ -523,15 +660,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # reviewed action never fabricates that copy.
   test "U2_NEUTRAL_REJECTION: the exact rejection leaves neutral copy that no failure overwrites",
        %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-rejected", @wallet, [@wallet], actor: %System{})
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
+    account = register("stake-rejected", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
 
     # A rejection the server cannot bind to a reviewed action is evidence of
     # nothing, so it never fabricates the neutral copy.
@@ -544,7 +675,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute render(view) =~ "Nothing was sent"
 
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
     sign(view, action_id)
 
@@ -564,24 +695,22 @@ defmodule AshPlatformWeb.StakeLiveTest do
        %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-locked", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-locked")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
 
     submit_approval(view, prepared_action_id(render(view)))
     render_async(view)
     assert_push_event(view, "staking:prepared", %{})
 
-    for action <- ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent) do
+    for action <- ~w(stake claim_usdc claim_regent claim_and_restake_regent) do
       assert has_element?(view, ~s(button[phx-value-action="#{action}"][disabled]))
+    end
+
+    for mode <- ~w(stake unstake) do
+      assert has_element?(view, ~s(button[phx-value-mode="#{mode}"][disabled]))
     end
 
     # Verification stays available and never opens the wallet again.
@@ -593,17 +722,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "U4_BASE_EXPLORER_TRUTH: each bound hash links to that exact transaction on Base", %{
     conn: conn
   } do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-explorer", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-explorer")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
     action_id = prepared_action_id(render(view))
 
     submit_action(view, action_id)
@@ -624,27 +747,17 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     # An unbound hash is refused before it can be rendered at all, so no
     # malformed transaction link can exist.
-    render_hook(view, "staking_submitted", %{
-      "action_id" => action_id,
-      "phase" => "action",
-      "transaction_hash" => "0xnot-a-hash"
-    })
+    submit(view, action_id, "action", "0xnot-a-hash")
 
     refute render(view) =~ "basescan.org/tx/0xnot-a-hash"
   end
 
   test "U5_EXPECTED_SIGNER_TRUTH: the review copies exactly the prepared signer", %{conn: conn} do
-    {:ok, account} =
-      Accounts.register_verified("did:privy:stake-signer", @wallet, [@wallet], actor: %System{})
+    view = signed_in(conn, "stake-signer")
+    activate(view, @wallet)
 
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
-
-    render_async(view)
     view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
-    view |> element(~s(button[phx-value-action="stake"]), "Review stake") |> render_click()
+    review(view, "stake")
 
     assert has_element?(view, ".stake-review .stake-mono", "0x1111…1111")
 
@@ -652,17 +765,59 @@ defmodule AshPlatformWeb.StakeLiveTest do
              view,
              ~s(.stake-review button[data-copy-signer="#{@wallet}"][aria-label="Copy the full wallet address"])
            )
+
+    assert has_element?(
+             view,
+             ~s(.stake-review button[data-stake-confirm][data-stake-signer="#{@wallet}"]),
+             "Confirm in wallet"
+           )
+
+    refute has_element?(view, ~s(.stake-review [phx-click="sign_prepared_staking"]))
   end
 
+  defp register(suffix, wallets) do
+    {:ok, account} =
+      Accounts.register_verified("did:privy:#{suffix}", hd(wallets), wallets, actor: %System{})
+
+    account
+  end
+
+  defp mount_stake(conn, account) do
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    view
+  end
+
+  defp signed_in(conn, suffix), do: mount_stake(conn, register(suffix, [@wallet]))
+
+  # The Stake hook reports which wallet Privy has active; every private read and
+  # every write proves it again against the mounted lease.
+  defp activate(view, wallet) do
+    render_async(view)
+    render_hook(view, "staking_active_wallet", %{"address" => wallet})
+    render_async(view)
+  end
+
+  defp review(view, action),
+    do: view |> element(~s(button[phx-value-action="#{action}"])) |> render_click()
+
   defp prepared_action_id(html) do
-    [id] = Regex.run(~r/phx-value-action-id="([a-f0-9]+)"/, html, capture: :all_but_first)
+    [id] = Regex.run(~r/data-stake-confirm="([a-f0-9]+)"/, html, capture: :all_but_first)
     id
   end
 
-  # The shell claims each dispatch before the wallet opens, so a submitted hash
-  # only ever arrives for a phase the database already granted.
+  # The browser preflights the reviewed signer and the shell claims each dispatch
+  # before the wallet opens, so a submitted hash only ever arrives for a phase the
+  # database already granted.
   defp sign(view, action_id),
-    do: render_hook(view, "sign_prepared_staking", %{"action-id" => action_id})
+    do:
+      render_hook(view, "sign_prepared_staking", %{
+        "action-id" => action_id,
+        "address" => @wallet
+      })
 
   defp submit(view, action_id, phase, hash) do
     render_hook(view, "staking_submitted", %{

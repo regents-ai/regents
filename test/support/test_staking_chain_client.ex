@@ -2,6 +2,17 @@ defmodule AshPlatform.TestStakingChainClient do
   @behaviour AshPlatform.Staking.ChainClient
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @balances %{
+    token: "10000000000000000000",
+    stake: "5000000000000000000",
+    usdc_wallet: "4250000",
+    usdc_claimable: "1500000",
+    regent_claimable: "2000000000000000000",
+    regent_funded: "2000000000000000000"
+  }
+
+  @doc "The wallet this fake accepts as the signer, so a test can drive a switch."
+  def signer, do: Application.get_env(:ash_platform, :test_staking_signer, @wallet)
 
   @impl true
   def overview(wallet) do
@@ -16,18 +27,18 @@ defmodule AshPlatform.TestStakingChainClient do
        total_staked_raw: "100000000000000000000",
        total_staked: "100",
        wallet_address: wallet,
-       wallet_token_balance_raw: if(wallet, do: "10000000000000000000", else: nil),
-       wallet_token_balance: if(wallet, do: "10", else: nil),
-       wallet_usdc_balance_raw: if(wallet, do: "4250000", else: nil),
-       wallet_usdc_balance: if(wallet, do: "4.25", else: nil),
-       wallet_stake_balance_raw: if(wallet, do: "5000000000000000000", else: nil),
-       wallet_stake_balance: if(wallet, do: "5", else: nil),
-       wallet_claimable_usdc_raw: if(wallet, do: "1500000", else: nil),
-       wallet_claimable_usdc: if(wallet, do: "1.5", else: nil),
-       wallet_claimable_regent_raw: if(wallet, do: "2000000000000000000", else: nil),
-       wallet_claimable_regent: if(wallet, do: "2", else: nil),
-       wallet_funded_claimable_regent_raw: if(wallet, do: "2000000000000000000", else: nil),
-       wallet_funded_claimable_regent: if(wallet, do: "2", else: nil)
+       wallet_token_balance_raw: raw(wallet, :token),
+       wallet_token_balance: regent(wallet, :token),
+       wallet_usdc_balance_raw: raw(wallet, :usdc_wallet),
+       wallet_usdc_balance: usdc(wallet, :usdc_wallet),
+       wallet_stake_balance_raw: raw(wallet, :stake),
+       wallet_stake_balance: regent(wallet, :stake),
+       wallet_claimable_usdc_raw: raw(wallet, :usdc_claimable),
+       wallet_claimable_usdc: usdc(wallet, :usdc_claimable),
+       wallet_claimable_regent_raw: raw(wallet, :regent_claimable),
+       wallet_claimable_regent: regent(wallet, :regent_claimable),
+       wallet_funded_claimable_regent_raw: raw(wallet, :regent_funded),
+       wallet_funded_claimable_regent: regent(wallet, :regent_funded)
      }}
   end
 
@@ -35,8 +46,8 @@ defmodule AshPlatform.TestStakingChainClient do
   def confirm(envelope, "0x" <> hash = transaction_hash, _approval_hash)
       when byte_size(hash) == 64 do
     with :ok <- Application.get_env(:ash_platform, :test_staking_confirmation_result, :ok),
-         true <- envelope.expected_signer == @wallet do
-      confirmed(transaction_hash)
+         true <- envelope.expected_signer == signer() do
+      confirmed(envelope.expected_signer, transaction_hash)
     else
       :reverted -> {:error, :transaction_reverted}
       _ -> {:error, :transaction_mismatch}
@@ -48,7 +59,7 @@ defmodule AshPlatform.TestStakingChainClient do
 
   # The authoritative reread is a fact of its own, so the fake can withhold it
   # exactly the way an unavailable Base read does.
-  defp confirmed(transaction_hash) do
+  defp confirmed(wallet, transaction_hash) do
     if Application.get_env(:ash_platform, :test_staking_refresh_error, false) do
       {:ok,
        %{
@@ -59,7 +70,7 @@ defmodule AshPlatform.TestStakingChainClient do
          reason: :chain_unavailable
        }}
     else
-      {:ok, staking} = overview(@wallet)
+      {:ok, staking} = overview(wallet)
 
       {:ok,
        %{
@@ -84,5 +95,26 @@ defmodule AshPlatform.TestStakingChainClient do
       status ->
         {:ok, status}
     end
+  end
+
+  defp raw(nil, _key), do: nil
+
+  defp raw(_wallet, key),
+    do:
+      :ash_platform
+      |> Application.get_env(:test_staking_balances, %{})
+      |> Map.get(key, Map.fetch!(@balances, key))
+
+  defp regent(wallet, key), do: scaled(raw(wallet, key), 18)
+  defp usdc(wallet, key), do: scaled(raw(wallet, key), 6)
+
+  defp scaled(nil, _decimals), do: nil
+
+  defp scaled(raw, decimals) do
+    raw
+    |> Decimal.new()
+    |> Decimal.div(Decimal.new(Integer.pow(10, decimals)))
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
   end
 end
