@@ -3,7 +3,25 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   alias AshPlatform.{Accounts, Redemption}
   alias AshPlatform.Actors.System
+  alias AshPlatform.TestRedemptionChainClient
   alias AshPlatform.WalletActions.StakeRedeemOperations
+
+  # The durable verdict and the page's current facts are separate reads. This
+  # answers a confirmation exactly as the test client does while the page's own
+  # snapshot is unavailable.
+  defmodule UnreadableSnapshot do
+    @moduledoc false
+    @behaviour AshPlatform.Redemption.ChainClient
+
+    @impl true
+    def overview(_wallet, _collection, _token_id), do: {:error, :chain_unavailable}
+
+    @impl true
+    defdelegate confirm(envelope, transaction_hash), to: TestRedemptionChainClient
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestRedemptionChainClient
+  end
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -264,7 +282,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     Application.put_env(:ash_platform, :test_redemption_confirmation_result, :pending)
     submit(view, action_id)
 
-    assert render_async(view) =~ "Waiting for Base confirmation"
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
 
     Application.put_env(:ash_platform, :test_redemption_confirmation_result, :confirmed)
     send(view.pid, {:verification_retry, :redeem, action_id})
@@ -272,6 +290,81 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     html = render_async(view)
     assert html =~ "Confirmed on Base"
     assert_push_event(view, "redemption:confirmed", %{})
+  end
+
+  # The exact event is the durable verdict and the page's current facts are a
+  # separate read. When that read fails afterwards, the verdict, the exact hash
+  # and the amount the event recorded stay on screen behind a read-only retry:
+  # the terminal operation is never reopened and nothing is ever sent again.
+  test "CONFIRMED_SURVIVES_A_FAILED_READ: the verdict, its hash and its result stay visible", %{
+    conn: conn
+  } do
+    account = register("redeem-confirmed-unread", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    unreadable_snapshot()
+    submit(view, action_id)
+
+    # The confirmation settles, and then the page's own read fails.
+    render_async(view)
+    html = render_async(view)
+
+    assert html =~ "Confirmed on Base"
+    assert html =~ "Claimed 1 REGENT."
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Redemption details are unavailable right now"
+
+    assert has_element?(
+             view,
+             ~s(.redeem-status button[phx-click="refresh_redemption"]),
+             "Try again"
+           )
+
+    # The terminal operation stayed terminal, and the failed read offers no
+    # control that could open a wallet or send this transaction again.
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :redeem)
+    refute has_element?(view, "[data-redeem-confirm]")
+    refute has_element?(view, "[phx-click=prepare_redemption]")
+  end
+
+  # A reload recovers the durable operation, not a wallet step: the bound hash
+  # comes back with exactly one read-only verification armed for it.
+  test "RESTORE_IS_READ_ONLY: a restored hash re-arms one verification and opens no wallet", %{
+    conn: conn
+  } do
+    account = register("redeem-restore-timer", [@wallet])
+    session_conn = init_test_session(conn, %{human_account_id: account.id})
+
+    opts = leased(account.id)
+    {:ok, envelope} = Redemption.prepare_claim(@wallet, opts)
+    {:ok, _claimed} = Redemption.claim_wallet_dispatch(envelope, opts)
+    {:ok, _bound} = Redemption.bind_submitted_hash(envelope.action_id, @tx_hash, opts)
+
+    {:ok, view, _html} = live(session_conn, "/redeem")
+    activate(view, @wallet)
+
+    first = armed_verification(view)
+    assert is_integer(Process.read_timer(first))
+
+    render_hook(view, "restore_redemption_submission", %{})
+    second = armed_verification(view)
+
+    # The earlier timer was cancelled rather than left to fire beside the new
+    # one, so a restore can never leave two reads outstanding.
+    assert Process.read_timer(first) == false
+    assert is_integer(Process.read_timer(second))
+
+    assert render(view) =~ short_hash(@tx_hash)
+    refute has_element?(view, "[data-redeem-confirm]")
+
+    # That timer only re-reads the hash the wallet already broadcast, so no
+    # wallet was ever asked for anything across the restore or the read.
+    send(view.pid, {:verification_retry, :redeem, envelope.action_id})
+
+    assert render_async(view) =~ "Confirmed on Base"
+    refute_push_event(view, "redemption:prepared", _)
   end
 
   # A signed-out visitor may still publish an active wallet. Nothing private is
@@ -307,7 +400,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     )
 
     submit(view, action_id)
-    assert render_async(view) =~ "Waiting for Base confirmation"
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
 
     # A transaction identity a load-balanced provider has not returned yet is
     # unavailable evidence too, so the same hash waits rather than failing.
@@ -318,7 +411,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     )
 
     render_hook(view, "retry_redemption_confirmation", %{})
-    assert render_async(view) =~ "Waiting for Base confirmation"
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
 
     # This envelope is refused for good, so nothing about it can change.
     Application.put_env(
@@ -331,7 +424,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     html = render_async(view)
 
     assert html =~ "could not be verified from this session"
-    refute html =~ "Waiting for Base confirmation"
+    refute html =~ "Waiting for the submitted transaction to become safe on Base"
     refute_push_event(view, "redemption:confirmed", _)
   end
 
@@ -520,7 +613,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     # That link is the only place the hash is shown: the status notice says what
     # is happening without repeating an unclickable copy of the hash.
     html = render(view)
-    assert html =~ "Confirming this transaction on Base"
+    assert html =~ "Checking the submitted transaction on Base"
     assert shown_once?(html, short_hash(@tx_hash))
 
     # An unbound hash is refused before it can be rendered at all, so no
@@ -608,6 +701,19 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       "transaction_hash" => hash
     })
   end
+
+  # The page's own snapshot stops answering, while the confirmation this page
+  # already asked for still settles exactly as it would have.
+  defp unreadable_snapshot do
+    previous = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, UnreadableSnapshot)
+    on_exit(fn -> Application.put_env(:ash_platform, :redemption_chain_client, previous) end)
+  end
+
+  # The one automatic verification this socket may hold, read from the socket
+  # itself so a proof does not have to wait out a thirty-second interval.
+  defp armed_verification(view),
+    do: :sys.get_state(view.pid).socket.assigns.redemption_retry_ref
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

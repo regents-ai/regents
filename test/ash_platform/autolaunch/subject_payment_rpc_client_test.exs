@@ -137,6 +137,22 @@ defmodule AshPlatform.Autolaunch.SubjectPaymentRpcClientTest do
              SubjectPaymentRpcClient.confirm(envelope, @hash, nil)
   end
 
+  # A hash the wallet has just broadcast may not have reached this read RPC at
+  # all. Neither read observed it, so nothing is known about it: this client
+  # keeps reporting pending and never success or a permanent failure.
+  test "a transaction neither read has observed stays pending" do
+    envelope = stake_envelope()
+    put_success(@approval_hash, @wallet, @token, envelope.approval.data)
+
+    assert {:error, :transaction_pending} =
+             SubjectPaymentRpcClient.confirm(envelope, @hash, @approval_hash)
+
+    Process.put(:receipts, %{})
+    Process.put(:transactions, %{})
+
+    assert {:ok, :pending} = SubjectPaymentRpcClient.approval_status(envelope, @approval_hash)
+  end
+
   test "rejects chain 1 and uses only the injected invalid-endpoint client" do
     envelope = payment_link_envelope()
 

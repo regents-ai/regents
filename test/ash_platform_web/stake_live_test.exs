@@ -790,7 +790,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # That link is the only place either hash is shown: the status notice says
     # what is happening without repeating an unclickable copy of the hash.
     html = render(view)
-    assert html =~ "Confirming this transaction on Base"
+    assert html =~ "Checking the submitted transaction on Base"
     assert shown_once?(html, short_hash(@approval_hash))
     assert shown_once?(html, short_hash(@tx_hash))
 
@@ -1485,7 +1485,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     submit(view, action_id, "action", @tx_hash)
 
     html = render_async(view)
-    assert html =~ "Waiting for Base confirmation"
+    assert html =~ "Waiting for the submitted transaction to become safe on Base"
     assert html =~ short_hash(@tx_hash)
 
     assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash}} =
@@ -1518,7 +1518,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     submit(view, action_id, "action", @tx_hash)
 
     html = render_async(view)
-    assert html =~ "Waiting for Base confirmation"
+    assert html =~ "Waiting for the submitted transaction to become safe on Base"
     assert html =~ short_hash(@tx_hash)
     refute html =~ "could not be verified from this session"
 
@@ -1530,7 +1530,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # bound hash and its state survive and the same hash is read again.
     Stub.put(%{receipts: %{@tx_hash => Stub.receipt(@tx_hash, "0x10", [claim_usdc_log()])}})
     send(view.pid, {:verification_retry, :stake, action_id})
-    assert render_async(view) =~ "Waiting for Base confirmation"
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
 
     assert {:ok, %{state: :action_submitted, action_transaction_hash: @tx_hash}} =
              StakeRedeemOperations.active(account.id, :stake)
@@ -1560,7 +1560,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     html = render_async(view)
     assert html =~ "could not be verified from this session"
-    refute html =~ "Waiting for Base confirmation"
+    refute html =~ "Waiting for the submitted transaction to become safe on Base"
 
     # The submitted hash and its state survive, and nothing is read again on its
     # own: only the customer's own retry asks Base anything further.
@@ -1570,6 +1570,45 @@ defmodule AshPlatformWeb.StakeLiveTest do
              StakeRedeemOperations.active(account.id, :stake)
 
     refute armed_verification?(view)
+  end
+
+  # A reload recovers the durable operation, not a wallet step: the bound hash
+  # comes back with exactly one read-only verification armed for it.
+  test "RESTORE_IS_READ_ONLY: a restored hash re-arms one verification and opens no wallet", %{
+    conn: conn
+  } do
+    account = register("stake-restore-timer", [@wallet])
+    session_conn = init_test_session(conn, %{human_account_id: account.id})
+
+    # The submitted transaction the previous socket left in the account's row.
+    opts = leased(account.id)
+    {:ok, envelope} = Staking.prepare_claim_usdc(@wallet, opts)
+    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope, :action, opts)
+    {:ok, _bound} = Staking.bind_submitted_hash(envelope.action_id, :action, @tx_hash, opts)
+
+    {:ok, view, _html} = live(session_conn, "/stake")
+    activate(view, @wallet)
+
+    first = armed_verification(view)
+    assert is_integer(Process.read_timer(first))
+
+    render_hook(view, "restore_staking_submission", %{})
+    second = armed_verification(view)
+
+    # The earlier timer was cancelled rather than left to fire beside the new
+    # one, so a restore can never leave two reads outstanding.
+    assert Process.read_timer(first) == false
+    assert is_integer(Process.read_timer(second))
+
+    assert render(view) =~ short_hash(@tx_hash)
+    refute has_element?(view, "[data-stake-confirm]")
+
+    # That timer only re-reads the hash the wallet already broadcast, so no
+    # wallet was ever asked for anything across the restore or the read.
+    send(view.pid, {:verification_retry, :stake, envelope.action_id})
+
+    assert render_async(view) =~ "Confirmed on Base"
+    refute_push_event(view, "staking:prepared", _)
   end
 
   # Stale browser storage is told so exactly once rather than asking again on
@@ -1720,8 +1759,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   # The one automatic verification this socket may hold, read from the socket
   # itself so a proof does not have to wait out a thirty-second interval.
-  defp armed_verification?(view),
-    do: not is_nil(:sys.get_state(view.pid).socket.assigns.staking_retry_ref)
+  defp armed_verification(view), do: :sys.get_state(view.pid).socket.assigns.staking_retry_ref
+
+  defp armed_verification?(view), do: not is_nil(armed_verification(view))
 
   # The read RPC catches up with the wallet: this exact transaction, as the
   # operation's own stored envelope pinned it.

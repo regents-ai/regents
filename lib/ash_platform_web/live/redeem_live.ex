@@ -46,8 +46,16 @@ defmodule AshPlatformWeb.RedeemLive do
       <div :if={@status == :loading} class="redeem-status" aria-busy="true">
         Loading redemption details…
       </div>
-      <div :if={@status == :error} class="redeem-status" role="alert">
-        Redemption details are unavailable right now. Try again shortly.
+      <div :if={@status == :error} class="redeem-status">
+        <p role="alert">
+          Redemption details are unavailable right now. Anything you have already sent is
+          unaffected, and trying again only reads Base: it sends nothing.
+        </p>
+        <section :if={@submission} class="redeem-submission" aria-label="Submitted transaction">
+          <.submitted submission={@submission} />
+        </section>
+        <.notice :if={@notice} notice={@notice} />
+        <button type="button" phx-click="refresh_redemption">Try again</button>
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-layout">
@@ -122,10 +130,7 @@ defmodule AshPlatformWeb.RedeemLive do
           </p>
 
           <section :if={@submission} class="redeem-submission" aria-label="Submitted transaction">
-            <p>
-              Submitted transaction: <.transaction hash={@submission.transaction_hash} />
-            </p>
-            <p :if={confirmed_result(@submission)}>{confirmed_result(@submission)}</p>
+            <.submitted submission={@submission} />
             <button
               :if={@prepared && @submission.status not in [:confirmed, :unverified]}
               type="button"
@@ -252,7 +257,10 @@ defmodule AshPlatformWeb.RedeemLive do
 
   defp step_control(:nft_approval_required), do: "Review collection approval"
   defp step_control(:exact_usdc_approval_required), do: "Review USDC approval"
-  defp step_control(_other), do: "Review redemption"
+  defp step_control(:ready), do: "Review redemption"
+  # There is nothing to open a wallet for until the step above is met, and the
+  # control says exactly that rather than offering a review it cannot prepare.
+  defp step_control(_blocked), do: "Nothing to review yet"
 
   attr :label, :string, required: true
   attr :value, :string, required: true
@@ -263,6 +271,18 @@ defmodule AshPlatformWeb.RedeemLive do
       <p class="redeem-metric-label">{@label}</p>
       <p class="redeem-metric-value">{@value}</p>
     </div>
+    """
+  end
+
+  attr :submission, :map, required: true
+
+  # The bound hash and the exact result this transaction's own event recorded,
+  # shown wherever the page can still be reached, so a confirmed redemption is
+  # never hidden by a current-page read that failed afterwards.
+  defp submitted(assigns) do
+    ~H"""
+    <p>Submitted transaction: <.transaction hash={@submission.transaction_hash} /></p>
+    <p :if={confirmed_result(@submission)}>{confirmed_result(@submission)}</p>
     """
   end
 
@@ -293,8 +313,6 @@ defmodule AshPlatformWeb.RedeemLive do
   defp regent(nil), do: "—"
   defp regent(value), do: value <> " REGENT"
 
-  # The exact result this transaction's own event recorded, which no later
-  # balance can replace.
   defp confirmed_result(%{status: :confirmed, event: %{result_token_id: token_id}}),
     do: "Redeemed for Regents Club token ##{token_id}."
 

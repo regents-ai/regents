@@ -27,7 +27,6 @@ const walletStub = vi.hoisted(() => {
 })
 
 vi.mock("../js/wallet_actions/connected_wallet", () => ({
-  connectedEthereumWallet: vi.fn(() => activeWalletStub()),
   activeEthereumWallet: vi.fn(() => activeWalletStub()),
 }))
 
