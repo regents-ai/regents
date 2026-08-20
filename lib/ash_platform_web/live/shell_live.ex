@@ -2141,9 +2141,9 @@ defmodule AshPlatformWeb.ShellLive do
 
   # Before an active wallet is known the page shows only public chain truth; the
   # private position is read for that exact wallet and for nothing else. The read
-  # is marked with its own name and with why it was started, so its own terminal
-  # result frees the refresh control and only an explicit refresh that answers
-  # may dismiss settled proof.
+  # is marked with its own name and with the settled proof it was asked to
+  # replace, so its own terminal result frees the refresh control and it can
+  # dismiss only the exact proof the customer was looking at when they asked.
   defp start_staking_read(socket, generation, kind) do
     name = {:staking, generation}
     wallet = socket.assigns.staking_wallet
@@ -2151,7 +2151,9 @@ defmodule AshPlatformWeb.ShellLive do
 
     socket
     |> cancel_async(name)
-    |> assign(staking_read: %{name: name, kind: kind})
+    |> assign(
+      staking_read: %{name: name, kind: read_kind(kind, socket.assigns.staking_submission)}
+    )
     |> start_async(name, fn ->
       {generation,
        if(wallet, do: Staking.account_for_wallet(wallet, opts), else: Staking.overview())}
@@ -2165,19 +2167,20 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp release_staking_read(socket, _stale), do: socket
 
-  # A settled transaction is proved by its own receipt and event, so only an
-  # explicit refresh answering with a fresh snapshot dismisses it. An automatic
-  # read, a failure and a crash all leave it exactly where it is.
+  # A settled transaction is proved by its own receipt and event, so a fresh
+  # snapshot dismisses only the exact proof its own refresh was asked to replace.
+  # An automatic read, a failure, a crash, and a verdict that settled while the
+  # read was in flight all leave what is on screen exactly as it is.
   defp dismiss_settled_staking(
          %{
            assigns: %{
-             staking_read: %{name: name, kind: :explicit},
-             staking_submission: %{status: status}
+             staking_read: %{name: name, kind: {:explicit, settled}},
+             staking_submission: settled
            }
          } = socket,
          name
        )
-       when status in [:confirmed, :unverified],
+       when not is_nil(settled),
        do: assign(socket, staking_submission: nil, staking_notice: nil)
 
   defp dismiss_settled_staking(socket, _read), do: socket
@@ -2772,9 +2775,9 @@ defmodule AshPlatformWeb.ShellLive do
     |> read_redemption(:automatic)
   end
 
-  # The read is marked with its own name and with why it was started, so its own
-  # terminal result frees the refresh control and only an explicit refresh that
-  # answers may dismiss settled proof.
+  # The read is marked with its own name and with the settled proof it was asked
+  # to replace, so its own terminal result frees the refresh control and it can
+  # dismiss only the exact proof the customer was looking at when they asked.
   defp read_redemption(socket, kind) do
     socket = cancel_redemption_read(socket)
     generation = socket.assigns.redemption_generation + 1
@@ -2785,7 +2788,13 @@ defmodule AshPlatformWeb.ShellLive do
     token_id = parsed_token_id(socket.assigns.redemption_token_id)
 
     socket
-    |> assign(redemption_generation: generation, redemption_read: %{name: name, kind: kind})
+    |> assign(
+      redemption_generation: generation,
+      redemption_read: %{
+        name: name,
+        kind: read_kind(kind, socket.assigns.redemption_submission)
+      }
+    )
     |> restored_redemption()
     |> start_async(name, fn ->
       {generation,
@@ -2859,18 +2868,19 @@ defmodule AshPlatformWeb.ShellLive do
   defp release_redemption_read(socket, _stale), do: socket
 
   # A settled redemption is proved by its own receipt and its own event result,
-  # so only an explicit refresh answering with a fresh snapshot dismisses it. An
-  # automatic read, a selection change, a failure and a crash all leave it.
+  # so a fresh snapshot dismisses only the exact proof its own refresh was asked
+  # to replace. An automatic read, a selection change, a failure, a crash, and a
+  # verdict that settled while the read was in flight all leave it.
   defp dismiss_settled_redemption(
          %{
            assigns: %{
-             redemption_read: %{name: name, kind: :explicit},
-             redemption_submission: %{status: status}
+             redemption_read: %{name: name, kind: {:explicit, settled}},
+             redemption_submission: settled
            }
          } = socket,
          name
        )
-       when status in [:confirmed, :unverified],
+       when not is_nil(settled),
        do: assign(socket, redemption_submission: nil, redemption_notice: nil)
 
   defp dismiss_settled_redemption(socket, _read), do: socket
@@ -4084,6 +4094,19 @@ defmodule AshPlatformWeb.ShellLive do
        do: true
 
   defp pending_submission?(_submission), do: false
+
+  # An automatic read replaces nothing. An explicit refresh carries the exact
+  # settled proof it was asked to replace, which is nothing at all while the
+  # transaction is still being verified: a verdict that settles after the read
+  # began is proof that read never saw, and it survives the answer.
+  defp read_kind(:automatic, _submission), do: :automatic
+  defp read_kind(:explicit, submission), do: {:explicit, settled_submission(submission)}
+
+  defp settled_submission(%{status: status} = submission)
+       when status in [:confirmed, :unverified],
+       do: submission
+
+  defp settled_submission(_unsettled), do: nil
 
   defp valid_transaction_hash?(hash), do: Rpc.valid_hash?(hash)
 end

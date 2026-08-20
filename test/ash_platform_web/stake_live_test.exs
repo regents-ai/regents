@@ -985,18 +985,35 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   # Refresh reads Base once. While its own read is in flight the control is
-  # disabled and the event is refused, so a second click can never leave two
-  # reads outstanding, and the control comes back when that read answers.
-  test "STAKE_REFRESH_HOLDS_ONE_READ: a second refresh while reading starts no second read",
+  # disabled and the event is refused, the page keeps everything it is already
+  # showing, and the control comes back when that read answers.
+  test "STAKE_REFRESH_HOLDS_ONE_READ: a pending refresh blanks nothing and starts one read",
        %{conn: conn} do
-    view = signed_in(conn, "stake-one-read")
+    account = register("stake-one-read", [@wallet])
+    view = mount_stake(conn, account)
     activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    submit(view, action_id, "action", @tx_hash)
+
+    render_async(view)
+    assert render_async(view) =~ "Confirmed on Base"
 
     Application.put_env(:ash_platform, :test_staking_snapshot_gate, self())
     Application.put_env(:ash_platform, :staking_chain_client, HeldSnapshot)
 
     render_click(view, "refresh_staking", %{})
     assert_receive {:reading, reading}
+
+    # Nothing is blanked while the refresh is pending: the settled proof and the
+    # position the page was already showing both stay on screen.
+    html = render(view)
+    assert html =~ "Confirmed on Base"
+    assert html =~ short_hash(@tx_hash)
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
     assert has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
 
     # The refused second click starts nothing, so the read already in flight is
@@ -1006,7 +1023,61 @@ defmodule AshPlatformWeb.StakeLiveTest do
     html = render_async(view)
 
     refute_received {:reading, _second}
+    refute html =~ "Confirmed on Base"
+    refute html =~ short_hash(@tx_hash)
     assert html =~ "Your stake"
+    refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
+  end
+
+  # A refresh started while the transaction is still being verified was asked to
+  # replace nothing. The verdict that settles while it is in flight is proof that
+  # read never saw, so answering must not erase it.
+  test "SETTLED_STAKE_OUTLIVES_AN_EARLIER_READ: a verdict settling mid-read survives the answer",
+       %{conn: conn} do
+    account = register("stake-verdict-mid-read", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+
+    # The receipt is not safe yet, so the page waits with an armed retry and its
+    # refresh available.
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :pending)
+    sign(view, action_id)
+    assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
+    submit(view, action_id, "action", @tx_hash)
+
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
+    assert armed_verification?(view)
+
+    Application.put_env(:ash_platform, :test_staking_snapshot_gate, self())
+    Application.put_env(:ash_platform, :staking_chain_client, HeldSnapshot)
+
+    render_click(view, "refresh_staking", %{})
+    assert_receive {:reading, reading}
+
+    # The verdict lands while that read is still in flight.
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :unverified)
+    Application.put_env(:ash_platform, :test_staking_confirm_barrier, self())
+    send(view.pid, {:verification_retry, :stake, action_id})
+
+    assert_receive {:staking_confirming, confirming}
+    monitor = Process.monitor(confirming)
+    send(confirming, :release_staking_confirmation)
+    assert_receive {:DOWN, ^monitor, :process, ^confirming, :normal}
+
+    html = render(view)
+    assert html =~ "without recording the action"
+    assert html =~ short_hash(@tx_hash)
+
+    # The earlier read answers last, and it cannot take the newer verdict away.
+    send(reading, :release_staking_snapshot)
+    html = render_async(view)
+
+    assert html =~ "without recording the action"
+    assert html =~ short_hash(@tx_hash)
+    assert has_element?(view, ".stake-metric dd", "5 REGENT")
     refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
   end
 

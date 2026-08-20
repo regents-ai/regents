@@ -23,32 +23,43 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     defdelegate approval_current(envelope), to: TestRedemptionChainClient
   end
 
-  # A snapshot read the test holds open, so a proof can look at the page exactly
-  # while that read is in flight rather than waiting out a duration.
+  # Reads and confirmations the test holds open, so a proof can look at the page
+  # exactly while one is in flight rather than waiting out a duration, and can
+  # order the two against each other.
   defmodule HeldSnapshot do
     @moduledoc false
     @behaviour AshPlatform.Redemption.ChainClient
 
     @impl true
     def overview(wallet, collection, token_id) do
-      send(
-        Application.fetch_env!(:ash_platform, :test_redemption_snapshot_gate),
-        {:reading, self()}
-      )
+      # A held read survives being superseded, so a proof can deliver its stale
+      # answer after a newer read has already taken the page.
+      Process.flag(:trap_exit, true)
+
+      await(:reading, :release_redemption_snapshot, fn ->
+        TestRedemptionChainClient.overview(wallet, collection, token_id)
+      end)
+    end
+
+    @impl true
+    def confirm(envelope, transaction_hash) do
+      await(:confirming, :release_redemption_confirmation, fn ->
+        TestRedemptionChainClient.confirm(envelope, transaction_hash)
+      end)
+    end
+
+    @impl true
+    defdelegate approval_current(envelope), to: TestRedemptionChainClient
+
+    defp await(tag, release, answer) do
+      send(Application.fetch_env!(:ash_platform, :test_redemption_snapshot_gate), {tag, self()})
 
       receive do
-        :release_redemption_snapshot ->
-          TestRedemptionChainClient.overview(wallet, collection, token_id)
+        ^release -> answer.()
       after
         5_000 -> {:error, :chain_unavailable}
       end
     end
-
-    @impl true
-    defdelegate confirm(envelope, transaction_hash), to: TestRedemptionChainClient
-
-    @impl true
-    defdelegate approval_current(envelope), to: TestRedemptionChainClient
   end
 
   # A snapshot read that crashes rather than answering. It says nothing about
@@ -479,6 +490,97 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
   end
 
+  # A read that answers after a newer read superseded it is stale. It speaks for
+  # nothing, and it may not hand back a control the newer read still holds.
+  test "REDEEM_STALE_READ_RELEASES_NOTHING: a superseded read cannot free a newer read's control",
+       %{conn: conn} do
+    account = register("redeem-stale-read", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    Application.put_env(:ash_platform, :test_redemption_snapshot_gate, self())
+    snapshot_client(HeldSnapshot)
+
+    render_click(view, "refresh_redemption", %{})
+    assert_receive {:reading, stale}
+
+    # Choosing a token supersedes that read with one of its own.
+    view
+    |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "42"})
+    |> render_change()
+
+    assert_receive {:reading, newer}
+    marker = pending_read(view)
+
+    # The superseded read answers last, and the page is still waiting on the
+    # newer read: the marker is untouched and refresh is still refused.
+    # `:normal` proves the superseded read ran to completion and reported an
+    # answer, rather than dying when it was cancelled.
+    monitor = Process.monitor(stale)
+    send(stale, :release_redemption_snapshot)
+    assert_receive {:DOWN, ^monitor, :process, ^stale, :normal}
+    render(view)
+
+    assert pending_read(view) == marker
+    render_click(view, "refresh_redemption", %{})
+    refute_received {:reading, _third}
+
+    # Only the newer read frees the page, and it is the read that answers.
+    send(newer, :release_redemption_snapshot)
+    html = render_async(view)
+
+    assert pending_read(view) == nil
+    assert html =~ "Token #42"
+  end
+
+  # A refresh started while the transaction is still being verified was asked to
+  # replace nothing. The verdict that settles while it is in flight is proof that
+  # read never saw, so answering must not erase it. Starting this read during
+  # verification is the page's existing read-only behaviour.
+  test "SETTLED_REDEMPTION_OUTLIVES_AN_EARLIER_READ: a verdict settling mid-read survives",
+       %{conn: conn} do
+    account = register("redeem-verdict-mid-read", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+
+    # The receipt is not safe yet, so the page waits with an armed retry.
+    Application.put_env(:ash_platform, :test_redemption_confirmation_result, :pending)
+    submit(view, action_id)
+    assert_push_event(view, "redemption:prepared", %{envelope: %{action: "claim"}})
+
+    assert render_async(view) =~ "Waiting for the submitted transaction to become safe on Base"
+
+    Application.put_env(:ash_platform, :test_redemption_snapshot_gate, self())
+    snapshot_client(HeldSnapshot)
+
+    render_click(view, "refresh_redemption", %{})
+    assert_receive {:reading, reading}
+
+    # The verdict lands while that read is still in flight.
+    Application.put_env(:ash_platform, :test_redemption_confirmation_result, :unverified)
+    send(view.pid, {:verification_retry, :redeem, action_id})
+
+    assert_receive {:confirming, confirming}
+    monitor = Process.monitor(confirming)
+    send(confirming, :release_redemption_confirmation)
+    assert_receive {:DOWN, ^monitor, :process, ^confirming, :normal}
+
+    html = render(view)
+    assert html =~ "without recording the action"
+    assert html =~ short_hash(@tx_hash)
+
+    # The earlier read answers last, and it cannot take the newer verdict away.
+    send(reading, :release_redemption_snapshot)
+    html = render_async(view)
+
+    assert html =~ "without recording the action"
+    assert html =~ short_hash(@tx_hash)
+    assert html =~ "Claimable REGENT"
+    refute has_element?(view, ~s(button[phx-click="refresh_redemption"][disabled]))
+  end
+
   # A read that crashes says nothing about Base, so it can never withdraw the
   # settled proof or the read-only retry the page owes for it.
   @tag :capture_log
@@ -904,6 +1006,10 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   # itself so a proof does not have to wait out a thirty-second interval.
   defp armed_verification(view),
     do: :sys.get_state(view.pid).socket.assigns.redemption_retry_ref
+
+  # The one snapshot read this page is waiting on, read from the socket itself so
+  # a proof can name the exact read rather than a duration.
+  defp pending_read(view), do: :sys.get_state(view.pid).socket.assigns.redemption_read
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
