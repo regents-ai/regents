@@ -380,3 +380,211 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+.subject-wallet {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid transparent;
+  border-radius: var(--material-radius, 4px);
+  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(var(--material-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+}
+
+.subject-wallet > *,
+.subject-wallet-heading > *,
+.subject-wallet-body > *,
+.subject-wallet-choose > * {
+  margin-block: 0;
+}
+
+.subject-wallet-heading h2 {
+  margin-block: 0 0.35rem;
+}
+
+.subject-wallet-body,
+.subject-wallet-empty,
+.subject-wallet-choose,
+.subject-wallet-review {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* A published address is 42 unbreakable characters. Left alone it sets the
+   subject page's single grid column wider than a narrow viewport, which then
+   stretches every section on the page — including the wallet card — past the
+   screen. Wrapping them keeps the whole column inside the viewport. */
+#autolaunch-subject-detail dd {
+  overflow-wrap: anywhere;
+}
+
+/* The page's single implicit column is sized by its widest section, so one wide
+   section pushes every other one — including the wallet card — off a narrow
+   screen. `minmax(0, 1fr)` lets the column shrink to the page instead. */
+#autolaunch-subject-detail {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Grid and flex items default to min-width:auto, which lets a long address or a
+   wide track push the whole card past a narrow viewport and get clipped. Every
+   box in this card is allowed to shrink to its container instead. */
+.subject-wallet,
+.subject-wallet-body,
+.subject-wallet-empty,
+.subject-wallet-choose,
+.subject-wallet-review,
+.subject-wallet-balances,
+.subject-wallet-balances > div,
+.subject-wallet-field,
+.subject-wallet-amount,
+.subject-wallet-steps,
+.subject-wallet-steps li {
+  min-width: 0;
+}
+
+.subject-wallet-balances {
+  display: grid;
+  /* `min(7rem, 100%)` keeps the track from demanding 7rem when the card itself
+     is narrower than that. */
+  grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.subject-wallet-balances dt,
+.subject-wallet-review dt {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Long token amounts and addresses wrap inside their own cell rather than
+   pushing the card wider than the viewport. */
+.subject-wallet-balances dd,
+.subject-wallet-review dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.subject-wallet-mono {
+  font-family: var(--font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.subject-wallet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.subject-wallet-action[aria-pressed="true"] {
+  border-color: var(--color-accent, currentColor);
+  font-weight: 600;
+}
+
+.subject-wallet-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.subject-wallet-amount {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.subject-wallet-amount input {
+  flex: 1;
+  min-width: 0;
+}
+
+.subject-wallet input,
+.subject-wallet select {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  width: 100%;
+  max-width: 100%;
+}
+
+.subject-wallet button {
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* The only motion a money action gets: the existing short press feedback. */
+.subject-wallet button:active {
+  transform: scale(0.97);
+}
+
+.subject-wallet button[disabled] {
+  opacity: 0.55;
+}
+
+.subject-wallet-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--hairline);
+}
+
+.subject-wallet-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-elevated);
+}
+
+.subject-wallet-step-state {
+  font-size: 0.8rem;
+}
+
+.subject-wallet-hint,
+.subject-wallet-share,
+.subject-wallet-notice,
+.subject-wallet-settled {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--hairline-strong);
+  overflow-wrap: anywhere;
+}
+
+.subject-wallet-notice[role="alert"] {
+  border-inline-start-color: var(--color-danger, #d93636);
+}
+
+@media (max-width: 24.5rem) {
+  .subject-wallet-balances {
+    grid-template-columns: 1fr;
+  }
+
+  .subject-wallet-action {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subject-wallet button {
+    transition: none;
+  }
+
+  .subject-wallet button:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .subject-wallet {
+    background: var(--color-surface-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

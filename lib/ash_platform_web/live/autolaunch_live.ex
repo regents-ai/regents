@@ -134,6 +134,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
       actions={@subject_actions}
       settlements={@subject_settlements}
       status={@status}
+      account_control={@account_control}
+      session_lease={@session_lease}
+      current_human_id={@current_human_id}
     />
     <.launch_detail
       :if={@route_spec.route_id == :autolaunch_launch}
@@ -479,6 +482,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :actions, :list, required: true
   attr :settlements, :list, required: true
   attr :status, :atom, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, default: nil
+  attr :session_lease, :map, default: nil
+  attr :current_human_id, :integer, default: nil
 
   defp subject_detail(assigns) do
     ~H"""
@@ -533,6 +539,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
           </div>
         </dl>
       </section>
+
+      <%!-- Mounted only for a subject that really loaded, so a not-found or an
+            unreadable page never carries a wallet surface at all. --%>
+      <.live_component
+        module={AshPlatformWeb.AutolaunchSubjectWalletComponent}
+        id="autolaunch-subject-wallet"
+        subject={@record}
+        authenticated={@account_control && @account_control.kind == :signed_in}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
 
       <section aria-labelledby="subject-revenue-title">
         <h2 id="subject-revenue-title">Revenue</h2>

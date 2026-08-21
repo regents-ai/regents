@@ -10,11 +10,10 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @payment_link_abi_sha256 "121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343"
-  @payment_link_created_signature "PaymentLinkCreated(bytes32,address,address,string,bool)"
-  @payment_link_created_topic0 "0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb"
-  @ingress_abi_sha256 "5175b02535ed6058b2abcc27215680316d634ec77c06359ae3aa9b2174366da6"
-  @splitter_abi_sha256 "a21b53836c452ce8bb6c3892543cb47521ff9186a01e3327363cc5853f9da69e"
+  @subject_splitter_abi_sha256 "fe2c40284d036af9f155037c67b84cda2d290f0fcb82aefcba13cef288219009"
+  @payment_receiver_abi_sha256 "e587fe9dab115118dba0479e899ffa098fd83b59488fbda537037ae576a19fbd"
+  @c1_source_commit "59e1f0c195428f9d74b72223d154e1fee693c36d"
+  @c1_source_tree "d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -391,10 +390,9 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     auction = evidence["continuous_clearing_auction"]
     permit2 = evidence["permit2"]
     erc20 = evidence["quote_token_erc20"]
-    payment_links = evidence["payment_link_factory"]
-    ingress = evidence["revenue_ingress_account"]
     subject_erc20 = evidence["subject_token_erc20"]
-    splitter = evidence["revenue_share_splitter_v2"]
+    splitter = evidence["subject_splitter_v1"]
+    receiver = evidence["payment_receiver_v1"]
 
     assert auction["contract_name"] == "IContinuousClearingAuction"
     assert auction["target"] == "stored_auction_address"
@@ -421,30 +419,56 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert erc20["action_ids"] == ["approve_exact"]
     assert erc20["interface_note"] =~ "canonical Permit2 spender"
     refute Map.has_key?(evidence, "regent_staking_revenue_router")
-    assert payment_links["target"] == "stored_subject_factory_address"
-    assert payment_links["implementation_provenance"] =~ "PaymentLinkFactory.sol:30-36,64-115,197"
-    assert payment_links["confirmation_event_signature"] == @payment_link_created_signature
-    assert payment_links["confirmation_event_topic0"] == @payment_link_created_topic0
-    assert keccak(@payment_link_created_signature) == @payment_link_created_topic0
-    assert ingress["target"] == "stored_subject_ingress_account"
-    assert ingress["implementation_provenance"] =~ "RevenueIngressAccount.sol:183-206"
+
+    # Every superseded archived-Platform revenue contract is gone.
+    for contract_id <- [
+          "payment_link_factory",
+          "revenue_ingress_account",
+          "revenue_share_splitter_v2"
+        ] do
+      refute Map.has_key?(evidence, contract_id)
+    end
+
     assert subject_erc20["target"] == "stored_subject_token_address"
-    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:45"
-    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:174"
-    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:299-310"
-    assert subject_erc20["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:781"
+    assert subject_erc20["implementation_provenance"] =~ @c1_source_commit
+    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:50"
+    assert subject_erc20["implementation_provenance"] =~ "exact splitter spender"
+
+    assert splitter["contract_name"] == "SubjectSplitterV1"
     assert splitter["target"] == "stored_subject_splitter_address"
-    assert splitter["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:299-328"
-    assert splitter["implementation_provenance"] =~ "RevenueShareSplitterV2.sol:432-442"
+    assert splitter["action_ids"] == ["stake", "unstake", "claim", "claim_all"]
+    assert splitter["implementation_provenance"] =~ "SubjectSplitterV1.sol"
+    assert splitter["implementation_provenance"] =~ "lines 181-221"
+    assert splitter["interface_note"] =~ "no recipient-argument overload and no"
+    assert splitter["interface_note"] =~ "truthful no-op"
+
+    assert receiver["contract_name"] == "PaymentReceiverV1"
+    assert receiver["target"] == "projected_canonical_receiver_address"
+    assert receiver["action_ids"] == ["pay", "sweep", "set_receiver_note"]
+    assert receiver["implementation_provenance"] =~ "PaymentReceiverV1.sol"
+    assert receiver["interface_note"] =~ "referralBps() is 0"
+    assert receiver["interface_note"] =~ "projected canonical_receiver_address"
+
+    # Both entries pin the exact integrated contract source and tree.
+    for entry <- [splitter, receiver] do
+      assert entry["source_commit"] == @c1_source_commit
+      assert entry["source_tree"] == @c1_source_tree
+    end
+
+    # Every declared confirmation event topic is an independent Keccak-256.
+    for entry <- [splitter, receiver],
+        signature <- entry["confirmation_event_signatures"] do
+      assert keccak(signature) ==
+               AshPlatform.WalletActions.SubjectAbi.selector(event_id(signature))
+    end
 
     for {entry, digest} <- [
           {auction, @auction_abi_sha256},
           {permit2, @permit2_abi_sha256},
           {erc20, @erc20_approve_abi_sha256},
-          {payment_links, @payment_link_abi_sha256},
-          {ingress, @ingress_abi_sha256},
           {subject_erc20, @erc20_approve_abi_sha256},
-          {splitter, @splitter_abi_sha256}
+          {splitter, @subject_splitter_abi_sha256},
+          {receiver, @payment_receiver_abi_sha256}
         ] do
       path = Path.join([@root, "contracts", entry["abi_path"]])
       assert File.regular?(path)
@@ -551,60 +575,117 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  test "S3 ABI mutability and returns match the vendored revenue implementations" do
-    root = Path.join(@root, "contracts/abi")
+  # The C1 ABI is derived from exact pinned source, so the shapes this lane
+  # encodes and decodes are proved against the file rather than assumed.
+  test "the derived C1 splitter ABI declares exactly the caller-only customer surface" do
+    abi = c1_abi("subject-splitter-v1.json")
 
-    payment_links =
-      root
-      |> Path.join("payment-link-factory.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> Map.new(&{&1["name"], &1})
-
-    assert payment_links["createPaymentLink"]["stateMutability"] == "nonpayable"
-    assert Enum.map(payment_links["createPaymentLink"]["outputs"], & &1["type"]) == ["address"]
-    assert payment_links["createCanonicalPaymentLink"]["stateMutability"] == "nonpayable"
-
-    for name <- ["setPaymentLinkCanonical", "setPaymentLinkReceiverState"] do
-      assert payment_links[name]["stateMutability"] == "nonpayable"
-      assert payment_links[name]["outputs"] == []
-    end
-
-    event = payment_links["PaymentLinkCreated"]
-    assert event["anonymous"] == false
-
-    assert Enum.map(event["inputs"], &{&1["type"], &1["indexed"]}) == [
-             {"bytes32", true},
-             {"address", true},
-             {"address", true},
-             {"string", false},
-             {"bool", false}
+    assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
+             {"function", "stake"},
+             {"function", "unstake"},
+             {"function", "claim"},
+             {"function", "claimAll"},
+             {"function", "subject"},
+             {"function", "usdc"},
+             {"function", "regent"},
+             {"function", "treasury"},
+             {"function", "totalStaked"},
+             {"function", "stakedOf"},
+             {"function", "claimable"},
+             {"event", "Staked"},
+             {"event", "Unstaked"},
+             {"event", "Claimed"}
            ]
 
-    [sweep] =
-      root
-      |> Path.join("revenue-ingress-account.json")
-      |> File.read!()
-      |> Jason.decode!()
+    by_name = Map.new(abi, &{&1["name"], &1})
 
-    assert sweep["stateMutability"] == "nonpayable"
-    assert Enum.map(sweep["outputs"], & &1["type"]) == ["uint256", "uint256"]
-
-    splitter =
-      root
-      |> Path.join("revenue-share-splitter-v2.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> Map.new(&{&1["name"], &1})
-
+    # Every customer call takes its caller's own position and nothing else.
     for name <- ["stake", "unstake"] do
-      assert splitter[name]["stateMutability"] == "nonpayable"
-      assert splitter[name]["outputs"] == []
+      assert by_name[name]["stateMutability"] == "nonpayable"
+      assert Enum.map(by_name[name]["inputs"], & &1["type"]) == ["uint256"]
+      assert by_name[name]["outputs"] == []
     end
 
-    assert splitter["claimUSDC"]["stateMutability"] == "nonpayable"
-    assert Enum.map(splitter["claimUSDC"]["outputs"], & &1["type"]) == ["uint256"]
+    assert Enum.map(by_name["claim"]["inputs"], & &1["type"]) == ["address"]
+    assert by_name["claimAll"]["inputs"] == []
+
+    assert Enum.map(by_name["claimable"]["inputs"], & &1["type"]) == ["address", "address"]
+    assert by_name["claimable"]["stateMutability"] == "view"
+
+    assert Enum.map(by_name["Claimed"]["inputs"], &{&1["name"], &1["type"], &1["indexed"]}) == [
+             {"account", "address", true},
+             {"token", "address", true},
+             {"amount", "uint256", false}
+           ]
+
+    for name <- ["Staked", "Unstaked"] do
+      assert by_name[name]["anonymous"] == false
+
+      assert Enum.map(by_name[name]["inputs"], &{&1["type"], &1["indexed"]}) == [
+               {"address", true},
+               {"uint256", false}
+             ]
+    end
+
+    for entry <- abi, do: assert(entry["notice"] =~ @c1_source_commit)
   end
+
+  test "the derived C1 receiver ABI declares exactly the payment surface and its two events" do
+    abi = c1_abi("payment-receiver-v1.json")
+
+    assert Enum.map(abi, &{&1["type"], &1["name"]}) ==
+             [
+               {"function", "pay"},
+               {"function", "sweep"},
+               {"function", "setReceiverNote"},
+               {"function", "splitter"},
+               {"function", "beneficiary"},
+               {"function", "referralBps"},
+               {"function", "noteEditor"},
+               {"function", "receiverNote"},
+               {"function", "subject"},
+               {"function", "usdc"},
+               {"function", "regent"},
+               {"function", "treasury"}
+             ] ++ [{"event", "PaymentRouted"}, {"event", "ReceiverNoteUpdated"}]
+
+    by_name = Map.new(abi, &{&1["name"], &1})
+
+    assert Enum.map(by_name["pay"]["inputs"], & &1["type"]) == ["address", "uint256", "bytes32"]
+    assert Enum.map(by_name["sweep"]["inputs"], & &1["type"]) == ["address", "bytes32"]
+    assert Enum.map(by_name["setReceiverNote"]["inputs"], & &1["type"]) == ["bytes32"]
+    assert by_name["referralBps"]["stateMutability"] == "view"
+    assert Enum.map(by_name["referralBps"]["outputs"], & &1["type"]) == ["uint16"]
+
+    # The route event carries the actual gross, referral and net in its data, so a
+    # sweep learns the amount it really moved.
+    assert Enum.map(by_name["PaymentRouted"]["inputs"], &{&1["name"], &1["type"], &1["indexed"]}) ==
+             [
+               {"paymentRef", "bytes32", true},
+               {"receiverNote", "bytes32", true},
+               {"token", "address", true},
+               {"gross", "uint256", false},
+               {"referral", "uint256", false},
+               {"net", "uint256", false}
+             ]
+
+    # Neither note field is indexed, so both ride in the data words.
+    assert Enum.map(
+             by_name["ReceiverNoteUpdated"]["inputs"],
+             &{&1["name"], &1["type"], &1["indexed"]}
+           ) == [{"previousNote", "bytes32", false}, {"newNote", "bytes32", false}]
+
+    for entry <- abi, do: assert(entry["notice"] =~ @c1_source_commit)
+  end
+
+  defp c1_abi(file),
+    do: @root |> Path.join("contracts/abi") |> Path.join(file) |> File.read!() |> Jason.decode!()
+
+  defp event_id("Staked" <> _rest), do: :staked
+  defp event_id("Unstaked" <> _rest), do: :unstaked
+  defp event_id("Claimed" <> _rest), do: :claimed
+  defp event_id("PaymentRouted" <> _rest), do: :payment_routed
+  defp event_id("ReceiverNoteUpdated" <> _rest), do: :receiver_note_updated
 
   defp assert_abi_contains(manifest, contract_id, rows) do
     abi_path = manifest["contracts"][contract_id]["abi"]["path"]

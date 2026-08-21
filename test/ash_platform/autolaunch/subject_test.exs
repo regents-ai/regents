@@ -240,6 +240,43 @@ defmodule AshPlatform.Autolaunch.SubjectTest do
              )
   end
 
+  describe "CANONICAL_RECEIVER_IS_PROJECTED_NOT_IMPORTED" do
+    test "the canonical receiver starts absent and only a SystemActor may set it" do
+      subject = subject!("subject:canonical-receiver")
+      assert is_nil(subject.canonical_receiver_address)
+
+      receiver = "0x9999999999999999999999999999999999999999"
+
+      assert {:ok, projected} =
+               Autolaunch.set_subject_canonical_receiver(subject, receiver, actor: %System{})
+
+      assert projected.canonical_receiver_address == receiver
+
+      # An anonymous caller and a human caller are both refused.
+      for actor <- [nil, %AshPlatform.Actors.Human{human_account_id: 1}] do
+        assert {:error, _forbidden} =
+                 Autolaunch.set_subject_canonical_receiver(
+                   projected,
+                   "0x1010101010101010101010101010101010101010",
+                   actor: actor
+                 )
+      end
+
+      assert {:ok, unchanged} =
+               Autolaunch.get_public_subject(subject.subject_id, actor: nil)
+
+      assert unchanged.canonical_receiver_address == receiver
+    end
+
+    test "the positional import interface is unchanged and never sets a receiver" do
+      # The existing fifteen-argument import still works exactly as it did, and a
+      # receiver is not one of the things it can carry.
+      assert {:ok, subject} = import_subject("subject:import-unchanged")
+      assert is_nil(subject.canonical_receiver_address)
+      assert subject.treasury_address == "0x6666666666666666666666666666666666666666"
+    end
+  end
+
   defp subject!(subject_id \\ "subject:resource") do
     case import_subject(subject_id) do
       {:ok, subject} -> subject

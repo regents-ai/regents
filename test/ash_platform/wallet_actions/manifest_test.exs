@@ -48,27 +48,44 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "regent_revenue_staking.claim_regent",
     "regent_revenue_staking.claim_and_restake_regent"
   ]
+  # The clean-V1 subject wallet interface stays reviewed and digest-pinned while
+  # no subject action is admitted, so these are proved against the derived C1 ABI
+  # without admitting one.
   @retained_evidence_actions %{
-    "payment_link_factory" => %{
-      "create_payment_link" => {"createPaymentLink(bytes32,string,bytes32)", "0x96bc6c1a"},
-      "create_canonical_payment_link" =>
-        {"createCanonicalPaymentLink(bytes32,string,bytes32)", "0xb12d629e"},
-      "set_payment_link_canonical" => {"setPaymentLinkCanonical(address,bool)", "0x706a7fa6"},
-      "set_payment_link_receiver_state" =>
-        {"setPaymentLinkReceiverState(address,bool,address)", "0xc8c05f99"}
-    },
-    "revenue_ingress_account" => %{
-      "sweep_usdc" => {"sweepUSDC(bytes32)", "0xbe25fb30"}
-    },
     "subject_token_erc20" => %{
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
     },
-    "revenue_share_splitter_v2" => %{
-      "stake" => {"stake(uint256,address)", "0x7acb7757"},
-      "unstake" => {"unstake(uint256,address)", "0x8381e182"},
-      "claim_usdc" => {"claimUSDC(address)", "0x42852610"}
+    "subject_splitter_v1" => %{
+      "stake" => {"stake(uint256)", "0xa694fc3a"},
+      "unstake" => {"unstake(uint256)", "0x2e17de78"},
+      "claim" => {"claim(address)", "0x1e83409a"},
+      "claim_all" => {"claimAll()", "0xd1058e59"}
+    },
+    "payment_receiver_v1" => %{
+      "pay" => {"pay(address,uint256,bytes32)", "0x5e5571ac"},
+      "sweep" => {"sweep(address,bytes32)", "0x8a738683"},
+      "set_receiver_note" => {"setReceiverNote(bytes32)", "0xb1379b2f"}
     }
   }
+
+  # Every executable path and ABI file the superseded subject-payment lane needed.
+  # None of them may exist anywhere in the manifest or on disk.
+  @deleted_evidence ~w(payment_link_factory revenue_ingress_account revenue_share_splitter_v2)
+  @deleted_abis ~w(
+    abi/payment-link-factory.json
+    abi/revenue-ingress-account.json
+    abi/revenue-share-splitter-v2.json
+  )
+  @deleted_signatures [
+    "createPaymentLink(bytes32,string,bytes32)",
+    "createCanonicalPaymentLink(bytes32,string,bytes32)",
+    "setPaymentLinkCanonical(address,bool)",
+    "setPaymentLinkReceiverState(address,bool,address)",
+    "sweepUSDC(bytes32)",
+    "stake(uint256,address)",
+    "unstake(uint256,address)",
+    "claimUSDC(address)"
+  ]
 
   test "every pinned ABI path and digest closes over the manifest" do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -159,6 +176,72 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       assert permit2["address"] == "0x000000000022D473030F116dDEE9F6B43aC78BA3"
       assert permit2["address_provenance"] =~ "2af06408b6a204824c2ecb245779ed400b535fb5"
       assert permit2["address_provenance"] =~ "src/utils/SafeTransferLib.sol line 64"
+
+      # The C1 evidence is pinned to the exact integrated contract source.
+      for contract_id <- ["subject_splitter_v1", "payment_receiver_v1"] do
+        entry = Map.fetch!(evidence, contract_id)
+        assert entry["source_commit"] == "59e1f0c195428f9d74b72223d154e1fee693c36d"
+        assert entry["source_tree"] == "d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d"
+      end
+
+      # The superseded lane leaves no evidence entry and no admitted action.
+      for contract_id <- @deleted_evidence do
+        refute Map.has_key?(evidence, contract_id)
+      end
+    end
+  end
+
+  test "the superseded subject-payment ABI evidence is gone from the manifest and from disk" do
+    manifest = File.read!(@chain_manifest_path)
+
+    for contract_id <- @deleted_evidence do
+      refute manifest =~ contract_id
+    end
+
+    for abi_path <- @deleted_abis do
+      refute manifest =~ abi_path
+      refute File.exists?(Path.join("contracts", abi_path))
+    end
+
+    # The subject lane's own ABI files declare none of the superseded shapes.
+    # `regent-revenue-staking.json` is deliberately not swept: the live global
+    # REGENT contract really does declare stake(uint256,address),
+    # unstake(uint256,address) and claimUSDC(address), and this ticket does not
+    # touch that separately certified lane.
+    for path <- [
+          "contracts/abi/subject-splitter-v1.json",
+          "contracts/abi/payment-receiver-v1.json"
+        ],
+        signature <- @deleted_signatures do
+      abi = path |> File.read!() |> Jason.decode!()
+      refute signature_present?(abi, signature), "#{path} still declares #{signature}"
+    end
+  end
+
+  test "every admitted C1 selector is an independent Foundry derivation of its declared signature" do
+    chain_manifest = YamlElixir.read_from_file!(@chain_manifest_path)
+
+    evidence =
+      chain_manifest["contracts"]
+      |> List.first()
+      |> Map.fetch!("reviewed_action_evidence")
+      |> Map.new(&{&1["contract_id"], &1})
+
+    for {contract_id, actions} <-
+          Map.take(@retained_evidence_actions, [
+            "subject_splitter_v1",
+            "payment_receiver_v1"
+          ]),
+        {action_id, {signature, selector}} <- actions do
+      entry = Map.fetch!(evidence, contract_id)
+      assert action_id in entry["action_ids"]
+
+      abi = "contracts" |> Path.join(entry["abi_path"]) |> File.read!() |> Jason.decode!()
+      assert signature_present?(abi, signature)
+      assert selector_for(signature) == selector
+
+      # And it is not admitted for production preparation.
+      refute "#{contract_id}.#{action_id}" in @admitted_actions
     end
   end
 

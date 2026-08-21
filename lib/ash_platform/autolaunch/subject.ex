@@ -48,6 +48,14 @@ defmodule AshPlatform.Autolaunch.Subject do
       constraints max_length: 128, trim?: true
     end
 
+    # The canonical zero-referral receiver this launch graduated with. Only
+    # 490.8.2/.3 projection may fill it, so it stays null until then and every
+    # payment action refuses while it is absent.
+    attribute :canonical_receiver_address, :string do
+      public? true
+      constraints max_length: 128, trim?: true
+    end
+
     attribute :factory_address, :string do
       public? true
       constraints max_length: 128, trim?: true
@@ -129,6 +137,7 @@ defmodule AshPlatform.Autolaunch.Subject do
         :splitter_address,
         :ingress_address,
         :treasury_address,
+        :canonical_receiver_address,
         :factory_address,
         :creator_address,
         :staker_pool_bps,
@@ -144,6 +153,11 @@ defmodule AshPlatform.Autolaunch.Subject do
       require_atomic? false
       accept [:revenue_router_address]
     end
+
+    update :set_canonical_receiver do
+      require_atomic? false
+      accept [:canonical_receiver_address]
+    end
   end
 
   policies do
@@ -156,6 +170,10 @@ defmodule AshPlatform.Autolaunch.Subject do
     end
 
     policy action(:set_buyback_router) do
+      authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action(:set_canonical_receiver) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

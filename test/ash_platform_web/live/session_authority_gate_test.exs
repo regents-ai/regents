@@ -320,6 +320,48 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
              live(signed_in, "/autolaunch/auctions/#{auction.id}")
   end
 
+  test "CENTRAL_CURRENT_ACTOR: revocation denies a later subject wallet write at the boundary",
+       %{conn: conn} do
+    AshPlatform.SubjectWalletFixture.install()
+
+    account =
+      Accounts.register_verified!("did:privy:session-gate-subject", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    subject =
+      AshPlatform.SubjectWalletFixture.subject!(
+        "subject:gate:#{Elixir.System.unique_integer([:positive])}"
+      )
+
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, "/autolaunch/subjects/#{subject.subject_id}")
+
+    card = element(view, "#autolaunch-subject-wallet")
+    render_hook(card, "subject_active_wallet", %{"address" => @wallet})
+
+    view |> element("#autolaunch-subject-wallet-action-unstake") |> render_click()
+
+    assert view
+           |> form("#autolaunch-subject-wallet-form", %{amount: "10"})
+           |> render_submit() =~ "Unstake"
+
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    # The lease this socket mounted with no longer resolves, so the very next
+    # protected write is refused inside its own transaction rather than trusted
+    # from the socket that already passed the gate.
+    assert view
+           |> element(
+             ~s(#autolaunch-subject-wallet button[phx-click="cancel_subject_wallet_review"])
+           )
+           |> render_click() =~ "Sign in again to continue."
+
+    # A reconnect carrying the revoked claim is refused outright.
+    assert {:error, {:redirect, %{to: "/"}}} =
+             live(signed_in, "/autolaunch/subjects/#{subject.subject_id}")
+  end
+
   defp account! do
     Accounts.register_verified!(
       "did:privy:session-gate:#{Elixir.System.unique_integer([:positive])}",

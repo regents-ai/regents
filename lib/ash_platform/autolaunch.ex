@@ -6,6 +6,7 @@ defmodule AshPlatform.Autolaunch do
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @bid_operation Module.concat(__MODULE__, "BidOperation")
+  @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @indexer_source Module.concat(__MODULE__, "Indexer.Source")
   @indexer_cursor Module.concat(__MODULE__, "Indexer.Cursor")
   @indexer_block Module.concat(__MODULE__, "Indexer.Block")
@@ -66,6 +67,10 @@ defmodule AshPlatform.Autolaunch do
     # session lease, so it is registered without a code interface of any kind.
     resource @bid_operation
 
+    # The durable subject wallet operation is written only by
+    # `SubjectWalletOperations` under a session lease, on the same terms.
+    resource @subject_wallet_operation
+
     resource AshPlatform.Autolaunch.Token do
       define :list_tokens, action: :list_public
       define :list_top_tokens, action: :top_public
@@ -125,6 +130,13 @@ defmodule AshPlatform.Autolaunch do
           :regent_emission_total_raw,
           :pending_buyback_usdc_raw
         ]
+
+      # Only 490.8.2/.3 projection and the deterministic browser fixture write
+      # the canonical receiver, so it is a named SystemActor-only setter rather
+      # than another positional import argument.
+      define :set_subject_canonical_receiver,
+        action: :set_canonical_receiver,
+        args: [:canonical_receiver_address]
     end
 
     resource @payment_link_resource
@@ -224,121 +236,49 @@ defmodule AshPlatform.Autolaunch do
   defdelegate parse_bid_amount(value), to: AshPlatform.Autolaunch.BidActions, as: :atomic_amount
   defdelegate bid_amount_units(amount), to: AshPlatform.Autolaunch.BidActions, as: :units
 
-  def prepare_subject_payment_link(
-        subject_id,
-        signer,
-        label,
-        canonical,
-        opts \\ []
-      ) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link(
-      subject_id,
-      signer,
-      label,
-      canonical,
-      opts
-    )
-  end
+  # The clean-V1 subject wallet lane. `SubjectWalletActions` proves the active
+  # Privy wallet against the account the mounted lease locks before anything
+  # private is read or anything durable moves, so these stay thin pass-throughs
+  # and the resource itself keeps no code interface.
+  defdelegate subject_wallet_state(subject_id, address, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :wallet_state
 
-  def prepare_subject_payment_link_canonical(
-        subject_id,
-        signer,
-        receiver,
-        canonical,
-        opts \\ []
-      ) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link_canonical(
-      subject_id,
-      signer,
-      receiver,
-      canonical,
-      opts
-    )
-  end
+  defdelegate prepare_subject_wallet_action(subject_id, address, kind, params, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :prepare
 
-  def prepare_subject_payment_link_state(
-        subject_id,
-        signer,
-        receiver,
-        active,
-        replacement,
-        opts \\ []
-      ) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_payment_link_state(
-      subject_id,
-      signer,
-      receiver,
-      active,
-      replacement,
-      opts
-    )
-  end
+  defdelegate claim_subject_wallet_dispatch(subject_id, action_id, address, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :claim_dispatch
 
-  def prepare_subject_ingress_sweep(subject_id, signer, ingress_address, opts \\ []) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_ingress_sweep(
-      subject_id,
-      signer,
-      ingress_address,
-      opts
-    )
-  end
+  defdelegate bind_subject_wallet_hash(subject_id, action_id, step, hash, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :bind_hash
 
-  def prepare_subject_stake(subject_id, signer, amount, opts) when is_list(opts) do
-    prepare_subject_stake(subject_id, signer, amount, nil, opts)
-  end
+  defdelegate verify_subject_wallet_step(subject_id, action_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :verify
 
-  def prepare_subject_stake(subject_id, signer, amount, receiver, opts) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_stake(
-      subject_id,
-      signer,
-      amount,
-      receiver,
-      opts
-    )
-  end
+  defdelegate cancel_subject_wallet_review(subject_id, action_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :cancel
 
-  def prepare_subject_unstake(subject_id, signer, amount, opts \\ []) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_unstake(
-      subject_id,
-      signer,
-      amount,
-      opts
-    )
-  end
+  defdelegate close_subject_wallet_not_sent(subject_id, action_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :close_not_sent
 
-  def prepare_subject_claim_usdc(subject_id, signer, opts \\ []) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.prepare_claim_usdc(
-      subject_id,
-      signer,
-      opts
-    )
-  end
+  defdelegate release_unstarted_subject_wallet_dispatch(subject_id, action_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :release_unstarted
 
-  def confirm_subject_payment_action(
-        envelope,
-        transaction_hash,
-        approval_transaction_hash,
-        opts \\ []
-      ) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.confirm(
-      envelope,
-      transaction_hash,
-      approval_transaction_hash,
-      opts
-    )
-  end
+  defdelegate start_new_subject_wallet_action(subject_id, action_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :start_new
 
-  def restore_submitted_subject_payment_action(envelope, opts \\ []) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.restore(envelope, opts)
-  end
-
-  def verify_subject_payment_approval(envelope, transaction_hash, opts \\ []) do
-    AshPlatform.Autolaunch.SubjectPaymentActions.approval_status(
-      envelope,
-      transaction_hash,
-      opts
-    )
-  end
+  defdelegate open_subject_wallet_operation(subject_id, opts),
+    to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :open_operation
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     AshPlatform.Autolaunch.Auction

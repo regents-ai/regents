@@ -131,6 +131,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [clean_v1_launch_drafts_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_490_5_1_clean_v1_launch_drafts.exs")
 
+    assert [subject_wallet_operations_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_490_6_1_clean_v1_subject_wallet.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -167,7 +170,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                indexer_block_frontiers_migration,
                stake_redeem_operations_migration,
                bid_operations_migration,
-               clean_v1_launch_drafts_migration
+               clean_v1_launch_drafts_migration,
+               subject_wallet_operations_migration
              ])
 
     assert_additive_migration(
@@ -767,6 +771,66 @@ defmodule AshPlatformWeb.BoundaryTest do
     refute clean_v1_launch_drafts_up =~ "rename"
     refute clean_v1_launch_drafts_up =~ "token_name"
     refute clean_v1_launch_drafts_up =~ "summary"
+
+    # The clean-V1 subject wallet lane only adds: one nullable projection column
+    # on subjects, and the durable operation table with the identities that
+    # decide its races.
+    assert_additive_migration(
+      subject_wallet_operations_migration,
+      [
+        "alter table(:subjects",
+        "add(:canonical_receiver_address, :text)",
+        "create table(:subject_wallet_operations",
+        "add(:action_id, :text, null: false)",
+        "add(:subject_id, :text, null: false)",
+        "add(:kind, :text, null: false)",
+        "add(:envelope, :map, null: false)",
+        "add(:signer, :text, null: false)",
+        "add(:step, :text, null: false)",
+        ~s|add(:state, :text, null: false, default: "prepared")|,
+        "add(:approval_transaction_hash, :text)",
+        "add(:action_transaction_hash, :text)",
+        "add(:terminal_at, :utc_datetime_usec)",
+        "references(:platform_human_users",
+        "on_delete: :restrict",
+        ~s(name: "subject_wallet_operations_unique_action_id_index"),
+        ~s(name: "subject_wallet_operations_unique_approval_hash_index"),
+        ~s(name: "subject_wallet_operations_unique_action_hash_index"),
+        ~s(name: "subject_wallet_operations_one_open_per_subject_index"),
+        ~s|where: "(terminal_at IS NULL)"|,
+        ~s|prefix: "autolaunch"|
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    # Rolling back takes away only what this migration added, and never a
+    # superseded Subject projection column that 490.8.2/.3 still owns.
+    assert_reversible_migration(
+      subject_wallet_operations_migration,
+      [
+        ~s|drop(table(:subject_wallet_operations, prefix: "autolaunch"))|,
+        "remove(:canonical_receiver_address)"
+      ]
+    )
+
+    subject_wallet_down =
+      subject_wallet_operations_migration
+      |> File.read!()
+      |> String.split("  def down do", parts: 2)
+      |> List.last()
+
+    for retained <- [
+          "ingress_address",
+          "splitter_address",
+          "treasury_address",
+          "payment_links",
+          "bid_operations"
+        ] do
+      refute subject_wallet_down =~ retained
+    end
+
+    # No raw session lineage is ever a column on a subject wallet operation.
+    refute File.read!(subject_wallet_operations_migration) =~ "lineage"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

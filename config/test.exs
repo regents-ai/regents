@@ -37,6 +37,15 @@ config :ash_platform,
 # controller tests restore the release 30/300 themselves.
 config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
+# The subject wallet browser proof needs a Base answer without a provider, a
+# wallet or a chain call. Ordinary ExUnit cases install and restore this client
+# themselves, so only the Playwright server process selects it here.
+if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
+  config :ash_platform,
+         :autolaunch_subject_wallet_chain_client,
+         AshPlatform.TestAutolaunchSubjectWalletChainClient
+end
+
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
 
 config :ash_platform,

@@ -84,62 +84,72 @@ contracts:
         abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
         action_ids:
           - approve_exact
-      - contract_id: payment_link_factory
-        contract_name: PaymentLinkFactory
-        target: stored_subject_factory_address
-        abi_path: abi/payment-link-factory.json
-        abi_sha256: 121d3ae7e3e260ade1fda995b4ba67cae9b1bf11814497d2cedd788dfb839343
-        implementation_provenance: >-
-          archive/repos/platform/contracts/src/revenue/PaymentLinkFactory.sol:30-36,64-115,197
-          defines the PaymentLinkCreated(bytes32,address,address,string,bool) event, the four
-          nonpayable calls and their address return or empty returns, and the create emission.
-          Function selectors are derived from those implementation signatures. Event topic0
-          is offline Keccak-256 of the canonical event signature:
-          0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb.
-        confirmation_event_signature: PaymentLinkCreated(bytes32,address,address,string,bool)
-        confirmation_event_topic0: "0x06c00f03aef858d7f694c6f34c8245765bedf95c92e4341eec90f78b7d24bedb"
-        action_ids:
-          - create_payment_link
-          - create_canonical_payment_link
-          - set_payment_link_canonical
-          - set_payment_link_receiver_state
-      - contract_id: revenue_ingress_account
-        contract_name: RevenueIngressAccount
-        target: stored_subject_ingress_account
-        abi_path: abi/revenue-ingress-account.json
-        abi_sha256: 5175b02535ed6058b2abcc27215680316d634ec77c06359ae3aa9b2174366da6
-        implementation_provenance: >-
-          archive/repos/platform/contracts/src/revenue/RevenueIngressAccount.sol:183-206
-          defines nonpayable sweepUSDC(bytes32) returning balance and recognized uint256 values;
-          the selector is derived from that implementation signature.
-        action_ids:
-          - sweep_usdc
       - contract_id: subject_token_erc20
         contract_name: IERC20
         target: stored_subject_token_address
         abi_path: abi/erc20-approve.json
         abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
         implementation_provenance: >-
-          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:45
-          declares the immutable stake token; RevenueShareSplitterV2.sol:174 assigns it in
-          the constructor; RevenueShareSplitterV2.sol:299-310 defines the stake entrypoint
-          and pull; RevenueShareSplitterV2.sol:781 enforces the exact balance delta. The
-          prepared allowance uses the standard nonpayable ERC-20 approve interface.
+          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
+          src/revenue/SubjectSplitterV1.sol:50 declares the launch's own SUBJECT binding and
+          line 185 pulls exactly the staked amount through _pullExact, which lines 414-419
+          hold to an exact balance delta. The only SUBJECT allowance a stake prepares is the
+          exact splitter spender, using the standard nonpayable ERC-20 approve interface.
         action_ids:
           - approve_exact
-      - contract_id: revenue_share_splitter_v2
-        contract_name: RevenueShareSplitterV2
+      - contract_id: subject_splitter_v1
+        contract_name: SubjectSplitterV1
         target: stored_subject_splitter_address
-        abi_path: abi/revenue-share-splitter-v2.json
-        abi_sha256: a21b53836c452ce8bb6c3892543cb47521ff9186a01e3327363cc5853f9da69e
+        source_commit: 59e1f0c195428f9d74b72223d154e1fee693c36d
+        source_tree: d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d
+        abi_path: abi/subject-splitter-v1.json
+        abi_sha256: fe2c40284d036af9f155037c67b84cda2d290f0fcb82aefcba13cef288219009
         implementation_provenance: >-
-          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:299-328
-          defines nonpayable stake and unstake with empty returns, while
-          archive/repos/platform/contracts/src/revenue/RevenueShareSplitterV2.sol:432-442
-          defines nonpayable claimUSDC(address) returning uint256 amount; selectors are
-          derived from those implementation signatures.
+          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
+          src/revenue/SubjectSplitterV1.sol defines the four caller-only customer calls at
+          lines 181-221, each acting for msg.sender alone with no recipient argument, and the
+          reads this lane prepares against at lines 44-68 and 276-278. The ABI file is derived
+          from the artifact that pinned build produced, whose metadata keccak256 for that
+          source is 0x4ed543bfb97f8a3c01bcfe606cc441cb4f8cfa46fdac370a3ebbdc9a9b7750be.
+        interface_note: >-
+          stake and unstake take only uint256; there is no recipient-argument overload and no
+          claimUSDC. claim(address) and claimAll() settle for msg.sender alone and return early
+          when nothing is owed, so a canonical success with no Claimed log is a truthful no-op.
+        confirmation_event_signatures:
+          - Staked(address,uint256)
+          - Unstaked(address,uint256)
+          - Claimed(address,address,uint256)
         action_ids:
           - stake
           - unstake
-          - claim_usdc
+          - claim
+          - claim_all
+      - contract_id: payment_receiver_v1
+        contract_name: PaymentReceiverV1
+        target: projected_canonical_receiver_address
+        source_commit: 59e1f0c195428f9d74b72223d154e1fee693c36d
+        source_tree: d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d
+        abi_path: abi/payment-receiver-v1.json
+        abi_sha256: e587fe9dab115118dba0479e899ffa098fd83b59488fbda537037ae576a19fbd
+        implementation_provenance: >-
+          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
+          src/revenue/PaymentReceiverV1.sol defines pay at lines 150-160, sweep at lines
+          163-170 and setReceiverNote at lines 138-145, and the bindings this lane proves
+          canonical at lines 32-59. Line 132 defaults the note to the receiver's own address
+          encoded as bytes32. The ABI file is derived from the artifact that pinned build
+          produced, whose metadata keccak256 for that source is
+          0xf0d7b5dc82f84b33f7f9dffdeceb1c91b87af7d071ac27e7e55401583bddc467.
+        interface_note: >-
+          A receiver is canonical only when referralBps() is 0 and the splitter's treasury is
+          both beneficiary() and noteEditor(), which is the whole of the zero-referral
+          treasury-bound economics this lane reviews. Canonical provenance itself comes from
+          the projected canonical_receiver_address plus later C4/C5 evidence; these reads
+          prove the economics, never the provenance.
+        confirmation_event_signatures:
+          - PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)
+          - ReceiverNoteUpdated(bytes32,bytes32)
+        action_ids:
+          - pay
+          - sweep
+          - set_receiver_note
     validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs
