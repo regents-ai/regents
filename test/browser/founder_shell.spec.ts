@@ -510,16 +510,9 @@ test("Autolaunch overview, detail, and Create stay useful without fake market da
 
   await overview.getByRole("link", {name: "Create a launch"}).click()
   await expect(page).toHaveURL(/\/autolaunch\/create$/)
-  await expect(page.locator("#autolaunch-verified-connections li strong")).toHaveText([
-    "X",
-    "GitHub",
-    "Farcaster",
-  ])
-  await expect(
-    page.locator("#autolaunch-verified-connections button", {
-      hasText: "Sign in to connect",
-    }),
-  ).toHaveCount(3)
+  await expect(page.locator("#autolaunch-create")).toContainText(
+    "Sign in to prepare your launch.",
+  )
   await expect(page.locator("#autolaunch-create form")).toHaveCount(0)
 
   await page.goto("/autolaunch/auctions/auction-42")
@@ -528,6 +521,9 @@ test("Autolaunch overview, detail, and Create stay useful without fake market da
     "No public auction exists",
   )
 })
+
+const draftTreasury = "0xAbCdeF0000000000000000000000000000000001"
+const draftRecoveryAdmin = "0xfEdCbA0000000000000000000000000000000002"
 
 test("a signed-in Regent owner saves a private launch draft without creating an auction", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
@@ -541,21 +537,88 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
-  const uniqueTitle = `Browser launch draft ${Date.now()}`
-  const draft = page.locator("#create-launch-draft")
-  await draft.getByLabel("Launch title").fill(uniqueTitle)
-  await draft.getByLabel("Token name").fill("Browser Draft")
-  await draft.getByLabel("Token symbol").fill("BDRAFT")
-  await draft.getByLabel("Public summary").fill("Private preparation only.")
-  await draft.getByRole("button", {name: "Save private draft"}).click()
 
-  await expect(page.getByText("Draft saved. No auction or wallet action has started.")).toBeVisible()
-  await expect(page.locator("#launch-drafts article").filter({hasText: uniqueTitle})).toBeVisible()
+  const uniqueName = `Browser launch draft ${Date.now()}`
+  const draft = page.locator("#create-launch-draft")
+  await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
+  await draft.getByLabel("Symbol", {exact: true}).fill("bdraft")
+  await draft.getByLabel("Description", {exact: true}).fill("Private preparation only.")
+  await draft.getByLabel("Website", {exact: true}).fill("https://example.test/browser-draft")
+  await draft.getByLabel("Image", {exact: true}).fill("https://example.test/browser-draft.png")
+  await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
+  await draft.getByLabel("Recovery admin", {exact: true}).fill(draftRecoveryAdmin)
+  await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
+  await draft.getByRole("button", {name: "Save draft"}).click()
+
+  await expect(page.getByText("Draft saved.")).toBeVisible()
+  const card = page.locator("#launch-drafts article").filter({hasText: uniqueName})
+  await expect(card).toBeVisible()
+  await expect(card.locator(".autolaunch-draft-review")).toContainText(draftTreasury)
+  await expect(card.locator(".autolaunch-draft-review")).toContainText("1000.5")
 
   await page.goto("/autolaunch/auctions")
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 3, sessionChecks: 3, syncs: 3})
-  await expect(page.getByText(uniqueTitle)).toHaveCount(0)
+  await expect(page.getByText(uniqueName)).toHaveCount(0)
+})
+
+test("Create fits a 390px viewport and wraps long draft values instead of cutting them", async ({page}) => {
+  const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
+  await auth.establishLocalSession()
+
+  await page.setViewportSize({width: 390, height: 844})
+  await page.goto("/formation")
+  await auth.expectAuthenticatedSession()
+
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const uniqueName = `Narrow viewport draft ${Date.now()}`
+  const draft = page.locator("#create-launch-draft")
+  await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
+  await draft.getByLabel("Symbol", {exact: true}).fill("narrow")
+  await draft
+    .getByLabel("Description", {exact: true})
+    .fill("A description long enough to run past one line on a narrow phone screen.")
+  await draft.getByLabel("Website", {exact: true}).fill("https://example.test/a-deliberately-long-draft-address")
+  await draft.getByLabel("Image", {exact: true}).fill("https://example.test/a-deliberately-long-draft-image.png")
+  await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
+  await draft.getByLabel("Recovery admin", {exact: true}).fill(draftRecoveryAdmin)
+  await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
+  await draft.getByRole("button", {name: "Save draft"}).click()
+
+  const card = page.locator("#launch-drafts article").filter({hasText: uniqueName})
+  await expect(card).toBeVisible()
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(
+    await page.evaluate(() => {
+      const scroller = document.querySelector("#app-shell-scroller")!
+      return scroller.scrollWidth - scroller.clientWidth
+    }),
+  ).toBeLessThanOrEqual(0)
+
+  const escapes = await page.locator("#autolaunch-create *").evaluateAll(nodes =>
+    nodes
+      .map(node => node.getBoundingClientRect())
+      .filter(box => box.width > 0 && (box.left < -0.5 || box.right > 390.5))
+      .length,
+  )
+  expect(escapes).toBe(0)
+
+  // The full address stays on screen across more than one line rather than being
+  // clipped or shortened.
+  const treasury = card.locator(".autolaunch-draft-review dd").filter({hasText: draftTreasury})
+  await expect(treasury).toHaveText(draftTreasury)
+
+  const wrapping = await treasury.evaluate(element => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    return {lines: range.getClientRects().length, clipped: element.scrollWidth - element.clientWidth}
+  })
+
+  expect(wrapping.lines).toBeGreaterThan(1)
+  expect(wrapping.clipped).toBeLessThanOrEqual(0)
 })
 
 test("tree names preserve presentation while explicit selectors force it", async ({page}) => {

@@ -128,6 +128,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [bid_operations_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_839_5_2_clean_v1_bid_operations.exs")
 
+    assert [clean_v1_launch_drafts_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_490_5_1_clean_v1_launch_drafts.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -163,7 +166,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                indexer_canonical_height_migration,
                indexer_block_frontiers_migration,
                stake_redeem_operations_migration,
-               bid_operations_migration
+               bid_operations_migration,
+               clean_v1_launch_drafts_migration
              ])
 
     assert_additive_migration(
@@ -720,6 +724,49 @@ defmodule AshPlatformWeb.BoundaryTest do
 
     # No raw session lineage is ever a column on a bid operation either.
     refute File.read!(bid_operations_migration) =~ "lineage"
+
+    # Clean V1 only widens the launch draft: it adds the new columns and lets the
+    # superseded title go null.
+    assert_additive_migration(
+      clean_v1_launch_drafts_migration,
+      [
+        "alter table(:launch_drafts",
+        "modify(:title, :text, null: true)",
+        "add(:website, :text)",
+        "add(:image, :text)",
+        "add(:treasury, :text)",
+        "add(:recovery_admin, :text)",
+        "add(:required_regent_raised, :text)",
+        ~s|prefix: "autolaunch"|
+      ],
+      []
+    )
+
+    # Rolling back restores the old NOT NULL title, so it must first give every
+    # clean-V1 row the name it already holds instead of failing or deleting it.
+    assert_reversible_migration(
+      clean_v1_launch_drafts_migration,
+      [
+        ~s|UPDATE "autolaunch"."launch_drafts" SET "title" = "token_name" WHERE "title" IS NULL|,
+        "remove(:required_regent_raised)",
+        "modify(:title, :text, null: false)"
+      ]
+    )
+
+    # `name` and `description` are renames in Elixir alone, so no row is rewritten
+    # and no superseded column is taken away.
+    [clean_v1_launch_drafts_up, clean_v1_launch_drafts_down] =
+      clean_v1_launch_drafts_migration
+      |> File.read!()
+      |> String.split("  def down do", parts: 2)
+
+    refute clean_v1_launch_drafts_down =~ "DELETE"
+    refute clean_v1_launch_drafts_down =~ "drop("
+
+    refute clean_v1_launch_drafts_up =~ "remove("
+    refute clean_v1_launch_drafts_up =~ "rename"
+    refute clean_v1_launch_drafts_up =~ "token_name"
+    refute clean_v1_launch_drafts_up =~ "summary"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

@@ -3,7 +3,48 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
-  import AshPlatformWeb.Components.VerifiedConnections
+
+  @address_hint "0x followed by exactly 40 hexadecimal characters."
+
+  # The eight fields a founder writes, in the order the page asks for them.
+  @draft_fields [
+    %{key: :name, param: "name", label: "Name", kind: :text, hint: nil},
+    %{key: :symbol, param: "symbol", label: "Symbol", kind: :text, hint: nil},
+    %{key: :description, param: "description", label: "Description", kind: :long_text, hint: nil},
+    %{
+      key: :website,
+      param: "website",
+      label: "Website",
+      kind: :text,
+      hint: "A link readers can open."
+    },
+    %{
+      key: :image,
+      param: "image",
+      label: "Image",
+      kind: :text,
+      hint: "A link to the picture you want shown."
+    },
+    %{key: :treasury, param: "treasury", label: "Treasury", kind: :text, hint: @address_hint},
+    %{
+      key: :recovery_admin,
+      param: "recovery_admin",
+      label: "Recovery admin",
+      kind: :text,
+      hint: @address_hint
+    },
+    %{
+      key: :required_regent_raised,
+      param: "required_regent_raised",
+      label: "Required raise in REGENT",
+      kind: :text,
+      hint: "Digits only, with at most 18 decimal places."
+    }
+  ]
+
+  def draft_field_params, do: Enum.map(@draft_fields, & &1.param)
+
+  def blank_draft_fields, do: Map.new(@draft_fields, &{&1.param, ""})
 
   attr :route_spec, :map, required: true
   attr :params, :map, required: true
@@ -22,9 +63,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :claimed_token_positions, :list, required: true
   attr :session_lease, :map, default: nil
   attr :launch_drafts, :list, required: true
-  attr :verified_connections, :list, default: []
-  attr :verified_connections_notice, :map, default: nil
-  attr :draft_fields, :map, required: true
+  attr :draft_values, :map, required: true
+  attr :draft_errors, :map, required: true
+  attr :draft_revision, :map, default: nil
   attr :draft_notice, :map, default: nil
   attr :regent, :map, default: nil
   attr :status, :atom, required: true
@@ -111,10 +152,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
       :if={@route_spec.route_id == :autolaunch_create}
       account_control={@account_control}
       launch_drafts={@launch_drafts}
-      draft_fields={@draft_fields}
+      draft_values={@draft_values}
+      draft_errors={@draft_errors}
+      draft_revision={@draft_revision}
       draft_notice={@draft_notice}
-      verified_connections={@verified_connections}
-      verified_connections_notice={@verified_connections_notice}
       regent={@regent}
     />
     """
@@ -781,10 +822,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
   attr :launch_drafts, :list, required: true
-  attr :draft_fields, :map, required: true
+  attr :draft_values, :map, required: true
+  attr :draft_errors, :map, required: true
+  attr :draft_revision, :map, default: nil
   attr :draft_notice, :map, default: nil
-  attr :verified_connections, :list, default: []
-  attr :verified_connections_notice, :map, default: nil
   attr :regent, :map, default: nil
 
   defp create(assigns) do
@@ -794,20 +835,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <p class="autolaunch-kicker">Autolaunch · Create</p>
         <h1>Create a launch</h1>
         <p>
-          Prepare the launch on the web, then review every bid and money action in your wallet.
+          Write the details of the launch you have in mind. Drafts stay private to you, and saving
+          one changes nothing outside this page.
         </p>
       </header>
-
-      <.verified_connections
-        id="autolaunch-verified-connections"
-        class="autolaunch-reputation"
-        kicker="Optional reputation"
-        title="Strengthen the public signal"
-        description="Verified connections are optional. None is required to sign in or create."
-        identities={@verified_connections}
-        notice={@verified_connections_notice}
-        authenticated={@account_control.kind == :signed_in}
-      />
 
       <.empty_state
         :if={@account_control.kind == :sign_in}
@@ -826,115 +857,101 @@ defmodule AshPlatformWeb.AutolaunchLive do
       >
         <div>
           <p class="autolaunch-kicker">Private preparation</p>
-          <h2 id="launch-draft-title">Draft the public launch identity</h2>
-          <p>
-            This saves a private draft for {@regent.display_name}. It does not create an auction,
-            publish a token, or request a wallet action.
-          </p>
+          <h2 id="launch-draft-title">Launch details</h2>
+          <p>Saved for {@regent.display_name}. Nothing here is published and no money moves.</p>
         </div>
 
         <form id="create-launch-draft" phx-submit="create_launch_draft" class="autolaunch-draft-form">
-          <label>
-            <span>Launch title</span>
-            <input
-              type="text"
-              name="launch_draft[title]"
-              value={@draft_fields["title"]}
-              maxlength="160"
-              required
-            />
-          </label>
-          <label>
-            <span>Token name</span>
-            <input
-              type="text"
-              name="launch_draft[token_name]"
-              value={@draft_fields["token_name"]}
-              maxlength="100"
-              required
-            />
-          </label>
-          <label>
-            <span>Token symbol</span>
-            <input
-              type="text"
-              name="launch_draft[symbol]"
-              value={@draft_fields["symbol"]}
-              maxlength="16"
-              pattern="[A-Z0-9]+"
-              autocapitalize="characters"
-              required
-            />
-          </label>
-          <label>
-            <span>Public summary</span>
-            <textarea name="launch_draft[summary]" maxlength="2000">{@draft_fields["summary"]}</textarea>
-          </label>
-          <button type="submit">Save private draft</button>
+          <.draft_field
+            :for={field <- draft_fields()}
+            field={field}
+            form_id="create-launch-draft"
+            value={@draft_values[field.param]}
+            error={@draft_errors[field.param]}
+          />
+          <button type="submit">Save draft</button>
         </form>
 
         <p
           :if={@draft_notice}
           class={"autolaunch-draft-notice autolaunch-draft-notice--#{@draft_notice.tone}"}
-          role="status"
+          role={notice_role(@draft_notice.tone)}
         >
           {@draft_notice.message}
         </p>
 
         <div id="launch-drafts" class="autolaunch-drafts">
-          <h2>Private drafts</h2>
-          <p :if={@launch_drafts == []}>No launch drafts yet.</p>
+          <h2>Saved drafts</h2>
+          <p :if={@launch_drafts == []}>No drafts yet.</p>
           <article :for={draft <- @launch_drafts} id={"launch-draft-#{draft.id}"}>
-            <p class="autolaunch-kicker">Private draft · {draft.symbol}</p>
-            <h3>{draft.title}</h3>
+            <p class="autolaunch-kicker">Private draft</p>
+            <h3>{draft.name}</h3>
+            <dl class="autolaunch-draft-review">
+              <div :for={field <- review_fields()}>
+                <dt>{field.label}</dt>
+                <dd>{draft_text(Map.fetch!(draft, field.key))}</dd>
+              </div>
+            </dl>
             <form
               id={"revise-launch-draft-#{draft.id}"}
               phx-submit="revise_launch_draft"
               class="autolaunch-draft-form"
             >
               <input type="hidden" name="draft_id" value={draft.id} />
-              <label>
-                <span>Launch title</span>
-                <input
-                  type="text"
-                  name="launch_draft[title]"
-                  value={draft.title}
-                  maxlength="160"
-                  required
-                />
-              </label>
-              <label>
-                <span>Token name</span>
-                <input
-                  type="text"
-                  name="launch_draft[token_name]"
-                  value={draft.token_name}
-                  maxlength="100"
-                  required
-                />
-              </label>
-              <label>
-                <span>Token symbol</span>
-                <input
-                  type="text"
-                  name="launch_draft[symbol]"
-                  value={draft.symbol}
-                  maxlength="16"
-                  pattern="[A-Z0-9]+"
-                  autocapitalize="characters"
-                  required
-                />
-              </label>
-              <label>
-                <span>Public summary</span>
-                <textarea name="launch_draft[summary]" maxlength="2000">{draft.summary}</textarea>
-              </label>
-              <button type="submit">Save draft changes</button>
+              <.draft_field
+                :for={field <- draft_fields()}
+                field={field}
+                form_id={"revise-launch-draft-#{draft.id}"}
+                value={revision_value(@draft_revision, draft, field)}
+                error={revision_error(@draft_revision, draft, field)}
+              />
+              <button type="submit">Save changes</button>
             </form>
           </article>
         </div>
       </section>
     </section>
+    """
+  end
+
+  attr :field, :map, required: true
+  attr :form_id, :string, required: true
+  attr :value, :string, default: nil
+  attr :error, :string, default: nil
+
+  defp draft_field(assigns) do
+    id = "#{assigns.form_id}-#{assigns.field.param}"
+
+    assigns =
+      assign(assigns, id: id, described_by: described_by(id, assigns.field, assigns.error))
+
+    ~H"""
+    <div class={[
+      "autolaunch-draft-field",
+      @field.kind == :long_text && "autolaunch-draft-field--wide"
+    ]}>
+      <label for={@id}>{@field.label}</label>
+      <textarea
+        :if={@field.kind == :long_text}
+        id={@id}
+        name={"launch_draft[#{@field.param}]"}
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        required
+      >{@value}</textarea>
+      <input
+        :if={@field.kind == :text}
+        type="text"
+        id={@id}
+        name={"launch_draft[#{@field.param}]"}
+        value={@value}
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        required
+      />
+      <p :if={@field.hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@field.hint}</p>
+      <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
+    </div>
     """
   end
 
@@ -947,6 +964,32 @@ defmodule AshPlatformWeb.AutolaunchLive do
     </div>
     """
   end
+
+  defp draft_fields, do: @draft_fields
+
+  # The card heading already carries the name.
+  defp review_fields, do: Enum.reject(@draft_fields, &(&1.key == :name))
+
+  defp draft_text(nil), do: "Not written yet"
+  defp draft_text(value), do: value
+
+  # A failed revision belongs to exactly one card; every other card keeps
+  # showing what is stored.
+  defp revision_value(%{id: id, values: values}, %{id: id}, field), do: values[field.param]
+  defp revision_value(_revision, draft, field), do: Map.fetch!(draft, field.key)
+
+  defp revision_error(%{id: id, errors: errors}, %{id: id}, field), do: errors[field.param]
+  defp revision_error(_revision, _draft, _field), do: nil
+
+  defp described_by(id, field, error) do
+    case Enum.filter([field.hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do
+      [] -> nil
+      ids -> Enum.join(ids, " ")
+    end
+  end
+
+  defp notice_role(:error), do: "alert"
+  defp notice_role(_tone), do: "status"
 
   defp record_path(:auction, id), do: "/autolaunch/auctions/#{id}"
   defp record_path(:token, id), do: "/autolaunch/tokens/#{id}"

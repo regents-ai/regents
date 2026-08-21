@@ -3,88 +3,164 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
 
   alias AshPlatform.{Accounts, Autolaunch, Formation}
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Autolaunch.LaunchDraft
 
-  test "a human with one Regent creates and reads only their private launch drafts" do
-    owner = account!("draft-owner")
-    other = account!("draft-other")
+  @draft %{
+    "name" => "Open Research",
+    "symbol" => "open",
+    "description" => "A launch profile awaiting review.",
+    "website" => "https://example.test/open",
+    "image" => "https://example.test/open.png",
+    "treasury" => "0xAbCdeF0000000000000000000000000000000001",
+    "recovery_admin" => "0xAbCdeF0000000000000000000000000000000001",
+    "required_regent_raised" => "1000.500000000000000001"
+  }
+
+  test "a draft stores the eight clean-V1 fields exactly as written and stays private" do
+    owner = account!("owner")
+    other = account!("other")
     owner_actor = %Human{human_account_id: owner.id}
-    other_actor = %Human{human_account_id: other.id}
     regent = Formation.form_regent!("draft-regent", "Draft Regent", actor: owner_actor)
 
     assert {:ok, draft} =
              Autolaunch.create_launch_draft(
-               "Open Research Launch",
-               "Open Research",
-               "OPEN",
-               "A public launch profile awaiting auction design.",
+               Map.put(@draft, "name", "  Open Research  "),
                actor: owner_actor
              )
 
     assert draft.human_account_id == owner.id
     assert draft.regent_id == regent.id
-    assert draft.symbol == "OPEN"
+    assert Map.take(draft, clean_v1_keys()) == expected_values()
+    # Nothing invents a value for the superseded launch-page title.
+    assert is_nil(draft.title)
 
     assert {:ok, [mine]} = Autolaunch.list_my_launch_drafts(actor: owner_actor)
     assert mine.id == draft.id
-    assert {:ok, []} = Autolaunch.list_my_launch_drafts(actor: other_actor)
+    assert {:ok, []} = Autolaunch.list_my_launch_drafts(actor: %Human{human_account_id: other.id})
   end
 
-  test "draft creation fails closed without the exact human actor and formed Regent" do
-    account = account!("draft-no-regent")
+  test "drafting fails closed without the exact human actor and a formed Regent" do
+    account = account!("no-regent")
 
     for actor <- [nil, %{role: :human, human_account_id: account.id}, %System{}] do
       assert {:error, %Ash.Error.Forbidden{}} =
-               Autolaunch.create_launch_draft("Nope", "Nope", "NOPE", nil, actor: actor)
+               Autolaunch.create_launch_draft(@draft, actor: actor)
     end
 
     assert {:error, %Ash.Error.Invalid{}} =
-             Autolaunch.create_launch_draft("No Regent", "No Regent", "NONE", nil,
-               actor: %Human{human_account_id: account.id}
-             )
-  end
-
-  test "draft input uses the current launch vocabulary and remains non-public" do
-    account = account!("draft-input")
-    actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("input-regent", "Input Regent", actor: actor)
-
-    assert {:error, %Ash.Error.Invalid{}} =
-             Autolaunch.create_launch_draft("Launch", "Token", "lower", nil, actor: actor)
+             Autolaunch.create_launch_draft(@draft, actor: %Human{human_account_id: account.id})
 
     assert {:error, %Ash.Error.Invalid{}} = Autolaunch.list_my_launch_drafts()
   end
 
-  test "only the owning human can revise a draft" do
-    owner = account!("revision-owner")
-    other = account!("revision-other")
-    owner_actor = %Human{human_account_id: owner.id}
-    Formation.form_regent!("revision-owner-regent", "Revision Owner", actor: owner_actor)
+  test "create and revise both require all eight fields" do
+    actor = actor_with_regent!("required")
+    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
 
-    draft =
-      Autolaunch.create_launch_draft!(
-        "First title",
-        "First token",
-        "FIRST",
-        "First summary",
-        actor: owner_actor
-      )
+    for field <- Map.keys(@draft) do
+      blanked = Map.put(@draft, field, "   ")
+
+      assert field_errors(Autolaunch.create_launch_draft(blanked, actor: actor)) == %{
+               field => "is required"
+             }
+
+      assert field_errors(Autolaunch.revise_launch_draft(draft, blanked, actor: actor)) == %{
+               field => "is required"
+             }
+    end
+  end
+
+  test "metadata is bounded by UTF-8 byte size while duplicates and any symbol casing pass" do
+    actor = actor_with_regent!("metadata")
+
+    for {field, limit} <- [
+          {"name", 64},
+          {"symbol", 16},
+          {"description", 512},
+          {"website", 256},
+          {"image", 256}
+        ] do
+      at_limit = Map.put(@draft, field, String.duplicate("a", limit))
+      over_limit = Map.put(@draft, field, String.duplicate("a", limit - 1) <> "é")
+
+      assert {:ok, _draft} = Autolaunch.create_launch_draft(at_limit, actor: actor)
+
+      assert field_errors(Autolaunch.create_launch_draft(over_limit, actor: actor)) == %{
+               field => "must be #{limit} bytes or fewer"
+             }
+    end
+
+    assert {:ok, _one} = Autolaunch.create_launch_draft(@draft, actor: actor)
+    assert {:ok, _duplicate} = Autolaunch.create_launch_draft(@draft, actor: actor)
+  end
+
+  test "treasury and recovery admin take any 40-hex address, keep its casing, and reject zero" do
+    actor = actor_with_regent!("addresses")
+    mixed = "0xAbCdeF0000000000000000000000000000000001"
+
+    assert {:ok, draft} =
+             Autolaunch.create_launch_draft(
+               %{@draft | "treasury" => mixed, "recovery_admin" => String.downcase(mixed)},
+               actor: actor
+             )
+
+    assert {draft.treasury, draft.recovery_admin} == {mixed, String.downcase(mixed)}
+
+    for field <- ["treasury", "recovery_admin"] do
+      assert field_errors(
+               Autolaunch.create_launch_draft(
+                 Map.put(@draft, field, "0x" <> String.duplicate("0", 40)),
+                 actor: actor
+               )
+             ) == %{field => "cannot be the all-zero address"}
+
+      for bad <- ["0x123", String.duplicate("a", 40), mixed <> "0"] do
+        assert field_errors(
+                 Autolaunch.create_launch_draft(Map.put(@draft, field, bad), actor: actor)
+               ) == %{field => "must start with 0x and hold exactly 40 hexadecimal characters"}
+      end
+    end
+  end
+
+  test "the required raise is a positive plain decimal with at most 18 fractional digits" do
+    actor = actor_with_regent!("raise")
+    field = "required_regent_raised"
+
+    for accepted <- ["1", "0.000000000000000001", "1000.5", "12345678901234567890"] do
+      assert {:ok, draft} =
+               Autolaunch.create_launch_draft(Map.put(@draft, field, accepted), actor: actor)
+
+      assert draft.required_regent_raised == accepted
+    end
+
+    for malformed <- ["-1", "+1", "1,000", "1e18", "1.", ".5", "1.0000000000000000001", "abc"] do
+      assert field_errors(
+               Autolaunch.create_launch_draft(Map.put(@draft, field, malformed), actor: actor)
+             ) == %{field => "must be a plain REGENT amount with at most 18 decimal places"}
+    end
+
+    for zero <- ["0", "0.0", "0.000000000000000000"] do
+      assert field_errors(
+               Autolaunch.create_launch_draft(Map.put(@draft, field, zero), actor: actor)
+             ) == %{field => "must be greater than zero"}
+    end
+  end
+
+  test "only the owning human revises, and a rejected revision changes nothing" do
+    owner = account!("revise-owner")
+    other = account!("revise-other")
+    owner_actor = %Human{human_account_id: owner.id}
+    Formation.form_regent!("revise-regent", "Revise Regent", actor: owner_actor)
+    draft = Autolaunch.create_launch_draft!(@draft, actor: owner_actor)
 
     assert {:ok, revised} =
              Autolaunch.revise_launch_draft(
                draft,
-               "Revised title",
-               "Revised token",
-               "REVISED",
-               "Revised summary",
+               %{@draft | "name" => "Renamed Research"},
                actor: owner_actor
              )
 
-    assert revised.id == draft.id
-
-    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: owner_actor)
-
-    assert {persisted.title, persisted.token_name, persisted.symbol, persisted.summary} ==
-             {"Revised title", "Revised token", "REVISED", "Revised summary"}
+    assert revised.name == "Renamed Research"
 
     for actor <- [
           nil,
@@ -93,45 +169,70 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
           %{role: :human, human_account_id: owner.id}
         ] do
       assert {:error, %Ash.Error.Forbidden{}} =
-               Autolaunch.revise_launch_draft(
-                 persisted,
-                 "Not allowed",
-                 "Not allowed",
-                 "NOPE",
-                 nil,
-                 actor: actor
-               )
+               Autolaunch.revise_launch_draft(revised, @draft, actor: actor)
     end
-  end
-
-  test "invalid revisions leave every stored draft value unchanged" do
-    owner = account!("revision-invalid")
-    actor = %Human{human_account_id: owner.id}
-    Formation.form_regent!("revision-invalid-regent", "Revision Invalid", actor: actor)
-
-    draft =
-      Autolaunch.create_launch_draft!(
-        "Stable title",
-        "Stable token",
-        "STABLE",
-        "Stable summary",
-        actor: actor
-      )
-
-    before = stored_values(draft)
 
     assert {:error, %Ash.Error.Invalid{}} =
              Autolaunch.revise_launch_draft(
-               draft,
-               "Changed title",
-               "Changed token",
-               "lowercase",
-               "Changed summary",
-               actor: actor
+               revised,
+               %{@draft | "treasury" => "not-an-address"},
+               actor: owner_actor
              )
 
-    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    assert stored_values(persisted) == before
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: owner_actor)
+    assert Map.take(persisted, clean_v1_keys()) == %{expected_values() | name: "Renamed Research"}
+  end
+
+  test "a draft written before clean V1 stays readable and can be completed by revising" do
+    owner = account!("legacy")
+    actor = %Human{human_account_id: owner.id}
+    regent = Formation.form_regent!("legacy-regent", "Legacy Regent", actor: actor)
+
+    Ash.Seed.seed!(LaunchDraft, %{
+      title: "Superseded launch title",
+      name: "Legacy Research",
+      symbol: "LEGACY",
+      human_account_id: owner.id,
+      regent_id: regent.id
+    })
+
+    assert {:ok, [legacy]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert {legacy.name, legacy.symbol} == {"Legacy Research", "LEGACY"}
+    assert is_nil(legacy.description)
+    assert is_nil(legacy.treasury)
+
+    assert {:ok, completed} = Autolaunch.revise_launch_draft(legacy, @draft, actor: actor)
+    assert Map.take(completed, clean_v1_keys()) == expected_values()
+    # Completing a row never rewrites or discards what it already held.
+    assert completed.title == "Superseded launch title"
+  end
+
+  defp clean_v1_keys do
+    [
+      :name,
+      :symbol,
+      :description,
+      :website,
+      :image,
+      :treasury,
+      :recovery_admin,
+      :required_regent_raised
+    ]
+  end
+
+  defp expected_values, do: Map.new(@draft, fn {field, value} -> {:"#{field}", value} end)
+
+  defp field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
+    Map.new(errors, fn
+      %Ash.Error.Changes.Required{field: field} -> {to_string(field), "is required"}
+      %{field: field, message: message} -> {to_string(field), message}
+    end)
+  end
+
+  defp actor_with_regent!(suffix) do
+    actor = %Human{human_account_id: account!(suffix).id}
+    Formation.form_regent!("#{suffix}-regent", "Regent #{suffix}", actor: actor)
+    actor
   end
 
   defp account!(suffix) do
@@ -141,19 +242,5 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
       [],
       actor: %System{}
     )
-  end
-
-  defp stored_values(draft) do
-    Map.take(draft, [
-      :id,
-      :title,
-      :token_name,
-      :symbol,
-      :summary,
-      :human_account_id,
-      :regent_id,
-      :inserted_at,
-      :updated_at
-    ])
   end
 end

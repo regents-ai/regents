@@ -87,12 +87,9 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_returnable_positions: [],
        autolaunch_claimed_token_positions: [],
        autolaunch_launch_drafts: [],
-       autolaunch_draft_fields: %{
-         "title" => "",
-         "token_name" => "",
-         "symbol" => "",
-         "summary" => ""
-       },
+       autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
+       autolaunch_draft_errors: %{},
+       autolaunch_draft_revision: nil,
        autolaunch_draft_notice: nil,
        autolaunch_status: :loading,
        techtree_trees: [],
@@ -1141,39 +1138,31 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_info({:comment_reactions_changed, _target_type, _target_id}, socket),
     do: {:noreply, socket}
 
-  defp handle_draft_event("create_launch_draft", %{"launch_draft" => fields}, socket) do
+  defp handle_draft_event("create_launch_draft", %{"launch_draft" => submitted}, socket) do
+    values = Map.take(submitted, AutolaunchLive.draft_field_params())
+
     with %Human{} = actor <- human_actor(socket),
-         {:ok, _draft} <-
-           Autolaunch.create_launch_draft(
-             fields["title"],
-             fields["token_name"],
-             fields["symbol"],
-             empty_to_nil(fields["summary"]),
-             actor: actor
-           ),
+         {:ok, _draft} <- Autolaunch.create_launch_draft(values, actor: actor),
          {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
       {:noreply,
        assign(socket,
          autolaunch_launch_drafts: drafts,
-         autolaunch_draft_fields: %{
-           "title" => "",
-           "token_name" => "",
-           "symbol" => "",
-           "summary" => ""
-         },
+         autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
+         autolaunch_draft_errors: %{},
          autolaunch_draft_notice: %{
            tone: :success,
-           message: "Draft saved. No auction or wallet action has started."
+           message: "Draft saved. Nothing has been published and no money has moved."
          }
        )}
     else
-      _error ->
+      error ->
         {:noreply,
          assign(socket,
-           autolaunch_draft_fields: fields,
+           autolaunch_draft_values: values,
+           autolaunch_draft_errors: draft_field_errors(error),
            autolaunch_draft_notice: %{
              tone: :error,
-             message: "That draft could not be saved. Check the launch and token details."
+             message: "That draft could not be saved. Check the details marked below."
            }
          )}
     end
@@ -1181,44 +1170,55 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp handle_draft_event(
          "revise_launch_draft",
-         %{"draft_id" => draft_id, "launch_draft" => fields},
+         %{"draft_id" => draft_id, "launch_draft" => submitted},
          socket
        ) do
+    values = Map.take(submitted, AutolaunchLive.draft_field_params())
+
     with %Human{} = actor <- human_actor(socket),
          draft when not is_nil(draft) <-
-           Enum.find(
-             socket.assigns.autolaunch_launch_drafts,
-             &(to_string(&1.id) == draft_id)
-           ),
-         {:ok, _draft} <-
-           Autolaunch.revise_launch_draft(
-             draft,
-             fields["title"],
-             fields["token_name"],
-             fields["symbol"],
-             empty_to_nil(fields["summary"]),
-             actor: actor
-           ),
+           Enum.find(socket.assigns.autolaunch_launch_drafts, &(&1.id == draft_id)),
+         {:ok, _draft} <- Autolaunch.revise_launch_draft(draft, values, actor: actor),
          {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
       {:noreply,
        assign(socket,
          autolaunch_launch_drafts: drafts,
+         autolaunch_draft_revision: nil,
          autolaunch_draft_notice: %{
            tone: :success,
-           message: "Draft updated. No auction, token, wallet action, or publication has started."
+           message: "Draft updated. Nothing has been published and no money has moved."
          }
        )}
     else
-      _error ->
+      error ->
         {:noreply,
          assign(socket,
+           autolaunch_draft_revision: %{
+             id: draft_id,
+             values: values,
+             errors: draft_field_errors(error)
+           },
            autolaunch_draft_notice: %{
              tone: :error,
-             message: "That draft could not be updated. Check the launch and token details."
+             message: "That draft could not be updated. Check the details marked below."
            }
          )}
     end
   end
+
+  defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
+    params = AutolaunchLive.draft_field_params()
+
+    for %{field: field} = error <- errors,
+        to_string(field) in params,
+        into: %{},
+        do: {to_string(field), draft_field_message(error)}
+  end
+
+  defp draft_field_errors(_error), do: %{}
+
+  defp draft_field_message(%Ash.Error.Changes.Required{}), do: "is required"
+  defp draft_field_message(%{message: message}), do: message
 
   defp handle_redemption_event("redemption_active_wallet", params, socket) do
     wallet =
@@ -1463,9 +1463,9 @@ defmodule AshPlatformWeb.ShellLive do
           claimed_token_positions={@autolaunch_claimed_token_positions}
           session_lease={@session_lease}
           launch_drafts={@autolaunch_launch_drafts}
-          verified_connections={@verified_connections}
-          verified_connections_notice={@verified_connections_notice}
-          draft_fields={@autolaunch_draft_fields}
+          draft_values={@autolaunch_draft_values}
+          draft_errors={@autolaunch_draft_errors}
+          draft_revision={@autolaunch_draft_revision}
           draft_notice={@autolaunch_draft_notice}
           regent={@regent}
           status={@autolaunch_status}
@@ -1817,8 +1817,7 @@ defmodule AshPlatformWeb.ShellLive do
   defp current_human_id(%{principal: {:human, account}}), do: account.id
   defp current_human_id(_access_context), do: nil
 
-  defp load_verified_connections(socket, %{route_id: route_id})
-       when route_id in [:settings, :autolaunch_create] do
+  defp load_verified_connections(socket, %{route_id: :settings}) do
     reload_verified_connections(socket)
   end
 
@@ -2347,13 +2346,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: %Human{human_account_id: account.id}
 
   defp human_actor(_socket), do: nil
-
-  defp empty_to_nil(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
 
   defp maybe_start_redemption(socket, %{route_id: :redeem}, _content_generation),
     do: start_redemption_read(socket)

@@ -13,15 +13,9 @@ defmodule AshPlatform.Autolaunch do
 
   resources do
     resource AshPlatform.Autolaunch.LaunchDraft do
-      define :create_launch_draft,
-        action: :create_for_my_regent,
-        args: [:title, :token_name, :symbol, :summary]
-
+      define :create_launch_draft, action: :create_for_my_regent
       define :list_my_launch_drafts, action: :mine
-
-      define :revise_launch_draft,
-        action: :revise_by_owner,
-        args: [:title, :token_name, :symbol, :summary]
+      define :revise_launch_draft, action: :revise_by_owner
     end
 
     resource AshPlatform.Autolaunch.Auction do

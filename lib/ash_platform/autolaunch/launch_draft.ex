@@ -5,31 +5,45 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  @clean_v1_fields [
+    :name,
+    :symbol,
+    :description,
+    :website,
+    :image,
+    :treasury,
+    :recovery_admin,
+    :required_regent_raised
+  ]
+
   attributes do
     uuid_primary_key :id
 
-    attribute :title, :string do
-      allow_nil? false
-      public? true
-      constraints min_length: 1, max_length: 160, trim?: true
-    end
+    # Superseded launch-page title. It is never read or written by the current
+    # route; it exists only so rows written before clean V1 stay intact.
+    attribute :title, :string
 
-    attribute :token_name, :string do
+    attribute :name, :string do
+      source :token_name
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 100, trim?: true
     end
 
     attribute :symbol, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 16, match: ~r/\A[A-Z0-9]+\z/
     end
 
-    attribute :summary, :string do
+    attribute :description, :string do
+      source :summary
       public? true
-      constraints max_length: 2_000, trim?: true
     end
+
+    attribute :website, :string, public?: true
+    attribute :image, :string, public?: true
+    attribute :treasury, :string, public?: true
+    attribute :recovery_admin, :string, public?: true
+    attribute :required_regent_raised, :string, public?: true
 
     timestamps()
   end
@@ -47,7 +61,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
   actions do
     create :create_for_my_regent do
-      accept [:title, :token_name, :symbol, :summary]
+      accept @clean_v1_fields
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwnerAndRegent
     end
 
@@ -57,8 +72,9 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     update :revise_by_owner do
-      accept [:title, :token_name, :symbol, :summary]
+      accept @clean_v1_fields
       require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
     end
   end
 

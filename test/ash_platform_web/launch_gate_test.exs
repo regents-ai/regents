@@ -12,11 +12,16 @@ defmodule AshPlatformWeb.LaunchGateTest do
   @autolaunch_paths ~w(/autolaunch /autolaunch/auctions /autolaunch/holdings /autolaunch/create)
   @closed_message "This part of Regent isn't open yet."
   @draft_fields %{
-    "title" => "Injected Launch",
-    "token_name" => "Injected",
+    "name" => "Injected Launch",
     "symbol" => "INJECT",
-    "summary" => "An injected draft that must never be recorded."
+    "description" => "An injected draft that must never be recorded.",
+    "website" => "https://example.test/injected",
+    "image" => "https://example.test/injected.png",
+    "treasury" => "0xAbCdeF0000000000000000000000000000000001",
+    "recovery_admin" => "0xAbCdeF0000000000000000000000000000000002",
+    "required_regent_raised" => "1000.5"
   }
+  @kept_draft %{@draft_fields | "name" => "Kept Launch", "symbol" => "KEPT"}
 
   setup do
     on_exit(fn ->
@@ -237,10 +242,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
     actor = %Human{human_account_id: account.id}
     Formation.form_regent!("gate-regent", "Gate Regent", actor: actor)
 
-    {:ok, draft} =
-      Autolaunch.create_launch_draft("Kept Launch", "Kept", "KEPT", "The only recorded draft.",
-        actor: actor
-      )
+    {:ok, draft} = Autolaunch.create_launch_draft(@kept_draft, actor: actor)
 
     close_autolaunch()
 
@@ -257,7 +259,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
     })
 
     assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    assert {persisted.id, persisted.title, persisted.symbol} == {draft.id, "Kept Launch", "KEPT"}
+    assert {persisted.id, persisted.name, persisted.symbol} == {draft.id, "Kept Launch", "KEPT"}
 
     assigns = :sys.get_state(view.pid).socket.assigns
     assert assigns.autolaunch_launch_drafts == []
