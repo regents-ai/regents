@@ -65,8 +65,39 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "pay" => {"pay(address,uint256,bytes32)", "0x5e5571ac"},
       "sweep" => {"sweep(address,bytes32)", "0x8a738683"},
       "set_receiver_note" => {"setReceiverNote(bytes32)", "0xb1379b2f"}
-    }
+    },
+    # The C4 launch interface stays reviewed and digest-pinned while no launch
+    # action is admitted for production preparation.
+    "regent_erc20" => %{
+      "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
+    },
+    "regents_autolaunch_factory_v1" => %{
+      "launch" =>
+        {"launch((string,string,string,string,string,address,address,uint128,uint256))",
+         "0x783eed53"}
+    },
+    "regent_lbp_strategy_v1" => %{}
   }
+
+  # The two C4 source fingerprints. The upstream build artifacts these ABIs are
+  # derived from are excluded by that repository's own .gitignore, so the durable
+  # evidence is the compiler's metadata Keccak-256 of the exact source files.
+  @c4_source_commit "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
+  @c4_source_tree "41c0f1ba29ceade995d1e2a5313995089bdc279a"
+  @factory_source_keccak256 "0xaefec10abe77a96fd376126e5bbab7e1d4a969d8cbe3356e860c1838a49f9f15"
+  @strategy_source_keccak256 "0xde78be091e8092fad3c30d358d68533cc914fdcdd2a60bf426ff26d6372bef1f"
+
+  # Everything C4 deliberately does not derive an encoder, action or admission
+  # for. None of these may appear anywhere in the manifest or in either ABI file.
+  @absent_c4_surfaces ~w(
+    setLaunchFee
+    pauseLaunches
+    unpauseLaunches
+    createPaymentReceiver
+    bindHook
+    initializeDistribution
+    migrate
+  )
 
   # Every executable path and ABI file the superseded subject-payment lane needed.
   # None of them may exist anywhere in the manifest or on disk.
@@ -244,6 +275,90 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       refute "#{contract_id}.#{action_id}" in @admitted_actions
     end
   end
+
+  test "the C4 launch evidence pins its source fingerprints and admits no production action" do
+    evidence = evidence!()
+
+    factory = Map.fetch!(evidence, "regents_autolaunch_factory_v1")
+    strategy = Map.fetch!(evidence, "regent_lbp_strategy_v1")
+
+    for entry <- [factory, strategy] do
+      assert entry["source_commit"] == @c4_source_commit
+      assert entry["source_tree"] == @c4_source_tree
+      assert entry["artifact_provenance"] =~ ".gitignore excludes"
+      assert entry["artifact_provenance"] =~ "not a tracked file"
+    end
+
+    assert factory["source_keccak256"] == @factory_source_keccak256
+    assert strategy["source_keccak256"] == @strategy_source_keccak256
+    assert factory["target"] == "c5_admitted_factory_address"
+    assert strategy["target"] == "reviewed_factory_bound_strategy_address"
+    assert strategy["action_ids"] == []
+
+    # The exact allowance rule the fee correction follows, and no other spender.
+    regent = Map.fetch!(evidence, "regent_erc20")
+    assert regent["target"] == "pinned_regent_token_address"
+    assert regent["action_ids"] == ["approve_exact"]
+    assert regent["interface_note"] =~ "exact current launch fee"
+    assert regent["interface_note"] =~ "no unlimited approval"
+
+    # Every C4 action id is reviewed evidence and none of them is admitted for
+    # production preparation: that gate is C5's to open, not this ticket's.
+    admitted = admission!()["admitted_prepared_actions"]
+    assert admitted == @admitted_actions
+
+    for contract_id <- ["regents_autolaunch_factory_v1", "regent_lbp_strategy_v1", "regent_erc20"],
+        action_id <- Map.fetch!(evidence, contract_id)["action_ids"] do
+      refute "#{contract_id}.#{action_id}" in admitted
+    end
+  end
+
+  test "the launch tuple signature canonicalizes to the one literal the encoder holds" do
+    entry = Map.fetch!(evidence!(), "regents_autolaunch_factory_v1")
+    abi = "contracts" |> Path.join(entry["abi_path"]) |> File.read!() |> Jason.decode!()
+    declared = Enum.find(abi, &(&1["name"] == "launch"))
+
+    # The canonicalization is the manifest task's existing one, so the literal in
+    # `LaunchAbi` is proved against a second implementation rather than itself.
+    signature = Mix.Tasks.AshPlatform.VerifyChainManifest.canonical_signature(declared)
+
+    assert signature == AshPlatform.WalletActions.LaunchAbi.signature(:launch)
+    assert selector_for(signature) == AshPlatform.WalletActions.LaunchAbi.selector(:launch)
+    assert selector_for(signature) == "0x783eed53"
+  end
+
+  test "no governance, receiver, construction or migration surface is derived anywhere in C4" do
+    for path <- [
+          "contracts/abi/regents-autolaunch-factory-v1.json",
+          "contracts/abi/regent-lbp-strategy-v1.json"
+        ] do
+      abi = path |> File.read!() |> Jason.decode!()
+      names = MapSet.new(abi, & &1["name"])
+
+      for surface <- @absent_c4_surfaces do
+        refute MapSet.member?(names, surface), "#{path} still declares #{surface}"
+      end
+    end
+
+    # Absent from the ABI files is not enough: no evidence entry anywhere in the
+    # manifest may carry one as an action id either.
+    declared =
+      evidence!() |> Map.values() |> Enum.flat_map(&(&1["action_ids"] || [])) |> MapSet.new()
+
+    for surface <- @absent_c4_surfaces do
+      refute MapSet.member?(declared, surface)
+    end
+
+    factory = Map.fetch!(evidence!(), "regents_autolaunch_factory_v1")
+    assert factory["interface_note"] =~ "deliberately not derived"
+    assert Map.fetch!(evidence!(), "regent_lbp_strategy_v1")["interface_note"] =~ "never reaches"
+  end
+
+  defp evidence!,
+    do: Map.new(admission!()["reviewed_action_evidence"], &{&1["contract_id"], &1})
+
+  defp admission!,
+    do: @chain_manifest_path |> YamlElixir.read_from_file!() |> Map.fetch!("contracts") |> hd()
 
   defp signature_present?(abi, signature) do
     Enum.any?(abi, fn entry ->

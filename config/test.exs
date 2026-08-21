@@ -44,6 +44,10 @@ if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
   config :ash_platform,
          :autolaunch_subject_wallet_chain_client,
          AshPlatform.TestAutolaunchSubjectWalletChainClient
+
+  config :ash_platform,
+         :autolaunch_launch_chain_client,
+         AshPlatform.TestAutolaunchLaunchChainClient
 end
 
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]

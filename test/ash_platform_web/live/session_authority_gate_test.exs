@@ -362,6 +362,39 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
              live(signed_in, "/autolaunch/subjects/#{subject.subject_id}")
   end
 
+  test "CENTRAL_CURRENT_ACTOR: revocation denies a later launch write at the boundary",
+       %{conn: conn} do
+    AshPlatform.LaunchFixture.install()
+    context = AshPlatform.LaunchFixture.actor()
+    card = "#autolaunch-launch-wallet-#{context[:draft].id}"
+
+    signed_in = init_test_session(conn, %{human_account_id: context[:account].id})
+    {:ok, view, _html} = live(signed_in, "/autolaunch/create")
+
+    render_hook(element(view, card), "launch_active_wallet", %{
+      "address" => AshPlatform.LaunchFixture.wallet()
+    })
+
+    assert view
+           |> element(~s(#{card} button[phx-click="review_launch"]))
+           |> render_click() =~ "Review this launch"
+
+    assert SessionAuthority.revoke(claim(signed_in))
+    {:ok, %{operation: operation}} = AshPlatform.Autolaunch.open_launch_operation(context[:opts])
+
+    # The lease this socket mounted with no longer resolves, so the very next
+    # protected write is refused inside its own transaction rather than trusted
+    # from the socket that already passed the gate.
+    assert view
+           |> element(
+             ~s(#{card} button[phx-click="cancel_launch_review"][phx-value-action-id="#{operation.action_id}"])
+           )
+           |> render_click() =~ "Sign in again to continue."
+
+    # A reconnect carrying the revoked claim is refused outright.
+    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/autolaunch/create")
+  end
+
   defp account! do
     Accounts.register_verified!(
       "did:privy:session-gate:#{Elixir.System.unique_integer([:positive])}",

@@ -160,6 +160,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
       draft_revision={@draft_revision}
       draft_notice={@draft_notice}
       regent={@regent}
+      session_lease={@session_lease}
+      current_human_id={@current_human_id}
     />
     """
   end
@@ -844,6 +846,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :draft_revision, :map, default: nil
   attr :draft_notice, :map, default: nil
   attr :regent, :map, default: nil
+  attr :session_lease, :map, default: nil
+  attr :current_human_id, :integer, default: nil
 
   defp create(assigns) do
     ~H"""
@@ -924,6 +928,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
               />
               <button type="submit">Save changes</button>
             </form>
+
+            <%!-- Mounted on the draft it launches, so a card that is not saved
+                  yet carries no wallet surface at all. --%>
+            <.live_component
+              module={AshPlatformWeb.AutolaunchLaunchWalletComponent}
+              id={"autolaunch-launch-wallet-#{draft.id}"}
+              draft={draft}
+              authenticated={@account_control.kind == :signed_in}
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
           </article>
         </div>
       </section>

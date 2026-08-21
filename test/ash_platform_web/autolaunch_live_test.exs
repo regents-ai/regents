@@ -563,10 +563,13 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       refute has_element?(view, "#autolaunch-create", retired)
     end
 
-    # The workspace only ever saves a draft; it never reaches a wallet or a chain.
-    refute has_element?(view, ".autolaunch-draft-workspace [phx-hook]")
-    refute has_element?(view, ".autolaunch-draft-workspace [phx-click]")
+    # The draft form only ever saves a draft; it never reaches a wallet or a
+    # chain, and the workspace still offers no link away from itself. The one
+    # authorized wallet surface here is the reviewed launch card.
+    refute has_element?(view, ".autolaunch-draft-form [phx-hook]")
+    refute has_element?(view, ".autolaunch-draft-form [phx-click]")
     refute has_element?(view, ".autolaunch-draft-workspace a")
+    assert has_element?(view, ".autolaunch-draft-workspace .launch-wallet[phx-hook]")
   end
 
   test "overview, collections, and details render imported public records without invented money",

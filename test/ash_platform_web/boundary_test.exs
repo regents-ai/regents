@@ -134,6 +134,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [subject_wallet_operations_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_490_6_1_clean_v1_subject_wallet.exs")
 
+    assert [launch_operations_migration] =
+             Path.wildcard("priv/repo/migrations/*_regent_490_5_2_c4_launch_operations.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -171,7 +174,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                stake_redeem_operations_migration,
                bid_operations_migration,
                clean_v1_launch_drafts_migration,
-               subject_wallet_operations_migration
+               subject_wallet_operations_migration,
+               launch_operations_migration
              ])
 
     assert_additive_migration(
@@ -831,6 +835,59 @@ defmodule AshPlatformWeb.BoundaryTest do
 
     # No raw session lineage is ever a column on a subject wallet operation.
     refute File.read!(subject_wallet_operations_migration) =~ "lineage"
+
+    # The C4 launch lane adds one table and nothing else: one immutable reviewed
+    # identity, one owner per bound hash, and one open launch per account.
+    assert_additive_migration(
+      launch_operations_migration,
+      [
+        "create table(:launch_operations",
+        "add(:action_id, :text, null: false)",
+        "add(:envelope, :map, null: false)",
+        "add(:signer, :text, null: false)",
+        "add(:step, :text, null: false)",
+        ~s|add(:state, :text, null: false, default: "prepared")|,
+        "add(:approval_transaction_hash, :text)",
+        "add(:launch_transaction_hash, :text)",
+        "add(:terminal_at, :utc_datetime_usec)",
+        "references(:platform_human_users",
+        "references(:launch_drafts",
+        "on_delete: :restrict",
+        ~s(name: "launch_operations_unique_launch_action_id_index"),
+        ~s(name: "launch_operations_unique_launch_approval_hash_index"),
+        ~s(name: "launch_operations_unique_launch_hash_index"),
+        ~s(name: "launch_operations_one_open_per_account_index"),
+        ~s|where: "(terminal_at IS NULL)"|,
+        ~s|prefix: "autolaunch"|
+      ],
+      ["CREATE SCHEMA IF NOT EXISTS autolaunch"]
+    )
+
+    assert_reversible_migration(
+      launch_operations_migration,
+      [~s|drop(table(:launch_operations, prefix: "autolaunch"))|]
+    )
+
+    # Rolling back takes away only the table this migration added, and never a
+    # draft column or another lane's operation table.
+    launch_down =
+      launch_operations_migration
+      |> File.read!()
+      |> String.split("  def down do", parts: 2)
+      |> List.last()
+
+    for retained <- [
+          "launch_drafts,",
+          "required_regent_raised",
+          "recovery_admin",
+          "subject_wallet_operations",
+          "bid_operations"
+        ] do
+      refute launch_down =~ retained
+    end
+
+    # No raw session lineage is ever a column on a launch operation either.
+    refute File.read!(launch_operations_migration) =~ "lineage"
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

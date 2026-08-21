@@ -588,3 +588,180 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+/* The launch card sits inside a draft card that already carries the surface, so
+   it is a hairline-separated section of it rather than a second panel. */
+.launch-wallet {
+  display: grid;
+  gap: 0.6rem;
+  padding-block-start: 0.8rem;
+  border-block-start: 1px solid var(--hairline);
+}
+
+/* Grid items default to min-width:auto, which lets a long address or a wide
+   value push the whole draft card past a narrow viewport. Every box in this
+   card is allowed to shrink to its container instead. */
+.launch-wallet,
+.launch-wallet-open,
+.launch-wallet-empty,
+.launch-wallet-review,
+.launch-wallet-review > dl,
+.launch-wallet-review > dl > div,
+.launch-wallet-details dl,
+.launch-wallet-details dl > div,
+.launch-wallet-controls,
+.launch-wallet-steps,
+.launch-wallet-steps li {
+  min-width: 0;
+}
+
+.launch-wallet > *,
+.launch-wallet-open > *,
+.launch-wallet-empty > *,
+.launch-wallet-review > * {
+  margin-block: 0;
+}
+
+.launch-wallet-open,
+.launch-wallet-empty,
+.launch-wallet-review {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.launch-wallet-review h4 {
+  margin-block: 0;
+}
+
+.launch-wallet-review > dl,
+.launch-wallet-details dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.launch-wallet-review dt,
+.launch-wallet-details dt {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Long amounts and addresses wrap inside their own cell rather than pushing the
+   card wider than the viewport. */
+.launch-wallet-review dd,
+.launch-wallet-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.launch-wallet-mono {
+  font-family: var(--font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.launch-wallet-terms {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.launch-wallet-hint,
+.launch-wallet-risk,
+.launch-wallet-notice,
+.launch-wallet-settled {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--hairline-strong);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.launch-wallet-notice[role="alert"] {
+  border-inline-start-color: var(--color-danger, #d93636);
+}
+
+.launch-wallet-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--hairline);
+}
+
+.launch-wallet-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-elevated);
+}
+
+.launch-wallet-step-state {
+  font-size: 0.8rem;
+}
+
+.launch-wallet-details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.launch-wallet-details dl {
+  margin-block-start: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.launch-wallet-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.launch-wallet button {
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.launch-wallet-primary {
+  background: var(--color-fg);
+  color: var(--color-bg);
+}
+
+/* The only motion a money action gets: the existing short press feedback. */
+.launch-wallet button:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 24.5rem) {
+  .launch-wallet-review > dl,
+  .launch-wallet-details dl {
+    grid-template-columns: 1fr;
+  }
+
+  .launch-wallet-controls button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-wallet button {
+    transition: none;
+  }
+
+  .launch-wallet button:active {
+    transform: none;
+  }
+}

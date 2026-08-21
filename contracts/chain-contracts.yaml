@@ -152,4 +152,71 @@ contracts:
           - pay
           - sweep
           - set_receiver_note
+      - contract_id: regent_erc20
+        contract_name: IERC20
+        target: pinned_regent_token_address
+        interface_note: >-
+          The only REGENT allowance a launch prepares is the exact current launch fee held by the
+          reviewed factory, including the exact zero a zero fee requires. There is no additive and
+          no unlimited approval, and no other spender.
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        action_ids:
+          - approve_exact
+      - contract_id: regents_autolaunch_factory_v1
+        contract_name: RegentsAutolaunchFactoryV1
+        target: c5_admitted_factory_address
+        source_commit: 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+        source_tree: 41c0f1ba29ceade995d1e2a5313995089bdc279a
+        source_keccak256: "0xaefec10abe77a96fd376126e5bbab7e1d4a969d8cbe3356e860c1838a49f9f15"
+        abi_path: abi/regents-autolaunch-factory-v1.json
+        abi_sha256: 70fbb029618224ccfbbca06c14c8c49ebf9511d4af014d79c916f4eaa8d46e06
+        artifact_provenance: >-
+          The consumer ABI is derived from out/RegentsAutolaunchFactoryV1.sol/RegentsAutolaunchFactoryV1.json,
+          a Foundry build output that the upstream repository's .gitignore excludes from version
+          control. It is source authority but it is not a tracked file, so the durable fingerprint
+          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
+          src/factory/RegentsAutolaunchFactoryV1.sol at source_commit, which any rebuild of that
+          commit reproduces.
+        implementation_provenance: >-
+          repos/autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+          src/factory/RegentsAutolaunchFactoryV1.sol declares the nine-field LaunchParams at lines
+          97-107 and the one customer call at lines 231-259, and the reads this lane reviews
+          against at lines 123, 132, 135, 138 and 307-309.
+        interface_note: >-
+          launch takes one dynamic tuple and nothing else: no start block, floor price, hook, pool
+          setting, salt, supply, allocation or schedule. Lines 242-246 require every metadata field
+          to be nonempty within its exact byte cap, line 238 refuses a stale fee, and lines 323-324
+          require the launcher's factory allowance to equal that fee exactly. setLaunchFee,
+          pauseLaunches, unpauseLaunches and createPaymentReceiver are deliberately not derived.
+        confirmation_event_signatures:
+          - LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64)
+          - LaunchFeeCollected(uint256,address,address,uint256)
+        action_ids:
+          - launch
+      - contract_id: regent_lbp_strategy_v1
+        contract_name: RegentLBPStrategy
+        target: reviewed_factory_bound_strategy_address
+        source_commit: 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+        source_tree: 41c0f1ba29ceade995d1e2a5313995089bdc279a
+        source_keccak256: "0xde78be091e8092fad3c30d358d68533cc914fdcdd2a60bf426ff26d6372bef1f"
+        abi_path: abi/regent-lbp-strategy-v1.json
+        abi_sha256: 84a58d177acfbd37a193314e9e0ce3baae1cfd08647605c09d52a7bc348db682
+        artifact_provenance: >-
+          The consumer ABI is derived from out/RegentLBPStrategy.sol/RegentLBPStrategy.json, a
+          Foundry build output that the upstream repository's .gitignore excludes from version
+          control. It is source authority but it is not a tracked file, so the durable fingerprint
+          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
+          src/strategy/RegentLBPStrategy.sol at source_commit, which any rebuild of that commit
+          reproduces.
+        implementation_provenance: >-
+          repos/autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+          src/strategy/RegentLBPStrategy.sol declares factory() at line 176 and the twelve founder
+          -frozen launch terms at lines 63, 66, 69, 75, 78, 81, 84, 87, 90, 109, 112 and 132.
+        interface_note: >-
+          Every term here is read for display only; none is an input a launcher chooses. Line 317
+          refuses a required raise of zero or above MAX_REACHABLE_RAISE, and POOL_TICK_SPACING is a
+          signed int24 returned sign-extended into a full word. No strategy call is prepared: this
+          lane never reaches bindHook, initializeDistribution or migrate.
+        action_ids: []
     validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs

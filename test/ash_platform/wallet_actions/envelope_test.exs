@@ -104,6 +104,36 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     end
   end
 
+  # A durable submitted hash has to stay verifiable once its signing window
+  # closes, or a launch that really is on Base could never be told the truth
+  # about. Only the resources that own a durable operation are on that list.
+  test "an expired launch envelope is no longer sendable but is still confirmable" do
+    old = DateTime.utc_now() |> DateTime.add(-601, :second)
+    previous = Application.get_env(:ash_platform, :wallet_action_clock)
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> old end)
+
+    launch = Envelope.new("autolaunch_launch", @signer, @data, launch_context())
+    other = Envelope.new("act", @signer, @data, @context)
+
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end)
+    on_exit(fn -> restore(:wallet_action_clock, previous) end)
+
+    refute Envelope.valid?(launch, resource: "autolaunch_launch")
+    assert Envelope.valid_for_confirmation?(launch, resource: "autolaunch_launch")
+
+    # A resource that owns no durable operation is not confirmable after expiry.
+    refute Envelope.valid_for_confirmation?(other, @validation)
+  end
+
+  defp launch_context do
+    [
+      to: @target,
+      resource: "autolaunch_launch",
+      contract_name: "RegentsAutolaunchFactoryV1",
+      risk_copy: "Review"
+    ]
+  end
+
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
 

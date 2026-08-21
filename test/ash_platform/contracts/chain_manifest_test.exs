@@ -14,6 +14,9 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @payment_receiver_abi_sha256 "e587fe9dab115118dba0479e899ffa098fd83b59488fbda537037ae576a19fbd"
   @c1_source_commit "59e1f0c195428f9d74b72223d154e1fee693c36d"
   @c1_source_tree "d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d"
+  @factory_abi_sha256 "70fbb029618224ccfbbca06c14c8c49ebf9511d4af014d79c916f4eaa8d46e06"
+  @strategy_abi_sha256 "84a58d177acfbd37a193314e9e0ce3baae1cfd08647605c09d52a7bc348db682"
+  @c4_source_commit "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -677,6 +680,160 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     for entry <- abi, do: assert(entry["notice"] =~ @c1_source_commit)
   end
+
+  # The C4 ABI is derived from exact pinned source, so the shapes this lane
+  # encodes and decodes are proved against the file rather than assumed.
+  test "the derived C4 factory ABI declares exactly the one customer call and its review reads" do
+    abi = c1_abi("regents-autolaunch-factory-v1.json")
+
+    assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
+             {"function", "launch"},
+             {"function", "launchFee"},
+             {"function", "launchesPaused"},
+             {"function", "strategy"},
+             {"function", "launches"},
+             {"function", "launchIdOfSubject"},
+             {"event", "LaunchCreated"},
+             {"event", "LaunchFeeCollected"}
+           ]
+
+    by_name = Map.new(abi, &{&1["name"], &1})
+
+    # The launcher supplies one tuple and nothing else: no start block, floor
+    # price, hook, pool setting, salt, supply, allocation or schedule.
+    assert [%{"type" => "tuple", "components" => components}] = by_name["launch"]["inputs"]
+    assert by_name["launch"]["stateMutability"] == "nonpayable"
+
+    assert Enum.map(components, &{&1["name"], &1["type"]}) == [
+             {"name", "string"},
+             {"symbol", "string"},
+             {"description", "string"},
+             {"website", "string"},
+             {"image", "string"},
+             {"treasury", "address"},
+             {"recoveryAdmin", "address"},
+             {"requiredRegentRaised", "uint128"},
+             {"expectedLaunchFee", "uint256"}
+           ]
+
+    # Reads are reads and the approval is a mutation; nothing here blurs them.
+    for name <- ["launchFee", "launchesPaused", "strategy", "launches", "launchIdOfSubject"] do
+      assert by_name[name]["stateMutability"] == "view"
+    end
+
+    assert [%{"type" => "tuple", "components" => record}] = by_name["launches"]["outputs"]
+    assert Enum.map(record, & &1["type"]) == List.duplicate("address", 6)
+
+    assert Enum.map(
+             by_name["LaunchCreated"]["inputs"],
+             &{&1["name"], &1["type"], &1["indexed"]}
+           ) == [
+             {"launchId", "uint256", true},
+             {"launcher", "address", true},
+             {"subject", "address", true},
+             {"auction", "address", false},
+             {"escrow", "address", false},
+             {"treasury", "address", false},
+             {"recoveryAdmin", "address", false},
+             {"requiredRegentRaised", "uint128", false},
+             {"startBlock", "uint64", false},
+             {"endBlock", "uint64", false}
+           ]
+
+    assert Enum.map(
+             by_name["LaunchFeeCollected"]["inputs"],
+             &{&1["name"], &1["type"], &1["indexed"]}
+           ) == [
+             {"launchId", "uint256", true},
+             {"payer", "address", true},
+             {"regentSafe", "address", false},
+             {"amount", "uint256", false}
+           ]
+
+    for entry <- abi, do: assert(entry["notice"] =~ @c4_source_commit)
+  end
+
+  test "the derived C4 strategy ABI declares only the reciprocal binding and the frozen terms" do
+    abi = c1_abi("regent-lbp-strategy-v1.json")
+
+    assert Enum.map(abi, & &1["name"]) == [
+             "factory",
+             "START_DELAY_BLOCKS",
+             "AUCTION_DURATION_BLOCKS",
+             "CLAIM_DELAY_BLOCKS",
+             "MIGRATION_DELAY_BLOCKS",
+             "FLOOR_PRICE_Q96",
+             "BID_TICK_Q96",
+             "AUCTION_ALLOCATION",
+             "RESERVE_ALLOCATION",
+             "PENDING_ALLOCATION",
+             "POOL_FEE",
+             "POOL_TICK_SPACING",
+             "MAX_REACHABLE_RAISE"
+           ]
+
+    by_name = Map.new(abi, &{&1["name"], &1})
+
+    # Every term is a read with no argument, so none of them can be chosen.
+    for entry <- abi do
+      assert entry["type"] == "function"
+      assert entry["stateMutability"] == "view"
+      assert entry["inputs"] == []
+      assert entry["notice"] =~ @c4_source_commit
+    end
+
+    # The one signed term, and the one whose word therefore needs bringing back.
+    assert Enum.map(by_name["POOL_TICK_SPACING"]["outputs"], & &1["type"]) == ["int24"]
+    assert by_name["POOL_TICK_SPACING"]["notice"] =~ "sign-extended"
+    assert Enum.map(by_name["MAX_REACHABLE_RAISE"]["outputs"], & &1["type"]) == ["uint128"]
+    assert Enum.map(by_name["POOL_FEE"]["outputs"], & &1["type"]) == ["uint24"]
+  end
+
+  test "C4 evidence is digest-pinned and admitted for nothing in production" do
+    admission = admission!()
+    evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
+
+    for {contract_id, digest} <- [
+          {"regents_autolaunch_factory_v1", @factory_abi_sha256},
+          {"regent_lbp_strategy_v1", @strategy_abi_sha256},
+          {"regent_erc20", @erc20_approve_abi_sha256}
+        ] do
+      entry = Map.fetch!(evidence, contract_id)
+      path = Path.join([@root, "contracts", entry["abi_path"]])
+
+      assert File.regular?(path)
+      assert entry["abi_sha256"] == digest
+      assert Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower) == digest
+
+      for action_id <- entry["action_ids"] do
+        refute "#{contract_id}.#{action_id}" in admission["admitted_prepared_actions"]
+      end
+    end
+
+    # Both launch evidence topics are independent Keccak-256 derivations.
+    factory = Map.fetch!(evidence, "regents_autolaunch_factory_v1")
+
+    assert factory["confirmation_event_signatures"] == [
+             AshPlatform.WalletActions.LaunchAbi.signature(:launch_created),
+             AshPlatform.WalletActions.LaunchAbi.signature(:launch_fee_collected)
+           ]
+
+    for signature <- factory["confirmation_event_signatures"] do
+      assert keccak(signature) ==
+               AshPlatform.WalletActions.LaunchAbi.selector(launch_event_id(signature))
+    end
+  end
+
+  defp launch_event_id("LaunchCreated" <> _rest), do: :launch_created
+  defp launch_event_id("LaunchFeeCollected" <> _rest), do: :launch_fee_collected
+
+  defp admission!,
+    do:
+      @root
+      |> Path.join("contracts/chain-contracts.yaml")
+      |> YamlElixir.read_from_file!()
+      |> Map.fetch!("contracts")
+      |> List.first()
 
   defp c1_abi(file),
     do: @root |> Path.join("contracts/abi") |> Path.join(file) |> File.read!() |> Jason.decode!()

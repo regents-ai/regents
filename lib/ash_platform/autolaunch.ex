@@ -7,6 +7,7 @@ defmodule AshPlatform.Autolaunch do
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @bid_operation Module.concat(__MODULE__, "BidOperation")
   @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
+  @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   @indexer_source Module.concat(__MODULE__, "Indexer.Source")
   @indexer_cursor Module.concat(__MODULE__, "Indexer.Cursor")
   @indexer_block Module.concat(__MODULE__, "Indexer.Block")
@@ -70,6 +71,10 @@ defmodule AshPlatform.Autolaunch do
     # The durable subject wallet operation is written only by
     # `SubjectWalletOperations` under a session lease, on the same terms.
     resource @subject_wallet_operation
+
+    # The durable direct-wallet launch is written only by `LaunchOperations`
+    # under a session lease, on the same terms.
+    resource @launch_operation
 
     resource AshPlatform.Autolaunch.Token do
       define :list_tokens, action: :list_public
@@ -278,6 +283,50 @@ defmodule AshPlatform.Autolaunch do
 
   defdelegate open_subject_wallet_operation(subject_id, opts),
     to: AshPlatform.Autolaunch.SubjectWalletActions,
+    as: :open_operation
+
+  # The C4 direct-wallet launch lane. `LaunchActions` proves the active Privy
+  # wallet against the account the mounted lease locks before anything private is
+  # read or anything durable moves, so these stay thin pass-throughs and the
+  # resource itself keeps no code interface.
+  defdelegate launch_wallet_state(address, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :wallet_state
+
+  defdelegate prepare_launch(draft_id, address, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :prepare
+
+  defdelegate claim_launch_dispatch(action_id, address, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :claim_dispatch
+
+  defdelegate bind_launch_hash(action_id, step, hash, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :bind_hash
+
+  defdelegate verify_launch_step(action_id, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :verify
+
+  defdelegate cancel_launch_review(action_id, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :cancel
+
+  defdelegate close_launch_not_sent(action_id, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :close_not_sent
+
+  defdelegate release_unstarted_launch_dispatch(action_id, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :release_unstarted
+
+  defdelegate start_new_launch(action_id, opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
+    as: :start_new
+
+  defdelegate open_launch_operation(opts),
+    to: AshPlatform.Autolaunch.LaunchActions,
     as: :open_operation
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do

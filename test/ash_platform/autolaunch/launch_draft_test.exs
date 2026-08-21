@@ -146,6 +146,30 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     end
   end
 
+  # The C4 factory refuses an empty metadata field outright, so a draft a founder
+  # can still write must never be able to hold one. Only historical rows may, and
+  # launch review is where those are refused.
+  test "no new or revised draft can store an empty metadata field" do
+    actor = actor_with_regent!("nonempty")
+    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
+
+    for field <- ["name", "symbol", "description", "website", "image"],
+        blank <- ["", " ", "\t\n"] do
+      blanked = Map.put(@draft, field, blank)
+
+      assert field_errors(Autolaunch.create_launch_draft(blanked, actor: actor)) == %{
+               field => "is required"
+             }
+
+      assert field_errors(Autolaunch.revise_launch_draft(draft, blanked, actor: actor)) == %{
+               field => "is required"
+             }
+    end
+
+    assert {:ok, [stored]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert Map.take(stored, clean_v1_keys()) == expected_values()
+  end
+
   test "only the owning human revises, and a rejected revision changes nothing" do
     owner = account!("revise-owner")
     other = account!("revise-other")
