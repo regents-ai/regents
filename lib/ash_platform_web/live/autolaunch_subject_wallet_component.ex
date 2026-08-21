@@ -35,9 +35,9 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   @receiver_kinds [:pay, :sweep, :set_note]
 
   @assets [
-    %{id: "subject", label: "SUBJECT"},
-    %{id: "usdc", label: "USDC"},
-    %{id: "regent", label: "REGENT"}
+    %{id: "subject", key: :subject, label: "SUBJECT"},
+    %{id: "usdc", key: :usdc, label: "USDC"},
+    %{id: "regent", key: :regent, label: "REGENT"}
   ]
 
   @copy %{
@@ -136,7 +136,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
           </div>
           <div :for={asset <- @assets}>
             <dt>{asset.label}</dt>
-            <dd>{@state.balances[String.to_existing_atom(asset.id)]}</dd>
+            <dd>{@state.balances[asset.key]}</dd>
           </div>
           <div>
             <dt>Staked</dt>
@@ -237,9 +237,9 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
         >
           <h3>{verb(@operation.kind)}</h3>
           <dl>
-            <div :if={argument(@operation, "amount")}>
+            <div :if={amount_display(@operation)}>
               <dt>Amount</dt>
-              <dd>{argument(@operation, "amount")} {argument(@operation, "symbol")}</dd>
+              <dd>{amount_display(@operation)} {argument(@operation, "symbol")}</dd>
             </div>
             <div :if={@operation.kind == :claim}>
               <dt>Asset</dt>
@@ -353,8 +353,10 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     do: {:noreply, adopt(socket, address)}
 
   def handle_event("select_subject_action", %{"kind" => kind}, socket) do
-    {:noreply,
-     assign(socket, kind: String.to_existing_atom(kind), amount: "", note: "", notice: nil)}
+    case action_kind(kind) do
+      nil -> {:noreply, socket}
+      kind -> {:noreply, assign(socket, kind: kind, amount: "", note: "", notice: nil)}
+    end
   end
 
   def handle_event("subject_form_changed", params, socket) do
@@ -398,27 +400,9 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
         %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
         socket
       ) do
-    subject_id = socket.assigns.subject.subject_id
-
-    case Autolaunch.bind_subject_wallet_hash(
-           subject_id,
-           action_id,
-           String.to_existing_atom(step),
-           hash,
-           opts(socket)
-         ) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-
-        socket =
-          subject_id
-          |> Autolaunch.verify_subject_wallet_step(action_id, opts(socket))
-          |> settled(socket)
-
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
+    case wallet_step(step) do
+      nil -> {:noreply, socket}
+      step -> submitted(socket, action_id, step, hash)
     end
   end
 
@@ -430,7 +414,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
        |> settled(socket)}
 
   # The exact EIP-1193 rejection of a claimed step: the wallet was asked and said
-  # no, so nothing was broadcast and the action ends.
+  # no, so nothing was broadcast and the action ends. Only that one code ends an
+  # action; any other reported code is not a rejection and changes nothing.
   def handle_event(
         "subject_wallet_rejected",
         %{"action_id" => action_id, "code" => 4001},
@@ -441,6 +426,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
          socket.assigns.subject.subject_id
          |> Autolaunch.close_subject_wallet_not_sent(action_id, opts(socket))
          |> settled(socket)}
+
+  def handle_event("subject_wallet_rejected", _params, socket), do: {:noreply, socket}
 
   # The browser proved this claimed step never reached its wallet send, so the
   # same review becomes sendable again rather than ending.
@@ -510,6 +497,43 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     """
   end
 
+  defp submitted(socket, action_id, step, hash) do
+    subject_id = socket.assigns.subject.subject_id
+
+    case Autolaunch.bind_subject_wallet_hash(subject_id, action_id, step, hash, opts(socket)) do
+      {:ok, %{operation: bound}} = result ->
+        socket = settled(result, socket)
+
+        socket =
+          subject_id
+          |> Autolaunch.verify_subject_wallet_step(action_id, opts(socket))
+          |> settled(socket)
+
+        {:noreply, acknowledged(socket, bound, step)}
+
+      refused ->
+        {:noreply, settled(refused, socket)}
+    end
+  end
+
+  # The closed sets this card maps a browser value through. Nothing here builds
+  # an atom from what the browser sent: a value outside the set has no meaning
+  # and is answered with nothing rather than with an error.
+  defp action_kind("stake"), do: :stake
+  defp action_kind("unstake"), do: :unstake
+  defp action_kind("claim"), do: :claim
+  defp action_kind("claim_all"), do: :claim_all
+  defp action_kind("pay"), do: :pay
+  defp action_kind("sweep"), do: :sweep
+  defp action_kind("set_note"), do: :set_note
+  defp action_kind(_unknown), do: nil
+
+  defp wallet_step("approval"), do: :approval
+  defp wallet_step("action"), do: :action
+  defp wallet_step(_unknown), do: nil
+
+  defp asset_key(id), do: Enum.find_value(@assets, &(&1.id == id && &1.key))
+
   defp settled({:ok, %{operation: operation}}, socket),
     do: socket |> assign(operation: operation, notice: nil) |> published()
 
@@ -537,7 +561,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     do:
       push_event(socket, "autolaunch-subject-wallet:hash-durable", %{
         action_id: operation.action_id,
-        step: step,
+        step: Atom.to_string(step),
         transaction_hash: SubjectWalletActions.step_hash(operation, step)
       })
 
@@ -646,7 +670,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   defp maximum(%{kind: :unstake, state: state}), do: state.staked
 
   defp maximum(%{kind: :pay, asset: asset, state: state}),
-    do: state.balances[String.to_existing_atom(asset)]
+    do: Map.get(state.balances, asset_key(asset), "")
 
   defp maximum(%{amount: amount}), do: amount
 
@@ -761,6 +785,12 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
+
+  # The reviewed estimate is what the customer is shown, right up until this
+  # action's own event proves what really moved. A stored result that carries no
+  # amount leaves the review exactly as it was reviewed.
+  defp amount_display(operation),
+    do: SubjectWalletActions.verified_amount(operation) || argument(operation, "amount")
 
   defp note_display(operation),
     do: operation |> argument("note") |> AshPlatform.WalletActions.SubjectAbi.note_display()

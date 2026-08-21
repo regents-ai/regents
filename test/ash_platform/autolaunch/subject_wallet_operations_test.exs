@@ -176,6 +176,95 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperationsTest do
     end
   end
 
+  describe "THE_MUTATING_FETCH_IS_LOCKED: the transition boundary really emits FOR UPDATE" do
+    test "cancelling a review takes that account's own operation row FOR UPDATE", context do
+      {:ok, operation} = review(context, :stake, %{"amount" => "10"})
+
+      emitted =
+        captured(fn ->
+          assert {:ok, %{operation: %{state: :cancelled}}} =
+                   Autolaunch.cancel_subject_wallet_review(
+                     operation.subject_id,
+                     operation.action_id,
+                     context[:opts]
+                   )
+        end)
+
+      # The lease locks its own session-authority and account rows in the same
+      # transaction, so the operation table's read is named specifically rather
+      # than proved by any lock happening somewhere.
+      assert [read] = selects(emitted, "subject_wallet_operations")
+      assert read =~ "FOR UPDATE"
+    end
+
+    test "recovering the open operation writes nothing and locks nothing", context do
+      {:ok, _operation} = review(context, :stake, %{"amount" => "10"})
+
+      emitted = captured(fn -> assert {:ok, %{operation: %{}}} = open(context) end)
+
+      assert [read] = selects(emitted, "subject_wallet_operations")
+      refute read =~ "FOR UPDATE"
+      assert Enum.all?(emitted, fn {_source, query} -> String.starts_with?(query, "SELECT") end)
+    end
+  end
+
+  describe "RECOVERY_NEEDS_THE_CURRENT_LEASE: an open action is a private fact" do
+    test "the current lease recovers the account's own open operation", context do
+      {:ok, operation} = review(context, :stake, %{"amount" => "10"})
+
+      assert {:ok, %{operation: recovered}} = open(context)
+      assert recovered.action_id == operation.action_id
+      assert recovered.signer == Fixture.wallet()
+    end
+
+    test "a caller carrying no lease at all is refused", context do
+      {:ok, operation} = review(context, :stake, %{"amount" => "10"})
+
+      assert {:error, error} =
+               Autolaunch.open_subject_wallet_operation(
+                 context[:subject].subject_id,
+                 Keyword.delete(context[:opts], :context)
+               )
+
+      assert Fixture.refusal(error) == :session_lease_required
+      assert leaked(error, operation) == []
+    end
+
+    test "a revoked lease recovers nothing and names nothing", context do
+      {:ok, operation} = review(context, :stake, %{"amount" => "10"})
+      assert SessionAuthority.revoke(claim_of(context))
+
+      assert {:error, error} = open(context)
+      assert Fixture.refusal(error) == :session_unavailable
+      assert leaked(error, operation) == []
+    end
+
+    test "a lease held for another account recovers nothing", context do
+      {:ok, operation} = review(context, :stake, %{"amount" => "10"})
+      other = Fixture.actor()
+
+      # The acting human is this account; the lease belongs to the other one.
+      mismatched = Keyword.put(context[:opts], :context, other[:opts][:context])
+
+      assert {:error, error} =
+               Autolaunch.open_subject_wallet_operation(
+                 context[:subject].subject_id,
+                 mismatched
+               )
+
+      assert Fixture.refusal(error) == :session_unavailable
+      assert leaked(error, operation) == []
+
+      # The other account's own lease is answered about the other account, so
+      # this account's open operation is never handed over by it either.
+      assert {:ok, %{operation: nil}} =
+               Autolaunch.open_subject_wallet_operation(
+                 context[:subject].subject_id,
+                 other[:opts]
+               )
+    end
+  end
+
   describe "ONE_OPEN_PER_ACCOUNT_AND_SUBJECT: subjects are independent of one another" do
     test "an undispatched review is replaced while a claimed one holds the slot", context do
       {:ok, first} = review(context, :stake, %{"amount" => "10"})
@@ -233,8 +322,12 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperationsTest do
 
       assert SessionAuthority.revoke(claim_of(context))
 
-      # The committed claim survives; the account simply cannot write again.
-      assert {:ok, current} = row(context, operation)
+      # The revoked lease recovers nothing, and the committed claim is still
+      # exactly where it was written: the account simply cannot write again.
+      assert {:error, gone} = open(context)
+      assert Fixture.refusal(gone) == :session_unavailable
+
+      assert {:ok, current} = stored_row(context, operation)
       assert current.state == :dispatched
     end
   end
@@ -390,11 +483,13 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperationsTest do
     with {:ok, %{operation: current}} <- open(context) do
       if current && current.action_id == operation.action_id,
         do: {:ok, current},
-        else: terminal_row(context, operation)
+        else: stored_row(context, operation)
     end
   end
 
-  defp terminal_row(context, operation) do
+  # The durable row itself, read by account id. This is the private read the
+  # boundary wraps, so it needs no lease and never stands in for one.
+  defp stored_row(context, operation) do
     AshPlatform.Autolaunch.SubjectWalletOperations.fetch(
       context[:account].id,
       context[:subject].subject_id,
@@ -432,6 +527,53 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperationsTest do
          do: {:ok, operation}
   end
 
+  # The SQL a real public transition actually emitted, taken from the
+  # repository's own telemetry rather than rebuilt from a query this test wrote.
+  defp captured(work) do
+    parent = self()
+    handler = "subject-wallet-sql-#{Elixir.System.unique_integer([:positive])}"
+
+    :telemetry.attach(
+      handler,
+      [:ash_platform, :repo, :query],
+      fn _event, _measurements, metadata, owner ->
+        if self() == owner, do: send(owner, {:sql, metadata[:source], metadata.query})
+      end,
+      parent
+    )
+
+    work.()
+    :telemetry.detach(handler)
+    drained([])
+  end
+
+  defp drained(collected) do
+    receive do
+      {:sql, source, query} -> drained([{source, query} | collected])
+    after
+      0 -> Enum.reverse(collected)
+    end
+  end
+
+  defp selects(emitted, table) do
+    for {^table, query} <- emitted, String.starts_with?(query, "SELECT"), do: query
+  end
+
+  # A refusal may not carry one fact of the operation it declined to answer
+  # about: not its identity, not its signer, not its reviewed bytes.
+  defp leaked(error, operation) do
+    rendered = inspect(error, limit: :infinity, printable_limit: :infinity)
+
+    Enum.filter(
+      [
+        operation.action_id,
+        operation.signer,
+        hd(operation.envelope["arguments"]["steps"])["data"]
+      ],
+      &String.contains?(rendered, &1)
+    )
+  end
+
   defp claim_of(context) do
     %{
       lineage: context[:opts][:context][:session_lease][:lineage],
@@ -439,8 +581,11 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperationsTest do
     }
   end
 
-  # Separate database connections and a barrier, so the race is a real one rather
-  # than a scheduling accident.
+  # These tasks are allowed onto the test's own sandboxed connection, so they
+  # share it and their statements take turns rather than running in parallel.
+  # What the barrier proves is that two callers arriving at the same step in
+  # either order still produce exactly one winner; the `FOR UPDATE` proof above
+  # is what shows the row itself is locked while that happens.
   defp race(work, count), do: race_each(List.duplicate(work, count))
 
   defp race_each(works) do

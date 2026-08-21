@@ -7,6 +7,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.SubjectWalletActions
   alias AshPlatform.SubjectWalletFixture, as: Fixture
   alias AshPlatform.WalletActions.SubjectAbi
 
@@ -313,6 +314,62 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       assert Fixture.refusal(error) == :subject_splitter_unavailable
     end
   end
+
+  describe "AN_EVENT_VERIFIED_AMOUNT_REPLACES_THE_REVIEWED_ONE" do
+    test "a confirmed claim reads its own reviewed token, and no event is a truthful zero",
+         context do
+      assert {:ok, %{operation: operation}} = prepare(context, :claim, %{"asset" => "usdc"})
+      token = operation.envelope["arguments"]["token"]
+      assert operation.envelope["arguments"]["amount"] == "12"
+
+      assert verified(operation, %{"claimed" => %{token => "9500000"}}) == "9.5"
+      assert verified(operation, %{"claimed" => %{}}) == "0"
+
+      # A canonical success only ever records this claim's own token, so an
+      # entry for anything else is not this claim's amount.
+      assert verified(operation, %{"claimed" => %{Fixture.regent() => "5000000"}}) == "0"
+    end
+
+    test "a confirmed sweep reads the gross its routing event reported", context do
+      assert {:ok, %{operation: operation}} = prepare(context, :sweep, %{"asset" => "usdc"})
+      assert operation.envelope["arguments"]["amount"] == "7"
+
+      assert verified(operation, %{"gross" => "6500000", "note" => "0x00"}) == "6.5"
+      assert verified(operation, %{"gross" => "0"}) == "0"
+    end
+
+    test "nothing else, and nothing malformed, ever produces an amount", context do
+      assert {:ok, %{operation: claim}} = prepare(context, :claim, %{"asset" => "usdc"})
+      token = claim.envelope["arguments"]["token"]
+
+      for result <- [
+            %{},
+            %{"claimed" => "not a map"},
+            %{"claimed" => %{token => "twelve"}},
+            %{"claimed" => %{token => 12}},
+            %{"claimed" => %{token => "-1"}},
+            %{"claimed" => %{token => "1.5"}},
+            %{"gross" => "6500000"}
+          ] do
+        assert verified(claim, result) == nil
+      end
+
+      # A row that has not confirmed keeps its estimate whatever it stores.
+      assert SubjectWalletActions.verified_amount(%{
+               claim
+               | result: %{"claimed" => %{token => "1"}}
+             }) == nil
+
+      # The other five actions never learn an amount from a result at all.
+      assert {:ok, %{operation: paid}} =
+               prepare(context, :pay, %{"asset" => "usdc", "amount" => "5"})
+
+      assert verified(paid, %{"gross" => "5000000"}) == nil
+    end
+  end
+
+  defp verified(operation, result),
+    do: SubjectWalletActions.verified_amount(%{operation | state: :confirmed, result: result})
 
   defp prepare(context, kind, params, opts \\ nil) do
     Autolaunch.prepare_subject_wallet_action(

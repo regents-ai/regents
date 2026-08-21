@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
 
   use AshPlatformWeb.ConnCase, async: false
 
+  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.SubjectWalletFixture, as: Fixture
   alias AshPlatform.TestAutolaunchSubjectWalletChainClient, as: ChainClient
 
@@ -402,6 +403,247 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
     end
   end
 
+  describe "A_CONFIRMED_ACTION_SHOWS_WHAT_ITS_OWN_EVENT_PROVED" do
+    test "a confirmed claim shows the amount its event recorded, not the estimate", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+
+      html =
+        confirmed(view, :claim, %{"asset" => "usdc"}, %{
+          outcome: :confirmed,
+          result: %{"claimed" => %{Fixture.usdc() => "9500000"}}
+        })
+
+      assert html =~ "9.5 USDC"
+      refute html =~ "12 USDC"
+      assert text(html) =~ "Confirmed on Base."
+    end
+
+    test "a confirmed claim that collected nothing shows a truthful zero", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+
+      html =
+        confirmed(view, :claim, %{"asset" => "usdc"}, %{
+          outcome: :confirmed,
+          result: %{"claimed" => %{}}
+        })
+
+      assert html =~ "0 USDC"
+      refute html =~ "12 USDC"
+      assert text(html) =~ "There was nothing available to claim."
+    end
+
+    test "a confirmed sweep shows the gross its routing event reported", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+
+      html =
+        confirmed(view, :sweep, %{"asset" => "usdc"}, %{
+          outcome: :confirmed,
+          result: %{"gross" => "6500000", "note" => Fixture.note_word(Fixture.receiver())}
+        })
+
+      assert html =~ "6.5 USDC"
+      refute html =~ "7 USDC"
+      assert text(html) =~ "Confirmed on Base."
+    end
+
+    test "a stored result carrying no whole amount keeps the reviewed one", %{conn: conn} do
+      for claimed <- ["not a map", %{Fixture.usdc() => "twelve"}, %{Fixture.usdc() => 12}, %{}] do
+        Fixture.install()
+        context = Fixture.actor()
+        view = ready(conn, context[:account], context[:subject])
+
+        html =
+          confirmed(view, :claim, %{"asset" => "usdc"}, %{
+            outcome: :confirmed,
+            result: %{"claimed" => claimed}
+          })
+
+        # An empty map is the one truthful zero; every other unusable shape
+        # leaves the reviewed estimate exactly where it was, and none of them
+        # takes the card down.
+        assert text(html) =~ "Confirmed on Base."
+        assert html =~ if(claimed == %{}, do: "0 USDC", else: "12 USDC")
+      end
+    end
+
+    test "a row that settled as anything but confirmed keeps the reviewed estimate", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      html = confirmed(view, :claim, %{"asset" => "usdc"}, %{outcome: :reverted})
+
+      assert html =~ "12 USDC"
+      assert text(html) =~ "This transaction reverted on Base. Nothing moved."
+    end
+  end
+
+  describe "RECOVERY_IS_SCOPED_TO_THE_CURRENT_LEASE" do
+    test "a fresh browser on the same account recovers its own open action", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      {_signed_in, view} = mounted(conn, account, subject)
+      review(view, :unstake, %{"amount" => "10"})
+      action_id = action_id(view)
+
+      {_other_browser, reopened} = mounted(build_conn(), account, subject)
+      html = render_hook(element(reopened, @card), "restore_subject_wallet_operation", %{})
+
+      assert html =~ "Unstake"
+      assert action_id(reopened) == action_id
+    end
+
+    test "a revoked lease recovers no field of the open action at all", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      {_signed_in, view} = mounted(conn, account, subject)
+      review(view, :unstake, %{"amount" => "10"})
+      action_id = action_id(view)
+
+      # A second browser on this account mounts and has adopted no wallet yet.
+      browser = init_test_session(build_conn(), %{human_account_id: account.id})
+      {:ok, reopened, _html} = live(browser, path(subject))
+      assert SessionAuthority.revoke(claim_of(browser))
+
+      html = render_hook(element(reopened, @card), "restore_subject_wallet_operation", %{})
+
+      assert text(html) =~ "Sign in again to continue."
+      refute html =~ action_id
+      refute html =~ "Unstake"
+      refute has_element?(reopened, "#{@card}-review")
+      refute has_element?(reopened, "#{@card} [data-subject-wallet-send]")
+    end
+
+    test "another account's browser recovers nothing of this account's action", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      {_signed_in, view} = mounted(conn, account, subject)
+      review(view, :unstake, %{"amount" => "10"})
+      action_id = action_id(view)
+
+      stranger = Fixture.actor()[:account]
+      {_browser, theirs} = mounted(build_conn(), stranger, subject)
+      html = render_hook(element(theirs, @card), "restore_subject_wallet_operation", %{})
+
+      refute html =~ action_id
+      refute has_element?(theirs, "#{@card}-review")
+    end
+  end
+
+  describe "CRAFTED_BROWSER_VALUES_ARE_MAPPED_OR_IGNORED" do
+    test "an action kind outside the seven selects nothing and makes no atom", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      select(view, :unstake)
+      crafted = "crafted_kind_#{Elixir.System.unique_integer([:positive])}"
+
+      render_hook(element(view, @card), "select_subject_action", %{"kind" => crafted})
+
+      assert has_element?(view, ~s(#{@card}-action-unstake[aria-pressed="true"]))
+      assert_raise ArgumentError, fn -> String.to_existing_atom(crafted) end
+    end
+
+    test "a step outside approval and action binds nothing and makes no atom", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      review(view, :unstake, %{"amount" => "10"})
+      action_id = action_id(view)
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+
+      crafted = "crafted_step_#{Elixir.System.unique_integer([:positive])}"
+
+      render_hook(element(view, @card), "subject_wallet_submitted", %{
+        "action_id" => action_id,
+        "step" => crafted,
+        "transaction_hash" => @action_hash
+      })
+
+      assert_raise ArgumentError, fn -> String.to_existing_atom(crafted) end
+      refute render(view) =~ @action_hash
+    end
+
+    test "an asset outside the three fills no amount and prepares nothing", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      select(view, :pay)
+
+      render_hook(element(view, @card), "subject_form_changed", %{"asset" => "dai"})
+
+      assert view
+             |> element(~s(#{@card} button[phx-click="fill_subject_amount"]))
+             |> render_click() =~ ~s(value="")
+
+      # The select itself offers only the three, so a crafted asset can only
+      # arrive on a hand-made submit, where preparation names the refusal.
+      html =
+        render_hook(element(view, @card), "review_subject_action", %{
+          "asset" => "dai",
+          "amount" => "1"
+        })
+
+      assert text(html) =~ "Choose SUBJECT, USDC, or REGENT."
+      refute has_element?(view, "#{@card}-review")
+    end
+
+    test "a reported code that is not the wallet's own rejection ends nothing", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      review(view, :unstake, %{"amount" => "10"})
+      action_id = action_id(view)
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+
+      for code <- [4002, "4001", 0, nil] do
+        html =
+          render_hook(element(view, @card), "subject_wallet_rejected", %{
+            "action_id" => action_id,
+            "code" => code
+          })
+
+        refute text(html) =~ "Your wallet declined this."
+      end
+
+      # The wallet's own rejection still ends exactly this claimed step.
+      html =
+        render_hook(element(view, @card), "subject_wallet_rejected", %{
+          "action_id" => action_id,
+          "code" => 4001
+        })
+
+      assert text(html) =~ "Your wallet declined this. Nothing was sent."
+    end
+  end
+
   describe "SWITCHING_WALLETS_CANCELS_ONLY_AN_UNDISPATCHED_REVIEW" do
     test "an undispatched review is withdrawn when the wallet changes", %{
       conn: conn,
@@ -456,9 +698,39 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
   end
 
   defp ready(conn, account, subject) do
-    {:ok, view, _html} = signed_in(conn, account, subject)
-    active_wallet(view, @wallet)
+    {_signed_in, view} = mounted(conn, account, subject)
     view
+  end
+
+  # The same card, together with the connection whose lease it mounted under, so
+  # a test can revoke exactly that lease afterwards.
+  defp mounted(conn, account, subject) do
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, path(subject))
+    active_wallet(view, @wallet)
+    {signed_in, view}
+  end
+
+  # One reviewed action driven all the way to whatever its own event settles it
+  # as. Neither a claim nor a sweep needs an approval, so each is a single step.
+  defp confirmed(view, kind, params, outcome) do
+    review(view, kind, params)
+    action_id = action_id(view)
+    render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+    ChainClient.put(%{outcomes: %{action: outcome}})
+
+    render_hook(element(view, @card), "subject_wallet_submitted", %{
+      "action_id" => action_id,
+      "step" => "action",
+      "transaction_hash" => unique_hash()
+    })
+  end
+
+  # Every bound hash is unique across every operation, so a test that settles
+  # more than one action reports a different one each time.
+  defp unique_hash do
+    hex = [:positive] |> Elixir.System.unique_integer() |> Integer.to_string(16)
+    "0x" <> String.pad_leading(hex, 64, "0")
   end
 
   defp active_wallet(view, address),
@@ -487,6 +759,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
   # HEEx wraps long copy across source lines, so customer sentences are compared
   # against the rendered text with its whitespace collapsed.
   defp text(html), do: String.replace(html, ~r/\s+/, " ")
+
+  defp claim_of(conn), do: conn |> get_session() |> SessionAuthority.claim()
 
   defp lineage(conn, account) do
     conn

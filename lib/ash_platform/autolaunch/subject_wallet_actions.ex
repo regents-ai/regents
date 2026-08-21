@@ -209,12 +209,23 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
   def start_new(subject_id, action_id, opts),
     do: write(subject_id, action_id, opts, transition(:close_submission_unknown, @unresolved))
 
-  @doc "The account's open operation for this subject, recovered without a lease and writing nothing."
+  @doc """
+  The account's open operation for this subject, recovered under its current lease.
+
+  Recovery reads private facts, so it requires the same current lease every other
+  path does: the lease has to resolve an account right now, the acting human has
+  to be that account, and the row is read by the account the lease resolved
+  rather than by anything the caller named. Nothing is written. A missing,
+  revoked or account-mismatched lease is refused without naming a single fact of
+  whatever operation may exist.
+  """
   @spec open_operation(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def open_operation(subject_id, opts) do
     with {:ok, actor} <- human(opts),
-         {:ok, operation} <-
-           SubjectWalletOperations.open(actor.human_account_id, subject_id, false),
+         {:ok, lease} <- lease(opts),
+         {:ok, account} <- leased(lease),
+         :ok <- same_account(actor, account),
+         {:ok, operation} <- SubjectWalletOperations.open(account.id, subject_id, false),
          do: {:ok, %{operation: presented(operation)}}
   end
 
@@ -242,10 +253,20 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
   @spec steps(map()) :: [map()]
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
-  @doc "The hash bound for one step of an operation, or `nil`."
-  @spec step_hash(map(), String.t()) :: String.t() | nil
-  def step_hash(operation, step),
-    do: SubjectWalletOperations.hash(operation, String.to_existing_atom(step))
+  @doc """
+  The hash bound for one named step of an operation, or `nil`.
+
+  The two reviewed steps are named exactly, so a value that is neither has no
+  hash rather than becoming an atom.
+  """
+  @spec step_hash(map(), String.t() | atom()) :: String.t() | nil
+  def step_hash(operation, step) when step in [:approval, "approval"],
+    do: SubjectWalletOperations.hash(operation, :approval)
+
+  def step_hash(operation, step) when step in [:action, "action"],
+    do: SubjectWalletOperations.hash(operation, :action)
+
+  def step_hash(_operation, _unknown), do: nil
 
   @doc "The exact protocol share every recognized inflow floors once, in basis points."
   @spec protocol_share_bps() :: pos_integer()
@@ -261,6 +282,49 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
     do: amount |> String.to_integer() |> units(asset)
 
   def units(amount, asset), do: Rpc.format_units(amount, SubjectAbi.decimals(asset))
+
+  @doc """
+  The amount a confirmed action's own event proves moved, or `nil`.
+
+  Two of the seven learn an amount only from the chain. A claim reads the
+  reviewed token's entry in `result["claimed"]`, where an absent entry is the
+  truthful zero of a canonical success that had nothing to collect; a sweep reads
+  the `result["gross"]` its routing event reported. Both render through the
+  reviewed decimals the envelope pinned.
+
+  Everything else — another action, a row that has not confirmed, and a stored
+  result that carries no whole atomic amount — has no verified amount, so the
+  reviewed estimate is what still stands.
+  """
+  @spec verified_amount(map()) :: String.t() | nil
+  def verified_amount(%{state: :confirmed, kind: :claim} = operation),
+    do: reviewed_units(collected(operation), operation)
+
+  def verified_amount(%{state: :confirmed, kind: :sweep} = operation),
+    do: reviewed_units(operation.result["gross"], operation)
+
+  def verified_amount(_operation), do: nil
+
+  # A canonical claim records only its own reviewed token, so an absent entry is
+  # a success that collected nothing rather than an unknown amount.
+  defp collected(%{result: %{"claimed" => claimed}} = operation) when is_map(claimed),
+    do: Map.get(claimed, argument(operation, "token"), "0")
+
+  defp collected(_operation), do: nil
+
+  # An atomic amount is exactly digits against the decimals this review pinned.
+  # Anything else is not an amount, so nothing is rendered as one.
+  defp reviewed_units(amount, operation) when is_binary(amount) do
+    decimals = argument(operation, "decimals")
+
+    if String.match?(amount, ~r/^\d+$/) and is_integer(decimals) and decimals >= 0,
+      do: Rpc.format_units(String.to_integer(amount), decimals),
+      else: nil
+  end
+
+  defp reviewed_units(_amount, _operation), do: nil
+
+  defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
 
   # Reviews
 
@@ -823,12 +887,24 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
          do: {:ok, signer}
   end
 
-  defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer) do
+  # The account the mounted lease resolves to right now. A lineage that has been
+  # revoked, rebound or whose provider evidence has lapsed resolves to nothing.
+  defp leased(%{lineage: lineage, account_id: account_id}) do
     case SessionAuthority.leased_account(lineage, account_id) do
       nil -> unavailable(:session_unavailable)
-      account -> SubjectWalletOperations.signer_matches(account, signer)
+      account -> {:ok, account}
     end
   end
+
+  defp leased_wallet(lease, signer) do
+    with {:ok, account} <- leased(lease),
+         do: SubjectWalletOperations.signer_matches(account, signer)
+  end
+
+  # The lease and the acting human have to name one account, so a lease held for
+  # another account answers about nothing.
+  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
+  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
 
   # Shared helpers
 
