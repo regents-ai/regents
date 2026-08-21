@@ -172,7 +172,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           class="launch-wallet-settled"
           role="alert"
         >
-          {settled_copy(@operation.state)}
+          {settled_copy(@operation)}
         </p>
         <p
           :if={
@@ -181,7 +181,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           class="launch-wallet-settled"
           role="status"
         >
-          {settled_copy(@operation.state)}{ended_because(@operation)}
+          {settled_copy(@operation)}
         </p>
 
         <details class="launch-wallet-details">
@@ -522,20 +522,41 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     do:
       "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
 
-  defp settled_copy(:reverted), do: "This transaction reverted on Base. Nothing was created."
+  defp settled_copy(%{state: :reverted}),
+    do: "This transaction reverted on Base. Nothing was created."
 
-  defp settled_copy(:unverified),
+  defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the launch you reviewed."
 
-  defp settled_copy(:not_sent), do: "Your wallet declined this. Nothing was sent."
-  defp settled_copy(:cancelled), do: "This review was cancelled. Nothing was sent."
-  defp settled_copy(:expired), do: "This review expired before it was sent. Nothing was sent."
-  defp settled_copy(:invalidated), do: "Base moved on before this was sent. Nothing was sent."
-
-  defp settled_copy(:submission_unknown),
+  defp settled_copy(%{state: :submission_unknown}),
     do: "This one is still unresolved. Check your wallet activity before you try it again."
 
-  defp ended_because(%{state: :invalidated, reason: reason}) when is_binary(reason),
+  defp settled_copy(%{state: :not_sent} = operation),
+    do: "Your wallet declined this." <> left_behind(operation)
+
+  defp settled_copy(%{state: :cancelled} = operation),
+    do: "This review was cancelled." <> left_behind(operation)
+
+  defp settled_copy(%{state: :expired} = operation),
+    do: "This review expired before the launch was sent." <> left_behind(operation)
+
+  defp settled_copy(%{state: :invalidated} = operation),
+    do:
+      "Base moved on before the launch was sent." <>
+        left_behind(operation) <> ended_because(operation)
+
+  # A review that ends after its allowance correction was already sent leaves
+  # that exact allowance standing on Base, so claiming nothing was sent would be
+  # false. The standing approval is named instead, and the next review's
+  # exact-equality branch is what corrects it.
+  defp left_behind(operation) do
+    if LaunchActions.step_hash(operation, "approval"),
+      do:
+        " Your REGENT approval was already sent, so that allowance may still be active. A fresh review corrects that allowance exactly.",
+      else: " Nothing was sent."
+  end
+
+  defp ended_because(%{reason: reason}) when is_binary(reason),
     do: " Review it again: #{reason}."
 
   defp ended_because(_operation), do: ""

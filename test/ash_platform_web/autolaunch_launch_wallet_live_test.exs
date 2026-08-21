@@ -258,9 +258,54 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
           "action-id" => operation.action_id
         })
 
-      assert html =~ "Base moved on before this was sent. Nothing was sent."
+      assert html =~ "Base moved on before the launch was sent. Nothing was sent."
       assert html =~ "the launch fee changed after this review"
       refute html =~ "data-launch-wallet-send"
+    end
+  end
+
+  describe "AN_ENDED_REVIEW_NAMES_THE_ALLOWANCE_IT_LEFT_STANDING" do
+    test "a launch invalidated after a verified approval names the standing allowance",
+         context do
+      {view, operation} = approved(context)
+
+      # Base disagrees with the review the wallet is about to be handed.
+      ChainClient.put(Fixture.fixture(fee: 2 * @fee, allowance: @fee))
+
+      html =
+        render_hook(element(view, card(context)), "sign_launch_step", %{
+          "action-id" => operation.action_id
+        })
+
+      refute html =~ "Nothing was sent"
+      assert html =~ "Base moved on before the launch was sent."
+
+      assert html =~
+               "Your REGENT approval was already sent, so that allowance may still be active."
+
+      assert html =~ "A fresh review corrects that allowance exactly."
+      assert html =~ "the launch fee changed after this review"
+    end
+
+    test "a launch expired after a verified approval names the standing allowance", context do
+      {view, operation} = approved(context)
+
+      elapsed = fn -> DateTime.add(DateTime.utc_now(), 3_600, :second) end
+      Application.put_env(:ash_platform, :wallet_action_clock, elapsed)
+      on_exit(fn -> Application.delete_env(:ash_platform, :wallet_action_clock) end)
+
+      html =
+        render_hook(element(view, card(context)), "sign_launch_step", %{
+          "action-id" => operation.action_id
+        })
+
+      refute html =~ "Nothing was sent"
+      assert html =~ "This review expired before the launch was sent."
+
+      assert html =~
+               "Your REGENT approval was already sent, so that allowance may still be active."
+
+      assert html =~ "A fresh review corrects that allowance exactly."
     end
   end
 
@@ -355,6 +400,23 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
     })
 
     view
+  end
+
+  # The exact sequence that leaves a REGENT allowance standing on Base: the
+  # allowance correction is claimed, its hash is reported, and Base confirms it,
+  # so the review moves on to a launch step that has already sent one
+  # transaction.
+  defp approved(context) do
+    view = submitted(context)
+    operation = open!(context)
+
+    ChainClient.put(%{outcomes: %{approval: %{outcome: :confirmed}}})
+
+    assert view
+           |> element(~s(#{card(context)} button[phx-click="check_launch_step"]))
+           |> render_click() =~ "Verified"
+
+    {view, operation}
   end
 
   # Each saved draft carries its own card, so the wallet is published to the exact
