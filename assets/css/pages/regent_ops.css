@@ -81,6 +81,14 @@
   border-bottom: 0;
 }
 
+/* A production-sized figure wraps inside its row instead of pushing the card
+   wider than the column it sits in. */
+.regent-ops-metric dt,
+.regent-ops-metric dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .regent-ops-metric dd {
   margin: 0;
   font-variant-numeric: tabular-nums;

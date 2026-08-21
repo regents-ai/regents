@@ -1,43 +1,57 @@
 .stake-page {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .stake-heading,
-.stake-actions,
 .stake-summary,
-.stake-review {
-  border: 1px solid var(--hairline, color-mix(in srgb, currentColor 18%, transparent));
-  background: var(--color-surface-elevated, Canvas);
-  padding: clamp(1rem, 3vw, 1.5rem);
+.stake-actions {
+  border: 1px solid transparent;
+  border-radius: var(--material-radius);
+  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(var(--material-blur));
+  -webkit-backdrop-filter: blur(var(--material-blur));
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+
+.stake-heading > * {
+  margin-block: 0;
 }
 
 .stake-heading h1,
-.stake-review h2,
-.stake-actions h2 {
-  margin-block: 0.25rem 0.5rem;
+.stake-actions h2,
+.stake-review h2 {
+  margin-block: 0.35rem 0.5rem;
 }
 
 .stake-kicker,
 .stake-metric dt,
 .stake-review dt {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.stake-layout,
-.stake-summary,
+.stake-layout {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.65fr) minmax(18rem, 1.35fr);
+  gap: 1.25rem;
+}
+
+.stake-summary {
+  display: grid;
+  align-self: start;
+  gap: 0;
+  margin: 0;
+  padding: 1rem;
+}
+
 .stake-actions,
-.stake-review,
 .stake-review dl {
   display: grid;
   gap: 1rem;
-}
-
-.stake-layout {
-  grid-template-columns: minmax(14rem, 0.8fr) minmax(18rem, 1.2fr);
 }
 
 .stake-metric,
@@ -45,8 +59,29 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--hairline, color-mix(in srgb, currentColor 18%, transparent));
+  border-bottom: 1px solid var(--hairline);
+}
+
+.stake-metric {
+  padding-block: 0.8rem;
+}
+
+.stake-metric:last-child,
+.stake-review dl div:last-child {
+  border-bottom: 0;
+}
+
+.stake-review dl div {
   padding-bottom: 0.75rem;
+}
+
+/* A production-sized figure wraps inside its row instead of pushing the card
+   wider than the column it sits in. */
+.stake-metric dt,
+.stake-metric dd,
+.stake-review dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .stake-metric dd,
@@ -61,9 +96,9 @@
   gap: 0.5rem;
 }
 
-.stake-actions input {
-  min-height: 2.75rem;
-  padding: 0.5rem 0.75rem;
+.stake-actions label {
+  font-size: 0.9rem;
+  color: var(--color-fg-muted);
 }
 
 .stake-mode,
@@ -76,24 +111,55 @@
   gap: 0.5rem;
 }
 
+.stake-actions button,
+.stake-actions input {
+  border-radius: var(--material-radius);
+  border-color: var(--hairline-strong);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.stake-actions input {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .stake-amount input {
-  flex: 1 1 8rem;
+  flex: 1 1 10rem;
   min-width: 0;
+  font-size: 1.05rem;
 }
 
 .stake-mode button[aria-pressed="true"] {
-  border-color: var(--color-accent, currentColor);
+  border-color: var(--color-accent);
   font-weight: 600;
 }
 
 .stake-available {
   margin: 0;
   font-variant-numeric: tabular-nums;
-  opacity: 0.75;
+  overflow-wrap: anywhere;
+  color: var(--color-fg-muted);
 }
 
-.stake-primary {
+/* Outranks the shared control rule above, so the one primary action keeps its
+   filled treatment. */
+.stake-actions .stake-primary {
+  justify-self: start;
   min-height: 2.75rem;
+  padding-inline: 1.25rem;
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+  font-weight: 600;
+}
+
+.stake-primary:disabled {
+  background: var(--hairline-strong);
+  color: var(--color-fg-muted);
 }
 
 .stake-footer {
@@ -103,17 +169,54 @@
 .stake-amount-notice,
 .stake-notice,
 .stake-status {
-  border-left: 3px solid var(--color-accent, currentColor);
+  border-left: 3px solid var(--color-accent);
   margin: 0;
   padding: 0.75rem;
+  background: var(--color-surface-elevated);
+}
+
+/* The review sits inside the action card, so it reads as an inset panel rather
+   than a second floating card. */
+.stake-review {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  padding: clamp(1rem, 3vw, 1.25rem);
+  background: var(--color-surface-elevated);
 }
 
 .stake-mono {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stake-actions button:not(:disabled):hover {
+    border-color: var(--color-accent);
+  }
+
+  .stake-primary:not(:disabled):hover {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--color-accent) 88%, var(--color-fg));
+  }
 }
 
 @media (max-width: 48rem) {
   .stake-layout {
     grid-template-columns: 1fr;
+  }
+
+  .stake-primary {
+    justify-self: stretch;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .stake-heading,
+  .stake-summary,
+  .stake-actions {
+    background: var(--color-surface-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

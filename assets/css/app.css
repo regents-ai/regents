@@ -25,15 +25,18 @@
   font-display: swap;
 }
 
+/* App-local face names. The imported RegentUI faces of the same name list an
+   obsolete `*-Variable.woff2` source first, so naming these apart is what keeps
+   the browser off those 404s and on the binaries this repository tracks. */
 @font-face {
-  font-family: "Geist UI Sans";
+  font-family: "Ash Geist UI Sans";
   src: url("/fonts/geist/Geist[wght].woff2") format("woff2");
   font-weight: 100 900;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: "Ash Geist Mono";
   src: url("/fonts/geist/GeistMono[wght].woff2") format("woff2");
   font-weight: 100 900;
   font-display: swap;
@@ -41,9 +44,9 @@
 
 :root {
   color-scheme: light dark;
-  --font-family-sans: "Geist UI Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: "Ash Geist UI Sans", ui-sans-serif, system-ui, sans-serif;
   --font-family-ui: var(--font-family-sans);
-  --font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-family-mono: "Ash Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-family-display: "GeistPixel Circle", "GeistPixel Square", sans-serif;
   --font-family-title: var(--font-family-display);
   --font-family-pixel: "GeistPixel Square", sans-serif;
@@ -129,6 +132,19 @@ input:focus-visible,
 
 .shell-status[aria-busy="true"]::after {
   content: "…";
+}
+
+/* Carries the exact figure behind a shortened one, for assistive technology. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -342,6 +342,44 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(button[phx-value-portion="max"][disabled]))
   end
 
+  # A production-sized position is shortened only where it is read. The summary
+  # shows the compact figure with the exact one still in the page as real text,
+  # while the amount the form spends stays exact and unrounded.
+  test "U1_COMPACT_DISPLAY_NEVER_BECOMES_INPUT: a billion-scale position reads compact and spends exact",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_denominator, "7390000099900000000000000000")
+
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{token: "7390000000000000000000000000"}
+    })
+
+    view = signed_in(conn, "stake-production-sized")
+    activate(view, @wallet)
+
+    assert has_element?(view, ~s(.stake-metric dd [aria-hidden="true"]), "7.39B REGENT")
+    assert has_element?(view, ".stake-metric dd .visually-hidden", "7390000000 REGENT")
+
+    # Remaining capacity sits a hair under the boundary, and display truncates
+    # rather than rounding it up to that boundary.
+    assert has_element?(view, ~s(.stake-metric dd [aria-hidden="true"]), "7.38B REGENT")
+    assert has_element?(view, ".stake-metric dd .visually-hidden", "7389999999.9 REGENT")
+
+    # Neither the available amount nor the quick fill is ever the compact one.
+    assert render(view) =~ "Available 7389999999.9 REGENT"
+    render_click(view, "fill_staking_amount", %{"portion" => "max"})
+    assert render(view) =~ ~s(value="7389999999.9")
+  end
+
+  # Each metric is a term and its value inside a definition list, so the pairing
+  # is exposed as a pairing rather than as loose terms in a generic container.
+  test "U2_VALID_METRIC_SEMANTICS: the staking summary is a definition list", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/stake")
+    render_async(view)
+
+    assert has_element?(view, ~s(dl.stake-summary[aria-label="Staking summary"] > div > dt))
+    assert has_element?(view, ~s(dl.stake-summary > div > dd))
+  end
+
   # A claim of nothing is not an action. The controls say so, and the server
   # refuses the event even when it is sent anyway.
   test "P5_NO_ZERO_CLAIMS: zero USDC, REGENT and claim-and-restake controls are refused",

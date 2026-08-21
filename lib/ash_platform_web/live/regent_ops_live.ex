@@ -2,6 +2,8 @@ defmodule AshPlatformWeb.RegentOpsLive do
   @moduledoc false
   use Phoenix.Component
 
+  alias AshPlatformWeb.TokenDisplay
+
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
@@ -25,10 +27,13 @@ defmodule AshPlatformWeb.RegentOpsLive do
       </div>
 
       <div :if={@status == :ready && @staking} class="regent-ops-layout">
-        <section class="regent-ops-summary" aria-label="Regents Labs summary">
-          <.metric label="Network" value={@staking.chain_label} />
-          <.metric label="Total REGENT staked" value={token(@staking.total_staked, "REGENT")} />
-        </section>
+        <dl class="regent-ops-summary" aria-label="Regents Labs summary">
+          <div class="regent-ops-metric">
+            <dt>Network</dt>
+            <dd>{@staking.chain_label}</dd>
+          </div>
+          <.metric label="Total REGENT staked" amount={@staking.total_staked} unit="REGENT" />
+        </dl>
 
         <section :if={@account_control.kind == :sign_in} class="regent-ops-account">
           <p class="regent-ops-kicker">Your Regent</p>
@@ -44,11 +49,11 @@ defmodule AshPlatformWeb.RegentOpsLive do
           </div>
 
           <dl class="regent-ops-balances">
-            <.metric label="Available REGENT" value={token(@staking.wallet_token_balance, "REGENT")} />
-            <.metric label="Available USDC" value={token(@staking.wallet_usdc_balance, "USDC")} />
-            <.metric label="Staked REGENT" value={token(@staking.wallet_stake_balance, "REGENT")} />
-            <.metric label="USDC rewards" value={token(@staking.wallet_claimable_usdc, "USDC")} />
-            <.metric label="REGENT rewards" value={token(@staking.wallet_claimable_regent, "REGENT")} />
+            <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
+            <.metric label="Available USDC" amount={@staking.wallet_usdc_balance} unit="USDC" />
+            <.metric label="Staked REGENT" amount={@staking.wallet_stake_balance} unit="REGENT" />
+            <.metric label="USDC rewards" amount={@staking.wallet_claimable_usdc} unit="USDC" />
+            <.metric label="REGENT rewards" amount={@staking.wallet_claimable_regent} unit="REGENT" />
           </dl>
         </section>
 
@@ -65,19 +70,17 @@ defmodule AshPlatformWeb.RegentOpsLive do
   end
 
   attr :label, :string, required: true
-  attr :value, :string, required: true
+  attr :amount, :string, default: nil
+  attr :unit, :string, required: true
 
   defp metric(assigns) do
     ~H"""
     <div class="regent-ops-metric">
       <dt>{@label}</dt>
-      <dd>{@value}</dd>
+      <dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
     """
   end
-
-  defp token(nil, _symbol), do: "—"
-  defp token(value, symbol), do: "#{value} #{symbol}"
 
   defp short_wallet("0x" <> address) when byte_size(address) == 40,
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"

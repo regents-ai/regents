@@ -212,6 +212,64 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   expect(await sendCount(page)).toBe(4)
 })
 
+// The public Stake and overview surfaces are the first thing a visitor sees, so
+// they are proven signed out. A figure the size of the whole REGENT supply stays
+// inside its card at every supported width, mobile collapses to one column, and
+// the page asks for no font file this repository does not track.
+test("U2_U3_PUBLIC_SURFACES_FIT_EVERY_WIDTH_AND_REQUEST_ONLY_TRACKED_FONTS", async ({page}) => {
+  const unresolved: string[] = []
+  page.on("requestfailed", request => unresolved.push(request.url()))
+  page.on("response", response => {
+    if (response.status() >= 400) unresolved.push(`${response.status()} ${response.url()}`)
+  })
+
+  const surfaces = [
+    {route: "/stake", summary: ".stake-summary", layout: ".stake-layout"},
+    {route: "/app", summary: ".regent-ops-summary", layout: ".regent-ops-layout"},
+  ]
+
+  for (const width of [1280, 768, 390]) {
+    await page.setViewportSize({width, height: 900})
+
+    for (const {route, summary, layout} of surfaces) {
+      await page.goto(route)
+      await expect(page.locator(summary)).toBeVisible()
+
+      const fit = await page
+        .locator(`${summary} dd`)
+        .first()
+        .evaluate(
+          (cell, {summary, viewport}) => {
+            cell.textContent = "7390000000.123456789012345678 REGENT"
+            const card = cell.closest(summary) as HTMLElement
+            return {
+              card: card.scrollWidth - card.clientWidth,
+              document: document.documentElement.scrollWidth - viewport,
+            }
+          },
+          {summary, viewport: width},
+        )
+
+      expect(fit, `${route} at ${width}`).toEqual({card: 0, document: 0})
+
+      const columns = await page
+        .locator(layout)
+        .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)
+
+      expect(columns, `${route} at ${width}`).toBe(width > 768 ? 2 : 1)
+    }
+  }
+
+  expect(unresolved).toEqual([])
+
+  const loaded = await page.evaluate(() =>
+    [...document.fonts].filter(face => face.status === "loaded").map(face => face.family),
+  )
+
+  expect(loaded).toContain("Ash Geist UI Sans")
+  expect(loaded).toContain("Ash Geist Mono")
+})
+
 function short(hash: string): string {
   return `${hash.slice(0, 8)}…${hash.slice(-4)}`
 }

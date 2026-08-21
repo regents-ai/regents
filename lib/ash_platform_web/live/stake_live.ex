@@ -2,6 +2,8 @@ defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
 
+  alias AshPlatformWeb.TokenDisplay
+
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :authenticated, :boolean, required: true
@@ -46,27 +48,40 @@ defmodule AshPlatformWeb.StakeLive do
       </div>
 
       <div :if={@status == :ready && @staking} class="stake-layout">
-        <section class="stake-summary" aria-label="Staking summary">
-          <.metric label="Total staked" value={regent(@staking.total_staked)} />
-          <.metric label="Remaining capacity" value={regent(@staking.remaining_capacity)} />
-          <.metric :if={@wallet} label="Your wallet" value={regent(@staking.wallet_token_balance)} />
-          <.metric :if={@wallet} label="Your stake" value={regent(@staking.wallet_stake_balance)} />
+        <dl class="stake-summary" aria-label="Staking summary">
+          <.metric label="Total staked" amount={@staking.total_staked} unit="REGENT" />
+          <.metric label="Remaining capacity" amount={@staking.remaining_capacity} unit="REGENT" />
+          <.metric
+            :if={@wallet}
+            label="Your wallet"
+            amount={@staking.wallet_token_balance}
+            unit="REGENT"
+          />
+          <.metric
+            :if={@wallet}
+            label="Your stake"
+            amount={@staking.wallet_stake_balance}
+            unit="REGENT"
+          />
           <.metric
             :if={@wallet}
             label="USDC available"
-            value={usdc(@staking.wallet_claimable_usdc)}
+            amount={@staking.wallet_claimable_usdc}
+            unit="USDC"
           />
           <.metric
             :if={@wallet}
             label="REGENT earned"
-            value={regent(@staking.wallet_claimable_regent)}
+            amount={@staking.wallet_claimable_regent}
+            unit="REGENT"
           />
           <.metric
             :if={@wallet}
             label="REGENT currently funded"
-            value={regent(@staking.wallet_funded_claimable_regent)}
+            amount={@staking.wallet_funded_claimable_regent}
+            unit="REGENT"
           />
-        </section>
+        </dl>
 
         <section :if={!@authenticated} class="stake-actions">
           <h2>Connect your account</h2>
@@ -197,7 +212,7 @@ defmodule AshPlatformWeb.StakeLive do
               </button>
             </div>
             <p class="stake-available">
-              Available {regent(token_amount(@spendable))}
+              Available {token_amount(@spendable)} REGENT
             </p>
             <p :if={@amount_notice} class="stake-amount-notice" role="status">{@amount_notice}</p>
             <button
@@ -309,12 +324,14 @@ defmodule AshPlatformWeb.StakeLive do
   end
 
   attr :label, :string, required: true
-  attr :value, :string, required: true
+  attr :amount, :string, default: nil
+  attr :unit, :string, required: true
 
   defp metric(assigns) do
     ~H"""
     <div class="stake-metric">
-      <dt>{@label}</dt><dd>{@value}</dd>
+      <dt>{@label}</dt>
+      <dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
     """
   end
@@ -355,11 +372,6 @@ defmodule AshPlatformWeb.StakeLive do
     </p>
     """
   end
-
-  defp regent(nil), do: "—"
-  defp regent(value), do: value <> " REGENT"
-  defp usdc(nil), do: "—"
-  defp usdc(value), do: value <> " USDC"
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
