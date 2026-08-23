@@ -246,6 +246,7 @@ type ProviderSessionReconcilerOptions = {
   hasLinkedWallet: () => boolean
   providerAuthenticated: () => boolean
   reload: () => void
+  signedIn: () => boolean
 }
 
 // Startup reconciliation only reads the provider. Remaining signed in is not a
@@ -258,15 +259,24 @@ export function createProviderSessionReconciler({
   hasLinkedWallet,
   providerAuthenticated,
   reload,
+  signedIn,
 }: ProviderSessionReconcilerOptions): () => Promise<boolean> {
   return async () => {
     if (providerAuthenticated() && (await getAccessToken()) && hasLinkedWallet()) return true
+    // Only a page that still shows its signed-in account control has a session
+    // to end, and only this reading of it counts: the page may have been
+    // replaced while the provider was being read, and an anonymous page waiting
+    // for its first sign in must be left exactly as it is.
+    if (!signedIn()) return false
 
     await clearSession()
     reload()
     return false
   }
 }
+
+const showsSignOutControl = () =>
+  document.querySelector("#account-control [data-account-target='sign-out']") !== null
 
 type PrivySessionCompletionOptions = {
   fetcher?: typeof fetch
@@ -357,6 +367,7 @@ export type PrivyBridgeProviderState = {
   getAccessToken: () => Promise<string | null>
   logout: () => Promise<void>
   ready: boolean
+  walletsReady: ReturnType<typeof useWallets>["ready"]
   wallets: ReturnType<typeof useWallets>["wallets"]
   activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
   connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
@@ -369,6 +380,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const authenticated = providerState?.authenticated ?? privy.authenticated
   const logout = providerState?.logout ?? privy.logout
   const ready = providerState?.ready ?? privy.ready
+  const walletsReady = providerState?.walletsReady ?? providerWallets.ready
   const wallets = providerState?.wallets ?? providerWallets.wallets
   const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
   const connectActiveWallet = providerState?.connectActiveWallet ?? providerActiveWallet.connect
@@ -433,6 +445,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
         hasLinkedWallet: () => wallets.length > 0,
         providerAuthenticated: () => authenticated,
         reload: () => window.location.reload(),
+        signedIn: showsSignOutControl,
       }),
     [authenticated, getAccessToken, wallets.length],
   )
@@ -463,7 +476,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
     }
 
-    if (!ready || !(await reconcileProviderSession())) {
+    if (!ready || !walletsReady || !(await reconcileProviderSession())) {
       if (walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
@@ -491,7 +504,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     replaceConnectedEthereumWallets(entries)
     replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-  }, [activeWallet, ready, reconcileProviderSession, wallets])
+  }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady])
 
   React.useEffect(() => {
     if (signOutOnly) return

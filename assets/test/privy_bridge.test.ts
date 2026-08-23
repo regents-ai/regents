@@ -19,7 +19,7 @@ vi.mock("react-dom/client", () => ({
 vi.mock("@privy-io/react-auth", () => ({
   PrivyProvider: "privy-provider",
   usePrivy: () => ({authenticated: false, logout: vi.fn(), ready: true}),
-  useWallets: () => ({wallets: []}),
+  useWallets: () => ({ready: true, wallets: []}),
   useActiveWallet: () => ({
     wallet: undefined,
     connect: productionPrivyHooks.connectActiveWallet,
@@ -113,19 +113,25 @@ function installAccountBridgeRenderer() {
   }
 }
 
-function stubBrowserGlobals(): string[] {
+// The account control is the only evidence of whether a page is signed in, so
+// schedules that turn on it name their marker; the default page shows neither.
+function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null) {
   const dispatched: string[] = []
+  const reload = vi.fn()
 
   vi.stubGlobal("document", {
     body: {append: vi.fn()},
     createElement: () => ({hidden: false}),
-    querySelector: () => null,
+    querySelector: (selector: string) =>
+      accountMarker && selector === `#account-control [data-account-target='${accountMarker}']`
+        ? {}
+        : null,
   })
   vi.stubGlobal("window", {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
     dispatchEvent: (event: {type: string}) => dispatched.push(event.type),
-    location: {origin: "https://regents.sh"},
+    location: {origin: "https://regents.sh", reload},
   })
   vi.stubGlobal(
     "CustomEvent",
@@ -134,7 +140,30 @@ function stubBrowserGlobals(): string[] {
     },
   )
 
-  return dispatched
+  return {dispatched, reload}
+}
+
+function stubSessionRequests(): Array<{url: string; method: string}> {
+  const requests: Array<{url: string; method: string}> = []
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({url: String(input), method: init?.method ?? "GET"})
+      return String(input) === "/auth/csrf"
+        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+        : new Response("{}", {status: 200, headers: {"x-ash-session-changed": "true"}})
+    }),
+  )
+
+  return requests
+}
+
+function renderedAccountBridge(): React.ReactElement {
+  const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+    children: React.ReactElement
+  }>
+  return providerElement.props.children
 }
 
 function ethereumWallet(address: string) {
@@ -579,13 +608,11 @@ describe("Privy session bridge", () => {
           getAccessToken,
           logout: providerLogout,
           ready: true,
+          walletsReady: true,
           wallets: [],
         },
       )
-      const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-        children: React.ReactElement
-      }>
-      const accountElement = providerElement.props.children
+      const accountElement = renderedAccountBridge()
       renderAccountBridge(accountElement)
       const handle = await startup
 
@@ -624,7 +651,7 @@ describe("Privy session bridge", () => {
     },
   )
 
-  it("clears a stale server session when Privy is unauthenticated", async () => {
+  it("SIGNED_IN_STALE_PROVIDER_EXITS: clears a stale server session when Privy is unauthenticated", async () => {
     const clearSession = vi.fn(async () => undefined)
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
@@ -633,11 +660,52 @@ describe("Privy session bridge", () => {
       hasLinkedWallet: () => false,
       providerAuthenticated: () => false,
       reload,
+      signedIn: () => true,
     })
 
     await expect(reconcile()).resolves.toBe(false)
     expect(clearSession).toHaveBeenCalledOnce()
     expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a page showing neither account marker deletes nothing", async () => {
+    const clearSession = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    const reconcile = createProviderSessionReconciler({
+      clearSession,
+      getAccessToken: vi.fn(async () => null),
+      hasLinkedWallet: () => false,
+      providerAuthenticated: () => false,
+      reload,
+      signedIn: () => false,
+    })
+
+    await expect(reconcile()).resolves.toBe(false)
+    expect(clearSession).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  // The page can be replaced while the provider is being read, so the only
+  // reading of the account control that may end a session is the last one.
+  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a marker lost during the provider read authorizes nothing", async () => {
+    const clearSession = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    let signedIn = true
+    const reconcile = createProviderSessionReconciler({
+      clearSession,
+      getAccessToken: vi.fn(async () => {
+        signedIn = false
+        return null
+      }),
+      hasLinkedWallet: () => true,
+      providerAuthenticated: () => true,
+      reload,
+      signedIn: () => signedIn,
+    })
+
+    await expect(reconcile()).resolves.toBe(false)
+    expect(clearSession).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a still-signed-in account writes no session", async () => {
@@ -651,6 +719,7 @@ describe("Privy session bridge", () => {
       hasLinkedWallet: () => true,
       providerAuthenticated: () => true,
       reload,
+      signedIn: () => true,
     })
 
     await expect(reconcile()).resolves.toBe(true)
@@ -671,6 +740,7 @@ describe("Privy session bridge", () => {
       hasLinkedWallet: () => false,
       providerAuthenticated: () => true,
       reload,
+      signedIn: () => true,
     })
 
     await expect(reconcile()).resolves.toBe(false)
@@ -687,6 +757,7 @@ describe("Privy session bridge", () => {
       hasLinkedWallet: () => true,
       providerAuthenticated: () => true,
       reload,
+      signedIn: () => true,
     })
 
     await expect(reconcile()).resolves.toBe(false)
@@ -698,13 +769,116 @@ describe("Privy session bridge", () => {
     expect(bridge).not.toHaveProperty("loadLocalSession")
   })
 
+  // The anonymous page is where sign in starts, so Privy has nothing to report
+  // yet. Reading that emptiness as a stale session deletes the session the
+  // customer is deliberately browsing under and reloads away from the chooser.
+  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: the first sign-in click reaches login and deletes nothing", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const login = vi.fn()
+    productionPrivyHooks.login = login
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      {
+        appId: "test-app",
+        authenticated: false,
+        getAccessToken: async () => null,
+        logout: async () => undefined,
+        ready: true,
+        walletsReady: true,
+        wallets: [],
+      },
+    )
+    renderAccountBridge(renderedAccountBridge())
+    const handle = await startup
+    await until(() => dispatched.includes("ash:wallet-state"))
+
+    await handle.request("sign-in")
+
+    expect(login).toHaveBeenCalledOnce()
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
+    expect(activeEthereumWallet()).toBeNull()
+  })
+
+  // Once the provider reports a complete session, the selected wallet is Stake's
+  // wallet again. The page is still anonymous to the server until the verified
+  // bearer establishes a session and reloads, and nothing else may write one.
+  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: a completed provider session publishes its wallet and establishes by bearer", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {reload} = stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "verified",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [wallet],
+      activeWallet: wallet,
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => activeEthereumWallet()?.provider === wallet.provider)
+    await until(() => reload.mock.calls.length > 0)
+
+    expect(sessionRequests).toEqual([
+      {url: "/auth/csrf", method: "GET"},
+      {url: "/auth/privy/session", method: "POST"},
+      {url: "/auth/csrf", method: "GET"},
+    ])
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  // A signed-in page whose wallet hook is still loading has no wallet evidence
+  // yet. Ending its valid session on that emptiness would sign the customer out
+  // of a session the provider still supports.
+  it("BOTH_PROVIDER_LAYERS_MUST_BE_READY: a loading wallet hook drops wallets without ending the session", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-out")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    replaceActiveEthereumWallet({address: wallet.address, provider: wallet.provider})
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: false,
+      wallets: [wallet],
+      activeWallet: wallet,
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => dispatched.includes("ash:wallet-state"))
+    // The wallets are dropped without awaiting anything, so the signed-in
+    // startup token read has to settle before this page can be called quiet.
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(activeEthereumWallet()).toBeNull()
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
+  })
+
   // Privy can move the selection without changing the connected set. Stake reads
   // the selection, so that change has to reach the page as a wallet-state event.
   it("P1_ACTIVE_WALLET_ONLY: publishes the selection and announces a selection-only change", async () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
-    const dispatched = stubBrowserGlobals()
+    const {dispatched} = stubBrowserGlobals()
     const first = ethereumWallet("0x1111111111111111111111111111111111111111")
     const second = ethereumWallet("0x2222222222222222222222222222222222222222")
     const solana = {address: "SoLaNa1111111111111111111111111111111111111", type: "solana"}
@@ -714,6 +888,7 @@ describe("Privy session bridge", () => {
       getAccessToken: async () => "current-token",
       logout: async () => undefined,
       ready: true,
+      walletsReady: true,
       wallets: [first, second],
       activeWallet: first,
     }
@@ -722,10 +897,7 @@ describe("Privy session bridge", () => {
       {},
       providerState as unknown as bridge.PrivyBridgeProviderState,
     )
-    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-      children: React.ReactElement
-    }>
-    const accountElement = providerElement.props.children
+    const accountElement = renderedAccountBridge()
     renderAccountBridge(accountElement)
     await startup
     await until(() => activeEthereumWallet()?.provider === first.provider)
@@ -772,6 +944,7 @@ describe("Privy session bridge", () => {
       getAccessToken: async () => "current-token",
       logout: async () => undefined,
       ready: true,
+      walletsReady: true,
       wallets: [first, chosen],
       activeWallet: first,
     }
@@ -780,10 +953,7 @@ describe("Privy session bridge", () => {
       {},
       providerState as unknown as bridge.PrivyBridgeProviderState,
     )
-    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-      children: React.ReactElement
-    }>
-    const accountElement = providerElement.props.children
+    const accountElement = renderedAccountBridge()
     renderAccountBridge(accountElement)
     await startup
     await until(() => activeEthereumWallet()?.provider === first.provider)
@@ -807,7 +977,7 @@ describe("Privy session bridge", () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
-    const dispatched = stubBrowserGlobals()
+    const {dispatched} = stubBrowserGlobals()
     const first = ethereumWallet("0x1111111111111111111111111111111111111111")
     const unavailable = {
       address: "0x2222222222222222222222222222222222222222",
@@ -822,6 +992,7 @@ describe("Privy session bridge", () => {
       getAccessToken: async () => "current-token",
       logout: async () => undefined,
       ready: true,
+      walletsReady: true,
       wallets: [first, unavailable],
       activeWallet: first,
     }
@@ -830,10 +1001,7 @@ describe("Privy session bridge", () => {
       {},
       providerState as unknown as bridge.PrivyBridgeProviderState,
     )
-    const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-      children: React.ReactElement
-    }>
-    const accountElement = providerElement.props.children
+    const accountElement = renderedAccountBridge()
     renderAccountBridge(accountElement)
     await startup
     await until(() => activeEthereumWallet()?.provider === first.provider)
