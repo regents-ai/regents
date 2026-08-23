@@ -49,7 +49,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "regent_revenue_staking.claim_and_restake_regent"
   ]
   # The clean-V1 subject wallet interface stays reviewed and digest-pinned while
-  # no subject action is admitted, so these are proved against the derived C1 ABI
+  # no subject action is admitted, so these are proved against the final C5 ABI
   # without admitting one.
   @retained_evidence_actions %{
     "subject_token_erc20" => %{
@@ -66,7 +66,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "sweep" => {"sweep(address,bytes32)", "0x8a738683"},
       "set_receiver_note" => {"setReceiverNote(bytes32)", "0xb1379b2f"}
     },
-    # The C4 launch interface stays reviewed and digest-pinned while no launch
+    # The final launch interface stays reviewed and digest-pinned while no launch
     # action is admitted for production preparation.
     "regent_erc20" => %{
       "approve_exact" => {"approve(address,uint256)", "0x095ea7b3"}
@@ -79,17 +79,21 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "regent_lbp_strategy_v1" => %{}
   }
 
-  # The two C4 source fingerprints. The upstream build artifacts these ABIs are
+  # The final C5 source fingerprints. The upstream build artifacts these ABIs are
   # derived from are excluded by that repository's own .gitignore, so the durable
   # evidence is the compiler's metadata Keccak-256 of the exact source files.
-  @c4_source_commit "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
-  @c4_source_tree "41c0f1ba29ceade995d1e2a5313995089bdc279a"
-  @factory_source_keccak256 "0xaefec10abe77a96fd376126e5bbab7e1d4a969d8cbe3356e860c1838a49f9f15"
-  @strategy_source_keccak256 "0xde78be091e8092fad3c30d358d68533cc914fdcdd2a60bf426ff26d6372bef1f"
+  @c5_source_commit "b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f"
+  @c5_source_tree "ac6c9f82b57320726dcefa68c5ebaca76858bf2d"
+  @factory_source_keccak256 "0x463504a866f05a25f4b1b0d022cd60b19f6426bb26d57157588078a8c17ca4ca"
+  @strategy_source_keccak256 "0xe6ab4d5b5d05ec2ee6bc7ca7dd3256fedbfe39375b619be1ed05980d92eb6cbc"
+  @splitter_source_keccak256 "0xeff445c21040c5b37c0d072707ded1c119325c79d626c3219b4fb525b8e995a1"
+  @c5_abi_surface_sha256 "71f2fa413751de63d6d7bae16cebdf9fcec54d0e79d081058ac704404c0c65c3"
+  @c5_release_manifest_sha256 "629220ba90579bd3cbd1616ef7c1de5ca67f9b982e2f453b3aaad1e3159b675a"
+  @c5_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
 
-  # Everything C4 deliberately does not derive an encoder, action or admission
+  # Everything this consumer lane deliberately does not derive an encoder, action or admission
   # for. None of these may appear anywhere in the manifest or in either ABI file.
-  @absent_c4_surfaces ~w(
+  @absent_consumer_surfaces ~w(
     setLaunchFee
     pauseLaunches
     unpauseLaunches
@@ -162,6 +166,17 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       assert admission["validation_command"] ==
                "mix test test/ash_platform/wallet_actions/manifest_test.exs"
 
+      assert admission["autolaunch_consumer_freeze"] == %{
+               "repository" => "autolaunch-contracts",
+               "source_commit" => @c5_source_commit,
+               "source_tree" => @c5_source_tree,
+               "abi_surface_sha256" => @c5_abi_surface_sha256,
+               "release_manifest_sha256" => @c5_release_manifest_sha256,
+               "fork_observations_sha256" => @c5_fork_observations_sha256,
+               "deployment_status" => "deployment_pending",
+               "admission" => "disabled"
+             }
+
       evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
       # The five reviewed staking actions are admitted, each resolving to the
@@ -208,12 +223,15 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       assert permit2["address_provenance"] =~ "2af06408b6a204824c2ecb245779ed400b535fb5"
       assert permit2["address_provenance"] =~ "src/utils/SafeTransferLib.sol line 64"
 
-      # The C1 evidence is pinned to the exact integrated contract source.
+      # The retained consumer evidence is pinned to the exact final contract source.
       for contract_id <- ["subject_splitter_v1", "payment_receiver_v1"] do
         entry = Map.fetch!(evidence, contract_id)
-        assert entry["source_commit"] == "59e1f0c195428f9d74b72223d154e1fee693c36d"
-        assert entry["source_tree"] == "d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d"
+        assert entry["source_commit"] == @c5_source_commit
+        assert entry["source_tree"] == @c5_source_tree
       end
+
+      assert Map.fetch!(evidence, "subject_splitter_v1")["implementation_provenance"] =~
+               @splitter_source_keccak256
 
       # The superseded lane leaves no evidence entry and no admitted action.
       for contract_id <- @deleted_evidence do
@@ -249,7 +267,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     end
   end
 
-  test "every admitted C1 selector is an independent Foundry derivation of its declared signature" do
+  test "every retained C5 selector is an independent Foundry derivation of its declared signature" do
     chain_manifest = YamlElixir.read_from_file!(@chain_manifest_path)
 
     evidence =
@@ -276,15 +294,15 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     end
   end
 
-  test "the C4 launch evidence pins its source fingerprints and admits no production action" do
+  test "the final C5 launch evidence pins its source fingerprints and admits no production action" do
     evidence = evidence!()
 
     factory = Map.fetch!(evidence, "regents_autolaunch_factory_v1")
     strategy = Map.fetch!(evidence, "regent_lbp_strategy_v1")
 
     for entry <- [factory, strategy] do
-      assert entry["source_commit"] == @c4_source_commit
-      assert entry["source_tree"] == @c4_source_tree
+      assert entry["source_commit"] == @c5_source_commit
+      assert entry["source_tree"] == @c5_source_tree
       assert entry["artifact_provenance"] =~ ".gitignore excludes"
       assert entry["artifact_provenance"] =~ "not a tracked file"
     end
@@ -302,8 +320,8 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     assert regent["interface_note"] =~ "exact current launch fee"
     assert regent["interface_note"] =~ "no unlimited approval"
 
-    # Every C4 action id is reviewed evidence and none of them is admitted for
-    # production preparation: that gate is C5's to open, not this ticket's.
+    # Every final action id is reviewed evidence and none of them is admitted for
+    # production preparation: deployment evidence must open that gate later.
     admitted = admission!()["admitted_prepared_actions"]
     assert admitted == @admitted_actions
 
@@ -327,7 +345,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     assert selector_for(signature) == "0x783eed53"
   end
 
-  test "no governance, receiver, construction or migration surface is derived anywhere in C4" do
+  test "no governance, receiver, construction or migration surface is derived by the consumer lane" do
     for path <- [
           "contracts/abi/regents-autolaunch-factory-v1.json",
           "contracts/abi/regent-lbp-strategy-v1.json"
@@ -335,7 +353,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       abi = path |> File.read!() |> Jason.decode!()
       names = MapSet.new(abi, & &1["name"])
 
-      for surface <- @absent_c4_surfaces do
+      for surface <- @absent_consumer_surfaces do
         refute MapSet.member?(names, surface), "#{path} still declares #{surface}"
       end
     end
@@ -345,7 +363,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     declared =
       evidence!() |> Map.values() |> Enum.flat_map(&(&1["action_ids"] || [])) |> MapSet.new()
 
-    for surface <- @absent_c4_surfaces do
+    for surface <- @absent_consumer_surfaces do
       refute MapSet.member?(declared, surface)
     end
 

@@ -10,13 +10,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @subject_splitter_abi_sha256 "fe2c40284d036af9f155037c67b84cda2d290f0fcb82aefcba13cef288219009"
-  @payment_receiver_abi_sha256 "e587fe9dab115118dba0479e899ffa098fd83b59488fbda537037ae576a19fbd"
-  @c1_source_commit "59e1f0c195428f9d74b72223d154e1fee693c36d"
-  @c1_source_tree "d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d"
-  @factory_abi_sha256 "70fbb029618224ccfbbca06c14c8c49ebf9511d4af014d79c916f4eaa8d46e06"
-  @strategy_abi_sha256 "84a58d177acfbd37a193314e9e0ce3baae1cfd08647605c09d52a7bc348db682"
-  @c4_source_commit "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
+  @subject_splitter_abi_sha256 "d51e10161f411ecb2ea85254aa982f4edd40e53f227a859f771d76f8d554467a"
+  @payment_receiver_abi_sha256 "626c528c84686d6b1840e6df969029a07728e3165fed14779ff9dadd8bbe1469"
+  @factory_abi_sha256 "38bd540d5bdc286ab0eb6e5eaff819b17a0ee54ebdc8e9d9d98bfb8745d398a7"
+  @strategy_abi_sha256 "d149ece5a73cdb35a33e1ff0e1c136d1a5ffc776df272c6e569b05894ffbcf04"
+  @c5_source_commit "b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f"
+  @c5_source_tree "ac6c9f82b57320726dcefa68c5ebaca76858bf2d"
+  @c5_abi_surface_sha256 "71f2fa413751de63d6d7bae16cebdf9fcec54d0e79d081058ac704404c0c65c3"
+  @c5_release_manifest_sha256 "629220ba90579bd3cbd1616ef7c1de5ca67f9b982e2f453b3aaad1e3159b675a"
+  @c5_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -373,6 +375,17 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert admission["authority"] == "evidence_only"
 
+    assert admission["autolaunch_consumer_freeze"] == %{
+             "repository" => "autolaunch-contracts",
+             "source_commit" => @c5_source_commit,
+             "source_tree" => @c5_source_tree,
+             "abi_surface_sha256" => @c5_abi_surface_sha256,
+             "release_manifest_sha256" => @c5_release_manifest_sha256,
+             "fork_observations_sha256" => @c5_fork_observations_sha256,
+             "deployment_status" => "deployment_pending",
+             "admission" => "disabled"
+           }
+
     assert admission["admitted_prepared_actions"] == [
              "regent_revenue_staking.stake",
              "regent_revenue_staking.unstake",
@@ -433,15 +446,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
 
     assert subject_erc20["target"] == "stored_subject_token_address"
-    assert subject_erc20["implementation_provenance"] =~ @c1_source_commit
-    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:50"
+    assert subject_erc20["implementation_provenance"] =~ @c5_source_commit
+    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:62"
     assert subject_erc20["implementation_provenance"] =~ "exact splitter spender"
 
     assert splitter["contract_name"] == "SubjectSplitterV1"
     assert splitter["target"] == "stored_subject_splitter_address"
     assert splitter["action_ids"] == ["stake", "unstake", "claim", "claim_all"]
     assert splitter["implementation_provenance"] =~ "SubjectSplitterV1.sol"
-    assert splitter["implementation_provenance"] =~ "lines 181-221"
+    assert splitter["implementation_provenance"] =~ "lines 192-232"
     assert splitter["interface_note"] =~ "no recipient-argument overload and no"
     assert splitter["interface_note"] =~ "truthful no-op"
 
@@ -454,8 +467,8 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     # Both entries pin the exact integrated contract source and tree.
     for entry <- [splitter, receiver] do
-      assert entry["source_commit"] == @c1_source_commit
-      assert entry["source_tree"] == @c1_source_tree
+      assert entry["source_commit"] == @c5_source_commit
+      assert entry["source_tree"] == @c5_source_tree
     end
 
     # Every declared confirmation event topic is an independent Keccak-256.
@@ -578,10 +591,10 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  # The C1 ABI is derived from exact pinned source, so the shapes this lane
+  # The final C5 ABI is derived from exact pinned source, so the shapes this lane
   # encodes and decodes are proved against the file rather than assumed.
-  test "the derived C1 splitter ABI declares exactly the caller-only customer surface" do
-    abi = c1_abi("subject-splitter-v1.json")
+  test "the final C5 splitter ABI declares exactly the caller-only customer surface" do
+    abi = consumer_abi("subject-splitter-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
              {"function", "stake"},
@@ -630,11 +643,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              ]
     end
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c1_source_commit)
+    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
+
+    encoded = Jason.encode!(abi)
+    refute encoded =~ "RecoveryAdminHasNoCode"
+    refute encoded =~ "4f986444"
   end
 
-  test "the derived C1 receiver ABI declares exactly the payment surface and its two events" do
-    abi = c1_abi("payment-receiver-v1.json")
+  test "the final C5 receiver ABI declares exactly the payment surface and its two events" do
+    abi = consumer_abi("payment-receiver-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) ==
              [
@@ -678,13 +695,13 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              &{&1["name"], &1["type"], &1["indexed"]}
            ) == [{"previousNote", "bytes32", false}, {"newNote", "bytes32", false}]
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c1_source_commit)
+    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
   end
 
-  # The C4 ABI is derived from exact pinned source, so the shapes this lane
+  # The final C5 ABI is derived from exact pinned source, so the shapes this lane
   # encodes and decodes are proved against the file rather than assumed.
-  test "the derived C4 factory ABI declares exactly the one customer call and its review reads" do
-    abi = c1_abi("regents-autolaunch-factory-v1.json")
+  test "the final C5 factory ABI declares exactly the one customer call and its review reads" do
+    abi = consumer_abi("regents-autolaunch-factory-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
              {"function", "launch"},
@@ -750,11 +767,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              {"amount", "uint256", false}
            ]
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c4_source_commit)
+    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
   end
 
-  test "the derived C4 strategy ABI declares only the reciprocal binding and the frozen terms" do
-    abi = c1_abi("regent-lbp-strategy-v1.json")
+  test "the final C5 strategy ABI declares only the reciprocal binding and the frozen terms" do
+    abi = consumer_abi("regent-lbp-strategy-v1.json")
 
     assert Enum.map(abi, & &1["name"]) == [
              "factory",
@@ -779,7 +796,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       assert entry["type"] == "function"
       assert entry["stateMutability"] == "view"
       assert entry["inputs"] == []
-      assert entry["notice"] =~ @c4_source_commit
+      assert entry["notice"] =~ @c5_source_commit
     end
 
     # The one signed term, and the one whose word therefore needs bringing back.
@@ -789,7 +806,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert Enum.map(by_name["POOL_FEE"]["outputs"], & &1["type"]) == ["uint24"]
   end
 
-  test "C4 evidence is digest-pinned and admitted for nothing in production" do
+  test "final C5 evidence is digest-pinned and admitted for nothing in production" do
     admission = admission!()
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
@@ -835,7 +852,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       |> Map.fetch!("contracts")
       |> List.first()
 
-  defp c1_abi(file),
+  defp consumer_abi(file),
     do: @root |> Path.join("contracts/abi") |> Path.join(file) |> File.read!() |> Jason.decode!()
 
   defp event_id("Staked" <> _rest), do: :staked

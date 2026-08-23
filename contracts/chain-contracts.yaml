@@ -6,6 +6,15 @@ contracts:
     evidence_sha256: 015022d9e8ab67feddaf04178413aedd36cc3a4e7471da9dc13e36909051c587
     chain_target: base-mainnet
     authority: evidence_only
+    autolaunch_consumer_freeze:
+      repository: autolaunch-contracts
+      source_commit: b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+      source_tree: ac6c9f82b57320726dcefa68c5ebaca76858bf2d
+      abi_surface_sha256: 71f2fa413751de63d6d7bae16cebdf9fcec54d0e79d081058ac704404c0c65c3
+      release_manifest_sha256: 629220ba90579bd3cbd1616ef7c1de5ca67f9b982e2f453b3aaad1e3159b675a
+      fork_observations_sha256: 198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c
+      deployment_status: deployment_pending
+      admission: disabled
     # `authority` names the pinned evidence source; the list below separately
     # records founder release authority. The runtime, predecessor-hint source,
     # projection and entitlement freezes in regent-alv1.6, 490.8.2/.3 and
@@ -90,9 +99,9 @@ contracts:
         abi_path: abi/erc20-approve.json
         abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
         implementation_provenance: >-
-          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
-          src/revenue/SubjectSplitterV1.sol:50 declares the launch's own SUBJECT binding and
-          line 185 pulls exactly the staked amount through _pullExact, which lines 414-419
+          repos/autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+          src/revenue/SubjectSplitterV1.sol:62 declares the launch's own SUBJECT binding and
+          line 196 pulls exactly the staked amount through _pullExact, which lines 425-430
           hold to an exact balance delta. The only SUBJECT allowance a stake prepares is the
           exact splitter spender, using the standard nonpayable ERC-20 approve interface.
         action_ids:
@@ -100,17 +109,17 @@ contracts:
       - contract_id: subject_splitter_v1
         contract_name: SubjectSplitterV1
         target: stored_subject_splitter_address
-        source_commit: 59e1f0c195428f9d74b72223d154e1fee693c36d
-        source_tree: d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d
+        source_commit: b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+        source_tree: ac6c9f82b57320726dcefa68c5ebaca76858bf2d
         abi_path: abi/subject-splitter-v1.json
-        abi_sha256: fe2c40284d036af9f155037c67b84cda2d290f0fcb82aefcba13cef288219009
+        abi_sha256: d51e10161f411ecb2ea85254aa982f4edd40e53f227a859f771d76f8d554467a
         implementation_provenance: >-
-          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
+          repos/autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
           src/revenue/SubjectSplitterV1.sol defines the four caller-only customer calls at
-          lines 181-221, each acting for msg.sender alone with no recipient argument, and the
-          reads this lane prepares against at lines 44-68 and 276-278. The ABI file is derived
+          lines 192-232, each acting for msg.sender alone with no recipient argument, and the
+          reads this lane prepares against at lines 56-80 and 287-289. The ABI file is derived
           from the artifact that pinned build produced, whose metadata keccak256 for that
-          source is 0x4ed543bfb97f8a3c01bcfe606cc441cb4f8cfa46fdac370a3ebbdc9a9b7750be.
+          source is 0xeff445c21040c5b37c0d072707ded1c119325c79d626c3219b4fb525b8e995a1.
         interface_note: >-
           stake and unstake take only uint256; there is no recipient-argument overload and no
           claimUSDC. claim(address) and claimAll() settle for msg.sender alone and return early
@@ -127,12 +136,12 @@ contracts:
       - contract_id: payment_receiver_v1
         contract_name: PaymentReceiverV1
         target: projected_canonical_receiver_address
-        source_commit: 59e1f0c195428f9d74b72223d154e1fee693c36d
-        source_tree: d1b3d5a75ce84fe7ee042a85c9b79a91e842cc6d
+        source_commit: b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+        source_tree: ac6c9f82b57320726dcefa68c5ebaca76858bf2d
         abi_path: abi/payment-receiver-v1.json
-        abi_sha256: e587fe9dab115118dba0479e899ffa098fd83b59488fbda537037ae576a19fbd
+        abi_sha256: 626c528c84686d6b1840e6df969029a07728e3165fed14779ff9dadd8bbe1469
         implementation_provenance: >-
-          repos/autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d
+          repos/autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
           src/revenue/PaymentReceiverV1.sol defines pay at lines 150-160, sweep at lines
           163-170 and setReceiverNote at lines 138-145, and the bindings this lane proves
           canonical at lines 32-59. Line 132 defaults the note to the receiver's own address
@@ -143,7 +152,7 @@ contracts:
           A receiver is canonical only when referralBps() is 0 and the splitter's treasury is
           both beneficiary() and noteEditor(), which is the whole of the zero-referral
           treasury-bound economics this lane reviews. Canonical provenance itself comes from
-          the projected canonical_receiver_address plus later C4/C5 evidence; these reads
+          the projected canonical_receiver_address plus final C5 evidence; these reads
           prove the economics, never the provenance.
         confirmation_event_signatures:
           - PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)
@@ -166,11 +175,11 @@ contracts:
       - contract_id: regents_autolaunch_factory_v1
         contract_name: RegentsAutolaunchFactoryV1
         target: c5_admitted_factory_address
-        source_commit: 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
-        source_tree: 41c0f1ba29ceade995d1e2a5313995089bdc279a
-        source_keccak256: "0xaefec10abe77a96fd376126e5bbab7e1d4a969d8cbe3356e860c1838a49f9f15"
+        source_commit: b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+        source_tree: ac6c9f82b57320726dcefa68c5ebaca76858bf2d
+        source_keccak256: "0x463504a866f05a25f4b1b0d022cd60b19f6426bb26d57157588078a8c17ca4ca"
         abi_path: abi/regents-autolaunch-factory-v1.json
-        abi_sha256: 70fbb029618224ccfbbca06c14c8c49ebf9511d4af014d79c916f4eaa8d46e06
+        abi_sha256: 38bd540d5bdc286ab0eb6e5eaff819b17a0ee54ebdc8e9d9d98bfb8745d398a7
         artifact_provenance: >-
           The consumer ABI is derived from out/RegentsAutolaunchFactoryV1.sol/RegentsAutolaunchFactoryV1.json,
           a Foundry build output that the upstream repository's .gitignore excludes from version
@@ -179,7 +188,7 @@ contracts:
           src/factory/RegentsAutolaunchFactoryV1.sol at source_commit, which any rebuild of that
           commit reproduces.
         implementation_provenance: >-
-          repos/autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+          repos/autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
           src/factory/RegentsAutolaunchFactoryV1.sol declares the nine-field LaunchParams at lines
           97-107 and the one customer call at lines 231-259, and the reads this lane reviews
           against at lines 123, 132, 135, 138 and 307-309.
@@ -197,11 +206,11 @@ contracts:
       - contract_id: regent_lbp_strategy_v1
         contract_name: RegentLBPStrategy
         target: reviewed_factory_bound_strategy_address
-        source_commit: 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
-        source_tree: 41c0f1ba29ceade995d1e2a5313995089bdc279a
-        source_keccak256: "0xde78be091e8092fad3c30d358d68533cc914fdcdd2a60bf426ff26d6372bef1f"
+        source_commit: b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
+        source_tree: ac6c9f82b57320726dcefa68c5ebaca76858bf2d
+        source_keccak256: "0xe6ab4d5b5d05ec2ee6bc7ca7dd3256fedbfe39375b619be1ed05980d92eb6cbc"
         abi_path: abi/regent-lbp-strategy-v1.json
-        abi_sha256: 84a58d177acfbd37a193314e9e0ce3baae1cfd08647605c09d52a7bc348db682
+        abi_sha256: d149ece5a73cdb35a33e1ff0e1c136d1a5ffc776df272c6e569b05894ffbcf04
         artifact_provenance: >-
           The consumer ABI is derived from out/RegentLBPStrategy.sol/RegentLBPStrategy.json, a
           Foundry build output that the upstream repository's .gitignore excludes from version
@@ -210,11 +219,11 @@ contracts:
           src/strategy/RegentLBPStrategy.sol at source_commit, which any rebuild of that commit
           reproduces.
         implementation_provenance: >-
-          repos/autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1
+          repos/autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f
           src/strategy/RegentLBPStrategy.sol declares factory() at line 176 and the twelve founder
           -frozen launch terms at lines 63, 66, 69, 75, 78, 81, 84, 87, 90, 109, 112 and 132.
         interface_note: >-
-          Every term here is read for display only; none is an input a launcher chooses. Line 317
+          Every term here is read for display only; none is an input a launcher chooses. Line 330
           refuses a required raise of zero or above MAX_REACHABLE_RAISE, and POOL_TICK_SPACING is a
           signed int24 returned sign-extended into a full word. No strategy call is prepared: this
           lane never reaches bindHook, initializeDistribution or migrate.

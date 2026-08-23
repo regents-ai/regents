@@ -3,7 +3,7 @@
     "type": "function",
     "name": "launch",
     "stateMutability": "nonpayable",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:231-259 creates one launch from the exact nine-field LaunchParams declared at lines 97-107.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:231-259 creates one launch from the exact nine-field LaunchParams declared at lines 97-107.",
     "inputs": [
       {
         "name": "params",
@@ -32,7 +32,7 @@
     "type": "function",
     "name": "launchFee",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:132 declares the REGENT a launch currently costs; line 238 refuses any expectedLaunchFee that is not exactly it.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:132 declares the REGENT a launch currently costs; line 238 refuses any expectedLaunchFee that is not exactly it.",
     "inputs": [],
     "outputs": [{"name": "", "type": "uint256"}]
   },
@@ -40,7 +40,7 @@
     "type": "function",
     "name": "launchesPaused",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:135 declares whether new launches are admitted; line 235 is the only thing it gates.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:135 declares whether new launches are admitted; line 235 is the only thing it gates.",
     "inputs": [],
     "outputs": [{"name": "", "type": "bool"}]
   },
@@ -48,7 +48,7 @@
     "type": "function",
     "name": "strategy",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:123 declares the one shared strategy this factory deployed in its own constructor and is permanently bound to.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:123 declares the one shared strategy this factory deployed in its own constructor and is permanently bound to.",
     "inputs": [],
     "outputs": [{"name": "", "type": "address"}]
   },
@@ -56,7 +56,7 @@
     "type": "function",
     "name": "launches",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:307-309 returns one recorded Launch, declared at lines 110-117, or an all-zero record for an unknown id.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:307-309 returns one recorded Launch, declared at lines 110-117, or an all-zero record for an unknown id.",
     "inputs": [{"name": "launchId", "type": "uint256"}],
     "outputs": [
       {
@@ -77,7 +77,7 @@
     "type": "function",
     "name": "launchIdOfSubject",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:138 declares the launch a SUBJECT belongs to; ids start at one, so zero means this factory never created it.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:138 declares the launch a SUBJECT belongs to; ids start at one, so zero means this factory never created it.",
     "inputs": [{"name": "subject", "type": "address"}],
     "outputs": [{"name": "launchId", "type": "uint256"}]
   },
@@ -85,7 +85,7 @@
     "type": "event",
     "name": "LaunchCreated",
     "anonymous": false,
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:142-153, emitted exactly once per launch at lines 415-426 with the identities and fixed schedule read back from the strategy.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:142-153, emitted exactly once per launch at lines 415-426 with the identities and fixed schedule read back from the strategy.",
     "inputs": [
       {"name": "launchId", "type": "uint256", "indexed": true},
       {"name": "launcher", "type": "address", "indexed": true},
@@ -103,7 +103,7 @@
     "type": "event",
     "name": "LaunchFeeCollected",
     "anonymous": false,
-    "notice": "Regent autolaunch-contracts 81e17ddef773a6a825b5312e238cf3c4f5a1c0b1 src/factory/RegentsAutolaunchFactoryV1.sol:155, emitted at line 336 only by a positive fee; lines 324-325 require an exact allowance and return before this for a zero fee.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/factory/RegentsAutolaunchFactoryV1.sol:155, emitted at line 336 only by a positive fee; lines 324-325 require an exact allowance and return before this for a zero fee.",
     "inputs": [
       {"name": "launchId", "type": "uint256", "indexed": true},
       {"name": "payer", "type": "address", "indexed": true},

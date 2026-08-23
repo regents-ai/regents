@@ -3,7 +3,7 @@
     "type": "function",
     "name": "pay",
     "stateMutability": "nonpayable",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:150-160 pulls exactly amount from msg.sender and routes it in the same transaction.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:150-160 pulls exactly amount from msg.sender and routes it in the same transaction.",
     "inputs": [
       {"name": "token", "type": "address"},
       {"name": "amount", "type": "uint256"},
@@ -15,7 +15,7 @@
     "type": "function",
     "name": "sweep",
     "stateMutability": "nonpayable",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:163-170 routes this receiver's entire bare balance; a zero balance reverts ZeroAmount.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:163-170 routes this receiver's entire bare balance; a zero balance reverts ZeroAmount.",
     "inputs": [
       {"name": "token", "type": "address"},
       {"name": "paymentRef", "type": "bytes32"}
@@ -26,7 +26,7 @@
     "type": "function",
     "name": "setReceiverNote",
     "stateMutability": "nonpayable",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:138-145 replaces the note, fixed note editor only, and emits ReceiverNoteUpdated.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:138-145 replaces the note, fixed note editor only, and emits ReceiverNoteUpdated.",
     "inputs": [
       {"name": "note", "type": "bytes32"}
     ],
@@ -36,7 +36,7 @@
     "type": "function",
     "name": "splitter",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:32 declares the splitter every routed net payment is recognized by.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:32 declares the splitter every routed net payment is recognized by.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -46,7 +46,7 @@
     "type": "function",
     "name": "beneficiary",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:35 declares the only account the referral share is ever paid to.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:35 declares the only account the referral share is ever paid to.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -56,7 +56,7 @@
     "type": "function",
     "name": "referralBps",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:38 declares the immutable referral share in basis points.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:38 declares the immutable referral share in basis points.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "uint16"}
@@ -66,7 +66,7 @@
     "type": "function",
     "name": "noteEditor",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:41 declares the only account allowed to edit this receiver's note.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:41 declares the only account allowed to edit this receiver's note.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -76,7 +76,7 @@
     "type": "function",
     "name": "receiverNote",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:59 declares the note; line 132 defaults it to this receiver's own address as bytes32.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:59 declares the note; line 132 defaults it to this receiver's own address as bytes32.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "bytes32"}
@@ -86,7 +86,7 @@
     "type": "function",
     "name": "subject",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:56 declares the SUBJECT binding, read from the splitter at initialization.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:56 declares the SUBJECT binding, read from the splitter at initialization.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -96,7 +96,7 @@
     "type": "function",
     "name": "usdc",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:50 declares the USDC binding, read from the splitter at initialization.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:50 declares the USDC binding, read from the splitter at initialization.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -106,7 +106,7 @@
     "type": "function",
     "name": "regent",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:53 declares the REGENT binding, read from the splitter at initialization.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:53 declares the REGENT binding, read from the splitter at initialization.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -116,7 +116,7 @@
     "type": "function",
     "name": "treasury",
     "stateMutability": "view",
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:44 declares the recovery destination, read from the splitter at initialization.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:44 declares the recovery destination, read from the splitter at initialization.",
     "inputs": [],
     "outputs": [
       {"name": "", "type": "address"}
@@ -126,7 +126,7 @@
     "type": "event",
     "name": "PaymentRouted",
     "anonymous": false,
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:65-72 declares it; line 230 emits it once per routed pay or sweep with the actual gross, referral and net.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:65-72 declares it; line 230 emits it once per routed pay or sweep with the actual gross, referral and net.",
     "inputs": [
       {"name": "paymentRef", "type": "bytes32", "indexed": true},
       {"name": "receiverNote", "type": "bytes32", "indexed": true},
@@ -140,7 +140,7 @@
     "type": "event",
     "name": "ReceiverNoteUpdated",
     "anonymous": false,
-    "notice": "Regent autolaunch-contracts 59e1f0c195428f9d74b72223d154e1fee693c36d src/revenue/PaymentReceiverV1.sol:64 declares it; line 144 emits it with the previous and new note.",
+    "notice": "Regent autolaunch-contracts b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f src/revenue/PaymentReceiverV1.sol:64 declares it; line 144 emits it with the previous and new note.",
     "inputs": [
       {"name": "previousNote", "type": "bytes32", "indexed": false},
       {"name": "newNote", "type": "bytes32", "indexed": false}
