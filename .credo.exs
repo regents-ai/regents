@@ -146,7 +146,16 @@
           {ExSlop.Check.Warning.RepoAllThenFilter, []},
           {ExSlop.Check.Warning.QueryInEnumMap, []},
           {ExSlop.Check.Warning.GenserverAsKvStore, []},
-          {ExSlop.Check.Warning.PathExpandPriv, []},
+          {ExSlop.Check.Warning.PathExpandPriv,
+           [
+             files: %{
+               excluded: [
+                 # This task intentionally syncs into the checked-out repository;
+                 # Application.app_dir/2 would point at the build output instead.
+                 "lib/mix/tasks/ash_platform.sync_api_contract.ex"
+               ]
+             }
+           ]},
           {ExSlop.Check.Warning.DualKeyAccess, []},
           {ExSlop.Check.Refactor.FilterNil, []},
           {ExSlop.Check.Refactor.RejectNil, []},
@@ -162,7 +171,20 @@
           {ExSlop.Check.Refactor.ReduceMapPut, []},
           {ExSlop.Check.Refactor.RedundantBooleanIf, []},
           {ExSlop.Check.Refactor.FlatMapFilter, []},
-          {ExSlop.Check.Refactor.LengthComparison, []},
+          {ExSlop.Check.Refactor.LengthComparison,
+           [
+             files: %{
+               excluded: [
+                 # Exact-size assertions are clearer test failures than counting helpers.
+                 "test/**/*.exs",
+                 # These validations require an exact ABI/domain shape, not an emptiness test.
+                 "lib/ash_platform/autolaunch/indexer/chain.ex",
+                 "lib/ash_platform/techtree/uplift_report.ex",
+                 "lib/ash_platform_web/controllers/techtree_evidence_controller.ex",
+                 "lib/ash_platform_web/controllers/techtree_notebook_artifact_controller.ex"
+               ]
+             }
+           ]},
           {ExSlop.Check.Readability.NarratorDoc, []},
           {ExSlop.Check.Readability.BoilerplateDocParams, []},
           {ExSlop.Check.Readability.NarratorComment, []},
@@ -178,7 +200,15 @@
           {CredoAsh.Check.Warning.PoliciesWithoutAuthorizer, []},
           {CredoAsh.Check.Warning.AuthorizerWithoutPolicies, []},
           {CredoAsh.Check.Warning.UnprotectedResource, []},
-          {CredoAsh.Check.Warning.AshCallInLoop, []},
+          {CredoAsh.Check.Warning.AshCallInLoop,
+           [
+             files: %{
+               excluded: [
+                 # These table-driven tests intentionally exercise each independent case.
+                 "test/ash_platform_web/controllers/techtree_publication_controller_test.exs"
+               ]
+             }
+           ]},
           {CredoAsh.Check.Warning.ActorOnExecution, []},
           {CredoAsh.Check.Warning.DirectRepoCall, []},
           {CredoAsh.Check.Warning.UnjustifiedAuthorizeFalse, []},
