@@ -315,7 +315,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
   end
 
   defp migrate_application_schema! do
-    migrations_path = Path.expand("../../priv/repo/migrations", __DIR__)
+    migrations_path = Application.app_dir(:ash_platform, "priv/repo/migrations")
     Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
   end
 
@@ -368,7 +368,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
     def prepare(config, run_id) do
       with_repo(config, fn ->
         AshPlatform.LocalDatabaseFixture.create_local_human_accounts_table!()
-        migrations_path = Path.expand("../../priv/repo/migrations", __DIR__)
+        migrations_path = Application.app_dir(:ash_platform, "priv/repo/migrations")
         Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
 
         case AshPlatform.Techtree.ensure_seed_trees(actor: %AshPlatform.Actors.System{}) do

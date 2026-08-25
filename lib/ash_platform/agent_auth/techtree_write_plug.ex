@@ -158,10 +158,7 @@ defmodule AshPlatform.AgentAuth.TechtreeWritePlug do
 
   defp target_id(%{path_info: ["api", "techtree", "v1", "nodes", id, surface]})
        when surface in ["evidence-state", "notebook-artifact"] do
-    case Ecto.UUID.cast(id) do
-      {:ok, id} -> {:ok, id}
-      :error -> :error
-    end
+    Ecto.UUID.cast(id)
   end
 
   defp target_id(_conn), do: nil

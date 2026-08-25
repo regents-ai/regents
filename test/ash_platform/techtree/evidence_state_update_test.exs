@@ -72,6 +72,7 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
     assert {:ok, [stored]} = EvidenceStateUpdate.all_for_node(node.id)
     assert stored.id == update.id
 
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_columns
   end
 
@@ -100,6 +101,7 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
                actor: actor
              )
 
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     first_node_columns = node_columns(Ash.get!(Node, node.id, authorize?: false))
     first_row_columns = update_columns(first)
 
@@ -130,6 +132,7 @@ defmodule AshPlatform.Techtree.EvidenceStateUpdateTest do
     assert {:ok, all} = EvidenceStateUpdate.all_for_node(node.id)
     assert latest.id == Enum.max([first.id, second.id])
     assert Enum.map(all, & &1.id) == Enum.sort([first.id, second.id], :desc)
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == first_node_columns
 
     public = Provenance.public_node(node, [], :not_checked)

@@ -71,9 +71,9 @@ defmodule AshPlatform.Autolaunch.LaunchOperations do
   @spec open(integer(), boolean()) :: {:ok, Ash.Resource.record() | nil} | {:error, term()}
   def open(account_id, lock?) do
     LaunchOperation
-    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain)
+    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain, actor: @actor)
     |> locked(lock?)
-    |> Ash.read_one(domain: @domain, actor: @actor)
+    |> Ash.read_one(domain: @domain)
   end
 
   @doc "Applies one named transition to a locked row."

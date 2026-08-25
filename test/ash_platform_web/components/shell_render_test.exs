@@ -16,7 +16,7 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     autolaunch: "/images/backgrounds/autolaunch.svg"
   }
 
-  @background_dir Path.expand("../../../priv/static/images/backgrounds", __DIR__)
+  @background_dir Application.app_dir(:ash_platform, "priv/static/images/backgrounds")
   @root_template Path.expand(
                    "../../../lib/ash_platform_web/components/layouts/root.html.heex",
                    __DIR__

@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.ApiContractTest do
   alias AshPlatform.Techtree.PublicationInput
 
   @contract Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
-  @served_contract Path.expand("../../priv/static/api-contract.openapiv3.yaml", __DIR__)
+  @served_contract Application.app_dir(:ash_platform, "priv/static/api-contract.openapiv3.yaml")
 
   test "the canonical contract declares the complete admitted browser auth surface" do
     contract = YamlElixir.read_from_file!(@contract)

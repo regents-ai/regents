@@ -76,6 +76,8 @@ defmodule AshPlatform.Autolaunch.Indexer.FrontierPlanTest do
       1..@retained
       |> Enum.map(&row(&1, now))
       |> Enum.chunk_every(1_000)
+      # Ash is bypassed on purpose: these rows are only ballast for the planner, and
+      # ingesting five thousand of them through actions would dominate the test.
       |> Enum.each(&Repo.insert_all(Block, &1, prefix: schema()))
 
       Repo.query!("ANALYZE #{schema()}.indexer_blocks")

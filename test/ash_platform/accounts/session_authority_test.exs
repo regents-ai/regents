@@ -80,6 +80,8 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
     claim = SessionAuthority.bootstrap()
 
     assert_raise Postgrex.Error, ~r/session_authorities_generation_nonnegative/, fn ->
+      # Ash is bypassed on purpose: no action can write a negative generation, so the
+      # database check constraint can only be exercised by writing the row directly.
       Repo.update_all(digest_query(claim.lineage), set: [generation: -1])
     end
   end
@@ -135,6 +137,8 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
   test "LEGAL_TRANSITIONS_ONLY: generation exhaustion revokes instead of wrapping" do
     account = account!("exhaustion")
     {:ok, :bind, bound} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
+    # Ash is bypassed on purpose: reaching the generation ceiling through actions would
+    # take 2^63 refreshes, so the row is fast-forwarded straight to the ceiling.
     Repo.update_all(digest_query(bound.lineage), set: [generation: @maximum_generation])
     exhausted = %{bound | generation: @maximum_generation}
 
@@ -176,6 +180,8 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
     assert still_first == first.id
     assert revoked_at
     assert SessionAuthority.exact(bound) == {:error, :reset}
+    # Ash is bypassed on purpose: counting the stored rows directly proves nothing was
+    # bound, where a read through Ash could hide rows behind a policy filter instead.
     assert Repo.aggregate(active_rows_for(second.id), :count) == 0
 
     # Only a later bootstrap and a later sign-in produce the replacement.
@@ -641,6 +647,8 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
   # no tombstones behind.
   defp discard_on_exit(claims) do
     on_exit(fn ->
+      # Ash is bypassed on purpose: the resource has no destroy action, and this cleanup
+      # only has to remove the committed rows the test left outside the sandbox.
       unboxed(fn -> Enum.each(claims, &Repo.delete_all(digest_query(&1.lineage))) end)
     end)
   end
@@ -672,8 +680,10 @@ defmodule AshPlatform.Accounts.SessionAuthorityTest do
 
   defp authority!(lineage) do
     SessionAuthority
-    |> Ash.Query.for_read(:by_lineage_digest, %{lineage_digest: :crypto.hash(:sha256, lineage)})
-    |> Ash.read_one!(actor: %System{})
+    |> Ash.Query.for_read(:by_lineage_digest, %{lineage_digest: :crypto.hash(:sha256, lineage)},
+      actor: %System{}
+    )
+    |> Ash.read_one!()
   end
 
   defp row!(lineage) do

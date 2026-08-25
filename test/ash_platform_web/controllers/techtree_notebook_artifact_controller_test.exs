@@ -183,6 +183,7 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     assert response.status == 503
     assert json_response(response, 503)["error"]["code"] == "temporarily_unavailable"
     assert artifact_count(node.id) == 0
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
   end
 
@@ -569,6 +570,7 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     assert response.status == status
     assert json_response(response, status)["error"]["code"] == Atom.to_string(code)
     assert artifact_count(node.id) == before_count
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
     {:ok, [existing]} = Techtree.list_current_notebook_artifacts(node.id, node.payload_hash)
     assert existing.id == existing_id
@@ -579,6 +581,7 @@ defmodule AshPlatformWeb.TechtreeNotebookArtifactControllerTest do
     assert response.status == status
     assert json_response(response, status)["error"]["code"] == Atom.to_string(code)
     assert artifact_count(node.id) == before_count
+    # Reads the stored node row unfiltered by policy so the raw columns can be compared.
     assert node_columns(Ash.get!(Node, node.id, authorize?: false)) == before_node
   end
 

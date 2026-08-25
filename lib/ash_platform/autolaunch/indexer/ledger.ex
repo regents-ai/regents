@@ -69,8 +69,8 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
   @spec sources(pos_integer()) :: [Ash.Resource.record()]
   def sources(chain_id) do
     Source
-    |> Ash.Query.for_read(:for_chain, %{chain_id: chain_id})
-    |> Ash.read!(actor: @actor)
+    |> Ash.Query.for_read(:for_chain, %{chain_id: chain_id}, actor: @actor)
+    |> Ash.read!()
   end
 
   @doc "The canonical block stored at an exact height, or `nil`."
@@ -147,11 +147,12 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
     owner = Ash.UUID.generate()
 
     cursor
-    |> Ash.update!(
+    |> Ash.Changeset.for_update(
+      :claim_lease,
       %{lease_owner: owner, lease_expires_at: DateTime.add(now, lease_ms, :millisecond)},
-      action: :claim_lease,
       actor: @actor
     )
+    |> Ash.update!()
     |> then(&%{chain_id: &1.chain_id, owner: owner, next_block: &1.next_block_to_fetch})
   end
 
@@ -226,7 +227,7 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
     cursor.chain_id
     |> suffix(ancestor, bound)
     |> revisable(bound)
-    |> Enum.each(&Ash.update!(&1, %{}, action: :mark_noncanonical, actor: @actor))
+    |> Ash.bulk_update!(:mark_noncanonical, %{}, actor: @actor)
 
     cursor
   end
@@ -329,7 +330,7 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
   defp finalize(chain_id, anchor, bound) do
     chain_id
     |> connected(anchor, bound)
-    |> Enum.each(&Ash.update!(&1, %{}, action: :mark_finalized, actor: @actor))
+    |> Ash.bulk_update!(:mark_finalized, %{}, actor: @actor)
   end
 
   # The first promotion is the anchor and the linked run beneath it. After that
@@ -389,12 +390,12 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
 
   defp canonical_range(chain_id, from, to) do
     Block
-    |> Ash.Query.for_read(:canonical_between, %{
-      chain_id: chain_id,
-      from_block_number: from,
-      to_block_number: to
-    })
-    |> Ash.read!(actor: @actor)
+    |> Ash.Query.for_read(
+      :canonical_between,
+      %{chain_id: chain_id, from_block_number: from, to_block_number: to},
+      actor: @actor
+    )
+    |> Ash.read!()
   end
 
   defp finalized_head(chain_id), do: frontier(:finalized_head, chain_id)
@@ -402,26 +403,30 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
 
   defp frontier(action, chain_id) do
     Block
-    |> Ash.Query.for_read(action, %{chain_id: chain_id})
-    |> Ash.read_one!(actor: @actor)
+    |> Ash.Query.for_read(action, %{chain_id: chain_id}, actor: @actor)
+    |> Ash.read_one!()
   end
 
   defp stored_blocks(chain_id, hashes) do
     Block
-    |> Ash.Query.for_read(:by_hashes, %{chain_id: chain_id, block_hashes: hashes})
-    |> Ash.read!(actor: @actor)
+    |> Ash.Query.for_read(:by_hashes, %{chain_id: chain_id, block_hashes: hashes}, actor: @actor)
+    |> Ash.read!()
   end
 
   defp source(chain_id, address) do
     Source
-    |> Ash.Query.for_read(:for_address, %{chain_id: chain_id, address: address})
-    |> Ash.read_one!(actor: @actor)
+    |> Ash.Query.for_read(:for_address, %{chain_id: chain_id, address: address}, actor: @actor)
+    |> Ash.read_one!()
   end
 
   defp stored_logs(chain_id, hashes) do
     Log
-    |> Ash.Query.for_read(:by_block_hashes, %{chain_id: chain_id, block_hashes: hashes})
-    |> Ash.read!(actor: @actor)
+    |> Ash.Query.for_read(
+      :by_block_hashes,
+      %{chain_id: chain_id, block_hashes: hashes},
+      actor: @actor
+    )
+    |> Ash.read!()
   end
 
   defp block_row(chain_id, header, now) do
@@ -481,6 +486,12 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
   # The identity's unique index decides every duplicate race; nothing already
   # stored is rewritten, so a replay can only confirm or contradict evidence.
   defp insert_absent(resource, rows, conflict_target) do
+    # Ash is bypassed deliberately: this must be one statement that lets the
+    # unique index absorb a duplicate silently and writes no column of the row
+    # already stored. A create action would raise on that conflict or upsert
+    # over it, and upserting is exactly the rewrite this ledger refuses. Every
+    # column is built above, so no change or validation is being skipped, and
+    # these rows are only ever written from inside this module.
     Repo.insert_all(resource, rows,
       prefix: AshPostgres.DataLayer.Info.schema(resource),
       on_conflict: :nothing,
@@ -490,9 +501,9 @@ defmodule AshPlatform.Autolaunch.Indexer.Ledger do
 
   defp lock(chain_id) do
     Cursor
-    |> Ash.Query.for_read(:for_chain, %{chain_id: chain_id})
+    |> Ash.Query.for_read(:for_chain, %{chain_id: chain_id}, actor: @actor)
     |> Ash.Query.lock(:for_update)
-    |> Ash.read_one!(actor: @actor)
+    |> Ash.read_one!()
   end
 
   defp by_key(records, key), do: Map.new(records, &{key.(&1), &1})

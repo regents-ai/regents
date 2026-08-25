@@ -212,6 +212,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
         assert receipt["status"] == "published"
         assert receipt["replayed"] == false
 
+        # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
         node = Ash.get!(Node, receipt["resource_id"], authorize?: false)
         assert node.kind == String.to_existing_atom(kind)
         assert node.manifest_digest == String.duplicate(Integer.to_string(index + 1), 64)
@@ -293,6 +294,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
       })
 
     response = signed_post(body, {:ok, context.identity}) |> json_response(201)
+    # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
     node = Ash.get!(Node, response["data"]["resource_id"], authorize?: false)
 
     assert node.manifest_cid == body["manifest_cid"]
@@ -313,6 +315,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     first = raw_post(encoded, [{"signature", "first-signature"}], {:ok, context.identity})
     first_receipt = json_response(first, 201)["data"]
 
+    # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
     node = Ash.get!(Node, first_receipt["resource_id"], authorize?: false)
     Techtree.update_node_layout!(node, 10.0, 20.0, "featured", actor: %System{})
 
@@ -322,6 +325,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     assert Map.drop(replay_receipt, ["replayed"]) == Map.drop(first_receipt, ["replayed"])
     assert replay_receipt["replayed"] == true
 
+    # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
     node = Ash.get!(Node, first_receipt["resource_id"], authorize?: false)
     assert node.title == "Published audit"
     assert node.idempotency_key == String.trim(body["idempotency_key"])
@@ -369,6 +373,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
         assert Map.drop(replay_receipt, ["replayed"]) == Map.drop(first_receipt, ["replayed"])
         assert replay_receipt["replayed"] == true
 
+        # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
         node = Ash.get!(Node, first_receipt["resource_id"], authorize?: false)
         assert node.siwa_envelope["body"] == encoded
       end
@@ -655,6 +660,7 @@ defmodule AshPlatformWeb.TechtreePublicationControllerTest do
     assert_failed_receipt(conflict, "conflict")
     assert publication_count(context, body["idempotency_key"]) == 1
 
+    # Reads the row the request wrote, unfiltered by policy, to assert what was stored.
     node = Ash.get!(Node, first["data"]["resource_id"], authorize?: false)
     assert node.manifest_digest == body["manifest_digest"]
   end

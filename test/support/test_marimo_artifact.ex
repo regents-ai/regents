@@ -3,19 +3,17 @@ defmodule AshPlatform.TestMarimoArtifact do
 
   @marimo_version "0.23.14"
   @source Path.expand("fixtures/marimo_browser_notebook.py", __DIR__)
-  @notebooks_root Path.expand("../../priv/static/notebooks", __DIR__)
-  @build_dir Path.join(@notebooks_root, ".browser-notebook-build")
 
   def artifact do
     export!()
 
     source_hash = @source |> File.read!() |> sha256()
-    manifest_json = manifest_json(@build_dir, source_hash)
+    manifest_json = manifest_json(build_dir(), source_hash)
     payload_hash = sha256(manifest_json)
-    final_dir = Path.join(@notebooks_root, hash_hex(payload_hash))
+    final_dir = Path.join(notebooks_root(), hash_hex(payload_hash))
 
     File.rm_rf!(final_dir)
-    File.rename!(@build_dir, final_dir)
+    File.rename!(build_dir(), final_dir)
 
     %{
       source_hash: source_hash,
@@ -31,17 +29,21 @@ defmodule AshPlatform.TestMarimoArtifact do
     }
   end
 
+  defp notebooks_root, do: Application.app_dir(:ash_platform, "priv/static/notebooks")
+
+  defp build_dir, do: Path.join(notebooks_root(), ".browser-notebook-build")
+
   defp export! do
-    File.rm_rf!(@build_dir)
-    File.mkdir_p!(@notebooks_root)
+    File.rm_rf!(build_dir())
+    File.mkdir_p!(notebooks_root())
 
     Application.fetch_env!(:ash_platform, :marimo_exporter).export(
       @source,
-      @build_dir,
+      build_dir(),
       @marimo_version
     )
 
-    unless File.regular?(Path.join(@build_dir, "index.html")) do
+    unless File.regular?(Path.join(build_dir(), "index.html")) do
       raise "Marimo export did not produce index.html"
     end
   end

@@ -29,25 +29,19 @@ defmodule AshPlatform.Formation.AgentPairingCode.Actions.Issue do
     now = clock().()
     expires_at = DateTime.add(now, @ttl_seconds, :second)
 
-    result =
-      Ash.DataLayer.transaction(AgentPairingCode, fn ->
-        with {:ok, _result} <- lock_human(actor.human_account_id),
-             {:ok, existing} <- pairing_code(actor),
-             :ok <- admit_issue(existing, now),
-             {:ok, _record} <- store(existing, regent_id, code, now, expires_at, actor) do
-          %AshPlatform.Formation.AgentPairingCode.Issued{
-            code: code,
-            expires_at: expires_at
-          }
-        else
-          {:error, error} -> Ash.DataLayer.rollback(AgentPairingCode, error)
-        end
-      end)
-
-    case result do
-      {:ok, issued} -> {:ok, issued}
-      {:error, error} -> {:error, error}
-    end
+    Ash.DataLayer.transaction(AgentPairingCode, fn ->
+      with {:ok, _result} <- lock_human(actor.human_account_id),
+           {:ok, existing} <- pairing_code(actor),
+           :ok <- admit_issue(existing, now),
+           {:ok, _record} <- store(existing, regent_id, code, now, expires_at, actor) do
+        %AshPlatform.Formation.AgentPairingCode.Issued{
+          code: code,
+          expires_at: expires_at
+        }
+      else
+        {:error, error} -> Ash.DataLayer.rollback(AgentPairingCode, error)
+      end
+    end)
   end
 
   defp owned_regent(actor) do

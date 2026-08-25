@@ -75,10 +75,11 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperations do
   def open(account_id, subject_id, lock?) do
     SubjectWalletOperation
     |> Ash.Query.for_read(:open, %{human_account_id: account_id, subject_id: subject_id},
-      domain: @domain
+      domain: @domain,
+      actor: @actor
     )
     |> locked(lock?)
-    |> Ash.read_one(domain: @domain, actor: @actor)
+    |> Ash.read_one(domain: @domain)
   end
 
   @doc "Applies one named transition to a locked row."

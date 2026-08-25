@@ -204,9 +204,10 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
   def active(account_id, capability) do
     StakeRedeemOperation
     |> Ash.Query.for_read(:active, %{human_account_id: account_id, capability: capability},
-      domain: domain(capability)
+      domain: domain(capability),
+      actor: @actor
     )
-    |> Ash.read_one(domain: domain(capability), actor: @actor)
+    |> Ash.read_one(domain: domain(capability))
   end
 
   @doc """
@@ -223,7 +224,7 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
 
   def lease(_context), do: {:error, :session_lease_required}
 
-  @doc "The only operation facts a presenter restores from. Everything else stays server-side."
+  @doc "The only operation facts a presenter reads back. Everything else stays server-side."
   @spec view(struct() | nil) :: map() | nil
   def view(nil), do: nil
 
@@ -272,10 +273,11 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperations do
   defp locked_active(account_id, capability) do
     StakeRedeemOperation
     |> Ash.Query.for_read(:active, %{human_account_id: account_id, capability: capability},
-      domain: domain(capability)
+      domain: domain(capability),
+      actor: @actor
     )
     |> Ash.Query.lock(:for_update)
-    |> Ash.read_one(domain: domain(capability), actor: @actor)
+    |> Ash.read_one(domain: domain(capability))
   end
 
   # A new review may replace one nobody has dispatched; anything already claimed

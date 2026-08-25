@@ -463,6 +463,8 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
   # this block rather than only around the ones that mint them.
   defp clear_committed_bids(_context) do
     remove = fn ->
+      # Ash is bypassed throughout this cleanup on purpose: it runs outside the sandbox
+      # against rows that policies would hide, and the resources have no destroy actions.
       account_ids =
         Repo.all(
           from(account in Accounts.HumanAccount,

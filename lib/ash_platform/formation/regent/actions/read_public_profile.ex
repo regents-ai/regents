@@ -27,9 +27,6 @@ defmodule AshPlatform.Formation.Regent.Actions.ReadPublicProfile do
          verified_wallet_address: account.wallet_address,
          cloud_connected?: not is_nil(runtime)
        }}
-    else
-      {:ok, nil} -> {:ok, nil}
-      {:error, error} -> {:error, error}
     end
   end
 end

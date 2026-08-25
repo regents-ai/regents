@@ -510,9 +510,9 @@ defmodule AshPlatform.Autolaunch.BidActions do
 
   defp open_row(account_id, lock?) do
     BidOperation
-    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain)
+    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain, actor: @actor)
     |> then(&if lock?, do: Ash.Query.lock(&1, :for_update), else: &1)
-    |> Ash.read_one(domain: @domain, actor: @actor)
+    |> Ash.read_one(domain: @domain)
   end
 
   defp update(operation, action, input) do

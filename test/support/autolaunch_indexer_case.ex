@@ -107,29 +107,30 @@ defmodule AshPlatform.AutolaunchIndexerCase do
   def sources do
     unboxed(fn ->
       Source
-      |> Ash.Query.for_read(:for_chain, %{chain_id: @chain_id})
-      |> Ash.read!(actor: actor())
+      |> Ash.Query.for_read(:for_chain, %{chain_id: @chain_id}, actor: actor())
+      |> Ash.read!()
     end)
   end
 
   def stored_blocks do
     unboxed(fn ->
       Block
-      |> Ash.Query.for_read(:read)
+      |> Ash.Query.for_read(:read, %{}, actor: actor())
       |> Ash.Query.sort(block_number: :asc, block_hash: :asc)
-      |> Ash.read!(actor: actor())
+      |> Ash.read!()
     end)
   end
 
   def stored_logs do
     unboxed(fn ->
       Log
-      |> Ash.Query.for_read(:by_block_hashes, %{
-        chain_id: @chain_id,
-        block_hashes: Enum.map(stored_headers(), & &1.block_hash)
-      })
+      |> Ash.Query.for_read(
+        :by_block_hashes,
+        %{chain_id: @chain_id, block_hashes: Enum.map(stored_headers(), & &1.block_hash)},
+        actor: actor()
+      )
       |> Ash.Query.sort(block_hash: :asc, log_index: :asc)
-      |> Ash.read!(actor: actor())
+      |> Ash.read!()
     end)
   end
 
@@ -197,6 +198,8 @@ defmodule AshPlatform.AutolaunchIndexerCase do
   end
 
   # Removes exactly the ledger rows these tests mint, dependent rows first.
+  # No ledger resource exposes a destroy action, and teardown has to clear rows
+  # a half-finished test committed, so this deletes at the table directly.
   defp clear_ledger,
     do: unboxed(fn -> Enum.each(@ledger_tables, &Repo.delete_all(scoped(&1))) end)
 
@@ -221,7 +224,7 @@ defmodule AshPlatform.AutolaunchIndexerCase do
   defp stored_headers, do: unboxed(fn -> Ash.read!(Block, actor: actor()) end)
 
   defp read_one(resource, action, input),
-    do: resource |> Ash.Query.for_read(action, input) |> Ash.read_one!(actor: actor())
+    do: resource |> Ash.Query.for_read(action, input, actor: actor()) |> Ash.read_one!()
 
   defp log(block, spec) do
     %{

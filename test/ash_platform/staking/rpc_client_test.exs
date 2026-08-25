@@ -43,7 +43,7 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
 
     blocks = Stub.call_blocks()
-    assert length(blocks) >= 8
+    assert Enum.count_until(blocks, 8) == 8
     assert Enum.uniq(blocks) == [%{blockHash: Stub.safe_hash(), requireCanonical: true}]
   end
 

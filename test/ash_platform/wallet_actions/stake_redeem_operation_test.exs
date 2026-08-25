@@ -511,6 +511,8 @@ defmodule AshPlatform.WalletActions.StakeRedeemOperationTest do
   # rather than only around the ones that mint them, dependent rows first.
   defp clear_committed_operations(_context) do
     remove = fn ->
+      # Teardown deletes the rows outright: there is no destroy action for a committed
+      # operation, and policies, changes and notifications have nothing to say about it.
       Repo.delete_all(StakeRedeemOperation)
       Repo.delete_all(from(row in SessionAuthority, where: not is_nil(row.human_account_id)))
 

@@ -355,7 +355,8 @@ defmodule AshPlatform.Accounts.SessionAuthority do
 
   defp mutate(row, lineage, input, action) do
     row
-    |> Ash.update!(input, action: action, actor: @actor)
+    |> Ash.Changeset.for_update(action, input, actor: @actor)
+    |> Ash.update!()
     |> then(&claim_at(lineage, &1))
   end
 
@@ -381,6 +382,11 @@ defmodule AshPlatform.Accounts.SessionAuthority do
   defp ensure(digest, revoked_at) do
     now = DateTime.utc_now()
 
+    # Ash is bypassed here on purpose: this is the unconditional, idempotent seed
+    # of a row that confers nothing until a locked transition binds it, and the
+    # loser of a concurrent seed has to fall through to that lock silently rather
+    # than raise. `on_conflict: :nothing` against the lineage-digest index is the
+    # whole behaviour, so there is no change, policy or notification to run.
     Repo.insert_all(
       __MODULE__,
       [
@@ -399,12 +405,13 @@ defmodule AshPlatform.Accounts.SessionAuthority do
   end
 
   defp lock(digest),
-    do: digest |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one!(actor: @actor)
+    do: digest |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one!()
 
-  defp row(digest), do: digest |> lookup() |> Ash.read_one!(actor: @actor)
+  defp row(digest), do: digest |> lookup() |> Ash.read_one!()
 
   defp lookup(digest),
-    do: Ash.Query.for_read(__MODULE__, :by_lineage_digest, %{lineage_digest: digest})
+    do:
+      Ash.Query.for_read(__MODULE__, :by_lineage_digest, %{lineage_digest: digest}, actor: @actor)
 
   # Every protected write locks the authority row and then the account row, in
   # that one order, and reads the provider evidence only from behind the second
