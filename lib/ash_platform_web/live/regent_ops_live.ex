@@ -14,8 +14,8 @@ defmodule AshPlatformWeb.RegentOpsLive do
     <section id="regent-ops-overview" class="regent-ops-page">
       <header class="regent-ops-heading">
         <p class="regent-ops-kicker">Regents Labs · Base</p>
-        <h1>Regents Labs</h1>
-        <p>Manage your Regent identity, REGENT positions, and wallet actions in one place.</p>
+        <h1>Account</h1>
+        <p>See your account, any verified wallet, balances, and rewards on Base.</p>
       </header>
 
       <div :if={@status == :loading} class="regent-ops-status" aria-busy="true">
@@ -27,7 +27,7 @@ defmodule AshPlatformWeb.RegentOpsLive do
       </div>
 
       <div :if={@status == :ready && @staking} class="regent-ops-layout">
-        <dl class="regent-ops-summary" aria-label="Regents Labs summary">
+        <dl class="regent-ops-summary" aria-label="Account summary">
           <div class="regent-ops-metric">
             <dt>Network</dt>
             <dd>{@staking.chain_label}</dd>
@@ -37,8 +37,8 @@ defmodule AshPlatformWeb.RegentOpsLive do
 
         <section :if={@account_control.kind == :sign_in} class="regent-ops-account">
           <p class="regent-ops-kicker">Your Regent</p>
-          <h2>Sign in to see your wallet</h2>
-          <p>Your account keeps wallet evidence and Regent actions tied to one human identity.</p>
+          <h2>Not signed in</h2>
+          <p>Sign in to see any wallet verified on your account and the balances available to it.</p>
         </section>
 
         <section :if={@account_control.kind == :signed_in} class="regent-ops-account">
@@ -56,15 +56,16 @@ defmodule AshPlatformWeb.RegentOpsLive do
             <.metric label="REGENT rewards" amount={@staking.wallet_claimable_regent} unit="REGENT" />
           </dl>
         </section>
-
-        <nav class="regent-ops-actions" aria-label="Regents Labs actions">
-          <.link patch="/stake">Stake REGENT</.link>
-          <.link patch="/redeem">Redeem Animata</.link>
-          <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
-            View Regent profile
-          </.link>
-        </nav>
       </div>
+
+      <nav class="regent-ops-actions" aria-label="Account actions">
+        <.link patch="/stake">Stake REGENT</.link>
+        <.link patch="/redeem">Redeem Animata</.link>
+        <.link patch="/formation">Run your Regent</.link>
+        <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
+          View Regent profile
+        </.link>
+      </nav>
     </section>
     """
   end

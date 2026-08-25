@@ -245,23 +245,39 @@ test("a signed-in account without a Regent shows its available account menu", as
   await auth.expectCounts({documents: 2, sessionChecks: 3, syncs: 2})
 })
 
-test("Regents Labs overview shows public chain truth without inventing a profile", async ({page}) => {
+test("the Account overview shows public chain truth, invents no wallet or profile, and reaches Formation", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const overview = page.locator("#regent-ops-overview")
-  await expect(overview.getByRole("heading", {name: "Regents Labs"})).toBeVisible()
-  await expect(overview).toContainText("100 REGENT")
-  await expect(overview).toContainText("Sign in to see your wallet")
-  await expect(overview.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute(
-    "href",
-    "/stake",
+  await expect(overview.getByRole("heading", {level: 1, name: "Account"})).toBeVisible()
+  await expect(overview).toContainText(
+    "See your account, any verified wallet, balances, and rewards on Base.",
   )
-  await expect(overview.getByRole("link", {name: "Redeem Animata"})).toHaveAttribute(
+  await expect(overview).toContainText("100 REGENT")
+  await expect(overview).toContainText(
+    "Sign in to see any wallet verified on your account and the balances available to it.",
+  )
+  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
+
+  const actions = overview.getByRole("navigation", {name: "Account actions"})
+  await expect(actions.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute("href", "/stake")
+  await expect(actions.getByRole("link", {name: "Redeem Animata"})).toHaveAttribute(
     "href",
     "/redeem",
   )
+  await expect(actions.getByRole("link", {name: "Run your Regent"})).toHaveAttribute(
+    "href",
+    "/formation",
+  )
+  await expect(overview.locator('a[href*="/hermes"]')).toHaveCount(0)
   await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
+
+  await actions.getByRole("link", {name: "Run your Regent"}).click()
+  await expect(page).toHaveURL(/\/formation$/)
+  await expect(
+    page.getByRole("heading", {level: 1, name: "Run your Regent in Nous Portal"}),
+  ).toBeVisible()
 })
 
 test("an unknown public Regent profile is honest and keeps shell navigation available", async ({page}) => {
@@ -271,10 +287,7 @@ test("an unknown public Regent profile is honest and keeps shell navigation avai
   await expect(page.getByRole("heading", {name: "Regent not found"})).toBeVisible()
   await expect(page.getByText("This public Regent profile does not exist.")).toBeVisible()
   await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
-  await expect(page.getByRole("link", {name: "Return to Regents Labs"})).toHaveAttribute(
-    "href",
-    "/app",
-  )
+  await expect(page.getByRole("link", {name: "Return to Account"})).toHaveAttribute("href", "/app")
 })
 
 test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {

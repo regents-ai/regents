@@ -22,7 +22,7 @@ defmodule AshPlatformWeb.RegentProfileLive do
         <p class="regent-profile-kicker">Regents Labs</p>
         <h1>Regent not found</h1>
         <p>This public Regent profile does not exist.</p>
-        <.link patch="/app">Return to Regents Labs</.link>
+        <.link patch="/app">Return to Account</.link>
       </div>
 
       <article :if={@status == :ready && @regent} class="regent-profile-record">
