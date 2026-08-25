@@ -63,6 +63,8 @@ defmodule AshPlatform.MixProject do
       {:req, "== 0.6.2"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:credo_ash, path: "../elixir-utils/credo_ash", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
     ]
   end

@@ -136,7 +136,53 @@
           {Credo.Check.Warning.UnusedRegexOperation, []},
           {Credo.Check.Warning.UnusedStringOperation, []},
           {Credo.Check.Warning.UnusedTupleOperation, []},
-          {Credo.Check.Warning.WrongTestFilename, []}
+          {Credo.Check.Warning.WrongTestFilename, []},
+          # ExSlop catches patterns LLMs produce that experienced Elixir
+          # developers do not. Registered as checks rather than as a plugin
+          # because this config pins an explicit enabled list, which Credo
+          # treats as authoritative over any plugin defaults.
+          {ExSlop.Check.Warning.BlanketRescue, []},
+          {ExSlop.Check.Warning.RescueWithoutReraise, []},
+          {ExSlop.Check.Warning.RepoAllThenFilter, []},
+          {ExSlop.Check.Warning.QueryInEnumMap, []},
+          {ExSlop.Check.Warning.GenserverAsKvStore, []},
+          {ExSlop.Check.Warning.PathExpandPriv, []},
+          {ExSlop.Check.Warning.DualKeyAccess, []},
+          {ExSlop.Check.Refactor.FilterNil, []},
+          {ExSlop.Check.Refactor.RejectNil, []},
+          {ExSlop.Check.Refactor.ReduceAsMap, []},
+          {ExSlop.Check.Refactor.MapIntoLiteral, []},
+          {ExSlop.Check.Refactor.IdentityPassthrough, []},
+          {ExSlop.Check.Refactor.IdentityMap, []},
+          {ExSlop.Check.Refactor.TryRescueWithSafeAlternative, []},
+          {ExSlop.Check.Refactor.WithIdentityElse, []},
+          {ExSlop.Check.Refactor.WithIdentityDo, []},
+          {ExSlop.Check.Refactor.SortThenReverse, []},
+          {ExSlop.Check.Refactor.StringConcatInReduce, []},
+          {ExSlop.Check.Refactor.ReduceMapPut, []},
+          {ExSlop.Check.Refactor.RedundantBooleanIf, []},
+          {ExSlop.Check.Refactor.FlatMapFilter, []},
+          {ExSlop.Check.Refactor.LengthComparison, []},
+          {ExSlop.Check.Readability.NarratorDoc, []},
+          {ExSlop.Check.Readability.BoilerplateDocParams, []},
+          {ExSlop.Check.Readability.NarratorComment, []},
+          {ExSlop.Check.Refactor.RedundantEnumJoinSeparator, []},
+          {ExSlop.Check.Refactor.GraphemesLength, []},
+          {ExSlop.Check.Refactor.ManualStringReverse, []},
+          {ExSlop.Check.Refactor.SortThenAt, []},
+          {ExSlop.Check.Refactor.SortForTopK, []},
+          {ExSlop.Check.Refactor.ExplicitSumReduce, []},
+          # credo_ash encodes the mechanically decidable rules of the
+          # ash-regents playbook: policy coverage, actor placement, the
+          # Ash-shaped N+1, and writes that go around Ash entirely.
+          {CredoAsh.Check.Warning.PoliciesWithoutAuthorizer, []},
+          {CredoAsh.Check.Warning.AuthorizerWithoutPolicies, []},
+          {CredoAsh.Check.Warning.UnprotectedResource, []},
+          {CredoAsh.Check.Warning.AshCallInLoop, []},
+          {CredoAsh.Check.Warning.ActorOnExecution, []},
+          {CredoAsh.Check.Warning.DirectRepoCall, []},
+          {CredoAsh.Check.Warning.UnjustifiedAuthorizeFalse, []},
+          {CredoAsh.Check.Design.WildcardAccept, []}
         ],
         disabled: [
           # AliasUsage is disabled because explicit qualification preserves domain and nested-adapter context.
