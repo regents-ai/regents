@@ -386,8 +386,7 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   })
 
   await page.goto("/autolaunch/create")
-  await expect(page.locator("#autolaunch-verified-connections")).toBeVisible()
-  await expect(page.getByRole("button", {name: "Sign in to connect"}).first()).toBeVisible()
+  await expect(page.locator("#autolaunch-create")).toContainText("Sign in to prepare your launch.")
   const csrfToken = await page.evaluate(async () => {
     const response = await fetch("/auth/csrf", {credentials: "same-origin"})
     return ((await response.json()) as {csrf_token: string}).csrf_token
@@ -450,13 +449,58 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
     button.textContent = "Probe protected identity action"
     liveView.append(button)
   })
+  // Watch the probe before it is clicked so neither half of the round trip can
+  // slip past. LiveView marks the clicked element in flight with
+  // `data-phx-ref-loading` and removes that mark only when the server
+  // acknowledges the reply, dispatching any event the reply pushed just after.
+  // The observer reads ordered attribute records rather than live state, so the
+  // mark appearing and then going away is recorded even if both land together.
+  await page.evaluate(() => {
+    const probe = document.getElementById("u3-protected-identity-probe")
+    if (!probe) throw new Error("The protected identity probe is not mounted.")
+    const roundTrip = {requested: false, acknowledged: false, privilegedPushes: 0}
+    ;(window as Window & {__u3ProtectedProbe?: typeof roundTrip}).__u3ProtectedProbe = roundTrip
+    window.addEventListener("phx:verified-connections:request", () => {
+      roundTrip.privilegedPushes += 1
+    })
+    new MutationObserver(records => {
+      for (const {oldValue} of records) {
+        if (oldValue === null) {
+          roundTrip.requested = true
+        } else if (roundTrip.requested) {
+          roundTrip.acknowledged = true
+        }
+      }
+    }).observe(probe, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ["data-phx-ref-loading"],
+    })
+  })
   await page.locator("#u3-protected-identity-probe").click()
-  await expect(
-    page.getByText("That connection couldn’t be updated. Refresh the page and try again."),
-  ).toBeVisible()
+  const roundTrip = () =>
+    page.evaluate(
+      () =>
+        (
+          window as Window & {
+            __u3ProtectedProbe?: {
+              requested: boolean
+              acknowledged: boolean
+              privilegedPushes: number
+            }
+          }
+        ).__u3ProtectedProbe,
+    )
+  await expect
+    .poll(async () => {
+      const {requested, acknowledged} = (await roundTrip()) ?? {}
+      return {requested, acknowledged}
+    })
+    .toEqual({requested: true, acknowledged: true})
+  expect((await roundTrip())?.privilegedPushes).toBe(0)
   const sessionAfterProtectedAction = await page.request.get("/auth/session")
   expect((await sessionAfterProtectedAction.json()).authenticated).toBe(false)
-  await expect(page.getByRole("button", {name: "Sign in to connect"}).first()).toBeVisible()
+  await expect(page.locator("#autolaunch-create")).toContainText("Sign in to prepare your launch.")
   expect(documentRequests).toEqual(["http://127.0.0.1:4002/autolaunch/create"])
 })
 
