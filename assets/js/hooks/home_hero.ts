@@ -42,7 +42,8 @@ const browserCancelFrame: CancelFrame = handle => {
 const browserReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-const browserWriteClipboard: WriteClipboard = text => navigator.clipboard.writeText(text)
+// Async so a browser that refuses clipboard access synchronously still lands in the failure branch.
+const browserWriteClipboard: WriteClipboard = async text => navigator.clipboard.writeText(text)
 
 const COPY_TRIGGER = "[data-copy-hermes-instructions]"
 

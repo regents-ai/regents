@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   HomeHero,
@@ -41,6 +41,25 @@ const copyPage = () => {
 }
 
 describe("homepage clipboard handoff", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("reports failure when the browser refuses the clipboard without a promise", async () => {
+    const {click, listeners, root, status} = copyPage()
+    const writeText = vi.fn(() => {
+      throw new Error("clipboard blocked")
+    })
+    vi.stubGlobal("navigator", {clipboard: {writeText}})
+    const controller = createHomeHeroController(root, {requestFrame: vi.fn(() => 1)})
+
+    controller.mount()
+    expect(() => listeners()[0](click)).not.toThrow()
+    await vi.waitFor(() => expect(status.textContent).toBe("Couldn’t copy. Try again."))
+
+    expect(writeText).toHaveBeenCalledWith(HERMES_INSTRUCTIONS)
+  })
+
   it("copies the exact Hermes instructions the button carries and reports success", async () => {
     const {click, listeners, root, status} = copyPage()
     const writeClipboard = vi.fn(() => Promise.resolve())
