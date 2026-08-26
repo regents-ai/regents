@@ -2,6 +2,8 @@ defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
 
+  alias AshPlatformWeb.TokenDisplay
+
   @unavailable_owner "Unable to verify this NFT. Check the collection and token ID."
 
   @doc """
@@ -38,10 +40,10 @@ defmodule AshPlatformWeb.RedeemLive do
       </header>
 
       <section class="redeem-facts" aria-label="Redemption facts">
-        <.metric label="Cost" value="80 USDC" />
-        <.metric label="Reward" value="5,000,000 REGENT" />
-        <.metric label="Vesting" value="7 days" />
-        <.metric label="Network" value="Base" />
+        <.metric label="Cost">80 USDC</.metric>
+        <.metric label="Reward">5,000,000 REGENT</.metric>
+        <.metric label="Vesting">7 days</.metric>
+        <.metric label="Network">Base</.metric>
       </section>
 
       <div :if={@status == :loading} class="redeem-status" aria-busy="true">
@@ -61,17 +63,27 @@ defmodule AshPlatformWeb.RedeemLive do
 
       <div :if={@status == :ready && @redemption} class="redeem-layout">
         <section class="redeem-summary" aria-label="Redemption account status">
-          <.metric label="USDC balance" value={usdc(@redemption.usdc_balance)} />
-          <.metric label="USDC allowance" value={usdc(@redemption.usdc_allowance)} />
-          <.metric label="Claimable REGENT" value={regent(@redemption.claimable)} />
-          <.metric label="Vest total" value={regent(@redemption.vest_pool)} />
-          <.metric label="Released" value={regent(@redemption.vest_released)} />
-          <.metric label="Claimed" value={regent(@redemption.vest_claimed)} />
-          <.metric
-            :if={@redemption.result_token_id}
-            label="Regents Club"
-            value={"Result token ##{@redemption.result_token_id}"}
-          />
+          <.metric label="USDC balance">
+            <TokenDisplay.amount amount={@redemption.usdc_balance} unit="USDC" />
+          </.metric>
+          <.metric label="USDC allowance">
+            <TokenDisplay.amount amount={@redemption.usdc_allowance} unit="USDC" />
+          </.metric>
+          <.metric label="Claimable REGENT">
+            <TokenDisplay.amount amount={@redemption.claimable} unit="REGENT" />
+          </.metric>
+          <.metric label="Vest total">
+            <TokenDisplay.amount amount={@redemption.vest_pool} unit="REGENT" />
+          </.metric>
+          <.metric label="Released">
+            <TokenDisplay.amount amount={@redemption.vest_released} unit="REGENT" />
+          </.metric>
+          <.metric label="Claimed">
+            <TokenDisplay.amount amount={@redemption.vest_claimed} unit="REGENT" />
+          </.metric>
+          <.metric :if={@redemption.result_token_id} label="Regents Club">
+            {"Result token ##{@redemption.result_token_id}"}
+          </.metric>
         </section>
 
         <section :if={!@authenticated} class="redeem-actions">
@@ -265,13 +277,13 @@ defmodule AshPlatformWeb.RedeemLive do
   defp step_control(_blocked), do: "Nothing to review yet"
 
   attr :label, :string, required: true
-  attr :value, :string, required: true
+  slot :inner_block, required: true
 
   defp metric(assigns) do
     ~H"""
     <div class="redeem-metric">
       <p class="redeem-metric-label">{@label}</p>
-      <p class="redeem-metric-value">{@value}</p>
+      <p class="redeem-metric-value">{render_slot(@inner_block)}</p>
     </div>
     """
   end
@@ -309,11 +321,6 @@ defmodule AshPlatformWeb.RedeemLive do
     </p>
     """
   end
-
-  defp usdc(nil), do: "—"
-  defp usdc(value), do: value <> " USDC"
-  defp regent(nil), do: "—"
-  defp regent(value), do: value <> " REGENT"
 
   defp confirmed_result(%{status: :confirmed, event: %{result_token_id: token_id}}),
     do: "Redeemed for Regents Club token ##{token_id}."

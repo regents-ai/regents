@@ -2,6 +2,7 @@ import {defineConfig, devices} from "@playwright/test"
 
 export default defineConfig({
   testDir: "./test/browser",
+  globalTeardown: "./test/browser/support/autolaunch_subject_teardown.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: true,

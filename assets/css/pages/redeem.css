@@ -56,8 +56,11 @@
   opacity: 0.7;
 }
 
+/* An exact 18-decimal figure is one unbreakable word, so it is allowed to break
+   inside its own cell rather than run across the metric beside it. */
 .redeem-metric-value {
   font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .redeem-layout {

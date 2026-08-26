@@ -1,5 +1,3 @@
-import {execFileSync} from "node:child_process"
-
 import {expect, test, type Page} from "@playwright/test"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
@@ -12,16 +10,6 @@ const wrongChainKey = "regent:test:subject-wallet-wrong-chain"
 
 const card = "#autolaunch-subject-wallet"
 const path = `/autolaunch/subjects/${subject}`
-
-// The browser proof and `mix test` share one local test database. A public
-// subject left behind here would change what the ordinary suite sees listed, so
-// this fixture subject is removed again as soon as its proof is done with it.
-test.afterAll(() => {
-  execFileSync("mix", ["ash_platform.seed_browser_autolaunch_subject", "--remove"], {
-    env: {...process.env, MIX_ENV: "test"},
-    stdio: "ignore",
-  })
-})
 
 // Every submitted hash is unique for the life of the database and the browser
 // database is never reset, so each run mints its own. Each test also gets its

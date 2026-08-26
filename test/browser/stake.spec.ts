@@ -224,33 +224,44 @@ test("U2_U3_PUBLIC_SURFACES_FIT_EVERY_WIDTH_AND_REQUEST_ONLY_TRACKED_FONTS", asy
   })
 
   const surfaces = [
-    {route: "/stake", summary: ".stake-summary", layout: ".stake-layout"},
-    {route: "/app", summary: ".regent-ops-summary", layout: ".regent-ops-layout"},
+    {route: "/stake", summary: ".stake-summary", layout: ".stake-layout", cell: "dd"},
+    {route: "/app", summary: ".regent-ops-summary", layout: ".regent-ops-layout", cell: "dd"},
+    {
+      route: "/redeem",
+      summary: ".redeem-summary",
+      layout: ".redeem-layout",
+      cell: ".redeem-metric-value",
+    },
   ]
 
   for (const width of [1280, 768, 390]) {
     await page.setViewportSize({width, height: 900})
 
-    for (const {route, summary, layout} of surfaces) {
+    for (const {route, summary, layout, cell} of surfaces) {
       await page.goto(route)
       await expect(page.locator(summary)).toBeVisible()
 
       const fit = await page
-        .locator(`${summary} dd`)
+        .locator(`${summary} ${cell}`)
         .first()
         .evaluate(
-          (cell, {summary, viewport}) => {
-            cell.textContent = "7390000000.123456789012345678 REGENT"
-            const card = cell.closest(summary) as HTMLElement
+          (node, {summary, viewport}) => {
+            node.textContent = "7390000000.123456789012345678 REGENT"
+            const card = node.closest(summary) as HTMLElement
             return {
               card: card.scrollWidth - card.clientWidth,
               document: document.documentElement.scrollWidth - viewport,
+              // A figure wider than its own cell runs over the cell beside it
+              // without widening the card, so the cells are measured too.
+              clipped: [card, ...card.querySelectorAll("*")]
+                .filter(box => box.scrollWidth > box.clientWidth + 1)
+                .map(box => `${box.tagName}.${box.className || "-"}`),
             }
           },
           {summary, viewport: width},
         )
 
-      expect(fit, `${route} at ${width}`).toEqual({card: 0, document: 0})
+      expect(fit, `${route} at ${width}`).toEqual({card: 0, document: 0, clipped: []})
 
       const columns = await page
         .locator(layout)

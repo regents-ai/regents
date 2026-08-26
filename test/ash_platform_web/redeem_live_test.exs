@@ -142,6 +142,30 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(view, "button[data-redeem-connect]")
   end
 
+  # The six summary figures are read-only presentation, so a production-sized one
+  # is shortened for width while the exact amount stays in the page as real text
+  # and on hover. Facts a customer acts on are never abbreviated.
+  test "REDEEM_SUMMARY_AMOUNTS_KEEP_THEIR_EXACT_VALUE: a wide figure compacts and stays exact",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 7_390_000_000_123_456)
+
+    account = register("redeem-compact", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    html = render(view)
+
+    assert html =~ ~s(<span aria-hidden="true" title="7390000000.123456 USDC">7.39B USDC</span>)
+    assert html =~ ~s(<span class="visually-hidden">7390000000.123456 USDC</span>)
+
+    # A figure that already fits is still rendered once, as itself.
+    assert has_element?(view, ".redeem-summary .redeem-metric-value", ~r/\A\s*1 REGENT\s*\z/)
+
+    # The static facts stay literal, whatever the wallet holds.
+    assert has_element?(view, ".redeem-facts .redeem-metric-value", "5,000,000 REGENT")
+    assert has_element?(view, ".redeem-facts .redeem-metric-value", "80 USDC")
+  end
+
   test "signed-in user reviews one explicit action, submits, verifies and refreshes", %{
     conn: conn
   } do
