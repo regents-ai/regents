@@ -129,6 +129,13 @@ async function saveDraft(page: Page) {
 // A launch this account left open on any draft blocks a new review, so it is
 // ended through whichever control the server is currently offering.
 async function endAnyOpenLaunch(page: Page) {
+  // Every card offers this prompt until the server has adopted the wallet its
+  // hook published, and that same render replays whatever launch this account
+  // has open. Reading the controls earlier finds none and leaves it standing.
+  await expect(page.locator(".launch-wallet [data-launch-wallet-connect]")).toHaveCount(0, {
+    timeout: 15_000,
+  })
+
   const controls = [
     'button[phx-click="clear_launch"]',
     'button[phx-click="cancel_launch_review"]',
