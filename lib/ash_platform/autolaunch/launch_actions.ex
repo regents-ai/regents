@@ -1,6 +1,6 @@
 defmodule AshPlatform.Autolaunch.LaunchActions do
   @moduledoc """
-  The one boundary between a founder's wallet and the C4 launch factory.
+  The one boundary between a founder's wallet and the launch factory.
 
   Preparation reads Base once, at one canonical safe block, and writes the whole
   reviewed sequence as a single immutable envelope: at most an exact REGENT
@@ -33,6 +33,16 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # The factory's own inclusive byte caps on the five metadata strings. Each must
   # also be nonempty, which is what a historical draft can fail.
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+
+  # Three of the exact six treasuries the strategy refuses are frozen constants
+  # rather than reads: autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+  # src/bindings/BaseBindings.sol lines 19-21, refused together with the factory,
+  # the strategy and its hook at src/strategy/RegentLBPStrategy.sol lines 673-679.
+  @frozen_refused_treasuries [
+    "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+    "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+    "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+  ]
 
   @replaced "replaced by a newer review"
   @rejected "wallet reported an explicit user rejection"
@@ -92,7 +102,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          :ok <- same_account(actor, account),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
-         {:ok, snapshot} <- snapshot(signer, fields.recovery_admin),
+         {:ok, snapshot} <- snapshot(signer),
          :ok <- reviewable(fields, snapshot),
          {:ok, operation} <- open(lease, draft, signer, review(draft, fields, signer, snapshot)) do
       {:ok, %{operation: operation}}
@@ -114,7 +124,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, signer} <- normalize(address),
          {:ok, lease} <- lease(opts),
          {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, fresh} <- snapshot(candidate.signer, argument(candidate, "recovery_admin")) do
+         {:ok, fresh} <- snapshot(candidate.signer) do
       transact(lease, &locked(&1, action_id, claiming(signer, candidate, fresh)))
     end
   end
@@ -291,7 +301,6 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       "website" => fields.website,
       "image" => fields.image,
       "treasury" => fields.treasury,
-      "recovery_admin" => fields.recovery_admin,
       "required_regent_raised" => draft.required_regent_raised,
       "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
       "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
@@ -335,7 +344,6 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   defp launchable(draft) do
     with :ok <- metadata(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid),
-         {:ok, recovery_admin} <- address(draft.recovery_admin, :launch_recovery_admin_invalid),
          {:ok, atomic} <- atomic_raise(draft.required_regent_raised) do
       {:ok,
        %{
@@ -345,7 +353,6 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          website: draft.website,
          image: draft.image,
          treasury: treasury,
-         recovery_admin: recovery_admin,
          required_regent_raised: atomic
        }}
     end
@@ -376,8 +383,8 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   # Chain snapshot
 
-  defp snapshot(signer, recovery_admin) do
-    case LaunchChainClient.module().snapshot(%{signer: signer, recovery_admin: recovery_admin}) do
+  defp snapshot(signer) do
+    case LaunchChainClient.module().snapshot(%{signer: signer}) do
       {:ok, snapshot} -> complete(snapshot)
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)
@@ -388,11 +395,12 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # is refused before any of it is believed.
   defp complete(snapshot) do
     with %{factory: factory, strategy: strategy, strategy_factory: bound} <- snapshot,
-         %{fee: fee, allowance: allowance, balance: balance} <- snapshot,
-         %{paused: paused, recovery_admin_code?: code?, terms: terms, block: block} <- snapshot,
-         true <- Enum.all?([factory, strategy, bound], &match?({:ok, _}, Address.normalize(&1))),
+         %{fee: fee, allowance: allowance, balance: balance, hook: hook} <- snapshot,
+         %{paused: paused, terms: terms, block: block} <- snapshot,
+         true <-
+           Enum.all?([factory, strategy, bound, hook], &match?({:ok, _}, Address.normalize(&1))),
          true <- Enum.all?([fee, allowance, balance], &(is_integer(&1) and &1 >= 0)),
-         true <- is_boolean(paused) and is_boolean(code?),
+         true <- is_boolean(paused),
          true <- match?(%{number: number, hash: _} when is_integer(number), block),
          true <- Enum.sort(Map.keys(terms)) == Enum.sort(LaunchAbi.terms()),
          true <- Enum.all?(Map.values(terms), &is_integer/1) do
@@ -407,8 +415,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     cond do
       snapshot.paused -> unavailable(:launches_paused)
       snapshot.balance < snapshot.fee -> unavailable(:insufficient_regent)
-      not snapshot.recovery_admin_code? -> unavailable(:recovery_admin_has_no_code)
-      same?(fields.recovery_admin, snapshot.strategy) -> unavailable(:recovery_admin_is_strategy)
+      refused_treasury?(fields.treasury, snapshot) -> unavailable(:launch_treasury_refused)
       # Two separate ceilings: the reviewed strategy's own reachable maximum,
       # which is a chain-supplied value, and the structural limit of the
       # `uint128` field the tuple carries it in.
@@ -418,6 +425,12 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       true -> :ok
     end
   end
+
+  # The exact six the strategy refuses as a launch treasury: the factory, the
+  # strategy and the hook it is bound to, all read at the reviewed block, plus the
+  # three frozen Base bindings.
+  defp refused_treasury?(treasury, %{factory: factory, strategy: strategy, hook: hook}),
+    do: Enum.any?([factory, strategy, hook | @frozen_refused_treasuries], &same?(treasury, &1))
 
   defp excessive, do: unavailable(:required_raise_unreachable)
 

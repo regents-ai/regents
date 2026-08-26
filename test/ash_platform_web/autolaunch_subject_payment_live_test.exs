@@ -14,6 +14,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
   @wallet Fixture.wallet()
   @approval_hash "0x" <> String.duplicate("a1", 32)
   @action_hash "0x" <> String.duplicate("b2", 32)
+  @unit Integer.pow(10, 18)
 
   # Every removed control of the superseded subject-payment lane.
   @removed_ids [
@@ -143,7 +144,18 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
       subject: subject
     } do
       view = ready(conn, account, subject)
+
+      # The form says what a stake does before anything is reviewed, and the
+      # review says it again, with no countdown, timer or readiness check.
+      timing =
+        "Your stake counts straight away. You can take it back out from the next block onwards."
+
+      assert text(render(view)) =~ timing
+
       html = review(view, :stake, %{"amount" => "10"})
+
+      assert text(html) =~ timing
+      refute text(html) =~ "at any time"
 
       assert html =~ "Stake"
       assert html =~ "10 SUBJECT"
@@ -165,7 +177,10 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
       refute html =~ "calldata"
     end
 
-    test "a payment review states the fixed protocol share and where the rest goes", %{
+    # The fixture stakes 1_000 of the 100-billion SUBJECT supply, so the staker
+    # allocation really is zero and the review says so in exact amounts rather
+    # than as a share.
+    test "a payment review states the exact amount each part of the split receives", %{
       conn: conn,
       account: account,
       subject: subject
@@ -173,22 +188,28 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
       view = ready(conn, account, subject)
       html = review(view, :pay, %{"asset" => "usdc", "amount" => "5"})
 
-      assert text(html) =~ "2% of this goes to the protocol"
-      assert html =~ "98%"
-      assert text(html) =~ "everyone staking SUBJECT on this subject right now"
+      assert text(html) =~
+               "Of this 5 USDC, 0.1 USDC goes to the protocol. The remaining 4.9 USDC splits exactly: 0 USDC to everyone staking SUBJECT on this subject right now, and 4.9 USDC to its treasury."
+
+      # No rounded share is ever offered in place of the amounts.
+      refute text(html) =~ "98%"
+      refute text(html) =~ "2% of this"
     end
 
-    test "with nobody staked a payment review says the rest goes to the treasury", %{
+    test "a tenth of the supply staked earns exactly a tenth of the net", %{
       conn: conn,
       account: account,
       subject: subject
     } do
-      ChainClient.install(Fixture.fixture(total_staked: 0, staked_of: 0))
+      ChainClient.install(
+        Fixture.fixture(total_staked: 10_000_000_000 * @unit, staked_of: 400 * @unit)
+      )
+
       view = ready(conn, account, subject)
       html = review(view, :pay, %{"asset" => "usdc", "amount" => "5"})
 
-      assert text(html) =~ "Nobody is staking SUBJECT on this subject right now"
-      assert text(html) =~ "goes straight to its treasury"
+      assert text(html) =~
+               "The remaining 4.9 USDC splits exactly: 0.49 USDC to everyone staking SUBJECT on this subject right now, and 4.41 USDC to its treasury."
     end
 
     test "a sweep review says plainly that the signer receives nothing", %{

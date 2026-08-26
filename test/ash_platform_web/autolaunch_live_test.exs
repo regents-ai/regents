@@ -416,11 +416,10 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     "website" => "https://example.test/open",
     "image" => "https://example.test/open.png",
     "treasury" => "0xAbCdeF0000000000000000000000000000000001",
-    "recovery_admin" => "0xAbCdeF0000000000000000000000000000000002",
     "required_regent_raised" => "1000.5"
   }
 
-  test "Create writes the eight clean-V1 fields and reviews them without starting anything", %{
+  test "Create writes the seven clean-V1 fields and reviews them without starting anything", %{
     conn: conn
   } do
     account =
@@ -563,11 +562,14 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       refute has_element?(view, "#autolaunch-create", retired)
     end
 
-    # The draft form only ever saves a draft; it never reaches a wallet or a
-    # chain, and the workspace still offers no link away from itself. The one
-    # authorized wallet surface here is the reviewed launch card.
+    # The draft form only ever saves a draft. It reads the address of the wallet
+    # already selected so a blank Treasury starts somewhere useful, and asks that
+    # wallet for nothing: no send control, and no link away from the workspace.
+    # The one authorized wallet surface here is the reviewed launch card.
+    assert has_element?(view, ~s(#create-launch-draft[phx-hook="AutolaunchLaunchDraft"]))
     refute has_element?(view, ".autolaunch-draft-form [phx-hook]")
     refute has_element?(view, ".autolaunch-draft-form [phx-click]")
+    refute has_element?(view, ".autolaunch-draft-form [data-launch-wallet-send]")
     refute has_element?(view, ".autolaunch-draft-workspace a")
     assert has_element?(view, ".autolaunch-draft-workspace .launch-wallet[phx-hook]")
   end

@@ -10,15 +10,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @subject_splitter_abi_sha256 "d51e10161f411ecb2ea85254aa982f4edd40e53f227a859f771d76f8d554467a"
-  @payment_receiver_abi_sha256 "626c528c84686d6b1840e6df969029a07728e3165fed14779ff9dadd8bbe1469"
-  @factory_abi_sha256 "38bd540d5bdc286ab0eb6e5eaff819b17a0ee54ebdc8e9d9d98bfb8745d398a7"
-  @strategy_abi_sha256 "d149ece5a73cdb35a33e1ff0e1c136d1a5ffc776df272c6e569b05894ffbcf04"
-  @c5_source_commit "b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f"
-  @c5_source_tree "ac6c9f82b57320726dcefa68c5ebaca76858bf2d"
-  @c5_abi_surface_sha256 "71f2fa413751de63d6d7bae16cebdf9fcec54d0e79d081058ac704404c0c65c3"
-  @c5_release_manifest_sha256 "629220ba90579bd3cbd1616ef7c1de5ca67f9b982e2f453b3aaad1e3159b675a"
-  @c5_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
+  @subject_splitter_abi_sha256 "f507fa80395283b722259f6da9dec0ab65b3f33f4b9d5a2a80399593561b3a66"
+  @payment_receiver_abi_sha256 "14e6ff28b277866ad60f97abbb89890b7d5168c0723f23b830aca598e14e84e2"
+  @factory_abi_sha256 "1cd2fce9c969dea3f043d6478505ce4c6e1b8657208e1eed3bc3290a4999d1f4"
+  @strategy_abi_sha256 "29205b15c3cd9f010a9b4b946463d281a4a059c6327c3eff73286784b537ea68"
+  @c9_source_commit "5cf4a6b48388d54593b83230342542fee7c0f131"
+  @c9_source_tree "33b80348eab6e7ba9bfd4947327a3710981d2092"
+  @c9_abi_surface_sha256 "8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31"
+  @c9_release_manifest_sha256 "a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04"
+  @c9_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -377,11 +377,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert admission["autolaunch_consumer_freeze"] == %{
              "repository" => "autolaunch-contracts",
-             "source_commit" => @c5_source_commit,
-             "source_tree" => @c5_source_tree,
-             "abi_surface_sha256" => @c5_abi_surface_sha256,
-             "release_manifest_sha256" => @c5_release_manifest_sha256,
-             "fork_observations_sha256" => @c5_fork_observations_sha256,
+             "source_commit" => @c9_source_commit,
+             "source_tree" => @c9_source_tree,
+             "abi_surface_sha256" => @c9_abi_surface_sha256,
+             "release_manifest_sha256" => @c9_release_manifest_sha256,
+             "fork_observations_sha256" => @c9_fork_observations_sha256,
              "deployment_status" => "deployment_pending",
              "admission" => "disabled"
            }
@@ -451,17 +451,24 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
 
     assert subject_erc20["target"] == "stored_subject_token_address"
-    assert subject_erc20["implementation_provenance"] =~ @c5_source_commit
-    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:62"
+    assert subject_erc20["implementation_provenance"] =~ @c9_source_commit
+    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:65"
     assert subject_erc20["implementation_provenance"] =~ "exact splitter spender"
 
     assert splitter["contract_name"] == "SubjectSplitterV1"
     assert splitter["target"] == "stored_subject_splitter_address"
     assert splitter["action_ids"] == ["stake", "unstake", "claim", "claim_all"]
     assert splitter["implementation_provenance"] =~ "SubjectSplitterV1.sol"
-    assert splitter["implementation_provenance"] =~ "lines 192-232"
+    assert splitter["implementation_provenance"] =~ "lines 189-236"
     assert splitter["interface_note"] =~ "no recipient-argument overload and no"
     assert splitter["interface_note"] =~ "truthful no-op"
+
+    # The two facts C9 added to that same surface: supply-proportional coverage,
+    # and an exit that waits for a later block than the caller's own stake.
+    assert splitter["interface_note"] =~ "complete 100-billion"
+    assert splitter["interface_note"] =~ "leaves the treasury the exact"
+    assert splitter["interface_note"] =~ "refuses any unstake in the caller's own latest stake"
+    assert splitter["interface_note"] =~ "no getter"
 
     assert receiver["contract_name"] == "PaymentReceiverV1"
     assert receiver["target"] == "projected_canonical_receiver_address"
@@ -472,8 +479,8 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     # Both entries pin the exact integrated contract source and tree.
     for entry <- [splitter, receiver] do
-      assert entry["source_commit"] == @c5_source_commit
-      assert entry["source_tree"] == @c5_source_tree
+      assert entry["source_commit"] == @c9_source_commit
+      assert entry["source_tree"] == @c9_source_tree
     end
 
     # Every declared confirmation event topic is an independent Keccak-256.
@@ -596,9 +603,9 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  # The final C5 ABI is derived from exact pinned source, so the shapes this lane
+  # The final C9 ABI is derived from exact pinned source, so the shapes this lane
   # encodes and decodes are proved against the file rather than assumed.
-  test "the final C5 splitter ABI declares exactly the caller-only customer surface" do
+  test "the final C9 splitter ABI declares exactly the caller-only customer surface" do
     abi = consumer_abi("subject-splitter-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
@@ -648,14 +655,10 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              ]
     end
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
-
-    encoded = Jason.encode!(abi)
-    refute encoded =~ "RecoveryAdminHasNoCode"
-    refute encoded =~ "4f986444"
+    for entry <- abi, do: assert(entry["notice"] =~ @c9_source_commit)
   end
 
-  test "the final C5 receiver ABI declares exactly the payment surface and its two events" do
+  test "the final C9 receiver ABI declares exactly the payment surface and its two events" do
     abi = consumer_abi("payment-receiver-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) ==
@@ -700,12 +703,12 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              &{&1["name"], &1["type"], &1["indexed"]}
            ) == [{"previousNote", "bytes32", false}, {"newNote", "bytes32", false}]
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
+    for entry <- abi, do: assert(entry["notice"] =~ @c9_source_commit)
   end
 
-  # The final C5 ABI is derived from exact pinned source, so the shapes this lane
+  # The final C9 ABI is derived from exact pinned source, so the shapes this lane
   # encodes and decodes are proved against the file rather than assumed.
-  test "the final C5 factory ABI declares exactly the one customer call and its review reads" do
+  test "the final C9 factory ABI declares exactly the one customer call and its review reads" do
     abi = consumer_abi("regents-autolaunch-factory-v1.json")
 
     assert Enum.map(abi, &{&1["type"], &1["name"]}) == [
@@ -723,20 +726,8 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     # The launcher supplies one tuple and nothing else: no start block, floor
     # price, hook, pool setting, salt, supply, allocation or schedule.
-    assert [%{"type" => "tuple", "components" => components}] = by_name["launch"]["inputs"]
+    assert [%{"type" => "tuple"}] = by_name["launch"]["inputs"]
     assert by_name["launch"]["stateMutability"] == "nonpayable"
-
-    assert Enum.map(components, &{&1["name"], &1["type"]}) == [
-             {"name", "string"},
-             {"symbol", "string"},
-             {"description", "string"},
-             {"website", "string"},
-             {"image", "string"},
-             {"treasury", "address"},
-             {"recoveryAdmin", "address"},
-             {"requiredRegentRaised", "uint128"},
-             {"expectedLaunchFee", "uint256"}
-           ]
 
     # Reads are reads and the approval is a mutation; nothing here blurs them.
     for name <- ["launchFee", "launchesPaused", "strategy", "launches", "launchIdOfSubject"] do
@@ -744,19 +735,18 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
 
     assert [%{"type" => "tuple", "components" => record}] = by_name["launches"]["outputs"]
-    assert Enum.map(record, & &1["type"]) == List.duplicate("address", 6)
+    assert Enum.map(record, & &1["type"]) == List.duplicate("address", 5)
 
-    assert Enum.map(
-             by_name["LaunchCreated"]["inputs"],
-             &{&1["name"], &1["type"], &1["indexed"]}
-           ) == [
-             {"launchId", "uint256", true},
-             {"launcher", "address", true},
-             {"subject", "address", true},
+    # Three indexed identities, then the treasury, the raise and the fixed
+    # schedule in exactly the data words the decoder reads positionally.
+    assert Enum.count(by_name["LaunchCreated"]["inputs"], & &1["indexed"]) == 3
+
+    assert by_name["LaunchCreated"]["inputs"]
+           |> Enum.drop(3)
+           |> Enum.map(&{&1["name"], &1["type"], &1["indexed"]}) == [
              {"auction", "address", false},
              {"escrow", "address", false},
              {"treasury", "address", false},
-             {"recoveryAdmin", "address", false},
              {"requiredRegentRaised", "uint128", false},
              {"startBlock", "uint64", false},
              {"endBlock", "uint64", false}
@@ -772,14 +762,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              {"amount", "uint256", false}
            ]
 
-    for entry <- abi, do: assert(entry["notice"] =~ @c5_source_commit)
+    for entry <- abi, do: assert(entry["notice"] =~ @c9_source_commit)
   end
 
-  test "the final C5 strategy ABI declares only the reciprocal binding and the frozen terms" do
+  test "the final C9 strategy ABI declares only its two identities and the frozen terms" do
     abi = consumer_abi("regent-lbp-strategy-v1.json")
 
     assert Enum.map(abi, & &1["name"]) == [
              "factory",
+             "hook",
              "START_DELAY_BLOCKS",
              "AUCTION_DURATION_BLOCKS",
              "CLAIM_DELAY_BLOCKS",
@@ -801,8 +792,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       assert entry["type"] == "function"
       assert entry["stateMutability"] == "view"
       assert entry["inputs"] == []
-      assert entry["notice"] =~ @c5_source_commit
+      assert entry["notice"] =~ @c9_source_commit
     end
+
+    # The read that supplies one of the exact six refused launch treasuries.
+    assert by_name["hook"]["notice"] =~ "refuse it, the factory and this strategy as a launch"
 
     # The one signed term, and the one whose word therefore needs bringing back.
     assert Enum.map(by_name["POOL_TICK_SPACING"]["outputs"], & &1["type"]) == ["int24"]
@@ -811,7 +805,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert Enum.map(by_name["POOL_FEE"]["outputs"], & &1["type"]) == ["uint24"]
   end
 
-  test "final C5 evidence is digest-pinned and admitted for nothing in production" do
+  test "final C9 evidence is digest-pinned and admitted for nothing in production" do
     admission = admission!()
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 

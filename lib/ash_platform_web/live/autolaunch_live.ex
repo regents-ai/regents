@@ -6,7 +6,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
-  # The eight fields a founder writes, in the order the page asks for them.
+  # The seven fields a founder writes, in the order the page asks for them.
   @draft_fields [
     %{key: :name, param: "name", label: "Name", kind: :text, hint: nil},
     %{key: :symbol, param: "symbol", label: "Symbol", kind: :text, hint: nil},
@@ -25,13 +25,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
       kind: :text,
       hint: "A link to the picture you want shown."
     },
-    %{key: :treasury, param: "treasury", label: "Treasury", kind: :text, hint: @address_hint},
     %{
-      key: :recovery_admin,
-      param: "recovery_admin",
-      label: "Recovery admin",
+      key: :treasury,
+      param: "treasury",
+      label: "Treasury",
       kind: :text,
-      hint: @address_hint
+      hint: "#{@address_hint} Starts as the wallet you have selected; change it to any other."
     },
     %{
       key: :required_regent_raised,
@@ -557,9 +556,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h2 id="subject-revenue-title">Revenue</h2>
         <dl>
           <div>
-            <dt>Staker pool share</dt><dd>{display_bps(@record.staker_pool_bps)}</dd>
-          </div>
-          <div>
             <dt>Starting protocol share</dt>
             <dd>{display_bps(@record.protocol_skim_bps_snapshot)}</dd>
           </div>
@@ -882,7 +878,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <p>Saved for {@regent.display_name}. Nothing here is published and no money moves.</p>
         </div>
 
-        <form id="create-launch-draft" phx-submit="create_launch_draft" class="autolaunch-draft-form">
+        <form
+          id="create-launch-draft"
+          phx-hook="AutolaunchLaunchDraft"
+          phx-submit="create_launch_draft"
+          class="autolaunch-draft-form"
+        >
           <.draft_field
             :for={field <- draft_fields()}
             field={field}

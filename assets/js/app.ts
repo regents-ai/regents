@@ -21,6 +21,7 @@ import {
 import {applyTheme, isThemeChoice, readTheme, type ThemeChoice} from "./theme"
 import {HomeHero} from "./hooks/home_hero"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
+import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {ShellMotion} from "./hooks/motion"
@@ -283,6 +284,7 @@ const designShellHook: Hook = composeHooks(ShellMotion, VoxelDelight)
 const hooks = {
   ...colocatedHooks,
   AutolaunchBidWallet,
+  AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,
   HomeHero,

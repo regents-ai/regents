@@ -186,7 +186,7 @@ test("an explicit wallet rejection ends the action and broadcasts nothing", asyn
   await expect(page.locator(`${card} [data-subject-wallet-send]`)).toHaveCount(0)
 })
 
-test("a payment review states the protocol share and where the rest goes", async ({page}) => {
+test("a payment review states the exact amount each part of the split receives", async ({page}) => {
   await signedIn(page)
   await freshCard(page)
 
@@ -195,9 +195,13 @@ test("a payment review states the protocol share and where the rest goes", async
   await page.locator(`${card}-amount`).fill("2")
   await page.locator(`${card} button[type="submit"]`).click()
 
+  // Only a sliver of the whole SUBJECT supply is staked here, so the staker part
+  // really is zero and the review says so in exact amounts rather than a share.
   const review = page.locator(`${card}-review`)
-  await expect(review).toContainText("2% of this goes to the protocol")
-  await expect(review).toContainText("98%")
+  await expect(review).toContainText(
+    "Of this 2 USDC, 0.04 USDC goes to the protocol. The remaining 1.96 USDC splits exactly: 0 USDC to everyone staking SUBJECT on this subject right now, and 1.96 USDC to its treasury.",
+  )
+  await expect(review).not.toContainText("98%")
 
   // A payment needs an allowance first, so the review is two steps.
   await expect(page.locator(`${card} li[data-step="approval"]`)).toBeVisible()

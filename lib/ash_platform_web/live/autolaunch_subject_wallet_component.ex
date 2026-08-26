@@ -208,6 +208,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
               </p>
             </div>
 
+            <p :if={@kind == :stake} class="subject-wallet-hint">{stake_timing()}</p>
+
             <p :if={@kind == :claim_all} class="subject-wallet-hint">
               Collects every asset this subject has already set aside for this wallet.
             </p>
@@ -259,7 +261,14 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             </div>
           </dl>
 
-          <p :if={@operation.kind in [:pay, :sweep]} class="subject-wallet-share">
+          <p :if={@operation.kind == :stake} class="subject-wallet-share">{stake_timing()}</p>
+
+          <%!-- What this transaction is about to divide. Once it settles, its own
+                event says what really moved, so the estimate stops speaking. --%>
+          <p
+            :if={@operation.kind in [:pay, :sweep] && is_nil(@operation.terminal_at)}
+            class="subject-wallet-share"
+          >
             {share_copy(@operation)}
           </p>
 
@@ -720,25 +729,27 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
 
   defp verb(kind), do: Enum.find(@actions, &(&1.kind == kind)).verb
 
-  # The one economic sentence a payment review owes the customer: the fixed
-  # protocol share, and where the rest of it goes right now.
+  # The one thing a staker has to know about timing, said in the form before an
+  # amount is chosen and again in the review that spends it.
+  defp stake_timing,
+    do: "Your stake counts straight away. You can take it back out from the next block onwards."
+
+  # The one economic sentence a payment review owes the customer: the exact
+  # amounts this inflow divides into, never a share or an estimate. Stakers are
+  # paid for the stake they hold against the whole SUBJECT supply, so their part
+  # stays small until much of that supply is staked, and the treasury takes the
+  # remainder.
   defp share_copy(operation) do
-    protocol = percent(argument(operation, "protocol_share_bps"))
-    rest = percent(argument(operation, "stakers_share_bps"))
+    %{"gross" => gross, "skim" => skim, "net" => net} =
+      allocation = argument(operation, "allocation")
 
-    case argument(operation, "net_destination") do
-      "stakers" ->
-        "#{protocol} of this goes to the protocol. The other #{rest} is shared out among everyone staking SUBJECT on this subject right now."
+    %{"stakers" => stakers, "treasury" => treasury} = allocation
 
-      _treasury ->
-        "#{protocol} of this goes to the protocol. Nobody is staking SUBJECT on this subject right now, so the other #{rest} goes straight to its treasury."
-    end
-  end
+    asset = operation |> argument("asset") |> asset_key()
+    symbol = argument(operation, "symbol")
+    shown = &"#{SubjectWalletActions.units(&1, asset)} #{symbol}"
 
-  defp percent(bps), do: "#{Float.round(bps / 100, 2) |> trim_percent()}%"
-
-  defp trim_percent(value) do
-    if value == trunc(value), do: trunc(value), else: value
+    "Of this #{shown.(gross)}, #{shown.(skim)} goes to the protocol. The remaining #{shown.(net)} splits exactly: #{shown.(stakers)} to everyone staking SUBJECT on this subject right now, and #{shown.(treasury)} to its treasury."
   end
 
   defp confirmed_copy(%{kind: :claim_all, result: %{"claimed" => claimed}}) when claimed == %{},

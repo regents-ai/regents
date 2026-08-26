@@ -18,7 +18,6 @@ defmodule AshPlatformWeb.LaunchGateTest do
     "website" => "https://example.test/injected",
     "image" => "https://example.test/injected.png",
     "treasury" => "0xAbCdeF0000000000000000000000000000000001",
-    "recovery_admin" => "0xAbCdeF0000000000000000000000000000000002",
     "required_regent_raised" => "1000.5"
   }
   @kept_draft %{@draft_fields | "name" => "Kept Launch", "symbol" => "KEPT"}

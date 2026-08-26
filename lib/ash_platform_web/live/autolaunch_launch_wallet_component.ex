@@ -32,10 +32,8 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
     launches_paused: "New launches are paused right now.",
     insufficient_regent: "This wallet does not hold enough REGENT for the launch fee.",
-    recovery_admin_has_no_code:
-      "The recovery admin has to be a contract. Change it on this draft and try again.",
-    recovery_admin_is_strategy:
-      "The recovery admin cannot be the launch strategy. Change it on this draft and try again.",
+    launch_treasury_refused:
+      "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     required_raise_unreachable:
       "This required raise is higher than an auction can reach. Lower it on this draft and try again.",
     strategy_not_bound:
@@ -44,8 +42,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
       "This draft is missing something the launch needs. Open it and save every field again.",
     launch_treasury_invalid:
       "This draft's treasury is not a usable address. Copy it from your wallet again and save the draft.",
-    launch_recovery_admin_invalid:
-      "This draft's recovery admin is not a usable address. Copy it from your wallet again and save the draft.",
     launch_raise_invalid: "This draft's required raise is not a usable amount.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now.",
@@ -130,10 +126,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           <div>
             <dt>Treasury</dt>
             <dd class="launch-wallet-mono">{short(argument(@operation, "treasury"))}</dd>
-          </div>
-          <div>
-            <dt>Recovery admin</dt>
-            <dd class="launch-wallet-mono">{short(argument(@operation, "recovery_admin"))}</dd>
           </div>
           <div>
             <dt>Wallet</dt>
@@ -603,7 +595,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
       {"Factory", argument(operation, "factory")},
       {"Strategy", argument(operation, "strategy")},
       {"Treasury", argument(operation, "treasury")},
-      {"Recovery admin", argument(operation, "recovery_admin")},
       {"Required raise (atomic)", argument(operation, "required_regent_raised_atomic")},
       {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},
       {"Reviewed block",

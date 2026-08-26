@@ -1,11 +1,11 @@
 defmodule AshPlatform.WalletActions.LaunchAbi do
   @moduledoc """
-  The one encoder and decoder for the C4 direct-wallet launch lane.
+  The one encoder and decoder for the direct-wallet launch lane.
 
   Every signature here is declared by an ABI file derived from the exact
-  integrated C4 source, and the module refuses to compile unless that file still
-  declares it. `launch` is the only dynamic call this product has: one tuple of
-  five strings and four static fields, encoded here and nowhere else.
+  integrated contract source, and the module refuses to compile unless that file
+  still declares it. `launch` is the only dynamic call this product has: one
+  tuple of five strings and three static fields, encoded here and nowhere else.
 
   The browser receives already-reviewed bytes, so nothing outside this module
   ever builds calldata.
@@ -35,18 +35,18 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
   # The one signature this lane may ever spend, written out in full. It is the
   # literal the selector below is derived from, and the manifest test proves it
   # against the derived ABI's own canonicalization and against Foundry.
-  @launch_signature "launch((string,string,string,string,string,address,address,uint128,uint256))"
+  @launch_signature "launch((string,string,string,string,string,address,uint128,uint256))"
 
   # The exact tuple `launch` takes, in the exact order the factory declares it.
   # This list is deliberately a separate statement of the same contract: it says
   # what the derived ABI file must declare and what the head of an encoding is,
   # and the signature above is never rebuilt from it. A drift between the two
   # shows up as calldata that disagrees with `cast calldata`.
-  @launch_components ~w(string string string string string address address uint128 uint256)
+  @launch_components ~w(string string string string string address uint128 uint256)
   @launch_head length(@launch_components) * @word
 
   @factory_functions %{
-    launch: {@launch_signature, "0x783eed53"},
+    launch: {@launch_signature, "0xd0464e3e"},
     launch_fee: {"launchFee()", "0xcf3cf573"},
     launches_paused: {"launchesPaused()", "0x3bc340c2"},
     strategy: {"strategy()", "0xa8c62e76"},
@@ -56,16 +56,18 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
 
   @factory_events %{
     launch_created:
-      {"LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64)",
-       "0xca3d1d4b2083435e11137aab340619d30df4b91203fffec8a2073a630d52e492"},
+      {"LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)",
+       "0x7b5b327fb976e7bf5fb279515b3ea1821166f52c0b46e5825f0146b249f963f2"},
     launch_fee_collected:
       {"LaunchFeeCollected(uint256,address,address,uint256)",
        "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6"}
   }
 
-  # The founder-frozen launch terms, read for display and never chosen.
+  # The founder-frozen launch terms, read for display and never chosen, plus the
+  # two strategy identities a review compares a treasury against.
   @strategy_functions %{
     factory: {"factory()", "0xc45a0155"},
+    hook: {"hook()", "0x7f5a7c7b"},
     start_delay_blocks: {"START_DELAY_BLOCKS()", "0x48bd92bb"},
     auction_duration_blocks: {"AUCTION_DURATION_BLOCKS()", "0x56586874"},
     claim_delay_blocks: {"CLAIM_DELAY_BLOCKS()", "0x4a9923ac"},
@@ -81,7 +83,7 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
   }
 
   # The frozen terms in the order a review presents them, which has to stay
-  # exactly the strategy reads other than the reciprocal binding.
+  # exactly the strategy reads other than the two identity reads.
   @terms [
     :start_delay_blocks,
     :auction_duration_blocks,
@@ -97,7 +99,7 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
     :max_reachable_raise
   ]
 
-  Enum.sort(@terms) == Enum.sort(Map.keys(@strategy_functions) -- [:factory]) ||
+  Enum.sort(@terms) == Enum.sort(Map.keys(@strategy_functions) -- [:factory, :hook]) ||
     raise "the frozen launch terms drifted from the declared strategy reads"
 
   # A selector or topic is only evidence if the derived ABI really declares the
@@ -152,7 +154,7 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
   @doc """
   The exact `launch` calldata for one reviewed draft.
 
-  One dynamic tuple: a head word pointing at it, nine tuple head words, then the
+  One dynamic tuple: a head word pointing at it, eight tuple head words, then the
   five string tails in declaration order. Every string is spent as the exact
   UTF-8 bytes the draft holds; there is no normalization anywhere in this lane.
   """
@@ -164,7 +166,6 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
         website: website,
         image: image,
         treasury: treasury,
-        recovery_admin: recovery_admin,
         required_regent_raised: raise_atomic,
         expected_launch_fee: fee
       }) do
@@ -179,7 +180,6 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
       uint!(@word, @uint256_max) <>
       Enum.join(offsets) <>
       address!(treasury) <>
-      address!(recovery_admin) <>
       uint!(raise_atomic, @uint128_max) <>
       uint!(fee, @uint256_max) <>
       Enum.join(tails)
@@ -198,29 +198,27 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
     do: selector(:launch_id_of_subject) <> address!(subject)
 
   @doc """
-  The six addresses one `launches(launchId)` record names.
+  The five addresses one `launches(launchId)` record names.
 
   An unknown id is an all-zero record rather than a revert, so the zero launcher
   is answered as `:absent` and never as a launch.
   """
   @spec launch_record([non_neg_integer()]) :: {:ok, map()} | :absent | :error
-  def launch_record([0, 0, 0, 0, 0, 0]), do: :absent
+  def launch_record([0, 0, 0, 0, 0]), do: :absent
 
-  def launch_record([launcher, subject, auction, escrow, treasury, recovery_admin]) do
+  def launch_record([launcher, subject, auction, escrow, treasury]) do
     with {:ok, launcher} <- Abi.word_address(launcher),
          {:ok, subject} <- Abi.word_address(subject),
          {:ok, auction} <- Abi.word_address(auction),
          {:ok, escrow} <- Abi.word_address(escrow),
-         {:ok, treasury} <- Abi.word_address(treasury),
-         {:ok, recovery_admin} <- Abi.word_address(recovery_admin) do
+         {:ok, treasury} <- Abi.word_address(treasury) do
       {:ok,
        %{
          launcher: launcher,
          subject: subject,
          auction: auction,
          escrow: escrow,
-         treasury: treasury,
-         recovery_admin: recovery_admin
+         treasury: treasury
        }}
     end
   end
@@ -254,15 +252,13 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
   @spec launch_created([map()], String.t()) :: {:ok, map()} | :error
   def launch_created(logs, factory) do
     with {:ok, {[launch_id, launcher_word, subject_word], data}} <-
-           Abi.one_event(logs, selector(:launch_created), factory, 3, 7),
-         [auction, escrow, treasury, recovery_admin, required_raise, start_block, end_block] <-
-           data,
+           Abi.one_event(logs, selector(:launch_created), factory, 3, 6),
+         [auction, escrow, treasury, required_raise, start_block, end_block] <- data,
          {:ok, launcher} <- Abi.word_address(launcher_word),
          {:ok, subject} <- Abi.word_address(subject_word),
          {:ok, auction} <- Abi.word_address(auction),
          {:ok, escrow} <- Abi.word_address(escrow),
          {:ok, treasury} <- Abi.word_address(treasury),
-         {:ok, recovery_admin} <- Abi.word_address(recovery_admin),
          true <- required_raise <= @uint128_max and launch_id > 0 do
       {:ok,
        %{
@@ -272,7 +268,6 @@ defmodule AshPlatform.WalletActions.LaunchAbi do
          auction: auction,
          escrow: escrow,
          treasury: treasury,
-         recovery_admin: recovery_admin,
          required_regent_raised: required_raise,
          start_block: start_block,
          end_block: end_block

@@ -12,11 +12,10 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     "website" => "https://example.test/open",
     "image" => "https://example.test/open.png",
     "treasury" => "0xAbCdeF0000000000000000000000000000000001",
-    "recovery_admin" => "0xAbCdeF0000000000000000000000000000000001",
     "required_regent_raised" => "1000.500000000000000001"
   }
 
-  test "a draft stores the eight clean-V1 fields exactly as written and stays private" do
+  test "a draft stores the seven clean-V1 fields exactly as written and stays private" do
     owner = account!("owner")
     other = account!("other")
     owner_actor = %Human{human_account_id: owner.id}
@@ -53,7 +52,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert {:error, %Ash.Error.Invalid{}} = Autolaunch.list_my_launch_drafts()
   end
 
-  test "create and revise both require all eight fields" do
+  test "create and revise both require all seven fields" do
     actor = actor_with_regent!("required")
     draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
 
@@ -94,31 +93,29 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert {:ok, _duplicate} = Autolaunch.create_launch_draft(@draft, actor: actor)
   end
 
-  test "treasury and recovery admin take any 40-hex address, keep its casing, and reject zero" do
+  test "the treasury takes any 40-hex address, keeps its casing, and rejects zero" do
     actor = actor_with_regent!("addresses")
     mixed = "0xAbCdeF0000000000000000000000000000000001"
+    lowered = String.downcase(mixed)
 
-    assert {:ok, draft} =
+    for written <- [mixed, lowered] do
+      assert {:ok, draft} =
+               Autolaunch.create_launch_draft(%{@draft | "treasury" => written}, actor: actor)
+
+      assert draft.treasury == written
+    end
+
+    assert field_errors(
              Autolaunch.create_launch_draft(
-               %{@draft | "treasury" => mixed, "recovery_admin" => String.downcase(mixed)},
+               Map.put(@draft, "treasury", "0x" <> String.duplicate("0", 40)),
                actor: actor
              )
+           ) == %{"treasury" => "cannot be the all-zero address"}
 
-    assert {draft.treasury, draft.recovery_admin} == {mixed, String.downcase(mixed)}
-
-    for field <- ["treasury", "recovery_admin"] do
+    for bad <- ["0x123", String.duplicate("a", 40), mixed <> "0"] do
       assert field_errors(
-               Autolaunch.create_launch_draft(
-                 Map.put(@draft, field, "0x" <> String.duplicate("0", 40)),
-                 actor: actor
-               )
-             ) == %{field => "cannot be the all-zero address"}
-
-      for bad <- ["0x123", String.duplicate("a", 40), mixed <> "0"] do
-        assert field_errors(
-                 Autolaunch.create_launch_draft(Map.put(@draft, field, bad), actor: actor)
-               ) == %{field => "must start with 0x and hold exactly 40 hexadecimal characters"}
-      end
+               Autolaunch.create_launch_draft(Map.put(@draft, "treasury", bad), actor: actor)
+             ) == %{"treasury" => "must start with 0x and hold exactly 40 hexadecimal characters"}
     end
   end
 
@@ -239,7 +236,6 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
       :website,
       :image,
       :treasury,
-      :recovery_admin,
       :required_regent_raised
     ]
   end

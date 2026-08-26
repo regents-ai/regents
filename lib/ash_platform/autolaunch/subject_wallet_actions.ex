@@ -29,13 +29,19 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
   @resource "autolaunch_subject_wallet"
   @zero "0x0000000000000000000000000000000000000000"
 
-  # The exact 2% every recognized inflow floors once, from the frozen C1 source.
+  # The exact 2% every recognized inflow floors once, and the fixed denominator
+  # the post-skim net is divided by: the complete SUBJECT supply every authentic
+  # launch mints. Current stakers collectively receive the fraction of the net
+  # their stake covers of that whole supply; the treasury receives the rest.
   @protocol_share_bps 200
-  @stakers_share_bps 10_000 - @protocol_share_bps
+  @bps_denominator 10_000
+  @subject_total_supply 100_000_000_000 * Integer.pow(10, 18)
 
   @kinds [:stake, :unstake, :claim, :claim_all, :pay, :sweep, :set_note]
   @splitter_kinds [:stake, :unstake, :claim, :claim_all]
   @receiver_kinds [:pay, :sweep, :set_note]
+  # The two actions that recognize an inflow, and so divide one.
+  @inflow_kinds [:pay, :sweep]
   @assets [:subject, :usdc, :regent]
 
   @contract_name %{splitter: "SubjectSplitterV1", receiver: "PaymentReceiverV1"}
@@ -52,7 +58,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
 
   @risk %{
     stake:
-      "Your wallet stakes this SUBJECT into the launch's revenue split. You can unstake it again at any time.",
+      "Your wallet stakes this SUBJECT into the launch's revenue split. It counts straight away, and you can take it back out from the next block onwards.",
     unstake: "Your wallet takes this staked SUBJECT back out of the launch's revenue split.",
     claim: "Your wallet collects the revenue this launch has already set aside for it.",
     claim_all: "Your wallet collects every asset this launch has already set aside for it.",
@@ -268,14 +274,6 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
 
   def step_hash(_operation, _unknown), do: nil
 
-  @doc "The exact protocol share every recognized inflow floors once, in basis points."
-  @spec protocol_share_bps() :: pos_integer()
-  def protocol_share_bps, do: @protocol_share_bps
-
-  @doc "The share the stakers or, when nobody is staked, the treasury receives."
-  @spec stakers_share_bps() :: pos_integer()
-  def stakers_share_bps, do: @stakers_share_bps
-
   @doc "The exact decimal rendering of an atomic amount of one bound asset."
   @spec units(non_neg_integer() | String.t(), atom()) :: String.t()
   def units(amount, asset) when is_binary(amount),
@@ -448,8 +446,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
       "note" => plan[:note],
       "total_staked" => Integer.to_string(snapshot.splitter.total_staked),
       "protocol_share_bps" => @protocol_share_bps,
-      "stakers_share_bps" => @stakers_share_bps,
-      "net_destination" => net_destination(snapshot),
+      "allocation" => allocation(kind, plan, snapshot),
       "bound_tokens" => Map.new(@assets, &{Atom.to_string(&1), asset_address(snapshot, &1)}),
       "steps" => steps
     }
@@ -476,8 +473,23 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
 
   defp approval_step(_plan, _snapshot, _asset), do: []
 
-  defp net_destination(%{splitter: %{total_staked: 0}}), do: "treasury"
-  defp net_destination(_staked), do: "stakers"
+  # The exact integer division one recognized inflow makes, floored twice and in
+  # atomic units of the reviewed asset: the 2% skim, then the staker allocation
+  # the stake covers of the complete SUBJECT supply, then the exact remainder to
+  # the treasury. Nothing here is a percentage, an estimate, or a chain read.
+  defp allocation(kind, %{amount: gross}, %{splitter: %{total_staked: staked}})
+       when kind in @inflow_kinds do
+    skim = div(gross * @protocol_share_bps, @bps_denominator)
+    net = gross - skim
+    stakers = div(net * staked, @subject_total_supply)
+
+    Map.new(
+      [gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers],
+      fn {part, amount} -> {Atom.to_string(part), Integer.to_string(amount)} end
+    )
+  end
+
+  defp allocation(_kind, _plan, _snapshot), do: nil
 
   defp target(kind, snapshot) when kind in @splitter_kinds, do: snapshot.splitter.address
   defp target(_receiver_kind, snapshot), do: snapshot.receiver.address
@@ -840,7 +852,6 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
       subject_id: subject.subject_id,
       total_staked: units(snapshot.splitter.total_staked, :subject),
       staked: units(snapshot.splitter.staked_of, :subject),
-      net_destination: net_destination(snapshot),
       balances: Map.new(@assets, &{&1, units(balance(snapshot, &1), &1)}),
       claimable: Map.new(@assets, &{&1, units(claimable(snapshot, &1), &1)}),
       claimable_atomic: Map.new(@assets, &{&1, claimable(snapshot, &1)}),

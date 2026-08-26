@@ -2,14 +2,15 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClient do
   @moduledoc """
   The production Base client for direct-wallet launches, which prepares nothing yet.
 
-  A review needs the deployed C4 factory address, and that address plus its
-  runtime admission is C5 evidence nobody has frozen. Until then no address this
+  A review needs the deployed factory address, and that address plus its runtime
+  admission is deployment evidence nobody has frozen. Until then no address this
   lane could read is admitted evidence, so `snapshot/1` refuses before it opens a
   connection rather than reviewing against a value nobody has reviewed. That
   refusal is also what keeps a future admission honest: a snapshot has to answer
-  whether the draft's recovery admin carries code at the exact reviewed block, so
-  a provider that cannot serve `eth_getCode` at a block hash stays unavailable
-  rather than reviewing against a different history.
+  the factory, the strategy and the strategy's bound fee hook at one exact
+  reviewed block, so a provider that cannot serve every one of those reads at a
+  block hash stays unavailable rather than reviewing against a different
+  history.
 
   `verify/3` is complete, because a hash may still have to be told the truth
   about. It reads only canonical state: a receipt above the safe head, or one in
@@ -72,9 +73,9 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClient do
   end
 
   # One `LaunchCreated` from the reviewed factory, naming exactly the reviewed
-  # signer, treasury, recovery admin and raise; the exact fee branch the reviewed
-  # fee requires; and a factory that already agrees with that event at the block
-  # it was mined in. Anything less is `unverified`, never success.
+  # signer, treasury and raise; the exact fee branch the reviewed fee requires;
+  # and a factory that already agrees with that event at the block it was mined
+  # in. Anything less is `unverified`, never success.
   defp proved(envelope, :launch, logs, block) do
     factory = argument(envelope, "factory")
 
@@ -93,7 +94,6 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClient do
     agreed(
       same?(event.launcher, envelope["expected_signer"]) and
         same?(event.treasury, argument(envelope, "treasury")) and
-        same?(event.recovery_admin, argument(envelope, "recovery_admin")) and
         event.required_regent_raised == atomic(envelope, "required_regent_raised_atomic")
     )
   end
@@ -119,7 +119,7 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClient do
              factory,
              LaunchAbi.encode_launches(event.launch_id),
              block,
-             6,
+             5,
              @rpc_opts
            ),
          {:ok, record} <- LaunchAbi.launch_record(words),
@@ -137,7 +137,7 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClient do
     end
   end
 
-  @identity [:launcher, :subject, :auction, :escrow, :treasury, :recovery_admin]
+  @identity [:launcher, :subject, :auction, :escrow, :treasury]
 
   defp agrees(record, event, launch_id),
     do: agreed(launch_id == event.launch_id and record == Map.take(event, @identity))

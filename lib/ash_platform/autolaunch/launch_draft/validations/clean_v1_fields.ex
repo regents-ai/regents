@@ -7,7 +7,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields do
   # Clean-V1 metadata bounds are UTF-8 byte sizes, not character counts.
   @byte_limits [name: 64, symbol: 16, description: 512, website: 256, image: 256]
   @metadata Keyword.keys(@byte_limits)
-  @addresses [:treasury, :recovery_admin]
+  @addresses [:treasury]
   @fields @metadata ++ @addresses ++ [:required_regent_raised]
   # `name` and `symbol` already carry their own storage-level presence rule.
   @required @fields -- [:name, :symbol]

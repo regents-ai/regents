@@ -76,7 +76,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   end
 
   describe "ONE_REVIEW_SAYS_EVERYTHING_A_FOUNDER_NEEDS" do
-    test "the review names the token, raise, fee, addresses, wallet, network and count",
+    test "the review names the token, raise, fee, treasury, wallet, network and count",
          context do
       view = reviewed(context)
       html = render(view)
@@ -88,7 +88,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
       assert html =~ "Two transactions"
       assert html =~ "0x1111…1111"
       assert html =~ "0x5555…5555"
-      assert html =~ "0x6666…6666"
     end
 
     test "the fixed terms are plain English and never promise an exact start block", context do

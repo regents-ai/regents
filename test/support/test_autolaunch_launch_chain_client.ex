@@ -1,12 +1,12 @@
 defmodule AshPlatform.TestAutolaunchLaunchChainClient do
   @moduledoc """
-  A fixture-bound Base client for the C4 direct-wallet launch lane.
+  A fixture-bound Base client for the direct-wallet launch lane.
 
   It is exactly what the plan permits and no more: a scripted factory identity,
-  fee, pause state, balance, allowance, recovery-admin code answer, reciprocal
-  strategy binding, founder-frozen terms and per-step outcomes, so the whole
-  product flow that follows a snapshot can be proved while the production client
-  stays closed. It is never installed outside a test or the browser-proof server
+  fee, pause state, balance, allowance, reciprocal strategy binding, bound fee
+  hook, founder-frozen terms and per-step outcomes, so the whole product flow
+  that follows a snapshot can be proved while the production client stays
+  closed. It is never installed outside a test or the browser-proof server
   process, and nothing it answers is reviewed evidence.
   """
 
@@ -43,13 +43,13 @@ defmodule AshPlatform.TestAutolaunchLaunchChainClient do
   def state, do: Application.get_env(:ash_platform, @key, AshPlatform.LaunchFixture.fixture())
 
   @impl true
-  def snapshot(request) do
+  def snapshot(_request) do
     put(%{snapshot_read_in_transaction?: AshPlatform.Repo.in_transaction?()})
     raced()
 
     case state() do
       %{unavailable: reason} -> {:error, reason}
-      fixture -> {:ok, answered(fixture, request)}
+      fixture -> {:ok, fixture.snapshot}
     end
   end
 
@@ -61,15 +61,6 @@ defmodule AshPlatform.TestAutolaunchLaunchChainClient do
     case state() |> Map.get(:outcomes, %{}) |> Map.get(step, %{outcome: :pending}) do
       {:error, reason} -> {:error, reason}
       outcome -> {:ok, Map.put_new(outcome, :hash, hash)}
-    end
-  end
-
-  # The recovery admin's code is a fact about the address the request names, so a
-  # test can script one admin as a contract and another as a bare wallet.
-  defp answered(fixture, %{recovery_admin: recovery_admin}) do
-    case Map.get(fixture, :codeless, []) do
-      [] -> fixture.snapshot
-      addresses -> %{fixture.snapshot | recovery_admin_code?: recovery_admin not in addresses}
     end
   end
 
@@ -105,7 +96,7 @@ defmodule AshPlatform.LaunchFixture do
   @factory "0x7777777777777777777777777777777777777777"
   @strategy "0x8888888888888888888888888888888888888888"
   @treasury "0x5555555555555555555555555555555555555555"
-  @recovery_admin "0x6666666666666666666666666666666666666666"
+  @hook "0x6666666666666666666666666666666666666666"
 
   @unit Integer.pow(10, 18)
 
@@ -132,7 +123,6 @@ defmodule AshPlatform.LaunchFixture do
     "website" => "https://example.test/open",
     "image" => "https://example.test/open.png",
     "treasury" => @treasury,
-    "recovery_admin" => @recovery_admin,
     "required_regent_raised" => "1000.5"
   }
 
@@ -140,7 +130,7 @@ defmodule AshPlatform.LaunchFixture do
   def factory, do: @factory
   def strategy, do: @strategy
   def treasury, do: @treasury
-  def recovery_admin, do: @recovery_admin
+  def hook, do: @hook
   def terms, do: @terms
 
   @doc "An account holding the acting wallet and a formed Regent, its lease, and one saved draft."
@@ -187,13 +177,13 @@ defmodule AshPlatform.LaunchFixture do
       paused: Map.get(overrides, :paused, false),
       balance: Map.get(overrides, :balance, 5_000_000 * @unit),
       allowance: Map.get(overrides, :allowance, 0),
-      recovery_admin_code?: Map.get(overrides, :recovery_admin_code?, true),
+      hook: Map.get(overrides, :hook, @hook),
       terms: Map.merge(@terms, Map.get(overrides, :terms, %{})),
       block: Map.get(overrides, :block, %{number: 30_000_000, hash: block_hash()})
     }
 
     %{snapshot: snapshot, outcomes: Map.get(overrides, :outcomes, %{})}
-    |> Map.merge(Map.take(overrides, [:unavailable, :raced, :codeless]))
+    |> Map.merge(Map.take(overrides, [:unavailable, :raced]))
   end
 
   @doc "Installs that scripted chain for the calling test."

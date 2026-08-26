@@ -53,7 +53,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "animata_redeemer.claim"
   ]
   # The clean-V1 subject wallet interface stays reviewed and digest-pinned while
-  # no subject action is admitted, so these are proved against the final C5 ABI
+  # no subject action is admitted, so these are proved against the final C9 ABI
   # without admitting one.
   @retained_evidence_actions %{
     "subject_token_erc20" => %{
@@ -77,23 +77,43 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     },
     "regents_autolaunch_factory_v1" => %{
       "launch" =>
-        {"launch((string,string,string,string,string,address,address,uint128,uint256))",
-         "0x783eed53"}
+        {"launch((string,string,string,string,string,address,uint128,uint256))", "0xd0464e3e"}
     },
     "regent_lbp_strategy_v1" => %{}
   }
 
-  # The final C5 source fingerprints. The upstream build artifacts these ABIs are
+  # The final C9 source fingerprints. The upstream build artifacts these ABIs are
   # derived from are excluded by that repository's own .gitignore, so the durable
-  # evidence is the compiler's metadata Keccak-256 of the exact source files.
-  @c5_source_commit "b87c9e7a7c9f5d6b9df19ca44c33666ca67d273f"
-  @c5_source_tree "ac6c9f82b57320726dcefa68c5ebaca76858bf2d"
-  @factory_source_keccak256 "0x463504a866f05a25f4b1b0d022cd60b19f6426bb26d57157588078a8c17ca4ca"
-  @strategy_source_keccak256 "0xe6ab4d5b5d05ec2ee6bc7ca7dd3256fedbfe39375b619be1ed05980d92eb6cbc"
-  @splitter_source_keccak256 "0xeff445c21040c5b37c0d072707ded1c119325c79d626c3219b4fb525b8e995a1"
-  @c5_abi_surface_sha256 "71f2fa413751de63d6d7bae16cebdf9fcec54d0e79d081058ac704404c0c65c3"
-  @c5_release_manifest_sha256 "629220ba90579bd3cbd1616ef7c1de5ca67f9b982e2f453b3aaad1e3159b675a"
-  @c5_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
+  # evidence is the compiler's metadata Keccak-256 of the exact source files,
+  # alongside the runtime hashes its own pinned release manifest records.
+  @c9_source_commit "5cf4a6b48388d54593b83230342542fee7c0f131"
+  @c9_source_tree "33b80348eab6e7ba9bfd4947327a3710981d2092"
+  @factory_source_keccak256 "0x0c09b28c782252ed8a99d68c027f7125c52c64410d6e4a03d018ff022c245c9a"
+  @strategy_source_keccak256 "0x214e642ba5105763d7952909552f501800adb7e3887b67024afb797fa02ede01"
+  @splitter_source_keccak256 "0xd411b2c4c69184ea684bfe63d118907c786fdad5a54cb3505488733161c58f4f"
+  @c9_abi_surface_sha256 "8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31"
+  @c9_release_manifest_sha256 "a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04"
+  @c9_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
+
+  # The frozen-artifact runtime hashes each consumer contract must present, and
+  # the SubjectSplitterV1 implementation hash the factory itself admits by code
+  # hash, all read from that same release manifest.
+  @runtime_keccak256 %{
+    "regents_autolaunch_factory_v1" =>
+      "0x38787efb5e28dc9d53e3e19a51ef7f83d02033e98e3414029df0f0841c06ff20",
+    "regent_lbp_strategy_v1" =>
+      "0x5ee28f1c96259ac3cb8134873cca3f24a07fa151bcc8818064a66480f2d59fb6",
+    "subject_splitter_v1" => "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105",
+    "payment_receiver_v1" => "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573"
+  }
+
+  # The exact six the strategy refuses as a launch treasury: three read at the
+  # reviewed block, three frozen in the contract's own Base bindings.
+  @frozen_refused_treasuries [
+    %{"id" => "pool_manager", "address" => "0x498581fF718922c3f8e6A244956aF099B2652b2b"},
+    %{"id" => "position_manager", "address" => "0x7C5f5A4bBd8fD63184577525326123B519429bDc"},
+    %{"id" => "live_staking", "address" => "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"}
+  ]
 
   # Everything this consumer lane deliberately does not derive an encoder, action or admission
   # for. None of these may appear anywhere in the manifest or in either ABI file.
@@ -172,11 +192,11 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
       assert admission["autolaunch_consumer_freeze"] == %{
                "repository" => "autolaunch-contracts",
-               "source_commit" => @c5_source_commit,
-               "source_tree" => @c5_source_tree,
-               "abi_surface_sha256" => @c5_abi_surface_sha256,
-               "release_manifest_sha256" => @c5_release_manifest_sha256,
-               "fork_observations_sha256" => @c5_fork_observations_sha256,
+               "source_commit" => @c9_source_commit,
+               "source_tree" => @c9_source_tree,
+               "abi_surface_sha256" => @c9_abi_surface_sha256,
+               "release_manifest_sha256" => @c9_release_manifest_sha256,
+               "fork_observations_sha256" => @c9_fork_observations_sha256,
                "deployment_status" => "deployment_pending",
                "admission" => "disabled"
              }
@@ -228,11 +248,13 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       assert permit2["address_provenance"] =~ "2af06408b6a204824c2ecb245779ed400b535fb5"
       assert permit2["address_provenance"] =~ "src/utils/SafeTransferLib.sol line 64"
 
-      # The retained consumer evidence is pinned to the exact final contract source.
-      for contract_id <- ["subject_splitter_v1", "payment_receiver_v1"] do
+      # The retained consumer evidence is pinned to the exact final contract source
+      # and to the runtime hash that build's own release manifest records.
+      for {contract_id, runtime_keccak256} <- @runtime_keccak256 do
         entry = Map.fetch!(evidence, contract_id)
-        assert entry["source_commit"] == @c5_source_commit
-        assert entry["source_tree"] == @c5_source_tree
+        assert entry["source_commit"] == @c9_source_commit
+        assert entry["source_tree"] == @c9_source_tree
+        assert entry["runtime_keccak256"] == runtime_keccak256
       end
 
       assert Map.fetch!(evidence, "subject_splitter_v1")["implementation_provenance"] =~
@@ -272,7 +294,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     end
   end
 
-  test "every retained C5 selector is an independent Foundry derivation of its declared signature" do
+  test "every retained C9 selector is an independent Foundry derivation of its declared signature" do
     chain_manifest = YamlElixir.read_from_file!(@chain_manifest_path)
 
     evidence =
@@ -299,15 +321,15 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     end
   end
 
-  test "the final C5 launch evidence pins its source fingerprints and admits no production action" do
+  test "the final C9 launch evidence pins its source fingerprints and admits no production action" do
     evidence = evidence!()
 
     factory = Map.fetch!(evidence, "regents_autolaunch_factory_v1")
     strategy = Map.fetch!(evidence, "regent_lbp_strategy_v1")
 
     for entry <- [factory, strategy] do
-      assert entry["source_commit"] == @c5_source_commit
-      assert entry["source_tree"] == @c5_source_tree
+      assert entry["source_commit"] == @c9_source_commit
+      assert entry["source_tree"] == @c9_source_tree
       assert entry["artifact_provenance"] =~ ".gitignore excludes"
       assert entry["artifact_provenance"] =~ "not a tracked file"
     end
@@ -317,6 +339,22 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     assert factory["target"] == "c5_admitted_factory_address"
     assert strategy["target"] == "reviewed_factory_bound_strategy_address"
     assert strategy["action_ids"] == []
+
+    # The factory admits the splitter implementation by exact runtime code hash,
+    # so the consumer freeze records that binding alongside the factory's own.
+    assert factory["factory_bound_splitter_runtime_keccak256"] ==
+             @runtime_keccak256["subject_splitter_v1"]
+
+    # The one strategy read this lane performs, and the three frozen identities
+    # that complete the exact six a launch treasury may not be.
+    assert strategy["reads"] == [
+             %{"id" => "hook", "signature" => "hook()", "selector" => "0x7f5a7c7b"}
+           ]
+
+    assert strategy["refused_launch_treasuries"] == @frozen_refused_treasuries
+
+    assert strategy["refused_launch_treasury_provenance"] =~
+             "BaseBindings.sol lines 19, 20 and 21"
 
     # The exact allowance rule the fee correction follows, and no other spender.
     regent = Map.fetch!(evidence, "regent_erc20")
@@ -347,7 +385,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
     assert signature == AshPlatform.WalletActions.LaunchAbi.signature(:launch)
     assert selector_for(signature) == AshPlatform.WalletActions.LaunchAbi.selector(:launch)
-    assert selector_for(signature) == "0x783eed53"
+    assert selector_for(signature) == "0xd0464e3e"
   end
 
   test "no governance, receiver, construction or migration surface is derived by the consumer lane" do

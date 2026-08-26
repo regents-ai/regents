@@ -137,6 +137,11 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [launch_operations_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_490_5_2_c4_launch_operations.exs")
 
+    assert [c9_consumer_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_regent_490_5_3_final_c9_autolaunch_consumer.exs"
+             )
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -175,7 +180,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                bid_operations_migration,
                clean_v1_launch_drafts_migration,
                subject_wallet_operations_migration,
-               launch_operations_migration
+               launch_operations_migration,
+               c9_consumer_migration
              ])
 
     assert_additive_migration(
@@ -888,6 +894,25 @@ defmodule AshPlatformWeb.BoundaryTest do
 
     # No raw session lineage is ever a column on a launch operation either.
     refute File.read!(launch_operations_migration) =~ "lineage"
+
+    # The one deliberately destructive migration in this repository. It takes
+    # away exactly the deleted recovery-admin column and gives back exactly that
+    # column, so it is asserted whole rather than through the additive helper.
+    [c9_up, c9_down] =
+      c9_consumer_migration |> File.read!() |> String.split("  def down do", parts: 2)
+
+    assert c9_up =~ ~s|alter table(:launch_drafts, prefix: "autolaunch")|
+    assert c9_up =~ "remove(:recovery_admin)"
+    assert Regex.scan(~r/remove\(|drop\(|execute\(/, c9_up) == [["remove("]]
+
+    assert c9_down =~ ~s|alter table(:launch_drafts, prefix: "autolaunch")|
+    assert c9_down =~ "add(:recovery_admin, :text)"
+    assert Regex.scan(~r/add\(|drop\(|execute\(/, c9_down) == [["add("]]
+
+    # It reaches no other table, and no other draft column moves with it.
+    for untouched <- ["treasury", "required_regent_raised", "launch_operations", "subjects"] do
+      refute c9_consumer_migration |> File.read!() =~ untouched
+    end
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do

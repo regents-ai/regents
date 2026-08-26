@@ -12,7 +12,6 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     :website,
     :image,
     :treasury,
-    :recovery_admin,
     :required_regent_raised
   ]
 
@@ -42,7 +41,6 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     attribute :website, :string, public?: true
     attribute :image, :string, public?: true
     attribute :treasury, :string, public?: true
-    attribute :recovery_admin, :string, public?: true
     attribute :required_regent_raised, :string, public?: true
 
     timestamps()

@@ -5,9 +5,9 @@ defmodule AshPlatform.Autolaunch.LaunchChainClient do
   `snapshot/1` answers the whole reviewed question at one canonical safe block:
   the admitted factory's identity, its current fee and pause state, the active
   wallet's REGENT balance and its allowance to that factory, the reciprocal
-  factory/strategy binding, whether the draft's recovery admin carries code, and
-  the strategy's founder-frozen launch terms. There is no partial answer: a
-  review is derived from one snapshot or from none.
+  factory/strategy binding, the strategy's bound fee hook, and the strategy's
+  founder-frozen launch terms. There is no partial answer: a review is derived
+  from one snapshot or from none.
 
   `verify/3` is read-only. The browser reports a hash and stops; whether that
   hash confirmed, reverted or contradicted its own review is decided here.

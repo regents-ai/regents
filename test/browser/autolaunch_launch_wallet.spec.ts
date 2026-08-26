@@ -6,7 +6,6 @@ const wallet = "0x3333333333333333333333333333333333333333"
 // Lowercase on purpose: mixed case asserts an EIP-55 checksum, and a launch
 // review refuses an address whose checksum does not hold.
 const treasury = "0xabcdef0000000000000000000000000000000001"
-const recoveryAdmin = "0xfedcba0000000000000000000000000000000002"
 
 const sendsKey = "regent:test:launch-sends"
 const rejectKey = "regent:test:launch-reject-next"
@@ -109,7 +108,6 @@ async function saveDraft(page: Page) {
   await form.getByLabel("Website", {exact: true}).fill("https://example.test/launch-wallet")
   await form.getByLabel("Image", {exact: true}).fill("https://example.test/launch-wallet.png")
   await form.getByLabel("Treasury", {exact: true}).fill(treasury)
-  await form.getByLabel("Recovery admin", {exact: true}).fill(recoveryAdmin)
   await form.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await form.getByRole("button", {name: "Save draft"}).click()
 
@@ -226,6 +224,24 @@ test("every technical value stays behind the one disclosure", async ({page}) => 
   await expect(details).toContainText("Calldata digest")
   await expect(details).toContainText("Floor price q96")
   await expect(details).toContainText("Max reachable raise")
+})
+
+test("a blank draft starts from the connected wallet and keeps whatever is typed", async ({
+  page,
+}) => {
+  await signedIn(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  // The Treasury field opens as the wallet Privy has selected, ready to save.
+  const field = page.locator("#create-launch-draft-treasury")
+  await expect(field).toHaveValue(wallet)
+
+  // An address the founder enters is theirs, and a later wallet change leaves it
+  // exactly as typed.
+  await field.fill(treasury)
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("ash:wallet-state")))
+  await expect(field).toHaveValue(treasury)
 })
 
 test("a signed-out visitor is offered no launch control at all", async ({page}) => {

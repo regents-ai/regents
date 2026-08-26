@@ -536,7 +536,6 @@ test("Autolaunch overview, detail, and Create stay useful without fake market da
 })
 
 const draftTreasury = "0xAbCdeF0000000000000000000000000000000001"
-const draftRecoveryAdmin = "0xfEdCbA0000000000000000000000000000000002"
 
 test("a signed-in Regent owner saves a private launch draft without creating an auction", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
@@ -559,7 +558,6 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await draft.getByLabel("Website", {exact: true}).fill("https://example.test/browser-draft")
   await draft.getByLabel("Image", {exact: true}).fill("https://example.test/browser-draft.png")
   await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
-  await draft.getByLabel("Recovery admin", {exact: true}).fill(draftRecoveryAdmin)
   await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await draft.getByRole("button", {name: "Save draft"}).click()
 
@@ -596,7 +594,6 @@ test("Create fits a 390px viewport and wraps long draft values instead of cuttin
   await draft.getByLabel("Website", {exact: true}).fill("https://example.test/a-deliberately-long-draft-address")
   await draft.getByLabel("Image", {exact: true}).fill("https://example.test/a-deliberately-long-draft-image.png")
   await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
-  await draft.getByLabel("Recovery admin", {exact: true}).fill(draftRecoveryAdmin)
   await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await draft.getByRole("button", {name: "Save draft"}).click()
 

@@ -33,7 +33,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       assert state.balances.usdc == "50"
       assert state.claimable.usdc == "12"
       assert state.staked == "400"
-      assert state.net_destination == "stakers"
+      assert state.total_staked == "1000"
     end
 
     test "a wallet the account does not hold sees no private state at all", context do
@@ -91,7 +91,8 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       assert arguments["amount_atomic"] == Integer.to_string(10 * @unit)
       assert arguments["symbol"] == "SUBJECT"
       assert arguments["protocol_share_bps"] == 200
-      assert arguments["stakers_share_bps"] == 9800
+      # A stake is not a recognized inflow, so it divides nothing.
+      assert arguments["allocation"] == nil
 
       assert [approval, action] = arguments["steps"]
       assert approval["step"] == "approval"
@@ -171,7 +172,6 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       # The reference is part of the immutable identity, so two payments of the
       # same amount are never the same reviewed transaction.
       assert first.action_id != second.action_id
-      assert first.envelope["arguments"]["net_destination"] == "stakers"
 
       assert [approval, action] = first.envelope["arguments"]["steps"]
       assert approval["spender"] == Fixture.receiver()
@@ -179,14 +179,58 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       assert action["data"] == SubjectAbi.encode_pay(Fixture.usdc(), 5 * @usdc_unit, reference)
     end
 
-    test "with nobody staked a payment says the net routes to the treasury", context do
-      Fixture.install(total_staked: 0, staked_of: 0)
-
-      assert {:ok, %{operation: operation}} =
+    # 5 USDC is 5_000_000 atomic. The skim floors to 100_000 and the net is
+    # 4_900_000. The fixture stakes 1_000 of the 100-billion SUBJECT supply, so
+    # the staker allocation floors to zero and the treasury takes the whole net;
+    # ten million times that stake earns exactly 490 of the same net.
+    test "a payment divides into exact atomic amounts at zero and nonzero coverage", context do
+      assert {:ok, %{operation: sparse}} =
                prepare(context, :pay, %{"asset" => "usdc", "amount" => "5"})
 
-      assert operation.envelope["arguments"]["net_destination"] == "treasury"
-      assert operation.envelope["arguments"]["total_staked"] == "0"
+      assert argument(sparse, "total_staked") == "1000000000000000000000"
+
+      assert argument(sparse, "allocation") == %{
+               "gross" => "5000000",
+               "skim" => "100000",
+               "net" => "4900000",
+               "stakers" => "0",
+               "treasury" => "4900000"
+             }
+
+      Fixture.install(total_staked: 10_000_000_000 * @unit, staked_of: 400 * @unit)
+
+      assert {:ok, %{operation: covered}} =
+               prepare(context, :pay, %{"asset" => "usdc", "amount" => "5"})
+
+      assert argument(covered, "allocation") == %{
+               "gross" => "5000000",
+               "skim" => "100000",
+               "net" => "4900000",
+               "stakers" => "490000",
+               "treasury" => "4410000"
+             }
+
+      Fixture.install(total_staked: 0, staked_of: 0)
+
+      assert {:ok, %{operation: unstaked}} =
+               prepare(context, :pay, %{"asset" => "usdc", "amount" => "5"})
+
+      assert argument(unstaked, "total_staked") == "0"
+      assert argument(unstaked, "allocation")["stakers"] == "0"
+      assert argument(unstaked, "allocation")["treasury"] == "4900000"
+    end
+
+    # The receiver holds 7 USDC, so a sweep divides exactly what it will move.
+    test "a sweep divides the receiver's own balance rather than a chosen amount", context do
+      assert {:ok, %{operation: operation}} = prepare(context, :sweep, %{"asset" => "usdc"})
+
+      assert argument(operation, "allocation") == %{
+               "gross" => "7000000",
+               "skim" => "140000",
+               "net" => "6860000",
+               "stakers" => "0",
+               "treasury" => "6860000"
+             }
     end
 
     test "a sweep reviews the receiver's own current balance", context do
@@ -367,6 +411,8 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       assert verified(paid, %{"gross" => "5000000"}) == nil
     end
   end
+
+  defp argument(operation, key), do: operation.envelope["arguments"][key]
 
   defp verified(operation, result),
     do: SubjectWalletActions.verified_amount(%{operation | state: :confirmed, result: result})

@@ -83,7 +83,6 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
                  website: "https://example.test/open",
                  image: "https://example.test/open.png",
                  treasury: Fixture.treasury(),
-                 recovery_admin: Fixture.recovery_admin(),
                  required_regent_raised: 1_000_500_000_000_000_000_000,
                  expected_launch_fee: @fee
                })
@@ -169,18 +168,37 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
       assert refused(context) == :insufficient_regent
     end
 
-    test "a recovery admin with no code, and one that is the strategy, both refuse", context do
-      Fixture.install(codeless: [Fixture.recovery_admin()])
-      assert refused(context) == :recovery_admin_has_no_code
-
+    # The strategy itself refuses exactly these six as a launch treasury, so a
+    # draft naming one is refused here rather than reverting in a wallet. Three
+    # are read at the reviewed block and three are frozen Base bindings.
+    test "each of the exact six contract-refused treasuries is refused before any review",
+         context do
       Fixture.install()
 
-      strategy_admin =
-        Fixture.draft!(context[:actor], draft: %{"recovery_admin" => Fixture.strategy()})
+      for refused <- [
+            Fixture.factory(),
+            Fixture.strategy(),
+            Fixture.hook(),
+            "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+            "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+            "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+          ] do
+        draft = Fixture.draft!(context[:actor], draft: %{"treasury" => refused})
+
+        assert Fixture.refusal(
+                 Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))
+               ) == :launch_treasury_refused
+      end
+
+      # A refused address written in another casing is still that address.
+      lowered =
+        Fixture.draft!(context[:actor],
+          draft: %{"treasury" => String.downcase("0x498581fF718922c3f8e6A244956aF099B2652b2b")}
+        )
 
       assert Fixture.refusal(
-               Autolaunch.prepare_launch(strategy_admin.id, Fixture.wallet(), opts(context))
-             ) == :recovery_admin_is_strategy
+               Autolaunch.prepare_launch(lowered.id, Fixture.wallet(), opts(context))
+             ) == :launch_treasury_refused
     end
 
     # The strategy maximum is 658201822928399999.999999581824872526 REGENT, so
@@ -232,19 +250,13 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
     test "an address whose own checksum does not hold is refused before any wallet", context do
       Fixture.install()
 
-      for {field, reason} <- [
-            {"treasury", :launch_treasury_invalid},
-            {"recovery_admin", :launch_recovery_admin_invalid}
-          ] do
-        draft =
-          Fixture.draft!(context[:actor],
-            draft: %{field => "0xAbCdeF0000000000000000000000000000000001"}
-          )
+      draft =
+        Fixture.draft!(context[:actor],
+          draft: %{"treasury" => "0xAbCdeF0000000000000000000000000000000001"}
+        )
 
-        assert Fixture.refusal(
-                 Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))
-               ) == reason
-      end
+      assert Fixture.refusal(Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))) ==
+               :launch_treasury_invalid
     end
 
     test "an incomplete snapshot is refused rather than partly believed", context do

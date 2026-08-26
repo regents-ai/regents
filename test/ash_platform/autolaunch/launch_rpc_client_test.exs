@@ -15,7 +15,6 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
   @factory "0x7777777777777777777777777777777777777777"
   @strategy "0x8888888888888888888888888888888888888888"
   @treasury "0x5555555555555555555555555555555555555555"
-  @recovery_admin "0x6666666666666666666666666666666666666666"
   @subject "0x4444444444444444444444444444444444444444"
   @auction "0x2222222222222222222222222222222222222222"
   @escrow "0x3333333333333333333333333333333333333333"
@@ -41,7 +40,7 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
       # rather than answer. The refusal happens first.
       Application.delete_env(:ash_platform, @client_key)
 
-      assert LaunchRpcClient.snapshot(%{signer: @signer, recovery_admin: @recovery_admin}) ==
+      assert LaunchRpcClient.snapshot(%{signer: @signer}) ==
                {:error, :launch_preparation_unavailable}
     end
 
@@ -165,11 +164,10 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
       assert verify(:launch) == {:ok, %{outcome: :unverified}}
     end
 
-    test "an event naming another signer, treasury, recovery admin or raise is unverified" do
+    test "an event naming another signer, treasury or raise is unverified" do
       for override <- [
             [launcher: @foreign],
             [treasury: @foreign],
-            [recovery_admin: @foreign],
             [required_raise: @raise_atomic + 1]
           ] do
         install(:launch, logs: [launch_created_log(override), fee_log()])
@@ -230,7 +228,6 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
         "strategy" => @strategy,
         "regent" => Abi.stake_token_address(),
         "treasury" => @treasury,
-        "recovery_admin" => @recovery_admin,
         "required_regent_raised_atomic" => Integer.to_string(@raise_atomic),
         "expected_launch_fee_atomic" => Integer.to_string(fee),
         "steps" => steps(fee)
@@ -259,7 +256,6 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
       website: "https://example.test/open",
       image: "https://example.test/open.png",
       treasury: @treasury,
-      recovery_admin: @recovery_admin,
       required_regent_raised: @raise_atomic,
       expected_launch_fee: fee
     })
@@ -308,7 +304,7 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
     end
   end
 
-  defp record_words(:absent), do: "0x" <> String.duplicate(BaseRpcStub.hex_word(0), 6)
+  defp record_words(:absent), do: "0x" <> String.duplicate(BaseRpcStub.hex_word(0), 5)
 
   defp record_words(overrides) do
     record =
@@ -318,15 +314,14 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
           subject: @subject,
           auction: @auction,
           escrow: @escrow,
-          treasury: @treasury,
-          recovery_admin: @recovery_admin
+          treasury: @treasury
         },
         overrides
       )
 
     "0x" <>
       Enum.map_join(
-        [:launcher, :subject, :auction, :escrow, :treasury, :recovery_admin],
+        [:launcher, :subject, :auction, :escrow, :treasury],
         &BaseRpcStub.address_word(Map.fetch!(record, &1))
       )
   end
@@ -353,7 +348,6 @@ defmodule AshPlatform.Autolaunch.LaunchRpcClientTest do
         word(@auction),
         word(@escrow),
         word(Keyword.get(overrides, :treasury, @treasury)),
-        word(Keyword.get(overrides, :recovery_admin, @recovery_admin)),
         uint(Keyword.get(overrides, :required_raise, @raise_atomic)),
         uint(@start_block),
         uint(@end_block)
