@@ -12,11 +12,14 @@ export type HomeHeroDriver = {
   animate(targets: HTMLElement[], options: Record<string, unknown>): HomeHeroAnimation
 }
 
+type WriteClipboard = (text: string) => Promise<void>
+
 type HomeHeroOptions = {
   cancelFrame?: CancelFrame
   driver?: HomeHeroDriver
   reducedMotion?: () => boolean
   requestFrame?: RequestFrame
+  writeClipboard?: WriteClipboard
 }
 
 export type HomeHeroController = {
@@ -39,6 +42,10 @@ const browserCancelFrame: CancelFrame = handle => {
 const browserReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
+const browserWriteClipboard: WriteClipboard = text => navigator.clipboard.writeText(text)
+
+const COPY_TRIGGER = "[data-copy-hermes-instructions]"
+
 const clearAnimationStyles = (targets: HTMLElement[]) => {
   targets.forEach(target => {
     target.style.removeProperty?.("opacity")
@@ -57,10 +64,26 @@ export const createHomeHeroController = (
   const driver = options.driver ?? animeDriver
   const reducedMotion = options.reducedMotion ?? browserReducedMotion
   const requestFrame = options.requestFrame ?? browserRequestFrame
+  const writeClipboard = options.writeClipboard ?? browserWriteClipboard
   let active: HomeHeroAnimation[] | null = null
   let frame: number | undefined
   let targets: HTMLElement[] = []
   let generation = 0
+  let clipboardAttached = false
+
+  const announce = (message: string) => {
+    root.querySelector<HTMLElement>("#regent-copy-status")!.textContent = message
+  }
+
+  const onClipboardClick = (event: Event) => {
+    const trigger = (event.target as Element).closest<HTMLElement>(COPY_TRIGGER)
+    if (!trigger) return
+
+    void writeClipboard(trigger.dataset.copyHermesInstructions!).then(
+      () => announce("Instructions copied."),
+      () => announce("Couldn’t copy. Try again."),
+    )
+  }
 
   const stopCurrentEnhancement = () => {
     generation += 1
@@ -77,6 +100,12 @@ export const createHomeHeroController = (
       return active
     },
     mount() {
+      // Copying is plain enhancement: it attaches ahead of, and independently of, any motion.
+      if (!clipboardAttached) {
+        root.addEventListener("click", onClipboardClick)
+        clipboardAttached = true
+      }
+
       stopCurrentEnhancement()
       let completed = false
       const handle = requestFrame(() => {
@@ -161,6 +190,8 @@ export const createHomeHeroController = (
     },
     destroy() {
       stopCurrentEnhancement()
+      root.removeEventListener("click", onClipboardClick)
+      clipboardAttached = false
       delete root.dataset.heroEnhanced
       delete root.dataset.heroMotion
     },

@@ -32,7 +32,8 @@
   text-decoration: none;
 }
 
-.rl-root a:focus-visible {
+.rl-root a:focus-visible,
+.rl-root button:focus-visible {
   outline: 2px solid var(--rl-accent);
   outline-offset: -2px;
 }
@@ -375,8 +376,7 @@
 .rl-chapter { --chapter-accent: var(--rl-regent); }
 .rl-chapter--nous { --chapter-accent: var(--rl-nous); }
 .rl-chapter--autolaunch { --chapter-accent: var(--rl-autolaunch); }
-.rl-chapter--techtree,
-.rl-chapter--evidence { --chapter-accent: var(--rl-techtree); }
+.rl-chapter--techtree { --chapter-accent: var(--rl-techtree); }
 
 .rl-chapter-intro,
 .rl-closing,
@@ -397,7 +397,7 @@
 
 /* The closing frame, the Techtree story and every chapter intro without a number carry no chapter
    number, so their copy starts in the headline column and every section on the page shares one
-   left edge. The evidence intro is one of those numberless chapter intros. */
+   left edge. */
 .rl-closing > *,
 .rl-chapter-intro > div:only-child,
 .rl-story > div {
@@ -446,29 +446,25 @@
 }
 
 /* Hairline grid: each cell draws its own end and bottom edge, the container draws the other two. */
-.rl-proof-grid,
-.rl-evidence-rails,
-.rl-evidence-entries {
+.rl-proof-grid {
   --hairline-column: 16rem;
   display: grid;
+  margin-block-start: clamp(3rem, 7vw, 6rem);
   grid-template-columns: repeat(auto-fit, minmax(min(var(--hairline-column), 100%), 1fr));
   border-block-start: 1px solid var(--rl-line);
   border-inline-start: 1px solid var(--rl-line);
 }
 
-.rl-proof-grid > article,
-.rl-evidence-rail,
-.rl-evidence-entry {
+.rl-proof-grid > article {
   min-width: 0;
   padding: clamp(1rem, 2.5vw, 2rem);
   border-inline-end: 1px solid var(--rl-line);
   border-block-end: 1px solid var(--rl-line);
 }
 
-/* The quiet voice: every supporting line, pre-result note and rail body reads at one size. */
+/* The quiet voice: every supporting line and pre-result note reads at one size. */
 .rl-chapter-support,
 .rl-story-state,
-.rl-evidence-rail > p:not(.rl-evidence-sources),
 .rl-proof-grid article > p:not(.rl-proof-state) {
   max-width: 47rem;
   color: var(--rl-muted);
@@ -500,17 +496,25 @@
   font-size: var(--rl-quiet);
 }
 
-/* Two entry paths close the chapter: a public Climb and a private Verify. */
+/* One row closes the chapter: the handoff, the copy control, and what the copy control just did. */
 .rl-chapter-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(1.5rem, 3vw, 3rem);
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
   margin-block-start: clamp(2.5rem, 5vw, 4rem);
 }
 
-.rl-chapter-actions p {
-  max-width: 22rem;
-  margin-block-start: 0.75rem;
+/* The copy control is a native button, so only the user-agent chrome needs answering for. */
+.rl-root button.rl-action {
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  line-height: inherit;
+}
+
+/* Copy feedback is a word beside the control: it appears at once and never moves. */
+.rl-copy-status {
   color: var(--rl-muted);
   font-size: var(--rl-quiet);
 }
@@ -522,8 +526,7 @@
   border-block-start: 1px solid var(--rl-line);
 }
 
-.rl-story h3,
-.rl-evidence-rail h3 {
+.rl-story h3 {
   margin-block-end: 0.9rem;
   font-size: clamp(1.4rem, 2.8vw, 2.2rem);
   letter-spacing: -0.02em;
@@ -536,114 +539,6 @@
   padding: clamp(1rem, 2.5vw, 2rem);
   border: 1px solid var(--rl-line);
   background: var(--rl-panel);
-}
-
-.rl-evidence-rails {
-  --hairline-column: 20rem;
-  margin-block-start: clamp(3rem, 7vw, 6rem);
-}
-
-/* The research-context note stands between the rails and the record, so the record draws its
-   own top edge. */
-.rl-evidence-entries {
-  --hairline-column: 17rem;
-  margin: clamp(1.5rem, 3vw, 2.5rem) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rl-evidence-rail {
-  background: var(--rl-panel);
-}
-
-/* Source labels read as a technical byline, so they keep the ink colour and the pixel face. */
-.rl-evidence-rail > .rl-evidence-sources {
-  margin-block-start: 1.25rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  font-family: var(--font-family-pixel);
-}
-
-.rl-evidence-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-/* The claim takes the free space so every attribution in the row sits on the same baseline. */
-.rl-evidence-entry > .rl-evidence-claim {
-  margin: 0.6rem 0 auto;
-  font-size: var(--rl-quiet);
-  text-wrap: pretty;
-}
-
-.rl-evidence-entry > .rl-evidence-author {
-  margin-block-start: 1.25rem;
-  font-family: var(--font-family-display);
-}
-
-.rl-evidence-affiliation,
-.rl-root .rl-evidence-source {
-  color: var(--rl-muted);
-  font-size: 0.75rem;
-}
-
-/* The card closes with the source icon on the left and the company mark on the right. */
-.rl-evidence-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-block-start: 0.6rem;
-}
-
-.rl-root .rl-evidence-source {
-  display: inline-flex;
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.rl-evidence-source svg {
-  width: 100%;
-  height: 100%;
-}
-
-.rl-evidence-logo {
-  height: 1.15rem;
-  width: auto;
-  max-width: 8.5rem;
-}
-
-.rl-chapter--evidence .rl-evidence-note {
-  margin-block-start: clamp(1.5rem, 3vw, 2.5rem);
-}
-
-.rl-chapter--evidence .rl-evidence-note h3 {
-  margin-block-end: 0.75rem;
-  font-size: clamp(1.4rem, 2.8vw, 2.2rem);
-  letter-spacing: -0.02em;
-  color: var(--rl-ink);
-  text-transform: none;
-  font-family: var(--font-family-display);
-}
-
-/* The boundary statement closes the section in full voice: evidence and capital stay distinct. */
-.rl-chapter--evidence .rl-evidence-boundary {
-  max-width: 47rem;
-  margin-block-start: clamp(2.5rem, 5vw, 4rem);
-  font-size: clamp(1.1rem, 2vw, 1.45rem);
-  letter-spacing: -0.01em;
-  text-wrap: pretty;
-}
-
-@media (hover: hover) {
-  .rl-root .rl-evidence-source:hover {
-    color: var(--rl-ink);
-  }
-}
-
-.rl-proof-grid {
-  margin-block-start: clamp(3rem, 7vw, 6rem);
 }
 
 .rl-proof-grid > article {

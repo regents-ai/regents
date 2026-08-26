@@ -3,6 +3,8 @@ defmodule AshPlatformWeb.HomeLive do
 
   alias AshPlatformWeb.RouteCatalog
 
+  @hermes_instructions "Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools and skills are available, then guide me through the next step."
+
   def mount(_params, _session, socket),
     do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
 
@@ -14,18 +16,12 @@ defmodule AshPlatformWeb.HomeLive do
       <main>
         <.hero />
 
-        <%!-- Two beats hang off the product they belong to: the sourced evidence stands behind
-              Techtree, and revenue is what a funded launch is meant to produce. Nous is the
-              runtime the products run on rather than a Regents product, so it closes the story
-              beside the summary instead of taking a number. --%>
         <%= for product <- products() do %>
           <.chapter chapter={product} />
-          <.evidence_section :if={product.anchor == "techtree"} />
           <.chapter :if={product.anchor == "autolaunch"} chapter={revenue()} />
         <% end %>
 
         <.chapter chapter={nous()} />
-        <.chapter chapter={product_summary()} />
         <.closing_frame />
       </main>
 
@@ -167,20 +163,39 @@ defmodule AshPlatformWeb.HomeLive do
         </div>
       </div>
 
-      <.proof_grid proofs={@chapter.more_proofs} />
-
       <div :if={@chapter[:actions]} class="rl-chapter-actions">
-        <div :for={action <- @chapter[:actions]}>
-          <a
-            href={action.href}
-            class={["rl-action", action.strong && "rl-action--strong"]}
-          >
-            {action.label}
-          </a>
-          <p>{action.caption}</p>
-        </div>
+        <.chapter_action :for={action <- @chapter[:actions]} action={action} />
       </div>
     </section>
+    """
+  end
+
+  defp chapter_action(%{action: %{kind: :link}} = assigns) do
+    ~H"""
+    <a
+      id={@action.id}
+      href={@action.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      class={["rl-action", @action.strong && "rl-action--strong"]}
+    >
+      {@action.label}
+    </a>
+    """
+  end
+
+  # The copy control is the only place the page speaks back, so it carries its own status region.
+  defp chapter_action(%{action: %{kind: :copy}} = assigns) do
+    ~H"""
+    <button
+      id={@action.id}
+      type="button"
+      data-copy-hermes-instructions={@action.payload}
+      class={["rl-action", @action.strong && "rl-action--strong"]}
+    >
+      {@action.label}
+    </button>
+    <p id="regent-copy-status" class="rl-copy-status" role="status" aria-live="polite"></p>
     """
   end
 
@@ -196,71 +211,6 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  # Sourced evidence: one rail for every system the founder copy names, then the industry quotes
-  # behind them. Every entry is founder-verified against its primary source.
-  defp evidence_section(assigns) do
-    assigns = assign(assigns, copy: evidence_copy(), entries: evidence_entries())
-
-    ~H"""
-    <section id="evidence" class="rl-chapter rl-chapter--evidence" aria-labelledby="evidence-title">
-      <header class="rl-chapter-intro">
-        <div>
-          <h2 id="evidence-title">{@copy.heading}</h2>
-          <p>{@copy.intro}</p>
-          <p class="rl-chapter-support">{@copy.claims}</p>
-        </div>
-      </header>
-
-      <div class="rl-evidence-rails">
-        <article :for={rail <- @copy.rails} class="rl-evidence-rail">
-          <h3>{rail.headline}</h3>
-          <p>{rail.body}</p>
-          <p class="rl-evidence-sources">{rail.sources}</p>
-        </article>
-      </div>
-
-      <div class="rl-evidence-note">
-        <h3 class="rl-overline">{@copy.context.heading}</h3>
-        <p class="rl-chapter-support">{@copy.context.intro}</p>
-      </div>
-
-      <ul class="rl-evidence-entries" role="list">
-        <li :for={entry <- @entries} class="rl-evidence-entry">
-          <blockquote class="rl-evidence-claim">“{entry.claim}”</blockquote>
-          <p class="rl-evidence-author">{entry.author}</p>
-          <p :if={entry.affiliation} class="rl-evidence-affiliation">{entry.affiliation}</p>
-          <div class="rl-evidence-footer">
-            <a
-              class="rl-evidence-source"
-              href={entry.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={source_label(entry.source_kind)}
-            >
-              <.source_icon kind={entry.source_kind} />
-            </a>
-            <img class="rl-evidence-logo" src={entry.logo} alt={entry.logo_alt} />
-          </div>
-        </li>
-      </ul>
-
-      <p class="rl-evidence-boundary">{@copy.boundary}</p>
-    </section>
-    """
-  end
-
-  defp source_label(:youtube), do: "Watch the source video on YouTube"
-  defp source_label(:x), do: "Read the source post on X"
-  defp source_label(:web), do: "Read the source article"
-
-  defp source_icon(%{kind: :youtube} = assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-    </svg>
-    """
-  end
-
   defp source_icon(%{kind: :x} = assigns) do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -273,15 +223,6 @@ defmodule AshPlatformWeb.HomeLive do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-    </svg>
-    """
-  end
-
-  defp source_icon(%{kind: :web} = assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-      <circle cx="12" cy="12" r="9.25" />
-      <path d="M2.75 12h18.5M12 2.75a14.2 14.2 0 0 1 0 18.5M12 2.75a14.2 14.2 0 0 0 0 18.5" />
     </svg>
     """
   end
@@ -330,141 +271,6 @@ defmodule AshPlatformWeb.HomeLive do
       {"About", "home-closing"}
     ]
 
-  defp evidence_copy do
-    %{
-      heading: "Built on open systems with distinct jobs.",
-      intro:
-        "Techtree does not replace the evaluator, agent, runtime evidence layer, task environment, skill optimizer, or notebook. It pins them, connects them, and makes the resulting claim inspectable.",
-      claims:
-        "Every technical claim on this page should resolve to a primary source, pinned software revision, immutable manifest, public receipt, deployed contract, or independent reproduction.",
-      boundary:
-        "Techtree proof is not a financial promise, and Autolaunch funding is not capability proof. The products connect evidence and capital without pretending they are the same thing.",
-      context: %{
-        heading: "Evals + RL Environment Recent Quotes",
-        intro:
-          "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
-      },
-      rails: [
-        %{
-          headline: "Evaluation truth",
-          body:
-            "Prime Verifiers composes the taskset, agent harness, and runtime, intercepts model traffic, emits the typed Trace, and applies the task’s scoring contract. Techtree records the exact Verifiers revision and resolved configuration.",
-          sources: "Prime Intellect · Verifiers · Taskset · Trace · Scoring contract"
-        },
-        %{
-          headline: "Agent behavior",
-          body:
-            "Hermes Agent performs the work with the declared model, tools, plugins, permissions, and SKILL.md. Techtree pins the Hermes build and holds its configuration fixed across a controlled comparison.",
-          sources: "Nous Research · Hermes Agent · Skills · Plugins"
-        },
-        %{
-          headline: "Runtime evidence",
-          body:
-            "NVIDIA NeMo Relay records scoped model, tool, turn, session, and subagent events. Techtree binds raw ATOF events and normalized ATIF trajectories to the corresponding Verifiers episode without treating Relay as a second evaluator.",
-          sources: "NVIDIA · NeMo Relay · ATOF · ATIF"
-        },
-        %{
-          headline: "Tasks and environments",
-          body:
-            "Prime Intellect research environments supply first-party tasksets and validated dataset integrations. Harbor packages benchmark tasks and container environments. Hugging Face OpenEnv supplies deployable, Gym-style agent environments.",
-          sources: "Prime research-environments · Harbor · Hugging Face OpenEnv"
-        },
-        %{
-          headline: "Skill optimization",
-          body:
-            "Microsoft SkillOpt proposes reusable natural-language skill updates from trajectories and rewards. Techtree keeps the optimizer outside the scoring boundary and records every candidate as immutable skill lineage.",
-          sources: "Microsoft · SkillOpt · SKILL.md"
-        },
-        %{
-          headline: "Reproducible analysis",
-          body:
-            "marimo turns receipts and trace summaries into reactive Python notebooks that can run as scripts, applications, or browser-based analysis.",
-          sources: "marimo · Reproducible Python notebooks"
-        },
-        %{
-          headline: "Proof and lineage",
-          body:
-            "The Techtree Python SDK/CLI resolves manifests, starts experiments, verifies artifacts, and builds receipts. The web app publishes durable projections. The Techtree operator skill and Hermes plugin let agents use the same protocol directly.",
-          sources: "Techtree SDK/CLI · Web app · Operator skill · Hermes plugin · Public receipt"
-        },
-        %{
-          headline: "Rules enforced onchain.",
-          body:
-            "Uniswap CCA provides transparent price discovery and liquidity formation. Safe protects agent and protocol custody. ERC-8004 provides the durable agent identifier. Autolaunch contracts define launch authorization, allocation, vesting, treasury, and recognized-revenue routing.",
-          sources: "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
-        }
-      ]
-    }
-  end
-
-  # The founder-supplied quote record: six voices on evals and RL environments, each linking
-  # to its primary source as an icon.
-  defp evidence_entries do
-    [
-      %{
-        claim:
-          "Evaluation stops being the last check before shipping. It becomes the engine that ships better agents.",
-        author: "Michele Catasta",
-        affiliation: "President, Replit",
-        source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=Klnodm4WZLg",
-        logo: "/images/brand/quotes/replit.svg",
-        logo_alt: "Replit"
-      },
-      %{
-        claim:
-          "The harness really matters. Harness design alone moves benchmark scores by double digits, same model.",
-        author: "Jonathan Cohen",
-        affiliation: "VP of Applied Research, NVIDIA",
-        source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=qQYxwyidnUk",
-        logo: "/images/brand/quotes/nvidia.svg",
-        logo_alt: "NVIDIA"
-      },
-      %{
-        claim:
-          "Coding agents are going to higher levels of abstraction. We can do this with environment and reward design as well.",
-        author: "Will Brown",
-        affiliation: "Prime Intellect",
-        source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=AQv3qRCG6Gw",
-        logo: "/images/brand/quotes/prime-intellect.svg",
-        logo_alt: "Prime Intellect"
-      },
-      %{
-        claim:
-          "Binary task success compresses a long-horizon workflow into one label. Milestone-based evaluation preserves which states were reached, which transitions succeeded, and which downstream work became unreachable after a specific failure.",
-        author: "Zhengyang Qi",
-        affiliation: "Snorkel AI",
-        source_kind: :x,
-        source_url: "https://x.com/qi_zhengyang/status/2085089415253078018",
-        logo: "/images/brand/quotes/snorkel-ai.svg",
-        logo_alt: "Snorkel AI"
-      },
-      %{
-        claim:
-          "Data-eng-bench is open source. Whether you build agents, harnesses or the models underneath them, it’s a realistic, hard-to-saturate testbed for measuring autonomous data engineering.",
-        author: "Snowflake Labs",
-        affiliation: nil,
-        source_kind: :web,
-        source_url:
-          "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
-        logo: "/images/brand/quotes/snowflake.svg",
-        logo_alt: "Snowflake"
-      },
-      %{
-        claim:
-          "Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.",
-        author: "David Hartmann",
-        affiliation: "Lambda Labs",
-        source_kind: :youtube,
-        source_url: "https://www.youtube.com/watch?v=8uGfxNehSUc",
-        logo: "/images/brand/quotes/lambda.svg",
-        logo_alt: "Lambda"
-      }
-    ]
-  end
-
   # The three Regents products, in the founder narrative: prove, fund, operate. The chapter number
   # is the position in that story, and the hero bento reads the same order.
   defp products do
@@ -508,95 +314,6 @@ defmodule AshPlatformWeb.HomeLive do
             copy:
               "Score validity, runtime evidence, comparison control, execution attestation, and reproduction are tracked separately—so a local result is never presented as sealed or independently reproduced."
           }
-        ],
-        more_proofs: [
-          %{
-            state: "Climb · Live CLI",
-            title: "Public Climbs and proof graph",
-            copy:
-              "Browse open campaigns, inspect submissions, and follow how tasksets, skills, manifests, receipts, reproductions, and challenges connect. The run list shows the newest evidence first."
-          },
-          %{
-            state: "Proof · Live CLI",
-            title: "Every claim links to exact evidence",
-            copy:
-              "Manifests, skills, traces, notebooks, receipts, and reports are fingerprinted before display. New evidence can extend, supersede, reproduce, or dispute an existing claim without rewriting its history. Discussion can surround a claim, but it cannot alter the signed evidence."
-          },
-          %{
-            state: "Verify · Live CLI",
-            title: "Inspect the result, not just the score",
-            copy:
-              "Approved marimo notebooks turn receipts and trace summaries into interactive, reproducible analysis. Review the comparison logic and rerun it in the browser without handing Techtree your private agent session."
-          },
-          %{
-            state: "Blueprint · Planned",
-            title: "Start with the workflow, not the benchmark",
-            copy:
-              "Blueprint turns a real workflow, its tools, constraints, failures, and desired outcome into an Improvement Program: what to measure, what must remain fixed, which intervention to try first, and what evidence is required."
-          },
-          %{
-            state: "Climb · Live CLI",
-            title: "Agents can enter and run Climbs",
-            copy:
-              "The Techtree CLI, operator skill, and Hermes plugin let an agent inspect campaigns, prepare a candidate, review the exact mutation and budget, launch a run, verify receipts, and publish an approved result."
-          },
-          %{
-            state: "Verify · Live CLI",
-            title: "Start local. Upgrade the proof.",
-            copy:
-              "Run a small pinned comparison on a laptop. Re-run the same campaign on an independent or sealed executor when stronger attestation, privacy, or scale is required."
-          },
-          %{
-            state: "Forge · In build",
-            title: "Validate the task before judging the agent.",
-            copy:
-              "Forge records gold and setup validation, deterministic task membership, leakage checks, negative controls, and platform compatibility before a Climb or Verify claim can be published."
-          },
-          %{
-            state: "Climb · Planned",
-            title: "Independent reruns strengthen the claim",
-            copy:
-              "Publish the resolved campaign, permitted redactions, and artifact fingerprints so another executor can reproduce the result and attach a Reproduction Receipt."
-          },
-          %{
-            state: "Forge · Planned",
-            title: "One TasksetRef across the open ecosystem",
-            copy:
-              "Prime environments come first. Harbor and OpenEnv can follow through the same pinned Verifiers contract. Techtree records the source revision, split, task membership, runtime image, and scorer instead of rewriting each environment’s grader."
-          },
-          %{
-            state: "Uplift · Planned",
-            title: "Find the cheapest change that works",
-            copy:
-              "Start with skills and prompts before escalating to harness changes, tools, data, SFT, or RL. SkillOpt can propose candidate SKILL.md versions; Verifiers remains the scorer, and Techtree promotes only held-out improvements."
-          },
-          %{
-            state: "Verify · Planned",
-            title: "One campaign format, from one agent to many",
-            copy:
-              "A campaign may begin with one named Hermes subject. The same Episode Receipt model can later include solver, judge, user-simulator, proposer, and subagent traces—each with its own role, configuration, reward, and lineage."
-          },
-          %{
-            state: "Trace · Planned",
-            title: "Qualified evidence can continue into training",
-            copy:
-              "Trace packages selected episodes with provenance, rights, redaction, and readiness metadata. Prime Lab can reuse the same Verifiers environment for post-training; Verify then tests the trained system against the frozen baseline."
-          }
-        ],
-        actions: [
-          %{
-            label: "Install the Techtree CLI",
-            caption: "Enter a controlled challenge and prove what your skill changes.",
-            href: "https://github.com/regents-ai",
-            strong: true
-          },
-          %{
-            label: "Run a private Verify",
-            caption:
-              "Establish a baseline, test a release candidate, or scope an Improvement Program.",
-            href: "/app",
-            strong: false
-          }
         ]
       },
       %{
@@ -628,22 +345,35 @@ defmodule AshPlatformWeb.HomeLive do
             copy:
               "Connect ERC-8004 identity, GitHub, X, Farcaster, ENS, and World signals, plus selected public Techtree receipts. Social identity and evaluation evidence remain distinct and inspectable."
           }
-        ],
-        more_proofs: []
+        ]
       },
       %{
         index: "03",
         anchor: "regent",
         name: "Regent",
         eyebrow: "Regent — Operate",
-        title: "Keep the agent working.",
+        title: "Designed for use by Hermes agents.",
         description:
-          "Regent gives an agent one identity, one operator path, and a place to keep working after the benchmark or launch.",
-        supporting:
-          "Humans get a guided path. Agents get a direct command path. Both connect to the same identity.",
+          "Nous Portal is the fastest way to create an always-on agent to be used with Techtree and Autolaunch.",
+        supporting: nil,
         story: nil,
         proofs: [],
-        more_proofs: []
+        actions: [
+          %{
+            kind: :link,
+            id: "regent-create-agent",
+            label: "Create Agent on Nous",
+            href: "https://portal.nousresearch.com/",
+            strong: true
+          },
+          %{
+            kind: :copy,
+            id: "regent-copy-hermes-instructions",
+            label: "Copy Instructions to My Hermes",
+            payload: @hermes_instructions,
+            strong: false
+          }
+        ]
       }
     ]
   end
@@ -658,8 +388,7 @@ defmodule AshPlatformWeb.HomeLive do
         "Hermes Agent is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity.",
       supporting: nil,
       story: nil,
-      proofs: [],
-      more_proofs: []
+      proofs: []
     }
   end
 
@@ -674,23 +403,7 @@ defmodule AshPlatformWeb.HomeLive do
       supporting:
         "Funding pays for another phase of work. Recognized revenue shows whether the agent is developing a repeatable economic activity.",
       story: nil,
-      proofs: [],
-      more_proofs: []
-    }
-  end
-
-  defp product_summary do
-    %{
-      index: nil,
-      anchor: "product-summary",
-      eyebrow: nil,
-      title: "From benchmark to business.",
-      description:
-        "Techtree proves the work. Autolaunch funds the next phase. Regent keeps the agent operating.",
-      supporting: nil,
-      story: nil,
-      proofs: [],
-      more_proofs: []
+      proofs: []
     }
   end
 end

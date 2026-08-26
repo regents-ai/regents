@@ -5,7 +5,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
   @products [
     {"techtree", "Techtree", "Prove what makes an agent better."},
     {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
-    {"regent", "Regent", "Keep the agent working."}
+    {"regent", "Regent", "Designed for use by Hermes agents."}
   ]
 
   @nav [
@@ -15,9 +15,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {"about", "About", "#home-closing"}
   ]
 
-  # Prove, fund, earn, operate, run: the evidence follows the Techtree chapter it stands behind,
-  # revenue follows the launch that produces it, and Nous and the summary close the product story.
-  @sections ~w(techtree evidence autolaunch revenue regent nous product-summary home-closing)
+  # Prove, fund, earn, operate, run: revenue follows the launch that produces it, and Nous closes
+  # the product story as the runtime the three products run on.
+  @sections ~w(techtree autolaunch revenue regent nous home-closing)
 
   # Every section's founder copy: the eyebrows it shows, its headline, and its body paragraphs
   # in order, so a dropped or reordered supporting line fails here.
@@ -53,10 +53,9 @@ defmodule AshPlatformWeb.HomeLiveTest do
     %{
       anchor: "regent",
       eyebrows: ["Regent — Operate"],
-      title: "Keep the agent working.",
+      title: "Designed for use by Hermes agents.",
       body: [
-        "Regent gives an agent one identity, one operator path, and a place to keep working after the benchmark or launch.",
-        "Humans get a guided path. Agents get a direct command path. Both connect to the same identity."
+        "Nous Portal is the fastest way to create an always-on agent to be used with Techtree and Autolaunch."
       ]
     },
     %{
@@ -65,14 +64,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
       title: "Hermes performs the work.",
       body: [
         "Hermes Agent is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity."
-      ]
-    },
-    %{
-      anchor: "product-summary",
-      eyebrows: [],
-      title: "From benchmark to business.",
-      body: [
-        "Techtree proves the work. Autolaunch funds the next phase. Regent keeps the agent operating."
       ]
     }
   ]
@@ -104,22 +95,12 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
   end
 
-  # The two campaign CTAs land on the launch holding page until the surfaces open, then become
-  # the real destinations with no copy change.
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     anchors = attribute(html, "[id]", "id")
 
-    assert attribute(html, "#techtree .rl-chapter-actions a", "href") ==
-             ["https://github.com/regents-ai", "/app"]
-
-    assert texts(html, "#techtree .rl-chapter-actions div > p") == [
-             "Enter a controlled challenge and prove what your skill changes.",
-             "Establish a baseline, test a release candidate, or scope an Improvement Program."
-           ]
-
-    for href <- attribute(html, "a", "href") -- ["/app"],
+    for href <- attribute(html, "a", "href"),
         href != "/",
         not String.starts_with?(href, "https://") do
       assert String.starts_with?(href, "#")
@@ -261,37 +242,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert texts(html, "#techtree .rl-proof-grid article h3") == [
              "Every result carries its evidence.",
              "One declared change. Everything else fixed.",
-             "Proof strength is explicit.",
-             "Public Climbs and proof graph",
-             "Every claim links to exact evidence",
-             "Inspect the result, not just the score",
-             "Start with the workflow, not the benchmark",
-             "Agents can enter and run Climbs",
-             "Start local. Upgrade the proof.",
-             "Validate the task before judging the agent.",
-             "Independent reruns strengthen the claim",
-             "One TasksetRef across the open ecosystem",
-             "Find the cheapest change that works",
-             "One campaign format, from one agent to many",
-             "Qualified evidence can continue into training"
+             "Proof strength is explicit."
            ]
 
     assert texts(html, "#techtree .rl-proof-grid article .rl-proof-state") == [
              "Working prototype",
              "Working prototype",
-             "Working prototype",
-             "Climb · Live CLI",
-             "Proof · Live CLI",
-             "Verify · Live CLI",
-             "Blueprint · Planned",
-             "Climb · Live CLI",
-             "Verify · Live CLI",
-             "Forge · In build",
-             "Climb · Planned",
-             "Forge · Planned",
-             "Uplift · Planned",
-             "Verify · Planned",
-             "Trace · Planned"
+             "Working prototype"
            ]
 
     for proof <- ["Private drafts", "Market discovery", "Connected reputation"] do
@@ -300,12 +257,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert texts(html, "#autolaunch .rl-proof-grid article .rl-proof-state") ==
              ["Live", "Preview", "Preview"]
-
-    assert has_element?(
-             view,
-             "#techtree .rl-proof-grid article",
-             "inspect campaigns, prepare a candidate, review the exact mutation and budget"
-           )
 
     assert has_element?(
              view,
@@ -328,18 +279,22 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute html =~ "customers"
   end
 
-  test "the page offers only the two actions the copy promises", %{conn: conn} do
+  test "the page offers only the actions the copy promises", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     assert texts(html, "a.rl-action") == [
              "See how it works",
-             "Install the Techtree CLI",
-             "Run a private Verify",
+             "Create Agent on Nous",
              "Explore the system"
            ]
 
-    assert attribute(html, "#techtree .rl-chapter-actions a", "href") ==
-             ["https://github.com/regents-ai", "/app"]
+    assert texts(html, "button.rl-action") == ["Copy Instructions to My Hermes"]
+
+    # Three primary actions, one per beat: enter the story, create the agent, start again.
+    assert texts(html, ".rl-hero-actions .rl-action--strong") == ["See how it works"]
+    assert texts(html, "#regent .rl-action--strong") == ["Create Agent on Nous"]
+    assert texts(html, "#home-closing .rl-action--strong") == ["Explore the system"]
+    assert length(texts(html, ".rl-action--strong")) == 3
   end
 
   test "the homepage stays outside the application shell and within its HTML budget", %{
@@ -348,7 +303,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     refute html =~ ~s(id="app-shell")
-    assert byte_size(html) <= 60 * 1024
+    assert byte_size(html) <= 20 * 1024
   end
 
   test "the Techtree chapter carries the founder proof story", %{conn: conn} do
@@ -379,160 +334,64 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
   end
 
-  test "the evidence section states every stack rail and its source labels", %{conn: conn} do
+  # The Regent chapter hands an operator to Nous and hands their agent its own instructions, so
+  # both controls have to keep their exact identity, destination, and payload.
+  test "the Regent chapter offers a safe Nous handoff beside a native copy control", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(
              view,
-             ~s(section#evidence[aria-labelledby="evidence-title"] h2#evidence-title),
-             "Built on open systems with distinct jobs."
-           )
-
-    assert texts(html, "#evidence .rl-chapter-intro div > p") == [
-             "Techtree does not replace the evaluator, agent, runtime evidence layer, task environment, skill optimizer, or notebook. It pins them, connects them, and makes the resulting claim inspectable.",
-             "Every technical claim on this page should resolve to a primary source, pinned software revision, immutable manifest, public receipt, deployed contract, or independent reproduction."
-           ]
-
-    assert texts(html, "#evidence .rl-evidence-rail h3") == [
-             "Evaluation truth",
-             "Agent behavior",
-             "Runtime evidence",
-             "Tasks and environments",
-             "Skill optimization",
-             "Reproducible analysis",
-             "Proof and lineage",
-             "Rules enforced onchain."
-           ]
-
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-rail p",
-             "Prime Verifiers composes the taskset, agent harness, and runtime, intercepts model traffic, emits the typed Trace, and applies the task’s scoring contract. Techtree records the exact Verifiers revision and resolved configuration."
+             ~s(#regent a#regent-create-agent.rl-action--strong[href="https://portal.nousresearch.com/"][target="_blank"][rel="noopener noreferrer"]),
+             "Create Agent on Nous"
            )
 
     assert has_element?(
              view,
-             "#evidence .rl-evidence-rail p",
-             "Uniswap CCA provides transparent price discovery and liquidity formation. Safe protects agent and protocol custody. ERC-8004 provides the durable agent identifier. Autolaunch contracts define launch authorization, allocation, vesting, treasury, and recognized-revenue routing."
+             ~s(#regent button#regent-copy-hermes-instructions.rl-action[type="button"]),
+             "Copy Instructions to My Hermes"
            )
 
-    assert texts(html, "#evidence .rl-evidence-sources") == [
-             "Prime Intellect · Verifiers · Taskset · Trace · Scoring contract",
-             "Nous Research · Hermes Agent · Skills · Plugins",
-             "NVIDIA · NeMo Relay · ATOF · ATIF",
-             "Prime research-environments · Harbor · Hugging Face OpenEnv",
-             "Microsoft · SkillOpt · SKILL.md",
-             "marimo · Reproducible Python notebooks",
-             "Techtree SDK/CLI · Web app · Operator skill · Hermes plugin · Public receipt",
-             "Uniswap · Safe · ERC-8004 · Deployed contract manifest"
-           ]
+    refute has_element?(view, "#regent-copy-hermes-instructions.rl-action--strong")
 
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-note h3",
-             "Evals + RL Environment Recent Quotes"
-           )
-
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-boundary",
-             "Techtree proof is not a financial promise, and Autolaunch funding is not capability proof. The products connect evidence and capital without pretending they are the same thing."
-           )
-
-    assert has_element?(
-             view,
-             "#evidence .rl-evidence-note p",
-             "These references explain why Techtree fixes the task, harness, runtime, scorer, and evidence boundary before claiming improvement—and why evaluation belongs inside the loop that improves an agent."
-           )
-  end
-
-  test "the evidence record renders the six founder quotes with attribution", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/")
-
-    assert has_element?(view, ~s(#evidence ul.rl-evidence-entries[role="list"]))
-
-    assert texts(html, "#evidence blockquote.rl-evidence-claim") == [
-             "“Evaluation stops being the last check before shipping. It becomes the engine that ships better agents.”",
-             "“The harness really matters. Harness design alone moves benchmark scores by double digits, same model.”",
-             "“Coding agents are going to higher levels of abstraction. We can do this with environment and reward design as well.”",
-             "“Binary task success compresses a long-horizon workflow into one label. Milestone-based evaluation preserves which states were reached, which transitions succeeded, and which downstream work became unreachable after a specific failure.”",
-             "“Data-eng-bench is open source. Whether you build agents, harnesses or the models underneath them, it’s a realistic, hard-to-saturate testbed for measuring autonomous data engineering.”",
-             "“Agentic AI is moving from ‘write code and deploy’ to ‘hypothesize, experiment, evaluate, and iterate.’ That loop doesn’t need just GPUs. It needs infrastructure, tracking, reproducibility, and memory.”"
-           ]
-
-    assert texts(html, "#evidence .rl-evidence-author") == [
-             "Michele Catasta",
-             "Jonathan Cohen",
-             "Will Brown",
-             "Zhengyang Qi",
-             "Snowflake Labs",
-             "David Hartmann"
-           ]
-
-    assert texts(html, "#evidence .rl-evidence-affiliation") == [
-             "President, Replit",
-             "VP of Applied Research, NVIDIA",
-             "Prime Intellect",
-             "Snorkel AI",
-             "Lambda Labs"
-           ]
-
-    assert attribute(html, "#evidence .rl-evidence-source", "aria-label") == [
-             "Watch the source video on YouTube",
-             "Watch the source video on YouTube",
-             "Watch the source video on YouTube",
-             "Read the source post on X",
-             "Read the source article",
-             "Watch the source video on YouTube"
-           ]
-
-    assert length(Regex.scan(~r/<svg/, html)) >= 6
-
-    assert attribute(html, "#evidence .rl-evidence-logo", "alt") == [
-             "Replit",
-             "NVIDIA",
-             "Prime Intellect",
-             "Snorkel AI",
-             "Snowflake",
-             "Lambda"
-           ]
-
-    assert attribute(html, "#evidence .rl-evidence-logo", "src") == [
-             "/images/brand/quotes/replit.svg",
-             "/images/brand/quotes/nvidia.svg",
-             "/images/brand/quotes/prime-intellect.svg",
-             "/images/brand/quotes/snorkel-ai.svg",
-             "/images/brand/quotes/snowflake.svg",
-             "/images/brand/quotes/lambda.svg"
-           ]
-  end
-
-  test "every primary source is an outbound link that leaves the page safely", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/")
-
-    sources = attribute(html, "#evidence .rl-evidence-source", "href")
-
-    assert sources == [
-             "https://www.youtube.com/watch?v=Klnodm4WZLg",
-             "https://www.youtube.com/watch?v=qQYxwyidnUk",
-             "https://www.youtube.com/watch?v=AQv3qRCG6Gw",
-             "https://x.com/qi_zhengyang/status/2085089415253078018",
-             "https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/",
-             "https://www.youtube.com/watch?v=8uGfxNehSUc"
-           ]
-
-    assert attribute(html, ~s(a[href^="https://"]), "href") ==
+    assert attribute(html, "#regent-copy-hermes-instructions", "data-copy-hermes-instructions") ==
              [
-               "https://x.com/regents_sh",
-               "https://github.com/regents-ai",
-               "https://github.com/regents-ai" | sources
+               "Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools and skills are available, then guide me through the next step."
              ]
 
-    assert attribute(html, "#evidence .rl-evidence-source", "target") ==
-             List.duplicate("_blank", 6)
+    assert has_element?(
+             view,
+             ~s(#regent p#regent-copy-status[role="status"][aria-live="polite"])
+           )
 
-    assert attribute(html, "#evidence .rl-evidence-source", "rel") ==
-             List.duplicate("noopener noreferrer", 6)
+    assert texts(html, "#regent-copy-status") == [""]
+  end
+
+  # The founder copy this page dropped lives in docs/copy-for-later-use.md and nowhere else: no
+  # rendered trace of the evidence section, the expanded proof grid, or the benchmark summary.
+  test "the archived founder copy is absent from the rendered page", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    for anchor <- ~w(evidence product-summary) do
+      refute has_element?(view, "##{anchor}")
+    end
+
+    for archived <- [
+          "Built on open systems with distinct jobs.",
+          "Evals + RL Environment Recent Quotes",
+          "Techtree proof is not a financial promise",
+          "Public Climbs and proof graph",
+          "Qualified evidence can continue into training",
+          "Install the Techtree CLI",
+          "Run a private Verify",
+          "From benchmark to business.",
+          "Keep the agent working.",
+          "Humans get a guided path.",
+          "Michele Catasta",
+          "youtube.com",
+          "/images/brand/quotes/"
+        ] do
+      refute html =~ archived
+    end
   end
 
   defp attribute(html, selector, name),

@@ -217,13 +217,10 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
   await page.goto("/")
   await waitForHomepage(page)
 
-  await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(2)
-  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(15)
+  await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(1)
+  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(3)
   await expect(page.locator("#techtree .rl-story h3")).toHaveText("Climb in public. Verify before you ship.")
-
-  for (const state of ["Working prototype", "Climb · Live CLI", "Forge · In build", "Trace · Planned"]) {
-    await expect(page.locator("#techtree .rl-proof-state", {hasText: state}).first()).toBeVisible()
-  }
+  await expect(page.locator("#techtree .rl-proof-state", {hasText: "Working prototype"})).toHaveCount(3)
 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
   await expect(body).toHaveCount(3)
@@ -253,10 +250,9 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
   expect(caption, "the rail caption reads quieter than the description").toBeLessThan(description)
 })
 
-// Revenue, Nous, the product summary, the evidence section and the closing frame carry no chapter
-// number, so their copy has to be placed into the headline column explicitly — and released from it
-// when the grid collapses to one column, or it would open an implicit column and push the page
-// sideways.
+// Revenue, Nous and the closing frame carry no chapter number, so their copy has to be placed into
+// the headline column explicitly — and released from it when the grid collapses to one column, or it
+// would open an implicit column and push the page sideways.
 test("[U1][U3] numberless sections share the chapter headline column", async ({page}) => {
   for (const viewport of [
     {name: "desktop", width: 1440, height: 1000},
@@ -271,11 +267,11 @@ test("[U1][U3] numberless sections share the chapter headline column", async ({p
       await assertNoOverflow(page)
 
       const edges = await page
-        .locator("#techtree h2, #evidence h2, #revenue h2, #nous h2, #product-summary h2, #home-closing h2")
+        .locator("#techtree h2, #revenue h2, #nous h2, #home-closing h2")
         .evaluateAll(elements =>
           elements.map(element => Math.round(element.getBoundingClientRect().left)),
         )
-      expect(edges).toHaveLength(6)
+      expect(edges).toHaveLength(4)
       expect(new Set(edges).size, "every section starts on one left edge").toBe(1)
 
       const copy = await page
@@ -292,43 +288,44 @@ test("[U1][U3] numberless sections share the chapter headline column", async ({p
   }
 })
 
-test("[U2] the evidence section reads with scripts disabled", async ({browser}) => {
-  const context = await browser.newContext({javaScriptEnabled: false})
+// The copy control is the only place the page writes to the machine, so it is proven through the
+// real button: pointer and keyboard both reach the clipboard and both are answered in the status
+// region. The payload itself is asserted in the injected hook unit check.
+test("[U3][U5] the Hermes copy control answers pointer and keyboard through the status region", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({permissions: ["clipboard-read", "clipboard-write"]})
   const page = await context.newPage()
-  await page.goto("/")
-
-  await expect(page.getByRole("heading", {name: "Built on open systems with distinct jobs."})).toBeVisible()
-  await expect(page.locator("#evidence .rl-evidence-rail")).toHaveCount(8)
-  await expect(page.locator("#evidence .rl-evidence-rail h3").first()).toHaveText("Evaluation truth")
-  await expect(page.getByRole("heading", {name: "Evals + RL Environment Recent Quotes"})).toBeVisible()
-  await expect(page.locator("#evidence .rl-evidence-entry")).toHaveCount(6)
-  await context.close()
-})
-
-// Each source is an icon-only link, so it must render a visible icon and name its destination.
-test("[U1][U2] evidence source icons render visibly and stay labelled", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  const links = await page.locator("#evidence .rl-evidence-source").evaluateAll(elements =>
-    elements.map(element => {
-      const box = element.getBoundingClientRect()
-      return {
-        hasIcon: element.querySelector("svg") !== null,
-        label: element.getAttribute("aria-label") ?? "",
-        width: box.width,
-        height: box.height,
-      }
-    }),
-  )
+  const status = page.locator("#regent-copy-status")
+  await expect(status).toHaveAttribute("role", "status")
+  await expect(status).toHaveAttribute("aria-live", "polite")
+  await expect(status).toHaveText("")
 
-  expect(links).toHaveLength(6)
-  expect(links.every(link => link.hasIcon)).toBe(true)
-  expect(links.every(link => link.label.length > 0)).toBe(true)
-  expect(links.every(link => link.width > 10 && link.height > 10)).toBe(true)
+  const button = page.locator("#regent-copy-hermes-instructions")
+  const declared = await button.getAttribute("data-copy-hermes-instructions")
+
+  await button.click()
+  await expect(status).toHaveText("Instructions copied.")
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(declared)
+
+  // Tabbing off the Nous link is how a keyboard reader arrives, and it is what makes the focus
+  // ring visible; native button activation then has to answer both Enter and Space.
+  for (const key of ["Enter", " "]) {
+    await page.evaluate(() => navigator.clipboard.writeText("cleared"))
+    await page.locator("#regent-create-agent").focus()
+    await page.keyboard.press("Tab")
+    await expect(page.locator("#regent-copy-hermes-instructions:focus-visible")).toBeVisible()
+    await page.keyboard.press(key)
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(declared)
+  }
+
+  await context.close()
 })
 
-test("[U1][U3] evidence rails and entries stay inside every tested viewport", async ({page}) => {
+test("[U5] the two Regent actions stay contained and reachable at every tested viewport", async ({page}) => {
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -337,18 +334,17 @@ test("[U1][U3] evidence rails and entries stay inside every tested viewport", as
       await assertNoOverflow(page)
 
       const boxes = await page
-        .locator("#evidence .rl-evidence-rail, #evidence .rl-evidence-entry")
+        .locator("#regent-create-agent, #regent-copy-hermes-instructions, #regent-copy-status")
         .evaluateAll(elements =>
           elements.map(element => {
             const box = element.getBoundingClientRect()
-            return {left: box.left, right: box.right, width: box.width}
+            return {height: box.height, left: box.left, right: box.right}
           }),
         )
 
-      expect(boxes).toHaveLength(14)
-      expect(
-        boxes.every(box => box.left >= 0 && box.right <= viewport.width && box.width > 0),
-      ).toBe(true)
+      expect(boxes).toHaveLength(3)
+      expect(boxes.every(box => box.left >= 0 && box.right <= viewport.width)).toBe(true)
+      expect(boxes.slice(0, 2).every(box => box.height >= 44)).toBe(true)
     })
   }
 })
@@ -437,7 +433,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
 
       const identity = await focused.evaluate(element => {
         if (element.closest(".rl-closing")) return "closing"
-        return element.closest(".rl-chapter-actions") ? "techtree" : "hero"
+        return element.closest(".rl-chapter-actions") ? "regent" : "hero"
       })
       if (reached.has(identity)) continue
       reached.add(identity)
@@ -528,7 +524,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["closing", "hero", "techtree"])
+    expect([...reached].sort()).toEqual(["closing", "hero", "regent"])
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({
