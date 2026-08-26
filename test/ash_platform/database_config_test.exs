@@ -120,13 +120,14 @@ defmodule AshPlatform.DatabaseConfigTest do
     end
   end
 
-  test "development uses the fixed local database by default" do
+  test "development local database keeps a migration-safe connection pool" do
     assert DatabaseConfig.runtime_config!(:dev, env(%{"USER" => "local-user"})) == [
              username: "local-user",
              password: nil,
              hostname: "127.0.0.1",
              port: 5432,
-             database: "ash_platform_dev"
+             database: "ash_platform_dev",
+             pool_size: 2
            ]
   end
 

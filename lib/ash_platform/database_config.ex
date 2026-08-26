@@ -103,7 +103,8 @@ defmodule AshPlatform.DatabaseConfig do
       password: nil,
       hostname: "127.0.0.1",
       port: 5432,
-      database: "ash_platform_dev"
+      database: "ash_platform_dev",
+      pool_size: 2
     ]
   end
 
