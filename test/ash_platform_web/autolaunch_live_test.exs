@@ -446,6 +446,11 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert has_element?(view, "[role=status]", "Draft saved.")
 
+    # The saved draft is what tells the browser the form was cleared rather than
+    # refused, so the next draft may start from the wallet again.
+    assert has_element?(view, ~s(#create-launch-draft[data-saved-drafts="1"]))
+    refute has_element?(view, "#create-launch-draft[data-draft-errors]")
+
     # Preparing a draft never produces a public record of any kind.
     assert {:ok, []} = Autolaunch.list_auctions()
     assert {:ok, []} = Autolaunch.list_tokens()
@@ -498,6 +503,39 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
            )
 
     assert has_element?(view, "[role=alert]", "That draft could not be saved.")
+
+    # Every address on a refused form is the customer's, and this is how the
+    # browser knows not to write over one of them.
+    assert has_element?(
+             view,
+             ~s(#create-launch-draft[data-draft-errors="true"][data-saved-drafts="0"])
+           )
+  end
+
+  test "only a new draft says its Treasury starts as the selected wallet", %{conn: conn} do
+    account =
+      draft_account!("autolaunch-draft-hint", "0x3333333333333333333333333333333333333337")
+
+    actor = %Human{human_account_id: account.id}
+    Formation.form_regent!("hint-regent", "Hint Regent", actor: actor)
+    draft = Autolaunch.create_launch_draft!(@live_draft, actor: actor)
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/autolaunch/create")
+
+    address_hint = "0x followed by exactly 40 hexadecimal characters."
+    default_hint = "Starts as the wallet you have selected"
+    revise_hint = "#revise-launch-draft-#{draft.id}-treasury-hint"
+
+    assert has_element?(view, "#create-launch-draft-treasury-hint", address_hint)
+    assert has_element?(view, "#create-launch-draft-treasury-hint", default_hint)
+
+    # A revision starts from the treasury already saved on the draft, so its help
+    # claims nothing about the wallet on screen.
+    assert has_element?(view, revise_hint, address_hint)
+    refute has_element?(view, revise_hint, default_hint)
   end
 
   test "a rejected revision keeps the submitted values on that card and stores nothing", %{

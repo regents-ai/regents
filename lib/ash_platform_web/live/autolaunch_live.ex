@@ -25,13 +25,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       kind: :text,
       hint: "A link to the picture you want shown."
     },
-    %{
-      key: :treasury,
-      param: "treasury",
-      label: "Treasury",
-      kind: :text,
-      hint: "#{@address_hint} Starts as the wallet you have selected; change it to any other."
-    },
+    %{key: :treasury, param: "treasury", label: "Treasury", kind: :text, hint: @address_hint},
     %{
       key: :required_regent_raised,
       param: "required_regent_raised",
@@ -878,16 +872,21 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <p>Saved for {@regent.display_name}. Nothing here is published and no money moves.</p>
         </div>
 
+        <%!-- The browser default reads these two: a refused save owns every
+              address it echoes back, and a saved draft starts the next one. --%>
         <form
           id="create-launch-draft"
           phx-hook="AutolaunchLaunchDraft"
           phx-submit="create_launch_draft"
           class="autolaunch-draft-form"
+          data-draft-errors={@draft_errors != %{} && "true"}
+          data-saved-drafts={length(@launch_drafts)}
         >
           <.draft_field
             :for={field <- draft_fields()}
             field={field}
             form_id="create-launch-draft"
+            hint={create_hint(field)}
             value={@draft_values[field.param]}
             error={@draft_errors[field.param]}
           />
@@ -924,6 +923,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
                 :for={field <- draft_fields()}
                 field={field}
                 form_id={"revise-launch-draft-#{draft.id}"}
+                hint={field.hint}
                 value={revision_value(@draft_revision, draft, field)}
                 error={revision_error(@draft_revision, draft, field)}
               />
@@ -949,6 +949,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   attr :field, :map, required: true
   attr :form_id, :string, required: true
+  attr :hint, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
 
@@ -956,7 +957,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     id = "#{assigns.form_id}-#{assigns.field.param}"
 
     assigns =
-      assign(assigns, id: id, described_by: described_by(id, assigns.field, assigns.error))
+      assign(assigns, id: id, described_by: described_by(id, assigns.hint, assigns.error))
 
     ~H"""
     <div class={[
@@ -982,7 +983,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         aria-describedby={@described_by}
         required
       />
-      <p :if={@field.hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@field.hint}</p>
+      <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
     </div>
     """
@@ -1000,6 +1001,13 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp draft_fields, do: @draft_fields
 
+  # Only a new draft starts from the wallet on screen. A saved draft is revised
+  # from the treasury it already holds, so its help says nothing of the kind.
+  defp create_hint(%{key: :treasury, hint: hint}),
+    do: "#{hint} Starts as the wallet you have selected; change it to any other."
+
+  defp create_hint(%{hint: hint}), do: hint
+
   # The card heading already carries the name.
   defp review_fields, do: Enum.reject(@draft_fields, &(&1.key == :name))
 
@@ -1014,8 +1022,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp revision_error(%{id: id, errors: errors}, %{id: id}, field), do: errors[field.param]
   defp revision_error(_revision, _draft, _field), do: nil
 
-  defp described_by(id, field, error) do
-    case Enum.filter([field.hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do
+  defp described_by(id, hint, error) do
+    case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do
       [] -> nil
       ids -> Enum.join(ids, " ")
     end

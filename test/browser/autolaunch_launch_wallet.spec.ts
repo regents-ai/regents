@@ -3,6 +3,8 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 // The seeded browser account for the Autolaunch draft fixtures holds this wallet.
 const wallet = "0x3333333333333333333333333333333333333333"
+// A second wallet, to select while a draft is being written.
+const otherWallet = "0x4444444444444444444444444444444444444444"
 // Lowercase on purpose: mixed case asserts an EIP-55 checksum, and a launch
 // review refuses an address whose checksum does not hold.
 const treasury = "0xabcdef0000000000000000000000000000000001"
@@ -63,6 +65,16 @@ async function installWallet(page: Page, testSlot: number) {
     },
     {wallet, sendsKey, rejectKey, run, testSlot},
   )
+}
+
+// Privy's selection changing under the page, announced the way the shell
+// announces it.
+async function selectWallet(page: Page, address: string) {
+  await page.evaluate(next => {
+    const test = window as Window & {__ashPlatformTestWallet?: {address: string}}
+    test.__ashPlatformTestWallet!.address = next
+    window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+  }, address)
 }
 
 async function signedIn(page: Page) {
@@ -237,11 +249,52 @@ test("a blank draft starts from the connected wallet and keeps whatever is typed
   const field = page.locator("#create-launch-draft-treasury")
   await expect(field).toHaveValue(wallet)
 
+  // Nothing has been typed yet, so selecting another wallet simply moves the
+  // starting point with it.
+  await selectWallet(page, otherWallet)
+  await expect(field).toHaveValue(otherWallet)
+
   // An address the founder enters is theirs, and a later wallet change leaves it
   // exactly as typed.
   await field.fill(treasury)
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent("ash:wallet-state")))
+  await selectWallet(page, wallet)
   await expect(field).toHaveValue(treasury)
+})
+
+test("a refused save keeps the Treasury it sent back, whatever the wallet does next", async ({
+  page,
+}) => {
+  await signedIn(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const form = page.locator("#create-launch-draft")
+  const field = page.locator("#create-launch-draft-treasury")
+  await expect(field).toHaveValue(wallet)
+
+  // Every field valid except the raise, with the Treasury left exactly as it was
+  // found.
+  await form.getByLabel("Name", {exact: true}).fill("Launch wallet echo draft")
+  await form.getByLabel("Symbol", {exact: true}).fill("LWE")
+  await form.getByLabel("Description", {exact: true}).fill("A draft the server refuses.")
+  await form.getByLabel("Website", {exact: true}).fill("https://example.test/echo")
+  await form.getByLabel("Image", {exact: true}).fill("https://example.test/echo.png")
+  await form.getByLabel("Required raise in REGENT", {exact: true}).fill("0")
+  await form.getByRole("button", {name: "Save draft"}).click()
+
+  // The raise is what failed, and the server sent the whole form back with the
+  // address it was given.
+  await expect(page.getByText("That draft could not be saved.")).toBeVisible()
+  await expect(page.locator("#create-launch-draft-required_regent_raised-error")).toContainText(
+    "must be greater than zero",
+  )
+  await expect(form).toHaveAttribute("data-draft-errors", "true")
+  await expect(field).toHaveValue(wallet)
+
+  // Selecting a different wallet now changes nothing. The address on screen came
+  // back from the server and belongs to the founder, not to the default.
+  await selectWallet(page, otherWallet)
+  await expect(field).toHaveValue(wallet)
 })
 
 test("a signed-out visitor is offered no launch control at all", async ({page}) => {

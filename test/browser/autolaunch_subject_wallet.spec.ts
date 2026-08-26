@@ -196,10 +196,11 @@ test("a payment review states the exact amount each part of the split receives",
   await page.locator(`${card} button[type="submit"]`).click()
 
   // Only a sliver of the whole SUBJECT supply is staked here, so the staker part
-  // really is zero and the review says so in exact amounts rather than a share.
+  // really is zero. The review says so in exact amounts rather than a share, and
+  // only for the moment it was reviewed.
   const review = page.locator(`${card}-review`)
   await expect(review).toContainText(
-    "Of this 2 USDC, 0.04 USDC goes to the protocol. The remaining 1.96 USDC splits exactly: 0 USDC to everyone staking SUBJECT on this subject right now, and 1.96 USDC to its treasury.",
+    "Of this 2 USDC, 0.04 USDC goes to the protocol. As things stand right now, the remaining 1.96 USDC divides into 0 USDC for everyone staking SUBJECT on this subject and 1.96 USDC for its treasury. If staking changes before this goes through, those last two amounts change with it.",
   )
   await expect(review).not.toContainText("98%")
 

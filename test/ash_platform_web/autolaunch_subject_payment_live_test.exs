@@ -179,7 +179,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
 
     # The fixture stakes 1_000 of the 100-billion SUBJECT supply, so the staker
     # allocation really is zero and the review says so in exact amounts rather
-    # than as a share.
+    # than as a share, and only for the moment it was reviewed.
     test "a payment review states the exact amount each part of the split receives", %{
       conn: conn,
       account: account,
@@ -189,7 +189,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
       html = review(view, :pay, %{"asset" => "usdc", "amount" => "5"})
 
       assert text(html) =~
-               "Of this 5 USDC, 0.1 USDC goes to the protocol. The remaining 4.9 USDC splits exactly: 0 USDC to everyone staking SUBJECT on this subject right now, and 4.9 USDC to its treasury."
+               "Of this 5 USDC, 0.1 USDC goes to the protocol. As things stand right now, the remaining 4.9 USDC divides into 0 USDC for everyone staking SUBJECT on this subject and 4.9 USDC for its treasury. If staking changes before this goes through, those last two amounts change with it."
 
       # No rounded share is ever offered in place of the amounts.
       refute text(html) =~ "98%"
@@ -209,7 +209,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
       html = review(view, :pay, %{"asset" => "usdc", "amount" => "5"})
 
       assert text(html) =~
-               "The remaining 4.9 USDC splits exactly: 0.49 USDC to everyone staking SUBJECT on this subject right now, and 4.41 USDC to its treasury."
+               "As things stand right now, the remaining 4.9 USDC divides into 0.49 USDC for everyone staking SUBJECT on this subject and 4.41 USDC for its treasury."
     end
 
     test "a sweep review says plainly that the signer receives nothing", %{

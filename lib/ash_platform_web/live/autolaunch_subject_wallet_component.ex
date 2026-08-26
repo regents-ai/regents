@@ -735,10 +735,12 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     do: "Your stake counts straight away. You can take it back out from the next block onwards."
 
   # The one economic sentence a payment review owes the customer: the exact
-  # amounts this inflow divides into, never a share or an estimate. Stakers are
-  # paid for the stake they hold against the whole SUBJECT supply, so their part
-  # stays small until much of that supply is staked, and the treasury takes the
-  # remainder.
+  # amounts this inflow divides into as staking stands at review, never a share
+  # or a rounded estimate. Stakers are paid for the stake they hold against the
+  # whole SUBJECT supply, so their part stays small until much of that supply is
+  # staked, and the treasury takes the remainder. The split is settled by the
+  # contract when the payment is mined, so the sentence says which figures the
+  # reviewed moment fixes and which it does not.
   defp share_copy(operation) do
     %{"gross" => gross, "skim" => skim, "net" => net} =
       allocation = argument(operation, "allocation")
@@ -749,7 +751,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     symbol = argument(operation, "symbol")
     shown = &"#{SubjectWalletActions.units(&1, asset)} #{symbol}"
 
-    "Of this #{shown.(gross)}, #{shown.(skim)} goes to the protocol. The remaining #{shown.(net)} splits exactly: #{shown.(stakers)} to everyone staking SUBJECT on this subject right now, and #{shown.(treasury)} to its treasury."
+    "Of this #{shown.(gross)}, #{shown.(skim)} goes to the protocol. As things stand right now, the remaining #{shown.(net)} divides into #{shown.(stakers)} for everyone staking SUBJECT on this subject and #{shown.(treasury)} for its treasury. If staking changes before this goes through, those last two amounts change with it."
   end
 
   defp confirmed_copy(%{kind: :claim_all, result: %{"claimed" => claimed}}) when claimed == %{},
