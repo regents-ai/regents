@@ -4,6 +4,7 @@ import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 type LaunchDraftHook = Hook & {
   el: HTMLElement
   defaultTreasury?: () => void
+  treasuryTouched?: (event: Event) => void
   patchedForm?: () => void
 }
 
@@ -69,9 +70,11 @@ export const AutolaunchLaunchDraft: Hook = {
 
     // Any edit hands the field over, including clearing it and retyping the very
     // address the default put there.
-    this.el.addEventListener("input", ({target}) => {
+    this.treasuryTouched = ({target}) => {
       if ((target as Element).matches(treasuryField)) ownership = {...ownership, touched: true}
-    })
+    }
+
+    this.el.addEventListener("input", this.treasuryTouched)
 
     this.patchedForm = () => {
       ownership = ownershipAfterPatch(
@@ -97,6 +100,10 @@ export const AutolaunchLaunchDraft: Hook = {
   destroyed(this: LaunchDraftHook) {
     if (this.defaultTreasury) {
       window.removeEventListener("ash:wallet-state", this.defaultTreasury)
+    }
+
+    if (this.treasuryTouched) {
+      this.el.removeEventListener("input", this.treasuryTouched)
     }
   },
 }

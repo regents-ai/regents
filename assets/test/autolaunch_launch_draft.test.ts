@@ -1,6 +1,10 @@
-import {describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
-import {defaultedTreasury, ownershipAfterPatch} from "../js/hooks/autolaunch_launch_draft"
+import {
+  AutolaunchLaunchDraft,
+  defaultedTreasury,
+  ownershipAfterPatch,
+} from "../js/hooks/autolaunch_launch_draft"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const switched = "0x2222222222222222222222222222222222222222"
@@ -64,5 +68,47 @@ describe("the server's own re-render says who the Treasury belongs to", () => {
       filled: null,
       touched: true,
     })
+  })
+})
+
+type Listener = (event: unknown) => void
+
+function listenerRegistry() {
+  const listeners = new Map<string, Set<Listener>>()
+
+  return {
+    count: (type: string) => listeners.get(type)?.size ?? 0,
+    addEventListener(type: string, listener: Listener) {
+      listeners.set(type, (listeners.get(type) ?? new Set()).add(listener))
+    },
+    removeEventListener(type: string, listener: Listener) {
+      listeners.get(type)?.delete(listener)
+    },
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe("the form the draft hook listens to", () => {
+  it("is left with nothing listening to it once the page moves on", () => {
+    const page = listenerRegistry()
+    vi.stubGlobal("window", {...page, location: {origin: "https://example.test"}})
+
+    const form = listenerRegistry()
+    const hook = {
+      el: {
+        ...form,
+        dataset: {savedDrafts: "1"},
+        querySelector: () => ({value: ""}),
+      },
+    }
+
+    AutolaunchLaunchDraft.mounted?.call(hook)
+    expect(form.count("input")).toBe(1)
+    expect(page.count("ash:wallet-state")).toBe(1)
+
+    AutolaunchLaunchDraft.destroyed?.call(hook)
+    expect(form.count("input")).toBe(0)
+    expect(page.count("ash:wallet-state")).toBe(0)
   })
 })
