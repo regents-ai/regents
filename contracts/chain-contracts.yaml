@@ -19,13 +19,17 @@ contracts:
     # records founder release authority. The runtime, predecessor-hint source,
     # projection and entitlement freezes in regent-alv1.6, 490.8.2/.3 and
     # 839.5.1 govern future Autolaunch admission and do not gate these
-    # separately reviewed staking actions.
+    # separately reviewed staking and Animata redemption actions.
     admitted_prepared_actions:
       - regent_revenue_staking.stake
       - regent_revenue_staking.unstake
       - regent_revenue_staking.claim_usdc
       - regent_revenue_staking.claim_regent
       - regent_revenue_staking.claim_and_restake_regent
+      - animata_redeemer.approve_nft_collection
+      - animata_redeemer.approve_exact_usdc
+      - animata_redeemer.redeem
+      - animata_redeemer.claim
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json

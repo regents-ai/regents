@@ -46,7 +46,11 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "regent_revenue_staking.unstake",
     "regent_revenue_staking.claim_usdc",
     "regent_revenue_staking.claim_regent",
-    "regent_revenue_staking.claim_and_restake_regent"
+    "regent_revenue_staking.claim_and_restake_regent",
+    "animata_redeemer.approve_nft_collection",
+    "animata_redeemer.approve_exact_usdc",
+    "animata_redeemer.redeem",
+    "animata_redeemer.claim"
   ]
   # The clean-V1 subject wallet interface stays reviewed and digest-pinned while
   # no subject action is admitted, so these are proved against the final C5 ABI
@@ -179,8 +183,9 @@ defmodule AshPlatform.WalletActions.ManifestTest do
 
       evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
-      # The five reviewed staking actions are admitted, each resolving to the
-      # evidence entry that reviewed it; nothing else is.
+      # The five reviewed staking actions and the four reviewed redeemer actions
+      # are admitted, each resolving to the evidence entry that reviewed it;
+      # nothing else is.
       assert admission["admitted_prepared_actions"] == @admitted_actions
 
       for dotted <- @admitted_actions do

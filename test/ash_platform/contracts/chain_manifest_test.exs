@@ -365,7 +365,7 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     end
   end
 
-  test "chain admission admits the staking actions alone while the bidder interface stays evidence" do
+  test "chain admission admits the staking and redemption actions while the bidder interface stays evidence" do
     admission =
       @root
       |> Path.join("contracts/chain-contracts.yaml")
@@ -391,14 +391,19 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              "regent_revenue_staking.unstake",
              "regent_revenue_staking.claim_usdc",
              "regent_revenue_staking.claim_regent",
-             "regent_revenue_staking.claim_and_restake_regent"
+             "regent_revenue_staking.claim_and_restake_regent",
+             "animata_redeemer.approve_nft_collection",
+             "animata_redeemer.approve_exact_usdc",
+             "animata_redeemer.redeem",
+             "animata_redeemer.claim"
            ]
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
-    # Every other reviewed contract, including every Autolaunch one, is absent.
+    # Every reviewed contract other than the staking and redeemer ones,
+    # including every Autolaunch one, is absent.
     for {contract_id, entry} <- evidence,
-        contract_id != "regent_revenue_staking",
+        contract_id not in ["regent_revenue_staking", "animata_redeemer"],
         action_id <- entry["action_ids"] do
       refute "#{contract_id}.#{action_id}" in admission["admitted_prepared_actions"]
     end
