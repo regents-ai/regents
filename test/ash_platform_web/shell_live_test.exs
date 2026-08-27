@@ -363,8 +363,14 @@ defmodule AshPlatformWeb.ShellLiveTest do
   # R2: the root owns the queue. The same terminal transition reported twice is
   # one result, and a dismissal only ever removes the result it names.
   test "R2_ONE_RESULT_PER_TRANSACTION_IN_FIFO_ORDER" do
-    approval = terminal_result(:approval, :confirmed)
-    action = terminal_result(:action, :reverted)
+    approval = terminal_result(:approval, :confirmed, "Confirmed on Base.")
+
+    action =
+      terminal_result(
+        :action,
+        :reverted,
+        "The staking transaction reverted. Prepare a new action when ready."
+      )
 
     socket =
       Enum.reduce([approval, approval, action, action], queue_socket(), fn result, socket ->
@@ -409,21 +415,16 @@ defmodule AshPlatformWeb.ShellLiveTest do
     }
   end
 
-  defp terminal_result(step, status) do
+  defp terminal_result(step, status, message) do
     TransactionResultModal.result(%{
       status: status,
       action_id: "abc123",
       step: step,
       hash: "0x" <> String.duplicate("ab", 32),
       label: "Stake REGENT",
-      message: terminal_message(status)
+      message: message
     })
   end
-
-  defp terminal_message(:confirmed), do: TransactionResultModal.confirmed_copy()
-
-  defp terminal_message(:reverted),
-    do: "The staking transaction reverted. Prepare a new action when ready."
 
   defp register_account(suffix, wallet) do
     assert {:ok, account} =

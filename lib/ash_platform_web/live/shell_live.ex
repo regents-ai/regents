@@ -3273,13 +3273,13 @@ defmodule AshPlatformWeb.ShellLive do
     }
 
   # The approval is already verified, so nothing is waiting on Base. What is
-  # outstanding is the staking transaction itself, and saying so is what tells
-  # the customer where to look.
+  # outstanding is the staking transaction, which may be open in the wallet or
+  # may be waiting on a reload, so this names the state rather than the window.
   defp staking_locked_notice(%{staking_submission: %{status: :approval_verified}}),
     do: %{
       tone: :info,
       message:
-        "Your REGENT approval is confirmed. Finish the staking transaction in your wallet before starting another."
+        "Your REGENT approval is confirmed. The staking transaction has not been sent yet, so another wallet action cannot start."
     }
 
   defp staking_locked_notice(_assigns),

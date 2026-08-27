@@ -628,6 +628,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render_async(view) =~ "Confirmed on Base"
     assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
     assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+
+    # The draft edited while the operation was in flight survives it, and is what
+    # the next ordinary review is offered for.
+    assert has_element?(view, ~s(#staking-amount[value="9"]))
+    assert has_element?(view, ~s(button[phx-value-mode="unstake"][aria-pressed="true"]))
+    assert has_element?(view, ~s(button[phx-value-action="unstake"]), "Review unstake")
   end
 
   # Identity change: this used to end by preparing a fresh action, then said an
@@ -928,7 +934,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     html = render_click(view, "prepare_staking", %{"action" => "claim_usdc"})
 
     assert html =~
-             "Your REGENT approval is confirmed. Finish the staking transaction in your wallet before starting another."
+             "Your REGENT approval is confirmed. The staking transaction has not been sent yet, so another wallet action cannot start."
 
     refute html =~ "still being verified on Base"
     refute_push_event(view, "staking:prepared", _)

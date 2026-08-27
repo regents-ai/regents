@@ -77,9 +77,11 @@ defmodule AshPlatformWeb.Components.TransactionResultModal do
     do: :ok
 
   # A wallet LiveComponent runs inside the root LiveView's process, so this is
-  # that process's own message. The queue is what decides whether a result is
-  # new, and what nothing at all means.
-  defp report(results), do: Enum.each(results, &send(self(), {:transaction_result, &1}))
+  # that process's own message. A step with no exact hash and a transition with
+  # no terminal outcome are nothing to say, so they are not said: the queue is
+  # what decides whether a result it is given is new.
+  defp report(results),
+    do: results |> Enum.reject(&is_nil/1) |> Enum.each(&send(self(), {:transaction_result, &1}))
 
   @doc """
   The one sentence a verified transaction says, wherever it is reported.
