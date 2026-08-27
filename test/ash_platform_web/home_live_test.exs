@@ -279,6 +279,27 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute html =~ "customers"
   end
 
+  # The hero art is the picture the server promises. The prism is one decorative canvas
+  # the browser may put in front of it, and nothing else: it carries no copy, takes no
+  # focus, sends nothing back, and cannot come between a visitor and an action.
+  test "the hero art carries one inert, client-owned decoration", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             ~s(.rl-hero > #home-prism.rl-hero-prism[phx-hook="HomePrism"][phx-update="ignore"][aria-hidden="true"])
+           )
+
+    assert attribute(html, "#home-prism canvas", "data-home-prism-canvas") == [""]
+    assert attribute(html, "#home-prism canvas", "tabindex") == []
+    assert texts(html, "#home-prism") == [""]
+    assert attribute(html, "#home-prism a, #home-prism button", "id") == []
+
+    for reactive <- ~w(phx-click phx-change phx-submit phx-value data-prism-ready) do
+      assert attribute(html, "#home-prism", reactive) == []
+    end
+  end
+
   test "the page offers only the actions the copy promises", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 

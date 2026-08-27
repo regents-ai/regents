@@ -6,7 +6,7 @@
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "@webgpu/types"],
     "noEmit": true
   },
   "include": ["js/**/*.ts", "js/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]

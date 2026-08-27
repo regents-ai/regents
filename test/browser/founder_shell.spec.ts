@@ -164,6 +164,34 @@ test("the public homepage presents the three-product mat hero and marketing chap
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
+// Headless Chromium has no GPU, which is the interesting case: the hero decoration
+// must stay invisible and inert while the server's art, copy, and action carry the
+// page on their own. Nothing here pretends a GPU is present.
+test("the hero decoration never displaces the server art or blocks the action", async ({page}) => {
+  for (const viewport of [
+    {width: 1280, height: 800},
+    {width: 390, height: 844},
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/")
+
+    const prism = page.locator("#home-prism")
+    await expect(prism).toHaveAttribute("aria-hidden", "true")
+    await expect(prism).not.toHaveAttribute("data-prism-ready", "true")
+    await expect(prism).toHaveCSS("opacity", "0")
+    await expect(prism).toHaveCSS("pointer-events", "none")
+    await expect(page.locator("#home-prism canvas")).toHaveCount(1)
+    await expect(page.locator(".rl-hero-art")).toBeVisible()
+    await expect(page.locator("#home-title")).toBeVisible()
+
+    // The canvas covers the hero, so the action has to answer through it.
+    const action = page.getByRole("link", {name: "See how it works"})
+    await action.click()
+    await expect(page).toHaveURL(/#home-products$/)
+    await expect(page.locator("#home-products")).toBeVisible()
+  }
+})
+
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
