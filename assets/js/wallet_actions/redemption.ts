@@ -14,7 +14,11 @@ import {base} from "viem/chains"
 
 import chainManifest from "../../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../../contracts/abi/animata-redeemer.json"
-import type {EthereumProvider} from "./connected_wallet"
+import {
+  activeEthereumWallet,
+  type EthereumProvider,
+  type SelectedWallet,
+} from "./connected_wallet"
 
 type Manifest = {
   contracts: {
@@ -86,6 +90,8 @@ export type RedemptionClients = {
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
 }
 
+export type CurrentRedemptionWallet = () => SelectedWallet | null
+
 export function clientsForRedemption(provider: EthereumProvider): RedemptionClients {
   const transport = custom(provider)
   const publicClient = createPublicClient({chain: base, transport})
@@ -108,8 +114,10 @@ export async function executePreparedRedemptionAction(
   envelope: PreparedRedemptionAction,
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
+  currentWallet: CurrentRedemptionWallet = activeEthereumWallet,
 ): Promise<void> {
   assertRedemptionEnvelope(envelope)
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
 
   let chainId = await clients.chainId()
   if (chainId !== base.id) {
@@ -118,14 +126,64 @@ export async function executePreparedRedemptionAction(
   }
   if (chainId !== base.id) throw new Error("Switch to Base before continuing.")
 
-  const [account] = await clients.addresses()
-  if (!account || getAddress(account) !== getAddress(envelope.expected_signer)) {
-    throw new Error("Use the connected wallet shown on this account.")
-  }
+  const account = await currentAccount(envelope.expected_signer, provider, clients, currentWallet)
 
   const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
   await clients.simulate(transaction)
-  await clients.send(transaction)
+  await sendWithCurrentWallet(envelope, provider, clients, currentWallet, transaction)
+}
+
+async function currentAccount(
+  expectedSigner: Address,
+  provider: EthereumProvider,
+  clients: RedemptionClients,
+  currentWallet: CurrentRedemptionWallet,
+): Promise<Address> {
+  assertActiveWallet(expectedSigner, provider, currentWallet)
+  const [account] = await clients.addresses()
+  assertActiveWallet(expectedSigner, provider, currentWallet)
+
+  if (!account || getAddress(account) !== getAddress(expectedSigner)) {
+    throw new Error("Use the connected wallet shown on this account.")
+  }
+
+  return getAddress(account)
+}
+
+async function sendWithCurrentWallet(
+  envelope: PreparedRedemptionAction,
+  provider: EthereumProvider,
+  clients: RedemptionClients,
+  currentWallet: CurrentRedemptionWallet,
+  transaction: {to: Address; data: Hex; value: bigint},
+): Promise<void> {
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+  if (await clients.chainId() !== base.id) throw new Error("Switch to Base before continuing.")
+
+  const account = await currentAccount(
+    envelope.expected_signer,
+    provider,
+    clients,
+    currentWallet,
+  )
+
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+  await clients.send({...transaction, account})
+}
+
+function assertActiveWallet(
+  expectedSigner: Address,
+  provider: EthereumProvider,
+  currentWallet: CurrentRedemptionWallet,
+): void {
+  const active = currentWallet()
+  if (
+    !active ||
+    active.provider !== provider ||
+    getAddress(active.address) !== getAddress(expectedSigner)
+  ) {
+    throw new Error("Use the connected wallet shown on this account.")
+  }
 }
 
 export function assertRedemptionEnvelope(envelope: PreparedRedemptionAction): void {

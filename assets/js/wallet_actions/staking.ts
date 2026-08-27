@@ -14,7 +14,11 @@ import {base} from "viem/chains"
 
 import chainManifest from "../../../contracts/base-mainnet.json"
 import stakingAbiJson from "../../../contracts/abi/regent-revenue-staking.json"
-import type {EthereumProvider} from "./connected_wallet"
+import {
+  activeEthereumWallet,
+  type EthereumProvider,
+  type SelectedWallet,
+} from "./connected_wallet"
 
 type Manifest = {
   contracts: {
@@ -74,6 +78,8 @@ export type StakingClients = {
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
 }
 
+export type CurrentStakingWallet = () => SelectedWallet | null
+
 export function clientsFor(provider: EthereumProvider): StakingClients {
   const transport = custom(provider)
   const publicClient = createPublicClient({chain: base, transport})
@@ -103,8 +109,10 @@ export async function executePreparedStakingAction(
   envelope: PreparedStakingAction,
   provider: EthereumProvider,
   clients: StakingClients = clientsFor(provider),
+  currentWallet: CurrentStakingWallet = activeEthereumWallet,
 ): Promise<void> {
   assertEnvelope(envelope)
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
 
   let chainId = await clients.chainId()
   if (chainId !== base.id) {
@@ -113,10 +121,7 @@ export async function executePreparedStakingAction(
   }
   if (chainId !== base.id) throw new Error("Switch to Base before continuing.")
 
-  const [account] = await clients.addresses()
-  if (!account || getAddress(account) !== getAddress(envelope.expected_signer)) {
-    throw new Error("Use the connected wallet shown on this account.")
-  }
+  const account = await currentAccount(envelope.expected_signer, provider, clients, currentWallet)
 
   let approvalSent = false
   if (envelope.action === "stake") {
@@ -129,16 +134,69 @@ export async function executePreparedStakingAction(
 
     if (envelope.approval && allowance < amount) {
       assertApproval(envelope.approval, envelope)
-      const approval = {account, to: STAKE_TOKEN, data: envelope.approval.data, value: 0n}
-      await clients.simulate(approval)
-      await clients.send(approval)
+      const approval = {to: STAKE_TOKEN, data: envelope.approval.data, value: 0n}
+      await clients.simulate({...approval, account})
+      await sendWithCurrentWallet(envelope, provider, clients, currentWallet, approval)
       approvalSent = true
     }
   }
 
-  const transaction = {account, to: STAKING, data: envelope.data, value: 0n}
-  if (!approvalSent) await clients.simulate(transaction)
-  await clients.send(transaction)
+  const transaction = {to: STAKING, data: envelope.data, value: 0n}
+  if (!approvalSent) await clients.simulate({...transaction, account})
+  await sendWithCurrentWallet(envelope, provider, clients, currentWallet, transaction)
+}
+
+async function currentAccount(
+  expectedSigner: Address,
+  provider: EthereumProvider,
+  clients: StakingClients,
+  currentWallet: CurrentStakingWallet,
+): Promise<Address> {
+  assertActiveWallet(expectedSigner, provider, currentWallet)
+  const [account] = await clients.addresses()
+  assertActiveWallet(expectedSigner, provider, currentWallet)
+
+  if (!account || getAddress(account) !== getAddress(expectedSigner)) {
+    throw new Error("Use the connected wallet shown on this account.")
+  }
+
+  return getAddress(account)
+}
+
+async function sendWithCurrentWallet(
+  envelope: PreparedStakingAction,
+  provider: EthereumProvider,
+  clients: StakingClients,
+  currentWallet: CurrentStakingWallet,
+  transaction: {to: Address; data: Hex; value: bigint},
+): Promise<void> {
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+  if (await clients.chainId() !== base.id) throw new Error("Switch to Base before continuing.")
+
+  const account = await currentAccount(
+    envelope.expected_signer,
+    provider,
+    clients,
+    currentWallet,
+  )
+
+  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+  await clients.send({...transaction, account})
+}
+
+function assertActiveWallet(
+  expectedSigner: Address,
+  provider: EthereumProvider,
+  currentWallet: CurrentStakingWallet,
+): void {
+  const active = currentWallet()
+  if (
+    !active ||
+    active.provider !== provider ||
+    getAddress(active.address) !== getAddress(expectedSigner)
+  ) {
+    throw new Error("Use the connected wallet shown on this account.")
+  }
 }
 
 function assertEnvelope(envelope: PreparedStakingAction): void {

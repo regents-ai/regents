@@ -284,9 +284,8 @@ defmodule AshPlatformWeb.ShellLive do
      socket |> release_staking_read(name) |> assign(staking: nil, staking_status: :error)}
   end
 
-  # A read that crashed answered nothing about Base, so it is the same
-  # unavailable page: the submitted transaction stays on screen behind the same
-  # read-only retry, which this releases rather than withdraws.
+  # A crashed read answered nothing about Base, so the page returns to its
+  # neutral unavailable state and releases the refresh control.
   def handle_async(
         {:staking, generation} = name,
         {:exit, _reason},
@@ -330,9 +329,8 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, socket |> release_redemption_read(name) |> redemption_read_failed(refusal(reason))}
   end
 
-  # A read that crashed answered nothing about Base, so it is the same
-  # unavailable page: the confirmed redemption stays on screen behind the same
-  # read-only retry, which this releases rather than withdraws.
+  # A crashed read answered nothing about Base, so the page returns to its
+  # neutral unavailable state and releases the refresh control.
   def handle_async(
         {:redemption, generation} = name,
         {:exit, _reason},
@@ -1768,9 +1766,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp refusal(reason), do: reason
 
-  defp preparation_error(:operation_in_flight),
-    do: "An earlier redemption action is still outstanding. Finish or withdraw it first."
-
   defp preparation_error(:nft_not_owned),
     do: "This wallet does not own the selected Animata token."
 
@@ -1795,9 +1790,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp preparation_error(_reason),
     do: "That action could not be prepared. Check the wallet and selection."
-
-  defp staking_preparation_error(:operation_in_flight),
-    do: "An earlier staking action is still outstanding. Finish or withdraw it first."
 
   defp staking_preparation_error(:no_claimable_usdc),
     do: "This wallet has no USDC rewards to claim right now."

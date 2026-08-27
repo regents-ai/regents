@@ -89,8 +89,13 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
 
     assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
     urls = drain_requests()
-    assert length(urls) <= 30
-    assert Enum.frequencies_by(urls, &collection/1) |> Map.values() |> Enum.all?(&(&1 <= 10))
+    assert length(urls) == 30
+
+    assert Enum.frequencies_by(urls, &collection/1) == %{
+             "animata" => 10,
+             "regent-animata-ii" => 10,
+             "regents-club" => 10
+           }
   end
 
   defp requests(count), do: for(_ <- 1..count, do: receive_request())

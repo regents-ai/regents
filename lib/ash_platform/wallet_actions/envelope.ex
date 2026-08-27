@@ -28,17 +28,12 @@ defmodule AshPlatform.WalletActions.Envelope do
     require_nonempty!(risk_copy, :risk_copy)
 
     prepared_at = now()
+    preparation_nonce = preparation_nonce()
 
     action_id =
       action_id(
-        resource,
-        action,
-        chain_id,
-        to,
-        value,
-        data,
-        signer,
-        DateTime.to_iso8601(prepared_at)
+        [resource, action, chain_id, to, value, data, signer, DateTime.to_iso8601(prepared_at)],
+        preparation_nonce
       )
 
     envelope = %{
@@ -52,6 +47,7 @@ defmodule AshPlatform.WalletActions.Envelope do
       data: String.downcase(data),
       expected_signer: signer,
       prepared_at: DateTime.to_iso8601(prepared_at),
+      preparation_nonce: preparation_nonce,
       expires_at: DateTime.add(prepared_at, @ttl_seconds, :second) |> DateTime.to_iso8601(),
       risk_copy: risk_copy,
       approval: Keyword.get(opts, :approval),
@@ -152,22 +148,31 @@ defmodule AshPlatform.WalletActions.Envelope do
 
   defp recompute_action_id(envelope) do
     action_id(
-      envelope.resource,
-      envelope.action,
-      envelope.chain_id,
-      envelope.to,
-      envelope.value,
-      envelope.data,
-      envelope.expected_signer,
-      envelope.prepared_at
+      [
+        envelope.resource,
+        envelope.action,
+        envelope.chain_id,
+        envelope.to,
+        envelope.value,
+        envelope.data,
+        envelope.expected_signer,
+        envelope.prepared_at
+      ],
+      field(envelope, :preparation_nonce)
     )
   end
 
-  defp action_id(resource, action, chain_id, to, value, data, signer, prepared_at) do
-    [resource, action, chain_id, to, value, data, signer, prepared_at]
+  defp action_id(fields, nonce) do
+    fields
+    |> maybe_append_nonce(nonce)
     |> Enum.map_join(":", &to_string/1)
     |> sha256()
   end
+
+  defp maybe_append_nonce(fields, nonce) when is_binary(nonce) and nonce != "",
+    do: fields ++ [nonce]
+
+  defp maybe_append_nonce(fields, _nonce), do: fields
 
   defp sha256(value), do: :crypto.hash(:sha256, value) |> Base.encode16(case: :lower)
 
@@ -198,6 +203,7 @@ defmodule AshPlatform.WalletActions.Envelope do
       :data,
       :expected_signer,
       :prepared_at,
+      :preparation_nonce,
       :expires_at,
       :risk_copy,
       :approval,
@@ -242,6 +248,8 @@ defmodule AshPlatform.WalletActions.Envelope do
   end
 
   defp require_calldata!(_data), do: raise(ArgumentError, "invalid data")
+
+  defp preparation_nonce, do: :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 
   defp now do
     Application.get_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end).()

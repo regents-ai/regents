@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  alias AshPlatformWeb.ShellLive
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -169,6 +170,42 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     html = render_async(view)
     assert html =~ "Animata I #84"
     refute html =~ "Animata I #42"
+  end
+
+  test "LATE_OPENSEA_RESULT: wallet switch, sign-out, and route leave keep current owned NFTs" do
+    stale_name = {:open_sea, @wallet, 3}
+    stale_result = {:ok, {:ok, %{animata: [%{label: "Wallet A"}], regents_club: []}}}
+    current = %{status: :ready, animata: [%{label: "Current"}], regents_club: []}
+
+    states = [
+      %{
+        route_spec: %{route_id: :redeem},
+        redemption_wallet: @other,
+        redemption_generation: 4,
+        open_sea_lookup: {:open_sea, @other, 4},
+        owned_collectibles: current
+      },
+      %{
+        route_spec: %{route_id: :redeem},
+        redemption_wallet: nil,
+        redemption_generation: 4,
+        open_sea_lookup: nil,
+        owned_collectibles: current
+      },
+      %{
+        route_spec: %{route_id: :stake},
+        redemption_wallet: nil,
+        redemption_generation: 4,
+        open_sea_lookup: nil,
+        owned_collectibles: current
+      }
+    ]
+
+    for assigns <- states do
+      socket = %Phoenix.LiveView.Socket{assigns: assigns}
+      assert {:noreply, returned} = ShellLive.handle_async(stale_name, stale_result, socket)
+      assert returned.assigns.owned_collectibles == current
+    end
   end
 
   defp register(suffix, wallets) do

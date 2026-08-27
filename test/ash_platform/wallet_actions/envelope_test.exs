@@ -1,5 +1,5 @@
 defmodule AshPlatform.WalletActions.EnvelopeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias AshPlatform.WalletActions.Envelope
 
@@ -76,6 +76,29 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
            )
   end
 
+  test "identical preparations under one clock receive distinct signed action IDs" do
+    fixed = ~U[2026-08-27 12:00:00Z]
+    previous = Application.get_env(:ash_platform, :wallet_action_clock)
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> fixed end)
+    on_exit(fn -> restore(:wallet_action_clock, previous) end)
+
+    first = Envelope.new("act", @signer, @data, @context)
+    second = Envelope.new("act", @signer, @data, @context)
+
+    assert first.prepared_at == second.prepared_at
+    refute first.preparation_nonce == second.preparation_nonce
+    refute first.action_id == second.action_id
+    assert Envelope.valid?(first, @validation)
+    assert Envelope.valid?(second, @validation)
+  end
+
+  test "a nonce-less legacy envelope keeps its verification contract" do
+    legacy = Envelope.new("act", @signer, @data, @context) |> legacy_envelope()
+
+    assert Envelope.valid?(legacy, @validation)
+    assert Envelope.valid_for_confirmation?(legacy, @validation)
+  end
+
   test "rejects an intact signed envelope for another current signer or handler contract" do
     envelope = Envelope.new("act", @signer, @data, @context)
     other_signer = "0x3333333333333333333333333333333333333333"
@@ -112,7 +135,10 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     previous = Application.get_env(:ash_platform, :wallet_action_clock)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> old end)
 
-    launch = Envelope.new("autolaunch_launch", @signer, @data, launch_context())
+    launch =
+      Envelope.new("autolaunch_launch", @signer, @data, launch_context())
+      |> legacy_envelope()
+
     other = Envelope.new("act", @signer, @data, @context)
 
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end)
@@ -137,6 +163,29 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
 
+  defp legacy_envelope(envelope) do
+    legacy_id =
+      [
+        envelope.resource,
+        envelope.action,
+        envelope.chain_id,
+        envelope.to,
+        envelope.value,
+        envelope.data,
+        envelope.expected_signer,
+        envelope.prepared_at
+      ]
+      |> Enum.map_join(":", &to_string/1)
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    envelope
+    |> Map.delete(:preparation_nonce)
+    |> Map.put(:action_id, legacy_id)
+    |> Map.put(:idempotency_key, legacy_id)
+    |> resign()
+  end
+
   defp resign(envelope) do
     payload =
       envelope
@@ -151,6 +200,7 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
         :data,
         :expected_signer,
         :prepared_at,
+        :preparation_nonce,
         :expires_at,
         :risk_copy,
         :approval,

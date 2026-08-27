@@ -183,8 +183,6 @@
   background: var(--color-surface-elevated);
 }
 
-/* The review sits inside the action card, so it reads as an inset panel rather
-   than a second floating card. */
 .stake-explainers {
   display: grid;
   grid-column: 1 / -1;

@@ -48,6 +48,7 @@ defmodule AshPlatform.OpenSea.Holdings do
       timeout: @lookup_timeout,
       on_timeout: :kill_task
     )
+    |> Enum.to_list()
     |> Enum.reduce_while({:ok, %{}}, fn
       {:ok, {collection, {:ok, ids}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, collection, ids)}}
       _, _ -> {:halt, unavailable(:provider_failure)}
