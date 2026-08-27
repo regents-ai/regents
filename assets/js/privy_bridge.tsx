@@ -1,6 +1,7 @@
 import {
   PrivyProvider,
   type PrivyEvents,
+  getIdentityToken,
   useActiveWallet,
   useLogin,
   useLinkAccount,
@@ -166,8 +167,38 @@ export function createSignOutOnlyBridgeState({
 
 export {clearLocalSession, csrfToken}
 
+// Privy's two tokens have two different jobs: the access token proves this
+// browser's Privy session and the identity token carries the signed accounts
+// that session is entitled to. Regent needs both, so they travel together.
+export type PrivyTokenPair = {accessToken: string; identityToken: string}
+
+type PrivyTokenSources = {
+  getIdentityToken: () => Promise<string | null>
+  getAccessToken: () => Promise<string | null>
+}
+
+// The evidence is asked for first and the session proof second, so the proof is
+// never older than the evidence it is offered with. A half pair is never sent:
+// if either read fails or comes back empty, nothing is requested at all and any
+// local session this browser already holds is left exactly as it is.
+export function createPrivyTokenPairSource({
+  getIdentityToken: identity,
+  getAccessToken: access,
+}: PrivyTokenSources): () => Promise<PrivyTokenPair> {
+  return async () => {
+    const identityToken = await identity()
+    const accessToken = await access()
+
+    if (!identityToken?.trim() || !accessToken?.trim()) {
+      throw new Error("Sign in could not be completed.")
+    }
+
+    return {accessToken, identityToken}
+  }
+}
+
 export async function createLocalSession(
-  accessToken: string,
+  tokens: PrivyTokenPair,
   fetcher: typeof fetch = fetch,
   sessionMutations: SessionMutationCoordinator = browserSessionMutations,
 ): Promise<{
@@ -181,13 +212,13 @@ export async function createLocalSession(
   // available.
   return sessionMutations.establish((signal, commit) =>
     acrossCookieRotation(renewed =>
-      recoverOnce(() => establishLocalSession(accessToken, fetcher, signal, commit, renewed)),
+      recoverOnce(() => establishLocalSession(tokens, fetcher, signal, commit, renewed)),
     ),
   )
 }
 
 async function establishLocalSession(
-  accessToken: string,
+  {accessToken, identityToken}: PrivyTokenPair,
   fetcher: typeof fetch,
   signal: AbortSignal,
   commit: () => void,
@@ -198,10 +229,15 @@ async function establishLocalSession(
   // From here the response may renew the cookie, so it is never abandoned: an
   // abandoned renewal would leave this tab holding a retired token.
   commit()
+  // Each token travels in its own header and never in the URL or the body.
   const response = await fetcher("/auth/privy/session", {
     method: "POST",
     credentials: "same-origin",
-    headers: {authorization: `Bearer ${accessToken}`, "x-csrf-token": csrf},
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "privy-id-token": identityToken,
+      "x-csrf-token": csrf,
+    },
   })
   const lifecycle = await sessionLifecycleError(response).catch(unreadable => {
     // An account switch and a revoked lineage both drop the cookie at header
@@ -279,25 +315,29 @@ const showsSignOutControl = () =>
   document.querySelector("#account-control [data-account-target='sign-out']") !== null
 
 type PrivySessionCompletionOptions = {
+  acquireTokens: () => Promise<PrivyTokenPair>
   fetcher?: typeof fetch
   localSessionNeeded: () => boolean
   reload: () => void
 }
 
+// The pair is acquired inside the attempt, so every entry point — a granted
+// token, an explicit sign in, a same-account refresh — asks Privy for one
+// complete, current pair and sends nothing when it cannot get one.
 export function createPrivySessionCompletion({
+  acquireTokens,
   fetcher = fetch,
   localSessionNeeded,
   reload,
-}: PrivySessionCompletionOptions): (accessToken: string) => Promise<void> {
+}: PrivySessionCompletionOptions): () => Promise<void> {
   let inFlight: Promise<void> | null = null
 
-  return accessToken => {
+  return () => {
     if (!localSessionNeeded()) return Promise.resolve()
     if (inFlight) return inFlight
 
     const attempt = (async () => {
-      if (accessToken.trim().length === 0) throw new Error("Sign in could not be completed.")
-      await createLocalSession(accessToken, fetcher)
+      await createLocalSession(await acquireTokens(), fetcher)
       reload()
     })()
 
@@ -310,26 +350,17 @@ export function createPrivySessionCompletion({
   }
 }
 
-export function createPrivyTokenCallbacks(
-  completeLogin: (accessToken: string) => Promise<void>,
-) {
+export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
   return {
-    onAccessTokenGranted: ({accessToken}: {accessToken: string}) =>
-      completeLogin(accessToken).catch(() => undefined),
+    onAccessTokenGranted: () => completeLogin().catch(() => undefined),
     onAccessTokenRemoved: () => undefined,
   } satisfies PrivyEvents["accessToken"]
 }
 
 export function createPrivyLoginCallbacks(
-  getAccessToken: () => Promise<string | null>,
-  completeLogin: (accessToken: string) => Promise<void>,
+  completeLogin: () => Promise<void>,
 ): PrivyEvents["login"] {
-  return {
-    onComplete: async () => {
-      const accessToken = await getAccessToken()
-      if (accessToken) await completeLogin(accessToken)
-    },
-  } satisfies PrivyEvents["login"]
+  return {onComplete: () => completeLogin()} satisfies PrivyEvents["login"]
 }
 
 export function createReadyLoginGate(login: () => void) {
@@ -365,6 +396,7 @@ export type PrivyBridgeProviderState = {
   appId: string
   authenticated: boolean
   getAccessToken: () => Promise<string | null>
+  getIdentityToken?: () => Promise<string | null>
   logout: () => Promise<void>
   ready: boolean
   walletsReady: ReturnType<typeof useWallets>["ready"]
@@ -388,9 +420,16 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
     signOutOnly ? "preterminal" : "terminal",
   )
+  // Acquisition depends on the provider hooks below, while the one in-flight
+  // attempt these callbacks share must survive every rerender, so the stable
+  // completion reads the latest pair source rather than closing over one.
+  const acquireTokensRef = React.useRef<() => Promise<PrivyTokenPair>>(() =>
+    Promise.reject(new Error("Sign in could not be completed.")),
+  )
   const completeExplicitLogin = React.useMemo(
     () =>
       createPrivySessionCompletion({
+        acquireTokens: () => acquireTokensRef.current(),
         localSessionNeeded: () =>
           (!signOutOnly || signOutOnlyState.current === "terminal") &&
           document.querySelector("#account-control [data-account-target='sign-in']") !== null,
@@ -399,8 +438,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     [signOutOnly],
   )
   const completeAutomaticLogin = React.useCallback(
-    (accessToken: string) =>
-      signOutOnly ? Promise.resolve() : completeExplicitLogin(accessToken),
+    () => (signOutOnly ? Promise.resolve() : completeExplicitLogin()),
     [completeExplicitLogin, signOutOnly],
   )
   const tokenCallbacks = React.useMemo(
@@ -409,17 +447,24 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   )
   const providerToken = useToken(tokenCallbacks)
   const getAccessToken = providerState?.getAccessToken ?? providerToken.getAccessToken
+  const acquireTokens = React.useMemo(
+    () =>
+      createPrivyTokenPairSource({
+        getIdentityToken: providerState?.getIdentityToken ?? getIdentityToken,
+        getAccessToken,
+      }),
+    [getAccessToken, providerState?.getIdentityToken],
+  )
+  acquireTokensRef.current = acquireTokens
   const notifyIdentityState = React.useCallback((error: string | null) => {
     window.dispatchEvent(
       new CustomEvent("ash:identity-state", {detail: {error}}),
     )
   }, [])
   const refreshIdentitySession = React.useCallback(async () => {
-    const accessToken = await getAccessToken()
-    if (!accessToken) throw new Error("The connection could not be verified.")
-    const result = await createLocalSession(accessToken)
+    const result = await createLocalSession(await acquireTokens())
     notifyIdentityState(result.identityError ?? null)
-  }, [getAccessToken, notifyIdentityState])
+  }, [acquireTokens, notifyIdentityState])
   const linkCallbacks = React.useMemo(
     () => ({
       onSuccess: () => void refreshIdentitySession().catch(() => notifyIdentityState("failed")),
@@ -431,8 +476,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const loginCallbacks = React.useMemo(
-    () => createPrivyLoginCallbacks(getAccessToken, completeExplicitLogin),
-    [completeExplicitLogin, getAccessToken],
+    () => createPrivyLoginCallbacks(completeExplicitLogin),
+    [completeExplicitLogin],
   )
   const {login} = useLogin(loginCallbacks)
   const loginGate = React.useMemo(() => createReadyLoginGate(login), [login])
@@ -455,10 +500,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   React.useEffect(() => {
     if (signOutOnly || !ready || !authenticated) return
 
-    void getAccessToken().then(accessToken => {
-      if (accessToken) void completeAutomaticLogin(accessToken).catch(() => undefined)
-    })
-  }, [authenticated, completeAutomaticLogin, getAccessToken, ready, signOutOnly])
+    void completeAutomaticLogin().catch(() => undefined)
+  }, [authenticated, completeAutomaticLogin, ready, signOutOnly])
 
   // The active selection is published alongside the connected set and depends on
   // it, so a selection change with an unchanged wallets array still runs this and

@@ -25,6 +25,7 @@ vi.mock("@privy-io/react-auth", () => ({
     connect: productionPrivyHooks.connectActiveWallet,
   }),
   useToken: () => ({getAccessToken: vi.fn(async () => null)}),
+  getIdentityToken: vi.fn(async () => null),
   useLogin: () => ({login: productionPrivyHooks.login}),
   useLinkAccount: () => ({
     linkTwitter: productionPrivyHooks.linkTwitter,
@@ -56,10 +57,16 @@ const {
   createProviderSessionReconciler,
   createSignOutOnlyBridgeState,
   createPrivyLoginCallbacks,
+  createPrivyTokenPairSource,
   createReadyLoginGate,
   createPrivySessionCompletion,
   createPrivyTokenCallbacks,
 } = bridge
+
+// One complete pair: the session proof and the signed evidence it was acquired
+// with. Establishment never sees anything else.
+const verifiedPair = {accessToken: "verified", identityToken: "verified-identity"}
+const acquireVerifiedPair = async () => verifiedPair
 
 type HookSlot = {
   deps?: readonly unknown[]
@@ -224,7 +231,7 @@ describe("Privy session bridge", () => {
           })
     }) as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+    await expect(createLocalSession(verifiedPair, fetcher)).resolves.toEqual({
       sessionChanged: false,
     })
 
@@ -233,9 +240,67 @@ describe("Privy session bridge", () => {
       {
         method: "POST",
         credentials: "same-origin",
-        headers: {authorization: "Bearer verified", "x-csrf-token": "csrf"},
+        headers: {
+          authorization: "Bearer verified",
+          "privy-id-token": "verified-identity",
+          "x-csrf-token": "csrf",
+        },
       },
     ])
+  })
+
+  it("COMPLETE_PAIR_ACQUISITION: reads the signed evidence before the session proof", async () => {
+    const order: string[] = []
+    const acquire = createPrivyTokenPairSource({
+      getIdentityToken: async () => {
+        order.push("identity")
+        return "verified-identity"
+      },
+      getAccessToken: async () => {
+        order.push("access")
+        return "verified"
+      },
+    })
+
+    await expect(acquire()).resolves.toEqual(verifiedPair)
+    expect(order).toEqual(["identity", "access"])
+  })
+
+  it.each([
+    ["identity", null, "verified"],
+    ["identity", "   ", "verified"],
+    ["access", "verified-identity", null],
+    ["access", "verified-identity", "   "],
+  ])(
+    "COMPLETE_PAIR_ACQUISITION: an absent or blank %s token yields no pair at all",
+    async (_missing, identityToken, accessToken) => {
+      const acquire = createPrivyTokenPairSource({
+        getIdentityToken: async () => identityToken,
+        getAccessToken: async () => accessToken,
+      })
+
+      await expect(acquire()).rejects.toThrow("Sign in could not be completed.")
+    },
+  )
+
+  it("COMPLETE_PAIR_ACQUISITION: a failed acquisition sends no half pair and changes no session", async () => {
+    const reload = vi.fn()
+    const fetcher = vi.fn() as unknown as typeof fetch
+    const completeLogin = createPrivySessionCompletion({
+      acquireTokens: createPrivyTokenPairSource({
+        getIdentityToken: async () => {
+          throw new Error("provider unavailable")
+        },
+        getAccessToken: async () => "verified",
+      }),
+      fetcher,
+      localSessionNeeded: () => true,
+      reload,
+    })
+
+    await expect(completeLogin()).rejects.toThrow("provider unavailable")
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("returns a verified identity conflict from the refreshed local session", async () => {
@@ -251,7 +316,7 @@ describe("Privy session bridge", () => {
           }),
     ) as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+    await expect(createLocalSession(verifiedPair, fetcher)).resolves.toEqual({
       sessionChanged: false,
       identityError: "already-connected",
     })
@@ -322,7 +387,7 @@ describe("Privy session bridge", () => {
     })
     const fetcher = fetchMock as unknown as typeof fetch
 
-    const establishment = createLocalSession("verified", fetcher, sessionMutations)
+    const establishment = createLocalSession(verifiedPair, fetcher, sessionMutations)
     await until(() => bootstrapStarted)
     const establishmentFailure = expect(establishment).rejects.toMatchObject({name: "AbortError"})
 
@@ -334,7 +399,7 @@ describe("Privy session bridge", () => {
     expect(fetchMock).not.toHaveBeenCalledWith("/auth/privy/session", expect.anything())
 
     const fetchCallCount = fetchMock.mock.calls.length
-    await expect(createLocalSession("verified", fetcher, sessionMutations)).rejects.toThrow(
+    await expect(createLocalSession(verifiedPair, fetcher, sessionMutations)).rejects.toThrow(
       "Local sign out has already started.",
     )
     expect(fetchMock).toHaveBeenCalledTimes(fetchCallCount)
@@ -357,7 +422,7 @@ describe("Privy session bridge", () => {
     })
     const fetcher = fetchMock as unknown as typeof fetch
 
-    const establishment = createLocalSession("verified", fetcher, sessionMutations)
+    const establishment = createLocalSession(verifiedPair, fetcher, sessionMutations)
     await until(() => order.includes("post"))
 
     const clearSession = vi.fn(async () => void order.push("delete"))
@@ -385,12 +450,13 @@ describe("Privy session bridge", () => {
     ) as typeof fetch
 
     const completeLogin = createPrivySessionCompletion({
+      acquireTokens: acquireVerifiedPair,
       fetcher,
       localSessionNeeded: () => true,
       reload,
     })
 
-    await Promise.all([completeLogin("verified"), completeLogin("verified")])
+    await Promise.all([completeLogin(), completeLogin()])
 
     expect(fetcher).toHaveBeenCalledWith(
       "/auth/privy/session",
@@ -414,17 +480,17 @@ describe("Privy session bridge", () => {
       ) as typeof fetch
 
       const completeLogin = createPrivySessionCompletion({
+        acquireTokens: acquireVerifiedPair,
         fetcher,
         localSessionNeeded: () => true,
         reload,
       })
       const tokenCallbacks = createPrivyTokenCallbacks(completeLogin)
 
+      // The grant is only the signal to acquire; the pair Privy is asked for
+      // afterwards is the one that establishes the session.
       const completion = new Promise<void>(resolve => {
-        setTimeout(
-          () => void tokenCallbacks.onAccessTokenGranted({accessToken: "verified"}).then(resolve),
-          10_000,
-        )
+        setTimeout(() => void tokenCallbacks.onAccessTokenGranted().then(resolve), 10_000)
       })
       await vi.advanceTimersByTimeAsync(10_000)
       await completion
@@ -441,15 +507,13 @@ describe("Privy session bridge", () => {
 
   it("finishes the local session from the first successful wallet login", async () => {
     const completeLogin = vi.fn(async () => undefined)
-    const getAccessToken = vi.fn(async () => "first-login-token")
-    const loginCallbacks = createPrivyLoginCallbacks(getAccessToken, completeLogin)
+    const loginCallbacks = createPrivyLoginCallbacks(completeLogin)
 
     await loginCallbacks.onComplete?.(
       {} as Parameters<NonNullable<typeof loginCallbacks.onComplete>>[0],
     )
 
-    expect(getAccessToken).toHaveBeenCalledOnce()
-    expect(completeLogin).toHaveBeenCalledWith("first-login-token")
+    expect(completeLogin).toHaveBeenCalledOnce()
   })
 
   it("clears Regent before provider logout is attempted", async () => {
@@ -807,8 +871,8 @@ describe("Privy session bridge", () => {
 
   // Once the provider reports a complete session, the selected wallet is Stake's
   // wallet again. The page is still anonymous to the server until the verified
-  // bearer establishes a session and reloads, and nothing else may write one.
-  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: a completed provider session publishes its wallet and establishes by bearer", async () => {
+  // pair establishes a session and reloads, and nothing else may write one.
+  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: a completed provider session publishes its wallet and establishes by pair", async () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
@@ -820,6 +884,7 @@ describe("Privy session bridge", () => {
       appId: "test-app",
       authenticated: true,
       getAccessToken: async () => "verified",
+      getIdentityToken: async () => "verified-identity",
       logout: async () => undefined,
       ready: true,
       walletsReady: true,
@@ -837,6 +902,37 @@ describe("Privy session bridge", () => {
       {url: "/auth/csrf", method: "GET"},
     ])
     expect(reload).toHaveBeenCalledOnce()
+  })
+
+  // The startup restore is the one place a signed-in page would establish
+  // without anyone clicking. A provider that will not issue signed evidence
+  // leaves the anonymous page anonymous instead of sending the proof alone.
+  it("COMPLETE_PAIR_ACQUISITION: a provider with no identity token establishes nothing at startup", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "verified",
+      getIdentityToken: async () => null,
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [wallet],
+      activeWallet: wallet,
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => dispatched.includes("ash:wallet-state"))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
   })
 
   // A signed-in page whose wallet hook is still loading has no wallet evidence

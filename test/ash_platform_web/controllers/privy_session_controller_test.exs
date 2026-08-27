@@ -31,7 +31,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       visitor
       |> recycled()
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{
         privy_user_id: "did:privy:forged",
@@ -270,7 +270,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       conn
       |> init_test_session(%{})
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(signed_in, 200)
@@ -287,7 +287,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       build_conn()
       |> init_test_session(get_session(signed_in))
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
@@ -338,7 +338,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     loser =
       browser
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
@@ -354,7 +354,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       conn
       |> init_test_session(%{})
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> post("/auth/privy/session", %{})
 
     topic = get_session(signed_in, :live_socket_id)
@@ -365,7 +365,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       build_conn()
       |> init_test_session(get_session(signed_in))
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer other-account")
+      |> put_privy_pair("other-account")
       |> post("/auth/privy/session", %{})
 
     assert_response_sent_then_disconnect(topic)
@@ -379,7 +379,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       |> delete_session(:session_lineage)
       |> csrf_bootstrap()
       |> recycled()
-      |> put_req_header("authorization", "Bearer other-account")
+      |> put_privy_pair("other-account")
       |> put_req_header("x-csrf-token", Plug.CSRFProtection.get_csrf_token())
       |> post("/auth/privy/session", %{})
 
@@ -431,7 +431,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     assert %{"authenticated" => false} =
              conn
-             |> put_req_header("authorization", "Bearer valid")
+             |> put_privy_pair("valid")
              |> get("/auth/session")
              |> json_response(200)
 
@@ -474,20 +474,99 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert payload["account_control"]["label"] == "U3 Profile"
   end
 
-  test "missing, invalid, and wrong-token-type bearers are rejected before a write", %{conn: conn} do
+  @identity AshPlatform.TestPrivyVerifier.identity_token("valid")
+
+  test "COMPLETE_PAIR_REQUIRED: a half, blank, duplicated or unverifiable pair is refused before a write",
+       %{conn: conn} do
     assert {:ok, before_attempts} =
              Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
 
-    for header <- [nil, "Bearer invalid", "Bearer identity-token", "Bearer missing-sid"] do
-      request = conn |> init_test_session(%{}) |> put_valid_csrf()
-      request = if header, do: put_req_header(request, "authorization", header), else: request
-      assert request |> post("/auth/privy/session", %{}) |> json_response(401)
+    headers = [
+      # Neither token alone is a pair, and neither may be blank.
+      [],
+      [{"authorization", "Bearer valid"}],
+      [{"privy-id-token", @identity}],
+      [{"authorization", "Bearer  "}, {"privy-id-token", @identity}],
+      [{"authorization", "Bearer valid"}, {"privy-id-token", "  "}],
+      # A second identity header is a client choosing which evidence counts.
+      [
+        {"authorization", "Bearer valid"},
+        {"privy-id-token", @identity},
+        {"privy-id-token", @identity}
+      ],
+      # Role confusion in either slot, and the same token reused in both.
+      [{"authorization", "Bearer #{@identity}"}, {"privy-id-token", "valid"}],
+      [{"authorization", "Bearer valid"}, {"privy-id-token", "valid"}],
+      [{"authorization", "Bearer #{@identity}"}, {"privy-id-token", @identity}],
+      # Evidence signed for a different session is evidence for no session here.
+      [
+        {"authorization", "Bearer valid"},
+        {"privy-id-token", AshPlatform.TestPrivyVerifier.identity_token("other-account")}
+      ],
+      # Neither token verifies at all.
+      [
+        {"authorization", "Bearer invalid"},
+        {"privy-id-token", AshPlatform.TestPrivyVerifier.identity_token("invalid")}
+      ]
+    ]
+
+    for pair <- headers do
+      refused =
+        conn
+        |> init_test_session(%{})
+        |> put_valid_csrf()
+        |> put_headers(pair)
+        |> post("/auth/privy/session", %{})
+
+      assert json_response(refused, 401) == %{"error" => "unauthorized"}
+      assert_no_token_disclosure(refused)
     end
 
     assert {:ok, after_attempts} =
              Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
 
     assert account_evidence(after_attempts) == account_evidence(before_attempts)
+  end
+
+  test "SIGNED_EVIDENCE_ONLY: an accepted pair is not disclosed on the response", %{conn: conn} do
+    signed_in =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> put_privy_pair("valid")
+      |> post("/auth/privy/session", %{})
+
+    assert %{"authenticated" => true} = json_response(signed_in, 200)
+    assert_no_token_disclosure(signed_in)
+  end
+
+  defp put_privy_pair(conn, access_token) do
+    conn
+    |> put_req_header("authorization", "Bearer #{access_token}")
+    |> put_req_header(
+      "privy-id-token",
+      AshPlatform.TestPrivyVerifier.identity_token(access_token)
+    )
+  end
+
+  # Carries the headers exactly as given, so a duplicated one travels the way a
+  # client would actually send it.
+  defp put_headers(conn, headers), do: %{conn | req_headers: conn.req_headers ++ headers}
+
+  # Neither token may come back as a token on anything the page or a log can
+  # read. The match is bounded so an unrelated word that merely spells one of
+  # them inside itself, such as `must-revalidate`, is not read as a disclosure.
+  # The session cookie is opaque ciphertext carrying no request header, and its
+  # contents are pinned by `CANONICAL_AUTHORITY_ROW`.
+  defp assert_no_token_disclosure(conn) do
+    observable =
+      conn.resp_headers
+      |> Enum.reject(fn {name, _value} -> name == "set-cookie" end)
+      |> Enum.map_join("\n", fn {name, value} -> "#{name}: #{value}" end)
+
+    for surface <- [observable, conn.resp_body], secret <- ["valid", @identity] do
+      refute surface =~ ~r/\b#{Regex.escape(secret)}\b/
+    end
   end
 
   test "verified registration is idempotent under concurrent attempts" do
@@ -532,7 +611,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       conn
       |> init_test_session(%{})
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> post("/auth/privy/session", %{})
     end
 
@@ -585,7 +664,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     rejected =
       browser
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer invalid")
+      |> put_privy_pair("invalid")
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
@@ -614,7 +693,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     rejected =
       browser
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer no-wallet")
+      |> put_privy_pair("no-wallet")
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
@@ -634,7 +713,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       conn
       |> init_test_session(%{})
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> post("/auth/privy/session", %{})
 
     assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
@@ -644,7 +723,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       build_conn()
       |> init_test_session(get_session(signed_in))
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer changed-wallet")
+      |> put_privy_pair("changed-wallet")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
@@ -676,7 +755,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       conn
       |> init_test_session(%{})
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer conflicting-social")
+      |> put_privy_pair("conflicting-social")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(response, 200)
@@ -693,7 +772,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       build_conn()
       |> init_test_session(get_session(response))
       |> put_valid_csrf()
-      |> put_req_header("authorization", "Bearer conflicting-social")
+      |> put_privy_pair("conflicting-social")
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
@@ -770,7 +849,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       bootstrapped
       |> recycled()
       |> enforce_csrf()
-      |> put_req_header("authorization", "Bearer valid")
+      |> put_privy_pair("valid")
       |> put_req_header("x-csrf-token", json_response(bootstrapped, 200)["csrf_token"])
       |> post("/auth/privy/session", %{})
 

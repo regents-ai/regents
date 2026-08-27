@@ -19,6 +19,10 @@ import {createLocalSession} from "../js/privy_bridge"
 
 afterEach(() => vi.unstubAllGlobals())
 
+// One complete pair: the session proof and the signed evidence it was acquired
+// with. Establishment never sees anything else.
+const verifiedPair = {accessToken: "verified", identityToken: "verified-identity"}
+
 type Meta = {content: string}
 
 function pageWithCsrfMeta(initial: string): Meta {
@@ -77,7 +81,7 @@ describe("DYNAMIC_BROWSER_CSRF", () => {
       return signedInResponse("true")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+    await expect(createLocalSession(verifiedPair, fetcher)).resolves.toEqual({
       sessionChanged: true,
     })
 
@@ -199,7 +203,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
       return signedInResponse("true")
     }) as unknown as typeof fetch
 
-    await createLocalSession("verified", fetcher)
+    await createLocalSession(verifiedPair, fetcher)
 
     expect(insideInterval).toEqual([0])
     expect(socket.attempts).toEqual(["after-renewal"])
@@ -218,7 +222,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
       return signedInResponse("false")
     }) as unknown as typeof fetch
 
-    await createLocalSession("verified", fetcher)
+    await createLocalSession(verifiedPair, fetcher)
 
     // Policy C: the mounted same-account socket is never torn down, so the
     // rotation costs it no re-establishment.
@@ -239,7 +243,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
       return reads === 1 ? csrfResponse("before-post") : new Response("", {status: 503})
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", unreadable)).rejects.toThrow(
+    await expect(createLocalSession(verifiedPair, unreadable)).rejects.toThrow(
       "Unable to start a secure session change.",
     )
 
@@ -253,7 +257,7 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
       input === "/auth/csrf" ? csrfResponse("after-renewal") : signedInResponse("true"),
     ) as unknown as typeof fetch
 
-    await createLocalSession("verified", readable)
+    await createLocalSession(verifiedPair, readable)
 
     expect(socket.attempts).toEqual(["after-renewal"])
     expect(socket.isConnected()).toBe(true)
@@ -431,7 +435,7 @@ describe("PINNED_LONG_POLL_FALLBACK_OBEYS_THE_BARRIER", () => {
       return signedInResponse("true")
     }) as unknown as typeof fetch
 
-    await createLocalSession("verified", fetcher)
+    await createLocalSession(verifiedPair, fetcher)
 
     expect(insideInterval).toEqual([{built: 1, connected: false}])
     // The fallback had already swapped the transport before it was refused, so
@@ -461,7 +465,7 @@ describe("PINNED_LONG_POLL_FALLBACK_OBEYS_THE_BARRIER", () => {
       return signedInResponse("true")
     }) as unknown as typeof fetch
 
-    await createLocalSession("verified", fetcher)
+    await createLocalSession(verifiedPair, fetcher)
 
     expect(insideInterval).toEqual([{built: 1, connected: false}])
     expect(socket.conn?.pollEndpoint).toBe(longPollEndpoint("after-renewal"))
@@ -641,7 +645,7 @@ describe("A_LATER_CONNECT_READS_WHAT_A_FAILED_ADOPTION_NEVER_DID", () => {
     // The sign in takes the queue first and its body has not run yet, so the
     // connect in the same turn still sees an unread renewal and queues its
     // retry behind a mutation that is about to recover the tab itself.
-    const signIn = createLocalSession("verified", fetcher)
+    const signIn = createLocalSession(verifiedPair, fetcher)
     socket.connect()
     expect(reads).toEqual([])
     expect(socket.attempts).toEqual([])
@@ -721,7 +725,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
 
     // The opening CSRF read never returns a response, so no cookie changed and
     // the token this tab holds still matches the one it would connect under.
-    await expect(createLocalSession("verified", offline)).rejects.toThrow("offline")
+    await expect(createLocalSession(verifiedPair, offline)).rejects.toThrow("offline")
 
     socket.connect()
     expect(socket.attempts).toEqual(["page-token"])
@@ -739,7 +743,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
       throw new Error("offline")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+    await expect(createLocalSession(verifiedPair, fetcher)).rejects.toThrow("offline")
 
     socket.connect()
     expect(socket.attempts).toEqual(["current-token"])
@@ -751,7 +755,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
     holdSocketDuringCookieRotation(socket)
     const unavailable = vi.fn(async () => new Response("", {status: 503})) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", unavailable)).rejects.toThrow(
+    await expect(createLocalSession(verifiedPair, unavailable)).rejects.toThrow(
       "Unable to start a secure session change.",
     )
 
@@ -775,7 +779,7 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
       throw new Error("offline")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+    await expect(createLocalSession(verifiedPair, fetcher)).rejects.toThrow("offline")
 
     socket.connect()
     expect(socket.attempts).toEqual(["current-token"])
@@ -793,14 +797,14 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
 
     // The refusal revoked the lineage and dropped its cookie, so the token this
     // tab holds names a session the browser no longer carries.
-    await expect(createLocalSession("verified", refused)).rejects.toThrow(
+    await expect(createLocalSession(verifiedPair, refused)).rejects.toThrow(
       "Sign in could not be completed.",
     )
 
     socket.connect()
     expect(socket.attempts).toEqual([])
 
-    await createLocalSession("verified", signingIn("after-reset"))
+    await createLocalSession(verifiedPair, signingIn("after-reset"))
 
     expect(socket.attempts).toEqual(["after-reset"])
   })
@@ -821,12 +825,12 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
       async () => new Response(body, {status: 200}),
     ) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", unadoptable)).rejects.toThrow()
+    await expect(createLocalSession(verifiedPair, unadoptable)).rejects.toThrow()
 
     socket.connect()
     expect(socket.attempts).toEqual([])
 
-    await createLocalSession("verified", signingIn("after-bootstrap"))
+    await createLocalSession(verifiedPair, signingIn("after-bootstrap"))
 
     expect(socket.attempts).toEqual(["after-bootstrap"])
   })
@@ -843,12 +847,12 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
           new Response('{"error":"account_switch_requ', {status: 409}),
     ) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", unreadableConflict)).rejects.toThrow()
+    await expect(createLocalSession(verifiedPair, unreadableConflict)).rejects.toThrow()
 
     socket.connect()
     expect(socket.attempts).toEqual([])
 
-    await createLocalSession("verified", signingIn("after-switch"))
+    await createLocalSession(verifiedPair, signingIn("after-switch"))
 
     expect(socket.attempts).toEqual(["after-switch"])
   })
@@ -867,12 +871,12 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
       throw new Error("offline")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).rejects.toThrow("offline")
+    await expect(createLocalSession(verifiedPair, fetcher)).rejects.toThrow("offline")
 
     socket.connect()
     expect(socket.attempts).toEqual([])
 
-    await createLocalSession("verified", signingIn("after-reset"))
+    await createLocalSession(verifiedPair, signingIn("after-reset"))
 
     expect(socket.attempts).toEqual(["after-reset"])
   })
@@ -889,12 +893,12 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
       throw new Error("offline")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", unreadable)).rejects.toThrow("offline")
+    await expect(createLocalSession(verifiedPair, unreadable)).rejects.toThrow("offline")
 
     socket.connect()
     expect(socket.attempts).toEqual([])
 
-    await createLocalSession("verified", signingIn("after-renewal"))
+    await createLocalSession(verifiedPair, signingIn("after-renewal"))
 
     expect(socket.attempts).toEqual(["after-renewal"])
   })
@@ -912,7 +916,7 @@ describe("browser session lifecycle recovery", () => {
         return posts === 1 ? lifecycleResponse(lifecycle) : signedInResponse("true")
       }) as unknown as typeof fetch
 
-      await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+      await expect(createLocalSession(verifiedPair, fetcher)).resolves.toEqual({
         sessionChanged: true,
       })
 
@@ -929,7 +933,7 @@ describe("browser session lifecycle recovery", () => {
       return lifecycleResponse("session_superseded")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).rejects.toBeInstanceOf(
+    await expect(createLocalSession(verifiedPair, fetcher)).rejects.toBeInstanceOf(
       SessionLifecycleError,
     )
 
@@ -949,7 +953,7 @@ describe("browser session lifecycle recovery", () => {
       return signedInResponse("true")
     }) as unknown as typeof fetch
 
-    await expect(createLocalSession("verified", fetcher)).resolves.toEqual({
+    await expect(createLocalSession(verifiedPair, fetcher)).resolves.toEqual({
       sessionChanged: true,
     })
 
@@ -974,8 +978,8 @@ describe("browser session lifecycle recovery", () => {
     }) as unknown as typeof fetch
 
     await Promise.all([
-      createLocalSession("verified", fetcher, mutations),
-      createLocalSession("verified", fetcher, mutations),
+      createLocalSession(verifiedPair, fetcher, mutations),
+      createLocalSession(verifiedPair, fetcher, mutations),
     ])
 
     // The second establishment waits for the first to adopt, so it never signs

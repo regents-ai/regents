@@ -19,6 +19,13 @@ export PRIVY_VERIFICATION_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC 
 `PRIVY_VERIFICATION_KEY` is Privy's PEM-encoded ES256 verification public key, not the Privy app
 secret. Native multiline PEM and one-line `\n`-escaped values are both accepted.
 
+## Before the first sign in
+
+Turn identity tokens on for this app in the Privy Dashboard, under the app's user-data settings.
+Signing in sends two things Privy issues for the same session: proof of the session itself, and the
+separately signed record of the accounts connected to it. Regent checks both and accepts neither
+alone, so with identity tokens switched off every sign-in attempt is refused.
+
 Review the files, then load them and start the app:
 
 ```sh
@@ -27,7 +34,7 @@ mix ash_platform.setup_local_auth
 mix phx.server
 ```
 
-Open `http://localhost:4000/app` and use **Sign In**. Sign out from the account control to verify both the local session and Privy session are cleared.
+Open `http://localhost:4000/app` and use **Sign In**. `localhost` is the address to use; there is no separate setup for any other spelling of it. Sign out from the account control to verify both the local session and Privy session are cleared.
 
 The setup task refuses production mode, non-loopback database hosts, and database names that do not end in `_dev` or `_test`. It prepares the protected local `platform.platform_human_users` fixture and applies the current Ash Platform schema only to that guarded local database. It is not a production setup path.
 

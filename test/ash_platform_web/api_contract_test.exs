@@ -80,7 +80,13 @@ defmodule AshPlatformWeb.ApiContractTest do
                "/auth/privy/session" => %{
                  "post" => %{
                    "operationId" => "createPrivyBrowserSession",
-                   "security" => [%{"privyAccessToken" => [], "csrfToken" => []}],
+                   "security" => [
+                     %{
+                       "privyAccessToken" => [],
+                       "privyIdentityToken" => [],
+                       "csrfToken" => []
+                     }
+                   ],
                    "requestBody" => %{
                      "required" => false,
                      "content" => %{
@@ -123,6 +129,11 @@ defmodule AshPlatformWeb.ApiContractTest do
                "type" => "http",
                "scheme" => "bearer",
                "bearerFormat" => "Privy access token"
+             },
+             "privyIdentityToken" => %{
+               "type" => "apiKey",
+               "in" => "header",
+               "name" => "privy-id-token"
              },
              "cookieSession" => %{
                "type" => "apiKey",
@@ -185,7 +196,8 @@ defmodule AshPlatformWeb.ApiContractTest do
                }
              },
              "Unauthorized" => %{
-               "description" => "Privy access token was absent or invalid",
+               "description" =>
+                 "The Privy access and identity tokens were not both present and valid for one signed-in session",
                "content" => %{
                  "application/json" => %{
                    "schema" => %{"$ref" => "#/components/schemas/Error"}

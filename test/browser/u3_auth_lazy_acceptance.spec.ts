@@ -1,7 +1,16 @@
 import {expect, test} from "@playwright/test"
 
+import {identityTokenFor} from "./support/authenticated_privy"
+
 const bridgePattern =
   /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
+
+type PrivyBridgeModule = {
+  createLocalSession: (tokens: {
+    accessToken: string
+    identityToken: string
+  }) => Promise<{sessionChanged: boolean}>
+}
 
 const retryViewports = [
   {name: "desktop", width: 1280, height: 720},
@@ -103,7 +112,7 @@ export async function startPrivyBridge() {
 }
 `
 
-// A bearer the server refuses only ever reaches it through an explicit
+// A pair the server refuses only ever reaches it through an explicit
 // establishment; startup reconciliation offers none.
 const rejectedBearerBridgeStub = `
 import {createLocalSession} from "/assets/js/privy_bridge.js?u3_original=1"
@@ -112,7 +121,10 @@ export async function startPrivyBridge() {
   return {
     async request(request) {
       if (request !== "sync") return
-      await createLocalSession("invalid").catch(() => undefined)
+      await createLocalSession({
+        accessToken: "invalid",
+        identityToken: "invalid-identity"
+      }).catch(() => undefined)
       window.location.reload()
     }
   }
@@ -123,7 +135,11 @@ async function establishLocalSession(page: import("@playwright/test").Page) {
   const csrfResponse = await page.request.get("/auth/csrf")
   const {csrf_token: csrfToken} = await csrfResponse.json()
   const response = await page.request.post("/auth/privy/session", {
-    headers: {authorization: "Bearer valid", "x-csrf-token": csrfToken},
+    headers: {
+      authorization: "Bearer valid",
+      "privy-id-token": identityTokenFor("valid"),
+      "x-csrf-token": csrfToken,
+    },
     data: {},
   })
   expect(response.status()).toBe(200)
@@ -395,17 +411,24 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
     cookie => cookie.name === "_ash_platform_key",
   )?.value
 
-  const heldPost = page.evaluate(async token => {
-    const response = await fetch("/auth/privy/session", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {authorization: "Bearer valid", "x-csrf-token": token},
-    })
-    return {
-      status: response.status,
-      sessionChanged: response.headers.get("x-ash-session-changed"),
-    }
-  }, csrfToken)
+  const heldPost = page.evaluate(
+    async ({token, identityToken}) => {
+      const response = await fetch("/auth/privy/session", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          authorization: "Bearer valid",
+          "privy-id-token": identityToken,
+          "x-csrf-token": token,
+        },
+      })
+      return {
+        status: response.status,
+        sessionChanged: response.headers.get("x-ash-session-changed"),
+      }
+    },
+    {token: csrfToken, identityToken: identityTokenFor("valid")},
+  )
   await postProcessed
   expect(heldSetCookie).toContain("_ash_platform_key=")
 
@@ -758,13 +781,11 @@ function stubBridge(page: import("@playwright/test").Page) {
 async function refreshInPage(page: import("@playwright/test").Page) {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await page.evaluate(async () => {
+  await page.evaluate(async identityToken => {
     const source = "/assets/js/privy_bridge.js"
-    const bridge = (await import(source)) as {
-      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
-    }
-    await bridge.createLocalSession("valid")
-  })
+    const bridge = (await import(source)) as PrivyBridgeModule
+    await bridge.createLocalSession({accessToken: "valid", identityToken})
+  }, identityTokenFor("valid"))
 }
 
 test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the token is read", async ({
@@ -798,13 +819,11 @@ test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the 
     )
   await expect.poll(connected).toBe(true)
 
-  const establishment = page.evaluate(async () => {
+  const establishment = page.evaluate(async identityToken => {
     const source = "/assets/js/privy_bridge.js"
-    const bridge = (await import(source)) as {
-      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
-    }
-    await bridge.createLocalSession("valid")
-  })
+    const bridge = (await import(source)) as PrivyBridgeModule
+    await bridge.createLocalSession({accessToken: "valid", identityToken})
+  }, identityTokenFor("valid"))
   await adoptionHeld
   const heldToken = await metaCsrfToken(page)
 
@@ -874,16 +893,14 @@ test("a tab left stale by a failed adoption recovers on its next connect", async
     )
   await expect.poll(connected).toBe(true)
 
-  const renewal = await page.evaluate(async () => {
+  const renewal = await page.evaluate(async identityToken => {
     const source = "/assets/js/privy_bridge.js"
-    const bridge = (await import(source)) as {
-      createLocalSession: (accessToken: string) => Promise<{sessionChanged: boolean}>
-    }
-    return bridge.createLocalSession("valid").then(
+    const bridge = (await import(source)) as PrivyBridgeModule
+    return bridge.createLocalSession({accessToken: "valid", identityToken}).then(
       () => "adopted",
       () => "unread",
     )
-  })
+  }, identityTokenFor("valid"))
   expect(renewal).toBe("unread")
   const staleToken = await metaCsrfToken(page)
 

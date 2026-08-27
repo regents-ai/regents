@@ -25,8 +25,8 @@ defmodule AshPlatformWeb.PrivySessionController do
   def csrf(conn, _params), do: admit_bootstrap(conn, claim(conn))
 
   def create(conn, _untrusted_params) do
-    with {:ok, token} <- bearer_token(conn),
-         {:ok, verified} <- verifier().verify_access_token(token),
+    with {:ok, pair} <- session_pair(conn),
+         {:ok, verified} <- verifier().verify_session_pair(pair),
          {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
       bind(conn, account, identity_conflicts)
     else
@@ -228,16 +228,34 @@ defmodule AshPlatformWeb.PrivySessionController do
   defp put_identity_conflict_header(conn, _conflicts),
     do: put_resp_header(conn, "x-ash-identity-error", "already-connected")
 
+  # The access token travels only as the bearer and the identity token only as
+  # Privy's own header, so neither reaches a URL, a body or a log. Exactly one
+  # of each is a pair; anything else is refused before the provider is asked.
+  defp session_pair(conn) do
+    with {:ok, access} <- bearer_token(conn),
+         {:ok, identity} <- identity_token(conn) do
+      {:ok, %{access: access, identity: identity}}
+    end
+  end
+
   defp bearer_token(conn) do
     case get_req_header(conn, "authorization") do
-      ["Bearer " <> token] ->
-        case String.trim(token) do
-          "" -> {:error, :missing_token}
-          token -> {:ok, token}
-        end
+      ["Bearer " <> access] -> present(access)
+      _absent_or_duplicated -> {:error, :missing_token}
+    end
+  end
 
-      _missing ->
-        {:error, :missing_token}
+  defp identity_token(conn) do
+    case get_req_header(conn, "privy-id-token") do
+      [identity] -> present(identity)
+      _absent_or_duplicated -> {:error, :missing_token}
+    end
+  end
+
+  defp present(token) do
+    case String.trim(token) do
+      "" -> {:error, :missing_token}
+      token -> {:ok, token}
     end
   end
 end

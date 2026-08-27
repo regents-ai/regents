@@ -1,4 +1,35 @@
 defmodule AshPlatform.TestPrivyVerifier do
+  @moduledoc false
+
+  @identity_suffix "-identity"
+
+  @doc """
+  The identity token deterministically paired with `access_token`.
+
+  Real Privy access and identity tokens are distinct strings with distinct
+  roles, so the fixtures are too. `test/browser/support/authenticated_privy.ts`
+  builds the same partner for the acceptance browsers and has to stay in step
+  with this.
+  """
+  def identity_token(access_token), do: access_token <> @identity_suffix
+
+  @doc """
+  The session exchange the controller performs.
+
+  Only an access token names a session and only its own partner is that
+  session's signed evidence, so a swapped, reused or unpaired token is no pair
+  at all and never reaches the session boundary.
+  """
+  def verify_session_pair(%{access: access, identity: identity})
+      when is_binary(access) and is_binary(identity) do
+    access |> verify_access_token() |> paired(identity == identity_token(access))
+  end
+
+  def verify_session_pair(_pair), do: {:error, :invalid_session_pair}
+
+  defp paired({:ok, verified}, true), do: {:ok, verified}
+  defp paired(_unverified, _matched), do: {:error, :invalid_session_pair}
+
   def verify_access_token("valid") do
     {:ok,
      %AshPlatform.VerifiedPrivyIdentity{
@@ -97,7 +128,5 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
-  def verify_access_token("identity-token"), do: {:error, :invalid_access_token}
-  def verify_access_token("missing-sid"), do: {:error, :invalid_access_token}
   def verify_access_token(_token), do: {:error, :invalid_token}
 end

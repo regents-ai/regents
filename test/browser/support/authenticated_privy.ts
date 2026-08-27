@@ -41,6 +41,12 @@ export type AuthenticatedPrivy = {
 
 const recordSync = "__authenticatedPrivyRecordSync"
 
+// The deterministic partner of an access token. `AshPlatform.TestPrivyVerifier`
+// builds the same partner on the server and has to stay in step with this.
+export function identityTokenFor(accessToken: string): string {
+  return `${accessToken}-identity`
+}
+
 export async function installAuthenticatedPrivy(
   page: Page,
   bearer: string,
@@ -77,7 +83,11 @@ export async function installAuthenticatedPrivy(
   return {
     async establishLocalSession() {
       const response = await page.request.post("/auth/privy/session", {
-        headers: {authorization: `Bearer ${bearer}`, "x-csrf-token": csrfToken},
+        headers: {
+          authorization: `Bearer ${bearer}`,
+          "privy-id-token": identityTokenFor(bearer),
+          "x-csrf-token": csrfToken,
+        },
         data: {},
       })
 
@@ -113,7 +123,6 @@ export async function installAuthenticatedPrivy(
 function authenticatedBridgeStub(bearer: string): string {
   return `
 import {
-  createLocalSession,
   createProviderSessionReconciler
 } from "/assets/js/privy_bridge.js?authenticated_privy_original=1"
 
@@ -125,7 +134,6 @@ export async function startPrivyBridge() {
       }
       const reconcile = createProviderSessionReconciler({
         clearSession: async () => { throw new Error("Authenticated provider cleared the session") },
-        establishSession: createLocalSession,
         getAccessToken: async () => ${JSON.stringify(bearer)},
         hasLinkedWallet: () => true,
         providerAuthenticated: () => true,
