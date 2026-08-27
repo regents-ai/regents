@@ -1,26 +1,39 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * NOTICE: This file is a NEWER revision than the RegentRevenueStaking contract
- * deployed on Base mainnet holding real funds.
+ * NOTICE: This file is the source of the RegentRevenueStaking contract deployed
+ * on Base mainnet at 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5, which holds
+ * real funds. It is kept faithful to that deployment; the only departures from
+ * the verified source are the import paths, which follow this repository's
+ * layout.
  *
  * Deployed runtime size: 11,757 bytes; deployed runtime SHA-256:
  * 9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb.
- * This runtime was independently reconstructed from the signed deployment tx
- * and matched to the RPC-pinned base-mainnet.json.
+ * Verified source: Blockscout at the address above, compiled with
+ * solc 0.8.30+commit.73712a01, optimizer enabled at 200 runs, EVM version
+ * prague.
  *
- * Verified-source reference: Basescan/Blockscout at
- * 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5.
- * The DEPLOYED contract LACKS claimRoundingReserveUsdc() and the
- * reserve/rounding-carry accounting.
+ * KNOWN LIMITATION, present in the deployed contract: there is no reserve for
+ * the accumulator's rounding carry. A per-account `_sync` floors once over the
+ * sum of several deposits' accumulator deltas, so a staker's merged claimable
+ * can exceed the per-deposit `creditedToStakers` floors by a wei-scale overage.
+ * `_recordUsdcClaim` covers that overage out of `treasuryResidualUsdc`, and
+ * `withdrawTreasuryResidual` may take the whole residual, the dust backing it
+ * included. An affected claim then reverts on arithmetic underflow.
  *
- * Consequence in the verifier's terms: a bounded claim-availability risk —
- * the deployed contract's missing reserve logic means treasury withdrawal of
- * a rounding carry can make an affected claim revert until residual USDC is
- * refunded; NOT reentrancy, NOT fund loss.
+ * Further deposits do not clear it. `treasuryResidualUsdc` is only ever
+ * increased by `_recordRevenue`, and every path into it raises the aggregate
+ * overage by the same wei, so the residual never catches up. Measured across
+ * eleven deposits from 1 wei to 999e18 in the fully-staked regime, the
+ * shortfall stayed at exactly 1 wei throughout.
  *
- * This NOTICE does not imply that a redeploy is planned or recommended; that
- * is a founder decision, and this source file does not pre-empt it.
+ * That is a bounded claim-availability risk: NOT reentrancy, NOT fund loss, and
+ * staked principal and the rest of a claim are unaffected. It is proven by
+ * test/RegentStakingClaimRoundingDrain.t.sol.
+ *
+ * A newer revision reserving that carry was previously kept in this file. It
+ * was removed so this source states only what is deployed. Any fix ships as a
+ * redeploy, which is a founder decision this file does not pre-empt.
  */
 pragma solidity ^0.8.26;
 
@@ -54,11 +67,6 @@ contract RegentRevenueStaking is Owned {
     uint16 public emissionAprBps;
     uint256 public lastEmissionUpdate;
     uint256 public treasuryResidualUsdc;
-    /// @dev Reserves the accumulator's rounding carry owed to stakers in aggregate so
-    ///      `withdrawTreasuryResidual` cannot withdraw it. It is drawn down only when a
-    ///      claim's rounding overage fires in `_recordUsdcClaim`, guaranteeing cumulative
-    ///      claims can never exceed the credit tracked in `totalUsdcCreditedToStakers`.
-    uint256 public claimRoundingReserveUsdc;
     uint256 public totalUsdcReceived;
     uint256 public directDepositUsdc;
     uint256 public surplusRedepositUsdc;
@@ -344,10 +352,6 @@ contract RegentRevenueStaking is Owned {
         require(recipient != address(0), "RECIPIENT_ZERO");
         require(recipient != address(this), "RECIPIENT_IS_SELF");
         require(treasuryResidualUsdc >= amount, "TREASURY_BALANCE_LOW");
-        require(
-            treasuryResidualUsdc - claimRoundingReserveUsdc >= amount,
-            "TREASURY_RESERVED_FOR_STAKERS"
-        );
 
         treasuryResidualUsdc -= amount;
         emit TreasuryResidualWithdrawn(amount, recipient);
@@ -537,25 +541,10 @@ contract RegentRevenueStaking is Owned {
             uint256 deltaAcc =
                 FullMath.mulDiv(stakerPool, ACC_PRECISION, revenueShareSupplyDenominator);
             if (deltaAcc > 0) {
-                uint256 previousAcc = accRewardPerTokenUsdc;
-                uint256 nextAcc = previousAcc + deltaAcc;
-                accRewardPerTokenUsdc = nextAcc;
+                accRewardPerTokenUsdc += deltaAcc;
 
                 if (totalStaked > 0) {
                     creditedToStakers = FullMath.mulDiv(deltaAcc, totalStaked, ACC_PRECISION);
-
-                    // A staker's `_sync` floors once over the sum of several deposits'
-                    // accumulator deltas, so its per-account credit can exceed this deposit's
-                    // per-deposit `creditedToStakers` floor by the accumulator's rounding carry.
-                    // Reserve that carry for stakers so `withdrawTreasuryResidual` cannot take it
-                    // and a later claim's rounding overage stays physically backed.
-                    uint256 aggregateBefore =
-                        FullMath.mulDiv(previousAcc, totalStaked, ACC_PRECISION);
-                    uint256 aggregateAfter = FullMath.mulDiv(nextAcc, totalStaked, ACC_PRECISION);
-                    uint256 aggregateCredited = aggregateAfter - aggregateBefore;
-                    if (aggregateCredited > creditedToStakers) {
-                        claimRoundingReserveUsdc += aggregateCredited - creditedToStakers;
-                    }
                 }
             }
         }
@@ -575,16 +564,10 @@ contract RegentRevenueStaking is Owned {
         );
     }
 
-    /// @dev A claim can exceed outstanding credit by a few wei because per-account syncs floor
-    ///      once over the accumulated delta while `creditedToStakers` floors per deposit. That
-    ///      rounding is reserved in `claimRoundingReserveUsdc` (a subset of `treasuryResidualUsdc`)
-    ///      and drawn down here, so `totalClaimedUsdc` never exceeds `totalUsdcCreditedToStakers`.
     function _recordUsdcClaim(uint256 amount) internal {
         uint256 outstandingCredit = totalUsdcCreditedToStakers - totalClaimedUsdc;
         if (amount > outstandingCredit) {
             uint256 roundingOverage = amount - outstandingCredit;
-            require(claimRoundingReserveUsdc >= roundingOverage, "STAKER_ROUNDING_UNDERFUNDED");
-            claimRoundingReserveUsdc -= roundingOverage;
             treasuryResidualUsdc -= roundingOverage;
             totalUsdcCreditedToStakers += roundingOverage;
         }
