@@ -30,21 +30,32 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
   @doc "Pins a report relationship to the same canonical immutable treasury address."
   def associate_report_address(changeset) do
     Ash.Changeset.before_action(changeset, fn changeset ->
-      report_id = Ash.Changeset.get_attribute(changeset, :treasury_security_report_id)
-      treasury_address = Ash.Changeset.get_attribute(changeset, :treasury_address)
+      associate_attribute_report(changeset)
+    end)
+  end
 
-      case report_id && Autolaunch.get_treasury_security_report(report_id, actor: nil) do
+  @doc "Derives a token's custody provenance from its auction and optional subject."
+  def associate_token_report(changeset) do
+    Ash.Changeset.before_action(changeset, fn changeset ->
+      with {:ok, auction} <- auction(Ash.Changeset.get_attribute(changeset, :auction_id)),
+           {:ok, binding} <- auction_binding(auction),
+           :ok <- subject_agrees(Ash.Changeset.get_attribute(changeset, :subject_id), binding) do
+        bind_auction_report(changeset, binding)
+      else
+        {:error, message} -> provenance_error(changeset, message)
+      end
+    end)
+  end
+
+  @doc "Derives a launch job's custody provenance whenever it references an auction."
+  def associate_launch_job_report(changeset) do
+    Ash.Changeset.before_action(changeset, fn changeset ->
+      case Ash.Changeset.get_attribute(changeset, :auction_id) do
         nil ->
-          changeset
+          associate_attribute_report(changeset)
 
-        {:ok, %{address: report_address}} ->
-          associate_report_address(changeset, treasury_address, report_address)
-
-        _missing ->
-          Ash.Changeset.add_error(changeset,
-            field: :treasury_security_report_id,
-            message: "does not identify a treasury security report"
-          )
+        auction_id ->
+          bind_launch_job_auction_report(changeset, auction_id)
       end
     end)
   end
@@ -312,7 +323,7 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
     evidence =
       Map.new(keys, &{&1, normalize_evidence_hash(evidence[&1] || evidence[to_string(&1)])})
 
-    if Enum.all?(keys, &valid_optional_hash?(evidence[&1])) do
+    if Enum.all?(keys, &valid_optional_hash?(evidence[&1])) and distinct_hashes?(evidence) do
       {:ok, evidence}
     else
       {:error, :treasury_evidence_hash_invalid}
@@ -320,6 +331,93 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
   end
 
   defp evidence_input(_evidence), do: {:error, :treasury_evidence_hash_invalid}
+
+  defp associate_attribute_report(changeset) do
+    report_id = Ash.Changeset.get_attribute(changeset, :treasury_security_report_id)
+    treasury_address = Ash.Changeset.get_attribute(changeset, :treasury_address)
+
+    case report_id && Autolaunch.get_treasury_security_report(report_id, actor: nil) do
+      nil ->
+        changeset
+
+      {:ok, %{address: report_address}} ->
+        associate_report_address(changeset, treasury_address, report_address)
+
+      _missing ->
+        provenance_error(changeset, "does not identify a treasury security report")
+    end
+  end
+
+  defp auction(id) do
+    case Autolaunch.get_public_auction(id, actor: nil) do
+      {:ok, nil} -> {:error, "requires an existing auction"}
+      {:ok, auction} -> {:ok, auction}
+      _error -> {:error, "requires an existing auction"}
+    end
+  end
+
+  defp auction_binding(%{
+         treasury_security_report_id: report_id,
+         treasury_address: address,
+         treasury_security_report: report
+       }) do
+    case {report_id, address, report} do
+      {nil, nil, nil} -> {:ok, %{report_id: nil, address: nil}}
+      {id, address, %{id: id, address: address}} -> {:ok, %{report_id: id, address: address}}
+      _mismatch -> {:error, "auction custody provenance is inconsistent"}
+    end
+  end
+
+  defp bind_launch_job_auction_report(changeset, auction_id) do
+    with {:ok, auction} <- auction(auction_id),
+         {:ok, binding} <- auction_binding(auction) do
+      bind_auction_report(changeset, binding)
+    else
+      {:error, message} -> provenance_error(changeset, message)
+    end
+  end
+
+  defp subject_agrees(nil, _binding), do: :ok
+
+  defp subject_agrees(subject_id, binding) do
+    case Autolaunch.get_public_subject(subject_id, actor: nil) do
+      {:ok, %{treasury_security_report_id: nil}} ->
+        :ok
+
+      {:ok,
+       %{
+         treasury_security_report_id: report_id,
+         treasury_address: address,
+         treasury_security_report: report
+       }} ->
+        case {report_id, address, report, binding} do
+          {id, address, %{id: id, address: address}, %{report_id: id, address: address}} -> :ok
+          _mismatch -> {:error, "subject custody provenance must match its auction"}
+        end
+
+      _missing ->
+        {:error, "requires an existing subject"}
+    end
+  end
+
+  defp bind_auction_report(changeset, binding) do
+    supplied = Ash.Changeset.get_attribute(changeset, :treasury_security_report_id)
+
+    if is_nil(supplied) or supplied == binding.report_id do
+      changeset
+      |> Ash.Changeset.force_change_attribute(:treasury_security_report_id, binding.report_id)
+      |> Ash.Changeset.force_change_attribute(:treasury_address, binding.address)
+    else
+      provenance_error(changeset, "must match the referenced auction")
+    end
+  end
+
+  defp provenance_error(changeset, message) do
+    Ash.Changeset.add_error(changeset,
+      field: :treasury_security_report_id,
+      message: message
+    )
+  end
 
   defp associate_report_address(changeset, nil, report_address),
     do: Ash.Changeset.force_change_attribute(changeset, :treasury_address, report_address)
@@ -339,6 +437,11 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
 
   defp valid_optional_hash?(nil), do: true
   defp valid_optional_hash?(hash), do: AshPlatform.WalletActions.Rpc.valid_hash?(hash)
+
+  defp distinct_hashes?(evidence) do
+    hashes = evidence |> Map.values() |> Enum.reject(&is_nil/1) |> Enum.map(&String.downcase/1)
+    length(hashes) == length(Enum.uniq(hashes))
+  end
 
   defp normalize_evidence_hash(""), do: nil
   defp normalize_evidence_hash(hash), do: hash

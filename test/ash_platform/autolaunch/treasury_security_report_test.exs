@@ -106,4 +106,129 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityReportTest do
     assert {:error, %Ash.Error.Invalid{}} =
              Autolaunch.set_auction_treasury_security_report(auction, other.id, actor: %System{})
   end
+
+  test "TOKEN_AND_LAUNCH_JOB_PROVENANCE_COMES_ONLY_FROM_THE_REFERENCED_AUCTION" do
+    report_a = Client.seed_verified!("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    report_b = Client.seed_verified!("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+
+    auction_a =
+      Autolaunch.import_auction!(
+        "Auction A",
+        nil,
+        false,
+        :created,
+        nil,
+        %{
+          treasury_security_report_id: report_a.id
+        },
+        actor: %System{}
+      )
+
+    auction_b =
+      Autolaunch.import_auction!(
+        "Auction B",
+        nil,
+        false,
+        :created,
+        nil,
+        %{
+          treasury_security_report_id: report_b.id
+        },
+        actor: %System{}
+      )
+
+    mismatched = %{treasury_security_report_id: report_a.id}
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.import_token(
+               auction_b.id,
+               "Wrong report token",
+               "WRONG",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               mismatched,
+               actor: %System{}
+             )
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             import_launch("launch:wrong-report", auction_b.id, mismatched)
+
+    subject_a =
+      Autolaunch.import_subject!(
+        "subject:auction-a",
+        "agent",
+        8453,
+        nil,
+        nil,
+        nil,
+        report_a.address,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        mismatched,
+        actor: %System{}
+      )
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.import_subject_token(
+               auction_b.id,
+               subject_a.subject_id,
+               "Wrong subject token",
+               "WSUB",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               %{},
+               actor: %System{}
+             )
+
+    assert {:ok, token} =
+             Autolaunch.import_token(
+               auction_b.id,
+               "Derived report token",
+               "RIGHT",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               %{},
+               actor: %System{}
+             )
+
+    assert token.treasury_security_report_id == report_b.id
+    assert token.treasury_address == report_b.address
+
+    assert {:ok, launch} = import_launch("launch:derived-report", auction_b.id, %{})
+    assert launch.treasury_security_report_id == report_b.id
+    assert launch.treasury_address == report_b.address
+    refute auction_a.id == auction_b.id
+  end
+
+  defp import_launch(job_id, auction_id, attrs) do
+    Autolaunch.import_launch(
+      job_id,
+      "ready",
+      "reviewed",
+      "agent:provenance",
+      nil,
+      "Provenance token",
+      "PROV",
+      8453,
+      auction_id,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      attrs,
+      actor: %System{}
+    )
+  end
 end

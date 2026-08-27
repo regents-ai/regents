@@ -1,7 +1,8 @@
 defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
-  use ExUnit.Case, async: false
+  use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.Autolaunch.TreasuryChainClient
+  alias AshPlatform.Actors.System
+  alias AshPlatform.Autolaunch.{TreasuryChainClient, TreasurySecurity}
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: Client
 
   @safe_hash "0x" <> String.duplicate("aa", 32)
@@ -27,7 +28,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       request = options[:json]
       send(self(), {:treasury_rpc, request.method, request.params})
 
-      case response(request.method, request.params) do
+      case rpc_response(request.method, request.params) do
         {:error, reason} ->
           {:ok, %{status: 200, body: %{"error" => %{"message" => to_string(reason)}}}}
 
@@ -36,26 +37,29 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       end
     end
 
-    defp response("eth_chainId", _params), do: "0x2105"
+    defp rpc_response("eth_chainId", _params), do: "0x2105"
 
-    defp response("eth_getBlockByNumber", ["safe", false]),
+    defp rpc_response("eth_getBlockByNumber", ["safe", false]),
       do: %{"number" => "0x30", "hash" => state().safe_hash}
 
-    defp response("eth_getBlockByNumber", [number, false]),
-      do: %{"number" => number, "hash" => block_hash(number)}
+    defp rpc_response("eth_getBlockByNumber", [number, false]),
+      do: %{
+        "number" => Map.get(state().header_numbers, number, number),
+        "hash" => block_hash(number)
+      }
 
-    defp response("eth_getCode", [address, block]) do
+    defp rpc_response("eth_getCode", [address, block]) do
       same_block!(block)
       Map.get(state().codes, String.downcase(address), "0x")
     end
 
-    defp response("eth_getStorageAt", [address, slot, block]) do
+    defp rpc_response("eth_getStorageAt", [address, slot, block]) do
       same_block!(block)
       true = String.downcase(address) == state().address
       Map.fetch!(state().storage, slot)
     end
 
-    defp response("eth_call", [%{to: address, data: data}, block]) do
+    defp rpc_response("eth_call", [%{to: address, data: data}, block]) do
       same_block!(block)
       true = String.downcase(address) == state().address
 
@@ -67,13 +71,13 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       end
     end
 
-    defp response("eth_getTransactionReceipt", [hash]),
+    defp rpc_response("eth_getTransactionReceipt", [hash]),
       do: Map.fetch!(state().receipts, String.downcase(hash))
 
-    defp response("eth_getTransactionByHash", [hash]),
+    defp rpc_response("eth_getTransactionByHash", [hash]),
       do: Map.fetch!(state().transactions, String.downcase(hash))
 
-    defp response(_method, _params), do: {:error, :unexpected_request}
+    defp rpc_response(_method, _params), do: {:error, :unexpected_request}
 
     defp block_hash(number), do: Map.get(state().blocks, number, state().safe_hash)
 
@@ -190,6 +194,32 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
                      [@fallback, %{blockHash: @safe_hash, requireCanonical: true}]}
   end
 
+  test "DUPLICATE_CUSTODY_EVIDENCE_HASHES_FAIL_BEFORE_ANY_PROVIDER_REQUEST" do
+    hash = evidence_hash(2)
+    number = "0x22"
+    block_hash = receipt_hash(2)
+
+    state =
+      production_fixture()
+      |> put_in([:receipts, hash, "logs"], [
+        transfer_log(hash, number, block_hash),
+        regent_log(hash, number, block_hash),
+        execution_log(hash, number, block_hash)
+      ])
+
+    production_client(state)
+    uppercase_hash = "0x" <> (hash |> String.slice(2, 64) |> String.upcase())
+
+    assert {:error, :treasury_evidence_hash_invalid} =
+             TreasurySecurity.observe(
+               @address,
+               %{usdc: uppercase_hash, regent: hash, outbound: hash},
+               %System{}
+             )
+
+    refute_received {:treasury_rpc, _method, _params}
+  end
+
   test "PRODUCTION_REJECTS_TRANSACTION_RECEIPT_AND_SELECTED_LOG_IDENTITY_DRIFT" do
     mutations = [
       transaction_block_hash: &put_in(&1.transactions[evidence_hash(0)]["blockHash"], @safe_hash),
@@ -210,7 +240,8 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       log_block_hash:
         &put_in(&1.receipts[evidence_hash(0)]["logs"], [
           transfer_log(evidence_hash(0), "0x20", @safe_hash)
-        ])
+        ]),
+      header_block_number: &put_in(&1.header_numbers["0x20"], "0x21")
     ]
 
     for {name, mutate} <- mutations do
@@ -284,6 +315,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       address: @address,
       safe_hash: safe_hash,
       blocks: blocks,
+      header_numbers: %{},
       codes: %{
         @address => runtime_code,
         @singleton => singleton_runtime(),

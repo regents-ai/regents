@@ -257,6 +257,8 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          true <- downcase(transaction["blockHash"]) == downcase(hash),
          {:ok, ^number} <- quantity(transaction["blockNumber"]),
          {:ok, header} <- Rpc.request("eth_getBlockByNumber", [hex(number), false], @rpc_opts),
+         true <- is_map(header),
+         {:ok, ^number} <- quantity(header["number"]),
          true <- downcase(header["hash"]) == downcase(hash) do
       {:ok, transaction, receipt, %{number: number, hash: downcase(hash)}}
     else

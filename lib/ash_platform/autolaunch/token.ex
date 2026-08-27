@@ -147,7 +147,7 @@ defmodule AshPlatform.Autolaunch.Token do
         :treasury_security_report_id
       ]
 
-      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+      change fn changeset, _context -> TreasurySecurity.associate_token_report(changeset) end
     end
 
     update :set_price_snapshot do

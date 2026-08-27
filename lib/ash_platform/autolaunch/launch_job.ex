@@ -150,7 +150,7 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
         :treasury_security_report_id
       ]
 
-      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+      change fn changeset, _context -> TreasurySecurity.associate_launch_job_report(changeset) end
     end
   end
 
