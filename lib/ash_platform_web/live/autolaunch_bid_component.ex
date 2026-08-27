@@ -372,47 +372,41 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   defp cleared(socket), do: push_event(socket, "autolaunch-bid:cleared", %{})
 
-  # Only a live transition this socket watched is a result: a restored or
-  # repeated terminal operation replays nothing. The root LiveView owns the
-  # queue and decides what is already reported.
-  defp reported(
-         socket,
-         %{action_id: id, step: step, terminal_at: nil},
-         %{action_id: id} = operation
-       ) do
-    TransactionResultModal.report([advanced(step, operation), settled_result(operation)])
+  # A bid has two allowances in front of it, and each one the server verified is
+  # a transaction of its own. Neither settles the bid: placing it is still the
+  # only next wallet step.
+  defp reported(socket, prior, %{action_id: _} = operation) do
+    TransactionResultModal.report_transition(
+      prior,
+      operation,
+      Enum.map(BidActions.steps(operation), & &1["step"]),
+      &result(operation, &1, :confirmed, TransactionResultModal.confirmed_copy()),
+      settled_result(operation)
+    )
+
     socket
   end
 
   defp reported(socket, _prior, _returned), do: socket
 
-  # Each allowance the server verified in order to move on. Neither settles the
-  # bid: placing it is still the only next wallet step.
-  defp advanced(step, %{step: step}), do: nil
-
-  defp advanced(step, operation),
-    do: result(operation, step, :confirmed, TransactionResultModal.confirmed_copy())
-
   defp settled_result(%{state: :confirmed} = operation),
-    do: result(operation, operation.step, :confirmed, confirmed_copy(operation))
+    do: result(operation, to_string(operation.step), :confirmed, confirmed_copy(operation))
 
   defp settled_result(%{state: state} = operation) when state in [:reverted, :unverified],
-    do: result(operation, operation.step, state, settled_copy(state))
+    do: result(operation, to_string(operation.step), state, settled_copy(state))
 
   defp settled_result(_open), do: nil
 
-  defp result(operation, step, status, message) do
-    step = Atom.to_string(step)
-
-    TransactionResultModal.result(%{
-      status: status,
-      action_id: operation.action_id,
-      step: step,
-      hash: BidActions.step_hash(operation, step),
-      label: step_label(step),
-      message: message
-    })
-  end
+  defp result(operation, step, status, message),
+    do:
+      TransactionResultModal.result(%{
+        status: status,
+        action_id: operation.action_id,
+        step: step,
+        hash: BidActions.step_hash(operation, step),
+        label: step_label(step),
+        message: message
+      })
 
   # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
   # the customer. That is the ordinary empty state, not a refusal, and it reads

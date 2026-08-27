@@ -23,6 +23,8 @@ const menuButton = new FakeElement()
 
 const fakeDocument = {
   activeElement: null as FakeElement | null,
+  body: new FakeElement(),
+  documentElement: new FakeElement(),
   querySelector(selector: string) {
     if (selector === "#app-shell-scroller") return scroller
     if (selector === "#mobile-menu-button") return menuButton
@@ -95,11 +97,11 @@ describe("transaction result modal hook", () => {
     scroller.inert = false
     scroller.focusCount = 0
     menuButton.focusCount = 0
+    fakeDocument.body.focusCount = 0
+    fakeDocument.documentElement.focusCount = 0
   })
 
-  it("opens natively for the queued result and records what had focus", () => {
-    const trigger = new FakeElement()
-    trigger.focus()
+  it("opens natively for the queued result and never reopens what is already open", () => {
     const {call, calls, dialog} = fixture(first)
 
     call("mounted")
@@ -207,6 +209,22 @@ describe("transaction result modal hook", () => {
 
     expect(scroller.focusCount).toBe(1)
     expect(menuButton.focusCount).toBe(0)
+  })
+
+  // With nothing focused the document names its own body, which cannot take
+  // focus back. That is no target at all, so the shell answers instead.
+  it("never hands focus back to the bare document", () => {
+    for (const bare of [fakeDocument.body, fakeDocument.documentElement]) {
+      scroller.focusCount = 0
+      fakeDocument.activeElement = bare
+
+      const {call, cancel} = fixture(first)
+      call("mounted")
+      cancel()
+
+      expect(bare.focusCount).toBe(0)
+      expect(scroller.focusCount).toBe(1)
+    }
   })
 
   it("keeps focus out of an inert subtree behind the mobile menu", () => {

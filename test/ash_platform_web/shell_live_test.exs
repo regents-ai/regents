@@ -416,9 +416,14 @@ defmodule AshPlatformWeb.ShellLiveTest do
       step: step,
       hash: "0x" <> String.duplicate("ab", 32),
       label: "Stake REGENT",
-      message: TransactionResultModal.confirmed_copy()
+      message: terminal_message(status)
     })
   end
+
+  defp terminal_message(:confirmed), do: TransactionResultModal.confirmed_copy()
+
+  defp terminal_message(:reverted),
+    do: "The staking transaction reverted. Prepare a new action when ready."
 
   defp register_account(suffix, wallet) do
     assert {:ok, account} =

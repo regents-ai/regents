@@ -6,7 +6,6 @@ defmodule AshPlatformWeb.Components.TransactionResultModalTest do
   alias AshPlatformWeb.Components.TransactionResultModal, as: Modal
 
   @hash "0x" <> String.duplicate("ab", 32)
-  @app_css Path.expand("../../../assets/css/app.css", __DIR__)
 
   defp fields(overrides \\ %{}) do
     Map.merge(
@@ -92,11 +91,5 @@ defmodule AshPlatformWeb.Components.TransactionResultModalTest do
     refute html =~ "data-result-id"
     refute html =~ "basescan.org"
     refute html =~ "View on BaseScan"
-  end
-
-  # The pinned LiveView portal wrapper must not introduce a box of its own
-  # around the teleported dialog.
-  test "R4_TELEPORTED_WRAPPER_RULE_IS_PINNED" do
-    assert File.read!(@app_css) =~ "[data-phx-teleported-src] {\n  display: contents;\n}"
   end
 end

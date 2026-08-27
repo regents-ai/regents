@@ -20,8 +20,14 @@ export const TransactionResultModal: Hook = {
       if (dialog.open) dialog.close()
     }
 
-    const activeElement = () =>
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // With nothing focused the document reports its own body, which cannot take
+    // focus back. That is no target at all, so the shell answers instead.
+    const activeElement = () => {
+      const active = document.activeElement
+      if (!(active instanceof HTMLElement)) return null
+      if (active === document.body || active === document.documentElement) return null
+      return active
+    }
 
     // The shell makes its scroller inert while the mobile menu is open, so focus
     // goes to the control that closes that menu rather than behind it.

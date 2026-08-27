@@ -3272,6 +3272,16 @@ defmodule AshPlatformWeb.ShellLive do
       message: "Complete the transaction already open in your wallet before starting another."
     }
 
+  # The approval is already verified, so nothing is waiting on Base. What is
+  # outstanding is the staking transaction itself, and saying so is what tells
+  # the customer where to look.
+  defp staking_locked_notice(%{staking_submission: %{status: :approval_verified}}),
+    do: %{
+      tone: :info,
+      message:
+        "Your REGENT approval is confirmed. Finish the staking transaction in your wallet before starting another."
+    }
+
   defp staking_locked_notice(_assigns),
     do: %{
       tone: :info,

@@ -339,6 +339,62 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     assert queued_results(view) == []
   end
 
+  # R2: a socket that was elsewhere while the customer signed finds several
+  # ordered steps crossed at once. Each verified allowance is still a
+  # transaction of its own, so all of them arrive, once, in step order.
+  test "A_STALE_SOCKET_REPORTS_EVERY_CROSSED_STEP: both approvals and the bid arrive together, in order",
+       %{conn: conn, auction: auction} do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+
+    # A second page on the same account, watching the same first step and then
+    # seeing nothing until it asks again.
+    watcher = mount_bidder(conn, auction)
+    render_hook(element(watcher, @panel), "restore_bid_operation", %{})
+    assert queued_results(watcher) == []
+
+    permit2_hash = "0x" <> String.duplicate("bb", 32)
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{token_approval: %{outcome: :confirmed}}})
+    submit(view, action_id, "token_approval", @approval_hash)
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{permit2_approval: %{outcome: :confirmed}}})
+    submit(view, action_id, "permit2_approval", permit2_hash)
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{bid: %{outcome: :confirmed, onchain_bid_id: "7"}}})
+    submit(view, action_id, "bid", @bid_hash)
+
+    assert queued_results(watcher) == []
+
+    render_hook(element(watcher, @panel), "check_bid_step", %{"action-id" => action_id})
+
+    assert [
+             %{
+               status: :confirmed,
+               label: "Allow REGENT to be spent",
+               transaction_hash: @approval_hash
+             },
+             %{
+               status: :confirmed,
+               label: "Allow this auction to draw REGENT",
+               transaction_hash: ^permit2_hash
+             },
+             %{
+               status: :confirmed,
+               label: "Place the bid",
+               transaction_hash: @bid_hash,
+               message: "Bid 7 is on Base. Your position appears once it is read back."
+             }
+           ] = queued_results(watcher)
+
+    # Asking again describes the same three, so nothing is reported twice.
+    render_hook(element(watcher, @panel), "check_bid_step", %{"action-id" => action_id})
+    assert length(queued_results(watcher)) == 3
+  end
+
   test "ONLY_TERMINAL_OUTCOMES_ARE_RESULTS: a pending step and a rejection report nothing", %{
     conn: conn,
     auction: auction

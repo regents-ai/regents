@@ -45,13 +45,41 @@ defmodule AshPlatformWeb.Components.TransactionResultModal do
   defp title(:unverified), do: "Transaction not verified"
 
   @doc """
-  Hands finished results to the LiveView that owns the queue, in step order.
+  Hands one live operation transition to the LiveView that owns the queue.
 
-  A wallet LiveComponent runs inside that process, so this is the root's own
-  message; anything that is not a result is not reported.
+  A socket that was elsewhere while the customer signed may find several ordered
+  steps crossed at once, and each allowance the server verified along the way is
+  a transaction of its own. Every step between the one this socket last watched
+  and the one now in front of the customer is confirmed by `confirmed_step`, in
+  order, ahead of the operation's own `current_result`.
+
+  A restored or repeated terminal operation was never watched moving, so it
+  reports nothing at all.
   """
-  def report(results),
-    do: results |> Enum.reject(&is_nil/1) |> Enum.each(&send(self(), {:transaction_result, &1}))
+  def report_transition(prior, returned, ordered_steps, confirmed_step, current_result)
+
+  def report_transition(
+        %{action_id: id, step: from, terminal_at: nil},
+        %{action_id: id, step: to},
+        ordered_steps,
+        confirmed_step,
+        current_result
+      ) do
+    ordered_steps
+    |> Enum.drop_while(&(&1 != to_string(from)))
+    |> Enum.take_while(&(&1 != to_string(to)))
+    |> Enum.map(confirmed_step)
+    |> Enum.concat([current_result])
+    |> report()
+  end
+
+  def report_transition(_prior, _returned, _ordered_steps, _confirmed_step, _current_result),
+    do: :ok
+
+  # A wallet LiveComponent runs inside the root LiveView's process, so this is
+  # that process's own message. The queue is what decides whether a result is
+  # new, and what nothing at all means.
+  defp report(results), do: Enum.each(results, &send(self(), {:transaction_result, &1}))
 
   @doc """
   The one sentence a verified transaction says, wherever it is reported.

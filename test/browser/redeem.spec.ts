@@ -77,13 +77,7 @@ test("each Animata action needs its own wallet action, and a reload never repeat
 
   await explicitAction(page, "Review collection approval", "Approve NFT collection", 1)
   await explicitAction(page, "Review USDC approval", "Approve exactly 80 USDC", 2)
-  await explicitAction(
-    page,
-    "Review redemption",
-    "Redeem Animata",
-    3,
-    "Redeemed for Regents Club token #1123",
-  )
+  await explicitAction(page, "Review redemption", "Redeem Animata", 3, "Redeemed for Regents Club token #1123")
 
   // A further action in the same page session, rejected in the wallet with the
   // exact EIP-1193 4001 while the completed redemption's hash is still in

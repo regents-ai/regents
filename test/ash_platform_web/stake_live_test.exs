@@ -907,6 +907,33 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(button[phx-value-action="claim_usdc"][disabled]))
   end
 
+  # An approval Base has already verified is not a wait on Base. What is
+  # outstanding is the staking transaction itself, and the refusal says exactly
+  # that rather than describing a verification that has already answered.
+  test "U1_APPROVAL_VERIFIED_REFUSAL_IS_TRUTHFUL: the notice names the staking transaction, not a pending verification",
+       %{conn: conn} do
+    account = register("stake-approval-verified-notice", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+
+    submit_approval(view, prepared_action_id(render(view)))
+    render_async(view)
+    assert_push_event(view, "staking:prepared", %{})
+
+    assert {:ok, %{state: :approval_verified}} = StakeRedeemOperations.active(account.id, :stake)
+
+    html = render_click(view, "prepare_staking", %{"action" => "claim_usdc"})
+
+    assert html =~
+             "Your REGENT approval is confirmed. Finish the staking transaction in your wallet before starting another."
+
+    refute html =~ "still being verified on Base"
+    refute_push_event(view, "staking:prepared", _)
+  end
+
   test "U4_BASE_EXPLORER_TRUTH: each bound hash links to that exact transaction on Base", %{
     conn: conn
   } do

@@ -422,32 +422,28 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
 
   defp cleared(socket), do: addressed(socket, "autolaunch-launch:cleared", %{})
 
-  # Only a live transition this socket watched is a result: a restored or
-  # repeated terminal operation replays nothing. The root LiveView owns the
-  # queue and decides what is already reported.
-  defp reported(
-         socket,
-         %{action_id: id, step: step, terminal_at: nil},
-         %{action_id: id} = operation
-       ) do
-    TransactionResultModal.report([advanced(step, operation), settled_result(operation)])
+  # The allowance the server verified in order to move on is a transaction of
+  # its own. It settles nothing: the launch itself is still the only next wallet
+  # step.
+  defp reported(socket, prior, %{action_id: _} = operation) do
+    TransactionResultModal.report_transition(
+      prior,
+      operation,
+      Enum.map(LaunchActions.steps(operation), & &1["step"]),
+      &result(operation, &1, :confirmed, TransactionResultModal.confirmed_copy()),
+      settled_result(operation)
+    )
+
     socket
   end
 
   defp reported(socket, _prior, _returned), do: socket
 
-  # The step the server verified in order to move on. It settles nothing: the
-  # launch itself is still the only next wallet step.
-  defp advanced(step, %{step: step}), do: nil
-
-  defp advanced(step, operation),
-    do: result(operation, step, :confirmed, TransactionResultModal.confirmed_copy())
-
   defp settled_result(%{state: :chain_verified} = operation),
-    do: result(operation, operation.step, :confirmed, verified_copy())
+    do: result(operation, to_string(operation.step), :confirmed, verified_copy())
 
   defp settled_result(%{state: state} = operation) when state in [:reverted, :unverified],
-    do: result(operation, operation.step, state, settled_copy(operation))
+    do: result(operation, to_string(operation.step), state, settled_copy(operation))
 
   defp settled_result(_open), do: nil
 
@@ -458,7 +454,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
         action_id: operation.action_id,
         step: step,
         hash: LaunchActions.step_hash(operation, step),
-        label: step_label(Atom.to_string(step), operation),
+        label: step_label(step, operation),
         message: message
       })
 

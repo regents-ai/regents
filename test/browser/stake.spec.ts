@@ -154,16 +154,16 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await expect(dialog.getByText("Stake REGENT")).toBeVisible()
   await expect(dialog).toBeVisible()
 
-  // The control that opened the wallet has gone with the settled review, so
-  // focus lands on the shell rather than on a removed node.
-  expect(await page.evaluate(() => document.activeElement?.id)).toBe("app-shell-scroller")
+  // Confirming was scripted rather than pressed, so the last thing the customer
+  // actually put focus on is the Review control. It is still on the page, so it
+  // is what focus comes back to — after this result and after the one behind it.
+  const reviewStake = page.getByRole("button", {name: "Review stake"})
+  expect(await reviewStake.evaluate(node => node === document.activeElement)).toBe(true)
 
   await dialog.getByRole("button", {name: "Close"}).click()
   await expect(dialog).toBeHidden()
 
-  // That element is still connected, so it keeps focus rather than being
-  // replaced by the fallback.
-  expect(await page.evaluate(() => document.activeElement?.id)).toBe("app-shell-scroller")
+  expect(await reviewStake.evaluate(node => node === document.activeElement)).toBe(true)
   expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
   expect(await sendCount(page)).toBe(2)
 
