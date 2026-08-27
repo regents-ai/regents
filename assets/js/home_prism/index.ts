@@ -17,10 +17,9 @@ import {
   prepareScene,
   presentScene,
   resizeScene,
-  setLampAim,
   setOrbit,
 } from "./scene"
-import {CAMERA_ORBIT_LERP, LAMP_AIM_LERP, PRISM_DEFAULT_ARC, type Vec2} from "./types"
+import {CAMERA_ORBIT_LERP, type Vec2} from "./crown-types"
 
 export interface PrismRenderer {
   /** Pointer position inside the hero, both components normalized to [0, 1]. */
@@ -36,7 +35,6 @@ export interface PrismRenderer {
   dispose(): void
 }
 
-const CANONICAL_AIM: Vec2 = [PRISM_DEFAULT_ARC, 0.5]
 const CANONICAL_ORBIT: Vec2 = [0, 0]
 const clampUnit = (value: number): number => Math.min(1, Math.max(0, value))
 
@@ -75,19 +73,15 @@ export async function createPrismRenderer(
     if (!disposed) onDeviceLost()
   })
 
-  let aimTarget = CANONICAL_AIM
-  let aimCurrent = CANONICAL_AIM
   let orbitTarget = CANONICAL_ORBIT
   let orbitCurrent = CANONICAL_ORBIT
 
   return {
-    // Pointer height swings the source; pointer width chooses its point of impact.
+    // Pointer motion is decorative and camera-only.
     aim(x, y) {
-      aimTarget = [clampUnit(y), clampUnit(x)]
       orbitTarget = [clampUnit(x) * 2 - 1, clampUnit(y) * 2 - 1]
     },
     rest() {
-      aimTarget = CANONICAL_AIM
       orbitTarget = CANONICAL_ORBIT
     },
     resize(width, height) {
@@ -95,17 +89,12 @@ export async function createPrismRenderer(
       resizeScene(scene, canvasSurface.size)
     },
     step(snap) {
-      const nextAim = stepPair(aimCurrent, aimTarget, LAMP_AIM_LERP, snap)
       const nextOrbit = stepPair(orbitCurrent, orbitTarget, CAMERA_ORBIT_LERP, snap)
-      if (nextAim) {
-        aimCurrent = nextAim
-        setLampAim(scene, nextAim[0], nextAim[1])
-      }
       if (nextOrbit) {
         orbitCurrent = nextOrbit
         setOrbit(scene, nextOrbit[0], nextOrbit[1])
       }
-      return Boolean(nextAim || nextOrbit)
+      return Boolean(nextOrbit)
     },
     present() {
       presentScene(scene, canvasSurface)

@@ -1,33 +1,27 @@
 /**
- * The one camera in the scene, and the wall it decides the size of. Forked from the
- * Vercel vgpu prism background. See THIRD_PARTY_NOTICES.md.
+ * The one camera in the scene. Forked from the Vercel vgpu prism background. See
+ * THIRD_PARTY_NOTICES.md.
  *
- * The wall is the picture: a frame that saw past a corner of it would end in a hard
- * edge against an empty room. Rather than pick a wall size and hope, this module
- * runs the relationship the other way — `wallCoverage` walks the frustum's corners
- * to the wall plane and `wallHalfHeight` returns the size that covers the worst of
- * them, over every position the pointer can put the camera in.
- *
- * The pointer only ever moves the view a few degrees off its resting angle. That is
- * deliberate: the deterministic ribbons live on a world-space sheet inside the
- * glass, so moving the camera only changes their projection — and a small swing is
- * enough to reveal their separation from the wall.
+ * Its distance is derived from the complete crown AABB. Every aspect ratio gets one
+ * distance that fits all eight 3D corners at every permitted orbit extreme, leaving
+ * the same deliberate screen-space breathing room through pointer motion and resize.
  */
 
 import {perspectiveCamera, type SceneCamera} from "vgpu/scene"
 
 import {
+  CROWN_AABB_CORNERS,
   CAMERA_DISTANCE,
   CAMERA_FOV_DEGREES,
   CAMERA_ORBIT_DEGREES,
   CAMERA_PITCH_DEGREES,
   CAMERA_YAW_DEGREES,
-} from "./types"
+  type Vec3,
+} from "./crown-types"
 
-type Vec3 = readonly [number, number, number]
-
-/** Slack on the derived wall size, covering the gap between sampled corners. */
-const WALL_SAFETY = 1.02
+/** At least eight percent of each screen dimension remains clear around the crown. */
+export const CROWN_FRAME_MARGIN = 0.08
+const CAMERA_FIT_SAFETY = 1.005
 
 export interface CameraView {
   readonly camera: SceneCamera
@@ -57,16 +51,17 @@ const normalize = (value: Vec3): Vec3 => {
  * The camera for a pointer position, both components in [-1, 1] with 0 at rest.
  *
  * It swings on a sphere around the origin and keeps looking at it, so the prism
- * stays put in the frame and only the parallax against the wall behind it moves.
+ * crown stays put in the frame while its studio reflections shift across the glass.
  */
 export function cameraView(aspect: number, orbitX = 0, orbitY = 0): CameraView {
+  const distance = crownCameraDistance(aspect)
   const yaw = radians(CAMERA_YAW_DEGREES + clamp(orbitX, -1, 1) * CAMERA_ORBIT_DEGREES)
   const pitch = radians(CAMERA_PITCH_DEGREES - clamp(orbitY, -1, 1) * CAMERA_ORBIT_DEGREES)
   const cosPitch = Math.cos(pitch)
   const position: Vec3 = [
-    Math.sin(yaw) * cosPitch * CAMERA_DISTANCE,
-    Math.sin(pitch) * CAMERA_DISTANCE,
-    Math.cos(yaw) * cosPitch * CAMERA_DISTANCE,
+    Math.sin(yaw) * cosPitch * distance,
+    Math.sin(pitch) * distance,
+    Math.cos(yaw) * cosPitch * distance,
   ]
   const forward = normalize([-position[0], -position[1], -position[2]])
   const right = normalize(cross(forward, [0, 1, 0]))
@@ -77,7 +72,7 @@ export function cameraView(aspect: number, orbitX = 0, orbitY = 0): CameraView {
       // The whole scene sits between the wall at z = 0 and the glass in front of it,
       // so the depth range only has to bracket a couple of units.
       near: 0.05,
-      far: 4 * CAMERA_DISTANCE,
+      far: 4 * distance,
       position,
       target: [0, 0, 0],
     }),
@@ -89,55 +84,46 @@ export function cameraView(aspect: number, orbitX = 0, orbitY = 0): CameraView {
 }
 
 /**
- * How much of a unit-height wall the frame needs, as a fraction of it.
+ * Camera distance that fits every AABB corner at every orbit extreme.
  *
- * Measured by walking the four corner rays of the frustum to the wall plane, which
- * is the only place a shortfall could appear.
+ * For a point projected onto one camera axis, screen occupancy is
+ * `axis / ((distance + forwardDepth) * tanHalfFov)`. Rearranging that expression
+ * gives the minimum distance directly, without viewport-name branches or search.
  */
-function wallCoverage(aspect: number, orbitX = 0, orbitY = 0): number {
-  const view = cameraView(aspect, orbitX, orbitY)
+export function crownCameraDistance(aspect: number): number {
+  const safeAspect = Math.max(0.01, aspect)
   const tanHalfFov = Math.tan(radians(CAMERA_FOV_DEGREES) / 2)
-  let worst = 0
-  for (const horizontal of [-1, 1]) {
-    for (const vertical of [-1, 1]) {
-      const direction = [0, 1, 2].map(
-        axis =>
-          view.forward[axis]! +
-          view.right[axis]! * horizontal * tanHalfFov * aspect +
-          view.up[axis]! * vertical * tanHalfFov,
-      ) as unknown as Vec3
-      const distance = -view.position[2] / direction[2]
-      worst = Math.max(
-        worst,
-        Math.abs(view.position[0] + direction[0] * distance) / aspect,
-        Math.abs(view.position[1] + direction[1] * distance),
-      )
-    }
-  }
-  return worst
-}
+  const usableNdc = 1 - CROWN_FRAME_MARGIN * 2
+  let required = 0
 
-/**
- * Half-height of the wall, in scene units, for a canvas of this shape.
- *
- * Derived rather than chosen. An off-axis camera keystones the wall and a wide
- * canvas widens the frustum, so how much wall the frame needs depends on the canvas:
- * this returns the worst case over the pointer's whole swing, which is exactly the
- * size that guarantees the frame never sees past the lit wall.
- *
- * Nothing optical scales with it. The prism, the lamp and their distances are fixed
- * in scene units, so a taller wall means a larger visible rectangle around an
- * unchanged scene — the same picture with more room in the corners.
- */
-export function wallHalfHeight(aspect: number): number {
-  let worst = 0
   for (const orbitX of [-1, 0, 1]) {
     for (const orbitY of [-1, 0, 1]) {
-      worst = Math.max(worst, wallCoverage(aspect, orbitX, orbitY))
+      const yaw = radians(CAMERA_YAW_DEGREES + orbitX * CAMERA_ORBIT_DEGREES)
+      const pitch = radians(CAMERA_PITCH_DEGREES - orbitY * CAMERA_ORBIT_DEGREES)
+      const cosPitch = Math.cos(pitch)
+      const forward = normalize([
+        -Math.sin(yaw) * cosPitch,
+        -Math.sin(pitch),
+        -Math.cos(yaw) * cosPitch,
+      ])
+      const right = normalize(cross(forward, [0, 1, 0]))
+      const up = cross(right, forward)
+
+      for (const corner of CROWN_AABB_CORNERS) {
+        const forwardDepth = dot(corner, forward)
+        required = Math.max(
+          required,
+          Math.abs(dot(corner, right)) / (usableNdc * tanHalfFov * safeAspect) - forwardDepth,
+          Math.abs(dot(corner, up)) / (usableNdc * tanHalfFov) - forwardDepth,
+        )
+      }
     }
   }
-  return worst * WALL_SAFETY
+
+  return Math.max(CAMERA_DISTANCE, required * CAMERA_FIT_SAFETY)
 }
+
+const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 /** Column-major XYZ rotation, used for the studio environment's orientation. */
 export function rotationMatrix(degrees: readonly [number, number, number]): Float32Array {
