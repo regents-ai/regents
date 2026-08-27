@@ -11,6 +11,14 @@ defmodule AshPlatform.PrivyTest do
     display_name: nil
   }
 
+  @verification_failures %{
+    "forged" => :token_verification_failed,
+    "expired" => :token_expired,
+    "wrong-app" => :invalid_audience,
+    "wrong-issuer" => :invalid_issuer,
+    "malformed" => :invalid_token
+  }
+
   # The real provider's roles: an access token authenticates the subject and
   # session and carries no linked accounts, while its identity token repeats
   # that subject and session and carries the signed accounts as a JSON string.
@@ -74,6 +82,11 @@ defmodule AshPlatform.PrivyTest do
     defp verified("wrong-app"), do: {:error, :invalid_audience}
     defp verified("wrong-issuer"), do: {:error, :invalid_issuer}
     defp verified("forged"), do: {:error, :token_verification_failed}
+
+    # A result outside the shared verifier's documented vocabulary, carrying a
+    # detail no classification may ever repeat.
+    defp verified("unreviewed"), do: {:error, %RuntimeError{message: "leaky detail"}}
+
     defp verified(_malformed), do: {:error, :invalid_token}
 
     defp session(claims) do
@@ -142,46 +155,56 @@ defmodule AshPlatform.PrivyTest do
   test "MUTUALLY_EXCLUSIVE_TOKEN_ROLES: each slot accepts only its own token role" do
     # An access token carries no signed accounts, so it is never evidence, and
     # an identity token never authenticates a session on its own.
-    assert pair("access", "access") == {:error, :invalid_session_pair}
-    assert pair("identity", "access") == {:error, :invalid_session_pair}
+    assert pair("access", "access") == {:error, {:pair_binding, :identity_accounts_missing}}
+    assert pair("identity", "access") == {:error, {:pair_binding, :access_role_confused}}
 
     # The same identity token in both slots is refused by the access slot.
-    assert pair("identity", "identity") == {:error, :invalid_session_pair}
+    assert pair("identity", "identity") == {:error, {:pair_binding, :access_role_confused}}
   end
 
   test "INDEPENDENT_VERIFICATION_AND_BINDING: evidence binds only to the authenticated session" do
-    assert pair("access", "identity-other-subject") == {:error, :invalid_session_pair}
-    assert pair("access-other-subject", "identity") == {:error, :invalid_session_pair}
-    assert pair("access-other-session", "identity") == {:error, :invalid_session_pair}
-    assert pair("access", "identity-without-sid") == {:error, :invalid_session_pair}
-    assert pair("access-blank-sid", "identity") == {:error, :invalid_session_pair}
+    assert pair("access", "identity-other-subject") ==
+             {:error, {:pair_binding, :subject_mismatch}}
+
+    assert pair("access-other-subject", "identity") ==
+             {:error, {:pair_binding, :subject_mismatch}}
+
+    assert pair("access-other-session", "identity") ==
+             {:error, {:pair_binding, :session_mismatch}}
   end
 
-  test "INDEPENDENT_VERIFICATION_AND_BINDING: either slot's own verification failure refuses the pair" do
-    for unverifiable <- ~w(forged expired wrong-app wrong-issuer malformed) do
-      assert {:error, _refused} = pair(unverifiable, "identity")
-      assert {:error, _refused} = pair("access", unverifiable)
+  test "INDEPENDENT_VERIFICATION_AND_BINDING: a token that names no session is refused in its own slot" do
+    assert pair("access-blank-sid", "identity") ==
+             {:error, {:access_verification, :missing_session_id}}
+
+    assert pair("access", "identity-without-sid") ==
+             {:error, {:identity_verification, :missing_session_id}}
+  end
+
+  test "INDEPENDENT_VERIFICATION_AND_BINDING: either slot's own verification failure names its stage" do
+    for {unverifiable, reason} <- @verification_failures do
+      assert pair(unverifiable, "identity") == {:error, {:access_verification, reason}}
+      assert pair("access", unverifiable) == {:error, {:identity_verification, reason}}
     end
   end
 
   test "MUTUALLY_EXCLUSIVE_TOKEN_ROLES: malformed signed accounts are not evidence" do
-    assert {:error, :invalid_linked_accounts} = pair("access", "identity-malformed-accounts")
+    assert pair("access", "identity-malformed-accounts") ==
+             {:error, {:identity_verification, :invalid_linked_accounts}}
   end
 
-  test "FAIL_CLOSED: a pair that is not two strings is refused before the provider is asked" do
-    assert Privy.verify_session_pair(%{access: "access", identity: nil}) ==
-             {:error, :invalid_session_pair}
+  test "REDACTED_CLASSIFICATION: an unreviewed verifier result is reduced, never repeated" do
+    assert pair("unreviewed", "identity") ==
+             {:error, {:access_verification, :unknown_verification_failure}}
 
-    assert Privy.verify_session_pair(%{access: nil, identity: "identity"}) ==
-             {:error, :invalid_session_pair}
-
-    assert Privy.verify_session_pair(%{}) == {:error, :invalid_session_pair}
+    assert pair("access", "unreviewed") ==
+             {:error, {:identity_verification, :unknown_verification_failure}}
   end
 
   test "FAIL_CLOSED: an unconfigured verification key refuses every pair" do
     Application.delete_env(:ash_platform, :privy)
 
-    assert pair("access", "identity") == {:error, :missing_privy_config}
+    assert pair("access", "identity") == {:error, {:configuration, :missing_privy_config}}
   end
 
   defp pair(access, identity),

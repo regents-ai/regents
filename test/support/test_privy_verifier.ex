@@ -18,17 +18,17 @@ defmodule AshPlatform.TestPrivyVerifier do
 
   Only an access token names a session and only its own partner is that
   session's signed evidence, so a swapped, reused or unpaired token is no pair
-  at all and never reaches the session boundary.
+  at all and never reaches the session boundary. Refusals carry the same tagged
+  classification `AshPlatform.Privy` returns.
   """
   def verify_session_pair(%{access: access, identity: identity})
       when is_binary(access) and is_binary(identity) do
     access |> verify_access_token() |> paired(identity == identity_token(access))
   end
 
-  def verify_session_pair(_pair), do: {:error, :invalid_session_pair}
-
   defp paired({:ok, verified}, true), do: {:ok, verified}
-  defp paired(_unverified, _matched), do: {:error, :invalid_session_pair}
+  defp paired({:ok, _verified}, false), do: {:error, {:pair_binding, :session_mismatch}}
+  defp paired({:error, reason}, _matched), do: {:error, {:access_verification, reason}}
 
   def verify_access_token("valid") do
     {:ok,

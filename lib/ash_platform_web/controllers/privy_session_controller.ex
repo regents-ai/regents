@@ -7,6 +7,10 @@ defmodule AshPlatformWeb.PrivySessionController do
   alias AshPlatform.AgentAuth.ClaimRateLimiter
   alias AshPlatform.Privy
 
+  require Logger
+
+  @account_evidence_reasons [:missing_linked_wallet, :invalid_verified_identity]
+
   @doc """
   The browser-session state matrix.
 
@@ -27,10 +31,10 @@ defmodule AshPlatformWeb.PrivySessionController do
   def create(conn, _untrusted_params) do
     with {:ok, pair} <- session_pair(conn),
          {:ok, verified} <- verifier().verify_session_pair(pair),
-         {:ok, account, identity_conflicts} <- VerifiedSession.establish(verified) do
+         {:ok, account, identity_conflicts} <- establish(verified) do
       bind(conn, account, identity_conflicts)
     else
-      _unverified -> unauthorized(conn)
+      {:error, {stage, reason}} -> refuse(conn, stage, reason)
     end
   end
 
@@ -149,6 +153,27 @@ defmodule AshPlatformWeb.PrivySessionController do
     end
   end
 
+  # The account boundary's own two outcomes are named; anything else it or Ash
+  # returns is reduced without being inspected, so no query, changeset or record
+  # detail can reach the classification.
+  defp establish(verified) do
+    case VerifiedSession.establish(verified) do
+      {:ok, _account, _conflicts} = established -> established
+      {:error, reason} when reason in @account_evidence_reasons -> account_evidence(reason)
+      _rejected -> account_evidence(:account_rejected)
+    end
+  end
+
+  defp account_evidence(reason), do: {:error, {:account_evidence, reason}}
+
+  # Both values are fixed atoms from the classification contract, and the
+  # development formatter drops metadata, so they belong in the message itself.
+  # The refused pair is never interpolated, inspected or answered differently.
+  defp refuse(conn, stage, reason) do
+    Logger.debug("Privy session rejected stage=#{stage} reason=#{reason}")
+    unauthorized(conn)
+  end
+
   # The provider attempt is over before any authority work starts, so no external
   # call sits inside the transaction: a bearer this browser cannot prove revokes
   # the lineage it was offered for instead of leaving it bound and current.
@@ -240,21 +265,21 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   defp bearer_token(conn) do
     case get_req_header(conn, "authorization") do
-      ["Bearer " <> access] -> present(access)
-      _absent_or_duplicated -> {:error, :missing_token}
+      ["Bearer " <> access] -> present(access, :missing_access_token)
+      _absent_or_duplicated -> {:error, {:request_pair, :missing_access_token}}
     end
   end
 
   defp identity_token(conn) do
     case get_req_header(conn, "privy-id-token") do
-      [identity] -> present(identity)
-      _absent_or_duplicated -> {:error, :missing_token}
+      [identity] -> present(identity, :missing_identity_token)
+      _absent_or_duplicated -> {:error, {:request_pair, :missing_identity_token}}
     end
   end
 
-  defp present(token) do
+  defp present(token, reason) do
     case String.trim(token) do
-      "" -> {:error, :missing_token}
+      "" -> {:error, {:request_pair, reason}}
       token -> {:ok, token}
     end
   end

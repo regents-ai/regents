@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.PrivySessionControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
@@ -476,6 +478,10 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
   @identity AshPlatform.TestPrivyVerifier.identity_token("valid")
 
+  # The one rendered diagnostic line; this repository's development formatter
+  # drops metadata, so the whole classification lives in the message.
+  @classification ~r/Privy session rejected [^\n]+/
+
   test "COMPLETE_PAIR_REQUIRED: a half, blank, duplicated or unverifiable pair is refused before a write",
        %{conn: conn} do
     assert {:ok, before_attempts} =
@@ -539,6 +545,54 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert %{"authenticated" => true} = json_response(signed_in, 200)
     assert_no_token_disclosure(signed_in)
   end
+
+  test "REDACTED_CLASSIFICATION: the controller names the two stages it owns itself" do
+    debug_logging()
+
+    assert classification(put_headers(browser(), [{"privy-id-token", @identity}])) ==
+             "Privy session rejected stage=request_pair reason=missing_access_token"
+
+    assert classification(put_headers(browser(), [{"authorization", "Bearer valid"}])) ==
+             "Privy session rejected stage=request_pair reason=missing_identity_token"
+
+    # Lapsed wallet evidence is the account boundary's own outcome, not a
+    # verification failure, and keeps its own name.
+    assert classification(put_privy_pair(browser(), "no-wallet")) ==
+             "Privy session rejected stage=account_evidence reason=missing_linked_wallet"
+  end
+
+  test "REDACTED_CLASSIFICATION: the classification repeats neither token" do
+    debug_logging()
+    log = refusal_log(put_privy_pair(browser(), "unverifiable"))
+
+    assert Regex.run(@classification, log) ==
+             ["Privy session rejected stage=access_verification reason=invalid_token"]
+
+    refute log =~ "unverifiable"
+  end
+
+  # Raises the primary Logger level for one case, because this repository logs at
+  # warning under test and the diagnostic is deliberately debug-level. Every case
+  # in this synchronous file runs alone, so nothing else observes the change.
+  defp debug_logging do
+    level = Logger.level()
+    Logger.configure(level: :debug)
+    on_exit(fn -> Logger.configure(level: level) end)
+  end
+
+  defp classification(browser) do
+    assert [classification] = Regex.run(@classification, refusal_log(browser))
+    classification
+  end
+
+  defp refusal_log(browser) do
+    capture_log(fn ->
+      assert browser |> post("/auth/privy/session", %{}) |> json_response(401) ==
+               %{"error" => "unauthorized"}
+    end)
+  end
+
+  defp browser, do: build_conn() |> init_test_session(%{}) |> put_valid_csrf()
 
   defp put_privy_pair(conn, access_token) do
     conn
