@@ -144,6 +144,12 @@ test("a signed-in wallet reviews, sends once, and reads its outcome from the ser
   // Exactly one wallet send happened, and the claimed step is not offered again.
   expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe("1")
   await expect(page.locator(`${card} [data-subject-wallet-send]`)).toHaveCount(0)
+
+  // A step still waiting on Base is not an outcome, so nothing modal appears
+  // over the card and the next control still answers.
+  expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
+  await page.locator(`${card} button[phx-click="check_subject_wallet_step"]`).click()
+  await expect(page.locator(card)).toContainText("Sent")
 })
 
 test("a reload recovers the open action and never sends it a second time", async ({page}) => {

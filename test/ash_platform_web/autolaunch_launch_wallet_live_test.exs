@@ -241,8 +241,10 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
                "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
 
       # The honest terminal state never claims the launch is already published.
+      # The verified allowance before it is a separate result and says only
+      # what its own receipt proved.
       refute html =~ "Launched"
-      refute html =~ "Confirmed on Base"
+      refute has_element?(view, card(context), "Confirmed on Base")
       refute html =~ "waiting for index"
     end
 
@@ -355,6 +357,110 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   end
 
   # Helpers
+
+  describe "SERVER_CLASSIFIED_OUTCOMES_BECOME_ONE_RESULT_EACH" do
+    # R2: the verified allowance and the launch itself are separate results in
+    # step order, each bound to its own hash. The allowance settles nothing.
+    test "the verified allowance and the launch are reported once each, in step order", context do
+      {view, operation} = approved(context)
+
+      assert [
+               %{
+                 status: :confirmed,
+                 label: "Allow the launch fee to be taken",
+                 message: "Confirmed on Base.",
+                 transaction_hash: @approval_hash
+               }
+             ] = queued_results(view)
+
+      ChainClient.put(Fixture.fixture(allowance: @fee))
+
+      render_hook(element(view, card(context)), "sign_launch_step", %{
+        "action-id" => operation.action_id
+      })
+
+      ChainClient.put(%{outcomes: %{launch: %{outcome: :confirmed, result: %{}}}})
+
+      render_hook(element(view, card(context)), "launch_submitted", %{
+        "action_id" => operation.action_id,
+        "step" => "launch",
+        "transaction_hash" => @launch_hash
+      })
+
+      assert [approval, launch] = queued_results(view)
+      assert approval.transaction_hash == @approval_hash
+
+      assert %{
+               status: :confirmed,
+               label: "Create the launch",
+               transaction_hash: @launch_hash,
+               message:
+                 "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
+             } = launch
+
+      # One dialog at a time, and the queue advances rather than dropping one.
+      portal = view |> element("#transaction-result-portal") |> render()
+      assert portal =~ ~s(data-result-id="#{approval.id}")
+
+      render_hook(view, "dismiss_transaction_result", %{"id" => approval.id})
+      assert queued_results(view) == [launch]
+
+      assert view |> element("#transaction-result-portal") |> render() =~
+               ~s(href="https://basescan.org/tx/#{@launch_hash}")
+    end
+
+    test "a reverted step is a result bound to that step's own hash", context do
+      view = submitted(context)
+
+      ChainClient.put(%{outcomes: %{approval: %{outcome: :reverted}}})
+
+      view
+      |> element(~s(#{card(context)} button[phx-click="check_launch_step"]))
+      |> render_click()
+
+      assert [
+               %{
+                 status: :reverted,
+                 title: "Transaction reverted",
+                 label: "Allow the launch fee to be taken",
+                 transaction_hash: @approval_hash,
+                 message: "This transaction reverted on Base. Nothing was created."
+               }
+             ] = queued_results(view)
+
+      assert has_element?(view, card(context), "Reverted")
+    end
+
+    # R1: a submitted step still waiting on Base, and a review the wallet never
+    # sent, are not outcomes.
+    test "a submitted step and an explicit rejection create no result", context do
+      view = submitted(context)
+      operation = open!(context)
+
+      assert queued_results(view) == []
+
+      render_hook(element(view, card(context)), "launch_rejected", %{
+        "action_id" => operation.action_id,
+        "code" => 4001
+      })
+
+      assert queued_results(view) == []
+    end
+
+    # R2: a terminal operation this socket never watched move is history.
+    test "a restored terminal launch replays nothing", context do
+      {first, _operation} = approved(context)
+      render_hook(first, "dismiss_transaction_result", %{"id" => hd(queued_results(first)).id})
+
+      second = mounted(context)
+      active_wallet(second, card(context), @wallet)
+
+      assert queued_results(second) == []
+      assert has_element?(second, card(context), "Verified")
+    end
+  end
+
+  defp queued_results(view), do: :sys.get_state(view.pid).socket.assigns.transaction_results
 
   defp card(context), do: "#autolaunch-launch-wallet-#{context[:draft].id}"
 

@@ -18,6 +18,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.LaunchActions
+  alias AshPlatformWeb.Components.TransactionResultModal
 
   @chain_id 8453
 
@@ -367,7 +368,10 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   # that rather than shown on this card.
   defp settled({:ok, %{operation: %{launch_draft_id: draft_id} = operation}}, socket) do
     if draft_id == socket.assigns.draft.id do
-      socket |> assign(operation: operation, elsewhere?: false, notice: nil) |> published()
+      socket
+      |> reported(socket.assigns.operation, operation)
+      |> assign(operation: operation, elsewhere?: false, notice: nil)
+      |> published()
     else
       socket |> assign(operation: nil, elsewhere?: true, notice: nil) |> cleared()
     end
@@ -417,6 +421,46 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   end
 
   defp cleared(socket), do: addressed(socket, "autolaunch-launch:cleared", %{})
+
+  # Only a live transition this socket watched is a result: a restored or
+  # repeated terminal operation replays nothing. The root LiveView owns the
+  # queue and decides what is already reported.
+  defp reported(
+         socket,
+         %{action_id: id, step: step, terminal_at: nil},
+         %{action_id: id} = operation
+       ) do
+    TransactionResultModal.report([advanced(step, operation), settled_result(operation)])
+    socket
+  end
+
+  defp reported(socket, _prior, _returned), do: socket
+
+  # The step the server verified in order to move on. It settles nothing: the
+  # launch itself is still the only next wallet step.
+  defp advanced(step, %{step: step}), do: nil
+
+  defp advanced(step, operation),
+    do: result(operation, step, :confirmed, TransactionResultModal.confirmed_copy())
+
+  defp settled_result(%{state: :chain_verified} = operation),
+    do: result(operation, operation.step, :confirmed, verified_copy())
+
+  defp settled_result(%{state: state} = operation) when state in [:reverted, :unverified],
+    do: result(operation, operation.step, state, settled_copy(operation))
+
+  defp settled_result(_open), do: nil
+
+  defp result(operation, step, status, message),
+    do:
+      TransactionResultModal.result(%{
+        status: status,
+        action_id: operation.action_id,
+        step: step,
+        hash: LaunchActions.step_hash(operation, step),
+        label: step_label(Atom.to_string(step), operation),
+        message: message
+      })
 
   # A pushed event reaches every hook in the LiveView, and a founder with several
   # saved drafts has one card each. Naming the card the event belongs to is what

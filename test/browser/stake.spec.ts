@@ -94,6 +94,13 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await expect(page.getByRole("heading", {name: "Stake REGENT"})).toBeVisible()
   await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
 
+  // Two in-app patches, so the browser's own Back and Forward can later prove
+  // that a route patch is a patch and never a dismissal.
+  await page.getByRole("link", {name: "Overview", exact: true}).click()
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-route-id", "app")
+  await page.getByRole("link", {name: "Stake", exact: true}).click()
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-route-id", "stake")
+
   // The wallet active in the browser is what /stake reads. Selecting a wallet
   // this account does not hold leaves no position and no action, and never
   // falls back to the account's stored wallet.
@@ -125,7 +132,39 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
     button.click()
   })
 
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
+  await expect(page.locator("#regent-staking").getByText("Confirmed on Base.")).toBeVisible()
+  expect(await sendCount(page)).toBe(2)
+
+  // Two transactions were verified, so two results queue behind one native
+  // dialog. It is the only thing blocking the page, and it blocks it for real.
+  const dialog = page.locator("dialog#transaction-result-dialog")
+  await expect(dialog).toHaveCount(1)
+  await expect(dialog.getByText("REGENT approval")).toBeVisible()
+
+  expect(
+    await dialog.evaluate(node => ({
+      modal: node.matches(":modal"),
+      inShell: node.closest("#app-shell") !== null,
+    })),
+  ).toEqual({modal: true, inShell: false})
+
+  // Escape dismisses the first result and the second takes its place; no result
+  // is dropped and nothing durable moves.
+  await page.keyboard.press("Escape")
+  await expect(dialog.getByText("Stake REGENT")).toBeVisible()
+  await expect(dialog).toBeVisible()
+
+  // The control that opened the wallet has gone with the settled review, so
+  // focus lands on the shell rather than on a removed node.
+  expect(await page.evaluate(() => document.activeElement?.id)).toBe("app-shell-scroller")
+
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog).toBeHidden()
+
+  // That element is still connected, so it keeps focus rather than being
+  // replaced by the fallback.
+  expect(await page.evaluate(() => document.activeElement?.id)).toBe("app-shell-scroller")
+  expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
   expect(await sendCount(page)).toBe(2)
 
   // A second action in the same page session, rejected in the wallet with the
@@ -158,8 +197,14 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
   await page.evaluate(key => sessionStorage.removeItem(key), moveKey)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
 
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
+  await expect(page.locator("#regent-staking").getByText("Confirmed on Base.")).toBeVisible()
   expect(await sendCount(page)).toBe(3)
+
+  // A press on the backdrop, outside the dialog's own box, dismisses it too.
+  await expect(dialog.getByText("Claim USDC")).toBeVisible()
+  await page.mouse.click(4, 4)
+  await expect(dialog).toBeHidden()
+  expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
 
   // The last action reports its hash and stops: the browser asks Base for
   // nothing, and the server's own read is what finishes it. Preparing it at all
@@ -189,7 +234,42 @@ test("signed-in staking confirms once, survives a reload and never sends twice",
 
   const submitted = page.locator(".stake-submission")
   await expect(submitted.getByText(short(unstakeHash), {exact: true})).toBeVisible()
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
+  await expect(page.locator("#regent-staking").getByText("Confirmed on Base.")).toBeVisible()
+  expect(await sendCount(page)).toBe(4)
+
+  // The result names the exact transaction and links to it on BaseScan.
+  await expect(dialog.getByText("Unstake REGENT")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${unstakeHash}`,
+  )
+
+  // A route patch is a patch, not a dismissal. The shell's motion region is
+  // rebuilt around it, and exactly one dialog is left in the body, still open on
+  // the same result.
+  const openResult = await dialog.getAttribute("data-result-id")
+
+  for (const move of [() => page.goBack(), () => page.goForward()]) {
+    await move()
+    await expect(dialog).toHaveCount(1)
+    await expect(dialog).toHaveAttribute("data-result-id", String(openResult))
+    expect(await dialog.evaluate(node => node.matches(":modal"))).toBe(true)
+  }
+
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-route-id", "stake")
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog).toBeHidden()
+
+  // Nothing is left blocking the page: the next field, the next button and the
+  // next navigation all answer.
+  await page.getByLabel("REGENT amount").fill("2")
+  await expect(page.getByLabel("REGENT amount")).toHaveValue("2")
+  await page.getByRole("button", {name: "Max"}).click()
+  await expect(page.getByLabel("REGENT amount")).not.toHaveValue("2")
+  await page.getByRole("link", {name: "Overview", exact: true}).click()
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-route-id", "app")
+  await page.getByRole("link", {name: "Stake", exact: true}).click()
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-route-id", "stake")
   expect(await sendCount(page)).toBe(4)
 
   // Stored browser state is evidence, never authority. A reload asks the owning

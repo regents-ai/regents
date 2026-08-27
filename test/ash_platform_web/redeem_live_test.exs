@@ -451,7 +451,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_click(view, "refresh_redemption", %{})
     html = render_async(view)
 
-    refute html =~ "Confirmed on Base"
+    refute has_element?(view, "#animata-redemption", "Confirmed on Base")
     refute html =~ "Claimed 1 REGENT."
     refute html =~ short_hash(@tx_hash)
     assert html =~ "Claimable REGENT"
@@ -503,7 +503,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     html = render_async(view)
 
     refute_received {:reading, _second}
-    refute html =~ "Confirmed on Base"
+    refute has_element?(view, "#animata-redemption", "Confirmed on Base")
     refute html =~ "Claimed 1 REGENT."
     assert has_element?(view, "#redemption-selection")
 
@@ -950,6 +950,94 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              ~s(.redeem-review button[data-copy-signer="#{@wallet}"][aria-label="Copy the full wallet address"])
            )
   end
+
+  # R1/R3: each Redeem action is reviewed and signed on its own, so its result
+  # names that exact action and the exact hash the server classified.
+  test "R1_R3_EACH_REDEEM_OUTCOME_IS_ONE_RESULT_NAMING_ITS_OWN_ACTION", %{conn: conn} do
+    account = register("redeem-results", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    assert queued_results(view) == []
+
+    submit(view, action_id)
+    render_async(view)
+
+    assert [
+             %{
+               status: :confirmed,
+               title: "Transaction confirmed",
+               label: "Claim unlocked REGENT",
+               message: "Confirmed on Base.",
+               transaction_hash: @tx_hash
+             } = result
+           ] = queued_results(view)
+
+    portal = view |> element("#transaction-result-portal") |> render()
+    assert portal =~ ~s(data-result-id="#{result.id}")
+    assert portal =~ ~s(href="https://basescan.org/tx/#{@tx_hash}")
+
+    # Dismissal is feedback ending, never a change to anything durable.
+    render_hook(view, "dismiss_transaction_result", %{"id" => result.id})
+    assert queued_results(view) == []
+    assert render(view) =~ short_hash(@tx_hash)
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :redeem)
+  end
+
+  test "R1_A_REVERTED_REDEMPTION_KEEPS_ITS_EXACT_HASH", %{conn: conn} do
+    account = register("redeem-revert-result", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    Application.put_env(:ash_platform, :test_redemption_confirmation_result, :reverted)
+    submit(view, action_id)
+    render_async(view)
+
+    assert [
+             %{
+               status: :reverted,
+               label: "Claim unlocked REGENT",
+               transaction_hash: @tx_hash,
+               message: "The redemption transaction reverted. Prepare a new action when ready."
+             }
+           ] = queued_results(view)
+  end
+
+  test "R1_AN_UNVERIFIED_REDEMPTION_IS_A_RESULT_AND_IS_NEVER_SUCCESS", %{conn: conn} do
+    account = register("redeem-unverified-result", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    Application.put_env(:ash_platform, :test_redemption_confirmation_result, :unverified)
+    submit(view, action_id)
+    render_async(view)
+
+    assert [%{status: :unverified, label: "Claim unlocked REGENT", transaction_hash: @tx_hash}] =
+             queued_results(view)
+  end
+
+  # A submitted transaction still waiting on Base is not an outcome, and neither
+  # is a review the wallet never sent.
+  test "R1_PENDING_AND_NOT_SENT_REDEMPTIONS_CREATE_NO_RESULT", %{conn: conn} do
+    account = register("redeem-no-results", [@wallet])
+    view = mount_redeem(conn, account)
+    activate(view, @wallet)
+
+    action_id = review_claim(view)
+    Application.put_env(:ash_platform, :test_redemption_confirmation_result, :pending)
+    submit(view, action_id)
+    render_async(view)
+
+    assert queued_results(view) == []
+
+    render_hook(view, "redemption_wallet_rejected", %{"action_id" => action_id, "code" => 4001})
+    assert queued_results(view) == []
+  end
+
+  defp queued_results(view), do: :sys.get_state(view.pid).socket.assigns.transaction_results
 
   defp register(suffix, wallets) do
     {:ok, account} =

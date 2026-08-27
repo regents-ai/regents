@@ -194,6 +194,12 @@ test("a signed-in founder reviews, sends once, and reads the outcome from the se
   expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe("1")
   await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
 
+  // A step still waiting on Base is not an outcome, so nothing modal appears
+  // over the card and the page stays usable.
+  expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
+  await card.locator("details summary").click()
+  await expect(card.locator("details")).toContainText("Calldata digest")
+
   // Nothing claims the launch is already published, and no internal wording
   // reaches the customer.
   await expect(card).not.toContainText("waiting for index")

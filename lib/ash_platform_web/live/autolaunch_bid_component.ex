@@ -17,6 +17,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.BidActions
+  alias AshPlatformWeb.Components.TransactionResultModal
 
   @chain_id 8453
 
@@ -148,7 +149,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
           </ol>
 
           <p :if={@operation.state == :confirmed} class="bid-settled" role="status">
-            Bid {@operation.onchain_bid_id} is on Base. Your position appears once it is read back.
+            {confirmed_copy(@operation)}
           </p>
           <p :if={@operation.state in [:reverted, :unverified]} class="bid-settled" role="alert">
             {settled_copy(@operation.state)}
@@ -321,7 +322,11 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   defp settled({:ok, %{operation: operation}}, socket),
-    do: socket |> assign(operation: operation, notice: nil) |> published()
+    do:
+      socket
+      |> reported(socket.assigns.operation, operation)
+      |> assign(operation: operation, notice: nil)
+      |> published()
 
   defp settled({:error, error}, socket),
     do: assign(socket, notice: notice(:error, refusal(error)))
@@ -366,6 +371,48 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   defp cleared(socket), do: push_event(socket, "autolaunch-bid:cleared", %{})
+
+  # Only a live transition this socket watched is a result: a restored or
+  # repeated terminal operation replays nothing. The root LiveView owns the
+  # queue and decides what is already reported.
+  defp reported(
+         socket,
+         %{action_id: id, step: step, terminal_at: nil},
+         %{action_id: id} = operation
+       ) do
+    TransactionResultModal.report([advanced(step, operation), settled_result(operation)])
+    socket
+  end
+
+  defp reported(socket, _prior, _returned), do: socket
+
+  # Each allowance the server verified in order to move on. Neither settles the
+  # bid: placing it is still the only next wallet step.
+  defp advanced(step, %{step: step}), do: nil
+
+  defp advanced(step, operation),
+    do: result(operation, step, :confirmed, TransactionResultModal.confirmed_copy())
+
+  defp settled_result(%{state: :confirmed} = operation),
+    do: result(operation, operation.step, :confirmed, confirmed_copy(operation))
+
+  defp settled_result(%{state: state} = operation) when state in [:reverted, :unverified],
+    do: result(operation, operation.step, state, settled_copy(state))
+
+  defp settled_result(_open), do: nil
+
+  defp result(operation, step, status, message) do
+    step = Atom.to_string(step)
+
+    TransactionResultModal.result(%{
+      status: status,
+      action_id: operation.action_id,
+      step: step,
+      hash: BidActions.step_hash(operation, step),
+      label: step_label(step),
+      message: message
+    })
+  end
 
   # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
   # the customer. That is the ordinary empty state, not a refusal, and it reads
@@ -459,6 +506,9 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   defp step_label("token_approval"), do: "Allow REGENT to be spent"
   defp step_label("permit2_approval"), do: "Allow this auction to draw REGENT"
   defp step_label("bid"), do: "Place the bid"
+
+  defp confirmed_copy(%{onchain_bid_id: id}),
+    do: "Bid #{id} is on Base. Your position appears once it is read back."
 
   defp settled_copy(:reverted), do: "This transaction reverted on Base."
   defp settled_copy(:unverified), do: "This transaction did not record the bid you reviewed."

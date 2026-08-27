@@ -28,6 +28,7 @@ import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {TechtreeCamera} from "./hooks/techtree_camera"
+import {TransactionResultModal} from "./hooks/transaction_result_modal"
 import {VoxelDelight} from "./hooks/voxel"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
@@ -292,6 +293,7 @@ const hooks = {
   RedemptionWallet,
   StakeWallet,
   TechtreeCamera,
+  TransactionResultModal,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

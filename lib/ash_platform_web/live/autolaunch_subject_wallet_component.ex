@@ -17,6 +17,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.SubjectWalletActions
+  alias AshPlatformWeb.Components.TransactionResultModal
 
   @chain_id 8453
 
@@ -544,7 +545,11 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   defp asset_key(id), do: Enum.find_value(@assets, &(&1.id == id && &1.key))
 
   defp settled({:ok, %{operation: operation}}, socket),
-    do: socket |> assign(operation: operation, notice: nil) |> published()
+    do:
+      socket
+      |> reported(socket.assigns.operation, operation)
+      |> assign(operation: operation, notice: nil)
+      |> published()
 
   defp settled({:error, error}, socket),
     do: assign(socket, notice: notice(:error, refusal(error)))
@@ -590,6 +595,46 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
   end
 
   defp cleared(socket), do: push_event(socket, "autolaunch-subject-wallet:cleared", %{})
+
+  # Only a live transition this socket watched is a result: a restored or
+  # repeated terminal operation replays nothing. The root LiveView owns the
+  # queue and decides what is already reported.
+  defp reported(
+         socket,
+         %{action_id: id, step: step, terminal_at: nil},
+         %{action_id: id} = operation
+       ) do
+    TransactionResultModal.report([advanced(step, operation), settled_result(operation)])
+    socket
+  end
+
+  defp reported(socket, _prior, _returned), do: socket
+
+  # The allowance the server verified in order to move on. It settles nothing:
+  # the action itself is still the only next wallet step.
+  defp advanced(step, %{step: step}), do: nil
+
+  defp advanced(step, operation),
+    do: result(operation, step, :confirmed, TransactionResultModal.confirmed_copy())
+
+  defp settled_result(%{state: :confirmed} = operation),
+    do: result(operation, operation.step, :confirmed, confirmed_copy(operation))
+
+  defp settled_result(%{state: state} = operation) when state in [:reverted, :unverified],
+    do: result(operation, operation.step, state, settled_copy(state))
+
+  defp settled_result(_open), do: nil
+
+  defp result(operation, step, status, message),
+    do:
+      TransactionResultModal.result(%{
+        status: status,
+        action_id: operation.action_id,
+        step: step,
+        hash: SubjectWalletActions.step_hash(operation, step),
+        label: step_label(Atom.to_string(step), operation),
+        message: message
+      })
 
   # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
   # the customer. That is the ordinary empty state, not a refusal, and it reads

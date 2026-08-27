@@ -77,7 +77,13 @@ test("each Animata action needs its own wallet action, and a reload never repeat
 
   await explicitAction(page, "Review collection approval", "Approve NFT collection", 1)
   await explicitAction(page, "Review USDC approval", "Approve exactly 80 USDC", 2)
-  await explicitAction(page, "Review redemption", "Redeem Animata", 3, "Redeemed for Regents Club token #1123")
+  await explicitAction(
+    page,
+    "Review redemption",
+    "Redeem Animata",
+    3,
+    "Redeemed for Regents Club token #1123",
+  )
 
   // A further action in the same page session, rejected in the wallet with the
   // exact EIP-1193 4001 while the completed redemption's hash is still in
@@ -103,8 +109,10 @@ test("each Animata action needs its own wallet action, and a reload never repeat
 
   const submitted = page.locator(".redeem-submission")
   await expect(submitted.getByText(short(hashes[3]), {exact: true})).toBeVisible()
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
+  await expect(page.locator("#animata-redemption").getByText("Confirmed on Base.")).toBeVisible()
   expect(await sendCount(page)).toBe(4)
+
+  await dismissResult(page, "Claim unlocked REGENT", hashes[3])
 
   // Stored browser state is evidence, never authority. A reload asks the owning
   // account's row to restore it, finds nothing outstanding, and clears the
@@ -143,14 +151,32 @@ async function explicitAction(
   await review(page, buttonName, reviewHeading)
   expect(await sendCount(page)).toBe(expectedSends - 1)
   await page.getByRole("button", {name: "Confirm in wallet"}).click()
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
+  await expect(page.locator("#animata-redemption").getByText("Confirmed on Base.")).toBeVisible()
   // The action's own event is what the page reports, before any later read.
   if (confirmedResult) await expect(page.getByText(confirmedResult)).toBeVisible()
   expect(await sendCount(page)).toBe(expectedSends)
+  await dismissResult(page, reviewHeading, hashes[expectedSends - 1])
   await page.getByRole("button", {name: "Refresh redemption details"}).click()
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   await expect(page.getByRole("region", {name: "Redemption actions"})).toBeVisible()
   expect(await sendCount(page)).toBe(expectedSends)
+}
+
+// Each verified transaction is reported once, in one native dialog, and the
+// page is only usable again once that dialog has been dismissed.
+async function dismissResult(page: Page, label: string, hash: string): Promise<void> {
+  const dialog = page.locator("dialog#transaction-result-dialog")
+
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText(label, {exact: true})).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${hash}`,
+  )
+
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog).toBeHidden()
+  expect(await page.evaluate(() => document.querySelectorAll("dialog:modal").length)).toBe(0)
 }
 
 function short(hash: string): string {

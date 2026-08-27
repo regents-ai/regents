@@ -293,9 +293,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, %{state: :approval_dispatched, action_id: ^action_id}} =
              StakeRedeemOperations.active(account.id, :stake)
 
-    # The outstanding dispatch still holds this account's one Stake slot.
+    # The outstanding dispatch still holds this account's one Stake slot, and the
+    # refusal names the wallet request that is already open.
     assert render_click(view, "prepare_staking", %{"action" => "claim_usdc"}) =~
-             "An earlier staking action is still outstanding"
+             "Complete the transaction already open in your wallet before starting another."
   end
 
   # Fifty percent is the integer floor of the raw balance and Max is that
@@ -534,12 +535,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, %{state: :approval_submitted, action_id: ^action_id}} =
              StakeRedeemOperations.active(account.id, :stake)
 
-    # The slot is still held, so no fresh review can replace it: the control is
-    # disabled, and the server refuses the event even when it is sent anyway.
-    assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+    # The slot is still held, so no fresh review can replace it. The control
+    # stays usable and the server is what refuses the event.
+    refute has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
 
     assert render_click(view, "prepare_staking", %{"action" => "stake"}) =~
-             "Verify the submitted transaction before preparing another action."
+             "Your previous transaction is still being verified on Base. You can edit this form, but another wallet action cannot start yet."
   end
 
   # The database holds one active operation per account and capability, so a
@@ -558,15 +559,15 @@ defmodule AshPlatformWeb.StakeLiveTest do
     sign(view, prepared_action_id(render(view)))
 
     html = render_click(view, "prepare_staking", %{"action" => "unstake"})
-    assert html =~ "An earlier staking action is still outstanding"
+    assert html =~ "Complete the transaction already open in your wallet before starting another."
     refute html =~ "Check the amount and wallet"
   end
 
-  # From the claim to the hash the review is the only thing that may be signed,
-  # so every control that could replace or clear it is refused by the server as
-  # well as disabled on screen. The claimed envelope survives them all, the
-  # later hash still binds to it, and confirmation proceeds against it.
-  test "P4_CLAIM_FREEZES_THE_REVIEW: late form events cannot replace a claimed envelope",
+  # From the claim to the hash the review is the only thing that may be signed.
+  # The form stays usable and edits only ever name the next draft: the claimed
+  # envelope survives them all, the later hash still binds to it, and
+  # confirmation proceeds against it.
+  test "U2_DRAFT_EDITS_CANNOT_MUTATE_THE_IN_FLIGHT_OPERATION: late form events cannot replace a claimed envelope",
        %{conn: conn} do
     account = register("stake-claim-freeze", [@wallet])
     view = mount_stake(conn, account)
@@ -579,13 +580,14 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_push_event(view, "staking:prepared", %{approval_transaction_hash: nil})
 
     for control <- [
-          ~s(#staking-amount[disabled]),
-          ~s(button[phx-value-mode="unstake"][disabled]),
-          ~s(button[phx-value-portion="half"][disabled]),
-          ~s(button[phx-value-portion="max"][disabled]),
-          ~s(button[phx-value-action="stake"][disabled])
+          ~s(#staking-amount),
+          ~s(button[phx-value-mode="unstake"]),
+          ~s(button[phx-value-portion="half"]),
+          ~s(button[phx-value-portion="max"]),
+          ~s(button[phx-value-action="stake"])
         ] do
       assert has_element?(view, control)
+      refute has_element?(view, control <> "[disabled]")
     end
 
     render_click(view, "select_staking_action", %{"mode" => "unstake"})
@@ -597,13 +599,22 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert prepared_action_id(render(view)) == action_id
     assert render(view) =~ "1 REGENT"
 
+    # The next draft is what changed, and the in-flight notice is not erased by
+    # editing it.
+    assert has_element?(view, ~s(#staking-amount[value="9"]))
+    assert has_element?(view, ~s(button[phx-value-mode="unstake"][aria-pressed="true"]))
+
+    assert has_element?(
+             view,
+             ".stake-notice",
+             "Complete the transaction already open in your wallet before starting another."
+           )
+
     # The wallet reported something that is not the exact rejection, so the
-    # request may still be open there: nothing is closed, nothing is resent and
-    # the review stays exactly as locked as it was.
+    # request may still be open there: nothing is closed and nothing is resent.
     render_hook(view, "staking_wallet_failed", %{"reason" => "unknown"})
     sign(view, action_id)
     refute_push_event(view, "staking:prepared", _)
-    assert has_element?(view, ~s(#staking-amount[disabled]))
     assert prepared_action_id(render(view)) == action_id
 
     assert {:ok, %{state: :approval_dispatched}} =
@@ -655,12 +666,15 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     # The approval was broadcast and has not been verified, so it cannot be
     # withdrawn: it still holds this account's one active Stake slot and no
-    # fresh action can be prepared against it.
-    assert has_element?(view, ~s(#staking-amount[disabled]))
-    assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+    # fresh action can be prepared against it. The form stays usable while it
+    # waits, and the server is what refuses the review.
+    refute has_element?(view, ~s(#staking-amount[disabled]))
+
+    view |> form("#staking-amount-form", %{"amount" => "2"}) |> render_change()
+    refute has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
 
     assert render_click(view, "prepare_staking", %{"action" => "stake"}) =~
-             "Verify the submitted transaction before preparing another action."
+             "Your previous transaction is still being verified on Base. You can edit this form, but another wallet action cannot start yet."
 
     assert {:ok, %{state: :approval_submitted, approval_transaction_hash: @approval_hash}} =
              StakeRedeemOperations.active(account.id, :stake)
@@ -826,7 +840,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
   end
 
-  test "U3_APPROVAL_PENDING_LOCK: every prepare control is disabled while an approval is pending",
+  # Verification is not a disabled page. Everything that only names the next
+  # draft stays usable while an approval waits on Base; the one thing that would
+  # open a second wallet request is refused by the server, in its own words.
+  test "U1_PENDING_VERIFICATION_IS_NOT_A_DISABLED_PAGE: every intrinsically eligible control stays usable while an approval is pending",
        %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
 
@@ -841,17 +858,53 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_push_event(view, "staking:prepared", %{})
 
     for action <- ~w(stake claim_usdc claim_regent claim_and_restake_regent) do
-      assert has_element?(view, ~s(button[phx-value-action="#{action}"][disabled]))
+      refute has_element?(view, ~s(button[phx-value-action="#{action}"][disabled]))
     end
 
     for mode <- ~w(stake unstake) do
-      assert has_element?(view, ~s(button[phx-value-mode="#{mode}"][disabled]))
+      refute has_element?(view, ~s(button[phx-value-mode="#{mode}"][disabled]))
     end
+
+    for control <-
+          ~w(#staking-amount button[phx-value-portion="half"] button[phx-value-portion="max"]) do
+      refute has_element?(view, control <> "[disabled]")
+    end
+
+    # A Review click while the submitted approval waits sets the exact refusal
+    # and never reaches the wallet.
+    assert render_click(view, "prepare_staking", %{"action" => "claim_usdc"}) =~
+             "Your previous transaction is still being verified on Base. You can edit this form, but another wallet action cannot start yet."
+
+    refute_push_event(view, "staking:prepared", _)
 
     # Verification stays available and never opens the wallet again.
     view |> element(~s(button[phx-click="retry_staking_approval_verification"])) |> render_click()
     render_async(view)
     refute_push_event(view, "staking:prepared", _)
+  end
+
+  # An input-specific refusal is still a disabled control: nothing about a
+  # pending operation makes an ineligible claim reviewable.
+  test "U1_INTRINSIC_DISABLED_RULES_REMAIN: a blank amount and an unavailable claim stay disabled while a transaction is pending",
+       %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
+
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{usdc_claimable: "0"}
+    })
+
+    view = signed_in(conn, "stake-intrinsic")
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    submit_approval(view, prepared_action_id(render(view)))
+    render_async(view)
+
+    render_hook(view, "staking_amount_changed", %{"amount" => ""})
+
+    assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+    assert has_element?(view, ~s(button[phx-value-action="claim_usdc"][disabled]))
   end
 
   test "U4_BASE_EXPLORER_TRUTH: each bound hash links to that exact transaction on Base", %{
@@ -1015,7 +1068,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_click(view, "refresh_staking", %{})
     html = render_async(view)
 
-    refute html =~ "Confirmed on Base"
+    refute has_element?(view, "#regent-staking", "Confirmed on Base")
     refute html =~ short_hash(@tx_hash)
     assert has_element?(view, ".stake-metric dd", "5 REGENT")
     assert has_element?(view, "#staking-amount")
@@ -1061,7 +1114,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     html = render_async(view)
 
     refute_received {:reading, _second}
-    refute html =~ "Confirmed on Base"
+    refute has_element?(view, "#regent-staking", "Confirmed on Base")
     refute html =~ short_hash(@tx_hash)
     assert html =~ "Your stake"
     refute has_element?(view, ~s(button[phx-click="refresh_staking"][disabled]))
@@ -1983,6 +2036,198 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> form("#staking-amount-form", %{"amount" => "10"}) |> render_change()
     refute has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
   end
+
+  # R1/R2: only a server-classified terminal outcome for an exact bound hash is
+  # a result, every verified step is reported once, and the queue advances in
+  # step order as each one is dismissed.
+  test "R1_R2_EVERY_VERIFIED_STEP_IS_ONE_RESULT_IN_STEP_ORDER", %{conn: conn} do
+    account = register("stake-results", [@wallet])
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+
+    # Prepared, dispatched and submitted are not outcomes, so nothing is queued.
+    sign(view, action_id)
+    assert queued_results(view) == []
+    submit(view, action_id, "approval", @approval_hash)
+    render_async(view)
+
+    # A repeated verification of the same hash answers the same way, so it
+    # describes the result already queued rather than a new one.
+    assert [_approval] = queued_results(view)
+    render_click(view, "retry_staking_approval_verification", %{})
+    render_async(view)
+    assert [_approval] = queued_results(view)
+
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+    render_async(view)
+
+    assert [approval, action] = queued_results(view)
+
+    assert %{
+             status: :confirmed,
+             label: "REGENT approval",
+             message: "Confirmed on Base.",
+             title: "Transaction confirmed",
+             transaction_hash: @approval_hash
+           } = approval
+
+    assert %{status: :confirmed, label: "Stake REGENT", transaction_hash: @tx_hash} = action
+
+    # One dialog at a time, showing the first result and its exact hash.
+    portal = view |> element("#transaction-result-portal") |> render()
+    assert portal =~ ~s(data-result-id="#{approval.id}")
+    assert portal =~ ~s(href="https://basescan.org/tx/#{@approval_hash}")
+    refute portal =~ @tx_hash
+
+    # Dismissal removes only the result it names and shows the one behind it.
+    # Nothing durable moves with it.
+    render_hook(view, "dismiss_transaction_result", %{"id" => approval.id})
+
+    assert queued_results(view) == [action]
+    portal = view |> element("#transaction-result-portal") |> render()
+    assert portal =~ ~s(data-result-id="#{action.id}")
+    assert portal =~ ~s(href="https://basescan.org/tx/#{@tx_hash}")
+    assert has_element?(view, ~s(.stake-submission a[href="https://basescan.org/tx/#{@tx_hash}"]))
+    assert {:ok, nil} = StakeRedeemOperations.active(account.id, :stake)
+
+    render_hook(view, "dismiss_transaction_result", %{"id" => action.id})
+    assert queued_results(view) == []
+    refute view |> element("#transaction-result-portal") |> render() =~ "data-result-id"
+  end
+
+  # The approval revert branch clears the inline submission, so the result has to
+  # have captured that exact hash before it went.
+  test "R2_A_REVERTED_APPROVAL_KEEPS_ITS_EXACT_HASH", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_approval_status, :reverted)
+
+    view = signed_in(conn, "stake-approval-revert-result")
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    submit_approval(view, prepared_action_id(render(view)))
+    render_async(view)
+
+    assert [
+             %{
+               status: :reverted,
+               title: "Transaction reverted",
+               label: "REGENT approval",
+               transaction_hash: @approval_hash,
+               message: "The REGENT approval was reverted. Prepare the stake again when ready."
+             }
+           ] = queued_results(view)
+
+    refute has_element?(view, ".stake-submission")
+  end
+
+  test "R2_AN_UNVERIFIED_APPROVAL_REPORTS_ITS_OWN_STEP", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_approval_status, :unverified)
+
+    view = signed_in(conn, "stake-approval-unverified-result")
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    submit_approval(view, prepared_action_id(render(view)))
+    render_async(view)
+
+    assert [
+             %{
+               status: :unverified,
+               title: "Transaction not verified",
+               label: "REGENT approval",
+               transaction_hash: @approval_hash
+             }
+           ] = queued_results(view)
+  end
+
+  test "R2_A_REVERTED_ACTION_KEEPS_ITS_EXACT_HASH", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :reverted)
+
+    view = signed_in(conn, "stake-action-revert-result")
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+    render_async(view)
+
+    assert [
+             %{
+               status: :reverted,
+               label: "Claim USDC",
+               transaction_hash: @tx_hash,
+               message: "The staking transaction reverted. Prepare a new action when ready."
+             }
+           ] = queued_results(view)
+  end
+
+  test "R2_AN_UNVERIFIED_ACTION_IS_A_RESULT_AND_IS_NEVER_SUCCESS", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_confirmation_result, :unverified)
+
+    view = signed_in(conn, "stake-action-unverified-result")
+    activate(view, @wallet)
+
+    review(view, "claim_usdc")
+    action_id = prepared_action_id(render(view))
+    sign(view, action_id)
+    submit(view, action_id, "action", @tx_hash)
+    render_async(view)
+
+    assert [%{status: :unverified, label: "Claim USDC", transaction_hash: @tx_hash}] =
+             queued_results(view)
+  end
+
+  # R1: pending verification and a wallet that never sent are not outcomes.
+  test "R1_ONLY_TERMINAL_SERVER_OUTCOMES_CREATE_RESULTS", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_approval_status, :pending)
+
+    view = signed_in(conn, "stake-no-results")
+    activate(view, @wallet)
+
+    view |> form("#staking-amount-form", %{"amount" => "1"}) |> render_change()
+    review(view, "stake")
+    action_id = prepared_action_id(render(view))
+    submit_approval(view, action_id)
+    render_async(view)
+
+    assert queued_results(view) == []
+    refute view |> element("#transaction-result-portal") |> render() =~ "data-result-id"
+
+    render_hook(view, "staking_wallet_rejected", %{
+      "action_id" => action_id,
+      "phase" => "approval",
+      "code" => 4001
+    })
+
+    assert queued_results(view) == []
+  end
+
+  # R5: a durable operation recovered by a fresh socket is history, not a live
+  # transition, so it replays nothing.
+  test "R2_A_RESTORED_OPERATION_REPLAYS_NOTHING", %{conn: conn} do
+    account = register("stake-restored-result", [@wallet])
+    opts = leased(account.id)
+
+    assert {:ok, envelope} = Staking.prepare_claim_usdc(@wallet, opts)
+    {:ok, _claimed} = Staking.claim_wallet_dispatch(envelope, :action, opts)
+    {:ok, _bound} = Staking.bind_submitted_hash(envelope.action_id, :action, @tx_hash, opts)
+
+    view = mount_stake(conn, account)
+    activate(view, @wallet)
+
+    assert queued_results(view) == []
+    assert has_element?(view, ".stake-submission", "0xabab")
+  end
+
+  defp queued_results(view), do: :sys.get_state(view.pid).socket.assigns.transaction_results
 
   defp prepared_action_id(html) do
     [id] = Regex.run(~r/data-stake-confirm="([a-f0-9]+)"/, html, capture: :all_but_first)

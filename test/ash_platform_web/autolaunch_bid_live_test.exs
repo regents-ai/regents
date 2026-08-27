@@ -283,6 +283,83 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
     end
   end
 
+  # R2: a bid has two allowances before it, and each one is an independently
+  # verified transaction of its own. All three appear once, in step order.
+  test "EVERY_VERIFIED_STEP_IS_ONE_RESULT: both approvals and the bid are reported in step order",
+       %{conn: conn, auction: auction} do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+
+    permit2_hash = "0x" <> String.duplicate("bb", 32)
+
+    claim(view, action_id)
+    assert queued_results(view) == []
+
+    Chain.put(%{outcomes: %{token_approval: %{outcome: :confirmed}}})
+    submit(view, action_id, "token_approval", @approval_hash)
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{permit2_approval: %{outcome: :confirmed}}})
+    submit(view, action_id, "permit2_approval", permit2_hash)
+
+    claim(view, action_id)
+    Chain.put(%{outcomes: %{bid: %{outcome: :confirmed, onchain_bid_id: "7"}}})
+    submit(view, action_id, "bid", @bid_hash)
+
+    assert [token, permit2, bid] = queued_results(view)
+
+    assert %{
+             status: :confirmed,
+             label: "Allow REGENT to be spent",
+             message: "Confirmed on Base.",
+             transaction_hash: @approval_hash
+           } = token
+
+    assert %{
+             status: :confirmed,
+             label: "Allow this auction to draw REGENT",
+             transaction_hash: ^permit2_hash
+           } = permit2
+
+    assert %{
+             status: :confirmed,
+             label: "Place the bid",
+             transaction_hash: @bid_hash,
+             message: "Bid 7 is on Base. Your position appears once it is read back."
+           } = bid
+
+    # One dialog at a time, advancing through the queue as each is dismissed.
+    for expected <- [token, permit2, bid] do
+      assert view |> element("#transaction-result-portal") |> render() =~
+               ~s(data-result-id="#{expected.id}")
+
+      render_hook(view, "dismiss_transaction_result", %{"id" => expected.id})
+    end
+
+    assert queued_results(view) == []
+  end
+
+  test "ONLY_TERMINAL_OUTCOMES_ARE_RESULTS: a pending step and a rejection report nothing", %{
+    conn: conn,
+    auction: auction
+  } do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+
+    claim(view, action_id)
+    submit(view, action_id, "token_approval", @approval_hash)
+    assert queued_results(view) == []
+
+    render_hook(element(view, @panel), "bid_wallet_rejected", %{
+      "action_id" => action_id,
+      "code" => 4001
+    })
+
+    assert queued_results(view) == []
+  end
+
+  defp queued_results(view), do: :sys.get_state(view.pid).socket.assigns.transaction_results
+
   defp mount_bidder(conn, auction) do
     {:ok, view, _html} = live(conn, "/autolaunch/auctions/#{auction.id}")
     render_hook(element(view, @panel), "bid_active_wallet", %{"address" => @wallet})

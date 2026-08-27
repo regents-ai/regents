@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
 
+  alias AshPlatformWeb.Components.TransactionResultModal
   alias AshPlatformWeb.TokenDisplay
 
   attr :staking, :map, default: nil
@@ -16,7 +17,6 @@ defmodule AshPlatformWeb.StakeLive do
   attr :signing, :boolean, default: false
   attr :verifying, :boolean, default: false
   attr :reading, :boolean, default: false
-  attr :locked, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
   attr :available_claims, :list, default: []
@@ -176,7 +176,6 @@ defmodule AshPlatformWeb.StakeLive do
               phx-click="select_staking_action"
               phx-value-mode={mode}
               aria-pressed={to_string(@action == mode)}
-              disabled={@locked}
             >
               {mode_label(mode)}
             </button>
@@ -192,13 +191,12 @@ defmodule AshPlatformWeb.StakeLive do
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="0.0"
-                disabled={@locked}
               />
               <button
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="half"
-                disabled={@locked or div(@spendable, 2) == 0}
+                disabled={div(@spendable, 2) == 0}
               >
                 50%
               </button>
@@ -206,7 +204,7 @@ defmodule AshPlatformWeb.StakeLive do
                 type="button"
                 phx-click="fill_staking_amount"
                 phx-value-portion="max"
-                disabled={@locked or @spendable == 0}
+                disabled={@spendable == 0}
               >
                 Max
               </button>
@@ -220,7 +218,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action={@action}
-              disabled={@locked or String.trim(@amount) == "" or not is_nil(@amount_notice)}
+              disabled={String.trim(@amount) == "" or not is_nil(@amount_notice)}
             >
               Review {@action}
             </button>
@@ -231,7 +229,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_usdc"
-              disabled={@locked or "claim_usdc" not in @available_claims}
+              disabled={"claim_usdc" not in @available_claims}
             >
               Review USDC claim
             </button>
@@ -239,7 +237,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_regent"
-              disabled={@locked or "claim_regent" not in @available_claims}
+              disabled={"claim_regent" not in @available_claims}
             >
               Review REGENT claim
             </button>
@@ -247,7 +245,7 @@ defmodule AshPlatformWeb.StakeLive do
               type="button"
               phx-click="prepare_staking"
               phx-value-action="claim_and_restake_regent"
-              disabled={@locked or "claim_and_restake_regent" not in @available_claims}
+              disabled={"claim_and_restake_regent" not in @available_claims}
             >
               Review claim and restake
             </button>
@@ -354,7 +352,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :hash, :string, required: true
 
   defp transaction(assigns) do
-    assigns = assign(assigns, :url, explorer_url(assigns.hash))
+    assigns = assign(assigns, :url, TransactionResultModal.explorer_url(assigns.hash))
 
     ~H"""
     <a :if={@url} class="stake-mono" href={@url} target="_blank" rel="noopener">
@@ -379,11 +377,12 @@ defmodule AshPlatformWeb.StakeLive do
   defp mode_label("stake"), do: "Stake"
   defp mode_label("unstake"), do: "Unstake"
 
-  defp action_label("stake"), do: "Stake REGENT"
-  defp action_label("unstake"), do: "Unstake REGENT"
-  defp action_label("claim_usdc"), do: "Claim USDC"
-  defp action_label("claim_regent"), do: "Claim REGENT"
-  defp action_label("claim_and_restake_regent"), do: "Claim and restake REGENT"
+  @doc "The customer name of a reviewed staking action, in review and in its result."
+  def action_label("stake"), do: "Stake REGENT"
+  def action_label("unstake"), do: "Unstake REGENT"
+  def action_label("claim_usdc"), do: "Claim USDC"
+  def action_label("claim_regent"), do: "Claim REGENT"
+  def action_label("claim_and_restake_regent"), do: "Claim and restake REGENT"
 
   # Only the wallet a review was prepared for may open that wallet, so a review
   # left by another wallet stays visible for recovery without a signing control.
@@ -404,9 +403,4 @@ defmodule AshPlatformWeb.StakeLive do
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
-
-  # Only the one canonical hash shape becomes a link to the Base explorer.
-  defp explorer_url(hash) do
-    if String.match?(hash, ~r/\A0x[0-9a-fA-F]{64}\z/), do: "https://basescan.org/tx/" <> hash
-  end
 end

@@ -5,6 +5,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
   alias AshPlatformWeb.Components.Shell
+  alias AshPlatformWeb.Components.TransactionResultModal
   alias AshPlatformWeb.RouteCatalog
   alias AshPlatformWeb.ShellLive
 
@@ -334,6 +335,89 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
   test "malformed and reserved route parameters return not found", %{conn: conn} do
     assert_error_sent(404, fn -> get(conn, "/techtree/nodes") end)
+  end
+
+  # R4: one portal source, outside the shell and outside the motion region that
+  # the shell clones on a route change, so the dialog it teleports into the body
+  # is never duplicated and never trapped.
+  test "R4_ONE_PORTAL_SOURCE_OUTSIDE_THE_SHELL_SURVIVES_A_ROUTE_PATCH", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app")
+
+    assert has_element?(view, "#transaction-result-portal")
+    refute has_element?(view, "#app-shell #transaction-result-portal")
+    refute has_element?(view, "#route-content #transaction-result-portal")
+
+    portal = view |> element("#transaction-result-portal") |> render()
+    assert portal =~ ~s(data-phx-portal="body")
+    assert portal =~ ~s(id="transaction-result-dialog")
+    refute portal =~ ~s(phx-update="ignore")
+
+    view |> element("#shell-header a", "Techtree") |> render_click()
+    assert_patch(view, "/techtree")
+
+    assert has_element?(view, "#transaction-result-portal")
+    refute has_element?(view, "#app-shell #transaction-result-portal")
+    assert view |> element("#transaction-result-portal") |> render() =~ ~s(data-phx-portal="body")
+  end
+
+  # R2: the root owns the queue. The same terminal transition reported twice is
+  # one result, and a dismissal only ever removes the result it names.
+  test "R2_ONE_RESULT_PER_TRANSACTION_IN_FIFO_ORDER" do
+    approval = terminal_result(:approval, :confirmed)
+    action = terminal_result(:action, :reverted)
+
+    socket =
+      Enum.reduce([approval, approval, action, action], queue_socket(), fn result, socket ->
+        {:noreply, socket} = ShellLive.handle_info({:transaction_result, result}, socket)
+        socket
+      end)
+
+    assert socket.assigns.transaction_results == [approval, action]
+
+    # A stale or duplicate dismissal changes nothing, so two close events can
+    # never pop two results.
+    for stale <- [action.id, "not-a-result"] do
+      assert {:noreply, unchanged} =
+               ShellLive.handle_event("dismiss_transaction_result", %{"id" => stale}, socket)
+
+      assert unchanged.assigns.transaction_results == [approval, action]
+    end
+
+    assert {:noreply, advanced} =
+             ShellLive.handle_event(
+               "dismiss_transaction_result",
+               %{"id" => approval.id},
+               socket
+             )
+
+    assert advanced.assigns.transaction_results == [action]
+
+    # Dismissing does not un-report: the same transition cannot enqueue again.
+    assert {:noreply, unchanged} =
+             ShellLive.handle_info({:transaction_result, approval}, advanced)
+
+    assert unchanged.assigns.transaction_results == [action]
+  end
+
+  defp queue_socket do
+    %Phoenix.LiveView.Socket{
+      assigns: %{
+        __changed__: %{},
+        transaction_results: [],
+        reported_transaction_results: MapSet.new()
+      }
+    }
+  end
+
+  defp terminal_result(step, status) do
+    TransactionResultModal.result(%{
+      status: status,
+      action_id: "abc123",
+      step: step,
+      hash: "0x" <> String.duplicate("ab", 32),
+      label: "Stake REGENT",
+      message: TransactionResultModal.confirmed_copy()
+    })
   end
 
   defp register_account(suffix, wallet) do

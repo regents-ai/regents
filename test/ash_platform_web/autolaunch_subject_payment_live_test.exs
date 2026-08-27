@@ -710,6 +710,120 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletLiveTest do
 
   # Helpers
 
+  describe "SERVER_CLASSIFIED_OUTCOMES_BECOME_ONE_RESULT_EACH" do
+    # R2: the allowance a stake needs is an independently verified transaction of
+    # its own. It settles nothing; the stake is still the only next wallet step.
+    test "the verified allowance and the action it enables are reported in step order", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      review(view, :stake, %{"amount" => "10"})
+      action_id = action_id(view)
+
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+      ChainClient.put(%{outcomes: %{approval: %{outcome: :confirmed}}})
+
+      render_hook(element(view, @card), "subject_wallet_submitted", %{
+        "action_id" => action_id,
+        "step" => "approval",
+        "transaction_hash" => @approval_hash
+      })
+
+      assert [
+               %{
+                 status: :confirmed,
+                 label: "Allow SUBJECT to be spent",
+                 message: "Confirmed on Base.",
+                 transaction_hash: @approval_hash
+               }
+             ] = queued_results(view)
+
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+      ChainClient.put(%{outcomes: %{action: %{outcome: :confirmed, result: %{}}}})
+
+      render_hook(element(view, @card), "subject_wallet_submitted", %{
+        "action_id" => action_id,
+        "step" => "action",
+        "transaction_hash" => @action_hash
+      })
+
+      assert [approval, action] = queued_results(view)
+      assert approval.transaction_hash == @approval_hash
+      assert %{status: :confirmed, label: "Stake", transaction_hash: @action_hash} = action
+
+      portal = view |> element("#transaction-result-portal") |> render()
+      assert portal =~ ~s(data-result-id="#{approval.id}")
+
+      render_hook(view, "dismiss_transaction_result", %{"id" => approval.id})
+      assert queued_results(view) == [action]
+
+      assert view |> element("#transaction-result-portal") |> render() =~
+               ~s(href="https://basescan.org/tx/#{@action_hash}")
+    end
+
+    test "a reverted action is a result bound to that step's own hash", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      review(view, :claim, %{"asset" => "usdc"})
+      action_id = action_id(view)
+
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+      ChainClient.put(%{outcomes: %{action: %{outcome: :reverted}}})
+
+      render_hook(element(view, @card), "subject_wallet_submitted", %{
+        "action_id" => action_id,
+        "step" => "action",
+        "transaction_hash" => @action_hash
+      })
+
+      assert [
+               %{
+                 status: :reverted,
+                 title: "Transaction reverted",
+                 label: "Claim",
+                 transaction_hash: @action_hash,
+                 message: "This transaction reverted on Base. Nothing moved."
+               }
+             ] = queued_results(view)
+    end
+
+    # R1: a submitted step still waiting on Base is not an outcome, and neither
+    # is a review the wallet never sent.
+    test "a submitted step and an explicit rejection create no result", %{
+      conn: conn,
+      account: account,
+      subject: subject
+    } do
+      view = ready(conn, account, subject)
+      review(view, :claim, %{"asset" => "usdc"})
+      action_id = action_id(view)
+
+      render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
+
+      render_hook(element(view, @card), "subject_wallet_submitted", %{
+        "action_id" => action_id,
+        "step" => "action",
+        "transaction_hash" => @action_hash
+      })
+
+      assert queued_results(view) == []
+
+      render_hook(element(view, @card), "subject_wallet_rejected", %{
+        "action_id" => action_id,
+        "code" => 4001
+      })
+
+      assert queued_results(view) == []
+    end
+  end
+
+  defp queued_results(view), do: :sys.get_state(view.pid).socket.assigns.transaction_results
+
   defp path(subject), do: "/autolaunch/subjects/#{subject.subject_id}"
 
   defp signed_in(conn, account, subject) do
