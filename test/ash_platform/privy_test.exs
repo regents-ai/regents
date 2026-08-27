@@ -21,7 +21,8 @@ defmodule AshPlatform.PrivyTest do
 
   # The real provider's roles: an access token authenticates the subject and
   # session and carries no linked accounts, while its identity token repeats
-  # that subject and session and carries the signed accounts as a JSON string.
+  # only the subject and carries the signed accounts as a JSON string — a real
+  # identity token names no `sid` of its own.
   defmodule SharedVerifierStub do
     @wallet "0x1111111111111111111111111111111111111111"
 
@@ -39,6 +40,14 @@ defmodule AshPlatform.PrivyTest do
     defp verified("access"), do: session(%{"sub" => "did:privy:test", "sid" => "session"})
 
     defp verified("identity"),
+      do: session(%{"sub" => "did:privy:test", "linked_accounts" => @linked_accounts})
+
+    defp verified("identity-without-wallets"),
+      do: session(%{"sub" => "did:privy:test", "linked_accounts" => Jason.encode!([])})
+
+    # The docs-inconsistent variants that do name a session: agreement binds,
+    # and any other value in the claim is a refusal.
+    defp verified("identity-with-session"),
       do:
         session(%{
           "sub" => "did:privy:test",
@@ -46,33 +55,33 @@ defmodule AshPlatform.PrivyTest do
           "linked_accounts" => @linked_accounts
         })
 
-    defp verified("identity-without-wallets"),
+    defp verified("identity-other-session"),
       do:
         session(%{
           "sub" => "did:privy:test",
-          "sid" => "session",
-          "linked_accounts" => Jason.encode!([])
+          "sid" => "other-session",
+          "linked_accounts" => @linked_accounts
+        })
+
+    defp verified("identity-blank-session"),
+      do:
+        session(%{
+          "sub" => "did:privy:test",
+          "sid" => "   ",
+          "linked_accounts" => @linked_accounts
         })
 
     defp verified("access-other-subject"),
       do: session(%{"sub" => "did:privy:other", "sid" => "session"})
 
     defp verified("identity-other-subject"),
-      do:
-        session(%{
-          "sub" => "did:privy:other",
-          "sid" => "session",
-          "linked_accounts" => @linked_accounts
-        })
+      do: session(%{"sub" => "did:privy:other", "linked_accounts" => @linked_accounts})
 
     defp verified("access-other-session"),
       do: session(%{"sub" => "did:privy:test", "sid" => "other-session"})
 
     defp verified("access-blank-sid"),
       do: session(%{"sub" => "did:privy:test", "sid" => "   "})
-
-    defp verified("identity-without-sid"),
-      do: session(%{"sub" => "did:privy:test", "linked_accounts" => @linked_accounts})
 
     # The shared verifier refuses a `linked_accounts` string that does not
     # decode to a list before it ever returns claims.
@@ -154,31 +163,44 @@ defmodule AshPlatform.PrivyTest do
 
   test "MUTUALLY_EXCLUSIVE_TOKEN_ROLES: each slot accepts only its own token role" do
     # An access token carries no signed accounts, so it is never evidence, and
-    # an identity token never authenticates a session on its own.
+    # an identity token never authenticates a session on its own: a real one
+    # names no session at all, and one that repeats it is refused by role.
     assert pair("access", "access") == {:error, {:pair_binding, :identity_accounts_missing}}
-    assert pair("identity", "access") == {:error, {:pair_binding, :access_role_confused}}
+    assert pair("identity", "access") == {:error, {:access_verification, :missing_session_id}}
+    assert pair("identity", "identity") == {:error, {:access_verification, :missing_session_id}}
 
-    # The same identity token in both slots is refused by the access slot.
-    assert pair("identity", "identity") == {:error, {:pair_binding, :access_role_confused}}
+    assert pair("identity-with-session", "access") ==
+             {:error, {:pair_binding, :access_role_confused}}
+
+    assert pair("identity-with-session", "identity") ==
+             {:error, {:pair_binding, :access_role_confused}}
   end
 
-  test "INDEPENDENT_VERIFICATION_AND_BINDING: evidence binds only to the authenticated session" do
+  test "INDEPENDENT_VERIFICATION_AND_BINDING: evidence binds only to the authenticated subject" do
     assert pair("access", "identity-other-subject") ==
              {:error, {:pair_binding, :subject_mismatch}}
 
     assert pair("access-other-subject", "identity") ==
              {:error, {:pair_binding, :subject_mismatch}}
+  end
 
-    assert pair("access-other-session", "identity") ==
+  test "INDEPENDENT_VERIFICATION_AND_BINDING: an identity token may repeat only the authenticated session" do
+    assert {:ok, %AshPlatform.VerifiedPrivyIdentity{session_id: "session"}} =
+             pair("access", "identity-with-session")
+
+    assert pair("access", "identity-other-session") ==
+             {:error, {:pair_binding, :session_mismatch}}
+
+    assert pair("access-other-session", "identity-with-session") ==
+             {:error, {:pair_binding, :session_mismatch}}
+
+    assert pair("access", "identity-blank-session") ==
              {:error, {:pair_binding, :session_mismatch}}
   end
 
-  test "INDEPENDENT_VERIFICATION_AND_BINDING: a token that names no session is refused in its own slot" do
+  test "INDEPENDENT_VERIFICATION_AND_BINDING: an access token that names no session is refused" do
     assert pair("access-blank-sid", "identity") ==
              {:error, {:access_verification, :missing_session_id}}
-
-    assert pair("access", "identity-without-sid") ==
-             {:error, {:identity_verification, :missing_session_id}}
   end
 
   test "INDEPENDENT_VERIFICATION_AND_BINDING: either slot's own verification failure names its stage" do

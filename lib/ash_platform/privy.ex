@@ -29,18 +29,21 @@ defmodule AshPlatform.Privy do
   @doc """
   Exchanges a Privy token pair for the signed identity evidence it proves.
 
-  The access token authenticates the session and the identity token carries the
-  signed linked accounts. Each is verified independently against the same
-  public key, so ordinary signed-token expiry is the whole freshness authority
-  and no evidence is accepted for a subject or session the access token did not
-  itself authenticate.
+  The access token authenticates the subject and session and the identity
+  token carries the signed linked accounts. Each is verified independently
+  against the same public key, so ordinary signed-token expiry is the whole
+  freshness authority and no evidence is accepted for a subject the access
+  token did not itself authenticate. Only the access token must name a
+  session: Privy's identity token carries no `sid` claim of its own, and one
+  it does carry anyway must name the authenticated session.
 
   A refusal names the boundary that refused it as `{stage, reason}`, drawn only
   from a fixed vocabulary: `:missing_privy_config` for `:configuration`, one of
-  the verifier's documented reasons plus `:missing_session_id` and
-  `:unknown_verification_failure` for `:access_verification` and
-  `:identity_verification`, and `:subject_mismatch`, `:session_mismatch`,
-  `:access_role_confused` or `:identity_accounts_missing` for `:pair_binding`.
+  the verifier's documented reasons plus `:unknown_verification_failure` for
+  `:access_verification` and `:identity_verification` with
+  `:missing_session_id` for `:access_verification` alone, and
+  `:subject_mismatch`, `:session_mismatch`, `:access_role_confused` or
+  `:identity_accounts_missing` for `:pair_binding`.
   """
   def verify_session_pair(%{access: access, identity: identity})
       when is_binary(access) and is_binary(identity) do
@@ -59,15 +62,27 @@ defmodule AshPlatform.Privy do
     end
   end
 
+  # The mismatches are named before the roles, so whatever reaches the role
+  # split authenticates this exact subject and session.
+  defp bind(%{privy_user_id: did}, %{privy_user_id: other}) when did != other,
+    do: {:error, {:pair_binding, :subject_mismatch}}
+
+  defp bind(%{session_id: sid} = authenticated, evidence) do
+    if names_authenticated_session?(evidence.claims, sid),
+      do: bind_roles(authenticated, evidence),
+      else: {:error, {:pair_binding, :session_mismatch}}
+  end
+
   # Privy's two token roles are disjoint, and the raw claim is what separates
   # them: only an identity token carries `linked_accounts`, and the shared
   # verifier has already refused one that does not decode to a list. A decoded
   # empty list is well formed, so evidence with no wallets still binds and the
-  # authority below it can invalidate the wallets it supersedes.
-  defp bind(
+  # authority below it can invalidate the wallets it supersedes. Whatever
+  # reaches the last clause authenticates this exact subject and session with
+  # no signed accounts standing behind it.
+  defp bind_roles(
          %{claims: authentication, privy_user_id: did, session_id: sid},
-         %{claims: %{"linked_accounts" => accounts}, privy_user_id: did, session_id: sid} =
-           evidence
+         %{claims: %{"linked_accounts" => accounts}} = evidence
        )
        when is_binary(accounts) and not is_map_key(authentication, "linked_accounts") do
     {:ok,
@@ -80,19 +95,20 @@ defmodule AshPlatform.Privy do
      }}
   end
 
-  # The mismatches are named before the roles, so whatever reaches the last
-  # clause authenticates this exact subject and session with no signed accounts
-  # standing behind it.
-  defp bind(%{privy_user_id: did}, %{privy_user_id: other}) when did != other,
-    do: {:error, {:pair_binding, :subject_mismatch}}
-
-  defp bind(%{session_id: sid}, %{session_id: other}) when sid != other,
-    do: {:error, {:pair_binding, :session_mismatch}}
-
-  defp bind(%{claims: %{"linked_accounts" => _accounts}}, _evidence),
+  defp bind_roles(%{claims: %{"linked_accounts" => _accounts}}, _evidence),
     do: {:error, {:pair_binding, :access_role_confused}}
 
-  defp bind(_authenticated, _evidence), do: {:error, {:pair_binding, :identity_accounts_missing}}
+  defp bind_roles(_authenticated, _evidence),
+    do: {:error, {:pair_binding, :identity_accounts_missing}}
+
+  # Absence is the identity token's documented shape; a session it does name is
+  # normalized exactly like the access token's before comparison, and anything
+  # else standing in the claim names no session and cannot agree.
+  defp names_authenticated_session?(%{"sid" => named}, session_id) when is_binary(named),
+    do: String.trim(named) == session_id
+
+  defp names_authenticated_session?(%{"sid" => _named}, _session_id), do: false
+  defp names_authenticated_session?(_claims, _session_id), do: true
 
   defp verifier, do: Application.get_env(:ash_platform, :regent_privy_module, RegentPrivy)
 
@@ -109,12 +125,20 @@ defmodule AshPlatform.Privy do
     end
   end
 
-  defp with_session_id(%{claims: %{"sid" => sid}} = verified, stage) when is_binary(sid) do
+  # Only the access token authenticates a provider session, so only it must
+  # name one: Privy's identity token carries the signed accounts without a
+  # `sid` claim, and whether a session it names anyway is the authenticated one
+  # is pair binding's question, not this slot's.
+  defp with_session_id(verified, :identity_verification), do: {:ok, verified}
+
+  defp with_session_id(%{claims: %{"sid" => sid}} = verified, :access_verification)
+       when is_binary(sid) do
     case String.trim(sid) do
-      "" -> {:error, {stage, :missing_session_id}}
+      "" -> {:error, {:access_verification, :missing_session_id}}
       session_id -> {:ok, Map.put(verified, :session_id, session_id)}
     end
   end
 
-  defp with_session_id(_verified, stage), do: {:error, {stage, :missing_session_id}}
+  defp with_session_id(_verified, :access_verification),
+    do: {:error, {:access_verification, :missing_session_id}}
 end
