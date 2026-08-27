@@ -27,6 +27,28 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
          do: persist_observation(attrs)
   end
 
+  @doc "Pins a report relationship to the same canonical immutable treasury address."
+  def associate_report_address(changeset) do
+    Ash.Changeset.before_action(changeset, fn changeset ->
+      report_id = Ash.Changeset.get_attribute(changeset, :treasury_security_report_id)
+      treasury_address = Ash.Changeset.get_attribute(changeset, :treasury_address)
+
+      case report_id && Autolaunch.get_treasury_security_report(report_id, actor: nil) do
+        nil ->
+          changeset
+
+        {:ok, %{address: report_address}} ->
+          associate_report_address(changeset, treasury_address, report_address)
+
+        _missing ->
+          Ash.Changeset.add_error(changeset,
+            field: :treasury_security_report_id,
+            message: "does not identify a treasury security report"
+          )
+      end
+    end)
+  end
+
   @doc "A fresh report may replace the bound row only when every security fact is unchanged."
   def revalidate_bound(report, requirement \\ :verified)
 
@@ -287,10 +309,11 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
   defp evidence_input(evidence) when is_map(evidence) do
     keys = [:usdc, :regent, :outbound]
 
-    if Enum.all?(keys, fn key ->
-         valid_optional_hash?(evidence[key] || evidence[to_string(key)])
-       end) do
-      {:ok, Map.new(keys, &{&1, evidence[&1] || evidence[to_string(&1)]})}
+    evidence =
+      Map.new(keys, &{&1, normalize_evidence_hash(evidence[&1] || evidence[to_string(&1)])})
+
+    if Enum.all?(keys, &valid_optional_hash?(evidence[&1])) do
+      {:ok, evidence}
     else
       {:error, :treasury_evidence_hash_invalid}
     end
@@ -298,8 +321,27 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
 
   defp evidence_input(_evidence), do: {:error, :treasury_evidence_hash_invalid}
 
+  defp associate_report_address(changeset, nil, report_address),
+    do: Ash.Changeset.force_change_attribute(changeset, :treasury_address, report_address)
+
+  defp associate_report_address(changeset, treasury_address, report_address) do
+    case Address.normalize(treasury_address) do
+      {:ok, ^report_address} ->
+        Ash.Changeset.force_change_attribute(changeset, :treasury_address, report_address)
+
+      _mismatch ->
+        Ash.Changeset.add_error(changeset,
+          field: :treasury_security_report_id,
+          message: "must describe the immutable treasury address"
+        )
+    end
+  end
+
   defp valid_optional_hash?(nil), do: true
   defp valid_optional_hash?(hash), do: AshPlatform.WalletActions.Rpc.valid_hash?(hash)
+
+  defp normalize_evidence_hash(""), do: nil
+  defp normalize_evidence_hash(hash), do: hash
 
   defp authorized_actor(%Human{}), do: :ok
   defp authorized_actor(%System{}), do: :ok

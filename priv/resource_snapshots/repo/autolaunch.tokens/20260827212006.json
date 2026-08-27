@@ -121,6 +121,18 @@
       "type": "utc_datetime_usec"
     },
     {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "treasury_address",
+      "type": "text"
+    },
+    {
       "allow_nil?": false,
       "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
       "generated?": false,
@@ -213,7 +225,7 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "DA3AA6D555D30B9F663DBB31A8FD81792804467D96D71B75450221CAFE25688A",
+  "hash": "E18809754ED400BDDF4A611DD6055B3FD5A89ECA3806BCDCCD4D597FA89F1C09",
   "identities": [
     {
       "all_tenants?": false,

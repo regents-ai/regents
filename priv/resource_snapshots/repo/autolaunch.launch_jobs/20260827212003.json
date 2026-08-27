@@ -177,6 +177,18 @@
       "references": null,
       "scale": null,
       "size": null,
+      "source": "treasury_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
       "source": "started_at",
       "type": "utc_datetime_usec"
     },

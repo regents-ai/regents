@@ -646,8 +646,13 @@ defmodule AshPlatform.Autolaunch.BidActions do
   defp verified_treasury(%{treasury_security_report: %Ash.NotLoaded{}}),
     do: unavailable(:treasury_report_missing)
 
-  defp verified_treasury(%{treasury_security_report: report}),
-    do: TreasurySecurity.revalidate_bound(report)
+  defp verified_treasury(%{
+         treasury_address: address,
+         treasury_security_report: %{address: address} = report
+       }),
+       do: TreasurySecurity.revalidate_bound(report)
+
+  defp verified_treasury(_auction), do: unavailable(:treasury_security_changed)
 
   defp revalidate_treasury(operation) do
     binding = operation.envelope["arguments"]["treasury_security"]
@@ -655,7 +660,9 @@ defmodule AshPlatform.Autolaunch.BidActions do
     with {:ok, report} <-
            Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
          false <- is_nil(report) do
-      TreasurySecurity.revalidate_bound(report)
+      if report.address == binding["address"],
+        do: TreasurySecurity.revalidate_bound(report),
+        else: unavailable(:treasury_security_changed)
     else
       _missing -> unavailable(:treasury_report_missing)
     end
@@ -665,6 +672,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
     bound = operation.envelope["arguments"]["treasury_security"]
 
     bound["configuration_fingerprint"] == fresh.configuration_fingerprint and
+      bound["address"] == fresh.address and
       bound["classification"] == Atom.to_string(fresh.classification) and
       bound["verification_state"] == "verified" and fresh.verification_state == :verified and
       bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
@@ -673,6 +681,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
   defp treasury_binding(report) do
     %{
       "report_id" => report.id,
+      "address" => report.address,
       "configuration_fingerprint" => report.configuration_fingerprint,
       "source_block_hash" => report.source_block_hash,
       "source_block_number" => report.source_block_number,

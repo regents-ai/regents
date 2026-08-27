@@ -17,6 +17,8 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   @other_wallet "0x9999999999999999999999999999999999999999"
   @approval_hash "0x" <> String.duplicate("a1", 32)
   @launch_hash "0x" <> String.duplicate("b2", 32)
+  @eoa "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   @unit Integer.pow(10, 18)
   @fee 1_000_000 * @unit
@@ -84,6 +86,47 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   end
 
   describe "ONE_REVIEW_SAYS_EVERYTHING_A_FOUNDER_NEEDS" do
+    test "exact EOA acknowledgement and blank evidence reach high-risk review", context do
+      draft =
+        Fixture.draft!(context[:actor],
+          draft: %{
+            "name" => "EOA custody",
+            "symbol" => "EOA",
+            "treasury" => @eoa,
+            "treasury_path" => "eoa",
+            "eoa_acknowledgement" => @eoa_acknowledgement
+          }
+        )
+
+      TreasuryClient.install(
+        runtime_code: "0x",
+        runtime_identity: "0x" <> String.duplicate("00", 32),
+        admitted_safe?: false,
+        owners: [],
+        threshold: nil
+      )
+
+      selector = "#autolaunch-launch-wallet-#{draft.id}"
+      view = mounted(context)
+      active_wallet(view, selector, @wallet)
+
+      html =
+        view
+        |> element(~s(#{selector} form[phx-submit="verify_treasury"]))
+        |> render_submit(%{"usdc" => "", "regent" => "", "outbound" => ""})
+
+      assert html =~ "Unverified"
+
+      html =
+        view
+        |> element(~s(#{selector} button[phx-click="review_launch"]))
+        |> render_click()
+
+      assert html =~ "Review this launch"
+      assert html =~ "Single-key EOA"
+      assert has_element?(view, "#{selector} .launch-wallet-review")
+    end
+
     test "the review names the token, raise, fee, treasury, wallet, network and count",
          context do
       view = reviewed(context)

@@ -107,6 +107,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, treasury_report} <- current_treasury_report(draft),
          {:ok, treasury_report} <-
            TreasurySecurity.revalidate_bound(treasury_report, treasury_requirement(draft)),
+         :ok <- custody_address_matches(draft, treasury_report),
          :ok <- custody_matches(draft, treasury_report),
          {:ok, operation} <-
            open(lease, draft, signer, review(draft, fields, signer, snapshot, treasury_report)) do
@@ -588,12 +589,16 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   defp custody_matches(_draft, _report), do: unavailable(:treasury_security_changed)
 
+  defp custody_address_matches(%{treasury: address}, %{address: address}), do: :ok
+  defp custody_address_matches(_draft, _report), do: unavailable(:treasury_security_changed)
+
   defp revalidate_treasury(operation) do
     binding = argument(operation, "treasury_security")
 
     with {:ok, report} <-
            Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
          false <- is_nil(report),
+         true <- report.address == binding["address"],
          requirement <-
            if(binding["verification_state"] == "verified", do: :verified, else: :observed) do
       TreasurySecurity.revalidate_bound(report, requirement)
@@ -607,6 +612,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     bound = argument(operation, "treasury_security")
 
     bound["configuration_fingerprint"] == fresh.configuration_fingerprint and
+      bound["address"] == fresh.address and
       bound["classification"] == Atom.to_string(fresh.classification) and
       bound["verification_state"] == Atom.to_string(fresh.verification_state) and
       bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
@@ -615,6 +621,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   defp treasury_binding(report) do
     %{
       "report_id" => report.id,
+      "address" => report.address,
       "configuration_fingerprint" => report.configuration_fingerprint,
       "source_block_hash" => report.source_block_hash,
       "source_block_number" => report.source_block_number,

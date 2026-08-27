@@ -1,7 +1,7 @@
 defmodule AshPlatform.Autolaunch.TreasurySecurityReportTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.Actors.Human
+  alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.TreasurySecurityReport
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: Client
@@ -27,5 +27,83 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityReportTest do
 
     Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
     Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+  end
+
+  test "EVERY_REPORT_ASSOCIATION_PINS_THE_SAME_IMMUTABLE_TREASURY_ADDRESS" do
+    report = Client.seed_verified!("0x9999999999999999999999999999999999999999")
+    attrs = %{treasury_security_report_id: report.id}
+
+    auction =
+      Autolaunch.import_auction!("Pinned treasury", nil, false, :created, nil, attrs,
+        actor: %System{}
+      )
+
+    assert auction.treasury_address == report.address
+
+    token =
+      Autolaunch.import_token!(
+        auction.id,
+        "Pinned token",
+        "PIN",
+        nil,
+        DateTime.utc_now(),
+        nil,
+        attrs,
+        actor: %System{}
+      )
+
+    assert token.treasury_address == report.address
+
+    launch =
+      Autolaunch.import_launch!(
+        "launch:pinned-treasury",
+        "ready",
+        "reviewed",
+        "agent:pinned",
+        nil,
+        "Pinned token",
+        "PIN",
+        8453,
+        auction.id,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        attrs,
+        actor: %System{}
+      )
+
+    assert launch.treasury_address == report.address
+
+    subject =
+      Autolaunch.import_subject!(
+        "subject:pinned-treasury",
+        "agent",
+        8453,
+        nil,
+        nil,
+        nil,
+        report.address,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        nil,
+        attrs,
+        actor: %System{}
+      )
+
+    assert subject.treasury_address == report.address
+
+    other = Client.seed_verified!("0x8888888888888888888888888888888888888888")
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.set_auction_treasury_security_report(auction, other.id, actor: %System{})
   end
 end

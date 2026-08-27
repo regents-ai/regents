@@ -8,6 +8,7 @@ const otherWallet = "0x4444444444444444444444444444444444444444"
 // Lowercase on purpose: mixed case asserts an EIP-55 checksum, and a launch
 // review refuses an address whose checksum does not hold.
 const treasury = "0xabcdef0000000000000000000000000000000001"
+const browserEoa = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 const eoaWarning =
   "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
@@ -19,6 +20,7 @@ const rejectKey = "regent:test:launch-reject-next"
 // own slot, because the per-context send counter restarts with every test and
 // would otherwise mint a hash an earlier test already bound.
 const run = `${Date.now().toString(16).padStart(12, "0")}c4`
+const unverifiedTreasury = `0xfafa${run}${"0".repeat(22)}`
 let slot = 0
 
 async function installWallet(page: Page, testSlot: number) {
@@ -114,14 +116,14 @@ async function draftCard(page: Page): Promise<Locator> {
 // database is never reset, so it is reused rather than piled up.
 const draftName = "Launch wallet browser draft"
 
-async function saveDraft(page: Page) {
+async function saveDraft(page: Page, name = draftName, recipient = treasury) {
   const form = page.locator("#create-launch-draft")
-  await form.getByLabel("Name", {exact: true}).fill(draftName)
+  await form.getByLabel("Name", {exact: true}).fill(name)
   await form.getByLabel("Symbol", {exact: true}).fill("LWD")
   await form.getByLabel("Description", {exact: true}).fill("A launch awaiting review.")
   await form.getByLabel("Website", {exact: true}).fill("https://example.test/launch-wallet")
   await form.getByLabel("Image", {exact: true}).fill("https://example.test/launch-wallet.png")
-  await form.getByLabel("Immutable treasury recipient", {exact: true}).fill(treasury)
+  await form.getByLabel("Immutable treasury recipient", {exact: true}).fill(recipient)
   await form.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await form.getByRole("button", {name: "Save draft"}).click()
 
@@ -158,19 +160,154 @@ async function endAnyOpenLaunch(page: Page) {
   }
 }
 
+async function reviewed(page: Page): Promise<Locator> {
+  const card = await draftCard(page)
+  const verification = card.locator('form[phx-submit="verify_treasury"]')
+  await verification.getByLabel("USDC receipt transaction").fill(`0x${"11".repeat(32)}`)
+  await verification.getByLabel("REGENT receipt transaction").fill(`0x${"22".repeat(32)}`)
+  await verification
+    .getByLabel("Outbound Safe execution transaction")
+    .fill(`0x${"33".repeat(32)}`)
+  await verification.getByRole("button", {name: "Verify deployed address on Base"}).click()
+  await expect(card).toContainText("Verified 2-of-3 Safe", {timeout: 15_000})
+  await card.getByRole("button", {name: "Review launch"}).click()
+  await expect(card.locator(".launch-wallet-review")).toBeVisible({timeout: 15_000})
+  return card
+}
+
+test("exact EOA acknowledgement with blank evidence reaches high-risk review without a wallet request", async ({
+  page,
+}) => {
+  await signedIn(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const name = `EOA browser draft ${run}`
+  const form = page.locator("#create-launch-draft")
+  await form.getByLabel("Name", {exact: true}).fill(name)
+  await form.getByLabel("Symbol", {exact: true}).fill("EOA")
+  await form.getByLabel("Description", {exact: true}).fill("A high-risk EOA custody review.")
+  await form.getByLabel("Website", {exact: true}).fill("https://example.test/eoa")
+  await form.getByLabel("Image", {exact: true}).fill("https://example.test/eoa.png")
+  await form.getByLabel("Immutable treasury recipient", {exact: true}).fill(browserEoa)
+  await form.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
+  await form.locator(".autolaunch-custody-path details summary").click()
+  await form.locator('input[name="launch_draft[treasury_path]"][value="eoa"]').check()
+  await form.locator('textarea[name="launch_draft[eoa_acknowledgement]"]').fill(eoaWarning)
+  await form.getByRole("button", {name: "Save draft"}).click()
+
+  const article = page.locator("#launch-drafts article").filter({hasText: name})
+  const card = article.locator(".launch-wallet")
+  await endAnyOpenLaunch(page)
+  await card.getByRole("button", {name: "Verify deployed address on Base"}).click()
+  await expect(card).toContainText("Unverified")
+  await card.getByRole("button", {name: "Review launch"}).click()
+  await expect(card.locator(".launch-wallet-review")).toBeVisible({timeout: 15_000})
+  await article.locator(".autolaunch-custody-path details summary").click()
+  await expect(article.locator(".autolaunch-custody-warning")).toHaveText(eoaWarning)
+  await expect(
+    article.locator('input[name="launch_draft[treasury_path]"][value="eoa"]'),
+  ).toBeChecked()
+  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBeNull()
+  await card.getByRole("button", {name: "Cancel"}).click()
+})
+
+test("each explicit click sends once and a later review is not globally deduplicated", async ({
+  page,
+}) => {
+  await signedIn(page)
+  let card = await reviewed(page)
+
+  await card.locator("[data-launch-wallet-send]").click()
+  await expect(card).toContainText("Sent", {timeout: 15_000})
+  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe("1")
+  await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
+
+  await card.getByRole("button", {name: "Start something else"}).click()
+  card = await reviewed(page)
+  await card.locator("[data-launch-wallet-send]").click()
+  await expect(card).toContainText("Sent", {timeout: 15_000})
+  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe("2")
+})
+
+test("reload recovers a submitted review without another wallet request", async ({page}) => {
+  await signedIn(page)
+  const card = await reviewed(page)
+  await card.locator("[data-launch-wallet-send]").click()
+  await expect(card).toContainText("Sent", {timeout: 15_000})
+  const sendsBefore = await page.evaluate(key => sessionStorage.getItem(key), sendsKey)
+
+  await page.reload()
+  const restored = page.locator(".launch-wallet").filter({hasText: "Review this launch"})
+  await expect(restored).toContainText("Sent", {timeout: 15_000})
+  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe(sendsBefore)
+  await expect(restored.locator("[data-launch-wallet-send]")).toHaveCount(0)
+})
+
+test("explicit wallet rejection broadcasts nothing", async ({page}) => {
+  await signedIn(page)
+  const card = await reviewed(page)
+  await page.evaluate(key => sessionStorage.setItem(key, "1"), rejectKey)
+  await card.locator("[data-launch-wallet-send]").click()
+  await expect(card).toContainText("Your wallet declined this.", {timeout: 15_000})
+  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBeNull()
+  await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
+})
+
+test("technical values remain behind the reviewed-card disclosure", async ({page}) => {
+  await signedIn(page)
+  const card = await reviewed(page)
+  const details = card.locator(".launch-wallet-review details")
+  await details.locator("summary").click()
+  await expect(details).toContainText("Calldata digest")
+  await expect(details).toContainText("Floor price q96")
+  await expect(details).toContainText("Max reachable raise")
+})
+
+test("the reviewed card fits mobile and desktop viewports without clipping", async ({page}) => {
+  await signedIn(page)
+  await page.setViewportSize({width: 390, height: 844})
+  const card = await reviewed(page)
+  await card.locator(".launch-wallet-review details summary").click()
+
+  for (const viewport of [
+    {width: 390, height: 844},
+    {width: 1440, height: 900},
+  ]) {
+    await page.setViewportSize(viewport)
+    const layout = await card.locator(".launch-wallet-review").evaluate(node => ({
+      card: (node.closest(".launch-wallet") as HTMLElement).offsetWidth,
+      page: document.documentElement.clientWidth,
+      sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      clipped: [node, ...node.querySelectorAll("*")]
+        .filter(child => child.scrollWidth > child.clientWidth + 1)
+        .map(child => `${child.tagName}.${child.className || "-"}`),
+    }))
+
+    expect(layout.sideways).toBeLessThanOrEqual(0)
+    expect(layout.card).toBeLessThanOrEqual(layout.page)
+    expect(layout.clipped).toEqual([])
+  }
+})
+
 test("the official Safe path blocks review until the deployed treasury is verified", async ({
   page,
 }) => {
   await signedIn(page)
-  const card = await draftCard(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const name = `Unverified Safe browser draft ${run}`
+  await saveDraft(page, name, unverifiedTreasury)
+  const card = page.locator("#launch-drafts article").filter({hasText: name}).locator(".launch-wallet")
+  await endAnyOpenLaunch(page)
 
   await expect(card).toContainText("Verify immutable treasury")
   await expect(card).toContainText("Unverified")
-  await card.getByRole("button", {name: "Review launch"}).click()
-  await expect(card).toContainText("Verify the deployed treasury address before review.")
 
-  // Refusal happens before the browser can be offered any transaction.
+  // The official path is stopped before review or any wallet transaction is offered.
   expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBeNull()
+  await expect(card.getByRole("button", {name: "Review launch"})).toHaveCount(0)
   await expect(card.locator(".launch-wallet-review")).toHaveCount(0)
   await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
 })

@@ -14,6 +14,7 @@ defmodule AshPlatform.TestAutolaunchTreasuryChainClient do
     "0x2222222222222222222222222222222222222222",
     "0x3333333333333333333333333333333333333333"
   ]
+  @browser_eoa "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
   def install(overrides \\ []) do
     Application.put_env(:ash_platform, :autolaunch_treasury_chain_client, __MODULE__)
@@ -49,7 +50,7 @@ defmodule AshPlatform.TestAutolaunchTreasuryChainClient do
 
   @impl true
   def observe(address, hashes) do
-    fixture = Application.get_env(:ash_platform, :test_autolaunch_treasury_observation, %{})
+    fixture = fixture(address)
 
     if reason = fixture[:error] do
       {:error, reason}
@@ -96,4 +97,20 @@ defmodule AshPlatform.TestAutolaunchTreasuryChainClient do
       {:ok, %{observation | evidence: evidence}}
     end
   end
+
+  defp fixture(@browser_eoa) do
+    %{
+      runtime_code: "0x",
+      runtime_identity: "0x" <> String.duplicate("00", 32),
+      admitted_safe?: false,
+      safe_singleton: nil,
+      safe_version: nil,
+      owners: [],
+      threshold: nil,
+      fallback_admitted?: false
+    }
+  end
+
+  defp fixture(_address),
+    do: Application.get_env(:ash_platform, :test_autolaunch_treasury_observation, %{})
 end

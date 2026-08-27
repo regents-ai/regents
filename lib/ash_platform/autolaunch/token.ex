@@ -1,5 +1,5 @@
 defmodule AshPlatform.Autolaunch.Token do
-  alias AshPlatform.Autolaunch.SubjectIdentity
+  alias AshPlatform.Autolaunch.{SubjectIdentity, TreasurySecurity}
 
   use Ash.Resource,
     otp_app: :ash_platform,
@@ -54,6 +54,11 @@ defmodule AshPlatform.Autolaunch.Token do
 
     attribute :price_updated_at, :utc_datetime_usec do
       public? true
+    end
+
+    attribute :treasury_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
     end
 
     timestamps()
@@ -141,6 +146,8 @@ defmodule AshPlatform.Autolaunch.Token do
         :top_rank,
         :treasury_security_report_id
       ]
+
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
     update :set_price_snapshot do

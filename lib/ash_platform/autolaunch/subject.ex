@@ -1,5 +1,5 @@
 defmodule AshPlatform.Autolaunch.Subject do
-  alias AshPlatform.Autolaunch.SubjectIdentity
+  alias AshPlatform.Autolaunch.{SubjectIdentity, TreasurySecurity}
 
   use Ash.Resource,
     otp_app: :ash_platform,
@@ -154,6 +154,8 @@ defmodule AshPlatform.Autolaunch.Subject do
         :pending_buyback_usdc_raw,
         :treasury_security_report_id
       ]
+
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
     update :set_buyback_router do

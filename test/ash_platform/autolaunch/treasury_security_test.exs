@@ -76,6 +76,23 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityTest do
              {:unknown_contract, :unverified}
   end
 
+  test "BLANK_OPTIONAL_EVIDENCE_IS_ABSENT_AT_THE_OBSERVATION_BOUNDARY" do
+    Client.install(runtime_code: "0x", admitted_safe?: false, owners: [], threshold: nil)
+
+    assert {:ok, report} =
+             Autolaunch.observe_treasury_security(
+               @safe,
+               %{"usdc" => "", "regent" => "", "outbound" => ""},
+               actor: %System{}
+             )
+
+    assert report.classification == :eoa
+    assert report.verification_state == :unverified
+    assert report.usdc_evidence == nil
+    assert report.regent_evidence == nil
+    assert report.outbound_evidence == nil
+  end
+
   test "CLASSIFICATION_PRECEDENCE_IS_CLOSED_AND_NEVER_GUESSES_FROM_SAFE_SHAPE" do
     cases = [
       {[runtime_code: "0xef0100" <> String.duplicate("11", 20)], :delegated_eoa},

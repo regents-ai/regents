@@ -51,6 +51,8 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
            )
 
     alter table(:tokens, prefix: "autolaunch") do
+      add(:treasury_address, :text)
+
       add(
         :treasury_security_report_id,
         references(:treasury_security_reports,
@@ -75,6 +77,8 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
     end
 
     alter table(:launch_jobs, prefix: "autolaunch") do
+      add(:treasury_address, :text)
+
       add(
         :treasury_security_report_id,
         references(:treasury_security_reports,
@@ -91,6 +95,8 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
     end
 
     alter table(:auctions, prefix: "autolaunch") do
+      add(:treasury_address, :text)
+
       add(
         :treasury_security_report_id,
         references(:treasury_security_reports,
@@ -108,6 +114,7 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
 
     alter table(:auctions, prefix: "autolaunch") do
       remove(:treasury_security_report_id)
+      remove(:treasury_address)
     end
 
     alter table(:launch_drafts, prefix: "autolaunch") do
@@ -122,6 +129,7 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
 
     alter table(:launch_jobs, prefix: "autolaunch") do
       remove(:treasury_security_report_id)
+      remove(:treasury_address)
     end
 
     drop(constraint(:subjects, "subjects_treasury_security_report_id_fkey", prefix: "autolaunch"))
@@ -134,6 +142,7 @@ defmodule AshPlatform.Repo.Migrations.Regent49055VerifiedTreasuryCustody do
 
     alter table(:tokens, prefix: "autolaunch") do
       remove(:treasury_security_report_id)
+      remove(:treasury_address)
     end
 
     drop_if_exists(

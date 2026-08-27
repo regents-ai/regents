@@ -5,7 +5,7 @@ defmodule AshPlatform.Autolaunch.Auction do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias AshPlatform.Autolaunch.BidActions
+  alias AshPlatform.Autolaunch.{BidActions, TreasurySecurity}
 
   attributes do
     uuid_primary_key :id
@@ -63,6 +63,11 @@ defmodule AshPlatform.Autolaunch.Auction do
       constraints max_length: 100, trim?: true
     end
 
+    attribute :treasury_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
     timestamps()
   end
 
@@ -109,6 +114,7 @@ defmodule AshPlatform.Autolaunch.Auction do
 
     create :import_public do
       accept [:title, :summary, :featured, :state, :opened_at, :treasury_security_report_id]
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
     update :set_bid_terms do
@@ -124,7 +130,9 @@ defmodule AshPlatform.Autolaunch.Auction do
     end
 
     update :set_treasury_security_report do
+      require_atomic? false
       accept [:treasury_security_report_id]
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
     # The bidder lifecycle. Every one of these names the exact wallet or the

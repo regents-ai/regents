@@ -32,7 +32,12 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
   @singleton_hash get_in(@manifest, ["safe", "singleton", "code_keccak256"])
   @safe_version get_in(@manifest, ["safe", "singleton", "version"])
   @proxy_runtime_hash get_in(@manifest, ["safe", "proxy_runtime", "runtime_keccak256"])
-  @fallbacks get_in(@manifest, ["safe", "admitted_fallback_handlers"])
+  @compatibility_fallback get_in(@manifest, ["safe", "compatibility_fallback_handler", "address"])
+  @compatibility_fallback_hash get_in(@manifest, [
+                                 "safe",
+                                 "compatibility_fallback_handler",
+                                 "code_keccak256"
+                               ])
   @guard_slot get_in(@manifest, ["safe", "storage_slots", "guard"])
   @fallback_slot get_in(@manifest, ["safe", "storage_slots", "fallback_handler"])
   @usdc get_in(@manifest, ["tokens", "usdc"])
@@ -62,7 +67,13 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
   end
 
   def module do
-    Application.get_env(:ash_platform, :autolaunch_treasury_chain_client, __MODULE__)
+    configured = Application.get_env(:ash_platform, :autolaunch_treasury_chain_client, __MODULE__)
+
+    if configured == __MODULE__ and System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
+      Module.concat(AshPlatform, TestAutolaunchTreasuryChainClient)
+    else
+      configured
+    end
   end
 
   defp read_observation(address, evidence) do
@@ -126,8 +137,9 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          {:ok, threshold} <- decode_uint(threshold_raw),
          true <- threshold > 0 and threshold <= length(owners),
          {:ok, modules} <- modules(address, block),
-         {:ok, guard} <- storage_address(address, @guard_slot, block),
-         {:ok, fallback} <- storage_address(address, @fallback_slot, block) do
+         {:ok, guard} <- optional_storage_address(address, @guard_slot, block),
+         {:ok, fallback} <- optional_storage_address(address, @fallback_slot, block),
+         {:ok, fallback_admitted?} <- fallback_admitted?(fallback, block) do
       {:ok,
        %{
          admitted_safe?: true,
@@ -138,7 +150,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          modules: modules,
          guard: guard,
          fallback_handler: fallback,
-         fallback_admitted?: fallback in @fallbacks,
+         fallback_admitted?: fallback_admitted?,
          runtime_identity: keccak(runtime),
          runtime_code: runtime
        }}
@@ -173,7 +185,8 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          {:ok, historical} <- safe_config(safe, receipt_block),
          ^fingerprint <-
            TreasurySecurity.fingerprint(safe, Map.merge(historical, %{block: receipt_block})),
-         {:ok, log, amount} <- transfer_log(receipt["logs"], token, safe) do
+         {:ok, log, amount} <- transfer_log(receipt["logs"], token, safe),
+         :ok <- log_identity(log, hash, receipt_block) do
       {:ok,
        %{
          verified: true,
@@ -206,7 +219,8 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          {:ok, historical} <- safe_config(safe, receipt_block),
          ^fingerprint <-
            TreasurySecurity.fingerprint(safe, Map.merge(historical, %{block: receipt_block})),
-         {:ok, log} <- execution_success(receipt["logs"], safe) do
+         {:ok, log} <- execution_success(receipt["logs"], safe),
+         :ok <- log_identity(log, hash, receipt_block) do
       {:ok,
        %{
          verified: true,
@@ -240,6 +254,8 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          true <- number <= safe_block.number,
          hash when is_binary(hash) <- receipt["blockHash"],
          true <- Rpc.valid_hash?(hash),
+         true <- downcase(transaction["blockHash"]) == downcase(hash),
+         {:ok, ^number} <- quantity(transaction["blockNumber"]),
          {:ok, header} <- Rpc.request("eth_getBlockByNumber", [hex(number), false], @rpc_opts),
          true <- downcase(header["hash"]) == downcase(hash) do
       {:ok, transaction, receipt, %{number: number, hash: downcase(hash)}}
@@ -372,6 +388,20 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          do: decode_word_address(raw)
   end
 
+  defp optional_storage_address(address, slot, block) do
+    with {:ok, raw} <- request("eth_getStorageAt", [address, slot, block_ref(block)]),
+         do: decode_optional_word_address(raw)
+  end
+
+  defp fallback_admitted?(@zero, _block), do: {:ok, true}
+
+  defp fallback_admitted?(@compatibility_fallback, block) do
+    with {:ok, runtime} <- code(@compatibility_fallback, block),
+         do: {:ok, keccak(runtime) == @compatibility_fallback_hash}
+  end
+
+  defp fallback_admitted?(_fallback, _block), do: {:ok, false}
+
   defp code(address, block) do
     with {:ok, code} when is_binary(code) <-
            request("eth_getCode", [address, block_ref(block)]),
@@ -405,6 +435,23 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
   end
 
   defp decode_word_address(_word), do: {:error, :invalid_chain_response}
+
+  defp decode_optional_word_address("0x" <> word = raw) when byte_size(word) == 64 do
+    if word == String.duplicate("0", 64), do: {:ok, @zero}, else: decode_word_address(raw)
+  end
+
+  defp decode_optional_word_address(_word), do: {:error, :invalid_chain_response}
+
+  defp log_identity(log, transaction_hash, block) do
+    with true <- downcase(log["transactionHash"]) == downcase(transaction_hash),
+         true <- downcase(log["blockHash"]) == downcase(block.hash),
+         {:ok, number} <- quantity(log["blockNumber"]),
+         true <- number == block.number do
+      :ok
+    else
+      _ -> {:error, :treasury_evidence_invalid}
+    end
+  end
 
   defp words(_body, _start, 0), do: []
 
