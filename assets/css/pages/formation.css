@@ -39,7 +39,7 @@
 }
 
 .formation-kicker {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono, monospace);
   font-size: 0.72rem;
   letter-spacing: 0.12em;

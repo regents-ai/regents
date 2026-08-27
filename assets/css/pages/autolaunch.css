@@ -86,7 +86,7 @@
 }
 
 .autolaunch-record-list span {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-size: 0.86rem;
 }
 
@@ -130,15 +130,15 @@
 }
 
 .autolaunch-draft-hint {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
 }
 
 .autolaunch-draft-error {
-  color: var(--color-danger, #d93636);
+  color: var(--color-error);
 }
 
 .autolaunch-draft-form [aria-invalid="true"] {
-  border-color: var(--color-danger, #d93636);
+  border-color: var(--color-error);
 }
 
 .autolaunch-draft-review {
@@ -154,7 +154,7 @@
 }
 
 .autolaunch-draft-review dt {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
 }
 
 /* Addresses and links must stay readable at any width, so they wrap instead of
@@ -206,7 +206,7 @@
 }
 
 .autolaunch-draft-notice--error {
-  border-inline-start-color: var(--color-danger, #d93636);
+  border-inline-start-color: var(--color-error);
 }
 
 .autolaunch-drafts article {
@@ -364,7 +364,7 @@
 }
 
 .bid-notice[role="alert"] {
-  border-inline-start-color: var(--color-danger, #d93636);
+  border-inline-start-color: var(--color-error);
 }
 
 @media (max-width: 44rem) {
@@ -558,7 +558,7 @@
 }
 
 .subject-wallet-notice[role="alert"] {
-  border-inline-start-color: var(--color-danger, #d93636);
+  border-inline-start-color: var(--color-error);
 }
 
 @media (max-width: 24.5rem) {
@@ -643,7 +643,7 @@
 
 .launch-wallet-review dt,
 .launch-wallet-details dt {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono, monospace);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
@@ -682,7 +682,7 @@
 }
 
 .launch-wallet-notice[role="alert"] {
-  border-inline-start-color: var(--color-danger, #d93636);
+  border-inline-start-color: var(--color-error);
 }
 
 .launch-wallet-steps {

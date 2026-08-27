@@ -26,6 +26,75 @@ async function switchApp(page: Page, label: string) {
   await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
 }
 
+// The four integrated product colors, as each family resolves them: Regent
+// routes on Charcoal under Platinum with a Powder Blue mat guide, Formation
+// carrying the Tangerine product guide, Autolaunch on Tangerine under black
+// with a Powder Blue guide, and Techtree on Powder Blue under Charcoal.
+const charcoal = "rgb(22, 22, 22)"
+const platinum = "rgb(229, 227, 210)"
+const tangerine = "rgb(255, 91, 25)"
+const powderBlue = "rgb(174, 202, 205)"
+
+const regentFamily = {ground: charcoal, text: platinum, guide: powderBlue}
+const formationFamily = {...regentFamily, guide: tangerine}
+const autolaunchFamily = {ground: tangerine, text: "rgb(0, 0, 0)", guide: powderBlue}
+const techtreeFamily = {ground: powderBlue, text: charcoal, guide: charcoal}
+
+// The guide is read where it is painted, so it proves the whole chain from the
+// shared token through `--shell-background-guide` onto the mat mask.
+function readFamily(page: Page) {
+  return page.evaluate(() => {
+    const shell = document.querySelector("#app-shell")
+    const asset = document.querySelector(".shell-background__asset")
+    return {
+      ground: shell && getComputedStyle(shell).backgroundColor,
+      text: shell && getComputedStyle(shell).color,
+      guide: asset && getComputedStyle(asset).backgroundColor,
+    }
+  })
+}
+
+async function chooseTheme(page: Page, choice: "Light" | "Dark") {
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await page.locator("#theme-control summary").click()
+  await page.locator("#theme-control").getByRole("button", {name: choice}).click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", choice.toLowerCase())
+}
+
+test("[U2] every application family keeps its product ground, text, and mat guide in both theme choices", async ({page}) => {
+  for (const choice of ["Light", "Dark"] as const) {
+    await chooseTheme(page, choice)
+
+    for (const [route, family] of [
+      ["/stake", regentFamily],
+      ["/formation", formationFamily],
+      ["/autolaunch", autolaunchFamily],
+      ["/techtree", techtreeFamily],
+    ] as const) {
+      await page.goto(route)
+      await expect(page.locator("html")).toHaveAttribute("data-theme", choice.toLowerCase())
+      await expect.poll(() => readFamily(page), `${route} ${choice}`).toEqual(family)
+    }
+
+    // Switching inside the persistent shell must land the same families a
+    // direct load does.
+    await page.goto("/app")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    await expect.poll(() => readFamily(page), `/app ${choice}`).toEqual(regentFamily)
+
+    await switchApp(page, "Techtree")
+    await expect(page).toHaveURL(/\/techtree$/)
+    await expect.poll(() => readFamily(page), `switched Techtree ${choice}`).toEqual(techtreeFamily)
+
+    await switchApp(page, "Autolaunch")
+    await expect(page).toHaveURL(/\/autolaunch$/)
+    await expect
+      .poll(() => readFamily(page), `switched Autolaunch ${choice}`)
+      .toEqual(autolaunchFamily)
+  }
+})
+
 test("[U2] direct application loads seed the canonical RegentUI brand", async ({
   page,
   request,

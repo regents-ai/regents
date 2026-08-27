@@ -262,7 +262,7 @@
 .techtree-map-node-index,
 .techtree-map-node-kind,
 .techtree-node-list span {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
 }
 
@@ -290,7 +290,7 @@
   flex-wrap: wrap;
   gap: 0.35rem 0.75rem;
   padding: 0.65rem 1rem 0.85rem;
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-size: 0.78rem;
 }
 
@@ -334,7 +334,7 @@
 }
 
 .techtree-provenance-grid dt {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-size: 0.75rem;
   text-transform: uppercase;
 }
@@ -466,7 +466,7 @@
 .techtree-notebook-runtime {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--hairline-strong);
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono, monospace);
   font-size: 0.75rem;
   white-space: nowrap;

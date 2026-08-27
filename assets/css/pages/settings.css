@@ -56,7 +56,7 @@
 }
 
 .verified-connections__list span {
-  color: var(--color-text-muted, currentColor);
+  color: var(--color-fg-muted);
 }
 
 .verified-connections__notice {
@@ -65,7 +65,7 @@
 }
 
 .verified-connections__notice--error {
-  border-inline-start-color: var(--color-danger, #d93636);
+  border-inline-start-color: var(--color-error);
 }
 
 @media (max-width: 30rem) {

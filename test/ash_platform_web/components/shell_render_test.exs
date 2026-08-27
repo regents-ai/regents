@@ -21,6 +21,7 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
                    "../../../lib/ash_platform_web/components/layouts/root.html.heex",
                    __DIR__
                  )
+  @app_css Path.expand("../../../assets/css/app.css", __DIR__)
   @material_css Path.expand("../../../assets/css/tokens/material.css", __DIR__)
   @shell_css Path.expand("../../../assets/css/components/shell.css", __DIR__)
 
@@ -68,7 +69,8 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     end
   end
 
-  test "[U4] RegentUI owns neutral grounds and all approved guide palettes" do
+  test "[U4] RegentUI owns every ground, guide, and base control color Ash paints" do
+    app = File.read!(@app_css)
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
 
@@ -81,17 +83,18 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     assert shell =~ "background: var(--shell-background-ground)"
     assert shell =~ "mask: var(--shell-background-mask) center / cover no-repeat"
 
-    for guide <- [
-          "rgb(0, 95, 146)",
-          "rgb(75, 168, 224)",
-          "rgb(176, 63, 0)",
-          "rgb(230, 115, 57)",
-          "rgb(0, 122, 58)",
-          "rgb(65, 214, 134)",
-          "rgb(26, 88, 143)",
-          "rgb(109, 169, 231)"
-        ] do
-      assert shell =~ guide
+    assert shell =~ "--shell-background-guide: var(--color-accent)"
+    assert shell =~ "--shell-background-guide: var(--product-formation)"
+    assert shell =~ "--shell-background-guide: var(--brand-accent)"
+
+    assert app =~ "background: var(--color-surface-elevated, Canvas)"
+    assert app =~ "color: var(--color-fg, CanvasText)"
+    assert app =~ "outline: 3px solid var(--color-accent, AccentColor)"
+
+    # The unbranded public page is the only surface allowed its own palette, so
+    # nothing the shell paints may name a color RegentUI did not resolve.
+    for stylesheet <- [app, material, shell] do
+      refute stylesheet =~ ~r/#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab)\(\s*[.\d]/
     end
 
     refute shell =~ "prefers-color-scheme"

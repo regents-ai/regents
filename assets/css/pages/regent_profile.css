@@ -38,7 +38,7 @@
 
 .regent-profile-slug,
 .regent-profile-record dt {
-  color: var(--color-text-muted);
+  color: var(--color-fg-muted);
 }
 
 .regent-profile-record dl {

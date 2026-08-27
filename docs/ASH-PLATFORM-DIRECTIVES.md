@@ -380,10 +380,18 @@ changes use only a 140–180 ms color/background crossfade, with no travel,
 scale, blur animation, or layout shift. Reduced motion changes immediately.
 
 **AP-061 — Structural material.** All four apps share one high-opacity
-liquid-glass material system: neutral gradient fills, restrained gradient
-strokes, consistent elevation, and readable contrast over the SVG grid. The
-stroke is an edge treatment, not a glow. Product identity comes from the
-background, accent, selected state, mark, and content—not four panel recipes.
+liquid-glass material system: one fill recipe, restrained gradient strokes,
+consistent elevation, and readable contrast over the SVG grid. The stroke is an
+edge treatment, not a glow. Product identity comes from the background, accent,
+selected state, mark, and content—not four panel recipes.
+
+The founder's 2026-08-26 product framing supersedes the earlier shared neutral
+ground. Each family now sits on its own product ground: Regent routes on
+Charcoal under Platinum, Autolaunch on Tangerine Tango under black with
+Platinum and Powder Blue highlights, and Techtree on Powder Blue under
+Charcoal. The ground answers to the app, never to the Light or Dark choice;
+that choice may vary only derived material elevation. Every one of these colors
+comes from the shared Regent design system. Ash defines none of its own.
 
 Use glass only for major structural surfaces: header, contextual navigation,
 primary stage, major secondary rail, and dialogs. Lists, comments, inputs,
@@ -402,23 +410,22 @@ constant operational, wallet, or error motion. 3D voxels are reserved for the
 homepage, app switching, or one shared sidebar/footer layer—never a canvas per
 component. Every use has a static 2D fallback.
 
-Voxel palettes use the active app accent plus neutrals. Techtree may use a
-restrained biological green secondary. Do not use a cross-product rainbow or
-decorative status colors.
+Voxel palettes use the active app accent plus the shared product colors. The
+founder's 2026-08-26 product framing supersedes Techtree's biological green
+secondary; Techtree's biological accent is now Tangerine Tango. Do not use a
+cross-product rainbow or decorative status colors.
 
 **AP-064 — Background assets.** The founder will supply separate light/dark
-SVG cutting-mat backgrounds for each app. The ground remains neutral/shared;
-the following values are guide/grid colors, not full background fills:
-
-| App | Light guide RGB | Dark guide RGB |
-| --- | --- | --- |
-| Regents Labs | `rgb(0, 95, 146)` | `rgb(75, 168, 224)` |
-| Formation | `rgb(176, 63, 0)` | `rgb(230, 115, 57)` |
-| Autolaunch | `rgb(0, 122, 58)` | `rgb(65, 214, 134)` |
-| Techtree | `rgb(26, 88, 143)` | `rgb(109, 169, 231)` |
+SVG cutting-mat backgrounds for each app. The founder's 2026-08-26 product
+framing supersedes the earlier eight-value light/dark guide table. Guides are
+guide/grid colors, not full background fills, and each one is the active app's
+shared accent: Powder Blue on Regent routes, Tangerine Tango on Formation,
+Powder Blue on Autolaunch, and Charcoal on Techtree. A guide follows the app,
+not the Light or Dark choice.
 
 Preserve the cutting-mat opacity rhythm: faint fine grid, stronger medium
-grid, and controlled primary guides. Do not silently tint the neutral ground.
+grid, and controlled primary guides. Do not restate these colors anywhere in
+`ash-platform`; read them from the shared design system.
 
 A typed Design asset manifest resolves the route catalog's four stable app
 keys against the effective System/Light/Dark theme to exactly these eight

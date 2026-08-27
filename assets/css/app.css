@@ -108,12 +108,14 @@ h6 {
   font-family: inherit;
 }
 
+/* The unbranded public page defines no RegentUI tokens, so the operating-system
+   colors stand only there. */
 button,
 input {
   border: 1px solid currentColor;
   border-radius: 0;
-  background: Canvas;
-  color: CanvasText;
+  background: var(--color-surface-elevated, Canvas);
+  color: var(--color-fg, CanvasText);
 }
 
 button {
@@ -126,7 +128,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid AccentColor;
+  outline: 3px solid var(--color-accent, AccentColor);
   outline-offset: 2px;
 }
 

@@ -1,3 +1,6 @@
+/* The mat guide is the active brand's accent, so it follows the brand the server
+   selected rather than the theme choice. Formation and Autolaunch name their own
+   product hue instead. */
 .shell-background {
   position: absolute;
   inset: 0;
@@ -7,6 +10,7 @@
   pointer-events: none;
   user-select: none;
   background: var(--shell-background-ground);
+  --shell-background-guide: var(--color-accent);
 }
 
 .shell-background__asset {
@@ -18,36 +22,12 @@
   -webkit-mask: var(--shell-background-mask) center / cover no-repeat;
 }
 
-.shell-background:is([data-background-slot="home"], [data-background-slot="regents_labs"], [data-background-slot="regent_record"]) {
-  --shell-background-guide: rgb(0, 95, 146);
-}
-
 .shell-background[data-background-slot="formation"] {
-  --shell-background-guide: rgb(176, 63, 0);
+  --shell-background-guide: var(--product-formation);
 }
 
 .shell-background[data-background-slot="autolaunch"] {
-  --shell-background-guide: rgb(0, 122, 58);
-}
-
-.shell-background:is([data-background-slot="techtree_overview"], [data-background-slot="techtree_node"], [data-background-slot="techtree_tree"]) {
-  --shell-background-guide: rgb(26, 88, 143);
-}
-
-:root[data-theme="dark"] .shell-background:is([data-background-slot="home"], [data-background-slot="regents_labs"], [data-background-slot="regent_record"]) {
-  --shell-background-guide: rgb(75, 168, 224);
-}
-
-:root[data-theme="dark"] .shell-background[data-background-slot="formation"] {
-  --shell-background-guide: rgb(230, 115, 57);
-}
-
-:root[data-theme="dark"] .shell-background[data-background-slot="autolaunch"] {
-  --shell-background-guide: rgb(65, 214, 134);
-}
-
-:root[data-theme="dark"] .shell-background:is([data-background-slot="techtree_overview"], [data-background-slot="techtree_node"], [data-background-slot="techtree_tree"]) {
-  --shell-background-guide: rgb(109, 169, 231);
+  --shell-background-guide: var(--brand-accent);
 }
 
 .shell-material {
@@ -333,7 +313,7 @@ details[open] > summary .shell-chevron {
 
 .account-menu__row--danger {
   border-bottom: 0;
-  color: var(--color-status-error, currentColor);
+  color: var(--color-error);
 }
 
 .theme-menu {
