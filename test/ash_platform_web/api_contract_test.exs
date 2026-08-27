@@ -101,7 +101,7 @@ defmodule AshPlatformWeb.ApiContractTest do
                    },
                    "responses" => %{
                      "200" => %{"$ref" => "#/components/responses/Session"},
-                     "401" => %{"$ref" => "#/components/responses/Unauthorized"},
+                     "401" => %{"$ref" => "#/components/responses/PrivySessionUnauthorized"},
                      "403" => %{"$ref" => "#/components/responses/CsrfForbidden"}
                    }
                  },
@@ -184,6 +184,7 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert Map.take(contract["components"]["responses"], [
              "Session",
              "Unauthorized",
+             "PrivySessionUnauthorized",
              "Logout",
              "CsrfForbidden"
            ]) == %{
@@ -198,6 +199,25 @@ defmodule AshPlatformWeb.ApiContractTest do
              "Unauthorized" => %{
                "description" =>
                  "The Privy access and identity tokens were not both present and valid for one signed-in session",
+               "content" => %{
+                 "application/json" => %{
+                   "schema" => %{"$ref" => "#/components/schemas/Error"}
+                 }
+               }
+             },
+             # Only the browser sign-in exchange may publish the marker, and only
+             # as an optional header on a body identical to every other refusal.
+             "PrivySessionUnauthorized" => %{
+               "description" =>
+                 "The Privy access and identity tokens were not both present and valid for one signed-in session",
+               "headers" => %{
+                 "x-ash-provider-relogin" => %{
+                   "description" =>
+                     "Present only when the access token itself could not be verified, which permits one fresh provider login",
+                   "required" => false,
+                   "schema" => %{"type" => "string", "const" => "allowed"}
+                 }
+               },
                "content" => %{
                  "application/json" => %{
                    "schema" => %{"$ref" => "#/components/schemas/Error"}

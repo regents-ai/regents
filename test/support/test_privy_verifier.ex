@@ -128,5 +128,10 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
+  # The access token is well-formed for this app but its own verification is
+  # refused, which is the one refusal a fresh provider login can clear. The
+  # catch-all below is the generic refusal, so both live in the same stage.
+  def verify_access_token("stale-access"), do: {:error, :token_verification_failed}
+
   def verify_access_token(_token), do: {:error, :invalid_token}
 end

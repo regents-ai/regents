@@ -372,7 +372,7 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Session"}
         "403": {$ref: "#/components/responses/CsrfForbidden"}
-        "401": {$ref: "#/components/responses/Unauthorized"}
+        "401": {$ref: "#/components/responses/PrivySessionUnauthorized"}
     delete:
       operationId: deletePrivyBrowserSession
       security: [{csrfToken: []}]
@@ -494,6 +494,16 @@ components:
       content:
         application/json:
             schema: {$ref: "#/components/schemas/Error"}
+    PrivySessionUnauthorized:
+      description: The Privy access and identity tokens were not both present and valid for one signed-in session
+      headers:
+        x-ash-provider-relogin:
+          description: Present only when the access token itself could not be verified, which permits one fresh provider login
+          required: false
+          schema: {type: string, const: allowed}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
     Logout:
       description: Local browser session removed
       content:

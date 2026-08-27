@@ -22,6 +22,7 @@ import {
   csrfToken,
   recoverOnce,
   sessionLifecycleError,
+  showAccountAuthFailure,
   type AccountRequest,
   type IdentityRequest,
   type PrivyBridgeHandle,
@@ -37,19 +38,19 @@ import {
 } from "./wallet_actions/connected_wallet"
 
 type AccountRequestHandlerOptions = {
-  requestLogin: () => void
+  signIn: () => Promise<void>
   providerLogout: () => Promise<void>
   synchronizeWallets: () => Promise<void>
 }
 
 export function createAccountRequestHandler({
-  requestLogin,
+  signIn,
   providerLogout,
   synchronizeWallets,
 }: AccountRequestHandlerOptions): (request: AccountRequest) => Promise<void> {
   return async request => {
     if (request === "sign-in") {
-      requestLogin()
+      await signIn()
       return
     }
 
@@ -59,6 +60,77 @@ export function createAccountRequestHandler({
     }
 
     await providerLogout()
+  }
+}
+
+// Refusals are one message to the customer. This type is never exported, so
+// only a sign in inside this module can tell the exact refusal the server marked
+// as recoverable apart from every other one, which stays generic and final.
+class StaleProviderSessionError extends Error {
+  constructor() {
+    super("Sign in could not be completed.")
+  }
+}
+
+function refusal(response: Response): Error {
+  return response.status === 401 &&
+    response.headers.get("x-ash-provider-relogin") === "allowed"
+    ? new StaleProviderSessionError()
+    : new Error("Sign in could not be completed.")
+}
+
+type SignInRequestOptions = {
+  authenticated: () => boolean
+  completeLogin: () => Promise<void>
+  providerLogout: () => Promise<void>
+  openLogin: () => void
+  loginOpen: {current: boolean}
+  recoveryAvailable: {current: boolean}
+}
+
+// One deliberate click. A provider session Regent accepts establishes straight
+// away; an anonymous provider opens Privy's ordinary login; and a provider whose
+// access token the server itself could not verify spends this page's single
+// recovery on one awaited logout and one fresh login. The cap is spent before
+// the logout is awaited and the logout completes before anything may be sent
+// again, so the pair the server just refused can never be offered a second time
+// and a later refusal simply stops.
+export function createSignInRequest({
+  authenticated,
+  completeLogin,
+  providerLogout,
+  openLogin,
+  loginOpen,
+  recoveryAvailable,
+}: SignInRequestOptions): {signIn: () => Promise<void>; recovering: () => boolean} {
+  let recovering = false
+
+  const openLoginOnce = () => {
+    if (loginOpen.current) return
+    loginOpen.current = true
+    openLogin()
+  }
+
+  return {
+    recovering: () => recovering,
+    async signIn() {
+      if (!authenticated()) return openLoginOnce()
+
+      try {
+        await completeLogin()
+      } catch (refused) {
+        if (!(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
+          throw refused
+        }
+
+        recoveryAvailable.current = false
+        recovering = true
+        await providerLogout().finally(() => {
+          recovering = false
+        })
+        openLoginOnce()
+      }
+    },
   }
 }
 
@@ -256,7 +328,7 @@ async function establishLocalSession(
       : response.ok || response.status === 401
   if (wroteSession) renewed()
   if (lifecycle) throw lifecycle
-  if (!response.ok) throw new Error("Sign in could not be completed.")
+  if (!response.ok) throw refusal(response)
   const sessionChanged = response.headers.get("x-ash-session-changed")
   if (sessionChanged !== "true" && sessionChanged !== "false") {
     throw new Error("Sign in could not be completed.")
@@ -357,28 +429,33 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
   } satisfies PrivyEvents["accessToken"]
 }
 
-export function createPrivyLoginCallbacks(
-  completeLogin: () => Promise<void>,
-): PrivyEvents["login"] {
-  return {onComplete: () => completeLogin()} satisfies PrivyEvents["login"]
+type PrivyLoginCallbackOptions = {
+  completeLogin: () => Promise<void>
+  loginOpen: {current: boolean}
+  showFailure: () => void
 }
 
-export function createReadyLoginGate(login: () => void) {
-  let ready = false
-  let pending = false
-
+// Privy's own login owns the modal it opened: both outcomes close it, so both
+// release the guard and the next deliberate click may open it again. A
+// completion that cannot establish Regent — including one Privy runs
+// synchronously for an already-authenticated customer, after the click that
+// opened login has settled — says so on the page rather than rejecting into
+// nothing.
+export function createPrivyLoginCallbacks({
+  completeLogin,
+  loginOpen,
+  showFailure,
+}: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
-    requestLogin() {
-      if (ready) login()
-      else pending = true
+    onComplete: () => {
+      loginOpen.current = false
+      void completeLogin().catch(showFailure)
     },
-    setReady(nextReady: boolean) {
-      ready = nextReady
-      if (!ready || !pending) return
-      pending = false
-      login()
+    onError: () => {
+      loginOpen.current = false
+      showFailure()
     },
-  }
+  } satisfies PrivyEvents["login"]
 }
 
 type AccountBridgeProps = {
@@ -437,9 +514,42 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       }),
     [signOutOnly],
   )
+  const loginOpen = React.useRef(false)
+  const recoveryAvailable = React.useRef(true)
+  const loginCallbacks = React.useMemo(
+    () =>
+      createPrivyLoginCallbacks({
+        completeLogin: completeExplicitLogin,
+        loginOpen,
+        showFailure: () => showAccountAuthFailure("sign-in"),
+      }),
+    [completeExplicitLogin],
+  )
+  const {login} = useLogin(loginCallbacks)
+  // The published handler outlives every render, so the click it answers reads
+  // the provider of the latest committed one rather than the one it was built
+  // in, and an in-flight recovery keeps the guard it started under.
+  const provider = React.useRef({authenticated, login, logout})
+  provider.current = {authenticated, login, logout}
+  const signInRequest = React.useMemo(
+    () =>
+      createSignInRequest({
+        authenticated: () => provider.current.authenticated,
+        completeLogin: completeExplicitLogin,
+        providerLogout: () => provider.current.logout(),
+        openLogin: () => provider.current.login(),
+        loginOpen,
+        recoveryAvailable,
+      }),
+    [completeExplicitLogin],
+  )
+  // Adoption only ever asks the server. It never opens login, never logs the
+  // provider out and never spends the recovery, and it stands aside entirely
+  // while an explicit recovery still holds the pair the server refused.
   const completeAutomaticLogin = React.useCallback(
-    () => (signOutOnly ? Promise.resolve() : completeExplicitLogin()),
-    [completeExplicitLogin, signOutOnly],
+    () =>
+      signOutOnly || signInRequest.recovering() ? Promise.resolve() : completeExplicitLogin(),
+    [completeExplicitLogin, signInRequest, signOutOnly],
   )
   const tokenCallbacks = React.useMemo(
     () => createPrivyTokenCallbacks(completeAutomaticLogin),
@@ -475,12 +585,6 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
-  const loginCallbacks = React.useMemo(
-    () => createPrivyLoginCallbacks(completeExplicitLogin),
-    [completeExplicitLogin],
-  )
-  const {login} = useLogin(loginCallbacks)
-  const loginGate = React.useMemo(() => createReadyLoginGate(login), [login])
   const walletSyncGeneration = React.useRef(0)
   const reconcileProviderSession = React.useMemo(
     () =>
@@ -494,8 +598,6 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       }),
     [authenticated, getAccessToken, wallets.length],
   )
-
-  React.useEffect(() => loginGate.setReady(ready), [loginGate, ready])
 
   React.useEffect(() => {
     if (signOutOnly || !ready || !authenticated) return
@@ -573,11 +675,11 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const ordinaryRequestHandler = React.useMemo(
     () =>
       createAccountRequestHandler({
-        requestLogin: loginGate.requestLogin,
-        providerLogout: logout,
+        signIn: signInRequest.signIn,
+        providerLogout: () => provider.current.logout(),
         synchronizeWallets,
       }),
-    [loginGate, logout, synchronizeWallets],
+    [signInRequest, synchronizeWallets],
   )
 
   const ordinaryIdentityHandler = React.useMemo(

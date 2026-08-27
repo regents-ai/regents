@@ -809,6 +809,37 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
     expect(socket.attempts).toEqual(["after-reset"])
   })
 
+  // The refusal a provider recovery answers drops the cookie exactly like every
+  // other one. Recovery runs inside the same rotation barrier, so the tab stays
+  // closed until the recovered sign in reads the state the cookie now carries.
+  it("stays closed while a marked refusal recovers and reopens on the recovered sign in", async () => {
+    pageWithCsrfMeta("page-token")
+    const socket = pinnedSocket()
+    holdSocketDuringCookieRotation(socket, noAdoptionAnswer)
+    const marked = vi.fn(async (input: RequestInfo | URL) =>
+      input === "/auth/csrf"
+        ? csrfResponse("current-token")
+        : new Response(JSON.stringify({error: "unauthorized"}), {
+            status: 401,
+            headers: {"x-ash-provider-relogin": "allowed"},
+          }),
+    ) as unknown as typeof fetch
+
+    await expect(createLocalSession(verifiedPair, marked)).rejects.toThrow(
+      "Sign in could not be completed.",
+    )
+
+    socket.connect()
+    expect(socket.attempts).toEqual([])
+
+    await createLocalSession(
+      {accessToken: "fresh", identityToken: "fresh-identity"},
+      signingIn("after-recovery"),
+    )
+
+    expect(socket.attempts).toEqual(["after-recovery"])
+  })
+
   // A cookie takes effect when the response headers land, so a body that cannot
   // be read afterwards leaves this tab holding an unread session, not a proof
   // that nothing was written.

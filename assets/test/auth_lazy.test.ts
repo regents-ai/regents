@@ -7,6 +7,7 @@ import {
   consumeSignOutHandoff,
   installAccountAuthLazyLoader,
   proveAnonymousSession,
+  showAccountAuthFailure,
   writeSignOutHandoff,
   type AccountRequest,
   type PrivyBridgeModule,
@@ -160,7 +161,7 @@ describe("lazy browser authentication", () => {
     const order: string[] = []
     const handleRequest = vi.fn(
       createAccountRequestHandler({
-        requestLogin: vi.fn(),
+        signIn: vi.fn(async () => undefined),
         providerLogout: vi.fn(async () => {
           order.push("provider")
         }),
@@ -435,6 +436,26 @@ describe("lazy browser authentication", () => {
     expect(replacementStatus.hidden).toBe(true)
     expect(replacementStatus.textContent).toBe("")
     expect(importer).toHaveBeenCalledTimes(2)
+  })
+
+  // Privy runs its login callback immediately for an already-authenticated
+  // customer, so a sign in that fails there fails while the click is still
+  // settling. Nothing may clear the page after that.
+  it("VISIBLE_FAILURE_SURVIVES_THE_CLICK: a login-callback failure outlives the request", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument()
+    const startPrivyBridge = vi.fn(async () => ({
+      request: async () => {
+        showAccountAuthFailure("sign-in", page.documentRoot)
+      },
+    }))
+
+    installAccountAuthLazyLoader(page.documentRoot, async () => ({startPrivyBridge}))
+    page.click("sign-in")
+
+    await vi.waitFor(() => expect(startPrivyBridge).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(page.status.hidden).toBe(false))
+    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
   })
 
   it("does not silently disable account actions when the public app ID is absent", async () => {

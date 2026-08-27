@@ -385,6 +385,23 @@ export function consumeSignOutHandoff(
   return captured !== null && validSignOutHandoff(captured, nowMs)
 }
 
+// The one place account-action failure copy lives, so a failure raised inside
+// the Privy bridge's own login callbacks says exactly what a failure raised here
+// says.
+export function showAccountAuthFailure(
+  request: AccountRequest,
+  documentRoot: Document | undefined = globalThis.document,
+): void {
+  const status = documentRoot?.querySelector<HTMLElement>("#account-auth-status")
+  if (!status) return
+  status.textContent = {
+    "sign-in": "Sign in couldn’t start. Try again.",
+    "sign-out": "Sign out couldn’t finish. Try again.",
+    sync: "Account connection couldn’t refresh. Try again.",
+  }[request]
+  status.hidden = false
+}
+
 export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Promise<boolean> {
   try {
     const response = await fetcher("/auth/session", {
@@ -673,28 +690,20 @@ export function installAccountAuthLazyLoader(
     status.textContent = ""
     status.hidden = true
   }
-  const showLoadFailure = (request: AccountRequest) => {
-    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
-    if (!status) return
-    status.textContent = {
-      "sign-in": "Sign in couldn’t start. Try again.",
-      "sign-out": "Sign out couldn’t finish. Try again.",
-      sync: "Account connection couldn’t refresh. Try again.",
-    }[request]
-    status.hidden = false
-  }
+  const showLoadFailure = (request: AccountRequest) =>
+    showAccountAuthFailure(request, documentRoot)
   const showProviderSignOutFailure = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
     status.textContent = "Signed out locally. Provider sign out couldn’t finish."
     status.hidden = false
   }
+  // The leading clear owns this click's startup. Nothing clears afterwards: a
+  // login callback that failed while the request was settling has already
+  // written the failure this click must leave visible.
   const request = (accountRequest: AccountRequest) => {
     clearStatus()
-    void loader
-      .request(accountRequest)
-      .then(clearStatus)
-      .catch(() => showLoadFailure(accountRequest))
+    void loader.request(accountRequest).catch(() => showLoadFailure(accountRequest))
   }
   let signOutInFlight: Promise<void> | null = null
   let userSignOutStarted = false
