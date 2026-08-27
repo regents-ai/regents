@@ -21,7 +21,8 @@ defmodule AshPlatform.RuntimeConfigTest do
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
       "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
-      "BASE_READ_RPC_URL"
+      "BASE_READ_RPC_URL",
+      "OPENSEA_API_KEY"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
@@ -69,6 +70,14 @@ defmodule AshPlatform.RuntimeConfigTest do
              "0x1111111111111111111111111111111111111111",
              "0x2222222222222222222222222222222222222222"
            ]
+  end
+
+  test "OpenSea key is server-only runtime config and does not replace the test client key" do
+    System.put_env("OPENSEA_API_KEY", "server-secret")
+
+    assert runtime_config(:opensea_api_key) == "server-secret"
+    assert get_in(read_runtime_config(:test), [:ash_platform, :opensea_api_key]) == nil
+    refute File.read!("assets/js/app.ts") =~ "OPENSEA_API_KEY"
   end
 
   test "test runtime keeps its fixed local repository despite database environment values" do

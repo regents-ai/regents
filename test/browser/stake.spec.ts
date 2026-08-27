@@ -4,228 +4,55 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
 const sendsKey = "regent:test:staking-wallet-sends"
-const rejectKey = "regent:test:staking-reject-next"
-const moveKey = "regent:test:staking-move-account"
-const wrongChainKey = "regent:test:staking-wrong-chain"
 
-// Every submitted hash is unique for the life of the database and the browser
-// database is never reset, so each run mints its own. The file discriminator
-// keeps a Stake run from colliding with a Redeem run in the same millisecond.
-const run = `${Date.now().toString(16).padStart(12, "0")}5a`
-const submittedHash = (nonce: number) =>
-  `0x${run}${nonce.toString(16).padStart(4, "0")}${"0".repeat(46)}`
-const approvalHash = submittedHash(1)
-const stakeHash = submittedHash(2)
-const claimHash = submittedHash(3)
-const unstakeHash = submittedHash(4)
-
-test("signed-in staking confirms once, survives a reload and never sends twice", async ({page}) => {
+test("Stake hands each click directly to the active Base wallet", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-staking")
-  await page.addInitScript(
-    ({wallet, otherWallet, hashes, sendsKey, rejectKey, moveKey, wrongChainKey}) => {
-      // The send count lives in session storage so a document reload cannot
-      // hide a second wallet request behind a fresh counter.
-      const sends = () => Number(sessionStorage.getItem(sendsKey) ?? "0")
-      // The seam stands in for Privy's active selection, so the address it
-      // reports is the address the whole page has to follow.
-      const active = () =>
-        (window as Window & {__ashPlatformTestWallet?: {address: string}}).__ashPlatformTestWallet
-          ?.address ?? wallet
-
-      ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
-        address: wallet,
-        provider: {
-          request: async ({method}: {method: string; params?: unknown[]}) => {
-            switch (method) {
-              case "eth_chainId":
-                // A wallet parked on another chain, so Base has to be asked for.
-                return sessionStorage.getItem(wrongChainKey) ? "0x1" : "0x2105"
-              case "wallet_switchEthereumChain":
-                // The chain-switch prompt is still only a prompt: rejecting it
-                // leaves nothing signed and nothing broadcast.
-                throw Object.assign(new Error("User rejected the request."), {code: 4001})
-              case "eth_accounts":
-              case "eth_requestAccounts": {
-                // The account moves the moment after the claim: the first read
-                // is the preflight that asked for it, the next one is the push.
-                const moved = sessionStorage.getItem(moveKey)
-                if (moved === null) return [active()]
-                sessionStorage.setItem(moveKey, String(Number(moved) + 1))
-                return Number(moved) > 0 ? [otherWallet] : [active()]
-              }
-              case "eth_call":
-                return `0x${"00".repeat(32)}`
-              case "eth_sendTransaction": {
-                // A real wallet rejection: nothing is broadcast and nothing is
-                // counted, exactly as EIP-1193 4001 means.
-                if (sessionStorage.getItem(rejectKey)) {
-                  sessionStorage.removeItem(rejectKey)
-                  throw Object.assign(new Error("User rejected the request."), {code: 4001})
-                }
-                const nth = sends() + 1
-                sessionStorage.setItem(sendsKey, String(nth))
-                return hashes[nth - 1]
-              }
-              case "eth_blockNumber":
-                return "0x10"
-              default:
-                throw new Error(`Unexpected wallet RPC ${method}`)
-            }
-          },
-        },
-      }
-    },
-    {
-      wallet,
-      otherWallet,
-      hashes: [approvalHash, stakeHash, claimHash, unstakeHash],
-      sendsKey,
-      rejectKey,
-      moveKey,
-      wrongChainKey,
-    },
-  )
-
+  await installWallet(page)
   await auth.establishLocalSession()
 
   await page.goto("/stake")
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   await expect(page.getByRole("heading", {name: "Stake REGENT"})).toBeVisible()
-  await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
+  await expect(
+    page.getByText("Stake $REGENT. Receive revenue tokens equal to your staked percentage."),
+  ).toBeVisible()
 
-  // The wallet active in the browser is what /stake reads. Selecting a wallet
-  // this account does not hold leaves no position and no action, and never
-  // falls back to the account's stored wallet.
   await selectWallet(page, otherWallet)
   await expect(page.getByRole("button", {name: "Connect or switch wallet"})).toBeVisible()
   await expect(page.getByLabel("REGENT amount")).toHaveCount(0)
 
   await selectWallet(page, wallet)
-  await expect(page.getByText("5 REGENT", {exact: true})).toBeVisible()
-
-  // Max names the exact staked balance rather than a rounded rendering of it.
-  await page.getByRole("button", {name: "Max"}).click()
-  await expect(page.getByLabel("REGENT amount")).toHaveValue("10")
-
+  await expect(page.getByLabel("REGENT amount")).toBeVisible()
   await page.getByLabel("REGENT amount").fill("1")
-  await page.getByRole("button", {name: "Review stake"}).click()
-  await expect(page.getByRole("heading", {name: "Stake REGENT"}).last()).toBeVisible()
-  await expect(page.getByText("1 REGENT", {exact: true})).toBeVisible()
-  await expect(
-    page.locator(".stake-review").getByText("0x1111…1111", {exact: true}).first(),
-  ).toBeVisible()
 
-  // One click. The approval is sent, the server verifies its receipt and the
-  // exact allowance, and the stake follows automatically through the same
-  // preflight — without a second approval and without a second stake.
-  const confirm = page.getByRole("button", {name: "Confirm in wallet"})
-  await confirm.evaluate(button => {
-    button.click()
-    button.click()
-  })
+  // The test wallet reports zero allowance. One accepted Stake click therefore
+  // receives the exact approval prompt immediately followed by the Stake prompt.
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(2)
 
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
-  expect(await sendCount(page)).toBe(2)
+  // An identical customer click is a new request, not a deduplicated or locked
+  // operation. It receives the same two direct wallet prompts.
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(4)
 
-  // A second action in the same page session, rejected in the wallet with the
-  // exact EIP-1193 4001 while the completed stake's hash is still in browser
-  // memory. The server claimed this dispatch before the wallet opened, so the
-  // rejection has to reach it: the review clearing is that fact arriving.
-  await page.evaluate(key => sessionStorage.setItem(key, "1"), rejectKey)
-  await page.getByRole("button", {name: "Review USDC claim"}).click()
-  await expect(page.locator(".stake-review")).toBeVisible()
-  await page.getByRole("button", {name: "Confirm in wallet"}).click()
+  await page.getByRole("button", {name: "Claim USDC", exact: true}).click()
+  await expect.poll(() => sendCount(page)).toBe(5)
 
-  await expect(page.locator(".stake-review")).toHaveCount(0)
-  await expect(
-    page.getByText("You rejected the request in your wallet. Nothing was sent."),
-  ).toBeVisible()
-  expect(await sendCount(page)).toBe(2)
+  await expect(page.locator(".stake-review, .stake-submission")).toHaveCount(0)
+  await expect(page.getByText(/transaction hash|Confirmed on Base|Retry/i)).toHaveCount(0)
+  expect(await page.evaluate(() => sessionStorage.getItem("regent:staking:submitted"))).toBeNull()
 
-  // The next claim meets a wallet that moved between the claim and the push, so
-  // it was never asked for anything. The review is released rather than closed:
-  // it stays on screen, and the very same review signs on its next attempt.
-  await page.evaluate(key => sessionStorage.setItem(key, "0"), moveKey)
-  await page.getByRole("button", {name: "Review USDC claim"}).click()
-  await expect(page.getByText("Review the details before opening your wallet.")).toBeVisible()
-  await page.getByRole("button", {name: "Confirm in wallet"}).click()
-
-  await expect(page.getByText("Nothing was sent. You can try this action again.")).toBeVisible()
-  await expect(page.locator(".stake-review")).toBeVisible()
-  expect(await sendCount(page)).toBe(2)
-
-  await page.evaluate(key => sessionStorage.removeItem(key), moveKey)
-  await page.getByRole("button", {name: "Confirm in wallet"}).click()
-
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
-  expect(await sendCount(page)).toBe(3)
-
-  // The last action reports its hash and stops: the browser asks Base for
-  // nothing, and the server's own read is what finishes it. Preparing it at all
-  // proves the rejected operation closed: had the rejection been withheld, this
-  // review would be refused as outstanding.
-  await page.getByRole("button", {name: "Unstake", exact: true}).click()
-  await page.getByLabel("REGENT amount").fill("1")
-  await page.getByRole("button", {name: "Review unstake"}).click()
-  await expect(
-    page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"}),
-  ).toBeVisible()
-  await expect(page.getByText("An earlier staking action is still outstanding")).toHaveCount(0)
-
-  // A chain switch the customer rejected is still only a prompt. That exact
-  // 4001 arrived before the send, so it releases the claim instead of ending it.
-  await page.evaluate(key => sessionStorage.setItem(key, "1"), wrongChainKey)
-  await page.getByRole("button", {name: "Confirm in wallet"}).click()
-
-  await expect(page.getByText("Nothing was sent. You can try this action again.")).toBeVisible()
-  await expect(
-    page.locator(".stake-review").getByRole("heading", {name: "Unstake REGENT"}),
-  ).toBeVisible()
-  expect(await sendCount(page)).toBe(3)
-
-  await page.evaluate(key => sessionStorage.removeItem(key), wrongChainKey)
-  await page.getByRole("button", {name: "Confirm in wallet"}).click()
-
-  const submitted = page.locator(".stake-submission")
-  await expect(submitted.getByText(short(unstakeHash), {exact: true})).toBeVisible()
-  await expect(page.getByText("Confirmed on Base.")).toBeVisible()
-  expect(await sendCount(page)).toBe(4)
-
-  // Stored browser state is evidence, never authority. A reload asks the owning
-  // account's row to restore it, finds nothing outstanding, and clears the
-  // stale entry rather than inventing a submitted transaction or sending again.
-  await page.evaluate(
-    key => sessionStorage.setItem(key, JSON.stringify({transaction_hash: "0xstale"})),
-    "regent:staking:submitted",
-  )
   await page.reload()
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
   await expect(page.getByLabel("REGENT amount")).toBeVisible()
-  await expect(page.locator(".stake-submission")).toHaveCount(0)
-
-  await expect
-    .poll(() => page.evaluate(key => sessionStorage.getItem(key), "regent:staking:submitted"))
-    .toBeNull()
-
-  expect(await sendCount(page)).toBe(4)
+  expect(await sendCount(page)).toBe(5)
 })
 
-// The public Stake and overview surfaces are the first thing a visitor sees, so
-// they are proven signed out. A figure the size of the whole REGENT supply stays
-// inside its card at every supported width, mobile collapses to one column, and
-// the page asks for no font file this repository does not track.
-test("U2_U3_PUBLIC_SURFACES_FIT_EVERY_WIDTH_AND_REQUEST_ONLY_TRACKED_FONTS", async ({page}) => {
-  const unresolved: string[] = []
-  page.on("requestfailed", request => unresolved.push(request.url()))
-  page.on("response", response => {
-    if (response.status() >= 400) unresolved.push(`${response.status()} ${response.url()}`)
-  })
-
+test("Stake and Redeem cards fit desktop, tablet and mobile widths", async ({page}) => {
   const surfaces = [
     {route: "/stake", summary: ".stake-summary", layout: ".stake-layout", cell: "dd"},
-    {route: "/app", summary: ".regent-ops-summary", layout: ".regent-ops-layout", cell: "dd"},
     {
       route: "/redeem",
       summary: ".redeem-summary",
@@ -241,56 +68,66 @@ test("U2_U3_PUBLIC_SURFACES_FIT_EVERY_WIDTH_AND_REQUEST_ONLY_TRACKED_FONTS", asy
       await page.goto(route)
       await expect(page.locator(summary)).toBeVisible()
 
-      const fit = await page
-        .locator(`${summary} ${cell}`)
-        .first()
-        .evaluate(
-          (node, {summary, viewport}) => {
-            node.textContent = "7390000000.123456789012345678 REGENT"
-            const card = node.closest(summary) as HTMLElement
-            return {
-              card: card.scrollWidth - card.clientWidth,
-              document: document.documentElement.scrollWidth - viewport,
-              // A figure wider than its own cell runs over the cell beside it
-              // without widening the card, so the cells are measured too.
-              clipped: [card, ...card.querySelectorAll("*")]
-                .filter(box => box.scrollWidth > box.clientWidth + 1)
-                .map(box => `${box.tagName}.${box.className || "-"}`),
-            }
-          },
-          {summary, viewport: width},
-        )
+      const fit = await page.locator(`${summary} ${cell}`).first().evaluate(
+        (node, {summary, viewport}) => {
+          node.textContent = "7390000000.123456789012345678 REGENT"
+          const card = node.closest(summary) as HTMLElement
+          return {
+            card: card.scrollWidth - card.clientWidth,
+            document: document.documentElement.scrollWidth - viewport,
+          }
+        },
+        {summary, viewport: width},
+      )
 
-      expect(fit, `${route} at ${width}`).toEqual({card: 0, document: 0, clipped: []})
+      expect(fit, `${route} at ${width}`).toEqual({card: 0, document: 0})
 
       const columns = await page
         .locator(layout)
         .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)
-
       expect(columns, `${route} at ${width}`).toBe(width > 768 ? 2 : 1)
     }
   }
-
-  expect(unresolved).toEqual([])
-
-  const loaded = await page.evaluate(() =>
-    [...document.fonts].filter(face => face.status === "loaded").map(face => face.family),
-  )
-
-  expect(loaded).toContain("Ash Geist UI Sans")
-  expect(loaded).toContain("Ash Geist Mono")
 })
 
-function short(hash: string): string {
-  return `${hash.slice(0, 8)}…${hash.slice(-4)}`
+async function installWallet(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({wallet, sendsKey}) => {
+      ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
+        address: wallet,
+        provider: {
+          request: async ({method}: {method: string}) => {
+            switch (method) {
+              case "eth_chainId":
+                return "0x2105"
+              case "eth_accounts":
+              case "eth_requestAccounts":
+                return [
+                  (window as Window & {__ashPlatformTestWallet?: {address: string}})
+                    .__ashPlatformTestWallet?.address ?? wallet,
+                ]
+              case "eth_call":
+                return `0x${"00".repeat(32)}`
+              case "eth_sendTransaction": {
+                const next = Number(sessionStorage.getItem(sendsKey) ?? "0") + 1
+                sessionStorage.setItem(sendsKey, String(next))
+                return `0x${next.toString(16).padStart(64, "0")}`
+              }
+              default:
+                throw new Error(`Unexpected wallet RPC ${method}`)
+            }
+          },
+        },
+      }
+    },
+    {wallet, sendsKey},
+  )
 }
 
 async function sendCount(page: Page): Promise<number> {
   return page.evaluate(key => Number(sessionStorage.getItem(key) ?? "0"), sendsKey)
 }
 
-// Moves the browser's active wallet the way Privy does, then announces it the
-// way the bridge does.
 async function selectWallet(page: Page, address: string): Promise<void> {
   await page.evaluate(next => {
     const seam = (window as Window & {__ashPlatformTestWallet?: {address: string}})

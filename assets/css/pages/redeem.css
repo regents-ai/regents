@@ -1,8 +1,7 @@
 .redeem-page,
 .redeem-heading,
 .redeem-actions,
-.redeem-review,
-.redeem-submission {
+.redeem-owned {
   display: grid;
   gap: 0.75rem;
 }
@@ -13,8 +12,7 @@
 
 .redeem-heading > *,
 .redeem-actions > *,
-.redeem-review > *,
-.redeem-submission > * {
+.redeem-owned > * {
   margin: 0;
 }
 
@@ -59,6 +57,7 @@
 /* An exact 18-decimal figure is one unbreakable word, so it is allowed to break
    inside its own cell rather than run across the metric beside it. */
 .redeem-metric-value {
+  min-width: 0;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -71,10 +70,10 @@
 }
 
 .redeem-actions,
-.redeem-review,
-.redeem-submission {
+.redeem-owned {
   padding: 1rem;
   border: 1px solid currentColor;
+  min-width: 0;
 }
 
 #redemption-selection {
@@ -97,6 +96,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.redeem-owned {
+  grid-column: 1 / -1;
+}
+
+.redeem-owned-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.redeem-owned-list > * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .redeem-notice,
@@ -122,24 +137,6 @@
 .redeem-next-step button {
   justify-self: start;
   min-height: 2.75rem;
-}
-
-.redeem-review dl {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-}
-
-.redeem-review dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-}
-
-.redeem-review dt,
-.redeem-review dd {
-  margin: 0;
 }
 
 @media (max-width: 50rem) {

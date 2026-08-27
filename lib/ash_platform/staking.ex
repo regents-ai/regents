@@ -15,38 +15,7 @@ defmodule AshPlatform.Staking do
       define :prepare_claim_and_restake_regent,
         action: :prepare_claim_and_restake_regent,
         args: [:expected_signer]
-
-      define :confirm_wallet_action,
-        action: :confirm_wallet_action,
-        args: [:envelope, :transaction_hash]
-
-      define :restore_submitted_action,
-        action: :restore_submitted_action,
-        args: [:envelope]
-
-      define :verify_approval_submission,
-        action: :verify_approval_submission,
-        args: [:envelope, :transaction_hash]
-
-      define :claim_wallet_dispatch, action: :claim_wallet_dispatch, args: [:envelope, :phase]
-
-      define :bind_submitted_hash,
-        action: :bind_submitted_hash,
-        args: [:action_id, :phase, :transaction_hash]
-
-      define :close_not_sent, action: :close_not_sent, args: [:action_id, :phase]
-
-      define :release_unstarted_dispatch,
-        action: :release_unstarted_dispatch,
-        args: [:action_id, :phase]
-
-      define :cancel_operation, action: :cancel_operation, args: [:action_id]
-      define :active_operation, action: :active_operation
     end
-
-    # The shared operation resource carries no domain of its own; Staking owns
-    # every Stake call against it and Redemption owns every Redeem call.
-    resource AshPlatform.WalletActions.StakeRedeemOperation
   end
 
   def refresh_position(opts), do: account(opts)

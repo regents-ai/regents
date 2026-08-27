@@ -104,16 +104,10 @@ export function clientsForRedemption(provider: EthereumProvider): RedemptionClie
   }
 }
 
-export type RedemptionExecutionOptions = {
-  onSendStarted: () => void
-  onSubmitted?: (hash: Hash) => void
-}
-
 export async function executePreparedRedemptionAction(
   envelope: PreparedRedemptionAction,
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
-  options: RedemptionExecutionOptions = {onSendStarted: () => undefined},
 ): Promise<void> {
   assertRedemptionEnvelope(envelope)
 
@@ -131,15 +125,7 @@ export async function executePreparedRedemptionAction(
 
   const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
   await clients.simulate(transaction)
-  // One marker per attempt, set immediately before the wallet send. It is the
-  // whole boundary: below it nothing can have been broadcast, above it any
-  // failure may have left a transaction on Base.
-  options.onSendStarted()
-  const hash = await clients.send(transaction)
-
-  // The hash is durably reported and the server owns every read after it, so
-  // the browser never waits on a receipt and never decides an outcome.
-  options.onSubmitted?.(hash)
+  await clients.send(transaction)
 }
 
 export function assertRedemptionEnvelope(envelope: PreparedRedemptionAction): void {

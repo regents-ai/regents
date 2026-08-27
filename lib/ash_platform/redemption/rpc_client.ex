@@ -2,10 +2,9 @@ defmodule AshPlatform.Redemption.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Redemption.ChainClient
 
-  alias AshPlatform.WalletActions.{Abi, Envelope, RedemptionAbi, Rpc}
+  alias AshPlatform.WalletActions.{Abi, RedemptionAbi, Rpc}
 
   @chain_id 8453
-  @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
   @rpc_opts [client_key: :redemption_http_client, log_scope: "redemption"]
 
   @impl true
@@ -16,118 +15,6 @@ defmodule AshPlatform.Redemption.RpcClient do
     case Task.yield(task, overview_timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
       _timeout -> {:error, :chain_timeout}
-    end
-  end
-
-  @impl true
-  def confirm(envelope, transaction_hash) do
-    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
-         true <- valid_for_confirmation?(envelope, target, contract_name),
-         true <- Rpc.valid_hash?(transaction_hash),
-         {:ok, block} <- Rpc.safe_block(@rpc_opts),
-         {:ok, outcome} <-
-           Rpc.canonical_outcome(
-             transaction_hash,
-             envelope.expected_signer,
-             target,
-             envelope.data,
-             block,
-             @rpc_opts
-           ) do
-      {:ok, settled(envelope, transaction_hash, outcome)}
-    else
-      false -> {:error, :invalid_confirmation}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The exact collection approval and the exact 80 USDC allowance, taken fresh
-  # immediately before the Redeem dispatch is claimed and never required again.
-  # A collection that is no longer approved is its own refusal and is never
-  # reported as a USDC failure.
-  @impl true
-  def approval_current(%{action: "redeem", expected_signer: signer, arguments: arguments}) do
-    redeemer = normalized(RedemptionAbi.redeemer_address())
-    usdc = normalized(RedemptionAbi.usdc_address())
-    price = String.to_integer(RedemptionAbi.price_atomic())
-
-    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
-         {:ok, block} <- Rpc.safe_block(@rpc_opts),
-         {:ok, true} <- approved_for_all(collection, signer, redeemer, block),
-         {:ok, ^price} <- allowance(usdc, signer, redeemer, block) do
-      :ok
-    else
-      {:ok, false} -> {:error, :nft_approval_required}
-      {:error, reason} -> {:error, reason}
-      _changed -> {:error, :exact_usdc_approval_required}
-    end
-  end
-
-  def approval_current(_envelope), do: :ok
-
-  # The exact receipt and the exact action event together are the whole proof.
-  # The page reads its own current snapshot after this verdict is durable, so
-  # nothing mutable is read here.
-  defp settled(envelope, hash, {:success, logs}) do
-    case action_event(envelope, logs) do
-      {:ok, event} -> Map.put(result(hash, :confirmed, nil), :event, event)
-      :error -> result(hash, :unverified, :action_event_contradiction)
-    end
-  end
-
-  defp settled(_envelope, hash, :reverted), do: result(hash, :reverted, :transaction_reverted)
-  defp settled(_envelope, hash, :pending), do: result(hash, :pending, nil)
-
-  defp result(hash, outcome, reason),
-    do: %{
-      transaction_hash: String.downcase(hash),
-      outcome: outcome,
-      reason: reason,
-      event: %{}
-    }
-
-  # Each action's own immutable event, decoded against the deployed layout.
-  defp action_event(
-         %{action: "approve_nft_collection", expected_signer: signer, arguments: arguments},
-         logs
-       ) do
-    redeemer = normalized(RedemptionAbi.redeemer_address())
-
-    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
-         true <- RedemptionAbi.collection_approved?(logs, collection, signer, redeemer) do
-      {:ok, %{}}
-    else
-      _contradiction -> :error
-    end
-  end
-
-  defp action_event(%{action: "approve_exact_usdc", expected_signer: signer}, logs) do
-    approved? =
-      Abi.approval_recorded?(
-        logs,
-        normalized(RedemptionAbi.usdc_address()),
-        signer,
-        normalized(RedemptionAbi.redeemer_address()),
-        String.to_integer(RedemptionAbi.price_atomic())
-      )
-
-    if approved?, do: {:ok, %{}}, else: :error
-  end
-
-  # `newId` is the mapped Regents Club token, never a USDC amount.
-  defp action_event(%{action: "redeem", expected_signer: signer, arguments: arguments}, logs) do
-    with {:ok, collection} <- selected_collection(field(arguments, :collection)),
-         token_id when is_integer(token_id) <- field(arguments, :token_id),
-         {:ok, result_token_id} <- RedemptionAbi.redeemed(logs, signer, collection, token_id) do
-      {:ok, %{result_token_id: result_token_id}}
-    else
-      _contradiction -> :error
-    end
-  end
-
-  defp action_event(%{action: "claim", expected_signer: signer}, logs) do
-    with {:ok, amount} <- RedemptionAbi.claimed(logs, signer) do
-      {:ok, %{claimed_raw: Integer.to_string(amount), claimed: Rpc.format_units(amount, 18)}}
     end
   end
 
@@ -341,22 +228,6 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   defp valid_selection(_collection, _token_id), do: {:error, :invalid_token_selection}
 
-  defp selected_collection(collection) do
-    if RedemptionAbi.collection_id(collection),
-      do: {:ok, normalized(collection)},
-      else: {:error, :invalid_collection}
-  end
-
-  defp valid_for_confirmation?(envelope, target, contract_name) do
-    Envelope.valid_for_confirmation?(envelope,
-      resource: "animata_redemption",
-      to: target,
-      signer: envelope.expected_signer,
-      contract_name: contract_name,
-      actions: @actions
-    )
-  end
-
   defp approved_for_all(collection, owner, operator, block),
     do:
       Rpc.call_bool(
@@ -387,5 +258,4 @@ defmodule AshPlatform.Redemption.RpcClient do
     do: Rpc.call_address(target, RedemptionAbi.encode_read(id), block, @rpc_opts)
 
   defp normalized(address), do: Abi.normalize_address!(address)
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
 end

@@ -1,247 +1,108 @@
 defmodule AshPlatform.Redemption.Actions do
   @moduledoc false
-
-  alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Redemption.ChainClient
-  alias AshPlatform.WalletActions.{Abi, Address, Envelope, RedemptionAbi, StakeRedeemOperations}
+  alias AshPlatform.WalletActions.{Abi, Address, Envelope, RedemptionAbi}
 
-  @capability :redeem
-  @rejection_reason "wallet reported an explicit user rejection"
-  @withdrawal_reason "review withdrawn"
-
-  # A Base read that may answer differently later. A transaction identity a
-  # load-balanced provider has not returned yet is unavailable evidence, never a
-  # contradicted one, so only these keep a submitted transaction open.
-  @transient [
-    :chain_unavailable,
-    :chain_timeout,
-    :invalid_chain_response,
-    :invalid_block_header,
-    :transaction_missing
-  ]
   @resource "animata_redemption"
   @actions ~w(approve_nft_collection approve_exact_usdc redeem claim)
-  @argument_keys ~w(collection token_id operator approved spender amount_atomic mode)a
   @risk %{
     "approve_nft_collection" =>
-      "Allow the verified Animata redeemer to transfer NFTs from this collection. This approval applies to the whole selected collection until you revoke it.",
-    "approve_exact_usdc" =>
-      "Approve exactly 80 USDC for the verified Animata redeemer. This replaces the current allowance with 80 USDC.",
+      "Allow the verified Animata redeemer to transfer NFTs from this collection.",
+    "approve_exact_usdc" => "Approve exactly 80 USDC for the verified Animata redeemer.",
     "redeem" =>
-      "Transfer the selected Animata NFT and exactly 80 USDC to start a seven-day stream of 5 million REGENT and receive the mapped Regents Club token.",
+      "Transfer the selected Animata NFT and exactly 80 USDC to start the REGENT stream.",
     "claim" => "Claim all REGENT currently unlocked from your redemption vest."
   }
 
   def overview(_input, _context), do: ChainClient.module().overview(nil, nil, nil)
 
-  # The active wallet alone decides which private facts this page may read.
-  # Membership is a session fact, not a chain fact, so the reported wallet is
-  # proved against the account the mounted lease resolves to and no provider is
-  # read to do it.
   def account_for_wallet(input, %{actor: %Human{}} = context) do
-    with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context),
+    with {:ok, signer, _lease} <- current_wallet(input.arguments.expected_signer, context),
          {:ok, collection} <-
-           optional_collection(input.arguments.collection, input.arguments.token_id) do
-      ChainClient.module().overview(signer, collection, input.arguments.token_id)
-    end
+           optional_collection(input.arguments.collection, input.arguments.token_id),
+         do: ChainClient.module().overview(signer, collection, input.arguments.token_id)
   end
 
   def account_for_wallet(_input, _context), do: {:error, :authentication_required}
 
-  defp current_wallet(address, context) do
-    with {:ok, signer} <- normalize_address(address),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
-         :ok <- leased_wallet(lease, signer),
-         do: {:ok, signer}
-  end
-
-  # The provider reads happen here, before the lease transaction; only the
-  # resulting operation row is written inside it.
   def prepare(action, input, %{actor: %Human{}} = context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
-         :ok <- leased_wallet(lease, signer),
-         {:ok, envelope} <- prepare_action(action, input.arguments, signer),
-         {:ok, _operation} <- StakeRedeemOperations.prepare(lease, @capability, envelope) do
-      {:ok, envelope}
+    with {:ok, signer, lease} <- current_wallet(input.arguments.expected_signer, context),
+         {:ok, envelope} <- prepare_action(action, input.arguments, signer) do
+      return_current(lease, signer, envelope)
     end
   end
 
-  def prepare(_action, _input, _context), do: {:error, :authentication_required}
-
-  def confirm(input, %{actor: %Human{} = actor} = context) do
-    envelope = atomize_envelope(input.arguments.envelope)
-
-    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
-         true <- valid_for_confirmation?(envelope, target, contract_name),
-         :ok <- verified_wallet(actor, envelope.expected_signer),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
-         # Confirmation and every retry run against the stored submitted
-         # identity: an exact replay passes, a different hash is refused.
-         {:ok, _identity} <-
-           StakeRedeemOperations.bind_hash(
-             lease,
-             @capability,
-             envelope.action_id,
-             :action,
-             input.arguments.transaction_hash
-           ) do
-      envelope
-      |> ChainClient.module().confirm(input.arguments.transaction_hash)
-      |> transient_refusal()
-      |> StakeRedeemOperations.settle_action(lease, @capability, envelope.action_id)
-    else
-      false -> {:error, :stale_or_invalid_action}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  def confirm(_input, _context), do: {:error, :authentication_required}
-
-  # A read that may answer differently later becomes the typed refusal the page
-  # retries; every other refusal is settled and says so instead.
-  defp transient_refusal({:error, reason}) when reason in @transient,
-    do: refusal(:chain_unavailable)
-
-  defp transient_refusal(result), do: result
-
-  # The reviewed action and both exact current approvals are proved here, against
-  # the provider, before any transaction opens. The locked account and the stored
-  # envelope's signer decide the claim itself, inside it.
-  @doc false
-  def claim_dispatch(%{arguments: %{envelope: envelope}}, %{actor: %Human{}} = context) do
-    envelope = atomize_envelope(envelope)
-
-    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
-         true <- valid_for_confirmation?(envelope, target, contract_name),
-         :ok <- dispatch_approvals(envelope),
-         {:ok, lease} <- StakeRedeemOperations.lease(context),
-         {:ok, operation} <-
-           StakeRedeemOperations.claim_dispatch(lease, @capability, envelope.action_id, :action) do
-      {:ok, %{operation: StakeRedeemOperations.view(operation)}}
-    else
-      false -> {:error, :stale_or_invalid_action}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  def claim_dispatch(_input, _context), do: {:error, :authentication_required}
-
-  # Redeem spends both approvals, so both have to be current on a fresh safe
-  # snapshot at the moment this dispatch is claimed. If either changed, nothing
-  # is claimed and the review stays re-preparable.
-  defp dispatch_approvals(envelope) do
-    case ChainClient.module().approval_current(envelope) do
-      :ok -> :ok
-      {:error, reason} when reason in @transient -> refusal(:chain_unavailable)
-      {:error, _changed} -> refusal(:approval_changed)
-    end
-  end
-
-  @doc false
-  def bind_hash(%{arguments: %{action_id: id, transaction_hash: hash}}, context),
-    do: operate(context, &StakeRedeemOperations.bind_hash(&1, @capability, id, :action, hash))
-
-  @doc false
-  def close_not_sent(%{arguments: %{action_id: id}}, context),
-    do:
-      operate(
-        context,
-        &StakeRedeemOperations.close_not_sent(&1, @capability, id, :action, @rejection_reason)
-      )
-
-  @doc false
-  def release_unstarted(%{arguments: %{action_id: id}}, context),
-    do: operate(context, &StakeRedeemOperations.release_unstarted(&1, @capability, id, :action))
-
-  @doc false
-  def cancel_operation(%{arguments: %{action_id: id}}, context),
-    do: operate(context, &StakeRedeemOperations.cancel(&1, @capability, id, @withdrawal_reason))
-
-  @doc false
-  def active_operation(_input, %{actor: %Human{} = actor}) do
-    with {:ok, operation} <- StakeRedeemOperations.active(actor.human_account_id, @capability),
-         do: {:ok, %{operation: StakeRedeemOperations.view(operation)}}
-  end
-
-  def active_operation(_input, _context), do: {:error, :authentication_required}
-
-  defp operate(%{actor: %Human{}} = context, transition) do
-    with {:ok, lease} <- StakeRedeemOperations.lease(context),
-         {:ok, operation} <- transition.(lease) do
-      {:ok, %{operation: StakeRedeemOperations.view(operation)}}
-    end
-  end
-
-  defp operate(_context, _transition), do: {:error, :authentication_required}
-
-  def restore(input, %{actor: %Human{} = actor}) do
-    envelope = atomize_envelope(input.arguments.envelope)
-
-    with {:ok, target, contract_name} <- RedemptionAbi.action_identity(envelope),
-         true <- valid_for_confirmation?(envelope, target, contract_name),
-         :ok <- verified_wallet(actor, envelope.expected_signer) do
-      {:ok, envelope}
-    else
-      _ -> {:error, :invalid_submitted_action}
-    end
-  end
-
-  def restore(_input, _context), do: {:error, :authentication_required}
+  def prepare(_, _, _), do: {:error, :authentication_required}
 
   defp prepare_action("approve_nft_collection", arguments, signer) do
-    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection) do
+    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
+         {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments[:token_id]),
+         :nft_approval_required <- next_step(facts, signer) do
       redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
-      data = RedemptionAbi.encode_erc721("set_approval_for_all", [redeemer, true])
 
       {:ok,
-       Envelope.new("approve_nft_collection", signer, data,
+       Envelope.new(
+         "approve_nft_collection",
+         signer,
+         RedemptionAbi.encode_erc721("set_approval_for_all", [redeemer, true]),
          resource: @resource,
          to: collection,
          contract_name: RedemptionAbi.collection_name(collection),
          risk_copy: @risk["approve_nft_collection"],
          arguments: %{collection: collection, operator: redeemer, approved: true}
        )}
+    else
+      step when is_atom(step) -> refusal(step)
+      error -> error
     end
   end
 
-  defp prepare_action("approve_exact_usdc", _arguments, signer) do
-    redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
-    usdc = Abi.normalize_address!(RedemptionAbi.usdc_address())
-    amount = String.to_integer(RedemptionAbi.price_atomic())
-    data = RedemptionAbi.encode_erc20("approve", [redeemer, amount])
+  defp prepare_action("approve_exact_usdc", arguments, signer) do
+    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
+         {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments.token_id),
+         :exact_usdc_approval_required <- next_step(facts, signer) do
+      redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
+      usdc = Abi.normalize_address!(RedemptionAbi.usdc_address())
+      amount = String.to_integer(RedemptionAbi.price_atomic())
 
-    {:ok,
-     Envelope.new("approve_exact_usdc", signer, data,
-       resource: @resource,
-       to: usdc,
-       contract_name: "USDC",
-       risk_copy: @risk["approve_exact_usdc"],
-       arguments: %{
-         spender: redeemer,
-         amount_atomic: Integer.to_string(amount),
-         mode: "exact"
-       }
-     )}
+      {:ok,
+       Envelope.new(
+         "approve_exact_usdc",
+         signer,
+         RedemptionAbi.encode_erc20("approve", [redeemer, amount]),
+         resource: @resource,
+         to: usdc,
+         contract_name: "USDC",
+         risk_copy: @risk["approve_exact_usdc"],
+         arguments: %{spender: redeemer, amount_atomic: Integer.to_string(amount), mode: "exact"}
+       )}
+    else
+      step when is_atom(step) -> refusal(step)
+      error -> error
+    end
   end
 
   defp prepare_action("redeem", arguments, signer) do
     with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
          :ok <- valid_token_id(arguments.token_id),
          {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments.token_id),
-         :ok <- eligible_to_redeem(facts, signer) do
-      data = RedemptionAbi.encode_action("redeem", [collection, arguments.token_id])
-
+         :ready <- next_step(facts, signer) do
       {:ok,
-       Envelope.new("redeem", signer, data,
+       Envelope.new(
+         "redeem",
+         signer,
+         RedemptionAbi.encode_action("redeem", [collection, arguments.token_id]),
          resource: @resource,
          to: RedemptionAbi.redeemer_address(),
          contract_name: "AnimataRedeemer",
          risk_copy: @risk["redeem"],
          arguments: %{collection: collection, token_id: arguments.token_id}
        )}
+    else
+      step when is_atom(step) -> refusal(step)
+      error -> error
     end
   end
 
@@ -259,28 +120,10 @@ defmodule AshPlatform.Redemption.Actions do
     end
   end
 
-  defp prepare_action(_action, _arguments, _signer), do: {:error, :unknown_action}
+  defp prepare_action(_, _, _), do: {:error, :unknown_action}
 
-  defp eligible_to_redeem(facts, signer) do
-    case next_step(facts, signer) do
-      :ready -> :ok
-      reason -> refusal(reason)
-    end
-  end
-
-  @doc """
-  The single next thing this redemption needs, as the exact reason it needs it.
-
-  The server's eligibility ladder and the page's next step are this one function,
-  so they can never disagree about what comes next: selection, then whichever
-  approval is missing, then the redemption itself. An owner that could not be
-  read says nothing about who owns the token and is never reported as someone
-  else owning it, and a value that could not be read is unavailable evidence
-  rather than a balance of nothing.
-  """
-  @spec next_step(map(), String.t() | nil) :: atom()
-  def next_step(%{token_id: nil}, _signer), do: :token_selection_required
-  def next_step(%{nft_owner_unavailable: true}, _signer), do: :nft_owner_unavailable
+  def next_step(%{token_id: nil}, _), do: :token_selection_required
+  def next_step(%{nft_owner_unavailable: true}, _), do: :nft_owner_unavailable
 
   def next_step(facts, signer) do
     price = String.to_integer(RedemptionAbi.price_atomic())
@@ -299,20 +142,49 @@ defmodule AshPlatform.Redemption.Actions do
     end
   end
 
+  defp current_wallet(address, context) do
+    with {:ok, signer} <- normalize_address(address),
+         {:ok, lease} <- lease(context),
+         account when not is_nil(account) <-
+           SessionAuthority.leased_account(lease.lineage, lease.account_id),
+         :ok <- wallet_member(account, signer),
+         do: {:ok, signer, lease}
+  end
+
+  defp return_current(lease, signer, envelope) do
+    callback = fn account -> current_envelope(account, signer, envelope) end
+
+    case SessionAuthority.transact_lease(lease.lineage, lease.account_id, callback) do
+      {:error, :stale_authority} -> refusal(:session_unavailable)
+      false -> refusal(:stale_or_invalid_action)
+      result -> result
+    end
+  end
+
+  defp current_envelope(account, signer, envelope) do
+    with :ok <- wallet_member(account, signer),
+         {:ok, target, contract} <- RedemptionAbi.action_identity(envelope),
+         true <-
+           Envelope.valid_for_confirmation?(envelope,
+             resource: @resource,
+             to: target,
+             signer: signer,
+             contract_name: contract,
+             actions: @actions
+           ),
+         do: {:ok, envelope}
+  end
+
   defp positive_claimable(facts) do
     case atomic(facts.claimable_raw) do
-      {:ok, claimable} when claimable > 0 -> :ok
-      {:ok, _nothing} -> refusal(:nothing_claimable)
+      {:ok, value} when value > 0 -> :ok
+      {:ok, _} -> refusal(:nothing_claimable)
       :error -> refusal(:chain_unavailable)
     end
   end
 
-  defp valid_token_id(token_id)
-       when is_integer(token_id) and token_id >= 1 and token_id <= 999,
-       do: :ok
-
-  defp valid_token_id(_token_id), do: {:error, :invalid_token_id}
-
+  defp valid_token_id(id) when is_integer(id) and id in 1..999, do: :ok
+  defp valid_token_id(_), do: {:error, :invalid_token_id}
   defp optional_collection(nil, nil), do: {:ok, nil}
 
   defp optional_collection(collection, nil) when is_binary(collection),
@@ -321,50 +193,27 @@ defmodule AshPlatform.Redemption.Actions do
   defp optional_collection(collection, token_id) when is_integer(token_id),
     do: RedemptionAbi.collection(collection)
 
-  defp optional_collection(_collection, _token_id), do: {:error, :invalid_token_selection}
+  defp optional_collection(_, _), do: {:error, :invalid_token_selection}
 
-  defp valid_for_confirmation?(envelope, target, contract_name) do
-    Envelope.valid_for_confirmation?(envelope,
-      resource: @resource,
-      to: target,
-      signer: envelope.expected_signer,
-      contract_name: contract_name,
-      actions: @actions
-    )
-  end
-
-  # The lease, not the actor captured at mount, decides which account the
-  # reviewed wallet has to belong to.
-  defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer),
-    do: lineage |> SessionAuthority.leased_account(account_id) |> wallet_member(signer)
-
-  defp wallet_member(nil, _signer), do: refusal(:session_unavailable)
-
-  defp wallet_member(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
-      do: :ok,
-      else: refusal(:wrong_signer)
-  end
-
-  # A typed Ash error, so the refusal survives the action's error class and the
-  # presenter can name the fact that actually stopped the review.
-  defp refusal(reason),
-    do:
-      {:error,
-       Ash.Error.Invalid.Unavailable.exception(
-         resource: AshPlatform.Redemption.Snapshot,
-         reason: reason
-       )}
-
-  defp verified_wallet(%Human{} = actor, signer) do
-    with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
-         wallets when is_list(wallets) <- account.wallet_addresses,
-         true <- Enum.any?(wallets, &Address.equal?(&1, signer)) do
-      :ok
-    else
-      _ -> {:error, :wrong_signer}
+  defp atomic(value) do
+    case Integer.parse(value || "") do
+      {amount, ""} -> {:ok, amount}
+      _ -> :error
     end
   end
+
+  defp lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
+       when is_binary(lineage) and is_integer(account_id),
+       do: {:ok, %{lineage: lineage, account_id: account_id}}
+
+  defp lease(_), do: {:error, :session_lease_required}
+
+  defp wallet_member(%{wallet_addresses: wallets}, signer),
+    do:
+      if(Enum.any?(wallets || [], &Address.equal?(&1, signer)),
+        do: :ok,
+        else: refusal(:wrong_signer)
+      )
 
   defp normalize_address(value) do
     case Address.normalize(value) do
@@ -373,43 +222,11 @@ defmodule AshPlatform.Redemption.Actions do
     end
   end
 
-  defp atomic(value) do
-    case Integer.parse(value || "") do
-      {amount, ""} -> {:ok, amount}
-      _unavailable -> :error
-    end
-  end
-
-  defp atomize_envelope(envelope) when is_map(envelope) do
-    %{
-      action_id: field(envelope, :action_id),
-      idempotency_key: field(envelope, :idempotency_key),
-      resource: field(envelope, :resource),
-      action: field(envelope, :action),
-      chain_id: field(envelope, :chain_id),
-      to: field(envelope, :to),
-      value: field(envelope, :value),
-      data: field(envelope, :data),
-      expected_signer: field(envelope, :expected_signer),
-      prepared_at: field(envelope, :prepared_at),
-      expires_at: field(envelope, :expires_at),
-      risk_copy: field(envelope, :risk_copy),
-      approval: field(envelope, :approval),
-      arguments: redemption_arguments(field(envelope, :arguments) || %{}),
-      metadata: field(envelope, :metadata),
-      confirmation_token: field(envelope, :confirmation_token)
-    }
-  end
-
-  # The stored envelope is a jsonb document, so its argument names arrive as
-  # strings. Only this family's own names are translated back, so no browser
-  # string ever becomes an atom, and every other pair is carried through exactly
-  # as it was signed.
-  defp redemption_arguments(arguments),
-    do: Map.new(arguments, fn {key, value} -> {argument_key(key), value} end)
-
-  defp argument_key(key) when is_atom(key), do: key
-  defp argument_key(key), do: Enum.find(@argument_keys, key, &(Atom.to_string(&1) == key))
-
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
+  defp refusal(reason),
+    do:
+      {:error,
+       Ash.Error.Invalid.Unavailable.exception(
+         resource: AshPlatform.Redemption.Snapshot,
+         reason: reason
+       )}
 end

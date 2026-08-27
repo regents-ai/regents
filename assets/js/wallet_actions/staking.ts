@@ -74,16 +74,6 @@ export type StakingClients = {
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
 }
 
-export type SubmissionPhase = "approval" | "action"
-export type ExecutionOptions = {
-  existingApprovalHash?: Hash
-  onSubmitted?: (phase: SubmissionPhase, hash: Hash) => void
-  // Called synchronously immediately before each wallet send, and required, so
-  // every caller can tell a failure that never asked the wallet for anything
-  // from one that may already have put a transaction on Base.
-  onSendStarted: () => void
-}
-
 export function clientsFor(provider: EthereumProvider): StakingClients {
   const transport = custom(provider)
   const publicClient = createPublicClient({chain: base, transport})
@@ -113,7 +103,6 @@ export async function executePreparedStakingAction(
   envelope: PreparedStakingAction,
   provider: EthereumProvider,
   clients: StakingClients = clientsFor(provider),
-  options: ExecutionOptions,
 ): Promise<void> {
   assertEnvelope(envelope)
 
@@ -129,28 +118,27 @@ export async function executePreparedStakingAction(
     throw new Error("Use the connected wallet shown on this account.")
   }
 
-  // An approval this attempt has to send is the whole attempt: the stake follows
-  // only once the server has verified that approval and invited it back.
-  if (envelope.approval) {
-    assertApproval(envelope.approval, envelope)
-    if (!options.existingApprovalHash) {
+  let approvalSent = false
+  if (envelope.action === "stake") {
+    const amount = requiredAmount(envelope)
+    const allowance = await clients.allowance(account, STAKING)
+
+    if (!envelope.approval && allowance < amount) {
+      throw new Error("The REGENT approval is missing.")
+    }
+
+    if (envelope.approval && allowance < amount) {
+      assertApproval(envelope.approval, envelope)
       const approval = {account, to: STAKE_TOKEN, data: envelope.approval.data, value: 0n}
       await clients.simulate(approval)
-      options.onSendStarted()
-      const approvalHash = await clients.send(approval)
-      options.onSubmitted?.("approval", approvalHash)
-      return
+      await clients.send(approval)
+      approvalSent = true
     }
   }
 
   const transaction = {account, to: STAKING, data: envelope.data, value: 0n}
-  await clients.simulate(transaction)
-  options.onSendStarted()
-  const transactionHash = await clients.send(transaction)
-
-  // The hash is durably reported and the server owns every read after it, so
-  // the browser never waits on a receipt and never decides an outcome.
-  options.onSubmitted?.("action", transactionHash)
+  if (!approvalSent) await clients.simulate(transaction)
+  await clients.send(transaction)
 }
 
 function assertEnvelope(envelope: PreparedStakingAction): void {

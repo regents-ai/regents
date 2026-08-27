@@ -1,8 +1,6 @@
 defmodule AshPlatform.TestRedemptionChainClient do
   @behaviour AshPlatform.Redemption.ChainClient
 
-  @wallet "0x1111111111111111111111111111111111111111"
-
   @impl true
   def overview(wallet, collection, token_id) do
     {:ok,
@@ -47,65 +45,6 @@ defmodule AshPlatform.TestRedemptionChainClient do
            else: nil
          )
      }}
-  end
-
-  # The four closed outcomes plus a chosen read failure, so a test can say which
-  # of the two the page is meant to treat as retryable.
-  @impl true
-  def confirm(envelope, "0x" <> hash = transaction_hash) when byte_size(hash) == 64 do
-    case Application.get_env(:ash_platform, :test_redemption_confirmation_result, :confirmed) do
-      {:error, reason} -> {:error, reason}
-      outcome -> confirmed(envelope, transaction_hash, outcome)
-    end
-  end
-
-  def confirm(_envelope, _transaction_hash), do: {:error, :invalid_confirmation}
-
-  defp confirmed(envelope, transaction_hash, outcome) do
-    with true <- envelope.expected_signer == @wallet,
-         :ok <- record_action_state(outcome, envelope.action) do
-      {:ok,
-       %{
-         transaction_hash: transaction_hash,
-         outcome: outcome,
-         reason: nil,
-         event: event(outcome, envelope)
-       }}
-    else
-      _wrong_signer -> {:error, :transaction_mismatch}
-    end
-  end
-
-  @impl true
-  def approval_current(%{action: "redeem"}) do
-    case Application.get_env(:ash_platform, :test_redemption_approvals_current, true) do
-      true -> :ok
-      false -> {:error, :exact_usdc_approval_required}
-      reason -> {:error, reason}
-    end
-  end
-
-  def approval_current(_envelope), do: :ok
-
-  defp event(:confirmed, %{action: "redeem"}), do: %{result_token_id: 1123}
-
-  defp event(:confirmed, %{action: "claim"}),
-    do: %{claimed_raw: "1000000000000000000", claimed: "1"}
-
-  defp event(_outcome, _envelope), do: %{}
-
-  defp record_action_state(:confirmed, "approve_nft_collection"),
-    do: put(:test_redemption_nft_approved, true)
-
-  defp record_action_state(:confirmed, "approve_exact_usdc"),
-    do: put(:test_redemption_usdc_allowance, 80_000_000)
-
-  defp record_action_state(:confirmed, "redeem"), do: put(:test_redemption_result_ready, true)
-  defp record_action_state(_outcome, _action), do: :ok
-
-  defp put(key, value) do
-    Application.put_env(:ash_platform, key, value)
-    :ok
   end
 
   # An owner that could not be read is its own state: never a nil owner, and

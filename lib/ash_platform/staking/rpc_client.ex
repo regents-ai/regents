@@ -2,13 +2,10 @@ defmodule AshPlatform.Staking.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Staking.ChainClient
 
-  alias AshPlatform.WalletActions.{Abi, Address, Envelope, Rpc}
+  alias AshPlatform.WalletActions.{Abi, Rpc}
 
   @overview_timeout 12_000
   @chain_id 8453
-  @resource "regent_staking"
-  @contract_name "RegentRevenueStaking"
-  @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
   @rpc_opts [client_key: :staking_http_client, log_scope: "staking"]
 
   @impl true
@@ -64,127 +61,16 @@ defmodule AshPlatform.Staking.RpcClient do
   end
 
   @impl true
-  def confirm(envelope, transaction_hash) do
-    with true <- valid_for_confirmation?(envelope),
-         true <- Rpc.valid_hash?(transaction_hash),
-         {:ok, block} <- Rpc.safe_block(@rpc_opts),
-         {:ok, outcome} <-
-           Rpc.canonical_outcome(
-             transaction_hash,
-             envelope.expected_signer,
-             envelope.to,
-             envelope.data,
-             block,
-             @rpc_opts
-           ) do
-      {:ok, settled(envelope, transaction_hash, outcome)}
-    else
-      false -> {:error, :invalid_confirmation}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The exact receipt and the exact action event together are the whole proof. A
-  # later mutable balance cannot replace them and is not consulted here at all:
-  # the page reads its own current snapshot after this verdict is durable.
-  defp settled(envelope, hash, {:success, logs}) do
-    if action_event?(envelope, logs),
-      do: result(hash, :confirmed, nil),
-      else: result(hash, :unverified, :action_event_contradiction)
-  end
-
-  defp settled(_envelope, hash, :reverted), do: result(hash, :reverted, :transaction_reverted)
-  defp settled(_envelope, hash, :pending), do: result(hash, :pending, nil)
-
-  defp result(hash, outcome, reason),
-    do: %{transaction_hash: String.downcase(hash), outcome: outcome, reason: reason}
-
-  defp action_event?(%{action: "stake", arguments: arguments}, logs),
-    do: Abi.stake_updated?(logs, normalize_or_nil(field(arguments, :receiver)))
-
-  defp action_event?(%{action: "unstake", expected_signer: signer}, logs),
-    do: Abi.stake_updated?(logs, signer)
-
-  defp action_event?(%{action: "claim_usdc", expected_signer: signer}, logs),
-    do: Abi.reward_claimed?(logs, :usdc_reward_claimed, signer)
-
-  defp action_event?(%{action: "claim_regent", expected_signer: signer}, logs),
-    do: Abi.reward_claimed?(logs, :reward_token_claimed, signer)
-
-  defp action_event?(%{action: "claim_and_restake_regent", expected_signer: signer}, logs),
-    do: Abi.reward_compounded?(logs, signer)
-
-  @impl true
-  def approval_status(%{approval: approval, expected_signer: signer} = envelope, hash)
-      when is_map(approval) do
-    with true <- valid_for_confirmation?(envelope),
-         true <- Rpc.valid_hash?(hash),
-         {:ok, token, spender, amount} <- approval_identity(approval),
-         {:ok, block} <- Rpc.safe_block(@rpc_opts),
-         {:ok, outcome} <-
-           Rpc.canonical_outcome(
-             hash,
-             signer,
-             token,
-             field(approval, :data),
-             block,
-             @rpc_opts
-           ) do
-      {:ok, approval_outcome(outcome, token, signer, spender, amount)}
-    else
-      false -> {:error, :invalid_approval_confirmation}
-      :error -> {:error, :invalid_approval_confirmation}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  def approval_status(_envelope, _hash), do: {:error, :invalid_approval_confirmation}
-
-  # The approval's own event completes the approval transaction. Allowance is
-  # globally mutable, so it is never what says this transaction happened.
-  defp approval_outcome({:success, logs}, token, signer, spender, amount) do
-    if Abi.approval_recorded?(logs, token, signer, spender, amount),
-      do: :confirmed,
-      else: :unverified
-  end
-
-  defp approval_outcome(outcome, _token, _signer, _spender, _amount), do: outcome
-
-  # The exact allowance is required here, immediately before the stake claims its
-  # dispatch, and never again afterwards: `transferFrom` legitimately spends it.
-  @impl true
-  def approval_current(%{approval: nil}), do: :ok
-
-  def approval_current(%{approval: approval, expected_signer: signer}) do
-    with {:ok, token, spender, amount} <- approval_identity(approval),
-         {:ok, block} <- Rpc.safe_block(@rpc_opts),
+  def allowance(signer, amount) do
+    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
          {:ok, allowance} <-
            Rpc.call_uint(
-             token,
-             Abi.encode_erc20("allowance", [signer, spender]),
+             Abi.stake_token_address(),
+             Abi.encode_erc20("allowance", [signer, Abi.staking_address()]),
              block,
              @rpc_opts
-           ),
-         ^amount <- allowance do
-      :ok
-    else
-      {:error, reason} -> {:error, reason}
-      _changed -> {:error, :approval_allowance_mismatch}
-    end
-  end
-
-  # `allowance(owner, staking)` for the manifest REGENT token and nothing else:
-  # a different token or spender is not this approval at all.
-  defp approval_identity(approval) do
-    token = normalize_or_nil(field(approval, :token))
-    spender = normalize_or_nil(field(approval, :spender))
-
-    with true <- Address.equal?(token, Abi.stake_token_address()),
-         true <- Address.equal?(spender, Abi.staking_address()),
-         {amount, ""} <- Integer.parse(field(approval, :amount) || "") do
-      {:ok, token, spender, amount}
-    else
-      _mismatch -> :error
+           ) do
+      {:ok, if(allowance >= amount, do: :sufficient, else: :insufficient)}
     end
   end
 
@@ -248,23 +134,4 @@ defmodule AshPlatform.Staking.RpcClient do
 
   defp read_address(id, block),
     do: Rpc.call_address(Abi.staking_address(), Abi.encode_read(id), block, @rpc_opts)
-
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
-
-  defp valid_for_confirmation?(envelope) do
-    Envelope.valid_for_confirmation?(envelope,
-      resource: @resource,
-      to: Abi.staking_address(),
-      signer: envelope.expected_signer,
-      contract_name: @contract_name,
-      actions: @actions
-    )
-  end
-
-  defp normalize_or_nil(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> address
-      :error -> nil
-    end
-  end
 end

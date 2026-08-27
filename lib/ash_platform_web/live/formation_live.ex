@@ -8,9 +8,9 @@ defmodule AshPlatformWeb.FormationLive do
     <section id="formation" class="formation-page">
       <header class="formation-heading">
         <p class="formation-kicker">Formation</p>
-        <h1>Run your Regent in Nous Portal</h1>
+        <h1>Regent runs best on Hermes</h1>
         <p>
-          Create and manage your Regent’s cloud runtime in Nous Portal.
+          Create and manage your Regent as a Hermes agent in Nous Portal.
         </p>
       </header>
 
@@ -26,7 +26,7 @@ defmodule AshPlatformWeb.FormationLive do
           Open Nous Portal
         </a>
         <p id="formation-nous-portal-disclosure">
-          Nous Portal opens in a new tab. Your Regent session stays open here.
+          Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch and Techtree in their cloud runtime.
         </p>
       </section>
     </section>

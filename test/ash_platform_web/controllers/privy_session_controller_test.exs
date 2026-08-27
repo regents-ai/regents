@@ -307,7 +307,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert Process.alive?(view.pid)
 
     assert render_click(view, "refresh_verified_connections", %{}) =~
-             "Run your Regent in Nous Portal"
+             "Regent runs best on Hermes"
   end
 
   test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do

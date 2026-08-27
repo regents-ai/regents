@@ -26,6 +26,12 @@ defmodule AshPlatform.TestStakingChainClient do
     end
   end
 
+  @impl true
+  def allowance(_wallet, amount) do
+    current = Application.get_env(:ash_platform, :test_staking_allowance, 0)
+    {:ok, if(current >= amount, do: :sufficient, else: :insufficient)}
+  end
+
   # A test may watch the process doing a position read, so an ordering proof can
   # wait for that read to finish rather than for a duration.
   defp report_read(nil), do: :ok
@@ -64,51 +70,6 @@ defmodule AshPlatform.TestStakingChainClient do
       wallet_funded_claimable_regent_raw: raw(wallet, :regent_funded),
       wallet_funded_claimable_regent: regent(wallet, :regent_funded)
     }
-  end
-
-  # The four closed outcomes, chosen by the test rather than by a real receipt.
-  @impl true
-  def confirm(_envelope, "0x" <> hash = transaction_hash) when byte_size(hash) == 64 do
-    await_release(Application.get_env(:ash_platform, :test_staking_confirm_barrier))
-
-    case Application.get_env(:ash_platform, :test_staking_confirmation_result, :confirmed) do
-      # A verification that crashed says nothing about Base at all, so a proof
-      # can tell a task exit from a pending receipt.
-      :crashes -> exit(:verification_crashed)
-      outcome -> {:ok, %{transaction_hash: transaction_hash, outcome: outcome, reason: nil}}
-    end
-  end
-
-  def confirm(_envelope, _transaction_hash), do: {:error, :invalid_confirmation}
-
-  # A test may hold a confirmation open here to prove exactly what a result
-  # arriving after a wallet change may and may not do to the page.
-  defp await_release(nil), do: :ok
-
-  defp await_release(test) do
-    send(test, {:staking_confirming, self()})
-
-    receive do
-      :release_staking_confirmation -> :ok
-    after
-      5_000 -> :ok
-    end
-  end
-
-  @impl true
-  def approval_status(_envelope, _transaction_hash),
-    do: {:ok, Application.get_env(:ash_platform, :test_staking_approval_status, :confirmed)}
-
-  # The exact allowance read fresh immediately before the stake is dispatched.
-  @impl true
-  def approval_current(%{approval: nil}), do: :ok
-
-  def approval_current(_envelope) do
-    case Application.get_env(:ash_platform, :test_staking_allowance_current, true) do
-      true -> :ok
-      false -> {:error, :approval_allowance_mismatch}
-      reason -> {:error, reason}
-    end
   end
 
   defp raw(nil, _key), do: nil

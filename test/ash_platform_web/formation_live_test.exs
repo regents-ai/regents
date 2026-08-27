@@ -94,10 +94,10 @@ defmodule AshPlatformWeb.FormationLiveTest do
     html = view |> render_async() |> normalize_whitespace()
 
     assert has_element?(view, "#formation")
-    assert has_element?(view, "#formation h1", "Run your Regent in Nous Portal")
+    assert has_element?(view, "#formation h1", "Regent runs best on Hermes")
     assert Regex.scan(~r/<h[1-6]\b/, html) |> length() == 1
 
-    assert html =~ "Create and manage your Regent’s cloud runtime in Nous Portal."
+    assert html =~ "Create and manage your Regent as a Hermes agent in Nous Portal."
 
     assert has_element?(
              view,
@@ -108,7 +108,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
     assert has_element?(
              view,
              "#formation-nous-portal-disclosure",
-             "Nous Portal opens in a new tab. Your Regent session stays open here."
+             "Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch and Techtree in their cloud runtime."
            )
 
     for selector <- [
@@ -146,7 +146,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
     html = view |> render_async() |> normalize_whitespace()
 
-    assert html =~ "Run your Regent in Nous Portal"
+    assert html =~ "Regent runs best on Hermes"
     assert html =~ "Open Nous Portal"
     refute has_element?(view, "#formation", "0x1111")
     refute has_element?(view, "#formation [phx-click]")

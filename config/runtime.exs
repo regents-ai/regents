@@ -26,6 +26,10 @@ admin_wallet_addresses =
 
 config :ash_platform, :admin_wallet_addresses, admin_wallet_addresses
 
+if config_env() != :test do
+  config :ash_platform, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
+end
+
 config :ash_platform, :sprites,
   base_url: "https://api.sprites.dev",
   token: System.get_env("SPRITES_TOKEN")

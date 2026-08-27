@@ -4,8 +4,10 @@
 }
 
 .stake-heading,
+.stake-balance-card,
 .stake-summary,
-.stake-actions {
+.stake-actions,
+.stake-explainers article {
   border: 1px solid transparent;
   border-radius: var(--material-radius);
   background: var(--material-fill) padding-box, var(--material-stroke) border-box;
@@ -21,13 +23,13 @@
 
 .stake-heading h1,
 .stake-actions h2,
-.stake-review h2 {
+.stake-explainers h2 {
   margin-block: 0.35rem 0.5rem;
 }
 
 .stake-kicker,
 .stake-metric dt,
-.stake-review dt {
+.stake-network span {
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
@@ -40,6 +42,21 @@
   gap: 1.25rem;
 }
 
+.stake-balance-card {
+  min-width: 0;
+  align-self: start;
+  padding: 0;
+  overflow: hidden;
+}
+
+.stake-network {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1rem 0;
+}
+
 .stake-summary {
   display: grid;
   align-self: start;
@@ -48,14 +65,12 @@
   padding: 1rem;
 }
 
-.stake-actions,
-.stake-review dl {
+.stake-actions {
   display: grid;
   gap: 1rem;
 }
 
-.stake-metric,
-.stake-review dl div {
+.stake-metric {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -66,26 +81,19 @@
   padding-block: 0.8rem;
 }
 
-.stake-metric:last-child,
-.stake-review dl div:last-child {
+.stake-metric:last-child {
   border-bottom: 0;
-}
-
-.stake-review dl div {
-  padding-bottom: 0.75rem;
 }
 
 /* A production-sized figure wraps inside its row instead of pushing the card
    wider than the column it sits in. */
 .stake-metric dt,
-.stake-metric dd,
-.stake-review dd {
+.stake-metric dd {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.stake-metric dd,
-.stake-review dd {
+.stake-metric dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -177,13 +185,19 @@
 
 /* The review sits inside the action card, so it reads as an inset panel rather
    than a second floating card. */
-.stake-review {
+.stake-explainers {
   display: grid;
-  gap: 1rem;
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--material-radius);
-  padding: clamp(1rem, 3vw, 1.25rem);
-  background: var(--color-surface-elevated);
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.stake-explainers article > * {
+  margin-block: 0;
+}
+
+.stake-explainers p {
+  color: var(--color-fg-muted);
 }
 
 .stake-mono {
@@ -206,6 +220,10 @@
     grid-template-columns: 1fr;
   }
 
+  .stake-explainers {
+    grid-template-columns: 1fr;
+  }
+
   .stake-primary {
     justify-self: stretch;
   }
@@ -213,8 +231,10 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .stake-heading,
+  .stake-balance-card,
   .stake-summary,
-  .stake-actions {
+  .stake-actions,
+  .stake-explainers article {
     background: var(--color-surface-elevated);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

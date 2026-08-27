@@ -965,6 +965,7 @@ defmodule AshPlatformWeb.BoundaryTest do
              AshPlatform.Formation,
              AshPlatform.Techtree,
              AshPlatform.Autolaunch,
+             AshPlatform.OpenSea,
              AshPlatform.Redemption,
              AshPlatform.Staking
            ]

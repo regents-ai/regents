@@ -47,58 +47,6 @@ defmodule AshPlatform.Staking.Snapshot do
       argument :expected_signer, :string, allow_nil?: false
       run fn input, context -> Actions.prepare("claim_and_restake_regent", input, context) end
     end
-
-    action :confirm_wallet_action, :map do
-      argument :envelope, :map, allow_nil?: false
-      argument :transaction_hash, :string, allow_nil?: false
-      run fn input, context -> Actions.confirm(input, context) end
-    end
-
-    action :restore_submitted_action, :map do
-      argument :envelope, :map, allow_nil?: false
-      run fn input, context -> Actions.restore(input, context) end
-    end
-
-    action :verify_approval_submission, :atom do
-      constraints one_of: [:confirmed, :unverified, :reverted, :pending]
-      argument :envelope, :map, allow_nil?: false
-      argument :transaction_hash, :string, allow_nil?: false
-      run fn input, context -> Actions.approval_status(input, context) end
-    end
-
-    action :claim_wallet_dispatch, :map do
-      argument :envelope, :map, allow_nil?: false
-      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
-      run fn input, context -> Actions.claim_dispatch(input, context) end
-    end
-
-    action :bind_submitted_hash, :map do
-      argument :action_id, :string, allow_nil?: false
-      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
-      argument :transaction_hash, :string, allow_nil?: false
-      run fn input, context -> Actions.bind_hash(input, context) end
-    end
-
-    action :close_not_sent, :map do
-      argument :action_id, :string, allow_nil?: false
-      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
-      run fn input, context -> Actions.close_not_sent(input, context) end
-    end
-
-    action :release_unstarted_dispatch, :map do
-      argument :action_id, :string, allow_nil?: false
-      argument :phase, :atom, allow_nil?: false, constraints: [one_of: [:approval, :action]]
-      run fn input, context -> Actions.release_unstarted(input, context) end
-    end
-
-    action :cancel_operation, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> Actions.cancel_operation(input, context) end
-    end
-
-    action :active_operation, :map do
-      run fn input, context -> Actions.active_operation(input, context) end
-    end
   end
 
   policies do
@@ -113,16 +61,7 @@ defmodule AshPlatform.Staking.Snapshot do
              :prepare_unstake,
              :prepare_claim_usdc,
              :prepare_claim_regent,
-             :prepare_claim_and_restake_regent,
-             :confirm_wallet_action,
-             :restore_submitted_action,
-             :verify_approval_submission,
-             :claim_wallet_dispatch,
-             :bind_submitted_hash,
-             :close_not_sent,
-             :release_unstarted_dispatch,
-             :cancel_operation,
-             :active_operation
+             :prepare_claim_and_restake_regent
            ]) do
       authorize_if AshPlatform.Staking.Checks.HumanActor
     end
