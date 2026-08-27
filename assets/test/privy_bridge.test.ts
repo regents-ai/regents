@@ -193,7 +193,7 @@ async function until(reached: () => boolean): Promise<void> {
 }
 
 // The published handle a real click reaches: the lazy loader's same-request
-// dedupe in front of the real account request handler.
+// dedupe in front of the real request handler.
 function signInLoader(signIn: () => Promise<void>) {
   return createLazyAuthLoader(async () => ({
     startPrivyBridge: async () => ({
@@ -211,10 +211,9 @@ function heldPromise() {
   return {promise: new Promise<void>(settle => (resolve = settle)), resolve}
 }
 
-// One deliberate sign in driven through the real seams: the real completion,
-// the real establishment, and the exact refusals the real server sends. `pairs`
-// is the sequence of provider sessions, and only a provider logout reaches the
-// next one, so a replayed pair is visible in the recorded order.
+// One sign in driven through the real seams. `pairs` is the sequence of
+// provider sessions and only a provider logout reaches the next one, so a
+// replayed pair is visible in the recorded order.
 function signInScenario({
   answer,
   authenticated = true,
@@ -284,13 +283,12 @@ function signInScenario({
     recoveryAvailable,
     reload,
     request,
-    // What Privy's own login callback does once the fresh modal completes.
     completeFreshLogin() {
       live = true
       loginOpen.current = false
     },
-    // Startup adoption and granted-token callbacks share the one completion and
-    // stand aside while an explicit recovery still holds the refused pair.
+    // Startup adoption and the granted-token callback: they share the one
+    // completion and stand aside during an explicit recovery.
     automaticCompletion: () =>
       request.recovering() ? Promise.resolve() : completeLogin(),
   }
@@ -615,8 +613,7 @@ describe("Privy session bridge", () => {
     expect(showFailure).not.toHaveBeenCalled()
   })
 
-  // Privy owns the modal it opened, so both of its outcomes release the guard
-  // and a customer who cancels can deliberately open login again.
+  // This page opened this modal, so it speaks for both of Privy's outcomes.
   it("ONE_RECOVERY_PER_PAGE: both login outcomes release the guard and say what failed", async () => {
     const loginOpen = {current: true}
     const showFailure = vi.fn()
@@ -664,8 +661,6 @@ describe("Privy session bridge", () => {
     expect(marked.request.recovering()).toBe(false)
     expect(marked.reload).not.toHaveBeenCalled()
 
-    // Privy's own login callback finishes the sign in through the same shared
-    // completion, with the pair the fresh provider session issued.
     marked.completeFreshLogin()
     await marked.completeLogin()
 
@@ -696,8 +691,61 @@ describe("Privy session bridge", () => {
       expect(refused.providerLogout).not.toHaveBeenCalled()
       expect(refused.openLogin).not.toHaveBeenCalled()
       expect(refused.reload).not.toHaveBeenCalled()
+      // Only the exact marked refusal may spend the recovery, so an unmarked one
+      // leaves the cap for a marked refusal that may still follow it.
+      expect(refused.recoveryAvailable.current).toBe(answer === "unmarked")
     },
   )
+
+  it("ONE_RECOVERY_PER_PAGE: an automatic completion takes the marked refusal and leaves Privy alone", async () => {
+    const automatic = signInScenario({answer: () => "marked", pairs: ["stale", "fresh"]})
+    const showFailure = vi.fn()
+    const bootstrap = createPrivyLoginCallbacks({
+      completeLogin: automatic.completeLogin,
+      loginOpen: automatic.loginOpen,
+      showFailure,
+    })
+
+    // Privy restores the stale session on its own: it fires its login completion
+    // for a modal this page never opened, and the granted token joins the same
+    // attempt.
+    bootstrap.onComplete?.({} as Parameters<NonNullable<typeof bootstrap.onComplete>>[0])
+    await expect(automatic.automaticCompletion()).rejects.toThrow(
+      "Sign in could not be completed.",
+    )
+
+    expect(automatic.order).toEqual(["csrf", "post Bearer stale"])
+    expect(automatic.providerLogout).not.toHaveBeenCalled()
+    expect(automatic.openLogin).not.toHaveBeenCalled()
+    expect(showFailure).not.toHaveBeenCalled()
+    expect(automatic.recoveryAvailable.current).toBe(true)
+  })
+
+  it("ONE_RECOVERY_PER_PAGE: the click behind an automatic completion spends the one recovery", async () => {
+    const queued = signInScenario({
+      answer: bearer => (bearer === "Bearer stale" ? "marked" : "ok"),
+      pairs: ["stale", "fresh"],
+    })
+    const showFailure = vi.fn()
+    const bootstrap = createPrivyLoginCallbacks({
+      completeLogin: queued.completeLogin,
+      loginOpen: queued.loginOpen,
+      showFailure,
+    })
+
+    // Privy's bootstrap reaches the refusal first and the click joins the one
+    // attempt already in flight, so the refused pair is offered exactly once and
+    // only the click that owns the page recovers it.
+    bootstrap.onComplete?.({} as Parameters<NonNullable<typeof bootstrap.onComplete>>[0])
+    await queued.request.signIn()
+
+    expect(queued.order).toEqual(["csrf", "post Bearer stale", "logout", "login"])
+    expect(queued.providerLogout).toHaveBeenCalledOnce()
+    expect(queued.openLogin).toHaveBeenCalledOnce()
+    expect(showFailure).not.toHaveBeenCalled()
+    expect(queued.recoveryAvailable.current).toBe(false)
+    expect(queued.reload).not.toHaveBeenCalled()
+  })
 
   it("ONE_RECOVERY_PER_PAGE: a second marked refusal stops instead of recovering again", async () => {
     const twice = signInScenario({answer: () => "marked", pairs: ["stale", "fresh"]})

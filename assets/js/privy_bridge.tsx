@@ -63,9 +63,9 @@ export function createAccountRequestHandler({
   }
 }
 
-// Refusals are one message to the customer. This type is never exported, so
-// only a sign in inside this module can tell the exact refusal the server marked
-// as recoverable apart from every other one, which stays generic and final.
+// Both refusals carry the same message. This type is never exported, so only a
+// sign in inside this module can tell the one refusal the server marked as
+// recoverable apart from every other one, which stays generic and final.
 class StaleProviderSessionError extends Error {
   constructor() {
     super("Sign in could not be completed.")
@@ -88,13 +88,9 @@ type SignInRequestOptions = {
   recoveryAvailable: {current: boolean}
 }
 
-// One deliberate click. A provider session Regent accepts establishes straight
-// away; an anonymous provider opens Privy's ordinary login; and a provider whose
-// access token the server itself could not verify spends this page's single
-// recovery on one awaited logout and one fresh login. The cap is spent before
-// the logout is awaited and the logout completes before anything may be sent
-// again, so the pair the server just refused can never be offered a second time
-// and a later refusal simply stops.
+// The recovery cap is spent before the logout is awaited, and the logout
+// completes before anything may be sent again, so the pair the server just
+// refused can never be offered a second time and a later refusal simply stops.
 export function createSignInRequest({
   authenticated,
   completeLogin,
@@ -435,12 +431,14 @@ type PrivyLoginCallbackOptions = {
   showFailure: () => void
 }
 
-// Privy's own login owns the modal it opened: both outcomes close it, so both
-// release the guard and the next deliberate click may open it again. A
-// completion that cannot establish Regent — including one Privy runs
-// synchronously for an already-authenticated customer, after the click that
-// opened login has settled — says so on the page rather than rejecting into
-// nothing.
+// Privy runs this for its own provider bootstrap too, for a modal this page
+// never opened, and that entry shares the one in-flight completion with a
+// deliberate click. Only a modal this page opened may speak for it, so a
+// bootstrap refusal stays silent while the click recovers behind it, and a
+// completion this page asked for — including one Privy runs synchronously for
+// an already-authenticated customer, after the click that opened login has
+// settled — says so rather than rejecting into nothing. Both outcomes close
+// the modal, so both release the guard for the next click.
 export function createPrivyLoginCallbacks({
   completeLogin,
   loginOpen,
@@ -448,8 +446,11 @@ export function createPrivyLoginCallbacks({
 }: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
     onComplete: () => {
+      const opened = loginOpen.current
       loginOpen.current = false
-      void completeLogin().catch(showFailure)
+      void completeLogin().catch(() => {
+        if (opened) showFailure()
+      })
     },
     onError: () => {
       loginOpen.current = false
@@ -527,10 +528,13 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   )
   const {login} = useLogin(loginCallbacks)
   // The published handler outlives every render, so the click it answers reads
-  // the provider of the latest committed one rather than the one it was built
-  // in, and an in-flight recovery keeps the guard it started under.
+  // the provider of the latest committed render — never one React started and
+  // discarded — which is why this is written after the commit and before the
+  // effect that publishes the handler.
   const provider = React.useRef({authenticated, login, logout})
-  provider.current = {authenticated, login, logout}
+  React.useEffect(() => {
+    provider.current = {authenticated, login, logout}
+  }, [authenticated, login, logout])
   const signInRequest = React.useMemo(
     () =>
       createSignInRequest({
@@ -543,9 +547,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       }),
     [completeExplicitLogin],
   )
-  // Adoption only ever asks the server. It never opens login, never logs the
-  // provider out and never spends the recovery, and it stands aside entirely
-  // while an explicit recovery still holds the pair the server refused.
+  // Adoption only ever asks the server, and it stands aside entirely while an
+  // explicit recovery still holds the pair the server refused.
   const completeAutomaticLogin = React.useCallback(
     () =>
       signOutOnly || signInRequest.recovering() ? Promise.resolve() : completeExplicitLogin(),
