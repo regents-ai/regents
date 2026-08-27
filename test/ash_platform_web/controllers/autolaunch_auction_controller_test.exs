@@ -61,7 +61,7 @@ defmodule AshPlatformWeb.AutolaunchAuctionControllerTest do
     assert Enum.map([oldest, newest], & &1["id"]) == [older.id, newer.id]
 
     assert Map.keys(newest) |> Enum.sort() ==
-             ~w(featured id opened_at state summary title)
+             ~w(featured id opened_at state summary title treasury_security)
 
     assert newest == %{
              "id" => newer.id,
@@ -69,7 +69,8 @@ defmodule AshPlatformWeb.AutolaunchAuctionControllerTest do
              "summary" => nil,
              "featured" => false,
              "state" => "active",
-             "opened_at" => DateTime.to_iso8601(now)
+             "opened_at" => DateTime.to_iso8601(now),
+             "treasury_security" => nil
            }
 
     for {mode, expected_id} <- [

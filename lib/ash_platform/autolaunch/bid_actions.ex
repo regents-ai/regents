@@ -18,7 +18,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.{BidOperation, ChainClient}
+  alias AshPlatform.Autolaunch.{BidOperation, ChainClient, TreasurySecurity}
   alias AshPlatform.WalletActions.{Abi, Address, AuctionAbi, Envelope, Permit2Abi, Rpc}
 
   @actor %System{}
@@ -134,6 +134,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
     with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
          {:ok, lease} <- lease(context),
          {:ok, auction} <- biddable(arguments.auction_id),
+         {:ok, treasury_report} <- verified_treasury(auction),
          {:ok, address} <- normalize(auction.auction_address),
          {:ok, amount} <- refusable(atomic_amount(arguments.amount)),
          {:ok, max_price_q96} <- refusable(price_q96(arguments.max_price)),
@@ -141,7 +142,16 @@ defmodule AshPlatform.Autolaunch.BidActions do
          :ok <- bound_currency(snapshot),
          :ok <- bounded_predecessor(snapshot, max_price_q96),
          :ok <- affordable(snapshot, amount),
-         {envelope, step} <- review(auction, address, signer, amount, max_price_q96, snapshot),
+         {envelope, step} <-
+           review(
+             auction,
+             address,
+             signer,
+             amount,
+             max_price_q96,
+             snapshot,
+             treasury_report
+           ),
          {:ok, operation} <- open(lease, envelope, signer, step) do
       {:ok, %{operation: view(operation)}}
     end
@@ -156,7 +166,22 @@ defmodule AshPlatform.Autolaunch.BidActions do
   inside the transaction that takes the row, so a wallet the account no longer
   holds cannot be handed a dispatch by a check that passed a moment earlier.
   """
-  def claim_dispatch(input, context), do: write(context, input.arguments.action_id, &claim/2)
+  def claim_dispatch(input, %{actor: %Human{}} = context) do
+    action_id = input.arguments.action_id
+
+    with {:ok, lease} <- lease(context),
+         {:ok, candidate} <- operation(lease.account_id, action_id, false),
+         treasury_result <- revalidate_treasury(candidate) do
+      transact(
+        lease,
+        &locked_transition(&1, action_id, fn account, operation ->
+          claim(account, operation, treasury_result)
+        end)
+      )
+    end
+  end
+
+  def claim_dispatch(_input, _context), do: unavailable(:authentication_required)
 
   @doc """
   Binds the first valid hash for the step the browser was actually sent.
@@ -257,7 +282,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
 
   # Reviews and operations
 
-  defp review(auction, address, signer, amount, max_price_q96, snapshot) do
+  defp review(auction, address, signer, amount, max_price_q96, snapshot, treasury_report) do
     granted = DateTime.add(Envelope.current_time(), @permit2_seconds, :second)
 
     data =
@@ -283,6 +308,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
           "predecessor_source" => snapshot.predecessor_source,
           "currency" => snapshot.currency,
           "permit2" => Permit2Abi.address(),
+          "treasury_security" => treasury_binding(treasury_report),
           "steps" => steps
         }
       )
@@ -373,9 +399,19 @@ defmodule AshPlatform.Autolaunch.BidActions do
   defp transition(action, input),
     do: fn _account, operation -> update(operation, action, input) end
 
-  defp claim(account, operation) do
+  defp claim(account, operation, {:ok, fresh_treasury}) do
     with :ok <- signer_matches(account, operation.signer),
-         do: update(operation, :claim_dispatch, %{})
+         true <- treasury_still_reviewed?(operation, fresh_treasury) do
+      update(operation, :claim_dispatch, %{})
+    else
+      false -> update(operation, :cancel, %{reason: "treasury security changed"})
+      error -> error
+    end
+  end
+
+  defp claim(account, operation, {:error, _reason}) do
+    with :ok <- signer_matches(account, operation.signer),
+         do: update(operation, :cancel, %{reason: "treasury security changed"})
   end
 
   defp bind(operation, step, hash) do
@@ -602,6 +638,53 @@ defmodule AshPlatform.Autolaunch.BidActions do
       {:ok, _closed} -> unavailable(:auction_not_biddable)
       error -> error
     end
+  end
+
+  defp verified_treasury(%{treasury_security_report: nil}),
+    do: unavailable(:treasury_report_missing)
+
+  defp verified_treasury(%{treasury_security_report: %Ash.NotLoaded{}}),
+    do: unavailable(:treasury_report_missing)
+
+  defp verified_treasury(%{treasury_security_report: report}),
+    do: TreasurySecurity.revalidate_bound(report)
+
+  defp revalidate_treasury(operation) do
+    binding = operation.envelope["arguments"]["treasury_security"]
+
+    with {:ok, report} <-
+           Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
+         false <- is_nil(report) do
+      TreasurySecurity.revalidate_bound(report)
+    else
+      _missing -> unavailable(:treasury_report_missing)
+    end
+  end
+
+  defp treasury_still_reviewed?(operation, fresh) do
+    bound = operation.envelope["arguments"]["treasury_security"]
+
+    bound["configuration_fingerprint"] == fresh.configuration_fingerprint and
+      bound["classification"] == Atom.to_string(fresh.classification) and
+      bound["verification_state"] == "verified" and fresh.verification_state == :verified and
+      bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
+  end
+
+  defp treasury_binding(report) do
+    %{
+      "report_id" => report.id,
+      "configuration_fingerprint" => report.configuration_fingerprint,
+      "source_block_hash" => report.source_block_hash,
+      "source_block_number" => report.source_block_number,
+      "classification" => Atom.to_string(report.classification),
+      "verification_state" => Atom.to_string(report.verification_state),
+      "downgrade_state" => Atom.to_string(report.downgrade_state),
+      "evidence" => %{
+        "usdc" => report.usdc_evidence,
+        "regent" => report.regent_evidence,
+        "outbound" => report.outbound_evidence
+      }
+    }
   end
 
   # Amounts and prices

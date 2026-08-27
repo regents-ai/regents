@@ -66,32 +66,49 @@ defmodule AshPlatform.Autolaunch.Auction do
     timestamps()
   end
 
+  relationships do
+    belongs_to :treasury_security_report,
+               AshPlatform.Autolaunch.TreasurySecurityReport do
+      attribute_public? true
+    end
+  end
+
   actions do
     read :read do
       primary? true
     end
 
     read :list_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc])
+      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
     read :recent_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 12)
+      prepare build(
+                sort: [inserted_at: :desc, id: :asc],
+                limit: 12,
+                load: [:treasury_security_report]
+              )
     end
 
     read :featured_public do
       filter expr(featured == true)
-      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 6)
+
+      prepare build(
+                sort: [inserted_at: :desc, id: :asc],
+                limit: 6,
+                load: [:treasury_security_report]
+              )
     end
 
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare build(load: [:treasury_security_report])
     end
 
     create :import_public do
-      accept [:title, :summary, :featured, :state, :opened_at]
+      accept [:title, :summary, :featured, :state, :opened_at, :treasury_security_report_id]
     end
 
     update :set_bid_terms do
@@ -104,6 +121,10 @@ defmodule AshPlatform.Autolaunch.Auction do
         :quote_token_decimals,
         :current_clearing_price
       ]
+    end
+
+    update :set_treasury_security_report do
+      accept [:treasury_security_report_id]
     end
 
     # The bidder lifecycle. Every one of these names the exact wallet or the
@@ -181,6 +202,10 @@ defmodule AshPlatform.Autolaunch.Auction do
     end
 
     policy action(:set_bid_terms) do
+      authorize_if AshPlatform.Checks.SystemActor
+    end
+
+    policy action(:set_treasury_security_report) do
       authorize_if AshPlatform.Checks.SystemActor
     end
 

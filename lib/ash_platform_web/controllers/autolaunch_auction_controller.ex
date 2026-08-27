@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
   use AshPlatformWeb, :controller
 
   alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.TreasurySecurity
 
   @modes ~w(all biddable live failed_minimum graduated)
   @sorts ~w(newest oldest)
@@ -82,12 +83,17 @@ defmodule AshPlatformWeb.AutolaunchAuctionController do
       summary: auction.summary,
       featured: auction.featured,
       state: to_string(auction.state),
-      opened_at: iso8601(auction.opened_at)
+      opened_at: iso8601(auction.opened_at),
+      treasury_security: TreasurySecurity.public_view(loaded_report(auction))
     }
   end
 
   defp iso8601(nil), do: nil
   defp iso8601(value), do: DateTime.to_iso8601(value)
+
+  defp loaded_report(%{treasury_security_report: %Ash.NotLoaded{}}), do: nil
+  defp loaded_report(%{treasury_security_report: report}), do: report
+  defp loaded_report(_auction), do: nil
 
   defp invalid_request(conn) do
     conn

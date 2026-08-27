@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
+  alias AshPlatform.Autolaunch.TreasurySecurity
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -25,7 +26,13 @@ defmodule AshPlatformWeb.AutolaunchLive do
       kind: :text,
       hint: "A link to the picture you want shown."
     },
-    %{key: :treasury, param: "treasury", label: "Treasury", kind: :text, hint: @address_hint},
+    %{
+      key: :treasury,
+      param: "treasury",
+      label: "Immutable treasury recipient",
+      kind: :text,
+      hint: @address_hint
+    },
     %{
       key: :required_regent_raised,
       param: "required_regent_raised",
@@ -35,9 +42,14 @@ defmodule AshPlatformWeb.AutolaunchLive do
     }
   ]
 
-  def draft_field_params, do: Enum.map(@draft_fields, & &1.param)
+  def draft_field_params,
+    do: Enum.map(@draft_fields, & &1.param) ++ ["treasury_path", "eoa_acknowledgement"]
 
-  def blank_draft_fields, do: Map.new(@draft_fields, &{&1.param, ""})
+  def blank_draft_fields,
+    do:
+      @draft_fields
+      |> Map.new(&{&1.param, ""})
+      |> Map.merge(%{"treasury_path" => "safe", "eoa_acknowledgement" => ""})
 
   attr :route_spec, :map, required: true
   attr :params, :map, required: true
@@ -302,6 +314,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
               {display_action(launch.status)} · {display_action(launch.step)} · {launch_agent(launch)}
             </span>
           </.link>
+          <.treasury_security report={report(launch)} surface={"launch-#{launch.job_id}"} />
         </li>
       </ol>
     </section>
@@ -324,6 +337,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h1>{launch_label(@record)}</h1>
         <p>Review this launch's recorded progress, identities, and published addresses.</p>
       </header>
+
+      <.treasury_security report={report(@record)} surface="launch-detail" />
 
       <section aria-labelledby="launch-progress-title">
         <h2 id="launch-progress-title">Progress</h2>
@@ -465,6 +480,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
               {display_text(subject.token_address)} · {display_text(subject.subject_kind)} · Chain {subject.chain_id}
             </span>
           </.link>
+          <.treasury_security report={report(subject)} surface={"subject-#{subject.subject_id}"} />
         </li>
       </ol>
     </section>
@@ -495,6 +511,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
           Revenue sharing and settlement history for this {display_text(@record.subject_kind)}.
         </p>
       </header>
+
+      <.treasury_security report={report(@record)} surface="subject-detail" />
 
       <section aria-labelledby="subject-identity-title">
         <h2 id="subject-identity-title">Subject details</h2>
@@ -723,6 +741,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
             <strong>{record_label(@kind, record)}</strong>
             <span>{record.summary || record_fallback(@kind)}</span>
           </.link>
+          <.treasury_security
+            report={report(record)}
+            surface={"market-#{String.replace(String.downcase(@title), " ", "-")}-#{record.id}"}
+          />
         </li>
       </ol>
     </section>
@@ -760,6 +782,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
             <strong>{record_label(collection_record_kind(@kind), record)}</strong>
             <span>{record.summary || record_fallback(collection_record_kind(@kind))}</span>
           </.link>
+          <.treasury_security report={report(record)} surface={"#{@kind}-#{record.id}"} />
         </li>
       </ol>
     </section>
@@ -794,6 +817,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h1>{record_label(@kind, @record)}</h1>
         <p>{@record.summary || record_fallback(@kind)}</p>
       </header>
+      <.treasury_security report={report(@record)} surface={"#{@kind}-detail"} />
       <.live_component
         :if={@kind == :auction}
         module={AshPlatformWeb.AutolaunchBidComponent}
@@ -826,6 +850,39 @@ defmodule AshPlatformWeb.AutolaunchLive do
         Return to {@title}s
       </.link>
     </section>
+    """
+  end
+
+  attr :report, :any, default: nil
+  attr :surface, :string, required: true
+
+  defp treasury_security(assigns) do
+    assigns = assign(assigns, :view, TreasurySecurity.public_view(assigns.report))
+
+    ~H"""
+    <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
+      <h3>Treasury security</h3>
+      <p :if={is_nil(@view)} class="treasury-security--warning">
+        No current treasury report is available. Custody is unverified.
+      </p>
+      <dl :if={@view}>
+        <div>
+          <dt>Immutable recipient</dt><dd>{@view.address}</dd>
+        </div>
+        <div>
+          <dt>Type</dt><dd>{display_action(@view.classification)}</dd>
+        </div>
+        <div>
+          <dt>Verification</dt><dd>Awaiting current chain confirmation</dd>
+        </div>
+        <div :if={@view.downgrade_state != "none"}>
+          <dt>Downgrade</dt><dd>Configuration changed after a verified observation</dd>
+        </div>
+      </dl>
+      <p :if={@view} class="treasury-security--warning">
+        Verification remains fail-closed until canonical projector refresh is integrated.
+      </p>
+    </aside>
     """
   end
 
@@ -882,6 +939,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
           data-draft-errors={@draft_errors != %{} && "true"}
           data-saved-drafts={length(@launch_drafts)}
         >
+          <.custody_path
+            form_id="create-launch-draft"
+            path={@draft_values["treasury_path"]}
+            acknowledgement={@draft_values["eoa_acknowledgement"]}
+          />
           <.draft_field
             :for={field <- draft_fields()}
             field={field}
@@ -919,6 +981,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
               class="autolaunch-draft-form"
             >
               <input type="hidden" name="draft_id" value={draft.id} />
+              <.custody_path
+                form_id={"revise-launch-draft-#{draft.id}"}
+                path={revision_extra(@draft_revision, draft, "treasury_path")}
+                acknowledgement={revision_extra(@draft_revision, draft, "eoa_acknowledgement")}
+              />
               <.draft_field
                 :for={field <- draft_fields()}
                 field={field}
@@ -944,6 +1011,68 @@ defmodule AshPlatformWeb.AutolaunchLive do
         </div>
       </section>
     </section>
+    """
+  end
+
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
+
+  attr :form_id, :string, required: true
+  attr :path, :string, default: "safe"
+  attr :acknowledgement, :string, default: ""
+
+  defp custody_path(assigns) do
+    assigns = assign(assigns, :warning_copy, @eoa_acknowledgement)
+
+    ~H"""
+    <fieldset class="autolaunch-custody-path">
+      <legend>Choose treasury custody</legend>
+      <strong>Create a 2-of-3 Safe on Base</strong>
+      <a
+        href="https://app.safe.global/new-safe/create?chain=base"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open the official Safe creation flow
+      </a>
+      <p>Return here and verify the deployed address before launch.</p>
+      <label>
+        <input
+          type="radio"
+          name="launch_draft[treasury_path]"
+          value="safe"
+          checked={@path in [nil, "", "safe", :safe]}
+        />
+        <span>Use existing Safe</span>
+      </label>
+      <details>
+        <summary>Advanced, high-risk treasury choices</summary>
+        <label>
+          <input
+            type="radio"
+            name="launch_draft[treasury_path]"
+            value="contract"
+            checked={@path in ["contract", :contract]}
+          /> Existing contract or distribution destination — never verified
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="launch_draft[treasury_path]"
+            value="eoa"
+            checked={@path in ["eoa", :eoa]}
+          /> Single-key EOA — never verified
+        </label>
+        <label for={"#{@form_id}-eoa-acknowledgement"}>
+          To use an EOA, type this warning character-for-character:
+        </label>
+        <p class="autolaunch-custody-warning">{@warning_copy}</p>
+        <textarea
+          id={"#{@form_id}-eoa-acknowledgement"}
+          name="launch_draft[eoa_acknowledgement]"
+          autocomplete="off"
+        >{@acknowledgement}</textarea>
+      </details>
+    </fieldset>
     """
   end
 
@@ -1001,11 +1130,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp draft_fields, do: @draft_fields
 
-  # Only a new draft starts from the wallet on screen. A saved draft is revised
-  # from the treasury it already holds, so its help says nothing of the kind.
-  defp create_hint(%{key: :treasury, hint: hint}),
-    do: "#{hint} Starts as the wallet you have selected; change it to any other."
-
   defp create_hint(%{hint: hint}), do: hint
 
   # The card heading already carries the name.
@@ -1021,6 +1145,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp revision_error(%{id: id, errors: errors}, %{id: id}, field), do: errors[field.param]
   defp revision_error(_revision, _draft, _field), do: nil
+
+  defp revision_extra(%{id: id, values: values}, %{id: id}, key), do: values[key] || ""
+  defp revision_extra(_revision, draft, "treasury_path"), do: draft.treasury_path
+  defp revision_extra(_revision, _draft, "eoa_acknowledgement"), do: ""
 
   defp described_by(id, hint, error) do
     case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do
@@ -1043,6 +1171,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp collection_record_kind(:auctions), do: :auction
   defp collection_record_kind(:tokens), do: :token
+
+  defp report(%{treasury_security_report: %Ash.NotLoaded{}}), do: nil
+  defp report(%{treasury_security_report: report}), do: report
+  defp report(_record), do: nil
 
   defp subject_label(%{subject_id: subject_id}), do: subject_id
 

@@ -96,6 +96,24 @@ paths:
               schema: {$ref: "#/components/schemas/TokenListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+  /api/autolaunch/v1/treasury-security/{address}:
+    get:
+      operationId: getTreasurySecurity
+      security: []
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
+      responses:
+        "200":
+          description: Newest stored treasury observation; this read never calls a provider
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreasurySecurityEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
   /api/formation/v1/regents/{regent_id}/agent-links:
     get:
       operationId: listRegentAgentLinks
@@ -789,7 +807,7 @@ components:
     Auction:
       type: object
       additionalProperties: false
-      required: [id, title, summary, featured, state, opened_at]
+      required: [id, title, summary, featured, state, opened_at, treasury_security]
       properties:
         id: {type: string, format: uuid}
         title: {type: string}
@@ -797,6 +815,10 @@ components:
         featured: {type: boolean}
         state: {type: string, enum: [created, active, graduated, failed]}
         opened_at: {type: [string, "null"], format: date-time}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
     TokenListEnvelope:
       type: object
       additionalProperties: false
@@ -808,7 +830,7 @@ components:
     Token:
       type: object
       additionalProperties: false
-      required: [id, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank]
+      required: [id, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, treasury_security]
       properties:
         id: {type: string, format: uuid}
         auction_id: {type: string, format: uuid}
@@ -818,6 +840,41 @@ components:
         summary: {type: [string, "null"]}
         graduated_at: {type: string, format: date-time}
         top_rank: {type: [integer, "null"], minimum: 1}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+    TreasurySecurityEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/TreasurySecurity"}
+    TreasurySecurity:
+      type: object
+      additionalProperties: false
+      required: [id, address, chain_id, classification, verification_state, verification_reason, downgrade_state, configuration_fingerprint, source_block_number, source_block_hash, observed_at, safe, evidence]
+      properties:
+        id: {type: string, format: uuid}
+        address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        chain_id: {type: integer, enum: [8453]}
+        classification: {type: string, enum: [supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, unsupported]}
+        verification_state: {type: string, enum: [awaiting_current_chain_confirmation]}
+        verification_reason: {type: string, enum: [projector_refresh_not_integrated]}
+        downgrade_state: {type: string, enum: [none, downgraded]}
+        configuration_fingerprint: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        source_block_number: {type: integer, minimum: 0}
+        source_block_hash: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        observed_at: {type: string, format: date-time}
+        safe: {type: [object, "null"], additionalProperties: true}
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [usdc, regent, outbound]
+          properties:
+            usdc: {type: [object, "null"], additionalProperties: true}
+            regent: {type: [object, "null"], additionalProperties: true}
+            outbound: {type: [object, "null"], additionalProperties: true}
     TreeListEnvelope:
       type: object
       additionalProperties: false

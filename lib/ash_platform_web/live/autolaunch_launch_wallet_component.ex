@@ -49,7 +49,11 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     launch_step_moved: "This launch moved on while you were looking. Check it again.",
     submitted_hash_conflict: "This step already has a transaction.",
     submitted_step_mismatch: "That transaction is not the step this launch is waiting for.",
-    launch_operation_not_found: "That launch is no longer open."
+    launch_operation_not_found: "That launch is no longer open.",
+    treasury_not_verified: "This Safe is not currently verified as a 2-of-3 treasury.",
+    treasury_report_missing: "Verify the deployed treasury address before review.",
+    treasury_security_changed: "The treasury configuration changed. Verify it again.",
+    treasury_source_reorged: "The treasury proof block is no longer canonical. Verify it again."
   }
 
   @generic "That did not go through. Try again in a moment."
@@ -66,6 +70,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign(:treasury_report, current_report(assigns.draft))
      |> assign_new(:elsewhere?, fn -> false end)}
   end
 
@@ -74,6 +79,23 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     ~H"""
     <section id={@id} class="launch-wallet" phx-hook="AutolaunchLaunchWallet" phx-target={@myself}>
       <.notice :if={@notice} notice={@notice} />
+
+      <section class="treasury-verification" aria-label="Treasury verification">
+        <h4>Verify immutable treasury</h4>
+        <p class="launch-wallet-mono">{short(@draft.treasury)}</p>
+        <p :if={@treasury_report && @treasury_report.verification_state == :verified}>
+          Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
+        </p>
+        <p :if={is_nil(@treasury_report) || @treasury_report.verification_state != :verified}>
+          Unverified. No REGENT approval or launch can be prepared on the official Safe path.
+        </p>
+        <form phx-submit="verify_treasury" phx-target={@myself}>
+          <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
+          <label>REGENT receipt transaction <input name="regent" autocomplete="off" /></label>
+          <label>Outbound Safe execution transaction <input name="outbound" autocomplete="off" /></label>
+          <button type="submit">Verify deployed address on Base</button>
+        </form>
+      </section>
 
       <p :if={!@authenticated} class="launch-wallet-empty">
         <button type="button" data-account-target="sign-in">Sign in to launch</button>
@@ -249,6 +271,27 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
      socket.assigns.draft.id
      |> Autolaunch.prepare_launch(socket.assigns.wallet, opts(socket))
      |> settled(socket)}
+  end
+
+  def handle_event("verify_treasury", hashes, socket) do
+    result =
+      Autolaunch.observe_treasury_security(
+        socket.assigns.draft.treasury,
+        Map.take(hashes, ["usdc", "regent", "outbound"]),
+        actor: actor(socket)
+      )
+
+    case result do
+      {:ok, report} ->
+        {:noreply,
+         assign(socket,
+           treasury_report: report,
+           notice: notice(:info, "Treasury observation recorded from canonical Base reads.")
+         )}
+
+      {:error, error} ->
+        {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
+    end
   end
 
   # The browser's preflight is necessary input, never authority: the locked
@@ -463,6 +506,15 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     do: %Human{human_account_id: id}
 
   defp actor(_socket), do: nil
+
+  defp current_report(%{treasury: treasury}) when is_binary(treasury) do
+    case Autolaunch.current_treasury_security(treasury, actor: nil) do
+      {:ok, report} -> report
+      _error -> nil
+    end
+  end
+
+  defp current_report(_draft), do: nil
 
   defp sendable?(%{state: :prepared, signer: signer, terminal_at: nil}, wallet),
     do: signer == wallet

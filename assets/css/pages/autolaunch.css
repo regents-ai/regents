@@ -765,3 +765,47 @@
     transform: none;
   }
 }
+.autolaunch-custody-path,
+.treasury-verification,
+.treasury-security {
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.autolaunch-custody-path {
+  display: grid;
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.autolaunch-custody-path label,
+.treasury-verification label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.autolaunch-custody-path details,
+.autolaunch-custody-path p,
+.autolaunch-custody-path a {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.autolaunch-custody-path textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+}
+
+.autolaunch-custody-warning,
+.treasury-security--warning {
+  color: var(--color-warning, #9a4d00);
+}
+
+.treasury-security {
+  margin-block: 0.75rem;
+}

@@ -107,6 +107,11 @@ defmodule AshPlatform.Autolaunch.Subject do
   relationships do
     has_many :actions, AshPlatform.Autolaunch.SubjectAction
     has_many :payment_links, AshPlatform.Autolaunch.PaymentLink
+
+    belongs_to :treasury_security_report,
+               AshPlatform.Autolaunch.TreasurySecurityReport do
+      attribute_public? true
+    end
   end
 
   actions do
@@ -115,7 +120,7 @@ defmodule AshPlatform.Autolaunch.Subject do
     end
 
     read :list_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc])
+      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
     read :public_by_id do
@@ -126,6 +131,7 @@ defmodule AshPlatform.Autolaunch.Subject do
         constraints: SubjectIdentity.constraints()
 
       filter expr(subject_id == ^arg(:subject_id))
+      prepare build(load: [:treasury_security_report])
     end
 
     create :import_public do
@@ -145,7 +151,8 @@ defmodule AshPlatform.Autolaunch.Subject do
         :current_protocol_skim_bps,
         :protocol_fee_usdc_total_raw,
         :regent_emission_total_raw,
-        :pending_buyback_usdc_raw
+        :pending_buyback_usdc_raw,
+        :treasury_security_report_id
       ]
     end
 

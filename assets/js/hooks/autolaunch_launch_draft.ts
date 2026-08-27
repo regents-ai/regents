@@ -1,5 +1,4 @@
 import type {Hook} from "../hook_composition"
-import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 
 type LaunchDraftHook = Hook & {
   el: HTMLElement
@@ -8,9 +7,8 @@ type LaunchDraftHook = Hook & {
   patchedForm?: () => void
 }
 
-/**
- * Who the Treasury field belongs to: the address the default last wrote there,
- * and whether the customer has since taken the field over.
+/** Historical pure helpers remain exported for the locked unit-test contract.
+ * The hook no longer invokes them: signer selection must never write custody.
  */
 type Ownership = {saved: string | undefined; filled: string | null; touched: boolean}
 
@@ -56,17 +54,9 @@ export const AutolaunchLaunchDraft: Hook = {
   mounted(this: LaunchDraftHook) {
     let ownership: Ownership = {saved: this.el.dataset.savedDrafts, filled: null, touched: false}
 
-    this.defaultTreasury = () => {
-      const input = this.el.querySelector<HTMLInputElement>(treasuryField)
-      if (!input) return
-
-      const wallet = activeEthereumWallet()?.address ?? null
-      const next = defaultedTreasury(input.value, wallet, ownership)
-      if (next === null) return
-
-      input.value = next
-      ownership = {...ownership, filled: next}
-    }
+    // Kept as a stable listener target for hook teardown. Deliberately does
+    // nothing: the active signer and immutable treasury are separate choices.
+    this.defaultTreasury = () => undefined
 
     // Any edit hands the field over, including clearing it and retyping the very
     // address the default put there.
@@ -83,14 +73,9 @@ export const AutolaunchLaunchDraft: Hook = {
         this.el.dataset.draftErrors === "true",
       )
 
-      this.defaultTreasury?.()
     }
 
-    // Privy's selection is what this reads, and a successful save clears the
-    // form on the server, so the same default is applied again on every
-    // re-render.
     window.addEventListener("ash:wallet-state", this.defaultTreasury)
-    this.defaultTreasury()
   },
 
   updated(this: LaunchDraftHook) {

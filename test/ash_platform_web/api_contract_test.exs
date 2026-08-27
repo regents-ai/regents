@@ -14,6 +14,7 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/autolaunch/v1/auctions/{id}",
              "/api/autolaunch/v1/auctions/{id}/bid-quote",
              "/api/autolaunch/v1/tokens",
+             "/api/autolaunch/v1/treasury-security/{address}",
              "/api/formation/v1/regents/{regent_id}/agent-links",
              "/api/formation/v1/regents/{regent_id}/agent-links/claim",
              "/api/techtree/v1/nodes",
@@ -465,10 +466,12 @@ defmodule AshPlatformWeb.ApiContractTest do
            }
 
     assert schemas["Auction"]["additionalProperties"] == false
-    assert schemas["Auction"]["required"] == ~w(id title summary featured state opened_at)
+
+    assert schemas["Auction"]["required"] ==
+             ~w(id title summary featured state opened_at treasury_security)
 
     assert Map.keys(schemas["Auction"]["properties"]) |> Enum.sort() ==
-             ~w(featured id opened_at state summary title)
+             ~w(featured id opened_at state summary title treasury_security)
 
     assert schemas["TokenListEnvelope"] == %{
              "type" => "object",
@@ -485,10 +488,10 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert schemas["Token"]["additionalProperties"] == false
 
     assert schemas["Token"]["required"] ==
-             ~w(id auction_id subject_id name symbol summary graduated_at top_rank)
+             ~w(id auction_id subject_id name symbol summary graduated_at top_rank treasury_security)
 
     assert Map.keys(schemas["Token"]["properties"]) |> Enum.sort() ==
-             ~w(auction_id graduated_at id name subject_id summary symbol top_rank)
+             ~w(auction_id graduated_at id name subject_id summary symbol top_rank treasury_security)
 
     assert contract["components"]["schemas"]["ApiError"]["properties"]["error"]["properties"][
              "code"

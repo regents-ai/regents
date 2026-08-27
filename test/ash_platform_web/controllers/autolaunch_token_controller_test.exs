@@ -46,7 +46,7 @@ defmodule AshPlatformWeb.AutolaunchTokenControllerTest do
              |> json_response(200)
 
     assert Map.keys(public) |> Enum.sort() ==
-             ~w(auction_id graduated_at id name subject_id summary symbol top_rank)
+             ~w(auction_id graduated_at id name subject_id summary symbol top_rank treasury_security)
 
     assert public == %{
              "id" => token.id,
@@ -56,7 +56,8 @@ defmodule AshPlatformWeb.AutolaunchTokenControllerTest do
              "symbol" => "NEW",
              "summary" => "Public token summary.",
              "graduated_at" => DateTime.to_iso8601(now),
-             "top_rank" => 1
+             "top_rank" => 1,
+             "treasury_security" => nil
            }
   end
 

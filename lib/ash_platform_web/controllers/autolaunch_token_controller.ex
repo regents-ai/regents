@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.AutolaunchTokenController do
   use AshPlatformWeb, :controller
 
   alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.TreasurySecurity
 
   def index(conn, params) do
     autolaunch = conn.private[:autolaunch_token_controller_autolaunch] || Autolaunch
@@ -44,9 +45,14 @@ defmodule AshPlatformWeb.AutolaunchTokenController do
       symbol: token.symbol,
       summary: token.summary,
       graduated_at: DateTime.to_iso8601(token.graduated_at),
-      top_rank: token.top_rank
+      top_rank: token.top_rank,
+      treasury_security: TreasurySecurity.public_view(loaded_report(token))
     }
   end
+
+  defp loaded_report(%{treasury_security_report: %Ash.NotLoaded{}}), do: nil
+  defp loaded_report(%{treasury_security_report: report}), do: report
+  defp loaded_report(_token), do: nil
 
   defp invalid_request(conn) do
     conn

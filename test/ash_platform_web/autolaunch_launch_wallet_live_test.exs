@@ -10,6 +10,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   alias AshPlatform.Autolaunch
   alias AshPlatform.LaunchFixture, as: Fixture
   alias AshPlatform.TestAutolaunchLaunchChainClient, as: ChainClient
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
 
   @path "/autolaunch/create"
   @wallet Fixture.wallet()
@@ -31,7 +32,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
     "Bind hook",
     "Initialize distribution",
     "Migrate",
-    "Safe",
     "ERC-8004",
     "Salt",
     "Start block"
@@ -39,7 +39,15 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
 
   setup do
     Fixture.install()
-    Fixture.actor()
+    context = Fixture.actor()
+    TreasuryClient.seed_verified!(Fixture.treasury())
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
+    context
   end
 
   describe "SIGNED_OUT_EXPOSES_NO_SENDABLE_ACTION" do

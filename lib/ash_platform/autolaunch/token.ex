@@ -64,6 +64,11 @@ defmodule AshPlatform.Autolaunch.Token do
       allow_nil? false
       attribute_public? true
     end
+
+    belongs_to :treasury_security_report,
+               AshPlatform.Autolaunch.TreasurySecurityReport do
+      attribute_public? true
+    end
   end
 
   actions do
@@ -72,16 +77,25 @@ defmodule AshPlatform.Autolaunch.Token do
     end
 
     read :list_public do
-      prepare build(sort: [graduated_at: :desc, id: :asc])
+      prepare build(sort: [graduated_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
     read :top_public do
       filter expr(not is_nil(top_rank))
-      prepare build(sort: [top_rank: :asc, id: :asc], limit: 12)
+
+      prepare build(
+                sort: [top_rank: :asc, id: :asc],
+                limit: 12,
+                load: [:treasury_security_report]
+              )
     end
 
     read :recently_graduated_public do
-      prepare build(sort: [graduated_at: :desc, id: :asc], limit: 12)
+      prepare build(
+                sort: [graduated_at: :desc, id: :asc],
+                limit: 12,
+                load: [:treasury_security_report]
+              )
     end
 
     read :for_subject do
@@ -90,13 +104,19 @@ defmodule AshPlatform.Autolaunch.Token do
         constraints: SubjectIdentity.constraints()
 
       filter expr(subject_id == ^arg(:subject_id))
-      prepare build(sort: [graduated_at: :desc, id: :asc], limit: 25)
+
+      prepare build(
+                sort: [graduated_at: :desc, id: :asc],
+                limit: 25,
+                load: [:treasury_security_report]
+              )
     end
 
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare build(load: [:treasury_security_report])
     end
 
     read :latest_price_for_subject do
@@ -111,7 +131,16 @@ defmodule AshPlatform.Autolaunch.Token do
     end
 
     create :import_public do
-      accept [:auction_id, :subject_id, :name, :symbol, :summary, :graduated_at, :top_rank]
+      accept [
+        :auction_id,
+        :subject_id,
+        :name,
+        :symbol,
+        :summary,
+        :graduated_at,
+        :top_rank,
+        :treasury_security_report_id
+      ]
     end
 
     update :set_price_snapshot do

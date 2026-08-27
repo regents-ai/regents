@@ -10,6 +10,7 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
   @other "0x2222222222222222222222222222222222222222"
 
   setup :bidder
+  setup :verified_treasury
 
   test "PRODUCTION_STAYS_CLOSED: preparation is unavailable with no bounded predecessor source",
        %{auction: auction, wallet: wallet, opts: opts} do
@@ -162,6 +163,29 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
     assert refusal(error) == :wrong_signer
   end
 
+  test "TREASURY_DRIFT_ENDS_THE_REVIEW_BEFORE_ANY_APPROVAL_OR_BID_DISPATCH", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    install()
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
+
+    AshPlatform.TestAutolaunchTreasuryChainClient.install(
+      block_number: 30_000_001,
+      block_hash: "0x" <> String.duplicate("ef", 32),
+      threshold: 1
+    )
+
+    assert {:ok, %{operation: ended}} =
+             Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+
+    assert ended.state == :cancelled
+    assert ended.terminal_at
+  end
+
   test "ACTIVE_WALLET_IS_THE_SIGNER: a socket with no session lease cannot prepare", %{
     auction: auction,
     wallet: wallet,
@@ -245,6 +269,22 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
   end
 
   defp tiny_price, do: "0." <> String.duplicate("0", 79) <> "1"
+
+  defp verified_treasury(%{auction: auction}) do
+    report =
+      AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(
+        "0x9999999999999999999999999999999999999999"
+      )
+
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: system())
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
+    :ok
+  end
 
   defp word(value),
     do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")

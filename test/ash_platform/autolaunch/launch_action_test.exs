@@ -10,6 +10,7 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   alias AshPlatform.Autolaunch
   alias AshPlatform.LaunchFixture, as: Fixture
   alias AshPlatform.TestAutolaunchLaunchChainClient, as: ChainClient
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatform.WalletActions.{Abi, Envelope, LaunchAbi}
 
   @unit Integer.pow(10, 18)
@@ -280,6 +281,27 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   end
 
   describe "THE_ACTIVE_WALLET_IS_THE_ONLY_SIGNER: nothing falls back to a stored one" do
+    test "TREASURY_DRIFT_ENDS_THE_REVIEW_BEFORE_THE_WALLET_OPENS", context do
+      Fixture.install()
+      assert {:ok, operation} = review(context)
+
+      TreasuryClient.install(
+        block_number: 30_000_001,
+        block_hash: "0x" <> String.duplicate("ef", 32),
+        threshold: 1
+      )
+
+      assert {:ok, %{operation: ended}} =
+               Autolaunch.claim_launch_dispatch(
+                 operation.action_id,
+                 Fixture.wallet(),
+                 opts(context)
+               )
+
+      assert ended.state == :invalidated
+      assert ended.reason == "the treasury security state changed"
+    end
+
     test "a wallet this account does not hold is refused before any private fact", context do
       Fixture.install()
 
@@ -330,7 +352,15 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   end
 
   setup do
-    Fixture.actor()
+    context = Fixture.actor()
+    TreasuryClient.seed_verified!(Fixture.treasury())
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
+    context
   end
 
   # Helpers

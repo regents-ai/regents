@@ -44,6 +44,10 @@ defmodule AshPlatform.Autolaunch do
           :current_clearing_price
         ]
 
+      define :set_auction_treasury_security_report,
+        action: :set_treasury_security_report,
+        args: [:treasury_security_report_id]
+
       define :bid_position, action: :bid_position, args: [:auction_id, :expected_signer]
 
       define :prepare_bid,
@@ -231,6 +235,28 @@ defmodule AshPlatform.Autolaunch do
     resource @indexer_cursor
     resource @indexer_block
     resource @indexer_log
+
+    resource AshPlatform.Autolaunch.TreasurySecurityReport do
+      define :list_treasury_security_reports, action: :for_address, args: [:address]
+
+      define :get_treasury_security_report,
+        action: :by_id,
+        args: [:id],
+        not_found_error?: false
+    end
+  end
+
+  @doc "Observes Base and persists one immutable treasury security report."
+  def observe_treasury_security(address, evidence, opts \\ []) do
+    AshPlatform.Autolaunch.TreasurySecurity.observe(address, evidence, Keyword.get(opts, :actor))
+  end
+
+  @doc "Returns the newest stored observation without triggering provider work."
+  def current_treasury_security(address, opts \\ []) do
+    with {:ok, address} <- AshPlatform.WalletActions.Address.normalize(address),
+         {:ok, reports} <- list_treasury_security_reports(address, opts) do
+      {:ok, List.first(reports)}
+    end
   end
 
   def quote_auction_bid(auction_id, amount, max_price, opts \\ []),

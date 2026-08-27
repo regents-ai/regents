@@ -23,9 +23,25 @@ defmodule AshPlatformWeb.AutolaunchBidLiveTest do
         actor: %System{}
       )
 
+    auction = auction!("Bidder page auction")
+
+    report =
+      AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(
+        "0x9999999999999999999999999999999999999999"
+      )
+
+    AshPlatform.Autolaunch.set_auction_treasury_security_report!(auction, report.id,
+      actor: %System{}
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
     %{
       conn: init_test_session(conn, %{human_account_id: account.id}),
-      auction: auction!("Bidder page auction")
+      auction: auction
     }
   end
 

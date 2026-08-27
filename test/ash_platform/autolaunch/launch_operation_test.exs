@@ -11,6 +11,7 @@ defmodule AshPlatform.Autolaunch.LaunchOperationTest do
   alias AshPlatform.Autolaunch.LaunchOperations
   alias AshPlatform.LaunchFixture, as: Fixture
   alias AshPlatform.TestAutolaunchLaunchChainClient, as: ChainClient
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
 
   @approval_hash "0x" <> String.duplicate("a1", 32)
   @launch_hash "0x" <> String.duplicate("b2", 32)
@@ -22,7 +23,15 @@ defmodule AshPlatform.Autolaunch.LaunchOperationTest do
 
   setup do
     Fixture.install()
-    Fixture.actor()
+    context = Fixture.actor()
+    TreasuryClient.seed_verified!(Fixture.treasury())
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
+    context
   end
 
   describe "EXACTLY_ONE_SENDABLE_STEP: a step is claimed once and its hash is durable before the next" do

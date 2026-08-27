@@ -19,7 +19,7 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.{Auction, BidOperation}
+  alias AshPlatform.Autolaunch.{Auction, BidOperation, TreasurySecurityReport}
   alias AshPlatform.Repo
   alias AshPlatform.TestAutolaunchBidChainClient, as: Chain
 
@@ -27,11 +27,29 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
   @permit2_hash "0x" <> String.duplicate("bb", 32)
   @bid_hash "0x" <> String.duplicate("cc", 32)
   @other_hash "0x" <> String.duplicate("dd", 32)
+  @barrier_treasury "0x8888888888888888888888888888888888888888"
 
   setup :bidder
+  setup :verified_treasury
 
   setup do
     install()
+    :ok
+  end
+
+  defp verified_treasury(%{auction: auction}) do
+    report =
+      AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(
+        "0x9999999999999999999999999999999999999999"
+      )
+
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: system())
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
     :ok
   end
 
@@ -444,6 +462,9 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
     lease = %{lineage: claim.lineage, account_id: account.id}
     auction = auction!("Barrier bid auction #{unique}")
 
+    report = AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(@barrier_treasury)
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: system())
+
     {:ok, %{operation: operation}} =
       Autolaunch.prepare_bid(auction.id, wallet(), "1", "3", barrier_opts(lease))
 
@@ -487,6 +508,13 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
         from(auction in Auction,
           prefix: "autolaunch",
           where: like(auction.title, "Barrier bid %")
+        )
+      )
+
+      Repo.delete_all(
+        from(report in TreasurySecurityReport,
+          prefix: "autolaunch",
+          where: report.address == ^@barrier_treasury
         )
       )
 

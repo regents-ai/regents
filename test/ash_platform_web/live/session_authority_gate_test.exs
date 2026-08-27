@@ -297,6 +297,18 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
       )
 
     auction = auction!()
+
+    report =
+      AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(
+        "0x9999999999999999999999999999999999999999"
+      )
+
+    AshPlatform.Autolaunch.set_auction_treasury_security_report!(auction, report.id,
+      actor: %System{}
+    )
+
+    cleanup_treasury_fixture()
+
     signed_in = init_test_session(conn, %{human_account_id: account.id})
     {:ok, view, _html} = live(signed_in, "/autolaunch/auctions/#{auction.id}")
 
@@ -366,6 +378,13 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
        %{conn: conn} do
     AshPlatform.LaunchFixture.install()
     context = AshPlatform.LaunchFixture.actor()
+
+    AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(
+      AshPlatform.LaunchFixture.treasury()
+    )
+
+    cleanup_treasury_fixture()
+
     card = "#autolaunch-launch-wallet-#{context[:draft].id}"
 
     signed_in = init_test_session(conn, %{human_account_id: context[:account].id})
@@ -421,6 +440,13 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
   defp other_lineage, do: SessionAuthority.bootstrap().lineage
 
   defp auction!, do: AshPlatform.BidFixture.auction!("Gate bid preparation")
+
+  defp cleanup_treasury_fixture do
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+  end
 
   defp put_valid_csrf(conn) do
     token = Plug.CSRFProtection.get_csrf_token()

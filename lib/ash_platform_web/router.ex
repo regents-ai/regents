@@ -52,6 +52,7 @@ defmodule AshPlatformWeb.Router do
     get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
     post "/autolaunch/v1/auctions/:id/bid-quote", AutolaunchAuctionController, :bid_quote
     get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
+    get "/autolaunch/v1/treasury-security/:address", AutolaunchTreasuryController, :show
 
     post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
   end

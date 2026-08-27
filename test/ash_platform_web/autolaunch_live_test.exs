@@ -512,7 +512,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
            )
   end
 
-  test "only a new draft says its Treasury starts as the selected wallet", %{conn: conn} do
+  test "new and saved drafts keep signer and immutable treasury separate", %{conn: conn} do
     account =
       draft_account!("autolaunch-draft-hint", "0x3333333333333333333333333333333333333337")
 
@@ -526,16 +526,21 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       |> live("/autolaunch/create")
 
     address_hint = "0x followed by exactly 40 hexadecimal characters."
-    default_hint = "Starts as the wallet you have selected"
     revise_hint = "#revise-launch-draft-#{draft.id}-treasury-hint"
 
     assert has_element?(view, "#create-launch-draft-treasury-hint", address_hint)
-    assert has_element?(view, "#create-launch-draft-treasury-hint", default_hint)
+
+    refute has_element?(
+             view,
+             ~s(#create-launch-draft-treasury[value="0x3333333333333333333333333333333333333337"])
+           )
+
+    assert has_element?(view, "#autolaunch-create", "Create a 2-of-3 Safe on Base")
+    assert has_element?(view, "#autolaunch-create", "Use existing Safe")
 
     # A revision starts from the treasury already saved on the draft, so its help
     # claims nothing about the wallet on screen.
     assert has_element?(view, revise_hint, address_hint)
-    refute has_element?(view, revise_hint, default_hint)
   end
 
   test "a rejected revision keeps the submitted values on that card and stores nothing", %{
@@ -591,7 +596,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
           "Launch title",
           "Token name",
           "Public summary",
-          "Safe",
           "ERC-8004",
           "quarantine",
           "launch fee",
@@ -600,15 +604,13 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       refute has_element?(view, "#autolaunch-create", retired)
     end
 
-    # The draft form only ever saves a draft. It reads the address of the wallet
-    # already selected so a blank Treasury starts somewhere useful, and asks that
-    # wallet for nothing: no send control, and no link away from the workspace.
+    # The draft form only ever saves a draft and never asks a wallet to send.
     # The one authorized wallet surface here is the reviewed launch card.
     assert has_element?(view, ~s(#create-launch-draft[phx-hook="AutolaunchLaunchDraft"]))
     refute has_element?(view, ".autolaunch-draft-form [phx-hook]")
     refute has_element?(view, ".autolaunch-draft-form [phx-click]")
     refute has_element?(view, ".autolaunch-draft-form [data-launch-wallet-send]")
-    refute has_element?(view, ".autolaunch-draft-workspace a")
+    assert has_element?(view, ".autolaunch-draft-workspace a", "official Safe creation flow")
     assert has_element?(view, ".autolaunch-draft-workspace .launch-wallet[phx-hook]")
   end
 

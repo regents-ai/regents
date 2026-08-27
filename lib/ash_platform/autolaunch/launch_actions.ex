@@ -22,7 +22,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.{LaunchChainClient, LaunchOperations}
+  alias AshPlatform.Autolaunch.{LaunchChainClient, LaunchOperations, TreasurySecurity}
   alias AshPlatform.WalletActions.{Abi, Address, Envelope, LaunchAbi, Rpc}
 
   @resource "autolaunch_launch"
@@ -104,7 +104,12 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, fields} <- launchable(draft),
          {:ok, snapshot} <- snapshot(signer),
          :ok <- reviewable(fields, snapshot),
-         {:ok, operation} <- open(lease, draft, signer, review(draft, fields, signer, snapshot)) do
+         {:ok, treasury_report} <- current_treasury_report(draft),
+         {:ok, treasury_report} <-
+           TreasurySecurity.revalidate_bound(treasury_report, treasury_requirement(draft)),
+         :ok <- custody_matches(draft, treasury_report),
+         {:ok, operation} <-
+           open(lease, draft, signer, review(draft, fields, signer, snapshot, treasury_report)) do
       {:ok, %{operation: operation}}
     end
   end
@@ -124,8 +129,12 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, signer} <- normalize(address),
          {:ok, lease} <- lease(opts),
          {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, fresh} <- snapshot(candidate.signer) do
-      transact(lease, &locked(&1, action_id, claiming(signer, candidate, fresh)))
+         {:ok, fresh} <- snapshot(candidate.signer),
+         treasury_result <- revalidate_treasury(candidate) do
+      transact(
+        lease,
+        &locked(&1, action_id, claiming(signer, candidate, fresh, treasury_result))
+      )
     end
   end
 
@@ -252,7 +261,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   # Reviews
 
-  defp review(draft, fields, signer, snapshot) do
+  defp review(draft, fields, signer, snapshot, treasury_report) do
     launch_data = LaunchAbi.encode_launch(Map.put(fields, :expected_launch_fee, snapshot.fee))
 
     steps =
@@ -265,7 +274,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       resource: @resource,
       contract_name: @contract_name,
       risk_copy: risk_copy(snapshot.fee),
-      arguments: arguments(draft, fields, snapshot, steps)
+      arguments: arguments(draft, fields, snapshot, steps, treasury_report)
     )
     |> stored()
   end
@@ -292,7 +301,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     ]
   end
 
-  defp arguments(draft, fields, snapshot, steps) do
+  defp arguments(draft, fields, snapshot, steps, treasury_report) do
     %{
       "draft_id" => draft.id,
       "name" => fields.name,
@@ -301,6 +310,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       "website" => fields.website,
       "image" => fields.image,
       "treasury" => fields.treasury,
+      "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => draft.required_regent_raised,
       "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
       "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
@@ -478,18 +488,24 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # and the account the lease locked all have to name one wallet, inside the one
   # transaction that takes the row. Only then is Base's own current answer
   # compared with what the review promised.
-  defp claiming(signer, candidate, fresh) do
+  defp claiming(signer, candidate, fresh, fresh_treasury) do
     fn account, operation ->
       with :ok <- same_signer(operation, signer),
            :ok <- LaunchOperations.signer_matches(account, operation.signer),
            :ok <- unchanged(operation, candidate) do
-        dispatch(operation, fresh)
+        dispatch(operation, fresh, fresh_treasury)
       end
     end
   end
 
-  defp dispatch(operation, fresh) do
-    case still_reviewed(operation, fresh) do
+  defp dispatch(operation, _fresh, {:error, _reason}),
+    do:
+      LaunchOperations.update(operation, :invalidate, %{
+        reason: "the treasury security state changed"
+      })
+
+  defp dispatch(operation, fresh, {:ok, fresh_treasury}) do
+    case still_reviewed(operation, fresh, fresh_treasury) do
       :ok -> LaunchOperations.update(operation, :claim_dispatch)
       {:changed, reason} -> LaunchOperations.update(operation, :invalidate, %{reason: reason})
     end
@@ -506,16 +522,38 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # right now. The allowance rule differs by step on purpose: the correction is
   # still the exact correction it was reviewed as, while the launch is only ever
   # handed over on an allowance that equals the fee exactly, zero included.
-  defp still_reviewed(%{step: step} = operation, fresh) do
+  defp still_reviewed(%{step: step} = operation, fresh, fresh_treasury) do
+    case treasury_still_reviewed?(operation, fresh_treasury) do
+      true -> chain_still_reviewed(operation, step, fresh)
+      false -> {:changed, "the treasury security state changed"}
+    end
+  end
+
+  defp chain_still_reviewed(operation, step, fresh) do
     cond do
-      fresh.paused -> {:changed, @paused}
-      not same?(fresh.factory, argument(operation, "factory")) -> {:changed, @moved}
-      not same?(fresh.strategy, argument(operation, "strategy")) -> {:changed, @moved}
-      not same?(fresh.strategy_factory, fresh.factory) -> {:changed, @moved}
-      fresh.fee != atomic(operation, "expected_launch_fee_atomic") -> {:changed, @stale_fee}
-      fresh.balance < fresh.fee -> {:changed, @short}
-      not allowance_ready?(step, fresh, operation) -> {:changed, @allowance_moved}
-      true -> :ok
+      fresh.paused ->
+        {:changed, @paused}
+
+      not same?(fresh.factory, argument(operation, "factory")) ->
+        {:changed, @moved}
+
+      not same?(fresh.strategy, argument(operation, "strategy")) ->
+        {:changed, @moved}
+
+      not same?(fresh.strategy_factory, fresh.factory) ->
+        {:changed, @moved}
+
+      fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
+        {:changed, @stale_fee}
+
+      fresh.balance < fresh.fee ->
+        {:changed, @short}
+
+      not allowance_ready?(step, fresh, operation) ->
+        {:changed, @allowance_moved}
+
+      true ->
+        :ok
     end
   end
 
@@ -523,6 +561,73 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     do: fresh.allowance == atomic(operation, "allowance_atomic")
 
   defp allowance_ready?(:launch, fresh, _operation), do: fresh.allowance == fresh.fee
+
+  defp current_treasury_report(draft) do
+    case Autolaunch.current_treasury_security(draft.treasury, actor: nil) do
+      {:ok, nil} -> unavailable(:treasury_report_missing)
+      {:ok, report} -> {:ok, report}
+      _error -> unavailable(:treasury_report_missing)
+    end
+  end
+
+  defp treasury_requirement(%{treasury_path: :safe}), do: :verified
+  defp treasury_requirement(_advanced), do: :observed
+
+  defp custody_matches(%{treasury_path: :safe}, %{classification: :supported_safe}), do: :ok
+  defp custody_matches(%{treasury_path: :eoa}, %{classification: :eoa}), do: :ok
+
+  defp custody_matches(%{treasury_path: :contract}, %{classification: classification})
+       when classification in [
+              :delegated_eoa,
+              :unknown_contract,
+              :safe_1_of_1,
+              :split,
+              :unsupported
+            ],
+       do: :ok
+
+  defp custody_matches(_draft, _report), do: unavailable(:treasury_security_changed)
+
+  defp revalidate_treasury(operation) do
+    binding = argument(operation, "treasury_security")
+
+    with {:ok, report} <-
+           Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
+         false <- is_nil(report),
+         requirement <-
+           if(binding["verification_state"] == "verified", do: :verified, else: :observed) do
+      TreasurySecurity.revalidate_bound(report, requirement)
+    else
+      true -> unavailable(:treasury_report_missing)
+      _error -> unavailable(:treasury_security_changed)
+    end
+  end
+
+  defp treasury_still_reviewed?(operation, fresh) do
+    bound = argument(operation, "treasury_security")
+
+    bound["configuration_fingerprint"] == fresh.configuration_fingerprint and
+      bound["classification"] == Atom.to_string(fresh.classification) and
+      bound["verification_state"] == Atom.to_string(fresh.verification_state) and
+      bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
+  end
+
+  defp treasury_binding(report) do
+    %{
+      "report_id" => report.id,
+      "configuration_fingerprint" => report.configuration_fingerprint,
+      "source_block_hash" => report.source_block_hash,
+      "source_block_number" => report.source_block_number,
+      "classification" => Atom.to_string(report.classification),
+      "verification_state" => Atom.to_string(report.verification_state),
+      "downgrade_state" => Atom.to_string(report.downgrade_state),
+      "evidence" => %{
+        "usdc" => report.usdc_evidence,
+        "regent" => report.regent_evidence,
+        "outbound" => report.outbound_evidence
+      }
+    }
+  end
 
   defp transition(action, nil),
     do: fn _account, operation -> LaunchOperations.update(operation, action) end

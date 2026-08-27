@@ -97,6 +97,11 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
     belongs_to :auction, AshPlatform.Autolaunch.Auction do
       attribute_public? true
     end
+
+    belongs_to :treasury_security_report,
+               AshPlatform.Autolaunch.TreasurySecurityReport do
+      attribute_public? true
+    end
   end
 
   actions do
@@ -105,7 +110,7 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
     end
 
     read :list_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc])
+      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
     read :public_by_id do
@@ -116,6 +121,7 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
         constraints: LaunchIdentity.constraints()
 
       filter expr(job_id == ^arg(:job_id))
+      prepare build(load: [:treasury_security_report])
     end
 
     create :import_public do
@@ -135,7 +141,8 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
         :hook_address,
         :revenue_share_splitter_address,
         :started_at,
-        :finished_at
+        :finished_at,
+        :treasury_security_report_id
       ]
     end
   end

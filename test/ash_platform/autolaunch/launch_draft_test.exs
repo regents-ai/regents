@@ -15,6 +15,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     "required_regent_raised" => "1000.500000000000000001"
   }
 
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
+
   test "a draft stores the seven clean-V1 fields exactly as written and stays private" do
     owner = account!("owner")
     other = account!("other")
@@ -117,6 +119,32 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
                Autolaunch.create_launch_draft(Map.put(@draft, "treasury", bad), actor: actor)
              ) == %{"treasury" => "must start with 0x and hold exactly 40 hexadecimal characters"}
     end
+  end
+
+  test "THE_EOA_WARNING_MATCHES_CHARACTER_FOR_CHARACTER_WITHOUT_TRIMMING" do
+    actor = actor_with_regent!("eoa-warning")
+    eoa = Map.merge(@draft, %{"treasury_path" => "eoa"})
+
+    for wrong <- [
+          nil,
+          "",
+          String.trim_trailing(@eoa_acknowledgement, "."),
+          @eoa_acknowledgement <> " "
+        ] do
+      assert {:error, %Ash.Error.Invalid{}} =
+               Autolaunch.create_launch_draft(
+                 Map.put(eoa, "eoa_acknowledgement", wrong),
+                 actor: actor
+               )
+    end
+
+    assert {:ok, draft} =
+             Autolaunch.create_launch_draft(
+               Map.put(eoa, "eoa_acknowledgement", @eoa_acknowledgement),
+               actor: actor
+             )
+
+    assert draft.treasury_path == :eoa
   end
 
   test "the required raise is a positive plain decimal with at most 18 fractional digits" do

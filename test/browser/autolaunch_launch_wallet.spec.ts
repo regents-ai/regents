@@ -8,6 +8,8 @@ const otherWallet = "0x4444444444444444444444444444444444444444"
 // Lowercase on purpose: mixed case asserts an EIP-55 checksum, and a launch
 // review refuses an address whose checksum does not hold.
 const treasury = "0xabcdef0000000000000000000000000000000001"
+const eoaWarning =
+  "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
 const sendsKey = "regent:test:launch-sends"
 const rejectKey = "regent:test:launch-reject-next"
@@ -119,7 +121,7 @@ async function saveDraft(page: Page) {
   await form.getByLabel("Description", {exact: true}).fill("A launch awaiting review.")
   await form.getByLabel("Website", {exact: true}).fill("https://example.test/launch-wallet")
   await form.getByLabel("Image", {exact: true}).fill("https://example.test/launch-wallet.png")
-  await form.getByLabel("Treasury", {exact: true}).fill(treasury)
+  await form.getByLabel("Immutable treasury recipient", {exact: true}).fill(treasury)
   await form.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await form.getByRole("button", {name: "Save draft"}).click()
 
@@ -156,116 +158,61 @@ async function endAnyOpenLaunch(page: Page) {
   }
 }
 
-async function reviewed(page: Page): Promise<Locator> {
-  const card = await draftCard(page)
-  await card.getByRole("button", {name: "Review launch"}).click()
-  await expect(card.locator(".launch-wallet-review")).toBeVisible({timeout: 15_000})
-  return card
-}
-
-test("a signed-in founder reviews, sends once, and reads the outcome from the server", async ({
+test("the official Safe path blocks review until the deployed treasury is verified", async ({
   page,
 }) => {
   await signedIn(page)
-  const card = await reviewed(page)
+  const card = await draftCard(page)
 
-  // Everything a founder needs, in plain English, before anything is signed.
-  await expect(card).toContainText("1000.5 REGENT")
-  await expect(card).toContainText("Two transactions")
-  await expect(card).toContainText("Base")
-  await expect(card).toContainText("Bidding opens a fixed delay after your launch transaction")
-  await expect(card).toContainText("The pool fee is 0.30%.")
+  await expect(card).toContainText("Verify immutable treasury")
+  await expect(card).toContainText("Unverified")
+  await card.getByRole("button", {name: "Review launch"}).click()
+  await expect(card).toContainText("Verify the deployed treasury address before review.")
 
-  // The two reviewed steps are both on screen, in order.
-  await expect(card.locator('li[data-step="approval"]')).toBeVisible()
-  await expect(card.locator('li[data-step="launch"]')).toBeVisible()
-
-  // No selector or calldata is ever put in front of the customer.
-  await expect(card).not.toContainText("0x783eed53")
-  await expect(card).not.toContainText("0x095ea7b3")
-
-  await card.locator("[data-launch-wallet-send]").click()
-
-  // The browser reports the hash and stops; the outcome is the server's own read.
-  await expect(card).toContainText("Sent", {timeout: 15_000})
-  await expect(card.locator('a[href^="https://basescan.org/tx/"]')).toBeVisible()
-
-  // Exactly one wallet send happened, and the claimed step is not offered again.
-  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe("1")
-  await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
-
-  // Nothing claims the launch is already published, and no internal wording
-  // reaches the customer.
-  await expect(card).not.toContainText("waiting for index")
-  await expect(card).not.toContainText("Launched")
-})
-
-test("a reload recovers the open launch and never sends it a second time", async ({page}) => {
-  await signedIn(page)
-  const card = await reviewed(page)
-
-  await card.locator("[data-launch-wallet-send]").click()
-  await expect(card).toContainText("Sent", {timeout: 15_000})
-
-  const sendsBefore = await page.evaluate(key => sessionStorage.getItem(key), sendsKey)
-
-  await page.reload()
-
-  // The same launch comes back from the owning account's own row, still sent,
-  // and the reload asked no wallet for anything.
-  const restored = page.locator(".launch-wallet").filter({hasText: "Review this launch"})
-  await expect(restored).toContainText("Sent", {timeout: 15_000})
-  await expect(restored.locator('a[href^="https://basescan.org/tx/"]')).toBeVisible()
-  expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBe(sendsBefore)
-  await expect(restored.locator("[data-launch-wallet-send]")).toHaveCount(0)
-})
-
-test("an explicit wallet rejection ends the launch and broadcasts nothing", async ({page}) => {
-  await signedIn(page)
-  const card = await reviewed(page)
-
-  await page.evaluate(key => sessionStorage.setItem(key, "1"), rejectKey)
-  await card.locator("[data-launch-wallet-send]").click()
-
-  await expect(card).toContainText("Your wallet declined this.", {timeout: 15_000})
+  // Refusal happens before the browser can be offered any transaction.
   expect(await page.evaluate(key => sessionStorage.getItem(key), sendsKey)).toBeNull()
+  await expect(card.locator(".launch-wallet-review")).toHaveCount(0)
   await expect(card.locator("[data-launch-wallet-send]")).toHaveCount(0)
 })
 
-test("every technical value stays behind the one disclosure", async ({page}) => {
-  await signedIn(page)
-  const card = await reviewed(page)
-
-  const details = card.locator("details")
-  await expect(details).toBeVisible()
-  await details.locator("summary").click()
-
-  await expect(details).toContainText("Calldata digest")
-  await expect(details).toContainText("Floor price q96")
-  await expect(details).toContainText("Max reachable raise")
-})
-
-test("a blank draft starts from the connected wallet and keeps whatever is typed", async ({
+test("a blank draft never inherits the connected signer and keeps whatever is typed", async ({
   page,
 }) => {
   await signedIn(page)
   await page.goto("/autolaunch/create")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  // The Treasury field opens as the wallet Privy has selected, ready to save.
+  // Signer selection confers no custody status: the immutable recipient stays blank.
   const field = page.locator("#create-launch-draft-treasury")
-  await expect(field).toHaveValue(wallet)
+  await expect(field).toHaveValue("")
 
-  // Nothing has been typed yet, so selecting another wallet simply moves the
-  // starting point with it.
+  // Switching the signer still writes nothing into custody.
   await selectWallet(page, otherWallet)
-  await expect(field).toHaveValue(otherWallet)
+  await expect(field).toHaveValue("")
 
   // An address the founder enters is theirs, and a later wallet change leaves it
   // exactly as typed.
   await field.fill(treasury)
   await selectWallet(page, wallet)
   await expect(field).toHaveValue(treasury)
+})
+
+test("the two Safe paths lead and the EOA warning is exact", async ({page}) => {
+  await signedIn(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const choices = page.locator("#create-launch-draft .autolaunch-custody-path")
+  await expect(choices).toContainText("Create a 2-of-3 Safe on Base")
+  await expect(choices.getByRole("link", {name: "Open the official Safe creation flow"})).toHaveAttribute(
+    "href",
+    "https://app.safe.global/new-safe/create?chain=base",
+  )
+  await expect(choices).toContainText("Use existing Safe")
+
+  await choices.locator("summary").click()
+  await expect(choices).toContainText("Advanced, high-risk treasury choices")
+  await expect(choices.locator(".autolaunch-custody-warning")).toHaveText(eoaWarning)
 })
 
 test("a refused save keeps the Treasury it sent back, whatever the wallet does next", async ({
@@ -277,7 +224,7 @@ test("a refused save keeps the Treasury it sent back, whatever the wallet does n
 
   const form = page.locator("#create-launch-draft")
   const field = page.locator("#create-launch-draft-treasury")
-  await expect(field).toHaveValue(wallet)
+  await expect(field).toHaveValue("")
 
   // Every field valid except the raise, with the Treasury left exactly as it was
   // found.
@@ -286,6 +233,7 @@ test("a refused save keeps the Treasury it sent back, whatever the wallet does n
   await form.getByLabel("Description", {exact: true}).fill("A draft the server refuses.")
   await form.getByLabel("Website", {exact: true}).fill("https://example.test/echo")
   await form.getByLabel("Image", {exact: true}).fill("https://example.test/echo.png")
+  await field.fill(treasury)
   await form.getByLabel("Required raise in REGENT", {exact: true}).fill("0")
   await form.getByRole("button", {name: "Save draft"}).click()
 
@@ -296,12 +244,12 @@ test("a refused save keeps the Treasury it sent back, whatever the wallet does n
     "must be greater than zero",
   )
   await expect(form).toHaveAttribute("data-draft-errors", "true")
-  await expect(field).toHaveValue(wallet)
+  await expect(field).toHaveValue(treasury)
 
   // Selecting a different wallet now changes nothing. The address on screen came
   // back from the server and belongs to the founder, not to the default.
   await selectWallet(page, otherWallet)
-  await expect(field).toHaveValue(wallet)
+  await expect(field).toHaveValue(treasury)
 })
 
 test("a signed-out visitor is offered no launch control at all", async ({page}) => {
@@ -312,46 +260,42 @@ test("a signed-out visitor is offered no launch control at all", async ({page}) 
   await expect(page.locator(".launch-wallet")).toHaveCount(0)
 })
 
-test("the card fits a 390 pixel viewport and a desktop one without overflowing", async ({page}) => {
+test("the custody choices fit a 390 pixel viewport and a desktop one without overflowing", async ({
+  page,
+}) => {
   await signedIn(page)
-  await page.setViewportSize({width: 390, height: 844})
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  const card = await reviewed(page)
-  await card.locator("details summary").click()
-
-  // The same reviewed card, measured at both widths, so the two measurements are
-  // of one layout rather than of two separately prepared ones.
   for (const viewport of [
     {width: 390, height: 844},
     {width: 1440, height: 900},
   ]) {
     await page.setViewportSize(viewport)
+    const choices = page.locator("#create-launch-draft .autolaunch-custody-path")
+    await expect(choices).toContainText("Create a 2-of-3 Safe on Base")
+    await expect(choices).toContainText("Use existing Safe")
+    await choices.locator("summary").click()
 
-    // Layout width, not the bounding box: the shell animates route content, and
-    // a transform mid-flight would make a box measurement lie about the layout.
     const layout = await page.evaluate(() => {
-      const node = document.querySelector(".launch-wallet-review")?.closest(
-        ".launch-wallet",
+      const node = document.querySelector(
+        "#create-launch-draft .autolaunch-custody-path",
       ) as HTMLElement
 
       return {
-        card: node.offsetWidth,
+        choices: node.offsetWidth,
         page: document.documentElement.clientWidth,
         sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        clipped: [node, ...node.querySelectorAll("*")]
-          .filter(child => child.scrollWidth > child.clientWidth + 1)
-          .map(child => `${child.tagName}.${child.className || "-"}`),
-        controls: node.querySelectorAll("button, a, details").length,
+        textarea: node.querySelector("textarea")?.offsetWidth ?? 0,
+        controls: node.querySelectorAll("a, input, details, textarea").length,
       }
     })
 
-    // The page never scrolls sideways, the card fits the screen, and nothing
-    // inside it is cut off.
     expect(layout.controls).toBeGreaterThan(0)
     expect(layout.sideways).toBeLessThanOrEqual(0)
-    expect(layout.card).toBeLessThanOrEqual(layout.page)
-    expect(layout.clipped).toEqual([])
-  }
+    expect(layout.choices).toBeLessThanOrEqual(layout.page)
+    expect(layout.textarea).toBeLessThanOrEqual(layout.choices)
 
-  await endAnyOpenLaunch(page)
+    await choices.locator("summary").click()
+  }
 })

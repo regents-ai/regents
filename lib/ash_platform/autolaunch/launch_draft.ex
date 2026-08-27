@@ -12,8 +12,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     :website,
     :image,
     :treasury,
+    :treasury_path,
     :required_regent_raised
   ]
+
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   attributes do
     uuid_primary_key :id
@@ -41,6 +44,14 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     attribute :website, :string, public?: true
     attribute :image, :string, public?: true
     attribute :treasury, :string, public?: true
+
+    attribute :treasury_path, :atom do
+      allow_nil? false
+      public? true
+      default :safe
+      constraints one_of: [:safe, :eoa, :contract]
+    end
+
     attribute :required_regent_raised, :string, public?: true
 
     timestamps()
@@ -59,8 +70,13 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
   actions do
     create :create_for_my_regent do
+      argument :eoa_acknowledgement, :string, constraints: [trim?: false]
       accept @clean_v1_fields
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
+
+      validate argument_equals(:eoa_acknowledgement, @eoa_acknowledgement),
+        where: [attribute_equals(:treasury_path, :eoa)]
+
       change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwnerAndRegent
     end
 
@@ -70,9 +86,13 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     update :revise_by_owner do
+      argument :eoa_acknowledgement, :string, constraints: [trim?: false]
       accept @clean_v1_fields
       require_atomic? false
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
+
+      validate argument_equals(:eoa_acknowledgement, @eoa_acknowledgement),
+        where: [attribute_equals(:treasury_path, :eoa)]
     end
   end
 
