@@ -175,6 +175,28 @@ async function reviewed(page: Page): Promise<Locator> {
   return card
 }
 
+test("stored treasury proof waits for a fresh observation before showing Verified", async ({
+  page,
+}) => {
+  await signedIn(page)
+  await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+  const card = await draftCard(page)
+  await expect(card).toContainText("Awaiting current chain confirmation")
+  await expect(card).not.toContainText("Verified 2-of-3 Safe")
+
+  const verification = card.locator('form[phx-submit="verify_treasury"]')
+  await verification.getByLabel("USDC receipt transaction").fill(`0x${"11".repeat(32)}`)
+  await verification.getByLabel("REGENT receipt transaction").fill(`0x${"22".repeat(32)}`)
+  await verification
+    .getByLabel("Outbound Safe execution transaction")
+    .fill(`0x${"33".repeat(32)}`)
+  await verification.getByRole("button", {name: "Verify deployed address on Base"}).click()
+
+  await expect(card).toContainText("Verified 2-of-3 Safe", {timeout: 15_000})
+})
+
 test("exact EOA acknowledgement with blank evidence reaches high-risk review without a wallet request", async ({
   page,
 }) => {

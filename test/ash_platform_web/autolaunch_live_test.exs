@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
   test "overview has the four founder market sections without fabricated records", %{conn: conn} do
@@ -118,6 +119,13 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   end
 
   test "subject loaders render stored revenue and newest-first settlement history", %{conn: conn} do
+    report = TreasuryClient.seed_verified!("0x6666666666666666666666666666666666666666")
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
+
     subject =
       Autolaunch.import_subject!(
         "subject:live:revenue",
@@ -145,6 +153,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
         false,
         :graduated,
         DateTime.utc_now(),
+        %{treasury_security_report_id: report.id},
         actor: %System{}
       )
 

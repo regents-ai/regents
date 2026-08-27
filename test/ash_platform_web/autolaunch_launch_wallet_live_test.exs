@@ -52,6 +52,35 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
     context
   end
 
+  test "STORED_TREASURY_PROOF_WAITS_FOR_A_FRESH_INTERACTION_BEFORE_VERIFIED", context do
+    view = mounted(context)
+
+    assert has_element?(
+             view,
+             ~s(#{card(context)} [data-treasury-verification-state="awaiting-current-chain-confirmation"]),
+             "Awaiting current chain confirmation"
+           )
+
+    refute has_element?(
+             view,
+             ~s(#{card(context)} [data-treasury-verification-state="verified"])
+           )
+
+    view
+    |> element(~s(#{card(context)} form[phx-submit="verify_treasury"]))
+    |> render_submit(%{
+      "usdc" => "0x" <> String.duplicate("11", 32),
+      "regent" => "0x" <> String.duplicate("22", 32),
+      "outbound" => "0x" <> String.duplicate("33", 32)
+    })
+
+    assert has_element?(
+             view,
+             ~s(#{card(context)} [data-treasury-verification-state="verified"]),
+             "Verified 2-of-3 Safe"
+           )
+  end
+
   describe "SIGNED_OUT_EXPOSES_NO_SENDABLE_ACTION" do
     test "an anonymous visitor is offered sign-in and no launch card at all", %{conn: conn} do
       {:ok, view, _html} = live(conn, @path)

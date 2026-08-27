@@ -71,6 +71,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:operation, fn -> nil end)
      |> assign(:treasury_report, current_report(assigns.draft))
+     |> assign_new(:fresh_treasury_report_id, fn -> nil end)
      |> assign_new(:elsewhere?, fn -> false end)}
   end
 
@@ -83,10 +84,22 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
       <section class="treasury-verification" aria-label="Treasury verification">
         <h4>Verify immutable treasury</h4>
         <p class="launch-wallet-mono">{short(@draft.treasury)}</p>
-        <p :if={@treasury_report && @treasury_report.verification_state == :verified}>
+        <p
+          :if={freshly_verified?(@treasury_report, @fresh_treasury_report_id)}
+          data-treasury-verification-state="verified"
+        >
           Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
         </p>
-        <p :if={is_nil(@treasury_report) || @treasury_report.verification_state != :verified}>
+        <p
+          :if={awaiting_current_chain?(@treasury_report, @fresh_treasury_report_id)}
+          data-treasury-verification-state="awaiting-current-chain-confirmation"
+        >
+          Awaiting current chain confirmation. No REGENT approval or launch can be prepared on the official Safe path.
+        </p>
+        <p
+          :if={freshly_unverified?(@treasury_report, @fresh_treasury_report_id)}
+          data-treasury-verification-state="unverified"
+        >
           Unverified. No REGENT approval or launch can be prepared on the official Safe path.
         </p>
         <form phx-submit="verify_treasury" phx-target={@myself}>
@@ -286,11 +299,16 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
         {:noreply,
          assign(socket,
            treasury_report: report,
+           fresh_treasury_report_id: report.id,
            notice: notice(:info, "Treasury observation recorded from canonical Base reads.")
          )}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
+        {:noreply,
+         assign(socket,
+           fresh_treasury_report_id: nil,
+           notice: notice(:error, refusal(error))
+         )}
     end
   end
 
@@ -515,6 +533,16 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   end
 
   defp current_report(_draft), do: nil
+
+  defp freshly_verified?(%{id: id, verification_state: :verified}, id), do: true
+  defp freshly_verified?(_report, _fresh_report_id), do: false
+
+  defp freshly_unverified?(nil, _fresh_report_id), do: true
+  defp freshly_unverified?(%{id: id, verification_state: state}, id), do: state != :verified
+  defp freshly_unverified?(_report, _fresh_report_id), do: false
+
+  defp awaiting_current_chain?(%{id: id}, fresh_report_id), do: id != fresh_report_id
+  defp awaiting_current_chain?(_report, _fresh_report_id), do: false
 
   defp sendable?(%{state: :prepared, signer: signer, terminal_at: nil}, wallet),
     do: signer == wallet

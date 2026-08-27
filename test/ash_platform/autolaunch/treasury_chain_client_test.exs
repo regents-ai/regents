@@ -2,6 +2,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.Actors.System
+  alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.{TreasuryChainClient, TreasurySecurity}
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: Client
 
@@ -251,6 +252,36 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
                TreasuryChainClient.observe(@address, %{usdc: evidence_hash(0)}),
              "expected #{name} drift to fail closed"
     end
+  end
+
+  test "PRODUCTION_REJECTS_MISSING_MALFORMED_OR_NONCANONICAL_EVIDENCE_LOG_INDEXES" do
+    mutations = [
+      missing: &Map.delete(&1, "logIndex"),
+      malformed: &Map.put(&1, "logIndex", "not-a-quantity"),
+      negative: &Map.put(&1, "logIndex", "0x-1"),
+      noncanonical: &Map.put(&1, "logIndex", "0x00")
+    ]
+
+    for {key, index} <- [usdc: 0, outbound: 2], {name, mutate} <- mutations do
+      hash = evidence_hash(index)
+
+      state =
+        update_in(production_fixture(), [:receipts, hash, "logs"], fn [log] ->
+          [mutate.(log)]
+        end)
+
+      production_client(state)
+
+      assert {:error, :invalid_chain_response} =
+               TreasurySecurity.observe(
+                 @address,
+                 Map.put(empty_evidence(), key, hash),
+                 %System{}
+               ),
+             "expected #{key} #{name} logIndex to fail closed"
+    end
+
+    assert {:ok, []} = Autolaunch.list_treasury_security_reports(@address, actor: nil)
   end
 
   defp production_client(state) do

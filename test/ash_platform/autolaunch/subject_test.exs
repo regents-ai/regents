@@ -5,6 +5,7 @@ defmodule AshPlatform.Autolaunch.SubjectTest do
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.SubjectAction
   alias AshPlatform.Autolaunch.SubjectAction.Changes.ResolveSubject
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
 
   @unsafe_subject_ids [
     slash: "subject/slash",
@@ -18,6 +19,12 @@ defmodule AshPlatform.Autolaunch.SubjectTest do
 
   test "anonymous reads use the canonical identity for tokens, actions, and settlements" do
     subject = subject!()
+    report = TreasuryClient.seed_verified!(subject.treasury_address)
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_treasury_chain_client)
+      Application.delete_env(:ash_platform, :test_autolaunch_treasury_observation)
+    end)
 
     auction =
       Autolaunch.import_auction!(
@@ -26,6 +33,7 @@ defmodule AshPlatform.Autolaunch.SubjectTest do
         false,
         :graduated,
         DateTime.utc_now(),
+        %{treasury_security_report_id: report.id},
         actor: %System{}
       )
 

@@ -186,6 +186,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          ^fingerprint <-
            TreasurySecurity.fingerprint(safe, Map.merge(historical, %{block: receipt_block})),
          {:ok, log, amount} <- transfer_log(receipt["logs"], token, safe),
+         {:ok, log_index} <- quantity(log["logIndex"]),
          :ok <- log_identity(log, hash, receipt_block) do
       {:ok,
        %{
@@ -193,7 +194,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          transaction_hash: String.downcase(hash),
          receipt_block_number: receipt_block.number,
          receipt_block_hash: receipt_block.hash,
-         log_index: quantity!(log["logIndex"]),
+         log_index: log_index,
          token: token,
          amount: Integer.to_string(amount),
          safe_address: safe,
@@ -220,6 +221,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          ^fingerprint <-
            TreasurySecurity.fingerprint(safe, Map.merge(historical, %{block: receipt_block})),
          {:ok, log} <- execution_success(receipt["logs"], safe),
+         {:ok, log_index} <- quantity(log["logIndex"]),
          :ok <- log_identity(log, hash, receipt_block) do
       {:ok,
        %{
@@ -227,7 +229,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
          transaction_hash: String.downcase(hash),
          receipt_block_number: receipt_block.number,
          receipt_block_hash: receipt_block.hash,
-         log_index: quantity!(log["logIndex"]),
+         log_index: log_index,
          safe_address: safe,
          target: call.target,
          value: Integer.to_string(call.value),
@@ -515,15 +517,22 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
   defp positive_word?(value), do: word?(value) and word_value!(value) > 0
   defp word_value!("0x" <> hex), do: String.to_integer(hex, 16)
 
-  defp quantity("0x" <> hex) when hex != "" do
+  defp quantity("0x0"), do: {:ok, 0}
+
+  defp quantity("0x" <> <<first, _rest::binary>> = encoded)
+       when first in ?1..?9 or first in ?a..?f do
+    "0x" <> hex = encoded
+
     case Integer.parse(hex, 16) do
-      {value, ""} -> {:ok, value}
-      _ -> {:error, :invalid_chain_response}
+      {value, ""} when value >= 0 ->
+        if encoded == hex(value), do: {:ok, value}, else: {:error, :invalid_chain_response}
+
+      _ ->
+        {:error, :invalid_chain_response}
     end
   end
 
   defp quantity(_value), do: {:error, :invalid_chain_response}
-  defp quantity!(value), do: value |> quantity() |> elem(1)
   defp hex(value), do: "0x" <> String.downcase(Integer.to_string(value, 16))
 
   defp keccak("0x" <> hex) do

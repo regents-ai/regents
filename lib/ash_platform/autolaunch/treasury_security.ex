@@ -381,8 +381,11 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
 
   defp subject_agrees(subject_id, binding) do
     case Autolaunch.get_public_subject(subject_id, actor: nil) do
-      {:ok, %{treasury_security_report_id: nil}} ->
-        :ok
+      {:ok, %{treasury_security_report_id: nil, treasury_address: subject_address}} ->
+        case {Address.normalize(subject_address), Address.normalize(binding.address)} do
+          {{:ok, address}, {:ok, address}} -> :ok
+          _mismatch -> {:error, "subject custody provenance must match its auction"}
+        end
 
       {:ok,
        %{

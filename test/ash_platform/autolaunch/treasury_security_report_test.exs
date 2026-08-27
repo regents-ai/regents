@@ -209,6 +209,94 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityReportTest do
     refute auction_a.id == auction_b.id
   end
 
+  test "LEGACY_SUBJECT_ADDRESS_MUST_MATCH_THE_AUCTION_REPORT_PROVENANCE" do
+    report_a = Client.seed_verified!("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    report_b = Client.seed_verified!("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+
+    auction_a =
+      Autolaunch.import_auction!(
+        "Legacy subject match",
+        nil,
+        false,
+        :created,
+        nil,
+        %{treasury_security_report_id: report_a.id},
+        actor: %System{}
+      )
+
+    auction_b =
+      Autolaunch.import_auction!(
+        "Legacy subject conflict",
+        nil,
+        false,
+        :created,
+        nil,
+        %{treasury_security_report_id: report_b.id},
+        actor: %System{}
+      )
+
+    mixed_case_address =
+      "0x" <> (report_a.address |> String.slice(2, 40) |> String.upcase())
+
+    matching_subject = legacy_subject!("subject:legacy-match", mixed_case_address)
+    conflicting_subject = legacy_subject!("subject:legacy-conflict", report_a.address)
+
+    assert matching_subject.treasury_security_report_id == nil
+
+    assert {:ok, token} =
+             Autolaunch.import_subject_token(
+               auction_a.id,
+               matching_subject.subject_id,
+               "Legacy matching token",
+               "LMATCH",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               %{},
+               actor: %System{}
+             )
+
+    assert token.treasury_security_report_id == report_a.id
+    assert token.treasury_address == report_a.address
+
+    assert {:error, %Ash.Error.Invalid{} = error} =
+             Autolaunch.import_subject_token(
+               auction_b.id,
+               conflicting_subject.subject_id,
+               "Legacy conflicting token",
+               "LCONFLICT",
+               nil,
+               DateTime.utc_now(),
+               nil,
+               %{},
+               actor: %System{}
+             )
+
+    assert Exception.message(error) =~ "subject custody provenance must match its auction"
+  end
+
+  defp legacy_subject!(subject_id, treasury_address) do
+    Autolaunch.import_subject!(
+      subject_id,
+      "agent",
+      8453,
+      nil,
+      nil,
+      nil,
+      treasury_address,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      nil,
+      %{},
+      actor: %System{}
+    )
+  end
+
   defp import_launch(job_id, auction_id, attrs) do
     Autolaunch.import_launch(
       job_id,
