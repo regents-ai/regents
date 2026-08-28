@@ -190,15 +190,11 @@
   z-index: -2;
   pointer-events: none;
   opacity: 0;
-  transform: scale(1.02);
-  transition:
-    opacity 700ms ease-out,
-    transform 700ms ease-out;
+  transition: opacity 700ms ease-out;
 }
 
 .rl-hero-prism[data-prism-ready="true"] {
   opacity: 1;
-  transform: none;
 }
 
 .rl-hero-prism canvas {

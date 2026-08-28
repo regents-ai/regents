@@ -322,6 +322,7 @@ describe("Regents crown shader provenance", () => {
 
 describe("Regents crown responsive framing", () => {
   it("keeps every 3D AABB corner at least eight percent from every edge", () => {
+    expect(CROWN_FRAME_MARGIN).toBe(0.08)
     expect(CROWN_AABB_CORNERS).toHaveLength(8)
     const tanHalfFov = Math.tan((CAMERA_FOV_DEGREES * Math.PI) / 360)
     const sizes = [
