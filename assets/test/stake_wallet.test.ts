@@ -371,6 +371,90 @@ describe("immediate wallet handoff", () => {
     expect(timedOutRecorder.immediate).toHaveLength(1)
   })
 
+  it.each([
+    [
+      "throwing proxy",
+      () =>
+        new Proxy(
+          {},
+          {
+            get: () => {
+              throw new Error("hostile code getter")
+            },
+            getPrototypeOf: () => {
+              throw new Error("hostile prototype trap")
+            },
+          },
+        ),
+    ],
+    [
+      "throwing accessor",
+      () =>
+        Object.defineProperty({}, "code", {
+          get: () => {
+            throw new Error("hostile code accessor")
+          },
+        }),
+    ],
+    [
+      "revoked proxy",
+      () => {
+        const {proxy, revoke} = Proxy.revocable({}, {})
+        revoke()
+        return proxy
+      },
+    ],
+  ] as const)("turns a post-handoff %s rejection into one unknown result", async (_name, error) => {
+    const fake = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      throw error()
+    })
+    const click = prepare("claim_usdc", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await expect(
+      executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+    ).resolves.toBeUndefined()
+
+    expect(recorder.immediate).toMatchObject([
+      {
+        role: "action",
+        kind: "submission_unknown",
+        message: "The submission outcome is unknown.",
+      },
+    ])
+    expect(recorder.immediate).toHaveLength(1)
+    expect(recorder.submitted).toEqual([])
+  })
+
+  it("turns an uninspectable pre-send provider rejection into one fixed refusal", async () => {
+    const hostile = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new Error("hostile code getter")
+        },
+        getPrototypeOf: () => {
+          throw new Error("hostile prototype trap")
+        },
+      },
+    )
+    const fake = fakeProvider(() => {
+      throw hostile
+    })
+    const click = prepare("claim_regent", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await expect(
+      executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+    ).resolves.toBeUndefined()
+
+    expect(recorder.immediate).toMatchObject([
+      {kind: "refused", message: "Switch to Base before continuing."},
+    ])
+    expect(recorder.immediate).toHaveLength(1)
+  })
+
   it("logs only allowlisted timing fields", async () => {
     const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
     const click = prepare("claim_and_restake_regent", selected(fake.provider))

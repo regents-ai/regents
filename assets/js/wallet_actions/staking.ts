@@ -142,14 +142,23 @@ export type StakingExecutionCallbacks = {
   submitted(transaction: SubmittedStakingTransaction): void
 }
 
+const localRefusals = new WeakSet<object>()
+const deadGenerations = new WeakSet<object>()
+
 export class StakingLocalRefusal extends Error {
   constructor(readonly displayMessage: string) {
     super("staking action refused")
+    localRefusals.add(this)
   }
 }
 
 class RequestTimeout extends Error {}
-class DeadGeneration extends Error {}
+class DeadGeneration extends Error {
+  constructor() {
+    super("staking hook generation ended")
+    deadGenerations.add(this)
+  }
+}
 
 export function prepareStakingClick(
   rendered: RenderedStakingClick,
@@ -267,7 +276,7 @@ export function observeStakingTransaction(
           finish("delayed")
         }
       } catch (error) {
-        if (!(error instanceof DeadGeneration)) finish("unavailable")
+        if (!isDeadGeneration(error)) finish("unavailable")
       }
     })
   }
@@ -330,7 +339,7 @@ async function sendRole(
     callbacks.submitted(submitted)
     return submitted
   } catch (error) {
-    if (error instanceof DeadGeneration) return null
+    if (isDeadGeneration(error)) return null
     const result = userRejected(error)
       ? immediate(click, role, "canceled")
       : walletRequestStarted
@@ -660,7 +669,12 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 function userRejected(error: unknown): boolean {
-  return record(error) && error.code === 4001
+  if (!objectLike(error)) return false
+  try {
+    return Reflect.get(error, "code") === 4001
+  } catch {
+    return false
+  }
 }
 
 function immediate(
@@ -679,9 +693,17 @@ function immediate(
 }
 
 function preSendRefusal(error: unknown): string {
-  return error instanceof StakingLocalRefusal
-    ? error.displayMessage
+  return objectLike(error) && localRefusals.has(error)
+    ? (error as StakingLocalRefusal).displayMessage
     : "Switch to Base before continuing."
+}
+
+function isDeadGeneration(error: unknown): boolean {
+  return objectLike(error) && deadGenerations.has(error)
+}
+
+function objectLike(value: unknown): value is object {
+  return (typeof value === "object" && value !== null) || typeof value === "function"
 }
 
 function timing(
