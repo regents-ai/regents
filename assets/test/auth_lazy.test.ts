@@ -728,6 +728,44 @@ describe("lazy browser authentication", () => {
     }
   })
 
+  it("keeps a newer sign-in failure visible when held provider cleanup settles", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument()
+    const storage = memoryStorage(JSON.stringify({version: 1, issuedAtMs: 1_000}))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({authenticated: false}), {status: 200}),
+      ),
+    )
+    let finishCleanup: (() => void) | undefined
+    const handleRequest = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishCleanup = resolve
+        }),
+    )
+    const finishSignOutOnly = vi.fn()
+    const importer = vi.fn(async () => ({
+      startPrivyBridge: vi.fn(async () => ({request: handleRequest, finishSignOutOnly})),
+    }))
+
+    installAccountAuthLazyLoader(page.documentRoot, importer, {
+      handoffStorage: storage,
+      now: () => 1_001,
+    })
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sign-out"))
+
+    page.click("sign-in")
+    await vi.waitFor(() => expect(page.status.hidden).toBe(false))
+    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+
+    finishCleanup?.()
+    await vi.waitFor(() => expect(finishSignOutOnly).toHaveBeenCalledOnce())
+    expect(page.status.hidden).toBe(false)
+    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+  })
+
   it("does not attempt provider logout when local deletion fails", async () => {
     vi.stubGlobal("Element", AccountElement)
     const page = accountDocument()

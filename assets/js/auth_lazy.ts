@@ -709,10 +709,8 @@ export function installAccountAuthLazyLoader(
     void loader.request(accountRequest).catch(() => showLoadFailure(accountRequest))
   }
   let signOutInFlight: Promise<void> | null = null
-  let userSignOutStarted = false
   const signOut = () => {
     if (signOutInFlight) return
-    userSignOutStarted = true
     clearStatus()
 
     if (!writeSignOutHandoff(storage, now())) {
@@ -762,15 +760,11 @@ export function installAccountAuthLazyLoader(
 
   const reconcileSignedInStartup = () => {
     clearStatus()
-    const settle = () => {
-      if (userSignOutStarted) return
-      clearStatus()
-    }
     void withinWindow(
       loader.request("sync"),
       signedInStartupTimeoutMs,
       "Provider session reconciliation did not become ready.",
-    ).then(settle, settle)
+    ).catch(() => undefined)
   }
 
   documentRoot.addEventListener("click", onClick)
@@ -788,9 +782,8 @@ export function installAccountAuthLazyLoader(
           providerSignOutTimeoutMs,
           "Provider sign out did not become ready.",
         )
-        clearStatus()
       } catch {
-        clearStatus()
+        // Provider cleanup is best-effort background work.
       } finally {
         loader.finishHandoff()
       }
