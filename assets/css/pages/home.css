@@ -117,7 +117,6 @@
   border-inline-end: 1px solid var(--rl-line);
 }
 
-/* Social links and the held sign-in slot close the header's right column. */
 .rl-header-links {
   display: flex;
   align-items: center;
@@ -126,7 +125,7 @@
   padding-inline: 1rem;
 }
 
-.rl-header-links a {
+.rl-header-links a:not(.rl-action) {
   display: inline-flex;
   width: 1.1rem;
   height: 1.1rem;
@@ -136,13 +135,6 @@
 .rl-header-links svg {
   width: 100%;
   height: 100%;
-}
-
-.rl-root .rl-action--disabled {
-  color: var(--rl-muted);
-  border-color: var(--rl-line);
-  cursor: default;
-  user-select: none;
 }
 
 @media (hover: hover) {

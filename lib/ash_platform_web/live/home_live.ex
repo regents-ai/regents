@@ -72,7 +72,7 @@ defmodule AshPlatformWeb.HomeLive do
           >
             <.source_icon kind={:github} />
           </a>
-          <span class="rl-action rl-action--disabled">App Upgrading</span>
+          <a href={~p"/stake"} class="rl-action">Stake REGENT</a>
         </div>
       </div>
     </header>
