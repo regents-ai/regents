@@ -88,12 +88,6 @@ defmodule AshPlatformWeb.StakeLive do
               amount={@staking.wallet_claimable_regent}
               unit="REGENT"
             />
-            <.metric
-              :if={@wallet}
-              label="Currently funded REGENT"
-              amount={@staking.wallet_funded_claimable_regent}
-              unit="REGENT"
-            />
           </dl>
         </section>
 

@@ -49,8 +49,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     activate(view, @wallet)
     assert has_element?(view, "#staking-amount")
-    assert render(view) =~ "Wallet stake"
-    assert render(view) =~ "5 REGENT"
+    html = render(view)
+    assert html =~ "Wallet stake"
+    assert html =~ "Claimable REGENT"
+    assert html =~ "5 REGENT"
+    refute html =~ "Currently funded REGENT"
   end
 
   test "DIRECT_STAKE: canonical browser data renders without a server preparation event", %{

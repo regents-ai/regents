@@ -102,6 +102,15 @@
   color: CanvasText;
 }
 
+.redeem-summary {
+  gap: 0;
+  background: transparent;
+}
+
+.redeem-summary .redeem-metric {
+  box-shadow: 1px 0 0 currentColor, 0 1px 0 currentColor;
+}
+
 .redeem-metric > * {
   margin: 0;
 }

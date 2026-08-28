@@ -18,7 +18,7 @@ type ResultDisplay = Readonly<{message: string; href: string | null}>
 type ResultSlot = {
   readonly id: string
   readonly action: StakingAction
-  readonly role: StakingTransactionRole
+  readonly role: "action"
   readonly initiator: HTMLElement
   readonly submitted: SubmittedStakingTransaction | null
 }
@@ -101,6 +101,8 @@ export const StakeWallet: Hook = {
         state.walletRequests.add(`${actionId}:${role}`)
       },
       immediate: (result: ImmediateStakingResult): void => {
+        // Approval is a wallet prerequisite, not a Regent result surface.
+        if (result.role === "approval") return
         reserve(
           Object.freeze({
             id: crypto.randomUUID(),
@@ -113,6 +115,8 @@ export const StakeWallet: Hook = {
         )
       },
       submitted: (submitted: SubmittedStakingTransaction): void => {
+        // The valid hash still unlocks the main send; it is not presented or observed here.
+        if (submitted.role === "approval") return
         const slot: ResultSlot = Object.freeze({
           id: crypto.randomUUID(),
           action: submitted.action,
@@ -263,7 +267,7 @@ function settleObserved(
     (result === "success" || result === "reverted") && slot.submitted
       ? `https://basescan.org/tx/${slot.submitted.hash}`
       : null
-  const label = roleLabel(slot.action, slot.role)
+  const label = roleLabel(slot.action)
   const message =
     result === "success"
       ? `${label} succeeded on Base.`
@@ -273,7 +277,7 @@ function settleObserved(
           ? "Block inclusion is delayed."
           : "Verification is unavailable."
   state.results.set(slot.id, Object.freeze({message, href}))
-  if (result === "success" && slot.role === "action") hook.pushEvent("refresh_staking", {})
+  if (result === "success") hook.pushEvent("refresh_staking", {})
   presentNext(hook.el, state)
 }
 
@@ -328,8 +332,7 @@ function stakingAction(value: string | undefined): value is StakingAction {
   return typeof value === "string" && stakingActions.has(value as StakingAction)
 }
 
-function roleLabel(action: StakingAction, role: StakingTransactionRole): string {
-  if (role === "approval") return "REGENT approval"
+function roleLabel(action: StakingAction): string {
   switch (action) {
     case "stake": return "Stake"
     case "unstake": return "Unstake"
