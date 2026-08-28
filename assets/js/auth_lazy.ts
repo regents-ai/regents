@@ -701,12 +701,6 @@ export function installAccountAuthLazyLoader(
   }
   const showLoadFailure = (request: AccountRequest) =>
     showAccountAuthFailure(request, documentRoot)
-  const showProviderSignOutFailure = () => {
-    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
-    if (!status) return
-    status.textContent = "Signed out locally. Provider sign out couldn’t finish."
-    status.hidden = false
-  }
   // The leading clear owns this click's startup. Nothing clears afterwards: a
   // login callback that failed while the request was settling has already
   // written the failure this click must leave visible.
@@ -768,14 +762,15 @@ export function installAccountAuthLazyLoader(
 
   const reconcileSignedInStartup = () => {
     clearStatus()
+    const settle = () => {
+      if (userSignOutStarted) return
+      clearStatus()
+    }
     void withinWindow(
       loader.request("sync"),
       signedInStartupTimeoutMs,
       "Provider session reconciliation did not become ready.",
-    ).then(clearStatus, () => {
-      if (userSignOutStarted) return
-      showLoadFailure("sync")
-    })
+    ).then(settle, settle)
   }
 
   documentRoot.addEventListener("click", onClick)
@@ -795,7 +790,7 @@ export function installAccountAuthLazyLoader(
         )
         clearStatus()
       } catch {
-        showProviderSignOutFailure()
+        clearStatus()
       } finally {
         loader.finishHandoff()
       }

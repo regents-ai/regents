@@ -547,12 +547,15 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
 
 test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
   let sessionDeletes = 0
-  let finishProviderLogout: (() => void) | undefined
+  let failProviderLogout: (() => void) | undefined
   const documentRequests: string[] = []
   const eventOrder: string[] = []
   await page.exposeFunction(
     "__u3ProviderLogout",
-    () => new Promise<void>(resolve => (finishProviderLogout = resolve)),
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        failProviderLogout = () => reject(new Error("provider logout unavailable"))
+      }),
   )
   let localSessionPostsAfterDelete = 0
   page.on("request", request => {
@@ -592,6 +595,9 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await expect.poll(() => sessionDeletes).toBe(1)
 
   await expect.poll(() => documentRequests.length).toBe(2)
+  await expect(
+    page.locator("#account-control [data-account-target='sign-in']"),
+  ).toBeAttached()
   // The retired logout-epoch cookie is gone; revocation is the only authority.
   expect(
     (await page.context().cookies()).map(cookie => cookie.name),
@@ -650,13 +656,15 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
     ),
   ).toBe(0)
   expect(localSessionPostsAfterDelete).toBe(0)
-  finishProviderLogout?.()
+  failProviderLogout?.()
   await page.waitForTimeout(100)
   expect(
     await page.evaluate(
       () => (window as Window & {__u3ProviderLogouts?: number}).__u3ProviderLogouts ?? 0,
     ),
   ).toBe(1)
+  await expect(page.locator("#account-auth-status")).toBeHidden()
+  await expect(page.locator("#account-auth-status")).toHaveText("")
   expect(documentRequests).toHaveLength(2)
   expect(sessionDeletes).toBe(1)
 })
@@ -734,10 +742,18 @@ test("the second document proves anonymous server truth before importing Privy",
 })
 
 for (const failure of [
-  {name: "the public app ID is absent", bridgeBody: null},
-  {name: "the bridge import fails", bridgeBody: "failure"},
-  {name: "provider readiness never settles", bridgeBody: neverReadyBridgeStub},
-  {name: "provider synchronization rejects", bridgeBody: rejectedSyncBridgeStub},
+  {name: "the public app ID is absent", bridgeBody: null, settleMs: 100},
+  {name: "the bridge import fails", bridgeBody: "failure", settleMs: 100},
+  {
+    name: "provider readiness never settles",
+    bridgeBody: neverReadyBridgeStub,
+    settleMs: 5_100,
+  },
+  {
+    name: "provider synchronization rejects",
+    bridgeBody: rejectedSyncBridgeStub,
+    settleMs: 100,
+  },
 ] as const) {
   test(`signed-in startup preserves the local session when ${failure.name}`, async ({page}) => {
     let sessionDeletes = 0
@@ -763,11 +779,9 @@ for (const failure of [
     await establishLocalSession(page)
     await page.goto("/app")
 
-    await expect(page.locator("#account-auth-status")).toHaveText(
-      "Account connection couldn’t refresh. Try again.",
-      {timeout: 10_000},
-    )
-    await expect(page.locator("#account-auth-status")).toBeVisible()
+    await page.waitForTimeout(failure.settleMs)
+    await expect(page.locator("#account-auth-status")).toBeHidden()
+    await expect(page.locator("#account-auth-status")).toHaveText("")
     await expect(
       page.locator("#account-control [data-account-target='sign-out']"),
     ).toBeAttached()
