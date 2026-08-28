@@ -117,6 +117,19 @@ defmodule AshPlatform.Autolaunch.LaunchOperationTest do
   end
 
   describe "A_FRESH_READ_GATES_EVERY_DISPATCH: Base decides again before a wallet opens" do
+    test "a noncanonical treasury header invalidates before the wallet can receive a dispatch",
+         context do
+      {:ok, operation} = review(context)
+      TreasuryClient.install(canonical?: false)
+
+      assert {:ok, %{operation: invalidated}} = claim(context, operation)
+      assert invalidated.state == :invalidated
+      assert invalidated.reason == "the treasury security state changed"
+      assert invalidated.terminal_at
+      assert is_nil(invalidated.approval_transaction_hash)
+      assert {:ok, %{operation: nil}} = open(context)
+    end
+
     test "a fee that moved after the review ends it rather than handing over its bytes",
          context do
       {:ok, operation} = review(context)

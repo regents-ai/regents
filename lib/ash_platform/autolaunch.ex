@@ -361,6 +361,7 @@ defmodule AshPlatform.Autolaunch do
     |> filter_public_auctions(mode)
     |> sort_public_auctions(sort)
     |> Ash.Query.limit(limit)
+    |> Ash.Query.load(:treasury_security_report)
     |> Ash.read(opts)
   end
 
@@ -369,6 +370,7 @@ defmodule AshPlatform.Autolaunch do
     |> Ash.Query.for_read(:read)
     |> Ash.Query.sort(graduated_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
+    |> Ash.Query.load(:treasury_security_report)
     |> Ash.read(opts)
   end
 

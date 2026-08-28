@@ -423,8 +423,14 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClient do
     do: request("eth_call", [%{to: address, data: data}, block_ref(block)])
 
   defp canonical_block?(number, hash) do
-    case request("eth_getBlockByNumber", [hex(number), false]) do
-      {:ok, %{"hash" => canonical}} -> downcase(canonical) == downcase(hash)
+    with {:ok, header} when is_map(header) <-
+           request("eth_getBlockByNumber", [hex(number), false]),
+         {:ok, ^number} <- quantity(header["number"]),
+         canonical when is_binary(canonical) <- header["hash"],
+         true <- Rpc.valid_hash?(canonical),
+         true <- Rpc.valid_hash?(hash) do
+      downcase(canonical) == downcase(hash)
+    else
       _ -> false
     end
   end

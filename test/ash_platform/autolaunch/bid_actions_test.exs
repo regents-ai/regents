@@ -186,6 +186,26 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
     assert ended.terminal_at
   end
 
+  test "A_NONCANONICAL_TREASURY_HEADER_CANCELS_BEFORE_ANY_WALLET_DISPATCH", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    install()
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
+
+    AshPlatform.TestAutolaunchTreasuryChainClient.install(canonical?: false)
+
+    assert {:ok, %{operation: cancelled}} =
+             Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+
+    assert cancelled.state == :cancelled
+    assert cancelled.terminal_at
+    assert is_nil(cancelled.token_approval_transaction_hash)
+  end
+
   test "ACTIVE_WALLET_IS_THE_SIGNER: a socket with no session lease cannot prepare", %{
     auction: auction,
     wallet: wallet,

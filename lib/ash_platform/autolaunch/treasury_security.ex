@@ -10,6 +10,7 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.{TreasuryChainClient, TreasurySecurityReport}
+  alias AshPlatform.Repo
   alias AshPlatform.WalletActions.Address
 
   @chain_id 8453
@@ -23,7 +24,6 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
          {:ok, evidence} <- evidence_input(evidence),
          {:ok, observation} <- TreasuryChainClient.observe(address, evidence),
          {:ok, attrs} <- report_attrs(address, observation),
-         {:ok, attrs} <- downgrade(attrs),
          do: persist_observation(attrs)
   end
 
@@ -261,16 +261,28 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
 
   defp evidence_value(evidence, key), do: evidence[key] || evidence[to_string(key)]
 
-  defp downgrade(attrs) do
-    case Autolaunch.list_treasury_security_reports(attrs.address, actor: nil) do
-      {:ok, reports} -> {:ok, apply_downgrade(attrs, reports)}
+  defp persist_observation(attrs) do
+    Repo.transaction(fn ->
+      with :ok <- lock_address(attrs.address),
+           {:ok, reports} <-
+             Autolaunch.list_treasury_security_reports(attrs.address, actor: nil) do
+        attrs
+        |> apply_downgrade(reports)
+        |> then(&persist_or_return(reports, &1))
+      end
+    end)
+    |> case do
+      {:ok, result} -> result
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp persist_observation(attrs) do
-    with {:ok, reports} <- Autolaunch.list_treasury_security_reports(attrs.address, actor: nil) do
-      persist_or_return(reports, attrs)
+  defp lock_address(address) do
+    <<key::signed-64, _rest::binary>> = :crypto.hash(:sha256, address)
+
+    case Repo.query("SELECT pg_advisory_xact_lock($1::bigint)", [key]) do
+      {:ok, _result} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 

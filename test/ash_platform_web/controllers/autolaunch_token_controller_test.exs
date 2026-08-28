@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.AutolaunchTokenControllerTest do
 
   alias AshPlatform.Actors.System
   alias AshPlatform.Autolaunch
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
 
   defmodule RecordingAutolaunch do
     def list_public_tokens(limit, actor: nil) do
@@ -59,6 +60,46 @@ defmodule AshPlatformWeb.AutolaunchTokenControllerTest do
              "top_rank" => 1,
              "treasury_security" => nil
            }
+  end
+
+  test "GET loads a token's auction-bound report as the same fail-closed projection", %{
+    conn: conn
+  } do
+    report =
+      TreasuryClient.seed_verified!("0x9999999999999999999999999999999999999999")
+
+    auction = auction!()
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: %System{})
+
+    token =
+      Autolaunch.import_token!(
+        auction.id,
+        "Bound Token",
+        "BOUND",
+        nil,
+        DateTime.utc_now(),
+        nil,
+        actor: %System{}
+      )
+
+    assert %{"data" => tokens} =
+             conn |> get("/api/autolaunch/v1/tokens") |> json_response(200)
+
+    listed_token = Enum.find(tokens, &(&1["id"] == token.id))
+
+    assert %{"data" => auction_detail} =
+             conn
+             |> get("/api/autolaunch/v1/auctions/#{auction.id}")
+             |> json_response(200)
+
+    assert listed_token["treasury_security"] == auction_detail["treasury_security"]
+    assert listed_token["treasury_security"]["id"] == report.id
+
+    assert listed_token["treasury_security"]["verification_state"] ==
+             "awaiting_current_chain_confirmation"
+
+    assert listed_token["treasury_security"]["verification_reason"] ==
+             "projector_refresh_not_integrated"
   end
 
   test "GET clamps both limit edges and rejects undocumented or invalid query values", %{

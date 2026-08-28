@@ -44,10 +44,11 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       do: %{"number" => "0x30", "hash" => state().safe_hash}
 
     defp rpc_response("eth_getBlockByNumber", [number, false]),
-      do: %{
-        "number" => Map.get(state().header_numbers, number, number),
-        "hash" => block_hash(number)
-      }
+      do:
+        Map.get(state().headers, number, %{
+          "number" => Map.get(state().header_numbers, number, number),
+          "hash" => block_hash(number)
+        })
 
     defp rpc_response("eth_getCode", [address, block]) do
       same_block!(block)
@@ -144,6 +145,30 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
     )
 
     refute TreasuryChainClient.canonical?(0x20, @safe_hash)
+  end
+
+  test "PRODUCTION_CANONICAL_RECHECK_REQUIRES_THE_EXACT_BOUND_HEADER_IDENTITY" do
+    mutations = [
+      non_map: nil,
+      missing_number: %{"hash" => @safe_hash},
+      wrong_number: %{"number" => "0x31", "hash" => @safe_hash},
+      malformed_number: %{"number" => "30", "hash" => @safe_hash},
+      noncanonical_number: %{"number" => "0x030", "hash" => @safe_hash},
+      missing_hash: %{"number" => "0x30"},
+      short_hash: %{"number" => "0x30", "hash" => "0x12"},
+      nonhex_hash: %{"number" => "0x30", "hash" => "0x" <> String.duplicate("zz", 32)},
+      wrong_hash: %{"number" => "0x30", "hash" => "0x" <> String.duplicate("cc", 32)}
+    ]
+
+    production_client(production_fixture())
+    assert TreasuryChainClient.canonical?(0x30, @safe_hash)
+
+    for {name, header} <- mutations do
+      production_client(put_in(production_fixture().headers["0x30"], header))
+
+      refute TreasuryChainClient.canonical?(0x30, @safe_hash),
+             "expected #{name} bound header identity to fail closed"
+    end
   end
 
   test "PRODUCTION_DECODES_THE_PINNED_SAFE_WITH_ZERO_OPTIONAL_SLOTS_AND_RECEIPT_EVIDENCE" do
@@ -346,6 +371,7 @@ defmodule AshPlatform.Autolaunch.TreasuryChainClientTest do
       address: @address,
       safe_hash: safe_hash,
       blocks: blocks,
+      headers: %{},
       header_numbers: %{},
       codes: %{
         @address => runtime_code,

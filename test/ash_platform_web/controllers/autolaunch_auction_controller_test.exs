@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.AutolaunchAuctionControllerTest do
 
   alias AshPlatform.Actors.System
   alias AshPlatform.Autolaunch
+  alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
 
   defmodule RecordingAutolaunch do
     def list_public_auctions(mode, sort, limit, actor: nil) do
@@ -90,6 +91,34 @@ defmodule AshPlatformWeb.AutolaunchAuctionControllerTest do
              |> json_response(200)
 
     assert detail == newest
+  end
+
+  test "GET list and detail load the same fail-closed treasury projection", %{conn: conn} do
+    report =
+      TreasuryClient.seed_verified!("0x9999999999999999999999999999999999999999")
+
+    auction = auction!("Bound treasury", :active, DateTime.utc_now())
+
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: %System{})
+
+    assert %{"data" => auctions} =
+             conn |> get("/api/autolaunch/v1/auctions") |> json_response(200)
+
+    listed = Enum.find(auctions, &(&1["id"] == auction.id))
+
+    assert %{"data" => detailed} =
+             conn
+             |> get("/api/autolaunch/v1/auctions/#{auction.id}")
+             |> json_response(200)
+
+    assert listed["treasury_security"] == detailed["treasury_security"]
+    assert listed["treasury_security"]["id"] == report.id
+
+    assert listed["treasury_security"]["verification_state"] ==
+             "awaiting_current_chain_confirmation"
+
+    assert listed["treasury_security"]["verification_reason"] ==
+             "projector_refresh_not_integrated"
   end
 
   test "GET clamps both limit edges and rejects undocumented or invalid query values", %{
