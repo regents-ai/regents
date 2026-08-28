@@ -7,12 +7,16 @@ import {
   consumeSignOutHandoff,
   installAccountAuthLazyLoader,
   proveAnonymousSession,
+  reloadDocumentOnce,
   showAccountAuthFailure,
   writeSignOutHandoff,
   type AccountRequest,
   type PrivyBridgeModule,
 } from "../js/auth_lazy"
-import {createAccountRequestHandler} from "../js/privy_bridge"
+import {
+  createAccountRequestHandler,
+  createProviderSessionReconciler,
+} from "../js/privy_bridge"
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -503,6 +507,50 @@ describe("lazy browser authentication", () => {
     expect(clearSession).toHaveBeenCalledOnce()
     expect(reload).toHaveBeenCalledOnce()
     expect(importer).not.toHaveBeenCalled()
+  })
+
+  it("reloads once when provider reconciliation and explicit sign out share a held deletion", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument({signedIn: true})
+    const storage = memoryStorage()
+    const reload = vi.fn()
+    let releaseDeletion: (() => void) | undefined
+    const clearSession = vi.fn(
+      () => new Promise<void>(resolve => (releaseDeletion = resolve)),
+    )
+    const sessionMutations = createSessionMutationCoordinator()
+    const coordinatedSignOut = vi.spyOn(sessionMutations, "signOut")
+    const reconcile = createProviderSessionReconciler({
+      clearSession: () => sessionMutations.signOut(clearSession),
+      providerAuthenticated: () => false,
+      reload: () => reloadDocumentOnce(page.documentRoot, reload),
+      signedIn: () => true,
+    })
+    const importer = vi.fn(async () => ({
+      startPrivyBridge: vi.fn(async () => ({
+        request: async (request: AccountRequest) => {
+          if (request === "sync") await reconcile()
+        },
+      })),
+    }))
+
+    installAccountAuthLazyLoader(page.documentRoot, importer, {
+      clearSession,
+      handoffStorage: storage,
+      reload,
+      sessionMutations,
+    })
+    await vi.waitFor(() => expect(clearSession).toHaveBeenCalledOnce())
+
+    page.click("sign-out")
+    await vi.waitFor(() => expect(coordinatedSignOut).toHaveBeenCalledTimes(2))
+    expect(clearSession).toHaveBeenCalledOnce()
+    expect(reload).not.toHaveBeenCalled()
+
+    releaseDeletion?.()
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    expect(storage.setItem).toHaveBeenCalledOnce()
+    expect(clearSession).toHaveBeenCalledOnce()
   })
 
   it.each(["unavailable", "throwing", "unconfirmed"] as const)(

@@ -45,8 +45,15 @@ const defaultSignedInStartupTimeoutMs = 5_000
 const signOutHandoffKey = "regent:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
+const reloadedDocuments = new WeakSet<Document>()
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
+
+export function reloadDocumentOnce(documentRoot: Document, reload: () => void): void {
+  if (reloadedDocuments.has(documentRoot)) return
+  reloadedDocuments.add(documentRoot)
+  reload()
+}
 
 export const sessionLifecycles = [
   "session_superseded",
@@ -728,7 +735,7 @@ export function installAccountAuthLazyLoader(
         return
       }
       clearStatus()
-      reload()
+      reloadDocumentOnce(documentRoot, reload)
     })()
 
     signOutInFlight = attempt

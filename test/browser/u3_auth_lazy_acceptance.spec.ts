@@ -17,6 +17,10 @@ const retryViewports = [
   {name: "narrow", width: 320, height: 720},
 ] as const
 
+function pageUrl(page: import("@playwright/test").Page, path: string): string {
+  return new URL(path, page.url()).href
+}
+
 async function expectStatusAnchored(
   page: import("@playwright/test").Page,
   headerHeight: number,
@@ -202,9 +206,13 @@ test("the deferred Privy bridge is served as JavaScript", async ({request}) => {
   expect(response.headers()["content-type"]).toContain("javascript")
 })
 
-test("a production-like digested bridge source remains same-origin and callable", async ({page}) => {
+test("a production-like digested bridge source remains same-origin and callable", async ({
+  page,
+  baseURL,
+}) => {
   const digest = "0123456789abcdef0123456789abcdef"
-  await page.route("http://127.0.0.1:4002/app", async route => {
+  if (!baseURL) throw new Error("Playwright base URL is unavailable")
+  await page.route(new URL("/app", baseURL).href, async route => {
     const response = await route.fetch()
     const body = (await response.text()).replace(
       "/assets/js/privy_bridge.js",
@@ -348,7 +356,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
 
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)
-  expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
+  expect(documentRequests).toEqual([pageUrl(page, "/app")])
   // Remaining signed in is not a session event: startup reaches the session
   // endpoint not at all, so the signed cookie and the token the page was
   // rendered with are the ones it still holds afterwards.
@@ -379,7 +387,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
     window.dispatchEvent(new CustomEvent("ash:identity-state", {detail: {error: null}}))
   })
   await expect(page.getByText("Verified connections updated.")).toBeVisible()
-  expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
+  expect(documentRequests).toEqual([pageUrl(page, "/app")])
   expect((await page.request.get("/auth/session")).status()).toBe(200)
 })
 
@@ -534,7 +542,7 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   const sessionAfterProtectedAction = await page.request.get("/auth/session")
   expect((await sessionAfterProtectedAction.json()).authenticated).toBe(false)
   await expect(page.locator("#autolaunch-create")).toContainText("Sign in to prepare your launch.")
-  expect(documentRequests).toEqual(["http://127.0.0.1:4002/autolaunch/create"])
+  expect(documentRequests).toEqual([pageUrl(page, "/autolaunch/create")])
 })
 
 test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
@@ -763,7 +771,7 @@ for (const failure of [
     const finalSession = await page.request.get("/auth/session")
     expect((await finalSession.json()).authenticated).toBe(true)
     expect(sessionDeletes).toBe(0)
-    expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
+    expect(documentRequests).toEqual([pageUrl(page, "/app")])
   })
 }
 

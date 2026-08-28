@@ -21,6 +21,7 @@ import {
   clearLocalSession,
   csrfToken,
   recoverOnce,
+  reloadDocumentOnce,
   sessionLifecycleError,
   showAccountAuthFailure,
   type AccountRequest,
@@ -590,7 +591,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       createProviderSessionReconciler({
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
         providerAuthenticated: () => authenticated,
-        reload: () => window.location.reload(),
+        reload: () => reloadDocumentOnce(document, () => window.location.reload()),
         signedIn: showsSignOutControl,
       }),
     [authenticated],
