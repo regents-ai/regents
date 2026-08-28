@@ -82,6 +82,7 @@ defmodule AshPlatform.Staking.RpcClient do
        wallet_token_balance: nil,
        wallet_usdc_balance_raw: nil,
        wallet_usdc_balance: nil,
+       wallet_stake_allowance_raw: nil,
        wallet_stake_balance_raw: nil,
        wallet_stake_balance: nil,
        wallet_claimable_usdc_raw: nil,
@@ -98,6 +99,13 @@ defmodule AshPlatform.Staking.RpcClient do
 
     with {:ok, token_balance} <- balance_of(stake_token, wallet, block),
          {:ok, usdc_balance} <- balance_of(usdc, wallet, block),
+         {:ok, stake_allowance} <-
+           Rpc.call_uint(
+             stake_token,
+             Abi.encode_erc20("allowance", [wallet, Abi.staking_address()]),
+             block,
+             @rpc_opts
+           ),
          {:ok, staked} <- read_uint("staked_balance", [wallet], block),
          {:ok, claimable_usdc} <- read_uint("claimable_usdc", [wallet], block),
          {:ok, claimable_regent} <- read_uint("claimable_regent", [wallet], block),
@@ -109,6 +117,7 @@ defmodule AshPlatform.Staking.RpcClient do
          wallet_token_balance: Rpc.format_units(token_balance, 18),
          wallet_usdc_balance_raw: Integer.to_string(usdc_balance),
          wallet_usdc_balance: Rpc.format_units(usdc_balance, 6),
+         wallet_stake_allowance_raw: Integer.to_string(stake_allowance),
          wallet_stake_balance_raw: Integer.to_string(staked),
          wallet_stake_balance: Rpc.format_units(staked, 18),
          wallet_claimable_usdc_raw: Integer.to_string(claimable_usdc),

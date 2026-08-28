@@ -5,7 +5,7 @@ const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
 const sendsKey = "regent:test:staking-wallet-sends"
 
-test("Stake hands each click directly to the active Base wallet", async ({page}) => {
+test("Stake hands each click directly to the active Base wallet and presents FIFO results", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-staking")
   await installWallet(page)
   await auth.establishLocalSession()
@@ -38,6 +38,43 @@ test("Stake hands each click directly to the active Base wallet", async ({page})
 
   await page.getByRole("button", {name: "Claim USDC", exact: true}).click()
   await expect.poll(() => sendCount(page)).toBe(5)
+
+  const dialog = page.getByRole("dialog", {name: "Staking result"})
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText("REGENT approval succeeded on Base.")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${expectedHash(1)}`,
+  )
+
+  await page.keyboard.press("Escape")
+  await expect(dialog.getByText("Stake succeeded on Base.")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${expectedHash(2)}`,
+  )
+
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog.getByText("REGENT approval succeeded on Base.")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${expectedHash(3)}`,
+  )
+
+  await page.mouse.click(1, 1)
+  await expect(dialog.getByText("Stake succeeded on Base.")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${expectedHash(4)}`,
+  )
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog.getByText("USDC claim succeeded on Base.")).toBeVisible()
+  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+    "href",
+    `https://basescan.org/tx/${expectedHash(5)}`,
+  )
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog).toBeHidden()
 
   await expect(page.locator(".stake-review, .stake-submission")).toHaveCount(0)
   await expect(page.getByText(/transaction hash|Confirmed on Base|Retry/i)).toHaveCount(0)
@@ -96,7 +133,7 @@ async function installWallet(page: Page): Promise<void> {
       ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
         address: wallet,
         provider: {
-          request: async ({method}: {method: string}) => {
+          request: async ({method, params}: {method: string; params?: unknown[]}) => {
             switch (method) {
               case "eth_chainId":
                 return "0x2105"
@@ -111,7 +148,62 @@ async function installWallet(page: Page): Promise<void> {
               case "eth_sendTransaction": {
                 const next = Number(sessionStorage.getItem(sendsKey) ?? "0") + 1
                 sessionStorage.setItem(sendsKey, String(next))
-                return `0x${next.toString(16).padStart(64, "0")}`
+                const hash = `0x${next.toString(16).padStart(64, "0")}`
+                const transactions = ((window as Window & {
+                  __ashStakingTransactions?: Record<string, unknown>
+                }).__ashStakingTransactions ??= {})
+                transactions[hash] = params?.[0]
+                return hash
+              }
+              case "eth_getTransactionByHash": {
+                const hash = params?.[0] as string
+                const transaction = (window as Window & {
+                  __ashStakingTransactions?: Record<string, {
+                    from: string
+                    to: string
+                    data: string
+                    value: string
+                  }>
+                }).__ashStakingTransactions?.[hash]
+                if (!transaction) return null
+                return {
+                  hash,
+                  from: transaction.from,
+                  to: transaction.to,
+                  input: transaction.data,
+                  value: transaction.value,
+                  blockHash: `0x${"cd".repeat(32)}`,
+                  blockNumber: "0x10",
+                }
+              }
+              case "eth_getTransactionReceipt": {
+                const hash = params?.[0] as string
+                const transaction = (window as Window & {
+                  __ashStakingTransactions?: Record<string, {
+                    from: string
+                    to: string
+                  }>
+                }).__ashStakingTransactions?.[hash]
+                if (!transaction) return null
+                return {
+                  transactionHash: hash,
+                  from: transaction.from,
+                  to: transaction.to,
+                  status: "0x1",
+                  blockHash: `0x${"cd".repeat(32)}`,
+                  blockNumber: "0x10",
+                }
+              }
+              case "eth_getBlockByHash": {
+                const transactions = Object.keys(
+                  (window as Window & {__ashStakingTransactions?: Record<string, unknown>})
+                    .__ashStakingTransactions ?? {},
+                )
+                return {
+                  hash: `0x${"cd".repeat(32)}`,
+                  number: "0x10",
+                  transactions,
+                }
               }
               default:
                 throw new Error(`Unexpected wallet RPC ${method}`)
@@ -122,6 +214,10 @@ async function installWallet(page: Page): Promise<void> {
     },
     {wallet, sendsKey},
   )
+}
+
+function expectedHash(index: number): string {
+  return `0x${index.toString(16).padStart(64, "0")}`
 }
 
 async function sendCount(page: Page): Promise<number> {

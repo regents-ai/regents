@@ -53,45 +53,37 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ "5 REGENT"
   end
 
-  test "DIRECT_STAKE: one click pushes one fresh envelope and never renders lifecycle state", %{
+  test "DIRECT_STAKE: canonical browser data renders without a server preparation event", %{
     conn: conn
   } do
     view = conn |> signed_in("stake-direct") |> activate(@wallet)
     set_amount(view, "1")
 
-    view |> element(~s(button[phx-value-action="stake"])) |> render_click()
-    assert_push_event(view, "staking:wallet-action", %{envelope: first})
-    assert first.action == "stake"
-    assert first.expected_signer == @wallet
+    assert has_element?(
+             view,
+             ~s(#regent-staking[data-staking-chain-id="8453"][data-staking-signer="#{@wallet}"][data-staking-allowance="0"])
+           )
+
+    assert has_element?(view, "#regent-staking > #staking-result-dialog[phx-update=ignore]")
+    assert has_element?(view, ~s(button[data-staking-action="stake"]))
+    refute has_element?(view, "[phx-click=prepare_staking]")
+    refute_push_event(view, "staking:wallet-action", _)
 
     html = render(view)
 
     for retired <- ["Review before signing", "Submitted transaction", "transaction hash", "Retry"] do
       refute html =~ retired
     end
-
-    view |> element(~s(button[phx-value-action="stake"])) |> render_click()
-    assert_push_event(view, "staking:wallet-action", %{envelope: second})
-    refute first.action_id == second.action_id
   end
 
-  test "ALLOWANCE_ENVELOPE: sufficient and insufficient Base allowances shape only the request",
+  test "ALLOWANCE_SNAPSHOT: the rendered routing hint is read-only browser data",
        %{
          conn: conn
        } do
     view = conn |> signed_in("stake-allowance") |> activate(@wallet)
-    set_amount(view, "1")
 
-    Application.put_env(:ash_platform, :test_staking_allowance, 1_000_000_000_000_000_000)
-    view |> element(~s(button[phx-value-action="stake"])) |> render_click()
-    assert_push_event(view, "staking:wallet-action", %{envelope: %{approval: nil}})
-
-    Application.put_env(:ash_platform, :test_staking_allowance, 0)
-    view |> element(~s(button[phx-value-action="stake"])) |> render_click()
-
-    assert_push_event(view, "staking:wallet-action", %{
-      envelope: %{approval: %{mode: "exact", amount: "1000000000000000000"}}
-    })
+    assert has_element?(view, ~s(#regent-staking[data-staking-allowance="0"]))
+    refute_push_event(view, "staking:wallet-action", _)
   end
 
   test "EXACT_LABELS: all eligible direct actions use the specified control copy", %{conn: conn} do
@@ -102,7 +94,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end
   end
 
-  test "AMOUNT_LIMITS: Max follows current capacity and invalid amounts stay disabled", %{
+  test "AMOUNT_LIMITS: Max follows current capacity without becoming a send-time lock", %{
     conn: conn
   } do
     Application.put_env(:ash_platform, :test_staking_denominator, "105000000000000000000")
@@ -113,7 +105,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     set_amount(view, "5.000000000000000001")
     assert render(view) =~ "more REGENT than the staking contract can still take"
-    assert has_element?(view, ~s(button[phx-value-action="stake"][disabled]))
+    refute has_element?(view, ~s(button[data-staking-action="stake"][disabled]))
   end
 
   test "REFRESH_ONLY: refreshing rereads Base without any wallet request", %{conn: conn} do

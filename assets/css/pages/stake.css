@@ -202,6 +202,39 @@
   font-family: var(--font-family-mono);
 }
 
+.stake-result-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
+  box-shadow: var(--material-shadow);
+  padding: clamp(1rem, 4vw, 1.5rem);
+}
+
+.stake-result-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.stake-result-dialog h2,
+.stake-result-dialog p {
+  margin-block: 0 1rem;
+}
+
+.stake-result-dialog a {
+  display: inline-block;
+  margin-block-end: 1rem;
+}
+
+.stake-result-dialog a[hidden] {
+  display: none;
+}
+
+.stake-result-dialog form {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .stake-actions button:not(:disabled):hover {
     border-color: var(--color-accent);

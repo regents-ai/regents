@@ -580,26 +580,6 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("staking_amount_changed", %{"amount" => amount}, socket),
     do: {:noreply, assign(socket, staking_amount: amount, staking_notice: nil)}
 
-  def handle_event("prepare_staking", params, socket) do
-    case prepare_staking(
-           params["action"],
-           params["amount"] || socket.assigns.staking_amount,
-           socket
-         ) do
-      {:ok, envelope} ->
-        {:noreply,
-         socket
-         |> assign(staking_notice: nil)
-         |> push_event("staking:wallet-action", %{envelope: envelope})}
-
-      {:error, reason} ->
-        {:noreply,
-         assign(socket,
-           staking_notice: %{tone: :error, message: staking_preparation_error(refusal(reason))}
-         )}
-    end
-  end
-
   def handle_event("refresh_staking", _params, socket),
     do: {:noreply, start_staking_read(socket, socket.assigns.content_generation)}
 
@@ -1831,20 +1811,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp authenticated?(%{principal: {:human, _}}), do: true
   defp authenticated?(_), do: false
-
-  defp prepare_staking(action, amount, socket) do
-    opts = wallet_opts(socket)
-    wallet = socket.assigns.staking_wallet
-
-    case action do
-      "stake" -> Staking.prepare_stake(wallet, amount, opts)
-      "unstake" -> Staking.prepare_unstake(wallet, amount, opts)
-      "claim_usdc" -> Staking.prepare_claim_usdc(wallet, opts)
-      "claim_regent" -> Staking.prepare_claim_regent(wallet, opts)
-      "claim_and_restake_regent" -> Staking.prepare_claim_and_restake_regent(wallet, opts)
-      _ -> {:error, :unknown_action}
-    end
-  end
 
   defp adopt_staking_wallet(socket, wallet),
     do:

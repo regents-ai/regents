@@ -20,10 +20,11 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert snapshot.block_number == 0x20
     assert snapshot.block_hash == Stub.safe_hash()
     assert snapshot.wallet_address == @wallet
+    assert snapshot.wallet_stake_allowance_raw == "0"
     assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
 
     blocks = Stub.call_blocks()
-    assert Enum.count_until(blocks, 8) == 8
+    assert Enum.count_until(blocks, 9) == 9
     assert Enum.uniq(blocks) == [%{blockHash: Stub.safe_hash(), requireCanonical: true}]
   end
 

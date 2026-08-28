@@ -17,12 +17,33 @@ defmodule AshPlatformWeb.StakeLive do
 
   def page(assigns) do
     ~H"""
-    <section id="regent-staking" phx-hook="StakeWallet" class="stake-page">
+    <section
+      id="regent-staking"
+      phx-hook="StakeWallet"
+      class="stake-page"
+      data-staking-chain-id={@staking && @staking.chain_id}
+      data-staking-signer={@wallet}
+      data-staking-allowance={stake_allowance(@staking)}
+    >
       <header class="stake-heading">
         <p class="stake-kicker">Regents Labs · Base</p>
-        <h1>Stake REGENT</h1>
+        <h1 id="staking-page-heading" tabindex="-1">Stake REGENT</h1>
         <p>Stake $REGENT. Receive revenue tokens equal to your staked percentage.</p>
       </header>
+
+      <dialog
+        id="staking-result-dialog"
+        class="stake-result-dialog"
+        aria-labelledby="staking-result-heading"
+        phx-update="ignore"
+      >
+        <h2 id="staking-result-heading">Staking result</h2>
+        <p data-staking-result-text></p>
+        <a data-staking-result-link hidden rel="noopener noreferrer"></a>
+        <form method="dialog">
+          <button type="submit" value="close">Close</button>
+        </form>
+      </dialog>
 
       <div :if={@status == :loading} class="stake-status" aria-busy="true">
         Loading staking details…
@@ -122,28 +143,23 @@ defmodule AshPlatformWeb.StakeLive do
             <button
               class="stake-primary"
               type="button"
-              phx-click="prepare_staking"
-              phx-value-action={@action}
-              disabled={String.trim(@amount) == "" or not is_nil(@amount_notice)}
+              data-staking-action={@action}
             >{mode_label(@action)}</button>
           </form>
           <div class="stake-button-row">
             <button
               type="button"
-              phx-click="prepare_staking"
-              phx-value-action="claim_usdc"
+              data-staking-action="claim_usdc"
               disabled={"claim_usdc" not in @available_claims}
             >Claim USDC</button>
             <button
               type="button"
-              phx-click="prepare_staking"
-              phx-value-action="claim_regent"
+              data-staking-action="claim_regent"
               disabled={"claim_regent" not in @available_claims}
             >Claim REGENT</button>
             <button
               type="button"
-              phx-click="prepare_staking"
-              phx-value-action="claim_and_restake_regent"
+              data-staking-action="claim_and_restake_regent"
               disabled={"claim_and_restake_regent" not in @available_claims}
             >Claim and restake</button>
           </div>
@@ -176,6 +192,11 @@ defmodule AshPlatformWeb.StakeLive do
       |> Decimal.div(Decimal.new(Integer.pow(10, 18)))
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
+
+  defp stake_allowance(staking) when is_map(staking),
+    do: Map.get(staking, :wallet_stake_allowance_raw, "0")
+
+  defp stake_allowance(_staking), do: nil
 
   attr :label, :string, required: true
   attr :amount, :string, default: nil

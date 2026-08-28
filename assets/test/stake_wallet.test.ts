@@ -1,21 +1,22 @@
-import {describe, expect, it, vi} from "vitest"
-import {
-  encodeFunctionData,
-  getAddress,
-  parseAbi,
-  type Abi,
-  type Address,
-  type Hash,
-  type Hex,
-} from "viem"
+import {afterEach, describe, expect, it, vi} from "vitest"
+import {encodeFunctionData, getAddress, parseAbi, type Abi, type Address, type Hex} from "viem"
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import stakingAbiJson from "../../contracts/abi/regent-revenue-staking.json"
+import type {EthereumProvider, SelectedWallet} from "../js/wallet_actions/connected_wallet"
 import {
-  executePreparedStakingAction,
-  type PreparedStakingAction,
+  executeStakingClick,
+  observeStakingTransaction,
+  prepareStakingClick,
+  StakingLocalRefusal,
+  type ImmediateStakingResult,
+  type ObservedStakingResult,
+  type PreparedStakingClick,
   type StakingAction,
-  type StakingClients,
+  type StakingExecutionCallbacks,
+  type StakingRuntime,
+  type StakingTiming,
+  type SubmittedStakingTransaction,
 } from "../js/wallet_actions/staking"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
@@ -25,21 +26,96 @@ const token = getAddress(
   chainManifest.contracts.regent_revenue_staking.onchain_constants.stake_token,
 )
 const stakingAbi = stakingAbiJson as Abi
+const approvalAbi = parseAbi(["function approve(address spender,uint256 amount)"])
 const amount = 1_500_000_000_000_000_000n
-const hash = `0x${"ab".repeat(32)}` as Hash
-const provider = {request: vi.fn(async () => undefined)}
-const otherProvider = {request: vi.fn(async () => undefined)}
-const selected = () => ({address: wallet, provider})
+const hash = `0x${"ab".repeat(32)}` as const
+const blockHash = `0x${"cd".repeat(32)}` as const
 
-const actionCases: Array<{
-  action: StakingAction
-  arguments: PreparedStakingAction["arguments"]
-  data: Hex
-}> = [
+type ProviderRequest = {method: string; params?: unknown[]}
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+function fakeProvider(
+  handler: (request: ProviderRequest) => unknown | Promise<unknown>,
+): {provider: EthereumProvider; requests: ProviderRequest[]} {
+  const requests: ProviderRequest[] = []
+  return {
+    requests,
+    provider: {
+      request: async request => {
+        requests.push(request)
+        return handler(request)
+      },
+    },
+  }
+}
+
+function rendered(
+  action: StakingAction,
+  overrides: Partial<{
+    amount: string
+    allowanceAtomic: string
+    chainId: string
+    expectedSigner: string
+  }> = {},
+) {
+  return {
+    action,
+    amount: "1.5",
+    allowanceAtomic: amount.toString(),
+    chainId: "8453",
+    expectedSigner: wallet,
+    ...overrides,
+  }
+}
+
+function prepare(
+  action: StakingAction,
+  walletSelection: SelectedWallet,
+  overrides: Parameters<typeof rendered>[1] = {},
+  actionId = crypto.randomUUID(),
+): PreparedStakingClick {
+  return prepareStakingClick(rendered(action, overrides), walletSelection, {
+    actionId,
+    traceId: crypto.randomUUID(),
+  })
+}
+
+function liveRuntime(): StakingRuntime {
+  return {alive: () => true, registerCancellation: () => () => undefined}
+}
+
+function callbackRecorder() {
+  const claims = new Set<string>()
+  const timing: StakingTiming[] = []
+  const immediate: ImmediateStakingResult[] = []
+  const submitted: SubmittedStakingTransaction[] = []
+  const started: string[] = []
+  const callbacks: StakingExecutionCallbacks = {
+    claimRole: (actionId, role) => {
+      const key = `${actionId}:${role}`
+      if (claims.has(key)) return false
+      claims.add(key)
+      return true
+    },
+    timing: event => timing.push(event),
+    walletRequestStarted: (actionId, role) => started.push(`${actionId}:${role}`),
+    immediate: result => immediate.push(result),
+    submitted: transaction => submitted.push(transaction),
+  }
+  return {callbacks, timing, immediate, submitted, started}
+}
+
+function selected(provider: EthereumProvider, address: Address = wallet): SelectedWallet {
+  return {address, provider}
+}
+
+const actionCases: Array<{action: StakingAction; expectedData: Hex}> = [
   {
     action: "stake",
-    arguments: {amount_atomic: amount.toString(), receiver: wallet},
-    data: encodeFunctionData({
+    expectedData: encodeFunctionData({
       abi: stakingAbi,
       functionName: "stake",
       args: [amount, wallet],
@@ -47,8 +123,7 @@ const actionCases: Array<{
   },
   {
     action: "unstake",
-    arguments: {amount_atomic: amount.toString(), recipient: wallet},
-    data: encodeFunctionData({
+    expectedData: encodeFunctionData({
       abi: stakingAbi,
       functionName: "unstake",
       args: [amount, wallet],
@@ -56,223 +131,423 @@ const actionCases: Array<{
   },
   {
     action: "claim_usdc",
-    arguments: {recipient: wallet},
-    data: encodeFunctionData({abi: stakingAbi, functionName: "claimUSDC", args: [wallet]}),
+    expectedData: encodeFunctionData({abi: stakingAbi, functionName: "claimUSDC", args: [wallet]}),
   },
   {
     action: "claim_regent",
-    arguments: {recipient: wallet},
-    data: encodeFunctionData({abi: stakingAbi, functionName: "claimRegent", args: [wallet]}),
+    expectedData: encodeFunctionData({abi: stakingAbi, functionName: "claimRegent", args: [wallet]}),
   },
   {
     action: "claim_and_restake_regent",
-    arguments: {},
-    data: encodeFunctionData({abi: stakingAbi, functionName: "claimAndRestakeRegent"}),
+    expectedData: encodeFunctionData({abi: stakingAbi, functionName: "claimAndRestakeRegent"}),
   },
 ]
 
-function envelope(action: StakingAction = "stake", withApproval = false): PreparedStakingAction {
-  const shape = actionCases.find(candidate => candidate.action === action)!
-  const actionId = crypto.randomUUID()
-  const approvalData = encodeFunctionData({
-    abi: parseAbi(["function approve(address spender,uint256 amount)"]),
-    functionName: "approve",
-    args: [staking, amount],
+describe("local transaction construction", () => {
+  it.each(actionCases)("encodes exact $action calldata with zero native value", ({action, expectedData}) => {
+    const {provider, requests} = fakeProvider(() => undefined)
+    const click = prepare(action, selected(provider))
+
+    expect(click.transaction).toEqual({from: wallet, to: staking, data: expectedData, value: "0x0"})
+    expect(requests).toEqual([])
   })
 
-  return {
-    action_id: actionId,
-    idempotency_key: actionId,
-    confirmation_token: "signed",
-    resource: "regent_staking",
-    action,
-    chain_id: 8453,
-    to: staking,
-    value: "0",
-    data: shape.data,
-    expected_signer: wallet,
-    prepared_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
-    risk_copy: "Stake",
-    arguments: {...shape.arguments},
-    approval: withApproval
-      ? {
-          token,
-          spender: staking,
-          amount: amount.toString(),
-          data: approvalData,
-          mode: "exact",
-        }
-      : null,
-  }
-}
+  it("uses the rendered allowance only to route an exact approval", () => {
+    const {provider} = fakeProvider(() => undefined)
+    const click = prepare("stake", selected(provider), {allowanceAtomic: "0"})
 
-function clients(overrides: Partial<StakingClients> = {}): StakingClients {
-  return {
-    addresses: vi.fn(async () => [wallet]),
-    chainId: vi.fn(async () => 8453),
-    switchToBase: vi.fn(async () => undefined),
-    allowance: vi.fn(async () => amount),
-    simulate: vi.fn(async () => undefined),
-    send: vi.fn(async () => hash),
-    ...overrides,
-  }
-}
-
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  const promise = new Promise<T>(done => (resolve = done))
-  return {promise, resolve}
-}
-
-describe("all five direct staking calldata shapes", () => {
-  it.each(actionCases)("sends exact $action bytes with zero value", async ({action, data}) => {
-    const rpc = clients()
-
-    await executePreparedStakingAction(envelope(action), provider, rpc, selected)
-
-    expect(rpc.send).toHaveBeenCalledOnce()
-    expect(rpc.send).toHaveBeenCalledWith({account: wallet, to: staking, data, value: 0n})
-  })
-})
-
-describe("Stake approval remains two independent wallet prompts", () => {
-  it("asks for exact approval then Stake without a receipt or allowance reread", async () => {
-    const rpc = clients({allowance: vi.fn(async () => 0n)})
-
-    await executePreparedStakingAction(envelope("stake", true), provider, rpc, selected)
-
-    expect(rpc.send).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(rpc.send).mock.calls.map(([request]) => request.to)).toEqual([token, staking])
-    expect(rpc.allowance).toHaveBeenCalledOnce()
+    expect(click.approval).toEqual({
+      from: wallet,
+      to: token,
+      data: encodeFunctionData({
+        abi: approvalAbi,
+        functionName: "approve",
+        args: [staking, amount],
+      }),
+      value: "0x0",
+    })
   })
 
   it.each([
-    ["missing", (prepared: PreparedStakingAction): void => void (prepared.approval = null)],
-    [
-      "token",
-      (prepared: PreparedStakingAction): void => void (prepared.approval!.token = otherWallet),
-    ],
-    [
-      "spender",
-      (prepared: PreparedStakingAction): void => void (prepared.approval!.spender = otherWallet),
-    ],
-    ["amount", (prepared: PreparedStakingAction): void => void (prepared.approval!.amount = "1")],
-    [
-      "calldata",
-      (prepared: PreparedStakingAction): void =>
-        void (prepared.approval!.data = "0xdeadbeef"),
-    ],
-    [
-      "mode",
-      (prepared: PreparedStakingAction): void =>
-        void (prepared.approval!.mode = "other" as "exact"),
-    ],
-  ] as const)("refuses malformed approval $0 before send", async (_name, mutate) => {
-    const prepared = envelope("stake", true)
-    mutate(prepared)
-    const rpc = clients({allowance: vi.fn(async () => 0n)})
+    "",
+    "0",
+    "0.0",
+    "+1",
+    "-1",
+    "1e3",
+    "1,000",
+    "NaN",
+    "Infinity",
+    "1.0000000000000000001",
+    (1n << 256n).toString(),
+  ])("refuses invalid amount %s before any provider request", invalid => {
+    const {provider, requests} = fakeProvider(() => undefined)
 
-    await expect(
-      executePreparedStakingAction(prepared, provider, rpc, selected),
-    ).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-})
-
-describe("staking drift fails before a wallet prompt", () => {
-  it.each([
-    [
-      "expired envelope",
-      (prepared: PreparedStakingAction): void =>
-        void (prepared.expires_at = new Date(Date.now() - 1_000).toISOString()),
-    ],
-    ["target", (prepared: PreparedStakingAction): void => void (prepared.to = otherWallet)],
-    [
-      "native value",
-      (prepared: PreparedStakingAction): void => void (prepared.value = "1" as "0"),
-    ],
-    [
-      "signer",
-      (prepared: PreparedStakingAction): void => void (prepared.expected_signer = otherWallet),
-    ],
-    [
-      "recipient",
-      (prepared: PreparedStakingAction): void =>
-        void (prepared.arguments.receiver = otherWallet),
-    ],
-    [
-      "calldata",
-      (prepared: PreparedStakingAction): void => void (prepared.data = "0xdeadbeef"),
-    ],
-  ] as const)("refuses changed $0", async (_name, mutate) => {
-    const prepared = envelope()
-    mutate(prepared)
-    const rpc = clients()
-
-    await expect(
-      executePreparedStakingAction(prepared, provider, rpc, selected),
-    ).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-
-  it("switches once, then refuses a chain that drifts after simulation", async () => {
-    const chainId = vi
-      .fn<StakingClients["chainId"]>()
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(8453)
-      .mockResolvedValueOnce(1)
-    const rpc = clients({chainId})
-
-    await expect(
-      executePreparedStakingAction(envelope(), provider, rpc, selected),
-    ).rejects.toThrow("Switch to Base")
-    expect(rpc.switchToBase).toHaveBeenCalledOnce()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-
-  it("requires the current Privy selection to retain the exact provider", async () => {
-    const rpc = clients()
-
-    await expect(
-      executePreparedStakingAction(envelope(), provider, rpc, () => ({
-        address: wallet,
-        provider: otherProvider,
-      })),
-    ).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-
-  it("requires the selected provider's current account to remain the signer", async () => {
-    const rpc = clients({addresses: vi.fn(async () => [otherWallet])})
-
-    await expect(
-      executePreparedStakingAction(envelope(), provider, rpc, selected),
-    ).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-
-  it("rechecks after approval returns and suppresses only the later Stake prompt", async () => {
-    const approval = deferred<Hash>()
-    const send = vi
-      .fn<StakingClients["send"]>()
-      .mockImplementationOnce(async () => approval.promise)
-      .mockResolvedValue(hash)
-    const rpc = clients({allowance: vi.fn(async () => 0n), send})
-    let active = {address: wallet, provider}
-
-    const execution = executePreparedStakingAction(
-      envelope("stake", true),
-      provider,
-      rpc,
-      () => active,
+    expect(() => prepare("stake", selected(provider), {amount: invalid})).toThrowError(
+      StakingLocalRefusal,
     )
+    expect(requests).toEqual([])
+  })
 
-    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
-    active = {address: otherWallet, provider}
-    approval.resolve(hash)
+  it("refuses stale chain, signer, and malformed allowance data in memory", () => {
+    const first = fakeProvider(() => undefined)
+    const second = fakeProvider(() => undefined)
 
-    await expect(execution).rejects.toThrow()
-    expect(send).toHaveBeenCalledOnce()
+    expect(() => prepare("stake", selected(first.provider), {chainId: "1"})).toThrowError(
+      StakingLocalRefusal,
+    )
+    expect(() => prepare("stake", selected(first.provider, otherWallet))).toThrowError(
+      StakingLocalRefusal,
+    )
+    expect(() => prepare("stake", selected(second.provider), {allowanceAtomic: "-1"})).toThrowError(
+      StakingLocalRefusal,
+    )
+    expect(first.requests).toEqual([])
+    expect(second.requests).toEqual([])
+  })
+})
+
+describe("immediate wallet handoff", () => {
+  it("performs only one Base chain read before a direct action send", async () => {
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
+    const click = prepare("unstake", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(fake.requests).toEqual([
+      {method: "eth_chainId"},
+      {method: "eth_sendTransaction", params: [click.transaction]},
+    ])
+    expect(recorder.started).toEqual([`${click.actionId}:action`])
+    expect(recorder.submitted).toHaveLength(1)
+    expect(recorder.immediate).toEqual([])
+  })
+
+  it("switches a wrong chain once, rechecks once, then sends", async () => {
+    const chains = ["0x1", "0x2105"]
+    const fake = fakeProvider(request => {
+      if (request.method === "eth_chainId") return chains.shift()
+      if (request.method === "wallet_switchEthereumChain") return null
+      return hash
+    })
+    const click = prepare("claim_usdc", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(fake.requests.map(request => request.method)).toEqual([
+      "eth_chainId",
+      "wallet_switchEthereumChain",
+      "eth_chainId",
+      "eth_sendTransaction",
+    ])
+    expect(fake.requests[1]?.params).toEqual([{chainId: "0x2105"}])
+  })
+
+  it("refuses a failed switch recheck without sending", async () => {
+    const fake = fakeProvider(request => {
+      if (request.method === "wallet_switchEthereumChain") return null
+      return "0x1"
+    })
+    const click = prepare("claim_regent", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(fake.requests.map(request => request.method)).toEqual([
+      "eth_chainId",
+      "wallet_switchEthereumChain",
+      "eth_chainId",
+    ])
+    expect(recorder.immediate).toMatchObject([{kind: "refused", role: "action"}])
+  })
+
+  it("refuses an active provider change after the chain check", async () => {
+    const replacement = fakeProvider(() => hash)
+    let active: SelectedWallet
+    const original = fakeProvider(request => {
+      if (request.method === "eth_chainId") {
+        active = selected(replacement.provider)
+        return "0x2105"
+      }
+      return hash
+    })
+    active = selected(original.provider)
+    const click = prepare("claim_regent", active)
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => active)
+
+    expect(original.requests.map(request => request.method)).toEqual(["eth_chainId"])
+    expect(replacement.requests).toEqual([])
+    expect(recorder.immediate).toMatchObject([{kind: "refused"}])
+  })
+
+  it("opens Stake immediately after a valid approval hash without receipt or allowance reads", async () => {
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
+    const click = prepare("stake", selected(fake.provider), {allowanceAtomic: "0"})
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(fake.requests.map(request => request.method)).toEqual([
+      "eth_chainId",
+      "eth_sendTransaction",
+      "eth_chainId",
+      "eth_sendTransaction",
+    ])
+    expect(recorder.submitted.map(transaction => transaction.role)).toEqual(["approval", "action"])
+  })
+
+  it("does not open Stake after a malformed approval response", async () => {
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : "0x1"))
+    const click = prepare("stake", selected(fake.provider), {allowanceAtomic: "0"})
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(fake.requests.map(request => request.method)).toEqual([
+      "eth_chainId",
+      "eth_sendTransaction",
+    ])
+    expect(recorder.immediate).toMatchObject([{role: "approval", kind: "submission_unknown"}])
+    expect(recorder.submitted).toEqual([])
+  })
+
+  it("keeps distinct equivalent clicks independent and deduplicates only exact action-role replay", async () => {
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
+    const first = prepare("claim_usdc", selected(fake.provider))
+    const second = prepare("claim_usdc", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await Promise.all([
+      executeStakingClick(first, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+      executeStakingClick(second, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+      executeStakingClick(first, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+    ])
+
+    expect(fake.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(2)
+    expect(recorder.submitted).toHaveLength(2)
+  })
+
+  it("reports exact rejection and makes late timed-out wallet responses inert", async () => {
+    const rejected = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      throw {code: 4001, message: "private provider text"}
+    })
+    const rejectedClick = prepare("claim_regent", selected(rejected.provider))
+    const rejectedRecorder = callbackRecorder()
+    await executeStakingClick(
+      rejectedClick,
+      rejectedRecorder.callbacks,
+      liveRuntime(),
+      () => selected(rejected.provider),
+    )
+    expect(rejectedRecorder.immediate).toMatchObject([
+      {kind: "canceled", message: "Request canceled."},
+    ])
+
+    vi.useFakeTimers()
+    let resolveWallet!: (value: unknown) => void
+    const timedOut = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      return new Promise(resolve => (resolveWallet = resolve))
+    })
+    const timedOutClick = prepare("claim_usdc", selected(timedOut.provider))
+    const timedOutRecorder = callbackRecorder()
+    const execution = executeStakingClick(
+      timedOutClick,
+      timedOutRecorder.callbacks,
+      liveRuntime(),
+      () => selected(timedOut.provider),
+    )
+    await vi.advanceTimersByTimeAsync(120_000)
+    await execution
+    expect(timedOutRecorder.immediate).toMatchObject([{kind: "submission_unknown"}])
+    resolveWallet(hash)
+    await Promise.resolve()
+    expect(timedOutRecorder.submitted).toEqual([])
+    expect(timedOutRecorder.immediate).toHaveLength(1)
+  })
+
+  it("logs only allowlisted timing fields", async () => {
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
+    const click = prepare("claim_and_restake_regent", selected(fake.provider))
+    const recorder = callbackRecorder()
+
+    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+
+    expect(recorder.timing.map(event => event.phase)).toEqual([
+      "chain_check",
+      "wallet_handoff",
+      "provider_response",
+    ])
+    for (const event of recorder.timing) {
+      expect(Object.keys(event).sort()).toEqual([
+        "action",
+        "milliseconds",
+        "phase",
+        "role",
+        "trace_id",
+      ])
+      expect(JSON.stringify(event)).not.toContain(wallet.toLowerCase())
+      expect(JSON.stringify(event)).not.toContain(hash)
+    }
+  })
+})
+
+function submitted(provider: EthereumProvider): SubmittedStakingTransaction {
+  const click = prepare("unstake", selected(provider))
+  return Object.freeze({
+    actionId: click.actionId,
+    traceId: click.traceId,
+    action: click.action,
+    role: "action",
+    provider,
+    chainId: 8453,
+    signer: click.signer,
+    transaction: click.transaction,
+    hash,
+  })
+}
+
+function receiptProvider(status: "0x0" | "0x1") {
+  let expected!: SubmittedStakingTransaction
+  const fake = fakeProvider(request => {
+    switch (request.method) {
+      case "eth_chainId":
+        return "0x2105"
+      case "eth_getTransactionByHash":
+        return {
+          hash: expected.hash,
+          from: expected.signer,
+          to: expected.transaction.to,
+          input: expected.transaction.data,
+          value: "0x0",
+          blockHash,
+          blockNumber: "0x10",
+        }
+      case "eth_getTransactionReceipt":
+        return {
+          transactionHash: expected.hash,
+          from: expected.signer,
+          to: expected.transaction.to,
+          status,
+          blockHash,
+          blockNumber: "0x10",
+        }
+      case "eth_getBlockByHash":
+        return {hash: blockHash, number: "0x10", transactions: [expected.hash]}
+      default:
+        throw new Error(`unexpected ${request.method}`)
+    }
+  })
+  expected = submitted(fake.provider)
+  return {expected}
+}
+
+async function observe(
+  transaction: SubmittedStakingTransaction,
+  milliseconds: number,
+): Promise<ObservedStakingResult[]> {
+  const results: ObservedStakingResult[] = []
+  observeStakingTransaction(transaction, liveRuntime(), result => results.push(result))
+  await vi.advanceTimersByTimeAsync(milliseconds)
+  return results
+}
+
+describe("chain-authoritative receipt observation", () => {
+  it.each([
+    ["0x1", "success"],
+    ["0x0", "reverted"],
+  ] as const)("maps validated receipt status %s to %s", async (status, outcome) => {
+    vi.useFakeTimers()
+    const {expected} = receiptProvider(status)
+
+    expect(await observe(expected, 2_000)).toEqual([outcome])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("reports delayed inclusion only after the 120 second sample", async () => {
+    vi.useFakeTimers()
+    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : null))
+    const transaction = submitted(fake.provider)
+    const results: ObservedStakingResult[] = []
+    observeStakingTransaction(transaction, liveRuntime(), result => results.push(result))
+
+    await vi.advanceTimersByTimeAsync(119_999)
+    expect(results).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(results).toEqual(["delayed"])
+  })
+
+  it("reports malformed, wrong-chain, and hung evidence as unavailable once", async () => {
+    vi.useFakeTimers()
+    const wrongChain = fakeProvider(() => "0x1")
+    expect(await observe(submitted(wrongChain.provider), 2_000)).toEqual(["unavailable"])
+
+    vi.clearAllTimers()
+    const malformed = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : {}))
+    expect(await observe(submitted(malformed.provider), 2_000)).toEqual(["unavailable"])
+
+    vi.clearAllTimers()
+    let resolveHung!: (value: unknown) => void
+    const hung = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      return new Promise(resolve => (resolveHung = resolve))
+    })
+    const results = await observe(submitted(hung.provider), 6_000)
+    expect(results).toEqual(["unavailable"])
+    resolveHung(null)
+    await Promise.resolve()
+    expect(results).toEqual(["unavailable"])
+  })
+
+  it("keeps a valid pending transaction neutral and rejects contradictory block evidence", async () => {
+    vi.useFakeTimers()
+    let pendingTransaction!: SubmittedStakingTransaction
+    const pending = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      if (request.method === "eth_getTransactionReceipt") return null
+      return {
+        hash: pendingTransaction.hash,
+        from: pendingTransaction.signer,
+        to: pendingTransaction.transaction.to,
+        input: pendingTransaction.transaction.data,
+        value: "0x0",
+        blockHash: null,
+        blockNumber: null,
+      }
+    })
+    pendingTransaction = submitted(pending.provider)
+    expect(await observe(pendingTransaction, 120_000)).toEqual(["delayed"])
+
+    vi.clearAllTimers()
+    let contradictoryTransaction!: SubmittedStakingTransaction
+    const contradictory = fakeProvider(request => {
+      if (request.method === "eth_chainId") return "0x2105"
+      if (request.method === "eth_getTransactionByHash") {
+        return {
+          hash: contradictoryTransaction.hash,
+          from: contradictoryTransaction.signer,
+          to: contradictoryTransaction.transaction.to,
+          input: contradictoryTransaction.transaction.data,
+          value: "0x0",
+          blockHash,
+          blockNumber: "0x10",
+        }
+      }
+      return {
+        transactionHash: contradictoryTransaction.hash,
+        from: contradictoryTransaction.signer,
+        to: contradictoryTransaction.transaction.to,
+        status: "0x1",
+        blockHash: `0x${"ef".repeat(32)}`,
+        blockNumber: "0x10",
+      }
+    })
+    contradictoryTransaction = submitted(contradictory.provider)
+    expect(await observe(contradictoryTransaction, 2_000)).toEqual(["unavailable"])
   })
 })
