@@ -164,6 +164,59 @@ test("the public homepage presents the three-product mat hero and marketing chap
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
+// Headless Chromium has no GPU, which is the interesting case: the hero decoration
+// must stay invisible and inert while the server's art, copy, and action carry the
+// page on their own. Nothing here pretends a GPU is present.
+test("the hero fallback and simulated-ready crown never block the action", async ({page}) => {
+  for (const viewport of [
+    {width: 1280, height: 800},
+    {width: 390, height: 844},
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/")
+
+    const prism = page.locator("#home-prism")
+    await expect(prism).toHaveAttribute("aria-hidden", "true")
+    await expect(prism).not.toHaveAttribute("data-prism-ready", "true")
+    await expect(prism).toHaveCSS("opacity", "0")
+    await expect(prism).toHaveCSS("transform", "none")
+    await expect(prism).toHaveCSS("transition-property", "opacity")
+    await expect(prism).toHaveCSS("pointer-events", "none")
+    const canvas = page.locator("#home-prism canvas")
+    await expect(canvas).toHaveCount(1)
+    await expect(canvas).toHaveCSS("pointer-events", "none")
+    await expect(page.locator(".rl-hero-art")).toBeVisible()
+    await expect(page.locator("#home-title")).toBeVisible()
+
+    // The fallback state answers through the full-hero canvas.
+    const action = page.getByRole("link", {name: "See how it works"})
+    await action.click()
+    await expect(page).toHaveURL(/#home-products$/)
+    await expect(page.locator("#home-products")).toBeVisible()
+
+    // Simulate the state reached only after the real GPU's first frame settles.
+    // This is deliberately a presentation-state check, not a fake WebGPU adapter.
+    // Reduced motion keeps the renderer dormant so its asynchronous adapter probe
+    // cannot race this deliberately synthetic presentation state.
+    await page.emulateMedia({reducedMotion: "reduce"})
+    await page.goto("/")
+    await prism.evaluate(element => (element as HTMLElement).dataset.prismReady = "true")
+    await expect(prism).toHaveAttribute("data-prism-ready", "true")
+    await expect(prism).toHaveCSS("opacity", "1")
+    await expect(prism).toHaveCSS("transform", "none")
+    await expect(prism).toHaveCSS("transition-property", "opacity")
+    await expect(prism).toHaveCSS("pointer-events", "none")
+    await expect(canvas).toHaveCSS("pointer-events", "none")
+    await page.getByRole("link", {name: "See how it works"}).click()
+    await expect(page).toHaveURL(/#home-products$/)
+    await expect(page.locator("#home-products")).toBeVisible()
+    await prism.evaluate(element => delete (element as HTMLElement).dataset.prismReady)
+    await expect(prism).toHaveCSS("opacity", "0")
+    await expect(prism).toHaveCSS("transform", "none")
+    await page.emulateMedia({reducedMotion: "no-preference"})
+  }
+})
+
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 

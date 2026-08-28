@@ -167,6 +167,7 @@
 }
 
 .rl-hero-art,
+.rl-hero-prism,
 .rl-hero-scrim {
   position: absolute;
   inset: 0;
@@ -174,10 +175,32 @@
   height: 100%;
 }
 
+/* Three stacked layers behind the copy, in this order and stated outright rather than
+   left to document order: the hero art the server always renders, the prism that may
+   cover it, and the scrim that keeps the copy legible over whichever one shows. */
 .rl-hero-art {
-  z-index: -2;
+  z-index: -3;
   object-fit: cover;
   object-position: center;
+}
+
+/* The prism is inert — the hero reads hover for it, and every action stays clickable
+   through it. */
+.rl-hero-prism {
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms ease-out;
+}
+
+.rl-hero-prism[data-prism-ready="true"] {
+  opacity: 1;
+}
+
+.rl-hero-prism canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .rl-hero-scrim {

@@ -92,6 +92,18 @@ defmodule AshPlatformWeb.HomeLive do
         fetchpriority="high"
         decoding="async"
       />
+      <%!-- The browser owns everything inside this boundary. The hero art above stays
+            the picture until a real frame lands, and returns if one stops arriving. --%>
+      <div
+        id="home-prism"
+        class="rl-hero-prism"
+        phx-hook="HomePrism"
+        phx-update="ignore"
+        aria-hidden="true"
+      >
+        <canvas data-home-prism-canvas></canvas>
+      </div>
+
       <span class="rl-hero-scrim" aria-hidden="true"></span>
 
       <div class="rl-hero-copy" data-home-hero-copy>
