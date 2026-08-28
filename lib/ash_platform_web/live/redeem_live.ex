@@ -19,8 +19,61 @@ defmodule AshPlatformWeb.RedeemLive do
   def redemption_page(assigns) do
     ~H"""
     <section id="animata-redemption" phx-hook="RedemptionWallet" class="redeem-page">
+      <section id="redeem-intro" class="redeem-intro" aria-labelledby="redeem-intro-title">
+        <figure
+          id="redeem-intro-media"
+          class="redeem-intro-media"
+          role="img"
+          aria-label="Animata Collection I and II artwork"
+        >
+          <video
+            class="redeem-intro-video"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            poster="/images/redeem/animata1and2-poster.jpg"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <source
+              src="/images/redeem/animata1and2.mp4"
+              type="video/mp4"
+              media="(prefers-reduced-motion: no-preference)"
+            />
+          </video>
+          <img
+            class="redeem-intro-poster"
+            src="/images/redeem/animata1and2-poster.jpg"
+            alt=""
+            aria-hidden="true"
+          />
+        </figure>
+        <div class="redeem-intro-copy">
+          <h1 id="redeem-intro-title">See Animata Collection I and II on OpenSea</h1>
+          <nav class="redeem-intro-links" aria-label="Animata OpenSea collections">
+            <a
+              href="https://opensea.io/collection/animata"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Animata I</a><a
+              href="https://opensea.io/collection/regent-animata-ii"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Animata II</a>
+          </nav>
+          <p>
+            Animata I and II NFTs can be redeemed, along with 80 USDC, for 5,000,000 REGENT. You will also receive a membership NFT in the Regents Club, <a
+              href="https://opensea.io/collection/regents-club"
+              target="_blank"
+              rel="noopener noreferrer"
+            >seen here</a>.
+          </p>
+        </div>
+      </section>
       <header class="redeem-heading">
-        <p class="redeem-kicker">Regents Labs · Base</p><h1>Redeem Animata</h1>
+        <p class="redeem-kicker">Regents Labs · Base</p><h2>Redeem Animata</h2>
         <p>
           Redeem an Animata I or II token for a Regents Club token and a seven-day stream of 5,000,000 REGENT.
         </p>
@@ -35,6 +88,7 @@ defmodule AshPlatformWeb.RedeemLive do
       </div>
       <div :if={@status == :error} class="redeem-status">
         <p role="alert">Redemption details are unavailable right now.</p><button
+          id="redemption-refresh"
           type="button"
           phx-click="refresh_redemption"
           disabled={@reading}
@@ -42,6 +96,17 @@ defmodule AshPlatformWeb.RedeemLive do
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-layout">
+        <p
+          id="redemption-refresh-status"
+          class="redeem-refresh-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          Refresh complete. Data is current at Base safe block {format_block_number(
+            @redemption.block_number
+          )}.
+        </p>
         <section class="redeem-summary" aria-label="Redemption account status">
           <.metric label="USDC balance">
             <TokenDisplay.amount amount={@redemption.usdc_balance} unit="USDC" />
@@ -61,6 +126,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <.metric label="Claimed">
             <TokenDisplay.amount amount={@redemption.vest_claimed} unit="REGENT" />
           </.metric>
+          <.metric label="Base safe block">{format_block_number(@redemption.block_number)}</.metric>
         </section>
         <section :if={!@authenticated} class="redeem-actions">
           <h2>Connect your account</h2><button type="button" data-account-target="sign-in">Sign in to redeem</button>
@@ -112,7 +178,13 @@ defmodule AshPlatformWeb.RedeemLive do
               phx-value-action="claim"
               disabled={!claim_ready?(@redemption)}
             >Claim unlocked REGENT</button>
-            <button type="button" phx-click="refresh_redemption" disabled={@reading}>Refresh</button>
+            <button
+              id="redemption-refresh"
+              type="button"
+              phx-click="refresh_redemption"
+              disabled={@reading}
+              aria-describedby="redemption-refresh-status"
+            >Refresh</button>
           </div>
         </section>
         <section :if={@wallet} class="redeem-owned" aria-label="NFTs in this wallet">
@@ -168,6 +240,14 @@ defmodule AshPlatformWeb.RedeemLive do
       {value, ""} -> value > 0
       _ -> false
     end
+  end
+
+  defp format_block_number(block_number) do
+    block_number
+    |> to_string()
+    |> String.reverse()
+    |> String.replace(~r/(.{3})(?=.)/, "\\1,")
+    |> String.reverse()
   end
 
   attr :label, :string, required: true

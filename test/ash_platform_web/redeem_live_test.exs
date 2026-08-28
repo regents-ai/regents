@@ -30,6 +30,47 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   test "PUBLIC_FACTS: anonymous visitors see fixed facts and no wallet action", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/redeem")
     html = render_async(view)
+
+    assert has_element?(
+             view,
+             "#redeem-intro-title",
+             "See Animata Collection I and II on OpenSea"
+           )
+
+    assert has_element?(
+             view,
+             ~s(a[href="https://opensea.io/collection/animata"][target="_blank"][rel="noopener noreferrer"]),
+             "Animata I"
+           )
+
+    assert has_element?(
+             view,
+             ~s(a[href="https://opensea.io/collection/regent-animata-ii"][target="_blank"][rel="noopener noreferrer"]),
+             "Animata II"
+           )
+
+    assert has_element?(
+             view,
+             ~s(a[href="https://opensea.io/collection/regents-club"][target="_blank"][rel="noopener noreferrer"]),
+             "seen here"
+           )
+
+    assert has_element?(
+             view,
+             "#redeem-intro .redeem-intro-copy p",
+             "Animata I and II NFTs can be redeemed, along with 80 USDC, for 5,000,000 REGENT. You will also receive a membership NFT in the Regents Club, seen here."
+           )
+
+    assert has_element?(
+             view,
+             ~s(#redeem-intro-media video[autoplay][muted][loop][playsinline][poster="/images/redeem/animata1and2-poster.jpg"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(img.redeem-intro-poster[src="/images/redeem/animata1and2-poster.jpg"])
+           )
+
     assert html =~ "Redeem Animata"
     assert html =~ "80 USDC"
     assert html =~ "5,000,000 REGENT"
@@ -69,6 +110,50 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
     render_async(view)
     assert has_element?(view, ".redeem-next-step button", "Approve 80 USDC")
+  end
+
+  test "REFRESH_FEEDBACK: unchanged data is acknowledged and a later snapshot updates stats", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 80_000_000)
+    view = conn |> signed_in("redeem-refresh") |> activate(@wallet)
+
+    assert has_element?(
+             view,
+             ".redeem-summary .redeem-metric:first-child",
+             "80 USDC"
+           )
+
+    assert has_element?(
+             view,
+             ".redeem-summary .redeem-metric:last-child",
+             "Base safe block 1,234"
+           )
+
+    view |> element("#redemption-refresh") |> render_click()
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#redemption-refresh-status[role="status"][aria-live="polite"][aria-atomic="true"]),
+             "Refresh complete. Data is current at Base safe block 1,234."
+           )
+
+    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 125_000_000)
+    view |> element("#redemption-refresh") |> render_click()
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ".redeem-summary .redeem-metric:first-child",
+             "125 USDC"
+           )
+
+    assert has_element?(
+             view,
+             ".redeem-summary .redeem-metric:last-child",
+             "Base safe block 1,234"
+           )
   end
 
   test "DIRECT_REDEEM: each eligible click pushes one fresh envelope with no lifecycle UI", %{
