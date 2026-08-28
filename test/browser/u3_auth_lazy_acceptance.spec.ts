@@ -91,6 +91,16 @@ export function startPrivyBridge() {
 }
 `
 
+const rejectedSyncBridgeStub = `
+export async function startPrivyBridge() {
+  return {
+    async request(request) {
+      if (request === "sync") throw new Error("provider sync unavailable")
+    }
+  }
+}
+`
+
 const realReconciliationBridgeStub = `
 import {createProviderSessionReconciler} from "/assets/js/privy_bridge.js?u3_original=1"
 
@@ -719,8 +729,9 @@ for (const failure of [
   {name: "the public app ID is absent", bridgeBody: null},
   {name: "the bridge import fails", bridgeBody: "failure"},
   {name: "provider readiness never settles", bridgeBody: neverReadyBridgeStub},
+  {name: "provider synchronization rejects", bridgeBody: rejectedSyncBridgeStub},
 ] as const) {
-  test(`signed-in startup fails closed when ${failure.name}`, async ({page}) => {
+  test(`signed-in startup preserves the local session when ${failure.name}`, async ({page}) => {
     let sessionDeletes = 0
     const documentRequests: string[] = []
     page.on("request", request => {
@@ -744,12 +755,15 @@ for (const failure of [
     await establishLocalSession(page)
     await page.goto("/app")
 
-    await expect.poll(() => sessionDeletes, {timeout: 10_000}).toBe(1)
-    await expect.poll(() => documentRequests.length, {timeout: 10_000}).toBe(2)
-    await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
+    await expect(page.locator("#account-auth-status"), {timeout: 10_000}).toHaveText(
+      "Account connection couldn’t refresh. Try again.",
+    )
+    await expect(page.locator("#account-auth-status")).toBeVisible()
+    await expect(page.getByRole("button", {name: "Log Out"})).toBeAttached()
     const finalSession = await page.request.get("/auth/session")
-    expect((await finalSession.json()).authenticated).toBe(false)
-    expect(sessionDeletes).toBe(1)
+    expect((await finalSession.json()).authenticated).toBe(true)
+    expect(sessionDeletes).toBe(0)
+    expect(documentRequests).toEqual(["http://127.0.0.1:4002/app"])
   })
 }
 

@@ -35,6 +35,7 @@ type AccountAuthInstallOptions = {
   handoffStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
   now?: () => number
   providerSignOutTimeoutMs?: number
+  reload?: () => void
   sessionMutations?: SessionMutationCoordinator
   signedInStartupTimeoutMs?: number
 }
@@ -671,6 +672,7 @@ export function installAccountAuthLazyLoader(
     handoffStorage,
     now = () => Date.now(),
     providerSignOutTimeoutMs = defaultProviderSignOutTimeoutMs,
+    reload = () => window.location.reload(),
     sessionMutations = browserSessionMutations,
     signedInStartupTimeoutMs = defaultSignedInStartupTimeoutMs,
   }: AccountAuthInstallOptions = {},
@@ -711,7 +713,11 @@ export function installAccountAuthLazyLoader(
     if (signOutInFlight) return
     userSignOutStarted = true
     clearStatus()
-    writeSignOutHandoff(storage, now())
+
+    if (!writeSignOutHandoff(storage, now())) {
+      showLoadFailure("sign-out")
+      return
+    }
 
     const attempt = (async () => {
       try {
@@ -722,6 +728,7 @@ export function installAccountAuthLazyLoader(
         return
       }
       clearStatus()
+      reload()
     })()
 
     signOutInFlight = attempt
@@ -758,15 +765,9 @@ export function installAccountAuthLazyLoader(
       loader.request("sync"),
       signedInStartupTimeoutMs,
       "Provider session reconciliation did not become ready.",
-    ).then(clearStatus, async () => {
+    ).then(clearStatus, () => {
       if (userSignOutStarted) return
       showLoadFailure("sync")
-
-      try {
-        await sessionMutations.signOut(clearSession)
-      } catch {
-        return
-      }
     })
   }
 

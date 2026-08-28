@@ -1016,8 +1016,6 @@ describe("Privy session bridge", () => {
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      getAccessToken: vi.fn(),
-      hasLinkedWallet: () => false,
       providerAuthenticated: () => false,
       reload,
       signedIn: () => true,
@@ -1033,8 +1031,6 @@ describe("Privy session bridge", () => {
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      getAccessToken: vi.fn(async () => null),
-      hasLinkedWallet: () => false,
       providerAuthenticated: () => false,
       reload,
       signedIn: () => false,
@@ -1045,20 +1041,18 @@ describe("Privy session bridge", () => {
     expect(reload).not.toHaveBeenCalled()
   })
 
-  // The page can be replaced while the provider is being read, so the only
+  // The page can be replaced while the provider state is sampled, so the only
   // reading of the account control that may end a session is the last one.
-  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a marker lost during the provider read authorizes nothing", async () => {
+  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a marker lost during the provider sample authorizes nothing", async () => {
     const clearSession = vi.fn(async () => undefined)
     const reload = vi.fn()
     let signedIn = true
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      getAccessToken: vi.fn(async () => {
+      providerAuthenticated: () => {
         signedIn = false
-        return null
-      }),
-      hasLinkedWallet: () => true,
-      providerAuthenticated: () => true,
+        return false
+      },
       reload,
       signedIn: () => signedIn,
     })
@@ -1075,8 +1069,6 @@ describe("Privy session bridge", () => {
     vi.stubGlobal("fetch", fetcher)
     const reconcile = createProviderSessionReconciler({
       clearSession,
-      getAccessToken: vi.fn(async () => "current-token"),
-      hasLinkedWallet: () => true,
       providerAuthenticated: () => true,
       reload,
       signedIn: () => true,
@@ -1089,40 +1081,6 @@ describe("Privy session bridge", () => {
     expect(fetcher).not.toHaveBeenCalled()
     expect(clearSession).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
-  })
-
-  it("drops the local session when the provider has no current linked wallet", async () => {
-    const clearSession = vi.fn(async () => undefined)
-    const reload = vi.fn()
-    const reconcile = createProviderSessionReconciler({
-      clearSession,
-      getAccessToken: vi.fn(async () => "current-token"),
-      hasLinkedWallet: () => false,
-      providerAuthenticated: () => true,
-      reload,
-      signedIn: () => true,
-    })
-
-    await expect(reconcile()).resolves.toBe(false)
-    expect(clearSession).toHaveBeenCalledOnce()
-    expect(reload).toHaveBeenCalledOnce()
-  })
-
-  it("drops the local session when the provider has no usable access token", async () => {
-    const clearSession = vi.fn(async () => undefined)
-    const reload = vi.fn()
-    const reconcile = createProviderSessionReconciler({
-      clearSession,
-      getAccessToken: vi.fn(async () => null),
-      hasLinkedWallet: () => true,
-      providerAuthenticated: () => true,
-      reload,
-      signedIn: () => true,
-    })
-
-    await expect(reconcile()).resolves.toBe(false)
-    expect(clearSession).toHaveBeenCalledOnce()
-    expect(reload).toHaveBeenCalledOnce()
   })
 
   it("does not own or inject server-rendered account markup", () => {
@@ -1242,10 +1200,11 @@ describe("Privy session bridge", () => {
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
     replaceActiveEthereumWallet({address: wallet.address, provider: wallet.provider})
 
+    const getAccessToken = vi.fn(async () => null)
     const startup = bridge.startPrivyBridge({}, {
       appId: "test-app",
       authenticated: true,
-      getAccessToken: async () => "current-token",
+      getAccessToken,
       logout: async () => undefined,
       ready: true,
       walletsReady: false,
@@ -1261,7 +1220,56 @@ describe("Privy session bridge", () => {
 
     expect(activeEthereumWallet()).toBeNull()
     expect(sessionRequests).toEqual([])
+    expect(getAccessToken).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
+  })
+
+  it("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: an authenticated walletless provider reads no token", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-out")
+    const sessionRequests = stubSessionRequests()
+    const getAccessToken = vi.fn(async () => null)
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken,
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [],
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => dispatched.includes("ash:wallet-state"))
+
+    expect(getAccessToken).not.toHaveBeenCalled()
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it("SIGNED_IN_STALE_PROVIDER_EXITS: unauthenticated truth revokes before wallet readiness", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {reload} = stubBrowserGlobals("sign-out")
+    const sessionRequests = stubSessionRequests()
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: vi.fn(async () => null),
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: false,
+      wallets: [],
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => reload.mock.calls.length > 0)
+
+    expect(sessionRequests).toEqual([{url: "/auth/privy/session", method: "DELETE"}])
+    expect(reload).toHaveBeenCalledOnce()
   })
 
   // Privy can move the selection without changing the connected set. Stake reads

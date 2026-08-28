@@ -346,8 +346,6 @@ async function establishLocalSession(
 
 type ProviderSessionReconcilerOptions = {
   clearSession: () => Promise<void>
-  getAccessToken: () => Promise<string | null>
-  hasLinkedWallet: () => boolean
   providerAuthenticated: () => boolean
   reload: () => void
   signedIn: () => boolean
@@ -359,17 +357,15 @@ type ProviderSessionReconcilerOptions = {
 // advances no generation, renews no cookie and rotates no CSRF state.
 export function createProviderSessionReconciler({
   clearSession,
-  getAccessToken,
-  hasLinkedWallet,
   providerAuthenticated,
   reload,
   signedIn,
 }: ProviderSessionReconcilerOptions): () => Promise<boolean> {
   return async () => {
-    if (providerAuthenticated() && (await getAccessToken()) && hasLinkedWallet()) return true
+    if (providerAuthenticated()) return true
     // Only a page that still shows its signed-in account control has a session
     // to end, and only this reading of it counts: the page may have been
-    // replaced while the provider was being read, and an anonymous page waiting
+    // replaced while the provider was being sampled, and an anonymous page waiting
     // for its first sign in must be left exactly as it is.
     if (!signedIn()) return false
 
@@ -593,13 +589,11 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     () =>
       createProviderSessionReconciler({
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
-        getAccessToken,
-        hasLinkedWallet: () => wallets.length > 0,
         providerAuthenticated: () => authenticated,
         reload: () => window.location.reload(),
         signedIn: showsSignOutControl,
       }),
-    [authenticated, getAccessToken, wallets.length],
+    [authenticated],
   )
 
   React.useEffect(() => {
@@ -624,7 +618,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
     }
 
-    if (!ready || !walletsReady || !(await reconcileProviderSession())) {
+    if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
