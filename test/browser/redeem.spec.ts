@@ -43,7 +43,7 @@ test("Redeem exposes and sends only the current Base step", async ({page}) => {
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
   await expect(page.getByRole("heading", {name: "Redeem Animata"})).toBeVisible()
-  await expect(page.getByLabel("Collection")).toBeVisible()
+  await expect(page.getByLabel("Collection", {exact: true})).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
 
   await page.getByLabel("Token ID").fill("42")
