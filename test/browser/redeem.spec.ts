@@ -4,6 +4,36 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 const wallet = "0x1111111111111111111111111111111111111111"
 const sendsKey = "regent:test:redemption-wallet-sends"
 
+test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
+  await page.setViewportSize({width: 320, height: 720})
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await page.goto("/redeem")
+
+  await expect(
+    page.getByRole("heading", {name: "See Animata Collection I and II on OpenSea"}),
+  ).toBeVisible()
+
+  for (const [name, href] of [
+    ["Animata I", "https://opensea.io/collection/animata"],
+    ["Animata II", "https://opensea.io/collection/regent-animata-ii"],
+    ["seen here", "https://opensea.io/collection/regents-club"],
+  ] as const) {
+    const link = page.getByRole("link", {name, exact: true})
+    await expect(link).toHaveAttribute("href", href)
+    await expect(link).toHaveAttribute("target", "_blank")
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer")
+  }
+
+  await expect(page.locator(".redeem-intro-video")).toBeHidden()
+  await expect(page.locator(".redeem-intro-poster")).toBeVisible()
+  await expect(page.getByLabel("Animata Collection I and II artwork")).toBeVisible()
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+  expect(hasHorizontalOverflow).toBe(false)
+})
+
 test("Redeem exposes and sends only the current Base step", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-redemption")
   await installWallet(page)
@@ -28,6 +58,9 @@ test("Redeem exposes and sends only the current Base step", async ({page}) => {
   // and the deterministic browser chain still reports NFT approval as next.
   await page.getByRole("button", {name: "Refresh", exact: true}).click()
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
+  await expect(page.getByRole("status")).toHaveText(
+    "Refresh complete. Data is current at Base safe block 1,234.",
+  )
   await expect(page.locator(".redeem-next-step button")).toHaveText("Approve NFT")
   expect(await sendCount(page)).toBe(1)
 

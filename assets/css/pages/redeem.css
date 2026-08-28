@@ -10,6 +10,63 @@
   gap: 1.5rem;
 }
 
+.redeem-intro {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(1.25rem, 4vw, 3rem);
+  align-items: center;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid currentColor;
+}
+
+.redeem-intro-media {
+  position: relative;
+  width: min(100%, 24rem);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  background: CanvasText;
+}
+
+.redeem-intro-video,
+.redeem-intro-poster {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.redeem-intro-poster {
+  display: none;
+}
+
+.redeem-intro-copy {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.redeem-intro-copy > * {
+  margin: 0;
+}
+
+.redeem-intro-copy h1 {
+  max-width: 18ch;
+  overflow-wrap: anywhere;
+}
+
+.redeem-intro-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.redeem-intro a {
+  text-underline-offset: 0.2em;
+}
+
 .redeem-heading > *,
 .redeem-actions > *,
 .redeem-owned > * {
@@ -116,9 +173,15 @@
 
 .redeem-notice,
 .redeem-status,
+.redeem-refresh-status,
 .redeem-selection-status {
   padding: 0.75rem;
   border-left: 3px solid currentColor;
+}
+
+.redeem-refresh-status {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 /* The single next step reads as the one thing to do, so it carries the page's
@@ -140,7 +203,32 @@
 }
 
 @media (max-width: 50rem) {
+  .redeem-intro,
   .redeem-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .redeem-intro-media {
+    width: min(100%, 18rem);
+  }
+}
+
+@media (max-width: 30rem) {
+  .redeem-intro {
+    padding: 0.75rem;
+  }
+
+  #redemption-selection {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .redeem-intro-video {
+    display: none;
+  }
+
+  .redeem-intro-poster {
+    display: block;
   }
 }
