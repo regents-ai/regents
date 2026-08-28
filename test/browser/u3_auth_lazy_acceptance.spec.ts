@@ -763,11 +763,14 @@ for (const failure of [
     await establishLocalSession(page)
     await page.goto("/app")
 
-    await expect(page.locator("#account-auth-status"), {timeout: 10_000}).toHaveText(
+    await expect(page.locator("#account-auth-status")).toHaveText(
       "Account connection couldn’t refresh. Try again.",
+      {timeout: 10_000},
     )
     await expect(page.locator("#account-auth-status")).toBeVisible()
-    await expect(page.getByRole("button", {name: "Log Out"})).toBeAttached()
+    await expect(
+      page.locator("#account-control [data-account-target='sign-out']"),
+    ).toBeAttached()
     const finalSession = await page.request.get("/auth/session")
     expect((await finalSession.json()).authenticated).toBe(true)
     expect(sessionDeletes).toBe(0)
