@@ -260,6 +260,42 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
                :launch_treasury_invalid
     end
 
+    test "a valid all-uppercase treasury matches its canonical stored report", context do
+      Fixture.install()
+      uppercase = "0xABCDEF0000000000000000000000000000000001"
+      TreasuryClient.seed_verified!(String.downcase(uppercase))
+
+      draft = Fixture.draft!(context[:actor], draft: %{"treasury" => uppercase})
+
+      assert {:ok, %{operation: operation}} =
+               Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))
+
+      assert argument(operation, "treasury") == String.downcase(uppercase)
+    end
+
+    test "a restored Safe remains permanently downgraded before launch admission", context do
+      Fixture.install()
+
+      TreasuryClient.install(
+        block_number: 30_000_001,
+        block_hash: "0x" <> String.duplicate("ef", 32),
+        threshold: 1
+      )
+
+      assert {:ok, _changed} =
+               Autolaunch.observe_treasury_security(Fixture.treasury(), %{}, actor: system())
+
+      restored =
+        TreasuryClient.seed_verified!(Fixture.treasury(),
+          block_number: 30_000_002,
+          block_hash: "0x" <> String.duplicate("ee", 32)
+        )
+
+      assert restored.downgrade_state == :downgraded
+      assert refused(context) == :treasury_not_verified
+      assert {:ok, %{operation: nil}} = Autolaunch.open_launch_operation(opts(context))
+    end
+
     test "an incomplete snapshot is refused rather than partly believed", context do
       Fixture.install()
       ChainClient.put(%{snapshot: Map.delete(ChainClient.state().snapshot, :allowance)})
@@ -378,6 +414,8 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   defp steps(operation), do: operation.envelope["arguments"]["steps"]
 
   defp argument(operation, key), do: operation.envelope["arguments"][key]
+
+  defp system, do: %AshPlatform.Actors.System{}
 
   # A row written before the nonempty metadata rule: it holds a name and a symbol
   # and nothing else, exactly as `LaunchDraft` still allows one to be read.

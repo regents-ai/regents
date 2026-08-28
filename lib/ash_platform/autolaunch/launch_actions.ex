@@ -589,8 +589,11 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   defp custody_matches(_draft, _report), do: unavailable(:treasury_security_changed)
 
-  defp custody_address_matches(%{treasury: address}, %{address: address}), do: :ok
-  defp custody_address_matches(_draft, _report), do: unavailable(:treasury_security_changed)
+  defp custody_address_matches(%{treasury: address}, %{address: report_address}) do
+    if Address.equal?(address, report_address),
+      do: :ok,
+      else: unavailable(:treasury_security_changed)
+  end
 
   defp revalidate_treasury(operation) do
     binding = argument(operation, "treasury_security")

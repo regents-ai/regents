@@ -206,6 +206,37 @@ defmodule AshPlatform.Autolaunch.BidActionsTest do
     assert is_nil(cancelled.token_approval_transaction_hash)
   end
 
+  test "A_RESTORED_SAFE_REMAINS_PERMANENTLY_DOWNGRADED_BEFORE_BID_ADMISSION", %{
+    auction: auction,
+    wallet: wallet,
+    opts: opts
+  } do
+    install()
+    treasury = "0x9999999999999999999999999999999999999999"
+
+    AshPlatform.TestAutolaunchTreasuryChainClient.install(
+      block_number: 30_000_001,
+      block_hash: "0x" <> String.duplicate("ef", 32),
+      threshold: 1
+    )
+
+    assert {:ok, _changed} =
+             Autolaunch.observe_treasury_security(treasury, %{}, actor: system())
+
+    restored =
+      AshPlatform.TestAutolaunchTreasuryChainClient.seed_verified!(treasury,
+        block_number: 30_000_002,
+        block_hash: "0x" <> String.duplicate("ee", 32)
+      )
+
+    Autolaunch.set_auction_treasury_security_report!(auction, restored.id, actor: system())
+
+    assert restored.downgrade_state == :downgraded
+
+    assert {:error, _refused} = Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
+    assert {:ok, %{operation: nil}} = Autolaunch.open_bid_operation(opts)
+  end
+
   test "ACTIVE_WALLET_IS_THE_SIGNER: a socket with no session lease cannot prepare", %{
     auction: auction,
     wallet: wallet,

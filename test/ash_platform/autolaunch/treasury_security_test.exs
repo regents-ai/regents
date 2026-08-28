@@ -211,6 +211,63 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityTest do
     assert verified.verification_state == :verified
   end
 
+  test "PERMANENT_DOWNGRADE_SURVIVES_A_VERIFIED_CHANGED_VERIFIED_SEQUENCE" do
+    verified = Client.seed_verified!(@safe)
+
+    Client.install(block_number: 30_000_001, block_hash: tx_hash("ef"), threshold: 1)
+
+    assert {:ok, changed} =
+             Autolaunch.observe_treasury_security(@safe, %{}, actor: %System{})
+
+    restored =
+      Client.seed_verified!(@safe,
+        block_number: 30_000_002,
+        block_hash: tx_hash("ee")
+      )
+
+    assert changed.downgrade_state == :downgraded
+    assert restored.downgrade_state == :downgraded
+    assert restored.verification_state == :unverified
+    assert restored.verification_reason == "configuration_changed"
+    assert restored.prior_verified_fingerprint == verified.configuration_fingerprint
+
+    assert {:ok, immutable_verified} =
+             Autolaunch.get_treasury_security_report(verified.id, actor: nil)
+
+    assert immutable_verified.verification_state == :verified
+    assert immutable_verified.downgrade_state == :none
+  end
+
+  test "PERMANENT_DOWNGRADE_IS_INDEPENDENT_OF_SOURCE_BLOCK_INSERTION_ORDER" do
+    Client.install(block_number: 30_000_001, block_hash: tx_hash("ef"), threshold: 1)
+
+    assert {:ok, changed_first} =
+             Autolaunch.observe_treasury_security(@safe, %{}, actor: %System{})
+
+    older_verified =
+      Client.seed_verified!(@safe,
+        block_number: 30_000_000,
+        block_hash: tx_hash("ab")
+      )
+
+    restored =
+      Client.seed_verified!(@safe,
+        block_number: 30_000_002,
+        block_hash: tx_hash("ee")
+      )
+
+    assert changed_first.downgrade_state == :none
+    assert older_verified.downgrade_state == :downgraded
+    assert older_verified.verification_state == :unverified
+    assert restored.downgrade_state == :downgraded
+    assert restored.verification_state == :unverified
+    assert restored.prior_verified_fingerprint == older_verified.configuration_fingerprint
+
+    assert {:ok, current} = Autolaunch.current_treasury_security(@safe, actor: nil)
+    assert current.id == restored.id
+    assert current.downgrade_state == :downgraded
+  end
+
   test "ADDRESS_SCOPED_PERSISTENCE_ORDERS_CONCURRENT_VERIFIED_THEN_CHANGED_OBSERVATIONS" do
     clear_committed_reports()
     on_exit(&clear_committed_reports/0)

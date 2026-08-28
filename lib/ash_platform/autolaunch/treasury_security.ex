@@ -313,20 +313,55 @@ defmodule AshPlatform.Autolaunch.TreasurySecurity do
   end
 
   defp apply_downgrade(attrs, reports) do
-    previous_verified = Enum.find(reports, &(&1.verification_state == :verified))
-
-    if previous_verified &&
-         previous_verified.configuration_fingerprint != attrs.configuration_fingerprint do
-      %{
+    case downgrade_origin(attrs, reports) do
+      nil ->
         attrs
-        | downgrade_state: :downgraded,
-          prior_verified_fingerprint: previous_verified.configuration_fingerprint,
-          verification_state: :unverified,
-          verification_reason: "configuration_changed"
-      }
-    else
-      attrs
+
+      prior_verified_fingerprint ->
+        %{
+          attrs
+          | downgrade_state: :downgraded,
+            prior_verified_fingerprint: prior_verified_fingerprint,
+            verification_state: :unverified,
+            verification_reason: "configuration_changed"
+        }
     end
+  end
+
+  defp downgrade_origin(attrs, reports) do
+    sticky_origin(reports) || verified_divergence(attrs, reports) ||
+      restored_divergence(attrs, reports)
+  end
+
+  defp sticky_origin(reports) do
+    downgraded = Enum.filter(reports, &(&1.downgrade_state == :downgraded))
+
+    first_fingerprint(downgraded, & &1.prior_verified_fingerprint) ||
+      first_fingerprint(downgraded, & &1.configuration_fingerprint)
+  end
+
+  defp verified_divergence(attrs, reports) do
+    reports
+    |> Enum.filter(
+      &(&1.verification_state == :verified and
+          &1.configuration_fingerprint != attrs.configuration_fingerprint)
+    )
+    |> first_fingerprint(& &1.configuration_fingerprint)
+  end
+
+  defp restored_divergence(%{verification_state: :verified} = attrs, reports) do
+    if Enum.any?(reports, &(&1.configuration_fingerprint != attrs.configuration_fingerprint)),
+      do: attrs.configuration_fingerprint
+  end
+
+  defp restored_divergence(_attrs, _reports), do: nil
+
+  defp first_fingerprint(reports, field) do
+    reports
+    |> Enum.map(field)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort()
+    |> List.first()
   end
 
   defp evidence_input(evidence) when is_map(evidence) do
