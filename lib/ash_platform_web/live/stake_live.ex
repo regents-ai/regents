@@ -39,7 +39,12 @@ defmodule AshPlatformWeb.StakeLive do
       >
         <h2 id="staking-result-heading">Staking result</h2>
         <p data-staking-result-text></p>
-        <a data-staking-result-link hidden rel="noopener noreferrer"></a>
+        <a
+          data-staking-result-link
+          hidden
+          target="_blank"
+          rel="noopener noreferrer"
+        ></a>
         <form method="dialog">
           <button type="submit" value="close">Close</button>
         </form>

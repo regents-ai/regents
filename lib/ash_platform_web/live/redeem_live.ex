@@ -13,6 +13,7 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :token_id, :string, required: true
   attr :notice, :map, default: nil
   attr :reading, :boolean, default: false
+  attr :refresh_block, :any, default: nil
   attr :step, :atom, default: nil
   attr :owned_collectibles, :map, default: %{status: :idle, animata: [], regents_club: []}
 
@@ -73,11 +74,34 @@ defmodule AshPlatformWeb.RedeemLive do
         </div>
       </section>
       <header class="redeem-heading">
-        <p class="redeem-kicker">Regents Labs · Base</p><h2>Redeem Animata</h2>
+        <p class="redeem-kicker">Regents Labs · Base</p><h2
+          id="redemption-page-heading"
+          tabindex="-1"
+        >
+          Redeem Animata
+        </h2>
         <p>
           Redeem an Animata I or II token for a Regents Club token and a seven-day stream of 5,000,000 REGENT.
         </p>
       </header>
+      <dialog
+        id="redemption-result-dialog"
+        class="redeem-result-dialog"
+        aria-labelledby="redemption-result-heading"
+        phx-update="ignore"
+      >
+        <h2 id="redemption-result-heading">Redemption result</h2>
+        <p data-redemption-result-text></p>
+        <a
+          data-redemption-result-link
+          hidden
+          target="_blank"
+          rel="noopener noreferrer"
+        ></a>
+        <form method="dialog">
+          <button type="submit" value="close">Close</button>
+        </form>
+      </dialog>
       <section class="redeem-facts" aria-label="Redemption facts">
         <.metric label="Cost">80 USDC</.metric><.metric label="Reward">5,000,000 REGENT</.metric><.metric label="Vesting">
           7 days
@@ -99,13 +123,15 @@ defmodule AshPlatformWeb.RedeemLive do
         <p
           id="redemption-refresh-status"
           class="redeem-refresh-status"
+          data-visible={to_string(not is_nil(@refresh_block))}
           role="status"
           aria-live="polite"
           aria-atomic="true"
+          aria-hidden={to_string(is_nil(@refresh_block))}
         >
-          Refresh complete. Data is current at Base safe block {format_block_number(
-            @redemption.block_number
-          )}.
+          <span :if={@refresh_block}>
+            Refresh complete. Data is current at Base safe block {format_block_number(@refresh_block)}.
+          </span>
         </p>
         <section class="redeem-summary" aria-label="Redemption account status">
           <.metric label="USDC balance">
@@ -183,7 +209,7 @@ defmodule AshPlatformWeb.RedeemLive do
               type="button"
               phx-click="refresh_redemption"
               disabled={@reading}
-              aria-describedby="redemption-refresh-status"
+              aria-describedby={if(@refresh_block, do: "redemption-refresh-status")}
             >Refresh</button>
           </div>
         </section>

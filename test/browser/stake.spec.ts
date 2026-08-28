@@ -42,10 +42,13 @@ test("Stake hands each click directly to the active Base wallet and presents FIF
   const dialog = page.getByRole("dialog", {name: "Staking result"})
   await expect(dialog).toBeVisible()
   await expect(dialog.getByText("REGENT approval succeeded on Base.")).toBeVisible()
-  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+  const resultLink = dialog.getByRole("link", {name: "View on BaseScan"})
+  await expect(resultLink).toHaveAttribute(
     "href",
     `https://basescan.org/tx/${expectedHash(1)}`,
   )
+  await expect(resultLink).toHaveAttribute("target", "_blank")
+  await expect(resultLink).toHaveAttribute("rel", "noopener noreferrer")
 
   await page.keyboard.press("Escape")
   await expect(dialog.getByText("Stake succeeded on Base.")).toBeVisible()

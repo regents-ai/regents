@@ -8,6 +8,28 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
 
+  defmodule GatedChainClient do
+    @behaviour AshPlatform.Redemption.ChainClient
+
+    @impl true
+    def overview(wallet, collection, token_id) do
+      if test_pid = Application.get_env(:ash_platform, :test_redemption_read_gate) do
+        send(test_pid, {:redemption_read_waiting, self()})
+
+        receive do
+          :continue_redemption_read -> :ok
+        after
+          5_000 -> raise "timed out waiting to continue the redemption read"
+        end
+      end
+
+      case Application.get_env(:ash_platform, :test_redemption_read_result, :ok) do
+        :ok -> AshPlatform.TestRedemptionChainClient.overview(wallet, collection, token_id)
+        :error -> {:error, :provider_failure}
+      end
+    end
+  end
+
   setup do
     on_exit(fn ->
       for key <- [
@@ -17,6 +39,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
             :test_redemption_nft_approved,
             :test_redemption_nft_owner,
             :test_redemption_owner_unavailable,
+            :test_redemption_read_gate,
+            :test_redemption_read_result,
             :test_redemption_usdc_allowance,
             :test_redemption_usdc_balance
           ] do
@@ -75,6 +99,17 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert html =~ "80 USDC"
     assert html =~ "5,000,000 REGENT"
     assert html =~ "7 days"
+
+    assert has_element?(
+             view,
+             ~s(#redemption-result-dialog[aria-labelledby="redemption-result-heading"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(#redemption-result-dialog a[data-redemption-result-link][target="_blank"][rel="noopener noreferrer"])
+           )
+
     refute has_element?(view, "[phx-click=prepare_redemption]")
   end
 
@@ -115,8 +150,16 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   test "REFRESH_FEEDBACK: unchanged data is acknowledged and a later snapshot updates stats", %{
     conn: conn
   } do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
     Application.put_env(:ash_platform, :test_redemption_usdc_balance, 80_000_000)
     view = conn |> signed_in("redeem-refresh") |> activate(@wallet)
+    select(view, "animata_i", "42")
 
     assert has_element?(
              view,
@@ -130,17 +173,51 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              "Base safe block 1,234"
            )
 
+    assert has_element?(
+             view,
+             ~s(#redemption-refresh-status[data-visible="false"][aria-hidden="true"])
+           )
+
+    refute render(view) =~ "Refresh complete. Data is current"
+
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
     view |> element("#redemption-refresh") |> render_click()
+    assert_receive {:redemption_read_waiting, read}
+
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80 USDC")
+
+    assert has_element?(
+             view,
+             ".redeem-summary .redeem-metric:last-child",
+             "Base safe block 1,234"
+           )
+
+    assert has_element?(view, ".redeem-summary")
+    refute has_element?(view, ".redeem-status[aria-busy=true]")
+    assert has_element?(view, ".redeem-next-step button:not([disabled])")
+    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
     render_async(view)
 
     assert has_element?(
              view,
-             ~s(#redemption-refresh-status[role="status"][aria-live="polite"][aria-atomic="true"]),
+             ~s(#redemption-refresh-status[data-visible="true"][aria-hidden="false"][role="status"][aria-live="polite"][aria-atomic="true"]),
              "Refresh complete. Data is current at Base safe block 1,234."
            )
 
     Application.put_env(:ash_platform, :test_redemption_usdc_balance, 125_000_000)
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
     view |> element("#redemption-refresh") |> render_click()
+    assert_receive {:redemption_read_waiting, read}
+
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80 USDC")
+    refute has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ".redeem-summary")
+    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
+    refute render(view) =~ "Refresh complete. Data is current"
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
     render_async(view)
 
     assert has_element?(
@@ -153,6 +230,40 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              view,
              ".redeem-summary .redeem-metric:last-child",
              "Base safe block 1,234"
+           )
+
+    Application.put_env(:ash_platform, :test_redemption_read_result, :error)
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+    view |> element("#redemption-refresh") |> render_click()
+    assert_receive {:redemption_read_waiting, read}
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
+    refute render(view) =~ "Refresh complete. Data is current"
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
+    render_async(view)
+
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
+    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+
+    Application.put_env(:ash_platform, :test_redemption_read_result, :ok)
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+    view |> element("#redemption-refresh") |> render_click()
+    assert_receive {:redemption_read_waiting, read}
+    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
+    render_async(view)
+
+    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+
+    assert has_element?(
+             view,
+             ~s(#redemption-refresh-status[data-visible="true"]),
+             "Refresh complete. Data is current at Base safe block 1,234."
            )
   end
 

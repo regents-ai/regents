@@ -50,6 +50,11 @@ const actionIds = new Set(manifest.prepared_actions.map(action => action.id))
 const redeemerAbi = redeemerAbiJson as Abi
 const erc20ApprovalAbi = parseAbi(["function approve(address spender,uint256 amount)"])
 const erc721ApprovalAbi = parseAbi(["function setApprovalForAll(address operator,bool approved)"])
+const observationRequestTimeoutMs = 4_000
+const observationOffsetsSeconds = [
+  ...Array.from({length: 15}, (_, index) => (index + 1) * 2),
+  ...Array.from({length: 9}, (_, index) => (index + 4) * 10),
+]
 
 export type RedemptionAction =
   | "approve_nft_collection"
@@ -90,6 +95,32 @@ export type RedemptionClients = {
   send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
 }
 
+export type SubmittedRedemptionTransaction = Readonly<{
+  actionId: string
+  action: RedemptionAction
+  provider: EthereumProvider
+  chainId: 8453
+  signer: Address
+  transaction: Readonly<{from: Address; to: Address; data: Hex; value: "0x0"}>
+  hash: Hash
+}>
+
+export type ObservedRedemptionResult = "success" | "reverted" | "delayed" | "unavailable"
+
+export type RedemptionRuntime = {
+  alive(): boolean
+  registerCancellation(cancel: () => void): () => void
+}
+
+const deadObservations = new WeakSet<object>()
+class ObservationTimeout extends Error {}
+class DeadObservation extends Error {
+  constructor() {
+    super("redemption observation ended")
+    deadObservations.add(this)
+  }
+}
+
 export type CurrentRedemptionWallet = () => SelectedWallet | null
 
 export function clientsForRedemption(provider: EthereumProvider): RedemptionClients {
@@ -115,7 +146,7 @@ export async function executePreparedRedemptionAction(
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
   currentWallet: CurrentRedemptionWallet = activeEthereumWallet,
-): Promise<void> {
+): Promise<SubmittedRedemptionTransaction> {
   assertRedemptionEnvelope(envelope)
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
 
@@ -130,7 +161,23 @@ export async function executePreparedRedemptionAction(
 
   const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
   await clients.simulate(transaction)
-  await sendWithCurrentWallet(envelope, provider, clients, currentWallet, transaction)
+  const hash = await sendWithCurrentWallet(envelope, provider, clients, currentWallet, transaction)
+  if (!validHash(hash)) throw new Error("The wallet did not return a transaction hash.")
+
+  return Object.freeze({
+    actionId: envelope.action_id,
+    action: envelope.action,
+    provider,
+    chainId: base.id,
+    signer: account,
+    transaction: Object.freeze({
+      from: account,
+      to: transaction.to,
+      data: transaction.data,
+      value: "0x0",
+    }),
+    hash,
+  })
 }
 
 async function currentAccount(
@@ -156,7 +203,7 @@ async function sendWithCurrentWallet(
   clients: RedemptionClients,
   currentWallet: CurrentRedemptionWallet,
   transaction: {to: Address; data: Hex; value: bigint},
-): Promise<void> {
+): Promise<Hash> {
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
   if (await clients.chainId() !== base.id) throw new Error("Switch to Base before continuing.")
 
@@ -168,7 +215,261 @@ async function sendWithCurrentWallet(
   )
 
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
-  await clients.send({...transaction, account})
+  return clients.send({...transaction, account})
+}
+
+export function observeRedemptionTransaction(
+  submitted: SubmittedRedemptionTransaction,
+  runtime: RedemptionRuntime,
+  settle: (result: ObservedRedemptionResult) => void,
+): void {
+  const returnedAt = performance.now()
+  let settled = false
+  const observationCancellations = new Set<() => void>()
+  const observationRuntime: RedemptionRuntime = {
+    alive: () => !settled && runtime.alive(),
+    registerCancellation: cancel => {
+      if (settled || !runtime.alive()) {
+        cancel()
+        return () => undefined
+      }
+
+      let active = true
+      let unregisterParent = (): void => undefined
+      const cancelOnce = (): void => {
+        if (!active) return
+        active = false
+        observationCancellations.delete(cancelOnce)
+        unregisterParent()
+        cancel()
+      }
+      observationCancellations.add(cancelOnce)
+      unregisterParent = runtime.registerCancellation(cancelOnce)
+      return () => {
+        if (!active) return
+        active = false
+        observationCancellations.delete(cancelOnce)
+        unregisterParent()
+      }
+    },
+  }
+
+  const finish = (result: ObservedRedemptionResult): void => {
+    if (settled || !runtime.alive()) return
+    settled = true
+    for (const cancel of [...observationCancellations]) cancel()
+    observationCancellations.clear()
+    settle(result)
+  }
+
+  for (const offset of observationOffsetsSeconds) {
+    schedule(observationRuntime, Math.max(0, returnedAt + offset * 1_000 - performance.now()), async () => {
+      if (settled) return
+      try {
+        const result = await sampleReceipt(submitted, observationRuntime)
+        if (result === "success" || result === "reverted" || result === "unavailable") {
+          finish(result)
+        } else if (offset === 120) {
+          finish("delayed")
+        }
+      } catch (error) {
+        if (!isDeadObservation(error)) finish("unavailable")
+      }
+    })
+  }
+}
+
+async function sampleReceipt(
+  submitted: SubmittedRedemptionTransaction,
+  runtime: RedemptionRuntime,
+): Promise<ObservedRedemptionResult | "pending"> {
+  const transaction = await baseBoundRequest(
+    submitted.provider,
+    "eth_getTransactionByHash",
+    [submitted.hash],
+    runtime,
+  )
+  const transactionBlock =
+    transaction === null ? null : transactionIdentity(transaction, submitted)
+  if (transaction !== null && !transactionBlock) return "unavailable"
+
+  const receipt = await baseBoundRequest(
+    submitted.provider,
+    "eth_getTransactionReceipt",
+    [submitted.hash],
+    runtime,
+  )
+  if (receipt === null) return "pending"
+  if (!transactionBlock || transactionBlock.state !== "included") return "unavailable"
+  const identity = receiptIdentity(receipt, submitted, transactionBlock)
+  if (!identity) return "unavailable"
+
+  const block = await baseBoundRequest(
+    submitted.provider,
+    "eth_getBlockByHash",
+    [identity.blockHash, false],
+    runtime,
+  )
+  if (!validBlock(block, identity, submitted.hash)) return "unavailable"
+  return identity.status
+}
+
+async function baseBoundRequest(
+  provider: EthereumProvider,
+  method: string,
+  params: unknown[],
+  runtime: RedemptionRuntime,
+): Promise<unknown> {
+  const before = await rawRequest(provider, {method: "eth_chainId"}, runtime)
+  if (!baseChain(before)) throw new Error("wrong chain")
+  const result = await rawRequest(provider, {method, params}, runtime)
+  const after = await rawRequest(provider, {method: "eth_chainId"}, runtime)
+  if (!baseChain(after)) throw new Error("wrong chain")
+  return result
+}
+
+function rawRequest(
+  provider: EthereumProvider,
+  args: {method: string; params?: unknown[]},
+  runtime: RedemptionRuntime,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    if (!runtime.alive()) {
+      reject(new DeadObservation())
+      return
+    }
+
+    let active = true
+    let unregister = (): void => undefined
+    const finish = (result: () => void): void => {
+      if (!active) return
+      active = false
+      clearTimeout(timer)
+      unregister()
+      result()
+    }
+    const timer = globalThis.setTimeout(
+      () => finish(() => reject(new ObservationTimeout())),
+      observationRequestTimeoutMs,
+    )
+    unregister = runtime.registerCancellation(() => finish(() => reject(new DeadObservation())))
+
+    try {
+      const request = provider.request(args)
+      request.then(
+        value => finish(() => (runtime.alive() ? resolve(value) : reject(new DeadObservation()))),
+        error => finish(() => reject(error)),
+      )
+    } catch {
+      finish(() => reject(new Error("provider request failed")))
+    }
+  })
+}
+
+function schedule(runtime: RedemptionRuntime, delay: number, run: () => Promise<void>): void {
+  let unregister = (): void => undefined
+  const timer = globalThis.setTimeout(() => {
+    unregister()
+    if (runtime.alive()) void run()
+  }, delay)
+  unregister = runtime.registerCancellation(() => clearTimeout(timer))
+}
+
+function transactionIdentity(
+  value: unknown,
+  expected: SubmittedRedemptionTransaction,
+):
+  | {state: "pending"}
+  | {state: "included"; blockHash: `0x${string}`; blockNumber: string}
+  | null {
+  if (!record(value)) return null
+  const transaction = expected.transaction
+  const exactTransaction =
+    sameHash(value.hash, expected.hash) &&
+    sameAddress(value.from, expected.signer) &&
+    sameAddress(value.to, transaction.to) &&
+    typeof value.input === "string" &&
+    value.input.toLowerCase() === transaction.data.toLowerCase() &&
+    zeroQuantity(value.value)
+  if (!exactTransaction) return null
+  if (value.blockHash === null && value.blockNumber === null) return {state: "pending"}
+  if (validHash(value.blockHash) && validQuantity(value.blockNumber)) {
+    return {state: "included", blockHash: value.blockHash, blockNumber: value.blockNumber}
+  }
+  return null
+}
+
+function receiptIdentity(
+  value: unknown,
+  expected: SubmittedRedemptionTransaction,
+  transactionBlock: {state: "included"; blockHash: `0x${string}`; blockNumber: string},
+): {status: "success" | "reverted"; blockHash: `0x${string}`; blockNumber: string} | null {
+  if (!record(value)) return null
+  const status = value.status === "0x1" ? "success" : value.status === "0x0" ? "reverted" : null
+  if (
+    !status ||
+    !sameHash(value.transactionHash, expected.hash) ||
+    !sameAddress(value.from, expected.signer) ||
+    !sameAddress(value.to, expected.transaction.to) ||
+    !validHash(value.blockHash) ||
+    !validQuantity(value.blockNumber) ||
+    !sameHash(value.blockHash, transactionBlock.blockHash) ||
+    BigInt(value.blockNumber) !== BigInt(transactionBlock.blockNumber)
+  ) {
+    return null
+  }
+  return {status, blockHash: value.blockHash, blockNumber: value.blockNumber}
+}
+
+function validBlock(
+  value: unknown,
+  identity: {blockHash: `0x${string}`; blockNumber: string},
+  hash: Hash,
+): boolean {
+  if (!record(value) || !Array.isArray(value.transactions)) return false
+  return (
+    sameHash(value.hash, identity.blockHash) &&
+    validQuantity(value.number) &&
+    BigInt(value.number) === BigInt(identity.blockNumber) &&
+    value.transactions.some(transaction => sameHash(transaction, hash))
+  )
+}
+
+function validHash(value: unknown): value is Hash {
+  return typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value)
+}
+
+function validQuantity(value: unknown): value is string {
+  return typeof value === "string" && /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(value)
+}
+
+function zeroQuantity(value: unknown): boolean {
+  return validQuantity(value) && BigInt(value) === 0n
+}
+
+function baseChain(value: unknown): boolean {
+  return validQuantity(value) && BigInt(value) === BigInt(base.id)
+}
+
+function sameAddress(value: unknown, expected: Address): boolean {
+  if (typeof value !== "string") return false
+  try {
+    return getAddress(value) === expected
+  } catch {
+    return false
+  }
+}
+
+function sameHash(value: unknown, expected: Hash): boolean {
+  return validHash(value) && value.toLowerCase() === expected.toLowerCase()
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isDeadObservation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && deadObservations.has(error)
 }
 
 function assertActiveWallet(

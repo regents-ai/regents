@@ -104,6 +104,7 @@ defmodule AshPlatformWeb.ShellLive do
        redemption_generation: 0,
        redemption_wallet: nil,
        redemption_status: :loading,
+       redemption_refresh_block: nil,
        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
        open_sea_lookup: nil,
        staking: nil,
@@ -284,8 +285,9 @@ defmodule AshPlatformWeb.ShellLive do
      socket |> release_staking_read(name) |> assign(staking: nil, staking_status: :error)}
   end
 
-  # A crashed read answered nothing about Base, so the page returns to its
-  # neutral unavailable state and releases the refresh control.
+  # A crashed read answered nothing about Base. Release the refresh control,
+  # preserve an existing snapshot, and use the unavailable state only on the
+  # initial read where no prior snapshot exists.
   def handle_async(
         {:staking, generation} = name,
         {:exit, _reason},
@@ -308,11 +310,21 @@ defmodule AshPlatformWeb.ShellLive do
           }
         } = socket
       ) do
+    refresh_block =
+      case socket.assigns.redemption_read do
+        %{name: ^name, announce_refresh: true} -> redemption.block_number
+        _ -> socket.assigns.redemption_refresh_block
+      end
+
     {:noreply,
      socket
      |> dismiss_settled_redemption(name)
      |> release_redemption_read(name)
-     |> assign(redemption: redemption, redemption_status: :ready)
+     |> assign(
+       redemption: redemption,
+       redemption_status: :ready,
+       redemption_refresh_block: refresh_block
+     )
      |> start_open_sea_lookup(generation)}
   end
 
@@ -341,10 +353,7 @@ defmodule AshPlatformWeb.ShellLive do
           }
         } = socket
       ) do
-    {:noreply,
-     socket
-     |> release_redemption_read(name)
-     |> assign(redemption: nil, redemption_status: :error)}
+    {:noreply, socket |> release_redemption_read(name) |> redemption_read_failed(:unavailable)}
   end
 
   # A read whose page has since moved on still releases its own marker, so the
@@ -704,7 +713,7 @@ defmodule AshPlatformWeb.ShellLive do
         redemption_notice: nil
       )
 
-    {:noreply, start_redemption_read(socket)}
+    {:noreply, start_redemption_read(socket, preserve_snapshot: true)}
   end
 
   defp handle_redemption_event(
@@ -719,7 +728,7 @@ defmodule AshPlatformWeb.ShellLive do
         redemption_notice: nil
       )
 
-    {:noreply, start_redemption_read(socket)}
+    {:noreply, start_redemption_read(socket, preserve_snapshot: true)}
   end
 
   defp handle_redemption_event("prepare_redemption", %{"action" => action}, socket) do
@@ -739,7 +748,7 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp handle_redemption_event("refresh_redemption", _params, socket),
-    do: {:noreply, start_redemption_read(socket)}
+    do: {:noreply, start_redemption_read(socket, preserve_snapshot: true, announce_refresh: true)}
 
   @impl true
   def render(assigns) do
@@ -873,6 +882,7 @@ defmodule AshPlatformWeb.ShellLive do
           token_id={@redemption_token_id}
           notice={@redemption_notice}
           reading={redemption_reading?(assigns)}
+          refresh_block={@redemption_refresh_block}
           step={@redemption && Redemption.next_step(@redemption, @redemption_wallet)}
           owned_collectibles={@owned_collectibles}
         />
@@ -1612,37 +1622,42 @@ defmodule AshPlatformWeb.ShellLive do
     |> assign(
       redemption: nil,
       redemption_status: :loading,
+      redemption_refresh_block: nil,
       redemption_notice: nil,
       redemption_wallet: nil,
       owned_collectibles: %{status: :idle, animata: [], regents_club: []}
     )
   end
 
-  defp start_redemption_read(socket) do
+  defp start_redemption_read(socket, options \\ []) do
     socket = socket |> cancel_redemption_read() |> cancel_open_sea_lookup()
     generation = socket.assigns.redemption_generation + 1
     name = {:redemption, generation}
     wallet = socket.assigns.redemption_wallet
     collection = socket.assigns.redemption_collection
     token_id = parsed_token_id(socket.assigns.redemption_token_id)
-    opts = wallet_opts(socket)
+
+    preserve_snapshot =
+      Keyword.get(options, :preserve_snapshot, false) && not is_nil(socket.assigns.redemption)
+
+    announce_refresh = Keyword.get(options, :announce_refresh, false)
+
+    read_opts = wallet_opts(socket)
 
     socket
     |> assign(
-      redemption: nil,
-      redemption_status: :loading,
+      redemption: if(preserve_snapshot, do: socket.assigns.redemption),
+      redemption_status: if(preserve_snapshot, do: :ready, else: :loading),
+      redemption_refresh_block:
+        if(announce_refresh, do: nil, else: socket.assigns.redemption_refresh_block),
+      redemption_notice: if(announce_refresh, do: nil, else: socket.assigns.redemption_notice),
       redemption_generation: generation,
-      redemption_read: %{name: name},
-      owned_collectibles: %{
-        status: if(wallet, do: :loading, else: :idle),
-        animata: [],
-        regents_club: []
-      }
+      redemption_read: %{name: name, announce_refresh: announce_refresh}
     )
     |> start_async(name, fn ->
       {generation,
        if(wallet,
-         do: Redemption.account_for_wallet(wallet, collection, token_id, opts),
+         do: Redemption.account_for_wallet(wallet, collection, token_id, read_opts),
          else: Redemption.overview()
        )}
     end)
@@ -1651,7 +1666,14 @@ defmodule AshPlatformWeb.ShellLive do
   defp adopt_redemption_wallet(socket, wallet),
     do:
       socket
-      |> assign(redemption_wallet: wallet, redemption_notice: nil)
+      |> assign(
+        redemption_wallet: wallet,
+        redemption: nil,
+        redemption_status: :loading,
+        redemption_refresh_block: nil,
+        redemption_notice: nil,
+        owned_collectibles: %{status: :idle, animata: [], regents_club: []}
+      )
       |> start_redemption_read()
 
   defp redemption_read_failed(socket, :wrong_signer),
@@ -1659,6 +1681,9 @@ defmodule AshPlatformWeb.ShellLive do
       socket
       |> assign(
         redemption_wallet: nil,
+        redemption: nil,
+        redemption_status: :loading,
+        redemption_refresh_block: nil,
         redemption_notice: %{
           tone: :error,
           message: "That wallet is not one of the wallets on your Regent account."
@@ -1666,8 +1691,19 @@ defmodule AshPlatformWeb.ShellLive do
       )
       |> start_redemption_read()
 
-  defp redemption_read_failed(socket, _),
-    do: assign(socket, redemption: nil, redemption_status: :error)
+  defp redemption_read_failed(socket, _) do
+    if socket.assigns.redemption do
+      assign(socket,
+        redemption_status: :ready,
+        redemption_notice: %{
+          tone: :error,
+          message: "Refresh failed. The last confirmed Base snapshot remains on screen."
+        }
+      )
+    else
+      assign(socket, redemption: nil, redemption_status: :error)
+    end
+  end
 
   defp cancel_redemption_read(%{assigns: %{redemption_read: nil}} = socket), do: socket
 
@@ -1694,12 +1730,17 @@ defmodule AshPlatformWeb.ShellLive do
     socket
     |> assign(
       open_sea_lookup: name,
-      owned_collectibles: %{status: :loading, animata: [], regents_club: []}
+      owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
     )
     |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet, opts) end)
   end
 
   defp start_open_sea_lookup(socket, _), do: socket
+
+  defp loading_collectibles(%{status: :idle}),
+    do: %{status: :loading, animata: [], regents_club: []}
+
+  defp loading_collectibles(collectibles), do: collectibles
   defp cancel_open_sea_lookup(%{assigns: %{open_sea_lookup: nil}} = socket), do: socket
 
   defp cancel_open_sea_lookup(socket),

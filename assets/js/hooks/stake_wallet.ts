@@ -298,6 +298,7 @@ function presentNext(root: HTMLElement, state: StakeState): void {
   if (display.href) {
     state.link.textContent = "View on BaseScan"
     state.link.href = display.href
+    state.link.target = "_blank"
     state.link.rel = "noopener noreferrer"
     state.link.hidden = false
   }

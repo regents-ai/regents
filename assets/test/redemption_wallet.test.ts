@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {
   encodeFunctionData,
   getAddress,
@@ -11,11 +11,16 @@ import {
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import redeemerAbiJson from "../../contracts/abi/animata-redeemer.json"
+import {RedemptionWallet} from "../js/hooks/redemption_wallet"
 import {
   executePreparedRedemptionAction,
+  observeRedemptionTransaction,
+  type ObservedRedemptionResult,
   type PreparedRedemptionAction,
   type RedemptionAction,
   type RedemptionClients,
+  type RedemptionRuntime,
+  type SubmittedRedemptionTransaction,
 } from "../js/wallet_actions/redemption"
 
 const manifest = chainManifest.contracts.animata_redeemer
@@ -32,6 +37,7 @@ const erc721Approval = parseAbi([
   "function setApprovalForAll(address operator,bool approved)",
 ])
 const hash = `0x${"ab".repeat(32)}` as Hash
+const blockHash = `0x${"cd".repeat(32)}` as Hash
 const provider = {request: vi.fn(async () => undefined)}
 const otherProvider = {request: vi.fn(async () => undefined)}
 const selected = () => ({address: wallet, provider})
@@ -131,6 +137,28 @@ describe("all four direct redemption calldata shapes", () => {
       data: shape.data,
       value: 0n,
     })
+  })
+
+  it("returns immutable evidence for the exact wallet submission", async () => {
+    const prepared = envelope("redeem")
+    const submitted = await executePreparedRedemptionAction(prepared, provider, clients(), selected)
+
+    expect(submitted).toEqual({
+      actionId: prepared.action_id,
+      action: "redeem",
+      provider,
+      chainId: 8453,
+      signer: wallet,
+      transaction: {
+        from: wallet,
+        to: prepared.to,
+        data: prepared.data,
+        value: "0x0",
+      },
+      hash,
+    })
+    expect(Object.isFrozen(submitted)).toBe(true)
+    expect(Object.isFrozen(submitted.transaction)).toBe(true)
   })
 })
 
@@ -257,5 +285,318 @@ describe("redemption drift fails before a wallet prompt", () => {
 
     await expect(execution).rejects.toThrow()
     expect(rpc.send).not.toHaveBeenCalled()
+  })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+it("discards a prepared action that arrives after the wallet generation changed", () => {
+  const request = vi.fn(async () => undefined)
+  const listeners = new Map<string, () => void>()
+  const fakeWindow = {
+    location: {origin: "http://127.0.0.1:4002"},
+    __ashPlatformTestWallet: {address: wallet, provider: {request}},
+    addEventListener: vi.fn((event: string, listener: () => void) => listeners.set(event, listener)),
+    removeEventListener: vi.fn((event: string) => listeners.delete(event)),
+    dispatchEvent: vi.fn(),
+  }
+  vi.stubGlobal("window", fakeWindow)
+
+  const text = {textContent: ""}
+  const link = {
+    textContent: "",
+    hidden: true,
+    href: "",
+    target: "",
+    rel: "",
+    removeAttribute: vi.fn(),
+  }
+  const showModal = vi.fn()
+  const dialogListeners = new Map<string, () => void>()
+  const dialog = {
+    open: false,
+    isConnected: true,
+    querySelector: (selector: string) =>
+      selector === "[data-redemption-result-text]" ? text : link,
+    addEventListener: vi.fn((event: string, listener: () => void) =>
+      dialogListeners.set(event, listener)
+    ),
+    removeEventListener: vi.fn((event: string) => dialogListeners.delete(event)),
+    showModal,
+    close: vi.fn(),
+  }
+  const rootListeners = new Map<string, (event: MouseEvent) => void>()
+  const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
+  const root = {
+    isConnected: true,
+    querySelector: (selector: string) =>
+      selector === "#redemption-result-dialog" ? dialog : heading,
+    addEventListener: vi.fn((event: string, listener: (event: MouseEvent) => void) =>
+      rootListeners.set(event, listener)
+    ),
+    removeEventListener: vi.fn((event: string) => rootListeners.delete(event)),
+  }
+  let walletAction!: (payload: unknown) => void
+  const hook = {
+    el: root,
+    pushEvent: vi.fn(),
+    handleEvent: vi.fn((event: string, listener: (payload: unknown) => void) => {
+      if (event === "redemption:wallet-action") walletAction = listener
+    }),
+  }
+
+  RedemptionWallet.mounted!.call(hook)
+  const initiator = {
+    getAttribute: () => "claim",
+    focus: vi.fn(),
+    isConnected: true,
+    closest: () => null,
+    hasAttribute: () => false,
+  }
+  rootListeners.get("click")!({
+    target: {closest: (selector: string) => selector.includes("prepare_redemption") ? initiator : null},
+  } as unknown as MouseEvent)
+
+  fakeWindow.__ashPlatformTestWallet = {address: otherWallet, provider: {request}}
+  listeners.get("ash:wallet-state")!()
+  walletAction({envelope: envelope("claim")})
+
+  expect(request).not.toHaveBeenCalled()
+  expect(showModal).not.toHaveBeenCalled()
+})
+
+function submittedTransaction(
+  observationProvider: SubmittedRedemptionTransaction["provider"],
+): SubmittedRedemptionTransaction {
+  const prepared = envelope("redeem")
+  return Object.freeze({
+    actionId: prepared.action_id,
+    action: prepared.action,
+    provider: observationProvider,
+    chainId: 8453,
+    signer: wallet,
+    transaction: Object.freeze({
+      from: wallet,
+      to: prepared.to,
+      data: prepared.data,
+      value: "0x0" as const,
+    }),
+    hash,
+  })
+}
+
+function liveRuntime(): RedemptionRuntime {
+  return {alive: () => true, registerCancellation: () => () => undefined}
+}
+
+async function observe(
+  transaction: SubmittedRedemptionTransaction,
+  milliseconds: number,
+): Promise<ObservedRedemptionResult[]> {
+  const results: ObservedRedemptionResult[] = []
+  observeRedemptionTransaction(transaction, liveRuntime(), result => results.push(result))
+  await vi.advanceTimersByTimeAsync(milliseconds)
+  return results
+}
+
+function includedProvider(status: "0x0" | "0x1") {
+  let expected!: SubmittedRedemptionTransaction
+  const receiptProvider = {
+    request: vi.fn(async ({method}: {method: string}) => {
+      switch (method) {
+        case "eth_chainId":
+          return "0x2105"
+        case "eth_getTransactionByHash":
+          return {
+            hash: expected.hash,
+            from: expected.signer,
+            to: expected.transaction.to,
+            input: expected.transaction.data,
+            value: "0x0",
+            blockHash,
+            blockNumber: "0x10",
+          }
+        case "eth_getTransactionReceipt":
+          return {
+            transactionHash: expected.hash,
+            from: expected.signer,
+            to: expected.transaction.to,
+            status,
+            blockHash,
+            blockNumber: "0x10",
+          }
+        case "eth_getBlockByHash":
+          return {hash: blockHash, number: "0x10", transactions: [expected.hash]}
+        default:
+          throw new Error(`unexpected ${method}`)
+      }
+    }),
+  }
+  expected = submittedTransaction(receiptProvider)
+  return expected
+}
+
+describe("chain-authoritative redemption observation", () => {
+  it.each([
+    ["0x1", "success"],
+    ["0x0", "reverted"],
+  ] as const)("maps validated receipt status %s to %s", async (status, outcome) => {
+    vi.useFakeTimers()
+    expect(await observe(includedProvider(status), 2_000)).toEqual([outcome])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("reports a still-pending transaction as delayed only at 120 seconds", async () => {
+    vi.useFakeTimers()
+    let expected!: SubmittedRedemptionTransaction
+    const pendingProvider = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        if (method === "eth_chainId") return "0x2105"
+        if (method === "eth_getTransactionReceipt") return null
+        return {
+          hash: expected.hash,
+          from: expected.signer,
+          to: expected.transaction.to,
+          input: expected.transaction.data,
+          value: "0x0",
+          blockHash: null,
+          blockNumber: null,
+        }
+      }),
+    }
+    expected = submittedTransaction(pendingProvider)
+    const results: ObservedRedemptionResult[] = []
+    observeRedemptionTransaction(expected, liveRuntime(), result => results.push(result))
+
+    await vi.advanceTimersByTimeAsync(119_999)
+    expect(results).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(results).toEqual(["delayed"])
+
+    const methods = pendingProvider.request.mock.calls.map(([request]) => request.method)
+    expect(methods.filter(method => method === "eth_chainId")).toHaveLength(96)
+    expect(methods.filter(method => method === "eth_getTransactionByHash")).toHaveLength(24)
+    expect(methods.filter(method => method === "eth_getTransactionReceipt")).toHaveLength(24)
+    expect(methods).not.toContain("eth_getBlockByHash")
+  })
+
+  it("rejects wrong-chain and contradictory inclusion evidence", async () => {
+    vi.useFakeTimers()
+    const wrongChain = {request: vi.fn(async () => "0x1")}
+    expect(await observe(submittedTransaction(wrongChain), 2_000)).toEqual(["unavailable"])
+
+    vi.clearAllTimers()
+    let expected!: SubmittedRedemptionTransaction
+    const contradictory = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        if (method === "eth_chainId") return "0x2105"
+        if (method === "eth_getTransactionByHash") {
+          return {
+            hash: expected.hash,
+            from: expected.signer,
+            to: expected.transaction.to,
+            input: expected.transaction.data,
+            value: "0x0",
+            blockHash,
+            blockNumber: "0x10",
+          }
+        }
+        return {
+          transactionHash: expected.hash,
+          from: expected.signer,
+          to: expected.transaction.to,
+          status: "0x1",
+          blockHash: `0x${"ef".repeat(32)}`,
+          blockNumber: "0x10",
+        }
+      }),
+    }
+    expected = submittedTransaction(contradictory)
+    expect(await observe(expected, 2_000)).toEqual(["unavailable"])
+  })
+
+  it("rejects malformed transaction identity and a chain that drifts after a read", async () => {
+    vi.useFakeTimers()
+    let malformedExpected!: SubmittedRedemptionTransaction
+    const malformed = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        if (method === "eth_chainId") return "0x2105"
+        if (method === "eth_getTransactionByHash") {
+          return {
+            hash: malformedExpected.hash,
+            from: malformedExpected.signer,
+            to: malformedExpected.transaction.to,
+            input: malformedExpected.transaction.data,
+            value: "0x1",
+            blockHash: null,
+            blockNumber: null,
+          }
+        }
+        return null
+      }),
+    }
+    malformedExpected = submittedTransaction(malformed)
+    expect(await observe(malformedExpected, 2_000)).toEqual(["unavailable"])
+
+    vi.clearAllTimers()
+    let driftExpected!: SubmittedRedemptionTransaction
+    let chainRead = 0
+    const drift = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        if (method === "eth_chainId") return ++chainRead === 1 ? "0x2105" : "0x1"
+        return {
+          hash: driftExpected.hash,
+          from: driftExpected.signer,
+          to: driftExpected.transaction.to,
+          input: driftExpected.transaction.data,
+          value: "0x0",
+          blockHash: null,
+          blockNumber: null,
+        }
+      }),
+    }
+    driftExpected = submittedTransaction(drift)
+    expect(await observe(driftExpected, 2_000)).toEqual(["unavailable"])
+  })
+
+  it("reports a hung provider as unavailable after the bounded request timeout", async () => {
+    vi.useFakeTimers()
+    const hung = {request: vi.fn(() => new Promise<unknown>(() => undefined))}
+    const results: ObservedRedemptionResult[] = []
+    observeRedemptionTransaction(submittedTransaction(hung), liveRuntime(), result =>
+      results.push(result)
+    )
+
+    await vi.advanceTimersByTimeAsync(5_999)
+    expect(results).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(results).toEqual(["unavailable"])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("makes every scheduled callback inert when its wallet generation ends", async () => {
+    vi.useFakeTimers()
+    const pending = {request: vi.fn(async () => null)}
+    const transaction = submittedTransaction(pending)
+    const cancellations = new Set<() => void>()
+    let alive = true
+    const runtime: RedemptionRuntime = {
+      alive: () => alive,
+      registerCancellation: cancel => {
+        cancellations.add(cancel)
+        return () => cancellations.delete(cancel)
+      },
+    }
+    const results: ObservedRedemptionResult[] = []
+    observeRedemptionTransaction(transaction, runtime, result => results.push(result))
+
+    alive = false
+    for (const cancel of [...cancellations]) cancel()
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(results).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

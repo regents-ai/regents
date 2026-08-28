@@ -181,7 +181,45 @@
 
 .redeem-refresh-status {
   grid-column: 1 / -1;
+  min-height: 4.75rem;
   margin: 0;
+}
+
+.redeem-refresh-status[data-visible="false"] {
+  visibility: hidden;
+}
+
+.redeem-result-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: clamp(1rem, 4vw, 1.5rem);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
+  box-shadow: var(--material-shadow);
+}
+
+.redeem-result-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.redeem-result-dialog h2,
+.redeem-result-dialog p {
+  margin-block: 0 1rem;
+}
+
+.redeem-result-dialog a {
+  display: inline-block;
+  margin-block-end: 1rem;
+}
+
+.redeem-result-dialog a[hidden] {
+  display: none;
+}
+
+.redeem-result-dialog form {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* The single next step reads as the one thing to do, so it carries the page's
