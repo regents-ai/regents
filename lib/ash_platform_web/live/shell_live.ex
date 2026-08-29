@@ -464,31 +464,18 @@ defmodule AshPlatformWeb.ShellLive do
   # closed-surface response for stale clients while keeping an open surface inert.
   def handle_event(event, _params, socket)
       when event in ["create_launch_draft", "revise_launch_draft"] do
-    if LaunchGate.autolaunch_surfaces_enabled?() do
+    if launch_surfaces_enabled?() do
       {:noreply, socket}
     else
-      {:noreply,
-       assign(socket,
-         autolaunch_draft_notice: %{
-           tone: :error,
-           message: "This part of Regent isn't open yet."
-         }
-       )}
+      closed_launch_reply(socket)
     end
   end
 
   def handle_event(event, params, socket)
       when event in ["autosave_launch_token_details", "autosave_launch_treasury"] do
-    if LaunchGate.autolaunch_surfaces_enabled?(),
+    if launch_surfaces_enabled?(),
       do: handle_draft_event(event, params, socket),
-      else:
-        {:noreply,
-         assign(socket,
-           autolaunch_draft_notice: %{
-             tone: :error,
-             message: "This part of Regent isn't open yet."
-           }
-         )}
+      else: closed_launch_reply(socket)
   end
 
   def handle_event("delete_comment", %{"id" => id}, socket) do
@@ -682,6 +669,7 @@ defmodule AshPlatformWeb.ShellLive do
 
     with %Human{} = actor <- human_actor(socket),
          {:ok, draft} <- current_or_new_draft(socket, actor),
+         true <- launch_surfaces_enabled?(),
          {:ok, _saved} <- autosave_draft(event, draft, values, actor),
          {:ok, drafts} <- account_launch_drafts(actor) do
       {:noreply,
@@ -695,6 +683,12 @@ defmodule AshPlatformWeb.ShellLive do
          }
        )}
     else
+      false ->
+        closed_launch_reply(socket)
+
+      {:error, :launch_surfaces_closed} ->
+        closed_launch_reply(socket)
+
       error ->
         {:noreply,
          assign(socket,
@@ -715,11 +709,21 @@ defmodule AshPlatformWeb.ShellLive do
     do: Autolaunch.autosave_launch_treasury(draft, values, actor: actor)
 
   defp current_or_new_draft(_socket, actor) do
-    case Autolaunch.get_my_account_launch_draft(actor: actor) do
-      {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
-      {:ok, draft} -> {:ok, draft}
-      {:error, error} -> {:error, error}
+    if launch_surfaces_enabled?() do
+      case Autolaunch.get_my_account_launch_draft(actor: actor) do
+        {:ok, nil} -> create_launch_draft_if_open(actor)
+        {:ok, draft} -> {:ok, draft}
+        {:error, error} -> {:error, error}
+      end
+    else
+      {:error, :launch_surfaces_closed}
     end
+  end
+
+  defp create_launch_draft_if_open(actor) do
+    if launch_surfaces_enabled?(),
+      do: Autolaunch.create_launch_draft(%{}, actor: actor),
+      else: {:error, :launch_surfaces_closed}
   end
 
   # Phoenix supplies the completed-upload temp path; it is never accepted from
@@ -727,14 +731,14 @@ defmodule AshPlatformWeb.ShellLive do
   # sobelow_skip ["Traversal.FileModule"]
   defp handle_launch_image_progress(:launch_image, entry, socket) do
     if entry.done? do
-      bytes =
-        consume_uploaded_entry(socket, entry, fn %{path: path} ->
-          File.read(path)
-        end)
-
-      with true <- is_binary(bytes),
+      with true <- launch_surfaces_enabled?(),
+           bytes when is_binary(bytes) <-
+             consume_uploaded_entry(socket, entry, fn %{path: path} ->
+               File.read(path)
+             end),
            %Human{} = actor <- human_actor(socket),
            {:ok, draft} <- current_or_new_draft(socket, actor),
+           true <- launch_surfaces_enabled?(),
            {:ok, _stored} <-
              LaunchDraftImageStorage.store_and_attach(
                draft,
@@ -755,6 +759,12 @@ defmodule AshPlatformWeb.ShellLive do
            }
          )}
       else
+        false ->
+          closed_launch_reply(socket)
+
+        {:error, :launch_surfaces_closed} ->
+          closed_launch_reply(socket)
+
         {:error, :image_limit_reached} ->
           {:noreply,
            assign(socket,
@@ -777,6 +787,20 @@ defmodule AshPlatformWeb.ShellLive do
     else
       {:noreply, socket}
     end
+  end
+
+  defp launch_surfaces_enabled? do
+    LaunchGate.app_surfaces_enabled?() and LaunchGate.autolaunch_surfaces_enabled?()
+  end
+
+  defp closed_launch_reply(socket) do
+    {:noreply,
+     assign(socket,
+       autolaunch_draft_notice: %{
+         tone: :error,
+         message: "This part of Regent isn't open yet."
+       }
+     )}
   end
 
   defp launch_ready?(socket) do

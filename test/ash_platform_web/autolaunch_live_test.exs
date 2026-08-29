@@ -802,6 +802,73 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert {:ok, []} = Autolaunch.list_launches()
   end
 
+  test "a mounted Create socket cannot autosave after either launch gate closes", %{conn: conn} do
+    on_exit(&open_create_gates/0)
+
+    for {gate, suffix, wallet} <- [
+          {:app_surfaces, "app", "0x3333333333333333333333333333333333333341"},
+          {:autolaunch_surfaces, "autolaunch", "0x3333333333333333333333333333333333333342"}
+        ] do
+      open_create_gates()
+      account = draft_account!("late-autosave-#{suffix}", wallet)
+      actor = %Human{human_account_id: account.id}
+
+      {:ok, view, _html} =
+        conn
+        |> recycle()
+        |> init_test_session(%{human_account_id: account.id})
+        |> live("/autolaunch/create")
+
+      Application.put_env(:ash_platform, gate, false)
+
+      view
+      |> form(
+        "#launch-token-details",
+        launch_draft: Map.drop(@live_draft, ["image", "treasury"])
+      )
+      |> render_change()
+
+      assert has_element?(view, "[role=alert]", "This part of Regent isn't open yet.")
+      refute has_element?(view, "[role=status]", "Saved to your account.")
+      assert {:ok, nil} = Autolaunch.get_my_account_launch_draft(actor: actor)
+      assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    end
+  end
+
+  test "a mounted Create socket cannot finish an upload after either launch gate closes", %{
+    conn: conn
+  } do
+    on_exit(&open_create_gates/0)
+
+    for {gate, suffix, wallet} <- [
+          {:app_surfaces, "app", "0x3333333333333333333333333333333333333343"},
+          {:autolaunch_surfaces, "autolaunch", "0x3333333333333333333333333333333333333344"}
+        ] do
+      open_create_gates()
+      account = draft_account!("late-upload-#{suffix}", wallet)
+      actor = %Human{human_account_id: account.id}
+
+      {:ok, view, _html} =
+        conn
+        |> recycle()
+        |> init_test_session(%{human_account_id: account.id})
+        |> live("/autolaunch/create")
+
+      upload =
+        file_input(view, "#launch-token-details", :launch_image, [
+          %{name: "late.png", content: png(), type: "image/png"}
+        ])
+
+      Application.put_env(:ash_platform, gate, false)
+      render_upload(upload, "late.png")
+
+      assert has_element?(view, "[role=alert]", "This part of Regent isn't open yet.")
+      refute has_element?(view, "[role=status]", "Image saved to your account.")
+      assert {:ok, nil} = Autolaunch.get_my_account_launch_draft(actor: actor)
+      assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    end
+  end
+
   test "a second distinct image is refused without changing the first saved image", %{conn: conn} do
     account =
       draft_account!("autolaunch-one-image", "0x3333333333333333333333333333333333333337")
@@ -845,6 +912,11 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert {:ok, still_saved} = Autolaunch.get_my_launch_draft_image(actor: actor)
     assert still_saved.id == saved.id
+  end
+
+  defp open_create_gates do
+    Application.put_env(:ash_platform, :app_surfaces, true)
+    Application.put_env(:ash_platform, :autolaunch_surfaces, true)
   end
 
   test "overview, collections, and details render imported public records without invented money",
