@@ -23,6 +23,7 @@ const permit2 = getAddress("0x000000000022D473030F116dDEE9F6B43aC78BA3")
 const approvalHash = `0x${"cd".repeat(32)}` as Hash
 const blockHash = `0x${"12".repeat(32)}` as Hash
 const lab = {
+  run_id: "acceptance-run-1",
   rpc_url: "http://127.0.0.1:8545",
   chain_id: 31_337,
   addresses: {auction: auction.toLowerCase(), permit2: permit2.toLowerCase()},

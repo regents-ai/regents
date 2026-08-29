@@ -487,7 +487,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
              FakeRuntime.state(agent)
   end
 
-  test "a binding change during projection suppresses stale cache and publication" do
+  test "a binding change during projection invalidates once and permits one replacement refresh" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-before-project", rpc_url: "http://127.0.0.1:49713"}
     replacement = %{binding | run_id: "run-during-project"}
@@ -518,6 +518,25 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
     assert %{generation: 1, head: nil, degraded?: true, auctions: %{}} =
              LabMarketFeed.snapshot(feed)
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: replacement, block: block}},
+      current_binding: {:ok, replacement},
+      binding_after_project: nil
+    )
+
+    LabMarketFeed.refresh(feed)
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 2, auction_ids: [^id], block_number: 100}}
+
+    refute_receive {:autolaunch_market_updated, %{invalidated?: true}}, 50
+
+    assert %{generation: 2, head: ^block, degraded?: false, auctions: auctions} =
+             LabMarketFeed.snapshot(feed)
+
+    assert Map.has_key?(auctions, @lab_address)
+    assert %{snapshot_calls: 2, project_calls: 2} = FakeRuntime.state(agent)
   end
 
   test "a projector exception is contained and enters bounded failure backoff" do
@@ -694,7 +713,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert %{head: ^accepted_block, degraded?: false, auctions: %{}} =
              LabMarketFeed.snapshot(feed)
 
-    assert %{snapshot_calls: 2, project_calls: 1} = FakeRuntime.state(agent)
+    assert %{snapshot_calls: 2, project_calls: 2, verify_calls: 4} =
+             FakeRuntime.state(agent)
   end
 
   test "a transient head failure releases the watcher for the next backoff attempt" do

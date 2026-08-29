@@ -18,6 +18,7 @@ const data = "0x1234" as Hex
 
 function binding(overrides: Partial<AutolaunchLabBinding> = {}): AutolaunchLabBinding {
   return {
+    run_id: "acceptance-run-1",
     rpc_url: "http://127.0.0.1:8545",
     chain_id: autolaunchLabChainId,
     addresses: {factory: target.toLowerCase()},
@@ -83,6 +84,17 @@ describe("the signed lab network binding is a closed loopback boundary", () => {
     ).toThrow("network binding changed")
     expect(() =>
       labNetwork(operation({lab: {...binding(), extra: true} as AutolaunchLabBinding})),
+    ).toThrow("network binding changed")
+  })
+
+  it("requires the exact non-empty server run binding", () => {
+    const {run_id: _runId, ...withoutRunId} = binding()
+
+    expect(() =>
+      labNetwork(operation({lab: withoutRunId as AutolaunchLabBinding})),
+    ).toThrow("network binding changed")
+    expect(() =>
+      labNetwork(operation({lab: binding({run_id: "  "})})),
     ).toThrow("network binding changed")
   })
 })

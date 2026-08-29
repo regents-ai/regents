@@ -18,6 +18,7 @@ function operation(overrides: Partial<LabPositionOperation> = {}): LabPositionOp
     signer: wallet,
     chain_id: 31_337,
     lab: {
+      run_id: "acceptance-run-1",
       rpc_url: "http://127.0.0.1:8545",
       chain_id: 31_337,
       addresses: {position_manager: manager.toLowerCase()},

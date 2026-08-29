@@ -42,6 +42,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       attempted_addresses: MapSet.new(),
       pending_projection: nil,
       displaced_head: nil,
+      recovery_head: nil,
       snapshots: %{},
       degraded?: false,
       in_flight: nil,
@@ -112,6 +113,9 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       pending_for_head?(state, head) ->
         project_refresh(state, head, state.pending_projection.snapshots)
 
+      recovery_for_head?(state, head) ->
+        begin_snapshots(%{state | recovery_head: nil}, head)
+
       displaced_for_head?(state, head) ->
         {:noreply, failed(%{state | in_flight: nil})}
 
@@ -155,7 +159,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       failed_for_head?(state, head) ->
         {:noreply, failed(%{state | in_flight: nil})}
 
-      same_head?(state.accepted_head, head.block) and snapshots == [] ->
+      same_head?(state.accepted_head, head.block) and snapshots == [] and
+          not state.degraded? ->
         {:noreply, finish_unchanged_head(state, head)}
 
       true ->
@@ -221,6 +226,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
          failed_head: nil,
          pending_projection: nil,
          displaced_head: nil,
+         recovery_head: nil,
          snapshots: next_snapshots,
          degraded?: false,
          in_flight: nil
@@ -241,6 +247,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         attempted_addresses: MapSet.new(),
         pending_projection: nil,
         displaced_head: head_identity(head),
+        recovery_head: nil,
         snapshots: %{},
         degraded?: true,
         in_flight: nil
@@ -270,6 +277,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       attempted_addresses: MapSet.new(),
       pending_projection: nil,
       displaced_head: head_identity(head),
+      recovery_head: nil,
       snapshots: %{},
       degraded?: true,
       in_flight: nil
@@ -291,7 +299,10 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   defp verified_transition(state, current) do
     cond do
       state.binding && state.binding != current.binding ->
-        state |> invalidate_for(current) |> failed()
+        state
+        |> invalidate_for(current)
+        |> Map.put(:recovery_head, head_identity(current))
+        |> failed()
 
       moved_sideways?(state.accepted_head, current.block) or
           moved_backwards?(state.accepted_head, current.block) ->
@@ -305,6 +316,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
           attempted_addresses: MapSet.new(),
           pending_projection: nil,
           displaced_head: nil,
+          recovery_head: nil,
           in_flight: nil
         })
         |> failed()
@@ -353,20 +365,10 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   defp displaced_for_head?(%{displaced_head: displaced}, head),
     do: displaced == head_identity(head)
 
+  defp recovery_for_head?(%{recovery_head: recovery}, head),
+    do: recovery == head_identity(head)
+
   defp head_identity(head), do: %{binding: head.binding, block: head.block}
-
-  defp finish_unchanged_head(%{degraded?: true} = state, head) do
-    generation = state.generation + 1
-    broadcast(state, generation, [], head.block)
-
-    succeeded(%{
-      state
-      | generation: generation,
-        displaced_head: nil,
-        degraded?: false,
-        in_flight: nil
-    })
-  end
 
   defp finish_unchanged_head(state, _head), do: succeeded(%{state | in_flight: nil})
 

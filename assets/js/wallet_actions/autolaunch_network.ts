@@ -5,6 +5,7 @@ import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 export const autolaunchLabChainId = 31_337
 
 export type AutolaunchLabBinding = {
+  run_id: string
   rpc_url: string
   chain_id: number
   addresses: Record<string, string>
@@ -42,7 +43,9 @@ export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork | 
   const binding = operation.lab
   if (
     !plainObject(binding) ||
-    Object.keys(binding).sort().join(",") !== "addresses,chain_id,rpc_url" ||
+    Object.keys(binding).sort().join(",") !== "addresses,chain_id,rpc_url,run_id" ||
+    typeof binding.run_id !== "string" ||
+    binding.run_id.trim() === "" ||
     binding.chain_id !== autolaunchLabChainId ||
     !literalLoopbackRpc(binding.rpc_url) ||
     !labAddresses(binding.addresses)

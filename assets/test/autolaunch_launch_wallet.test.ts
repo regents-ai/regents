@@ -23,6 +23,7 @@ const regent = getAddress("0x6f89bcA4eA5931EdFCB09786267b251DeE752b07")
 const launchHash = `0x${"cd".repeat(32)}` as Hash
 const blockHash = `0x${"12".repeat(32)}` as Hash
 const lab = {
+  run_id: "acceptance-run-1",
   rpc_url: "http://127.0.0.1:8545",
   chain_id: 31_337,
   addresses: {factory: factory.toLowerCase()},
