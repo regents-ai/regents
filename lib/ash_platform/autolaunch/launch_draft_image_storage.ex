@@ -25,10 +25,9 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorage do
         declared_type,
         original_filename,
         %Human{human_account_id: owner_id} = actor
-      ) do
-    with {:ok, content_type} <- validate(bytes, declared_type) do
-      transact(draft.id, bytes, content_type, original_filename, sha256(bytes), actor)
-    end
+      )
+      when is_binary(bytes) do
+    transact(draft.id, bytes, declared_type, original_filename, sha256(bytes), actor)
   end
 
   def store_and_attach(_draft, _bytes, _declared_type, _filename, _actor),
@@ -70,11 +69,25 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorage do
   end
 
   defp existing_or_store(draft, bytes, content_type, original_filename, digest, actor) do
-    case Autolaunch.get_my_launch_draft_image(actor: actor) do
-      {:ok, nil} -> create_image(draft, bytes, content_type, original_filename, actor)
-      {:ok, %{digest: ^digest} = image} -> {:ok, image, true}
-      {:ok, _different_image} -> {:error, :image_limit_reached}
-      {:error, error} -> {:error, error}
+    case Autolaunch.get_my_launch_draft_image_for_reuse(actor: actor) do
+      {:ok, nil} ->
+        create_image(draft, bytes, content_type, original_filename, actor)
+
+      {:ok,
+       %{
+         digest: ^digest,
+         content_type: ^content_type,
+         byte_size: stored_size,
+         bytes: ^bytes
+       } = image}
+      when stored_size == byte_size(bytes) ->
+        {:ok, image, true}
+
+      {:ok, _different_image} ->
+        {:error, :image_limit_reached}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -104,10 +117,27 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorage do
   defp sha256(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 
   defp normalize_error(%{errors: errors} = error) when is_list(errors) do
-    if Enum.any?(errors, &(inspect(&1) =~ "one_image_per_owner")),
-      do: :image_limit_reached,
-      else: error
+    cond do
+      Enum.any?(errors, &(inspect(&1) =~ "one_image_per_owner")) ->
+        :image_limit_reached
+
+      validation_error?(errors, "invalid_image") ->
+        :invalid_image
+
+      validation_error?(errors, "image_too_large") ->
+        :image_too_large
+
+      true ->
+        error
+    end
   end
 
   defp normalize_error(error), do: error
+
+  defp validation_error?(errors, expected) do
+    Enum.any?(errors, fn
+      %{message: ^expected} -> true
+      error -> inspect(error) =~ expected
+    end)
+  end
 end

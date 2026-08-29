@@ -19,6 +19,10 @@ defmodule AshPlatform.Autolaunch do
       define :create_launch_draft, action: :create_for_owner
       define :list_my_launch_drafts, action: :mine
 
+      define :get_my_account_launch_draft,
+        action: :mine_account_owned,
+        not_found_error?: false
+
       define :get_my_launch_draft,
         action: :mine_by_id,
         args: [:id],
@@ -49,6 +53,10 @@ defmodule AshPlatform.Autolaunch do
 
       define :get_my_launch_draft_image,
         action: :mine,
+        not_found_error?: false
+
+      define :get_my_launch_draft_image_for_reuse,
+        action: :mine_for_reuse,
         not_found_error?: false
 
       define :get_public_launch_draft_image,

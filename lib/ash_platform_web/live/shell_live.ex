@@ -683,7 +683,7 @@ defmodule AshPlatformWeb.ShellLive do
     with %Human{} = actor <- human_actor(socket),
          {:ok, draft} <- current_or_new_draft(socket, actor),
          {:ok, _saved} <- autosave_draft(event, draft, values, actor),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
+         {:ok, drafts} <- account_launch_drafts(actor) do
       {:noreply,
        assign(socket,
          autolaunch_launch_drafts: drafts,
@@ -714,10 +714,11 @@ defmodule AshPlatformWeb.ShellLive do
   defp autosave_draft("autosave_launch_treasury", draft, values, actor),
     do: Autolaunch.autosave_launch_treasury(draft, values, actor: actor)
 
-  defp current_or_new_draft(socket, actor) do
-    case List.first(socket.assigns.autolaunch_launch_drafts) do
-      nil -> Autolaunch.create_launch_draft(%{}, actor: actor)
-      draft -> {:ok, draft}
+  defp current_or_new_draft(_socket, actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+      {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
+      {:ok, draft} -> {:ok, draft}
+      {:error, error} -> {:error, error}
     end
   end
 
@@ -742,7 +743,7 @@ defmodule AshPlatformWeb.ShellLive do
                entry.client_name,
                actor
              ),
-           {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
+           {:ok, drafts} <- account_launch_drafts(actor) do
         {:noreply,
          assign(socket,
            autolaunch_launch_drafts: drafts,
@@ -1496,7 +1497,7 @@ defmodule AshPlatformWeb.ShellLive do
   defp load_autolaunch_route(socket, %{route_id: :autolaunch_create}, _params) do
     case human_actor(socket) do
       %Human{} = actor ->
-        case Autolaunch.list_my_launch_drafts(actor: actor) do
+        case account_launch_drafts(actor) do
           {:ok, drafts} ->
             draft = List.first(drafts)
 
@@ -1556,6 +1557,14 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
+
+  defp account_launch_drafts(actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+      {:ok, nil} -> {:ok, []}
+      {:ok, draft} -> {:ok, [draft]}
+      {:error, error} -> {:error, error}
+    end
+  end
 
   defp initial_launch_stage(nil), do: :token_details
 

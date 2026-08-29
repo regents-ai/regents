@@ -1,14 +1,17 @@
 defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Autolaunch}
+  alias AshPlatform.{Accounts, Autolaunch, Formation}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.Autolaunch.LaunchDraftImageStorage
+  alias AshPlatform.Autolaunch.{LaunchDraft, LaunchDraftImageStorage}
 
   test "PNG, JPEG, and WebP require matching complete signatures" do
     assert {:ok, "image/png"} = LaunchDraftImageStorage.validate(png(), "image/png")
     assert {:ok, "image/jpeg"} = LaunchDraftImageStorage.validate(jpeg(), "image/jpeg")
     assert {:ok, "image/webp"} = LaunchDraftImageStorage.validate(webp(), "image/webp")
+
+    assert {:ok, "image/webp"} =
+             LaunchDraftImageStorage.validate(animated_webp(), "image/webp")
 
     assert {:error, :invalid_image} = LaunchDraftImageStorage.validate(png(), "image/jpeg")
     assert {:error, :invalid_image} = LaunchDraftImageStorage.validate(jpeg(), "image/webp")
@@ -77,6 +80,48 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
 
     assert {:ok, %{image: image}} = store(draft, webp(), "image/webp", "valid.webp", actor)
     assert image.content_type == "image/webp"
+  end
+
+  test "animated WebP validates every frame before consuming the image slot" do
+    actor = actor!("animated-webp")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+    corrupt = corrupt_later_frame_webp()
+
+    assert {:ok, {first_page, _flags}} =
+             Vix.Vips.Operation.webpload_buffer(corrupt,
+               access: :VIPS_ACCESS_SEQUENTIAL,
+               "fail-on": :VIPS_FAIL_ON_WARNING,
+               n: 1
+             )
+
+    assert {:ok, _average} = Vix.Vips.Operation.avg(first_page)
+
+    assert {:error, :invalid_image} =
+             LaunchDraftImageStorage.validate(corrupt, "image/webp")
+
+    assert {:error, :invalid_image} =
+             store(draft, corrupt, "image/webp", "corrupt-animation.webp", actor)
+
+    assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+
+    assert {:ok, first} =
+             store(draft, animated_webp(), "image/webp", "animation.webp", actor)
+
+    assert first.image.byte_size == byte_size(animated_webp())
+
+    # An occupied slot is decided under the owner lock before a different file
+    # reaches the decoder. If this were decoded first, it would be invalid_image.
+    assert {:error, :image_limit_reached} =
+             store(
+               first.draft,
+               corrupt,
+               "image/webp",
+               "different-corrupt-animation.webp",
+               actor
+             )
+
+    assert {:ok, only} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    assert only.id == first.image.id
   end
 
   test "a forced failure after image creation and before attachment rolls the image back" do
@@ -276,7 +321,20 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
                actor: actor
              )
 
-    other_draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+    regent =
+      Formation.form_regent!(
+        "image-cross-draft-#{Elixir.System.unique_integer([:positive])}",
+        "Image cross-draft",
+        actor: actor
+      )
+
+    other_draft =
+      Ash.Seed.seed!(LaunchDraft, %{
+        name: "Legacy image draft",
+        symbol: "LEGACY",
+        human_account_id: actor.human_account_id,
+        regent_id: regent.id
+      })
 
     assert {:error, %Ash.Error.Invalid{}} =
              Autolaunch.attach_launch_draft_image(other_draft, image.id, actor: actor)
@@ -346,6 +404,17 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
   defp webp do
     "UklGRlIBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHwAAAABgJpt27LsxgZwt0qEGZjBR/BEJUF0r1RtOoBDJ7u7w+/yvitExAQAYBhrm7dl3cXF35nPv/ceJgBG4JMwxwEMJ5LPBMSHT+IPnfeTMlKiafRoJn2aa5FmYaep8A4UNrjJOmwwsiRDDQCW//Vr9/ZZluNPbbAx6Jd8egAAVlA4ILAAAADQAgCdASoQABAAAgA0JbACdBigF8M3WZNkeTSToAIoAPvSwALo4z2kMbTx/2S7+Uvxn9Voq6r6SlcWNcYUnQmQW1zSvgidLCqL3q9yyVJbK/NRgpGT3c9bJfhhUBXTWekpatEcRp/NrlOTrD/KMOFz2W2sZi+r+TtRwqfZQ3Pd4/esYCwxAf3CfYo59EQkv9PT/ocMZ2/MhitKyKD4n8utXRofdx28t5M+KhKv19CAAA=="
     |> Base.decode64!()
+  end
+
+  defp animated_webp do
+    "UklGRk4EAABXRUJQVlA4WAoAAAASAAAADwAADwAAQU5JTQYAAAD/////AABBTk1GDAIAAAAAAAAAAA8AAA8AAGQAAAJWUDhM9AEAAC8PwAMQV+SgjSRHql44z5/KY3gCOXQXDcdtG0mSauY9s0f+wWxC+7yry3LYto0kybvYJq7/lq6S/24mltvYtlVl/Y9LTv81MLRCRujy3TWAQIRMKIFqPRb1v7THIpTKaFOmVO2h+v82U121GZva1Pf1pUDdnw+bUn1fPxuBlnKk+n3//v9lq37fpWtDdFXX9vssKMF6gARRHRmBFJvCUm3UHu1Bxr8LSsPIlAohWA9R1ATKWKhHhSkFChmEHlwDIRAACTABZWABrKjM4jbwBCIBsgYiYADawBYIIaXFCETBHZILLaROGYAHyR1oQwJgioxWvkB0ak6HXKkrJkk/cQ+rPvSfimwBR6rekHH2st0znLUb0eV+RLfjNvNgunIPAGHbtuOp0u2ZbdSybS/b7s627aZc988eIvo/ASSV9wdL86s7ty9MfIzhuoqGscnozR9JxcVUhlNEdJmDOPohH8arc3wS7+jDKb/XK0tUktg/s/B0NdRk0Jj1dqPWpZVyXO51NIox1B0eaQvViwdb29NVYgy1loWKOiOiHliJoV2ModKsUFptWKR57hAT5lRa1u4QzNMG3LaAyZsuurH9t/XeHoskzcUjr4GgNYG2YOb9l8oToL+mOD+7sAvLzyT/z2enRoHFeey+MuHX2eZGbO/jkyQBQU5NRg4CAAAAAAAAAAAPAAAPAABkAAACVlA4TPYBAAAvD8ADEFfkIJIkSanqfe4OMIAG/FtBzrYNx40kSUpm9fTuAk8cwn9j7jfbDtu2kSTJmdm9t5Lrv6Vr4rPb2LZVZX3/SE7/NTC0QkRKxPDdNYCTISxlcghU6ZFobNvokQilMkqFCdXooZr7YmKsSI1UpGLfLhSoz/0pFap9O6UESsKSah2HuW1ZsY5trAUxVoy1rMuGEqQHSFA1SkYgRSowVCmNHqMHGbMDQsvIhAohSA9RVQTK2Kl3hQkFCtmEFUyBEAiACjiAvhABCdMTLIFCgKRAAWzAXMiBENo77EBRvCCtMEPHjgF4k36BufQEwsrq9AcUZ+Zx6Jv5lKT1Fa+wx0P+nepZ8K9jgtIPsse88vcJv9GT4v/8F9/f++TB8eMVAKJt26abE9soUtt2atvdNVPbDOt2f3bwDRH9nwCSivuDlcX13ZsXJj7GaENV08R05PaPpPJiJsspIrrsYRz9kA+TtXlpEu8YwCm/o9VlKkmcPrf0dDXSYtCY9Xaj1qWVSlwGuprFGOwNjXUEG8WD7Z3ZGjEG2yuCJd1hUQ+txdApxmB5TjCjPiTSunCIKXMqbRt38BdofW6bz+TNFN3E/lu0v88iSfPxyGvAb02gLZp7/6XiBBisKy3MLe7B6jPJ//P5mXFgeRF7r0z4dba1GQt8fJIk"
+    |> Base.decode64!()
+  end
+
+  defp corrupt_later_frame_webp do
+    valid = animated_webp()
+    <<prefix::binary-size(800), _damaged::binary-size(40), suffix::binary>> = valid
+    prefix <> :binary.copy(<<0>>, 40) <> suffix
   end
 
   # These payloads satisfy the former format/container parser but fail

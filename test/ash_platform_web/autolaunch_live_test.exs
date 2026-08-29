@@ -2,9 +2,9 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.AccessContext.AccountControl
-  alias AshPlatform.{Accounts, Autolaunch, Discussions}
+  alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.Autolaunch.LabMarketFeed
+  alias AshPlatform.Autolaunch.{LabMarketFeed, LaunchDraft}
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
@@ -667,6 +667,42 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       |> live("/autolaunch/create")
 
     refute has_element?(other_view, ~s(#launch-token-details-name[value="Open Research"]))
+  end
+
+  test "Create reloads the exact account-owned draft instead of a newer legacy draft", %{
+    conn: conn
+  } do
+    account =
+      draft_account!("autolaunch-active-draft", "0x3333333333333333333333333333333333333338")
+
+    actor = %Human{human_account_id: account.id}
+
+    account_draft =
+      Autolaunch.create_launch_draft!(%{"name" => "Account launch"}, actor: actor)
+
+    regent = Formation.form_regent!("autolaunch-active-draft", "Legacy", actor: actor)
+
+    legacy =
+      Ash.Seed.seed!(LaunchDraft, %{
+        name: "Newer legacy launch",
+        symbol: "LEGACY",
+        human_account_id: account.id,
+        regent_id: regent.id
+      })
+
+    assert {:ok, [first | _]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert first.id == legacy.id
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/autolaunch/create")
+
+    assert has_element?(view, ~s(#launch-token-details-name[value="Account launch"]))
+    refute has_element?(view, ~s(#launch-token-details-name[value="Newer legacy launch"]))
+
+    assert {:ok, active} = Autolaunch.get_my_account_launch_draft(actor: actor)
+    assert active.id == account_draft.id
   end
 
   test "an overlong EOA acknowledgement is marked and explained beside the textarea", %{

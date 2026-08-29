@@ -11,7 +11,8 @@ const png = readFileSync(
 )
 
 test("account-owned launch setup persists and gates only the wallet stage", async ({page}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
+  // This identity has no seeded Regent: Create belongs directly to the Human account.
+  const auth = await installAuthenticatedPrivy(page, "other-account")
   await auth.establishLocalSession()
   await page.goto("/autolaunch/create")
 

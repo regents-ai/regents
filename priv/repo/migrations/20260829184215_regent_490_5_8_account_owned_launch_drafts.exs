@@ -100,6 +100,12 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
              prefix: "autolaunch"
            )
 
+    create unique_index(:launch_drafts, [:human_account_id],
+             name: "launch_drafts_one_account_owned_draft_per_human_index",
+             prefix: "autolaunch",
+             where: "regent_id IS NULL"
+           )
+
     execute("""
     ALTER TABLE autolaunch.launch_draft_images
     ADD CONSTRAINT launch_draft_images_exact_owner_fkey
@@ -151,6 +157,13 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
     drop_if_exists(
       unique_index(:launch_drafts, [:id, :human_account_id],
         name: "launch_drafts_exact_owner_index",
+        prefix: "autolaunch"
+      )
+    )
+
+    drop_if_exists(
+      unique_index(:launch_drafts, [:human_account_id],
+        name: "launch_drafts_one_account_owned_draft_per_human_index",
         prefix: "autolaunch"
       )
     )

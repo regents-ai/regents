@@ -37,6 +37,61 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert {:ok, []} = Autolaunch.list_my_launch_drafts(actor: %Human{human_account_id: other.id})
   end
 
+  test "account-owned draft creation is atomic and always reloads the exact active draft" do
+    owner = account!("single-active")
+    actor = %Human{human_account_id: owner.id}
+
+    assert {:ok, original} =
+             Autolaunch.create_launch_draft(%{"name" => "Original"}, actor: actor)
+
+    assert {:ok, repeated} =
+             Autolaunch.create_launch_draft(%{"name" => "Replacement"}, actor: actor)
+
+    assert repeated.id == original.id
+    assert repeated.name == "Original"
+
+    regent = Formation.form_regent!("single-active-legacy", "Legacy", actor: actor)
+
+    legacy =
+      Ash.Seed.seed!(LaunchDraft, %{
+        name: "Legacy",
+        symbol: "LEG",
+        human_account_id: owner.id,
+        regent_id: regent.id
+      })
+
+    assert {:ok, active} = Autolaunch.get_my_account_launch_draft(actor: actor)
+    assert active.id == original.id
+    refute active.id == legacy.id
+
+    concurrent_actor = %Human{human_account_id: account!("concurrent-active").id}
+    parent = self()
+
+    tasks =
+      for name <- ["First tab", "Second tab"] do
+        Task.async(fn ->
+          send(parent, {:draft_ready, self()})
+
+          receive do: (:go ->
+                         Autolaunch.create_launch_draft(%{"name" => name},
+                           actor: concurrent_actor
+                         ))
+        end)
+      end
+
+    pids = for _task <- tasks, do: receive(do: ({:draft_ready, pid} -> pid))
+    Enum.each(pids, &send(&1, :go))
+    results = Enum.map(tasks, &Task.await(&1, 15_000))
+
+    assert Enum.all?(results, &match?({:ok, %LaunchDraft{}}, &1))
+    assert results |> Enum.map(fn {:ok, draft} -> draft.id end) |> Enum.uniq() |> length() == 1
+
+    assert {:ok, concurrent_active} =
+             Autolaunch.get_my_account_launch_draft(actor: concurrent_actor)
+
+    assert concurrent_active.id == elem(List.first(results), 1).id
+  end
+
   test "draft creation and reads require the exact Human actor" do
     account = account!("actor")
 

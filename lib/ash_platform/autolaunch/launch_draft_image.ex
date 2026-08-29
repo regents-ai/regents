@@ -91,6 +91,24 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
       filter expr(human_account_id == ^actor(:human_account_id))
     end
 
+    read :mine_for_reuse do
+      get? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+
+      prepare build(
+                select: [
+                  :id,
+                  :digest,
+                  :content_type,
+                  :byte_size,
+                  :bytes,
+                  :original_filename,
+                  :human_account_id,
+                  :launch_draft_id
+                ]
+              )
+    end
+
     read :public_by_id_and_digest do
       get? true
       argument :id, :uuid, allow_nil?: false
@@ -101,11 +119,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
   end
 
   policies do
-    policy action([:store_for_owner, :mine]) do
+    policy action([:store_for_owner, :mine, :mine_for_reuse]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
-    policy action(:mine) do
+    policy action([:mine, :mine_for_reuse]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 

@@ -63,7 +63,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.ImageValidator do
     do: Vix.Vips.Operation.jpegload_buffer(bytes, decode_options())
 
   defp decode(bytes, "image/webp"),
-    do: Vix.Vips.Operation.webpload_buffer(bytes, decode_options())
+    do: Vix.Vips.Operation.webpload_buffer(bytes, [{:n, -1} | decode_options()])
 
   defp decode_options,
     do: [access: :VIPS_ACCESS_SEQUENTIAL, "fail-on": :VIPS_FAIL_ON_WARNING]

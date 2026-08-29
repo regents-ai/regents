@@ -317,8 +317,32 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
              ) == :launch_metadata_incomplete
     end
 
-    test "an account-owned row carrying only a raw external image URL is refused", context do
+    test "an account-owned row carrying only a raw external image URL is refused", _context do
       Fixture.install()
+
+      unique = System.unique_integer([:positive])
+
+      account =
+        AshPlatform.Accounts.register_verified!(
+          "did:privy:raw-account-image-#{unique}",
+          Fixture.wallet(),
+          [Fixture.wallet()],
+          actor: system()
+        )
+
+      {:ok, :bind, claim} =
+        AshPlatform.Accounts.SessionAuthority.sign_in(
+          AshPlatform.Accounts.SessionAuthority.bootstrap(),
+          account.id
+        )
+
+      actor = %AshPlatform.Actors.Human{human_account_id: account.id}
+
+      raw_opts =
+        [
+          actor: actor,
+          context: %{session_lease: %{lineage: claim.lineage, account_id: account.id}}
+        ]
 
       raw =
         Ash.Seed.seed!(AshPlatform.Autolaunch.LaunchDraft, %{
@@ -329,11 +353,11 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
           image: "https://example.test/raw.png",
           treasury: Fixture.treasury(),
           required_regent_raised: "1000.5",
-          human_account_id: context[:account].id,
+          human_account_id: account.id,
           regent_id: nil
         })
 
-      assert Fixture.refusal(Autolaunch.prepare_launch(raw.id, Fixture.wallet(), opts(context))) ==
+      assert Fixture.refusal(Autolaunch.prepare_launch(raw.id, Fixture.wallet(), raw_opts)) ==
                :launch_metadata_incomplete
     end
 
@@ -519,12 +543,21 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   # A row written before the nonempty metadata rule: it holds a name and a symbol
   # and nothing else, exactly as `LaunchDraft` still allows one to be read.
   defp historical_draft!(context) do
+    unique = System.unique_integer([:positive])
+
+    regent =
+      AshPlatform.Formation.form_regent!(
+        "historical-incomplete-#{unique}",
+        "Historical incomplete",
+        actor: context[:actor]
+      )
+
     Ash.Seed.seed!(AshPlatform.Autolaunch.LaunchDraft, %{
       title: "Superseded launch title",
       name: "Legacy Research",
       symbol: "LEGACY",
       human_account_id: context[:account].id,
-      regent_id: context[:draft].regent_id
+      regent_id: regent.id
     })
   end
 

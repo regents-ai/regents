@@ -401,7 +401,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
       refute has_element?(view, "#{card(context)} [data-launch-wallet-send]")
     end
 
-    test "a second draft names the launch in flight instead of offering another", context do
+    test "a newer legacy draft does not replace the account-owned launch in flight", context do
       _first = submitted(context)
 
       regent =
@@ -425,10 +425,11 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
       other = "#autolaunch-launch-wallet-#{second.id}"
 
       view = mounted(context)
-      active_wallet(view, other, @wallet)
+      active_wallet(view, card(context), @wallet)
 
-      assert has_element?(view, other, "You have a launch in progress on another draft.")
-      refute has_element?(view, "#{other} button[phx-click=\"review_launch\"]")
+      assert render(view) =~ "Sent"
+      assert has_element?(view, ~s(#{card(context)} a[href^="https://basescan.org/tx/"]))
+      refute has_element?(view, other)
     end
   end
 

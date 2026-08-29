@@ -150,12 +150,22 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
   end
 
+  identities do
+    identity :one_account_owned_draft_per_human, [:human_account_id] do
+      where expr(is_nil(regent_id))
+    end
+  end
+
   actions do
     create :create_for_owner do
       accept @account_clean_v1_fields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwner
+      upsert? true
+      upsert_identity :one_account_owned_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
     end
 
     read :mine do
@@ -167,6 +177,14 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:launch_draft_image])
+    end
+
+    read :mine_account_owned do
+      get? true
+
+      filter expr(human_account_id == ^actor(:human_account_id) and is_nil(regent_id))
+
       prepare build(load: [:launch_draft_image])
     end
 
@@ -223,6 +241,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
              :create_for_owner,
              :mine,
              :mine_by_id,
+             :mine_account_owned,
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
@@ -236,6 +255,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     policy action([
              :mine,
              :mine_by_id,
+             :mine_account_owned,
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
@@ -251,6 +271,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     table "launch_drafts"
     schema("autolaunch")
     repo(AshPlatform.Repo)
+
+    identity_wheres_to_sql(one_account_owned_draft_per_human: "regent_id IS NULL")
 
     custom_indexes do
       index([:human_account_id])
