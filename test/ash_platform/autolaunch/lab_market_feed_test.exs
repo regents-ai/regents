@@ -539,6 +539,27 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert %{snapshot_calls: 2, project_calls: 2} = FakeRuntime.state(agent)
   end
 
+  test "replacement recovery stays degraded when pre-project verification moves sideways" do
+    assert_replacement_recovery_waits_for_higher_head(:pre_project, %{
+      number: 100,
+      hash: @hash_b
+    })
+  end
+
+  test "replacement recovery stays degraded when in-transaction verification moves lower" do
+    assert_replacement_recovery_waits_for_higher_head(:in_transaction, %{
+      number: 99,
+      hash: @hash_b
+    })
+  end
+
+  test "replacement recovery stays degraded when post-project verification moves sideways" do
+    assert_replacement_recovery_waits_for_higher_head(:post_project, %{
+      number: 100,
+      hash: @hash_b
+    })
+  end
+
   test "a projector exception is contained and enters bounded failure backoff" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-projector-raise", rpc_url: "http://127.0.0.1:49713"}
@@ -932,6 +953,95 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
       },
       Map.new(overrides)
     )
+  end
+
+  defp assert_replacement_recovery_waits_for_higher_head(stage, displaced_block) do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-before-replacement", rpc_url: "http://127.0.0.1:49713"}
+    replacement = %{binding | run_id: "run-replacement"}
+    recovery_block = %{number: 100, hash: @hash_a}
+    displaced = %{binding: replacement, block: displaced_block}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: recovery_block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, recovery_block)]},
+        project_result: {:ok, [id]},
+        binding_after_project: replacement
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{generation: 1, invalidated?: true}}
+
+    recovery_options =
+      case stage do
+        :pre_project -> [verify_results: [{:error, {:head_changed, displaced}}]]
+        :in_transaction -> [project_result: {:error, {:head_changed, displaced}}]
+        :post_project -> [verify_results: [:ok, {:error, {:head_changed, displaced}}]]
+      end
+
+    FakeRuntime.put(
+      agent,
+      Keyword.merge(
+        [
+          head: {:ok, %{binding: replacement, block: recovery_block}},
+          current_binding: {:ok, replacement},
+          binding_after_project: nil,
+          project_result: {:ok, [id]}
+        ],
+        recovery_options
+      )
+    )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> :sys.get_state(feed).in_flight == nil end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+
+    assert %{generation: 1, head: nil, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
+
+    attempts_after_displacement = FakeRuntime.state(agent).snapshot_calls
+
+    FakeRuntime.put(agent,
+      head: {:ok, displaced},
+      current_binding: {:ok, replacement},
+      verify_results: [],
+      project_result: {:ok, [id]}
+    )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls >= 3 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert FakeRuntime.state(agent).snapshot_calls == attempts_after_displacement
+
+    assert %{generation: 1, head: nil, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
+
+    higher_block = %{number: 101, hash: @hash_b}
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: replacement, block: higher_block}},
+      snapshots: {:ok, [snapshot(id, higher_block)]}
+    )
+
+    LabMarketFeed.refresh(feed)
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 2, auction_ids: [^id], block_number: 101}}
+
+    assert %{generation: 2, head: ^higher_block, degraded?: false} =
+             LabMarketFeed.snapshot(feed)
   end
 
   defp wait_until(callback, attempts \\ 50)

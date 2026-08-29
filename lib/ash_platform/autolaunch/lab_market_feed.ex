@@ -116,6 +116,9 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       recovery_for_head?(state, head) ->
         begin_snapshots(%{state | recovery_head: nil}, head)
 
+      recovery_not_advanced?(state, head) ->
+        {:noreply, failed(%{state | in_flight: nil})}
+
       displaced_for_head?(state, head) ->
         {:noreply, failed(%{state | in_flight: nil})}
 
@@ -304,6 +307,17 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         |> Map.put(:recovery_head, head_identity(current))
         |> failed()
 
+      recovery_not_advanced?(state, current) ->
+        state
+        |> Map.merge(%{
+          failed_head: nil,
+          pending_projection: nil,
+          displaced_head: head_identity(current),
+          recovery_head: nil,
+          in_flight: nil
+        })
+        |> failed()
+
       moved_sideways?(state.accepted_head, current.block) or
           moved_backwards?(state.accepted_head, current.block) ->
         displace_cache(state, current)
@@ -367,6 +381,18 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
 
   defp recovery_for_head?(%{recovery_head: recovery}, head),
     do: recovery == head_identity(head)
+
+  defp recovery_not_advanced?(
+         %{
+           degraded?: true,
+           accepted_head: nil,
+           attempted_head: %{binding: binding, block: %{number: attempted_number}}
+         },
+         %{binding: binding, block: %{number: current_number}}
+       ),
+       do: current_number <= attempted_number
+
+  defp recovery_not_advanced?(_state, _head), do: false
 
   defp head_identity(head), do: %{binding: head.binding, block: head.block}
 
