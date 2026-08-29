@@ -17,10 +17,14 @@ defmodule AshPlatform.Autolaunch.ChainClient do
   @callback verify(map(), atom(), String.t()) :: {:ok, outcome()} | {:error, atom()}
 
   def module do
-    Application.get_env(
-      :ash_platform,
-      :autolaunch_bid_chain_client,
-      AshPlatform.Autolaunch.RpcClient
-    )
+    case Application.fetch_env(:ash_platform, :autolaunch_bid_chain_client) do
+      {:ok, module} ->
+        module
+
+      :error ->
+        if AshPlatform.Autolaunch.Lab.enabled?(),
+          do: AshPlatform.Autolaunch.LabBidChainClient,
+          else: AshPlatform.Autolaunch.RpcClient
+    end
   end
 end

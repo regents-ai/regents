@@ -9,16 +9,20 @@ defmodule AshPlatform.DatabaseConfig do
 
   def runtime_config!(environment, getenv \\ &System.get_env/1)
 
-  def runtime_config!(:test, _getenv), do: nil
+  def runtime_config!(:test, getenv), do: local_or_acceptance_config!(:test, getenv)
 
   def runtime_config!(:prod, getenv) do
     database_url!(getenv, "DATABASE_POOLED_URL")
   end
 
   def runtime_config!(:dev, getenv) do
-    case remote_target(getenv) do
-      :local -> local_config(getenv)
-      :remote -> database_url!(getenv, "DATABASE_POOLED_URL")
+    if present?(getenv.("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG")) do
+      acceptance_config!(:dev, getenv)
+    else
+      case remote_target(getenv) do
+        :local -> local_config(getenv)
+        :remote -> database_url!(getenv, "DATABASE_POOLED_URL")
+      end
     end
   end
 
@@ -28,6 +32,45 @@ defmodule AshPlatform.DatabaseConfig do
     require_rehearsal_target!(getenv)
     database_url!(getenv, "DATABASE_DIRECT_URL")
   end
+
+  @doc false
+  def verify_acceptance_ownership!(
+        environment,
+        config,
+        getenv \\ &System.get_env/1,
+        verifier \\ nil
+      )
+
+  def verify_acceptance_ownership!(environment, config, getenv, verifier)
+      when environment in [:dev, :test] and is_list(config) do
+    run_id = getenv.("ASH_PLATFORM_ACCEPTANCE_RUN_ID")
+    username = getenv.("USER")
+
+    unless present?(run_id) and present?(username) do
+      raise "Autolaunch lab requires ASH_PLATFORM_ACCEPTANCE_RUN_ID and USER"
+    end
+
+    AshPlatform.LocalDatabaseFixture.reject_remote_environment!(
+      Map.new(
+        ~w(DATABASE_URL DATABASE_DIRECT_URL DATABASE_POOLED_URL FLY_APP_NAME FLY_REGION),
+        &{&1, getenv.(&1)}
+      )
+    )
+
+    AshPlatform.LocalDatabaseFixture.validate_acceptance_target!(:test, config, username)
+
+    if to_string(config[:database]) != "ash_platform_acceptance_#{run_id}" do
+      raise "local acceptance fixture refused mismatched run database target"
+    end
+
+    (verifier || (&AshPlatform.LocalDatabaseFixture.PostgresAdapter.verify_owned!/2)).(
+      config,
+      run_id
+    )
+  end
+
+  def verify_acceptance_ownership!(_environment, _config, _getenv, _verifier),
+    do: raise("Autolaunch lab database is development/test only")
 
   defp database_url!(getenv, variable) do
     with value when is_binary(value) and value != "" <- getenv.(variable),
@@ -106,6 +149,45 @@ defmodule AshPlatform.DatabaseConfig do
       database: "ash_platform_dev",
       pool_size: 2
     ]
+  end
+
+  defp local_or_acceptance_config!(environment, getenv) do
+    if present?(getenv.("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG")) do
+      acceptance_config!(environment, getenv)
+    end
+  end
+
+  defp acceptance_config!(environment, getenv) do
+    run_id = getenv.("ASH_PLATFORM_ACCEPTANCE_RUN_ID")
+    username = getenv.("USER")
+
+    unless present?(run_id) and present?(username) do
+      raise "Autolaunch lab requires ASH_PLATFORM_ACCEPTANCE_RUN_ID and USER"
+    end
+
+    config = [
+      hostname: "127.0.0.1",
+      port: 5432,
+      database: "ash_platform_acceptance_#{run_id}",
+      username: username,
+      password: nil,
+      pool_size: 2
+    ]
+
+    environment_values =
+      Map.new(
+        ~w(DATABASE_URL DATABASE_DIRECT_URL DATABASE_POOLED_URL FLY_APP_NAME FLY_REGION ASH_PLATFORM_ACCEPTANCE_RUN_ID),
+        &{&1, getenv.(&1)}
+      )
+
+    AshPlatform.LocalDatabaseFixture.reject_remote_environment!(environment_values)
+    AshPlatform.LocalDatabaseFixture.validate_acceptance_target!(:test, config, username)
+
+    if environment in [:dev, :test] do
+      config
+    else
+      raise "Autolaunch lab database is development/test only"
+    end
   end
 
   defp valid_userinfo?(userinfo) when is_binary(userinfo) do

@@ -21,6 +21,12 @@ const other = getAddress("0x9999999999999999999999999999999999999999")
 const factory = getAddress("0x7777777777777777777777777777777777777777")
 const regent = getAddress("0x6f89bcA4eA5931EdFCB09786267b251DeE752b07")
 const launchHash = `0x${"cd".repeat(32)}` as Hash
+const blockHash = `0x${"12".repeat(32)}` as Hash
+const lab = {
+  rpc_url: "http://127.0.0.1:8545",
+  chain_id: 31_337,
+  addresses: {factory: factory.toLowerCase()},
+}
 
 // The reviewed launch calldata is a dynamic tuple the server encoded once. The
 // browser only ever forwards it, so this fixture is opaque bytes on purpose.
@@ -31,6 +37,8 @@ function operation(overrides: Partial<LaunchOperation> = {}): LaunchOperation {
     action_id: "launch-action",
     signer: wallet,
     chain_id: 8453,
+    lab: null,
+    lab_anchor: null,
     terminal: false,
     steps: [
       {step: "approval", to: regent, data: "0x095ea7b3ff" as Hex},
@@ -51,6 +59,11 @@ function clients(overrides: Partial<LaunchClients> = {}): LaunchClients {
 }
 
 const provider = {request: vi.fn(async () => null)}
+const resolver = (
+  selected: {request(args: {method: string; params?: unknown[]}): Promise<unknown>} = provider,
+  address: string = wallet,
+) => () => ({address, provider: selected})
+const clientFactory = (bound: LaunchClients) => () => bound
 
 describe("the browser sends only the step the server claimed", () => {
   it("returns the reviewed step for this exact launch", () => {
@@ -92,13 +105,60 @@ describe("the browser sends only the step the server claimed", () => {
 })
 
 describe("the browser rechecks the wallet immediately before it sends", () => {
+  it("uses the bound local lab instead of the Base client", async () => {
+    const held = operation({
+      chain_id: 31_337,
+      lab,
+      lab_anchor: {block_number: 123, block_hash: blockHash},
+    })
+    const methods: string[] = []
+    const provider = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        methods.push(method)
+        if (method === "eth_chainId") return "0x7a69"
+        if (method === "eth_accounts") return [wallet]
+        if (method === "eth_getBlockByNumber") return {hash: blockHash}
+        if (method === "eth_sendTransaction") return launchHash
+        throw new Error(`Unexpected provider method ${method}`)
+      }),
+    }
+    const baseClients = clients()
+
+    await expect(
+      sendLaunchStep(held, held.steps[1], resolver(provider), vi.fn(), clientFactory(baseClients)),
+    ).resolves.toBe(launchHash)
+    expect(methods.slice(-2)).toEqual(["eth_chainId", "eth_sendTransaction"])
+    expect(baseClients.send).not.toHaveBeenCalled()
+  })
+
   it("sends the reviewed bytes to the reviewed factory with zero value", async () => {
     const held = operation()
-    const bound = clients()
+    const order: string[] = []
+    const bound = clients({
+      addresses: vi.fn(async () => {
+        order.push("accounts")
+        return [wallet]
+      }),
+      chainId: vi.fn(async () => {
+        order.push("chain")
+        return 8453
+      }),
+      send: vi.fn(async request => {
+        order.push("send")
+        return launchHash
+      }),
+    })
 
-    const hash = await sendLaunchStep(held, held.steps[1], provider, () => undefined, bound)
+    const hash = await sendLaunchStep(
+      held,
+      held.steps[1],
+      resolver(),
+      () => order.push("send-started"),
+      clientFactory(bound),
+    )
 
     expect(hash).toBe(launchHash)
+    expect(order).toEqual(["chain", "accounts", "chain", "send-started", "send"])
     expect(bound.send).toHaveBeenCalledWith({
       account: wallet,
       to: factory,
@@ -112,11 +172,33 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
     const stuck = clients({chainId: vi.fn(async () => 1)})
 
     await expect(
-      sendLaunchStep(held, held.steps[1], provider, () => undefined, stuck),
+      sendLaunchStep(held, held.steps[1], resolver(), () => undefined, clientFactory(stuck)),
     ).rejects.toThrow("Switch to Base before continuing.")
 
     expect(stuck.switchToBase).toHaveBeenCalledTimes(1)
+    expect(stuck.addresses).toHaveBeenCalledTimes(1)
     expect(stuck.send).not.toHaveBeenCalled()
+  })
+
+  it("refuses when Privy changes the selected provider during a Base switch", async () => {
+    const held = operation()
+    const firstProvider = {request: vi.fn(async () => null)}
+    const secondProvider = {request: vi.fn(async () => null)}
+    let selectedProvider = firstProvider
+    const resolve = () => ({address: wallet, provider: selectedProvider})
+    const boundary = clients({
+      chainId: vi.fn(async () => 1),
+      switchToBase: vi.fn(async () => {
+        selectedProvider = secondProvider
+      }),
+    })
+
+    await expect(
+      sendLaunchStep(held, held.steps[1], resolve, vi.fn(), clientFactory(boundary)),
+    ).rejects.toThrow("selected wallet changed")
+
+    expect(boundary.addresses).not.toHaveBeenCalled()
+    expect(boundary.send).not.toHaveBeenCalled()
   })
 
   it("refuses when the wallet's own account is no longer the reviewed signer", async () => {
@@ -124,7 +206,7 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
     const moved = clients({addresses: vi.fn(async () => [other])})
 
     await expect(
-      sendLaunchStep(held, held.steps[1], provider, () => undefined, moved),
+      sendLaunchStep(held, held.steps[1], resolver(), () => undefined, clientFactory(moved)),
     ).rejects.toThrow("Use the wallet this launch was reviewed for.")
 
     expect(moved.send).not.toHaveBeenCalled()
@@ -141,7 +223,13 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
       }),
     })
 
-    await sendLaunchStep(held, held.steps[1], provider, () => order.push("marked"), watched)
+    await sendLaunchStep(
+      held,
+      held.steps[1],
+      resolver(),
+      () => order.push("marked"),
+      clientFactory(watched),
+    )
 
     expect(order).toEqual(["marked", "send"])
   })
@@ -151,7 +239,9 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
     const moved = clients({addresses: vi.fn(async () => [other])})
     const marked = vi.fn()
 
-    await expect(sendLaunchStep(held, held.steps[1], provider, marked, moved)).rejects.toThrow()
+    await expect(
+      sendLaunchStep(held, held.steps[1], resolver(), marked, clientFactory(moved)),
+    ).rejects.toThrow()
 
     expect(marked).not.toHaveBeenCalled()
   })
@@ -162,7 +252,7 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
     const held = operation()
     const bound = clients()
 
-    await sendLaunchStep(held, held.steps[1], provider, () => undefined, bound)
+    await sendLaunchStep(held, held.steps[1], resolver(), () => undefined, clientFactory(bound))
 
     const [request] = (bound.send as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(request.data).toBe(launchData)

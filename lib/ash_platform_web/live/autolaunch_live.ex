@@ -3,7 +3,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
-  alias AshPlatform.Autolaunch.TreasurySecurity
+  alias AshPlatform.Autolaunch.{Lab, TreasurySecurity}
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -83,7 +83,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :comment_admin, :boolean, required: true
 
   def page(assigns) do
+    assigns = assign(assigns, :local_lab?, Lab.enabled?())
+
     ~H"""
+    <p
+      :if={@local_lab?}
+      id="autolaunch-local-lab-warning"
+      class="autolaunch-kicker autolaunch-lab-warning"
+      role="status"
+    >
+      Local Base fork · test assets · no mainnet value
+    </p>
     <.overview
       :if={@route_spec.route_id == :autolaunch}
       featured_auctions={@featured_auctions}
@@ -556,6 +566,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       <%!-- Mounted only for a subject that really loaded, so a not-found or an
             unreadable page never carries a wallet surface at all. --%>
       <.live_component
+        :if={@record.chain_id != Lab.chain_id()}
         module={AshPlatformWeb.AutolaunchSubjectWalletComponent}
         id="autolaunch-subject-wallet"
         subject={@record}
@@ -804,7 +815,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :comment_admin, :boolean, required: true
 
   defp detail(assigns) do
-    assigns = assign(assigns, :title, if(assigns.kind == :auction, do: "Auction", else: "Token"))
+    assigns =
+      assign(assigns,
+        title: if(assigns.kind == :auction, do: "Auction", else: "Token"),
+        local_lab?: Lab.enabled?()
+      )
 
     ~H"""
     <article
@@ -813,15 +828,34 @@ defmodule AshPlatformWeb.AutolaunchLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch · {@title}</p>
+        <p class="autolaunch-kicker">
+          <%= if @local_lab? do %>
+            Local Base fork · test assets · no mainnet value
+          <% else %>
+            Autolaunch · {@title}
+          <% end %>
+        </p>
         <h1>{record_label(@kind, @record)}</h1>
         <p>{@record.summary || record_fallback(@kind)}</p>
       </header>
-      <.treasury_security report={report(@record)} surface={"#{@kind}-detail"} />
+      <.treasury_security
+        :if={!@local_lab?}
+        report={report(@record)}
+        surface={"#{@kind}-detail"}
+      />
       <.live_component
         :if={@kind == :auction}
         module={AshPlatformWeb.AutolaunchBidComponent}
         id="autolaunch-bid"
+        auction={@record}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
+      <.live_component
+        :if={@local_lab? && @kind == :auction}
+        module={AshPlatformWeb.AutolaunchLabPositionComponent}
+        id="autolaunch-lab-position"
         auction={@record}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={@current_human_id}

@@ -355,6 +355,25 @@ defmodule AshPlatform.Autolaunch do
     to: AshPlatform.Autolaunch.LaunchActions,
     as: :open_operation
 
+  # The development-only local-fork position lane is deliberately stateless on
+  # the server: every action is a fresh signed envelope tied to the exact
+  # projected bid, runtime config, signer and receipt readback.
+  defdelegate lab_position(auction_id, address, opts),
+    to: AshPlatform.Autolaunch.LabPositionActions,
+    as: :position
+
+  defdelegate prepare_lab_position(bid_id, address, kind, opts),
+    to: AshPlatform.Autolaunch.LabPositionActions,
+    as: :prepare
+
+  defdelegate claim_lab_position_dispatch(operation, address, opts),
+    to: AshPlatform.Autolaunch.LabPositionActions,
+    as: :claim_dispatch
+
+  defdelegate verify_lab_position(operation, hash, opts),
+    to: AshPlatform.Autolaunch.LabPositionActions,
+    as: :verify
+
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     AshPlatform.Autolaunch.Auction
     |> Ash.Query.for_read(:read)

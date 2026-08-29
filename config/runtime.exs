@@ -73,13 +73,35 @@ autolaunch_surfaces? =
 
 config :ash_platform, :autolaunch_surfaces, autolaunch_surfaces?
 
+autolaunch_lab_path = System.get_env("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG")
+
+autolaunch_lab =
+  case {config_env(), autolaunch_lab_path} do
+    {_env, nil} ->
+      nil
+
+    {_env, ""} ->
+      nil
+
+    {:prod, _path} ->
+      raise "ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG is development/test only"
+
+    {env, path} when env in [:dev, :test] ->
+      AshPlatform.Autolaunch.Lab.load!(path)
+  end
+
+config :ash_platform, :autolaunch_lab_enabled, not is_nil(autolaunch_lab)
+config :ash_platform, :autolaunch_lab_config_path, autolaunch_lab && autolaunch_lab.path
+
 # The Base log ledger reads its own dedicated endpoint, separate from the
 # simple-read RPC. The test environment owns this setting outright so a shell
 # that exports one cannot start an indexer under a test run.
-if config_env() != :test do
+if autolaunch_lab do
+  config :ash_platform, :autolaunch_indexer_rpc_url, nil
+else
   config :ash_platform,
          :autolaunch_indexer_rpc_url,
-         System.get_env("AUTOLAUNCH_INDEXER_RPC_URL")
+         if(config_env() == :test, do: nil, else: System.get_env("AUTOLAUNCH_INDEXER_RPC_URL"))
 end
 
 migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
@@ -90,6 +112,18 @@ database_config =
   else
     AshPlatform.DatabaseConfig.runtime_config!(config_env())
   end
+
+if autolaunch_lab do
+  ownership_verifier =
+    Application.get_env(:ash_platform, :acceptance_ownership_verifier)
+
+  AshPlatform.DatabaseConfig.verify_acceptance_ownership!(
+    config_env(),
+    database_config,
+    &System.get_env/1,
+    ownership_verifier
+  )
+end
 
 if database_config do
   config :ash_platform, :database_startup_enabled, true

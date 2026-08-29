@@ -21,18 +21,34 @@ defmodule AshPlatform.RuntimeConfigTest do
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
       "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
+      "ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG",
+      "ASH_PLATFORM_ACCEPTANCE_RUN_ID",
+      "AUTOLAUNCH_INDEXER_RPC_URL",
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
+    previous_verifier = Application.get_env(:ash_platform, :acceptance_ownership_verifier)
     Enum.each(names, &System.delete_env/1)
+
+    Application.put_env(
+      :ash_platform,
+      :acceptance_ownership_verifier,
+      fn _config, _run_id -> :ok end
+    )
 
     # Production demands an explicit gate setting; these tests cover the rest of the file.
     System.put_env("ASH_PLATFORM_APP_SURFACES", "on")
 
     on_exit(fn ->
       Enum.each(previous, fn {name, value} -> restore_env(name, value) end)
+
+      if is_nil(previous_verifier) do
+        Application.delete_env(:ash_platform, :acceptance_ownership_verifier)
+      else
+        Application.put_env(:ash_platform, :acceptance_ownership_verifier, previous_verifier)
+      end
     end)
 
     :ok
@@ -268,6 +284,63 @@ defmodule AshPlatform.RuntimeConfigTest do
     end
   end
 
+  test "the local Autolaunch lab is development/test only and disables the production indexer",
+       context do
+    path = write_lab_config!(context)
+    System.put_env("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG", path)
+    System.put_env("ASH_PLATFORM_ACCEPTANCE_RUN_ID", "local_lab_runtime_1")
+    System.put_env("AUTOLAUNCH_INDEXER_RPC_URL", "https://indexer.example.test/private")
+
+    for environment <- [:dev, :test] do
+      config = read_runtime_config(environment)
+
+      assert get_in(config, [:ash_platform, :autolaunch_lab_enabled])
+      assert get_in(config, [:ash_platform, :autolaunch_lab_config_path]) == path
+      assert get_in(config, [:ash_platform, :autolaunch_indexer_rpc_url]) == nil
+
+      assert get_in(config, [:ash_platform, AshPlatform.Repo])[:database] ==
+               "ash_platform_acceptance_local_lab_runtime_1"
+    end
+
+    assert_raise RuntimeError,
+                 "ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG is development/test only",
+                 fn -> read_runtime_config(:prod) end
+  end
+
+  test "a configured local lab fails boot on a missing or malformed config", context do
+    missing = Path.join(System.tmp_dir!(), "missing-lab-#{context.test}.json")
+    System.put_env("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG", missing)
+    System.put_env("ASH_PLATFORM_ACCEPTANCE_RUN_ID", "local_lab_runtime_2")
+
+    assert_raise RuntimeError, ~r/configuration is invalid: missing_file/, fn ->
+      read_runtime_config(:dev)
+    end
+
+    path = Path.join(System.tmp_dir!(), "bad-lab-#{context.test}.json")
+    File.write!(path, ~s({"rpc_url":"http://127.0.0.1:8545","chain_id":8453}))
+    on_exit(fn -> File.rm(path) end)
+    System.put_env("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG", path)
+
+    assert_raise RuntimeError, ~r/configuration is invalid/, fn -> read_runtime_config(:dev) end
+  end
+
+  test "a configured local lab fails boot before serving when ownership cannot be proved",
+       context do
+    path = write_lab_config!(context)
+    System.put_env("ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG", path)
+    System.put_env("ASH_PLATFORM_ACCEPTANCE_RUN_ID", "unowned_runtime")
+
+    Application.put_env(
+      :ash_platform,
+      :acceptance_ownership_verifier,
+      fn _config, _run_id -> raise "local acceptance database ownership marker mismatch" end
+    )
+
+    assert_raise RuntimeError, "local acceptance database ownership marker mismatch", fn ->
+      read_runtime_config(:dev)
+    end
+  end
+
   defp autolaunch_surfaces?(environment),
     do: get_in(read_runtime_config(environment), [:ash_platform, :autolaunch_surfaces])
 
@@ -296,6 +369,112 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   defp runtime_repo_config(environment),
     do: get_in(read_runtime_config(environment), [:ash_platform, AshPlatform.Repo])
+
+  defp write_lab_config!(context) do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "runtime-lab-#{context.test |> :erlang.phash2() |> Integer.to_string()}.json"
+      )
+
+    addresses =
+      ~w(
+        cca_factory escrow_implementation factory governance_safe hook permit2 pool_manager
+        position_manager receiver_implementation regent splitter_implementation strategy
+        uerc20_factory
+      )
+      |> Map.new(&{&1, "0x1111111111111111111111111111111111111111"})
+
+    abis =
+      ~w(auction escrow factory hook permit2 receiver splitter strategy token)
+      |> Map.new(fn name ->
+        entries =
+          AshPlatform.Autolaunch.LabAbi.requirements()
+          |> Map.get(name, [])
+          |> Enum.map(&lab_abi_entry/1)
+
+        {name, if(entries == [], do: [lab_abi_entry("placeholder()")], else: entries)}
+      end)
+
+    File.write!(
+      path,
+      Jason.encode!(%{
+        "rpc_url" => "http://127.0.0.1:49713",
+        "chain_id" => 31_337,
+        "addresses" => addresses,
+        "abis" => abis
+      })
+    )
+
+    on_exit(fn -> File.rm(path) end)
+    path
+  end
+
+  defp lab_abi_entry({:f, {signature, mutability, outputs}}) do
+    {name, inputs} = signature_parts(signature)
+
+    %{
+      "type" => "function",
+      "name" => name,
+      "inputs" => lab_abi_types(inputs),
+      "outputs" => Enum.flat_map(outputs, &lab_abi_types/1),
+      "stateMutability" => mutability
+    }
+  end
+
+  defp lab_abi_entry({:e, {signature, indexed}}) do
+    {name, inputs} = signature_parts(signature)
+
+    inputs =
+      inputs
+      |> lab_abi_types()
+      |> Enum.zip(indexed)
+      |> Enum.map(fn {input, indexed?} -> Map.put(input, "indexed", indexed?) end)
+
+    %{"type" => "event", "name" => name, "inputs" => inputs, "anonymous" => false}
+  end
+
+  defp lab_abi_entry(signature) when is_binary(signature),
+    do: lab_abi_entry({:f, {signature, "nonpayable", []}})
+
+  defp signature_parts(signature) do
+    [name, inputs] =
+      Regex.run(~r/\A([^()]+)\((.*)\)\z/, signature, capture: :all_but_first)
+
+    {name, inputs}
+  end
+
+  defp lab_abi_types(""), do: []
+
+  defp lab_abi_types(arguments) do
+    arguments
+    |> split_lab_types()
+    |> Enum.map(fn
+      "(" <> tuple ->
+        %{
+          "type" => "tuple",
+          "name" => "",
+          "components" => tuple |> String.trim_trailing(")") |> lab_abi_types()
+        }
+
+      type ->
+        %{"type" => type, "name" => ""}
+    end)
+  end
+
+  defp split_lab_types(value) do
+    {parts, current, _depth} =
+      value
+      |> String.graphemes()
+      |> Enum.reduce({[], "", 0}, fn
+        "(", {parts, current, depth} -> {parts, current <> "(", depth + 1}
+        ")", {parts, current, depth} -> {parts, current <> ")", depth - 1}
+        ",", {parts, current, 0} -> {[current | parts], "", 0}
+        char, {parts, current, depth} -> {parts, current <> char, depth}
+      end)
+
+    Enum.reverse([current | parts])
+  end
 
   defp restore_env(name, nil), do: System.delete_env(name)
   defp restore_env(name, value), do: System.put_env(name, value)

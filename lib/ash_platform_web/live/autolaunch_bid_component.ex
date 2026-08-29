@@ -16,7 +16,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.BidActions
+  alias AshPlatform.Autolaunch.{BidActions, Lab}
 
   @chain_id 8453
 
@@ -134,7 +134,7 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
               <dt>Maximum price</dt><dd>{argument(@operation, "max_price")}</dd>
             </div>
             <div>
-              <dt>Network</dt><dd>Base</dd>
+              <dt>Network</dt><dd>{network_name(@operation)}</dd>
             </div>
           </dl>
 
@@ -143,15 +143,18 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             <li :for={step <- BidActions.steps(@operation)} data-step={step["step"]}>
               <span>{step_label(step["step"])}</span>
               <span class="bid-step-state">{step_state(@operation, step["step"])}</span>
-              <.transaction hash={BidActions.step_hash(@operation, step["step"])} />
+              <.transaction
+                hash={BidActions.step_hash(@operation, step["step"])}
+                chain_id={@operation.envelope["chain_id"]}
+              />
             </li>
           </ol>
 
           <p :if={@operation.state == :confirmed} class="bid-settled" role="status">
-            Bid {@operation.onchain_bid_id} is on Base. Your position appears once it is read back.
+            {confirmed_copy(@operation)}
           </p>
           <p :if={@operation.state in [:reverted, :unverified]} class="bid-settled" role="alert">
-            {settled_copy(@operation.state)}
+            {settled_copy(@operation)}
           </p>
 
           <button
@@ -304,11 +307,12 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   end
 
   attr :hash, :string, default: nil
+  attr :chain_id, :integer, default: @chain_id
 
   defp transaction(assigns) do
     ~H"""
     <a
-      :if={@hash}
+      :if={@hash && @chain_id == 8453}
       class="bid-mono"
       href={"https://basescan.org/tx/#{@hash}"}
       target="_blank"
@@ -317,6 +321,9 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
     >
       {short_hash(@hash)}
     </a>
+    <span :if={@hash && @chain_id == 31_337} class="bid-mono" data-local-transaction-hash>
+      {short_hash(@hash)}
+    </span>
     """
   end
 
@@ -359,11 +366,21 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
     push_event(socket, "autolaunch-bid:operation", %{
       action_id: operation.action_id,
       signer: operation.signer,
-      chain_id: @chain_id,
+      chain_id: operation.envelope["chain_id"],
+      lab: operation.envelope["metadata"]["lab"],
+      lab_anchor: lab_anchor(operation.envelope),
       terminal: not is_nil(operation.terminal_at),
       steps: BidActions.steps(operation)
     })
   end
+
+  defp lab_anchor(%{"metadata" => %{"lab" => nil}}), do: nil
+
+  defp lab_anchor(envelope),
+    do: %{
+      block_number: envelope["arguments"]["block_number"],
+      block_hash: envelope["arguments"]["block_hash"]
+    }
 
   defp cleared(socket), do: push_event(socket, "autolaunch-bid:cleared", %{})
 
@@ -460,8 +477,24 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   defp step_label("permit2_approval"), do: "Allow this auction to draw REGENT"
   defp step_label("bid"), do: "Place the bid"
 
-  defp settled_copy(:reverted), do: "This transaction reverted on Base."
-  defp settled_copy(:unverified), do: "This transaction did not record the bid you reviewed."
+  defp confirmed_copy(%{envelope: %{"chain_id" => 31_337}} = operation),
+    do: "Local bid #{operation.onchain_bid_id} was verified. Test assets have no mainnet value."
+
+  defp confirmed_copy(operation),
+    do: "Bid #{operation.onchain_bid_id} is on Base. Your position appears once it is read back."
+
+  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
+    do: "This local test transaction reverted."
+
+  defp settled_copy(%{state: :reverted}), do: "This transaction reverted on Base."
+
+  defp settled_copy(%{state: :unverified}),
+    do: "This transaction did not record the bid you reviewed."
+
+  defp network_name(%{envelope: %{"chain_id" => 31_337}}),
+    do: "Local Base fork · chain 31337"
+
+  defp network_name(_operation), do: "Base"
 
   # The browser reports a closed reason key as a string, never text of its own.
   # Only a key that proves the wallet was never asked to send may say nothing
@@ -475,7 +508,15 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
 
   defp wallet_failure_copy(_unknown), do: @generic
 
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
+  defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
+
+  defp copy(:chain_unavailable) do
+    if Lab.enabled?(),
+      do: "The local lab could not be read just now. Check that it is still running.",
+      else: Map.fetch!(@copy, :chain_unavailable)
+  end
+
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(reason) when is_atom(reason), do: reason

@@ -2,6 +2,13 @@ import {createWalletClient, custom, getAddress, type Address, type Hash, type He
 import {base} from "viem/chains"
 
 import type {EthereumProvider} from "./connected_wallet"
+import {
+  labNetwork,
+  sendLabTransaction,
+  type AutolaunchLabBinding,
+  type AutolaunchLabAnchor,
+  type WalletResolver,
+} from "./autolaunch_network"
 
 export type BidStepName = "token_approval" | "permit2_approval" | "bid"
 
@@ -20,6 +27,8 @@ export type BidOperation = {
   action_id: string
   signer: Address
   chain_id: number
+  lab: AutolaunchLabBinding | null
+  lab_anchor: AutolaunchLabAnchor | null
   terminal: boolean
   steps: BidStep[]
 }
@@ -58,7 +67,10 @@ export function sendableStep(
 ): BidStep {
   if (operation.action_id !== actionId) throw new Error("This is a different bid.")
   if (operation.terminal) throw new Error("This bid has already finished.")
-  if (operation.chain_id !== base.id) throw new Error("This bid is not for Base.")
+  if (operation.lab === null && operation.chain_id !== base.id) {
+    throw new Error("This bid is not for Base.")
+  }
+  labNetwork(operation)
 
   const step = operation.steps.find(candidate => candidate.step === stepName)
   if (!step) throw new Error("This step is not part of the reviewed bid.")
@@ -80,24 +92,61 @@ export function sendableStep(
 export async function sendBidStep(
   operation: BidOperation,
   step: BidStep,
-  provider: EthereumProvider,
+  resolveWallet: WalletResolver,
   onSendStarted: () => void,
-  clients: BidClients = clientsFor(provider),
+  clientFactory: (provider: EthereumProvider) => BidClients = clientsFor,
 ): Promise<Hash> {
-  let chainId = await clients.chainId()
-  if (chainId !== base.id) {
-    await clients.switchToBase()
-    chainId = await clients.chainId()
+  if (labNetwork(operation)) {
+    return sendLabTransaction(operation, step, resolveWallet, onSendStarted)
   }
-  if (chainId !== base.id) throw new Error("Switch to Base before continuing.")
+
+  const selected = selectedWallet(resolveWallet, operation.signer)
+  const clients = clientFactory(selected.provider)
+
+  if ((await clients.chainId()) !== base.id) {
+    await clients.switchToBase()
+  }
+
+  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
 
   const [account] = await clients.addresses()
   if (!account || getAddress(account) !== getAddress(operation.signer)) {
     throw new Error("Use the wallet this bid was reviewed for.")
   }
 
+  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
+
+  if ((await clients.chainId()) !== base.id) {
+    throw new Error("Switch to Base before continuing.")
+  }
+
+  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
+
   onSendStarted()
   return clients.send({account, to: getAddress(step.to), data: step.data, value: 0n})
+}
+
+function selectedWallet(resolveWallet: WalletResolver, signer: Address) {
+  const selected = resolveWallet()
+  if (!selected || getAddress(selected.address) !== getAddress(signer)) {
+    throw new Error("Use the wallet this bid was reviewed for.")
+  }
+  return selected
+}
+
+function sameSelectedWallet(
+  resolveWallet: WalletResolver,
+  provider: EthereumProvider,
+  signer: Address,
+): void {
+  const current = resolveWallet()
+  if (
+    !current ||
+    current.provider !== provider ||
+    getAddress(current.address) !== getAddress(signer)
+  ) {
+    throw new Error("The selected wallet changed. Review this bid again.")
+  }
 }
 
 /**

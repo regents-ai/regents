@@ -158,6 +158,40 @@ defmodule AshPlatform.Autolaunch.Subject do
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
+    create :project_lab do
+      accept [
+        :subject_id,
+        :subject_kind,
+        :chain_id,
+        :token_address,
+        :splitter_address,
+        :ingress_address,
+        :treasury_address,
+        :canonical_receiver_address,
+        :factory_address,
+        :creator_address,
+        :staker_pool_bps,
+        :protocol_skim_bps_snapshot,
+        :current_protocol_skim_bps,
+        :protocol_fee_usdc_total_raw,
+        :regent_emission_total_raw,
+        :pending_buyback_usdc_raw
+      ]
+
+      upsert? true
+      upsert_identity :unique_subject_id
+
+      upsert_fields [
+        :token_address,
+        :splitter_address,
+        :ingress_address,
+        :treasury_address,
+        :canonical_receiver_address,
+        :factory_address,
+        :creator_address
+      ]
+    end
+
     update :set_buyback_router do
       require_atomic? false
       accept [:revenue_router_address]
@@ -174,7 +208,7 @@ defmodule AshPlatform.Autolaunch.Subject do
       authorize_if always()
     end
 
-    policy action(:import_public) do
+    policy action([:import_public, :project_lab]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
 

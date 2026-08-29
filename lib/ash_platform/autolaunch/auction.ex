@@ -117,6 +117,40 @@ defmodule AshPlatform.Autolaunch.Auction do
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
+    create :project_lab do
+      argument :projection_id, :uuid, allow_nil?: false
+
+      accept [
+        :title,
+        :summary,
+        :featured,
+        :state,
+        :opened_at,
+        :auction_address,
+        :quote_token_address,
+        :quote_token_symbol,
+        :quote_token_decimals,
+        :current_clearing_price,
+        :treasury_address
+      ]
+
+      change set_attribute(:id, arg(:projection_id))
+      upsert? true
+
+      upsert_fields [
+        :title,
+        :summary,
+        :state,
+        :opened_at,
+        :auction_address,
+        :quote_token_address,
+        :quote_token_symbol,
+        :quote_token_decimals,
+        :current_clearing_price,
+        :treasury_address
+      ]
+    end
+
     update :set_bid_terms do
       require_atomic? false
 
@@ -205,7 +239,7 @@ defmodule AshPlatform.Autolaunch.Auction do
       authorize_if always()
     end
 
-    policy action(:import_public) do
+    policy action([:import_public, :project_lab]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
 

@@ -21,12 +21,20 @@ const auction = getAddress("0x2222222222222222222222222222222222222222")
 const regent = getAddress("0x6f89bcA4eA5931EdFCB09786267b251DeE752b07")
 const permit2 = getAddress("0x000000000022D473030F116dDEE9F6B43aC78BA3")
 const approvalHash = `0x${"cd".repeat(32)}` as Hash
+const blockHash = `0x${"12".repeat(32)}` as Hash
+const lab = {
+  rpc_url: "http://127.0.0.1:8545",
+  chain_id: 31_337,
+  addresses: {auction: auction.toLowerCase(), permit2: permit2.toLowerCase()},
+}
 
 function operation(overrides: Partial<BidOperation> = {}): BidOperation {
   return {
     action_id: "bid",
     signer: wallet,
     chain_id: 8453,
+    lab: null,
+    lab_anchor: null,
     terminal: false,
     steps: [
       {step: "token_approval", to: regent, data: "0x095ea7b3ff" as Hex},
@@ -36,6 +44,10 @@ function operation(overrides: Partial<BidOperation> = {}): BidOperation {
     ...overrides,
   }
 }
+
+const resolver = (provider: {request: (args: {method: string; params?: unknown[]}) => Promise<unknown>}, address: string = wallet) =>
+  () => ({address, provider})
+const factory = (bound: BidClients) => () => bound
 
 function clients(overrides: Partial<BidClients> = {}): BidClients {
   return {
@@ -48,20 +60,61 @@ function clients(overrides: Partial<BidClients> = {}): BidClients {
 }
 
 describe("the browser sends only the step the server claimed", () => {
+  it("uses the bound local lab instead of the Base client", async () => {
+    const held = operation({
+      chain_id: 31_337,
+      lab,
+      lab_anchor: {block_number: 123, block_hash: blockHash},
+    })
+    const methods: string[] = []
+    const provider = {
+      request: vi.fn(async ({method}: {method: string}) => {
+        methods.push(method)
+        if (method === "eth_chainId") return "0x7a69"
+        if (method === "eth_accounts") return [wallet]
+        if (method === "eth_getBlockByNumber") return {hash: blockHash}
+        if (method === "eth_sendTransaction") return approvalHash
+        throw new Error(`Unexpected provider method ${method}`)
+      }),
+    }
+    const baseClients = clients()
+
+    await expect(
+      sendBidStep(held, held.steps[2], resolver(provider), vi.fn(), factory(baseClients)),
+    ).resolves.toBe(approvalHash)
+    expect(methods.slice(-2)).toEqual(["eth_chainId", "eth_sendTransaction"])
+    expect(baseClients.send).not.toHaveBeenCalled()
+  })
+
   it("hands the wallet the exact reviewed bytes and reports the hash once", async () => {
     const held = operation()
-    const boundary = clients()
-    const onSendStarted = vi.fn()
+    const order: string[] = []
+    const boundary = clients({
+      addresses: vi.fn(async () => {
+        order.push("accounts")
+        return [wallet]
+      }),
+      chainId: vi.fn(async () => {
+        order.push("chain")
+        return 8453
+      }),
+      send: vi.fn(async () => {
+        order.push("send")
+        return approvalHash
+      }),
+    })
+    const onSendStarted = vi.fn(() => order.push("send-started"))
 
     const hash = await sendBidStep(
       held,
       sendableStep(held, "bid", "token_approval"),
-      {request: vi.fn()},
+      resolver({request: vi.fn()}),
       onSendStarted,
-      boundary,
+      factory(boundary),
     )
 
     expect(hash).toBe(approvalHash)
+    expect(order).toEqual(["chain", "accounts", "chain", "send-started", "send"])
     expect(boundary.send).toHaveBeenCalledWith({
       account: wallet,
       to: regent,
@@ -86,13 +139,39 @@ describe("the browser sends only the step the server claimed", () => {
       sendBidStep(
         held,
         sendableStep(held, "bid", "bid"),
-        {request: vi.fn()},
+        resolver({request: vi.fn()}),
         onSendStarted,
-        clients({addresses: vi.fn(async () => [other])}),
+        factory(clients({addresses: vi.fn(async () => [other])})),
       ),
     ).rejects.toThrow("wallet this bid was reviewed for")
 
     expect(onSendStarted).not.toHaveBeenCalled()
+  })
+
+  it("refuses when Privy changes the selected provider during account lookup", async () => {
+    const held = operation()
+    const firstProvider = {request: vi.fn(async () => null)}
+    const secondProvider = {request: vi.fn(async () => null)}
+    let selectedProvider = firstProvider
+    const resolve = () => ({address: wallet, provider: selectedProvider})
+    const boundary = clients({
+      addresses: vi.fn(async () => {
+        selectedProvider = secondProvider
+        return [wallet]
+      }),
+    })
+
+    await expect(
+      sendBidStep(
+        held,
+        sendableStep(held, "bid", "bid"),
+        resolve,
+        vi.fn(),
+        factory(boundary),
+      ),
+    ).rejects.toThrow("selected wallet changed")
+
+    expect(boundary.send).not.toHaveBeenCalled()
   })
 
   it("never sends while the wallet is on another chain", async () => {
@@ -100,7 +179,13 @@ describe("the browser sends only the step the server claimed", () => {
     const boundary = clients({chainId: vi.fn(async () => 1), switchToBase: vi.fn(async () => undefined)})
 
     await expect(
-      sendBidStep(held, sendableStep(held, "bid", "bid"), {request: vi.fn()}, vi.fn(), boundary),
+      sendBidStep(
+        held,
+        sendableStep(held, "bid", "bid"),
+        resolver({request: vi.fn()}),
+        vi.fn(),
+        factory(boundary),
+      ),
     ).rejects.toThrow("Switch to Base")
 
     expect(boundary.send).not.toHaveBeenCalled()

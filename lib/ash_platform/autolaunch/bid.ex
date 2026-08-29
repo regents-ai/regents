@@ -130,6 +130,41 @@ defmodule AshPlatform.Autolaunch.Bid do
       change AshPlatform.Autolaunch.Bid.Changes.NormalizeOwnerAddress
     end
 
+    create :project_lab do
+      accept [
+        :bid_id,
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :current_clearing_price,
+        :estimated_tokens_if_end_now,
+        :status,
+        :exited_at,
+        :claimed_at,
+        :auction_address,
+        :onchain_bid_id
+      ]
+
+      change AshPlatform.Autolaunch.Bid.Changes.NormalizeOwnerAddress
+      upsert? true
+      upsert_identity :unique_bid_id
+
+      upsert_fields [
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :current_clearing_price,
+        :estimated_tokens_if_end_now,
+        :status,
+        :exited_at,
+        :claimed_at,
+        :auction_address,
+        :onchain_bid_id
+      ]
+    end
+
     update :set_chain_identity do
       require_atomic? false
       accept [:auction_address, :onchain_bid_id]
@@ -145,7 +180,7 @@ defmodule AshPlatform.Autolaunch.Bid do
       authorize_if AshPlatform.Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:import_position, :set_chain_identity]) do
+    policy action([:import_position, :project_lab, :set_chain_identity]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

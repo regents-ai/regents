@@ -152,6 +152,45 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
 
       change fn changeset, _context -> TreasurySecurity.associate_launch_job_report(changeset) end
     end
+
+    create :project_lab do
+      accept [
+        :job_id,
+        :status,
+        :step,
+        :agent_id,
+        :agent_name,
+        :token_name,
+        :token_symbol,
+        :chain_id,
+        :auction_id,
+        :agent_safe_address,
+        :auction_address,
+        :token_address,
+        :hook_address,
+        :revenue_share_splitter_address,
+        :treasury_address,
+        :started_at,
+        :finished_at
+      ]
+
+      upsert? true
+      upsert_identity :unique_job_id
+
+      upsert_fields [
+        :status,
+        :step,
+        :auction_id,
+        :agent_safe_address,
+        :auction_address,
+        :token_address,
+        :hook_address,
+        :revenue_share_splitter_address,
+        :treasury_address,
+        :started_at,
+        :finished_at
+      ]
+    end
   end
 
   policies do
@@ -159,7 +198,7 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
       authorize_if always()
     end
 
-    policy action(:import_public) do
+    policy action([:import_public, :project_lab]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

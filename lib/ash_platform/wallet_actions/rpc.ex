@@ -11,9 +11,13 @@ defmodule AshPlatform.WalletActions.Rpc do
   @type block :: %{number: non_neg_integer(), hash: String.t()}
 
   def verify_base_chain(opts \\ []) do
+    verify_chain(@chain_id, opts)
+  end
+
+  def verify_chain(expected_chain_id, opts \\ []) when is_integer(expected_chain_id) do
     with {:ok, result} <- request("eth_chainId", [], opts),
          {:ok, chain_id} <- quantity(result),
-         true <- chain_id == @chain_id do
+         true <- chain_id == expected_chain_id do
       :ok
     else
       {:error, reason} -> {:error, reason}
@@ -30,7 +34,7 @@ defmodule AshPlatform.WalletActions.Rpc do
   end
 
   def confirmed_transaction_receipt(hash, signer, to, data, opts \\ []) do
-    with :ok <- verify_base_chain(opts),
+    with :ok <- verify_chain(Keyword.get(opts, :expected_chain_id, @chain_id), opts),
          {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts) do
       case receipt do
         %{"status" => "0x1", "blockNumber" => block} when is_binary(block) ->
@@ -67,6 +71,16 @@ defmodule AshPlatform.WalletActions.Rpc do
   def safe_block(opts \\ []) do
     with :ok <- verify_base_chain(opts),
          {:ok, header} <- request("eth_getBlockByNumber", ["safe", false], opts),
+         do: block_identity(header)
+  end
+
+  @doc "The latest block from an explicitly selected chain endpoint."
+  @spec latest_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def latest_block(opts \\ []) do
+    expected_chain_id = Keyword.get(opts, :expected_chain_id, @chain_id)
+
+    with :ok <- verify_chain(expected_chain_id, opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
          do: block_identity(header)
   end
 
@@ -113,7 +127,12 @@ defmodule AshPlatform.WalletActions.Rpc do
         Req
       )
 
-    case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
+    rpc_url =
+      Keyword.get_lazy(opts, :rpc_url, fn ->
+        Application.fetch_env!(:ash_platform, :base_read_rpc_url)
+      end)
+
+    case client.post(rpc_url,
            json: request,
            connect_options: [timeout: 3_000],
            pool_timeout: 3_000,

@@ -22,10 +22,14 @@ defmodule AshPlatform.Autolaunch.LaunchChainClient do
   @callback verify(map(), :approval | :launch, String.t()) :: {:ok, outcome()} | {:error, atom()}
 
   def module do
-    Application.get_env(
-      :ash_platform,
-      :autolaunch_launch_chain_client,
-      AshPlatform.Autolaunch.LaunchRpcClient
-    )
+    case Application.fetch_env(:ash_platform, :autolaunch_launch_chain_client) do
+      {:ok, module} ->
+        module
+
+      :error ->
+        if AshPlatform.Autolaunch.Lab.enabled?(),
+          do: AshPlatform.Autolaunch.LabLaunchChainClient,
+          else: AshPlatform.Autolaunch.LaunchRpcClient
+    end
   end
 end

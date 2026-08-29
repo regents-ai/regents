@@ -19,6 +19,40 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     assert_raise KeyError, fn -> Envelope.new("act", @signer, @data, risk_copy: "Review") end
   end
 
+  test "chain 31337 is admitted only for a bound Autolaunch lab capability" do
+    binding = %{
+      "rpc_url" => "http://127.0.0.1:49713",
+      "chain_id" => 31_337,
+      "addresses" => %{"factory" => @target}
+    }
+
+    context = [
+      to: @target,
+      resource: "autolaunch_launch",
+      contract_name: "RegentsAutolaunchFactoryV1",
+      risk_copy: "Local lab",
+      chain_id: 31_337,
+      lab_binding: binding
+    ]
+
+    envelope = Envelope.new("autolaunch_launch", @signer, @data, context)
+
+    assert envelope.chain_id == 31_337
+    assert envelope.metadata.lab == binding
+    assert Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: 31_337)
+    refute Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: 8453)
+
+    for invalid <- [
+          Keyword.delete(context, :lab_binding),
+          Keyword.replace!(context, :resource, "regent_staking"),
+          Keyword.replace!(context, :chain_id, 8453)
+        ] do
+      assert_raise ArgumentError, ~r/network context/, fn ->
+        Envelope.new("autolaunch_launch", @signer, @data, invalid)
+      end
+    end
+  end
+
   test "rejects zero signer and target addresses" do
     zero = "0x" <> String.duplicate("0", 40)
 

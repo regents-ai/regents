@@ -22,6 +22,111 @@ defmodule AshPlatform.DatabaseConfigTest do
     assert config == nil
   end
 
+  test "the lab requires and selects the exact guarded acceptance database" do
+    values = %{
+      "ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG" => "/absolute/site-config.json",
+      "ASH_PLATFORM_ACCEPTANCE_RUN_ID" => "lab_frontend_1",
+      "USER" => "local-user"
+    }
+
+    for environment <- [:dev, :test] do
+      assert DatabaseConfig.runtime_config!(environment, env(values)) == [
+               hostname: "127.0.0.1",
+               port: 5432,
+               database: "ash_platform_acceptance_lab_frontend_1",
+               username: "local-user",
+               password: nil,
+               pool_size: 2
+             ]
+    end
+  end
+
+  test "lab startup verifies the exact owned run database and current user" do
+    values = %{
+      "ASH_PLATFORM_ACCEPTANCE_RUN_ID" => "lab_frontend_1",
+      "USER" => "local-user"
+    }
+
+    config = [
+      hostname: "127.0.0.1",
+      port: 5432,
+      database: "ash_platform_acceptance_lab_frontend_1",
+      username: "local-user",
+      password: nil,
+      pool_size: 2
+    ]
+
+    verifier = fn verified_config, run_id ->
+      assert verified_config == config
+      assert run_id == "lab_frontend_1"
+      :ok
+    end
+
+    assert :ok =
+             DatabaseConfig.verify_acceptance_ownership!(
+               :dev,
+               config,
+               env(values),
+               verifier
+             )
+  end
+
+  test "lab startup refuses absent, duplicate, mismatched, and stale ownership markers" do
+    values = %{
+      "ASH_PLATFORM_ACCEPTANCE_RUN_ID" => "lab_frontend_1",
+      "USER" => "local-user"
+    }
+
+    config = [
+      hostname: "127.0.0.1",
+      port: 5432,
+      database: "ash_platform_acceptance_lab_frontend_1",
+      username: "local-user",
+      password: nil,
+      pool_size: 2
+    ]
+
+    valid = ["lab_frontend_1", "ash_platform_acceptance_lab_frontend_1", "local-user"]
+
+    for rows <- [
+          [],
+          [valid, valid],
+          [["other-run", Enum.at(valid, 1), Enum.at(valid, 2)]],
+          [[Enum.at(valid, 0), "ash_platform_acceptance_stale", Enum.at(valid, 2)]],
+          [[Enum.at(valid, 0), Enum.at(valid, 1), "other-user"]]
+        ] do
+      verifier = fn checked, run_id ->
+        AshPlatform.LocalDatabaseFixture.validate_ownership_marker!(
+          rows,
+          run_id,
+          to_string(checked[:database]),
+          to_string(checked[:username])
+        )
+      end
+
+      assert_raise RuntimeError, "local acceptance database ownership marker mismatch", fn ->
+        DatabaseConfig.verify_acceptance_ownership!(:test, config, env(values), verifier)
+      end
+    end
+  end
+
+  test "the lab refuses missing, unsafe, and remotely configured database targets" do
+    base = %{
+      "ASH_PLATFORM_AUTOLAUNCH_LAB_CONFIG" => "/absolute/site-config.json",
+      "ASH_PLATFORM_ACCEPTANCE_RUN_ID" => "lab_frontend_1",
+      "USER" => "local-user"
+    }
+
+    for values <- [
+          Map.delete(base, "ASH_PLATFORM_ACCEPTANCE_RUN_ID"),
+          %{base | "ASH_PLATFORM_ACCEPTANCE_RUN_ID" => "unsafe-run"},
+          Map.put(base, "DATABASE_URL", "postgresql://remote.example/db"),
+          Map.put(base, "FLY_APP_NAME", "anything")
+        ] do
+      assert_raise RuntimeError, fn -> DatabaseConfig.runtime_config!(:dev, env(values)) end
+    end
+  end
+
   test "production runtime selects only the pooled URL" do
     assert DatabaseConfig.runtime_config!(
              :prod,

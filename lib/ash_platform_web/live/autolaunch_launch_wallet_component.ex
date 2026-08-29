@@ -17,7 +17,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
 
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.LaunchActions
+  alias AshPlatform.Autolaunch.{Lab, LaunchActions}
 
   @chain_id 8453
 
@@ -70,6 +70,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign(:local_lab?, Lab.enabled?())
      |> assign(:treasury_report, current_report(assigns.draft))
      |> assign_new(:fresh_treasury_report_id, fn -> nil end)
      |> assign_new(:elsewhere?, fn -> false end)}
@@ -81,7 +82,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     <section id={@id} class="launch-wallet" phx-hook="AutolaunchLaunchWallet" phx-target={@myself}>
       <.notice :if={@notice} notice={@notice} />
 
-      <section class="treasury-verification" aria-label="Treasury verification">
+      <section :if={!@local_lab?} class="treasury-verification" aria-label="Treasury verification">
         <h4>Verify immutable treasury</h4>
         <p class="launch-wallet-mono">{short(@draft.treasury)}</p>
         <p
@@ -168,7 +169,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>Base</dd>
+            <dd>{network_name(@operation)}</dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -187,12 +188,15 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           <li :for={step <- LaunchActions.steps(@operation)} data-step={step["step"]}>
             <span>{step_label(step["step"], @operation)}</span>
             <span class="launch-wallet-step-state">{step_state(@operation, step["step"])}</span>
-            <.transaction hash={LaunchActions.step_hash(@operation, step["step"])} />
+            <.transaction
+              hash={LaunchActions.step_hash(@operation, step["step"])}
+              chain_id={@operation.envelope["chain_id"]}
+            />
           </li>
         </ol>
 
         <p :if={@operation.state == :chain_verified} class="launch-wallet-settled" role="status">
-          {verified_copy()}
+          {verified_copy(@operation)}
         </p>
         <p
           :if={@operation.state in [:reverted, :unverified]}
@@ -287,28 +291,10 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   end
 
   def handle_event("verify_treasury", hashes, socket) do
-    result =
-      Autolaunch.observe_treasury_security(
-        socket.assigns.draft.treasury,
-        Map.take(hashes, ["usdc", "regent", "outbound"]),
-        actor: actor(socket)
-      )
-
-    case result do
-      {:ok, report} ->
-        {:noreply,
-         assign(socket,
-           treasury_report: report,
-           fresh_treasury_report_id: report.id,
-           notice: notice(:info, "Treasury observation recorded from canonical Base reads.")
-         )}
-
-      {:error, error} ->
-        {:noreply,
-         assign(socket,
-           fresh_treasury_report_id: nil,
-           notice: notice(:error, refusal(error))
-         )}
+    if socket.assigns.local_lab? do
+      {:noreply, socket}
+    else
+      do_verify_treasury(hashes, socket)
     end
   end
 
@@ -385,11 +371,12 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   end
 
   attr :hash, :string, default: nil
+  attr :chain_id, :integer, default: @chain_id
 
   defp transaction(assigns) do
     ~H"""
     <a
-      :if={@hash}
+      :if={@hash && @chain_id == 8453}
       class="launch-wallet-mono"
       href={"https://basescan.org/tx/#{@hash}"}
       target="_blank"
@@ -398,6 +385,9 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     >
       {short_hash(@hash)}
     </a>
+    <span :if={@hash && @chain_id == 31_337} class="launch-wallet-mono" data-local-transaction-hash>
+      {short_hash(@hash)}
+    </span>
     """
   end
 
@@ -471,11 +461,21 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     addressed(socket, "autolaunch-launch:operation", %{
       action_id: operation.action_id,
       signer: operation.signer,
-      chain_id: @chain_id,
+      chain_id: operation.envelope["chain_id"],
+      lab: operation.envelope["metadata"]["lab"],
+      lab_anchor: lab_anchor(operation.envelope),
       terminal: not is_nil(operation.terminal_at),
       steps: LaunchActions.steps(operation)
     })
   end
+
+  defp lab_anchor(%{"metadata" => %{"lab" => nil}}), do: nil
+
+  defp lab_anchor(envelope),
+    do: %{
+      block_number: envelope["arguments"]["block_number"],
+      block_hash: envelope["arguments"]["block_hash"]
+    }
 
   defp cleared(socket), do: addressed(socket, "autolaunch-launch:cleared", %{})
 
@@ -525,14 +525,49 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
 
   defp actor(_socket), do: nil
 
-  defp current_report(%{treasury: treasury}) when is_binary(treasury) do
+  defp current_report(draft) do
+    if Lab.enabled?(), do: nil, else: production_report(draft)
+  end
+
+  defp do_verify_treasury(hashes, socket) do
+    result =
+      Autolaunch.observe_treasury_security(
+        socket.assigns.draft.treasury,
+        Map.take(hashes, ["usdc", "regent", "outbound"]),
+        actor: actor(socket)
+      )
+
+    case result do
+      {:ok, report} ->
+        {:noreply,
+         assign(socket,
+           treasury_report: report,
+           fresh_treasury_report_id: report.id,
+           notice: notice(:info, "Treasury observation recorded from canonical Base reads.")
+         )}
+
+      {:error, error} ->
+        {:noreply,
+         assign(socket,
+           fresh_treasury_report_id: nil,
+           notice: notice(:error, refusal(error))
+         )}
+    end
+  end
+
+  defp production_report(%{treasury: treasury}) when is_binary(treasury) do
     case Autolaunch.current_treasury_security(treasury, actor: nil) do
       {:ok, report} -> report
       _error -> nil
     end
   end
 
-  defp current_report(_draft), do: nil
+  defp production_report(_draft), do: nil
+
+  defp network_name(%{envelope: %{"chain_id" => 31_337}}),
+    do: "Local Base fork · chain 31337"
+
+  defp network_name(_operation), do: "Base"
 
   defp freshly_verified?(%{id: id, verification_state: :verified}, id), do: true
   defp freshly_verified?(_report, _fresh_report_id), do: false
@@ -590,9 +625,16 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   # The exact customer sentence for a launch this server verified its own
   # evidence for. It deliberately promises no more than that: canonical public
   # confirmation is the finalized projection, not this.
-  defp verified_copy,
+  defp verified_copy(%{envelope: %{"chain_id" => 31_337}}),
+    do:
+      "The local test transaction and launch record were verified. Test assets have no mainnet value."
+
+  defp verified_copy(_operation),
     do:
       "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
+
+  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
+    do: "This local test transaction reverted. Nothing was created."
 
   defp settled_copy(%{state: :reverted}),
     do: "This transaction reverted on Base. Nothing was created."
@@ -611,6 +653,11 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
 
   defp settled_copy(%{state: :expired} = operation),
     do: "This review expired before the launch was sent." <> left_behind(operation)
+
+  defp settled_copy(%{state: :invalidated, envelope: %{"chain_id" => 31_337}} = operation),
+    do:
+      "The local lab changed before the launch was sent." <>
+        left_behind(operation) <> ended_because(operation)
 
   defp settled_copy(%{state: :invalidated} = operation),
     do:
@@ -704,7 +751,21 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
 
   defp wallet_failure_copy(_unknown), do: @generic
 
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
+  defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
+
+  defp copy(:chain_unavailable) do
+    if Lab.enabled?(),
+      do: "The local lab could not be read just now. Check that it is still running.",
+      else: Map.fetch!(@copy, :chain_unavailable)
+  end
+
+  defp copy(:launch_snapshot_incomplete) do
+    if Lab.enabled?(),
+      do: "The local lab returned an incomplete answer. Check that it is still running.",
+      else: Map.fetch!(@copy, :launch_snapshot_incomplete)
+  end
+
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason

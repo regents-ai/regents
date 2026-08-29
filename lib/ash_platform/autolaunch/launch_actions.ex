@@ -22,7 +22,16 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.{LaunchChainClient, LaunchOperations, TreasurySecurity}
+
+  alias AshPlatform.Autolaunch.{
+    Lab,
+    LabAbi,
+    LabProjection,
+    LaunchChainClient,
+    LaunchOperations,
+    TreasurySecurity
+  }
+
   alias AshPlatform.WalletActions.{Abi, Address, Envelope, LaunchAbi, Rpc}
 
   @resource "autolaunch_launch"
@@ -104,11 +113,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, fields} <- launchable(draft),
          {:ok, snapshot} <- snapshot(signer),
          :ok <- reviewable(fields, snapshot),
-         {:ok, treasury_report} <- current_treasury_report(draft),
-         {:ok, treasury_report} <-
-           TreasurySecurity.revalidate_bound(treasury_report, treasury_requirement(draft)),
-         :ok <- custody_address_matches(draft, treasury_report),
-         :ok <- custody_matches(draft, treasury_report),
+         {:ok, treasury_report} <- review_treasury(draft),
          {:ok, operation} <-
            open(lease, draft, signer, review(draft, fields, signer, snapshot, treasury_report)) do
       {:ok, %{operation: operation}}
@@ -168,9 +173,8 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     with {:ok, _actor} <- human(opts),
          {:ok, lease} <- lease(opts),
          {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, outcome} <- read_chain(candidate) do
-      transact(lease, &locked(&1, action_id, settle(candidate, outcome)))
-    end
+         {:ok, outcome} <- read_chain(candidate),
+         do: transact(lease, &locked(&1, action_id, settle(candidate, outcome)))
   end
 
   @spec cancel(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -263,22 +267,54 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # Reviews
 
   defp review(draft, fields, signer, snapshot, treasury_report) do
-    launch_data = LaunchAbi.encode_launch(Map.put(fields, :expected_launch_fee, snapshot.fee))
+    {launch_data, envelope_options} = launch_data(fields, snapshot)
 
     steps =
       approval_step(snapshot) ++
         [%{"step" => "launch", "to" => snapshot.factory, "data" => launch_data}]
 
     @action
-    |> Envelope.new(signer, launch_data,
-      to: snapshot.factory,
-      resource: @resource,
-      contract_name: @contract_name,
-      risk_copy: risk_copy(snapshot.fee),
-      arguments: arguments(draft, fields, snapshot, steps, treasury_report)
+    |> Envelope.new(
+      signer,
+      launch_data,
+      envelope_options ++
+        [
+          to: snapshot.factory,
+          resource: @resource,
+          contract_name: @contract_name,
+          risk_copy: risk_copy(snapshot.fee, snapshot),
+          arguments: arguments(draft, fields, snapshot, steps, treasury_report)
+        ]
     )
     |> stored()
   end
+
+  defp launch_data(fields, %{lab_binding: binding} = snapshot) do
+    config = Lab.current!()
+
+    data =
+      LabAbi.encode(
+        Lab.abi!(config, :factory),
+        "launch((string,string,string,string,string,address,uint128,uint256))",
+        [
+          [
+            fields.name,
+            fields.symbol,
+            fields.description,
+            fields.website,
+            fields.image,
+            fields.treasury,
+            fields.required_regent_raised,
+            snapshot.fee
+          ]
+        ]
+      )
+
+    {data, [chain_id: Lab.chain_id(), lab_binding: binding]}
+  end
+
+  defp launch_data(fields, snapshot),
+    do: {LaunchAbi.encode_launch(Map.put(fields, :expected_launch_fee, snapshot.fee)), []}
 
   # One stored shape: the envelope is written, read and rendered exactly as the
   # confirmation token signed it.
@@ -294,8 +330,8 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     [
       %{
         "step" => "approval",
-        "to" => Abi.stake_token_address(),
-        "data" => Abi.encode_erc20("approve", [snapshot.factory, snapshot.fee]),
+        "to" => regent_address(snapshot),
+        "data" => encode_regent_approval(snapshot, snapshot.factory, snapshot.fee),
         "amount" => Integer.to_string(snapshot.fee),
         "spender" => snapshot.factory
       }
@@ -317,7 +353,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
       "expected_launch_fee" => regent_units(snapshot.fee),
       "allowance_atomic" => Integer.to_string(snapshot.allowance),
-      "regent" => Abi.stake_token_address(),
+      "regent" => regent_address(snapshot),
       "factory" => snapshot.factory,
       "strategy" => snapshot.strategy,
       "block_number" => snapshot.block.number,
@@ -327,11 +363,19 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     }
   end
 
-  defp risk_copy(0),
+  defp risk_copy(0, %{lab_binding: _binding}),
+    do:
+      "Your wallet creates this launch on a local Base fork with test assets and no mainnet value. The launch fee is zero."
+
+  defp risk_copy(fee, %{lab_binding: _binding}),
+    do:
+      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a local Base fork. Test assets have no mainnet value."
+
+  defp risk_copy(0, _snapshot),
     do:
       "Your wallet creates this launch on Base. The launch fee is zero right now, so no REGENT moves. A launch cannot be undone."
 
-  defp risk_copy(fee),
+  defp risk_copy(fee, _snapshot),
     do:
       "Your wallet pays #{regent_units(fee)} REGENT to create this launch on Base. A launch cannot be undone."
 
@@ -401,6 +445,17 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       {:error, reason} -> unavailable(reason)
     end
   end
+
+  defp regent_address(%{regent: regent}), do: regent
+  defp regent_address(_snapshot), do: Abi.stake_token_address()
+
+  defp encode_regent_approval(%{lab_binding: _binding}, spender, amount) do
+    config = Lab.current!()
+    LabAbi.encode(Lab.abi!(config, :token), "approve(address,uint256)", [spender, amount])
+  end
+
+  defp encode_regent_approval(_snapshot, spender, amount),
+    do: Abi.encode_erc20("approve", [spender, amount])
 
   # A review is derived from one whole snapshot or from none, so a partial answer
   # is refused before any of it is believed.
@@ -493,8 +548,17 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     fn account, operation ->
       with :ok <- same_signer(operation, signer),
            :ok <- LaunchOperations.signer_matches(account, operation.signer),
-           :ok <- unchanged(operation, candidate) do
+           :ok <- unchanged(operation, candidate),
+           true <- valid_envelope?(operation) do
         dispatch(operation, fresh, fresh_treasury)
+      else
+        false ->
+          LaunchOperations.update(operation, :invalidate, %{
+            reason: "the reviewed network changed"
+          })
+
+        error ->
+          error
       end
     end
   end
@@ -530,6 +594,30 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     end
   end
 
+  defp valid_envelope?(operation) do
+    options = [
+      resource: @resource,
+      action: @action,
+      signer: operation.signer,
+      to: argument(operation, "factory"),
+      contract_name: @contract_name
+    ]
+
+    options =
+      if lab_operation?(operation),
+        do: Keyword.put(options, :chain_id, Lab.chain_id()),
+        else: options
+
+    Envelope.valid?(operation.envelope, options) and
+      (not lab_operation?(operation) or
+         Lab.binding_matches?(operation.envelope["metadata"]["lab"], [
+           :factory,
+           :strategy,
+           :hook,
+           :regent
+         ]))
+  end
+
   defp chain_still_reviewed(operation, step, fresh) do
     cond do
       fresh.paused ->
@@ -563,11 +651,33 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   defp allowance_ready?(:launch, fresh, _operation), do: fresh.allowance == fresh.fee
 
-  defp current_treasury_report(draft) do
+  defp review_treasury(draft) do
+    if Lab.enabled?() do
+      {:ok,
+       %{
+         "mode" => "local_lab",
+         "address" => draft.treasury,
+         "path" => Atom.to_string(draft.treasury_path)
+       }}
+    else
+      production_treasury(draft)
+    end
+  end
+
+  defp production_treasury(draft) do
     case Autolaunch.current_treasury_security(draft.treasury, actor: nil) do
-      {:ok, nil} -> unavailable(:treasury_report_missing)
-      {:ok, report} -> {:ok, report}
-      _error -> unavailable(:treasury_report_missing)
+      {:ok, nil} ->
+        unavailable(:treasury_report_missing)
+
+      {:ok, report} ->
+        with {:ok, report} <-
+               TreasurySecurity.revalidate_bound(report, treasury_requirement(draft)),
+             :ok <- custody_address_matches(draft, report),
+             :ok <- custody_matches(draft, report),
+             do: {:ok, report}
+
+      _error ->
+        unavailable(:treasury_report_missing)
     end
   end
 
@@ -598,6 +708,16 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   defp revalidate_treasury(operation) do
     binding = argument(operation, "treasury_security")
 
+    if binding["mode"] == "local_lab" do
+      if valid_lab_treasury?(operation, binding),
+        do: {:ok, binding},
+        else: unavailable(:treasury_security_changed)
+    else
+      revalidate_production_treasury(binding)
+    end
+  end
+
+  defp revalidate_production_treasury(binding) do
     with {:ok, report} <-
            Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
          false <- is_nil(report),
@@ -611,6 +731,10 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     end
   end
 
+  defp treasury_still_reviewed?(operation, %{"mode" => "local_lab"} = fresh),
+    do:
+      fresh == argument(operation, "treasury_security") and valid_lab_treasury?(operation, fresh)
+
   defp treasury_still_reviewed?(operation, fresh) do
     bound = argument(operation, "treasury_security")
 
@@ -620,6 +744,8 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       bound["verification_state"] == Atom.to_string(fresh.verification_state) and
       bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
   end
+
+  defp treasury_binding(%{"mode" => "local_lab"} = binding), do: binding
 
   defp treasury_binding(report) do
     %{
@@ -638,6 +764,19 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       }
     }
   end
+
+  defp valid_lab_treasury?(operation, binding) do
+    lab_operation?(operation) and
+      Address.equal?(binding["address"], argument(operation, "treasury")) and
+      Lab.binding_matches?(operation.envelope["metadata"]["lab"], [
+        :factory,
+        :strategy,
+        :hook,
+        :regent
+      ])
+  end
+
+  defp lab_operation?(operation), do: get_in(operation.envelope, ["metadata", "lab"]) != nil
 
   defp transition(action, nil),
     do: fn _account, operation -> LaunchOperations.update(operation, action) end
@@ -676,11 +815,13 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   defp record(%{step: :approval} = operation, %{outcome: :confirmed} = result),
     do: LaunchOperations.update(operation, :advance, %{result: merged(operation, result)})
 
-  defp record(operation, %{outcome: :confirmed} = result),
-    do:
+  defp record(operation, %{outcome: :confirmed} = result) do
+    with :ok <- LabProjection.project_launch(operation, result[:result] || %{}) do
       LaunchOperations.update(operation, :record_chain_verified, %{
         result: merged(operation, result)
       })
+    end
+  end
 
   defp record(operation, %{outcome: :reverted}),
     do: LaunchOperations.update(operation, :record_revert, %{reason: @reverted})

@@ -38,6 +38,13 @@ defmodule AshPlatform.WalletActions.RpcTest do
     end
   end
 
+  defmodule LabClient do
+    def post(url, options) do
+      send(self(), {:lab_request, url, options[:json][:method]})
+      {:ok, %{status: 200, body: %{"result" => "0x7a69"}}}
+    end
+  end
+
   setup do
     previous = Application.get_env(:ash_platform, :wallet_http_client)
     Application.put_env(:ash_platform, :wallet_http_client, Client)
@@ -71,6 +78,20 @@ defmodule AshPlatform.WalletActions.RpcTest do
   test "uses the generic wallet client by default" do
     assert :ok = Rpc.verify_base_chain()
     assert_received {:wallet_http_client, %{method: "eth_chainId"}}
+  end
+
+  test "an explicit lab endpoint and chain never replace the default Base endpoint" do
+    Application.put_env(:ash_platform, :lab_wallet_http_client, LabClient)
+    on_exit(fn -> Application.delete_env(:ash_platform, :lab_wallet_http_client) end)
+
+    assert :ok =
+             Rpc.verify_chain(31_337,
+               rpc_url: "http://127.0.0.1:49713",
+               client_key: :lab_wallet_http_client
+             )
+
+    assert_received {:lab_request, "http://127.0.0.1:49713", "eth_chainId"}
+    assert :ok = Rpc.verify_base_chain()
   end
 
   test "uses the generic wallet log scope by default" do

@@ -1,5 +1,8 @@
 import type {Hook} from "../hook_composition"
-import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
+import {
+  activeEthereumWallet,
+  type SelectedWallet,
+} from "../wallet_actions/connected_wallet"
 import {
   sendLaunchStep,
   sendableStep,
@@ -106,13 +109,17 @@ export const AutolaunchLaunchWallet: Hook = {
 
       try {
         const step = sendableStep(held, actionId, stepName)
-        const connected = activeEthereumWallet()
-        if (!connected || !(await activeSigner(held.signer))) {
+        if (!(await activeWalletForSigner(held.signer))) {
           notStarted()
           return
         }
 
-        const hash = await sendLaunchStep(held, step, connected.provider, () => (sendStarted = true))
+        const hash = await sendLaunchStep(
+          held,
+          step,
+          activeEthereumWallet,
+          () => (sendStarted = true),
+        )
 
         // Retained synchronously, before the one callback: a reload between the
         // send and the report must not lose the only record of this hash. The
@@ -153,12 +160,16 @@ export const AutolaunchLaunchWallet: Hook = {
  * A missing provider, a refused read and a changed account are all `null`.
  */
 export async function activeSigner(expectedSigner: string): Promise<string | null> {
+  return (await activeWalletForSigner(expectedSigner))?.address ?? null
+}
+
+async function activeWalletForSigner(expectedSigner: string): Promise<SelectedWallet | null> {
   const active = activeEthereumWallet()
   if (!active || !sameHex(active.address, expectedSigner)) return null
 
   const accounts = await active.provider.request({method: "eth_accounts"}).catch(() => null)
   const [account] = Array.isArray(accounts) ? accounts : []
-  return typeof account === "string" && sameHex(account, expectedSigner) ? active.address : null
+  return typeof account === "string" && sameHex(account, expectedSigner) ? active : null
 }
 
 /**

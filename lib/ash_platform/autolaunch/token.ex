@@ -150,6 +150,31 @@ defmodule AshPlatform.Autolaunch.Token do
       change fn changeset, _context -> TreasurySecurity.associate_token_report(changeset) end
     end
 
+    create :project_lab do
+      accept [
+        :auction_id,
+        :subject_id,
+        :name,
+        :symbol,
+        :summary,
+        :graduated_at,
+        :top_rank,
+        :treasury_address
+      ]
+
+      upsert? true
+      upsert_identity :unique_auction
+
+      upsert_fields [
+        :subject_id,
+        :name,
+        :symbol,
+        :summary,
+        :graduated_at,
+        :treasury_address
+      ]
+    end
+
     update :set_price_snapshot do
       require_atomic? false
       accept [:price_quote, :price_source, :price_updated_at]
@@ -169,7 +194,7 @@ defmodule AshPlatform.Autolaunch.Token do
       authorize_if always()
     end
 
-    policy action([:import_public, :set_price_snapshot]) do
+    policy action([:import_public, :project_lab, :set_price_snapshot]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
   end

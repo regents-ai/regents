@@ -18,7 +18,17 @@ defmodule AshPlatform.Autolaunch.BidActions do
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch
-  alias AshPlatform.Autolaunch.{BidOperation, ChainClient, TreasurySecurity}
+
+  alias AshPlatform.Autolaunch.{
+    BidOperation,
+    ChainClient,
+    Lab,
+    LabAbi,
+    LabProjection,
+    LabRpc,
+    TreasurySecurity
+  }
+
   alias AshPlatform.WalletActions.{Abi, Address, AuctionAbi, Envelope, Permit2Abi, Rpc}
 
   @actor %System{}
@@ -171,11 +181,12 @@ defmodule AshPlatform.Autolaunch.BidActions do
 
     with {:ok, lease} <- lease(context),
          {:ok, candidate} <- operation(lease.account_id, action_id, false),
+         {:ok, lab_status} <- dispatch_lab_status(candidate),
          treasury_result <- revalidate_treasury(candidate) do
       transact(
         lease,
         &locked_transition(&1, action_id, fn account, operation ->
-          claim(account, operation, treasury_result)
+          claim(account, operation, lab_status, treasury_result)
         end)
       )
     end
@@ -285,36 +296,79 @@ defmodule AshPlatform.Autolaunch.BidActions do
   defp review(auction, address, signer, amount, max_price_q96, snapshot, treasury_report) do
     granted = DateTime.add(Envelope.current_time(), @permit2_seconds, :second)
 
-    data =
-      AuctionAbi.encode_submit_bid(max_price_q96, amount, signer, snapshot.prev_tick_price_q96)
+    {data, envelope_options} = bid_data(max_price_q96, amount, signer, snapshot)
 
     steps =
       required_steps(snapshot, amount, DateTime.to_unix(granted)) ++
         [%{"step" => "bid", "to" => address, "data" => data}]
 
     envelope =
-      Envelope.new(@action, signer, data,
-        to: address,
-        resource: @resource,
-        contract_name: @contract_name,
-        risk_copy: @risk,
-        arguments: %{
-          "auction_id" => auction.id,
-          "amount" => units(amount),
-          "amount_atomic" => Integer.to_string(amount),
-          "max_price" => Decimal.to_string(price_decimal(max_price_q96), :normal),
-          "max_price_q96" => Integer.to_string(max_price_q96),
-          "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
-          "predecessor_source" => snapshot.predecessor_source,
-          "currency" => snapshot.currency,
-          "permit2" => Permit2Abi.address(),
-          "treasury_security" => treasury_binding(treasury_report),
-          "steps" => steps
-        }
+      Envelope.new(
+        @action,
+        signer,
+        data,
+        envelope_options ++
+          [
+            to: address,
+            resource: @resource,
+            contract_name: @contract_name,
+            risk_copy: risk_copy(snapshot),
+            arguments:
+              %{
+                "auction_id" => auction.id,
+                "amount" => units(amount),
+                "amount_atomic" => Integer.to_string(amount),
+                "max_price" => Decimal.to_string(price_decimal(max_price_q96), :normal),
+                "max_price_q96" => Integer.to_string(max_price_q96),
+                "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
+                "predecessor_source" => snapshot.predecessor_source,
+                "currency" => snapshot.currency,
+                "permit2" => permit2_address(snapshot),
+                "treasury_security" => treasury_binding(treasury_report),
+                "token_allowance_atomic" => Integer.to_string(snapshot.token_allowance),
+                "permit2_allowance_atomic" => Integer.to_string(snapshot.permit2_amount),
+                "permit2_expiration" => Integer.to_string(snapshot.permit2_expiration),
+                "steps" => steps
+              }
+              |> Map.merge(lab_review_anchor(snapshot))
+          ]
       )
 
     {stored(envelope), steps |> hd() |> Map.fetch!("step") |> String.to_existing_atom()}
   end
+
+  defp bid_data(max_price_q96, amount, signer, %{lab_binding: binding} = snapshot) do
+    config = Lab.current!()
+
+    data =
+      LabAbi.encode(
+        Lab.abi!(config, :auction),
+        "submitBid(uint256,uint128,address,uint256,bytes)",
+        [max_price_q96, amount, signer, snapshot.prev_tick_price_q96, "0x"]
+      )
+
+    {data, [chain_id: Lab.chain_id(), lab_binding: binding]}
+  end
+
+  defp bid_data(max_price_q96, amount, signer, snapshot),
+    do:
+      {AuctionAbi.encode_submit_bid(
+         max_price_q96,
+         amount,
+         signer,
+         snapshot.prev_tick_price_q96
+       ), []}
+
+  defp risk_copy(%{lab_binding: _binding}),
+    do:
+      "Your wallet signs only the local-fork approval steps this bid still needs, then the test bid. These assets have no mainnet value."
+
+  defp risk_copy(_snapshot), do: @risk
+
+  defp lab_review_anchor(%{lab_binding: _binding, block: block}),
+    do: %{"block_number" => block.number, "block_hash" => block.hash}
+
+  defp lab_review_anchor(_snapshot), do: %{}
 
   # Only the transactions this wallet still needs. An allowance that already
   # covers the amount and outlives the review is spent exactly as it stands.
@@ -329,7 +383,7 @@ defmodule AshPlatform.Autolaunch.BidActions do
       %{
         "step" => "token_approval",
         "to" => snapshot.currency,
-        "data" => Abi.encode_erc20("approve", [Permit2Abi.address(), amount]),
+        "data" => encode_token_approval(snapshot, amount),
         "amount" => Integer.to_string(amount)
       }
     ]
@@ -340,9 +394,8 @@ defmodule AshPlatform.Autolaunch.BidActions do
       else: [
         %{
           "step" => "permit2_approval",
-          "to" => Permit2Abi.address(),
-          "data" =>
-            Permit2Abi.encode_approve(snapshot.currency, snapshot.auction, amount, expiration),
+          "to" => permit2_address(snapshot),
+          "data" => encode_permit2_approval(snapshot, amount, expiration),
           "amount" => Integer.to_string(amount),
           "expiration" => Integer.to_string(expiration)
         }
@@ -357,6 +410,35 @@ defmodule AshPlatform.Autolaunch.BidActions do
     do:
       allowed >= amount and
         expires >= DateTime.to_unix(Envelope.current_time()) + @review_seconds
+
+  defp permit2_address(%{permit2: address}), do: address
+  defp permit2_address(_snapshot), do: Permit2Abi.address()
+
+  defp encode_token_approval(%{lab_binding: _binding} = snapshot, amount) do
+    config = Lab.current!()
+
+    LabAbi.encode(
+      Lab.abi!(config, :token),
+      "approve(address,uint256)",
+      [permit2_address(snapshot), amount]
+    )
+  end
+
+  defp encode_token_approval(_snapshot, amount),
+    do: Abi.encode_erc20("approve", [Permit2Abi.address(), amount])
+
+  defp encode_permit2_approval(%{lab_binding: _binding} = snapshot, amount, expiration) do
+    config = Lab.current!()
+
+    LabAbi.encode(
+      Lab.abi!(config, :permit2),
+      "approve(address,address,uint160,uint48)",
+      [snapshot.currency, snapshot.auction, amount, expiration]
+    )
+  end
+
+  defp encode_permit2_approval(snapshot, amount, expiration),
+    do: Permit2Abi.encode_approve(snapshot.currency, snapshot.auction, amount, expiration)
 
   defp open(lease, envelope, signer, step) do
     transact(lease, fn account ->
@@ -399,17 +481,23 @@ defmodule AshPlatform.Autolaunch.BidActions do
   defp transition(action, input),
     do: fn _account, operation -> update(operation, action, input) end
 
-  defp claim(account, operation, {:ok, fresh_treasury}) do
+  defp claim(account, operation, :current, {:ok, fresh_treasury}) do
     with :ok <- signer_matches(account, operation.signer),
+         true <- valid_envelope?(operation),
          true <- treasury_still_reviewed?(operation, fresh_treasury) do
       update(operation, :claim_dispatch, %{})
     else
-      false -> update(operation, :cancel, %{reason: "treasury security changed"})
+      false -> update(operation, :cancel, %{reason: "the reviewed network or treasury changed"})
       error -> error
     end
   end
 
-  defp claim(account, operation, {:error, _reason}) do
+  defp claim(account, operation, :changed, _treasury_result) do
+    with :ok <- signer_matches(account, operation.signer),
+         do: update(operation, :cancel, %{reason: "the reviewed local lab changed"})
+  end
+
+  defp claim(account, operation, :current, {:error, _reason}) do
     with :ok <- signer_matches(account, operation.signer),
          do: update(operation, :cancel, %{reason: "treasury security changed"})
   end
@@ -472,8 +560,13 @@ defmodule AshPlatform.Autolaunch.BidActions do
   # read, both leave the row bound and readable again.
   defp record(operation, _unresolved), do: {:ok, operation}
 
-  defp advance(%{step: :bid} = operation, %{onchain_bid_id: bid_id}),
-    do: update(operation, :confirm, %{onchain_bid_id: bid_id})
+  defp advance(%{step: :bid} = operation, %{onchain_bid_id: bid_id} = result) do
+    projection = Map.put(result[:result] || %{}, "onchain_bid_id", bid_id)
+
+    with :ok <- LabProjection.project_bid(operation, projection) do
+      update(operation, :confirm, %{onchain_bid_id: bid_id})
+    end
+  end
 
   defp advance(operation, _result), do: update(operation, :advance, %{step: next_step(operation)})
 
@@ -599,6 +692,15 @@ defmodule AshPlatform.Autolaunch.BidActions do
     end
   end
 
+  defp bound_currency(%{
+         currency: currency,
+         lab_binding: %{"addresses" => %{"regent" => regent}}
+       }) do
+    if Address.equal?(currency, regent),
+      do: :ok,
+      else: unavailable(:auction_currency_is_not_regent)
+  end
+
   defp bound_currency(%{currency: currency}) do
     if Address.equal?(currency, Abi.stake_token_address()),
       do: :ok,
@@ -640,23 +742,54 @@ defmodule AshPlatform.Autolaunch.BidActions do
     end
   end
 
-  defp verified_treasury(%{treasury_security_report: nil}),
+  defp verified_treasury(auction) do
+    if Lab.enabled?(), do: lab_treasury(auction), else: verified_production_treasury(auction)
+  end
+
+  defp lab_treasury(%{
+         id: auction_id,
+         auction_address: auction_address,
+         treasury_address: treasury_address
+       }) do
+    with {:ok, auction_address} <- normalize(auction_address),
+         {:ok, treasury_address} <- normalize(treasury_address) do
+      {:ok,
+       %{
+         "mode" => "local_lab",
+         "auction_id" => auction_id,
+         "auction_address" => auction_address,
+         "address" => treasury_address
+       }}
+    end
+  end
+
+  defp lab_treasury(_auction), do: unavailable(:treasury_report_missing)
+
+  defp verified_production_treasury(%{treasury_security_report: nil}),
     do: unavailable(:treasury_report_missing)
 
-  defp verified_treasury(%{treasury_security_report: %Ash.NotLoaded{}}),
+  defp verified_production_treasury(%{treasury_security_report: %Ash.NotLoaded{}}),
     do: unavailable(:treasury_report_missing)
 
-  defp verified_treasury(%{
+  defp verified_production_treasury(%{
          treasury_address: address,
          treasury_security_report: %{address: address} = report
        }),
        do: TreasurySecurity.revalidate_bound(report)
 
-  defp verified_treasury(_auction), do: unavailable(:treasury_security_changed)
+  defp verified_production_treasury(_auction), do: unavailable(:treasury_security_changed)
 
   defp revalidate_treasury(operation) do
     binding = operation.envelope["arguments"]["treasury_security"]
 
+    if binding["mode"] == "local_lab" do
+      revalidate_lab_treasury(operation, binding)
+    else
+      revalidate_production_treasury(binding)
+    end
+  end
+
+  defp revalidate_production_treasury(binding) do
     with {:ok, report} <-
            Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
          false <- is_nil(report) do
@@ -668,6 +801,24 @@ defmodule AshPlatform.Autolaunch.BidActions do
     end
   end
 
+  defp revalidate_lab_treasury(operation, binding) do
+    with true <- lab_operation?(operation),
+         {:ok, auction} <- auction(binding["auction_id"]),
+         true <- Address.equal?(auction.auction_address, binding["auction_address"]),
+         true <- Address.equal?(auction.treasury_address, binding["address"]),
+         true <- Address.equal?(operation.envelope["to"], binding["auction_address"]),
+         true <- Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]) do
+      {:ok, binding}
+    else
+      _changed -> unavailable(:treasury_security_changed)
+    end
+  end
+
+  defp treasury_still_reviewed?(operation, %{"mode" => "local_lab"} = fresh),
+    do:
+      fresh == operation.envelope["arguments"]["treasury_security"] and
+        lab_operation?(operation)
+
   defp treasury_still_reviewed?(operation, fresh) do
     bound = operation.envelope["arguments"]["treasury_security"]
 
@@ -677,6 +828,8 @@ defmodule AshPlatform.Autolaunch.BidActions do
       bound["verification_state"] == "verified" and fresh.verification_state == :verified and
       bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
   end
+
+  defp treasury_binding(%{"mode" => "local_lab"} = binding), do: binding
 
   defp treasury_binding(report) do
     %{
@@ -695,6 +848,58 @@ defmodule AshPlatform.Autolaunch.BidActions do
       }
     }
   end
+
+  defp valid_envelope?(operation) do
+    options = [
+      resource: @resource,
+      action: @action,
+      signer: operation.signer,
+      to: operation.envelope["to"],
+      contract_name: @contract_name
+    ]
+
+    options =
+      if lab_operation?(operation),
+        do: Keyword.put(options, :chain_id, Lab.chain_id()),
+        else: options
+
+    Envelope.valid?(operation.envelope, options) and
+      (not lab_operation?(operation) or
+         Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]))
+  end
+
+  defp dispatch_lab_status(operation) do
+    if lab_operation?(operation),
+      do: current_lab_status(operation),
+      else: {:ok, :current}
+  end
+
+  defp current_lab_status(operation) do
+    binding = operation.envelope["metadata"]["lab"]
+
+    case Lab.current() do
+      {:ok, config} -> compare_lab_binding(operation, config, binding)
+      {:error, _reason} -> {:ok, :changed}
+    end
+  end
+
+  defp compare_lab_binding(operation, config, binding) do
+    if Lab.binding(config, [:regent, :permit2]) == binding,
+      do: verify_lab_target(operation),
+      else: {:ok, :changed}
+  end
+
+  defp verify_lab_target(operation) do
+    with {:ok, _current, block, opts} <- LabRpc.current([:regent, :permit2]),
+         :ok <- LabRpc.ensure_contract(operation.envelope["to"], block, opts) do
+      {:ok, :current}
+    else
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp lab_operation?(operation),
+    do: get_in(operation.envelope, ["metadata", "lab"]) != nil
 
   # Amounts and prices
 
