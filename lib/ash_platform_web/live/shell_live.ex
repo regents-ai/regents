@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.ShellLive do
   }
 
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Autolaunch.LabMarketFeed
+  alias AshPlatform.Autolaunch.{LabMarketFeed, LaunchDraft, LaunchDraftImageStorage}
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatformWeb.AutolaunchLive
@@ -46,79 +46,88 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp mount_authorized(params, route_spec, socket) do
+    socket =
+      assign(socket,
+        app_targets: open_app_targets(),
+        content: nil,
+        content_error: nil,
+        content_async_name: nil,
+        content_generation: 0,
+        content_status: :loading,
+        comments: [],
+        comments_status: :ready,
+        comment_reactions: %{},
+        comment_target: nil,
+        comment_topic: nil,
+        comment_request_id: Ash.UUID.generate(),
+        comment_draft: "",
+        comment_notice: nil,
+        verified_connections: [],
+        verified_connections_notice: nil,
+        comment_admin?: Discussions.admin_actor?(human_actor(socket)),
+        route_params: params,
+        autolaunch_featured_auctions: [],
+        autolaunch_recent_auctions: [],
+        autolaunch_top_tokens: [],
+        autolaunch_graduated_tokens: [],
+        autolaunch_records: [],
+        autolaunch_record: nil,
+        autolaunch_subject_tokens: [],
+        autolaunch_subject_actions: [],
+        autolaunch_subject_settlements: [],
+        autolaunch_bid_positions: [],
+        autolaunch_returnable_positions: [],
+        autolaunch_claimed_token_positions: [],
+        autolaunch_launch_drafts: [],
+        autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
+        autolaunch_draft_errors: %{},
+        autolaunch_draft_notice: nil,
+        autolaunch_create_stage: :token_details,
+        autolaunch_status: :loading,
+        autolaunch_market: empty_autolaunch_market(),
+        autolaunch_market_topic: nil,
+        techtree_trees: [],
+        techtree_tree: nil,
+        techtree_nodes: [],
+        techtree_edges: [],
+        techtree_node: nil,
+        techtree_provenance: nil,
+        techtree_uplift_report: nil,
+        techtree_payload_status: :not_available,
+        techtree_notebook_artifact: nil,
+        techtree_status: :loading,
+        regent: socket.assigns.current_regent,
+        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
+        presentation: initial_presentation(route_spec),
+        redemption: nil,
+        redemption_collection: "animata_i",
+        redemption_token_id: "",
+        redemption_notice: nil,
+        redemption_read: nil,
+        redemption_generation: 0,
+        redemption_wallet: nil,
+        redemption_status: :loading,
+        redemption_refresh_block: nil,
+        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
+        open_sea_lookup: nil,
+        staking: nil,
+        staking_action: "stake",
+        staking_amount: "",
+        staking_wallet: nil,
+        staking_notice: nil,
+        staking_read: nil,
+        staking_status: :loading,
+        route_spec: route_spec,
+        shell_instance: System.unique_integer([:positive, :monotonic])
+      )
+
     {:ok,
-     assign(socket,
-       app_targets: open_app_targets(),
-       content: nil,
-       content_error: nil,
-       content_async_name: nil,
-       content_generation: 0,
-       content_status: :loading,
-       comments: [],
-       comments_status: :ready,
-       comment_reactions: %{},
-       comment_target: nil,
-       comment_topic: nil,
-       comment_request_id: Ash.UUID.generate(),
-       comment_draft: "",
-       comment_notice: nil,
-       verified_connections: [],
-       verified_connections_notice: nil,
-       comment_admin?: Discussions.admin_actor?(human_actor(socket)),
-       route_params: params,
-       autolaunch_featured_auctions: [],
-       autolaunch_recent_auctions: [],
-       autolaunch_top_tokens: [],
-       autolaunch_graduated_tokens: [],
-       autolaunch_records: [],
-       autolaunch_record: nil,
-       autolaunch_subject_tokens: [],
-       autolaunch_subject_actions: [],
-       autolaunch_subject_settlements: [],
-       autolaunch_bid_positions: [],
-       autolaunch_returnable_positions: [],
-       autolaunch_claimed_token_positions: [],
-       autolaunch_launch_drafts: [],
-       autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
-       autolaunch_draft_errors: %{},
-       autolaunch_draft_revision: nil,
-       autolaunch_draft_notice: nil,
-       autolaunch_status: :loading,
-       autolaunch_market: empty_autolaunch_market(),
-       autolaunch_market_topic: nil,
-       techtree_trees: [],
-       techtree_tree: nil,
-       techtree_nodes: [],
-       techtree_edges: [],
-       techtree_node: nil,
-       techtree_provenance: nil,
-       techtree_uplift_report: nil,
-       techtree_payload_status: :not_available,
-       techtree_notebook_artifact: nil,
-       techtree_status: :loading,
-       regent: socket.assigns.current_regent,
-       regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
-       presentation: initial_presentation(route_spec),
-       redemption: nil,
-       redemption_collection: "animata_i",
-       redemption_token_id: "",
-       redemption_notice: nil,
-       redemption_read: nil,
-       redemption_generation: 0,
-       redemption_wallet: nil,
-       redemption_status: :loading,
-       redemption_refresh_block: nil,
-       owned_collectibles: %{status: :idle, animata: [], regents_club: []},
-       open_sea_lookup: nil,
-       staking: nil,
-       staking_action: "stake",
-       staking_amount: "",
-       staking_wallet: nil,
-       staking_notice: nil,
-       staking_read: nil,
-       staking_status: :loading,
-       route_spec: route_spec,
-       shell_instance: System.unique_integer([:positive, :monotonic])
+     allow_upload(socket, :launch_image,
+       accept: ~w(.png .jpg .jpeg .webp),
+       max_entries: 1,
+       max_file_size: 2_097_152,
+       auto_upload: true,
+       progress: &handle_launch_image_progress/3
      )}
   end
 
@@ -437,8 +446,39 @@ defmodule AshPlatformWeb.ShellLive do
 
   # A draft event that arrives while Autolaunch is closed is answered before any
   # actor is built or any record is read or written.
-  def handle_event(event, params, socket)
+  def handle_event("select_launch_stage", %{"stage" => stage}, socket) do
+    selected =
+      case stage do
+        "token_details" -> :token_details
+        "treasury" -> :treasury
+        "transactions" -> if launch_ready?(socket), do: :transactions, else: nil
+        _unknown -> nil
+      end
+
+    if selected,
+      do: {:noreply, assign(socket, autolaunch_create_stage: selected)},
+      else: {:noreply, socket}
+  end
+
+  # Retired client events never create or revise a launch draft. Preserve the
+  # closed-surface response for stale clients while keeping an open surface inert.
+  def handle_event(event, _params, socket)
       when event in ["create_launch_draft", "revise_launch_draft"] do
+    if LaunchGate.autolaunch_surfaces_enabled?() do
+      {:noreply, socket}
+    else
+      {:noreply,
+       assign(socket,
+         autolaunch_draft_notice: %{
+           tone: :error,
+           message: "This part of Regent isn't open yet."
+         }
+       )}
+    end
+  end
+
+  def handle_event(event, params, socket)
+      when event in ["autosave_launch_token_details", "autosave_launch_treasury"] do
     if LaunchGate.autolaunch_surfaces_enabled?(),
       do: handle_draft_event(event, params, socket),
       else:
@@ -632,71 +672,110 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:autolaunch_market_updated, _update}, socket), do: {:noreply, socket}
 
-  defp handle_draft_event("create_launch_draft", %{"launch_draft" => submitted}, socket) do
-    values = Map.take(submitted, AutolaunchLive.draft_field_params())
+  defp handle_draft_event(event, %{"launch_draft" => submitted}, socket) do
+    params =
+      if event == "autosave_launch_token_details",
+        do: AutolaunchLive.token_detail_params(),
+        else: AutolaunchLive.treasury_params()
+
+    values = Map.take(submitted, params)
 
     with %Human{} = actor <- human_actor(socket),
-         {:ok, _draft} <- Autolaunch.create_launch_draft(values, actor: actor),
+         {:ok, draft} <- current_or_new_draft(socket, actor),
+         {:ok, _saved} <- autosave_draft(event, draft, values, actor),
          {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
       {:noreply,
        assign(socket,
          autolaunch_launch_drafts: drafts,
-         autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
+         autolaunch_draft_values: AutolaunchLive.draft_values(List.first(drafts)),
          autolaunch_draft_errors: %{},
          autolaunch_draft_notice: %{
            tone: :success,
-           message: "Draft saved. Nothing has been published and no money has moved."
+           message: "Saved to your account. Nothing has been published and no money has moved."
          }
        )}
     else
       error ->
         {:noreply,
          assign(socket,
-           autolaunch_draft_values: values,
+           autolaunch_draft_values: Map.merge(socket.assigns.autolaunch_draft_values, values),
            autolaunch_draft_errors: draft_field_errors(error),
            autolaunch_draft_notice: %{
              tone: :error,
-             message: "That draft could not be saved. Check the details marked below."
+             message: "That change could not be saved. Check the marked field."
            }
          )}
     end
   end
 
-  defp handle_draft_event(
-         "revise_launch_draft",
-         %{"draft_id" => draft_id, "launch_draft" => submitted},
-         socket
-       ) do
-    values = Map.take(submitted, AutolaunchLive.draft_field_params())
+  defp autosave_draft("autosave_launch_token_details", draft, values, actor),
+    do: Autolaunch.autosave_launch_token_details(draft, values, actor: actor)
 
-    with %Human{} = actor <- human_actor(socket),
-         draft when not is_nil(draft) <-
-           Enum.find(socket.assigns.autolaunch_launch_drafts, &(&1.id == draft_id)),
-         {:ok, _draft} <- Autolaunch.revise_launch_draft(draft, values, actor: actor),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:noreply,
-       assign(socket,
-         autolaunch_launch_drafts: drafts,
-         autolaunch_draft_revision: nil,
-         autolaunch_draft_notice: %{
-           tone: :success,
-           message: "Draft updated. Nothing has been published and no money has moved."
-         }
-       )}
-    else
-      error ->
+  defp autosave_draft("autosave_launch_treasury", draft, values, actor),
+    do: Autolaunch.autosave_launch_treasury(draft, values, actor: actor)
+
+  defp current_or_new_draft(socket, actor) do
+    case List.first(socket.assigns.autolaunch_launch_drafts) do
+      nil -> Autolaunch.create_launch_draft(%{}, actor: actor)
+      draft -> {:ok, draft}
+    end
+  end
+
+  # Phoenix supplies the completed-upload temp path; it is never accepted from
+  # request parameters or other user-controlled path input.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp handle_launch_image_progress(:launch_image, entry, socket) do
+    if entry.done? do
+      bytes =
+        consume_uploaded_entry(socket, entry, fn %{path: path} ->
+          File.read(path)
+        end)
+
+      with true <- is_binary(bytes),
+           %Human{} = actor <- human_actor(socket),
+           {:ok, draft} <- current_or_new_draft(socket, actor),
+           {:ok, _stored} <-
+             LaunchDraftImageStorage.store_and_attach(draft, bytes, entry.client_type, actor),
+           {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
         {:noreply,
          assign(socket,
-           autolaunch_draft_revision: %{
-             id: draft_id,
-             values: values,
-             errors: draft_field_errors(error)
-           },
+           autolaunch_launch_drafts: drafts,
+           autolaunch_draft_values: AutolaunchLive.draft_values(List.first(drafts)),
+           autolaunch_draft_errors: %{},
            autolaunch_draft_notice: %{
-             tone: :error,
-             message: "That draft could not be updated. Check the details marked below."
+             tone: :success,
+             message: "Image saved to your account."
            }
          )}
+      else
+        {:error, :image_limit_reached} ->
+          {:noreply,
+           assign(socket,
+             autolaunch_draft_notice: %{
+               tone: :error,
+               message:
+                 "This account already has its one launch image. Re-upload the exact same file to reuse it."
+             }
+           )}
+
+        _error ->
+          {:noreply,
+           assign(socket,
+             autolaunch_draft_notice: %{
+               tone: :error,
+               message: "That file is not a complete PNG, JPEG, or WebP image under 2 MiB."
+             }
+           )}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp launch_ready?(socket) do
+    case List.first(socket.assigns.autolaunch_launch_drafts) do
+      nil -> false
+      draft -> AshPlatform.Autolaunch.LaunchDraft.launch_ready?(draft)
     end
   end
 
@@ -816,9 +895,9 @@ defmodule AshPlatformWeb.ShellLive do
           launch_drafts={@autolaunch_launch_drafts}
           draft_values={@autolaunch_draft_values}
           draft_errors={@autolaunch_draft_errors}
-          draft_revision={@autolaunch_draft_revision}
           draft_notice={@autolaunch_draft_notice}
-          regent={@regent}
+          create_stage={@autolaunch_create_stage}
+          launch_image_upload={@uploads.launch_image}
           status={@autolaunch_status}
           comments={@comments}
           comments_status={@comments_status}
@@ -1413,8 +1492,13 @@ defmodule AshPlatformWeb.ShellLive do
       %Human{} = actor ->
         case Autolaunch.list_my_launch_drafts(actor: actor) do
           {:ok, drafts} ->
+            draft = List.first(drafts)
+
             assign(socket,
               autolaunch_launch_drafts: drafts,
+              autolaunch_draft_values: AutolaunchLive.draft_values(draft),
+              autolaunch_draft_errors: %{},
+              autolaunch_create_stage: initial_launch_stage(draft),
               autolaunch_status: :ready
             )
 
@@ -1466,6 +1550,12 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
+
+  defp initial_launch_stage(nil), do: :token_details
+
+  defp initial_launch_stage(draft) do
+    if LaunchDraft.launch_ready?(draft), do: :transactions, else: :token_details
+  end
 
   defp load_autolaunch_market(socket, route_spec) do
     if connected?(socket) and autolaunch_market_route?(route_spec) and

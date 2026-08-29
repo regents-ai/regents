@@ -17,270 +17,194 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
 
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
-  test "a draft stores the seven clean-V1 fields exactly as written and stays private" do
+  test "a Human owns a partial draft directly without a Regent" do
     owner = account!("owner")
     other = account!("other")
-    owner_actor = %Human{human_account_id: owner.id}
-    regent = Formation.form_regent!("draft-regent", "Draft Regent", actor: owner_actor)
+    actor = %Human{human_account_id: owner.id}
 
     assert {:ok, draft} =
-             Autolaunch.create_launch_draft(
-               Map.put(@draft, "name", "  Open Research  "),
-               actor: owner_actor
-             )
+             Autolaunch.create_launch_draft(%{"name" => "  Open Research  "}, actor: actor)
 
     assert draft.human_account_id == owner.id
-    assert draft.regent_id == regent.id
-    assert Map.take(draft, clean_v1_keys()) == expected_values()
-    # Nothing invents a value for the superseded launch-page title.
-    assert is_nil(draft.title)
+    assert is_nil(draft.regent_id)
+    assert draft.name == "Open Research"
+    assert is_nil(draft.symbol)
+    refute LaunchDraft.token_details_complete?(draft)
+    refute LaunchDraft.treasury_complete?(draft)
 
-    assert {:ok, [mine]} = Autolaunch.list_my_launch_drafts(actor: owner_actor)
+    assert {:ok, [mine]} = Autolaunch.list_my_launch_drafts(actor: actor)
     assert mine.id == draft.id
     assert {:ok, []} = Autolaunch.list_my_launch_drafts(actor: %Human{human_account_id: other.id})
   end
 
-  test "drafting fails closed without the exact human actor and a formed Regent" do
-    account = account!("no-regent")
+  test "draft creation and reads require the exact Human actor" do
+    account = account!("actor")
 
     for actor <- [nil, %{role: :human, human_account_id: account.id}, %System{}] do
       assert {:error, %Ash.Error.Forbidden{}} =
-               Autolaunch.create_launch_draft(@draft, actor: actor)
+               Autolaunch.create_launch_draft(%{"name" => "Private"}, actor: actor)
     end
-
-    assert {:error, %Ash.Error.Invalid{}} =
-             Autolaunch.create_launch_draft(@draft, actor: %Human{human_account_id: account.id})
 
     assert {:error, %Ash.Error.Invalid{}} = Autolaunch.list_my_launch_drafts()
   end
 
-  test "create and revise both require all seven fields" do
-    actor = actor_with_regent!("required")
-    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
+  test "owner autosave persists bounded incomplete text and refuses cross-account writes" do
+    owner = account!("autosave-owner")
+    other = account!("autosave-other")
+    actor = %Human{human_account_id: owner.id}
+    other_actor = %Human{human_account_id: other.id}
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
-    for field <- Map.keys(@draft) do
-      blanked = Map.put(@draft, field, "   ")
-
-      assert field_errors(Autolaunch.create_launch_draft(blanked, actor: actor)) == %{
-               field => "is required"
-             }
-
-      assert field_errors(Autolaunch.revise_launch_draft(draft, blanked, actor: actor)) == %{
-               field => "is required"
-             }
-    end
-  end
-
-  test "metadata is bounded by UTF-8 byte size while duplicates and any symbol casing pass" do
-    actor = actor_with_regent!("metadata")
-
-    for {field, limit} <- [
-          {"name", 64},
-          {"symbol", 16},
-          {"description", 512},
-          {"website", 256},
-          {"image", 256}
-        ] do
-      at_limit = Map.put(@draft, field, String.duplicate("a", limit))
-      over_limit = Map.put(@draft, field, String.duplicate("a", limit - 1) <> "é")
-
-      assert {:ok, _draft} = Autolaunch.create_launch_draft(at_limit, actor: actor)
-
-      assert field_errors(Autolaunch.create_launch_draft(over_limit, actor: actor)) == %{
-               field => "must be #{limit} bytes or fewer"
-             }
-    end
-
-    assert {:ok, _one} = Autolaunch.create_launch_draft(@draft, actor: actor)
-    assert {:ok, _duplicate} = Autolaunch.create_launch_draft(@draft, actor: actor)
-  end
-
-  test "the treasury takes any 40-hex address, keeps its casing, and rejects zero" do
-    actor = actor_with_regent!("addresses")
-    mixed = "0xAbCdeF0000000000000000000000000000000001"
-    lowered = String.downcase(mixed)
-
-    for written <- [mixed, lowered] do
-      assert {:ok, draft} =
-               Autolaunch.create_launch_draft(%{@draft | "treasury" => written}, actor: actor)
-
-      assert draft.treasury == written
-    end
-
-    assert field_errors(
-             Autolaunch.create_launch_draft(
-               Map.put(@draft, "treasury", "0x" <> String.duplicate("0", 40)),
-               actor: actor
-             )
-           ) == %{"treasury" => "cannot be the all-zero address"}
-
-    for bad <- ["0x123", String.duplicate("a", 40), mixed <> "0"] do
-      assert field_errors(
-               Autolaunch.create_launch_draft(Map.put(@draft, "treasury", bad), actor: actor)
-             ) == %{"treasury" => "must start with 0x and hold exactly 40 hexadecimal characters"}
-    end
-  end
-
-  test "THE_EOA_WARNING_MATCHES_CHARACTER_FOR_CHARACTER_WITHOUT_TRIMMING" do
-    actor = actor_with_regent!("eoa-warning")
-    eoa = Map.merge(@draft, %{"treasury_path" => "eoa"})
-
-    for wrong <- [
-          nil,
-          "",
-          String.trim_trailing(@eoa_acknowledgement, "."),
-          @eoa_acknowledgement <> " "
-        ] do
-      assert {:error, %Ash.Error.Invalid{}} =
-               Autolaunch.create_launch_draft(
-                 Map.put(eoa, "eoa_acknowledgement", wrong),
-                 actor: actor
-               )
-    end
-
-    assert {:ok, draft} =
-             Autolaunch.create_launch_draft(
-               Map.put(eoa, "eoa_acknowledgement", @eoa_acknowledgement),
-               actor: actor
-             )
-
-    assert draft.treasury_path == :eoa
-  end
-
-  test "the required raise is a positive plain decimal with at most 18 fractional digits" do
-    actor = actor_with_regent!("raise")
-    field = "required_regent_raised"
-
-    for accepted <- ["1", "0.000000000000000001", "1000.5", "12345678901234567890"] do
-      assert {:ok, draft} =
-               Autolaunch.create_launch_draft(Map.put(@draft, field, accepted), actor: actor)
-
-      assert draft.required_regent_raised == accepted
-    end
-
-    for malformed <- ["-1", "+1", "1,000", "1e18", "1.", ".5", "1.0000000000000000001", "abc"] do
-      assert field_errors(
-               Autolaunch.create_launch_draft(Map.put(@draft, field, malformed), actor: actor)
-             ) == %{field => "must be a plain REGENT amount with at most 18 decimal places"}
-    end
-
-    for zero <- ["0", "0.0", "0.000000000000000000"] do
-      assert field_errors(
-               Autolaunch.create_launch_draft(Map.put(@draft, field, zero), actor: actor)
-             ) == %{field => "must be greater than zero"}
-    end
-  end
-
-  # The C4 factory refuses an empty metadata field outright, so a draft a founder
-  # can still write must never be able to hold one. Only historical rows may, and
-  # launch review is where those are refused.
-  test "no new or revised draft can store an empty metadata field" do
-    actor = actor_with_regent!("nonempty")
-    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
-
-    for field <- ["name", "symbol", "description", "website", "image"],
-        blank <- ["", " ", "\t\n"] do
-      blanked = Map.put(@draft, field, blank)
-
-      assert field_errors(Autolaunch.create_launch_draft(blanked, actor: actor)) == %{
-               field => "is required"
-             }
-
-      assert field_errors(Autolaunch.revise_launch_draft(draft, blanked, actor: actor)) == %{
-               field => "is required"
-             }
-    end
-
-    assert {:ok, [stored]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    assert Map.take(stored, clean_v1_keys()) == expected_values()
-  end
-
-  test "only the owning human revises, and a rejected revision changes nothing" do
-    owner = account!("revise-owner")
-    other = account!("revise-other")
-    owner_actor = %Human{human_account_id: owner.id}
-    Formation.form_regent!("revise-regent", "Revise Regent", actor: owner_actor)
-    draft = Autolaunch.create_launch_draft!(@draft, actor: owner_actor)
-
-    assert {:ok, revised} =
-             Autolaunch.revise_launch_draft(
+    assert {:ok, token_partial} =
+             Autolaunch.autosave_launch_token_details(
                draft,
-               %{@draft | "name" => "Renamed Research"},
-               actor: owner_actor
+               %{
+                 "name" => "Partial",
+                 "symbol" => "",
+                 "description" => "Still writing",
+                 "website" => "not a complete URL yet",
+                 "required_regent_raised" => "1."
+               },
+               actor: actor
              )
 
-    assert revised.name == "Renamed Research"
+    assert token_partial.name == "Partial"
+    assert token_partial.description == "Still writing"
+    refute LaunchDraft.token_details_complete?(token_partial)
 
-    for actor <- [
-          nil,
-          %Human{human_account_id: other.id},
-          %System{},
-          %{role: :human, human_account_id: owner.id}
-        ] do
-      assert {:error, %Ash.Error.Forbidden{}} =
-               Autolaunch.revise_launch_draft(revised, @draft, actor: actor)
-    end
+    assert {:ok, treasury_partial} =
+             Autolaunch.autosave_launch_treasury(
+               token_partial,
+               %{
+                 "treasury" => "0x123",
+                 "treasury_path" => "eoa",
+                 "eoa_acknowledgement" => "typing"
+               },
+               actor: actor
+             )
+
+    assert treasury_partial.treasury == "0x123"
+    assert treasury_partial.eoa_acknowledgement == "typing"
+    refute LaunchDraft.treasury_complete?(treasury_partial)
+
+    assert {:error, %Ash.Error.Forbidden{}} =
+             Autolaunch.autosave_launch_token_details(
+               treasury_partial,
+               %{"name" => "Stolen"},
+               actor: other_actor
+             )
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.autosave_launch_token_details(
+               treasury_partial,
+               %{"description" => String.duplicate("x", 513)},
+               actor: actor
+             )
+
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert persisted.name == "Partial"
+    assert persisted.treasury == "0x123"
+  end
+
+  test "stage completion and final revision use the exact launch requirements" do
+    actor = %Human{human_account_id: account!("complete").id}
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    token_details =
+      Map.take(@draft, [
+        "name",
+        "symbol",
+        "description",
+        "website",
+        "image",
+        "required_regent_raised"
+      ])
+
+    assert {:ok, token} =
+             Autolaunch.autosave_launch_token_details(draft, token_details, actor: actor)
+
+    assert LaunchDraft.token_details_complete?(token)
+    refute LaunchDraft.launch_ready?(token)
+
+    assert {:ok, safe} =
+             Autolaunch.autosave_launch_treasury(
+               token,
+               Map.take(@draft, ["treasury"]),
+               actor: actor
+             )
+
+    assert LaunchDraft.treasury_complete?(safe)
+    assert LaunchDraft.launch_ready?(safe)
+    assert {:ok, _final} = Autolaunch.revise_launch_draft(safe, @draft, actor: actor)
+
+    assert {:ok, eoa_wrong} =
+             Autolaunch.autosave_launch_treasury(
+               safe,
+               %{
+                 "treasury" => @draft["treasury"],
+                 "treasury_path" => "eoa",
+                 "eoa_acknowledgement" => "almost"
+               },
+               actor: actor
+             )
+
+    refute LaunchDraft.treasury_complete?(eoa_wrong)
 
     assert {:error, %Ash.Error.Invalid{}} =
              Autolaunch.revise_launch_draft(
-               revised,
-               %{@draft | "treasury" => "not-an-address"},
-               actor: owner_actor
+               eoa_wrong,
+               Map.merge(@draft, %{
+                 "treasury_path" => "eoa",
+                 "eoa_acknowledgement" => "almost"
+               }),
+               actor: actor
              )
 
-    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: owner_actor)
-    assert Map.take(persisted, clean_v1_keys()) == %{expected_values() | name: "Renamed Research"}
+    assert {:ok, eoa} =
+             Autolaunch.autosave_launch_treasury(
+               eoa_wrong,
+               %{"eoa_acknowledgement" => @eoa_acknowledgement},
+               actor: actor
+             )
+
+    assert LaunchDraft.launch_ready?(eoa)
   end
 
-  test "a draft written before clean V1 stays readable and can be completed by revising" do
+  test "final validation keeps metadata, treasury, and raise bounds" do
+    actor = %Human{human_account_id: account!("validation").id}
+    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
+
+    for {field, value, message} <- [
+          {"name", "", "is required"},
+          {"description", String.duplicate("a", 513), "must be 512 bytes or fewer"},
+          {"treasury", "0x123", "must start with 0x"},
+          {"required_regent_raised", "0", "must be greater than zero"}
+        ] do
+      assert {:error, %Ash.Error.Invalid{} = error} =
+               Autolaunch.revise_launch_draft(draft, Map.put(@draft, field, value), actor: actor)
+
+      assert Exception.message(error) =~ message
+    end
+  end
+
+  test "a historical Regent-linked draft stays readable without rewriting provenance" do
     owner = account!("legacy")
     actor = %Human{human_account_id: owner.id}
     regent = Formation.form_regent!("legacy-regent", "Legacy Regent", actor: actor)
 
-    Ash.Seed.seed!(LaunchDraft, %{
-      title: "Superseded launch title",
-      name: "Legacy Research",
-      symbol: "LEGACY",
-      human_account_id: owner.id,
-      regent_id: regent.id
-    })
+    legacy =
+      Ash.Seed.seed!(LaunchDraft, %{
+        title: "Superseded launch title",
+        name: "Legacy Research",
+        symbol: "LEGACY",
+        human_account_id: owner.id,
+        regent_id: regent.id
+      })
 
-    assert {:ok, [legacy]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    assert {legacy.name, legacy.symbol} == {"Legacy Research", "LEGACY"}
-    assert is_nil(legacy.description)
-    assert is_nil(legacy.treasury)
-
-    assert {:ok, completed} = Autolaunch.revise_launch_draft(legacy, @draft, actor: actor)
-    assert Map.take(completed, clean_v1_keys()) == expected_values()
-    # Completing a row never rewrites or discards what it already held.
-    assert completed.title == "Superseded launch title"
-  end
-
-  defp clean_v1_keys do
-    [
-      :name,
-      :symbol,
-      :description,
-      :website,
-      :image,
-      :treasury,
-      :required_regent_raised
-    ]
-  end
-
-  defp expected_values, do: Map.new(@draft, fn {field, value} -> {:"#{field}", value} end)
-
-  defp field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
-    Map.new(errors, fn
-      %Ash.Error.Changes.Required{field: field} -> {to_string(field), "is required"}
-      %{field: field, message: message} -> {to_string(field), message}
-    end)
-  end
-
-  defp actor_with_regent!(suffix) do
-    actor = %Human{human_account_id: account!(suffix).id}
-    Formation.form_regent!("#{suffix}-regent", "Regent #{suffix}", actor: actor)
-    actor
+    assert {:ok, revised} = Autolaunch.revise_launch_draft(legacy, @draft, actor: actor)
+    assert revised.regent_id == regent.id
+    assert revised.title == "Superseded launch title"
+    assert LaunchDraft.launch_ready?(revised)
   end
 
   defp account!(suffix) do

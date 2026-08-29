@@ -3,12 +3,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
-  alias AshPlatform.Autolaunch.{Lab, TreasurySecurity}
+  alias AshPlatform.Autolaunch.{Lab, LaunchDraft, TreasurySecurity}
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
-  # The seven fields a founder writes, in the order the page asks for them.
-  @draft_fields [
+  @token_detail_fields [
     %{key: :name, param: "name", label: "Name", kind: :text, hint: nil},
     %{key: :symbol, param: "symbol", label: "Symbol", kind: :text, hint: nil},
     %{key: :description, param: "description", label: "Description", kind: :long_text, hint: nil},
@@ -20,20 +19,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
       hint: "A link readers can open."
     },
     %{
-      key: :image,
-      param: "image",
-      label: "Image",
-      kind: :text,
-      hint: "A link to the picture you want shown."
-    },
-    %{
-      key: :treasury,
-      param: "treasury",
-      label: "Immutable treasury recipient",
-      kind: :text,
-      hint: @address_hint
-    },
-    %{
       key: :required_regent_raised,
       param: "required_regent_raised",
       label: "Required raise in REGENT",
@@ -42,14 +27,35 @@ defmodule AshPlatformWeb.AutolaunchLive do
     }
   ]
 
-  def draft_field_params,
-    do: Enum.map(@draft_fields, & &1.param) ++ ["treasury_path", "eoa_acknowledgement"]
+  @treasury_field %{
+    key: :treasury,
+    param: "treasury",
+    label: "Immutable treasury recipient",
+    kind: :text,
+    hint: @address_hint
+  }
+
+  @stored_params Enum.map(@token_detail_fields, & &1.param) ++
+                   ["image", "treasury", "treasury_path", "eoa_acknowledgement"]
+
+  def token_detail_params, do: Enum.map(@token_detail_fields, & &1.param)
+  def treasury_params, do: ["treasury", "treasury_path", "eoa_acknowledgement"]
+  def draft_field_params, do: @stored_params
 
   def blank_draft_fields,
     do:
-      @draft_fields
-      |> Map.new(&{&1.param, ""})
+      @stored_params
+      |> Map.new(&{&1, ""})
       |> Map.merge(%{"treasury_path" => "safe", "eoa_acknowledgement" => ""})
+
+  def draft_values(nil), do: blank_draft_fields()
+
+  def draft_values(draft) do
+    Map.new(@stored_params, fn param ->
+      value = Map.get(draft, String.to_existing_atom(param))
+      {param, if(is_atom(value), do: Atom.to_string(value), else: value || "")}
+    end)
+  end
 
   attr :route_spec, :map, required: true
   attr :params, :map, required: true
@@ -71,9 +77,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :launch_drafts, :list, required: true
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
-  attr :draft_revision, :map, default: nil
   attr :draft_notice, :map, default: nil
-  attr :regent, :map, default: nil
+  attr :create_stage, :atom, default: :token_details
+  attr :launch_image_upload, :map, default: nil
   attr :status, :atom, required: true
   attr :comments, :list, required: true
   attr :comments_status, :atom, required: true
@@ -176,9 +182,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
       launch_drafts={@launch_drafts}
       draft_values={@draft_values}
       draft_errors={@draft_errors}
-      draft_revision={@draft_revision}
       draft_notice={@draft_notice}
-      regent={@regent}
+      create_stage={@create_stage}
+      launch_image_upload={@launch_image_upload}
       session_lease={@session_lease}
       current_human_id={@current_human_id}
     />
@@ -1065,21 +1071,30 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :launch_drafts, :list, required: true
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
-  attr :draft_revision, :map, default: nil
   attr :draft_notice, :map, default: nil
-  attr :regent, :map, default: nil
+  attr :create_stage, :atom, default: :token_details
+  attr :launch_image_upload, :map, default: nil
   attr :session_lease, :map, default: nil
   attr :current_human_id, :integer, default: nil
 
   defp create(assigns) do
+    draft = List.first(assigns.launch_drafts)
+
+    assigns =
+      assigns
+      |> assign(:active_draft, draft)
+      |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
+      |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
+      |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
+
     ~H"""
     <section id="autolaunch-create" class="autolaunch-page">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch · Create</p>
         <h1>Create a launch</h1>
         <p>
-          Write the details of the launch you have in mind. Drafts stay private to you, and saving
-          one changes nothing outside this page.
+          Build the token and choose where its auction proceeds go. Every change is saved privately
+          to your account. Nothing reaches your wallet until the final stage.
         </p>
       </header>
 
@@ -1088,47 +1103,180 @@ defmodule AshPlatformWeb.AutolaunchLive do
         copy="Sign in to prepare your launch."
       />
 
-      <div :if={@account_control.kind == :signed_in && is_nil(@regent)} class="autolaunch-empty">
-        <p>Form your Regent before creating a launch draft.</p>
-        <.link patch="/formation">Open Formation</.link>
-      </div>
-
       <section
-        :if={@account_control.kind == :signed_in && @regent}
+        :if={@account_control.kind == :signed_in}
         class="autolaunch-draft-workspace"
         aria-labelledby="launch-draft-title"
       >
-        <div>
+        <header>
           <p class="autolaunch-kicker">Private preparation</p>
-          <h2 id="launch-draft-title">Launch details</h2>
-          <p>Saved for {@regent.display_name}. Nothing here is published and no money moves.</p>
-        </div>
+          <h2 id="launch-draft-title">Launch setup</h2>
+          <p>Your draft belongs to this signed-in account and survives refreshes and sign-outs.</p>
+        </header>
 
-        <%!-- The browser default reads these two: a refused save owns every
-              address it echoes back, and a saved draft starts the next one. --%>
+        <nav class="autolaunch-create-stages" aria-label="Launch stages">
+          <button
+            type="button"
+            class={stage_class(@create_stage, :token_details, @token_complete?)}
+            phx-click="select_launch_stage"
+            phx-value-stage="token_details"
+            aria-current={@create_stage == :token_details && "step"}
+          >
+            <span>1</span> Token Details <small>{stage_status(@token_complete?)}</small>
+          </button>
+          <button
+            type="button"
+            class={stage_class(@create_stage, :treasury, @treasury_complete?)}
+            phx-click="select_launch_stage"
+            phx-value-stage="treasury"
+            aria-current={@create_stage == :treasury && "step"}
+          >
+            <span>2</span> Treasury Address <small>{stage_status(@treasury_complete?)}</small>
+          </button>
+          <button
+            type="button"
+            class={stage_class(@create_stage, :transactions, @launch_ready?)}
+            phx-click="select_launch_stage"
+            phx-value-stage="transactions"
+            aria-current={@create_stage == :transactions && "step"}
+            disabled={!@launch_ready?}
+            aria-disabled={to_string(!@launch_ready?)}
+          >
+            <span>3</span>
+            Launch Transactions
+            <small>{if @launch_ready?, do: "Ready", else: "Complete steps 1 and 2"}</small>
+          </button>
+        </nav>
+
         <form
-          id="create-launch-draft"
-          phx-hook="AutolaunchLaunchDraft"
-          phx-submit="create_launch_draft"
-          class="autolaunch-draft-form"
-          data-draft-errors={@draft_errors != %{} && "true"}
-          data-saved-drafts={length(@launch_drafts)}
+          :if={@create_stage == :token_details}
+          id="launch-token-details"
+          phx-change="autosave_launch_token_details"
+          phx-submit="autosave_launch_token_details"
+          class="autolaunch-draft-form autolaunch-stage-panel"
         >
+          <div class="autolaunch-stage-heading">
+            <div>
+              <p class="autolaunch-kicker">Stage 1</p>
+              <h3>Token Details</h3>
+            </div>
+            <span>{stage_status(@token_complete?)}</span>
+          </div>
+
+          <.draft_field
+            :for={field <- token_detail_fields()}
+            field={field}
+            form_id="launch-token-details"
+            hint={field.hint}
+            value={@draft_values[field.param]}
+            error={@draft_errors[field.param]}
+            autosave
+          />
+
+          <div class="autolaunch-draft-field autolaunch-draft-field--wide">
+            <label for="launch-image-upload">Token image</label>
+            <p class="autolaunch-draft-hint">
+              PNG, JPEG, or WebP. Maximum 2 MiB. Your account may save one permanent launch
+              image; uploading the exact same file again reuses it.
+              <strong>Recommended: 400 × 400 px</strong>
+            </p>
+            <img
+              :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
+              class="autolaunch-image-preview"
+              src={@draft_values["image"]}
+              alt="Saved token image"
+            />
+            <.live_file_input
+              :if={@launch_image_upload}
+              upload={@launch_image_upload}
+              id="launch-image-upload"
+            />
+            <div :for={entry <- (@launch_image_upload && @launch_image_upload.entries) || []}>
+              <.live_img_preview entry={entry} class="autolaunch-image-preview" />
+              <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
+            </div>
+            <p
+              :for={error <- (@launch_image_upload && upload_errors(@launch_image_upload)) || []}
+              class="autolaunch-draft-error"
+              role="alert"
+            >
+              {upload_error(error)}
+            </p>
+          </div>
+
+          <div class="autolaunch-stage-actions">
+            <p>Saved automatically to your account.</p>
+            <button type="button" phx-click="select_launch_stage" phx-value-stage="treasury">
+              View Treasury Address
+            </button>
+          </div>
+        </form>
+
+        <form
+          :if={@create_stage == :treasury}
+          id="launch-treasury-details"
+          phx-hook="AutolaunchLaunchDraft"
+          phx-change="autosave_launch_treasury"
+          phx-submit="autosave_launch_treasury"
+          class="autolaunch-draft-form autolaunch-stage-panel"
+        >
+          <div class="autolaunch-stage-heading">
+            <div>
+              <p class="autolaunch-kicker">Stage 2</p>
+              <h3>Treasury Address</h3>
+            </div>
+            <span>{stage_status(@treasury_complete?)}</span>
+          </div>
           <.custody_path
-            form_id="create-launch-draft"
+            form_id="launch-treasury-details"
             path={@draft_values["treasury_path"]}
             acknowledgement={@draft_values["eoa_acknowledgement"]}
           />
           <.draft_field
-            :for={field <- draft_fields()}
-            field={field}
-            form_id="create-launch-draft"
-            hint={create_hint(field)}
-            value={@draft_values[field.param]}
-            error={@draft_errors[field.param]}
+            field={treasury_field()}
+            form_id="launch-treasury-details"
+            hint={treasury_field().hint}
+            value={@draft_values["treasury"]}
+            error={@draft_errors["treasury"]}
+            autosave
           />
-          <button type="submit">Save draft</button>
+          <div class="autolaunch-stage-actions">
+            <button type="button" phx-click="select_launch_stage" phx-value-stage="token_details">
+              View Token Details
+            </button>
+            <button
+              type="button"
+              phx-click="select_launch_stage"
+              phx-value-stage="transactions"
+              disabled={!@launch_ready?}
+            >
+              Continue to Launch Transactions
+            </button>
+          </div>
         </form>
+
+        <section
+          :if={@create_stage == :transactions && @launch_ready?}
+          id="launch-transactions"
+          class="autolaunch-stage-panel"
+        >
+          <div class="autolaunch-stage-heading">
+            <div>
+              <p class="autolaunch-kicker">Stage 3</p>
+              <h3>Launch Transactions</h3>
+            </div>
+            <span>Ready</span>
+          </div>
+          <p>Review the exact fee and transactions before asking your wallet to sign.</p>
+          <.live_component
+            module={AshPlatformWeb.AutolaunchLaunchWalletComponent}
+            id={"autolaunch-launch-wallet-#{@active_draft.id}"}
+            draft={@active_draft}
+            authenticated
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
+        </section>
 
         <p
           :if={@draft_notice}
@@ -1137,53 +1285,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
         >
           {@draft_notice.message}
         </p>
-
-        <div id="launch-drafts" class="autolaunch-drafts">
-          <h2>Saved drafts</h2>
-          <p :if={@launch_drafts == []}>No drafts yet.</p>
-          <article :for={draft <- @launch_drafts} id={"launch-draft-#{draft.id}"}>
-            <p class="autolaunch-kicker">Private draft</p>
-            <h3>{draft.name}</h3>
-            <dl class="autolaunch-draft-review">
-              <div :for={field <- review_fields()}>
-                <dt>{field.label}</dt>
-                <dd>{draft_text(Map.fetch!(draft, field.key))}</dd>
-              </div>
-            </dl>
-            <form
-              id={"revise-launch-draft-#{draft.id}"}
-              phx-submit="revise_launch_draft"
-              class="autolaunch-draft-form"
-            >
-              <input type="hidden" name="draft_id" value={draft.id} />
-              <.custody_path
-                form_id={"revise-launch-draft-#{draft.id}"}
-                path={revision_extra(@draft_revision, draft, "treasury_path")}
-                acknowledgement={revision_extra(@draft_revision, draft, "eoa_acknowledgement")}
-              />
-              <.draft_field
-                :for={field <- draft_fields()}
-                field={field}
-                form_id={"revise-launch-draft-#{draft.id}"}
-                hint={field.hint}
-                value={revision_value(@draft_revision, draft, field)}
-                error={revision_error(@draft_revision, draft, field)}
-              />
-              <button type="submit">Save changes</button>
-            </form>
-
-            <%!-- Mounted on the draft it launches, so a card that is not saved
-                  yet carries no wallet surface at all. --%>
-            <.live_component
-              module={AshPlatformWeb.AutolaunchLaunchWalletComponent}
-              id={"autolaunch-launch-wallet-#{draft.id}"}
-              draft={draft}
-              authenticated={@account_control.kind == :signed_in}
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
-          </article>
-        </div>
       </section>
     </section>
     """
@@ -1256,6 +1357,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :hint, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
+  attr :autosave, :boolean, default: false
 
   defp draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
@@ -1275,7 +1377,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         name={"launch_draft[#{@field.param}]"}
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        required
+        phx-debounce={@autosave && "400"}
       >{@value}</textarea>
       <input
         :if={@field.kind == :text}
@@ -1285,7 +1387,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         value={@value}
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        required
+        phx-debounce={@autosave && "400"}
       />
       <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
@@ -1303,27 +1405,25 @@ defmodule AshPlatformWeb.AutolaunchLive do
     """
   end
 
-  defp draft_fields, do: @draft_fields
+  defp token_detail_fields, do: @token_detail_fields
+  defp treasury_field, do: @treasury_field
 
-  defp create_hint(%{hint: hint}), do: hint
+  defp stage_status(true), do: "Complete"
+  defp stage_status(_incomplete), do: "In progress"
 
-  # The card heading already carries the name.
-  defp review_fields, do: Enum.reject(@draft_fields, &(&1.key == :name))
+  defp stage_class(active, stage, complete?) do
+    [
+      "autolaunch-create-stage",
+      active == stage && "autolaunch-create-stage--active",
+      complete? && "autolaunch-create-stage--complete"
+    ]
+  end
 
-  defp draft_text(nil), do: "Not written yet"
-  defp draft_text(value), do: value
-
-  # A failed revision belongs to exactly one card; every other card keeps
-  # showing what is stored.
-  defp revision_value(%{id: id, values: values}, %{id: id}, field), do: values[field.param]
-  defp revision_value(_revision, draft, field), do: Map.fetch!(draft, field.key)
-
-  defp revision_error(%{id: id, errors: errors}, %{id: id}, field), do: errors[field.param]
-  defp revision_error(_revision, _draft, _field), do: nil
-
-  defp revision_extra(%{id: id, values: values}, %{id: id}, key), do: values[key] || ""
-  defp revision_extra(_revision, draft, "treasury_path"), do: draft.treasury_path
-  defp revision_extra(_revision, _draft, "eoa_acknowledgement"), do: ""
+  defp upload_progress(progress), do: "#{progress}%"
+  defp upload_error(:too_large), do: "Choose an image no larger than 2 MiB."
+  defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
+  defp upload_error(:too_many_files), do: "Choose one image."
+  defp upload_error(_error), do: "That image could not be uploaded."
 
   defp described_by(id, hint, error) do
     case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do

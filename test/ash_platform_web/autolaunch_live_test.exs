@@ -2,7 +2,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.AccessContext.AccountControl
-  alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
+  alias AshPlatform.{Accounts, Autolaunch, Discussions}
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch.LabMarketFeed
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
@@ -510,7 +510,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     html = render_async(view)
 
     assert has_element?(view, "#autolaunch-create")
-    assert html =~ "Drafts stay private to you"
+    assert html =~ "Every change is saved privately"
     assert html =~ "Sign in to prepare your launch."
     refute has_element?(view, "#autolaunch-create form")
     refute has_element?(view, ~s(#autolaunch-create button[type="submit"]))
@@ -526,199 +526,230 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     "required_regent_raised" => "1000.5"
   }
 
-  test "Create writes the seven clean-V1 fields and reviews them without starting anything", %{
-    conn: conn
-  } do
+  test "a signed-in Human needs no Regent and may inspect the first two stages in either order",
+       %{
+         conn: conn
+       } do
     account =
-      draft_account!("autolaunch-draft-live", "0x3333333333333333333333333333333333333333")
-
-    actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("launch-regent", "Launch Regent", actor: actor)
+      draft_account!("autolaunch-stages", "0x3333333333333333333333333333333333333333")
 
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> live("/autolaunch/create")
 
-    view |> form("#create-launch-draft", launch_draft: @live_draft) |> render_submit()
+    assert has_element?(view, ~s(nav[aria-label="Launch stages"]))
+
+    assert has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[phx-value-stage="token_details"]),
+             "Token Details"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[phx-value-stage="treasury"]),
+             "Treasury Address"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[phx-value-stage="transactions"][disabled]),
+             "Launch Transactions"
+           )
+
+    refute has_element?(view, "#autolaunch-create", "Form your Regent")
+    refute has_element?(view, "#autolaunch-create", "Open Formation")
+    assert has_element?(view, "#launch-token-details")
+    assert has_element?(view, "#launch-token-details", "Recommended: 400 × 400 px")
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
+    |> render_click()
+
+    assert has_element?(view, "#launch-treasury-details")
+    assert has_element?(view, "#autolaunch-create", "Create a 2-of-3 Safe on Base")
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="token_details"]))
+    |> render_click()
+
+    assert has_element?(view, "#launch-token-details")
+  end
+
+  test "partial token, treasury, and EOA warning input survives remounts and stays account-private",
+       %{
+         conn: conn
+       } do
+    account =
+      draft_account!("autolaunch-autosave", "0x3333333333333333333333333333333333333334")
+
+    actor = %Human{human_account_id: account.id}
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, "/autolaunch/create")
+
+    view
+    |> form("#launch-token-details",
+      launch_draft: %{
+        "name" => "Open Research",
+        "symbol" => "",
+        "description" => "Still writing",
+        "website" => "draft link",
+        "required_regent_raised" => "1."
+      }
+    )
+    |> render_change()
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
+    |> render_click()
+
+    view
+    |> form("#launch-treasury-details",
+      launch_draft: %{
+        "treasury" => "0x123",
+        "treasury_path" => "eoa",
+        "eoa_acknowledgement" => "I am still typing"
+      }
+    )
+    |> render_change()
+
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert persisted.name == "Open Research"
+    assert is_nil(persisted.symbol)
+    assert persisted.treasury == "0x123"
+    assert persisted.eoa_acknowledgement == "I am still typing"
+
+    {:ok, restored, _html} = live(signed_in, "/autolaunch/create")
+    assert has_element?(restored, ~s(#launch-token-details-name[value="Open Research"]))
+    assert has_element?(restored, "#launch-token-details-description", "Still writing")
+
+    restored
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
+    |> render_click()
+
+    assert has_element?(restored, ~s(#launch-treasury-details-treasury[value="0x123"]))
+
+    assert has_element?(
+             restored,
+             "#launch-treasury-details-eoa-acknowledgement",
+             "I am still typing"
+           )
+
+    {:ok, anonymous, _html} = live(conn, "/autolaunch/create")
+    refute has_element?(anonymous, "#launch-token-details")
+
+    other =
+      draft_account!("autolaunch-autosave-other", "0x3333333333333333333333333333333333333335")
+
+    {:ok, other_view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: other.id})
+      |> live("/autolaunch/create")
+
+    refute has_element?(other_view, ~s(#launch-token-details-name[value="Open Research"]))
+  end
+
+  test "image upload plus complete token and treasury stages unlocks wallet transactions", %{
+    conn: conn
+  } do
+    account =
+      draft_account!("autolaunch-complete", "0x3333333333333333333333333333333333333336")
+
+    actor = %Human{human_account_id: account.id}
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/autolaunch/create")
+
+    view
+    |> form("#launch-token-details",
+      launch_draft: Map.drop(@live_draft, ["image", "treasury"])
+    )
+    |> render_change()
+
+    upload =
+      file_input(view, "#launch-token-details", :launch_image, [
+        %{name: "token.png", content: png(), type: "image/png"}
+      ])
+
+    render_upload(upload, "token.png")
+    assert has_element?(view, "[role=status]", "Image saved to your account.")
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
+    |> render_click()
+
+    view
+    |> form("#launch-treasury-details",
+      launch_draft: %{"treasury" => @live_draft["treasury"], "treasury_path" => "safe"}
+    )
+    |> render_change()
 
     assert {:ok, [draft]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    card = "#launch-draft-#{draft.id}"
-
-    assert has_element?(view, "#{card} h3", "Open Research")
-
-    for value <- Map.values(Map.delete(@live_draft, "name")) do
-      assert has_element?(view, "#{card} .autolaunch-draft-review dd", value)
-    end
-
-    assert has_element?(view, "[role=status]", "Draft saved.")
-
-    # The saved draft is what tells the browser the form was cleared rather than
-    # refused, so the next draft may start from the wallet again.
-    assert has_element?(view, ~s(#create-launch-draft[data-saved-drafts="1"]))
-    refute has_element?(view, "#create-launch-draft[data-draft-errors]")
-
-    # Preparing a draft never produces a public record of any kind.
-    assert {:ok, []} = Autolaunch.list_auctions()
-    assert {:ok, []} = Autolaunch.list_tokens()
-    assert {:ok, []} = Autolaunch.list_launches()
-
-    {:ok, launches, _html} = live(conn, "/autolaunch/launches")
-    refute render_async(launches) =~ draft.name
-  end
-
-  test "a rejected create keeps every submitted value and names the field that failed", %{
-    conn: conn
-  } do
-    account =
-      draft_account!("autolaunch-draft-invalid", "0x3333333333333333333333333333333333333334")
-
-    actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("invalid-regent", "Invalid Regent", actor: actor)
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/create")
-
-    submitted = %{@live_draft | "treasury" => "0xnope", "required_regent_raised" => "0"}
-    view |> form("#create-launch-draft", launch_draft: submitted) |> render_submit()
-
-    assert {:ok, []} = Autolaunch.list_my_launch_drafts(actor: actor)
-
-    for {field, value} <- Map.delete(submitted, "description") do
-      assert has_element?(view, ~s(#create-launch-draft-#{field}[value="#{value}"]))
-    end
-
-    assert has_element?(view, "#create-launch-draft-description", submitted["description"])
-
-    assert has_element?(
-             view,
-             ~s(#create-launch-draft-treasury[aria-invalid="true"][aria-describedby~="create-launch-draft-treasury-error"])
-           )
-
-    assert has_element?(
-             view,
-             "#create-launch-draft-treasury-error",
-             "must start with 0x and hold exactly 40 hexadecimal characters"
-           )
-
-    assert has_element?(
-             view,
-             "#create-launch-draft-required_regent_raised-error",
-             "must be greater than zero"
-           )
-
-    assert has_element?(view, "[role=alert]", "That draft could not be saved.")
-
-    # Every address on a refused form is the customer's, and this is how the
-    # browser knows not to write over one of them.
-    assert has_element?(
-             view,
-             ~s(#create-launch-draft[data-draft-errors="true"][data-saved-drafts="0"])
-           )
-  end
-
-  test "new and saved drafts keep signer and immutable treasury separate", %{conn: conn} do
-    account =
-      draft_account!("autolaunch-draft-hint", "0x3333333333333333333333333333333333333337")
-
-    actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("hint-regent", "Hint Regent", actor: actor)
-    draft = Autolaunch.create_launch_draft!(@live_draft, actor: actor)
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/create")
-
-    address_hint = "0x followed by exactly 40 hexadecimal characters."
-    revise_hint = "#revise-launch-draft-#{draft.id}-treasury-hint"
-
-    assert has_element?(view, "#create-launch-draft-treasury-hint", address_hint)
+    assert Autolaunch.LaunchDraft.launch_ready?(draft)
 
     refute has_element?(
              view,
-             ~s(#create-launch-draft-treasury[value="0x3333333333333333333333333333333333333337"])
+             ~s(.autolaunch-create-stages button[phx-value-stage="transactions"][disabled])
            )
 
-    assert has_element?(view, "#autolaunch-create", "Create a 2-of-3 Safe on Base")
-    assert has_element?(view, "#autolaunch-create", "Use existing Safe")
-
-    # A revision starts from the treasury already saved on the draft, so its help
-    # claims nothing about the wallet on screen.
-    assert has_element?(view, revise_hint, address_hint)
-  end
-
-  test "a rejected revision keeps the submitted values on that card and stores nothing", %{
-    conn: conn
-  } do
-    account =
-      draft_account!("autolaunch-draft-revision", "0x3333333333333333333333333333333333333335")
-
-    actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("revision-regent", "Revision Regent", actor: actor)
-    draft = Autolaunch.create_launch_draft!(@live_draft, actor: actor)
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/create")
-
-    form_id = "revise-launch-draft-#{draft.id}"
-    submitted = %{@live_draft | "name" => "Renamed Research", "symbol" => ""}
-    view |> form("##{form_id}", launch_draft: submitted) |> render_submit()
-
-    assert has_element?(view, ~s(##{form_id}-name[value="Renamed Research"]))
-    assert has_element?(view, ~s(##{form_id}-symbol[aria-invalid="true"]))
-    assert has_element?(view, "##{form_id}-symbol-error", "is required")
-    assert has_element?(view, "[role=alert]", "That draft could not be updated.")
-
-    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
-    assert {persisted.name, persisted.symbol} == {"Open Research", "open"}
-
     view
-    |> form("##{form_id}", launch_draft: %{@live_draft | "name" => "Renamed Research"})
-    |> render_submit()
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="transactions"]))
+    |> render_click()
 
-    assert has_element?(view, "#launch-draft-#{draft.id} h3", "Renamed Research")
-    refute has_element?(view, "##{form_id}-symbol-error")
-    assert has_element?(view, "[role=status]", "Draft updated.")
+    assert has_element?(view, "#launch-transactions", "Launch Transactions")
+    assert has_element?(view, "#launch-transactions .launch-wallet[phx-hook]")
+
+    assert {:ok, []} = Autolaunch.list_auctions()
+    assert {:ok, []} = Autolaunch.list_tokens()
+    assert {:ok, []} = Autolaunch.list_launches()
   end
 
-  test "Create drops the superseded launch vocabulary and offers no forward action", %{conn: conn} do
+  test "a second distinct image is refused without changing the first saved image", %{conn: conn} do
     account =
-      draft_account!("autolaunch-draft-inert", "0x3333333333333333333333333333333333333336")
+      draft_account!("autolaunch-one-image", "0x3333333333333333333333333333333333333337")
 
     actor = %Human{human_account_id: account.id}
-    Formation.form_regent!("inert-regent", "Inert Regent", actor: actor)
-    Autolaunch.create_launch_draft!(@live_draft, actor: actor)
 
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> live("/autolaunch/create")
 
-    for retired <- [
-          "Launch title",
-          "Token name",
-          "Public summary",
-          "ERC-8004",
-          "quarantine",
-          "launch fee",
-          "Launch now"
-        ] do
-      refute has_element?(view, "#autolaunch-create", retired)
-    end
+    first =
+      file_input(view, "#launch-token-details", :launch_image, [
+        %{name: "first.png", content: png(), type: "image/png"}
+      ])
 
-    # The draft form only ever saves a draft and never asks a wallet to send.
-    # The one authorized wallet surface here is the reviewed launch card.
-    assert has_element?(view, ~s(#create-launch-draft[phx-hook="AutolaunchLaunchDraft"]))
-    refute has_element?(view, ".autolaunch-draft-form [phx-hook]")
-    refute has_element?(view, ".autolaunch-draft-form [phx-click]")
-    refute has_element?(view, ".autolaunch-draft-form [data-launch-wallet-send]")
-    assert has_element?(view, ".autolaunch-draft-workspace a", "official Safe creation flow")
-    assert has_element?(view, ".autolaunch-draft-workspace .launch-wallet[phx-hook]")
+    render_upload(first, "first.png")
+    assert {:ok, [saved]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+
+    repeat =
+      file_input(view, "#launch-token-details", :launch_image, [
+        %{name: "same.png", content: png(), type: "image/png"}
+      ])
+
+    render_upload(repeat, "same.png")
+    assert {:ok, [same]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert same.id == saved.id
+
+    different =
+      file_input(view, "#launch-token-details", :launch_image, [
+        %{name: "different.jpg", content: jpeg(), type: "image/jpeg"}
+      ])
+
+    render_upload(different, "different.jpg")
+
+    assert has_element?(
+             view,
+             "[role=alert]",
+             "This account already has its one launch image."
+           )
+
+    assert {:ok, [still_saved]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert still_saved.id == saved.id
   end
 
   test "overview, collections, and details render imported public records without invented money",
@@ -851,6 +882,30 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   defp draft_account!(did, wallet) do
     Accounts.register_verified!("did:privy:#{did}", wallet, [wallet], actor: %System{})
   end
+
+  defp png do
+    <<
+      137,
+      "PNG\r\n",
+      26,
+      10,
+      13::32,
+      "IHDR",
+      1::32,
+      1::32,
+      8,
+      6,
+      0,
+      0,
+      0,
+      0::32,
+      0::32,
+      "IEND",
+      0::32
+    >>
+  end
+
+  defp jpeg, do: <<255, 216, 255, 224, 0, 0, 255, 217>>
 
   defp import_minimal_launch!(job_id, attrs \\ []) do
     Autolaunch.import_launch!(

@@ -164,6 +164,10 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
             <dd class="launch-wallet-mono">{short(argument(@operation, "treasury"))}</dd>
           </div>
           <div>
+            <dt>Treasury custody</dt>
+            <dd>{custody_label(@draft.treasury_path)}</dd>
+          </div>
+          <div>
             <dt>Wallet</dt>
             <dd class="launch-wallet-mono">{short(@operation.signer)}</dd>
           </div>
@@ -776,6 +780,10 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
+
+  defp custody_label(:safe), do: "2-of-3 Safe"
+  defp custody_label(:contract), do: "Existing contract"
+  defp custody_label(:eoa), do: "Single-key EOA"
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"

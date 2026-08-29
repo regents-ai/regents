@@ -145,6 +145,11 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [treasury_custody_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_490_5_5_verified_treasury_custody.exs")
 
+    assert [account_owned_launch_drafts_migration] =
+             Path.wildcard(
+               "priv/repo/migrations/*_regent_490_5_8_account_owned_launch_drafts.exs"
+             )
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -185,7 +190,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                subject_wallet_operations_migration,
                launch_operations_migration,
                c9_consumer_migration,
-               treasury_custody_migration
+               treasury_custody_migration,
+               account_owned_launch_drafts_migration
              ])
 
     assert_additive_migration(

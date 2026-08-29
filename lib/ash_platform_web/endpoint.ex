@@ -40,6 +40,7 @@ defmodule AshPlatformWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
+  plug AshPlatformWeb.Plugs.AutolaunchLaunchImage
   plug AshPlatformWeb.Plugs.RuntimeSession
   plug AshPlatformWeb.Router
 end

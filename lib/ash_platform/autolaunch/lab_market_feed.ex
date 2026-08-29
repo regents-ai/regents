@@ -104,6 +104,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   def handle_info({:snapshots, _token, _result}, state), do: {:noreply, state}
 
   defp handle_head(state, head) do
+    state = discard_displaced_pending(state, head)
+
     cond do
       state.binding && state.binding != head.binding ->
         state
@@ -122,8 +124,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       displaced_for_head?(state, head) ->
         {:noreply, failed(%{state | in_flight: nil})}
 
-      moved_sideways?(state.accepted_head, head.block) or
-          moved_backwards?(state.accepted_head, head.block) ->
+      accepted_head_displaced?(state, head) ->
         {:noreply, displace_cache(state, head)}
 
       true ->
@@ -375,6 +376,23 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
        do: true
 
   defp pending_for_head?(_state, _head), do: false
+
+  defp pending_displaced_by?(
+         %{pending_projection: %{binding: binding, block: pending}},
+         %{binding: binding, block: observed}
+       ),
+       do: moved_sideways?(pending, observed) or moved_backwards?(pending, observed)
+
+  defp pending_displaced_by?(_state, _head), do: false
+
+  defp discard_displaced_pending(state, head) do
+    if pending_displaced_by?(state, head), do: %{state | pending_projection: nil}, else: state
+  end
+
+  defp accepted_head_displaced?(state, head) do
+    moved_sideways?(state.accepted_head, head.block) or
+      moved_backwards?(state.accepted_head, head.block)
+  end
 
   defp displaced_for_head?(%{displaced_head: displaced}, head),
     do: displaced == head_identity(head)

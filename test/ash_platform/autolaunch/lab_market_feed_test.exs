@@ -633,6 +633,60 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
              FakeRuntime.state(agent)
   end
 
+  test "a direct sideways or lower head discards a transient pending projection" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-pending-displacement", rpc_url: "http://127.0.0.1:49713"}
+    accepted = %{number: 100, hash: @hash_a}
+    pending = %{number: 101, hash: @hash_b}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: accepted}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, accepted)]},
+        project_result: {:ok, [id]}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{block_number: 100}}
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding, block: pending}},
+      snapshots: {:ok, [snapshot(id, pending)]},
+      verify_results: [:ok, {:error, :rpc_unavailable}]
+    )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> :sys.get_state(feed).pending_projection != nil end)
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding, block: accepted}},
+      snapshots: {:ok, []},
+      verify_results: []
+    )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> :sys.get_state(feed).in_flight == nil end)
+    assert :sys.get_state(feed).pending_projection == nil
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding, block: pending}},
+      snapshots: {:ok, [snapshot(id, pending)]}
+    )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{block_number: 101}}
+    assert %{snapshot_calls: 4} = FakeRuntime.state(agent)
+  end
+
   test "same-height hash changes and lower heads evict displaced cache with bounded backoff" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-reorg", rpc_url: "http://127.0.0.1:49713"}

@@ -5,18 +5,55 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @clean_v1_fields [
+  @token_fields [
     :name,
     :symbol,
     :description,
     :website,
     :image,
-    :treasury,
-    :treasury_path,
     :required_regent_raised
   ]
 
+  @treasury_fields [
+    :treasury,
+    :treasury_path,
+    :eoa_acknowledgement
+  ]
+
+  @clean_v1_fields @token_fields ++ @treasury_fields
+
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
+
+  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @address ~r/\A0x[0-9a-fA-F]{40}\z/
+  @zero_address "0x" <> String.duplicate("0", 40)
+  @amount ~r/\A[0-9]+(\.[0-9]{1,18})?\z/
+
+  @doc "Whether the persisted token metadata stage is ready for launch review."
+  def token_details_complete?(draft) do
+    Enum.all?(@metadata_limits, fn {field, limit} ->
+      value = Map.get(draft, field)
+      is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
+    end) and valid_raise?(Map.get(draft, :required_regent_raised))
+  end
+
+  @doc "Whether the persisted treasury stage is ready for launch review."
+  def treasury_complete?(draft) do
+    treasury = Map.get(draft, :treasury)
+    path = Map.get(draft, :treasury_path)
+
+    is_binary(treasury) and Regex.match?(@address, treasury) and
+      String.downcase(treasury) != @zero_address and path in [:safe, :contract, :eoa] and
+      (path != :eoa or Map.get(draft, :eoa_acknowledgement) == @eoa_acknowledgement)
+  end
+
+  @doc "Whether both persisted preparation stages are complete."
+  def launch_ready?(draft), do: token_details_complete?(draft) and treasury_complete?(draft)
+
+  defp valid_raise?(value) when is_binary(value),
+    do: Regex.match?(@amount, value) and Regex.match?(~r/[1-9]/, value)
+
+  defp valid_raise?(_value), do: false
 
   attributes do
     uuid_primary_key :id
@@ -27,12 +64,10 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
     attribute :name, :string do
       source :token_name
-      allow_nil? false
       public? true
     end
 
     attribute :symbol, :string do
-      allow_nil? false
       public? true
     end
 
@@ -54,6 +89,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
     attribute :required_regent_raised, :string, public?: true
 
+    attribute :eoa_acknowledgement, :string do
+      public? true
+      constraints max_length: 512, trim?: false
+    end
+
     timestamps()
   end
 
@@ -64,20 +104,21 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     belongs_to :regent, AshPlatform.Formation.Regent do
-      allow_nil? false
+      # Historical drafts retain their former relationship. New drafts belong
+      # directly to the signed-in Human and never invent Regent provenance.
+      allow_nil? true
+    end
+
+    belongs_to :launch_draft_image, AshPlatform.Autolaunch.LaunchDraftImage do
+      allow_nil? true
     end
   end
 
   actions do
-    create :create_for_my_regent do
-      argument :eoa_acknowledgement, :string, constraints: [trim?: false]
+    create :create_for_owner do
       accept @clean_v1_fields
-      validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
-
-      validate argument_equals(:eoa_acknowledgement, @eoa_acknowledgement),
-        where: [attribute_equals(:treasury_path, :eoa)]
-
-      change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwnerAndRegent
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
+      change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwner
     end
 
     read :mine do
@@ -85,23 +126,53 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
       prepare build(sort: [updated_at: :desc, id: :asc])
     end
 
+    update :autosave_token_details do
+      accept @token_fields
+      require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
+    end
+
+    update :autosave_treasury do
+      accept @treasury_fields
+      require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
+    end
+
+    update :attach_image do
+      accept [:image, :launch_draft_image_id]
+      require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
+    end
+
     update :revise_by_owner do
-      argument :eoa_acknowledgement, :string, constraints: [trim?: false]
       accept @clean_v1_fields
       require_atomic? false
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
 
-      validate argument_equals(:eoa_acknowledgement, @eoa_acknowledgement),
+      validate attribute_equals(:eoa_acknowledgement, @eoa_acknowledgement),
         where: [attribute_equals(:treasury_path, :eoa)]
     end
   end
 
   policies do
-    policy action([:create_for_my_regent, :mine, :revise_by_owner]) do
+    policy action([
+             :create_for_owner,
+             :mine,
+             :autosave_token_details,
+             :autosave_treasury,
+             :attach_image,
+             :revise_by_owner
+           ]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
-    policy action([:mine, :revise_by_owner]) do
+    policy action([
+             :mine,
+             :autosave_token_details,
+             :autosave_treasury,
+             :attach_image,
+             :revise_by_owner
+           ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
   end
@@ -114,6 +185,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     custom_indexes do
       index([:human_account_id])
       index([:regent_id])
+      index([:launch_draft_image_id])
     end
   end
 end

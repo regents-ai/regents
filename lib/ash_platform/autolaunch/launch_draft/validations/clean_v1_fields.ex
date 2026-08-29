@@ -9,8 +9,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields do
   @metadata Keyword.keys(@byte_limits)
   @addresses [:treasury]
   @fields @metadata ++ @addresses ++ [:required_regent_raised]
-  # `name` and `symbol` already carry their own storage-level presence rule.
-  @required @fields -- [:name, :symbol]
+  @required @fields
 
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)

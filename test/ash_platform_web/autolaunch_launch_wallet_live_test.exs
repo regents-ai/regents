@@ -117,14 +117,14 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
   describe "ONE_REVIEW_SAYS_EVERYTHING_A_FOUNDER_NEEDS" do
     test "exact EOA acknowledgement and blank evidence reach high-risk review", context do
       draft =
-        Fixture.draft!(context[:actor],
-          draft: %{
-            "name" => "EOA custody",
-            "symbol" => "EOA",
+        Autolaunch.autosave_launch_treasury!(
+          context[:draft],
+          %{
             "treasury" => @eoa,
             "treasury_path" => "eoa",
             "eoa_acknowledgement" => @eoa_acknowledgement
-          }
+          },
+          actor: context[:actor]
         )
 
       TreasuryClient.install(
@@ -450,6 +450,11 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
 
     {:ok, view, _html} = live(signed_in, @path)
     render_async(view)
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="transactions"]))
+    |> render_click()
+
     {signed_in, view}
   end
 
