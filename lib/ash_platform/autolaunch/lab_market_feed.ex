@@ -41,6 +41,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       attempted_head: nil,
       attempted_addresses: MapSet.new(),
       pending_projection: nil,
+      displaced_head: nil,
       snapshots: %{},
       degraded?: false,
       in_flight: nil,
@@ -108,12 +109,15 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         |> invalidate_for(head)
         |> begin_snapshots(head)
 
+      pending_for_head?(state, head) ->
+        project_refresh(state, head, state.pending_projection.snapshots)
+
+      displaced_for_head?(state, head) ->
+        {:noreply, failed(%{state | in_flight: nil})}
+
       moved_sideways?(state.accepted_head, head.block) or
           moved_backwards?(state.accepted_head, head.block) ->
         {:noreply, displace_cache(state, head)}
-
-      pending_for_head?(state, head) ->
-        project_refresh(state, head, state.pending_projection.snapshots)
 
       true ->
         begin_snapshots(%{state | binding: head.binding}, head)
@@ -152,7 +156,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         {:noreply, failed(%{state | in_flight: nil})}
 
       same_head?(state.accepted_head, head.block) and snapshots == [] ->
-        {:noreply, succeeded(%{state | in_flight: nil, degraded?: false})}
+        {:noreply, finish_unchanged_head(state, head)}
 
       true ->
         project_refresh(state, head, snapshots)
@@ -198,9 +202,15 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
 
     cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
     changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
-    generation = state.generation + 1
 
-    broadcast(state, generation, changed_ids, head.block)
+    status_changed? =
+      state.binding != head.binding or not same_head?(state.accepted_head, head.block) or
+        state.degraded?
+
+    notify? = status_changed? or changed_ids != []
+    generation = if notify?, do: state.generation + 1, else: state.generation
+
+    if notify?, do: broadcast(state, generation, changed_ids, head.block)
 
     {:noreply,
      succeeded(%{
@@ -210,6 +220,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
          accepted_head: head.block,
          failed_head: nil,
          pending_projection: nil,
+         displaced_head: nil,
          snapshots: next_snapshots,
          degraded?: false,
          in_flight: nil
@@ -229,6 +240,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         attempted_head: nil,
         attempted_addresses: MapSet.new(),
         pending_projection: nil,
+        displaced_head: head_identity(head),
         snapshots: %{},
         degraded?: true,
         in_flight: nil
@@ -257,6 +269,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       attempted_head: nil,
       attempted_addresses: MapSet.new(),
       pending_projection: nil,
+      displaced_head: head_identity(head),
       snapshots: %{},
       degraded?: true,
       in_flight: nil
@@ -291,13 +304,12 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
           attempted_head: nil,
           attempted_addresses: MapSet.new(),
           pending_projection: nil,
+          displaced_head: nil,
           in_flight: nil
         })
         |> failed()
     end
   end
-
-  defp broadcast(_state, _generation, [], _block), do: :ok
 
   defp broadcast(state, generation, changed_ids, block) do
     Phoenix.PubSub.broadcast(
@@ -337,6 +349,26 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
        do: true
 
   defp pending_for_head?(_state, _head), do: false
+
+  defp displaced_for_head?(%{displaced_head: displaced}, head),
+    do: displaced == head_identity(head)
+
+  defp head_identity(head), do: %{binding: head.binding, block: head.block}
+
+  defp finish_unchanged_head(%{degraded?: true} = state, head) do
+    generation = state.generation + 1
+    broadcast(state, generation, [], head.block)
+
+    succeeded(%{
+      state
+      | generation: generation,
+        displaced_head: nil,
+        degraded?: false,
+        in_flight: nil
+    })
+  end
+
+  defp finish_unchanged_head(state, _head), do: succeeded(%{state | in_flight: nil})
 
   defp attempted_addresses(
          %{attempted_head: %{binding: binding, block: block}, attempted_addresses: attempted},
