@@ -53,14 +53,20 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
     def verify_head(expected) do
       Agent.get_and_update(agent(), fn state ->
-        result =
-          case Map.get(state, :verify_result) do
-            nil -> verify_current_head(state, expected)
-            configured -> configured
-          end
+        {result, state} = configured_verification(state, expected)
 
         {result, Map.update!(state, :verify_calls, &(&1 + 1))}
       end)
+    end
+
+    defp configured_verification(%{verify_results: [result | rest]} = state, _expected),
+      do: {result, %{state | verify_results: rest}}
+
+    defp configured_verification(state, expected) do
+      case Map.get(state, :verify_result) do
+        nil -> {verify_current_head(state, expected), state}
+        configured -> {configured, state}
+      end
     end
 
     defp snapshot_result({:ok, snapshots}, attempted_addresses) do
@@ -89,12 +95,12 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
     defp verify_current_head(state, expected) do
       with {:ok, binding} <- state.current_binding,
-           true <- binding == expected.binding,
-           {:ok, %{block: block}} <- state.head,
-           true <- block == expected.block do
-        :ok
-      else
-        _mismatch -> {:error, :head_changed}
+           {:ok, %{block: block}} <- state.head do
+        current = %{binding: binding, block: block}
+
+        if current.binding == expected.binding and current.block == expected.block,
+          do: :ok,
+          else: {:error, {:head_changed, current}}
       end
     end
 
@@ -122,8 +128,20 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     defp agent, do: Application.fetch_env!(:ash_platform, :lab_market_feed_test_agent)
   end
 
+  defmodule TransactionVerifier do
+    def verify_head(_head) do
+      Application.fetch_env!(:ash_platform, :lab_market_transaction_verify_result)
+    end
+  end
+
   setup do
-    on_exit(fn -> Application.delete_env(:ash_platform, :lab_market_feed_test_agent) end)
+    Application.put_env(:ash_platform, :lab_market_transaction_verify_result, :ok)
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :lab_market_feed_test_agent)
+      Application.delete_env(:ash_platform, :lab_market_transaction_verify_result)
+    end)
+
     :ok
   end
 
@@ -183,12 +201,12 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     market = snapshot(id, block, current_clearing_price: "2")
     head = %{block: block}
 
-    assert {:ok, [^id]} = LabMarketFeed.Projector.project([market], head)
+    assert {:ok, [^id]} = LabMarketFeed.Projector.project([market], head, TransactionVerifier)
     assert {:ok, refreshed} = Autolaunch.get_public_auction(auction.id)
     assert refreshed.current_clearing_price == "2"
     assert refreshed.state == :active
 
-    assert {:ok, []} = LabMarketFeed.Projector.project([market], head)
+    assert {:ok, []} = LabMarketFeed.Projector.project([market], head, TransactionVerifier)
 
     assert {:error, %Ash.Error.Forbidden{}} =
              Autolaunch.refresh_lab_market_auction(refreshed, :graduated, "3")
@@ -234,9 +252,50 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     ]
 
     assert {:error, :lab_auction_not_found} =
-             LabMarketFeed.Projector.project(snapshots, %{block: block})
+             LabMarketFeed.Projector.project(snapshots, %{block: block}, TransactionVerifier)
 
     assert {:ok, unchanged} = Autolaunch.get_public_auction(existing_id)
+    assert unchanged.current_clearing_price == "1"
+  end
+
+  test "the real projector rolls back writes when its in-transaction head check changes" do
+    actor = %SystemActor{}
+    id = LabProjection.auction_id(@lab_address)
+
+    Auction
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        projection_id: id,
+        title: "Transaction head guard",
+        featured: false,
+        state: :active,
+        auction_address: @lab_address,
+        current_clearing_price: "1"
+      },
+      actor: actor,
+      domain: Autolaunch
+    )
+    |> Ash.create!(actor: actor, domain: Autolaunch)
+
+    block = %{number: 101, hash: @hash_b}
+    head = %{binding: %{run_id: "changed"}, block: block}
+    current = %{binding: %{run_id: "replacement"}, block: %{number: 102, hash: @hash_a}}
+
+    Application.put_env(
+      :ash_platform,
+      :lab_market_transaction_verify_result,
+      {:error, {:head_changed, current}}
+    )
+
+    assert {:error, {:head_changed, ^current}} =
+             LabMarketFeed.Projector.project(
+               [snapshot(id, block, current_clearing_price: "2")],
+               head,
+               TransactionVerifier
+             )
+
+    assert {:ok, unchanged} = Autolaunch.get_public_auction(id)
     assert unchanged.current_clearing_price == "1"
   end
 
@@ -370,7 +429,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
              FakeRuntime.state(agent)
   end
 
-  test "binding drift or projection failure publishes nothing and preserves the last good view" do
+  test "binding drift invalidates the view and a projector failure retries its exact batch" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-three", rpc_url: "http://127.0.0.1:49713"}
     block = %{number: 100, hash: @hash_a}
@@ -392,11 +451,13 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
       )
 
     LabMarketFeed.refresh(feed)
-    wait_until(fn -> FakeRuntime.state(agent).snapshot_calls == 1 end)
-    Process.sleep(20)
 
-    refute_receive {:autolaunch_market_updated, _update}, 50
-    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 1, auction_ids: [], invalidated?: true}}
+
+    assert %{generation: 1, head: nil, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
+
     assert FakeRuntime.state(agent).project_calls == 0
 
     next_block = %{number: 101, hash: @hash_b}
@@ -409,15 +470,18 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     )
 
     LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{generation: 2, invalidated?: true}}
     wait_until(fn -> FakeRuntime.state(agent).project_calls == 1 end)
 
     refute_receive {:autolaunch_market_updated, _update}, 50
-    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+    assert %{generation: 2, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
 
     FakeRuntime.put(agent, project_result: {:ok, [id]})
 
     LabMarketFeed.refresh(feed)
-    assert_receive {:autolaunch_market_updated, %{auction_ids: [^id], block_number: 101}}
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 3, auction_ids: [^id], block_number: 101}}
 
     assert %{snapshot_calls: 2, snapshot_attempts: 2, project_calls: 2} =
              FakeRuntime.state(agent)
@@ -449,8 +513,11 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     LabMarketFeed.refresh(feed)
     wait_until(fn -> FakeRuntime.state(agent).project_calls == 1 end)
 
-    refute_receive {:autolaunch_market_updated, _update}, 50
-    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 1, auction_ids: [], invalidated?: true}}
+
+    assert %{generation: 1, head: nil, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
   end
 
   test "a projector exception is contained and enters bounded failure backoff" do
@@ -488,6 +555,41 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert_receive {:autolaunch_market_updated, %{auction_ids: [^id]}}
 
     assert %{snapshot_calls: 1, snapshot_attempts: 1, project_calls: 2} =
+             FakeRuntime.state(agent)
+  end
+
+  test "transient post-transaction verification retries the exact captured batch" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-verify-retry", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, block)]},
+        project_result: {:ok, [id]},
+        verify_results: [:ok, {:error, :rpc_unavailable}]
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).verify_calls == 2 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert :sys.get_state(feed).pending_projection.snapshots != []
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^id]}}
+
+    assert %{snapshot_calls: 1, snapshot_attempts: 1, project_calls: 2, verify_calls: 4} =
              FakeRuntime.state(agent)
   end
 
@@ -531,9 +633,9 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     lower_block = %{number: 99, hash: @hash_b}
     FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: lower_block}})
     LabMarketFeed.refresh(feed)
-    wait_until(fn -> FakeRuntime.state(agent).head_calls == 3 end)
 
-    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 3, auction_ids: [], invalidated?: true}}
 
     assert %{generation: 3, head: ^accepted_block, degraded?: true, auctions: %{}} =
              LabMarketFeed.snapshot(feed)
@@ -609,13 +711,62 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     )
 
     LabMarketFeed.refresh(feed)
-    assert_receive {:autolaunch_market_updated, %{block_hash: @hash_b}}
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 2, block_hash: @hash_b, invalidated?: true}}
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 3, block_hash: @hash_b, auction_ids: [^id]}}
 
     assert %{head: ^block_b, auctions: %{@lab_address => replacement}} =
              LabMarketFeed.snapshot(feed)
 
     assert replacement.currency_raised == "20"
     assert replacement.block_hash == @hash_b
+  end
+
+  test "a failed replacement run still emits one empty-cache invalidation" do
+    binding_a = %{run_id: "run-empty-a", rpc_url: "http://127.0.0.1:49713"}
+    binding_b = %{run_id: "run-empty-b", rpc_url: "http://127.0.0.1:49713"}
+    block_a = %{number: 100, hash: @hash_a}
+    block_b = %{number: 100, hash: @hash_b}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding_a, block: block_a}},
+        current_binding: {:ok, binding_a},
+        snapshots: {:ok, []},
+        project_result: {:ok, []}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> LabMarketFeed.snapshot(feed).generation == 1 end)
+    refute_receive {:autolaunch_market_updated, _update}, 50
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding_b, block: block_b}},
+      current_binding: {:ok, binding_b},
+      snapshots: {:error, :rpc_unavailable, [@lab_address]}
+    )
+
+    LabMarketFeed.refresh(feed)
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 2, auction_ids: [], invalidated?: true}}
+
+    wait_until(fn -> FakeRuntime.state(agent).snapshot_calls == 2 end)
+    refute_receive {:autolaunch_market_updated, _update}, 50
+
+    assert %{generation: 2, head: nil, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
   end
 
   test "an exact-block read failure is memoized while head checks continue" do

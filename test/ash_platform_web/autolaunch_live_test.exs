@@ -21,6 +21,18 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     def project(_snapshots, _head), do: {:ok, []}
   end
 
+  defmodule MarketProbe do
+    use GenServer
+
+    def start_link(test_pid), do: GenServer.start_link(__MODULE__, test_pid, name: LabMarketFeed)
+    def init(test_pid), do: {:ok, test_pid}
+
+    def handle_call(:snapshot, _from, test_pid) do
+      send(test_pid, :market_snapshot_requested)
+      {:reply, %{generation: 0, head: nil, degraded?: false, auctions: %{}}, test_pid}
+    end
+  end
+
   test "overview navigates to the four Autolaunch destinations", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/autolaunch")
     render_async(view)
@@ -35,6 +47,15 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
         ] do
       assert has_element?(view, ~s(a.autolaunch-destination-card[href="#{path}"]), label)
     end
+  end
+
+  test "the disconnected render keeps an empty market without querying the watcher", %{conn: conn} do
+    start_supervised!({MarketProbe, self()})
+
+    conn = get(conn, "/autolaunch")
+
+    assert html_response(conn, 200) =~ "Find the next launch"
+    refute_received :market_snapshot_requested
   end
 
   test "a connected market page receives shared block updates without navigation", %{conn: conn} do
@@ -89,6 +110,18 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert view.pid == live_view_pid
     assert has_element?(view, "#autolaunch-overview")
+
+    sideways = %{
+      block
+      | hash: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+
+    Agent.update(agent, &Map.put(&1, :head, {:ok, %{binding: binding, block: sideways}}))
+    LabMarketFeed.refresh()
+
+    assert_eventually(fn ->
+      not (render(view) =~ "Local market current at block")
+    end)
 
     render_patch(view, "/stake")
     refute render(view) =~ "Local market current at block"

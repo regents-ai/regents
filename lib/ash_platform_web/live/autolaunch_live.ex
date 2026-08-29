@@ -796,7 +796,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <p :if={@status == :error} class="autolaunch-inline-error" role="alert">
           Market data is unavailable right now.
         </p>
-        <p :if={@market.head} class="autolaunch-market-freshness" role="status">
+        <p
+          :if={@market.head && !@market.degraded?}
+          class="autolaunch-market-freshness"
+          role="status"
+        >
           Local market current at block {@market.head.number}.
         </p>
       </section>

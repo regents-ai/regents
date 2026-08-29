@@ -1468,7 +1468,8 @@ defmodule AshPlatformWeb.ShellLive do
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
 
   defp load_autolaunch_market(socket, route_spec) do
-    if autolaunch_market_route?(route_spec) and Process.whereis(LabMarketFeed) do
+    if connected?(socket) and autolaunch_market_route?(route_spec) and
+         Process.whereis(LabMarketFeed) do
       assign(socket, autolaunch_market: LabMarketFeed.snapshot())
     else
       assign(socket, autolaunch_market: empty_autolaunch_market())

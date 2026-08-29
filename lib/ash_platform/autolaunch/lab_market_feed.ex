@@ -105,7 +105,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
     cond do
       state.binding && state.binding != head.binding ->
         state
-        |> invalidate_for(head.binding)
+        |> invalidate_for(head)
         |> begin_snapshots(head)
 
       moved_sideways?(state.accepted_head, head.block) or
@@ -162,7 +162,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   defp project_refresh(state, head, snapshots) do
     case safely(fn -> state.reader.verify_head(head) end) do
       :ok -> project_verified_refresh(state, head, snapshots)
-      {:error, _reason} -> {:noreply, failed_exact_head(state, head, MapSet.new())}
+      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
+      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
     end
   end
 
@@ -171,23 +172,19 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       {:ok, durable_changed_ids} ->
         publish_verified_refresh(state, head, snapshots, durable_changed_ids)
 
+      {:error, {:head_changed, current}} ->
+        {:noreply, verified_transition(state, current)}
+
       {:error, _reason} ->
-        {:noreply,
-         state
-         |> Map.put(:pending_projection, %{
-           binding: head.binding,
-           block: head.block,
-           snapshots: snapshots
-         })
-         |> Map.put(:in_flight, nil)
-         |> failed()}
+        {:noreply, retry_projection(state, head, snapshots)}
     end
   end
 
   defp publish_verified_refresh(state, head, snapshots, durable_changed_ids) do
     case safely(fn -> state.reader.verify_head(head) end) do
       :ok -> accept_refresh(state, head, snapshots, durable_changed_ids)
-      {:error, _reason} -> {:noreply, failed_exact_head(state, head, MapSet.new())}
+      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
+      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
     end
   end
 
@@ -219,18 +216,21 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
      })}
   end
 
-  defp invalidate_for(state, binding) do
+  defp invalidate_for(state, head) do
+    generation = state.generation + 1
+    broadcast_invalidation(state, generation, head.block)
+
     %{
       state
-      | generation: state.generation + 1,
-        binding: binding,
+      | generation: generation,
+        binding: head.binding,
         accepted_head: nil,
         failed_head: nil,
         attempted_head: nil,
         attempted_addresses: MapSet.new(),
         pending_projection: nil,
         snapshots: %{},
-        degraded?: false,
+        degraded?: true,
         in_flight: nil
     }
   end
@@ -247,10 +247,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   end
 
   defp displace_cache(state, head) do
-    changed_ids = state.snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.uniq()
     generation = state.generation + 1
-
-    broadcast(state, generation, changed_ids, head.block)
+    broadcast_invalidation(state, generation, head.block)
 
     state
     |> Map.merge(%{
@@ -266,6 +264,39 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
     |> failed()
   end
 
+  defp retry_projection(state, head, snapshots) do
+    state
+    |> Map.put(:pending_projection, %{
+      binding: head.binding,
+      block: head.block,
+      snapshots: snapshots
+    })
+    |> Map.put(:in_flight, nil)
+    |> failed()
+  end
+
+  defp verified_transition(state, current) do
+    cond do
+      state.binding && state.binding != current.binding ->
+        state |> invalidate_for(current) |> failed()
+
+      moved_sideways?(state.accepted_head, current.block) or
+          moved_backwards?(state.accepted_head, current.block) ->
+        displace_cache(state, current)
+
+      true ->
+        state
+        |> Map.merge(%{
+          failed_head: nil,
+          attempted_head: nil,
+          attempted_addresses: MapSet.new(),
+          pending_projection: nil,
+          in_flight: nil
+        })
+        |> failed()
+    end
+  end
+
   defp broadcast(_state, _generation, [], _block), do: :ok
 
   defp broadcast(state, generation, changed_ids, block) do
@@ -278,6 +309,23 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
          auction_ids: changed_ids,
          block_number: block.number,
          block_hash: block.hash
+       }}
+    )
+  end
+
+  defp broadcast_invalidation(state, generation, block) do
+    changed_ids = state.snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.uniq()
+
+    Phoenix.PubSub.broadcast(
+      state.pubsub,
+      @topic,
+      {:autolaunch_market_updated,
+       %{
+         generation: generation,
+         auction_ids: changed_ids,
+         block_number: block.number,
+         block_hash: block.hash,
+         invalidated?: true
        }}
     )
   end
@@ -371,13 +419,14 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
     end
 
     def verify_head(expected) do
-      with {:ok, current} <- head(),
-           true <- current.binding == expected.binding,
-           true <- current.block == expected.block do
-        :ok
-      else
-        false -> {:error, :head_changed}
-        {:error, reason} -> {:error, reason}
+      case head() do
+        {:ok, current} ->
+          if current.binding == expected.binding and current.block == expected.block,
+            do: :ok,
+            else: {:error, {:head_changed, current}}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
 
@@ -515,10 +564,16 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
     alias AshPlatform.Actors.System, as: SystemActor
     alias AshPlatform.Autolaunch
     alias AshPlatform.Autolaunch.Auction
+    alias AshPlatform.Autolaunch.LabMarketFeed.Reader
 
-    def project(snapshots, head) do
+    def project(snapshots, head, verifier \\ Reader) do
       actor = %SystemActor{}
-      Ash.DataLayer.transaction(Auction, fn -> project_all(snapshots, actor, head) end)
+
+      Ash.DataLayer.transaction(Auction, fn ->
+        snapshots
+        |> project_all(actor, head)
+        |> verify_before_commit(verifier, head)
+      end)
     end
 
     defp project_all(snapshots, actor, head) do
@@ -569,6 +624,24 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
 
     defp changed_ids(%{changed_ids: ids}), do: ids
     defp changed_ids(other), do: other
+
+    defp verify_before_commit(changed_ids, verifier, head) when is_list(changed_ids) do
+      case safely_verify(verifier, head) do
+        :ok -> changed_ids
+        {:error, reason} -> rollback(reason)
+        _other -> rollback(:head_verification_failed)
+      end
+    end
+
+    defp verify_before_commit(other, _verifier, _head), do: other
+
+    defp safely_verify(verifier, head) do
+      verifier.verify_head(head)
+    rescue
+      _error -> {:error, :head_verification_failed}
+    catch
+      _kind, _reason -> {:error, :head_verification_failed}
+    end
 
     defp rollback(reason), do: Ash.DataLayer.rollback(Auction, reason)
 
