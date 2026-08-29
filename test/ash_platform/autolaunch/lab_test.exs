@@ -81,12 +81,15 @@ defmodule AshPlatform.Autolaunch.LabTest do
   test "rereads and compares exact network and relevant address bindings", %{path: path} do
     previous_enabled = Application.get_env(:ash_platform, :autolaunch_lab_enabled)
     previous_path = Application.get_env(:ash_platform, :autolaunch_lab_config_path)
+    previous_run_id = Application.get_env(:ash_platform, :autolaunch_lab_run_id)
     Application.put_env(:ash_platform, :autolaunch_lab_enabled, true)
     Application.put_env(:ash_platform, :autolaunch_lab_config_path, path)
+    Application.put_env(:ash_platform, :autolaunch_lab_run_id, "lab-binding-test")
 
     on_exit(fn ->
       restore(:autolaunch_lab_enabled, previous_enabled)
       restore(:autolaunch_lab_config_path, previous_path)
+      restore(:autolaunch_lab_run_id, previous_run_id)
     end)
 
     config = Lab.current!()

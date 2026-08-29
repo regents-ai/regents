@@ -93,6 +93,12 @@ autolaunch_lab =
 config :ash_platform, :autolaunch_lab_enabled, not is_nil(autolaunch_lab)
 config :ash_platform, :autolaunch_lab_config_path, autolaunch_lab && autolaunch_lab.path
 
+if autolaunch_lab do
+  config :ash_platform,
+         :autolaunch_lab_run_id,
+         System.fetch_env!("ASH_PLATFORM_ACCEPTANCE_RUN_ID")
+end
+
 # The Base log ledger reads its own dedicated endpoint, separate from the
 # simple-read RPC. The test environment owns this setting outright so a shell
 # that exports one cannot start an indexer under a test run.
@@ -123,6 +129,8 @@ if autolaunch_lab do
     &System.get_env/1,
     ownership_verifier
   )
+
+  config :ash_platform, :autolaunch_lab_acceptance_verified, true
 end
 
 if database_config do

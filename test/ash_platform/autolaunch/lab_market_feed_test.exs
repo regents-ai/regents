@@ -1,0 +1,501 @@
+defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
+  use AshPlatformWeb.ConnCase, async: false
+
+  alias AshPlatform.Actors.System, as: SystemActor
+  alias AshPlatform.Autolaunch
+  alias AshPlatform.Autolaunch.{Auction, LabMarketFeed, LabProjection}
+
+  @lab_address "0x1111111111111111111111111111111111111111"
+  @other_address "0x2222222222222222222222222222222222222222"
+  @hash_a "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  @hash_b "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+  defmodule FakeRuntime do
+    def install(state) do
+      Agent.start_link(fn ->
+        Map.merge(%{head_calls: 0, snapshot_calls: 0, project_calls: 0}, state)
+      end)
+    end
+
+    def state(agent), do: Agent.get(agent, & &1)
+
+    def put(agent, values), do: Agent.update(agent, &Map.merge(&1, Map.new(values)))
+  end
+
+  defmodule FakeReader do
+    def head do
+      Agent.get_and_update(agent(), fn state ->
+        {state.head, Map.update!(state, :head_calls, &(&1 + 1))}
+      end)
+    end
+
+    def snapshots(_head, _capacity) do
+      Agent.get_and_update(agent(), fn state ->
+        {state.snapshots, Map.update!(state, :snapshot_calls, &(&1 + 1))}
+      end)
+    end
+
+    def current_binding do
+      Agent.get(agent(), & &1.current_binding)
+    end
+
+    defp agent, do: Application.fetch_env!(:ash_platform, :lab_market_feed_test_agent)
+  end
+
+  defmodule FakeProjector do
+    def project(_snapshots, _head) do
+      Agent.get_and_update(agent(), fn state ->
+        next_state = Map.update!(state, :project_calls, &(&1 + 1))
+
+        next_state =
+          case Map.get(state, :binding_after_project) do
+            nil -> next_state
+            binding -> Map.put(next_state, :current_binding, {:ok, binding})
+          end
+
+        {state.project_result, next_state}
+      end)
+    end
+
+    defp agent, do: Application.fetch_env!(:ash_platform, :lab_market_feed_test_agent)
+  end
+
+  setup do
+    on_exit(fn -> Application.delete_env(:ash_platform, :lab_market_feed_test_agent) end)
+    :ok
+  end
+
+  test "the named watcher read excludes an address-bearing non-lab auction" do
+    actor = %SystemActor{}
+    lab_id = LabProjection.auction_id(@lab_address)
+
+    lab =
+      Auction
+      |> Ash.Changeset.for_create(
+        :project_lab,
+        %{
+          projection_id: lab_id,
+          title: "Local auction",
+          featured: false,
+          state: :active,
+          auction_address: @lab_address
+        },
+        actor: actor,
+        domain: Autolaunch
+      )
+      |> Ash.create!(actor: actor, domain: Autolaunch)
+
+    Autolaunch.import_auction!("Base-shaped row", nil, false, :active, nil, actor: actor)
+    |> Autolaunch.set_auction_bid_terms!(@other_address, @other_address, "REGENT", 18, "1",
+      actor: actor
+    )
+
+    assert {:ok, [watchable]} = Autolaunch.list_lab_market_auctions(actor: actor)
+    assert watchable.id == lab.id
+    assert watchable.auction_address == @lab_address
+    assert {:error, %Ash.Error.Forbidden{}} = Autolaunch.list_lab_market_auctions()
+  end
+
+  test "the real projector updates only changed existing fields inside the named Ash boundary" do
+    actor = %SystemActor{}
+    id = LabProjection.auction_id(@lab_address)
+
+    auction =
+      Auction
+      |> Ash.Changeset.for_create(
+        :project_lab,
+        %{
+          projection_id: id,
+          title: "Projected market",
+          featured: false,
+          state: :active,
+          auction_address: @lab_address,
+          current_clearing_price: "1"
+        },
+        actor: actor,
+        domain: Autolaunch
+      )
+      |> Ash.create!(actor: actor, domain: Autolaunch)
+
+    block = %{number: 101, hash: @hash_b}
+    market = snapshot(id, block, current_clearing_price: "2")
+    head = %{block: block}
+
+    assert {:ok, [^id]} = LabMarketFeed.Projector.project([market], head)
+    assert {:ok, refreshed} = Autolaunch.get_public_auction(auction.id)
+    assert refreshed.current_clearing_price == "2"
+    assert refreshed.state == :active
+
+    assert {:ok, []} = LabMarketFeed.Projector.project([market], head)
+
+    assert {:error, %Ash.Error.Forbidden{}} =
+             Autolaunch.refresh_lab_market_auction(refreshed, :graduated, "3")
+  end
+
+  test "a late projection failure rolls back an earlier row update" do
+    actor = %SystemActor{}
+
+    [{existing_id, existing_address}, {missing_id, missing_address}] =
+      [
+        {LabProjection.auction_id(@lab_address), @lab_address},
+        {LabProjection.auction_id(@other_address), @other_address}
+      ]
+      |> Enum.sort_by(&elem(&1, 0))
+
+    Auction
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        projection_id: existing_id,
+        title: "Rollback market",
+        featured: false,
+        state: :active,
+        auction_address: existing_address,
+        current_clearing_price: "1"
+      },
+      actor: actor,
+      domain: Autolaunch
+    )
+    |> Ash.create!(actor: actor, domain: Autolaunch)
+
+    block = %{number: 101, hash: @hash_b}
+
+    snapshots = [
+      snapshot(existing_id, block,
+        auction_address: existing_address,
+        current_clearing_price: "2"
+      ),
+      snapshot(missing_id, block,
+        auction_address: missing_address,
+        current_clearing_price: "3"
+      )
+    ]
+
+    assert {:error, :lab_auction_not_found} =
+             LabMarketFeed.Projector.project(snapshots, %{block: block})
+
+    assert {:ok, unchanged} = Autolaunch.get_public_auction(existing_id)
+    assert unchanged.current_clearing_price == "1"
+  end
+
+  test "one exact block refresh is shared and an unchanged head performs no more work" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-one", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+    snapshot = snapshot(id, block)
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot]},
+        project_result: {:ok, [id]}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+
+    assert_receive {:autolaunch_market_updated,
+                    %{generation: 1, auction_ids: [^id], block_number: 100}}
+
+    assert %{generation: 1, head: ^block, auctions: %{@lab_address => ^snapshot}} =
+             LabMarketFeed.snapshot(feed)
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert %{head_calls: 2, snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
+  end
+
+  test "cache-only changes broadcast once after a successful no-write transaction" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-two", rpc_url: "http://127.0.0.1:49713"}
+    first_block = %{number: 100, hash: @hash_a}
+    second_block = %{number: 101, hash: @hash_b}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: first_block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, first_block)]},
+        project_result: {:ok, []}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{generation: 1, block_number: 100}}
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding, block: second_block}},
+      snapshots: {:ok, [snapshot(id, second_block, currency_raised: "25")]}
+    )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{generation: 2, block_number: 101}}
+
+    assert LabMarketFeed.snapshot(feed).auctions[@lab_address].currency_raised == "25"
+    assert FakeRuntime.state(agent).project_calls == 2
+  end
+
+  test "binding drift or projection failure publishes nothing and preserves the last good view" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-three", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, %{binding | run_id: "replacement"}},
+        snapshots: {:ok, [snapshot(id, block)]},
+        project_result: {:error, :late_rollback}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).snapshot_calls == 1 end)
+    Process.sleep(20)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+    assert FakeRuntime.state(agent).project_calls == 0
+
+    FakeRuntime.put(agent,
+      current_binding: {:ok, binding},
+      project_result: {:error, :late_rollback}
+    )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).project_calls == 1 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+  end
+
+  test "a binding change during projection suppresses stale cache and publication" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-before-project", rpc_url: "http://127.0.0.1:49713"}
+    replacement = %{binding | run_id: "run-during-project"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, block)]},
+        project_result: {:ok, [id]},
+        binding_after_project: replacement
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).project_calls == 1 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+  end
+
+  test "same-height hash changes and lower heads keep the last accepted market visible" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-reorg", rpc_url: "http://127.0.0.1:49713"}
+    accepted_block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: accepted_block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, accepted_block)]},
+        project_result: {:ok, []}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{block_number: 100}}
+
+    sideways_block = %{number: 100, hash: @hash_b}
+    FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: sideways_block}})
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+
+    assert %{head: ^accepted_block, degraded?: true, auctions: %{@lab_address => _snapshot}} =
+             LabMarketFeed.snapshot(feed)
+
+    lower_block = %{number: 99, hash: @hash_b}
+    FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: lower_block}})
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 3 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert %{head: ^accepted_block, degraded?: true} = LabMarketFeed.snapshot(feed)
+    assert %{snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
+  end
+
+  test "a replacement run clears the old cache before accepting its first block" do
+    id = Ash.UUID.generate()
+    binding_a = %{run_id: "run-a", rpc_url: "http://127.0.0.1:49713"}
+    binding_b = %{run_id: "run-b", rpc_url: "http://127.0.0.1:49713"}
+    block_a = %{number: 100, hash: @hash_a}
+    block_b = %{number: 100, hash: @hash_b}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding_a, block: block_a}},
+        current_binding: {:ok, binding_a},
+        snapshots: {:ok, [snapshot(id, block_a, currency_raised: "10")]},
+        project_result: {:ok, []}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{block_hash: @hash_a}}
+
+    FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding_b, block: block_b}},
+      current_binding: {:ok, binding_b},
+      snapshots: {:ok, [snapshot(id, block_b, currency_raised: "20")]}
+    )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{block_hash: @hash_b}}
+
+    assert %{head: ^block_b, auctions: %{@lab_address => replacement}} =
+             LabMarketFeed.snapshot(feed)
+
+    assert replacement.currency_raised == "20"
+    assert replacement.block_hash == @hash_b
+  end
+
+  test "an exact-block read failure is memoized while head checks continue" do
+    binding = %{run_id: "run-failed", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:error, :rpc_failed},
+        project_result: {:ok, []}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).snapshot_calls == 1 end)
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
+
+    assert %{head_calls: 2, snapshot_calls: 1, project_calls: 0} = FakeRuntime.state(agent)
+    assert %{head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+  end
+
+  test "the real reader refuses a 257th exact lab auction before any RPC snapshot work" do
+    actor = %SystemActor{}
+
+    inputs =
+      Enum.map(1..257, fn number ->
+        address = "0x" <> (number |> Integer.to_string(16) |> String.pad_leading(40, "0"))
+
+        %{
+          projection_id: LabProjection.auction_id(address),
+          title: "Capacity #{number}",
+          featured: false,
+          state: :active,
+          auction_address: address
+        }
+      end)
+
+    Ash.bulk_create!(inputs, Auction, :project_lab,
+      actor: actor,
+      domain: Autolaunch,
+      return_errors?: true,
+      stop_on_error?: true
+    )
+
+    assert {:error, :market_capacity_exceeded} =
+             LabMarketFeed.Reader.snapshots(%{}, 256)
+  end
+
+  defp snapshot(id, block, overrides \\ []) do
+    Map.merge(
+      %{
+        auction_id: id,
+        auction_address: @lab_address,
+        state: :active,
+        current_clearing_price: "2",
+        block_number: block.number,
+        block_hash: block.hash,
+        start_block: 90,
+        end_block: 200,
+        claim_block: 220,
+        currency_raised: "10",
+        remaining_supply: "1000",
+        graduated?: false,
+        pool_id: nil
+      },
+      Map.new(overrides)
+    )
+  end
+
+  defp wait_until(callback, attempts \\ 50)
+
+  defp wait_until(callback, attempts) when attempts > 0 do
+    if callback.() do
+      :ok
+    else
+      Process.sleep(10)
+      wait_until(callback, attempts - 1)
+    end
+  end
+
+  defp wait_until(_callback, 0), do: flunk("condition did not become true")
+end

@@ -10,25 +10,26 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
   @wallet_a_paired "0xaaaa00000000000000000000000000000000a502"
   @wallet_b "0xbbbb00000000000000000000000000000000b501"
 
-  test "signed-out visitors cannot enter holdings directly", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/autolaunch/holdings")
+  test "signed-out visitors see the portfolio sign-in state without leaving Autolaunch", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/autolaunch/portfolio")
 
-    conn = get(conn, "/autolaunch/holdings")
-    assert redirected_to(conn) == "/"
-    refute conn.resp_body =~ ~s(id="autolaunch-holdings")
+    assert has_element?(view, "#autolaunch-holdings", "Your portfolio")
+    assert has_element?(view, "#autolaunch-holdings", "Sign in to view your portfolio.")
   end
 
-  test "signed-in holdings has honest empty states", %{conn: conn} do
+  test "signed-in portfolio has honest empty states", %{conn: conn} do
     account = account!("empty", @wallet_a, [@wallet_a])
 
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/holdings")
+      |> live("/autolaunch/portfolio")
 
     html = render(view)
 
-    assert has_element?(view, "#autolaunch-holdings", "Your holdings")
+    assert has_element?(view, "#autolaunch-holdings", "Your portfolio")
     assert html =~ "Bids from your verified wallets will appear here."
     assert html =~ "No positions are returnable."
     assert html =~ "Claimed launch tokens will appear here."
@@ -77,7 +78,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account_a.id})
-      |> live("/autolaunch/holdings")
+      |> live("/autolaunch/portfolio")
 
     html = render(view)
 
@@ -151,7 +152,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/holdings")
+      |> live("/autolaunch/portfolio")
 
     html = render(view)
 
@@ -198,7 +199,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
         comment_admin: false
       )
 
-    assert html =~ "Your holdings are unavailable right now."
+    assert html =~ "Your portfolio is unavailable right now."
     assert html =~ ~s(role="alert")
     refute html =~ "Bids from your verified wallets will appear here."
   end

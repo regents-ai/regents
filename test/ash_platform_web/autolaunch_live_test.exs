@@ -4,35 +4,96 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Autolaunch.LabMarketFeed
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
-  test "overview has the four founder market sections without fabricated records", %{conn: conn} do
+  defmodule LiveMarketReader do
+    def head, do: Agent.get(agent(), & &1.head)
+    def snapshots(_head, _capacity), do: Agent.get(agent(), & &1.snapshots)
+    def current_binding, do: Agent.get(agent(), & &1.current_binding)
+
+    defp agent,
+      do: Application.fetch_env!(:ash_platform, :autolaunch_live_market_test_agent)
+  end
+
+  defmodule LiveMarketProjector do
+    def project(_snapshots, _head), do: {:ok, []}
+  end
+
+  test "overview navigates to the four Autolaunch destinations", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/autolaunch")
-    html = render_async(view)
+    render_async(view)
 
     assert has_element?(view, "#autolaunch-overview")
 
-    for heading <- [
-          "Featured auctions",
-          "Recently created",
-          "Top tokens",
-          "Recently graduated"
+    for {label, path} <- [
+          {"Create", "/autolaunch/create"},
+          {"Auctions", "/autolaunch/auctions"},
+          {"Tokens", "/autolaunch/tokens"},
+          {"Portfolio", "/autolaunch/portfolio"}
         ] do
-      assert has_element?(view, "#autolaunch-overview h2", heading)
+      assert has_element?(view, ~s(a.autolaunch-destination-card[href="#{path}"]), label)
     end
+  end
 
-    assert has_element?(view, ~s(a[href="/autolaunch/auctions"]), "Browse auctions")
-    assert has_element?(view, ~s(a[href="/autolaunch/tokens"]), "Browse tokens")
-    assert has_element?(view, ~s(a[href="/autolaunch/create"]), "Create a launch")
-    assert html =~ "No public records yet."
-    refute html =~ "$"
+  test "a connected market page receives shared block updates without navigation", %{conn: conn} do
+    block = %{
+      number: 505,
+      hash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+
+    binding = %{run_id: "live-market-run", rpc_url: "http://127.0.0.1:49713"}
+    auction_id = Ash.UUID.generate()
+
+    market_snapshot = %{
+      auction_id: auction_id,
+      auction_address: "0x1111111111111111111111111111111111111111",
+      block_number: block.number,
+      block_hash: block.hash
+    }
+
+    {:ok, agent} =
+      Agent.start_link(fn ->
+        %{
+          head: {:ok, %{binding: binding, block: block}},
+          current_binding: {:ok, binding},
+          snapshots: {:ok, [market_snapshot]}
+        }
+      end)
+
+    Application.put_env(:ash_platform, :autolaunch_live_market_test_agent, agent)
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :autolaunch_live_market_test_agent)
+    end)
+
+    {:ok, _feed} =
+      start_supervised(
+        {LabMarketFeed, reader: LiveMarketReader, projector: LiveMarketProjector, poll?: false}
+      )
+
+    {:ok, view, html} = live(conn, "/autolaunch")
+    live_view_pid = view.pid
+    refute html =~ "Local market current at block"
+
+    LabMarketFeed.refresh()
+
+    assert_eventually(fn ->
+      render(view) =~ "Local market current at block 505."
+    end)
+
+    assert view.pid == live_view_pid
+    assert has_element?(view, "#autolaunch-overview")
+
+    render_patch(view, "/stake")
+    refute render(view) =~ "Local market current at block"
   end
 
   test "auction and token routes keep identifiers and honest empty states", %{conn: conn} do
     for {path, selector, heading, empty_copy} <- [
-          {"/autolaunch/auctions", "#autolaunch-auctions", "Auctions", "No public records yet."},
-          {"/autolaunch/tokens", "#autolaunch-tokens", "Tokens", "No public records yet."},
+          {"/autolaunch/auctions", "#autolaunch-auctions", "Auctions", "No auctions yet"},
+          {"/autolaunch/tokens", "#autolaunch-tokens", "Tokens", "No tokens yet"},
           {"/autolaunch/auctions/auction-42", "#autolaunch-auction-detail", "Auction not found",
            "No public auction exists"},
           {"/autolaunch/tokens/token-42", "#autolaunch-token-detail", "Token not found",
@@ -775,4 +836,17 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       actor: %System{}
     )
   end
+
+  defp assert_eventually(callback, attempts \\ 50)
+
+  defp assert_eventually(callback, attempts) when attempts > 0 do
+    if callback.() do
+      :ok
+    else
+      Process.sleep(10)
+      assert_eventually(callback, attempts - 1)
+    end
+  end
+
+  defp assert_eventually(_callback, 0), do: flunk("condition did not become true")
 end

@@ -23,6 +23,7 @@ defmodule AshPlatform.Autolaunch.Lab do
 
   @type t :: %{
           path: String.t(),
+          run_id: String.t(),
           rpc_url: String.t(),
           chain_id: pos_integer(),
           addresses: %{required(String.t()) => String.t()},
@@ -33,8 +34,18 @@ defmodule AshPlatform.Autolaunch.Lab do
 
   def current do
     if enabled?() do
-      Application.fetch_env!(:ash_platform, :autolaunch_lab_config_path)
-      |> load()
+      with {:ok, config} <-
+             Application.fetch_env!(:ash_platform, :autolaunch_lab_config_path)
+             |> load(),
+           run_id when is_binary(run_id) and run_id != "" <-
+             Application.get_env(:ash_platform, :autolaunch_lab_run_id) do
+        {:ok, Map.put(config, :run_id, run_id)}
+      else
+        nil -> {:error, :missing_acceptance_run}
+        "" -> {:error, :missing_acceptance_run}
+        {:error, reason} -> {:error, reason}
+        _invalid -> {:error, :missing_acceptance_run}
+      end
     else
       {:error, :lab_disabled}
     end
@@ -84,12 +95,24 @@ defmodule AshPlatform.Autolaunch.Lab do
 
   def load(_path), do: {:error, :absolute_path_required}
 
-  def binding(%{rpc_url: rpc_url, chain_id: chain_id, addresses: addresses}, keys)
+  def binding(%{run_id: run_id, rpc_url: rpc_url, chain_id: chain_id, addresses: addresses}, keys)
       when is_list(keys) do
     %{
+      "run_id" => run_id,
       "rpc_url" => rpc_url,
       "chain_id" => chain_id,
       "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
+    }
+  end
+
+  def full_binding(%{run_id: run_id} = config) do
+    %{
+      run_id: run_id,
+      path: config.path,
+      rpc_url: config.rpc_url,
+      chain_id: config.chain_id,
+      addresses: config.addresses,
+      abis: config.abis
     }
   end
 

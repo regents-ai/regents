@@ -18,6 +18,7 @@ defmodule AshPlatformWeb.ShellLive do
   }
 
   alias AshPlatform.Actors.Human
+  alias AshPlatform.Autolaunch.LabMarketFeed
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatformWeb.AutolaunchLive
@@ -83,6 +84,8 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_draft_revision: nil,
        autolaunch_draft_notice: nil,
        autolaunch_status: :loading,
+       autolaunch_market: empty_autolaunch_market(),
+       autolaunch_market_topic: nil,
        techtree_trees: [],
        techtree_tree: nil,
        techtree_nodes: [],
@@ -151,6 +154,8 @@ defmodule AshPlatformWeb.ShellLive do
       |> load_regent_route(route_spec, params)
       |> load_techtree_route(route_spec, params)
       |> load_autolaunch_route(route_spec, params)
+      |> update_autolaunch_market_subscription(route_spec)
+      |> load_autolaunch_market(route_spec)
       |> load_verified_connections(route_spec)
       |> load_comments_route(route_spec)
 
@@ -187,7 +192,7 @@ defmodule AshPlatformWeb.ShellLive do
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
          %{route_id: route_id}
        )
-       when route_id in [:settings, :autolaunch_holdings] do
+       when route_id == :settings do
     {:redirect, redirect(socket, to: "/")}
   end
 
@@ -614,6 +619,19 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_info({:comment_reactions_changed, _target_type, _target_id}, socket),
     do: {:noreply, socket}
 
+  def handle_info(
+        {:autolaunch_market_updated, %{generation: generation}},
+        %{assigns: %{autolaunch_market: %{generation: current}}} = socket
+      )
+      when generation > current do
+    socket = load_autolaunch_market(socket, socket.assigns.route_spec)
+
+    {:noreply,
+     load_autolaunch_route(socket, socket.assigns.route_spec, socket.assigns.route_params)}
+  end
+
+  def handle_info({:autolaunch_market_updated, _update}, socket), do: {:noreply, socket}
+
   defp handle_draft_event("create_launch_draft", %{"launch_draft" => submitted}, socket) do
     values = Map.take(submitted, AutolaunchLive.draft_field_params())
 
@@ -785,6 +803,7 @@ defmodule AshPlatformWeb.ShellLive do
           recent_auctions={@autolaunch_recent_auctions}
           top_tokens={@autolaunch_top_tokens}
           graduated_tokens={@autolaunch_graduated_tokens}
+          market={@autolaunch_market}
           records={@autolaunch_records}
           record={@autolaunch_record}
           subject_tokens={@autolaunch_subject_tokens}
@@ -1415,28 +1434,74 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_autolaunch_route(socket, %{route_id: :autolaunch_holdings}, _params) do
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
-         {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
-         {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
-      assign(socket,
-        autolaunch_bid_positions: positions,
-        autolaunch_returnable_positions: returnable,
-        autolaunch_claimed_token_positions: Enum.filter(claimed, & &1.token),
-        autolaunch_status: :ready
-      )
-    else
-      _error ->
+    case human_actor(socket) do
+      %Human{} = actor ->
+        with {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
+             {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
+             {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
+          assign(socket,
+            autolaunch_bid_positions: positions,
+            autolaunch_returnable_positions: returnable,
+            autolaunch_claimed_token_positions: Enum.filter(claimed, & &1.token),
+            autolaunch_status: :ready
+          )
+        else
+          _error ->
+            assign(socket,
+              autolaunch_bid_positions: [],
+              autolaunch_returnable_positions: [],
+              autolaunch_claimed_token_positions: [],
+              autolaunch_status: :error
+            )
+        end
+
+      nil ->
         assign(socket,
           autolaunch_bid_positions: [],
           autolaunch_returnable_positions: [],
           autolaunch_claimed_token_positions: [],
-          autolaunch_status: :error
+          autolaunch_status: :ready
         )
     end
   end
 
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
+
+  defp load_autolaunch_market(socket, route_spec) do
+    if autolaunch_market_route?(route_spec) and Process.whereis(LabMarketFeed) do
+      assign(socket, autolaunch_market: LabMarketFeed.snapshot())
+    else
+      assign(socket, autolaunch_market: empty_autolaunch_market())
+    end
+  end
+
+  defp update_autolaunch_market_subscription(socket, route_spec) do
+    topic =
+      if connected?(socket) and is_pid(Process.whereis(LabMarketFeed)) and
+           autolaunch_market_route?(route_spec),
+         do: LabMarketFeed.topic()
+
+    current = socket.assigns.autolaunch_market_topic
+
+    if connected?(socket) and current != topic do
+      if current, do: Phoenix.PubSub.unsubscribe(AshPlatform.PubSub, current)
+      if topic, do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, topic)
+    end
+
+    assign(socket, autolaunch_market_topic: topic)
+  end
+
+  defp autolaunch_market_route?(%{route_id: route_id}) do
+    route_id in [
+      :autolaunch,
+      :autolaunch_auctions,
+      :autolaunch_auction,
+      :autolaunch_holdings
+    ]
+  end
+
+  defp empty_autolaunch_market,
+    do: %{generation: 0, head: nil, degraded?: false, auctions: %{}}
 
   defp load_autolaunch_subject_details(socket, subject) do
     with {:ok, tokens} <- Autolaunch.list_subject_tokens(subject.subject_id),

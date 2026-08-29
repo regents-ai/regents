@@ -58,6 +58,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :recent_auctions, :list, required: true
   attr :top_tokens, :list, required: true
   attr :graduated_tokens, :list, required: true
+  attr :market, :map, default: %{generation: 0, head: nil, degraded?: false, auctions: %{}}
   attr :records, :list, required: true
   attr :record, :map, default: nil
   attr :subject_tokens, :list, required: true
@@ -100,6 +101,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       recent_auctions={@recent_auctions}
       top_tokens={@top_tokens}
       graduated_tokens={@graduated_tokens}
+      market={@market}
       status={@status}
     />
     <.collection
@@ -140,6 +142,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       comment_draft={@comment_draft}
       current_human_id={@current_human_id}
       comment_admin={@comment_admin}
+      market_snapshot={auction_market_snapshot(@market, @record)}
     />
     <.subject_detail
       :if={@route_spec.route_id == :autolaunch_subject}
@@ -161,6 +164,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     />
     <.holdings
       :if={@route_spec.route_id == :autolaunch_holdings}
+      account_control={@account_control}
       positions={@bid_positions}
       returnable_positions={@returnable_positions}
       claimed_token_positions={@claimed_token_positions}
@@ -185,21 +189,30 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :returnable_positions, :list, required: true
   attr :claimed_token_positions, :list, required: true
   attr :status, :atom, required: true
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
 
   defp holdings(assigns) do
     ~H"""
     <section id="autolaunch-holdings" class="autolaunch-page">
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch · Holdings</p>
-        <h1>Your holdings</h1>
+        <p class="autolaunch-kicker">Autolaunch · Portfolio</p>
+        <h1>Your portfolio</h1>
         <p>Review bid positions and launch tokens connected to your verified wallets.</p>
       </header>
 
-      <p :if={@status == :error} class="autolaunch-empty" role="alert">
-        Your holdings are unavailable right now.
+      <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
+        Sign in to view your portfolio.
       </p>
 
-      <div :if={@status == :ready}>
+      <p
+        :if={@account_control.kind != :sign_in && @status == :error}
+        class="autolaunch-empty"
+        role="alert"
+      >
+        Your portfolio is unavailable right now.
+      </p>
+
+      <div :if={@account_control.kind != :sign_in && @status == :ready}>
         <dl>
           <div>
             <dt>Bid positions</dt><dd>{length(@positions)}</dd>
@@ -704,57 +717,146 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :top_tokens, :list, required: true
   attr :graduated_tokens, :list, required: true
   attr :status, :atom, required: true
+  attr :market, :map, required: true
 
   defp overview(assigns) do
+    assigns =
+      assign(assigns,
+        auction_preview: preview_records(assigns.featured_auctions, assigns.recent_auctions),
+        token_preview: preview_records(assigns.top_tokens, assigns.graduated_tokens)
+      )
+
     ~H"""
     <section id="autolaunch-overview" class="autolaunch-page">
-      <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch</p>
-        <h1>Launch with public proof</h1>
+      <header class="autolaunch-heading autolaunch-hero">
+        <p class="autolaunch-kicker">Agent token launchpad</p>
+        <h1>Launch agents. Back them early.</h1>
         <p>
-          Discover auctions, follow graduated tokens, and create a launch whose money actions
-          remain under wallet control.
+          Create an auction, discover live raises, and follow tokens from first bid to liquidity.
+          Every money action stays under wallet control.
         </p>
-        <nav class="autolaunch-actions" aria-label="Autolaunch actions">
-          <.link patch="/autolaunch/auctions">Browse auctions</.link>
-          <.link patch="/autolaunch/tokens">Browse tokens</.link>
-          <.link patch="/autolaunch/launches">Browse launches</.link>
-          <.link patch="/autolaunch/holdings">View holdings</.link>
-          <.link patch="/autolaunch/create">Create a launch</.link>
-        </nav>
       </header>
 
-      <div class="autolaunch-market-grid">
-        <.market_section title="Featured auctions" kind={:auction} records={@featured_auctions} />
-        <.market_section title="Recently created" kind={:auction} records={@recent_auctions} />
-        <.market_section title="Top tokens" kind={:token} records={@top_tokens} />
-        <.market_section title="Recently graduated" kind={:token} records={@graduated_tokens} />
-      </div>
-      <p :if={@status == :error} class="autolaunch-empty" role="alert">
-        Public launch records are unavailable right now.
-      </p>
+      <nav class="autolaunch-market-grid" aria-label="Autolaunch destinations">
+        <.destination_card
+          path="/autolaunch/auctions"
+          index="01"
+          audience="For bidders"
+          title="Auctions"
+          copy="Find live raises, inspect the terms, and place a bid."
+        />
+        <.destination_card
+          path="/autolaunch/tokens"
+          index="02"
+          audience="For token buyers"
+          title="Tokens"
+          copy="Explore graduated tokens and follow their market."
+        />
+        <.destination_card
+          path="/autolaunch/portfolio"
+          index="03"
+          audience="Your activity"
+          title="Portfolio"
+          copy="Track bids, exits, claims, and tokens in one place."
+        />
+        <.destination_card
+          path="/autolaunch/create"
+          index="04"
+          audience="For creators"
+          title="Create"
+          copy="Turn an agent into a token and launch its auction."
+          primary
+        />
+      </nav>
+
+      <section class="autolaunch-market-board" aria-labelledby="autolaunch-market-title">
+        <header class="autolaunch-section-heading">
+          <div>
+            <p class="autolaunch-kicker">Market now</p>
+            <h2 id="autolaunch-market-title">Find the next launch</h2>
+          </div>
+          <.link patch="/autolaunch/auctions">View all auctions <span aria-hidden="true">→</span></.link>
+        </header>
+
+        <div class="autolaunch-feed-grid">
+          <.market_feed
+            title="Auctions"
+            kind={:auction}
+            records={@auction_preview}
+            empty_copy="No auctions yet. Create the first launch."
+          />
+          <.market_feed
+            title="Graduated tokens"
+            kind={:token}
+            records={@token_preview}
+            empty_copy="Tokens appear here after an auction graduates."
+          />
+        </div>
+
+        <p :if={@status == :error} class="autolaunch-inline-error" role="alert">
+          Market data is unavailable right now.
+        </p>
+        <p :if={@market.head} class="autolaunch-market-freshness" role="status">
+          Local market current at block {@market.head.number}.
+        </p>
+      </section>
     </section>
+    """
+  end
+
+  attr :path, :string, required: true
+  attr :index, :string, required: true
+  attr :audience, :string, required: true
+  attr :title, :string, required: true
+  attr :copy, :string, required: true
+  attr :primary, :boolean, default: false
+
+  defp destination_card(assigns) do
+    ~H"""
+    <.link
+      patch={@path}
+      class={[
+        "autolaunch-market-section autolaunch-destination-card",
+        @primary && "autolaunch-destination-card--primary"
+      ]}
+    >
+      <span class="autolaunch-destination-card__index">{@index}</span>
+      <span class="autolaunch-destination-card__audience">{@audience}</span>
+      <h2>{@title} <span aria-hidden="true">↗</span></h2>
+      <p>{@copy}</p>
+    </.link>
     """
   end
 
   attr :title, :string, required: true
   attr :kind, :atom, required: true
   attr :records, :list, required: true
+  attr :empty_copy, :string, required: true
 
-  defp market_section(assigns) do
+  defp market_feed(assigns) do
     ~H"""
-    <section class="autolaunch-market-section">
-      <h2>{@title}</h2>
-      <p :if={@records == []}>No public records yet.</p>
-      <ol :if={@records != []} class="autolaunch-record-list">
+    <section class="autolaunch-feed" aria-label={@title}>
+      <header>
+        <h3>{@title}</h3>
+        <span>{length(@records)} shown</span>
+      </header>
+      <p :if={@records == []} class="autolaunch-feed__empty">{@empty_copy}</p>
+      <ol :if={@records != []}>
         <li :for={record <- @records}>
           <.link patch={record_path(@kind, record.id)}>
+            <span class="autolaunch-feed__status">{market_status(@kind, record)}</span>
             <strong>{record_label(@kind, record)}</strong>
-            <span>{record.summary || record_fallback(@kind)}</span>
+            <span class="autolaunch-feed__summary">
+              {record.summary || record_fallback(@kind)}
+            </span>
+            <span class="autolaunch-feed__metric">{market_metric(@kind, record)}</span>
+            <span class="autolaunch-feed__action">{market_action(@kind)}
+            <span aria-hidden="true">→</span></span>
           </.link>
           <.treasury_security
+            :if={!Lab.enabled?()}
             report={report(record)}
-            surface={"market-#{String.replace(String.downcase(@title), " ", "-")}-#{record.id}"}
+            surface={"overview-#{@kind}-#{record.id}"}
           />
         </li>
       </ol>
@@ -773,29 +875,49 @@ defmodule AshPlatformWeb.AutolaunchLive do
         copy:
           if(
             assigns.kind == :auctions,
-            do: "Active and completed auctions will appear here.",
-            else: "Graduated and actively traded tokens will appear here."
+            do: "Discover live raises, compare auction state, and open one to place a bid.",
+            else: "Explore tokens that completed an auction and graduated to liquidity."
+          ),
+        empty_title: if(assigns.kind == :auctions, do: "No auctions yet", else: "No tokens yet"),
+        empty_copy:
+          if(
+            assigns.kind == :auctions,
+            do: "Start the first launch and it will appear here for bidders.",
+            else: "Tokens appear here after their auction graduates."
+          ),
+        empty_action:
+          if(assigns.kind == :auctions, do: "Create a launch", else: "Browse auctions"),
+        empty_path:
+          if(assigns.kind == :auctions,
+            do: "/autolaunch/create",
+            else: "/autolaunch/auctions"
           )
       )
 
     ~H"""
     <section id={"autolaunch-#{@kind}"} class="autolaunch-page">
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch</p>
+        <p class="autolaunch-kicker">Browse the market</p>
         <h1>{@title}</h1>
         <p>{@copy}</p>
       </header>
-      <.empty_state :if={@status == :ready && @records == []} copy="No public records yet." />
+      <section
+        :if={@status == :ready && @records == []}
+        class="autolaunch-empty autolaunch-market-empty"
+      >
+        <p class="autolaunch-kicker">Be first</p>
+        <h2>{@empty_title}</h2>
+        <p>{@empty_copy}</p>
+        <.link patch={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
+      </section>
       <.empty_state :if={@status == :error} copy="Public records are unavailable right now." />
-      <ol :if={@status == :ready && @records != []} class="autolaunch-record-list">
-        <li :for={record <- @records}>
-          <.link patch={record_path(collection_record_kind(@kind), record.id)}>
-            <strong>{record_label(collection_record_kind(@kind), record)}</strong>
-            <span>{record.summary || record_fallback(collection_record_kind(@kind))}</span>
-          </.link>
-          <.treasury_security report={report(record)} surface={"#{@kind}-#{record.id}"} />
-        </li>
-      </ol>
+      <.market_feed
+        :if={@status == :ready && @records != []}
+        title={@title}
+        kind={collection_record_kind(@kind)}
+        records={@records}
+        empty_copy=""
+      />
     </section>
     """
   end
@@ -813,6 +935,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :comment_draft, :string, required: true
   attr :current_human_id, :integer, default: nil
   attr :comment_admin, :boolean, required: true
+  attr :market_snapshot, :map, default: nil
 
   defp detail(assigns) do
     assigns =
@@ -843,6 +966,20 @@ defmodule AshPlatformWeb.AutolaunchLive do
         report={report(@record)}
         surface={"#{@kind}-detail"}
       />
+      <dl :if={@local_lab? && @kind == :auction && @market_snapshot} class="autolaunch-live-market">
+        <div>
+          <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
+        </div>
+        <div>
+          <dt>REGENT raised</dt><dd>{@market_snapshot.currency_raised}</dd>
+        </div>
+        <div>
+          <dt>Tokens remaining</dt><dd>{@market_snapshot.remaining_supply}</dd>
+        </div>
+        <div>
+          <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
+        </div>
+      </dl>
       <.live_component
         :if={@kind == :auction}
         module={AshPlatformWeb.AutolaunchBidComponent}
@@ -1203,6 +1340,35 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp record_fallback(:auction), do: "No public summary yet."
   defp record_fallback(:token), do: "No public token summary yet."
 
+  defp preview_records(primary, fallback) do
+    primary
+    |> then(&if(&1 == [], do: fallback, else: &1))
+    |> Enum.take(4)
+  end
+
+  defp market_status(:auction, record), do: display_status(record.state)
+  defp market_status(:token, _record), do: "Graduated"
+
+  defp market_metric(:auction, %{current_clearing_price: price})
+       when is_binary(price) and price != "",
+       do: "Clearing price #{price}"
+
+  defp market_metric(:auction, _record), do: "Price forming"
+
+  defp market_metric(:token, %{price_quote: price}) when is_binary(price) and price != "",
+    do: "Price #{price}"
+
+  defp market_metric(:token, _record), do: "Market price pending"
+
+  defp market_action(:auction), do: "View auction"
+  defp market_action(:token), do: "View token"
+
+  defp auction_market_snapshot(%{auctions: auctions}, %{auction_address: address})
+       when is_binary(address),
+       do: Map.get(auctions, String.downcase(address))
+
+  defp auction_market_snapshot(_market, _record), do: nil
+
   defp collection_record_kind(:auctions), do: :auction
   defp collection_record_kind(:tokens), do: :token
 
@@ -1229,6 +1395,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   end
 
   defp display_text(nil), do: "Not available"
+  defp display_text(value) when is_atom(value), do: Atom.to_string(value)
   defp display_text(value) when is_integer(value), do: Integer.to_string(value)
 
   defp display_text(value) when is_binary(value) do

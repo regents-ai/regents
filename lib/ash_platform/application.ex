@@ -14,6 +14,7 @@ defmodule AshPlatform.Application do
         database_child(),
         autolaunch_indexer_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
+        autolaunch_lab_market_feed_child(),
         notebook_static_server_child(),
         # Start a worker by calling: AshPlatform.Worker.start_link(arg)
         # {AshPlatform.Worker, arg},
@@ -43,6 +44,17 @@ defmodule AshPlatform.Application do
        handler: Module.concat(AshPlatform.Autolaunch.Indexer, "Handler"),
        poll_interval_ms: 2_000,
        max_in_flight: 1}
+    else
+      _disabled -> nil
+    end
+  end
+
+  defp autolaunch_lab_market_feed_child do
+    with true <- Application.get_env(:ash_platform, :database_startup_enabled, false),
+         true <- Application.get_env(:ash_platform, :autolaunch_lab_enabled, false),
+         true <- Application.get_env(:ash_platform, :autolaunch_lab_acceptance_verified, false),
+         {:ok, _config} <- AshPlatform.Autolaunch.Lab.current() do
+      AshPlatform.Autolaunch.LabMarketFeed
     else
       _disabled -> nil
     end

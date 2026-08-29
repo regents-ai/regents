@@ -114,12 +114,15 @@ defmodule AshPlatform.Autolaunch.LabPositionActionsTest do
     path = write_config!(context)
     previous_enabled = Application.get_env(:ash_platform, :autolaunch_lab_enabled)
     previous_path = Application.get_env(:ash_platform, :autolaunch_lab_config_path)
+    previous_run_id = Application.get_env(:ash_platform, :autolaunch_lab_run_id)
     Application.put_env(:ash_platform, :autolaunch_lab_enabled, true)
     Application.put_env(:ash_platform, :autolaunch_lab_config_path, path)
+    Application.put_env(:ash_platform, :autolaunch_lab_run_id, "lab-position-test")
 
     on_exit(fn ->
       restore(:autolaunch_lab_enabled, previous_enabled)
       restore(:autolaunch_lab_config_path, previous_path)
+      restore(:autolaunch_lab_run_id, previous_run_id)
       File.rm(path)
     end)
 

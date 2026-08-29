@@ -296,6 +296,8 @@ defmodule AshPlatform.RuntimeConfigTest do
 
       assert get_in(config, [:ash_platform, :autolaunch_lab_enabled])
       assert get_in(config, [:ash_platform, :autolaunch_lab_config_path]) == path
+      assert get_in(config, [:ash_platform, :autolaunch_lab_run_id]) == "local_lab_runtime_1"
+      assert get_in(config, [:ash_platform, :autolaunch_lab_acceptance_verified]) == true
       assert get_in(config, [:ash_platform, :autolaunch_indexer_rpc_url]) == nil
 
       assert get_in(config, [:ash_platform, AshPlatform.Repo])[:database] ==

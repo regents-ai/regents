@@ -54,7 +54,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     {:ok, view, _html} = live(conn, "/app")
 
     assert has_element?(view, "#app-selector details")
-    assert has_element?(view, "#app-selector summary", "Regents Labs")
+    assert has_element?(view, "#app-selector summary", "Regents")
     assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
     assert has_element?(view, "#theme-control details")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
@@ -67,11 +67,10 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
     refute has_element?(view, "#account-control a", "Nous Portal")
 
-    assert has_element?(view, "#app-selector nav a", "Nous Portal")
-    refute has_element?(view, "#app-selector nav a", "Formation")
     assert has_element?(view, "#app-selector nav a", "Autolaunch")
-    assert has_element?(view, "#app-selector nav a", "Techtree")
-    refute has_element?(view, "#app-selector nav a", "Regents Labs")
+    refute has_element?(view, "#app-selector nav a", "Nous Portal")
+    refute has_element?(view, "#app-selector nav a", "Techtree")
+    refute has_element?(view, "#app-selector nav a", "Regents")
   end
 
   test "signed-in account control renders its address avatar and requested menu", %{conn: conn} do

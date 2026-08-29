@@ -6,6 +6,7 @@ defmodule AshPlatform.Autolaunch.Auction do
     authorizers: [Ash.Policy.Authorizer]
 
   alias AshPlatform.Autolaunch.{BidActions, TreasurySecurity}
+  alias AshPlatform.Autolaunch.LabProjection
 
   attributes do
     uuid_primary_key :id
@@ -112,6 +113,37 @@ defmodule AshPlatform.Autolaunch.Auction do
       prepare build(load: [:treasury_security_report])
     end
 
+    read :watchable_lab do
+      filter expr(not is_nil(auction_address))
+      prepare build(sort: [id: :asc], limit: 257)
+
+      prepare fn query, _context ->
+        Ash.Query.after_action(query, fn _query, records ->
+          {:ok,
+           Enum.filter(records, fn record ->
+             record.id == LabProjection.auction_id(record.auction_address)
+           end)}
+        end)
+      end
+    end
+
+    read :lab_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id) and not is_nil(auction_address))
+
+      prepare fn query, _context ->
+        query
+        |> Ash.Query.lock(:for_update)
+        |> Ash.Query.after_action(fn _query, records ->
+          {:ok,
+           Enum.filter(records, fn record ->
+             record.id == LabProjection.auction_id(record.auction_address)
+           end)}
+        end)
+      end
+    end
+
     create :import_public do
       accept [:title, :summary, :featured, :state, :opened_at, :treasury_security_report_id]
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
@@ -161,6 +193,11 @@ defmodule AshPlatform.Autolaunch.Auction do
         :quote_token_decimals,
         :current_clearing_price
       ]
+    end
+
+    update :refresh_lab_market do
+      require_atomic? false
+      accept [:state, :current_clearing_price]
     end
 
     update :set_treasury_security_report do
@@ -239,7 +276,13 @@ defmodule AshPlatform.Autolaunch.Auction do
       authorize_if always()
     end
 
-    policy action([:import_public, :project_lab]) do
+    policy action([
+             :import_public,
+             :project_lab,
+             :watchable_lab,
+             :lab_by_id_for_update,
+             :refresh_lab_market
+           ]) do
       authorize_if AshPlatform.Checks.SystemActor
     end
 

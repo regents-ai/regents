@@ -48,6 +48,17 @@ defmodule AshPlatform.Autolaunch do
         action: :set_treasury_security_report,
         args: [:treasury_security_report_id]
 
+      define :list_lab_market_auctions, action: :watchable_lab
+
+      define :get_lab_market_auction_for_update,
+        action: :lab_by_id_for_update,
+        args: [:id],
+        not_found_error?: false
+
+      define :refresh_lab_market_auction,
+        action: :refresh_lab_market,
+        args: [:state, :current_clearing_price]
+
       define :bid_position, action: :bid_position, args: [:auction_id, :expected_signer]
 
       define :prepare_bid,
