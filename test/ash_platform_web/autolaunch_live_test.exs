@@ -554,8 +554,18 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert has_element?(
              view,
-             ~s(.autolaunch-create-stages button[phx-value-stage="transactions"][disabled]),
+             ~s(.autolaunch-create-stages button[disabled]),
              "Launch Transactions"
+           )
+
+    refute has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[disabled][phx-click])
+           )
+
+    refute has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[disabled][phx-value-stage])
            )
 
     refute has_element?(view, "#autolaunch-create", "Form your Regent")
@@ -569,6 +579,15 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert has_element?(view, "#launch-treasury-details")
     assert has_element?(view, "#autolaunch-create", "Create a 2-of-3 Safe on Base")
+
+    assert has_element?(
+             view,
+             ~s(.autolaunch-stage-actions button[disabled]),
+             "Launch Transactions"
+           )
+
+    refute has_element?(view, ~s(.autolaunch-stage-actions button[disabled][phx-click]))
+    refute has_element?(view, ~s(.autolaunch-stage-actions button[disabled][phx-value-stage]))
 
     view
     |> element(~s(.autolaunch-create-stages button[phx-value-stage="token_details"]))
@@ -727,7 +746,12 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     refute has_element?(
              view,
-             ~s(.autolaunch-create-stages button[phx-value-stage="transactions"][disabled])
+             ~s(.autolaunch-create-stages button[disabled])
+           )
+
+    assert has_element?(
+             view,
+             ~s(.autolaunch-create-stages button[phx-click="select_launch_stage"][phx-value-stage="transactions"])
            )
 
     view

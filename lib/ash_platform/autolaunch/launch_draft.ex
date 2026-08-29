@@ -1,4 +1,6 @@
 defmodule AshPlatform.Autolaunch.LaunchDraft do
+  alias AshPlatform.Autolaunch.{LaunchDraftImage, LaunchDraftImageStorage}
+
   use Ash.Resource,
     otp_app: :ash_platform,
     domain: AshPlatform.Autolaunch,
@@ -53,19 +55,22 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
   def launch_ready?(draft), do: token_details_complete?(draft) and treasury_complete?(draft)
 
   @doc "Whether this draft carries the only image shape its provenance permits."
-  def image_complete?(%{regent_id: nil, launch_draft_image_id: image_id, image: image})
-      when is_binary(image_id) and is_binary(image) do
-    prefix =
-      AshPlatformWeb.Endpoint.url() <>
-        "/autolaunch/images/" <> image_id <> "/"
-
-    if String.starts_with?(image, prefix) do
-      prefix_size = byte_size(prefix)
-      digest = binary_part(image, prefix_size, byte_size(image) - prefix_size)
-      Regex.match?(~r/\A[0-9a-f]{64}\z/, digest)
-    else
-      false
-    end
+  def image_complete?(%{
+        id: draft_id,
+        human_account_id: human_account_id,
+        regent_id: nil,
+        launch_draft_image_id: image_id,
+        launch_draft_image: %LaunchDraftImage{} = owned_image,
+        image: image
+      })
+      when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
+             is_binary(image) do
+    owned_image.id == image_id and
+      owned_image.human_account_id == human_account_id and
+      owned_image.launch_draft_id == draft_id and
+      owned_image.digest =~ ~r/\A[0-9a-f]{64}\z/ and
+      image == LaunchDraftImageStorage.public_url(owned_image) and
+      byte_size(image) <= 256
   end
 
   def image_complete?(%{regent_id: nil}), do: false
@@ -155,13 +160,14 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
     read :mine do
       filter expr(human_account_id == ^actor(:human_account_id))
-      prepare build(sort: [updated_at: :desc, id: :asc])
+      prepare build(sort: [updated_at: :desc, id: :asc], load: [:launch_draft_image])
     end
 
     read :mine_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:launch_draft_image])
     end
 
     read :mine_by_id_for_update do
@@ -169,6 +175,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
       argument :id, :uuid, allow_nil?: false
       filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
 
+      prepare build(load: [:launch_draft_image])
       prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
     end
 

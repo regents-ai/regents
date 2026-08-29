@@ -62,6 +62,23 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     assert image.digest == :crypto.hash(:sha256, png()) |> Base.encode16(case: :lower)
   end
 
+  test "structurally plausible but decoder-invalid files cannot consume the image slot" do
+    actor = actor!("decoder-invalid")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    for {bytes, type, filename} <- [
+          {decoder_invalid_jpeg(), "image/jpeg", "damaged.jpg"},
+          {decoder_invalid_webp(), "image/webp", "damaged.webp"}
+        ] do
+      assert {:error, :invalid_image} = LaunchDraftImageStorage.validate(bytes, type)
+      assert {:error, :invalid_image} = store(draft, bytes, type, filename, actor)
+      assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    end
+
+    assert {:ok, %{image: image}} = store(draft, webp(), "image/webp", "valid.webp", actor)
+    assert image.content_type == "image/webp"
+  end
+
   test "a forced failure after image creation and before attachment rolls the image back" do
     actor = actor!("rollback")
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
@@ -327,6 +344,18 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
   defp jpeg, do: File.read!("priv/static/images/redeem/animata1and2-poster.jpg")
 
   defp webp do
+    "UklGRlIBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHwAAAABgJpt27LsxgZwt0qEGZjBR/BEJUF0r1RtOoBDJ7u7w+/yvitExAQAYBhrm7dl3cXF35nPv/ceJgBG4JMwxwEMJ5LPBMSHT+IPnfeTMlKiafRoJn2aa5FmYaep8A4UNrjJOmwwsiRDDQCW//Vr9/ZZluNPbbAx6Jd8egAAVlA4ILAAAADQAgCdASoQABAAAgA0JbACdBigF8M3WZNkeTSToAIoAPvSwALo4z2kMbTx/2S7+Uvxn9Voq6r6SlcWNcYUnQmQW1zSvgidLCqL3q9yyVJbK/NRgpGT3c9bJfhhUBXTWekpatEcRp/NrlOTrD/KMOFz2W2sZi+r+TtRwqfZQ3Pd4/esYCwxAf3CfYo59EQkv9PT/ocMZ2/MhitKyKD4n8utXRofdx28t5M+KhKv19CAAA=="
+    |> Base.decode64!()
+  end
+
+  # These payloads satisfy the former format/container parser but fail
+  # while libvips pulls their damaged pixels through the decoder.
+  defp decoder_invalid_jpeg do
+    valid = jpeg()
+    binary_part(valid, 0, 1_000) <> <<255, 217>>
+  end
+
+  defp decoder_invalid_webp do
     "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AA/vuUAAA="
     |> Base.decode64!()
     |> binary_part(0, 42)

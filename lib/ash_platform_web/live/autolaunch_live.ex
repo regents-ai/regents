@@ -1136,8 +1136,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <button
             type="button"
             class={stage_class(@create_stage, :transactions, @launch_ready?)}
-            phx-click="select_launch_stage"
-            phx-value-stage="transactions"
+            phx-click={@launch_ready? && "select_launch_stage"}
+            phx-value-stage={@launch_ready? && "transactions"}
             aria-current={@create_stage == :transactions && "step"}
             disabled={!@launch_ready?}
             aria-disabled={to_string(!@launch_ready?)}
@@ -1247,8 +1247,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
             </button>
             <button
               type="button"
-              phx-click="select_launch_stage"
-              phx-value-stage="transactions"
+              phx-click={@launch_ready? && "select_launch_stage"}
+              phx-value-stage={@launch_ready? && "transactions"}
               disabled={!@launch_ready?}
             >
               Continue to Launch Transactions

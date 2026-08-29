@@ -54,7 +54,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorage do
            existing_or_store(draft, bytes, content_type, original_filename, digest, actor),
          url <- public_url(image),
          :ok <- bounded_url(url),
-         {:ok, attached} <- attach(draft, image, actor) do
+         {:ok, _attached} <- attach(draft, image, actor),
+         {:ok, attached} <- Autolaunch.get_my_launch_draft(draft.id, actor: actor) do
       %{image: image, draft: attached, reused?: reused?}
     else
       {:error, error} -> Ash.DataLayer.rollback(LaunchDraft, normalize_error(error))

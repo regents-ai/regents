@@ -13,7 +13,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.ImageValidator do
   def validate(bytes, declared_type)
       when is_binary(bytes) and declared_type in @content_types and
              byte_size(bytes) in 1..@maximum_bytes do
-    if structurally_complete?(bytes, declared_type),
+    if structurally_complete?(bytes, declared_type) and decodes_completely?(bytes, declared_type),
       do: {:ok, declared_type},
       else: {:error, :invalid_image}
   end
@@ -38,6 +38,35 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.ImageValidator do
        do: declared_size + 8 == byte_size(bytes) and webp_chunks(chunks, false)
 
   defp structurally_complete?(_bytes, _declared_type), do: false
+
+  # libvips performs the decoder-level proof that container parsing cannot:
+  # the strict format-specific loader rejects damaged data and `avg/1` pulls
+  # every pixel through the sequential pipeline. This keeps evaluation bounded
+  # without imposing a width, height, aspect-ratio, crop, or resize policy.
+  defp decodes_completely?(bytes, declared_type) do
+    with {:ok, {image, _flags}} <- decode(bytes, declared_type),
+         {:ok, _average} <- Vix.Vips.Operation.avg(image) do
+      true
+    else
+      _error -> false
+    end
+  rescue
+    _error -> false
+  catch
+    _kind, _reason -> false
+  end
+
+  defp decode(bytes, "image/png"),
+    do: Vix.Vips.Operation.pngload_buffer(bytes, decode_options())
+
+  defp decode(bytes, "image/jpeg"),
+    do: Vix.Vips.Operation.jpegload_buffer(bytes, decode_options())
+
+  defp decode(bytes, "image/webp"),
+    do: Vix.Vips.Operation.webpload_buffer(bytes, decode_options())
+
+  defp decode_options,
+    do: [access: :VIPS_ACCESS_SEQUENTIAL, "fail-on": :VIPS_FAIL_ON_WARNING]
 
   # PNG validation checks every chunk CRC and ordering rule, then safely inflates
   # the image stream and consumes exactly the scanlines described by IHDR. The

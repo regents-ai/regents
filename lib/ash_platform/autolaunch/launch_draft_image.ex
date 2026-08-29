@@ -25,7 +25,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
     otp_app: :ash_platform,
     domain: AshPlatform.Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   attributes do
     uuid_primary_key :id
@@ -86,6 +87,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
 
     read :mine do
       get? true
+      primary? true
       filter expr(human_account_id == ^actor(:human_account_id))
     end
 

@@ -175,6 +175,42 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert LaunchDraft.launch_ready?(eoa)
   end
 
+  test "account-owned stage completion requires the exact loaded owned image" do
+    actor = %Human{human_account_id: account!("loaded-image").id}
+    draft = Autolaunch.create_launch_draft!(Map.delete(@draft, "image"), actor: actor)
+
+    assert {:ok, %{draft: loaded}} =
+             LaunchDraftImageStorage.store_and_attach(
+               draft,
+               png(),
+               "image/png",
+               "loaded.png",
+               actor
+             )
+
+    assert LaunchDraft.token_details_complete?(loaded)
+
+    refute LaunchDraft.token_details_complete?(%{loaded | launch_draft_image: %Ash.NotLoaded{}})
+
+    refute LaunchDraft.token_details_complete?(%{
+             loaded
+             | launch_draft_image: %{
+                 loaded.launch_draft_image
+                 | digest: String.duplicate("0", 64)
+               }
+           })
+
+    refute LaunchDraft.token_details_complete?(%{
+             loaded
+             | image:
+                 String.replace_suffix(
+                   loaded.image,
+                   loaded.launch_draft_image.digest,
+                   String.duplicate("0", 64)
+                 )
+           })
+  end
+
   test "final validation keeps metadata, treasury, and raise bounds" do
     actor = %Human{human_account_id: account!("validation").id}
     draft = Autolaunch.create_launch_draft!(Map.delete(@draft, "image"), actor: actor)

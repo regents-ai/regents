@@ -47,6 +47,7 @@ defmodule AshPlatform.MixProject do
       {:ash_postgres, "~> 2.10.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
+      {:vix, "== 0.41.0"},
       {:regent_privy, path: "../elixir-utils/privy"},
       {:regent_ui, path: "../design-system/regent_ui"},
       {:picosat_elixir, "~> 0.2.3"},
