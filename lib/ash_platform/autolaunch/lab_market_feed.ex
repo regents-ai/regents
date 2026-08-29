@@ -40,6 +40,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       failed_head: nil,
       attempted_head: nil,
       attempted_addresses: MapSet.new(),
+      pending_projection: nil,
       snapshots: %{},
       degraded?: false,
       in_flight: nil,
@@ -76,7 +77,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   def handle_info({:head, token, result}, %{in_flight: %{token: token, stage: :head}} = state) do
     case result do
       {:ok, head} -> handle_head(state, head)
-      {:error, _reason} -> {:noreply, failed(state)}
+      {:error, _reason} -> {:noreply, failed(%{state | in_flight: nil})}
     end
   end
 
@@ -109,13 +110,10 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
 
       moved_sideways?(state.accepted_head, head.block) or
           moved_backwards?(state.accepted_head, head.block) ->
-        {:noreply,
-         failed(%{
-           state
-           | in_flight: nil,
-             degraded?: true,
-             failed_head: nil
-         })}
+        {:noreply, displace_cache(state, head)}
+
+      pending_for_head?(state, head) ->
+        project_refresh(state, head, state.pending_projection.snapshots)
 
       true ->
         begin_snapshots(%{state | binding: head.binding}, head)
@@ -162,53 +160,63 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
   end
 
   defp project_refresh(state, head, snapshots) do
-    with :ok <- safely(fn -> state.reader.verify_head(head) end),
-         {:ok, durable_changed_ids} <-
-           safely(fn -> state.projector.project(snapshots, head) end),
-         :ok <- safely(fn -> state.reader.verify_head(head) end) do
-      partial_snapshots = Map.new(snapshots, &{&1.auction_address, &1})
+    case safely(fn -> state.reader.verify_head(head) end) do
+      :ok -> project_verified_refresh(state, head, snapshots)
+      {:error, _reason} -> {:noreply, failed_exact_head(state, head, MapSet.new())}
+    end
+  end
 
-      next_snapshots =
-        if same_head?(state.accepted_head, head.block),
-          do: Map.merge(state.snapshots, partial_snapshots),
-          else: partial_snapshots
-
-      cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
-      changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
-      generation = state.generation + 1
-
-      if changed_ids != [] do
-        Phoenix.PubSub.broadcast(
-          state.pubsub,
-          @topic,
-          {:autolaunch_market_updated,
-           %{
-             generation: generation,
-             auction_ids: changed_ids,
-             block_number: head.block.number,
-             block_hash: head.block.hash
-           }}
-        )
-      end
-
-      {:noreply,
-       succeeded(%{
-         state
-         | generation: generation,
-           binding: head.binding,
-           accepted_head: head.block,
-           failed_head: nil,
-           snapshots: next_snapshots,
-           degraded?: false,
-           in_flight: nil
-       })}
-    else
-      false ->
-        {:noreply, failed(%{state | in_flight: nil})}
+  defp project_verified_refresh(state, head, snapshots) do
+    case safely(fn -> state.projector.project(snapshots, head) end) do
+      {:ok, durable_changed_ids} ->
+        publish_verified_refresh(state, head, snapshots, durable_changed_ids)
 
       {:error, _reason} ->
-        {:noreply, failed_exact_head(state, head, state.attempted_addresses)}
+        {:noreply,
+         state
+         |> Map.put(:pending_projection, %{
+           binding: head.binding,
+           block: head.block,
+           snapshots: snapshots
+         })
+         |> Map.put(:in_flight, nil)
+         |> failed()}
     end
+  end
+
+  defp publish_verified_refresh(state, head, snapshots, durable_changed_ids) do
+    case safely(fn -> state.reader.verify_head(head) end) do
+      :ok -> accept_refresh(state, head, snapshots, durable_changed_ids)
+      {:error, _reason} -> {:noreply, failed_exact_head(state, head, MapSet.new())}
+    end
+  end
+
+  defp accept_refresh(state, head, snapshots, durable_changed_ids) do
+    partial_snapshots = Map.new(snapshots, &{&1.auction_address, &1})
+
+    next_snapshots =
+      if same_head?(state.accepted_head, head.block),
+        do: Map.merge(state.snapshots, partial_snapshots),
+        else: partial_snapshots
+
+    cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
+    changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
+    generation = state.generation + 1
+
+    broadcast(state, generation, changed_ids, head.block)
+
+    {:noreply,
+     succeeded(%{
+       state
+       | generation: generation,
+         binding: head.binding,
+         accepted_head: head.block,
+         failed_head: nil,
+         pending_projection: nil,
+         snapshots: next_snapshots,
+         degraded?: false,
+         in_flight: nil
+     })}
   end
 
   defp invalidate_for(state, binding) do
@@ -220,6 +228,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         failed_head: nil,
         attempted_head: nil,
         attempted_addresses: MapSet.new(),
+        pending_projection: nil,
         snapshots: %{},
         degraded?: false,
         in_flight: nil
@@ -232,9 +241,54 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       | failed_head: %{binding: head.binding, block: head.block},
         attempted_head: %{binding: head.binding, block: head.block},
         attempted_addresses: attempted_addresses,
+        pending_projection: nil,
         in_flight: nil
     })
   end
+
+  defp displace_cache(state, head) do
+    changed_ids = state.snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.uniq()
+    generation = state.generation + 1
+
+    broadcast(state, generation, changed_ids, head.block)
+
+    state
+    |> Map.merge(%{
+      generation: generation,
+      failed_head: nil,
+      attempted_head: nil,
+      attempted_addresses: MapSet.new(),
+      pending_projection: nil,
+      snapshots: %{},
+      degraded?: true,
+      in_flight: nil
+    })
+    |> failed()
+  end
+
+  defp broadcast(_state, _generation, [], _block), do: :ok
+
+  defp broadcast(state, generation, changed_ids, block) do
+    Phoenix.PubSub.broadcast(
+      state.pubsub,
+      @topic,
+      {:autolaunch_market_updated,
+       %{
+         generation: generation,
+         auction_ids: changed_ids,
+         block_number: block.number,
+         block_hash: block.hash
+       }}
+    )
+  end
+
+  defp pending_for_head?(
+         %{pending_projection: %{binding: binding, block: block}},
+         %{binding: binding, block: block}
+       ),
+       do: true
+
+  defp pending_for_head?(_state, _head), do: false
 
   defp attempted_addresses(
          %{attempted_head: %{binding: binding, block: block}, attempted_addresses: attempted},

@@ -413,6 +413,14 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
     refute_receive {:autolaunch_market_updated, _update}, 50
     assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+
+    FakeRuntime.put(agent, project_result: {:ok, [id]})
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^id], block_number: 101}}
+
+    assert %{snapshot_calls: 2, snapshot_attempts: 2, project_calls: 2} =
+             FakeRuntime.state(agent)
   end
 
   test "a binding change during projection suppresses stale cache and publication" do
@@ -473,9 +481,17 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert Process.alive?(feed)
     assert :sys.get_state(feed).delay == 2_000
     assert %{head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+
+    FakeRuntime.put(agent, project_result: {:ok, [id]})
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^id]}}
+
+    assert %{snapshot_calls: 1, snapshot_attempts: 1, project_calls: 2} =
+             FakeRuntime.state(agent)
   end
 
-  test "same-height hash changes and lower heads keep the last accepted market visible" do
+  test "same-height hash changes and lower heads evict displaced cache with bounded backoff" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-reorg", rpc_url: "http://127.0.0.1:49713"}
     accepted_block = %{number: 100, hash: @hash_a}
@@ -502,14 +518,15 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     sideways_block = %{number: 100, hash: @hash_b}
     FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: sideways_block}})
     LabMarketFeed.refresh(feed)
-    wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
+    assert_receive {:autolaunch_market_updated, %{generation: 2, block_hash: @hash_b}}
 
-    refute_receive {:autolaunch_market_updated, _update}, 50
-
-    assert %{head: ^accepted_block, degraded?: true, auctions: %{@lab_address => _snapshot}} =
+    assert %{generation: 2, head: ^accepted_block, degraded?: true, auctions: %{}} =
              LabMarketFeed.snapshot(feed)
 
     assert :sys.get_state(feed).delay == 2_000
+    assert :sys.get_state(feed).attempted_addresses == MapSet.new()
+    assert :sys.get_state(feed).failed_head == nil
+    assert :sys.get_state(feed).pending_projection == nil
 
     lower_block = %{number: 99, hash: @hash_b}
     FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: lower_block}})
@@ -517,9 +534,46 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     wait_until(fn -> FakeRuntime.state(agent).head_calls == 3 end)
 
     refute_receive {:autolaunch_market_updated, _update}, 50
-    assert %{head: ^accepted_block, degraded?: true} = LabMarketFeed.snapshot(feed)
+
+    assert %{generation: 3, head: ^accepted_block, degraded?: true, auctions: %{}} =
+             LabMarketFeed.snapshot(feed)
+
     assert :sys.get_state(feed).delay == 4_000
     assert %{snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
+  end
+
+  test "a transient head failure releases the watcher for the next backoff attempt" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-head-retry", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:error, :rpc_unavailable},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, block)]},
+        project_result: {:ok, [id]}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 1 end)
+
+    assert :sys.get_state(feed).in_flight == nil
+    assert :sys.get_state(feed).delay == 2_000
+
+    FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: block}})
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^id]}}
+    assert %{head_calls: 2, snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
   end
 
   test "a replacement run clears the old cache before accepting its first block" do
