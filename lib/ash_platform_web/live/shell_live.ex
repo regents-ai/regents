@@ -192,7 +192,7 @@ defmodule AshPlatformWeb.ShellLive do
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
          %{route_id: route_id}
        )
-       when route_id == :settings do
+       when route_id in [:settings, :autolaunch_holdings] do
     {:redirect, redirect(socket, to: "/")}
   end
 

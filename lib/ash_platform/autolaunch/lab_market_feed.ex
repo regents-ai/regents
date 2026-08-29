@@ -38,6 +38,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       binding: nil,
       accepted_head: nil,
       failed_head: nil,
+      attempted_head: nil,
+      attempted_addresses: MapSet.new(),
       snapshots: %{},
       degraded?: false,
       in_flight: nil,
@@ -85,8 +87,14 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         %{in_flight: %{token: token, stage: :snapshots, head: head}} = state
       ) do
     case result do
-      {:ok, snapshots} -> finish_refresh(state, head, snapshots)
-      {:error, _reason} -> {:noreply, failed_exact_head(state, head)}
+      {:ok, refresh} ->
+        finish_refresh(state, head, refresh)
+
+      {:error, _reason, attempted_addresses} ->
+        {:noreply, failed_exact_head(state, head, attempted_addresses)}
+
+      {:error, _reason} ->
+        {:noreply, failed_exact_head(state, head, state.attempted_addresses)}
     end
   end
 
@@ -99,21 +107,14 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         |> invalidate_for(head.binding)
         |> begin_snapshots(head)
 
-      failed_for_head?(state, head) ->
-        {:noreply, succeeded(%{state | in_flight: nil})}
-
-      same_head?(state.accepted_head, head.block) ->
-        {:noreply, succeeded(%{state | in_flight: nil, degraded?: false})}
-
       moved_sideways?(state.accepted_head, head.block) or
           moved_backwards?(state.accepted_head, head.block) ->
         {:noreply,
-         succeeded(%{
+         failed(%{
            state
            | in_flight: nil,
              degraded?: true,
-             failed_head: nil,
-             generation: state.generation + 1
+             failed_head: nil
          })}
 
       true ->
@@ -125,28 +126,54 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
     token = make_ref()
     parent = self()
     reader = state.reader
+    attempted_addresses = attempted_addresses(state, head)
 
     Task.start(fn ->
-      send(parent, {:snapshots, token, safely(fn -> reader.snapshots(head, @capacity) end)})
+      send(
+        parent,
+        {:snapshots, token,
+         safely(fn -> reader.snapshots(head, @capacity, attempted_addresses) end)}
+      )
     end)
 
     {:noreply,
      %{
        state
        | in_flight: %{token: token, stage: :snapshots, head: head},
+         attempted_head: %{binding: head.binding, block: head.block},
+         attempted_addresses: attempted_addresses,
          timer: nil
      }}
   end
 
-  defp finish_refresh(state, head, snapshots) do
-    with {:ok, current_binding} <- state.reader.current_binding(),
-         true <- current_binding == head.binding,
-         {:ok, durable_changed_ids} <- state.projector.project(snapshots, head),
-         {:ok, publish_binding} <- state.reader.current_binding(),
-         true <- publish_binding == head.binding do
-      snapshots = Map.new(snapshots, &{&1.auction_address, &1})
+  defp finish_refresh(state, head, %{snapshots: snapshots, attempted: attempted_addresses}) do
+    state = %{state | attempted_addresses: attempted_addresses}
 
-      cache_changed_ids = changed_snapshot_ids(state.snapshots, snapshots)
+    cond do
+      failed_for_head?(state, head) ->
+        {:noreply, failed(%{state | in_flight: nil})}
+
+      same_head?(state.accepted_head, head.block) and snapshots == [] ->
+        {:noreply, succeeded(%{state | in_flight: nil, degraded?: false})}
+
+      true ->
+        project_refresh(state, head, snapshots)
+    end
+  end
+
+  defp project_refresh(state, head, snapshots) do
+    with :ok <- safely(fn -> state.reader.verify_head(head) end),
+         {:ok, durable_changed_ids} <-
+           safely(fn -> state.projector.project(snapshots, head) end),
+         :ok <- safely(fn -> state.reader.verify_head(head) end) do
+      partial_snapshots = Map.new(snapshots, &{&1.auction_address, &1})
+
+      next_snapshots =
+        if same_head?(state.accepted_head, head.block),
+          do: Map.merge(state.snapshots, partial_snapshots),
+          else: partial_snapshots
+
+      cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
       changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
       generation = state.generation + 1
 
@@ -171,13 +198,16 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
            binding: head.binding,
            accepted_head: head.block,
            failed_head: nil,
-           snapshots: snapshots,
+           snapshots: next_snapshots,
            degraded?: false,
            in_flight: nil
        })}
     else
-      false -> {:noreply, failed(%{state | in_flight: nil})}
-      {:error, _reason} -> {:noreply, failed_exact_head(state, head)}
+      false ->
+        {:noreply, failed(%{state | in_flight: nil})}
+
+      {:error, _reason} ->
+        {:noreply, failed_exact_head(state, head, state.attempted_addresses)}
     end
   end
 
@@ -188,19 +218,31 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
         binding: binding,
         accepted_head: nil,
         failed_head: nil,
+        attempted_head: nil,
+        attempted_addresses: MapSet.new(),
         snapshots: %{},
         degraded?: false,
         in_flight: nil
     }
   end
 
-  defp failed_exact_head(state, head) do
+  defp failed_exact_head(state, head, attempted_addresses) do
     failed(%{
       state
       | failed_head: %{binding: head.binding, block: head.block},
+        attempted_head: %{binding: head.binding, block: head.block},
+        attempted_addresses: attempted_addresses,
         in_flight: nil
     })
   end
+
+  defp attempted_addresses(
+         %{attempted_head: %{binding: binding, block: block}, attempted_addresses: attempted},
+         %{binding: binding, block: block}
+       ),
+       do: attempted
+
+  defp attempted_addresses(_state, _head), do: MapSet.new()
 
   defp failed_for_head?(
          %{failed_head: %{binding: binding, block: block}},
@@ -274,17 +316,38 @@ defmodule AshPlatform.Autolaunch.LabMarketFeed do
       end
     end
 
-    def current_binding do
-      case Lab.current() do
-        {:ok, config} -> {:ok, Lab.full_binding(config)}
+    def verify_head(expected) do
+      with {:ok, current} <- head(),
+           true <- current.binding == expected.binding,
+           true <- current.block == expected.block do
+        :ok
+      else
+        false -> {:error, :head_changed}
         {:error, reason} -> {:error, reason}
       end
     end
 
-    def snapshots(head, capacity) do
+    def snapshots(head, capacity, attempted_addresses) do
       with {:ok, auctions} <- Autolaunch.list_lab_market_auctions(actor: %SystemActor{}),
            true <- length(auctions) <= capacity do
-        collect_snapshots(auctions, head)
+        observed_addresses = MapSet.new(auctions, &String.downcase(&1.auction_address))
+
+        pending =
+          Enum.reject(auctions, fn auction ->
+            MapSet.member?(attempted_addresses, String.downcase(auction.auction_address))
+          end)
+
+        case collect_snapshots(pending, head) do
+          {:ok, snapshots} ->
+            {:ok,
+             %{
+               snapshots: snapshots,
+               attempted: MapSet.union(attempted_addresses, observed_addresses)
+             }}
+
+          {:error, reason} ->
+            {:error, reason, MapSet.union(attempted_addresses, observed_addresses)}
+        end
       else
         false -> {:error, :market_capacity_exceeded}
         {:error, reason} -> {:error, reason}

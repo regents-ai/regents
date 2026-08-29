@@ -115,14 +115,16 @@ defmodule AshPlatform.Autolaunch.Auction do
 
     read :watchable_lab do
       filter expr(not is_nil(auction_address))
-      prepare build(sort: [id: :asc], limit: 257)
+      prepare build(sort: [id: :asc])
 
       prepare fn query, _context ->
         Ash.Query.after_action(query, fn _query, records ->
           {:ok,
-           Enum.filter(records, fn record ->
+           records
+           |> Enum.filter(fn record ->
              record.id == LabProjection.auction_id(record.auction_address)
-           end)}
+           end)
+           |> Enum.take(257)}
         end)
       end
     end

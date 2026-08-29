@@ -10,8 +10,8 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
   defmodule LiveMarketReader do
     def head, do: Agent.get(agent(), & &1.head)
-    def snapshots(_head, _capacity), do: Agent.get(agent(), & &1.snapshots)
-    def current_binding, do: Agent.get(agent(), & &1.current_binding)
+    def snapshots(_head, _capacity, _attempted), do: Agent.get(agent(), & &1.snapshots)
+    def verify_head(_expected), do: :ok
 
     defp agent,
       do: Application.fetch_env!(:ash_platform, :autolaunch_live_market_test_agent)
@@ -31,7 +31,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
           {"Create", "/autolaunch/create"},
           {"Auctions", "/autolaunch/auctions"},
           {"Tokens", "/autolaunch/tokens"},
-          {"Portfolio", "/autolaunch/portfolio"}
+          {"Portfolio", "/autolaunch/holdings"}
         ] do
       assert has_element?(view, ~s(a.autolaunch-destination-card[href="#{path}"]), label)
     end
@@ -57,8 +57,12 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       Agent.start_link(fn ->
         %{
           head: {:ok, %{binding: binding, block: block}},
-          current_binding: {:ok, binding},
-          snapshots: {:ok, [market_snapshot]}
+          snapshots:
+            {:ok,
+             %{
+               snapshots: [market_snapshot],
+               attempted: MapSet.new([market_snapshot.auction_address])
+             }}
         }
       end)
 

@@ -10,13 +10,8 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
   @wallet_a_paired "0xaaaa00000000000000000000000000000000a502"
   @wallet_b "0xbbbb00000000000000000000000000000000b501"
 
-  test "signed-out visitors see the portfolio sign-in state without leaving Autolaunch", %{
-    conn: conn
-  } do
-    {:ok, view, _html} = live(conn, "/autolaunch/portfolio")
-
-    assert has_element?(view, "#autolaunch-holdings", "Your portfolio")
-    assert has_element?(view, "#autolaunch-holdings", "Sign in to view your portfolio.")
+  test "signed-out visitors cannot open private holdings", %{conn: conn} do
+    assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/autolaunch/holdings")
   end
 
   test "signed-in portfolio has honest empty states", %{conn: conn} do
@@ -25,7 +20,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/portfolio")
+      |> live("/autolaunch/holdings")
 
     html = render(view)
 
@@ -78,7 +73,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account_a.id})
-      |> live("/autolaunch/portfolio")
+      |> live("/autolaunch/holdings")
 
     html = render(view)
 
@@ -152,7 +147,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/autolaunch/portfolio")
+      |> live("/autolaunch/holdings")
 
     html = render(view)
 

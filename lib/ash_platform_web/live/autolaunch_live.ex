@@ -753,7 +753,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
           copy="Explore graduated tokens and follow their market."
         />
         <.destination_card
-          path="/autolaunch/portfolio"
+          path="/autolaunch/holdings"
           index="03"
           audience="Your activity"
           title="Portfolio"

@@ -13,7 +13,16 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
   defmodule FakeRuntime do
     def install(state) do
       Agent.start_link(fn ->
-        Map.merge(%{head_calls: 0, snapshot_calls: 0, project_calls: 0}, state)
+        Map.merge(
+          %{
+            head_calls: 0,
+            snapshot_calls: 0,
+            snapshot_attempts: 0,
+            project_calls: 0,
+            verify_calls: 0
+          },
+          state
+        )
       end)
     end
 
@@ -29,14 +38,64 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
       end)
     end
 
-    def snapshots(_head, _capacity) do
+    def snapshots(_head, _capacity, attempted_addresses) do
       Agent.get_and_update(agent(), fn state ->
-        {state.snapshots, Map.update!(state, :snapshot_calls, &(&1 + 1))}
+        {result, attempts} = snapshot_result(state.snapshots, attempted_addresses)
+
+        next_state =
+          state
+          |> Map.update!(:snapshot_calls, &(&1 + 1))
+          |> Map.update!(:snapshot_attempts, &(&1 + attempts))
+
+        {result, next_state}
       end)
     end
 
-    def current_binding do
-      Agent.get(agent(), & &1.current_binding)
+    def verify_head(expected) do
+      Agent.get_and_update(agent(), fn state ->
+        result =
+          case Map.get(state, :verify_result) do
+            nil -> verify_current_head(state, expected)
+            configured -> configured
+          end
+
+        {result, Map.update!(state, :verify_calls, &(&1 + 1))}
+      end)
+    end
+
+    defp snapshot_result({:ok, snapshots}, attempted_addresses) do
+      observed = MapSet.new(snapshots, &String.downcase(&1.auction_address))
+
+      pending =
+        Enum.reject(snapshots, fn snapshot ->
+          MapSet.member?(attempted_addresses, String.downcase(snapshot.auction_address))
+        end)
+
+      result =
+        {:ok, %{snapshots: pending, attempted: MapSet.union(attempted_addresses, observed)}}
+
+      {result, length(pending)}
+    end
+
+    defp snapshot_result({:error, reason, addresses}, attempted_addresses) do
+      observed = MapSet.new(addresses, &String.downcase/1)
+      pending = MapSet.difference(observed, attempted_addresses)
+      attempted = MapSet.union(attempted_addresses, observed)
+
+      if MapSet.size(pending) == 0,
+        do: {{:ok, %{snapshots: [], attempted: attempted}}, 0},
+        else: {{:error, reason, attempted}, MapSet.size(pending)}
+    end
+
+    defp verify_current_head(state, expected) do
+      with {:ok, binding} <- state.current_binding,
+           true <- binding == expected.binding,
+           {:ok, %{block: block}} <- state.head,
+           true <- block == expected.block do
+        :ok
+      else
+        _mismatch -> {:error, :head_changed}
+      end
     end
 
     defp agent, do: Application.fetch_env!(:ash_platform, :lab_market_feed_test_agent)
@@ -44,17 +103,20 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
   defmodule FakeProjector do
     def project(_snapshots, _head) do
-      Agent.get_and_update(agent(), fn state ->
-        next_state = Map.update!(state, :project_calls, &(&1 + 1))
+      result =
+        Agent.get_and_update(agent(), fn state ->
+          next_state = Map.update!(state, :project_calls, &(&1 + 1))
 
-        next_state =
-          case Map.get(state, :binding_after_project) do
-            nil -> next_state
-            binding -> Map.put(next_state, :current_binding, {:ok, binding})
-          end
+          next_state =
+            case Map.get(state, :binding_after_project) do
+              nil -> next_state
+              binding -> Map.put(next_state, :current_binding, {:ok, binding})
+            end
 
-        {state.project_result, next_state}
-      end)
+          {state.project_result, next_state}
+        end)
+
+      if result == :raise, do: raise("projection failed"), else: result
     end
 
     defp agent, do: Application.fetch_env!(:ash_platform, :lab_market_feed_test_agent)
@@ -212,7 +274,14 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
 
     refute_receive {:autolaunch_market_updated, _update}, 50
-    assert %{head_calls: 2, snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
+
+    assert %{
+             head_calls: 2,
+             snapshot_calls: 2,
+             snapshot_attempts: 1,
+             project_calls: 1,
+             verify_calls: 2
+           } = FakeRuntime.state(agent)
   end
 
   test "cache-only changes broadcast once after a successful no-write transaction" do
@@ -252,6 +321,55 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert FakeRuntime.state(agent).project_calls == 2
   end
 
+  test "a new auction at an already accepted block is fetched exactly once" do
+    first_id = Ash.UUID.generate()
+    second_id = Ash.UUID.generate()
+    binding = %{run_id: "run-new-auction", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+    first = snapshot(first_id, block)
+    second = snapshot(second_id, block, auction_address: @other_address)
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [first]},
+        project_result: {:ok, [first_id]}
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^first_id]}}
+
+    FakeRuntime.put(agent,
+      snapshots: {:ok, [first, second]},
+      project_result: {:ok, [second_id]}
+    )
+
+    LabMarketFeed.refresh(feed)
+    assert_receive {:autolaunch_market_updated, %{auction_ids: [^second_id]}}
+
+    assert %{
+             @lab_address => ^first,
+             @other_address => ^second
+           } = LabMarketFeed.snapshot(feed).auctions
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).head_calls == 3 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+
+    assert %{snapshot_calls: 3, snapshot_attempts: 2, project_calls: 2} =
+             FakeRuntime.state(agent)
+  end
+
   test "binding drift or projection failure publishes nothing and preserves the last good view" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-three", rpc_url: "http://127.0.0.1:49713"}
@@ -281,8 +399,12 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
     assert FakeRuntime.state(agent).project_calls == 0
 
+    next_block = %{number: 101, hash: @hash_b}
+
     FakeRuntime.put(agent,
+      head: {:ok, %{binding: binding, block: next_block}},
       current_binding: {:ok, binding},
+      snapshots: {:ok, [snapshot(id, next_block)]},
       project_result: {:error, :late_rollback}
     )
 
@@ -323,6 +445,36 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert %{generation: 0, head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
   end
 
+  test "a projector exception is contained and enters bounded failure backoff" do
+    id = Ash.UUID.generate()
+    binding = %{run_id: "run-projector-raise", rpc_url: "http://127.0.0.1:49713"}
+    block = %{number: 100, hash: @hash_a}
+
+    {:ok, agent} =
+      FakeRuntime.install(%{
+        head: {:ok, %{binding: binding, block: block}},
+        current_binding: {:ok, binding},
+        snapshots: {:ok, [snapshot(id, block)]},
+        project_result: :raise
+      })
+
+    Application.put_env(:ash_platform, :lab_market_feed_test_agent, agent)
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, LabMarketFeed.topic())
+
+    {:ok, feed} =
+      start_supervised(
+        {LabMarketFeed, name: nil, reader: FakeReader, projector: FakeProjector, poll?: false}
+      )
+
+    LabMarketFeed.refresh(feed)
+    wait_until(fn -> FakeRuntime.state(agent).project_calls == 1 end)
+
+    refute_receive {:autolaunch_market_updated, _update}, 50
+    assert Process.alive?(feed)
+    assert :sys.get_state(feed).delay == 2_000
+    assert %{head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
+  end
+
   test "same-height hash changes and lower heads keep the last accepted market visible" do
     id = Ash.UUID.generate()
     binding = %{run_id: "run-reorg", rpc_url: "http://127.0.0.1:49713"}
@@ -357,6 +509,8 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     assert %{head: ^accepted_block, degraded?: true, auctions: %{@lab_address => _snapshot}} =
              LabMarketFeed.snapshot(feed)
 
+    assert :sys.get_state(feed).delay == 2_000
+
     lower_block = %{number: 99, hash: @hash_b}
     FakeRuntime.put(agent, head: {:ok, %{binding: binding, block: lower_block}})
     LabMarketFeed.refresh(feed)
@@ -364,6 +518,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
 
     refute_receive {:autolaunch_market_updated, _update}, 50
     assert %{head: ^accepted_block, degraded?: true} = LabMarketFeed.snapshot(feed)
+    assert :sys.get_state(feed).delay == 4_000
     assert %{snapshot_calls: 1, project_calls: 1} = FakeRuntime.state(agent)
   end
 
@@ -417,7 +572,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
       FakeRuntime.install(%{
         head: {:ok, %{binding: binding, block: block}},
         current_binding: {:ok, binding},
-        snapshots: {:error, :rpc_failed},
+        snapshots: {:error, :rpc_failed, [@lab_address]},
         project_result: {:ok, []}
       })
 
@@ -434,12 +589,19 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     LabMarketFeed.refresh(feed)
     wait_until(fn -> FakeRuntime.state(agent).head_calls == 2 end)
 
-    assert %{head_calls: 2, snapshot_calls: 1, project_calls: 0} = FakeRuntime.state(agent)
+    assert %{head_calls: 2, snapshot_calls: 2, snapshot_attempts: 1, project_calls: 0} =
+             FakeRuntime.state(agent)
+
     assert %{head: nil, auctions: %{}} = LabMarketFeed.snapshot(feed)
   end
 
   test "the real reader refuses a 257th exact lab auction before any RPC snapshot work" do
     actor = %SystemActor{}
+
+    Autolaunch.import_auction!("Interleaved non-lab row", nil, false, :active, nil, actor: actor)
+    |> Autolaunch.set_auction_bid_terms!(@other_address, @other_address, "REGENT", 18, "1",
+      actor: actor
+    )
 
     inputs =
       Enum.map(1..257, fn number ->
@@ -462,7 +624,7 @@ defmodule AshPlatform.Autolaunch.LabMarketFeedTest do
     )
 
     assert {:error, :market_capacity_exceeded} =
-             LabMarketFeed.Reader.snapshots(%{}, 256)
+             LabMarketFeed.Reader.snapshots(%{}, 256, MapSet.new())
   end
 
   defp snapshot(id, block, overrides \\ []) do
