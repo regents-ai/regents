@@ -1231,6 +1231,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
             form_id="launch-treasury-details"
             path={@draft_values["treasury_path"]}
             acknowledgement={@draft_values["eoa_acknowledgement"]}
+            error={@draft_errors["eoa_acknowledgement"]}
           />
           <.draft_field
             field={treasury_field()}
@@ -1295,9 +1296,21 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :form_id, :string, required: true
   attr :path, :string, default: "safe"
   attr :acknowledgement, :string, default: ""
+  attr :error, :string, default: nil
 
   defp custody_path(assigns) do
-    assigns = assign(assigns, :warning_copy, @eoa_acknowledgement)
+    id = "#{assigns.form_id}-eoa-acknowledgement"
+
+    assigns =
+      assign(assigns,
+        id: id,
+        warning_copy: @eoa_acknowledgement,
+        described_by:
+          Enum.join(
+            ["#{id}-warning", assigns.error && "#{id}-error"] |> Enum.filter(& &1),
+            " "
+          )
+      )
 
     ~H"""
     <fieldset class="autolaunch-custody-path">
@@ -1338,15 +1351,20 @@ defmodule AshPlatformWeb.AutolaunchLive do
             checked={@path in ["eoa", :eoa]}
           /> Single-key EOA — never verified
         </label>
-        <label for={"#{@form_id}-eoa-acknowledgement"}>
+        <label for={@id}>
           To use an EOA, type this warning character-for-character:
         </label>
-        <p class="autolaunch-custody-warning">{@warning_copy}</p>
+        <p id={"#{@id}-warning"} class="autolaunch-custody-warning">{@warning_copy}</p>
         <textarea
-          id={"#{@form_id}-eoa-acknowledgement"}
+          id={@id}
           name="launch_draft[eoa_acknowledgement]"
           autocomplete="off"
+          aria-invalid={@error && "true"}
+          aria-describedby={@described_by}
         >{@acknowledgement}</textarea>
+        <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">
+          {@error}
+        </p>
       </details>
     </fieldset>
     """

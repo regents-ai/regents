@@ -36,7 +36,8 @@ defmodule AshPlatform.Autolaunch do
         action: :attach_image,
         args: [:launch_draft_image_id]
 
-      define :revise_launch_draft, action: :revise_by_owner
+      define :revise_account_launch_draft, action: :revise_by_owner
+      define :revise_legacy_launch_draft, action: :revise_legacy_by_owner
     end
 
     # Keep this registration dynamic like the operation-only resources below;
@@ -292,6 +293,19 @@ defmodule AshPlatform.Autolaunch do
         not_found_error?: false
     end
   end
+
+  @doc "Revises a draft through the input boundary fixed by its stored provenance."
+  def revise_launch_draft(draft, params, opts \\ [])
+
+  def revise_launch_draft(
+        %AshPlatform.Autolaunch.LaunchDraft{regent_id: nil} = draft,
+        params,
+        opts
+      ),
+      do: revise_account_launch_draft(draft, params, opts)
+
+  def revise_launch_draft(%AshPlatform.Autolaunch.LaunchDraft{} = draft, params, opts),
+    do: revise_legacy_launch_draft(draft, params, opts)
 
   @doc "Observes Base and persists one immutable treasury security report."
   def observe_treasury_security(address, evidence, opts \\ []) do

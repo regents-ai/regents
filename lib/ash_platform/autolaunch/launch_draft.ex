@@ -5,14 +5,15 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @token_fields [
+  @account_token_fields [
     :name,
     :symbol,
     :description,
     :website,
-    :image,
     :required_regent_raised
   ]
+
+  @legacy_token_fields @account_token_fields ++ [:image]
 
   @treasury_fields [
     :treasury,
@@ -20,11 +21,12 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     :eoa_acknowledgement
   ]
 
-  @clean_v1_fields @token_fields ++ @treasury_fields
+  @account_clean_v1_fields @account_token_fields ++ @treasury_fields
+  @legacy_clean_v1_fields @legacy_token_fields ++ @treasury_fields
 
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
-  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
   @amount ~r/\A[0-9]+(\.[0-9]{1,18})?\z/
@@ -34,7 +36,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     Enum.all?(@metadata_limits, fn {field, limit} ->
       value = Map.get(draft, field)
       is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-    end) and valid_raise?(Map.get(draft, :required_regent_raised))
+    end) and image_complete?(draft) and valid_raise?(Map.get(draft, :required_regent_raised))
   end
 
   @doc "Whether the persisted treasury stage is ready for launch review."
@@ -49,6 +51,29 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
   @doc "Whether both persisted preparation stages are complete."
   def launch_ready?(draft), do: token_details_complete?(draft) and treasury_complete?(draft)
+
+  @doc "Whether this draft carries the only image shape its provenance permits."
+  def image_complete?(%{regent_id: nil, launch_draft_image_id: image_id, image: image})
+      when is_binary(image_id) and is_binary(image) do
+    prefix =
+      AshPlatformWeb.Endpoint.url() <>
+        "/autolaunch/images/" <> image_id <> "/"
+
+    if String.starts_with?(image, prefix) do
+      prefix_size = byte_size(prefix)
+      digest = binary_part(image, prefix_size, byte_size(image) - prefix_size)
+      Regex.match?(~r/\A[0-9a-f]{64}\z/, digest)
+    else
+      false
+    end
+  end
+
+  def image_complete?(%{regent_id: nil}), do: false
+
+  def image_complete?(draft) do
+    image = Map.get(draft, :image)
+    is_binary(image) and image != "" and String.valid?(image) and byte_size(image) <= 256
+  end
 
   defp valid_raise?(value) when is_binary(value),
     do: Regex.match?(@amount, value) and Regex.match?(~r/[1-9]/, value)
@@ -122,7 +147,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
   actions do
     create :create_for_owner do
-      accept @clean_v1_fields
+      accept @account_clean_v1_fields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwner
@@ -148,7 +173,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     update :autosave_token_details do
-      accept @token_fields
+      accept @account_token_fields
       require_atomic? false
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
     end
@@ -166,8 +191,19 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     update :revise_by_owner do
-      accept @clean_v1_fields
+      accept @account_clean_v1_fields
       require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.AccountOwnedImage
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
+
+      validate attribute_equals(:eoa_acknowledgement, @eoa_acknowledgement),
+        where: [attribute_equals(:treasury_path, :eoa)]
+    end
+
+    update :revise_legacy_by_owner do
+      accept @legacy_clean_v1_fields
+      require_atomic? false
+      validate AshPlatform.Autolaunch.LaunchDraft.Validations.LegacyRegentProvenance
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields
 
       validate attribute_equals(:eoa_acknowledgement, @eoa_acknowledgement),
@@ -184,7 +220,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,
-             :revise_by_owner
+             :revise_by_owner,
+             :revise_legacy_by_owner
            ]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
@@ -196,7 +233,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,
-             :revise_by_owner
+             :revise_by_owner,
+             :revise_legacy_by_owner
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end

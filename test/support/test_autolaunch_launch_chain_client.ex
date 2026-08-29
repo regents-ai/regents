@@ -80,16 +80,18 @@ end
 defmodule AshPlatform.LaunchFixture do
   @moduledoc """
   The one direct-wallet launch fixture: a factory reciprocally bound to its own
-  strategy, an account holding the acting wallet and a formed Regent, one saved
-  clean-V1 draft, a live lease, and a scripted chain to review against.
+  strategy, an account holding the acting wallet, one account-owned saved
+  launch draft with its immutable image, a live lease, and a scripted chain to
+  review against.
 
   Every value here is fixture-bound. Nothing it produces is reviewed evidence,
   and no test that uses it may claim the production client prepares anything.
   """
 
-  alias AshPlatform.{Accounts, Autolaunch, Formation}
+  alias AshPlatform.{Accounts, Autolaunch}
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Autolaunch.LaunchDraftImageStorage
   alias AshPlatform.TestAutolaunchLaunchChainClient, as: ChainClient
 
   @wallet "0x1111111111111111111111111111111111111111"
@@ -121,7 +123,6 @@ defmodule AshPlatform.LaunchFixture do
     "symbol" => "OPEN",
     "description" => "A launch profile awaiting review.",
     "website" => "https://example.test/open",
-    "image" => "https://example.test/open.png",
     "treasury" => @treasury,
     "required_regent_raised" => "1000.5"
   }
@@ -133,7 +134,7 @@ defmodule AshPlatform.LaunchFixture do
   def hook, do: @hook
   def terms, do: @terms
 
-  @doc "An account holding the acting wallet and a formed Regent, its lease, and one saved draft."
+  @doc "An account holding the acting wallet, its lease, and one saved account-owned draft."
   def actor(overrides \\ []) do
     unique = Elixir.System.unique_integer([:positive])
 
@@ -144,7 +145,6 @@ defmodule AshPlatform.LaunchFixture do
 
     {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
     human = %Human{human_account_id: account.id}
-    Formation.form_regent!("launch-regent-#{unique}", "Launch Regent #{unique}", actor: human)
 
     [
       account: account,
@@ -160,9 +160,28 @@ defmodule AshPlatform.LaunchFixture do
 
   @doc "One saved clean-V1 draft owned by `actor`, with any field replaced."
   def draft!(actor, overrides \\ []) do
-    @draft
-    |> Map.merge(Map.new(Keyword.get(overrides, :draft, %{})))
-    |> Autolaunch.create_launch_draft!(actor: actor)
+    draft =
+      @draft
+      |> Map.merge(Map.new(Keyword.get(overrides, :draft, %{})))
+      |> Map.delete("image")
+      |> Autolaunch.create_launch_draft!(actor: actor)
+
+    case Autolaunch.get_my_launch_draft_image(actor: actor) do
+      {:ok, nil} ->
+        {:ok, %{draft: attached}} =
+          LaunchDraftImageStorage.store_and_attach(
+            draft,
+            launch_image(),
+            "image/png",
+            "launch.png",
+            actor
+          )
+
+        attached
+
+      {:ok, _existing_image} ->
+        draft
+    end
   end
 
   @doc "The scripted chain a review is derived from, with any part replaced."
@@ -204,4 +223,10 @@ defmodule AshPlatform.LaunchFixture do
   defp unavailable(_other), do: nil
 
   defp block_hash, do: "0x" <> String.duplicate("ab", 32)
+
+  defp launch_image do
+    File.read!(
+      "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png"
+    )
+  end
 end

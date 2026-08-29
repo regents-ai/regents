@@ -650,6 +650,41 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     refute has_element?(other_view, ~s(#launch-token-details-name[value="Open Research"]))
   end
 
+  test "an overlong EOA acknowledgement is marked and explained beside the textarea", %{
+    conn: conn
+  } do
+    account =
+      draft_account!("autolaunch-eoa-error", "0x3333333333333333333333333333333333333337")
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/autolaunch/create")
+
+    view
+    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
+    |> render_click()
+
+    view
+    |> form("#launch-treasury-details",
+      launch_draft: %{
+        "treasury" => "0x3333333333333333333333333333333333333337",
+        "treasury_path" => "eoa",
+        "eoa_acknowledgement" => String.duplicate("x", 513)
+      }
+    )
+    |> render_change()
+
+    id = "launch-treasury-details-eoa-acknowledgement"
+
+    assert has_element?(
+             view,
+             "##{id}[aria-invalid=true][aria-describedby~='#{id}-warning'][aria-describedby~='#{id}-error']"
+           )
+
+    assert has_element?(view, "##{id}-error[role=alert]")
+  end
+
   test "image upload plus complete token and treasury stages unlocks wallet transactions", %{
     conn: conn
   } do

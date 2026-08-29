@@ -29,6 +29,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     LabProjection,
     LaunchChainClient,
     LaunchDraft,
+    LaunchDraftImageStorage,
     LaunchOperations,
     TreasurySecurity
   }
@@ -42,7 +43,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
 
   # The factory's own inclusive byte caps on the five metadata strings. Each must
   # also be nonempty, which is what a historical draft can fail.
-  @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @metadata [name: 64, symbol: 16, description: 512, website: 256]
 
   # Three of the exact six treasuries the strategy refuses are frozen constants
   # rather than reads: autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
@@ -111,7 +112,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          {:ok, account} <- leased(lease),
          :ok <- same_account(actor, account),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, fields} <- launchable(draft),
+         {:ok, fields} <- launchable(draft, actor),
          {:ok, snapshot} <- snapshot(signer),
          :ok <- reviewable(fields, snapshot),
          {:ok, treasury_report} <- review_treasury(draft),
@@ -397,8 +398,9 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # Everything the factory itself requires of a saved draft. A row written before
   # the nonempty rule, or one carrying an amount this factory cannot hold, is
   # refused here rather than reverting in the customer's wallet.
-  defp launchable(draft) do
+  defp launchable(draft, actor) do
     with :ok <- metadata(draft),
+         {:ok, image} <- launch_image(draft, actor),
          true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid),
          {:ok, atomic} <- atomic_raise(draft.required_regent_raised) do
@@ -408,7 +410,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          symbol: draft.symbol,
          description: draft.description,
          website: draft.website,
-         image: draft.image,
+         image: image,
          treasury: treasury,
          required_regent_raised: atomic
        }}
@@ -416,6 +418,29 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
       false -> unavailable(:launch_treasury_invalid)
       error -> error
     end
+  end
+
+  defp launch_image(%{regent_id: nil} = draft, actor) do
+    with true <- LaunchDraft.image_complete?(draft),
+         {:ok,
+          %{
+            id: image_id,
+            launch_draft_id: image_draft_id
+          } = image} <- Autolaunch.get_my_launch_draft_image(actor: actor),
+         true <- image_id == draft.launch_draft_image_id,
+         true <- image_draft_id == draft.id,
+         expected <- LaunchDraftImageStorage.public_url(image),
+         true <- expected == draft.image do
+      {:ok, expected}
+    else
+      _unavailable -> unavailable(:launch_metadata_incomplete)
+    end
+  end
+
+  defp launch_image(draft, _actor) do
+    if within?(draft.image, 256),
+      do: {:ok, draft.image},
+      else: unavailable(:launch_metadata_incomplete)
   end
 
   defp metadata(draft) do

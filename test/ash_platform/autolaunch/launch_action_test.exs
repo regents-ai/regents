@@ -83,7 +83,7 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
                  symbol: "OPEN",
                  description: "A launch profile awaiting review.",
                  website: "https://example.test/open",
-                 image: "https://example.test/open.png",
+                 image: context[:draft].image,
                  treasury: Fixture.treasury(),
                  required_regent_raised: 1_000_500_000_000_000_000_000,
                  expected_launch_fee: @fee
@@ -95,6 +95,35 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
       assert operation.envelope["to"] == Fixture.factory()
       assert operation.envelope["value"] == "0"
       assert operation.envelope["chain_id"] == 8453
+    end
+
+    test "a genuine legacy Regent-linked draft keeps its external image URL", context do
+      Fixture.install(allowance: @fee)
+
+      regent =
+        AshPlatform.Formation.form_regent!("legacy-launch", "Legacy Launch",
+          actor: context[:actor]
+        )
+
+      external_image = "https://legacy.example/launch.png"
+
+      legacy =
+        Ash.Seed.seed!(AshPlatform.Autolaunch.LaunchDraft, %{
+          name: "Legacy Launch",
+          symbol: "LEG",
+          description: "A launch saved before account-owned uploads.",
+          website: "https://legacy.example",
+          image: external_image,
+          treasury: Fixture.treasury(),
+          required_regent_raised: "1000.5",
+          human_account_id: context[:account].id,
+          regent_id: regent.id
+        })
+
+      assert {:ok, %{operation: operation}} =
+               Autolaunch.prepare_launch(legacy.id, Fixture.wallet(), opts(context))
+
+      assert argument(operation, "image") == external_image
     end
 
     test "the review displays the human decimal and encodes only the atomic integer", context do
@@ -216,7 +245,12 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
             "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
             "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
           ] do
-        draft = Fixture.draft!(context[:actor], draft: %{"treasury" => refused})
+        draft =
+          Autolaunch.autosave_launch_treasury!(
+            context[:draft],
+            %{"treasury" => refused},
+            actor: context[:actor]
+          )
 
         assert Fixture.refusal(
                  Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))
@@ -225,8 +259,10 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
 
       # A refused address written in another casing is still that address.
       lowered =
-        Fixture.draft!(context[:actor],
-          draft: %{"treasury" => String.downcase("0x498581fF718922c3f8e6A244956aF099B2652b2b")}
+        Autolaunch.autosave_launch_treasury!(
+          context[:draft],
+          %{"treasury" => String.downcase("0x498581fF718922c3f8e6A244956aF099B2652b2b")},
+          actor: context[:actor]
         )
 
       assert Fixture.refusal(
@@ -240,8 +276,10 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
       Fixture.install()
 
       at_maximum =
-        Fixture.draft!(context[:actor],
-          draft: %{"required_regent_raised" => "658201822928399999.999999581824872526"}
+        Autolaunch.autosave_launch_token_details!(
+          context[:draft],
+          %{"required_regent_raised" => "658201822928399999.999999581824872526"},
+          actor: context[:actor]
         )
 
       assert {:ok, %{operation: operation}} =
@@ -254,8 +292,10 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
                Autolaunch.cancel_launch_review(operation.action_id, opts(context))
 
       excessive =
-        Fixture.draft!(context[:actor],
-          draft: %{"required_regent_raised" => "658201822928399999.999999581824872527"}
+        Autolaunch.autosave_launch_token_details!(
+          at_maximum,
+          %{"required_regent_raised" => "658201822928399999.999999581824872527"},
+          actor: context[:actor]
         )
 
       assert Fixture.refusal(
@@ -277,6 +317,26 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
              ) == :launch_metadata_incomplete
     end
 
+    test "an account-owned row carrying only a raw external image URL is refused", context do
+      Fixture.install()
+
+      raw =
+        Ash.Seed.seed!(AshPlatform.Autolaunch.LaunchDraft, %{
+          name: "Raw URL",
+          symbol: "RAW",
+          description: "No owned image row exists.",
+          website: "https://example.test/raw",
+          image: "https://example.test/raw.png",
+          treasury: Fixture.treasury(),
+          required_regent_raised: "1000.5",
+          human_account_id: context[:account].id,
+          regent_id: nil
+        })
+
+      assert Fixture.refusal(Autolaunch.prepare_launch(raw.id, Fixture.wallet(), opts(context))) ==
+               :launch_metadata_incomplete
+    end
+
     # A draft may hold any 40-hex address in any casing, but mixed case asserts an
     # EIP-55 checksum. One that does not hold is refused here rather than sent to
     # a wallet, and the customer is told which field to re-enter.
@@ -284,8 +344,10 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
       Fixture.install()
 
       draft =
-        Fixture.draft!(context[:actor],
-          draft: %{"treasury" => "0xAbCdeF0000000000000000000000000000000001"}
+        Autolaunch.autosave_launch_treasury!(
+          context[:draft],
+          %{"treasury" => "0xAbCdeF0000000000000000000000000000000001"},
+          actor: context[:actor]
         )
 
       assert Fixture.refusal(Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))) ==
@@ -297,7 +359,12 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
       uppercase = "0xABCDEF0000000000000000000000000000000001"
       TreasuryClient.seed_verified!(String.downcase(uppercase))
 
-      draft = Fixture.draft!(context[:actor], draft: %{"treasury" => uppercase})
+      draft =
+        Autolaunch.autosave_launch_treasury!(
+          context[:draft],
+          %{"treasury" => uppercase},
+          actor: context[:actor]
+        )
 
       assert {:ok, %{operation: operation}} =
                Autolaunch.prepare_launch(draft.id, Fixture.wallet(), opts(context))

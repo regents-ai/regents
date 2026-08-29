@@ -403,7 +403,25 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
 
     test "a second draft names the launch in flight instead of offering another", context do
       _first = submitted(context)
-      second = Fixture.draft!(context[:actor], draft: %{"symbol" => "TWO"})
+
+      regent =
+        AshPlatform.Formation.form_regent!("legacy-second", "Legacy Second",
+          actor: context[:actor]
+        )
+
+      second =
+        Ash.Seed.seed!(AshPlatform.Autolaunch.LaunchDraft, %{
+          name: "Legacy Second",
+          symbol: "TWO",
+          description: "A historical second draft.",
+          website: "https://legacy.example/two",
+          image: "https://legacy.example/two.png",
+          treasury: Fixture.treasury(),
+          required_regent_raised: "1000.5",
+          human_account_id: context[:account].id,
+          regent_id: regent.id
+        })
+
       other = "#autolaunch-launch-wallet-#{second.id}"
 
       view = mounted(context)

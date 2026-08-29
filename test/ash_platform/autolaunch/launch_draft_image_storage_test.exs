@@ -32,11 +32,58 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     assert {:ok, "image/png"} =
              LaunchDraftImageStorage.validate(exact_limit_png(), "image/png")
 
+    assert {:ok, "image/jpeg"} =
+             LaunchDraftImageStorage.validate(progressive_jpeg(), "image/jpeg")
+
     assert {:error, :image_too_large} =
              LaunchDraftImageStorage.validate(
                String.duplicate("x", 2_097_153),
                "image/png"
              )
+  end
+
+  test "marker-shaped invalid files cannot consume the account's image slot" do
+    actor = actor!("marker-shaped")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    for {bytes, type, filename} <- [
+          {marker_png(), "image/png", "fake.png"},
+          {marker_jpeg(), "image/jpeg", "fake.jpg"},
+          {marker_webp(), "image/webp", "fake.webp"}
+        ] do
+      assert {:error, :invalid_image} =
+               LaunchDraftImageStorage.validate(bytes, type)
+
+      assert {:error, :invalid_image} = store(draft, bytes, type, filename, actor)
+      assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    end
+
+    assert {:ok, %{image: image}} = store(draft, png(), "image/png", "real.png", actor)
+    assert image.digest == :crypto.hash(:sha256, png()) |> Base.encode16(case: :lower)
+  end
+
+  test "a forced failure after image creation and before attachment rolls the image back" do
+    actor = actor!("rollback")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    assert {:error, :forced_before_attachment} =
+             AshPlatform.Repo.transaction(fn ->
+               assert {:ok, _image} =
+                        Autolaunch.create_launch_draft_image(
+                          png(),
+                          "image/png",
+                          "rollback.png",
+                          draft.id,
+                          actor: actor
+                        )
+
+               AshPlatform.Repo.rollback(:forced_before_attachment)
+             end)
+
+    assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: actor)
+    assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
+    assert is_nil(persisted.launch_draft_image_id)
+    assert is_nil(persisted.image)
   end
 
   test "image dimensions are advisory and a valid 1 by 1 PNG is accepted" do
@@ -295,4 +342,30 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     2_097_152 = byte_size(image)
     image
   end
+
+  defp progressive_jpeg do
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wgARCAAQABADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUAQEAAAAAAAAAAAAAAAAAAAAE/9oADAMBAAIQAxAAAAGMBv8A/8QAFBABAAAAAAAAAAAAAAAAAAAAIP/aAAgBAQABBQIf/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAIP/aAAgBAQAGPwIf/8QAFBABAAAAAAAAAAAAAAAAAAAAIP/aAAgBAQABPyEf/9oADAMBAAIAAwAAABD3/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPxB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPxB//8QAFBABAAAAAAAAAAAAAAAAAAAAIP/aAAgBAQABPxAf/9k="
+    |> Base.decode64!()
+  end
+
+  defp marker_png do
+    ihdr = <<1::32, 1::32, 8, 2, 0, 0, 0>>
+    compressed = :zlib.compress(<<0, 0>>)
+
+    <<137, "PNG\r\n", 26, 10>> <>
+      png_chunk("IHDR", ihdr) <>
+      png_chunk("IDAT", compressed) <>
+      png_chunk("IEND", <<>>)
+  end
+
+  defp marker_jpeg,
+    do: <<255, 216, 255, 219, 0, 3, 0, 255, 194, 0, 2, 255, 218, 0, 2, 255, 217>>
+
+  defp marker_webp do
+    chunk = <<"VP8 ", 10::little-32, 0::size(80)>>
+    <<"RIFF", byte_size(chunk) + 4::little-32, "WEBP", chunk::binary>>
+  end
+
+  defp png_chunk(type, data),
+    do: <<byte_size(data)::32, type::binary, data::binary, :erlang.crc32(type <> data)::32>>
 end

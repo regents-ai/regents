@@ -3,7 +3,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
 
   alias AshPlatform.{Accounts, Autolaunch, Formation}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.Autolaunch.LaunchDraft
+  alias AshPlatform.Autolaunch.{LaunchDraft, LaunchDraftImageStorage}
 
   @draft %{
     "name" => "Open Research",
@@ -110,18 +110,21 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     actor = %Human{human_account_id: account!("complete").id}
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
-    token_details =
-      Map.take(@draft, [
-        "name",
-        "symbol",
-        "description",
-        "website",
-        "image",
-        "required_regent_raised"
-      ])
+    token_details = Map.take(@draft, ~w(name symbol description website required_regent_raised))
 
     assert {:ok, token} =
              Autolaunch.autosave_launch_token_details(draft, token_details, actor: actor)
+
+    refute LaunchDraft.token_details_complete?(token)
+
+    assert {:ok, %{draft: token}} =
+             LaunchDraftImageStorage.store_and_attach(
+               token,
+               png(),
+               "image/png",
+               "open.png",
+               actor
+             )
 
     assert LaunchDraft.token_details_complete?(token)
     refute LaunchDraft.launch_ready?(token)
@@ -135,7 +138,9 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
 
     assert LaunchDraft.treasury_complete?(safe)
     assert LaunchDraft.launch_ready?(safe)
-    assert {:ok, _final} = Autolaunch.revise_launch_draft(safe, @draft, actor: actor)
+
+    assert {:ok, _final} =
+             Autolaunch.revise_launch_draft(safe, Map.delete(@draft, "image"), actor: actor)
 
     assert {:ok, eoa_wrong} =
              Autolaunch.autosave_launch_treasury(
@@ -153,7 +158,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert {:error, %Ash.Error.Invalid{}} =
              Autolaunch.revise_launch_draft(
                eoa_wrong,
-               Map.merge(@draft, %{
+               Map.merge(Map.delete(@draft, "image"), %{
                  "treasury_path" => "eoa",
                  "eoa_acknowledgement" => "almost"
                }),
@@ -172,7 +177,16 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
 
   test "final validation keeps metadata, treasury, and raise bounds" do
     actor = %Human{human_account_id: account!("validation").id}
-    draft = Autolaunch.create_launch_draft!(@draft, actor: actor)
+    draft = Autolaunch.create_launch_draft!(Map.delete(@draft, "image"), actor: actor)
+
+    assert {:ok, %{draft: draft}} =
+             LaunchDraftImageStorage.store_and_attach(
+               draft,
+               png(),
+               "image/png",
+               "validation.png",
+               actor
+             )
 
     for {field, value, message} <- [
           {"name", "", "is required"},
@@ -181,7 +195,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
           {"required_regent_raised", "0", "must be greater than zero"}
         ] do
       assert {:error, %Ash.Error.Invalid{} = error} =
-               Autolaunch.revise_launch_draft(draft, Map.put(@draft, field, value), actor: actor)
+               Autolaunch.revise_launch_draft(
+                 draft,
+                 @draft |> Map.delete("image") |> Map.put(field, value),
+                 actor: actor
+               )
 
       assert Exception.message(error) =~ message
     end
@@ -207,6 +225,46 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert LaunchDraft.launch_ready?(revised)
   end
 
+  test "account-owned drafts refuse raw image input while legacy Regent drafts retain it" do
+    owner = account!("raw-image")
+    actor = %Human{human_account_id: owner.id}
+
+    assert {:error, %Ash.Error.Invalid{} = create_error} =
+             Autolaunch.create_launch_draft(@draft, actor: actor)
+
+    assert Exception.message(create_error) =~ "No such input `image`"
+
+    draft = Autolaunch.create_launch_draft!(Map.delete(@draft, "image"), actor: actor)
+
+    assert {:error, %Ash.Error.Invalid{} = autosave_error} =
+             Autolaunch.autosave_launch_token_details(
+               draft,
+               %{"image" => @draft["image"]},
+               actor: actor
+             )
+
+    assert Exception.message(autosave_error) =~ "No such input `image`"
+
+    assert {:error, %Ash.Error.Invalid{} = revise_error} =
+             Autolaunch.revise_launch_draft(draft, @draft, actor: actor)
+
+    assert Exception.message(revise_error) =~ "managed by this account's immutable image upload"
+
+    regent = Formation.form_regent!("legacy-image", "Legacy Image", actor: actor)
+
+    legacy =
+      Ash.Seed.seed!(LaunchDraft, %{
+        name: "Legacy",
+        symbol: "LEG",
+        human_account_id: owner.id,
+        regent_id: regent.id
+      })
+
+    assert {:ok, legacy} = Autolaunch.revise_launch_draft(legacy, @draft, actor: actor)
+    assert legacy.image == @draft["image"]
+    assert LaunchDraft.image_complete?(legacy)
+  end
+
   defp account!(suffix) do
     Accounts.register_verified!(
       "did:privy:autolaunch-draft:#{suffix}:#{Elixir.System.unique_integer([:positive])}",
@@ -215,4 +273,10 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
       actor: %System{}
     )
   end
+
+  defp png,
+    do:
+      File.read!(
+        "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png"
+      )
 end

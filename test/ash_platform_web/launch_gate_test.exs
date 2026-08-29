@@ -241,7 +241,8 @@ defmodule AshPlatformWeb.LaunchGateTest do
     actor = %Human{human_account_id: account.id}
     Formation.form_regent!("gate-regent", "Gate Regent", actor: actor)
 
-    {:ok, draft} = Autolaunch.create_launch_draft(@kept_draft, actor: actor)
+    {:ok, draft} =
+      Autolaunch.create_launch_draft(Map.delete(@kept_draft, "image"), actor: actor)
 
     close_autolaunch()
 
