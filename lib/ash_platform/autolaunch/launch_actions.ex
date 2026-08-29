@@ -28,6 +28,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
     LabAbi,
     LabProjection,
     LaunchChainClient,
+    LaunchDraft,
     LaunchOperations,
     TreasurySecurity
   }
@@ -384,8 +385,8 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # The draft is read through the owner's own `mine` action, so a draft this
   # account does not hold is never even named.
   defp owned_draft(draft_id, actor) do
-    case Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:ok, drafts} -> found(Enum.find(drafts, &(&1.id == draft_id)))
+    case Autolaunch.get_my_launch_draft(draft_id, actor: actor) do
+      {:ok, draft} -> found(draft)
       {:error, _reason} -> unavailable(:launch_draft_unavailable)
     end
   end
@@ -398,6 +399,7 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   # refused here rather than reverting in the customer's wallet.
   defp launchable(draft) do
     with :ok <- metadata(draft),
+         true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid),
          {:ok, atomic} <- atomic_raise(draft.required_regent_raised) do
       {:ok,
@@ -410,6 +412,9 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
          treasury: treasury,
          required_regent_raised: atomic
        }}
+    else
+      false -> unavailable(:launch_treasury_invalid)
+      error -> error
     end
   end
 

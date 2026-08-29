@@ -28,7 +28,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftTest do
     assert draft.human_account_id == owner.id
     assert is_nil(draft.regent_id)
     assert draft.name == "Open Research"
-    assert is_nil(draft.symbol)
+    assert draft.symbol == ""
     refute LaunchDraft.token_details_complete?(draft)
     refute LaunchDraft.treasury_complete?(draft)
 

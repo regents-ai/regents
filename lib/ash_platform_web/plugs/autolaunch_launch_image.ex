@@ -31,6 +31,7 @@ defmodule AshPlatformWeb.Plugs.AutolaunchLaunchImage do
       |> put_resp_header("content-length", Integer.to_string(image.byte_size))
       |> put_resp_header("cache-control", "public, max-age=31536000, immutable")
       |> put_resp_header("etag", ~s("sha256-#{digest}"))
+      |> put_resp_header("x-content-type-options", "nosniff")
       |> send_resp(200, image.bytes)
       |> halt()
     else

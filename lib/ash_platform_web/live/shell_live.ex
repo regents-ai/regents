@@ -735,7 +735,13 @@ defmodule AshPlatformWeb.ShellLive do
            %Human{} = actor <- human_actor(socket),
            {:ok, draft} <- current_or_new_draft(socket, actor),
            {:ok, _stored} <-
-             LaunchDraftImageStorage.store_and_attach(draft, bytes, entry.client_type, actor),
+             LaunchDraftImageStorage.store_and_attach(
+               draft,
+               bytes,
+               entry.client_type,
+               entry.client_name,
+               actor
+             ),
            {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
         {:noreply,
          assign(socket,

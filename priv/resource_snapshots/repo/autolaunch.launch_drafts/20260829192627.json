@@ -25,8 +25,8 @@
       "type": "text"
     },
     {
-      "allow_nil?": true,
-      "default": "nil",
+      "allow_nil?": false,
+      "default": "\"\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -37,8 +37,8 @@
       "type": "text"
     },
     {
-      "allow_nil?": true,
-      "default": "nil",
+      "allow_nil?": false,
+      "default": "\"\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -323,7 +323,7 @@
   ],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "441A2C7DB52EB166D030C67DAA030CBE68F108DD0E7B39CCE73E41C05EB1B8AF",
+  "hash": "6E4AA86BA63BC97B490B38DA4DF6DE63E801BF90FE666847A2B62798CB3C4C69",
   "identities": [],
   "multitenancy": {
     "attribute": null,

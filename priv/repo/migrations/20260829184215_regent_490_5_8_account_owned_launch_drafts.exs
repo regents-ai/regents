@@ -16,6 +16,19 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
       add(:content_type, :text, null: false)
       add(:byte_size, :bigint, null: false)
       add(:bytes, :binary, null: false)
+      add(:original_filename, :text, null: false)
+
+      add(
+        :launch_draft_id,
+        references(:launch_drafts,
+          column: :id,
+          name: "launch_draft_images_launch_draft_id_fkey",
+          type: :uuid,
+          prefix: "autolaunch",
+          on_delete: :restrict
+        ),
+        null: false
+      )
 
       add(:inserted_at, :utc_datetime_usec,
         null: false,
@@ -35,34 +48,73 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
           type: :bigint,
           prefix: "platform",
           on_delete: :restrict
-        ), null: false)
-    end
-
-    create index(:launch_draft_images, [:human_account_id], prefix: "autolaunch")
-
-    create unique_index(:launch_draft_images, [:human_account_id, :digest],
-             name: "launch_draft_images_unique_owner_digest_index",
-             prefix: "autolaunch"
-           )
-
-    alter table(:launch_drafts, prefix: "autolaunch") do
-      modify(:regent_id, :uuid, null: true)
-      modify(:symbol, :text, null: true)
-      modify(:token_name, :text, null: true)
-      add(:eoa_acknowledgement, :text)
-
-      add(
-        :launch_draft_image_id,
-        references(:launch_draft_images,
-          column: :id,
-          name: "launch_drafts_launch_draft_image_id_fkey",
-          type: :uuid,
-          prefix: "autolaunch"
-        )
+        ),
+        null: false
       )
     end
 
+    create unique_index(:launch_draft_images, [:human_account_id],
+             name: "launch_draft_images_one_image_per_owner_index",
+             prefix: "autolaunch"
+           )
+
+    create index(:launch_draft_images, [:launch_draft_id], prefix: "autolaunch")
+
+    create unique_index(:launch_draft_images, [:id, :launch_draft_id, :human_account_id],
+             name: "launch_draft_images_exact_provenance_index",
+             prefix: "autolaunch"
+           )
+
+    create constraint(:launch_draft_images, :launch_draft_images_derived_size,
+             prefix: "autolaunch",
+             check: "byte_size = octet_length(bytes) AND byte_size BETWEEN 1 AND 2097152"
+           )
+
+    create constraint(:launch_draft_images, :launch_draft_images_content_type,
+             prefix: "autolaunch",
+             check: "content_type IN ('image/png', 'image/jpeg', 'image/webp')"
+           )
+
+    create constraint(:launch_draft_images, :launch_draft_images_digest,
+             prefix: "autolaunch",
+             check: "digest ~ '^[0-9a-f]{64}$'"
+           )
+
+    create constraint(:launch_draft_images, :launch_draft_images_filename,
+             prefix: "autolaunch",
+             check: "octet_length(original_filename) BETWEEN 1 AND 255"
+           )
+
+    alter table(:launch_drafts, prefix: "autolaunch") do
+      modify(:token_name, :text, null: false, default: "")
+      modify(:symbol, :text, null: false, default: "")
+      modify(:regent_id, :uuid, null: true)
+      add(:eoa_acknowledgement, :text)
+      add(:launch_draft_image_id, :uuid)
+    end
+
     create index(:launch_drafts, [:launch_draft_image_id], prefix: "autolaunch")
+
+    create unique_index(:launch_drafts, [:id, :human_account_id],
+             name: "launch_drafts_exact_owner_index",
+             prefix: "autolaunch"
+           )
+
+    execute("""
+    ALTER TABLE autolaunch.launch_draft_images
+    ADD CONSTRAINT launch_draft_images_exact_owner_fkey
+    FOREIGN KEY (launch_draft_id, human_account_id)
+    REFERENCES autolaunch.launch_drafts (id, human_account_id)
+    ON DELETE RESTRICT
+    """)
+
+    execute("""
+    ALTER TABLE autolaunch.launch_drafts
+    ADD CONSTRAINT launch_drafts_exact_image_fkey
+    FOREIGN KEY (launch_draft_image_id, id, human_account_id)
+    REFERENCES autolaunch.launch_draft_images (id, launch_draft_id, human_account_id)
+    ON DELETE RESTRICT
+    """)
   end
 
   def down do
@@ -77,8 +129,6 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
         SELECT 1
         FROM autolaunch.launch_drafts
         WHERE regent_id IS NULL
-           OR token_name IS NULL
-           OR symbol IS NULL
            OR eoa_acknowledgement IS NOT NULL
            OR launch_draft_image_id IS NOT NULL
       ) OR EXISTS (
@@ -90,18 +140,27 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
     $$;
     """)
 
-    drop(
-      constraint(:launch_drafts, "launch_drafts_launch_draft_image_id_fkey", prefix: "autolaunch")
+    execute("ALTER TABLE autolaunch.launch_drafts DROP CONSTRAINT launch_drafts_exact_image_fkey")
+
+    execute(
+      "ALTER TABLE autolaunch.launch_draft_images DROP CONSTRAINT launch_draft_images_exact_owner_fkey"
     )
 
     drop_if_exists(index(:launch_drafts, [:launch_draft_image_id], prefix: "autolaunch"))
 
+    drop_if_exists(
+      unique_index(:launch_drafts, [:id, :human_account_id],
+        name: "launch_drafts_exact_owner_index",
+        prefix: "autolaunch"
+      )
+    )
+
     alter table(:launch_drafts, prefix: "autolaunch") do
       remove(:launch_draft_image_id)
       remove(:eoa_acknowledgement)
-      modify(:token_name, :text, null: false)
-      modify(:symbol, :text, null: false)
       modify(:regent_id, :uuid, null: false)
+      modify(:symbol, :text, null: false, default: nil)
+      modify(:token_name, :text, null: false, default: nil)
     end
 
     drop(
@@ -110,14 +169,27 @@ defmodule AshPlatform.Repo.Migrations.Regent49058AccountOwnedLaunchDrafts do
       )
     )
 
-    drop_if_exists(
-      unique_index(:launch_draft_images, [:human_account_id, :digest],
-        name: "launch_draft_images_unique_owner_digest_index",
+    drop(
+      constraint(:launch_draft_images, "launch_draft_images_launch_draft_id_fkey",
         prefix: "autolaunch"
       )
     )
 
-    drop_if_exists(index(:launch_draft_images, [:human_account_id], prefix: "autolaunch"))
+    drop_if_exists(
+      unique_index(:launch_draft_images, [:human_account_id],
+        name: "launch_draft_images_one_image_per_owner_index",
+        prefix: "autolaunch"
+      )
+    )
+
+    drop_if_exists(
+      unique_index(:launch_draft_images, [:id, :launch_draft_id, :human_account_id],
+        name: "launch_draft_images_exact_provenance_index",
+        prefix: "autolaunch"
+      )
+    )
+
+    drop_if_exists(index(:launch_draft_images, [:launch_draft_id], prefix: "autolaunch"))
 
     drop(table(:launch_draft_images, prefix: "autolaunch"))
   end

@@ -616,7 +616,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert {:ok, [persisted]} = Autolaunch.list_my_launch_drafts(actor: actor)
     assert persisted.name == "Open Research"
-    assert is_nil(persisted.symbol)
+    assert persisted.symbol == ""
     assert persisted.treasury == "0x123"
     assert persisted.eoa_acknowledgement == "I am still typing"
 
@@ -724,7 +724,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       ])
 
     render_upload(first, "first.png")
-    assert {:ok, [saved]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, saved} = Autolaunch.get_my_launch_draft_image(actor: actor)
 
     repeat =
       file_input(view, "#launch-token-details", :launch_image, [
@@ -732,7 +732,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       ])
 
     render_upload(repeat, "same.png")
-    assert {:ok, [same]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, same} = Autolaunch.get_my_launch_draft_image(actor: actor)
     assert same.id == saved.id
 
     different =
@@ -748,7 +748,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
              "This account already has its one launch image."
            )
 
-    assert {:ok, [still_saved]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, still_saved} = Autolaunch.get_my_launch_draft_image(actor: actor)
     assert still_saved.id == saved.id
   end
 
@@ -883,29 +883,13 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     Accounts.register_verified!("did:privy:#{did}", wallet, [wallet], actor: %System{})
   end
 
-  defp png do
-    <<
-      137,
-      "PNG\r\n",
-      26,
-      10,
-      13::32,
-      "IHDR",
-      1::32,
-      1::32,
-      8,
-      6,
-      0,
-      0,
-      0,
-      0::32,
-      0::32,
-      "IEND",
-      0::32
-    >>
-  end
+  defp png,
+    do:
+      File.read!(
+        "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png"
+      )
 
-  defp jpeg, do: <<255, 216, 255, 224, 0, 0, 255, 217>>
+  defp jpeg, do: File.read!("priv/static/images/redeem/animata1and2-poster.jpg")
 
   defp import_minimal_launch!(job_id, attrs \\ []) do
     Autolaunch.import_launch!(

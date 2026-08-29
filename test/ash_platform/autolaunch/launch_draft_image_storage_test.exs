@@ -23,6 +23,15 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     assert {:error, :invalid_image} =
              LaunchDraftImageStorage.validate(binary_part(jpeg(), 0, 5), "image/jpeg")
 
+    assert {:error, :invalid_image} =
+             LaunchDraftImageStorage.validate(
+               binary_part(webp(), 0, byte_size(webp()) - 1),
+               "image/webp"
+             )
+
+    assert {:ok, "image/png"} =
+             LaunchDraftImageStorage.validate(exact_limit_png(), "image/png")
+
     assert {:error, :image_too_large} =
              LaunchDraftImageStorage.validate(
                String.duplicate("x", 2_097_153),
@@ -35,10 +44,18 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
     assert {:ok, %{image: image}} =
-             LaunchDraftImageStorage.store_and_attach(draft, png(), "image/png", actor)
+             LaunchDraftImageStorage.store_and_attach(
+               draft,
+               png(),
+               "image/png",
+               "one-pixel.png",
+               actor
+             )
 
     assert image.content_type == "image/png"
     assert image.byte_size == byte_size(png())
+    assert image.original_filename == "one-pixel.png"
+    assert image.launch_draft_id == draft.id
   end
 
   test "one immutable image is stored transactionally, attached, and exact repeats deduplicate" do
@@ -46,7 +63,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
     assert {:ok, first} =
-             LaunchDraftImageStorage.store_and_attach(draft, png(), "image/png", actor)
+             store(draft, png(), "image/png", "launch.png", actor)
 
     assert first.reused? == false
     assert first.image.byte_size == byte_size(png())
@@ -55,13 +72,14 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     assert byte_size(first.draft.image) <= 256
 
     assert {:ok, repeat} =
-             LaunchDraftImageStorage.store_and_attach(first.draft, png(), "image/png", actor)
+             store(first.draft, png(), "image/png", "renamed.png", actor)
 
     assert repeat.reused?
     assert repeat.image.id == first.image.id
     assert repeat.draft.image == first.draft.image
-    assert {:ok, [only]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, only} = Autolaunch.get_my_launch_draft_image(actor: actor)
     assert only.id == first.image.id
+    assert only.original_filename == "launch.png"
   end
 
   test "a different second image fails without replacing or deleting the first" do
@@ -69,12 +87,12 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
     assert {:ok, first} =
-             LaunchDraftImageStorage.store_and_attach(draft, png(), "image/png", actor)
+             store(draft, png(), "image/png", "first.png", actor)
 
     assert {:error, :image_limit_reached} =
-             LaunchDraftImageStorage.store_and_attach(first.draft, jpeg(), "image/jpeg", actor)
+             store(first.draft, jpeg(), "image/jpeg", "second.jpg", actor)
 
-    assert {:ok, [persisted]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, persisted} = Autolaunch.get_my_launch_draft_image(actor: actor)
     assert persisted.id == first.image.id
     assert {:ok, [saved_draft]} = Autolaunch.list_my_launch_drafts(actor: actor)
     assert saved_draft.launch_draft_image_id == first.image.id
@@ -86,15 +104,15 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
     parent = self()
 
-    upload = fn bytes, type ->
+    upload = fn bytes, type, filename ->
       Task.async(fn ->
         send(parent, {:ready, self()})
-        receive do: (:go -> LaunchDraftImageStorage.store_and_attach(draft, bytes, type, actor))
+        receive do: (:go -> store(draft, bytes, type, filename, actor))
       end)
     end
 
-    png_upload = upload.(png(), "image/png")
-    jpeg_upload = upload.(jpeg(), "image/jpeg")
+    png_upload = upload.(png(), "image/png", "first.png")
+    jpeg_upload = upload.(jpeg(), "image/jpeg", "second.jpg")
 
     assert_receive {:ready, png_pid}
     assert_receive {:ready, jpeg_pid}
@@ -105,7 +123,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
 
     assert Enum.count(results, &match?({:ok, _stored}, &1)) == 1
     assert Enum.count(results, &match?({:error, :image_limit_reached}, &1)) == 1
-    assert {:ok, [_only]} = Autolaunch.list_my_launch_draft_images(actor: actor)
+    assert {:ok, _only} = Autolaunch.get_my_launch_draft_image(actor: actor)
   end
 
   test "the same bytes are private per Human and cross-account attachment is refused" do
@@ -114,18 +132,18 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: owner)
 
     assert {:error, :image_unavailable} =
-             LaunchDraftImageStorage.store_and_attach(draft, png(), "image/png", other)
+             store(draft, png(), "image/png", "owner.png", other)
 
-    assert {:ok, []} = Autolaunch.list_my_launch_draft_images(actor: owner)
-    assert {:ok, []} = Autolaunch.list_my_launch_draft_images(actor: other)
+    assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: owner)
+    assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: other)
 
     assert {:ok, owner_image} =
-             LaunchDraftImageStorage.store_and_attach(draft, png(), "image/png", owner)
+             store(draft, png(), "image/png", "owner.png", owner)
 
     other_draft = Autolaunch.create_launch_draft!(%{}, actor: other)
 
     assert {:ok, other_image} =
-             LaunchDraftImageStorage.store_and_attach(other_draft, png(), "image/png", other)
+             store(other_draft, png(), "image/png", "other.png", other)
 
     refute owner_image.image.id == other_image.image.id
     assert owner_image.image.digest == other_image.image.digest
@@ -136,7 +154,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
 
     assert {:ok, %{image: image}} =
-             LaunchDraftImageStorage.store_and_attach(draft, webp(), "image/webp", actor)
+             store(draft, webp(), "image/webp", "public.webp", actor)
 
     assert {:ok, public} =
              Autolaunch.get_public_launch_draft_image(image.id, image.digest, actor: nil)
@@ -146,7 +164,96 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
 
     wrong = String.duplicate("0", 64)
     assert {:ok, nil} = Autolaunch.get_public_launch_draft_image(image.id, wrong, actor: nil)
-    assert {:error, %Ash.Error.Invalid{}} = Autolaunch.list_my_launch_draft_images()
+    assert {:error, %Ash.Error.Invalid{}} = Autolaunch.get_my_launch_draft_image()
+  end
+
+  test "the Ash create boundary derives digest and size and rejects malformed bytes" do
+    actor = actor!("derived-boundary")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    assert {:ok, image} =
+             Autolaunch.create_launch_draft_image(
+               png(),
+               "image/png",
+               "derived.png",
+               draft.id,
+               actor: actor
+             )
+
+    assert image.byte_size == byte_size(png())
+    assert image.digest == :crypto.hash(:sha256, png()) |> Base.encode16(case: :lower)
+
+    other = actor!("malformed-boundary")
+    other_draft = Autolaunch.create_launch_draft!(%{}, actor: other)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.create_launch_draft_image(
+               binary_part(png(), 0, byte_size(png()) - 1),
+               "image/png",
+               "truncated.png",
+               other_draft.id,
+               actor: other
+             )
+  end
+
+  test "the Ash and database boundaries refuse a second row and cross-draft attachment" do
+    actor = actor!("resource-boundary")
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    assert {:ok, %{image: image}} =
+             store(draft, png(), "image/png", "first.png", actor)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.create_launch_draft_image(
+               jpeg(),
+               "image/jpeg",
+               "second.jpg",
+               draft.id,
+               actor: actor
+             )
+
+    other_draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.attach_launch_draft_image(other_draft, image.id, actor: actor)
+
+    filename_actor = actor!("filename-boundary")
+    filename_draft = Autolaunch.create_launch_draft!(%{}, actor: filename_actor)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.create_launch_draft_image(
+               png(),
+               "image/png",
+               String.duplicate("x", 256),
+               filename_draft.id,
+               actor: filename_actor
+             )
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.create_launch_draft_image(
+               png(),
+               "image/png",
+               String.duplicate("é", 128),
+               filename_draft.id,
+               actor: filename_actor
+             )
+  end
+
+  test "the database boundary refuses an image whose draft belongs to another Human" do
+    owner = actor!("provenance-owner")
+    other = actor!("provenance-other")
+    owner_draft = Autolaunch.create_launch_draft!(%{}, actor: owner)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Autolaunch.create_launch_draft_image(
+               png(),
+               "image/png",
+               "wrong-owner.png",
+               owner_draft.id,
+               actor: other
+             )
+
+    assert {:ok, nil} = Autolaunch.get_my_launch_draft_image(actor: other)
   end
 
   defp actor!(suffix) do
@@ -161,28 +268,31 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImageStorageTest do
     %Human{human_account_id: account.id}
   end
 
-  defp png do
-    <<
-      137,
-      "PNG\r\n",
-      26,
-      10,
-      13::32,
-      "IHDR",
-      1::32,
-      1::32,
-      8,
-      6,
-      0,
-      0,
-      0,
-      0::32,
-      0::32,
-      "IEND",
-      0::32
-    >>
+  defp store(draft, bytes, type, filename, actor),
+    do: LaunchDraftImageStorage.store_and_attach(draft, bytes, type, filename, actor)
+
+  defp png,
+    do:
+      File.read!(
+        "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png"
+      )
+
+  defp jpeg, do: File.read!("priv/static/images/redeem/animata1and2-poster.jpg")
+
+  defp webp do
+    "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AA/vuUAAA="
+    |> Base.decode64!()
+    |> binary_part(0, 42)
   end
 
-  defp jpeg, do: <<255, 216, 255, 224, 0, 0, 255, 217>>
-  defp webp, do: <<"RIFF", 8::little-32, "WEBP", "VP8 ">>
+  defp exact_limit_png do
+    base = png()
+    prefix = binary_part(base, 0, byte_size(base) - 12)
+    iend = binary_part(base, byte_size(base) - 12, 12)
+    data = :binary.copy(<<0>>, 2_097_152 - byte_size(base) - 12)
+    chunk = <<byte_size(data)::32, "tEXt", data::binary, :erlang.crc32("tEXt" <> data)::32>>
+    image = prefix <> chunk <> iend
+    2_097_152 = byte_size(image)
+    image
+  end
 end

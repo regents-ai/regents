@@ -1,18 +1,14 @@
+import {readFileSync} from "node:fs"
+
 import {expect, test} from "@playwright/test"
 
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const treasury = "0xabcdef0000000000000000000000000000000001"
 
-const png = Buffer.from([
-  137, 80, 78, 71, 13, 10, 26, 10,
-  0, 0, 0, 13, 73, 72, 68, 82,
-  0, 0, 0, 1, 0, 0, 0, 1,
-  8, 6, 0, 0, 0,
-  0, 0, 0, 0,
-  0, 0, 0, 0, 73, 69, 78, 68,
-  0, 0, 0, 0,
-])
+const png = readFileSync(
+  "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png",
+)
 
 test("account-owned launch setup persists and gates only the wallet stage", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
@@ -50,7 +46,8 @@ test("account-owned launch setup persists and gates only the wallet stage", asyn
     buffer: png,
   })
 
-  await expect(page.getByRole("status").filter({hasText: "Image saved to your account."})).toBeVisible()
+  await expect(tokenForm.getByRole("img", {name: "Saved token image"})).toBeVisible()
+  await expect(page.getByRole("status")).toContainText("Saved to your account.")
 
   await treasuryStage.click()
   const treasuryForm = page.locator("#launch-treasury-details")

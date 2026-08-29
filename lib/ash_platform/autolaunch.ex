@@ -18,12 +18,23 @@ defmodule AshPlatform.Autolaunch do
     resource AshPlatform.Autolaunch.LaunchDraft do
       define :create_launch_draft, action: :create_for_owner
       define :list_my_launch_drafts, action: :mine
+
+      define :get_my_launch_draft,
+        action: :mine_by_id,
+        args: [:id],
+        not_found_error?: false
+
+      define :get_my_launch_draft_for_update,
+        action: :mine_by_id_for_update,
+        args: [:id],
+        not_found_error?: false
+
       define :autosave_launch_token_details, action: :autosave_token_details
       define :autosave_launch_treasury, action: :autosave_treasury
 
       define :attach_launch_draft_image,
         action: :attach_image,
-        args: [:image, :launch_draft_image_id]
+        args: [:launch_draft_image_id]
 
       define :revise_launch_draft, action: :revise_by_owner
     end
@@ -31,15 +42,12 @@ defmodule AshPlatform.Autolaunch do
     # Keep this registration dynamic like the operation-only resources below;
     # its interfaces remain explicit without widening the domain compile graph.
     resource @launch_draft_image_resource do
-      define :store_launch_draft_image,
+      define :create_launch_draft_image,
         action: :store_for_owner,
-        args: [:digest, :content_type, :byte_size, :bytes]
+        args: [:bytes, :content_type, :original_filename, :launch_draft_id]
 
-      define :list_my_launch_draft_images, action: :mine
-
-      define :get_my_launch_draft_image_by_digest,
-        action: :mine_by_digest,
-        args: [:digest],
+      define :get_my_launch_draft_image,
+        action: :mine,
         not_found_error?: false
 
       define :get_public_launch_draft_image,

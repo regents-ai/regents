@@ -54,6 +54,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
       select_by_default? false
     end
 
+    attribute :original_filename, :string do
+      allow_nil? false
+      constraints min_length: 1, max_length: 255
+    end
+
     timestamps()
   end
 
@@ -62,27 +67,26 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
       allow_nil? false
       attribute_type :integer
     end
+
+    belongs_to :launch_draft, AshPlatform.Autolaunch.LaunchDraft do
+      allow_nil? false
+    end
   end
 
   identities do
-    identity :unique_owner_digest, [:human_account_id, :digest]
+    identity :one_image_per_owner, [:human_account_id]
   end
 
   actions do
     create :store_for_owner do
-      accept [:digest, :content_type, :byte_size, :bytes]
+      accept [:bytes, :content_type, :original_filename, :launch_draft_id]
       change AshPlatform.Autolaunch.LaunchDraftImage.Changes.AssignOwner
+      change AshPlatform.Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage
     end
 
     read :mine do
-      filter expr(human_account_id == ^actor(:human_account_id))
-      prepare build(sort: [inserted_at: :asc, id: :asc])
-    end
-
-    read :mine_by_digest do
       get? true
-      argument :digest, :string, allow_nil?: false
-      filter expr(human_account_id == ^actor(:human_account_id) and digest == ^arg(:digest))
+      filter expr(human_account_id == ^actor(:human_account_id))
     end
 
     read :public_by_id_and_digest do
@@ -95,11 +99,11 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
   end
 
   policies do
-    policy action([:store_for_owner, :mine, :mine_by_digest]) do
+    policy action([:store_for_owner, :mine]) do
       authorize_if AshPlatform.Formation.Checks.HumanActor
     end
 
-    policy action([:mine, :mine_by_digest]) do
+    policy action(:mine) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
@@ -114,11 +118,12 @@ defmodule AshPlatform.Autolaunch.LaunchDraftImage do
     repo(AshPlatform.Repo)
 
     custom_indexes do
-      index([:human_account_id])
+      index([:launch_draft_id])
     end
 
     references do
       reference(:human_account, on_delete: :restrict)
+      reference(:launch_draft, on_delete: :restrict)
     end
   end
 end

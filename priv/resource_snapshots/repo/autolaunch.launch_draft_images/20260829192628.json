@@ -62,6 +62,18 @@
     },
     {
       "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "original_filename",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
       "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
       "generated?": false,
       "precision": null,
@@ -114,6 +126,37 @@
       "size": null,
       "source": "human_account_id",
       "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "launch_draft_images_launch_draft_id_fkey",
+        "on_delete": "restrict",
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "autolaunch",
+        "table": "launch_drafts"
+      },
+      "scale": null,
+      "size": null,
+      "source": "launch_draft_id",
+      "type": "uuid"
     }
   ],
   "base_filter": null,
@@ -124,12 +167,12 @@
       "all_tenants?": false,
       "concurrently": false,
       "error_fields": [
-        "human_account_id"
+        "launch_draft_id"
       ],
       "fields": [
         {
           "type": "atom",
-          "value": "human_account_id"
+          "value": "launch_draft_id"
         }
       ],
       "include": null,
@@ -145,23 +188,19 @@
   ],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "BF1A755012994F72E8C79193F034598972CB332E8224693F9D398C4080355322",
+  "hash": "D7F8940AC28DBFE1EF4C8DE648C7C695027615B6CDFF947565DE1CEFAC48BD65",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "launch_draft_images_unique_owner_digest_index",
+      "index_name": "launch_draft_images_one_image_per_owner_index",
       "keys": [
         {
           "type": "atom",
           "value": "human_account_id"
-        },
-        {
-          "type": "atom",
-          "value": "digest"
         }
       ],
-      "name": "unique_owner_digest",
+      "name": "one_image_per_owner",
       "nils_distinct?": true,
       "where": null
     }

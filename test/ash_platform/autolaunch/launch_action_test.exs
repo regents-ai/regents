@@ -16,6 +16,7 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   @unit Integer.pow(10, 18)
   @fee 1_000_000 * @unit
   @other_wallet "0x9999999999999999999999999999999999999999"
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   describe "THE_EXACT_ALLOWANCE_RULE: an allowance is corrected to the fee, never approached" do
     test "a standing allowance already equal to the fee yields the launch alone", context do
@@ -158,6 +159,37 @@ defmodule AshPlatform.Autolaunch.LaunchActionTest do
   end
 
   describe "NO_SENDABLE_REVIEW_WITHOUT_EVERY_FACT: refusals leave nothing to dispatch" do
+    test "a stale tab cannot prepare after another tab changes the persisted EOA acknowledgement",
+         context do
+      Fixture.install()
+
+      valid =
+        Autolaunch.autosave_launch_treasury!(
+          context[:draft],
+          %{
+            "treasury" => Fixture.treasury(),
+            "treasury_path" => "eoa",
+            "eoa_acknowledgement" => @eoa_acknowledgement
+          },
+          actor: context[:actor]
+        )
+
+      Autolaunch.autosave_launch_treasury!(
+        valid,
+        %{
+          "treasury" => Fixture.treasury(),
+          "treasury_path" => "eoa",
+          "eoa_acknowledgement" => "stale second-tab value"
+        },
+        actor: context[:actor]
+      )
+
+      assert Fixture.refusal(Autolaunch.prepare_launch(valid.id, Fixture.wallet(), opts(context))) ==
+               :launch_treasury_invalid
+
+      assert {:ok, %{operation: nil}} = Autolaunch.open_launch_operation(opts(context))
+    end
+
     test "a paused factory refuses before an operation exists", context do
       Fixture.install(paused: true)
       assert refused(context) == :launches_paused

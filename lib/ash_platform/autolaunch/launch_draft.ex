@@ -64,11 +64,17 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
     attribute :name, :string do
       source :token_name
+      allow_nil? false
+      default ""
       public? true
+      constraints allow_empty?: true
     end
 
     attribute :symbol, :string do
+      allow_nil? false
+      default ""
       public? true
+      constraints allow_empty?: true
     end
 
     attribute :description, :string do
@@ -117,6 +123,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
   actions do
     create :create_for_owner do
       accept @clean_v1_fields
+      change AshPlatform.Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
       validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
       change AshPlatform.Autolaunch.LaunchDraft.Changes.AssignOwner
     end
@@ -124,6 +131,20 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     read :mine do
       filter expr(human_account_id == ^actor(:human_account_id))
       prepare build(sort: [updated_at: :desc, id: :asc])
+    end
+
+    read :mine_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+    end
+
+    read :mine_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
     end
 
     update :autosave_token_details do
@@ -139,9 +160,9 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     end
 
     update :attach_image do
-      accept [:image, :launch_draft_image_id]
+      argument :launch_draft_image_id, :uuid, allow_nil?: false
       require_atomic? false
-      validate AshPlatform.Autolaunch.LaunchDraft.Validations.PartialFields
+      change AshPlatform.Autolaunch.LaunchDraft.Changes.AttachOwnedImage
     end
 
     update :revise_by_owner do
@@ -158,6 +179,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
     policy action([
              :create_for_owner,
              :mine,
+             :mine_by_id,
+             :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,
@@ -168,6 +191,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
     policy action([
              :mine,
+             :mine_by_id,
+             :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,

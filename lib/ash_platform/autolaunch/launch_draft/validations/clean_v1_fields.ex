@@ -31,6 +31,7 @@ defmodule AshPlatform.Autolaunch.LaunchDraft.Validations.CleanV1Fields do
 
     cond do
       not String.valid?(value) -> [error(field, "must be readable text")]
+      value == "" -> [error(field, "is required")]
       byte_size(value) > limit -> [error(field, "must be #{limit} bytes or fewer")]
       true -> []
     end
