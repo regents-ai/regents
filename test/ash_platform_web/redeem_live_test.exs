@@ -113,6 +113,24 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute has_element?(view, "[phx-click=prepare_redemption]")
   end
 
+  test "REDEEM_ROUTE_OWNERSHIP: redemption events are inert outside /redeem", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+    {:ok, view, _html} = live(conn, "/stake")
+
+    for {event, params} <- [
+          {"redemption_active_wallet", %{"address" => @wallet}},
+          {"redemption_selection_changed", %{"collection" => "animata_i", "token_id" => "42"}},
+          {"prepare_redemption", %{"action" => "claim", "attempt_id" => "outside-route"}},
+          {"refresh_redemption", %{}},
+          {"select_owned_animata", %{"collection" => "animata_i", "token-id" => "42"}}
+        ] do
+      render_hook(view, event, params)
+    end
+
+    refute_receive {:redemption_read_waiting, _}
+    refute_push_event(view, "redemption:wallet-action", _)
+  end
+
   test "ACTIVE_WALLET_ONLY: private facts require the published linked wallet", %{conn: conn} do
     account = register("redeem-wallet", [@wallet])
     view = mount_redeem(conn, account)
@@ -145,6 +163,55 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
     render_async(view)
     assert has_element?(view, ".redeem-next-step button", "Approve 80 USDC")
+  end
+
+  test "SELECTION_FAILURE: prior facts remain visible but selection actions stay disabled", %{
+    conn: conn
+  } do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    view = conn |> signed_in("redeem-selection-failure") |> activate(@wallet)
+    select(view, "animata_i", "42")
+    assert has_element?(view, ".redeem-next-step button:not([disabled])", "Redeem")
+
+    Application.put_env(:ash_platform, :test_redemption_read_result, :error)
+
+    view
+    |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "43"})
+    |> render_change()
+
+    render_async(view)
+
+    assert has_element?(view, ".redeem-summary", "Base safe block 1,234")
+    assert has_element?(view, ".redeem-next-step button[disabled]")
+    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
+    assert render(view) =~ "Refresh failed"
+
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "stale-selection"
+    })
+
+    refute_push_event(view, "redemption:wallet-action", _)
+    assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: "stale-selection"})
+
+    Application.put_env(:ash_platform, :test_redemption_read_result, :ok)
+    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
+
+    render_hook(view, "prepare_redemption", %{
+      "action" => "claim",
+      "attempt_id" => "account-wide-claim"
+    })
+
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "account-wide-claim",
+      envelope: %{action: "claim", expected_signer: @wallet}
+    })
   end
 
   test "REFRESH_FEEDBACK: unchanged data is acknowledged and a later snapshot updates stats", %{
@@ -273,13 +340,41 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view = conn |> signed_in("redeem-direct") |> activate(@wallet)
     select(view, "animata_i", "42")
 
-    view |> element(".redeem-next-step button") |> render_click()
-    assert_push_event(view, "redemption:wallet-action", %{envelope: first})
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "redeem-attempt-1"
+    })
+
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "redeem-attempt-1",
+      envelope: first
+    })
+
     assert first.action == "redeem"
     assert first.expected_signer == @wallet
 
-    view |> element(".redeem-next-step button") |> render_click()
-    assert_push_event(view, "redemption:wallet-action", %{envelope: second})
+    Application.put_env(:ash_platform, :test_redemption_nft_owner, @other)
+
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "refused-attempt"
+    })
+
+    assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: "refused-attempt"})
+    refute_push_event(view, "redemption:wallet-action", %{attempt_id: "refused-attempt"})
+
+    Application.delete_env(:ash_platform, :test_redemption_nft_owner)
+
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "redeem-attempt-2"
+    })
+
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "redeem-attempt-2",
+      envelope: second
+    })
+
     refute first.action_id == second.action_id
 
     html = render(view)
@@ -291,9 +386,15 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   test "CLAIM_DIRECTLY: unlocked REGENT is its own exact control", %{conn: conn} do
     view = conn |> signed_in("redeem-claim") |> activate(@wallet)
-    view |> element(~s(button[phx-value-action="claim"])) |> render_click()
+    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
+
+    render_hook(view, "prepare_redemption", %{
+      "action" => "claim",
+      "attempt_id" => "claim-attempt"
+    })
 
     assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "claim-attempt",
       envelope: %{action: "claim", expected_signer: @wallet}
     })
 

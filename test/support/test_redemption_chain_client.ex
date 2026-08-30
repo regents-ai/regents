@@ -38,12 +38,7 @@ defmodule AshPlatform.TestRedemptionChainClient do
        vest_released: if(wallet, do: "1", else: nil),
        vest_claimed_raw: if(wallet, do: "0", else: nil),
        vest_claimed: if(wallet, do: "0", else: nil),
-       vest_start: if(wallet, do: 1_700_000_000, else: nil),
-       result_token_id:
-         if(token_id && Application.get_env(:ash_platform, :test_redemption_result_ready, false),
-           do: 1123,
-           else: nil
-         )
+       vest_start: if(wallet, do: 1_700_000_000, else: nil)
      }}
   end
 

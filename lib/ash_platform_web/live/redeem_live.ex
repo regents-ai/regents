@@ -192,16 +192,14 @@ defmodule AshPlatformWeb.RedeemLive do
             <p class="redeem-kicker">Next step</p><p>{step_label(@step)}</p>
             <button
               type="button"
-              phx-click="prepare_redemption"
-              phx-value-action={step_action(@step)}
+              data-redemption-action={step_action(@step)}
               disabled={is_nil(step_action(@step))}
             >{step_control(@step)}</button>
           </section>
           <div class="redeem-button-row">
             <button
               type="button"
-              phx-click="prepare_redemption"
-              phx-value-action="claim"
+              data-redemption-action="claim"
               disabled={!claim_ready?(@redemption)}
             >Claim unlocked REGENT</button>
             <button

@@ -103,8 +103,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
     for href <- attribute(html, "a", "href"),
         href != "/",
         not String.starts_with?(href, "https://") do
-      assert String.starts_with?(href, "#")
-      assert String.trim_leading(href, "#") in anchors
+      assert href == "/stake" or String.starts_with?(href, "#")
+      if String.starts_with?(href, "#"), do: assert(String.trim_leading(href, "#") in anchors)
     end
   end
 
@@ -116,11 +116,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert attribute(html, ".rl-header a", "href") ==
              ["/" | Enum.map(@nav, &elem(&1, 2))] ++
-               ["https://x.com/regents_sh", "https://github.com/regents-ai"]
+               ["https://x.com/regents_sh", "https://github.com/regents-ai", "/stake"]
 
     assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on X"]))
     assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on GitHub"]))
-    assert has_element?(view, ".rl-header-links span.rl-action--disabled", "App Upgrading")
+    assert has_element?(view, ~s(.rl-header-links a[href="/stake"]), "Stake REGENT")
     refute has_element?(view, "a.rl-action--disabled")
   end
 
@@ -304,6 +304,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert texts(html, "a.rl-action") == [
+             "Stake REGENT",
              "See how it works",
              "Create Agent on Nous",
              "Explore the system"

@@ -143,6 +143,19 @@ defmodule AshPlatform.StakingTest do
              Staking.prepare_claim_and_restake_regent(@wallet, opts)
   end
 
+  test "PAUSED: claim and restake is unavailable while other claims and unstake remain available",
+       %{
+         opts: opts
+       } do
+    Process.put(:paused, true)
+
+    assert {:error, error} = Staking.prepare_claim_and_restake_regent(@wallet, opts)
+    assert refusal(error) == :staking_paused
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet, opts)
+    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet, opts)
+    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1", opts)
+  end
+
   defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
     do: reason
 

@@ -112,8 +112,7 @@ defmodule AshPlatform.Redemption.RpcClient do
        token_id: nil,
        nft_owner: nil,
        nft_owner_unavailable: false,
-       nft_approved: nil,
-       result_token_id: nil
+       nft_approved: nil
      }}
   end
 
@@ -125,22 +124,18 @@ defmodule AshPlatform.Redemption.RpcClient do
          token_id: nil,
          nft_owner: nil,
          nft_owner_unavailable: false,
-         nft_approved: approved,
-         result_token_id: nil
+         nft_approved: approved
        }}
     end
   end
 
   defp token_reads(wallet, collection, token_id, redeemer, block) do
-    with {:ok, approved} <- approved_for_all(collection, wallet, redeemer, block),
-         {:ok, result_token_id} <-
-           read_uint("result_token_id", [collection, token_id], redeemer, block) do
+    with {:ok, approved} <- approved_for_all(collection, wallet, redeemer, block) do
       {:ok,
        Map.merge(owner_read(collection, token_id, block), %{
          selected_collection: collection,
          token_id: token_id,
-         nft_approved: approved,
-         result_token_id: if(result_token_id == 0, do: nil, else: result_token_id)
+         nft_approved: approved
        })}
     end
   end
@@ -181,8 +176,7 @@ defmodule AshPlatform.Redemption.RpcClient do
       vest_released: nil,
       vest_claimed_raw: nil,
       vest_claimed: nil,
-      vest_start: nil,
-      result_token_id: nil
+      vest_start: nil
     }
   end
 

@@ -159,6 +159,9 @@ defmodule AshPlatform.Staking.Actions do
 
   def limit_refusal(%{paused: true}, "stake", _), do: :staking_paused
 
+  def limit_refusal(%{paused: true}, "claim_and_restake_regent", _),
+    do: :staking_paused
+
   def limit_refusal(staking, "stake", amount) do
     with {:ok, balance} <- atomic(staking.wallet_token_balance_raw),
          {:ok, capacity} <- atomic(staking.remaining_capacity_raw) do

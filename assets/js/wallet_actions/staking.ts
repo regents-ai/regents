@@ -466,8 +466,8 @@ function rawRequest(
         value => finish(() => (runtime.alive() ? resolve(value) : reject(new DeadGeneration()))),
         error => finish(() => reject(error)),
       )
-    } catch {
-      finish(() => reject(new Error("provider request failed")))
+    } catch (error) {
+      finish(() => reject(error))
     }
   })
 }

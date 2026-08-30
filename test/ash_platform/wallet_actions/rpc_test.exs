@@ -104,6 +104,45 @@ defmodule AshPlatform.WalletActions.RpcTest do
     end
   end
 
+  test "STRICT_ABI_DECODING: malformed scalar evidence is unavailable" do
+    Stub.install(:wallet_http_client, fn _data, _state -> Process.get(:abi_result) end)
+    block = %{hash: Stub.safe_hash()}
+
+    Process.put(:abi_result, Stub.uint(7))
+    assert {:ok, 7} = Rpc.call_uint(@target, @data, block)
+
+    Process.put(:abi_result, Stub.uint(0))
+    assert {:ok, false} = Rpc.call_bool(@target, @data, block)
+    Process.put(:abi_result, Stub.uint(1))
+    assert {:ok, true} = Rpc.call_bool(@target, @data, block)
+
+    Process.put(:abi_result, Stub.uint(2))
+    assert {:error, :invalid_chain_response} = Rpc.call_bool(@target, @data, block)
+
+    address = "0x" <> String.duplicate("ab", 20)
+    Process.put(:abi_result, "0x" <> Stub.address_word(address))
+    assert {:ok, ^address} = Rpc.call_address(@target, @data, block)
+
+    for malformed <- [
+          "0x" <> String.duplicate("a", 63),
+          "0x" <> String.duplicate("a", 65),
+          "0x" <> String.duplicate("g", 64)
+        ] do
+      Process.put(:abi_result, malformed)
+      assert {:error, :invalid_chain_response} = Rpc.call_uint(@target, @data, block)
+      assert {:error, :invalid_chain_response} = Rpc.call_address(@target, @data, block)
+    end
+
+    Process.put(:abi_result, "0x" <> String.duplicate("1", 24) <> String.duplicate("a", 40))
+    assert {:error, :invalid_chain_response} = Rpc.call_address(@target, @data, block)
+
+    Process.put(:abi_result, "0x" <> Stub.hex_word(1) <> Stub.hex_word(2))
+    assert {:ok, [1, 2]} = Rpc.call_words(@target, @data, block, 2)
+
+    Process.put(:abi_result, "0x" <> Stub.hex_word(1) <> Stub.hex_word(2) <> Stub.hex_word(3))
+    assert {:error, :invalid_chain_response} = Rpc.call_words(@target, @data, block, 2)
+  end
+
   test "rejects hash, calldata and value drift" do
     valid = transaction()
 

@@ -50,6 +50,10 @@ const actionIds = new Set(manifest.prepared_actions.map(action => action.id))
 const redeemerAbi = redeemerAbiJson as Abi
 const erc20ApprovalAbi = parseAbi(["function approve(address spender,uint256 amount)"])
 const erc721ApprovalAbi = parseAbi(["function setApprovalForAll(address operator,bool approved)"])
+const chainRequestTimeoutMs = 5_000
+const switchRequestTimeoutMs = 15_000
+const simulationRequestTimeoutMs = 15_000
+const sendRequestTimeoutMs = 120_000
 const observationRequestTimeoutMs = 4_000
 const observationOffsetsSeconds = [
   ...Array.from({length: 15}, (_, index) => (index + 1) * 2),
@@ -112,8 +116,19 @@ export type RedemptionRuntime = {
   registerCancellation(cancel: () => void): () => void
 }
 
+export type RedemptionFailureKind = "canceled" | "submission_unknown" | "refused"
+
+export class RedemptionExecutionFailure extends Error {
+  constructor(readonly kind: RedemptionFailureKind, readonly displayMessage: string) {
+    super(displayMessage)
+  }
+}
+
 const deadObservations = new WeakSet<object>()
+const deadGenerations = new WeakSet<object>()
+const walletDrifts = new WeakSet<object>()
 class ObservationTimeout extends Error {}
+class RequestTimeout extends Error {}
 class DeadObservation extends Error {
   constructor() {
     super("redemption observation ended")
@@ -121,10 +136,29 @@ class DeadObservation extends Error {
   }
 }
 
+class DeadGeneration extends Error {
+  constructor() {
+    super("redemption hook generation ended")
+    deadGenerations.add(this)
+  }
+}
+
+class WalletDrift extends Error {
+  constructor() {
+    super("redemption wallet changed")
+    walletDrifts.add(this)
+  }
+}
+
+const alwaysAliveRuntime: RedemptionRuntime = {
+  alive: () => true,
+  registerCancellation: () => () => undefined,
+}
+
 export type CurrentRedemptionWallet = () => SelectedWallet | null
 
 export function clientsForRedemption(provider: EthereumProvider): RedemptionClients {
-  const transport = custom(provider)
+  const transport = custom(provider, {retryCount: 0})
   const publicClient = createPublicClient({chain: base, transport})
   const walletClient = createWalletClient({chain: base, transport})
 
@@ -137,7 +171,19 @@ export function clientsForRedemption(provider: EthereumProvider): RedemptionClie
     simulate: async request => {
       await publicClient.call(request)
     },
-    send: request => walletClient.sendTransaction(request),
+    send: async request => {
+      const response = await provider.request({
+        method: "eth_sendTransaction",
+        params: [{
+          from: getAddress(request.account),
+          to: getAddress(request.to),
+          data: request.data,
+          value: "0x0",
+        }],
+      })
+      if (!validHash(response)) throw new Error("The wallet did not return a transaction hash.")
+      return response
+    },
   }
 }
 
@@ -146,38 +192,65 @@ export async function executePreparedRedemptionAction(
   provider: EthereumProvider,
   clients: RedemptionClients = clientsForRedemption(provider),
   currentWallet: CurrentRedemptionWallet = activeEthereumWallet,
+  runtime: RedemptionRuntime = alwaysAliveRuntime,
 ): Promise<SubmittedRedemptionTransaction> {
-  assertRedemptionEnvelope(envelope)
-  assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+  let walletRequestStarted = false
 
-  let chainId = await clients.chainId()
-  if (chainId !== base.id) {
-    await clients.switchToBase()
-    chainId = await clients.chainId()
+  try {
+    assertRedemptionEnvelope(envelope)
+    assertActiveWallet(envelope.expected_signer, provider, currentWallet)
+
+    let chainId = await boundRequest(() => clients.chainId(), chainRequestTimeoutMs, runtime)
+    if (chainId !== base.id) {
+      await boundRequest(() => clients.switchToBase(), switchRequestTimeoutMs, runtime)
+      chainId = await boundRequest(() => clients.chainId(), chainRequestTimeoutMs, runtime)
+    }
+    if (chainId !== base.id) throw new Error("Switch to Base before continuing.")
+
+    const account = await currentAccount(envelope.expected_signer, provider, clients, currentWallet, runtime)
+
+    const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
+    await boundRequest(() => clients.simulate(transaction), simulationRequestTimeoutMs, runtime)
+    const hash = await sendWithCurrentWallet(
+      envelope,
+      provider,
+      clients,
+      currentWallet,
+      transaction,
+      runtime,
+      () => {
+        walletRequestStarted = true
+      },
+    )
+    if (!validHash(hash)) throw new Error("The wallet did not return a transaction hash.")
+
+    return Object.freeze({
+      actionId: envelope.action_id,
+      action: envelope.action,
+      provider,
+      chainId: base.id,
+      signer: account,
+      transaction: Object.freeze({
+        from: account,
+        to: transaction.to,
+        data: transaction.data,
+        value: "0x0",
+      }),
+      hash,
+    })
+  } catch (error) {
+    if (isDeadGeneration(error) || isRedemptionWalletDrift(error)) throw error
+    if (userRejected(error)) {
+      throw new RedemptionExecutionFailure("canceled", "Request canceled.")
+    }
+    if (walletRequestStarted) {
+      throw new RedemptionExecutionFailure(
+        "submission_unknown",
+        "The submission outcome is unknown.",
+      )
+    }
+    throw new RedemptionExecutionFailure("refused", "Switch to Base before continuing.")
   }
-  if (chainId !== base.id) throw new Error("Switch to Base before continuing.")
-
-  const account = await currentAccount(envelope.expected_signer, provider, clients, currentWallet)
-
-  const transaction = {account, to: getAddress(envelope.to), data: envelope.data, value: 0n}
-  await clients.simulate(transaction)
-  const hash = await sendWithCurrentWallet(envelope, provider, clients, currentWallet, transaction)
-  if (!validHash(hash)) throw new Error("The wallet did not return a transaction hash.")
-
-  return Object.freeze({
-    actionId: envelope.action_id,
-    action: envelope.action,
-    provider,
-    chainId: base.id,
-    signer: account,
-    transaction: Object.freeze({
-      from: account,
-      to: transaction.to,
-      data: transaction.data,
-      value: "0x0",
-    }),
-    hash,
-  })
 }
 
 async function currentAccount(
@@ -185,9 +258,10 @@ async function currentAccount(
   provider: EthereumProvider,
   clients: RedemptionClients,
   currentWallet: CurrentRedemptionWallet,
+  runtime: RedemptionRuntime,
 ): Promise<Address> {
   assertActiveWallet(expectedSigner, provider, currentWallet)
-  const [account] = await clients.addresses()
+  const [account] = await boundRequest(() => clients.addresses(), chainRequestTimeoutMs, runtime)
   assertActiveWallet(expectedSigner, provider, currentWallet)
 
   if (!account || getAddress(account) !== getAddress(expectedSigner)) {
@@ -203,19 +277,66 @@ async function sendWithCurrentWallet(
   clients: RedemptionClients,
   currentWallet: CurrentRedemptionWallet,
   transaction: {to: Address; data: Hex; value: bigint},
+  runtime: RedemptionRuntime,
+  onHandoff: () => void,
 ): Promise<Hash> {
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
-  if (await clients.chainId() !== base.id) throw new Error("Switch to Base before continuing.")
+  if (await boundRequest(() => clients.chainId(), chainRequestTimeoutMs, runtime) !== base.id) {
+    throw new Error("Switch to Base before continuing.")
+  }
 
   const account = await currentAccount(
     envelope.expected_signer,
     provider,
     clients,
     currentWallet,
+    runtime,
   )
 
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
-  return clients.send({...transaction, account})
+  return boundRequest(
+    () => clients.send({...transaction, account}),
+    sendRequestTimeoutMs,
+    runtime,
+    onHandoff,
+  )
+}
+
+function boundRequest<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number,
+  runtime: RedemptionRuntime,
+  onHandoff?: () => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (!runtime.alive()) {
+      reject(new DeadGeneration())
+      return
+    }
+
+    let active = true
+    let unregister = (): void => undefined
+    const finish = (result: () => void): void => {
+      if (!active) return
+      active = false
+      clearTimeout(timer)
+      unregister()
+      result()
+    }
+    const timer = globalThis.setTimeout(() => finish(() => reject(new RequestTimeout())), timeoutMs)
+    unregister = runtime.registerCancellation(() => finish(() => reject(new DeadGeneration())))
+    if (!active) return
+
+    try {
+      onHandoff?.()
+      operation().then(
+        value => finish(() => (runtime.alive() ? resolve(value) : reject(new DeadGeneration()))),
+        error => finish(() => reject(error)),
+      )
+    } catch (error) {
+      finish(() => reject(error))
+    }
+  })
 }
 
 export function observeRedemptionTransaction(
@@ -472,6 +593,14 @@ function isDeadObservation(error: unknown): boolean {
   return typeof error === "object" && error !== null && deadObservations.has(error)
 }
 
+function isDeadGeneration(error: unknown): boolean {
+  return typeof error === "object" && error !== null && deadGenerations.has(error)
+}
+
+export function isRedemptionWalletDrift(error: unknown): boolean {
+  return typeof error === "object" && error !== null && walletDrifts.has(error)
+}
+
 function assertActiveWallet(
   expectedSigner: Address,
   provider: EthereumProvider,
@@ -483,7 +612,16 @@ function assertActiveWallet(
     active.provider !== provider ||
     getAddress(active.address) !== getAddress(expectedSigner)
   ) {
-    throw new Error("Use the connected wallet shown on this account.")
+    throw new WalletDrift()
+  }
+}
+
+function userRejected(error: unknown): boolean {
+  if ((typeof error !== "object" || error === null) && typeof error !== "function") return false
+  try {
+    return Reflect.get(error, "code") === 4001
+  } catch {
+    return false
   }
 }
 

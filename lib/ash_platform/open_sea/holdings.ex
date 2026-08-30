@@ -63,13 +63,21 @@ defmodule AshPlatform.OpenSea.Holdings do
     do: unavailable(:page_cap)
 
   defp fetch_collection(address, collection, key, cursor, seen, pages, ids) do
-    if repeated_cursor?(cursor, seen) do
-      unavailable(:repeated_cursor)
+    with false <- repeated_cursor?(cursor, seen),
+         {:ok, nfts, next} <- request_page(address, collection, key, cursor),
+         {:ok, page_ids} <- identifiers(nfts) do
+      continue_collection(
+        next,
+        address,
+        collection,
+        key,
+        remember(cursor, seen),
+        pages,
+        ids ++ page_ids
+      )
     else
-      with {:ok, nfts, next} <- request_page(address, collection, key, cursor) do
-        ids = ids ++ Enum.flat_map(nfts, &identifier/1)
-        continue_collection(next, address, collection, key, remember(cursor, seen), pages, ids)
-      end
+      true -> unavailable(:repeated_cursor)
+      error -> error
     end
   end
 
@@ -78,17 +86,33 @@ defmodule AshPlatform.OpenSea.Holdings do
       "https://api.opensea.io/api/v2/chain/base/account/#{address}/nfts?collection=#{collection}&limit=100" <>
         if(cursor, do: "&next=#{URI.encode_www_form(cursor)}", else: "")
 
-    case client().get(url,
-           headers: [{"accept", "application/json"}, {"x-api-key", key}],
-           receive_timeout: @request_timeout,
-           pool_timeout: @request_timeout
-         ) do
+    options = [
+      headers: [{"accept", "application/json"}, {"x-api-key", key}],
+      connect_options: [timeout: @request_timeout],
+      receive_timeout: @request_timeout,
+      pool_timeout: @request_timeout,
+      retry: false,
+      redirect: false
+    ]
+
+    case bounded_get(url, options) do
       {:ok, %{status: status, body: %{"nfts" => nfts} = body}}
       when status in 200..299 and is_list(nfts) ->
-        {:ok, nfts, body["next"]}
+        with {:ok, next} <- response_cursor(body["next"]) do
+          {:ok, nfts, next}
+        end
 
       _ ->
         unavailable(:provider_failure)
+    end
+  end
+
+  defp bounded_get(url, options) do
+    task = Task.async(fn -> client().get(url, options) end)
+
+    case Task.yield(task, @request_timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      _ -> {:error, :request_timeout}
     end
   end
 
@@ -104,14 +128,28 @@ defmodule AshPlatform.OpenSea.Holdings do
   defp remember(nil, seen), do: seen
   defp remember(cursor, seen), do: MapSet.put(seen, cursor)
 
-  defp identifier(%{"identifier" => id}) when is_binary(id) do
-    case Integer.parse(id) do
-      {value, ""} -> [value]
-      _ -> []
+  defp response_cursor(nil), do: {:ok, nil}
+  defp response_cursor(cursor) when is_binary(cursor), do: {:ok, cursor}
+  defp response_cursor(_cursor), do: unavailable(:malformed_response)
+
+  defp identifiers(nfts) do
+    Enum.reduce_while(nfts, {:ok, []}, fn nft, {:ok, ids} ->
+      case identifier(nft) do
+        {:ok, id} -> {:cont, {:ok, [id | ids]}}
+        :error -> {:halt, unavailable(:malformed_response)}
+      end
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      error -> error
     end
   end
 
-  defp identifier(_), do: []
+  defp identifier(%{"identifier" => id}) when is_binary(id) do
+    if String.match?(id, ~r/\A[0-9]+\z/), do: {:ok, String.to_integer(id)}, else: :error
+  end
+
+  defp identifier(_), do: :error
 
   defp present(by) do
     animata =

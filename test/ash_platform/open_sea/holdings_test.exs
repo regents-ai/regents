@@ -29,8 +29,11 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url, options ->
       id = if String.contains?(url, "regents-club"), do: "1123", else: "42"
+      assert options[:connect_options] == [timeout: 5_000]
       assert options[:receive_timeout] == 5_000
       assert options[:pool_timeout] == 5_000
+      assert options[:retry] == false
+      assert options[:redirect] == false
       assert {"x-api-key", "test-key"} in options[:headers]
       {:ok, %{status: 200, body: %{"nfts" => [%{"identifier" => id}]}}}
     end)
@@ -96,6 +99,38 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
              "regent-animata-ii" => 10,
              "regents-club" => 10
            }
+  end
+
+  test "MALFORMED_EVIDENCE: malformed cursors and NFT identifiers fail closed", %{opts: opts} do
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    for response <- [
+          %{"nfts" => [], "next" => 42},
+          %{"nfts" => [%{"identifier" => 42}]},
+          %{"nfts" => [%{"identifier" => "-1"}]}
+        ] do
+      Application.put_env(:ash_platform, :test_open_sea_handler, fn _url ->
+        {:ok, %{status: 200, body: response}}
+      end)
+
+      assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+      assert length(drain_requests()) == 3
+    end
+  end
+
+  test "REQUEST_TIMEOUT: each page has one five-second whole-call bound", %{opts: opts} do
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    Application.put_env(:ash_platform, :test_open_sea_handler, fn _url ->
+      receive do
+        :never_sent -> {:ok, %{status: 200, body: %{"nfts" => []}}}
+      end
+    end)
+
+    started_at = System.monotonic_time(:millisecond)
+    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+    assert System.monotonic_time(:millisecond) - started_at < 10_000
+    assert length(drain_requests()) == 3
   end
 
   defp requests(count), do: for(_ <- 1..count, do: receive_request())

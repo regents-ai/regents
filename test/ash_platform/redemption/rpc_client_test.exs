@@ -95,7 +95,6 @@ defmodule AshPlatform.Redemption.RpcClientTest do
   defp selector("0xdd62ed3e", state), do: Stub.uint(Map.get(state, :allowance, @price))
   defp selector("0x402914f5", _), do: Stub.uint(1_000_000_000_000_000_000)
   defp selector("0x474fc417", _), do: "0x" <> String.duplicate(Stub.hex_word(1), 4)
-  defp selector("0x6d970989", state), do: Stub.uint(Map.get(state, :result_token_id, 0))
 
   defp selector("0xe985e9c5", state),
     do: Stub.uint(if(Map.get(state, :approved, true), do: 1, else: 0))

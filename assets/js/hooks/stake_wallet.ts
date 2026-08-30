@@ -1,5 +1,5 @@
 import type {Hook} from "../hook_composition"
-import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
+import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/connected_wallet"
 import {
   executeStakingClick,
   observeStakingTransaction,
@@ -17,18 +17,19 @@ import {
 type ResultDisplay = Readonly<{message: string; href: string | null}>
 type ResultSlot = {
   readonly id: string
+  readonly generation: number
   readonly action: StakingAction
   readonly role: "action"
   readonly initiator: HTMLElement
-  readonly submitted: SubmittedStakingTransaction | null
+  submitted: SubmittedStakingTransaction | null
 }
 
 type StakeState = {
   alive: boolean
+  generation: number
+  wallet: SelectedWallet | null
   cancellations: Set<() => void>
   replayClaims: Set<string>
-  walletRequests: Set<string>
-  actionIds: Set<string>
   observationSlots: Map<string, ResultSlot>
   results: Map<string, ResultDisplay>
   queue: ResultSlot[]
@@ -61,10 +62,10 @@ export const StakeWallet: Hook = {
     const dialog = requiredElement<HTMLDialogElement>(this.el, "#staking-result-dialog")
     const state: StakeState = {
       alive: true,
+      generation: 0,
+      wallet: activeEthereumWallet(),
       cancellations: new Set(),
       replayClaims: new Set(),
-      walletRequests: new Set(),
-      actionIds: new Set(),
       observationSlots: new Map(),
       results: new Map(),
       queue: [],
@@ -75,11 +76,15 @@ export const StakeWallet: Hook = {
       click: () => undefined,
       close: () => undefined,
       cancel: () => undefined,
-      publishActiveWallet: () =>
-        this.pushEvent("staking_active_wallet", {address: activeEthereumWallet()?.address ?? null}),
+      publishActiveWallet: () => undefined,
     }
     this.stakeState = state
-    const runtime = runtimeFor(state)
+
+    state.publishActiveWallet = () => {
+      const wallet = activeEthereumWallet()
+      if (!sameWallet(state.wallet, wallet)) resetForWallet(state, wallet)
+      this.pushEvent("staking_active_wallet", {address: wallet?.address ?? null})
+    }
 
     const reserve = (slot: ResultSlot, display?: ResultDisplay): void => {
       if (!state.alive) return
@@ -89,42 +94,38 @@ export const StakeWallet: Hook = {
       presentNext(this.el, state)
     }
 
-    const callbacksFor = (initiator: HTMLElement) => ({
+    const discard = (slot: ResultSlot): void => {
+      if (!currentSlot(state, slot)) return
+      state.observationSlots.delete(slot.id)
+      state.results.delete(slot.id)
+      const index = state.queue.indexOf(slot)
+      if (index >= 0) state.queue.splice(index, 1)
+      presentNext(this.el, state)
+    }
+
+    const callbacksFor = (slot: ResultSlot, runtime: StakingRuntime) => ({
       claimRole: (actionId: string, role: StakingTransactionRole): boolean => {
         const key = `${actionId}:${role}`
-        if (!state.alive || state.replayClaims.has(key)) return false
+        if (!state.alive || !runtime.alive() || !currentSlot(state, slot) || state.replayClaims.has(key)) return false
         state.replayClaims.add(key)
         return true
       },
       timing: logTiming,
-      walletRequestStarted: (actionId: string, role: StakingTransactionRole): void => {
-        state.walletRequests.add(`${actionId}:${role}`)
-      },
+      walletRequestStarted: (_actionId: string, _role: StakingTransactionRole): void => undefined,
       immediate: (result: ImmediateStakingResult): void => {
         // Approval is a wallet prerequisite, not a Regent result surface.
-        if (result.role === "approval") return
-        reserve(
-          Object.freeze({
-            id: crypto.randomUUID(),
-            action: result.action,
-            role: result.role,
-            initiator,
-            submitted: null,
-          }),
-          Object.freeze({message: result.message, href: null}),
-        )
+        if (result.role === "approval") {
+          discard(slot)
+          return
+        }
+        settleImmediate(this.el, state, slot, result.message)
       },
       submitted: (submitted: SubmittedStakingTransaction): void => {
         // The valid hash still unlocks the main send; it is not presented or observed here.
         if (submitted.role === "approval") return
-        const slot: ResultSlot = Object.freeze({
-          id: crypto.randomUUID(),
-          action: submitted.action,
-          role: submitted.role,
-          initiator,
-          submitted,
-        })
-        reserve(slot)
+        if (!currentSlot(state, slot)) return
+        slot.submitted = submitted
+        state.observationSlots.set(slot.id, slot)
         observeStakingTransaction(submitted, runtime, result => {
           settleObserved(this, state, slot, result)
         })
@@ -149,11 +150,24 @@ export const StakeWallet: Hook = {
       if (!stakingAction(action)) return
       event.preventDefault()
 
+      const wallet = activeEthereumWallet()
+      if (!sameWallet(state.wallet, wallet)) resetForWallet(state, wallet)
+      const generation = state.generation
+      const runtime = runtimeFor(state, generation)
+      const slot: ResultSlot = {
+        id: crypto.randomUUID(),
+        generation,
+        action,
+        role: "action",
+        initiator,
+        submitted: null,
+      }
+      reserve(slot)
+
       const clickedAt = performance.now()
       const traceId = crypto.randomUUID()
       const actionId = crypto.randomUUID()
       const role: StakingTransactionRole = "action"
-      state.actionIds.add(actionId)
 
       try {
         const click = prepareStakingClick(
@@ -164,7 +178,7 @@ export const StakeWallet: Hook = {
             chainId: this.el.dataset.stakingChainId ?? "",
             expectedSigner: this.el.dataset.stakingSigner ?? "",
           },
-          activeEthereumWallet(),
+          wallet,
           {actionId, traceId},
         )
         logTiming({
@@ -174,7 +188,7 @@ export const StakeWallet: Hook = {
           phase: "click_to_local_ready",
           milliseconds: elapsed(clickedAt),
         })
-        void executeStakingClick(click, callbacksFor(initiator), runtime)
+        void executeStakingClick(click, callbacksFor(slot, runtime), runtime)
       } catch (error) {
         logTiming({
           trace_id: traceId,
@@ -187,16 +201,7 @@ export const StakeWallet: Hook = {
           error instanceof StakingLocalRefusal
             ? error.displayMessage
             : "That staking action is unavailable. Refresh and try again."
-        reserve(
-          Object.freeze({
-            id: crypto.randomUUID(),
-            action,
-            role,
-            initiator,
-            submitted: null,
-          }),
-          Object.freeze({message, href: null}),
-        )
+        settleImmediate(this.el, state, slot, message)
       }
     }
 
@@ -224,6 +229,7 @@ export const StakeWallet: Hook = {
     const state = this.stakeState
     if (!state) return
     state.alive = false
+    state.generation += 1
     for (const cancel of [...state.cancellations]) cancel()
     state.cancellations.clear()
     this.el.removeEventListener("click", state.click)
@@ -232,8 +238,6 @@ export const StakeWallet: Hook = {
     window.removeEventListener("ash:wallet-state", state.publishActiveWallet)
     if (state.dialog.open) state.dialog.close()
     state.replayClaims.clear()
-    state.walletRequests.clear()
-    state.actionIds.clear()
     state.observationSlots.clear()
     state.results.clear()
     state.queue.length = 0
@@ -242,11 +246,11 @@ export const StakeWallet: Hook = {
   },
 }
 
-function runtimeFor(state: StakeState): StakingRuntime {
+function runtimeFor(state: StakeState, generation: number): StakingRuntime {
   return {
-    alive: () => state.alive,
+    alive: () => state.alive && state.generation === generation,
     registerCancellation: cancel => {
-      if (!state.alive) {
+      if (!state.alive || state.generation !== generation) {
         cancel()
         return () => undefined
       }
@@ -254,6 +258,33 @@ function runtimeFor(state: StakeState): StakingRuntime {
       return () => state.cancellations.delete(cancel)
     },
   }
+}
+
+function resetForWallet(state: StakeState, wallet: SelectedWallet | null): void {
+  state.wallet = wallet
+  invalidateGeneration(state)
+}
+
+function invalidateGeneration(state: StakeState): void {
+  state.generation += 1
+  for (const cancel of [...state.cancellations]) cancel()
+  state.cancellations.clear()
+  state.observationSlots.clear()
+  state.results.clear()
+  state.queue.length = 0
+  state.visible = null
+  state.replayClaims.clear()
+  if (state.dialog.open) state.dialog.close()
+}
+
+function currentSlot(state: StakeState, slot: ResultSlot): boolean {
+  return state.alive && state.generation === slot.generation && state.queue.includes(slot)
+}
+
+function settleImmediate(root: HTMLElement, state: StakeState, slot: ResultSlot, message: string): void {
+  if (!currentSlot(state, slot)) return
+  state.results.set(slot.id, Object.freeze({message, href: null}))
+  presentNext(root, state)
 }
 
 function settleObserved(
@@ -320,6 +351,11 @@ function restoreFocus(root: HTMLElement, initiator: HTMLElement): void {
 
 function focusable(element: HTMLElement): boolean {
   return element.isConnected && !element.closest("[inert]") && !element.hasAttribute("disabled")
+}
+
+function sameWallet(first: SelectedWallet | null, second: SelectedWallet | null): boolean {
+  if (!first || !second) return first === second
+  return first.provider === second.provider && first.address.toLowerCase() === second.address.toLowerCase()
 }
 
 function requiredElement<T extends Element>(root: ParentNode, selector: string): T {

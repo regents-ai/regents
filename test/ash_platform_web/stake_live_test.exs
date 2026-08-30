@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  alias AshPlatformWeb.ShellLive
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -21,6 +22,16 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end)
 
     :ok
+  end
+
+  defmodule CrashingChainClient do
+    @behaviour AshPlatform.Staking.ChainClient
+
+    @impl true
+    def overview(_wallet), do: exit(:simulated_refresh_crash)
+
+    @impl true
+    def allowance(_wallet, _amount), do: {:ok, :insufficient}
   end
 
   test "PUBLIC_FACTS: anonymous visitors see current Base facts and no wallet controls", %{
@@ -116,6 +127,54 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
     render_async(view)
     refute_push_event(view, "staking:wallet-action", _)
+  end
+
+  test "REFRESH_FAILURE: failed and crashed refreshes preserve the last snapshot", %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
+    on_exit(fn -> Application.put_env(:ash_platform, :staking_chain_client, previous_client) end)
+
+    view = conn |> signed_in("stake-refresh-failure") |> activate(@wallet)
+    Application.put_env(:ash_platform, :test_staking_overview_error, :provider_failure)
+    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    render_async(view)
+
+    assert has_element?(view, ".stake-summary", "Total staked")
+    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+
+    Application.delete_env(:ash_platform, :test_staking_overview_error)
+    Application.put_env(:ash_platform, :staking_chain_client, CrashingChainClient)
+    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    render_async(view)
+
+    assert has_element?(view, ".stake-summary", "Total staked")
+    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+
+    Application.put_env(:ash_platform, :staking_chain_client, previous_client)
+    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    render_async(view)
+
+    assert has_element?(view, ".stake-summary", "Total staked")
+    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+  end
+
+  test "REFRESH_NOTICE_SCOPE: a successful read preserves an unrelated notice" do
+    name = {:staking, 7}
+    notice = %{tone: :error, message: "An unrelated wallet action notice."}
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{
+        __changed__: %{},
+        content_generation: 7,
+        staking_notice: notice,
+        staking_read: %{name: name}
+      }
+    }
+
+    assert {:noreply, updated} =
+             ShellLive.handle_async(name, {:ok, {7, {:ok, %{total_staked: "100"}}}}, socket)
+
+    assert updated.assigns.staking_notice == notice
+    assert updated.assigns.staking_status == :ready
   end
 
   defp set_amount(view, amount),

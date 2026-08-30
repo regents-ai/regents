@@ -94,7 +94,7 @@ defmodule AshPlatform.WalletActions.Rpc do
   def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &decode_uint/1, opts)
 
   def call_bool(to, data, block, opts \\ []),
-    do: call(to, data, block, &(decode_uint(&1) != 0), opts)
+    do: call(to, data, block, &decode_bool/1, opts)
 
   def call_address(to, data, block, opts \\ []),
     do: call(to, data, block, &decode_address/1, opts)
@@ -162,8 +162,12 @@ defmodule AshPlatform.WalletActions.Rpc do
              "eth_call",
              [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}],
              opts
-           ) do
-      {:ok, decoder.(result)}
+           ),
+         {:ok, decoded} <- decoder.(result) do
+      {:ok, decoded}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
     end
   rescue
     _ -> {:error, :invalid_chain_response}
@@ -278,15 +282,47 @@ defmodule AshPlatform.WalletActions.Rpc do
   defp verify_transaction(_transaction, _hash, _signer, _to, _data),
     do: {:error, :transaction_missing}
 
-  defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
-
-  defp decode_address("0x" <> hex) when byte_size(hex) == 64 do
-    {:ok, address} = Address.normalize("0x" <> String.slice(hex, -40, 40))
-    address
+  defp decode_uint(value) do
+    with {:ok, hex} <- exact_hex(value, 64), do: parse_hex(hex)
   end
 
-  defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64 do
-    for <<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16)
+  defp decode_bool(value) do
+    with {:ok, value} <- decode_uint(value),
+         true <- value in [0, 1] do
+      {:ok, value == 1}
+    else
+      _ -> :error
+    end
+  end
+
+  defp decode_address(value) do
+    with {:ok, hex} <- exact_hex(value, 64),
+         true <- String.match?(String.slice(hex, 0, 24), ~r/^0+\z/),
+         {:ok, address} <- Address.normalize("0x" <> String.slice(hex, -40, 40)) do
+      {:ok, address}
+    else
+      _ -> :error
+    end
+  end
+
+  defp decode_words(value, count) do
+    case exact_hex(value, count * 64) do
+      {:ok, hex} -> {:ok, for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))}
+      :error -> :error
+    end
+  end
+
+  defp exact_hex("0x" <> hex, size) when byte_size(hex) == size do
+    if String.match?(hex, ~r/\A[0-9a-fA-F]+\z/), do: {:ok, hex}, else: :error
+  end
+
+  defp exact_hex(_value, _size), do: :error
+
+  defp parse_hex(hex) do
+    case Integer.parse(hex, 16) do
+      {value, ""} -> {:ok, value}
+      _ -> :error
+    end
   end
 
   defp zero_quantity?(value) when value in ["0x0", "0x", "0"], do: true
