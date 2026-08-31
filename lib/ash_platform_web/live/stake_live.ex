@@ -16,6 +16,8 @@ defmodule AshPlatformWeb.StakeLive do
   attr :available_claims, :list, default: []
 
   def page(assigns) do
+    assigns = assign(assigns, :dashboard, staking_dashboard(assigns.staking))
+
     ~H"""
     <section
       id="regent-staking"
@@ -23,12 +25,14 @@ defmodule AshPlatformWeb.StakeLive do
       class="stake-page"
       data-staking-chain-id={@staking && @staking.chain_id}
       data-staking-signer={@wallet}
-      data-staking-allowance={stake_allowance(@staking)}
+      data-staking-allowance={@wallet && stake_allowance(@staking)}
     >
       <header class="stake-heading">
-        <p class="stake-kicker">Regents Labs · Base</p>
-        <h1 id="staking-page-heading" tabindex="-1">Stake REGENT</h1>
-        <p>Stake $REGENT. Receive revenue tokens equal to your staked percentage.</p>
+        <p class="stake-kicker">Public contract dashboard · Base</p>
+        <h1 id="staking-page-heading" tabindex="-1">REGENT staking</h1>
+        <p>
+          Explore the latest safe snapshot of the REGENT staking contract. Public contract data is available without signing in.
+        </p>
       </header>
 
       <dialog
@@ -59,51 +63,100 @@ defmodule AshPlatformWeb.StakeLive do
       </div>
 
       <div :if={@status == :ready && @staking} class="stake-layout">
-        <section class="stake-balance-card" aria-label="Staking balances and rewards">
-          <div class="stake-network"><span>Network</span><strong>Base</strong></div>
-          <dl class="stake-summary">
-            <.metric label="Total staked" amount={@staking.total_staked} unit="REGENT" />
-            <.metric label="Remaining capacity" amount={@staking.remaining_capacity} unit="REGENT" />
-            <.metric
-              :if={@wallet}
-              label="Wallet balance"
-              amount={@staking.wallet_token_balance}
-              unit="REGENT"
-            />
-            <.metric
-              :if={@wallet}
-              label="Wallet stake"
-              amount={@staking.wallet_stake_balance}
-              unit="REGENT"
-            />
-            <.metric
-              :if={@wallet}
-              label="Claimable USDC"
-              amount={@staking.wallet_claimable_usdc}
-              unit="USDC"
-            />
-            <.metric
-              :if={@wallet}
-              label="Claimable REGENT"
-              amount={@staking.wallet_claimable_regent}
-              unit="REGENT"
-            />
-          </dl>
+        <section class="stake-overview" aria-labelledby="staking-overview-heading">
+          <div class="stake-overview-heading">
+            <div>
+              <p
+                class="stake-contract-status"
+                data-state={if @staking.paused, do: "paused", else: "active"}
+              >
+                <span aria-hidden="true"></span>
+                {if @staking.paused, do: "Staking paused", else: "Staking active"}
+              </p>
+              <h2 id="staking-overview-heading">Total staked</h2>
+            </div>
+            <span class="stake-network">Base</span>
+          </div>
+
+          <p class="stake-total">
+            <strong>{@dashboard.total_staked}</strong>
+            <span>REGENT</span>
+          </p>
+
+          <div class="stake-capacity">
+            <div class="stake-capacity-heading">
+              <span>Capacity utilization</span>
+              <strong>{@dashboard.utilization.label}</strong>
+            </div>
+            <progress
+              id="staking-utilization"
+              max="100"
+              value={@dashboard.utilization.value}
+              aria-label="Staking capacity utilization"
+            >
+              {@dashboard.utilization.label}
+            </progress>
+            <dl class="stake-capacity-facts">
+              <div>
+                <dt>Contract capacity</dt>
+                <dd>{@dashboard.capacity} REGENT</dd>
+              </div>
+              <div>
+                <dt>Remaining capacity</dt>
+                <dd>{@dashboard.remaining_capacity} REGENT</dd>
+              </div>
+            </dl>
+          </div>
+
+          <p class="stake-snapshot-note">
+            Snapshot confirmed at Base safe block #{format_number(@staking.block_number)}.
+          </p>
         </section>
 
-        <section :if={!@authenticated} class="stake-actions">
-          <h2>Connect your account</h2><p>Sign in with the wallet you use for REGENT.</p>
-          <button type="button" data-account-target="sign-in">Sign in to stake</button>
+        <section :if={!@authenticated} class="stake-actions stake-wallet-access">
+          <p class="stake-section-kicker">Optional wallet access</p>
+          <h2>Connect when you’re ready</h2>
+          <p>
+            Browsing contract data needs no sign-in. Connect only to view wallet balances or take a staking action.
+          </p>
+          <button type="button" data-account-target="sign-in">Sign in for wallet access</button>
         </section>
         <section :if={@authenticated && !@wallet} class="stake-actions" aria-label="Choose a wallet">
-          <h2>Choose your wallet</h2><.notice :if={@notice} notice={@notice} /><button
+          <p class="stake-section-kicker">Wallet access</p>
+          <h2>Choose your wallet</h2>
+          <p>Connect a linked wallet to see its balances and available actions.</p>
+          <.notice :if={@notice} notice={@notice} /><button
             type="button"
             data-stake-connect
           >Connect or switch wallet</button>
         </section>
 
         <section :if={@authenticated && @wallet} class="stake-actions" aria-label="Staking actions">
-          <h2>Wallet actions</h2><.notice :if={@notice} notice={@notice} />
+          <p class="stake-section-kicker">Connected wallet</p>
+          <h2>Wallet balances and actions</h2>
+          <dl class="stake-wallet-summary">
+            <.metric
+              label="Wallet balance"
+              amount={@staking.wallet_token_balance}
+              unit="REGENT"
+            />
+            <.metric
+              label="Wallet stake"
+              amount={@staking.wallet_stake_balance}
+              unit="REGENT"
+            />
+            <.metric
+              label="Claimable USDC"
+              amount={@staking.wallet_claimable_usdc}
+              unit="USDC"
+            />
+            <.metric
+              label="Claimable REGENT"
+              amount={@staking.wallet_claimable_regent}
+              unit="REGENT"
+            />
+          </dl>
+          <.notice :if={@notice} notice={@notice} />
           <div class="stake-mode" role="group" aria-label="Stake or unstake">
             <button
               :for={mode <- ~w(stake unstake)}
@@ -167,18 +220,54 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
         </section>
 
-        <div class="stake-explainers">
-          <article>
-            <h2>Unstake when you choose</h2><p>
-              Unstaking returns the selected amount to your active wallet immediately.
-            </p>
-          </article>
-          <article>
-            <h2>Current Base balances</h2><p>
-              Balances and rewards are read from Base. Your staked percentage determines your proportional revenue-token participation.
-            </p>
-          </article>
-        </div>
+        <section class="stake-contract-details" aria-labelledby="staking-contract-heading">
+          <div class="stake-section-heading">
+            <div>
+              <p class="stake-section-kicker">Onchain details</p>
+              <h2 id="staking-contract-heading">Contract details</h2>
+            </div>
+            <a
+              class="stake-contract-link"
+              href={@dashboard.basescan_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View verified staking contract on BaseScan <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <dl class="stake-contract-facts">
+            <div>
+              <dt>Base staking contract</dt>
+              <dd><code>{@staking.contract_address}</code></dd>
+            </div>
+            <div>
+              <dt>REGENT token</dt>
+              <dd><code>{@staking.stake_token_address}</code></dd>
+            </div>
+            <div>
+              <dt>USDC reward token</dt>
+              <dd><code>{@staking.usdc_address}</code></dd>
+            </div>
+            <div>
+              <dt>Safe Base block</dt>
+              <dd>
+                <span>#{format_number(@staking.block_number)}</span>
+                <code>{@staking.block_hash}</code>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="stake-how-it-works" aria-labelledby="staking-explainer-heading">
+          <p class="stake-section-kicker">The essentials</p>
+          <h2 id="staking-explainer-heading">How staking works</h2>
+          <p>
+            Stake REGENT to participate in reward tokens distributed by the contract. Your portion is proportional to your share of the total REGENT staked at the time rewards are accounted for.
+          </p>
+          <p>
+            A connected wallet is needed only to see its position, stake or unstake REGENT, and claim eligible USDC or REGENT rewards.
+          </p>
+        </section>
       </div>
     </section>
     """
@@ -191,6 +280,58 @@ defmodule AshPlatformWeb.StakeLive do
       |> Decimal.div(Decimal.new(Integer.pow(10, 18)))
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
+
+  defp staking_dashboard(nil), do: nil
+
+  defp staking_dashboard(staking) do
+    %{
+      basescan_url: "https://basescan.org/address/#{staking.contract_address}",
+      capacity: staking.supply_denominator_raw |> token_amount() |> format_number(),
+      remaining_capacity: format_number(staking.remaining_capacity),
+      total_staked: format_number(staking.total_staked),
+      utilization: utilization(staking.total_staked_raw, staking.supply_denominator_raw)
+    }
+  end
+
+  defp utilization(total_raw, denominator_raw) do
+    total = Decimal.new(total_raw)
+    denominator = Decimal.new(denominator_raw)
+
+    percentage =
+      if Decimal.positive?(denominator) do
+        total
+        |> Decimal.mult(100)
+        |> Decimal.div(denominator)
+        |> Decimal.round(2)
+        |> Decimal.normalize()
+      else
+        Decimal.new(0)
+      end
+
+    progress_value =
+      cond do
+        Decimal.negative?(percentage) -> Decimal.new(0)
+        Decimal.gt?(percentage, 100) -> Decimal.new(100)
+        true -> percentage
+      end
+
+    %{
+      label: "#{Decimal.to_string(percentage, :normal)}%",
+      value: Decimal.to_string(progress_value, :normal)
+    }
+  end
+
+  defp format_number(value) when is_integer(value),
+    do: value |> Integer.to_string() |> format_number()
+
+  defp format_number(value) do
+    case String.split(value, ".", parts: 2) do
+      [whole] -> delimit_whole(whole)
+      [whole, fraction] -> "#{delimit_whole(whole)}.#{fraction}"
+    end
+  end
+
+  defp delimit_whole(whole), do: Regex.replace(~r/\B(?=(\d{3})+(?!\d))/, whole, ",")
 
   defp stake_allowance(staking) when is_map(staking),
     do: Map.get(staking, :wallet_stake_allowance_raw, "0")
