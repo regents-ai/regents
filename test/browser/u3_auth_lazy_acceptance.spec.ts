@@ -236,7 +236,7 @@ test("a production-like digested bridge source remains same-origin and callable"
 })
 
 for (const viewport of retryViewports) {
-  test(`sign-in retries failed deferred bridge loads at ${viewport.name} width`, async ({page}) => {
+  test(`sign-in stops after a failed deferred bridge load at ${viewport.name} width`, async ({page}) => {
     const bridgeRequests: string[] = []
     await page.setViewportSize({width: viewport.width, height: viewport.height})
     await page.addInitScript(() => {
@@ -263,35 +263,27 @@ for (const viewport of retryViewports) {
     await page.getByRole("button", {name: "Sign In"}).click()
     await expect.poll(() => bridgeRequests.length).toBe(1)
     await expect(status).toBeVisible()
-    await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await expect(status).toHaveText(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
     await expectStatusAnchored(page, headerHeight ?? 0)
+    await expect(page.getByRole("button", {name: "Sign In"})).toBeDisabled()
 
-    await page.getByRole("button", {name: "Sign In"}).click()
-    await expect.poll(() => bridgeRequests.length).toBe(2)
+    await page.locator("#account-control [data-account-target='sign-in']").dispatchEvent("click")
+    await page.waitForTimeout(50)
+    expect(bridgeRequests).toHaveLength(1)
     await expect(status).toBeVisible()
-    await expect(status).toHaveText("Sign in couldn’t start. Try again.")
+    await expect(status).toHaveText(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
     await expectStatusAnchored(page, headerHeight ?? 0)
 
-    await page.getByRole("button", {name: "Sign In"}).click()
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
-        ),
-      )
-      .toEqual(["sign-in"])
-    await expect(status).toBeHidden()
-    await expect(status).toHaveText("")
-
-    expect(bridgeRequests).toHaveLength(3)
-    expect(
-      [...new Set(bridgeRequests.map(url => new URL(url).searchParams.get("regent_retry")))],
-    ).toEqual(["0", "1", "2"])
+    expect(new URL(bridgeRequests[0]).searchParams.get("regent_retry")).toBe("0")
     expect(
       await page.evaluate(
         () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
       ),
-    ).toEqual(["sign-in"])
+    ).toEqual([])
   })
 }
 

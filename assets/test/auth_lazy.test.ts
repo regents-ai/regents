@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
+  AccountAuthFailure,
   createBrowserPrivyBridgeImporter,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
@@ -21,8 +22,10 @@ import {
 afterEach(() => vi.unstubAllGlobals())
 
 class AccountElement {
+  disabled = false
   hidden = true
   textContent = ""
+  private attributes = new Map<string, string>()
 
   constructor(readonly accountTarget?: string) {}
 
@@ -32,6 +35,14 @@ class AccountElement {
 
   get dataset() {
     return {accountTarget: this.accountTarget}
+  }
+
+  setAttribute(name: string, value: string) {
+    this.attributes.set(name, value)
+  }
+
+  getAttribute(name: string) {
+    return this.attributes.get(name) ?? null
   }
 }
 
@@ -53,6 +64,7 @@ function accountDocument({
   appId = "public-app-id",
 }: {signedIn?: boolean; bridgeSource?: string | null; appId?: string | null} = {}) {
   let status = new AccountElement()
+  let signInControls = [new AccountElement("sign-in")]
   const listeners = new Map<string, (event: Event) => void>()
   const documentRoot = {
     querySelector(selector: string) {
@@ -67,6 +79,9 @@ function accountDocument({
         return signedIn ? new AccountElement("sign-out") : null
       }
       return null
+    },
+    querySelectorAll(selector: string) {
+      return selector === "[data-account-target='sign-in']" ? signInControls : []
     },
     addEventListener(type: string, listener: (event: Event) => void) {
       listeners.set(type, listener)
@@ -85,8 +100,13 @@ function accountDocument({
       status = new AccountElement()
       return status
     },
+    replaceSignInControls(count = 1) {
+      signInControls = Array.from({length: count}, () => new AccountElement("sign-in"))
+      return signInControls
+    },
     click(accountTarget: "sign-in" | "sign-out") {
-      listeners.get("click")?.({target: new AccountElement(accountTarget)} as unknown as Event)
+      const target = accountTarget === "sign-in" ? signInControls[0] : new AccountElement("sign-out")
+      listeners.get("click")?.({target, preventDefault: vi.fn()} as unknown as Event)
     },
   }
 }
@@ -419,8 +439,9 @@ describe("lazy browser authentication", () => {
     expect(handleRequest).toHaveBeenCalledWith("sign-in")
   })
 
-  it("shows a sign-in load failure and clears it when the next click succeeds", async () => {
+  it("makes a startup failure terminal across every current and replacement sign-in control", async () => {
     vi.stubGlobal("Element", AccountElement)
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const handleRequest = vi.fn(async () => undefined)
     const startPrivyBridge = vi.fn(async () => ({request: handleRequest}))
     const importer = vi
@@ -430,16 +451,49 @@ describe("lazy browser authentication", () => {
     const page = accountDocument()
 
     installAccountAuthLazyLoader(page.documentRoot, importer)
+    const initialControls = page.replaceSignInControls(2)
     page.click("sign-in")
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
-    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+    expect(page.status.textContent).toBe(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
+    expect(initialControls.every(control => control.disabled)).toBe(true)
+    expect(initialControls.map(control => control.getAttribute("aria-disabled"))).toEqual([
+      "true",
+      "true",
+    ])
+    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "bridge_startup")
+    expect(JSON.stringify(warning.mock.calls)).not.toContain("chunk unavailable")
 
     const replacementStatus = page.replaceStatus()
+    const [replacementControl] = page.replaceSignInControls()
     page.click("sign-in")
-    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sign-in"))
+    expect(replacementControl.disabled).toBe(true)
+    expect(replacementControl.getAttribute("aria-disabled")).toBe("true")
+    expect(handleRequest).not.toHaveBeenCalled()
     expect(replacementStatus.hidden).toBe(true)
     expect(replacementStatus.textContent).toBe("")
-    expect(importer).toHaveBeenCalledTimes(2)
+    expect(importer).toHaveBeenCalledOnce()
+  })
+
+  it("keeps a classified session failure precise when a later sign-in request observes it", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const handleRequest = vi.fn(() =>
+      Promise.reject(new AccountAuthFailure("session", "session_exchange")),
+    )
+    const page = accountDocument()
+
+    installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: vi.fn(async () => ({request: handleRequest})),
+    }))
+    page.click("sign-in")
+
+    await vi.waitFor(() => expect(page.status.hidden).toBe(false))
+    expect(page.status.textContent).toBe(
+      "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
+    )
+    expect(warning).toHaveBeenLastCalledWith("Regent Privy sign-in failure", "session_exchange")
   })
 
   // Privy runs its login callback immediately for an already-authenticated
@@ -450,7 +504,7 @@ describe("lazy browser authentication", () => {
     const page = accountDocument()
     const startPrivyBridge = vi.fn(async () => ({
       request: async () => {
-        showAccountAuthFailure("sign-in", page.documentRoot)
+        showAccountAuthFailure("sign-in", page.documentRoot, "session")
       },
     }))
 
@@ -459,7 +513,9 @@ describe("lazy browser authentication", () => {
 
     await vi.waitFor(() => expect(startPrivyBridge).toHaveBeenCalledOnce())
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
-    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+    expect(page.status.textContent).toBe(
+      "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
+    )
   })
 
   it("does not silently disable account actions when the public app ID is absent", async () => {
@@ -472,7 +528,9 @@ describe("lazy browser authentication", () => {
 
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(importer).toHaveBeenCalledOnce()
-    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+    expect(page.status.textContent).toBe(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
   })
 
   it("confirms the handoff, awaits local deletion, and reloads for provider work", async () => {
@@ -758,12 +816,16 @@ describe("lazy browser authentication", () => {
 
     page.click("sign-in")
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
-    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+    expect(page.status.textContent).toBe(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
 
     finishCleanup?.()
     await vi.waitFor(() => expect(finishSignOutOnly).toHaveBeenCalledOnce())
     expect(page.status.hidden).toBe(false)
-    expect(page.status.textContent).toBe("Sign in couldn’t start. Try again.")
+    expect(page.status.textContent).toBe(
+      "Sign-in is unavailable on this page. Reload it or contact support.",
+    )
   })
 
   it("does not attempt provider logout when local deletion fails", async () => {

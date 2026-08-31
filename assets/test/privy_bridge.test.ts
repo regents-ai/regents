@@ -65,6 +65,7 @@ const {
   createSignInRequest,
   createPrivySessionCompletion,
   createPrivyTokenCallbacks,
+  privyLoginFailureDiagnostic,
 } = bridge
 
 // One complete pair: the session proof and the signed evidence it was acquired
@@ -628,11 +629,49 @@ describe("Privy session bridge", () => {
     failing.onComplete?.({} as Parameters<NonNullable<typeof failing.onComplete>>[0])
     expect(loginOpen.current).toBe(false)
     await until(() => showFailure.mock.calls.length === 1)
+    expect(showFailure).toHaveBeenLastCalledWith("session")
 
     loginOpen.current = true
     failing.onError?.("exited_auth_flow" as Parameters<NonNullable<typeof failing.onError>>[0])
     expect(loginOpen.current).toBe(false)
     expect(showFailure).toHaveBeenCalledTimes(2)
+    expect(showFailure).toHaveBeenLastCalledWith("closed")
+  })
+
+  it("keeps background Privy errors silent and non-terminal", () => {
+    const loginOpen = {current: false}
+    const showFailure = vi.fn()
+    const reportFailure = vi.fn()
+    const callbacks = createPrivyLoginCallbacks({
+      completeLogin: vi.fn(async () => undefined),
+      loginOpen,
+      showFailure,
+      reportFailure,
+    })
+
+    callbacks.onError?.("client_request_timeout" as never)
+
+    expect(showFailure).not.toHaveBeenCalled()
+    expect(reportFailure).not.toHaveBeenCalled()
+  })
+
+  it("maps provider errors to closed diagnostics without logging raw values", () => {
+    const malicious = "unknown-auth-error bearer=secret wallet=0x1234"
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const loginOpen = {current: true}
+    const showFailure = vi.fn()
+    const callbacks = createPrivyLoginCallbacks({
+      completeLogin: vi.fn(async () => undefined),
+      loginOpen,
+      showFailure,
+    })
+
+    expect(privyLoginFailureDiagnostic(malicious)).toBe("provider_error")
+    callbacks.onError?.(malicious as never)
+
+    expect(showFailure).toHaveBeenCalledWith("provider")
+    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "provider_error")
+    expect(JSON.stringify(warning.mock.calls)).not.toContain(malicious)
   })
 
   it("ONE_RECOVERY_PER_PAGE: the marked refusal spends one logout, one login and one fresh pair", async () => {
@@ -769,7 +808,7 @@ describe("Privy session bridge", () => {
       },
     })
 
-    await expect(stuck.request.signIn()).rejects.toThrow("provider unavailable")
+    await expect(stuck.request.signIn()).rejects.toThrow("Sign in could not be completed.")
 
     expect(stuck.openLogin).not.toHaveBeenCalled()
     expect(stuck.recoveryAvailable.current).toBe(false)

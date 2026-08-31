@@ -15,12 +15,14 @@ import React from "react"
 import {createRoot} from "react-dom/client"
 
 import {
+  AccountAuthFailure,
   acrossCookieRotation,
   announceCsrfRotation,
   browserSessionMutations,
   clearLocalSession,
   csrfToken,
   recoverOnce,
+  reportSignInFailure,
   reloadDocumentOnce,
   sessionLifecycleError,
   showAccountAuthFailure,
@@ -29,6 +31,8 @@ import {
   type PrivyBridgeHandle,
   type PrivyBridgeStartupOptions,
   type SessionMutationCoordinator,
+  type SignInFailureDiagnostic,
+  type SignInFailureKind,
 } from "./auth_lazy"
 import {
   activeEthereumWallet,
@@ -117,14 +121,18 @@ export function createSignInRequest({
         await completeLogin()
       } catch (refused) {
         if (!(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
-          throw refused
+          throw new AccountAuthFailure("session", "session_exchange")
         }
 
         recoveryAvailable.current = false
         recovering = true
-        await providerLogout().finally(() => {
+        try {
+          await providerLogout()
+        } catch {
+          throw new AccountAuthFailure("session", "session_exchange")
+        } finally {
           recovering = false
-        })
+        }
         openLoginOnce()
       }
     },
@@ -425,7 +433,19 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
 type PrivyLoginCallbackOptions = {
   completeLogin: () => Promise<void>
   loginOpen: {current: boolean}
-  showFailure: () => void
+  showFailure: (failure: SignInFailureKind) => void
+  reportFailure?: (failure: SignInFailureDiagnostic) => void
+}
+
+const privyLoginFailureDiagnostics: Partial<Record<string, SignInFailureDiagnostic>> = {
+  exited_auth_flow: "flow_closed",
+  client_request_timeout: "request_timeout",
+  invalid_message: "invalid_message",
+  unable_to_sign: "unable_to_sign",
+}
+
+export function privyLoginFailureDiagnostic(error: unknown): SignInFailureDiagnostic {
+  return privyLoginFailureDiagnostics[typeof error === "string" ? error : ""] ?? "provider_error"
 }
 
 // Privy runs this for its own provider bootstrap too, for a modal this page
@@ -440,18 +460,25 @@ export function createPrivyLoginCallbacks({
   completeLogin,
   loginOpen,
   showFailure,
+  reportFailure = reportSignInFailure,
 }: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
     onComplete: () => {
       const opened = loginOpen.current
       loginOpen.current = false
       void completeLogin().catch(() => {
-        if (opened) showFailure()
+        if (!opened) return
+        reportFailure("session_exchange")
+        showFailure("session")
       })
     },
-    onError: () => {
+    onError: error => {
+      const opened = loginOpen.current
       loginOpen.current = false
-      showFailure()
+      if (!opened) return
+      const diagnostic = privyLoginFailureDiagnostic(error)
+      reportFailure(diagnostic)
+      showFailure(diagnostic === "flow_closed" ? "closed" : "provider")
     },
   } satisfies PrivyEvents["login"]
 }
@@ -519,7 +546,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       createPrivyLoginCallbacks({
         completeLogin: completeExplicitLogin,
         loginOpen,
-        showFailure: () => showAccountAuthFailure("sign-in"),
+        showFailure: failure => showAccountAuthFailure("sign-in", document, failure),
       }),
     [completeExplicitLogin],
   )

@@ -1,5 +1,25 @@
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
+export type SignInFailureKind = "closed" | "provider" | "session" | "startup"
+
+export type SignInFailureDiagnostic =
+  | "bridge_startup"
+  | "flow_closed"
+  | "invalid_message"
+  | "provider_error"
+  | "request_timeout"
+  | "session_exchange"
+  | "unable_to_sign"
+
+export class AccountAuthFailure extends Error {
+  constructor(
+    readonly kind: SignInFailureKind,
+    readonly diagnostic: SignInFailureDiagnostic,
+  ) {
+    super("Sign in could not be completed.")
+  }
+}
+
 export type IdentityProvider = "x" | "github" | "farcaster"
 
 export type IdentityRequest = {
@@ -46,6 +66,7 @@ const signOutHandoffKey = "regent:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
+const terminalSignInDocuments = new WeakSet<Document>()
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
@@ -399,15 +420,49 @@ export function consumeSignOutHandoff(
 export function showAccountAuthFailure(
   request: AccountRequest,
   documentRoot: Document | undefined = globalThis.document,
+  signInFailure: SignInFailureKind = "startup",
 ): void {
-  const status = documentRoot?.querySelector<HTMLElement>("#account-auth-status")
+  if (!documentRoot) return
+  if (request === "sign-in" && signInFailure !== "closed") {
+    terminalSignInDocuments.add(documentRoot)
+    disableSignInControls(documentRoot)
+  }
+  const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
   if (!status) return
-  status.textContent = {
-    "sign-in": "Sign in couldn’t start. Try again.",
-    "sign-out": "Sign out couldn’t finish. Try again.",
-    sync: "Account connection couldn’t refresh. Try again.",
-  }[request]
+  status.textContent =
+    request === "sign-in"
+      ? {
+          closed: "Sign-in closed before completion. No account was connected.",
+          provider:
+            "Your wallet responded, but Privy couldn’t finish sign-in. Reload this page before trying again.",
+          session:
+            "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
+          startup: "Sign-in is unavailable on this page. Reload it or contact support.",
+        }[signInFailure]
+      : {
+          "sign-out": "Sign out couldn’t finish. Try again.",
+          sync: "Account connection couldn’t refresh. Try again.",
+        }[request]
   status.hidden = false
+}
+
+function disableSignInControls(documentRoot: Document): void {
+  documentRoot
+    .querySelectorAll<HTMLElement>("[data-account-target='sign-in']")
+    .forEach(control => {
+      control.setAttribute("aria-disabled", "true")
+      if ("disabled" in control) {
+        ;(control as HTMLElement & {disabled: boolean}).disabled = true
+      }
+    })
+}
+
+export function signInIsTerminal(documentRoot: Document): boolean {
+  return terminalSignInDocuments.has(documentRoot)
+}
+
+export function reportSignInFailure(failure: SignInFailureDiagnostic): void {
+  console.warn("Regent Privy sign-in failure", failure)
 }
 
 export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Promise<boolean> {
@@ -699,14 +754,23 @@ export function installAccountAuthLazyLoader(
     status.textContent = ""
     status.hidden = true
   }
-  const showLoadFailure = (request: AccountRequest) =>
-    showAccountAuthFailure(request, documentRoot)
+  const showLoadFailure = (request: AccountRequest, error: unknown) => {
+    const classified = error instanceof AccountAuthFailure ? error : null
+    if (request === "sign-in") {
+      reportSignInFailure(classified?.diagnostic ?? "bridge_startup")
+    }
+    showAccountAuthFailure(request, documentRoot, classified?.kind ?? "startup")
+  }
   // The leading clear owns this click's startup. Nothing clears afterwards: a
   // login callback that failed while the request was settling has already
   // written the failure this click must leave visible.
   const request = (accountRequest: AccountRequest) => {
+    if (accountRequest === "sign-in" && signInIsTerminal(documentRoot)) {
+      disableSignInControls(documentRoot)
+      return
+    }
     clearStatus()
-    void loader.request(accountRequest).catch(() => showLoadFailure(accountRequest))
+    void loader.request(accountRequest).catch(error => showLoadFailure(accountRequest, error))
   }
   let signOutInFlight: Promise<void> | null = null
   const signOut = () => {
@@ -714,7 +778,7 @@ export function installAccountAuthLazyLoader(
     clearStatus()
 
     if (!writeSignOutHandoff(storage, now())) {
-      showLoadFailure("sign-out")
+      showLoadFailure("sign-out", undefined)
       return
     }
 
@@ -723,7 +787,7 @@ export function installAccountAuthLazyLoader(
         await sessionMutations.signOut(clearSession)
       } catch {
         clearSignOutHandoff(storage)
-        showLoadFailure("sign-out")
+        showLoadFailure("sign-out", undefined)
         return
       }
       clearStatus()
@@ -740,7 +804,10 @@ export function installAccountAuthLazyLoader(
     const accountTarget = target?.closest<HTMLElement>("[data-account-target]")?.dataset
       .accountTarget
 
-    if (accountTarget === "sign-in") request("sign-in")
+    if (accountTarget === "sign-in") {
+      if (signInIsTerminal(documentRoot)) event.preventDefault()
+      request("sign-in")
+    }
     if (accountTarget === "sign-out") signOut()
   }
   const onIdentityRequest = (event: Event) => {
