@@ -4,9 +4,12 @@ defmodule AshPlatformWeb.SettingsLive do
   use AshPlatformWeb, :html
 
   import AshPlatformWeb.Components.VerifiedConnections
+  import AshPlatformWeb.Components.XConnections
 
   attr(:verified_connections, :list, default: [])
   attr(:verified_connections_notice, :map, default: nil)
+  attr(:x_connections, :list, default: [])
+  attr(:x_oauth_enabled, :boolean, default: false)
   attr(:rest, :global)
 
   def page(assigns) do
@@ -21,6 +24,13 @@ defmodule AshPlatformWeb.SettingsLive do
         class="settings-section"
         identities={@verified_connections}
         notice={@verified_connections_notice}
+      />
+
+      <.x_connections
+        id="settings-x-connections"
+        class="settings-section"
+        connections={@x_connections}
+        enabled={@x_oauth_enabled}
       />
 
       <section class="settings-section" aria-labelledby="appearance-heading">

@@ -91,11 +91,22 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(
              view,
              "#account-control button[type=button][data-account-target=sign-out]",
-             "Log Out"
+             "Disconnect"
            )
 
-    refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
-    assert has_element?(view, "#account-control a[data-account-menu-item=settings]", "Settings")
+    assert has_element?(
+             view,
+             "#account-control button[data-account-copy-address]",
+             "Copy address"
+           )
+
+    assert has_element?(
+             view,
+             ~s(#account-control[data-wallet-address="0x1111111111111111111111111111111111111111"])
+           )
+
+    refute has_element?(view, "#account-menu a", "Profile")
+    refute has_element?(view, "#account-menu a", "Settings")
     refute has_element?(view, "#shell-header [data-theme-choice]")
     refute has_element?(view, "#account-control [phx-click]")
     refute has_element?(view, ".app-switcher [data-account-target]")
@@ -135,28 +146,37 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222…2222")
-    assert has_element?(view, "#account-control [data-account-target=sign-out]", "Log Out")
+    assert has_element?(view, "#account-control [data-account-target=sign-out]", "Disconnect")
   end
 
-  test "account control renders Profile only for a server-supplied canonical path" do
+  test "account dropdown omits profile and settings links while preserving its wallet controls" do
     html =
       render_shell(%AccountControl{
         kind: :signed_in,
         label: "Ada.regent.eth",
         profile_path: "/regents/ada",
         settings_path: "/settings",
-        avatar_data_uri: "data:image/svg+xml;base64,PHN2Zy8+"
+        avatar_data_uri: "data:image/svg+xml;base64,PHN2Zy8+",
+        wallet_address: "0x1111111111111111111111111111111111111111"
       })
 
     assert html =~ ~s(data-account-target="profile")
-    assert html =~ ~s(href="/regents/ada")
-    assert html =~ ~r/>\s*Profile\s*<\/a>/
     assert html =~ ~s(class="account-avatar")
     assert html =~ ~s(src="data:image/svg+xml;base64,PHN2Zy8+")
-    assert html =~ ~s(href="/settings")
-    assert html =~ ~s(data-account-menu-item="settings")
-    assert html =~ ~r/>\s*Settings\s*<\/span>/
-    assert html =~ "Log Out"
+    assert html =~ "Copy address"
+    assert html =~ "Disconnect"
+
+    [account_menu] =
+      Regex.run(
+        ~r/<details id="account-menu">(?<menu>.*?)<\/details>/s,
+        html,
+        capture: :all_names
+      )
+
+    refute account_menu =~ ~s(href="/regents/ada")
+    refute account_menu =~ ~s(href="/settings")
+    refute account_menu =~ ~r/>\s*Profile\s*<\/a>/
+    refute account_menu =~ ~r/>\s*Settings\s*<\/a>/
     refute html =~ "Sign Out"
   end
 
@@ -182,15 +202,30 @@ defmodule AshPlatformWeb.ShellLiveTest do
         "0x6666666666666666666666666666666666666666"
       )
 
-    Accounts.upsert_linked_identity!(
-      :x,
-      "settings-x-subject",
-      "settings_user",
-      "Settings User",
-      DateTime.utc_now(),
-      %{},
-      account.id,
-      actor: %System{}
+    actor = %AshPlatform.Actors.Human{human_account_id: account.id}
+
+    x_attempt =
+      Accounts.begin_x_connection_attempt!(
+        %{
+          role: :profile,
+          attempt_state: "settings-state",
+          attempt_verifier: "settings-verifier",
+          attempt_generation: Ash.UUID.generate(),
+          attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
+        },
+        actor: actor
+      )
+
+    Accounts.complete_x_connection_attempt!(
+      x_attempt,
+      %{
+        x_user_id: "settings-x-user",
+        username: "settings_user",
+        display_name: "Settings User",
+        verified_at: DateTime.utc_now(),
+        next_generation: Ash.UUID.generate()
+      },
+      actor: actor
     )
 
     {:ok, view, _html} =
@@ -200,24 +235,15 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert has_element?(
              view,
-             ~s(#settings-verified-connections-x a[href="https://x.com/settings_user"]),
-             "@settings_user"
+             ~s(#settings-x-connections-profile a[href="https://x.com/settings_user"]),
+             "Settings User"
            )
 
-    assert has_element?(view, "#settings-verified-connections-x button", "Disconnect")
+    assert has_element?(view, "#settings-x-connections-profile button", "Disconnect")
+    assert has_element?(view, "#settings-x-connections-company", "Optional · not connected")
     assert has_element?(view, "#settings-verified-connections-github", "Not connected")
     assert has_element?(view, "#settings-verified-connections-github button", "Connect")
-    refute render(view) =~ "settings-x-subject"
-
-    view
-    |> element("#settings-verified-connections-x button", "Disconnect")
-    |> render_click()
-
-    assert_push_event(view, "verified-connections:request", %{
-      action: :unlink,
-      provider: :x,
-      subject: "settings-x-subject"
-    })
+    refute render(view) =~ "settings-x-user"
 
     render_hook(view, "refresh_verified_connections", %{"error" => "already-connected"})
 

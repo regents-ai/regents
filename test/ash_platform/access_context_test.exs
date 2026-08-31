@@ -17,7 +17,8 @@ defmodule AshPlatform.AccessContextTest do
              kind: :signed_in,
              label: "Account label",
              profile_path: nil,
-             settings_path: "/settings"
+             settings_path: "/settings",
+             wallet_address: @wallet
            } =
              AccessContext.account_control(AccessContext.human(account))
   end
@@ -31,6 +32,7 @@ defmodule AshPlatform.AccessContextTest do
              label: "Ada Regent",
              profile_path: "/regents/ada",
              settings_path: "/settings",
+             wallet_address: @wallet,
              avatar_data_uri: "data:image/svg+xml;base64," <> _
            } = AccessContext.account_control(AccessContext.human(account), regent)
   end

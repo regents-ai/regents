@@ -55,5 +55,31 @@ defmodule AshPlatform.Accounts do
 
       define :remove_linked_identity, action: :remove_verified
     end
+
+    resource AshPlatform.Accounts.XConnection do
+      define :begin_x_connection_attempt, action: :begin_attempt
+      define :list_my_x_connections, action: :mine
+
+      define :get_my_x_connection,
+        action: :mine_by_role,
+        args: [:role],
+        not_found_error?: false
+
+      define :get_my_x_connection_for_update,
+        action: :mine_by_role_for_update,
+        args: [:role],
+        not_found_error?: false
+
+      define :list_public_x_connections,
+        action: :public_for_humans,
+        args: [:human_account_ids]
+
+      define :search_public_x_connections, action: :public_search, args: [:query]
+
+      define :replace_x_connection_attempt, action: :replace_attempt
+      define :complete_x_connection_attempt, action: :complete_attempt
+      define :clear_x_connection_attempt, action: :clear_attempt
+      define :disconnect_x_connection, action: :disconnect, args: [:generation]
+    end
   end
 end

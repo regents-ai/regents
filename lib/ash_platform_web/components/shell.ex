@@ -81,13 +81,23 @@ defmodule AshPlatformWeb.Components.Shell do
         <span class="shell-spacer" />
 
         <div class="shell-local-controls" data-motion-header-controls>
-          <label :if={@route_spec.search_kind != :none} class="shell-search">
+          <label
+            :if={@route_spec.search_kind != :none && @route_spec.app_id != :autolaunch}
+            class="shell-search"
+          >
             <span>Search</span>
             <input type="search" name="search" autocomplete="off" />
           </label>
         </div>
 
-        <div id="account-control" class="account-control">
+        <div
+          id="account-control"
+          class="account-control"
+          phx-hook={@account_control.kind == :signed_in && "AccountIdentity"}
+          data-wallet-address={@account_control.wallet_address}
+          data-fallback-label={@account_control.label}
+          data-fallback-avatar={@account_control.avatar_data_uri}
+        >
           <button
             :if={@account_control.kind == :sign_in}
             type="button"
@@ -105,28 +115,40 @@ defmodule AshPlatformWeb.Components.Shell do
                 width="36"
                 height="36"
                 alt=""
+                data-account-identity-avatar
               />
-              <span data-account-target="profile">{@account_control.label}</span>
+              <span data-account-target="profile" data-account-identity-label>
+                {@account_control.label}
+              </span>
               <span class="shell-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div class="account-menu__content shell-popover">
-              <.link
-                :if={@account_control.profile_path}
-                patch={@account_control.profile_path}
+              <div class="account-menu__identity">
+                <img
+                  :if={@account_control.avatar_data_uri}
+                  class="account-avatar account-avatar--large"
+                  src={@account_control.avatar_data_uri}
+                  width="48"
+                  height="48"
+                  alt=""
+                  data-account-identity-avatar
+                />
+                <span>
+                  <strong data-account-identity-label>{@account_control.label}</strong>
+                  <small data-account-identity-address>
+                    {short_address(@account_control.wallet_address)}
+                  </small>
+                </span>
+              </div>
+              <button
+                type="button"
                 class="account-menu__row"
-                data-account-menu-item="profile"
+                data-account-copy-address
+                data-account-menu-item="copy-address"
               >
-                <.account_menu_icon name={:profile} />
-                <span>Profile</span>
-              </.link>
-              <.link
-                patch={@account_control.settings_path}
-                class="account-menu__row"
-                data-account-menu-item="settings"
-              >
-                <.account_menu_icon name={:settings} />
-                <span>Settings</span>
-              </.link>
+                <.account_menu_icon name={:copy} />
+                <span data-account-copy-label>Copy address</span>
+              </button>
               <button
                 type="button"
                 class="account-menu__row account-menu__row--danger"
@@ -134,7 +156,7 @@ defmodule AshPlatformWeb.Components.Shell do
                 data-account-target="sign-out"
               >
                 <.account_menu_icon name={:logout} />
-                <span>Log Out</span>
+                <span>Disconnect</span>
               </button>
             </div>
           </details>
@@ -173,7 +195,10 @@ defmodule AshPlatformWeb.Components.Shell do
         <button type="button" class="shell-menu-close" data-shell-menu-close>
           Close navigation
         </button>
-        <label :if={@route_spec.search_kind != :none} class="shell-mobile-search">
+        <label
+          :if={@route_spec.search_kind != :none && @route_spec.app_id != :autolaunch}
+          class="shell-mobile-search"
+        >
           <span>Search</span>
           <input type="search" name="mobile-search" autocomplete="off" />
         </label>
@@ -312,7 +337,16 @@ defmodule AshPlatformWeb.Components.Shell do
       <g :if={@name == :logout}>
         <path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />
       </g>
+      <g :if={@name == :copy}>
+        <rect x="8" y="8" width="11" height="11" rx="1" />
+        <path d="M16 8V5H5v11h3" />
+      </g>
     </svg>
     """
   end
+
+  defp short_address(value) when is_binary(value) and byte_size(value) == 42,
+    do: String.slice(value, 0, 6) <> "…" <> String.slice(value, -4, 4)
+
+  defp short_address(_value), do: "Wallet unavailable"
 end

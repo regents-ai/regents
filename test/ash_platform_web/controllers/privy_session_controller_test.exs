@@ -44,6 +44,12 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
 
     payload = json_response(signed_in, 200)
     assert payload["authenticated"] == true
+    assert Map.keys(payload) |> Enum.sort() == ["account_control", "authenticated"]
+
+    assert Map.keys(payload["account_control"]) |> Enum.sort() ==
+             ["avatar_data_uri", "kind", "label", "profile_path", "settings_path"]
+
+    refute Map.has_key?(payload["account_control"], "wallet_address")
     assert get_resp_header(signed_in, "x-ash-session-changed") == ["true"]
     assert payload["account_control"]["profile_path"] == nil
     assert payload["account_control"]["avatar_data_uri"] =~ "data:image/svg+xml;base64,"

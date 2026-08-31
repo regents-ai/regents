@@ -26,12 +26,14 @@ import {AutolaunchLabPosition} from "./hooks/autolaunch_lab_position"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
+import {AccountIdentity} from "./hooks/account_identity"
 import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {TechtreeCamera} from "./hooks/techtree_camera"
 import {VoxelDelight} from "./hooks/voxel"
 import {VerifiedConnections} from "./hooks/verified_connections"
+import {XConnections} from "./hooks/x_connections"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -43,6 +45,101 @@ type ShellHook = Hook & {
 }
 
 let cachedShellState: ShellState | undefined
+
+type AutolaunchSearchHook = Hook & {
+  el: HTMLElement
+  pushEvent(event: string, payload: unknown): void
+  searchGeneration?: number
+  searchTimer?: number
+  searchCleanup?: () => void
+  syncSearch?: () => void
+}
+
+type AutolaunchHistoryState = Record<string, unknown> & {
+  ashAutolaunchSearch?: boolean
+  ashAutolaunchScrollTop?: number
+}
+
+const autolaunchSearch: Hook = {
+  mounted(this: AutolaunchSearchHook) {
+    const input = () => this.el.querySelector<HTMLInputElement>("input[type='search']")
+    const scroller = () => document.querySelector<HTMLElement>("#app-shell-scroller")
+    const cancel = () => {
+      this.searchGeneration = (this.searchGeneration ?? 0) + 1
+      if (this.searchTimer) window.clearTimeout(this.searchTimer)
+      this.searchTimer = undefined
+    }
+    const markHistory = () => {
+      const current = (history.state && typeof history.state === "object" ? history.state : {}) as AutolaunchHistoryState
+      history.replaceState(
+        {...current, ashAutolaunchSearch: true, ashAutolaunchScrollTop: scroller()?.scrollTop ?? 0},
+        "",
+      )
+    }
+    const send = (value: string) => {
+      markHistory()
+      this.pushEvent("autolaunch_search", {query: value})
+    }
+    const schedule = () => {
+      cancel()
+      const generation = this.searchGeneration
+      const value = input()?.value ?? ""
+      this.searchTimer = window.setTimeout(() => {
+        if (this.searchGeneration === generation) send(value)
+      }, 250)
+    }
+    const onInput = () => schedule()
+    const onSubmit = (event: Event) => {
+      event.preventDefault()
+      cancel()
+      send(input()?.value ?? "")
+    }
+    const onClick = (event: Event) => {
+      const target = event.target instanceof Element ? event.target : null
+      if (!target?.closest("[data-autolaunch-search-clear]")) return
+      const field = input()
+      if (field) field.value = ""
+      cancel()
+      send("")
+    }
+    const onPopState = () => {
+      cancel()
+      const value = new URL(window.location.href).searchParams.get("q") ?? ""
+      const field = input()
+      if (field) field.value = value
+    }
+
+    this.syncSearch = () => {
+      const field = input()
+      if (field && field.value !== (this.el.dataset.query ?? "")) {
+        field.value = this.el.dataset.query ?? ""
+      }
+      markHistory()
+    }
+
+    this.el.addEventListener("input", onInput)
+    this.el.addEventListener("submit", onSubmit)
+    this.el.addEventListener("click", onClick)
+    window.addEventListener("popstate", onPopState)
+    this.syncSearch()
+
+    this.searchCleanup = () => {
+      cancel()
+      this.el.removeEventListener("input", onInput)
+      this.el.removeEventListener("submit", onSubmit)
+      this.el.removeEventListener("click", onClick)
+      window.removeEventListener("popstate", onPopState)
+    }
+  },
+
+  updated(this: AutolaunchSearchHook) {
+    this.syncSearch?.()
+  },
+
+  destroyed(this: AutolaunchSearchHook) {
+    this.searchCleanup?.()
+  },
+}
 
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
@@ -208,9 +305,14 @@ const shellBehavior: Hook = {
       if (readTheme(localStorage) === "system") setTheme("system")
     }
 
-    const onHistoryNavigation = () => {
+    const onHistoryNavigation = (event: PopStateEvent) => {
       shell.dataset.motionSource = "keyboard"
-      scroller()?.scrollTo({top: 0})
+      const state = event.state as AutolaunchHistoryState | null
+      const top =
+        window.location.pathname === "/autolaunch" && state?.ashAutolaunchSearch
+          ? state.ashAutolaunchScrollTop ?? 0
+          : 0
+      window.requestAnimationFrame(() => scroller()?.scrollTo({top}))
     }
 
     shell.addEventListener("click", onClick)
@@ -285,6 +387,8 @@ const shellBehavior: Hook = {
 const designShellHook: Hook = composeHooks(ShellMotion, VoxelDelight)
 const hooks = {
   ...colocatedHooks,
+  AccountIdentity,
+  AutolaunchSearch: autolaunchSearch,
   AutolaunchBidWallet,
   AutolaunchLabPosition,
   AutolaunchLaunchDraft,
@@ -297,6 +401,7 @@ const hooks = {
   StakeWallet,
   TechtreeCamera,
   VerifiedConnections,
+  XConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

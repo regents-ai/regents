@@ -7,6 +7,8 @@ defmodule AshPlatform.Autolaunch.Token do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  require Ash.Query
+
   attributes do
     uuid_primary_key :id
 
@@ -99,8 +101,26 @@ defmodule AshPlatform.Autolaunch.Token do
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
                 limit: 12,
-                load: [:treasury_security_report]
+                load: [:treasury_security_report, :auction]
               )
+    end
+
+    read :graduated_launchpad do
+      argument :query, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, max_length: 80]
+
+      argument :creator_human_account_ids, {:array, :integer}, default: []
+      prepare fn query, _context -> launchpad_query(query, 8) end
+    end
+
+    read :explore_launchpad do
+      argument :query, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, max_length: 80]
+
+      argument :creator_human_account_ids, {:array, :integer}, default: []
+      prepare fn query, _context -> launchpad_query(query, 24) end
     end
 
     read :for_subject do
@@ -121,7 +141,7 @@ defmodule AshPlatform.Autolaunch.Token do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare build(load: [:treasury_security_report])
+      prepare build(load: [:treasury_security_report, :auction])
     end
 
     read :latest_price_for_subject do
@@ -187,6 +207,8 @@ defmodule AshPlatform.Autolaunch.Token do
              :list_public,
              :top_public,
              :recently_graduated_public,
+             :graduated_launchpad,
+             :explore_launchpad,
              :for_subject,
              :public_by_id,
              :latest_price_for_subject
@@ -207,5 +229,55 @@ defmodule AshPlatform.Autolaunch.Token do
     table "tokens"
     schema("autolaunch")
     repo(AshPlatform.Repo)
+  end
+
+  defp launchpad_query(query, limit) do
+    term = query.arguments.query |> String.trim() |> String.downcase()
+    creator_ids = query.arguments.creator_human_account_ids || []
+    pattern = literal_search_pattern(term)
+
+    query
+    |> launchpad_search_filter(term, creator_ids, pattern)
+    |> Ash.Query.sort(graduated_at: :desc, id: :asc)
+    |> Ash.Query.limit(limit)
+    |> Ash.Query.load([:treasury_security_report, :auction])
+  end
+
+  defp launchpad_search_filter(query, "", [], _pattern), do: query
+
+  defp launchpad_search_filter(query, "", creator_ids, _pattern),
+    do: Ash.Query.filter(query, auction.creator_human_account_id in ^creator_ids)
+
+  defp launchpad_search_filter(query, _term, [], pattern) do
+    Ash.Query.filter(
+      query,
+      ilike(name, ^pattern) or
+        ilike(symbol, ^pattern) or
+        ilike(summary, ^pattern) or
+        ilike(auction.title, ^pattern) or
+        ilike(auction.summary, ^pattern) or
+        ilike(auction.auction_address, ^pattern)
+    )
+  end
+
+  defp launchpad_search_filter(query, _term, creator_ids, pattern) do
+    Ash.Query.filter(
+      query,
+      ilike(name, ^pattern) or
+        ilike(symbol, ^pattern) or
+        ilike(summary, ^pattern) or
+        ilike(auction.title, ^pattern) or
+        ilike(auction.summary, ^pattern) or
+        ilike(auction.auction_address, ^pattern) or
+        auction.creator_human_account_id in ^creator_ids
+    )
+  end
+
+  defp literal_search_pattern(term) do
+    "%" <>
+      (term
+       |> String.replace("\\", "\\\\")
+       |> String.replace("%", "\\%")
+       |> String.replace("_", "\\_")) <> "%"
   end
 end

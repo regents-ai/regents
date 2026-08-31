@@ -38,6 +38,8 @@ vi.mock("phoenix_live_view", () => ({
 
 class FakeElement {
   dataset: Record<string, string> = {}
+  value = ""
+  scrollTop = 0
   disabled = false
   hidden = false
   inert = false
@@ -75,10 +77,14 @@ class FakeElement {
   }
 }
 
+const windowListeners = new Map<string, Set<(event: unknown) => void>>()
+let documentScroller: FakeElement | null = null
+
 const fakeDocument = {
   activeElement: null as FakeElement | null,
   documentElement: new FakeElement(),
   querySelector(selector: string) {
+    if (selector === "#app-shell-scroller") return documentScroller
     return selector === "meta[name='csrf-token']" ? {content: "csrf"} : null
   },
 }
@@ -87,8 +93,21 @@ const fakeStorage = new Map<string, string>()
 
 const fakeWindow = {
   liveSocket: undefined as unknown,
-  addEventListener: vi.fn(),
-  removeEventListener: vi.fn(),
+  location: {href: "http://localhost/autolaunch", pathname: "/autolaunch"},
+  addEventListener: vi.fn((type: string, listener: (event: unknown) => void) => {
+    const listeners = windowListeners.get(type) ?? new Set()
+    listeners.add(listener)
+    windowListeners.set(type, listeners)
+  }),
+  removeEventListener: vi.fn((type: string, listener: (event: unknown) => void) => {
+    windowListeners.get(type)?.delete(listener)
+  }),
+  requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => {
+    callback(0)
+    return 1
+  }),
+  setTimeout: (callback: TimerHandler, delay?: number) => setTimeout(callback, delay),
+  clearTimeout: (timer?: number) => clearTimeout(timer),
   matchMedia: () => ({
     matches: false,
     addEventListener: vi.fn(),
@@ -100,12 +119,20 @@ const fakeWindow = {
   },
 }
 
+const fakeHistory = {
+  state: null as Record<string, unknown> | null,
+  replaceState: vi.fn((state: Record<string, unknown>) => {
+    fakeHistory.state = state
+  }),
+}
+
 vi.stubGlobal("Element", FakeElement)
 vi.stubGlobal("HTMLElement", FakeElement)
 vi.stubGlobal("MouseEvent", class MouseEvent {})
 vi.stubGlobal("document", fakeDocument)
 vi.stubGlobal("window", fakeWindow)
 vi.stubGlobal("localStorage", fakeWindow.localStorage)
+vi.stubGlobal("history", fakeHistory)
 
 await import("../js/app")
 
@@ -203,6 +230,8 @@ describe("mobile shell navigation", () => {
     fakeDocument.activeElement = null
     fakeDocument.documentElement.dataset = {}
     fakeStorage.clear()
+    windowListeners.clear()
+    documentScroller = null
   })
 
   it("focuses and contains the temporary menu while keeping the content inert", async () => {
@@ -336,6 +365,122 @@ describe("mobile shell navigation", () => {
     page.shell.dataset.app = "formation"
     hook.updated?.call(context)
     expect(fakeDocument.documentElement.dataset.brand).toBe("platform")
+  })
+})
+
+function searchFixture() {
+  const listeners = new Map<string, (event: Event) => void>()
+  const input = new FakeElement()
+  const clear = new FakeElement()
+  clear.closestSelectors.add("[data-autolaunch-search-clear]")
+  const scroller = new FakeElement()
+  scroller.scrollTop = 321
+  documentScroller = scroller
+
+  const form = Object.assign(new FakeElement(), {
+    querySelector(selector: string) {
+      return selector === "input[type='search']" ? input : null
+    },
+    addEventListener(type: string, listener: (event: Event) => void) {
+      listeners.set(type, listener)
+    },
+    removeEventListener(type: string) {
+      listeners.delete(type)
+    },
+  })
+  form.dataset.query = ""
+
+  return {
+    form,
+    input,
+    clear,
+    scroller,
+    dispatch(type: string, event: Record<string, unknown> = {}) {
+      listeners.get(type)?.({target: input, preventDefault: vi.fn(), ...event} as unknown as Event)
+    },
+    popstate(event: Record<string, unknown> = {}) {
+      windowListeners.get("popstate")?.forEach(listener => listener(event))
+    },
+  }
+}
+
+describe("Autolaunch URL search", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    windowListeners.clear()
+    fakeHistory.state = null
+    fakeHistory.replaceState.mockClear()
+    fakeWindow.location.href = "http://localhost/autolaunch"
+    fakeWindow.location.pathname = "/autolaunch"
+  })
+
+  it("debounces only the newest input and cancels delayed work on browser Back", async () => {
+    const page = searchFixture()
+    const pushEvent = vi.fn()
+    const hook = captured.hooks.AutolaunchSearch
+    const context = {el: page.form, pushEvent} as never
+
+    hook.mounted?.call(context)
+    expect(fakeHistory.state).toEqual({ashAutolaunchSearch: true, ashAutolaunchScrollTop: 321})
+
+    page.input.value = "first"
+    page.dispatch("input")
+    page.input.value = "second"
+    page.dispatch("input")
+    await vi.advanceTimersByTimeAsync(249)
+    expect(pushEvent).not.toHaveBeenCalled()
+
+    fakeWindow.location.href = "http://localhost/autolaunch?q=back"
+    page.popstate({state: {ashAutolaunchSearch: true, ashAutolaunchScrollTop: 200}})
+    expect(page.input.value).toBe("back")
+    await vi.advanceTimersByTimeAsync(1)
+    expect(pushEvent).not.toHaveBeenCalled()
+
+    page.input.value = "final"
+    page.dispatch("input")
+    await vi.advanceTimersByTimeAsync(250)
+    expect(pushEvent).toHaveBeenCalledOnce()
+    expect(pushEvent).toHaveBeenCalledWith("autolaunch_search", {query: "final"})
+
+    hook.destroyed?.call(context)
+  })
+
+  it("submits and clears immediately while retaining the current scroll marker", () => {
+    const page = searchFixture()
+    const pushEvent = vi.fn()
+    const hook = captured.hooks.AutolaunchSearch
+    const context = {el: page.form, pushEvent} as never
+
+    hook.mounted?.call(context)
+    page.input.value = "creator"
+    page.dispatch("submit")
+    expect(pushEvent).toHaveBeenLastCalledWith("autolaunch_search", {query: "creator"})
+
+    page.dispatch("click", {target: page.clear})
+    expect(page.input.value).toBe("")
+    expect(pushEvent).toHaveBeenLastCalledWith("autolaunch_search", {query: ""})
+    expect(fakeHistory.state?.ashAutolaunchScrollTop).toBe(321)
+
+    hook.destroyed?.call(context)
+  })
+
+  it("restores marked Autolaunch scroll without changing ordinary route behavior", () => {
+    const page = shellFixture()
+    const hook = captured.hooks.ShellBehavior
+    const context = {el: page.shell} as never
+
+    fakeWindow.location.pathname = "/autolaunch"
+    hook.mounted?.call(context)
+    windowListeners.get("popstate")?.forEach(listener =>
+      listener({state: {ashAutolaunchSearch: true, ashAutolaunchScrollTop: 444}}),
+    )
+    expect(page.scroller.scrollTo).toHaveBeenLastCalledWith({top: 444})
+
+    fakeWindow.location.pathname = "/formation"
+    windowListeners.get("popstate")?.forEach(listener => listener({state: {}}))
+    expect(page.scroller.scrollTo).toHaveBeenLastCalledWith({top: 0})
+
+    hook.destroyed?.call(context)
   })
 })
 

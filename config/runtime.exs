@@ -17,6 +17,20 @@ config :ash_platform, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: privy_verification_key
 
+x_oauth_client_id =
+  case System.get_env("X_OAUTH_CLIENT_ID") do
+    value when is_binary(value) ->
+      case String.trim(value) do
+        "" -> nil
+        value -> value
+      end
+
+    _missing ->
+      nil
+  end
+
+config :ash_platform, :x_oauth_client_id, x_oauth_client_id
+
 admin_wallet_addresses =
   "REGENT_ADMIN_WALLET_ADDRESSES"
   |> System.get_env("")

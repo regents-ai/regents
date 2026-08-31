@@ -470,10 +470,6 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletLiveTest do
     {:ok, view, _html} = live(signed_in, @path)
     render_async(view)
 
-    view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="transactions"]))
-    |> render_click()
-
     {signed_in, view}
   end
 

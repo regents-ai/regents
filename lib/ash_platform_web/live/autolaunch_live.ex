@@ -3,6 +3,8 @@ defmodule AshPlatformWeb.AutolaunchLive do
   use Phoenix.Component
 
   import AshPlatformWeb.Components.CommentLedger
+  import AshPlatformWeb.Components.AutolaunchMarketCard
+  import AshPlatformWeb.Components.XConnections
   alias AshPlatform.Autolaunch.{Lab, LaunchDraft, TreasurySecurity}
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
@@ -53,7 +55,13 @@ defmodule AshPlatformWeb.AutolaunchLive do
   def draft_values(draft) do
     Map.new(@stored_params, fn param ->
       value = Map.get(draft, String.to_existing_atom(param))
-      {param, if(is_atom(value), do: Atom.to_string(value), else: value || "")}
+
+      {param,
+       cond do
+         is_nil(value) -> ""
+         is_atom(value) -> Atom.to_string(value)
+         true -> value
+       end}
     end)
   end
 
@@ -64,6 +72,12 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :recent_auctions, :list, required: true
   attr :top_tokens, :list, required: true
   attr :graduated_tokens, :list, required: true
+  attr :active_auctions, :list, default: []
+  attr :explore_items, :list, default: []
+  attr :creator_connections, :map, default: %{}
+  attr :search_query, :string, default: ""
+  attr :x_connections, :list, default: []
+  attr :x_oauth_enabled, :boolean, default: false
   attr :market, :map, default: %{generation: 0, head: nil, degraded?: false, auctions: %{}}
   attr :records, :list, required: true
   attr :record, :map, default: nil
@@ -78,7 +92,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
-  attr :create_stage, :atom, default: :token_details
   attr :launch_image_upload, :map, default: nil
   attr :status, :atom, required: true
   attr :comments, :list, required: true
@@ -107,6 +120,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
       recent_auctions={@recent_auctions}
       top_tokens={@top_tokens}
       graduated_tokens={@graduated_tokens}
+      active_auctions={@active_auctions}
+      explore_items={@explore_items}
+      creator_connections={@creator_connections}
+      search_query={@search_query}
       market={@market}
       status={@status}
     />
@@ -149,6 +166,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       current_human_id={@current_human_id}
       comment_admin={@comment_admin}
       market_snapshot={auction_market_snapshot(@market, @record)}
+      creator_connections={connections_for(@record, @creator_connections)}
     />
     <.subject_detail
       :if={@route_spec.route_id == :autolaunch_subject}
@@ -183,10 +201,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
       draft_values={@draft_values}
       draft_errors={@draft_errors}
       draft_notice={@draft_notice}
-      create_stage={@create_stage}
       launch_image_upload={@launch_image_upload}
       session_lease={@session_lease}
       current_human_id={@current_human_id}
+      x_connections={@x_connections}
+      x_oauth_enabled={@x_oauth_enabled}
     />
     """
   end
@@ -722,119 +741,137 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :recent_auctions, :list, required: true
   attr :top_tokens, :list, required: true
   attr :graduated_tokens, :list, required: true
+  attr :active_auctions, :list, required: true
+  attr :explore_items, :list, required: true
+  attr :creator_connections, :map, required: true
+  attr :search_query, :string, required: true
   attr :status, :atom, required: true
   attr :market, :map, required: true
 
   defp overview(assigns) do
-    assigns =
-      assign(assigns,
-        auction_preview: preview_records(assigns.featured_auctions, assigns.recent_auctions),
-        token_preview: preview_records(assigns.top_tokens, assigns.graduated_tokens)
-      )
-
     ~H"""
-    <section id="autolaunch-overview" class="autolaunch-page">
-      <header class="autolaunch-heading autolaunch-hero">
-        <p class="autolaunch-kicker">Agent token launchpad</p>
-        <h1>Launch agents. Back them early.</h1>
-        <p>
-          Create an auction, discover live raises, and follow tokens from first bid to liquidity.
-          Every money action stays under wallet control.
-        </p>
+    <section id="autolaunch-overview" class="autolaunch-page launchpad-home">
+      <header class="launchpad-home__topbar">
+        <form
+          id="autolaunch-market-search"
+          class="launchpad-search"
+          phx-hook="AutolaunchSearch"
+          data-query={@search_query}
+          role="search"
+        >
+          <label for="autolaunch-market-query">Search auctions, tokens, addresses, or creators</label>
+          <span aria-hidden="true">⌕</span>
+          <input
+            id="autolaunch-market-query"
+            type="search"
+            name="q"
+            value={@search_query}
+            placeholder="Search Autolaunch"
+            autocomplete="off"
+          />
+          <button :if={@search_query != ""} type="button" data-autolaunch-search-clear>
+            Clear
+          </button>
+        </form>
+        <.link patch="/autolaunch/create" class="launchpad-create-link">
+          <span aria-hidden="true">＋</span> Create
+        </.link>
       </header>
 
-      <nav class="autolaunch-market-grid" aria-label="Autolaunch destinations">
-        <.destination_card
-          path="/autolaunch/auctions"
-          index="01"
-          audience="For bidders"
-          title="Auctions"
-          copy="Find live raises, inspect the terms, and place a bid."
-        />
-        <.destination_card
-          path="/autolaunch/tokens"
-          index="02"
-          audience="For token buyers"
-          title="Tokens"
-          copy="Explore graduated tokens and follow their market."
-        />
-        <.destination_card
-          path="/autolaunch/holdings"
-          index="03"
-          audience="Your activity"
-          title="Portfolio"
-          copy="Track bids, exits, claims, and tokens in one place."
-        />
-        <.destination_card
-          path="/autolaunch/create"
-          index="04"
-          audience="For creators"
-          title="Create"
-          copy="Turn an agent into a token and launch its auction."
-          primary
-        />
-      </nav>
+      <p :if={@status == :error} class="autolaunch-inline-error" role="alert">
+        Market data is unavailable right now.
+      </p>
 
-      <section class="autolaunch-market-board" aria-labelledby="autolaunch-market-title">
-        <header class="autolaunch-section-heading">
+      <.launchpad_section
+        id="launchpad-graduated"
+        title="Graduated"
+        copy="Tokens whose auctions reached graduation."
+        kind={:token}
+        records={@graduated_tokens}
+        creator_connections={@creator_connections}
+        empty_copy={empty_market_copy(@search_query, "No graduated tokens yet.")}
+        featured
+      />
+
+      <.launchpad_section
+        id="launchpad-active"
+        title="Active auctions"
+        copy="Live raises accepting bids on the local Base fork."
+        kind={:auction}
+        records={@active_auctions}
+        creator_connections={@creator_connections}
+        empty_copy={empty_market_copy(@search_query, "No active auctions yet.")}
+      />
+
+      <section
+        id="launchpad-explore"
+        class="launchpad-section"
+        aria-labelledby="launchpad-explore-title"
+      >
+        <header>
           <div>
-            <p class="autolaunch-kicker">Market now</p>
-            <h2 id="autolaunch-market-title">Find the next launch</h2>
+            <h2 id="launchpad-explore-title">Explore</h2>
+            <p>Current auctions and graduated tokens together.</p>
           </div>
-          <.link patch="/autolaunch/auctions">View all auctions <span aria-hidden="true">→</span></.link>
+          <span>{length(@explore_items)}</span>
         </header>
-
-        <div class="autolaunch-feed-grid">
-          <.market_feed
-            title="Auctions"
-            kind={:auction}
-            records={@auction_preview}
-            empty_copy="No auctions yet. Create the first launch."
-          />
-          <.market_feed
-            title="Graduated tokens"
-            kind={:token}
-            records={@token_preview}
-            empty_copy="Tokens appear here after an auction graduates."
+        <p :if={@explore_items == []} class="launchpad-section__empty">
+          {empty_market_copy(@search_query, "Nothing to explore yet.")}
+        </p>
+        <div :if={@explore_items != []} class="launchpad-card-grid">
+          <.autolaunch_market_card
+            :for={item <- @explore_items}
+            kind={item.kind}
+            record={item.record}
+            creator_connections={connections_for(item.record, @creator_connections)}
           />
         </div>
-
-        <p :if={@status == :error} class="autolaunch-inline-error" role="alert">
-          Market data is unavailable right now.
-        </p>
-        <p
-          :if={@market.head && !@market.degraded?}
-          class="autolaunch-market-freshness"
-          role="status"
-        >
-          Local market current at block {@market.head.number}.
-        </p>
       </section>
+
+      <p
+        :if={@market.head && !@market.degraded?}
+        class="autolaunch-market-freshness"
+        role="status"
+      >
+        Local market current at block {@market.head.number}.
+      </p>
     </section>
     """
   end
 
-  attr :path, :string, required: true
-  attr :index, :string, required: true
-  attr :audience, :string, required: true
+  attr :id, :string, required: true
   attr :title, :string, required: true
   attr :copy, :string, required: true
-  attr :primary, :boolean, default: false
+  attr :kind, :atom, required: true
+  attr :records, :list, required: true
+  attr :creator_connections, :map, required: true
+  attr :empty_copy, :string, required: true
+  attr :featured, :boolean, default: false
 
-  defp destination_card(assigns) do
+  defp launchpad_section(assigns) do
     ~H"""
-    <.link
-      patch={@path}
-      class={[
-        "autolaunch-market-section autolaunch-destination-card",
-        @primary && "autolaunch-destination-card--primary"
-      ]}
+    <section
+      id={@id}
+      class={["launchpad-section", @featured && "launchpad-section--featured"]}
+      aria-labelledby={"#{@id}-title"}
     >
-      <span class="autolaunch-destination-card__index">{@index}</span>
-      <span class="autolaunch-destination-card__audience">{@audience}</span>
-      <h2>{@title} <span aria-hidden="true">↗</span></h2>
-      <p>{@copy}</p>
-    </.link>
+      <header>
+        <div>
+          <h2 id={"#{@id}-title"}>{@title}</h2>
+          <p>{@copy}</p>
+        </div>
+        <span>{length(@records)}</span>
+      </header>
+      <p :if={@records == []} class="launchpad-section__empty">{@empty_copy}</p>
+      <div :if={@records != []} class="launchpad-card-grid">
+        <.autolaunch_market_card
+          :for={record <- @records}
+          kind={@kind}
+          record={record}
+          creator_connections={connections_for(record, @creator_connections)}
+        />
+      </div>
+    </section>
     """
   end
 
@@ -946,6 +983,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :current_human_id, :integer, default: nil
   attr :comment_admin, :boolean, required: true
   attr :market_snapshot, :map, default: nil
+  attr :creator_connections, :map, default: %{}
 
   defp detail(assigns) do
     assigns =
@@ -971,6 +1009,13 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h1>{record_label(@kind, @record)}</h1>
         <p>{@record.summary || record_fallback(@kind)}</p>
       </header>
+      <.autolaunch_market_card
+        kind={@kind}
+        record={@record}
+        creator_connections={@creator_connections}
+        linked={false}
+        class="launchpad-card--detail"
+      />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@record)}
@@ -1072,10 +1117,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
-  attr :create_stage, :atom, default: :token_details
   attr :launch_image_upload, :map, default: nil
   attr :session_lease, :map, default: nil
   attr :current_human_id, :integer, default: nil
+  attr :x_connections, :list, default: []
+  attr :x_oauth_enabled, :boolean, default: false
 
   defp create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -1086,15 +1132,16 @@ defmodule AshPlatformWeb.AutolaunchLive do
       |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
       |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
+      |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
 
     ~H"""
-    <section id="autolaunch-create" class="autolaunch-page">
-      <header class="autolaunch-heading">
+    <section id="autolaunch-create" class="autolaunch-page launchpad-create">
+      <header class="launchpad-create__header">
         <p class="autolaunch-kicker">Autolaunch · Create</p>
-        <h1>Create a launch</h1>
+        <h1>Launch an auction</h1>
         <p>
-          Build the token and choose where its auction proceeds go. Every change is saved privately
-          to your account. Nothing reaches your wallet until the final stage.
+          Add the public token details, choose the treasury, then review the exact transactions.
+          Draft changes save privately to your account. Your wallet remains in control.
         </p>
       </header>
 
@@ -1105,187 +1152,154 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
       <section
         :if={@account_control.kind == :signed_in}
-        class="autolaunch-draft-workspace"
+        class="launchpad-create__workspace"
         aria-labelledby="launch-draft-title"
       >
-        <header>
-          <p class="autolaunch-kicker">Private preparation</p>
-          <h2 id="launch-draft-title">Launch setup</h2>
-          <p>Your draft belongs to this signed-in account and survives refreshes and sign-outs.</p>
-        </header>
+        <div class="launchpad-create__form-column">
+          <form
+            id="launch-token-details"
+            phx-change="autosave_launch_token_details"
+            phx-submit="autosave_launch_token_details"
+            class="launchpad-form-section"
+          >
+            <header>
+              <div>
+                <p class="autolaunch-kicker">Public identity</p>
+                <h2 id="launch-draft-title">Token details</h2>
+              </div>
+              <span>{stage_status(@token_complete?)}</span>
+            </header>
 
-        <nav class="autolaunch-create-stages" aria-label="Launch stages">
-          <button
-            type="button"
-            class={stage_class(@create_stage, :token_details, @token_complete?)}
-            phx-click="select_launch_stage"
-            phx-value-stage="token_details"
-            aria-current={@create_stage == :token_details && "step"}
-          >
-            <span>1</span> Token Details <small>{stage_status(@token_complete?)}</small>
-          </button>
-          <button
-            type="button"
-            class={stage_class(@create_stage, :treasury, @treasury_complete?)}
-            phx-click="select_launch_stage"
-            phx-value-stage="treasury"
-            aria-current={@create_stage == :treasury && "step"}
-          >
-            <span>2</span> Treasury Address <small>{stage_status(@treasury_complete?)}</small>
-          </button>
-          <button
-            type="button"
-            class={stage_class(@create_stage, :transactions, @launch_ready?)}
-            phx-click={@launch_ready? && "select_launch_stage"}
-            phx-value-stage={@launch_ready? && "transactions"}
-            aria-current={@create_stage == :transactions && "step"}
-            disabled={!@launch_ready?}
-            aria-disabled={to_string(!@launch_ready?)}
-          >
-            <span>3</span>
-            Launch Transactions
-            <small>{if @launch_ready?, do: "Ready", else: "Complete steps 1 and 2"}</small>
-          </button>
-        </nav>
-
-        <form
-          :if={@create_stage == :token_details}
-          id="launch-token-details"
-          phx-change="autosave_launch_token_details"
-          phx-submit="autosave_launch_token_details"
-          class="autolaunch-draft-form autolaunch-stage-panel"
-        >
-          <div class="autolaunch-stage-heading">
-            <div>
-              <p class="autolaunch-kicker">Stage 1</p>
-              <h3>Token Details</h3>
+            <div class="launchpad-form-grid">
+              <.draft_field
+                :for={field <- token_detail_fields()}
+                field={field}
+                form_id="launch-token-details"
+                hint={field.hint}
+                value={@draft_values[field.param]}
+                error={@draft_errors[field.param]}
+                autosave
+              />
             </div>
-            <span>{stage_status(@token_complete?)}</span>
-          </div>
 
-          <.draft_field
-            :for={field <- token_detail_fields()}
-            field={field}
-            form_id="launch-token-details"
-            hint={field.hint}
-            value={@draft_values[field.param]}
-            error={@draft_errors[field.param]}
-            autosave
+            <div class="autolaunch-draft-field autolaunch-draft-field--wide launchpad-upload">
+              <label for="launch-image-upload">Token image</label>
+              <p class="autolaunch-draft-hint">
+                PNG, JPEG, or WebP · maximum 2 MiB · one permanent image per account.
+                <strong>Recommended: 400 × 400 px</strong>
+              </p>
+              <div class="launchpad-upload__control">
+                <img
+                  :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
+                  class="autolaunch-image-preview"
+                  src={@draft_values["image"]}
+                  alt="Saved token image"
+                />
+                <.live_file_input
+                  :if={@launch_image_upload}
+                  upload={@launch_image_upload}
+                  id="launch-image-upload"
+                />
+              </div>
+              <div :for={entry <- (@launch_image_upload && @launch_image_upload.entries) || []}>
+                <.live_img_preview entry={entry} class="autolaunch-image-preview" />
+                <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
+              </div>
+              <p
+                :for={error <- (@launch_image_upload && upload_errors(@launch_image_upload)) || []}
+                class="autolaunch-draft-error"
+                role="alert"
+              >
+                {upload_error(error)}
+              </p>
+            </div>
+          </form>
+
+          <.x_connections
+            id="autolaunch-create-x-connections"
+            connections={@x_connections}
+            enabled={@x_oauth_enabled}
+            compact
           />
 
-          <div class="autolaunch-draft-field autolaunch-draft-field--wide">
-            <label for="launch-image-upload">Token image</label>
-            <p class="autolaunch-draft-hint">
-              PNG, JPEG, or WebP. Maximum 2 MiB. Your account may save one permanent launch
-              image; uploading the exact same file again reuses it.
-              <strong>Recommended: 400 × 400 px</strong>
-            </p>
-            <img
-              :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
-              class="autolaunch-image-preview"
-              src={@draft_values["image"]}
-              alt="Saved token image"
+          <form
+            id="launch-treasury-details"
+            phx-hook="AutolaunchLaunchDraft"
+            phx-change="autosave_launch_treasury"
+            phx-submit="autosave_launch_treasury"
+            class="launchpad-form-section"
+          >
+            <header>
+              <div>
+                <p class="autolaunch-kicker">Proceeds</p>
+                <h2>Treasury</h2>
+              </div>
+              <span>{stage_status(@treasury_complete?)}</span>
+            </header>
+            <.custody_path
+              form_id="launch-treasury-details"
+              path={@draft_values["treasury_path"]}
+              acknowledgement={@draft_values["eoa_acknowledgement"]}
+              error={@draft_errors["eoa_acknowledgement"]}
             />
-            <.live_file_input
-              :if={@launch_image_upload}
-              upload={@launch_image_upload}
-              id="launch-image-upload"
+            <.draft_field
+              field={treasury_field()}
+              form_id="launch-treasury-details"
+              hint={treasury_field().hint}
+              value={@draft_values["treasury"]}
+              error={@draft_errors["treasury"]}
+              autosave
             />
-            <div :for={entry <- (@launch_image_upload && @launch_image_upload.entries) || []}>
-              <.live_img_preview entry={entry} class="autolaunch-image-preview" />
-              <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
-            </div>
-            <p
-              :for={error <- (@launch_image_upload && upload_errors(@launch_image_upload)) || []}
-              class="autolaunch-draft-error"
-              role="alert"
-            >
-              {upload_error(error)}
+          </form>
+
+          <section id="launch-transactions" class="launchpad-form-section launchpad-transactions">
+            <header>
+              <div>
+                <p class="autolaunch-kicker">Wallet review</p>
+                <h2>Launch transactions</h2>
+              </div>
+              <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
+            </header>
+            <p>
+              The wallet component shows the exact REGENT fee and transaction sequence before
+              anything is submitted.
             </p>
-          </div>
-
-          <div class="autolaunch-stage-actions">
-            <p>Saved automatically to your account.</p>
-            <button type="button" phx-click="select_launch_stage" phx-value-stage="treasury">
-              View Treasury Address
+            <.live_component
+              :if={@launch_ready?}
+              module={AshPlatformWeb.AutolaunchLaunchWalletComponent}
+              id={"autolaunch-launch-wallet-#{@active_draft.id}"}
+              draft={@active_draft}
+              authenticated
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
+            <button :if={!@launch_ready?} type="button" disabled>
+              Complete token details and treasury
             </button>
-          </div>
-        </form>
+          </section>
 
-        <form
-          :if={@create_stage == :treasury}
-          id="launch-treasury-details"
-          phx-hook="AutolaunchLaunchDraft"
-          phx-change="autosave_launch_treasury"
-          phx-submit="autosave_launch_treasury"
-          class="autolaunch-draft-form autolaunch-stage-panel"
-        >
-          <div class="autolaunch-stage-heading">
-            <div>
-              <p class="autolaunch-kicker">Stage 2</p>
-              <h3>Treasury Address</h3>
-            </div>
-            <span>{stage_status(@treasury_complete?)}</span>
-          </div>
-          <.custody_path
-            form_id="launch-treasury-details"
-            path={@draft_values["treasury_path"]}
-            acknowledgement={@draft_values["eoa_acknowledgement"]}
-            error={@draft_errors["eoa_acknowledgement"]}
-          />
-          <.draft_field
-            field={treasury_field()}
-            form_id="launch-treasury-details"
-            hint={treasury_field().hint}
-            value={@draft_values["treasury"]}
-            error={@draft_errors["treasury"]}
-            autosave
-          />
-          <div class="autolaunch-stage-actions">
-            <button type="button" phx-click="select_launch_stage" phx-value-stage="token_details">
-              View Token Details
-            </button>
-            <button
-              type="button"
-              phx-click={@launch_ready? && "select_launch_stage"}
-              phx-value-stage={@launch_ready? && "transactions"}
-              disabled={!@launch_ready?}
-            >
-              Continue to Launch Transactions
-            </button>
-          </div>
-        </form>
+          <p
+            :if={@draft_notice}
+            class={"autolaunch-draft-notice autolaunch-draft-notice--#{@draft_notice.tone}"}
+            role={notice_role(@draft_notice.tone)}
+          >
+            {@draft_notice.message}
+          </p>
+        </div>
 
-        <section
-          :if={@create_stage == :transactions && @launch_ready?}
-          id="launch-transactions"
-          class="autolaunch-stage-panel"
-        >
-          <div class="autolaunch-stage-heading">
-            <div>
-              <p class="autolaunch-kicker">Stage 3</p>
-              <h3>Launch Transactions</h3>
-            </div>
-            <span>Ready</span>
+        <aside class="launchpad-create__preview" aria-label="Live launch preview">
+          <div>
+            <p class="autolaunch-kicker">Live preview</p>
+            <h2>Your auction</h2>
           </div>
-          <p>Review the exact fee and transactions before asking your wallet to sign.</p>
-          <.live_component
-            module={AshPlatformWeb.AutolaunchLaunchWalletComponent}
-            id={"autolaunch-launch-wallet-#{@active_draft.id}"}
-            draft={@active_draft}
-            authenticated
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
+          <.autolaunch_market_card
+            kind={:draft}
+            record={@draft_values}
+            creator_connections={@draft_x_connections}
+            preview
           />
-        </section>
-
-        <p
-          :if={@draft_notice}
-          class={"autolaunch-draft-notice autolaunch-draft-notice--#{@draft_notice.tone}"}
-          role={notice_role(@draft_notice.tone)}
-        >
-          {@draft_notice.message}
-        </p>
+          <p>Auctions and graduated tokens use this same public identity.</p>
+        </aside>
       </section>
     </section>
     """
@@ -1429,14 +1443,6 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp stage_status(true), do: "Complete"
   defp stage_status(_incomplete), do: "In progress"
 
-  defp stage_class(active, stage, complete?) do
-    [
-      "autolaunch-create-stage",
-      active == stage && "autolaunch-create-stage--active",
-      complete? && "autolaunch-create-stage--complete"
-    ]
-  end
-
   defp upload_progress(progress), do: "#{progress}%"
   defp upload_error(:too_large), do: "Choose an image no larger than 2 MiB."
   defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
@@ -1462,11 +1468,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp record_fallback(:auction), do: "No public summary yet."
   defp record_fallback(:token), do: "No public token summary yet."
 
-  defp preview_records(primary, fallback) do
-    primary
-    |> then(&if(&1 == [], do: fallback, else: &1))
-    |> Enum.take(4)
-  end
+  defp empty_market_copy("", fallback), do: fallback
+  defp empty_market_copy(_query, _fallback), do: "No matching auctions or tokens."
+
+  defp connections_for(%{creator_human_account_id: id}, grouped) when is_integer(id),
+    do: Map.get(grouped, id, %{})
+
+  defp connections_for(%{auction: %{creator_human_account_id: id}}, grouped)
+       when is_integer(id),
+       do: Map.get(grouped, id, %{})
+
+  defp connections_for(_record, _grouped), do: %{}
 
   defp market_status(:auction, record), do: display_status(record.state)
   defp market_status(:token, _record), do: "Graduated"

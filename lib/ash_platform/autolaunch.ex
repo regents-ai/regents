@@ -70,6 +70,14 @@ defmodule AshPlatform.Autolaunch do
       define :list_recent_auctions, action: :recent_public
       define :list_featured_auctions, action: :featured_public
 
+      define :list_active_launchpad_auctions,
+        action: :active_launchpad,
+        args: [:query, :creator_human_account_ids]
+
+      define :list_explore_launchpad_auctions,
+        action: :explore_launchpad,
+        args: [:query, :creator_human_account_ids]
+
       define :get_public_auction,
         action: :public_by_id,
         args: [:id],
@@ -140,6 +148,14 @@ defmodule AshPlatform.Autolaunch do
       define :list_tokens, action: :list_public
       define :list_top_tokens, action: :top_public
       define :list_recently_graduated_tokens, action: :recently_graduated_public
+
+      define :list_graduated_launchpad_tokens,
+        action: :graduated_launchpad,
+        args: [:query, :creator_human_account_ids]
+
+      define :list_explore_launchpad_tokens,
+        action: :explore_launchpad,
+        args: [:query, :creator_human_account_ids]
 
       define :get_public_token,
         action: :public_by_id,

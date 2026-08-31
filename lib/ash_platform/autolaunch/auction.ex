@@ -7,6 +7,7 @@ defmodule AshPlatform.Autolaunch.Auction do
 
   alias AshPlatform.Autolaunch.{BidActions, TreasurySecurity}
   alias AshPlatform.Autolaunch.LabProjection
+  require Ash.Query
 
   attributes do
     uuid_primary_key :id
@@ -20,6 +21,21 @@ defmodule AshPlatform.Autolaunch.Auction do
     attribute :summary, :string do
       public? true
       constraints max_length: 2_000, trim?: true
+    end
+
+    attribute :token_symbol, :string do
+      public? true
+      constraints max_length: 16, trim?: true
+    end
+
+    attribute :website, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    attribute :image, :string do
+      public? true
+      constraints max_length: 256, trim?: true
     end
 
     attribute :featured, :boolean do
@@ -73,6 +89,11 @@ defmodule AshPlatform.Autolaunch.Auction do
   end
 
   relationships do
+    belongs_to :creator_human_account, AshPlatform.Accounts.HumanAccount do
+      attribute_public? true
+      attribute_type :integer
+    end
+
     belongs_to :treasury_security_report,
                AshPlatform.Autolaunch.TreasurySecurityReport do
       attribute_public? true
@@ -104,6 +125,24 @@ defmodule AshPlatform.Autolaunch.Auction do
                 limit: 6,
                 load: [:treasury_security_report]
               )
+    end
+
+    read :active_launchpad do
+      argument :query, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, max_length: 80]
+
+      argument :creator_human_account_ids, {:array, :integer}, default: []
+      prepare fn query, _context -> market_query(query, [:created, :active], 8) end
+    end
+
+    read :explore_launchpad do
+      argument :query, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, max_length: 80]
+
+      argument :creator_human_account_ids, {:array, :integer}, default: []
+      prepare fn query, _context -> market_query(query, [:created, :active, :failed], 24) end
     end
 
     read :public_by_id do
@@ -157,6 +196,10 @@ defmodule AshPlatform.Autolaunch.Auction do
       accept [
         :title,
         :summary,
+        :token_symbol,
+        :website,
+        :image,
+        :creator_human_account_id,
         :featured,
         :state,
         :opened_at,
@@ -174,6 +217,10 @@ defmodule AshPlatform.Autolaunch.Auction do
       upsert_fields [
         :title,
         :summary,
+        :token_symbol,
+        :website,
+        :image,
+        :creator_human_account_id,
         :state,
         :opened_at,
         :auction_address,
@@ -274,7 +321,15 @@ defmodule AshPlatform.Autolaunch.Auction do
   end
 
   policies do
-    policy action([:read, :list_public, :recent_public, :featured_public, :public_by_id]) do
+    policy action([
+             :read,
+             :list_public,
+             :recent_public,
+             :featured_public,
+             :active_launchpad,
+             :explore_launchpad,
+             :public_by_id
+           ]) do
       authorize_if always()
     end
 
@@ -316,5 +371,52 @@ defmodule AshPlatform.Autolaunch.Auction do
     table "auctions"
     schema("autolaunch")
     repo(AshPlatform.Repo)
+  end
+
+  defp market_query(query, states, limit) do
+    term = query.arguments.query |> String.trim() |> String.downcase()
+    creator_ids = query.arguments.creator_human_account_ids || []
+    pattern = literal_search_pattern(term)
+
+    query
+    |> Ash.Query.filter(state in ^states)
+    |> market_search_filter(term, creator_ids, pattern)
+    |> Ash.Query.sort(inserted_at: :desc, id: :asc)
+    |> Ash.Query.limit(limit)
+    |> Ash.Query.load(:treasury_security_report)
+  end
+
+  defp market_search_filter(query, "", [], _pattern), do: query
+
+  defp market_search_filter(query, "", creator_ids, _pattern),
+    do: Ash.Query.filter(query, creator_human_account_id in ^creator_ids)
+
+  defp market_search_filter(query, _term, [], pattern) do
+    Ash.Query.filter(
+      query,
+      ilike(title, ^pattern) or
+        ilike(summary, ^pattern) or
+        ilike(token_symbol, ^pattern) or
+        ilike(auction_address, ^pattern)
+    )
+  end
+
+  defp market_search_filter(query, _term, creator_ids, pattern) do
+    Ash.Query.filter(
+      query,
+      ilike(title, ^pattern) or
+        ilike(summary, ^pattern) or
+        ilike(token_symbol, ^pattern) or
+        ilike(auction_address, ^pattern) or
+        creator_human_account_id in ^creator_ids
+    )
+  end
+
+  defp literal_search_pattern(term) do
+    "%" <>
+      (term
+       |> String.replace("\\", "\\\\")
+       |> String.replace("%", "\\%")
+       |> String.replace("_", "\\_")) <> "%"
   end
 end

@@ -242,7 +242,16 @@ defmodule AshPlatformWeb.PrivySessionController do
     access_context = AccessContext.human(account)
     control = AccessContext.account_control(access_context, current_regent(account))
 
-    %{authenticated: true, account_control: Map.from_struct(control)}
+    %{
+      authenticated: true,
+      account_control: %{
+        kind: control.kind,
+        label: control.label,
+        profile_path: control.profile_path,
+        settings_path: control.settings_path,
+        avatar_data_uri: control.avatar_data_uri
+      }
+    }
   end
 
   defp current_regent(account) do

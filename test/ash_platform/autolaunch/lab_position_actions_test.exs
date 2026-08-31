@@ -675,10 +675,6 @@ defmodule AshPlatform.Autolaunch.LabPositionActionsTest do
     {:ok, launch_view, _html} = live(conn, "/autolaunch/create")
     render_async(launch_view)
 
-    launch_view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="transactions"]))
-    |> render_click()
-
     render_hook(element(launch_view, launch_card), "launch_active_wallet", %{
       "address" => @wallet
     })

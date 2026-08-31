@@ -2,7 +2,6 @@ defmodule AshPlatform.Accounts.LinkedIdentity.Providers do
   @moduledoc false
 
   @providers [
-    %{provider: :x, label: "X"},
     %{provider: :github, label: "GitHub"},
     %{provider: :farcaster, label: "Farcaster"}
   ]

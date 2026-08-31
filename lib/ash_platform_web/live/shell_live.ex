@@ -17,8 +17,9 @@ defmodule AshPlatformWeb.ShellLive do
     Techtree
   }
 
+  alias AshPlatform.Accounts.XOAuth
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Autolaunch.{LabMarketFeed, LaunchDraft, LaunchDraftImageStorage}
+  alias AshPlatform.Autolaunch.{LabMarketFeed, LaunchDraftImageStorage}
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatformWeb.AutolaunchLive
@@ -30,7 +31,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.SettingsLive
   alias AshPlatformWeb.TechtreeLive
 
-  @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
+  @identity_providers %{"github" => :github, "farcaster" => :farcaster}
 
   @impl true
   def mount(params, _session, socket) do
@@ -64,12 +65,18 @@ defmodule AshPlatformWeb.ShellLive do
         comment_notice: nil,
         verified_connections: [],
         verified_connections_notice: nil,
+        x_connections: [],
+        x_oauth_enabled: XOAuth.enabled?(),
         comment_admin?: Discussions.admin_actor?(human_actor(socket)),
         route_params: params,
         autolaunch_featured_auctions: [],
         autolaunch_recent_auctions: [],
         autolaunch_top_tokens: [],
         autolaunch_graduated_tokens: [],
+        autolaunch_active_auctions: [],
+        autolaunch_explore_items: [],
+        autolaunch_creator_connections: %{},
+        autolaunch_search_query: "",
         autolaunch_records: [],
         autolaunch_record: nil,
         autolaunch_subject_tokens: [],
@@ -82,7 +89,6 @@ defmodule AshPlatformWeb.ShellLive do
         autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
         autolaunch_draft_errors: %{},
         autolaunch_draft_notice: nil,
-        autolaunch_create_stage: :token_details,
         autolaunch_status: :loading,
         autolaunch_market: empty_autolaunch_market(),
         autolaunch_market_topic: nil,
@@ -166,6 +172,7 @@ defmodule AshPlatformWeb.ShellLive do
       |> update_autolaunch_market_subscription(route_spec)
       |> load_autolaunch_market(route_spec)
       |> load_verified_connections(route_spec)
+      |> load_x_connections(route_spec)
       |> load_comments_route(route_spec)
 
     cond do
@@ -444,22 +451,6 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  # A draft event that arrives while Autolaunch is closed is answered before any
-  # actor is built or any record is read or written.
-  def handle_event("select_launch_stage", %{"stage" => stage}, socket) do
-    selected =
-      case stage do
-        "token_details" -> :token_details
-        "treasury" -> :treasury
-        "transactions" -> if launch_ready?(socket), do: :transactions, else: nil
-        _unknown -> nil
-      end
-
-    if selected,
-      do: {:noreply, assign(socket, autolaunch_create_stage: selected)},
-      else: {:noreply, socket}
-  end
-
   # Retired client events never create or revise a launch draft. Preserve the
   # closed-surface response for stale clients while keeping an open surface inert.
   def handle_event(event, _params, socket)
@@ -574,6 +565,19 @@ defmodule AshPlatformWeb.ShellLive do
      socket
      |> reload_verified_connections()
      |> assign(verified_connections_notice: notice)}
+  end
+
+  def handle_event("refresh_x_connections", _params, socket) do
+    {:noreply, reload_x_connections(socket)}
+  end
+
+  def handle_event("autolaunch_search", %{"query" => query}, socket) do
+    query = normalize_autolaunch_query(query)
+
+    target =
+      if query == "", do: "/autolaunch", else: "/autolaunch?q=#{URI.encode_www_form(query)}"
+
+    {:noreply, push_patch(socket, to: target)}
   end
 
   def handle_event(event, params, socket)
@@ -803,13 +807,6 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
-  defp launch_ready?(socket) do
-    case List.first(socket.assigns.autolaunch_launch_drafts) do
-      nil -> false
-      draft -> AshPlatform.Autolaunch.LaunchDraft.launch_ready?(draft)
-    end
-  end
-
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
     params = AutolaunchLive.draft_field_params()
 
@@ -913,6 +910,12 @@ defmodule AshPlatformWeb.ShellLive do
           recent_auctions={@autolaunch_recent_auctions}
           top_tokens={@autolaunch_top_tokens}
           graduated_tokens={@autolaunch_graduated_tokens}
+          active_auctions={@autolaunch_active_auctions}
+          explore_items={@autolaunch_explore_items}
+          creator_connections={@autolaunch_creator_connections}
+          search_query={@autolaunch_search_query}
+          x_connections={@x_connections}
+          x_oauth_enabled={@x_oauth_enabled}
           market={@autolaunch_market}
           records={@autolaunch_records}
           record={@autolaunch_record}
@@ -927,7 +930,6 @@ defmodule AshPlatformWeb.ShellLive do
           draft_values={@autolaunch_draft_values}
           draft_errors={@autolaunch_draft_errors}
           draft_notice={@autolaunch_draft_notice}
-          create_stage={@autolaunch_create_stage}
           launch_image_upload={@uploads.launch_image}
           status={@autolaunch_status}
           comments={@comments}
@@ -984,6 +986,8 @@ defmodule AshPlatformWeb.ShellLive do
           :if={@route_spec.route_id == :settings}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
+          x_connections={@x_connections}
+          x_oauth_enabled={@x_oauth_enabled}
         />
 
         <.page
@@ -1220,6 +1224,26 @@ defmodule AshPlatformWeb.ShellLive do
     assign(socket, verified_connections: [], verified_connections_notice: nil)
   end
 
+  defp load_x_connections(socket, %{route_id: route_id})
+       when route_id in [:settings, :autolaunch_create] do
+    reload_x_connections(socket)
+  end
+
+  defp load_x_connections(socket, _route_spec), do: assign(socket, x_connections: [])
+
+  defp reload_x_connections(socket) do
+    case current_account(socket.assigns.access_context) do
+      nil ->
+        assign(socket, x_connections: [])
+
+      account ->
+        case XOAuth.list_for_account(account) do
+          {:ok, connections} -> assign(socket, x_connections: connections)
+          {:error, _error} -> assign(socket, x_connections: [])
+        end
+    end
+  end
+
   defp reload_verified_connections(socket) do
     case human_actor(socket) do
       %Human{} = actor ->
@@ -1421,20 +1445,44 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch}, _params) do
-    with {:ok, featured} <- Autolaunch.list_featured_auctions(),
-         {:ok, recent} <- Autolaunch.list_recent_auctions(),
-         {:ok, top} <- Autolaunch.list_top_tokens(),
-         {:ok, graduated} <- Autolaunch.list_recently_graduated_tokens() do
+  defp load_autolaunch_route(socket, %{route_id: :autolaunch}, params) do
+    query = normalize_autolaunch_query(params["q"] || "")
+    term = String.downcase(query)
+
+    with {:ok, matching_x} <- matching_x_connections(term),
+         matching_creator_ids = matching_x |> Enum.map(& &1.human_account_id) |> Enum.uniq(),
+         {:ok, graduated} <-
+           Autolaunch.list_graduated_launchpad_tokens(term, matching_creator_ids),
+         {:ok, active} <-
+           Autolaunch.list_active_launchpad_auctions(term, matching_creator_ids),
+         {:ok, explore_auctions} <-
+           Autolaunch.list_explore_launchpad_auctions(term, matching_creator_ids),
+         {:ok, explore_tokens} <-
+           Autolaunch.list_explore_launchpad_tokens(term, matching_creator_ids),
+         explore = merge_explore(explore_auctions, explore_tokens),
+         creator_ids = market_creator_ids(active, graduated, explore),
+         {:ok, connections} <- XOAuth.public_for_humans(creator_ids) do
       assign(socket,
-        autolaunch_featured_auctions: featured,
-        autolaunch_recent_auctions: recent,
-        autolaunch_top_tokens: top,
+        autolaunch_featured_auctions: [],
+        autolaunch_recent_auctions: active,
+        autolaunch_top_tokens: [],
         autolaunch_graduated_tokens: graduated,
+        autolaunch_active_auctions: active,
+        autolaunch_explore_items: explore,
+        autolaunch_creator_connections: group_x_connections(connections),
+        autolaunch_search_query: query,
         autolaunch_status: :ready
       )
     else
-      {:error, _error} -> assign(socket, autolaunch_status: :error)
+      {:error, _error} ->
+        assign(socket,
+          autolaunch_active_auctions: [],
+          autolaunch_graduated_tokens: [],
+          autolaunch_explore_items: [],
+          autolaunch_creator_connections: %{},
+          autolaunch_search_query: query,
+          autolaunch_status: :error
+        )
     end
   end
 
@@ -1476,7 +1524,9 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
 
       {:ok, record} ->
-        assign(socket, autolaunch_record: record, autolaunch_status: :ready)
+        socket
+        |> assign(autolaunch_record: record, autolaunch_status: :ready)
+        |> load_detail_creator_connections(record)
 
       {:error, _error} ->
         assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
@@ -1485,9 +1535,16 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp load_autolaunch_route(socket, %{route_id: :autolaunch_token}, %{"token_id" => id}) do
     case Autolaunch.get_public_token(id) do
-      {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-      {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+      {:ok, nil} ->
+        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
+
+      {:ok, record} ->
+        socket
+        |> assign(autolaunch_record: record, autolaunch_status: :ready)
+        |> load_detail_creator_connections(record)
+
+      {:error, _error} ->
+        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
     end
   end
 
@@ -1529,7 +1586,6 @@ defmodule AshPlatformWeb.ShellLive do
               autolaunch_launch_drafts: drafts,
               autolaunch_draft_values: AutolaunchLive.draft_values(draft),
               autolaunch_draft_errors: %{},
-              autolaunch_create_stage: initial_launch_stage(draft),
               autolaunch_status: :ready
             )
 
@@ -1582,18 +1638,81 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp load_autolaunch_route(socket, _route_spec, _params), do: socket
 
+  defp normalize_autolaunch_query(query) when is_binary(query) do
+    query
+    |> String.trim()
+    |> String.graphemes()
+    |> Enum.take(80)
+    |> Enum.join()
+  end
+
+  defp normalize_autolaunch_query(_query), do: ""
+
+  defp matching_x_connections(""), do: {:ok, []}
+  defp matching_x_connections(term), do: Accounts.search_public_x_connections(term)
+
+  defp merge_explore(auctions, tokens) do
+    (Enum.map(auctions, &%{kind: :auction, record: &1}) ++
+       Enum.map(tokens, &%{kind: :token, record: &1}))
+    |> Enum.sort_by(fn %{kind: kind, record: record} ->
+      {-market_time(kind, record), Atom.to_string(kind), to_string(record.id)}
+    end)
+    |> Enum.take(24)
+  end
+
+  defp market_time(:auction, %{inserted_at: %DateTime{} = value}),
+    do: DateTime.to_unix(value, :microsecond)
+
+  defp market_time(:token, %{graduated_at: %DateTime{} = value}),
+    do: DateTime.to_unix(value, :microsecond)
+
+  defp market_time(_kind, _record), do: 0
+
+  defp market_creator_ids(active, graduated, explore) do
+    (Enum.map(active, &creator_id/1) ++
+       Enum.map(graduated, &creator_id/1) ++
+       Enum.map(explore, &creator_id(&1.record)))
+    |> Enum.filter(&is_integer/1)
+    |> Enum.uniq()
+  end
+
+  defp creator_id(%{creator_human_account_id: id}), do: id
+  defp creator_id(%{auction: %{creator_human_account_id: id}}), do: id
+  defp creator_id(_record), do: nil
+
+  defp group_x_connections(connections) do
+    Enum.reduce(connections, %{}, fn connection, grouped ->
+      Map.update(
+        grouped,
+        connection.human_account_id,
+        %{connection.role => connection},
+        &Map.put(&1, connection.role, connection)
+      )
+    end)
+  end
+
+  defp load_detail_creator_connections(socket, record) do
+    case creator_id(record) do
+      id when is_integer(id) ->
+        case XOAuth.public_for_humans([id]) do
+          {:ok, connections} ->
+            assign(socket, autolaunch_creator_connections: group_x_connections(connections))
+
+          {:error, _error} ->
+            assign(socket, autolaunch_creator_connections: %{})
+        end
+
+      _missing ->
+        assign(socket, autolaunch_creator_connections: %{})
+    end
+  end
+
   defp account_launch_drafts(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do
       {:ok, nil} -> {:ok, []}
       {:ok, draft} -> {:ok, [draft]}
       {:error, error} -> {:error, error}
     end
-  end
-
-  defp initial_launch_stage(nil), do: :token_details
-
-  defp initial_launch_stage(draft) do
-    if LaunchDraft.launch_ready?(draft), do: :transactions, else: :token_details
   end
 
   defp load_autolaunch_market(socket, route_spec) do

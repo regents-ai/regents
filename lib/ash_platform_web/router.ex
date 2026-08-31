@@ -80,6 +80,9 @@ defmodule AshPlatformWeb.Router do
     post "/auth/privy/session", PrivySessionController, :create
     get "/auth/session", PrivySessionController, :show
     delete "/auth/privy/session", PrivySessionController, :delete
+    post "/auth/x/connections/:role", XOAuthController, :create
+    delete "/auth/x/connections/:role", XOAuthController, :delete
+    get "/auth/x/callback", XOAuthController, :callback
 
     live_session :product_shell,
       session: {AshPlatformWeb.Live.Session, :render_context, []},

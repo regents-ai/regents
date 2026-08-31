@@ -1,13 +1,18 @@
 defmodule AshPlatform.Autolaunch.LabProjectionTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.Actors.System
+  require Ash.Query
+
+  alias AshPlatform.{Accounts, Autolaunch}
+  alias AshPlatform.Actors.{Human, System}
 
   alias AshPlatform.Autolaunch.{
     Auction,
     Bid,
     LabProjection,
+    LaunchDraft,
     LaunchJob,
+    LaunchOperation,
     Subject,
     Token
   }
@@ -59,6 +64,57 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
     assert bid.owner_address == @wallet
     assert bid.auction_address == @auction
     assert bid.onchain_bid_id == "9"
+  end
+
+  test "launch presentation and creator come only from the immutable operation envelope" do
+    account = account!("immutable-presentation")
+    actor = %Human{human_account_id: account.id}
+
+    draft =
+      Autolaunch.create_launch_draft!(
+        %{
+          "name" => "Mutable draft",
+          "symbol" => "MUT",
+          "description" => "Before review",
+          "website" => "https://mutable.example/before",
+          "required_regent_raised" => "1"
+        },
+        actor: actor
+      )
+
+    operation =
+      Ash.Seed.seed!(LaunchOperation, %{
+        action_id: String.duplicate("a", 64),
+        envelope: launch_operation(account.id).envelope,
+        signer: @wallet,
+        step: :launch,
+        state: :submitted,
+        human_account_id: account.id,
+        launch_draft_id: draft.id
+      })
+
+    assert {:ok, %LaunchDraft{}} =
+             Autolaunch.autosave_launch_token_details(
+               draft,
+               %{
+                 "name" => "Changed after wallet review",
+                 "symbol" => "NEW",
+                 "description" => "This mutable copy must never project.",
+                 "website" => "https://mutable.example/after",
+                 "required_regent_raised" => "2"
+               },
+               actor: actor
+             )
+
+    assert :ok = LabProjection.project_launch(operation, launch_result())
+
+    auction = one(Auction)
+    assert auction.title == "Local Regent"
+    assert auction.summary == "A local fork launch."
+    assert auction.token_symbol == "LOCAL"
+    assert auction.website == "https://example.test/local"
+    assert auction.image == "https://example.test/local.png"
+    assert auction.creator_human_account_id == account.id
   end
 
   test "out-of-order position receipts cannot rewind claimed or graduated chain state" do
@@ -169,8 +225,9 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
     assert all(LaunchJob) == []
   end
 
-  defp launch_operation do
+  defp launch_operation(human_account_id \\ nil) do
     %{
+      human_account_id: human_account_id,
       envelope: %{
         "chain_id" => 31_337,
         "expected_signer" => @wallet,
@@ -185,6 +242,8 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
           "name" => "Local Regent",
           "symbol" => "LOCAL",
           "description" => "A local fork launch.",
+          "website" => "https://example.test/local",
+          "image" => "https://example.test/local.png",
           "regent" => @regent,
           "factory" => @factory
         }
@@ -246,6 +305,11 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
     # Projection tests inspect raw stored rows with the trusted System actor.
     resource
     |> Ash.Query.for_read(action, %{}, domain: @domain, actor: @actor, authorize?: false)
+    |> then(fn query ->
+      if resource == Auction,
+        do: Ash.Query.filter(query, not is_nil(auction_address)),
+        else: query
+    end)
     |> Ash.read!(domain: @domain)
   end
 
@@ -277,5 +341,17 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
 
   defp selects(emitted, table) do
     for {^table, query} <- emitted, String.starts_with?(query, "SELECT"), do: query
+  end
+
+  defp account!(suffix) do
+    nonce = Elixir.System.unique_integer([:positive])
+    wallet = "0x" <> String.pad_leading(Integer.to_string(nonce, 16), 40, "0")
+
+    Accounts.register_verified!(
+      "did:privy:lab-projection:#{suffix}:#{nonce}",
+      wallet,
+      [wallet],
+      actor: %System{}
+    )
   end
 end

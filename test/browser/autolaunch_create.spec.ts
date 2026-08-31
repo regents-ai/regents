@@ -1,46 +1,73 @@
 import {readFileSync} from "node:fs"
 
-import {expect, test} from "@playwright/test"
+import {expect, test, type Page} from "@playwright/test"
 
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 const treasury = "0xabcdef0000000000000000000000000000000001"
+const launchName = "Browser Research"
 
 const png = readFileSync(
   "priv/static/notebooks/2152a57337000ef5b8e2233d4cad237d4edbd92131cdec553437aef422719f3b/favicon-16x16.png",
 )
 
-test("account-owned launch setup persists and gates only the wallet stage", async ({page}) => {
-  // This identity has no seeded Regent: Create belongs directly to the Human account.
+function cleanBrowser(page: Page) {
+  const errors: string[] = []
+  page.on("pageerror", error => errors.push(error.message))
+  page.on("console", message => message.type() === "error" && errors.push(message.text()))
+  return () => expect(errors).toEqual([])
+}
+
+async function stubEnsRpc(page: Page) {
+  await page.route("https://ethereum-rpc.publicnode.com/**", async route => {
+    const body = route.request().postDataJSON() as {id: number}
+    await route.fulfill({
+      contentType: "application/json",
+      headers: {"access-control-allow-origin": "*"},
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: body.id,
+        error: {code: -32000, message: "ENS name not found in browser fixture"},
+      }),
+    })
+  })
+}
+
+test("Create is one persistent form with a live public preview and wallet review boundary", async ({
+  page,
+}) => {
+  const assertCleanBrowser = cleanBrowser(page)
+  await stubEnsRpc(page)
   const auth = await installAuthenticatedPrivy(page, "other-account")
   await auth.establishLocalSession()
   await page.goto("/autolaunch/create")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  const stages = page.getByRole("navigation", {name: "Launch stages"})
-  const tokenStage = stages.getByRole("button", {name: /Token Details/})
-  const treasuryStage = stages.getByRole("button", {name: /Treasury Address/})
-  const transactionsStage = stages.getByRole("button", {name: /Launch Transactions/})
-
-  await expect(tokenStage).toBeVisible()
-  await expect(treasuryStage).toBeEnabled()
-
-  await tokenStage.click()
-  const tokenForm = page.locator("#launch-token-details")
-  await tokenForm.getByLabel("Name", {exact: true}).fill("")
-  await expect(transactionsStage).toBeDisabled()
-  await expect(page.getByText("Form your Regent")).toHaveCount(0)
-  await expect(page.getByText("Open Formation")).toHaveCount(0)
-  await expect(page.getByText("Recommended: 400 × 400 px")).toBeVisible()
-
-  await treasuryStage.click()
+  await expect(page.getByRole("heading", {name: "Launch an auction"})).toBeVisible()
+  await expect(page.getByRole("navigation", {name: "Launch stages"})).toHaveCount(0)
+  await expect(page.locator("#launch-token-details")).toBeVisible()
   await expect(page.locator("#launch-treasury-details")).toBeVisible()
-  await tokenStage.click()
+  await expect(page.locator("#launch-transactions")).toBeVisible()
+  await expect(page.getByText("Recommended: 400 × 400 px")).toBeVisible()
+  await expect(page.locator("#autolaunch-create-x-connections-profile")).toContainText("Profile X")
+  await expect(page.locator("#autolaunch-create-x-connections-company")).toContainText("Company X")
 
-  await tokenForm.getByLabel("Name", {exact: true}).fill("Browser Research")
+  const tokenForm = page.locator("#launch-token-details")
+  const preview = page.getByRole("complementary", {name: "Live launch preview"})
+
+  await tokenForm.getByLabel("Name", {exact: true}).fill(launchName)
   await tokenForm.getByLabel("Symbol", {exact: true}).fill("BROWSE")
-  await tokenForm.getByLabel("Description", {exact: true}).fill("A persisted browser launch.")
+  await tokenForm
+    .getByLabel("Description", {exact: true})
+    .fill("A persisted browser launch with one public identity.")
   await tokenForm.getByLabel("Website", {exact: true}).fill("https://example.test/browser")
   await tokenForm.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
+
+  await expect(preview.getByRole("heading", {name: launchName})).toBeVisible()
+  await expect(preview).toContainText("$BROWSE")
+  await expect(preview).toContainText("A persisted browser launch with one public identity.")
+  await expect(preview).toContainText("1000.5 REGENT")
+
   await tokenForm.locator('input[type="file"]').setInputFiles({
     name: "browser-token.png",
     mimeType: "image/png",
@@ -48,24 +75,57 @@ test("account-owned launch setup persists and gates only the wallet stage", asyn
   })
 
   await expect(tokenForm.getByRole("img", {name: "Saved token image"})).toBeVisible()
-  await expect(page.getByRole("status")).toContainText("Saved to your account.")
+  await expect(preview.getByRole("img", {name: `${launchName} token`})).toBeVisible()
 
-  await treasuryStage.click()
   const treasuryForm = page.locator("#launch-treasury-details")
   await treasuryForm.getByLabel("Immutable treasury recipient", {exact: true}).fill(treasury)
 
-  await expect(transactionsStage).toBeEnabled()
-  await transactionsStage.click()
-  await expect(page.locator("#launch-transactions .launch-wallet")).toBeVisible()
+  const transactions = page.locator("#launch-transactions")
+  await expect(transactions).toContainText("Ready")
+  await expect(transactions.locator(".launch-wallet")).toBeVisible()
+  await expect(transactions.locator("[data-launch-wallet-send]")).toHaveCount(0)
 
   await page.reload()
-  await tokenStage.click()
-  await expect(page.locator("#launch-token-details-name")).toHaveValue("Browser Research")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await expect(page.locator("#launch-token-details-name")).toHaveValue(launchName)
   await expect(page.locator("#launch-token-details-symbol")).toHaveValue("BROWSE")
   await expect(page.locator("#launch-token-details-description")).toHaveValue(
-    "A persisted browser launch.",
+    "A persisted browser launch with one public identity.",
   )
-
-  await treasuryStage.click()
   await expect(page.locator("#launch-treasury-details-treasury")).toHaveValue(treasury)
+  await expect(page.getByRole("complementary", {name: "Live launch preview"})).toContainText(
+    launchName,
+  )
+  assertCleanBrowser()
+})
+
+test("Create stays simple and unclipped from mobile through desktop", async ({page}) => {
+  const assertCleanBrowser = cleanBrowser(page)
+  await stubEnsRpc(page)
+  const auth = await installAuthenticatedPrivy(page, "other-account")
+  await auth.establishLocalSession()
+
+  for (const viewport of [
+    {width: 390, height: 844},
+    {width: 1440, height: 900},
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/autolaunch/create")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+
+    const layout = await page.locator("#autolaunch-create").evaluate(node => ({
+      pageWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      createRight: node.getBoundingClientRect().right,
+      formVisible: Boolean(node.querySelector("#launch-token-details")),
+      previewVisible: Boolean(node.querySelector('[aria-label="Live launch preview"]')),
+    }))
+
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.pageWidth)
+    expect(layout.createRight).toBeLessThanOrEqual(layout.pageWidth + 1)
+    expect(layout.formVisible).toBe(true)
+    expect(layout.previewVisible).toBe(true)
+  }
+
+  assertCleanBrowser()
 })

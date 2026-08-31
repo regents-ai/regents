@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.Autolaunch.{LabMarketFeed, LaunchDraft}
+  alias AshPlatform.Autolaunch.{Auction, LabMarketFeed, LaunchDraft}
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
@@ -33,20 +33,51 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     end
   end
 
-  test "overview navigates to the four Autolaunch destinations", %{conn: conn} do
+  test "overview exposes search, Create, and the three market sections", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/autolaunch")
     render_async(view)
 
     assert has_element?(view, "#autolaunch-overview")
+    assert has_element?(view, ~s(form#autolaunch-market-search[role="search"] input[name="q"]))
+    assert has_element?(view, ~s(a.launchpad-create-link[href="/autolaunch/create"]), "Create")
+    assert has_element?(view, "#launchpad-graduated", "Graduated")
+    assert has_element?(view, "#launchpad-active", "Active auctions")
+    assert has_element?(view, "#launchpad-explore", "Explore")
+  end
 
-    for {label, path} <- [
-          {"Create", "/autolaunch/create"},
-          {"Auctions", "/autolaunch/auctions"},
-          {"Tokens", "/autolaunch/tokens"},
-          {"Portfolio", "/autolaunch/holdings"}
-        ] do
-      assert has_element?(view, ~s(a.autolaunch-destination-card[href="#{path}"]), label)
-    end
+  test "overview search patches a canonical URL and matches verified creator X", %{conn: conn} do
+    nonce = Elixir.System.unique_integer([:positive])
+
+    account =
+      draft_account!(
+        "autolaunch-search-#{nonce}",
+        "0x" <> String.pad_leading(Integer.to_string(nonce, 16), 40, "0")
+      )
+
+    actor = %Human{human_account_id: account.id}
+    username = "creator_#{nonce}"
+    x_connection!(actor, :profile, "x-user-#{nonce}", username)
+    x_connection!(actor, :company, "x-user-#{nonce}", username)
+
+    matching = projected_auction!("X-owned auction #{nonce}", account.id)
+    other = projected_auction!("Different auction #{nonce}", nil)
+
+    {:ok, view, _html} = live(conn, "/autolaunch")
+
+    view
+    |> render_hook("autolaunch_search", %{"query" => "  #{String.upcase(username)}  "})
+
+    assert_patch(view, "/autolaunch?q=#{URI.encode_www_form(String.upcase(username))}")
+    html = render_async(view)
+    assert html =~ matching.title
+    refute html =~ other.title
+
+    active_html = view |> element("#launchpad-active") |> render()
+
+    assert Regex.scan(~r/href="https:\/\/x\.com\/#{username}"/, active_html) |> length() == 1
+
+    view |> render_hook("autolaunch_search", %{"query" => ""})
+    assert_patch(view, "/autolaunch")
   end
 
   test "the disconnected render keeps an empty market without querying the watcher", %{conn: conn} do
@@ -54,7 +85,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     conn = get(conn, "/autolaunch")
 
-    assert html_response(conn, 200) =~ "Find the next launch"
+    assert html_response(conn, 200) =~ "Graduated"
     refute_received :market_snapshot_requested
   end
 
@@ -98,9 +129,10 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
         {LabMarketFeed, reader: LiveMarketReader, projector: LiveMarketProjector, poll?: false}
       )
 
-    {:ok, view, html} = live(conn, "/autolaunch")
+    {:ok, view, html} = live(conn, "/autolaunch?q=steady")
     live_view_pid = view.pid
     refute html =~ "Local market current at block"
+    assert has_element?(view, ~s(#autolaunch-market-query[value="steady"]))
 
     LabMarketFeed.refresh()
 
@@ -110,6 +142,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert view.pid == live_view_pid
     assert has_element?(view, "#autolaunch-overview")
+    assert has_element?(view, ~s(#autolaunch-market-query[value="steady"]))
 
     sideways = %{
       block
@@ -127,10 +160,10 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     refute render(view) =~ "Local market current at block"
   end
 
-  test "auction and token routes keep identifiers and honest empty states", %{conn: conn} do
+  test "auction and token routes keep identifiers and honest not-found states", %{conn: conn} do
     for {path, selector, heading, empty_copy} <- [
-          {"/autolaunch/auctions", "#autolaunch-auctions", "Auctions", "No auctions yet"},
-          {"/autolaunch/tokens", "#autolaunch-tokens", "Tokens", "No tokens yet"},
+          {"/autolaunch/auctions", "#autolaunch-auctions", "Auctions", nil},
+          {"/autolaunch/tokens", "#autolaunch-tokens", "Tokens", nil},
           {"/autolaunch/auctions/auction-42", "#autolaunch-auction-detail", "Auction not found",
            "No public auction exists"},
           {"/autolaunch/tokens/token-42", "#autolaunch-token-detail", "Token not found",
@@ -141,8 +174,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
       assert has_element?(view, selector)
       assert html =~ heading
-      assert html =~ empty_copy
-      refute html =~ "$"
+      if empty_copy, do: assert(html =~ empty_copy)
     end
   end
 
@@ -510,7 +542,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     html = render_async(view)
 
     assert has_element?(view, "#autolaunch-create")
-    assert html =~ "Every change is saved privately"
+    assert html =~ "Draft changes save privately to your account"
     assert html =~ "Sign in to prepare your launch."
     refute has_element?(view, "#autolaunch-create form")
     refute has_element?(view, ~s(#autolaunch-create button[type="submit"]))
@@ -526,7 +558,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     "required_regent_raised" => "1000.5"
   }
 
-  test "a signed-in Human needs no Regent and may inspect the first two stages in either order",
+  test "a signed-in Human needs no Regent and sees one continuous launch form",
        %{
          conn: conn
        } do
@@ -538,62 +570,17 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       |> init_test_session(%{human_account_id: account.id})
       |> live("/autolaunch/create")
 
-    assert has_element?(view, ~s(nav[aria-label="Launch stages"]))
-
-    assert has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[phx-value-stage="token_details"]),
-             "Token Details"
-           )
-
-    assert has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[phx-value-stage="treasury"]),
-             "Treasury Address"
-           )
-
-    assert has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[disabled]),
-             "Launch Transactions"
-           )
-
-    refute has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[disabled][phx-click])
-           )
-
-    refute has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[disabled][phx-value-stage])
-           )
+    refute has_element?(view, ~s(nav[aria-label="Launch stages"]))
+    refute has_element?(view, ~s([phx-click="select_launch_stage"]))
 
     refute has_element?(view, "#autolaunch-create", "Form your Regent")
     refute has_element?(view, "#autolaunch-create", "Open Formation")
     assert has_element?(view, "#launch-token-details")
     assert has_element?(view, "#launch-token-details", "Recommended: 400 × 400 px")
-
-    view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
-    |> render_click()
-
     assert has_element?(view, "#launch-treasury-details")
     assert has_element?(view, "#autolaunch-create", "Create a 2-of-3 Safe on Base")
-
-    assert has_element?(
-             view,
-             ~s(.autolaunch-stage-actions button[disabled]),
-             "Launch Transactions"
-           )
-
-    refute has_element?(view, ~s(.autolaunch-stage-actions button[disabled][phx-click]))
-    refute has_element?(view, ~s(.autolaunch-stage-actions button[disabled][phx-value-stage]))
-
-    view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="token_details"]))
-    |> render_click()
-
-    assert has_element?(view, "#launch-token-details")
+    assert has_element?(view, "#launch-transactions button[disabled]", "Complete token details")
+    assert has_element?(view, ~s(aside[aria-label="Live launch preview"]), "Your auction")
   end
 
   test "partial token, treasury, and EOA warning input survives remounts and stays account-private",
@@ -620,10 +607,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     |> render_change()
 
     view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
-    |> render_click()
-
-    view
     |> form("#launch-treasury-details",
       launch_draft: %{
         "treasury" => "0x123",
@@ -642,10 +625,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     {:ok, restored, _html} = live(signed_in, "/autolaunch/create")
     assert has_element?(restored, ~s(#launch-token-details-name[value="Open Research"]))
     assert has_element?(restored, "#launch-token-details-description", "Still writing")
-
-    restored
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
-    |> render_click()
 
     assert has_element?(restored, ~s(#launch-treasury-details-treasury[value="0x123"]))
 
@@ -717,10 +696,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       |> live("/autolaunch/create")
 
     view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
-    |> render_click()
-
-    view
     |> form("#launch-treasury-details",
       launch_draft: %{
         "treasury" => "0x3333333333333333333333333333333333333337",
@@ -743,6 +718,10 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   test "image upload plus complete token and treasury stages unlocks wallet transactions", %{
     conn: conn
   } do
+    {:ok, auctions_before} = Autolaunch.list_auctions()
+    {:ok, tokens_before} = Autolaunch.list_tokens()
+    {:ok, launches_before} = Autolaunch.list_launches()
+
     account =
       draft_account!("autolaunch-complete", "0x3333333333333333333333333333333333333336")
 
@@ -768,10 +747,6 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(view, "[role=status]", "Image saved to your account.")
 
     view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="treasury"]))
-    |> render_click()
-
-    view
     |> form("#launch-treasury-details",
       launch_draft: %{"treasury" => @live_draft["treasury"], "treasury_path" => "safe"}
     )
@@ -780,26 +755,17 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert {:ok, [draft]} = Autolaunch.list_my_launch_drafts(actor: actor)
     assert Autolaunch.LaunchDraft.launch_ready?(draft)
 
-    refute has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[disabled])
-           )
-
-    assert has_element?(
-             view,
-             ~s(.autolaunch-create-stages button[phx-click="select_launch_stage"][phx-value-stage="transactions"])
-           )
-
-    view
-    |> element(~s(.autolaunch-create-stages button[phx-value-stage="transactions"]))
-    |> render_click()
-
-    assert has_element?(view, "#launch-transactions", "Launch Transactions")
+    html = render(view)
+    assert html =~ ~s(id="launch-transactions")
+    assert html =~ "Launch transactions"
     assert has_element?(view, "#launch-transactions .launch-wallet[phx-hook]")
 
-    assert {:ok, []} = Autolaunch.list_auctions()
-    assert {:ok, []} = Autolaunch.list_tokens()
-    assert {:ok, []} = Autolaunch.list_launches()
+    assert {:ok, auctions_after} = Autolaunch.list_auctions()
+    assert {:ok, tokens_after} = Autolaunch.list_tokens()
+    assert {:ok, launches_after} = Autolaunch.list_launches()
+    assert Enum.map(auctions_after, & &1.id) == Enum.map(auctions_before, & &1.id)
+    assert Enum.map(tokens_after, & &1.id) == Enum.map(tokens_before, & &1.id)
+    assert Enum.map(launches_after, & &1.job_id) == Enum.map(launches_before, & &1.job_id)
   end
 
   test "a mounted Create socket cannot autosave after either launch gate closes", %{conn: conn} do
@@ -948,7 +914,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     overview_html = render_async(overview)
     assert overview_html =~ "BixBench launch"
     assert overview_html =~ "Bix Token"
-    refute overview_html =~ "$"
+    assert overview_html =~ "$BIX"
 
     {:ok, auctions, _html} = live(conn, "/autolaunch/auctions")
     assert render_async(auctions) =~ "BixBench launch"
@@ -1048,6 +1014,52 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
   defp draft_account!(did, wallet) do
     Accounts.register_verified!("did:privy:#{did}", wallet, [wallet], actor: %System{})
+  end
+
+  defp projected_auction!(title, creator_human_account_id) do
+    Auction
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        projection_id: Ash.UUID.generate(),
+        title: title,
+        summary: "Searchable launch",
+        token_symbol: "SEARCH",
+        creator_human_account_id: creator_human_account_id,
+        featured: false,
+        state: :active,
+        current_clearing_price: "1"
+      },
+      domain: Autolaunch,
+      actor: %System{}
+    )
+    |> Ash.create!(domain: Autolaunch, actor: %System{})
+  end
+
+  defp x_connection!(actor, role, x_user_id, username) do
+    connection =
+      Accounts.begin_x_connection_attempt!(
+        %{
+          role: role,
+          attempt_state: "state-#{Ash.UUID.generate()}",
+          attempt_verifier: "verifier-#{Ash.UUID.generate()}",
+          attempt_generation: Ash.UUID.generate(),
+          attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
+        },
+        actor: actor
+      )
+
+    Accounts.complete_x_connection_attempt!(
+      connection,
+      %{
+        x_user_id: x_user_id,
+        username: username,
+        display_name: "Creator #{username}",
+        verified_at: DateTime.utc_now(),
+        next_generation: Ash.UUID.generate()
+      },
+      actor: actor
+    )
   end
 
   defp png,

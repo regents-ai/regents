@@ -14,6 +14,7 @@ Put the real local values in the ignored `.env.local`:
 ```dotenv
 export PRIVY_APP_ID='YOUR_PRIVY_APP_ID'
 export PRIVY_VERIFICATION_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
+export X_OAUTH_CLIENT_ID='YOUR_X_OAUTH_CLIENT_ID'
 ```
 
 `PRIVY_VERIFICATION_KEY` is Privy's PEM-encoded ES256 verification public key, not the Privy app
@@ -25,6 +26,17 @@ Turn identity tokens on for this app in the Privy Dashboard, under the app's use
 Signing in sends two things Privy issues for the same session: proof of the session itself, and the
 separately signed record of the accounts connected to it. Regent checks both and accepts neither
 alone, so with identity tokens switched off every sign-in attempt is refused.
+
+`X_OAUTH_CLIENT_ID` is optional. When present, register this exact OAuth callback in the X app:
+
+```text
+http://localhost:4000/auth/x/callback
+```
+
+The X app must support Authorization Code with PKCE as a public client. Regent requests only
+`tweet.read users.read`, does not request offline access, and does not need or store an X client
+secret or provider token. Without the client ID, the Profile X and Company X controls remain visible
+but disabled with an explanatory message.
 
 Review the files, then load them and start the app:
 

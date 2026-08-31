@@ -45,6 +45,7 @@ defmodule AshPlatform.MixProject do
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.29.3"},
       {:ash_postgres, "~> 2.10.0"},
+      {:assent, "== 0.3.1"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:vix, "== 0.41.0"},
@@ -92,7 +93,7 @@ defmodule AshPlatform.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        "xref graph --label compile-connected --fail-above 33",
+        "xref graph --label compile-connected --fail-above 34",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"

@@ -20,7 +20,8 @@ defmodule AshPlatform.Autolaunch.LabProjection do
 
   @doc "Projects one receipt-verified local launch as one replay-safe database unit."
   def project_launch(
-        %{envelope: %{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}} = envelope},
+        %{envelope: %{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}} = envelope} =
+          operation,
         result
       )
       when is_map(lab) and is_map(result) do
@@ -29,7 +30,14 @@ defmodule AshPlatform.Autolaunch.LabProjection do
     subject_id = subject_identity(result["subject"])
 
     transact(fn ->
-      project_launch_records(envelope, arguments, result, auction_id, subject_id)
+      project_launch_records(
+        envelope,
+        arguments,
+        result,
+        auction_id,
+        subject_id,
+        Map.get(operation, :human_account_id)
+      )
     end)
   end
 
@@ -108,6 +116,10 @@ defmodule AshPlatform.Autolaunch.LabProjection do
         projection_id: auction.id,
         title: auction.title,
         summary: auction.summary,
+        token_symbol: auction.token_symbol,
+        website: auction.website,
+        image: auction.image,
+        creator_human_account_id: auction.creator_human_account_id,
         featured: auction.featured,
         state: auction_state(auction.state, result),
         opened_at: auction.opened_at,
@@ -251,12 +263,23 @@ defmodule AshPlatform.Autolaunch.LabProjection do
   defp transaction_value({:ok, value}), do: value
   defp transaction_value({:error, error}), do: Ash.DataLayer.rollback(Auction, error)
 
-  defp project_launch_records(envelope, arguments, result, auction_id, subject_id) do
+  defp project_launch_records(
+         envelope,
+         arguments,
+         result,
+         auction_id,
+         subject_id,
+         human_account_id
+       ) do
     with {:ok, auction} <-
            create(Auction, :project_lab, %{
              projection_id: auction_id,
              title: arguments["name"],
              summary: arguments["description"],
+             token_symbol: arguments["symbol"],
+             website: arguments["website"],
+             image: arguments["image"],
+             creator_human_account_id: human_account_id,
              featured: false,
              state: :active,
              auction_address: result["auction"],
