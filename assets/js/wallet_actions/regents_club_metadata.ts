@@ -104,15 +104,12 @@ export async function executePreparedMetadataAction(
     const client = createWalletClient({
       account: attempt.signer,
       chain: base,
-      transport: custom(chainBoundProvider(attempt, selected)),
+      transport: custom(chainBoundProvider(attempt, selected), {retryCount: 0}),
     })
 
-    const result = await client.sendTransaction({
-      account: attempt.signer,
-      chain: base,
-      to: target,
-      data: calldata,
-      value: 0n,
+    const result = await client.request({
+      method: "eth_sendTransaction",
+      params: [unsignedTransaction(attempt.signer)],
     })
     if (!validHash(result)) throw unknown()
     return result
@@ -130,13 +127,40 @@ function chainBoundProvider(
   return {
     async request(args) {
       if (args.method === "eth_sendTransaction") {
-        await verifyProvider(attempt, selected)
+        assertExactMetadataTransactionRequest(attempt.signer, args.params)
+        await verifyProviderBeforeSend(attempt, selected)
+        assertExactMetadataTransactionRequest(attempt.signer, args.params)
         verifySelected(attempt, selected())
-        assertForwardedTransaction(attempt, args.params)
       }
       return attempt.provider.request(args)
     },
   }
+}
+
+async function verifyProviderBeforeSend(
+  attempt: MetadataAttempt,
+  selected: () => SelectedWallet | null,
+): Promise<void> {
+  verifySelected(attempt, selected())
+
+  const chain = await attempt.provider.request({method: "eth_chainId"})
+  verifySelected(attempt, selected())
+  assertBaseChain(chain)
+
+  const accounts = await attempt.provider.request({method: "eth_accounts"})
+  verifySelected(attempt, selected())
+  assertSignerAccount(accounts, attempt.signer)
+
+  // One final pair closes drifts that occur during either preceding provider
+  // request. The unsigned transaction remains independently Base-bound if the
+  // provider changes state after the last observable boundary.
+  const finalChain = await attempt.provider.request({method: "eth_chainId"})
+  verifySelected(attempt, selected())
+  assertBaseChain(finalChain)
+
+  const finalAccounts = await attempt.provider.request({method: "eth_accounts"})
+  verifySelected(attempt, selected())
+  assertSignerAccount(finalAccounts, attempt.signer)
 }
 
 export function exactMetadataCalldata(): Hex {
@@ -150,12 +174,20 @@ async function verifyProvider(
   verifySelected(attempt, selected())
   const accounts = await attempt.provider.request({method: "eth_accounts"})
   verifySelected(attempt, selected())
-  if (!Array.isArray(accounts) || typeof accounts[0] !== "string") throw refused()
-  if (getAddress(accounts[0]) !== attempt.signer) throw refused()
+  assertSignerAccount(accounts, attempt.signer)
 
   const chain = await attempt.provider.request({method: "eth_chainId"})
-  if (typeof chain !== "string" || chain.toLowerCase() !== "0x2105") throw refused()
   verifySelected(attempt, selected())
+  assertBaseChain(chain)
+}
+
+function assertSignerAccount(accounts: unknown, signer: Address): void {
+  if (!Array.isArray(accounts) || typeof accounts[0] !== "string") throw refused()
+  if (getAddress(accounts[0]) !== signer) throw refused()
+}
+
+function assertBaseChain(chain: unknown): void {
+  if (chain !== "0x2105" || decodeQuantity(chain) !== BigInt(base.id)) throw refused()
 }
 
 function verifySelected(attempt: MetadataAttempt, wallet: SelectedWallet | null): void {
@@ -210,21 +242,47 @@ function assertEnvelope(attempt: MetadataAttempt, envelope: PreparedMetadataActi
   }
 }
 
-function assertForwardedTransaction(attempt: MetadataAttempt, params: unknown[] | undefined): void {
+function unsignedTransaction(signer: Address) {
+  return {
+    chainId: "0x2105" as const,
+    from: signer,
+    to: target,
+    data: calldata,
+    value: "0x0" as const,
+  }
+}
+
+export function assertExactMetadataTransactionRequest(
+  signer: Address,
+  params: unknown[] | undefined,
+): void {
   if (!Array.isArray(params) || params.length !== 1) throw refused()
   const transaction = params[0]
   if (!transaction || typeof transaction !== "object") throw refused()
 
   const request = transaction as Record<string, unknown>
   if (
-    !sameAddress(request.from, attempt.signer) ||
+    !sameAddress(request.from, signer) ||
     !sameAddress(request.to, target) ||
     typeof request.data !== "string" ||
     request.data.toLowerCase() !== calldata.toLowerCase() ||
     request.value !== "0x0" ||
+    decodeQuantity(request.value) !== 0n ||
+    request.chainId !== "0x2105" ||
+    decodeQuantity(request.chainId) !== BigInt(base.id) ||
     base.id !== 8453
   ) {
     throw refused()
+  }
+}
+
+function decodeQuantity(value: unknown): bigint | null {
+  if (typeof value !== "string" || !/^0x(?:0|[1-9a-f][0-9a-f]*)$/.test(value)) return null
+
+  try {
+    return BigInt(value)
+  } catch {
+    return null
   }
 }
 
