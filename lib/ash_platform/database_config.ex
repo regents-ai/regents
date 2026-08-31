@@ -3,6 +3,7 @@ defmodule AshPlatform.DatabaseConfig do
 
   @cluster_id "nvwq9ozp9ye03kl1"
   @cluster_name "regents-pg-test"
+  @production_database_host "direct.nvwq9ozp9ye03kl1.flympg.net"
   @production_identities ["regents-platform-prod", "platform-phx"]
   @rehearsal_target_error "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test"
   @production_migration_error "production migration requires separate Chief-authorized production migration configuration"
@@ -12,7 +13,7 @@ defmodule AshPlatform.DatabaseConfig do
   def runtime_config!(:test, _getenv), do: nil
 
   def runtime_config!(:prod, getenv) do
-    database_url!(getenv, "DATABASE_POOLED_URL")
+    database_url!(getenv, "DATABASE_POOLED_URL", @production_database_host)
   end
 
   def runtime_config!(:dev, getenv) do
@@ -26,10 +27,10 @@ defmodule AshPlatform.DatabaseConfig do
 
   def release_config!(getenv \\ &System.get_env/1) do
     require_rehearsal_target!(getenv)
-    database_url!(getenv, "DATABASE_DIRECT_URL")
+    database_url!(getenv, "DATABASE_DIRECT_URL", @production_database_host)
   end
 
-  defp database_url!(getenv, variable) do
+  defp database_url!(getenv, variable, required_host \\ nil) do
     with value when is_binary(value) and value != "" <- getenv.(variable),
          {:ok, %URI{scheme: scheme, host: host, path: "/" <> database, userinfo: userinfo} = uri} <-
            parse_uri(value),
@@ -38,15 +39,27 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri),
+         {:ok, admitted_host} <- admit_host(host, required_host),
          true <- safe_query?(uri),
          true <- valid_ecto_url?(value) do
-      connection_options(value, host)
+      connection_options(canonical_url(value, uri, required_host), admitted_host)
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"
       _ -> raise "#{variable} must be a valid PostgreSQL URL for the approved target"
     end
   end
+
+  defp admit_host(host, nil), do: {:ok, host}
+
+  defp admit_host(host, required_host) do
+    if String.downcase(host) == required_host,
+      do: {:ok, required_host},
+      else: :error
+  end
+
+  defp canonical_url(value, _uri, nil), do: value
+  defp canonical_url(_value, uri, required_host), do: URI.to_string(%{uri | host: required_host})
 
   defp parse_uri(value) do
     URI.new(value)

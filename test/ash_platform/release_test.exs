@@ -1,7 +1,8 @@
 defmodule AshPlatform.ReleaseTest do
   use ExUnit.Case, async: true
 
-  @direct "postgresql://direct_user:direct-secret@direct.example.test:5432/ash_platform"
+  @direct_host "direct.nvwq9ozp9ye03kl1.flympg.net"
+  @direct "postgresql://direct_user:direct-secret@#{@direct_host}:5432/ash_platform"
 
   test "migration configuration uses only direct access" do
     getenv = fn
@@ -13,10 +14,23 @@ defmodule AshPlatform.ReleaseTest do
       _name -> nil
     end
 
-    assert AshPlatform.Release.migration_config!(getenv) == [
-             url: @direct,
-             socket_options: [:inet6]
-           ]
+    config = AshPlatform.Release.migration_config!(getenv)
+    assert config[:url] == @direct
+
+    {url, explicit} = Keyword.pop(config, :url)
+    effective = Keyword.merge(explicit, Ecto.Repo.Supervisor.parse_url(url))
+
+    assert effective[:hostname] == @direct_host
+    assert effective[:socket_options] == [:inet6]
+    refute Keyword.has_key?(effective, :prepare)
+    assert effective[:ssl][:verify] == :verify_peer
+    assert effective[:ssl][:server_name_indication] == String.to_charlist(@direct_host)
+    assert is_list(effective[:ssl][:cacerts]) and effective[:ssl][:cacerts] != []
+
+    assert is_function(
+             get_in(effective, [:ssl, :customize_hostname_check, :match_fun]),
+             2
+           )
   end
 
   test "migration configuration fails closed without an explicit rehearsal target" do
