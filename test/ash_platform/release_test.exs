@@ -22,6 +22,7 @@ defmodule AshPlatform.ReleaseTest do
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
              ],
+             port: 5432,
              url: @direct,
              socket_options: [:inet6]
            ]

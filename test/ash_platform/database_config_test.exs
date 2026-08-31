@@ -268,6 +268,69 @@ defmodule AshPlatform.DatabaseConfigTest do
     assert_verified_tls(effective[:ssl], "direct.nvwq9ozp9ye03kl1.flympg.net")
   end
 
+  test "Fly MPG runtime options override the compiled sentinel port when URLs omit it" do
+    compiled_config = Config.Reader.read!("config/config.exs", env: :prod, target: :host)
+    assert get_in(compiled_config, [:ash_platform, AshPlatform.Repo])[:port] == 1
+
+    configs = [
+      DatabaseConfig.runtime_config!(
+        :prod,
+        env(%{
+          "DATABASE_POOLED_URL" =>
+            "postgresql://user:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+        })
+      ),
+      DatabaseConfig.runtime_config!(
+        :dev,
+        env(
+          rehearsal_env(%{
+            "DATABASE_POOLED_URL" =>
+              "postgresql://user:secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+          })
+        )
+      )
+    ]
+
+    for config <- configs do
+      merged =
+        Config.Reader.merge(
+          compiled_config,
+          ash_platform: [{AshPlatform.Repo, config}]
+        )
+
+      assert config[:port] == 5432
+      merged_repo = get_in(merged, [:ash_platform, AshPlatform.Repo])
+      assert merged_repo[:port] == 5432
+      assert effective_repo_config(merged_repo)[:port] == 5432
+    end
+  end
+
+  test "Fly MPG direct and PgBouncer URLs reject non-PostgreSQL ports without credentials" do
+    cases = [
+      {fn url ->
+         DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url}))
+       end,
+       "postgresql://direct-user:sentinel-secret@direct.nvwq9ozp9ye03kl1.flympg.net:6543/ash_platform"},
+      {fn url ->
+         DatabaseConfig.runtime_config!(
+           :dev,
+           env(rehearsal_env(%{"DATABASE_POOLED_URL" => url}))
+         )
+       end,
+       "postgresql://pooled-user:sentinel-secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net:6543/ash_platform"}
+    ]
+
+    for {configure, url} <- cases do
+      error = assert_raise RuntimeError, fn -> configure.(url) end
+
+      assert Exception.message(error) ==
+               "DATABASE_POOLED_URL must be a valid PostgreSQL URL for the approved target"
+
+      refute Exception.message(error) =~ "sentinel-secret"
+      refute Exception.message(error) =~ url
+    end
+  end
+
   test "Fly MPG rejects every nonempty URL query before Ecto can override secure options" do
     for query <- [
           "ssl=false",
