@@ -39,6 +39,7 @@ defmodule AshPlatform.DatabaseConfig do
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri),
          true <- safe_query?(uri),
+         true <- safe_port?(uri),
          true <- valid_ecto_url?(value) do
       connection_options(value, host)
     else
@@ -69,12 +70,18 @@ defmodule AshPlatform.DatabaseConfig do
     not fly_mpg_host?(host) or query in [nil, ""]
   end
 
+  defp safe_port?(%URI{host: host, port: port}) do
+    not fly_mpg_host?(host) or port in [nil, 5432]
+  end
+
   defp connection_options(value, host) do
     options = [url: value, socket_options: [:inet6]]
 
     if fly_mpg_host?(host) do
       options =
-        Keyword.put(options, :ssl,
+        options
+        |> Keyword.put(:port, 5432)
+        |> Keyword.put(:ssl,
           verify: :verify_peer,
           cacerts: :public_key.cacerts_get(),
           server_name_indication: String.to_charlist(host),
