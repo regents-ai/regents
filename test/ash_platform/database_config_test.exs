@@ -5,6 +5,8 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   @pooled "postgresql://pooled_user:pooled-secret@pool.example.test:5432/ash_platform"
   @direct "postgresql://direct_user:direct-secret@direct.example.test:5432/ash_platform"
+  @mpg_pooled "postgresql://pooled_user:pooled-secret@pgbouncer.cluster.flympg.net:5432/ash_platform"
+  @mpg_direct "postgresql://direct_user:direct-secret@direct.cluster.flympg.net:5432/ash_platform"
   @socket_options [:inet6]
 
   test "test always keeps the fixed local database" do
@@ -212,7 +214,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     end
   end
 
-  test "every remote connection resolves over IPv6 without TLS while the local database is unchanged" do
+  test "non-MPG remote connections keep IPv6-only output while the local database is unchanged" do
     remote =
       env(rehearsal_env(%{"DATABASE_POOLED_URL" => @pooled, "DATABASE_DIRECT_URL" => @direct}))
 
@@ -231,6 +233,47 @@ defmodule AshPlatform.DatabaseConfigTest do
     refute Keyword.has_key?(local, :socket_options)
   end
 
+  test "Fly MPG pooled access uses verified TLS and unnamed prepares" do
+    config =
+      DatabaseConfig.runtime_config!(
+        :prod,
+        env(%{"DATABASE_POOLED_URL" => @mpg_pooled})
+      )
+
+    assert config[:url] == @mpg_pooled
+    assert config[:socket_options] == @socket_options
+    assert config[:prepare] == :unnamed
+    assert_verified_tls(config[:ssl], "pgbouncer.cluster.flympg.net")
+  end
+
+  test "Fly MPG direct access uses verified TLS without pooled prepare mode" do
+    config =
+      DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_DIRECT_URL" => @mpg_direct})))
+
+    assert config[:url] == @mpg_direct
+    assert config[:socket_options] == @socket_options
+    refute Keyword.has_key?(config, :prepare)
+    assert_verified_tls(config[:ssl], "direct.cluster.flympg.net")
+  end
+
+  test "every Fly MPG subdomain gets TLS but lookalike and root hosts keep existing output" do
+    mpg_url = "postgresql://user:secret@custom.cluster.flympg.net:5432/ash_platform"
+
+    mpg = DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => mpg_url}))
+    assert_verified_tls(mpg[:ssl], "custom.cluster.flympg.net")
+    refute Keyword.has_key?(mpg, :prepare)
+
+    for url <- [
+          "postgresql://user:secret@evilflympg.net:5432/ash_platform",
+          "postgresql://user:secret@flympg.net:5432/ash_platform"
+        ] do
+      assert DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url})) == [
+               url: url,
+               socket_options: @socket_options
+             ]
+    end
+  end
+
   defp env(values), do: &Map.get(values, &1)
 
   defp rehearsal_env(overrides) do
@@ -246,5 +289,16 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   defp rehearsal_env_from(getenv) do
     rehearsal_env(%{"DATABASE_DIRECT_URL" => getenv.("DATABASE_DIRECT_URL")})
+  end
+
+  defp assert_verified_tls(ssl, hostname) do
+    assert ssl[:verify] == :verify_peer
+    assert is_list(ssl[:cacerts]) and ssl[:cacerts] != []
+    assert ssl[:server_name_indication] == String.to_charlist(hostname)
+
+    assert is_function(
+             get_in(ssl, [:customize_hostname_check, :match_fun]),
+             2
+           )
   end
 end

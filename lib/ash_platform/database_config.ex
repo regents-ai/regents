@@ -38,11 +38,7 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
          false <- production_identity?(uri) do
-      # Connections traverse Fly's WireGuard-encrypted private network, where managed Postgres
-      # publishes only an AAAA record, so resolve over IPv6. TLS is not used because OTP 28 cannot
-      # decode the managed-Postgres certificate (asn1 bad_range), matching the platform-standard
-      # in-network posture; revisit if the endpoint ever leaves the private network.
-      [url: value, socket_options: [:inet6]]
+      connection_options(value, host)
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"
@@ -57,6 +53,39 @@ defmodule AshPlatform.DatabaseConfig do
     end
   rescue
     _error -> :error
+  end
+
+  defp connection_options(value, host) do
+    options = [url: value, socket_options: [:inet6]]
+
+    if fly_mpg_host?(host) do
+      options =
+        Keyword.put(options, :ssl,
+          verify: :verify_peer,
+          cacerts: :public_key.cacerts_get(),
+          server_name_indication: String.to_charlist(host),
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ]
+        )
+
+      if fly_mpg_pgbouncer_host?(host),
+        do: Keyword.put(options, :prepare, :unnamed),
+        else: options
+    else
+      options
+    end
+  end
+
+  defp fly_mpg_host?(host) when is_binary(host) do
+    host = String.downcase(host)
+    host != "flympg.net" and String.ends_with?(host, ".flympg.net")
+  end
+
+  defp fly_mpg_host?(_host), do: false
+
+  defp fly_mpg_pgbouncer_host?(host) do
+    host |> String.downcase() |> String.starts_with?("pgbouncer.")
   end
 
   defp remote_target(getenv) do
