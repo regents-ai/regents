@@ -240,20 +240,52 @@ defmodule AshPlatform.DatabaseConfigTest do
         env(%{"DATABASE_POOLED_URL" => @mpg_pooled})
       )
 
-    assert config[:url] == @mpg_pooled
-    assert config[:socket_options] == @socket_options
-    assert config[:prepare] == :unnamed
-    assert_verified_tls(config[:ssl], "pgbouncer.cluster.flympg.net")
+    effective = effective_repo_config(config)
+
+    assert effective[:url] == nil
+    assert effective[:hostname] == "pgbouncer.cluster.flympg.net"
+    assert effective[:socket_options] == @socket_options
+    assert effective[:prepare] == :unnamed
+    assert_verified_tls(effective[:ssl], "pgbouncer.cluster.flympg.net")
   end
 
   test "Fly MPG direct access uses verified TLS without pooled prepare mode" do
     config =
       DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_DIRECT_URL" => @mpg_direct})))
 
-    assert config[:url] == @mpg_direct
-    assert config[:socket_options] == @socket_options
-    refute Keyword.has_key?(config, :prepare)
-    assert_verified_tls(config[:ssl], "direct.cluster.flympg.net")
+    effective = effective_repo_config(config)
+
+    assert effective[:url] == nil
+    assert effective[:hostname] == "direct.cluster.flympg.net"
+    assert effective[:socket_options] == @socket_options
+    refute Keyword.has_key?(effective, :prepare)
+    assert_verified_tls(effective[:ssl], "direct.cluster.flympg.net")
+  end
+
+  test "Fly MPG rejects every nonempty URL query before Ecto can override secure options" do
+    for query <- [
+          "ssl=false",
+          "SSL=false",
+          "s%73l=false",
+          "ssl_opts=verify_none",
+          "prepare=named",
+          "pre%70are=named",
+          "hostname=attacker.example",
+          "pool_size=5"
+        ] do
+      url = "#{@mpg_pooled}?#{query}"
+
+      error =
+        assert_raise RuntimeError, fn ->
+          DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url}))
+        end
+
+      assert Exception.message(error) ==
+               "DATABASE_POOLED_URL must be a valid PostgreSQL URL for the approved target"
+
+      refute Exception.message(error) =~ "pooled-secret"
+      refute Exception.message(error) =~ url
+    end
   end
 
   test "every Fly MPG subdomain gets TLS but lookalike and root hosts keep existing output" do
@@ -300,5 +332,10 @@ defmodule AshPlatform.DatabaseConfigTest do
              get_in(ssl, [:customize_hostname_check, :match_fun]),
              2
            )
+  end
+
+  defp effective_repo_config(config) do
+    {url, explicit} = Keyword.pop(config, :url)
+    Keyword.merge(explicit, Ecto.Repo.Supervisor.parse_url(url))
   end
 end
