@@ -134,10 +134,12 @@ rel/                    Release overlays, including the migrate command
 
 ## Checks
 
-One command must pass before a change is proposed:
+All three repository acceptance commands must pass before a change is proposed:
 
 ```bash
 mix precommit
+npm run typecheck
+npm test
 ```
 
 It compiles with warnings as errors, checks unused dependency locks and formatting, runs
@@ -145,7 +147,7 @@ Credo in strict mode and Sobelow, holds the compile-connected `xref` graph under
 runs the test suite with warnings as errors, and verifies the Ash codegen and route handoff
 are up to date.
 
-The front-end checks are separate:
+Other relevant checks are available for browser behavior, asset budgets, and external tooling:
 
 | Command | What it does |
 | --- | --- |
@@ -153,7 +155,7 @@ The front-end checks are separate:
 | `npm test` | Runs the Vitest unit suite. |
 | `npm run test:browser` | Builds assets and runs the Playwright browser suite. |
 | `npm run test:budgets` | Enforces the asset size budgets. |
-| `mix test.external` | The three network-touching Marimo tests. Excluded from `mix precommit` on purpose, so the required gates stay hermetic. |
+| `mix test.external` | Runs three browser-fixture tests and one Docker build-context test. Excluded from `mix precommit` because they require local services or tools outside the hermetic test suite. |
 
 ## Deployment
 

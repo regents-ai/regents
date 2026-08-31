@@ -172,13 +172,21 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     end
   end
 
-  test "search is admitted only for Techtree and Autolaunch" do
+  test "search is advertised only by routes that implement it" do
     searchable =
       RouteCatalog.entries()
       |> Enum.map(&RouteCatalog.fetch!(&1.live_action, sample_params(&1.live_action)))
       |> Enum.reject(&(&1.search_kind == :none))
 
-    assert Enum.all?(searchable, &(&1.app_id in [:techtree, :autolaunch]))
+    assert searchable != []
+    assert Enum.all?(searchable, &(&1.app_id == :autolaunch))
+
+    for action <- [:techtree, :techtree_tree, :techtree_node] do
+      spec = RouteCatalog.fetch!(action, sample_params(action))
+
+      assert spec.search_kind == :none
+      refute :search in spec.header_controls
+    end
   end
 
   test "app selector roots and header controls use the closed contract" do

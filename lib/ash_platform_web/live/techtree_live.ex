@@ -189,10 +189,15 @@ defmodule AshPlatformWeb.TechtreeLive do
     </section>
 
     <section
-      :if={@status in [:empty, :error]}
+      :if={@status == :empty}
       class="techtree-empty"
-      role={if(@status == :error, do: "alert", else: nil)}
     >
+      <h1>Tree not found</h1>
+      <p>No public research collection exists at this address.</p>
+      <.link patch="/techtree">Return to Techtree</.link>
+    </section>
+
+    <section :if={@status == :error} class="techtree-empty" role="alert">
       <h1>Tree unavailable</h1>
       <p>This research collection could not be loaded.</p>
     </section>
@@ -302,7 +307,7 @@ defmodule AshPlatformWeb.TechtreeLive do
               <dd><code>{@provenance.manifest_uri || "Not recorded"}</code></dd>
             </div>
           </dl>
-          <.link :if={@provenance.payload_url} patch={@provenance.payload_url}>
+          <.link :if={@provenance.payload_url} href={@provenance.payload_url}>
             Fetch public payload
           </.link>
         </section>

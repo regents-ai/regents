@@ -3,6 +3,7 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
 
   alias AshPlatform.{Accounts, Techtree}
   alias AshPlatform.Actors.System
+  alias AshPlatformWeb.{RouteCatalog, TechtreeLive}
 
   @trees [
     {"GeneBench-Pro Reference Lab", "/techtree/genebench-pro-reference-lab"},
@@ -22,6 +23,8 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     assert html =~ "regents techtree start"
     assert html =~ "regents techtree node create"
     assert html =~ "Humans browse, run notebooks, comment, and react."
+    refute has_element?(view, ".shell-search")
+    refute has_element?(view, ".shell-mobile-search")
 
     assert Enum.map(@trees, fn {label, path} ->
              assert has_element?(view, ~s(#techtree-overview a[href="#{path}"]), label)
@@ -44,6 +47,15 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     assert has_element?(view, ~s(a.techtree-list-tab[data-tree-presentation="list"]), "List")
     assert has_element?(view, ~s(a.techtree-map-tab[data-tree-presentation="map"]), "Map")
     assert html =~ "No nodes yet"
+
+    assert has_element?(
+             view,
+             ~s(#techtree-map-stage[role="region"][aria-label="BixBench Capsule Lab node map"])
+           )
+
+    refute has_element?(view, "#techtree-map-stage[tabindex]")
+    refute has_element?(view, "#techtree-map-stage[aria-describedby]")
+    refute has_element?(view, "#techtree-map-instructions")
     refute has_element?(view, "[data-techtree-map-world]")
     refute has_element?(view, "[data-techtree-map-edges]")
     refute has_element?(view, ".techtree-map-nodes")
@@ -129,6 +141,20 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     refute html =~ "No Marimo notebook is attached"
   end
 
+  test "public payload uses normal navigation to the API endpoint" do
+    node_id = Ash.UUID.generate()
+    payload_url = "/api/techtree/v1/nodes/#{node_id}/payload"
+
+    html =
+      render_component(
+        &TechtreeLive.page/1,
+        node_page_assigns(node_id, payload_url)
+      )
+
+    assert html =~
+             ~r/<a(?=[^>]*href="#{Regex.escape(payload_url)}")(?![^>]*data-phx-link="patch")[^>]*>\s*Fetch public payload/s
+  end
+
   test "tree Map and List both link persisted nodes to the same canonical detail route", %{
     conn: conn
   } do
@@ -199,7 +225,13 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
 
     assert has_element?(
              view,
-             ~s(#techtree-map-stage.techtree-map-stage[phx-hook="TechtreeCamera"][tabindex="0"][aria-label="Question Forge Metaskills node map"])
+             ~s(#techtree-map-stage.techtree-map-stage[phx-hook="TechtreeCamera"][role="region"][tabindex="0"][aria-label="Question Forge Metaskills node map"][aria-describedby="techtree-map-instructions"])
+           )
+
+    assert has_element?(
+             view,
+             "#techtree-map-instructions.visually-hidden",
+             "Use the arrow keys to pan the map. Use plus and minus to zoom."
            )
 
     assert has_element?(
@@ -276,6 +308,22 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     assert has_element?(view, ~s(#techtree-node[data-motion-surface="detail"]))
   end
 
+  test "missing tree data is distinct from a temporary load failure" do
+    missing = render_component(&TechtreeLive.page/1, tree_page_assigns(:empty))
+    unavailable = render_component(&TechtreeLive.page/1, tree_page_assigns(:error))
+
+    assert missing =~ "Tree not found"
+    assert missing =~ "No public research collection exists at this address."
+    assert missing =~ ~s(href="/techtree")
+    assert missing =~ "Return to Techtree"
+    refute missing =~ "Tree unavailable"
+
+    assert unavailable =~ "Tree unavailable"
+    assert unavailable =~ "This research collection could not be loaded."
+    assert unavailable =~ ~s(role="alert")
+    refute unavailable =~ "Tree not found"
+  end
+
   defp valid_notebook_manifest(source_hash) do
     Jason.encode!(%{
       "schema_version" => 1,
@@ -320,6 +368,17 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
     render_async(signed_view)
 
     assert has_element?(signed_view, "#comment-form")
+
+    assert has_element?(
+             signed_view,
+             ~s(#comment-body[aria-describedby="comment-body-guidance"])
+           )
+
+    assert has_element?(
+             signed_view,
+             "#comment-body-guidance",
+             "Up to 2,000 characters. Links, emphasis, code, and lists are supported."
+           )
 
     signed_view
     |> form("#comment-form", comment: %{body: "# Unsupported heading"})
@@ -394,5 +453,63 @@ defmodule AshPlatformWeb.TechtreeLiveTest do
 
     refute has_element?(signed_view, "#comment-ledger article", "Useful evidence")
     refute has_element?(public_view, "#comment-ledger article", "Useful evidence")
+  end
+
+  defp node_page_assigns(node_id, payload_url) do
+    page_assigns(
+      route_spec: RouteCatalog.fetch!(:techtree_node, %{"node_id" => node_id}),
+      params: %{"node_id" => node_id},
+      node: %{title: "Public payload", summary: nil, payload_hash: nil},
+      provenance: %{
+        contributor: nil,
+        lineage: [],
+        manifest_cid: "bafybeipayload",
+        manifest_hash: String.duplicate("a", 64),
+        manifest_uri: "ipfs://bafybeipayload",
+        payload_url: payload_url,
+        payload_verification: %{status: :not_checked},
+        projection_status: :not_started,
+        published_at: nil
+      },
+      payload_status: :ready,
+      status: :ready
+    )
+  end
+
+  defp tree_page_assigns(status) do
+    tree_slug = "bixbench-capsule-lab"
+
+    page_assigns(
+      route_spec: RouteCatalog.fetch!(:techtree_tree, %{"tree_slug" => tree_slug}),
+      params: %{"tree_slug" => tree_slug},
+      status: status
+    )
+  end
+
+  defp page_assigns(overrides) do
+    Keyword.merge(
+      [
+        trees: [],
+        tree: nil,
+        nodes: [],
+        edges: [],
+        node: nil,
+        provenance: nil,
+        uplift_report: nil,
+        payload_status: :not_available,
+        status: :empty,
+        presentation: :map,
+        comments: [],
+        comments_status: :ready,
+        comment_notice: nil,
+        comment_request_id: Ash.UUID.generate(),
+        comment_draft: "",
+        current_human_id: nil,
+        comment_admin: false,
+        comment_reactions: %{},
+        notebook_artifact: nil
+      ],
+      overrides
+    )
   end
 end
