@@ -37,7 +37,9 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(host),
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
-         false <- production_identity?(uri) do
+         false <- production_identity?(uri),
+         true <- safe_query?(uri),
+         true <- valid_ecto_url?(value) do
       connection_options(value, host)
     else
       nil -> raise "#{variable} is required"
@@ -47,12 +49,24 @@ defmodule AshPlatform.DatabaseConfig do
   end
 
   defp parse_uri(value) do
-    with {:ok, uri} <- URI.new(value) do
-      Ecto.Repo.Supervisor.parse_url(value)
-      {:ok, uri}
-    end
+    URI.new(value)
   rescue
     _error -> :error
+  end
+
+  defp valid_ecto_url?(value) do
+    Ecto.Repo.Supervisor.parse_url(value)
+    true
+  rescue
+    _error -> false
+  end
+
+  # Ecto turns every URL query key into an atom and merges parsed URL options
+  # after the explicit Repo configuration. MPG URLs therefore admit no query
+  # options: even encoded or future aliases cannot weaken TLS, replace the
+  # endpoint, or restore named prepares after this module's checks.
+  defp safe_query?(%URI{host: host, query: query}) do
+    not fly_mpg_host?(host) or query in [nil, ""]
   end
 
   defp connection_options(value, host) do
