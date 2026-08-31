@@ -97,6 +97,22 @@
         {"id": "result_token_id", "signature": "mapToCollection3(address,uint256)", "selector": "0x6d970989"}
       ]
     },
+    "regents_club": {
+      "address": "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487",
+      "runtime_code": {"bytes": 19658, "sha256": "d3b5023b1875fa83f99571621bfeeaebceaaf095655b41392fc89a3df816a0ba", "keccak256": "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"},
+      "verified_source": {"status": "exact_match", "contract_name": "RegentsClub", "url": "https://basescan.org/address/0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487#code"},
+      "abi": {"path": "abi/regents-club.json", "function_count": 4, "canonical_sha256": "aea5f85c16c9b91b9e6b8fa44d42b68fc0cbf25a7961cbe45d9cfcc9569ec311"},
+      "onchain_constants": {"owner": "0x45C9a201e2937608905fEF17De9A67f25F9f98E0", "current_base_uri": "https://regents.sh/metadata/", "cutover_base_uri": "https://media.regents.sh/metadata/", "first_token_id": 1, "last_token_id": 1998},
+      "prepared_actions": [
+        {"id": "set_base_uri", "signature": "setBaseURI(string)", "selector": "0x55f804b3", "value": "0", "signer_class": "exact_regents_club_owner", "beneficiary_class": "regents_club_collection", "argument_bindings": {"new_base_uri": "https://media.regents.sh/metadata/", "expected_signer": "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"}}
+      ],
+      "reads": [
+        {"id": "owner", "signature": "owner()", "selector": "0x8da5cb5b"},
+        {"id": "base_uri", "signature": "baseURI()", "selector": "0x6c0360eb"},
+        {"id": "token_uri", "signature": "tokenURI(uint256)", "selector": "0xc87b56dd"}
+      ],
+      "confirmation_event": {"signature": "BatchMetadataUpdate(uint256,uint256)", "topic0": "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c", "from_token_id": 1, "to_token_id": 1998}
+    },
     "animata_i": {
       "address": "0x78402119Ec6349A0D41F12b54938De7BF783C923",
       "deployment_transaction": "0x6aff5611d787e67ec65ad07afaa3cd6dbc698b37062849df193ccc327673bf09",

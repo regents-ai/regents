@@ -166,6 +166,13 @@ defmodule AshPlatformWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :redeem
+    },
+    %Entry{
+      path_pattern: "/regents-club/metadata-cutover",
+      live_action: :regents_club_metadata,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :regents_club_metadata
     }
   ]
 
@@ -240,6 +247,9 @@ defmodule AshPlatformWeb.RouteCatalog do
        [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}},
     redeem:
       {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
+       [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}},
+    regents_club_metadata:
+      {:regents_club_metadata, :regent_ops, "Regents Labs", "Regents Club Metadata", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}}
   }
 

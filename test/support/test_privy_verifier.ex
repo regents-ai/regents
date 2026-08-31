@@ -90,6 +90,16 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
+  def verify_access_token("valid-regents-club") do
+    {:ok,
+     %AshPlatform.VerifiedPrivyIdentity{
+       session_id: "regents-club-browser-session",
+       privy_user_id: "did:privy:regents-club-owner",
+       wallet_address: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0",
+       wallet_addresses: ["0x45C9a201e2937608905fEF17De9A67f25F9f98E0"]
+     }}
+  end
+
   def verify_access_token("valid-autolaunch-draft") do
     {:ok,
      %AshPlatform.VerifiedPrivyIdentity{

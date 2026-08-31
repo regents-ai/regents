@@ -11,6 +11,10 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "animata_redeemer" => %{
       "path" => "abi/animata-redeemer.json",
       "sha256" => "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
+    },
+    "regents_club" => %{
+      "path" => "abi/regents-club.json",
+      "sha256" => "aea5f85c16c9b91b9e6b8fa44d42b68fc0cbf25a7961cbe45d9cfcc9569ec311"
     }
   }
   @actions %{
@@ -26,6 +30,9 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "approve_exact_usdc" => {"approve(address,uint256)", "0x095ea7b3"},
       "redeem" => {"redeem(address,uint256)", "0x1e9a6950"},
       "claim" => {"claim()", "0x4e71d92d"}
+    },
+    "regents_club" => %{
+      "set_base_uri" => {"setBaseURI(string)", "0x55f804b3"}
     }
   }
   # The bidder interface stays reviewed and digest-pinned while no bidder action
@@ -50,7 +57,8 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "animata_redeemer.approve_nft_collection",
     "animata_redeemer.approve_exact_usdc",
     "animata_redeemer.redeem",
-    "animata_redeemer.claim"
+    "animata_redeemer.claim",
+    "regents_club.set_base_uri"
   ]
   # The clean-V1 subject wallet interface stays reviewed and digest-pinned while
   # no subject action is admitted, so these are proved against the final C9 ABI

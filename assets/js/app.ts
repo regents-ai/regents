@@ -28,6 +28,7 @@ import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
+import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
 import {TechtreeCamera} from "./hooks/techtree_camera"
 import {VoxelDelight} from "./hooks/voxel"
 import {VerifiedConnections} from "./hooks/verified_connections"
@@ -292,6 +293,7 @@ const hooks = {
   HomePrism,
   ShellBehavior: composeHooks(shellBehavior, designShellHook),
   RedemptionWallet,
+  RegentsClubMetadataWallet,
   StakeWallet,
   TechtreeCamera,
   VerifiedConnections,

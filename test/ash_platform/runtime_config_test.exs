@@ -21,6 +21,7 @@ defmodule AshPlatform.RuntimeConfigTest do
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
       "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
+      "ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER",
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY"
     ]
@@ -265,6 +266,18 @@ defmodule AshPlatform.RuntimeConfigTest do
     for setting <- ["off", "ON", "true", ""] do
       System.put_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES", setting)
       refute Enum.any?([:test, :dev, :prod], &autolaunch_surfaces?/1)
+    end
+  end
+
+  test "Regents Club metadata cutover is disabled unless runtime config is exactly on" do
+    refute runtime_config(:regents_club_metadata_cutover)
+
+    System.put_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER", "on")
+    assert runtime_config(:regents_club_metadata_cutover)
+
+    for setting <- ["off", "ON", "true", ""] do
+      System.put_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER", setting)
+      refute runtime_config(:regents_club_metadata_cutover)
     end
   end
 

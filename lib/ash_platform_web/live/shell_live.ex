@@ -13,11 +13,13 @@ defmodule AshPlatformWeb.ShellLive do
     Formation,
     OpenSea,
     Redemption,
+    RegentsClub,
     Staking,
     Techtree
   }
 
   alias AshPlatform.Actors.Human
+  alias AshPlatform.RegentsClub.Actions, as: RegentsClubActions
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatformWeb.AutolaunchLive
@@ -25,6 +27,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.Plugs.LaunchGate
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
+  alias AshPlatformWeb.RegentsClubMetadataLive
   alias AshPlatformWeb.RouteCatalog
   alias AshPlatformWeb.SettingsLive
   alias AshPlatformWeb.TechtreeLive
@@ -116,6 +119,11 @@ defmodule AshPlatformWeb.ShellLive do
        staking_notice: nil,
        staking_read: nil,
        staking_status: :loading,
+       regents_club_metadata_status: :checking,
+       regents_club_metadata_wallet: nil,
+       regents_club_metadata_notice: nil,
+       regents_club_metadata_attempts: %{},
+       regents_club_metadata_result: nil,
        route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic])
      )}
@@ -171,7 +179,8 @@ defmodule AshPlatformWeb.ShellLive do
          socket
          |> assign(content_status: :ready)
          |> maybe_start_staking(route_spec, generation)
-         |> maybe_start_redemption(route_spec, generation)}
+         |> maybe_start_redemption(route_spec, generation)
+         |> maybe_start_regents_club_metadata(route_spec, generation)}
 
       true ->
         {:noreply, assign(socket, content_status: :ready)}
@@ -184,6 +193,14 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp app_target_open?(%{app_id: :autolaunch}), do: LaunchGate.autolaunch_surfaces_enabled?()
   defp app_target_open?(_target), do: true
+
+  defp authorize_route(socket, %{route_id: :regents_club_metadata}) do
+    account = current_account(socket.assigns.access_context)
+
+    if RegentsClub.enabled?() and RegentsClub.authorized_account?(account),
+      do: {:ok, socket},
+      else: {:redirect, redirect(socket, to: "/")}
+  end
 
   defp authorize_route(
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
@@ -245,6 +262,105 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   def handle_async({:content, _generation}, {:exit, _reason}, socket), do: {:noreply, socket}
+
+  def handle_async(
+        {:regents_club_metadata_status, generation},
+        {:ok, {generation, :ok, {:ok, %{state: :ready}}}},
+        %{assigns: %{content_generation: generation}} = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       regents_club_metadata_status: :ready,
+       regents_club_metadata_notice: nil
+     )}
+  end
+
+  def handle_async(
+        {:regents_club_metadata_status, generation},
+        {:ok, {generation, :ok, {:ok, %{state: :complete}}}},
+        %{assigns: %{content_generation: generation}} = socket
+      ) do
+    RegentsClub.disable!()
+    {:noreply, assign(socket, regents_club_metadata_status: :closed)}
+  end
+
+  def handle_async(
+        {:regents_club_metadata_status, generation},
+        _result,
+        %{assigns: %{content_generation: generation}} = socket
+      ) do
+    {:noreply,
+     assign(socket,
+       regents_club_metadata_status: :unavailable,
+       regents_club_metadata_notice: metadata_notice(:readiness_failed)
+     )}
+  end
+
+  def handle_async({:regents_club_metadata_status, _generation}, _result, socket),
+    do: {:noreply, socket}
+
+  def handle_async(
+        {:regents_club_metadata_observe, _attempt_id},
+        {:ok, {:ok, {:finalized, result}}},
+        socket
+      ) do
+    RegentsClub.disable!()
+
+    {:noreply,
+     assign(socket,
+       regents_club_metadata_status: :closed,
+       regents_club_metadata_attempts: %{},
+       regents_club_metadata_result: result,
+       regents_club_metadata_notice: metadata_notice(:finalized)
+     )}
+  end
+
+  def handle_async(
+        {:regents_club_metadata_observe, attempt_id},
+        {:ok, {:ok, :pending}},
+        socket
+      ) do
+    Process.send_after(self(), {:observe_regents_club_metadata, attempt_id}, 1_500)
+    {:noreply, socket}
+  end
+
+  def handle_async(
+        {:regents_club_metadata_observe, attempt_id},
+        {:ok, {:ok, :reverted}},
+        socket
+      ) do
+    {:noreply,
+     socket
+     |> drop_metadata_attempt(attempt_id)
+     |> assign(
+       regents_club_metadata_status: :ready,
+       regents_club_metadata_notice: metadata_notice(:reverted)
+     )}
+  end
+
+  def handle_async(
+        {:regents_club_metadata_observe, attempt_id},
+        {:ok, {:ok, {:unknown, _reason}}},
+        socket
+      ) do
+    {:noreply,
+     socket
+     |> drop_metadata_attempt(attempt_id)
+     |> assign(
+       regents_club_metadata_status: :unknown,
+       regents_club_metadata_notice: metadata_notice(:unknown)
+     )}
+  end
+
+  def handle_async({:regents_club_metadata_observe, attempt_id}, _result, socket) do
+    {:noreply,
+     socket
+     |> drop_metadata_attempt(attempt_id)
+     |> assign(
+       regents_club_metadata_status: :unknown,
+       regents_club_metadata_notice: metadata_notice(:unknown)
+     )}
+  end
 
   def handle_async(
         {:staking, generation} = name,
@@ -562,6 +678,95 @@ defmodule AshPlatformWeb.ShellLive do
       do: handle_redemption_event(event, params, socket)
 
   def handle_event(
+        "regents_club_metadata_active_wallet",
+        %{"address" => address},
+        %{assigns: %{route_spec: %{route_id: :regents_club_metadata}}} = socket
+      ) do
+    wallet = normalized_wallet(address)
+    wallet = if wallet == RegentsClub.owner(), do: wallet
+    {:noreply, assign(socket, regents_club_metadata_wallet: wallet)}
+  end
+
+  def handle_event(
+        "prepare_regents_club_metadata",
+        %{"address" => address, "attempt_id" => attempt_id},
+        %{
+          assigns: %{
+            route_spec: %{route_id: :regents_club_metadata},
+            regents_club_metadata_status: :ready,
+            regents_club_metadata_attempts: attempts
+          }
+        } = socket
+      ) do
+    if Map.has_key?(attempts, attempt_id) do
+      {:noreply, socket}
+    else
+      case RegentsClubActions.prepare(address, attempt_id, socket.assigns.session_lease) do
+        {:ok, envelope} ->
+          {:noreply,
+           socket
+           |> assign(
+             regents_club_metadata_attempts:
+               Map.put(attempts, attempt_id, %{envelope: envelope, polls: 0}),
+             regents_club_metadata_notice: nil
+           )
+           |> push_event("regents-club-metadata:prepared", %{
+             attempt_id: attempt_id,
+             envelope: envelope
+           })}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(regents_club_metadata_notice: metadata_notice(reason))
+           |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
+      end
+    end
+  end
+
+  def handle_event("prepare_regents_club_metadata", _params, socket), do: {:noreply, socket}
+
+  def handle_event(
+        "regents_club_metadata_submitted",
+        %{"attempt_id" => attempt_id, "hash" => hash},
+        socket
+      ) do
+    observe_metadata_attempt(
+      socket,
+      attempt_id,
+      fn envelope ->
+        RegentsClubActions.observe_hash(envelope, hash)
+      end,
+      %{hash: hash}
+    )
+  end
+
+  def handle_event(
+        "regents_club_metadata_submission_unknown",
+        %{"attempt_id" => attempt_id},
+        socket
+      ) do
+    observe_metadata_attempt(socket, attempt_id, &RegentsClubActions.recover_unknown/1)
+  end
+
+  def handle_event(event, %{"attempt_id" => attempt_id}, socket)
+      when event in ["regents_club_metadata_cancelled", "regents_club_metadata_refused"] do
+    notice = if event == "regents_club_metadata_cancelled", do: :cancelled, else: :browser_refused
+
+    {:noreply,
+     socket
+     |> drop_metadata_attempt(attempt_id)
+     |> assign(
+       regents_club_metadata_status: :ready,
+       regents_club_metadata_notice: metadata_notice(notice)
+     )}
+  end
+
+  def handle_event("regents_club_metadata_browser_refused", _params, socket) do
+    {:noreply, assign(socket, regents_club_metadata_notice: metadata_notice(:browser_refused))}
+  end
+
+  def handle_event(
         "staking_active_wallet",
         params,
         %{assigns: %{route_spec: %{route_id: :stake}}} = socket
@@ -620,6 +825,35 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:comment_reactions_changed, _target_type, _target_id}, socket),
     do: {:noreply, socket}
+
+  def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
+    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
+      %{envelope: envelope, polls: polls} when polls < 40 ->
+        hash = envelope_hash(socket, attempt_id)
+
+        attempts =
+          put_in(socket.assigns.regents_club_metadata_attempts, [attempt_id, :polls], polls + 1)
+
+        {:noreply,
+         socket
+         |> assign(regents_club_metadata_attempts: attempts)
+         |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
+           RegentsClubActions.observe_hash(envelope, hash)
+         end)}
+
+      %{polls: _polls} ->
+        {:noreply,
+         socket
+         |> drop_metadata_attempt(attempt_id)
+         |> assign(
+           regents_club_metadata_status: :unknown,
+           regents_club_metadata_notice: metadata_notice(:unknown)
+         )}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
 
   defp handle_draft_event("create_launch_draft", %{"launch_draft" => submitted}, socket) do
     values = Map.take(submitted, AutolaunchLive.draft_field_params())
@@ -890,6 +1124,14 @@ defmodule AshPlatformWeb.ShellLive do
           verified_connections_notice={@verified_connections_notice}
         />
 
+        <RegentsClubMetadataLive.page
+          :if={@route_spec.route_id == :regents_club_metadata}
+          status={@regents_club_metadata_status}
+          wallet={@regents_club_metadata_wallet}
+          notice={@regents_club_metadata_notice}
+          result={@regents_club_metadata_result}
+        />
+
         <.page
           :if={@route_spec.route_id == :stake}
           staking={@staking}
@@ -928,6 +1170,7 @@ defmodule AshPlatformWeb.ShellLive do
               :formation,
               :stake,
               :redeem,
+              :regents_club_metadata,
               :techtree,
               :techtree_tree,
               :techtree_node,
@@ -961,6 +1204,7 @@ defmodule AshPlatformWeb.ShellLive do
               :formation,
               :stake,
               :redeem,
+              :regents_club_metadata,
               :techtree,
               :techtree_tree,
               :techtree_node,
@@ -993,6 +1237,7 @@ defmodule AshPlatformWeb.ShellLive do
             :formation,
             :stake,
             :redeem,
+            :regents_club_metadata,
             :techtree,
             :techtree_tree,
             :techtree_node,
@@ -1046,6 +1291,84 @@ defmodule AshPlatformWeb.ShellLive do
     do: presentation
 
   defp initial_presentation(_route_spec), do: :none
+
+  defp maybe_start_regents_club_metadata(
+         socket,
+         %{route_id: :regents_club_metadata},
+         generation
+       ) do
+    socket
+    |> assign(regents_club_metadata_status: :checking)
+    |> start_async({:regents_club_metadata_status, generation}, fn ->
+      {generation, RegentsClubActions.deployment_readiness(), RegentsClubActions.status()}
+    end)
+  end
+
+  defp maybe_start_regents_club_metadata(socket, _route_spec, _generation), do: socket
+
+  defp observe_metadata_attempt(socket, attempt_id, observer, extra \\ %{}) do
+    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
+      %{envelope: envelope} = attempt ->
+        attempts =
+          Map.put(
+            socket.assigns.regents_club_metadata_attempts,
+            attempt_id,
+            Map.merge(attempt, extra)
+          )
+
+        {:noreply,
+         socket
+         |> assign(
+           regents_club_metadata_attempts: attempts,
+           regents_club_metadata_status: :observing,
+           regents_club_metadata_notice: nil
+         )
+         |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
+           observer.(envelope)
+         end)}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  defp envelope_hash(socket, attempt_id),
+    do: get_in(socket.assigns.regents_club_metadata_attempts, [attempt_id, :hash])
+
+  defp drop_metadata_attempt(socket, attempt_id) do
+    assign(
+      socket,
+      regents_club_metadata_attempts:
+        Map.delete(socket.assigns.regents_club_metadata_attempts, attempt_id)
+    )
+  end
+
+  defp metadata_notice(:finalized),
+    do: %{tone: :success, message: "The exact cutover finalized and this route is now closed."}
+
+  defp metadata_notice(:reverted),
+    do: %{tone: :error, message: "The owner transaction reverted. No metadata change finalized."}
+
+  defp metadata_notice(:cancelled),
+    do: %{tone: :info, message: "The wallet request was canceled. It will not be retried."}
+
+  defp metadata_notice(:unknown),
+    do: %{
+      tone: :error,
+      message: "The submission outcome is unknown. Manual founder review is required."
+    }
+
+  defp metadata_notice(:browser_refused),
+    do: %{tone: :error, message: "Select the exact owner wallet on Base. Nothing was sent."}
+
+  defp metadata_notice(:session_unavailable),
+    do: %{tone: :error, message: "The verified session changed. Reload before continuing."}
+
+  defp metadata_notice(:readiness_failed),
+    do: %{tone: :error, message: "Privy or trusted Base RPC readiness did not pass."}
+
+  defp metadata_notice(_reason),
+    do: %{tone: :error, message: "The exact cutover could not be prepared. Nothing was sent."}
 
   defp maybe_start_staking(socket, %{route_id: :app}, generation) do
     actor = staking_actor(socket)

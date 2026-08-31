@@ -26,6 +26,17 @@ admin_wallet_addresses =
 
 config :ash_platform, :admin_wallet_addresses, admin_wallet_addresses
 
+# This one-time protected route is closed unless a deployment explicitly says
+# "on". No public identifier or verifier secret is logged.
+regents_club_metadata_cutover? =
+  System.get_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER") == "on"
+
+config :ash_platform, :regents_club_metadata_cutover, regents_club_metadata_cutover?
+
+Logger.info(
+  "Regents Club metadata cutover #{if regents_club_metadata_cutover?, do: "enabled", else: "disabled"}"
+)
+
 if config_env() != :test do
   config :ash_platform, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
 end

@@ -3,7 +3,7 @@ product: ash-platform
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 015022d9e8ab67feddaf04178413aedd36cc3a4e7471da9dc13e36909051c587
+    evidence_sha256: 91b1aa935bf597b6e2274e1c441b0df29a5c84bd6c891ca5e13765cf976e9dc0
     chain_target: base-mainnet
     authority: evidence_only
     autolaunch_consumer_freeze:
@@ -30,6 +30,7 @@ contracts:
       - animata_redeemer.approve_exact_usdc
       - animata_redeemer.redeem
       - animata_redeemer.claim
+      - regents_club.set_base_uri
     reviewed_action_evidence:
       - contract_id: regent_revenue_staking
         abi_path: abi/regent-revenue-staking.json
@@ -48,6 +49,32 @@ contracts:
           - approve_exact_usdc
           - redeem
           - claim
+      - contract_id: regents_club
+        contract_name: RegentsClub
+        target: pinned_regents_club
+        address: "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487"
+        source_url: "https://basescan.org/address/0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487#code"
+        runtime_keccak256: "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"
+        abi_path: abi/regents-club.json
+        abi_sha256: aea5f85c16c9b91b9e6b8fa44d42b68fc0cbf25a7961cbe45d9cfcc9569ec311
+        reads:
+          - id: owner
+            signature: owner()
+            selector: "0x8da5cb5b"
+          - id: base_uri
+            signature: baseURI()
+            selector: "0x6c0360eb"
+          - id: token_uri
+            signature: tokenURI(uint256)
+            selector: "0xc87b56dd"
+        signer: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
+        value: "0"
+        fixed_arguments:
+          new_base_uri: "https://media.regents.sh/metadata/"
+        confirmation_event_signature: BatchMetadataUpdate(uint256,uint256)
+        confirmation_event_topic0: "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c"
+        action_ids:
+          - set_base_uri
       - contract_id: continuous_clearing_auction
         contract_name: IContinuousClearingAuction
         target: stored_auction_address
