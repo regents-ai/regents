@@ -2,6 +2,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   use ExUnit.Case, async: false
 
   @runtime_config Path.expand("../../config/runtime.exs", __DIR__)
+  @dockerfile Path.expand("../../Dockerfile", __DIR__)
 
   setup do
     names = [
@@ -301,6 +302,18 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "true")
     refute runtime_config(:regents_club_privy_origin_canary)
+  end
+
+  test "production image includes the fixed media decode tools before dropping privileges" do
+    dockerfile = File.read!(@dockerfile)
+    [_, app_stage] = String.split(dockerfile, "FROM slim AS app", parts: 2)
+
+    {install_offset, _length} =
+      :binary.match(app_stage, "apt-get install -y --no-install-recommends coreutils ffmpeg")
+
+    {user_offset, _length} = :binary.match(app_stage, "USER app")
+
+    assert install_offset < user_offset
   end
 
   defp autolaunch_surfaces?(environment),

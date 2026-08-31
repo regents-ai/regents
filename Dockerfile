@@ -75,6 +75,10 @@ ENV LANG=C.UTF-8
 ENV HOME=/app
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends coreutils ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 

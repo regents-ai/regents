@@ -5,14 +5,25 @@ defmodule AshPlatform.RegentsClub do
 
   @manifest_path Path.expand("../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../contracts/abi/regents-club.json", __DIR__)
+  @release_manifest_path Path.expand(
+                           "../../contracts/regents-club-release-manifest.tsv",
+                           __DIR__
+                         )
   @external_resource @manifest_path
   @external_resource @abi_path
+  @external_resource @release_manifest_path
 
   @manifest @manifest_path |> File.read!() |> Jason.decode!()
   @contract get_in(@manifest, ["contracts", "regents_club"])
   @abi_contents File.read!(@abi_path)
   @abi Jason.decode!(@abi_contents)
   @abi_sha256 :crypto.hash(:sha256, @abi_contents) |> Base.encode16(case: :lower)
+  @release_manifest_contents File.read!(@release_manifest_path)
+  @release_manifest_sha256 "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
+  @release_manifest_header Enum.join(
+                             ~w(token_id image_path image_sha256 image_bytes video_path video_sha256 video_bytes metadata_path metadata_sha256 metadata_bytes),
+                             "\t"
+                           )
 
   @chain_id 8453
   @contract_address "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487"
@@ -54,6 +65,7 @@ defmodule AshPlatform.RegentsClub do
     action = @contract["prepared_actions"] |> List.first()
     constants = @contract["onchain_constants"]
     media = @contract["media_release_attestation"]
+    release_manifest = release_manifest()
     {:ok, calldata_keccak256} = runtime_hash(@calldata)
 
     checks = [
@@ -84,8 +96,9 @@ defmodule AshPlatform.RegentsClub do
       media["full_corpus_route_count"] == @last_token_id - @first_token_id + 1,
       media["live_probe_token_ids"] == [1, 1000, 1998],
       media["operator_attestation_required"] == true,
+      media["release_manifest_sha256"] == @release_manifest_sha256,
+      map_size(release_manifest) == @last_token_id - @first_token_id + 1,
       valid_sha256?(media["artifact_manifest_sha256"]),
-      valid_sha256?(media["release_manifest_sha256"]),
       valid_sha256?(media["production_deployment_verification_sha256"]),
       valid_sha256?(media["isolated_verification_sha256"]),
       valid_image_digest?(media["active_image_digest"])
@@ -132,7 +145,30 @@ defmodule AshPlatform.RegentsClub do
   def erc4906_interface_id, do: @erc4906_interface_id
   def calldata_keccak256, do: get_in(@contract, ["onchain_constants", "calldata_keccak256"])
   def media_release_attestation, do: @contract["media_release_attestation"]
+  def release_manifest_sha256, do: @release_manifest_sha256
   def batch_metadata_topic, do: @batch_topic
+
+  def release_manifest do
+    case parse_release_manifest(@release_manifest_contents) do
+      {:ok, rows} -> rows
+      :error -> raise "Regents Club release manifest is inconsistent"
+    end
+  end
+
+  @doc false
+  def parse_release_manifest(contents) when is_binary(contents) do
+    with true <- sha256(contents) == @release_manifest_sha256,
+         [@release_manifest_header | rows_and_trailer] <- String.split(contents, "\n"),
+         true <- List.last(rows_and_trailer) == "",
+         rows <- Enum.drop(rows_and_trailer, -1),
+         true <- length(rows) == @last_token_id - @first_token_id + 1 do
+      parse_release_rows(rows)
+    else
+      _ -> :error
+    end
+  end
+
+  def parse_release_manifest(_contents), do: :error
 
   def token_uri_calldata(token_id) when token_id in [@first_token_id, @last_token_id] do
     @token_uri_selector <> (token_id |> Integer.to_string(16) |> String.pad_leading(64, "0"))
@@ -234,6 +270,74 @@ defmodule AshPlatform.RegentsClub do
   end
 
   defp batch_range?(_data), do: false
+
+  defp parse_release_row(row, expected_token_id) do
+    case String.split(row, "\t") do
+      [
+        token_id,
+        image_path,
+        image_sha256,
+        image_bytes,
+        video_path,
+        video_sha256,
+        video_bytes,
+        metadata_path,
+        metadata_sha256,
+        metadata_bytes
+      ] ->
+        with {:ok, ^expected_token_id} <- canonical_positive_integer(token_id),
+             true <- image_path == "images/animata/cards/#{expected_token_id}.png",
+             true <- video_path == "videos/regents-club/#{expected_token_id}-v1.mp4",
+             true <- metadata_path == "metadata/regents-club/#{expected_token_id}.json",
+             true <- valid_sha256?(image_sha256),
+             true <- valid_sha256?(video_sha256),
+             true <- valid_sha256?(metadata_sha256),
+             {:ok, image_size} <- canonical_positive_integer(image_bytes),
+             {:ok, video_size} <- canonical_positive_integer(video_bytes),
+             {:ok, metadata_size} <- canonical_positive_integer(metadata_bytes) do
+          {:ok,
+           %{
+             token_id: expected_token_id,
+             image: %{path: image_path, sha256: image_sha256, bytes: image_size},
+             video: %{path: video_path, sha256: video_sha256, bytes: video_size},
+             metadata: %{
+               path: metadata_path,
+               sha256: metadata_sha256,
+               bytes: metadata_size
+             }
+           }}
+        else
+          _ -> :error
+        end
+
+      _ ->
+        :error
+    end
+  end
+
+  defp parse_release_rows(rows) do
+    rows
+    |> Enum.with_index(@first_token_id)
+    |> Enum.reduce_while({:ok, %{}}, fn {row, token_id}, {:ok, parsed} ->
+      case parse_release_row(row, token_id) do
+        {:ok, release_row} -> {:cont, {:ok, Map.put(parsed, token_id, release_row)}}
+        :error -> {:halt, :error}
+      end
+    end)
+  end
+
+  defp canonical_positive_integer(value) do
+    case Integer.parse(value) do
+      {number, ""} when number > 0 ->
+        if Integer.to_string(number) == value, do: {:ok, number}, else: :error
+
+      _ ->
+        :error
+    end
+  end
+
+  defp sha256(contents),
+    do: :sha256 |> :crypto.hash(contents) |> Base.encode16(case: :lower)
 
   defp normalize!(address) do
     case Address.normalize(address) do

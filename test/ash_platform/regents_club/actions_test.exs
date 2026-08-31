@@ -6,6 +6,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
   alias AshPlatform.Actors.System
   alias AshPlatform.RegentsClub
   alias AshPlatform.RegentsClub.Actions
+  alias AshPlatform.RegentsClub.MediaDecoder
 
   @owner "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
   @other "0x1111111111111111111111111111111111111111"
@@ -21,6 +22,90 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     end
   end
 
+  defmodule MediaFixtures do
+    @png Base.decode64!(
+           "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAACXBIWXMAAAABAAAAAQBPJcTWAAAAF0lEQVR4nGP8w0AaYCFR/aiGUQ1DSAMAZPEBOnXWok4AAAAASUVORK5CYII="
+         )
+    @mp4 """
+         AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMUbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAA
+         AQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+         AAAAAgAAAj90cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAA
+         AAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG3
+         bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRl
+         b0hhbmRsZXIAAAABYm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAA
+         AQAAASJzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAA
+         AAABFUxhdmM2Mi4xMS4xMDAgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAAD
+         AAg8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAABZYAAAAAAAAABhzdHRzAAAAAAAAAAEA
+         AAABAABAAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAUc3RzegAAAAAAAALLAAAAAQAAABRzdGNvAAAAAAAAAAEA
+         AANEAAAAYXVkdGEAAABZbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAsaWxzdAAAACSpdG9v
+         AAAAHGRhdGEAAAABAAAAAExhdmY2Mi4zLjEwMAAAAAhmcmVlAAAC021kYXQAAAKtBgX//6ncRem95tlIt5Ys2CDZI+7veDI2
+         NCAtIGNvcmUgMTY1IHIzMjIyIGIzNTYwNWEgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDI1
+         IC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MyBkZWJsb2NrPTE6
+         MDowIGFuYWx5c2U9MHgzOjB4MTEzIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEg
+         bWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0xIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNr
+         aXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAg
+         bnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVz
+         PTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJfYmlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9
+         MiBrZXlpbnQ9MjUwIGtleWludF9taW49MSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJj
+         PWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40
+         MCBhcT0xOjEuMDAAgAAAABZliIQAFf/+7M9+BTZo5i/D8UVzjn2B
+         """
+         |> String.replace(~r/\s+/, "")
+         |> Base.decode64!()
+
+    def png, do: @png
+    def mp4, do: @mp4
+
+    def metadata(token_id) do
+      Jason.encode!(%{
+        "image" => "https://media.regents.sh/images/animata/cards/#{token_id}.png",
+        "animation_url" => "https://media.regents.sh/videos/regents-club/#{token_id}-v1.mp4"
+      })
+    end
+
+    def release_manifest do
+      png_sha256 = sha256(@png)
+      mp4_sha256 = sha256(@mp4)
+
+      rows =
+        Map.new(1..1998, fn token_id ->
+          metadata = metadata(token_id)
+
+          {token_id,
+           %{
+             token_id: token_id,
+             image: %{
+               path: "images/animata/cards/#{token_id}.png",
+               sha256: png_sha256,
+               bytes: byte_size(@png)
+             },
+             video: %{
+               path: "videos/regents-club/#{token_id}-v1.mp4",
+               sha256: mp4_sha256,
+               bytes: byte_size(@mp4)
+             },
+             metadata: %{
+               path: "metadata/regents-club/#{token_id}.json",
+               sha256: sha256(metadata),
+               bytes: byte_size(metadata)
+             }
+           }}
+        end)
+
+      {:ok, rows}
+    end
+
+    defp sha256(contents),
+      do: :sha256 |> :crypto.hash(contents) |> Base.encode16(case: :lower)
+  end
+
+  defmodule PartialMediaFixtures do
+    def release_manifest do
+      {:ok, rows} = MediaFixtures.release_manifest()
+      {:ok, Map.delete(rows, 1998)}
+    end
+  end
+
   setup do
     keys = [
       :regents_club_metadata_cutover,
@@ -30,6 +115,9 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       :regents_club_media_full_corpus_attestation,
       :regents_club_media_probe_module,
       :regents_club_media_http_client,
+      :regents_club_media_manifest_module,
+      :regents_club_media_executable_finder,
+      :regents_club_media_temp_cleanup,
       :test_regents_club_media_handler,
       :wallet_action_clock,
       :privy,
@@ -61,6 +149,8 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       :regents_club_media_probe_module,
       AshPlatform.TestRegentsClubChainClient
     )
+
+    Application.put_env(:ash_platform, :regents_club_media_manifest_module, MediaFixtures)
 
     Application.delete_env(:ash_platform, :test_regents_club_chain_responses)
 
@@ -205,6 +295,83 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert length(mp4_paths) == 2_001
   end
 
+  test "packaged release manifest has the exact approved bytes and contiguous mappings" do
+    path = "contracts/regents-club-release-manifest.tsv"
+    contents = File.read!(path)
+
+    assert sha256(contents) ==
+             "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
+
+    assert {:ok, rows} = RegentsClub.parse_release_manifest(contents)
+    assert rows == RegentsClub.release_manifest()
+    assert Map.keys(rows) |> Enum.sort() == Enum.to_list(1..1998)
+
+    assert rows[1] == %{
+             token_id: 1,
+             image: %{
+               path: "images/animata/cards/1.png",
+               sha256: "039ff95d493dbfe92eefeabb5b263c9eab05644ab34ed59a60a0e199459811d0",
+               bytes: 1_508_008
+             },
+             video: %{
+               path: "videos/regents-club/1-v1.mp4",
+               sha256: "8f35377f52ded731bb834fc00c1726d9e4812bad6afab53f75879258a455eaa3",
+               bytes: 136_647
+             },
+             metadata: %{
+               path: "metadata/regents-club/1.json",
+               sha256: "24b5a36bb9d0231db1c9657ad2fccf7302ec8d9b6f27b8aac3ff8e26fbe82041",
+               bytes: 740
+             }
+           }
+
+    assert rows[1998].image.path == "images/animata/cards/1998.png"
+    assert rows[1998].video.path == "videos/regents-club/1998-v1.mp4"
+    assert rows[1998].metadata.path == "metadata/regents-club/1998.json"
+
+    assert :error == RegentsClub.parse_release_manifest("bad header\n" <> contents)
+
+    assert :error ==
+             RegentsClub.parse_release_manifest(
+               String.replace(contents, "\n2\t", "\n3\t", global: false)
+             )
+
+    assert :error == RegentsClub.parse_release_manifest(String.trim_trailing(contents))
+  end
+
+  test "production decoder accepts genuine media and rejects corrupt payload, container, sample, and codec" do
+    assert MediaDecoder.validate(:png, MediaFixtures.png())
+    assert MediaDecoder.validate(:mp4, MediaFixtures.mp4())
+
+    refute MediaDecoder.validate(:png, corrupt_png_payload(MediaFixtures.png()))
+    refute MediaDecoder.validate(:mp4, structural_mp4())
+    refute MediaDecoder.validate(:mp4, corrupt_mp4_sample(MediaFixtures.mp4()))
+
+    bad_codec = :binary.replace(MediaFixtures.mp4(), "avc1", "zzzz", [:global])
+    refute MediaDecoder.validate(:mp4, bad_codec)
+  end
+
+  test "production decoder fails closed on missing tools, timeout, command failure, excess output, and cleanup failure" do
+    Application.put_env(:ash_platform, :regents_club_media_executable_finder, fn _name -> nil end)
+    refute MediaDecoder.validate(:png, MediaFixtures.png())
+    Application.delete_env(:ash_platform, :regents_club_media_executable_finder)
+
+    sleep = Elixir.System.find_executable("sleep") || flunk("sleep executable unavailable")
+    failing = Elixir.System.find_executable("false") || flunk("false executable unavailable")
+    noisy = Elixir.System.find_executable("yes") || flunk("yes executable unavailable")
+
+    assert :error == MediaDecoder.test_run_bounded(sleep, ["1"], 10, 1_024)
+    assert :error == MediaDecoder.test_run_bounded(failing, [], 1_000, 1_024)
+    assert :error == MediaDecoder.test_run_bounded(noisy, [], 1_000, 128)
+
+    Application.put_env(:ash_platform, :regents_club_media_temp_cleanup, fn directory ->
+      {:ok, _removed} = File.rm_rf(directory)
+      {:error, directory, :eacces}
+    end)
+
+    refute MediaDecoder.validate(:png, MediaFixtures.png())
+  end
+
   test "live media readiness refuses crossed same-token asset URLs" do
     use_live_media_handler(:crossed_urls)
     account = account!("media-crossed", [@owner])
@@ -223,12 +390,25 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     end
   end
 
-  test "live media readiness refuses a broken middle token and a partial release" do
+  test "live media readiness refuses a broken middle token, wrong asset size, and partial manifest" do
     use_live_media_handler(:broken_middle)
     account = account!("media-partial", [@owner])
+    lease = current_lease(account.id)
 
-    assert Actions.deployment_readiness(current_lease(account.id)) ==
+    assert Actions.deployment_readiness(lease) ==
              {:error, :media_probe_failed}
+
+    use_live_media_handler(:wrong_asset_size)
+    assert Actions.deployment_readiness(lease) == {:error, :media_probe_failed}
+
+    Application.put_env(
+      :ash_platform,
+      :regents_club_media_manifest_module,
+      PartialMediaFixtures
+    )
+
+    use_live_media_handler(:ok)
+    assert Actions.deployment_readiness(lease) == {:error, :media_probe_failed}
   end
 
   test "a signed envelope is not prepared when any authoritative preflight invariant drifts" do
@@ -307,17 +487,21 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     with {token_id, ""} <- Integer.parse(encoded),
          true <- token_id in 1..1998,
          false <- mode == :broken_middle and token_id == 1001 do
-      image_id = if mode == :crossed_urls and token_id == 1000, do: 999, else: token_id
+      body =
+        if mode == :crossed_urls and token_id == 1000 do
+          Jason.encode!(%{
+            "image" => "https://media.regents.sh/images/animata/cards/999.png",
+            "animation_url" => "https://media.regents.sh/videos/regents-club/1000-v1.mp4"
+          })
+        else
+          MediaFixtures.metadata(token_id)
+        end
 
       {:ok,
        %{
          status: 200,
          headers: [{"content-type", "application/json; charset=utf-8"}],
-         body:
-           Jason.encode!(%{
-             "image" => "https://media.regents.sh/images/animata/cards/#{image_id}.png",
-             "animation_url" => "https://media.regents.sh/videos/regents-club/#{token_id}-v1.mp4"
-           })
+         body: body
        }}
     else
       _ -> {:ok, %{status: 404, headers: [], body: "missing"}}
@@ -351,30 +535,44 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
   defp valid_asset_response(method, kind, token_id, options, mode) do
     body = asset_body(kind, token_id, mode)
     mime = asset_mime(kind, token_id, mode)
-    asset_http_response(method, body, mime, options)
+
+    declared_size =
+      if mode == :wrong_asset_size and kind == :png and token_id == 1001,
+        do: byte_size(body) + 1,
+        else: byte_size(body)
+
+    asset_http_response(method, body, mime, options, declared_size)
   end
 
   defp asset_body(:png, 1000, :bad_body), do: "not-a-png"
-  defp asset_body(:png, _token_id, _mode), do: png()
-  defp asset_body(:mp4, _token_id, _mode), do: mp4()
+  defp asset_body(:png, _token_id, _mode), do: MediaFixtures.png()
+  defp asset_body(:mp4, _token_id, _mode), do: MediaFixtures.mp4()
 
   defp asset_mime(:png, 1000, :bad_mime), do: "text/plain"
   defp asset_mime(:png, _token_id, _mode), do: "image/png"
   defp asset_mime(:mp4, _token_id, _mode), do: "video/mp4"
 
-  defp asset_http_response(:get, body, mime, options) do
+  defp asset_http_response(:get, body, mime, options, declared_size) do
     if range_request?(options) do
       {:ok,
        %{
          status: 206,
          headers: [
            {"content-type", mime},
-           {"content-range", "bytes 0-0/#{byte_size(body)}"}
+           {"content-range", "bytes 0-0/#{declared_size}"}
          ],
          body: binary_part(body, 0, 1)
        }}
     else
-      {:ok, %{status: 200, headers: [{"content-type", mime}], body: body}}
+      {:ok,
+       %{
+         status: 200,
+         headers: [
+           {"content-type", mime},
+           {"content-length", Integer.to_string(declared_size)}
+         ],
+         body: body
+       }}
     end
   end
 
@@ -385,22 +583,40 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     end)
   end
 
-  defp png do
-    <<137, 80, 78, 71, 13, 10, 26, 10>> <>
-      png_chunk("IHDR", <<1::32, 1::32, 8, 2, 0, 0, 0>>) <>
-      png_chunk("IDAT", "x") <>
-      png_chunk("IEND", "")
+  defp corrupt_png_payload(png) do
+    {type_offset, 4} = :binary.match(png, "IDAT")
+    <<length::32>> = binary_part(png, type_offset - 4, 4)
+    data_offset = type_offset + 4
+    tail_offset = data_offset + length + 4
+    prefix = binary_part(png, 0, data_offset)
+    tail = binary_part(png, tail_offset, byte_size(png) - tail_offset)
+    corrupt_data = :binary.copy(<<0>>, length)
+
+    prefix <>
+      corrupt_data <>
+      <<:erlang.crc32("IDAT" <> corrupt_data)::32>> <>
+      tail
   end
 
-  defp png_chunk(type, data),
-    do:
-      <<byte_size(data)::32, type::binary-size(4), data::binary, :erlang.crc32(type <> data)::32>>
+  defp corrupt_mp4_sample(mp4) do
+    {type_offset, 4} = :binary.match(mp4, "mdat")
+    <<box_size::32>> = binary_part(mp4, type_offset - 4, 4)
+    data_offset = type_offset + 4
+    data_size = box_size - 8
+    tail_offset = data_offset + data_size
+    prefix = binary_part(mp4, 0, data_offset)
+    tail = binary_part(mp4, tail_offset, byte_size(mp4) - tail_offset)
+    prefix <> :binary.copy(<<0>>, data_size) <> tail
+  end
 
-  defp mp4,
+  defp structural_mp4,
     do: mp4_box("ftyp", "isom") <> mp4_box("moov", "x") <> mp4_box("mdat", "x")
 
   defp mp4_box(type, data),
     do: <<byte_size(data) + 8::32, type::binary-size(4), data::binary>>
+
+  defp sha256(contents),
+    do: :sha256 |> :crypto.hash(contents) |> Base.encode16(case: :lower)
 
   defp resign(envelope) do
     payload =
