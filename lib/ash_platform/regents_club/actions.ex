@@ -8,6 +8,10 @@ defmodule AshPlatform.RegentsClub.Actions do
   @resource "regents_club_metadata"
   @contract_name "RegentsClub"
   @risk_copy "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists."
+  @observation_seconds 45 * 60
+  @media_origin "https://media.regents.sh"
+  @representative_tokens [1, 1000, 1998]
+  @media_concurrency 16
 
   def deployment_readiness(%{lineage: lineage, account_id: account_id}) do
     callback = fn account ->
@@ -63,6 +67,18 @@ defmodule AshPlatform.RegentsClub.Actions do
     _ -> false
   end
 
+  def observation_open?(envelope) when is_map(envelope) do
+    with {:ok, deadline, _offset} <-
+           DateTime.from_iso8601(field(field(envelope, :metadata), :observation_deadline)),
+         :lt <- DateTime.compare(Envelope.current_time(), deadline) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  def observation_open?(_envelope), do: false
+
   defp prepare_current(account, signer, attempt_id) do
     with true <- RegentsClub.authorized_account?(account),
          true <- signer == RegentsClub.owner(),
@@ -78,11 +94,14 @@ defmodule AshPlatform.RegentsClub.Actions do
   end
 
   defp envelope(attempt_id, signer, preflight) do
+    prepared_at = Envelope.current_time()
+
     Envelope.new(RegentsClub.action(), signer, RegentsClub.calldata(),
       to: RegentsClub.contract_address(),
       resource: @resource,
       contract_name: @contract_name,
       risk_copy: @risk_copy,
+      prepared_at: prepared_at,
       arguments: %{attempt_id: attempt_id, new_base_uri: RegentsClub.new_base_uri()},
       metadata: %{
         anchor_block_number: preflight.anchor.number,
@@ -95,7 +114,9 @@ defmodule AshPlatform.RegentsClub.Actions do
         non_owner_simulation: preflight.non_owner_simulation,
         gas_estimate: Integer.to_string(preflight.gas_estimate),
         runtime_keccak256: preflight.runtime_keccak256,
-        calldata_keccak256: RegentsClub.calldata_keccak256()
+        calldata_keccak256: RegentsClub.calldata_keccak256(),
+        observation_deadline:
+          prepared_at |> DateTime.add(@observation_seconds, :second) |> DateTime.to_iso8601()
       }
     )
   end
@@ -103,7 +124,8 @@ defmodule AshPlatform.RegentsClub.Actions do
   defp exact_envelope?(envelope) do
     exact_transaction?(envelope) and
       exact_arguments?(field(envelope, :arguments)) and
-      exact_preflight?(field(envelope, :metadata))
+      exact_preflight?(field(envelope, :metadata)) and
+      exact_observation_deadline?(envelope)
   end
 
   defp exact_transaction?(envelope) do
@@ -150,6 +172,16 @@ defmodule AshPlatform.RegentsClub.Actions do
   end
 
   defp exact_preflight?(_metadata), do: false
+
+  defp exact_observation_deadline?(envelope) do
+    with {:ok, prepared_at, _offset} <- DateTime.from_iso8601(field(envelope, :prepared_at)),
+         {:ok, deadline, _offset} <-
+           DateTime.from_iso8601(field(field(envelope, :metadata), :observation_deadline)) do
+      DateTime.diff(deadline, prepared_at, :second) == @observation_seconds
+    else
+      _ -> false
+    end
+  end
 
   defp validation do
     [
@@ -198,66 +230,266 @@ defmodule AshPlatform.RegentsClub.Actions do
   end
 
   defp media_attestation do
-    expected = RegentsClub.media_release_attestation()["artifact_manifest_sha256"]
+    attestation = RegentsClub.media_release_attestation()
 
-    if Application.get_env(:ash_platform, :regents_club_media_full_corpus_attestation) == expected,
-      do: :ok,
-      else: {:error, :media_full_corpus_attestation_required}
+    checks = [
+      Application.get_env(:ash_platform, :regents_club_media_full_corpus_attestation) ==
+        attestation["release_manifest_sha256"],
+      attestation["full_corpus_route_count"] ==
+        RegentsClub.last_token_id() - RegentsClub.first_token_id() + 1,
+      attestation["live_probe_token_ids"] == @representative_tokens,
+      attestation["operator_attestation_required"] == true,
+      present?(attestation["active_image_digest"]),
+      present?(attestation["artifact_manifest_sha256"]),
+      present?(attestation["production_deployment_verification_sha256"])
+    ]
+
+    if Enum.all?(checks), do: :ok, else: {:error, :media_full_corpus_attestation_required}
   end
 
-  defp media_probes do
-    case Application.get_env(:ash_platform, :regents_club_media_probe_module) do
-      module when is_atom(module) ->
-        if Code.ensure_loaded?(module) and function_exported?(module, :media_readiness, 0),
-          do: module.media_readiness(),
-          else: {:error, :media_probe_failed}
+  if Mix.env() == :test do
+    defp media_probes do
+      case Application.get_env(:ash_platform, :regents_club_media_probe_module) do
+        module when is_atom(module) and not is_nil(module) ->
+          if Code.ensure_loaded?(module) and function_exported?(module, :media_readiness, 0),
+            do: module.media_readiness(),
+            else: {:error, :media_probe_failed}
 
-      _ ->
-        live_media_probes()
+        _ ->
+          live_media_probes()
+      end
     end
+  else
+    defp media_probes, do: live_media_probes()
   end
 
   defp live_media_probes do
     client = Application.get_env(:ash_platform, :regents_club_media_http_client, Req)
 
-    with {:ok, %{status: 200, body: body}} <- get(client, "https://media.regents.sh/healthz"),
+    with {:ok, %{status: 200, body: body}} <- get(client, @media_origin <> "/healthz"),
          true <- is_binary(body) and String.trim(body) == "ok",
-         :ok <- representative_media(client, 1),
-         :ok <- representative_media(client, 1998) do
+         :ok <- verify_live_release(client) do
       :ok
     else
       _ -> {:error, :media_probe_failed}
     end
   end
 
-  defp representative_media(client, token_id) do
-    with {:ok, %{status: 200, body: metadata}} <-
-           get(client, "https://media.regents.sh/metadata/#{token_id}"),
+  defp verify_live_release(client) do
+    RegentsClub.first_token_id()..RegentsClub.last_token_id()
+    |> Task.async_stream(&verify_live_token(client, &1),
+      max_concurrency: @media_concurrency,
+      ordered: false,
+      timeout: 30_000,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while(:ok, fn
+      {:ok, :ok}, :ok ->
+        {:cont, :ok}
+
+      _failure, :ok ->
+        {:halt, {:error, :media_probe_failed}}
+    end)
+  end
+
+  defp verify_live_token(client, token_id) do
+    with {:ok, metadata} <- metadata(client, token_id),
          image when is_binary(image) <- metadata["image"],
          animation when is_binary(animation) <- metadata["animation_url"],
-         :ok <- representative_asset(client, image),
-         :ok <- representative_asset(client, animation) do
+         true <- exact_asset_url?(image, token_id, ".png"),
+         true <- exact_asset_url?(animation, token_id, ".mp4"),
+         :ok <- verify_asset(client, image, :png, token_id),
+         :ok <- verify_asset(client, animation, :mp4, token_id) do
+      :ok
+    else
+      _ ->
+        {:error, :media_probe_failed}
+    end
+  end
+
+  defp metadata(client, token_id) do
+    with {:ok, %{status: 200, headers: headers, body: body}} <-
+           get(client, @media_origin <> "/metadata/#{token_id}"),
+         true <- content_type?(headers, "application/json"),
+         true <- is_binary(body) and byte_size(body) > 0,
+         {:ok, metadata} when is_map(metadata) <- Jason.decode(body) do
+      {:ok, metadata}
+    else
+      _ -> {:error, :media_probe_failed}
+    end
+  end
+
+  defp verify_asset(client, url, kind, token_id) when token_id in @representative_tokens,
+    do: verify_representative_asset(client, url, kind)
+
+  defp verify_asset(client, url, kind, _token_id) when kind in [:png, :mp4] do
+    with {:ok, %{status: 206, headers: headers, body: body}} <-
+           get(client, url, [{"range", "bytes=0-0"}]),
+         true <- content_type?(headers, asset_content_type(kind)),
+         true <- valid_partial_range?(headers, body) do
       :ok
     else
       _ -> {:error, :media_probe_failed}
     end
   end
 
-  defp representative_asset(client, url) do
-    with {:ok, %URI{scheme: "https", host: "media.regents.sh"}} <- URI.new(url),
-         {:ok, %{status: 200, body: asset}} <- get(client, url),
-         true <- is_binary(asset) and byte_size(asset) > 0 do
+  defp verify_representative_asset(client, url, kind) do
+    with {:ok, %{status: 200, headers: headers, body: body}} <- get(client, url),
+         true <- content_type?(headers, asset_content_type(kind)),
+         true <- decodable_asset?(kind, body),
+         {:ok, %{status: 206, headers: range_headers, body: range_body}} <-
+           get(client, url, [{"range", "bytes=0-0"}]),
+         true <- valid_range?(range_headers, range_body, body) do
       :ok
     else
-      _ -> {:error, :media_probe_failed}
+      _ ->
+        {:error, :media_probe_failed}
     end
   end
 
-  defp get(client, url) do
+  defp exact_asset_url?(url, token_id, extension) do
+    expected_path =
+      case extension do
+        ".png" -> "/images/animata/cards/#{token_id}.png"
+        ".mp4" -> "/videos/regents-club/#{token_id}-v1.mp4"
+      end
+
+    case URI.new(url) do
+      {:ok,
+       %URI{scheme: "https", host: "media.regents.sh", path: path, query: nil, fragment: nil}}
+      when is_binary(path) ->
+        path == expected_path
+
+      _ ->
+        false
+    end
+  end
+
+  defp valid_range?(headers, <<first_byte>>, <<first_byte, _rest::binary>> = full_body),
+    do: header(headers, "content-range") == "bytes 0-0/#{byte_size(full_body)}"
+
+  defp valid_range?(_headers, _range_body, _full_body), do: false
+
+  defp valid_partial_range?(headers, <<_first_byte>>) do
+    case header(headers, "content-range") do
+      value when is_binary(value) -> String.match?(value, ~r/\Abytes 0-0\/[1-9][0-9]*\z/)
+      _ -> false
+    end
+  end
+
+  defp valid_partial_range?(_headers, _body), do: false
+
+  defp decodable_asset?(:png, body), do: decodable_png?(body)
+  defp decodable_asset?(:mp4, body), do: decodable_mp4?(body)
+
+  defp decodable_png?(<<137, 80, 78, 71, 13, 10, 26, 10, chunks::binary>>) do
+    case png_chunks(chunks, []) do
+      {:ok, [{"IHDR", <<width::32, height::32, _rest::binary-size(5)>>} | _] = decoded} ->
+        width > 0 and height > 0 and
+          Enum.any?(decoded, &match?({"IDAT", data} when data != "", &1)) and
+          List.last(decoded) == {"IEND", ""}
+
+      _ ->
+        false
+    end
+  end
+
+  defp decodable_png?(_body), do: false
+
+  defp png_chunks(<<>>, chunks), do: {:ok, Enum.reverse(chunks)}
+
+  defp png_chunks(<<length::32, type::binary-size(4), rest::binary>>, chunks)
+       when byte_size(rest) >= length + 4 do
+    <<data::binary-size(length), crc::32, tail::binary>> = rest
+
+    if :erlang.crc32(type <> data) == crc,
+      do: png_chunks(tail, [{type, data} | chunks]),
+      else: :error
+  end
+
+  defp png_chunks(_body, _chunks), do: :error
+
+  defp decodable_mp4?(body) when is_binary(body) do
+    case mp4_boxes(body, MapSet.new()) do
+      {:ok, boxes} -> Enum.all?(["ftyp", "moov", "mdat"], &MapSet.member?(boxes, &1))
+      :error -> false
+    end
+  end
+
+  defp mp4_boxes(<<>>, boxes), do: {:ok, boxes}
+
+  defp mp4_boxes(<<size::32, type::binary-size(4), rest::binary>>, boxes) do
+    cond do
+      size == 0 and byte_size(rest) > 0 ->
+        {:ok, MapSet.put(boxes, type)}
+
+      size == 1 and byte_size(rest) >= 8 ->
+        <<extended::64, payload::binary>> = rest
+        consume_mp4_box(extended, 16, type, payload, boxes)
+
+      size >= 8 ->
+        consume_mp4_box(size, 8, type, rest, boxes)
+
+      true ->
+        :error
+    end
+  end
+
+  defp mp4_boxes(_body, _boxes), do: :error
+
+  defp consume_mp4_box(size, header_size, type, rest, boxes)
+       when size >= header_size and byte_size(rest) >= size - header_size do
+    payload_size = size - header_size
+    <<payload::binary-size(payload_size), tail::binary>> = rest
+
+    if type != "ftyp" or byte_size(payload) >= 4,
+      do: mp4_boxes(tail, MapSet.put(boxes, type)),
+      else: :error
+  end
+
+  defp consume_mp4_box(_size, _header_size, _type, _rest, _boxes), do: :error
+
+  defp asset_content_type(:png), do: "image/png"
+  defp asset_content_type(:mp4), do: "video/mp4"
+
+  defp content_type?(headers, expected) do
+    case header(headers, "content-type") do
+      value when is_binary(value) ->
+        value |> String.split(";", parts: 2) |> hd() |> String.trim() |> String.downcase() ==
+          expected
+
+      _ ->
+        false
+    end
+  end
+
+  defp header(headers, name) when is_map(headers) do
+    case Map.get(headers, name) do
+      [value | _] when is_binary(value) -> value
+      value when is_binary(value) -> value
+      _ -> nil
+    end
+  end
+
+  defp header(headers, name) when is_list(headers) do
+    Enum.find_value(headers, fn
+      {key, value} when is_binary(key) and is_binary(value) ->
+        if String.downcase(key) == name, do: value
+
+      _ ->
+        nil
+    end)
+  end
+
+  defp header(_headers, _name), do: nil
+
+  defp get(client, url, headers \\ []) do
     client.get(url,
       connect_options: [timeout: 3_000],
       receive_timeout: 8_000,
-      retry: false
+      retry: false,
+      decode_body: false,
+      headers: headers
     )
   rescue
     _ -> {:error, :media_probe_failed}

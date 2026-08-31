@@ -53,6 +53,7 @@ export type PreparedMetadataAction = {
     gas_estimate: string
     runtime_keccak256: Hash
     calldata_keccak256: Hash
+    observation_deadline: string
   }
 }
 
@@ -168,6 +169,7 @@ function verifySelected(attempt: MetadataAttempt, wallet: SelectedWallet | null)
 function assertEnvelope(attempt: MetadataAttempt, envelope: PreparedMetadataAction): void {
   const preparedAt = Date.parse(envelope.prepared_at)
   const expiresAt = Date.parse(envelope.expires_at)
+  const observationDeadline = Date.parse(envelope.metadata.observation_deadline)
   const expected = contract.onchain_constants
 
   if (
@@ -199,9 +201,12 @@ function assertEnvelope(attempt: MetadataAttempt, envelope: PreparedMetadataActi
     !validHash(envelope.metadata.anchor_block_hash) ||
     !Number.isFinite(preparedAt) ||
     !Number.isFinite(expiresAt) ||
+    !Number.isFinite(observationDeadline) ||
     expiresAt <= preparedAt ||
     expiresAt - preparedAt > 600_000 ||
-    expiresAt <= Date.now()
+    expiresAt <= Date.now() ||
+    observationDeadline - preparedAt !== 2_700_000 ||
+    observationDeadline <= Date.now()
   ) {
     throw refused()
   }

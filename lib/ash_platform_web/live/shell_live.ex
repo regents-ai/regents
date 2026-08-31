@@ -34,6 +34,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
+  @regents_club_observation_interval 15_000
 
   @impl true
   def mount(params, _session, socket) do
@@ -325,8 +326,23 @@ defmodule AshPlatformWeb.ShellLive do
         {:ok, {:ok, :pending}},
         socket
       ) do
-    Process.send_after(self(), {:observe_regents_club_metadata, attempt_id}, 1_500)
-    {:noreply, socket}
+    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
+      %{envelope: envelope} when is_map(envelope) ->
+        if RegentsClubActions.observation_open?(envelope) do
+          Process.send_after(
+            self(),
+            {:observe_regents_club_metadata, attempt_id},
+            @regents_club_observation_interval
+          )
+
+          {:noreply, socket}
+        else
+          {:noreply, metadata_observation_unknown(socket, attempt_id)}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_async(
@@ -713,7 +729,7 @@ defmodule AshPlatformWeb.ShellLive do
            socket
            |> assign(
              regents_club_metadata_attempts:
-               Map.put(attempts, attempt_id, %{envelope: envelope, polls: 0, handed_off: false}),
+               Map.put(attempts, attempt_id, %{envelope: envelope, handed_off: false}),
              regents_club_metadata_status: :review,
              regents_club_metadata_review: envelope,
              regents_club_metadata_notice: nil
@@ -742,20 +758,43 @@ defmodule AshPlatformWeb.ShellLive do
         } = socket
       ) do
     case attempts[attempt_id] do
-      %{envelope: envelope, handed_off: false} = attempt ->
-        attempts = Map.put(attempts, attempt_id, Map.put(attempt, :handed_off, true))
+      %{handed_off: false} = attempt ->
+        case RegentsClubActions.prepare(
+               socket.assigns.regents_club_metadata_wallet,
+               attempt_id,
+               socket.assigns.session_lease
+             ) do
+          {:ok, fresh_envelope} ->
+            fresh_attempt =
+              attempt
+              |> Map.put(:envelope, fresh_envelope)
+              |> Map.put(:handed_off, true)
 
-        {:noreply,
-         socket
-         |> assign(
-           regents_club_metadata_attempts: attempts,
-           regents_club_metadata_status: :observing,
-           regents_club_metadata_review: nil
-         )
-         |> push_event("regents-club-metadata:prepared", %{
-           attempt_id: attempt_id,
-           envelope: envelope
-         })}
+            {:noreply,
+             socket
+             |> assign(
+               regents_club_metadata_attempts: Map.put(attempts, attempt_id, fresh_attempt),
+               regents_club_metadata_status: :observing,
+               regents_club_metadata_review: nil
+             )
+             |> push_event("regents-club-metadata:prepared", %{
+               attempt_id: attempt_id,
+               envelope: fresh_envelope
+             })}
+
+          {:error, reason} ->
+            status = if RegentsClub.enabled?(), do: :ready, else: :unavailable
+
+            {:noreply,
+             socket
+             |> drop_metadata_attempt(attempt_id)
+             |> assign(
+               regents_club_metadata_status: status,
+               regents_club_metadata_review: nil,
+               regents_club_metadata_notice: metadata_notice(reason)
+             )
+             |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
+        end
 
       _ ->
         {:noreply, socket}
@@ -871,27 +910,17 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope, polls: polls} = attempt when polls < 40 ->
-        attempts =
-          put_in(socket.assigns.regents_club_metadata_attempts, [attempt_id, :polls], polls + 1)
-
-        {:noreply,
-         socket
-         |> assign(regents_club_metadata_attempts: attempts)
-         |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
-           if attempt[:recovery],
-             do: RegentsClubActions.recover_unknown(envelope),
-             else: RegentsClubActions.observe_hash(envelope, attempt[:hash])
-         end)}
-
-      %{polls: _polls} ->
-        {:noreply,
-         socket
-         |> drop_metadata_attempt(attempt_id)
-         |> assign(
-           regents_club_metadata_status: :unknown,
-           regents_club_metadata_notice: metadata_notice(:unknown)
-         )}
+      %{envelope: envelope} = attempt ->
+        if RegentsClubActions.observation_open?(envelope) do
+          {:noreply,
+           start_async(socket, {:regents_club_metadata_observe, attempt_id}, fn ->
+             if attempt[:recovery],
+               do: RegentsClubActions.recover_unknown(envelope),
+               else: RegentsClubActions.observe_hash(envelope, attempt[:hash])
+           end)}
+        else
+          {:noreply, metadata_observation_unknown(socket, attempt_id)}
+        end
 
       nil ->
         {:noreply, socket}
@@ -1355,27 +1384,43 @@ defmodule AshPlatformWeb.ShellLive do
   defp observe_metadata_attempt(socket, attempt_id, observer, extra) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
       %{envelope: envelope, handed_off: true} = attempt ->
-        attempts =
-          Map.put(
-            socket.assigns.regents_club_metadata_attempts,
-            attempt_id,
-            Map.merge(attempt, extra)
-          )
+        if RegentsClubActions.observation_open?(envelope) do
+          attempts =
+            Map.put(
+              socket.assigns.regents_club_metadata_attempts,
+              attempt_id,
+              Map.merge(attempt, extra)
+            )
 
-        {:noreply,
-         socket
-         |> assign(
-           regents_club_metadata_attempts: attempts,
-           regents_club_metadata_status: :observing,
-           regents_club_metadata_notice: nil
-         )
-         |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
-           observer.(envelope)
-         end)}
+          {:noreply,
+           socket
+           |> assign(
+             regents_club_metadata_attempts: attempts,
+             regents_club_metadata_status: :observing,
+             regents_club_metadata_notice: nil
+           )
+           |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
+             observer.(envelope)
+           end)}
+        else
+          {:noreply, metadata_observation_unknown(socket, attempt_id)}
+        end
 
       nil ->
         {:noreply, socket}
+
+      _not_handed_off ->
+        {:noreply, socket}
     end
+  end
+
+  defp metadata_observation_unknown(socket, attempt_id) do
+    socket
+    |> drop_metadata_attempt(attempt_id)
+    |> assign(
+      regents_club_metadata_status: :unknown,
+      regents_club_metadata_notice: metadata_notice(:unknown)
+    )
   end
 
   defp drop_metadata_attempt(socket, attempt_id) do

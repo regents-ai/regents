@@ -3,7 +3,7 @@ product: ash-platform
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 9435fe39ebdb51af5ab0278fa3a09ed9d20610ab94a06440b10e9c6316d8ad5f
+    evidence_sha256: 8b56a9ffd4d864990d67a2c89c391fcec0fcb62a6a13b7ab4f3c4c932dafbb05
     chain_target: base-mainnet
     authority: evidence_only
     autolaunch_consumer_freeze:
@@ -91,9 +91,11 @@ contracts:
         media_release_attestation:
           active_image_digest: "sha256:03b40ae0c61d28bbc0c28b62032d3cb1a0c7c41d09bb1e46ed6327a0f10353f6"
           artifact_manifest_sha256: 493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a
+          release_manifest_sha256: 356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789
           production_deployment_verification_sha256: 6bb8a3e812222a29b1551470a7a18d8c715130102c7535dd73ed62d611dfa727
           isolated_verification_sha256: 52ed1913b9160d41981614687253a33ed7d437a793a8c4ec154004afc25143bd
           full_corpus_route_count: 1998
+          live_probe_token_ids: [1, 1000, 1998]
           operator_attestation_required: true
         fixed_arguments:
           new_base_uri: "https://media.regents.sh/metadata/"

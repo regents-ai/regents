@@ -868,6 +868,31 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert constants["current_base_uri"] <> "1998" == "https://regents.sh/metadata/1998"
     assert constants["calldata_keccak256"] == keccak(calldata)
 
+    media = contract["media_release_attestation"]
+
+    assert media == %{
+             "active_image_digest" =>
+               "sha256:03b40ae0c61d28bbc0c28b62032d3cb1a0c7c41d09bb1e46ed6327a0f10353f6",
+             "artifact_manifest_sha256" =>
+               "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a",
+             "release_manifest_sha256" =>
+               "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789",
+             "production_deployment_verification_sha256" =>
+               "6bb8a3e812222a29b1551470a7a18d8c715130102c7535dd73ed62d611dfa727",
+             "isolated_verification_sha256" =>
+               "52ed1913b9160d41981614687253a33ed7d437a793a8c4ec154004afc25143bd",
+             "full_corpus_route_count" => 1998,
+             "live_probe_token_ids" => [1, 1000, 1998],
+             "operator_attestation_required" => true
+           }
+
+    admission = admission!()
+
+    evidence =
+      Enum.find(admission["reviewed_action_evidence"], &(&1["contract_id"] == "regents_club"))
+
+    assert evidence["media_release_attestation"] == media
+
     assert contract["prepared_actions"] == [
              %{
                "id" => "set_base_uri",

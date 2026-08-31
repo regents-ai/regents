@@ -28,7 +28,8 @@ defmodule AshPlatform.WalletActions.Envelope do
     require_nonempty!(contract_name, :contract_name)
     require_nonempty!(risk_copy, :risk_copy)
 
-    prepared_at = now()
+    prepared_at = Keyword.get(opts, :prepared_at, now())
+    require_datetime!(prepared_at, :prepared_at)
     preparation_nonce = preparation_nonce()
 
     action_id =
@@ -246,6 +247,8 @@ defmodule AshPlatform.WalletActions.Envelope do
 
   defp require_nonempty!(value, _field) when is_binary(value) and value != "", do: :ok
   defp require_nonempty!(_value, field), do: raise(ArgumentError, "invalid #{field}")
+  defp require_datetime!(%DateTime{}, _field), do: :ok
+  defp require_datetime!(_value, field), do: raise(ArgumentError, "invalid #{field}")
 
   defp require_calldata!("0x" <> hex)
        when byte_size(hex) > 0 and rem(byte_size(hex), 2) == 0 do

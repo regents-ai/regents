@@ -11,6 +11,16 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
   @other "0x1111111111111111111111111111111111111111"
   @attempt "c56a4180-65aa-42ec-a945-5fd21dec0538"
 
+  defmodule MediaHttpClient do
+    def get(url, options), do: dispatch(:get, url, options)
+
+    defp dispatch(method, url, options) do
+      :ash_platform
+      |> Application.fetch_env!(:test_regents_club_media_handler)
+      |> then(& &1.(method, url, options))
+    end
+  end
+
   setup do
     keys = [
       :regents_club_metadata_cutover,
@@ -19,6 +29,9 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       :regents_club_privy_origin_canary,
       :regents_club_media_full_corpus_attestation,
       :regents_club_media_probe_module,
+      :regents_club_media_http_client,
+      :test_regents_club_media_handler,
+      :wallet_action_clock,
       :privy,
       :privy_verifier
     ]
@@ -40,7 +53,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     Application.put_env(
       :ash_platform,
       :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["artifact_manifest_sha256"]
+      RegentsClub.media_release_attestation()["release_manifest_sha256"]
     )
 
     Application.put_env(
@@ -70,12 +83,17 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert envelope.expected_signer == RegentsClub.owner()
     assert envelope.metadata.anchor_block_number == 42
     assert envelope.metadata.current_base_uri == RegentsClub.old_base_uri()
+    {:ok, prepared_at, _offset} = DateTime.from_iso8601(envelope.prepared_at)
+    {:ok, deadline, _offset} = DateTime.from_iso8601(envelope.metadata.observation_deadline)
+    assert DateTime.diff(deadline, prepared_at, :second) == 45 * 60
+    assert Actions.observation_open?(envelope)
     assert Actions.valid_envelope?(envelope)
 
     for changed <- [
           put_in(envelope, [:metadata, :gas_estimate], "0"),
           put_in(envelope, [:metadata, :boundary_token_uris, :last], RegentsClub.old_base_uri()),
           put_in(envelope, [:metadata, :owner_simulation], "unknown"),
+          put_in(envelope, [:metadata, :observation_deadline], envelope.expires_at),
           put_in(envelope, [:arguments, :attempt_id], "not-an-attempt"),
           Map.put(envelope, :risk_copy, "Different risk")
         ] do
@@ -139,7 +157,12 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert Actions.deployment_readiness(lease) == {:error, :session_unavailable}
 
     current = current_lease(owner.id)
-    Application.put_env(:ash_platform, :regents_club_media_full_corpus_attestation, "wrong")
+
+    Application.put_env(
+      :ash_platform,
+      :regents_club_media_full_corpus_attestation,
+      RegentsClub.media_release_attestation()["artifact_manifest_sha256"]
+    )
 
     assert Actions.deployment_readiness(current) ==
              {:error, :media_full_corpus_attestation_required}
@@ -147,7 +170,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     Application.put_env(
       :ash_platform,
       :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["artifact_manifest_sha256"]
+      RegentsClub.media_release_attestation()["release_manifest_sha256"]
     )
 
     Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
@@ -160,6 +183,52 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     Application.put_env(:ash_platform, :privy_verifier, __MODULE__.MissingVerifier)
 
     assert Actions.deployment_readiness(current) == {:error, :privy_verifier_unavailable}
+  end
+
+  test "live media readiness validates the complete 1,998-token release and representative bytes" do
+    use_live_media_handler(:ok)
+    account = account!("media-complete", [@owner])
+
+    assert Actions.deployment_readiness(current_lease(account.id)) == :ok
+
+    requests = collect_media_requests([])
+    metadata_paths = request_paths(requests, ~r/\A\/metadata\/[1-9][0-9]*\z/)
+    png_paths = request_paths(requests, ~r/\A\/images\/animata\/cards\/[1-9][0-9]*\.png\z/)
+    mp4_paths = request_paths(requests, ~r/\A\/videos\/regents-club\/[1-9][0-9]*-v1\.mp4\z/)
+
+    assert Enum.count(requests, &match?({:get, "/healthz", _options}, &1)) == 1
+    assert MapSet.new(metadata_paths) == expected_metadata_paths()
+    assert length(metadata_paths) == 1_998
+    assert MapSet.size(MapSet.new(png_paths)) == 1_998
+    assert length(png_paths) == 2_001
+    assert MapSet.size(MapSet.new(mp4_paths)) == 1_998
+    assert length(mp4_paths) == 2_001
+  end
+
+  test "live media readiness refuses crossed same-token asset URLs" do
+    use_live_media_handler(:crossed_urls)
+    account = account!("media-crossed", [@owner])
+
+    assert Actions.deployment_readiness(current_lease(account.id)) ==
+             {:error, :media_probe_failed}
+  end
+
+  test "live media readiness refuses bad representative MIME and undecodable bodies" do
+    account = account!("media-bad-bytes", [@owner])
+    lease = current_lease(account.id)
+
+    for mode <- [:bad_mime, :bad_body] do
+      use_live_media_handler(mode)
+      assert Actions.deployment_readiness(lease) == {:error, :media_probe_failed}
+    end
+  end
+
+  test "live media readiness refuses a broken middle token and a partial release" do
+    use_live_media_handler(:broken_middle)
+    account = account!("media-partial", [@owner])
+
+    assert Actions.deployment_readiness(current_lease(account.id)) ==
+             {:error, :media_probe_failed}
   end
 
   test "a signed envelope is not prepared when any authoritative preflight invariant drifts" do
@@ -195,6 +264,143 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       actor: %System{}
     )
   end
+
+  defp use_live_media_handler(mode) do
+    recipient = self()
+    Application.delete_env(:ash_platform, :regents_club_media_probe_module)
+    Application.put_env(:ash_platform, :regents_club_media_http_client, MediaHttpClient)
+
+    Application.put_env(
+      :ash_platform,
+      :test_regents_club_media_handler,
+      fn method, url, options ->
+        path = URI.parse(url).path
+        send(recipient, {:media_request, method, path, options})
+        media_response(method, path, options, mode)
+      end
+    )
+  end
+
+  defp collect_media_requests(requests) do
+    receive do
+      {:media_request, method, path, options} ->
+        collect_media_requests([{method, path, options} | requests])
+    after
+      0 -> Enum.reverse(requests)
+    end
+  end
+
+  defp request_paths(requests, pattern) do
+    for {:get, path, _options} <- requests, Regex.match?(pattern, path), do: path
+  end
+
+  defp expected_metadata_paths do
+    1..1998
+    |> Enum.map(&"/metadata/#{&1}")
+    |> MapSet.new()
+  end
+
+  defp media_response(:get, "/healthz", _options, _mode),
+    do: {:ok, %{status: 200, headers: [], body: "ok"}}
+
+  defp media_response(:get, "/metadata/" <> encoded, _options, mode) do
+    with {token_id, ""} <- Integer.parse(encoded),
+         true <- token_id in 1..1998,
+         false <- mode == :broken_middle and token_id == 1001 do
+      image_id = if mode == :crossed_urls and token_id == 1000, do: 999, else: token_id
+
+      {:ok,
+       %{
+         status: 200,
+         headers: [{"content-type", "application/json; charset=utf-8"}],
+         body:
+           Jason.encode!(%{
+             "image" => "https://media.regents.sh/images/animata/cards/#{image_id}.png",
+             "animation_url" => "https://media.regents.sh/videos/regents-club/#{token_id}-v1.mp4"
+           })
+       }}
+    else
+      _ -> {:ok, %{status: 404, headers: [], body: "missing"}}
+    end
+  end
+
+  defp media_response(:get, path, options, mode) do
+    cond do
+      match = Regex.run(~r/\A\/images\/animata\/cards\/([1-9][0-9]*)\.png\z/, path) ->
+        [_, encoded] = match
+        asset_response(:get, :png, encoded, options, mode)
+
+      match = Regex.run(~r/\A\/videos\/regents-club\/([1-9][0-9]*)-v1\.mp4\z/, path) ->
+        [_, encoded] = match
+        asset_response(:get, :mp4, encoded, options, mode)
+
+      true ->
+        {:ok, %{status: 404, headers: [], body: "missing"}}
+    end
+  end
+
+  defp asset_response(method, kind, encoded, options, mode) do
+    with {token_id, ""} <- Integer.parse(encoded),
+         true <- token_id in 1..1998 do
+      valid_asset_response(method, kind, token_id, options, mode)
+    else
+      _ -> {:ok, %{status: 404, headers: [], body: "missing"}}
+    end
+  end
+
+  defp valid_asset_response(method, kind, token_id, options, mode) do
+    body = asset_body(kind, token_id, mode)
+    mime = asset_mime(kind, token_id, mode)
+    asset_http_response(method, body, mime, options)
+  end
+
+  defp asset_body(:png, 1000, :bad_body), do: "not-a-png"
+  defp asset_body(:png, _token_id, _mode), do: png()
+  defp asset_body(:mp4, _token_id, _mode), do: mp4()
+
+  defp asset_mime(:png, 1000, :bad_mime), do: "text/plain"
+  defp asset_mime(:png, _token_id, _mode), do: "image/png"
+  defp asset_mime(:mp4, _token_id, _mode), do: "video/mp4"
+
+  defp asset_http_response(:get, body, mime, options) do
+    if range_request?(options) do
+      {:ok,
+       %{
+         status: 206,
+         headers: [
+           {"content-type", mime},
+           {"content-range", "bytes 0-0/#{byte_size(body)}"}
+         ],
+         body: binary_part(body, 0, 1)
+       }}
+    else
+      {:ok, %{status: 200, headers: [{"content-type", mime}], body: body}}
+    end
+  end
+
+  defp range_request?(options) do
+    Enum.any?(Keyword.get(options, :headers, []), fn
+      {key, "bytes=0-0"} -> String.downcase(key) == "range"
+      _ -> false
+    end)
+  end
+
+  defp png do
+    <<137, 80, 78, 71, 13, 10, 26, 10>> <>
+      png_chunk("IHDR", <<1::32, 1::32, 8, 2, 0, 0, 0>>) <>
+      png_chunk("IDAT", "x") <>
+      png_chunk("IEND", "")
+  end
+
+  defp png_chunk(type, data),
+    do:
+      <<byte_size(data)::32, type::binary-size(4), data::binary, :erlang.crc32(type <> data)::32>>
+
+  defp mp4,
+    do: mp4_box("ftyp", "isom") <> mp4_box("moov", "x") <> mp4_box("mdat", "x")
+
+  defp mp4_box(type, data),
+    do: <<byte_size(data) + 8::32, type::binary-size(4), data::binary>>
 
   defp resign(envelope) do
     payload =

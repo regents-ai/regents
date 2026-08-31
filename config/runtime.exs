@@ -54,7 +54,7 @@ if config_env() == :test and System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" 
 
   config :ash_platform,
          :regents_club_media_full_corpus_attestation,
-         "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a"
+         "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
 
   config :ash_platform,
          :regents_club_chain_client,

@@ -291,13 +291,13 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env(
       "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
-      "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a"
+      "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
     )
 
     assert runtime_config(:regents_club_privy_origin_canary)
 
     assert runtime_config(:regents_club_media_full_corpus_attestation) ==
-             "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a"
+             "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
 
     System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "true")
     refute runtime_config(:regents_club_privy_origin_canary)

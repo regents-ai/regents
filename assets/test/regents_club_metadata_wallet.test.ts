@@ -32,6 +32,8 @@ function wallet(rpc: EthereumProvider): SelectedWallet {
 }
 
 function envelope(): PreparedMetadataAction {
+  const preparedAt = new Date()
+
   return {
     action_id: "signed-action",
     idempotency_key: "signed-action",
@@ -43,8 +45,8 @@ function envelope(): PreparedMetadataAction {
     value: "0",
     data: exactMetadataCalldata(),
     expected_signer: owner,
-    prepared_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    prepared_at: preparedAt.toISOString(),
+    expires_at: new Date(preparedAt.getTime() + 60_000).toISOString(),
     risk_copy:
       "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists.",
     arguments: {
@@ -66,6 +68,7 @@ function envelope(): PreparedMetadataAction {
       gas_estimate: "81189",
       runtime_keccak256: manifest.contracts.regents_club.runtime_code.keccak256 as Hash,
       calldata_keccak256: manifest.contracts.regents_club.onchain_constants.calldata_keccak256 as Hash,
+      observation_deadline: new Date(preparedAt.getTime() + 2_700_000).toISOString(),
     },
   }
 }
@@ -100,6 +103,11 @@ describe("Regents Club metadata wallet action", () => {
     ["supply", (value: PreparedMetadataAction) => (value.metadata.total_supply = 1 as 1998)],
     ["risk copy", (value: PreparedMetadataAction) => (value.risk_copy = "changed")],
     ["expiry", (value: PreparedMetadataAction) => (value.expires_at = new Date(0).toISOString())],
+    [
+      "observation deadline",
+      (value: PreparedMetadataAction) =>
+        (value.metadata.observation_deadline = new Date(Date.now() + 60_000).toISOString()),
+    ],
   ])("refuses a changed %s before opening the wallet", async (_name, mutate) => {
     const rpc = provider()
     const selected = () => wallet(rpc)

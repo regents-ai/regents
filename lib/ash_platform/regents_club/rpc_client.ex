@@ -6,7 +6,7 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   alias AshPlatform.WalletActions.{Address, Rpc}
 
   @rpc_opts [client_key: :regents_club_http_client, log_scope: "regents_club_metadata"]
-  @scan_blocks 64
+  @scan_blocks 1024
   @non_owner "0x0000000000000000000000000000000000000001"
   @revert_codes [3, -32_000, -32_015]
 
@@ -52,34 +52,50 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   end
 
   def observe(envelope, hash) do
-    with true <- Actions.valid_observation_envelope?(envelope),
+    with :ok <- observation_authorized(envelope),
          true <- valid_hash?(hash),
          :ok <- readiness(),
          {:ok, finalized} <- Rpc.finalized_block(@rpc_opts),
          {:ok, transaction} <- rpc("eth_getTransactionByHash", [hash]),
-         {:ok, receipt} <- rpc("eth_getTransactionReceipt", [hash]) do
-      observe_pair(transaction, receipt, envelope, hash, finalized)
+         {:ok, receipt} <- rpc("eth_getTransactionReceipt", [hash]),
+         :ok <- ensure_observation_open(envelope) do
+      transaction
+      |> observe_pair(receipt, envelope, hash, finalized)
+      |> normalize_observation_result()
     else
-      false -> {:error, :invalid_observation}
-      {:error, reason} -> {:error, reason}
+      false ->
+        {:error, :invalid_observation}
+
+      {:error, :observation_deadline_elapsed} ->
+        {:ok, {:unknown, :observation_deadline_elapsed}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
   # A missing wallet hash never re-opens a send. Only a unique exact transaction
   # with the exact event inside this fixed post-anchor window can be recovered.
   def recover(envelope) do
-    with true <- Actions.valid_observation_envelope?(envelope),
+    with :ok <- observation_authorized(envelope),
          :ok <- readiness(),
-         {:ok, finalized} <- Rpc.finalized_block(@rpc_opts),
-         {:ok, hashes} <- scan(envelope, finalized) do
+         {:ok, head} <- Rpc.safe_block(@rpc_opts),
+         {:ok, hashes} <- scan(envelope, head),
+         true <- Actions.observation_open?(envelope) do
       case hashes do
         [hash] -> observe(envelope, hash)
-        [] -> {:ok, :pending}
+        [] -> {:ok, {:unknown, :no_unique_match}}
         _ -> {:ok, {:unknown, :multiple_matches}}
       end
     else
-      false -> {:error, :invalid_observation}
-      {:error, reason} -> {:error, reason}
+      false ->
+        {:ok, {:unknown, :observation_deadline_elapsed}}
+
+      {:error, :observation_deadline_elapsed} ->
+        {:ok, {:unknown, :observation_deadline_elapsed}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -242,7 +258,9 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   defp verify_success(%{"logs" => logs} = receipt, envelope, finalized) when is_list(logs) do
     with true <- RegentsClub.batch_metadata_event?(logs),
+         :ok <- ensure_observation_open(envelope),
          {:ok, post_state} <- snapshot(finalized),
+         :ok <- ensure_observation_open(envelope),
          true <- complete?(post_state) do
       {:ok,
        {:finalized,
@@ -265,28 +283,34 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   defp verify_success(_receipt, _envelope, _finalized), do: {:error, :invalid_receipt}
 
-  defp scan(envelope, finalized) do
+  defp scan(envelope, head) do
     first = envelope.metadata.anchor_block_number + 1
-    last = min(finalized.number, envelope.metadata.anchor_block_number + @scan_blocks)
+    last = min(head.number, envelope.metadata.anchor_block_number + @scan_blocks)
 
     if last < first do
       {:ok, []}
     else
       first..last
       |> Enum.reduce_while({:ok, []}, &collect_block_matches(&1, &2, envelope))
-      |> scan_event_matches()
+      |> scan_event_matches(envelope)
     end
   end
 
   defp collect_block_matches(number, {:ok, found}, envelope) do
-    case matching_transactions(number, envelope) do
-      {:ok, matches} -> {:cont, {:ok, found ++ matches}}
-      {:error, reason} -> {:halt, {:error, reason}}
+    if Actions.observation_open?(envelope) do
+      case matching_transactions(number, envelope) do
+        {:ok, matches} -> {:cont, {:ok, found ++ matches}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    else
+      {:halt, {:error, :observation_deadline_elapsed}}
     end
   end
 
-  defp scan_event_matches({:ok, hashes}), do: hashes |> Enum.uniq() |> event_matches()
-  defp scan_event_matches(error), do: error
+  defp scan_event_matches({:ok, hashes}, envelope),
+    do: hashes |> Enum.uniq() |> event_matches(envelope)
+
+  defp scan_event_matches(error, _envelope), do: error
 
   defp matching_transactions(number, envelope) do
     with {:ok, %{"number" => encoded, "hash" => hash, "transactions" => transactions}}
@@ -308,23 +332,36 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp event_matches(hashes) do
+  defp event_matches(hashes, envelope) do
     hashes
-    |> Enum.reduce_while({:ok, []}, &collect_event_match/2)
+    |> Enum.reduce_while({:ok, []}, &collect_event_match(&1, &2, envelope))
     |> reverse_event_matches()
   end
 
-  defp collect_event_match(hash, {:ok, matches}) do
+  defp collect_event_match(hash, {:ok, matches}, envelope) do
+    if Actions.observation_open?(envelope),
+      do: collect_open_event_match(hash, matches),
+      else: {:halt, {:error, :observation_deadline_elapsed}}
+  end
+
+  defp collect_open_event_match(hash, matches) do
     case rpc("eth_getTransactionReceipt", [hash]) do
       {:ok, %{"status" => "0x1", "logs" => logs}} when is_list(logs) ->
-        matches = if RegentsClub.batch_metadata_event?(logs), do: [hash | matches], else: matches
-        {:cont, {:ok, matches}}
+        {:cont, {:ok, maybe_add_event_match(matches, hash, logs)}}
 
       {:ok, _not_successful} ->
         {:cont, {:ok, matches}}
 
       {:error, reason} ->
         {:halt, {:error, reason}}
+    end
+  end
+
+  defp maybe_add_event_match(matches, hash, logs) do
+    if RegentsClub.batch_metadata_event?(logs) do
+      [hash | matches]
+    else
+      matches
     end
   end
 
@@ -434,4 +471,21 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     do: byte_size(hash) == 64 and String.match?(hash, ~r/\A[0-9a-fA-F]+\z/)
 
   defp valid_hash?(_), do: false
+
+  defp observation_authorized(envelope) do
+    if Actions.valid_observation_envelope?(envelope),
+      do: ensure_observation_open(envelope),
+      else: {:error, :invalid_observation}
+  end
+
+  defp ensure_observation_open(envelope) do
+    if Actions.observation_open?(envelope),
+      do: :ok,
+      else: {:error, :observation_deadline_elapsed}
+  end
+
+  defp normalize_observation_result({:error, :observation_deadline_elapsed}),
+    do: {:ok, {:unknown, :observation_deadline_elapsed}}
+
+  defp normalize_observation_result(result), do: result
 end

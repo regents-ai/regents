@@ -53,6 +53,7 @@ defmodule AshPlatform.RegentsClub do
 
     action = @contract["prepared_actions"] |> List.first()
     constants = @contract["onchain_constants"]
+    media = @contract["media_release_attestation"]
     {:ok, calldata_keccak256} = runtime_hash(@calldata)
 
     checks = [
@@ -79,7 +80,15 @@ defmodule AshPlatform.RegentsClub do
       action["argument_bindings"]["new_base_uri"] == @new_base_uri,
       Address.equal?(action["argument_bindings"]["expected_signer"], @owner),
       @contract["confirmation_event"]["topic0"] == @batch_topic,
-      Abi.topic0("BatchMetadataUpdate(uint256,uint256)") == @batch_topic
+      Abi.topic0("BatchMetadataUpdate(uint256,uint256)") == @batch_topic,
+      media["full_corpus_route_count"] == @last_token_id - @first_token_id + 1,
+      media["live_probe_token_ids"] == [1, 1000, 1998],
+      media["operator_attestation_required"] == true,
+      valid_sha256?(media["artifact_manifest_sha256"]),
+      valid_sha256?(media["release_manifest_sha256"]),
+      valid_sha256?(media["production_deployment_verification_sha256"]),
+      valid_sha256?(media["isolated_verification_sha256"]),
+      valid_image_digest?(media["active_image_digest"])
     ]
 
     unless Enum.all?(checks), do: raise("Regents Club authority manifest is inconsistent")
@@ -232,4 +241,10 @@ defmodule AshPlatform.RegentsClub do
       :error -> raise "invalid Regents Club manifest address"
     end
   end
+
+  defp valid_sha256?(value),
+    do: is_binary(value) and String.match?(value, ~r/\A[0-9a-f]{64}\z/)
+
+  defp valid_image_digest?("sha256:" <> digest), do: valid_sha256?(digest)
+  defp valid_image_digest?(_value), do: false
 end

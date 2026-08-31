@@ -10,6 +10,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
 
   @safe_hash "0x" <> String.duplicate("5a", 32)
   @transaction_hash "0x" <> String.duplicate("ab", 32)
+  @second_transaction_hash "0x" <> String.duplicate("cd", 32)
   @receipt_block_number 47
   @risk_copy "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists."
 
@@ -31,7 +32,8 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
       :base_read_rpc_url,
       :test_regents_rpc_pid,
       :test_regents_rpc_handler,
-      :regents_club_test_runtime_hasher
+      :regents_club_test_runtime_hasher,
+      :wallet_action_clock
     ]
 
     previous = Map.new(keys, &{&1, Application.get_env(:ash_platform, &1)})
@@ -232,30 +234,127 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
     end
   end
 
-  test "missing-hash recovery scans only the fixed 64-block post-anchor window" do
+  test "missing-hash recovery scans through the canonical head capped at anchor plus 1024" do
     envelope = observation_envelope()
 
     install(fn
       %{method: "eth_chainId"} ->
         "0x2105"
 
-      %{method: "eth_getBlockByNumber", params: ["finalized", false]} ->
-        %{"number" => "0xc8", "hash" => block_hash(200)}
+      %{method: "eth_getBlockByNumber", params: ["safe", false]} ->
+        %{"number" => hex_quantity(2_000), "hash" => block_hash(2_000)}
 
       %{method: "eth_getBlockByNumber", params: [encoded, true]} ->
         {:ok, number} = quantity(encoded)
         %{"number" => encoded, "hash" => block_hash(number), "transactions" => []}
     end)
 
-    assert RpcClient.recover(envelope) == {:ok, :pending}
+    assert RpcClient.recover(envelope) == {:ok, {:unknown, :no_unique_match}}
 
     scanned =
       drain_requests()
       |> Enum.filter(&match?(%{method: "eth_getBlockByNumber", params: [_, true]}, &1))
 
-    assert length(scanned) == 64
+    assert length(scanned) == 1_024
     assert hd(scanned).params == [hex_quantity(43), true]
-    assert List.last(scanned).params == [hex_quantity(106), true]
+    assert List.last(scanned).params == [hex_quantity(1_066), true]
+  end
+
+  test "missing-hash recovery finds a unique exact event beyond the old 64-block bound" do
+    runtime = "0x" <> String.duplicate("00", RegentsClub.runtime_bytes())
+    envelope = observation_envelope()
+    inclusion = envelope.metadata.anchor_block_number + 65
+
+    Application.put_env(:ash_platform, :regents_club_test_runtime_hasher, fn
+      ^runtime -> {:ok, RegentsClub.runtime_keccak256()}
+      _other -> :error
+    end)
+
+    install(&recovery_result(&1, runtime, inclusion))
+
+    assert {:ok, {:finalized, result}} = RpcClient.recover(envelope)
+    assert result.transaction_hash == @transaction_hash
+    assert result.block_number == inclusion
+
+    scanned =
+      drain_requests()
+      |> Enum.filter(&match?(%{method: "eth_getBlockByNumber", params: [_, true]}, &1))
+
+    assert length(scanned) == 65
+    assert List.last(scanned).params == [hex_quantity(inclusion), true]
+  end
+
+  test "missing-hash recovery refuses multiple exact event matches" do
+    envelope = observation_envelope()
+    inclusion = envelope.metadata.anchor_block_number + 1
+
+    install(fn
+      %{method: "eth_chainId"} ->
+        "0x2105"
+
+      %{method: "eth_getBlockByNumber", params: ["safe", false]} ->
+        %{"number" => hex_quantity(inclusion), "hash" => block_hash(inclusion)}
+
+      %{method: "eth_getBlockByNumber", params: [encoded, true]} ->
+        %{
+          "number" => encoded,
+          "hash" => block_hash(inclusion),
+          "transactions" => [
+            exact_transaction(@transaction_hash),
+            exact_transaction(@second_transaction_hash)
+          ]
+        }
+
+      %{method: "eth_getTransactionReceipt", params: [hash]}
+      when hash in [@transaction_hash, @second_transaction_hash] ->
+        exact_receipt(hash, inclusion)
+    end)
+
+    assert RpcClient.recover(envelope) == {:ok, {:unknown, :multiple_matches}}
+  end
+
+  test "observation deadline closes direct and missing-hash observation without RPC traffic" do
+    prepared_at = ~U[2026-08-31 12:00:00Z]
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> prepared_at end)
+    envelope = observation_envelope()
+
+    Application.put_env(:ash_platform, :wallet_action_clock, fn ->
+      DateTime.add(prepared_at, 45 * 60, :second)
+    end)
+
+    assert RpcClient.observe(envelope, @transaction_hash) ==
+             {:ok, {:unknown, :observation_deadline_elapsed}}
+
+    assert RpcClient.recover(envelope) == {:ok, {:unknown, :observation_deadline_elapsed}}
+    assert drain_requests() == []
+  end
+
+  test "an observation that crosses the deadline during post-state reads becomes unknown" do
+    runtime = "0x" <> String.duplicate("00", RegentsClub.runtime_bytes())
+    prepared_at = ~U[2026-08-31 12:00:00Z]
+    {:ok, clock} = Agent.start_link(fn -> prepared_at end)
+    on_exit(fn -> if Process.alive?(clock), do: Agent.stop(clock) end)
+
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> Agent.get(clock, & &1) end)
+    envelope = observation_envelope()
+
+    Application.put_env(:ash_platform, :regents_club_test_runtime_hasher, fn
+      ^runtime -> {:ok, RegentsClub.runtime_keccak256()}
+      _other -> :error
+    end)
+
+    install(fn request ->
+      result = observation_result(request, runtime, @receipt_block_number)
+
+      if request.method == "eth_getCode" do
+        Agent.update(clock, fn _ -> DateTime.add(prepared_at, 45 * 60, :second) end)
+      end
+
+      result
+    end)
+
+    assert RpcClient.observe(envelope, @transaction_hash) ==
+             {:ok, {:unknown, :observation_deadline_elapsed}}
   end
 
   defp install(fun), do: Application.put_env(:ash_platform, :test_regents_rpc_handler, fun)
@@ -390,12 +489,72 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
     end
   end
 
+  defp recovery_result(%{method: "eth_chainId"}, _runtime, _inclusion), do: "0x2105"
+
+  defp recovery_result(
+         %{method: "eth_getBlockByNumber", params: [tag, false]},
+         _runtime,
+         inclusion
+       )
+       when tag in ["safe", "finalized"],
+       do: %{"number" => hex_quantity(inclusion), "hash" => block_hash(inclusion)}
+
+  defp recovery_result(
+         %{method: "eth_getBlockByNumber", params: [encoded, true]},
+         _runtime,
+         inclusion
+       ) do
+    {:ok, number} = quantity(encoded)
+
+    transactions =
+      if number == inclusion,
+        do: [exact_transaction(@transaction_hash)],
+        else: []
+
+    %{"number" => encoded, "hash" => block_hash(number), "transactions" => transactions}
+  end
+
+  defp recovery_result(
+         %{method: "eth_getBlockByNumber", params: [encoded, false]},
+         _runtime,
+         _inclusion
+       ) do
+    {:ok, number} = quantity(encoded)
+    %{"number" => encoded, "hash" => block_hash(number)}
+  end
+
+  defp recovery_result(
+         %{method: "eth_getTransactionByHash", params: [@transaction_hash]},
+         _runtime,
+         _inclusion
+       ),
+       do: exact_transaction(@transaction_hash)
+
+  defp recovery_result(
+         %{method: "eth_getTransactionReceipt", params: [@transaction_hash]},
+         _runtime,
+         inclusion
+       ),
+       do: exact_receipt(@transaction_hash, inclusion)
+
+  defp recovery_result(%{method: "eth_getCode"}, runtime, _inclusion), do: runtime
+
+  defp recovery_result(
+         %{method: "eth_call", params: [%{data: data}, _block]},
+         _runtime,
+         _inclusion
+       ),
+       do: Map.fetch!(post_state_reads(), data)
+
   defp observation_envelope do
+    prepared_at = Envelope.current_time()
+
     Envelope.new(RegentsClub.action(), RegentsClub.owner(), RegentsClub.calldata(),
       to: RegentsClub.contract_address(),
       resource: "regents_club_metadata",
       contract_name: "RegentsClub",
       risk_copy: @risk_copy,
+      prepared_at: prepared_at,
       arguments: %{
         attempt_id: "c56a4180-65aa-42ec-a945-5fd21dec0538",
         new_base_uri: RegentsClub.new_base_uri()
@@ -414,9 +573,42 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
         non_owner_simulation: "revert",
         gas_estimate: "81189",
         runtime_keccak256: RegentsClub.runtime_keccak256(),
-        calldata_keccak256: RegentsClub.calldata_keccak256()
+        calldata_keccak256: RegentsClub.calldata_keccak256(),
+        observation_deadline:
+          prepared_at |> DateTime.add(45 * 60, :second) |> DateTime.to_iso8601()
       }
     )
+  end
+
+  defp exact_transaction(hash) do
+    %{
+      "hash" => hash,
+      "from" => RegentsClub.owner(),
+      "to" => RegentsClub.contract_address(),
+      "input" => RegentsClub.calldata(),
+      "value" => "0x0"
+    }
+  end
+
+  defp exact_receipt(hash, number) do
+    %{
+      "transactionHash" => hash,
+      "blockNumber" => hex_quantity(number),
+      "blockHash" => block_hash(number),
+      "status" => "0x1",
+      "logs" => [batch_log()]
+    }
+  end
+
+  defp post_state_reads do
+    %{
+      RegentsClub.owner_calldata() => address(RegentsClub.owner()),
+      RegentsClub.base_uri_calldata() => abi_string(RegentsClub.new_base_uri()),
+      RegentsClub.total_supply_calldata() => "0x" <> word(1_998),
+      RegentsClub.supports_erc4906_calldata() => "0x" <> word(1),
+      RegentsClub.token_uri_calldata(1) => abi_string(RegentsClub.new_base_uri() <> "1"),
+      RegentsClub.token_uri_calldata(1_998) => abi_string(RegentsClub.new_base_uri() <> "1998")
+    }
   end
 
   defp batch_log do
