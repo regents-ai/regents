@@ -5,7 +5,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   import AshPlatformWeb.Components.CommentLedger
   import AshPlatformWeb.Components.AutolaunchMarketCard
   import AshPlatformWeb.Components.XConnections
-  alias AshPlatform.Autolaunch.{Lab, LaunchDraft, TreasurySecurity}
+  alias AshPlatform.Autolaunch.{Lab, LaunchDraft, Token, TreasurySecurity}
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -894,7 +894,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
             <span class="autolaunch-feed__status">{market_status(@kind, record)}</span>
             <strong>{record_label(@kind, record)}</strong>
             <span class="autolaunch-feed__summary">
-              {record.summary || record_fallback(@kind)}
+              {record_summary(@kind, record) || record_fallback(@kind)}
             </span>
             <span class="autolaunch-feed__metric">{market_metric(@kind, record)}</span>
             <span class="autolaunch-feed__action">{market_action(@kind)}
@@ -1007,7 +1007,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
           <% end %>
         </p>
         <h1>{record_label(@kind, @record)}</h1>
-        <p>{@record.summary || record_fallback(@kind)}</p>
+        <p>{record_summary(@kind, @record) || record_fallback(@kind)}</p>
       </header>
       <.autolaunch_market_card
         kind={@kind}
@@ -1463,7 +1463,14 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp record_path(:token, id), do: "/autolaunch/tokens/#{id}"
 
   defp record_label(:auction, record), do: record.title
-  defp record_label(:token, record), do: "#{record.name} · #{record.symbol}"
+
+  defp record_label(:token, record) do
+    presentation = Token.presentation(record)
+    "#{presentation.name} · #{presentation.symbol}"
+  end
+
+  defp record_summary(:auction, record), do: record.summary
+  defp record_summary(:token, record), do: Token.presentation(record).summary
 
   defp record_fallback(:auction), do: "No public summary yet."
   defp record_fallback(:token), do: "No public token summary yet."

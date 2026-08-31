@@ -13,6 +13,7 @@ defmodule AshPlatform.Accounts.XOAuth do
 
   @roles [:profile, :company]
   @attempt_ttl 600
+  @max_intent_sequence 9_007_199_254_740_991
   @scope "tweet.read users.read"
 
   @type role :: :profile | :company
@@ -26,10 +27,11 @@ defmodule AshPlatform.Accounts.XOAuth do
   @spec callback_url() :: String.t()
   def callback_url, do: origin() <> "/auth/x/callback"
 
-  @spec begin(SessionAuthority.claim() | nil, String.t() | atom()) ::
+  @spec begin(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
           {:ok, %{url: String.t(), role: role(), generation: String.t()}} | {:error, term()}
-  def begin(claim, role) do
+  def begin(claim, role, intent_params) do
     with {:ok, role} <- role(role),
+         {:ok, intent} <- intent(intent_params),
          {:ok, config} <- config(),
          {:ok, %{url: url, session_params: params}} <- strategy().authorize_url(config),
          {:ok, state} <- required_binary(params, :state),
@@ -40,7 +42,9 @@ defmodule AshPlatform.Accounts.XOAuth do
         attempt_state: state,
         attempt_verifier: verifier,
         attempt_generation: generation,
-        attempt_expires_at: DateTime.add(now(), @attempt_ttl, :second)
+        attempt_expires_at: DateTime.add(now(), @attempt_ttl, :second),
+        intent_sequence: intent.sequence,
+        intent_generation: intent.generation
       }
 
       case SessionAuthority.transact_exact(claim, &persist_attempt(&1, role, attrs)) do
@@ -75,17 +79,41 @@ defmodule AshPlatform.Accounts.XOAuth do
 
   def callback(_claim, _params), do: {:error, :invalid_callback}
 
-  @spec disconnect(SessionAuthority.claim() | nil, String.t() | atom()) ::
+  @spec disconnect(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
           {:ok, %{role: role(), generation: String.t()}} | {:error, term()}
-  def disconnect(claim, role) do
-    with {:ok, role} <- role(role) do
-      generation = Ash.UUID.generate()
-      disconnect_role(claim, role, generation)
+  def disconnect(claim, role, intent_params) do
+    with {:ok, role} <- role(role),
+         {:ok, intent} <- intent(intent_params) do
+      mutate_intent(claim, role, intent, :disconnect)
+    end
+  end
+
+  @spec cancel(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
+          {:ok, %{role: role(), generation: String.t()}} | {:error, term()}
+  def cancel(claim, role, intent_params) do
+    with {:ok, role} <- role(role),
+         {:ok, intent} <- intent(intent_params),
+         true <- is_binary(intent.cancel_generation),
+         true <- is_integer(intent.cancel_sequence),
+         true <- intent.cancel_sequence < intent.sequence do
+      mutate_intent(claim, role, intent, :cancel)
+    else
+      false -> {:error, :invalid_intent}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   @spec list_for_account(Ash.Resource.record()) :: {:ok, list()} | {:error, term()}
-  def list_for_account(account), do: Accounts.list_my_x_connections(actor: actor(account))
+  def list_for_account(account) do
+    actor = actor(account)
+
+    with {:ok, connections} <- Accounts.list_my_x_connections(actor: actor),
+         {:ok, changed?} <- cleanup_expired_attempts(connections, actor) do
+      if changed?,
+        do: Accounts.list_my_x_connections(actor: actor),
+        else: {:ok, connections}
+    end
+  end
 
   @spec public_for_humans([integer()]) :: {:ok, list()} | {:error, term()}
   def public_for_humans(ids) do
@@ -101,30 +129,116 @@ defmodule AshPlatform.Accounts.XOAuth do
         Accounts.begin_x_connection_attempt(attrs, actor: actor)
 
       {:ok, connection} ->
-        Accounts.replace_x_connection_attempt(connection, Map.delete(attrs, :role), actor: actor)
+        if attrs.intent_sequence > intent_sequence(connection) do
+          Accounts.replace_x_connection_attempt(
+            connection,
+            Map.delete(attrs, :role),
+            actor: actor
+          )
+        else
+          {:error, :stale_intent}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp disconnect_role(claim, role, generation) do
+  defp mutate_intent(claim, role, intent, action) do
     case SessionAuthority.transact_exact(
            claim,
-           &disconnect_account(&1, role, generation)
+           &mutate_intent_account(&1, role, intent, action)
          ) do
-      {:ok, _connection} -> {:ok, %{role: role, generation: generation}}
+      {:ok, _connection} -> {:ok, %{role: role, generation: intent.generation}}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp disconnect_account(account, role, generation) do
+  defp mutate_intent_account(account, role, intent, action) do
     actor = actor(account)
 
     case Accounts.get_my_x_connection_for_update(role, actor: actor) do
-      {:ok, nil} -> {:ok, nil}
-      {:ok, connection} -> Accounts.disconnect_x_connection(connection, generation, actor: actor)
-      {:error, reason} -> {:error, reason}
+      {:ok, nil} ->
+        Accounts.record_x_connection_intent(
+          %{role: role, intent_sequence: intent.sequence, intent_generation: intent.generation},
+          actor: actor
+        )
+
+      {:ok, connection} ->
+        if valid_intent_transition?(connection, intent, action),
+          do: apply_intent_action(connection, intent, action, actor),
+          else: {:error, :stale_intent}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp apply_intent_action(connection, intent, :cancel, actor) do
+    Accounts.cancel_x_connection_attempt(
+      connection,
+      intent.sequence,
+      intent.generation,
+      actor: actor
+    )
+  end
+
+  defp apply_intent_action(connection, intent, :disconnect, actor) do
+    Accounts.disconnect_x_connection(
+      connection,
+      intent.sequence,
+      intent.generation,
+      actor: actor
+    )
+  end
+
+  defp valid_intent_transition?(connection, intent, :disconnect),
+    do: intent.sequence > intent_sequence(connection)
+
+  defp valid_intent_transition?(connection, intent, :cancel) do
+    current_sequence = intent_sequence(connection)
+
+    (current_sequence < intent.cancel_sequence or
+       (current_sequence == intent.cancel_sequence and
+          connection.intent_generation == intent.cancel_generation)) and
+      intent.sequence > current_sequence
+  end
+
+  defp cleanup_expired_attempts(connections, actor) do
+    connections
+    |> Enum.filter(&expired_attempt?/1)
+    |> Enum.take(length(@roles))
+    |> Enum.reduce_while({:ok, false}, fn connection, {:ok, changed?} ->
+      case clear_expired_attempt(connection, actor) do
+        {:ok, cleared?} -> {:cont, {:ok, changed? or cleared?}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp clear_expired_attempt(connection, actor) do
+    snapshot = attempt_snapshot(connection)
+
+    case Accounts.get_my_x_connection_for_update(connection.role, actor: actor) do
+      {:ok, %XConnection{} = locked} ->
+        maybe_clear_expired_attempt(locked, snapshot, actor)
+
+      {:ok, nil} ->
+        {:ok, false}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp maybe_clear_expired_attempt(locked, snapshot, actor) do
+    if same_attempt?(locked, snapshot) and expired_attempt?(locked) do
+      case Accounts.clear_x_connection_attempt(locked, actor: actor) do
+        {:ok, _cleared} -> {:ok, true}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:ok, false}
     end
   end
 
@@ -297,6 +411,47 @@ defmodule AshPlatform.Accounts.XOAuth do
     end
   end
 
+  defp intent(params) when is_map(params) do
+    params = stringify_atom_keys(params)
+    sequence = params["intent_sequence"]
+    generation = params["intent_generation"]
+    cancel_generation = params["cancel_generation"]
+    cancel_sequence = params["cancel_sequence"]
+
+    with true <- is_integer(sequence) and sequence > 0 and sequence <= @max_intent_sequence,
+         {:ok, generation} <- Ecto.UUID.cast(generation),
+         {:ok, cancel_generation} <- optional_uuid(cancel_generation),
+         true <- is_nil(cancel_sequence) or valid_intent_sequence?(cancel_sequence) do
+      {:ok,
+       %{
+         sequence: sequence,
+         generation: generation,
+         cancel_generation: cancel_generation,
+         cancel_sequence: cancel_sequence
+       }}
+    else
+      _invalid -> {:error, :invalid_intent}
+    end
+  end
+
+  defp intent(_params), do: {:error, :invalid_intent}
+
+  defp stringify_atom_keys(params) do
+    Map.new(params, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      pair -> pair
+    end)
+  end
+
+  defp optional_uuid(nil), do: {:ok, nil}
+  defp optional_uuid(value), do: Ecto.UUID.cast(value)
+
+  defp valid_intent_sequence?(sequence),
+    do: is_integer(sequence) and sequence > 0 and sequence <= @max_intent_sequence
+
+  defp intent_sequence(%{intent_sequence: sequence}) when is_integer(sequence), do: sequence
+  defp intent_sequence(_connection), do: 0
+
   defp attempt_generation(%{lineage: lineage, generation: generation}, state)
        when is_binary(lineage) and is_integer(generation) and generation >= 0 and is_binary(state) do
     digest =
@@ -329,6 +484,12 @@ defmodule AshPlatform.Accounts.XOAuth do
     do: DateTime.compare(expires_at, now()) == :gt
 
   defp active?(_connection), do: false
+
+  defp expired_attempt?(%{attempt_generation: generation, attempt_expires_at: %DateTime{} = at})
+       when is_binary(generation),
+       do: DateTime.compare(at, now()) != :gt
+
+  defp expired_attempt?(_connection), do: false
 
   defp same_attempt?(connection, attempt) do
     connection.role == attempt.role and

@@ -75,7 +75,7 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> put_valid_csrf()
-      |> post("/auth/x/connections/profile")
+      |> post("/auth/x/connections/profile", intent_params())
 
     assert %{
              "url" => "https://x.example.test/authorize?state=controller-state",
@@ -90,7 +90,7 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> put_valid_csrf()
-      |> delete("/auth/x/connections/profile")
+      |> delete("/auth/x/connections/profile", intent_params())
 
     assert %{"ok" => true, "role" => "profile"} = json_response(disconnected, 200)
 
@@ -98,7 +98,7 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
       build_conn()
       |> init_test_session(%{})
       |> put_valid_csrf()
-      |> post("/auth/x/connections/profile")
+      |> post("/auth/x/connections/profile", intent_params())
 
     assert json_response(anonymous, 409) == %{"error" => "stale_authority"}
   end
@@ -110,7 +110,7 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> put_valid_csrf()
-      |> post("/auth/x/connections/company")
+      |> post("/auth/x/connections/company", intent_params())
 
     %{"generation" => generation} = json_response(started, 200)
 
@@ -159,7 +159,7 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
       conn
       |> init_test_session(%{human_account_id: account.id})
       |> put_valid_csrf()
-      |> post("/auth/x/connections/profile")
+      |> post("/auth/x/connections/profile", intent_params())
 
     assert json_response(response, 503) == %{"error" => "x_oauth_disabled"}
   end
@@ -192,4 +192,11 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
 
   defp enforce_csrf(conn),
     do: %{conn | private: Map.delete(conn.private, :plug_skip_csrf_protection)}
+
+  defp intent_params do
+    %{
+      "intent_sequence" => Elixir.System.unique_integer([:positive, :monotonic]),
+      "intent_generation" => Ash.UUID.generate()
+    }
+  end
 end

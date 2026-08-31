@@ -89,6 +89,19 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     refute_received :market_snapshot_requested
   end
 
+  test "direct empty and overlong market queries replace the URL with its canonical form", %{
+    conn: conn
+  } do
+    {:ok, empty, _html} = live(conn, "/autolaunch")
+    render_patch(empty, "/autolaunch?q=")
+    assert_patch(empty, "/autolaunch")
+
+    overlong = String.duplicate("x", 81)
+    canonical = String.duplicate("x", 80)
+    render_patch(empty, "/autolaunch?q=#{overlong}")
+    assert_patch(empty, "/autolaunch?q=#{canonical}")
+  end
+
   test "a connected market page receives shared block updates without navigation", %{conn: conn} do
     block = %{
       number: 505,
@@ -913,20 +926,26 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     {:ok, overview, _html} = live(conn, "/autolaunch")
     overview_html = render_async(overview)
     assert overview_html =~ "BixBench launch"
-    assert overview_html =~ "Bix Token"
+    refute overview_html =~ "Bix Token"
     assert overview_html =~ "$BIX"
 
     {:ok, auctions, _html} = live(conn, "/autolaunch/auctions")
     assert render_async(auctions) =~ "BixBench launch"
 
     {:ok, tokens, _html} = live(conn, "/autolaunch/tokens")
-    assert render_async(tokens) =~ "BIX"
+    tokens_html = render_async(tokens)
+    assert tokens_html =~ "BixBench launch"
+    assert tokens_html =~ "BIX"
+    refute tokens_html =~ "Bix Token"
 
     {:ok, auction_view, _html} = live(conn, "/autolaunch/auctions/#{auction.id}")
     assert render_async(auction_view) =~ "A public research launch."
 
     {:ok, token_view, _html} = live(conn, "/autolaunch/tokens/#{token.id}")
-    assert render_async(token_view) =~ "Graduated from BixBench launch."
+    token_html = render_async(token_view)
+    assert token_html =~ "BixBench launch · BIX"
+    assert token_html =~ "A public research launch."
+    refute token_html =~ "Graduated from BixBench launch."
   end
 
   test "auction and token details share the newest-first comment ledger without reactions", %{

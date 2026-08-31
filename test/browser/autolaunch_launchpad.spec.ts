@@ -29,6 +29,15 @@ test("launchpad presents Graduated, Active auctions, and Explore with canonical 
 }) => {
   const assertCleanBrowser = cleanBrowser(page)
   await stubEnsRpc(page)
+
+  await page.goto("/autolaunch?q=")
+  await expect(page).toHaveURL(url => url.pathname === "/autolaunch" && url.search === "")
+
+  await page.goto(`/autolaunch?q=${"x".repeat(81)}`)
+  await expect(page).toHaveURL(
+    url => url.pathname === "/autolaunch" && url.searchParams.get("q") === "x".repeat(80),
+  )
+
   await page.goto("/autolaunch")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 

@@ -82,6 +82,14 @@ defmodule AshPlatform.Accounts.XConnection do
       sensitive? true
     end
 
+    attribute :intent_sequence, :integer do
+      sensitive? true
+    end
+
+    attribute :intent_generation, :uuid do
+      sensitive? true
+    end
+
     timestamps()
   end
 
@@ -115,7 +123,21 @@ defmodule AshPlatform.Accounts.XConnection do
     end
 
     create :begin_attempt do
-      accept [:role, :attempt_state, :attempt_verifier, :attempt_generation, :attempt_expires_at]
+      accept [
+        :role,
+        :attempt_state,
+        :attempt_verifier,
+        :attempt_generation,
+        :attempt_expires_at,
+        :intent_sequence,
+        :intent_generation
+      ]
+
+      change AshPlatform.Accounts.XConnection.Changes.AssignOwner
+    end
+
+    create :record_intent do
+      accept [:role, :intent_sequence, :intent_generation]
       change AshPlatform.Accounts.XConnection.Changes.AssignOwner
     end
 
@@ -157,7 +179,15 @@ defmodule AshPlatform.Accounts.XConnection do
     end
 
     update :replace_attempt do
-      accept [:attempt_state, :attempt_verifier, :attempt_generation, :attempt_expires_at]
+      accept [
+        :attempt_state,
+        :attempt_verifier,
+        :attempt_generation,
+        :attempt_expires_at,
+        :intent_sequence,
+        :intent_generation
+      ]
+
       require_atomic? false
     end
 
@@ -180,9 +210,23 @@ defmodule AshPlatform.Accounts.XConnection do
       change set_attribute(:attempt_expires_at, nil)
     end
 
+    update :cancel_attempt do
+      accept []
+      argument :intent_sequence, :integer, allow_nil?: false
+      argument :intent_generation, :uuid, allow_nil?: false
+      require_atomic? false
+      change set_attribute(:attempt_state, nil)
+      change set_attribute(:attempt_verifier, nil)
+      change set_attribute(:attempt_generation, nil)
+      change set_attribute(:attempt_expires_at, nil)
+      change set_attribute(:intent_sequence, arg(:intent_sequence))
+      change set_attribute(:intent_generation, arg(:intent_generation))
+    end
+
     update :disconnect do
       accept []
-      argument :generation, :uuid, allow_nil?: false
+      argument :intent_sequence, :integer, allow_nil?: false
+      argument :intent_generation, :uuid, allow_nil?: false
       require_atomic? false
       change set_attribute(:x_user_id, nil)
       change set_attribute(:username, nil)
@@ -191,8 +235,10 @@ defmodule AshPlatform.Accounts.XConnection do
       change set_attribute(:verified_at, nil)
       change set_attribute(:attempt_state, nil)
       change set_attribute(:attempt_verifier, nil)
-      change set_attribute(:attempt_generation, arg(:generation))
+      change set_attribute(:attempt_generation, nil)
       change set_attribute(:attempt_expires_at, nil)
+      change set_attribute(:intent_sequence, arg(:intent_sequence))
+      change set_attribute(:intent_generation, arg(:intent_generation))
     end
   end
 
@@ -205,7 +251,13 @@ defmodule AshPlatform.Accounts.XConnection do
       authorize_if always()
     end
 
-    policy action([:begin_attempt, :mine, :mine_by_role, :mine_by_role_for_update]) do
+    policy action([
+             :begin_attempt,
+             :record_intent,
+             :mine,
+             :mine_by_role,
+             :mine_by_role_for_update
+           ]) do
       authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
 
@@ -213,7 +265,13 @@ defmodule AshPlatform.Accounts.XConnection do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
-    policy action([:replace_attempt, :complete_attempt, :clear_attempt, :disconnect]) do
+    policy action([
+             :replace_attempt,
+             :complete_attempt,
+             :clear_attempt,
+             :cancel_attempt,
+             :disconnect
+           ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
   end

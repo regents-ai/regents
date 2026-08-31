@@ -170,13 +170,21 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
     assert Enum.any?(by_creator, &(&1.id == auction.id))
 
     for query <- [
-          "GRAD#{nonce}",
-          "token description #{nonce}",
+          "SEARCHABLE LAUNCH #{nonce}",
+          "find#{nonce}",
+          "one exact description #{nonce}",
           String.upcase(address),
           "launch creator #{nonce}"
         ] do
       assert {:ok, records} = Autolaunch.list_graduated_launchpad_tokens(query)
       assert Enum.any?(records, &(&1.id == token.id))
+    end
+
+    for divergent_legacy_query <- ["GRAD#{nonce}", "token description #{nonce}"] do
+      assert {:ok, records} =
+               Autolaunch.list_graduated_launchpad_tokens(divergent_legacy_query)
+
+      refute Enum.any?(records, &(&1.id == token.id))
     end
 
     assert {:ok, active} = Autolaunch.list_active_launchpad_auctions("")

@@ -55,7 +55,11 @@ defmodule AshPlatformWeb.Components.XConnections do
 
   defp x_role(assigns) do
     ~H"""
-    <li id={"#{@id}-#{@role}"}>
+    <li
+      id={"#{@id}-#{@role}"}
+      data-x-role={@role}
+      data-x-intent-sequence={intent_sequence(@connection)}
+    >
       <div class="x-connections__identity">
         <img
           :if={connected?(@connection) && @connection.avatar_url}
@@ -100,6 +104,8 @@ defmodule AshPlatformWeb.Components.XConnections do
     do: true
 
   defp connected?(_connection), do: false
+  defp intent_sequence(%{intent_sequence: sequence}) when is_integer(sequence), do: sequence
+  defp intent_sequence(_connection), do: 0
   defp role_label(:profile), do: "Profile X"
   defp role_label(:company), do: "Company X"
 end

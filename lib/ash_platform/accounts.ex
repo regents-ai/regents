@@ -58,6 +58,7 @@ defmodule AshPlatform.Accounts do
 
     resource AshPlatform.Accounts.XConnection do
       define :begin_x_connection_attempt, action: :begin_attempt
+      define :record_x_connection_intent, action: :record_intent
       define :list_my_x_connections, action: :mine
 
       define :get_my_x_connection,
@@ -77,7 +78,14 @@ defmodule AshPlatform.Accounts do
       define :replace_x_connection_attempt, action: :replace_attempt
       define :complete_x_connection_attempt, action: :complete_attempt
       define :clear_x_connection_attempt, action: :clear_attempt
-      define :disconnect_x_connection, action: :disconnect, args: [:generation]
+
+      define :cancel_x_connection_attempt,
+        action: :cancel_attempt,
+        args: [:intent_sequence, :intent_generation]
+
+      define :disconnect_x_connection,
+        action: :disconnect,
+        args: [:intent_sequence, :intent_generation]
     end
   end
 end

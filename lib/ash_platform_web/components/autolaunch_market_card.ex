@@ -2,6 +2,8 @@ defmodule AshPlatformWeb.Components.AutolaunchMarketCard do
   @moduledoc false
   use Phoenix.Component
 
+  alias AshPlatform.Autolaunch.Token
+
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
@@ -105,28 +107,21 @@ defmodule AshPlatformWeb.Components.AutolaunchMarketCard do
   end
 
   defp view(:token, token, connections) do
-    auction = loaded_auction(token)
+    presentation = Token.presentation(token)
 
     %{
-      name: token.name,
-      symbol: token.symbol,
-      description: present(token.summary || field(auction, :summary), "Graduated token"),
-      image: field(auction, :image),
+      name: presentation.name,
+      symbol: presentation.symbol,
+      description: present(presentation.summary, "Graduated token"),
+      image: presentation.image,
       status: "Graduated",
       metric_label: "Price",
       metric: token.price_quote,
-      address: field(auction, :auction_address),
+      address: presentation.auction_address,
       path: "/autolaunch/tokens/#{token.id}",
       connections: connection_list(connections)
     }
   end
-
-  defp loaded_auction(%{auction: %Ash.NotLoaded{}}), do: nil
-  defp loaded_auction(%{auction: auction}), do: auction
-  defp loaded_auction(_token), do: nil
-
-  defp field(nil, _key), do: nil
-  defp field(record, key), do: Map.get(record, key)
 
   defp connection_list(connections) when is_map(connections) do
     [:profile, :company]

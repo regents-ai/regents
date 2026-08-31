@@ -138,8 +138,9 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   @impl true
-  def handle_params(params, _uri, socket) do
+  def handle_params(params, uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
+    socket = canonicalize_autolaunch_query(socket, route_spec, params, uri)
 
     case authorize_route(socket, route_spec) do
       {:redirect, socket} -> {:noreply, socket}
@@ -1641,6 +1642,51 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp normalize_autolaunch_query(_query), do: ""
+
+  defp canonicalize_autolaunch_query(
+         socket,
+         %{route_id: :autolaunch},
+         params,
+         uri
+       )
+       when is_map(params) and is_binary(uri) do
+    case provided_autolaunch_query(params, uri) do
+      {:ok, provided} ->
+        canonical = normalize_autolaunch_query(provided)
+
+        if connected?(socket) and (canonical == "" or canonical != provided) do
+          push_patch(socket, to: autolaunch_query_path(canonical), replace: true)
+        else
+          socket
+        end
+
+      :missing ->
+        socket
+    end
+  end
+
+  defp canonicalize_autolaunch_query(socket, _route_spec, _params, _uri), do: socket
+
+  defp provided_autolaunch_query(%{"q" => provided}, _uri) when is_binary(provided),
+    do: {:ok, provided}
+
+  defp provided_autolaunch_query(_params, uri) do
+    case URI.parse(uri).query do
+      query when is_binary(query) ->
+        case URI.decode_query(query) do
+          %{"q" => provided} when is_binary(provided) -> {:ok, provided}
+          _params -> :missing
+        end
+
+      _missing ->
+        :missing
+    end
+  rescue
+    _invalid_query -> :missing
+  end
+
+  defp autolaunch_query_path(""), do: "/autolaunch"
+  defp autolaunch_query_path(query), do: "/autolaunch?q=#{URI.encode_www_form(query)}"
 
   defp merge_explore(auctions, tokens) do
     (Enum.map(auctions, &%{kind: :auction, record: &1}) ++

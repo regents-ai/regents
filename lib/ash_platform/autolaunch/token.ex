@@ -84,7 +84,10 @@ defmodule AshPlatform.Autolaunch.Token do
     end
 
     read :list_public do
-      prepare build(sort: [graduated_at: :desc, id: :asc], load: [:treasury_security_report])
+      prepare build(
+                sort: [graduated_at: :desc, id: :asc],
+                load: [:treasury_security_report, :auction]
+              )
     end
 
     read :top_public do
@@ -93,7 +96,7 @@ defmodule AshPlatform.Autolaunch.Token do
       prepare build(
                 sort: [top_rank: :asc, id: :asc],
                 limit: 12,
-                load: [:treasury_security_report]
+                load: [:treasury_security_report, :auction]
               )
     end
 
@@ -131,7 +134,7 @@ defmodule AshPlatform.Autolaunch.Token do
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
                 limit: 25,
-                load: [:treasury_security_report]
+                load: [:treasury_security_report, :auction]
               )
     end
 
@@ -242,14 +245,19 @@ defmodule AshPlatform.Autolaunch.Token do
 
   defp launchpad_search_filter(query, "", _pattern), do: query
 
+  # One SQL predicate keeps auction-first fallback semantics identical for every search field.
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defp launchpad_search_filter(query, _term, pattern) do
     Ash.Query.filter(
       query,
-      ilike(name, ^pattern) or
-        ilike(symbol, ^pattern) or
-        ilike(summary, ^pattern) or
-        ilike(auction.title, ^pattern) or
-        ilike(auction.summary, ^pattern) or
+      ilike(auction.title, ^pattern) or
+        ((is_nil(auction.token_symbol) or auction.token_symbol == "") and
+           ilike(symbol, ^pattern)) or
+        (not is_nil(auction.token_symbol) and auction.token_symbol != "" and
+           ilike(auction.token_symbol, ^pattern)) or
+        ((is_nil(auction.summary) or auction.summary == "") and ilike(summary, ^pattern)) or
+        (not is_nil(auction.summary) and auction.summary != "" and
+           ilike(auction.summary, ^pattern)) or
         ilike(auction.auction_address, ^pattern) or
         exists(
           [:auction, :creator_x_connections],
@@ -266,4 +274,31 @@ defmodule AshPlatform.Autolaunch.Token do
        |> String.replace("%", "\\%")
        |> String.replace("_", "\\_")) <> "%"
   end
+
+  @doc "Returns the one public presentation shared by a graduated token and its auction."
+  def presentation(token) do
+    auction = loaded_auction(token)
+
+    %{
+      name: first_present(field(auction, :title), Map.get(token, :name)),
+      symbol: first_present(field(auction, :token_symbol), Map.get(token, :symbol)),
+      summary: first_present(field(auction, :summary), Map.get(token, :summary)),
+      image: field(auction, :image),
+      website: field(auction, :website),
+      auction_address: field(auction, :auction_address)
+    }
+  end
+
+  defp loaded_auction(%{auction: %Ash.NotLoaded{}}), do: nil
+  defp loaded_auction(%{auction: auction}) when is_map(auction), do: auction
+  defp loaded_auction(_token), do: nil
+
+  defp field(nil, _key), do: nil
+  defp field(record, key), do: Map.get(record, key)
+
+  defp first_present(primary, fallback) when is_binary(primary) do
+    if String.trim(primary) == "", do: fallback, else: primary
+  end
+
+  defp first_present(_primary, fallback), do: fallback
 end

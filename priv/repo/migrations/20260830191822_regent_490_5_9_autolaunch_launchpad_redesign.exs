@@ -36,6 +36,8 @@ defmodule AshPlatform.Repo.Migrations.Regent49059AutolaunchLaunchpadRedesign do
       add(:attempt_verifier, :text)
       add(:attempt_generation, :uuid)
       add(:attempt_expires_at, :utc_datetime_usec)
+      add(:intent_sequence, :bigint)
+      add(:intent_generation, :uuid)
 
       add(:inserted_at, :utc_datetime_usec,
         null: false,

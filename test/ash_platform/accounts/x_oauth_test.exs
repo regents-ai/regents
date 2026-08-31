@@ -71,7 +71,9 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     account = account!("complete")
     claim = claim!(account)
 
-    assert {:ok, %{role: :profile, generation: generation}} = XOAuth.begin(claim, :profile)
+    assert {:ok, %{role: :profile, generation: generation}} =
+             XOAuth.begin(claim, :profile, intent())
+
     assert_receive {:authorize, config, state, verifier}
     assert config[:client_id] == "public-x-client"
     assert config[:authorization_params][:scope] == "tweet.read users.read"
@@ -110,7 +112,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     claim = claim!(owner)
     other_claim = claim!(other)
 
-    assert {:ok, _started} = XOAuth.begin(claim, :company)
+    assert {:ok, _started} = XOAuth.begin(claim, :company, intent())
     assert_receive {:authorize, _config, state, _verifier}
 
     assert {:error, _reason} =
@@ -131,7 +133,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert expired.attempt_generation == nil
 
     Agent.update(clock, fn _ -> ~U[2026-08-30 19:00:00.000000Z] end)
-    assert {:ok, _started} = XOAuth.begin(claim, :company)
+    assert {:ok, _started} = XOAuth.begin(claim, :company, intent())
     assert_receive {:authorize, _config, refreshed_state, _verifier}
     assert {:ok, :refresh, new_claim} = SessionAuthority.sign_in(claim, owner.id)
 
@@ -156,10 +158,10 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     account = account!("wrong-role-verifier")
     claim = claim!(account)
 
-    assert {:error, :invalid_role} = XOAuth.begin(claim, :operator)
+    assert {:error, :invalid_role} = XOAuth.begin(claim, :operator, intent())
     refute_receive {:authorize, _config, _state, _verifier}
 
-    assert {:ok, _started} = XOAuth.begin(claim, :profile)
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, state, verifier}
     actor = human(account)
     assert {:ok, connection} = Accounts.get_my_x_connection(:profile, actor: actor)
@@ -212,7 +214,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert {:ok, before} = Accounts.get_my_x_connection(:profile, actor: human(account))
     assert before.username == "verified_creator"
 
-    assert {:ok, _started} = XOAuth.begin(claim, :profile)
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, state, _verifier}
 
     Application.put_env(:ash_platform, :x_oauth_test_callback, fn _config, _params ->
@@ -229,7 +231,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert retained.attempt_state == nil
     assert retained.attempt_verifier == nil
 
-    assert {:ok, %{role: :profile}} = XOAuth.disconnect(claim, :profile)
+    assert {:ok, %{role: :profile}} = XOAuth.disconnect(claim, :profile, intent())
     assert {:ok, disconnected} = Accounts.get_my_x_connection(:profile, actor: human(account))
     assert disconnected.username == nil
     assert disconnected.verified_at == nil
@@ -239,7 +241,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     account = account!("concurrent")
     claim = claim!(account)
 
-    assert {:ok, _started} = XOAuth.begin(claim, :profile)
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, state, _verifier}
 
     results =
@@ -262,7 +264,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     claim = claim!(account)
     test_pid = self()
 
-    assert {:ok, _started} = XOAuth.begin(claim, :profile)
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, state, _verifier}
 
     Application.put_env(:ash_platform, :x_oauth_test_callback, fn _config, _params ->
@@ -304,7 +306,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     connect!(claim, :profile)
     successful_callback = Application.fetch_env!(:ash_platform, :x_oauth_test_callback)
 
-    assert {:ok, _old_attempt} = XOAuth.begin(claim, :profile)
+    assert {:ok, _old_attempt} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, old_state, _verifier}
 
     Application.put_env(:ash_platform, :x_oauth_test_callback, fn _config, _params ->
@@ -321,8 +323,8 @@ defmodule AshPlatform.Accounts.XOAuthTest do
       end)
 
     assert_receive {:reconnect_waiting, provider_pid}
-    assert {:ok, %{role: :profile}} = XOAuth.disconnect(claim, :profile)
-    assert {:ok, _new_attempt} = XOAuth.begin(claim, :profile)
+    assert {:ok, %{role: :profile}} = XOAuth.disconnect(claim, :profile, intent())
+    assert {:ok, _new_attempt} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, new_state, _verifier}
 
     send(provider_pid, :release_reconnect)
@@ -338,8 +340,98 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert current.username == "verified_creator"
   end
 
+  test "a newer disconnect wins when an older Change request reaches the row later" do
+    account = account!("reversed-intent-arrival")
+    claim = claim!(account)
+    connect!(claim, :profile)
+    actor = human(account)
+    assert {:ok, connected} = Accounts.get_my_x_connection(:profile, actor: actor)
+    older = intent_after(connected.intent_sequence, 1)
+    newer = intent_after(connected.intent_sequence, 2)
+    test_pid = self()
+
+    Application.put_env(:ash_platform, :x_oauth_test_authorize, fn config ->
+      send(test_pid, {:older_change_waiting, self()})
+
+      result =
+        receive do
+          :release_older_change ->
+            {:ok,
+             %{
+               url: "https://x.example.test/authorize?state=late-state",
+               session_params: %{state: "late-state", code_verifier: "late-verifier"}
+             }}
+        end
+
+      send(test_pid, {:older_authorized, config})
+      result
+    end)
+
+    older_change = Task.async(fn -> XOAuth.begin(claim, :profile, older) end)
+    assert_receive {:older_change_waiting, provider_pid}
+    assert {:ok, %{role: :profile}} = XOAuth.disconnect(claim, :profile, newer)
+    send(provider_pid, :release_older_change)
+    assert {:error, :stale_intent} = Task.await(older_change)
+
+    assert {:ok, current} = Accounts.get_my_x_connection(:profile, actor: actor)
+    assert current.intent_sequence == newer.intent_sequence
+    assert current.intent_generation == newer.intent_generation
+    assert current.verified_at == nil
+    assert current.attempt_state == nil
+  end
+
+  test "popup cancellation is exact, expires safely, and cannot clear a newer attempt", %{
+    clock: clock
+  } do
+    account = account!("exact-popup-cancel")
+    claim = claim!(account)
+    actor = human(account)
+    first = intent()
+
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, first)
+    assert_receive {:authorize, _config, _state, _verifier}
+
+    cancellation =
+      first
+      |> intent_after(1)
+      |> Map.merge(%{
+        cancel_sequence: first.intent_sequence,
+        cancel_generation: first.intent_generation
+      })
+
+    assert {:ok, _cancelled} = XOAuth.cancel(claim, :profile, cancellation)
+    assert {:ok, cleared} = Accounts.get_my_x_connection(:profile, actor: actor)
+    assert cleared.attempt_state == nil
+
+    newer = intent_after(cancellation.intent_sequence, 1)
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, newer)
+    assert_receive {:authorize, _config, _state, _verifier}
+
+    wrong_generation =
+      newer
+      |> intent_after(1)
+      |> Map.merge(%{
+        cancel_sequence: newer.intent_sequence,
+        cancel_generation: Ash.UUID.generate()
+      })
+
+    assert {:error, :stale_intent} = XOAuth.cancel(claim, :profile, wrong_generation)
+
+    assert {:error, :stale_intent} = XOAuth.cancel(claim, :profile, cancellation)
+    assert {:ok, retained} = Accounts.get_my_x_connection(:profile, actor: actor)
+    assert retained.intent_generation == newer.intent_generation
+    assert is_binary(retained.attempt_state)
+
+    Agent.update(clock, &DateTime.add(&1, 601, :second))
+    assert {:ok, [_connection]} = XOAuth.list_for_account(account)
+    assert {:ok, expired} = Accounts.get_my_x_connection(:profile, actor: actor)
+    assert expired.intent_generation == newer.intent_generation
+    assert expired.attempt_state == nil
+    assert expired.attempt_verifier == nil
+  end
+
   defp connect!(claim, role) do
-    assert {:ok, _started} = XOAuth.begin(claim, role)
+    assert {:ok, _started} = XOAuth.begin(claim, role, intent())
     assert_receive {:authorize, _config, state, _verifier}
     assert {:ok, _completed} = XOAuth.callback(claim, %{"state" => state, "code" => "code"})
     assert_receive {:callback, _config, _params}
@@ -371,4 +463,21 @@ defmodule AshPlatform.Accounts.XOAuthTest do
 
   defp human(account),
     do: %AshPlatform.Actors.Human{human_account_id: account.id}
+
+  defp intent do
+    %{
+      intent_sequence: Elixir.System.unique_integer([:positive, :monotonic]),
+      intent_generation: Ash.UUID.generate()
+    }
+  end
+
+  defp intent_after(%{intent_sequence: sequence}, increment),
+    do: intent_after(sequence, increment)
+
+  defp intent_after(sequence, increment) when is_integer(sequence) do
+    %{
+      intent_sequence: sequence + increment,
+      intent_generation: Ash.UUID.generate()
+    }
+  end
 end

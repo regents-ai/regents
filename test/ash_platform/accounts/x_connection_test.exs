@@ -72,17 +72,28 @@ defmodule AshPlatform.Accounts.XConnectionTest do
     assert {:ok, nil} = Accounts.get_my_x_connection(:profile, actor: other_actor)
 
     assert {:error, %Ash.Error.Forbidden{}} =
-             Accounts.disconnect_x_connection(connection, Ash.UUID.generate(), actor: other_actor)
+             Accounts.disconnect_x_connection(
+               connection,
+               1,
+               Ash.UUID.generate(),
+               actor: other_actor
+             )
 
     assert {:ok, disconnected} =
-             Accounts.disconnect_x_connection(connection, Ash.UUID.generate(), actor: owner_actor)
+             Accounts.disconnect_x_connection(
+               connection,
+               1,
+               Ash.UUID.generate(),
+               actor: owner_actor
+             )
 
     assert disconnected.x_user_id == nil
     assert disconnected.username == nil
     assert disconnected.display_name == nil
     assert disconnected.avatar_url == nil
     assert disconnected.verified_at == nil
-    assert disconnected.attempt_generation
+    assert disconnected.attempt_generation == nil
+    assert disconnected.intent_generation
 
     assert {:ok, []} = Accounts.list_public_x_connections([owner.id])
   end
@@ -95,7 +106,9 @@ defmodule AshPlatform.Accounts.XConnectionTest do
       attempt_state: "state-#{Ash.UUID.generate()}",
       attempt_verifier: "verifier-#{Ash.UUID.generate()}",
       attempt_generation: Ash.UUID.generate(),
-      attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
+      attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second),
+      intent_sequence: 1,
+      intent_generation: Ash.UUID.generate()
     }
   end
 

@@ -9,26 +9,40 @@ type CallbackMessage = {
   role?: unknown
   generation?: unknown
 }
+type Intent = {sequence: number; generation: string}
 type StartAttempt = {
   role: XRole
+  intent: Intent
   controller: AbortController
   timeout: number
+  cancelled: boolean
+}
+type DeleteAttempt = {
+  path: string
+  cancelGeneration?: unknown
+  controller: AbortController
+  timeout: number
+  promise: Promise<Response>
 }
 
 type XConnectionsHook = Hook & {
   el: HTMLElement
   pushEvent(event: string, payload: unknown): void
   activeStart?: StartAttempt
+  activeDeletes?: Partial<Record<XRole, DeleteAttempt>>
+  disconnectingRoles?: Set<XRole>
+  intentSequences?: Partial<Record<XRole, number>>
   cancelActiveStart?: (selectedRole?: XRole) => void
   activePopup?: Window | null
   activeRole?: XRole
+  activeIntent?: Intent
   activeGeneration?: string
   popupPoll?: number
   clickListener?: (event: Event) => void
   messageListener?: (event: MessageEvent) => void
 }
 
-const startTimeoutMs = 10_000
+const requestTimeoutMs = 10_000
 
 function role(value: string | undefined): XRole | null {
   return value === "profile" || value === "company" ? value : null
@@ -50,23 +64,34 @@ async function json(response: Response): Promise<StartResponse> {
 async function mutate(
   path: string,
   method: "POST" | "DELETE",
+  payload: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<Response> {
   return fetch(path, {
     method,
     credentials: "same-origin",
-    headers: {"x-csrf-token": browserCsrfToken(), accept: "application/json"},
+    headers: {
+      "x-csrf-token": browserCsrfToken(),
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
     ...(signal ? {signal} : {}),
   })
 }
 
 export const XConnections: Hook = {
   mounted(this: XConnectionsHook) {
-    const reset = () => {
+    this.activeDeletes = {}
+    this.disconnectingRoles = new Set()
+    this.intentSequences = {}
+
+    const resetPopup = () => {
       if (this.popupPoll) window.clearInterval(this.popupPoll)
       this.popupPoll = undefined
       this.activePopup = null
       this.activeRole = undefined
+      this.activeIntent = undefined
       this.activeGeneration = undefined
     }
 
@@ -75,64 +100,141 @@ export const XConnections: Hook = {
       if (this.activeStart === attempt) this.activeStart = undefined
     }
 
+    const nextIntent = (selectedRole: XRole, renderedSequence = 0): Intent => {
+      const previous = Math.max(this.intentSequences?.[selectedRole] ?? 0, renderedSequence)
+      const clock = Math.min(Number.MAX_SAFE_INTEGER - 1, Date.now() * 1_000)
+      const sequence = Math.max(previous + 1, clock)
+      if (this.intentSequences) this.intentSequences[selectedRole] = sequence
+      return {sequence, generation: crypto.randomUUID()}
+    }
+
+    const runDelete = (
+      selectedRole: XRole,
+      path: string,
+      payload: Record<string, unknown>,
+    ): Promise<Response> => {
+      const active = this.activeDeletes?.[selectedRole]
+      if (
+        active &&
+        active.path === path &&
+        active.cancelGeneration === payload.cancel_generation
+      ) {
+        return active.promise
+      }
+
+      if (active) {
+        return active.promise.then(
+          () => runDelete(selectedRole, path, payload),
+          () => runDelete(selectedRole, path, payload),
+        )
+      }
+
+      const controller = new AbortController()
+      const attempt = {} as DeleteAttempt
+      attempt.path = path
+      attempt.cancelGeneration = payload.cancel_generation
+      attempt.controller = controller
+      attempt.timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs)
+      attempt.promise = mutate(path, "DELETE", payload, controller.signal).finally(() => {
+        window.clearTimeout(attempt.timeout)
+        if (this.activeDeletes?.[selectedRole] === attempt) {
+          delete this.activeDeletes[selectedRole]
+        }
+      })
+
+      if (this.activeDeletes) this.activeDeletes[selectedRole] = attempt
+      return attempt.promise
+    }
+
+    const cancelAttempt = (selectedRole: XRole, target: Intent, renderedSequence = 0) => {
+      const cancellation = nextIntent(selectedRole, Math.max(renderedSequence, target.sequence))
+
+      return runDelete(selectedRole, `/auth/x/connections/${selectedRole}/attempt`, {
+        intent_sequence: cancellation.sequence,
+        intent_generation: cancellation.generation,
+        cancel_sequence: target.sequence,
+        cancel_generation: target.generation,
+      })
+    }
+
     const cancelStart = (selectedRole?: XRole) => {
       const attempt = this.activeStart
-      if (!attempt || (selectedRole && attempt.role !== selectedRole)) return
+      const popupRole = this.activeRole
+      const popupIntent = this.activeIntent
 
-      attempt.controller.abort()
-      releaseStart(attempt)
+      if (attempt && (!selectedRole || attempt.role === selectedRole)) {
+        attempt.controller.abort()
+        releaseStart(attempt)
+      }
+
+      if (
+        popupRole &&
+        popupIntent &&
+        (!selectedRole || popupRole === selectedRole) &&
+        !attempt?.cancelled
+      ) {
+        if (attempt) attempt.cancelled = true
+        void cancelAttempt(popupRole, popupIntent).catch(() => undefined)
+      }
     }
 
     this.cancelActiveStart = cancelStart
 
-    const start = (selectedRole: XRole) => {
+    const start = (selectedRole: XRole, renderedSequence: number) => {
       cancelStart()
       this.activePopup?.close()
-      reset()
+      resetPopup()
+
       const popup = window.open("", "regents-x-oauth", "popup,width=620,height=720")
       if (!popup) {
         status(this.el, "Allow popups to connect X.")
         return
       }
 
+      const intent = nextIntent(selectedRole, renderedSequence)
+      const attempt: StartAttempt = {
+        role: selectedRole,
+        intent,
+        controller: new AbortController(),
+        timeout: 0,
+        cancelled: false,
+      }
+
+      this.activeStart = attempt
       this.activePopup = popup
       this.activeRole = selectedRole
+      this.activeIntent = intent
       this.activeGeneration = undefined
       popup.document.title = "Connecting X"
       status(this.el, `Opening ${selectedRole} X connection…`)
-      this.popupPoll = window.setInterval(() => {
-        if (this.activePopup !== popup || !popup.closed) return
-        cancelStart(selectedRole)
-        reset()
-        status(this.el, "X connection was not completed.")
-      }, 250)
 
-      const attempt: StartAttempt = {
-        role: selectedRole,
-        controller: new AbortController(),
-        timeout: 0,
+      const abandon = (message: string) => {
+        if (this.activePopup !== popup) return
+        cancelStart(selectedRole)
+        popup.close()
+        resetPopup()
+        status(this.el, message)
       }
 
-      attempt.timeout = window.setTimeout(() => {
-        if (this.activeStart !== attempt) return
-
-        attempt.controller.abort()
-        releaseStart(attempt)
-        popup.close()
-
-        if (this.activePopup === popup) {
-          reset()
-          status(this.el, "X connection could not start. Try again.")
+      this.popupPoll = window.setInterval(() => {
+        if (this.activePopup === popup && popup.closed) {
+          abandon("X connection was not completed.")
         }
-      }, startTimeoutMs)
+      }, 250)
 
-      this.activeStart = attempt
+      attempt.timeout = window.setTimeout(() => {
+        if (this.activePopup === popup) abandon("X connection could not start. Try again.")
+      }, requestTimeoutMs)
 
       void (async () => {
         try {
           const response = await mutate(
             `/auth/x/connections/${selectedRole}`,
             "POST",
+            {
+              intent_sequence: intent.sequence,
+              intent_generation: intent.generation,
+            },
             attempt.controller.signal,
           )
           const body = await json(response)
@@ -145,14 +247,26 @@ export const XConnections: Hook = {
             throw new Error("start refused")
           }
 
-          if (this.activePopup !== popup || popup.closed || attempt.controller.signal.aborted) return
+          if (this.activePopup !== popup || popup.closed || attempt.controller.signal.aborted) {
+            if (!attempt.cancelled) {
+              attempt.cancelled = true
+              void cancelAttempt(selectedRole, intent).catch(() => undefined)
+            }
+            return
+          }
+
           this.activeGeneration = body.generation
           popup.location.replace(body.url)
         } catch {
+          if (!attempt.cancelled) {
+            attempt.cancelled = true
+            void cancelAttempt(selectedRole, intent).catch(() => undefined)
+          }
+
           if (!attempt.controller.signal.aborted) popup.close()
 
           if (this.activePopup === popup && !attempt.controller.signal.aborted) {
-            reset()
+            resetPopup()
             status(this.el, "X connection could not start. Try again.")
           }
         } finally {
@@ -161,36 +275,64 @@ export const XConnections: Hook = {
       })()
     }
 
-    const disconnect = (selectedRole: XRole) => {
-      cancelStart(selectedRole)
+    const disconnect = (selectedRole: XRole, renderedSequence: number) => {
+      if (this.disconnectingRoles?.has(selectedRole)) {
+        status(this.el, `Disconnecting ${selectedRole} X…`)
+        return
+      }
+
+      this.disconnectingRoles?.add(selectedRole)
+
+      const activeIntent = this.activeRole === selectedRole ? this.activeIntent : undefined
+      const startAttempt = this.activeStart
+
+      if (startAttempt?.role === selectedRole) {
+        startAttempt.cancelled = true
+        startAttempt.controller.abort()
+        releaseStart(startAttempt)
+      }
 
       if (this.activeRole === selectedRole) {
         this.activePopup?.close()
-        reset()
+        resetPopup()
       }
 
+      const intent = nextIntent(
+        selectedRole,
+        Math.max(renderedSequence, activeIntent?.sequence ?? 0),
+      )
       status(this.el, `Disconnecting ${selectedRole} X…`)
 
       void (async () => {
         try {
-          const response = await mutate(`/auth/x/connections/${selectedRole}`, "DELETE")
+          const response = await runDelete(selectedRole, `/auth/x/connections/${selectedRole}`, {
+            intent_sequence: intent.sequence,
+            intent_generation: intent.generation,
+            ...(activeIntent ? {cancel_generation: activeIntent.generation} : {}),
+          })
           if (!response.ok) throw new Error("disconnect refused")
           status(this.el, "X account disconnected.")
           this.pushEvent("refresh_x_connections", {role: selectedRole, status: "disconnected"})
         } catch {
           status(this.el, "X account could not be disconnected. Try again.")
+        } finally {
+          this.disconnectingRoles?.delete(selectedRole)
         }
       })()
     }
 
     this.clickListener = event => {
       const target = event.target instanceof Element ? event.target : null
-      const connectRole = role(target?.closest<HTMLElement>("[data-x-connect-role]")?.dataset.xConnectRole)
+      const roleContainer = target?.closest<HTMLElement>("[data-x-role]")
+      const renderedSequence = Number(roleContainer?.dataset.xIntentSequence ?? "0")
+      const connectRole = role(
+        target?.closest<HTMLElement>("[data-x-connect-role]")?.dataset.xConnectRole,
+      )
       const disconnectRole = role(
         target?.closest<HTMLElement>("[data-x-disconnect-role]")?.dataset.xDisconnectRole,
       )
-      if (connectRole) void start(connectRole)
-      if (disconnectRole) void disconnect(disconnectRole)
+      if (connectRole) start(connectRole, renderedSequence)
+      if (disconnectRole) disconnect(disconnectRole, renderedSequence)
     }
 
     this.messageListener = event => {
@@ -208,7 +350,7 @@ export const XConnections: Hook = {
 
       const selectedRole = this.activeRole
       this.activePopup?.close()
-      reset()
+      resetPopup()
       if (message.status === "connected") {
         status(this.el, "X account connected.")
         this.pushEvent("refresh_x_connections", {role: selectedRole, status: "connected"})

@@ -116,11 +116,23 @@ describe("direct X role connections", () => {
     root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
     await settled()
 
-    expect(fetch).toHaveBeenCalledWith("/auth/x/connections/profile", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
-      signal: expect.any(AbortSignal),
+    expect(fetch).toHaveBeenCalledWith(
+      "/auth/x/connections/profile",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "x-csrf-token": "csrf-token",
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: expect.any(String),
+        signal: expect.any(AbortSignal),
+      }),
+    )
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      intent_sequence: expect.any(Number),
+      intent_generation: expect.stringMatching(/^[0-9a-f-]{36}$/),
     })
     expect(activePopup.location.replace).toHaveBeenCalledWith("https://x.example.test/authorize")
 
@@ -186,6 +198,11 @@ describe("direct X role connections", () => {
 
     expect(root.status.textContent).toBe("X connection was not completed.")
     expect(pushEvent).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/auth/x/connections/company/attempt",
+      expect.objectContaining({method: "DELETE", body: expect.any(String)}),
+    )
 
     activePopup = popup()
     vi.mocked(fetch).mockResolvedValueOnce(response({error: "x_oauth_disabled"}, 503))
@@ -205,6 +222,7 @@ describe("direct X role connections", () => {
           generation: "generation-first",
         }),
       )
+      .mockResolvedValueOnce(response({ok: true, role: "profile"}))
       .mockResolvedValueOnce(
         response({
           url: "https://x.example.test/second",
@@ -223,6 +241,11 @@ describe("direct X role connections", () => {
     expect(firstPopup.close).toHaveBeenCalledOnce()
     expect(activePopup).not.toBe(firstPopup)
     expect(activePopup.location.replace).toHaveBeenCalledWith("https://x.example.test/second")
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/auth/x/connections/profile/attempt",
+      expect.objectContaining({method: "DELETE", body: expect.any(String)}),
+    )
   })
 
   it("disconnects only the selected role with the current CSRF token", async () => {
@@ -231,11 +254,20 @@ describe("direct X role connections", () => {
     root.listeners.get("click")?.({target: new RoleTarget("disconnect", "company")} as unknown as Event)
     await settled()
 
-    expect(fetch).toHaveBeenCalledWith("/auth/x/connections/company", {
-      method: "DELETE",
-      credentials: "same-origin",
-      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
-    })
+    expect(fetch).toHaveBeenCalledWith(
+      "/auth/x/connections/company",
+      expect.objectContaining({
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          "x-csrf-token": "csrf-token",
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: expect.any(String),
+        signal: expect.any(AbortSignal),
+      }),
+    )
     expect(pushEvent).toHaveBeenCalledWith("refresh_x_connections", {
       role: "company",
       status: "disconnected",
@@ -268,11 +300,20 @@ describe("direct X role connections", () => {
     expect(startPopup.close).toHaveBeenCalledOnce()
     expect(startSignal?.aborted).toBe(true)
     expect(fetch).toHaveBeenCalledTimes(2)
-    expect(fetch).toHaveBeenNthCalledWith(2, "/auth/x/connections/profile", {
-      method: "DELETE",
-      credentials: "same-origin",
-      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
-    })
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/auth/x/connections/profile",
+      expect.objectContaining({
+        method: "DELETE",
+        body: expect.any(String),
+        signal: expect.any(AbortSignal),
+      }),
+    )
+
+    const startIntent = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))
+    const disconnectIntent = JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))
+    expect(disconnectIntent.intent_sequence).toBeGreaterThan(startIntent.intent_sequence)
+    expect(disconnectIntent.cancel_generation).toBe(startIntent.intent_generation)
 
     await settled()
 
@@ -318,5 +359,95 @@ describe("direct X role connections", () => {
     expect(activePopup.location.replace).not.toHaveBeenCalled()
     expect(root.status.textContent).toBe("X connection could not start. Try again.")
     expect(pushEvent).not.toHaveBeenCalled()
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/auth/x/connections/profile/attempt",
+      expect.objectContaining({method: "DELETE", signal: expect.any(AbortSignal)}),
+    )
+
+    const startIntent = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))
+    const cancelIntent = JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))
+    expect(cancelIntent.cancel_generation).toBe(startIntent.intent_generation)
+    expect(cancelIntent.cancel_sequence).toBe(startIntent.intent_sequence)
+    expect(cancelIntent.intent_sequence).toBeGreaterThan(startIntent.intent_sequence)
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    await settled()
+    expect((vi.mocked(fetch).mock.calls[1]?.[1] as RequestInit).signal?.aborted).toBe(true)
+  })
+
+  it("keeps a hung Disconnect bounded and single-flight for each role", async () => {
+    vi.mocked(fetch).mockImplementation((_path, options) => {
+      const signal = options?.signal
+
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("aborted")))
+      })
+    })
+
+    const click = () =>
+      root.listeners
+        .get("click")
+        ?.({target: new RoleTarget("disconnect", "profile")} as unknown as Event)
+
+    click()
+    click()
+    await settled()
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(root.status.textContent).toBe("Disconnecting profile X…")
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    await settled()
+
+    expect((vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true)
+    expect(root.status.textContent).toBe("X account could not be disconnected. Try again.")
+  })
+
+  it("queues Disconnect behind bounded popup cleanup without letting the older cleanup win", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        response({
+          url: "https://x.example.test/authorize",
+          role: "profile",
+          generation: "generation-queued",
+        }),
+      )
+      .mockImplementationOnce((_path, options) => {
+        const signal = options?.signal
+
+        return new Promise<Response>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("aborted")))
+        })
+      })
+      .mockResolvedValueOnce(response({ok: true, role: "profile"}))
+
+    root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
+    await settled()
+    activePopup.closed = true
+    await vi.advanceTimersByTimeAsync(250)
+
+    root.listeners
+      .get("click")
+      ?.({target: new RoleTarget("disconnect", "profile")} as unknown as Event)
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(root.status.textContent).toBe("Disconnecting profile X…")
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    await settled()
+
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
+      "/auth/x/connections/profile",
+      expect.objectContaining({method: "DELETE", body: expect.any(String)}),
+    )
+
+    const cleanup = JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))
+    const disconnect = JSON.parse(String(vi.mocked(fetch).mock.calls[2]?.[1]?.body))
+    expect(disconnect.intent_sequence).toBeGreaterThan(cleanup.intent_sequence)
+    expect(root.status.textContent).toBe("X account disconnected.")
   })
 })
