@@ -161,7 +161,7 @@ defmodule AshPlatform.Autolaunch.LabProjectionTest do
       "subject" => @subject,
       "splitter" => @splitter,
       "receiver" => @receiver,
-      "token_symbol" => "LOCAL"
+      "token_symbol" => "DIVERGENT"
     }
 
     assert :ok = LabProjection.project_position(late_exit, graduated)

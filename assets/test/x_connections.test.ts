@@ -96,6 +96,8 @@ describe("direct X role connections", () => {
       removeEventListener: vi.fn(),
       setInterval,
       clearInterval,
+      setTimeout,
+      clearTimeout,
     })
 
     hook = {el: root, pushEvent} as never
@@ -118,6 +120,7 @@ describe("direct X role connections", () => {
       method: "POST",
       credentials: "same-origin",
       headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
+      signal: expect.any(AbortSignal),
     })
     expect(activePopup.location.replace).toHaveBeenCalledWith("https://x.example.test/authorize")
 
@@ -240,7 +243,7 @@ describe("direct X role connections", () => {
     expect(root.status.textContent).toBe("X account disconnected.")
   })
 
-  it("settles a delayed start before disconnecting the same role", async () => {
+  it("disconnects immediately while a same-role start is unresolved and ignores its late result", async () => {
     let resolveStart!: (value: Response) => void
     const delayedStart = new Promise<Response>(resolve => {
       resolveStart = resolve
@@ -253,15 +256,31 @@ describe("direct X role connections", () => {
     root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
     await settled()
     const startPopup = activePopup
+    const startSignal = (vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit).signal
 
     expect(fetch).toHaveBeenCalledTimes(1)
+    expect(startSignal?.aborted).toBe(false)
 
     root.listeners
       .get("click")
       ?.({target: new RoleTarget("disconnect", "profile")} as unknown as Event)
 
     expect(startPopup.close).toHaveBeenCalledOnce()
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(startSignal?.aborted).toBe(true)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch).toHaveBeenNthCalledWith(2, "/auth/x/connections/profile", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
+    })
+
+    await settled()
+
+    expect(pushEvent).toHaveBeenCalledWith("refresh_x_connections", {
+      role: "profile",
+      status: "disconnected",
+    })
+    expect(root.status.textContent).toBe("X account disconnected.")
 
     resolveStart(
       response({
@@ -273,15 +292,31 @@ describe("direct X role connections", () => {
     await settled()
 
     expect(startPopup.location.replace).not.toHaveBeenCalled()
-    expect(fetch).toHaveBeenNthCalledWith(2, "/auth/x/connections/profile", {
-      method: "DELETE",
-      credentials: "same-origin",
-      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
-    })
-    expect(pushEvent).toHaveBeenCalledWith("refresh_x_connections", {
-      role: "profile",
-      status: "disconnected",
-    })
     expect(root.status.textContent).toBe("X account disconnected.")
+  })
+
+  it("bounds a start that never returns", async () => {
+    vi.mocked(fetch).mockImplementation((_path, options) => {
+      const signal = options?.signal
+
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("aborted")))
+      })
+    })
+
+    root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
+    await settled()
+
+    const startSignal = (vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit).signal
+    expect(startSignal?.aborted).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    await settled()
+
+    expect(startSignal?.aborted).toBe(true)
+    expect(activePopup.close).toHaveBeenCalledOnce()
+    expect(activePopup.location.replace).not.toHaveBeenCalled()
+    expect(root.status.textContent).toBe("X connection could not start. Try again.")
+    expect(pushEvent).not.toHaveBeenCalled()
   })
 })

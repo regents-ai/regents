@@ -33,9 +33,8 @@ defmodule AshPlatform.Accounts.XOAuth do
          {:ok, config} <- config(),
          {:ok, %{url: url, session_params: params}} <- strategy().authorize_url(config),
          {:ok, state} <- required_binary(params, :state),
-         {:ok, verifier} <- required_binary(params, :code_verifier) do
-      generation = Ash.UUID.generate()
-
+         {:ok, verifier} <- required_binary(params, :code_verifier),
+         {:ok, generation} <- attempt_generation(claim, state) do
       attrs = %{
         role: role,
         attempt_state: state,
@@ -54,7 +53,8 @@ defmodule AshPlatform.Accounts.XOAuth do
   @spec callback(SessionAuthority.claim() | nil, map()) ::
           {:ok, %{role: role(), generation: String.t()}} | {:error, term()}
   def callback(claim, %{"state" => state} = params) when is_binary(state) do
-    with {:ok, attempt} <- preflight(claim, state) do
+    with {:ok, generation} <- attempt_generation(claim, state),
+         {:ok, attempt} <- preflight(claim, state, generation) do
       result =
         with {:ok, config} <- config(),
              callback_config =
@@ -128,33 +128,34 @@ defmodule AshPlatform.Accounts.XOAuth do
     end
   end
 
-  defp preflight(claim, state) do
-    case SessionAuthority.transact_exact(claim, &preflight_account(&1, state)) do
+  defp preflight(claim, state, generation) do
+    case SessionAuthority.transact_exact(claim, &preflight_account(&1, state, generation)) do
       {:ok, {:active, attempt}} -> {:ok, attempt}
       {:ok, :expired} -> {:error, :invalid_or_expired_attempt}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp preflight_account(account, state) do
+  defp preflight_account(account, state, generation) do
     actor = actor(account)
 
     with {:ok, connections} <- Accounts.list_my_x_connections(actor: actor) do
       connections
       |> Enum.find(&state_matches?(&1, state))
-      |> preflight_connection(actor)
+      |> preflight_connection(actor, generation)
     end
   end
 
-  defp preflight_connection(%XConnection{} = connection, actor) do
+  defp preflight_connection(%XConnection{} = connection, actor, generation) do
     attempt = attempt_snapshot(connection)
 
-    if active?(connection),
+    if active?(connection) and connection.attempt_generation == generation,
       do: {:ok, {:active, attempt}},
       else: expire_attempt(connection, attempt, actor)
   end
 
-  defp preflight_connection(_missing, _actor), do: {:error, :invalid_or_expired_attempt}
+  defp preflight_connection(_missing, _actor, _generation),
+    do: {:error, :invalid_or_expired_attempt}
 
   defp expire_attempt(connection, attempt, actor) do
     with {:ok, locked} <-
@@ -295,6 +296,27 @@ defmodule AshPlatform.Accounts.XOAuth do
       _missing -> {:error, :invalid_oauth_attempt}
     end
   end
+
+  defp attempt_generation(%{lineage: lineage, generation: generation}, state)
+       when is_binary(lineage) and is_integer(generation) and generation >= 0 and is_binary(state) do
+    digest =
+      :crypto.hash(
+        :sha256,
+        [
+          "ash-platform:x-oauth-attempt:v1",
+          <<0>>,
+          lineage,
+          <<0>>,
+          Integer.to_string(generation),
+          <<0>>,
+          state
+        ]
+      )
+
+    {:ok, digest |> binary_part(0, 16) |> Ecto.UUID.load!()}
+  end
+
+  defp attempt_generation(_claim, _state), do: {:error, :stale_authority}
 
   defp state_matches?(%{attempt_state: expected}, provided)
        when is_binary(expected) and is_binary(provided) and

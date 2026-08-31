@@ -133,12 +133,23 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     Agent.update(clock, fn _ -> ~U[2026-08-30 19:00:00.000000Z] end)
     assert {:ok, _started} = XOAuth.begin(claim, :company)
     assert_receive {:authorize, _config, refreshed_state, _verifier}
-    assert {:ok, :refresh, _new_claim} = SessionAuthority.sign_in(claim, owner.id)
+    assert {:ok, :refresh, new_claim} = SessionAuthority.sign_in(claim, owner.id)
 
     assert {:error, :stale_authority} =
              XOAuth.callback(claim, %{"state" => refreshed_state, "code" => "stale-session"})
 
+    assert {:error, :invalid_or_expired_attempt} =
+             XOAuth.callback(new_claim, %{
+               "state" => refreshed_state,
+               "code" => "refreshed-session"
+             })
+
     refute_receive {:callback, _config, _params}
+
+    assert {:ok, invalidated} = Accounts.get_my_x_connection(:company, actor: human(owner))
+    assert invalidated.attempt_state == nil
+    assert invalidated.attempt_verifier == nil
+    assert invalidated.attempt_generation == nil
   end
 
   test "wrong role and a replaced PKCE verifier fail without creating an identity" do

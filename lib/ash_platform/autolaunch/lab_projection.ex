@@ -141,7 +141,7 @@ defmodule AshPlatform.Autolaunch.LabProjection do
         auction_id: auction.id,
         subject_id: subject.subject_id,
         name: auction.title,
-        symbol: result["token_symbol"],
+        symbol: auction.token_symbol,
         summary: auction.summary,
         graduated_at: if(token, do: token.graduated_at, else: DateTime.utc_now()),
         treasury_address: auction.treasury_address
