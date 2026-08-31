@@ -3,8 +3,6 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   @runtime_config Path.expand("../../config/runtime.exs", __DIR__)
   @dockerfile Path.expand("../../Dockerfile", __DIR__)
-  @direct_database_host "direct.nvwq9ozp9ye03kl1.flympg.net"
-  @direct_database_url "postgresql://direct:secret@#{@direct_database_host}/ash_platform"
 
   setup do
     names = [
@@ -107,9 +105,17 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   test "production runtime enables the repository with pooled access" do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
-    pooled = @direct_database_url
+
+    pooled =
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+
     System.put_env("DATABASE_POOLED_URL", pooled)
-    System.put_env("DATABASE_DIRECT_URL", @direct_database_url)
+
+    System.put_env(
+      "DATABASE_DIRECT_URL",
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+    )
+
     System.put_env("PHX_HOST", "shadow.example.test")
     System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
 
@@ -117,7 +123,18 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     assert get_in(config, [:ash_platform, :database_startup_enabled])
 
-    assert_direct_mpg_repo(get_in(config, [:ash_platform, AshPlatform.Repo]), pooled)
+    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [
+             ssl: [
+               verify: :verify_peer,
+               cacerts: :public_key.cacerts_get(),
+               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               customize_hostname_check: [
+                 match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+               ]
+             ],
+             url: pooled,
+             socket_options: [:inet6]
+           ]
 
     endpoint = get_in(config, [:ash_platform, AshPlatformWeb.Endpoint])
 
@@ -134,7 +151,7 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env(
       "DATABASE_POOLED_URL",
-      @direct_database_url
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
     )
 
     System.put_env("PHX_HOST", "  shadow.example.test\n")
@@ -154,14 +171,28 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   test "migration runtime selects direct access only for the exact rehearsal target" do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
-    direct = @direct_database_url
+
+    direct =
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
     System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "nvwq9ozp9ye03kl1")
     System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-pg-test")
     System.put_env("DATABASE_DIRECT_URL", direct)
 
-    assert_direct_mpg_repo(runtime_repo_config(:prod), direct)
+    assert runtime_repo_config(:prod) == [
+             ssl: [
+               verify: :verify_peer,
+               cacerts: :public_key.cacerts_get(),
+               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               customize_hostname_check: [
+                 match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+               ]
+             ],
+             url: direct,
+             socket_options: [:inet6]
+           ]
   end
 
   test "migration runtime rejects an arbitrary direct URL without rehearsal identity" do
@@ -217,7 +248,10 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   test "PKG-RUNTIME migration startup does not require serving-only endpoint values" do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
-    direct = @direct_database_url
+
+    direct =
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
     System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "nvwq9ozp9ye03kl1")
@@ -226,7 +260,18 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     config = read_runtime_config(:prod)
 
-    assert_direct_mpg_repo(get_in(config, [:ash_platform, AshPlatform.Repo]), direct)
+    assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [
+             ssl: [
+               verify: :verify_peer,
+               cacerts: :public_key.cacerts_get(),
+               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               customize_hostname_check: [
+                 match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+               ]
+             ],
+             url: direct,
+             socket_options: [:inet6]
+           ]
 
     assert get_in(config, [:ash_platform, AshPlatformWeb.Endpoint]) == nil
   end
@@ -320,27 +365,8 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env(
       "DATABASE_POOLED_URL",
-      @direct_database_url
+      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
     )
-  end
-
-  defp assert_direct_mpg_repo(config, url) do
-    assert config[:url] == url
-
-    {configured_url, explicit} = Keyword.pop(config, :url)
-    effective = Keyword.merge(explicit, Ecto.Repo.Supervisor.parse_url(configured_url))
-
-    assert effective[:hostname] == @direct_database_host
-    assert effective[:socket_options] == [:inet6]
-    refute Keyword.has_key?(effective, :prepare)
-    assert effective[:ssl][:verify] == :verify_peer
-    assert effective[:ssl][:server_name_indication] == String.to_charlist(@direct_database_host)
-    assert is_list(effective[:ssl][:cacerts]) and effective[:ssl][:cacerts] != []
-
-    assert is_function(
-             get_in(effective, [:ssl, :customize_hostname_check, :match_fun]),
-             2
-           )
   end
 
   defp privy_config do
