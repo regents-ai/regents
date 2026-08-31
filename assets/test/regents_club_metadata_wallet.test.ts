@@ -4,6 +4,7 @@ import {getAddress, type Hash} from "viem"
 import manifest from "../../contracts/base-mainnet.json"
 import type {EthereumProvider, SelectedWallet} from "../js/wallet_actions/connected_wallet"
 import {
+  assertExactMetadataTransactionRequest,
   beginMetadataAttempt,
   executePreparedMetadataAction,
   exactMetadataCalldata,
@@ -87,9 +88,17 @@ describe("Regents Club metadata wallet action", () => {
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).resolves.toBe(hash)
     expect(vi.mocked(rpc.request).mock.calls.at(-1)?.[0]).toEqual({
       method: "eth_sendTransaction",
-      params: [{from: signer, to: target, data: exactMetadataCalldata(), value: "0x0"}],
+      params: [
+        {
+          chainId: "0x2105",
+          from: signer,
+          to: target,
+          data: exactMetadataCalldata(),
+          value: "0x0",
+        },
+      ],
     })
-    expect(vi.mocked(rpc.request).mock.calls.at(-2)?.[0]).toEqual({method: "eth_chainId"})
+    expect(vi.mocked(rpc.request).mock.calls.at(-2)?.[0]).toEqual({method: "eth_accounts"})
 
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
       kind: "refused",
@@ -124,6 +133,24 @@ describe("Regents Club metadata wallet action", () => {
     })
     expect(vi.mocked(rpc.request).mock.calls.map(([call]) => call.method)).not.toContain(
       "eth_sendTransaction",
+    )
+  })
+
+  it.each([
+    ["missing", undefined],
+    ["wrong", "0x1"],
+    ["non-canonical", "0x02105"],
+  ])("refuses a %s transaction chainId", (_name, chainId) => {
+    const transaction: Record<string, unknown> = {
+      chainId,
+      from: signer,
+      to: target,
+      data: exactMetadataCalldata(),
+      value: "0x0",
+    }
+
+    expect(() => assertExactMetadataTransactionRequest(signer, [transaction])).toThrow(
+      expect.objectContaining({kind: "refused"}),
     )
   })
 
@@ -187,6 +214,29 @@ describe("Regents Club metadata wallet action", () => {
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
       kind: "refused",
     })
+  })
+
+  it("catches account drift at the final provider boundary without a send", async () => {
+    let accountReads = 0
+    const rpc: EthereumProvider = {
+      request: vi.fn(async ({method}) => {
+        if (method === "eth_chainId") return "0x2105"
+        if (method === "eth_accounts") {
+          accountReads += 1
+          return [accountReads < 4 ? signer : wrongSigner]
+        }
+        if (method === "eth_sendTransaction") return hash
+      }),
+    }
+    const selected = () => wallet(rpc)
+    const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
+
+    await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
+      kind: "refused",
+    })
+    expect(vi.mocked(rpc.request).mock.calls.map(([call]) => call.method)).not.toContain(
+      "eth_sendTransaction",
+    )
   })
 
   it("lets two distinct deliberate attempts reach the fake wallet independently", async () => {
