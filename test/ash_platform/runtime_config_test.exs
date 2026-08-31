@@ -22,6 +22,8 @@ defmodule AshPlatform.RuntimeConfigTest do
       "ASH_PLATFORM_APP_SURFACES",
       "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
       "ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER",
+      "ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY",
+      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY"
     ]
@@ -279,6 +281,26 @@ defmodule AshPlatform.RuntimeConfigTest do
       System.put_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER", setting)
       refute runtime_config(:regents_club_metadata_cutover)
     end
+  end
+
+  test "Regents Club protected readiness attestations fail closed and require exact values" do
+    refute runtime_config(:regents_club_privy_origin_canary)
+    assert runtime_config(:regents_club_media_full_corpus_attestation) == nil
+
+    System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "passed")
+
+    System.put_env(
+      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
+      "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a"
+    )
+
+    assert runtime_config(:regents_club_privy_origin_canary)
+
+    assert runtime_config(:regents_club_media_full_corpus_attestation) ==
+             "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a"
+
+    System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "true")
+    refute runtime_config(:regents_club_privy_origin_canary)
   end
 
   defp autolaunch_surfaces?(environment),

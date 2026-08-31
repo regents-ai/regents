@@ -123,6 +123,7 @@ defmodule AshPlatformWeb.ShellLive do
        regents_club_metadata_wallet: nil,
        regents_club_metadata_notice: nil,
        regents_club_metadata_attempts: %{},
+       regents_club_metadata_review: nil,
        regents_club_metadata_result: nil,
        route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic])
@@ -277,11 +278,14 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_async(
         {:regents_club_metadata_status, generation},
-        {:ok, {generation, :ok, {:ok, %{state: :complete}}}},
+        {:ok, {generation, :ok, {:ok, %{state: :changed_unverified}}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    RegentsClub.disable!()
-    {:noreply, assign(socket, regents_club_metadata_status: :closed)}
+    {:noreply,
+     assign(socket,
+       regents_club_metadata_status: :unknown,
+       regents_club_metadata_notice: metadata_notice(:changed_unverified)
+     )}
   end
 
   def handle_async(
@@ -310,6 +314,7 @@ defmodule AshPlatformWeb.ShellLive do
      assign(socket,
        regents_club_metadata_status: :closed,
        regents_club_metadata_attempts: %{},
+       regents_club_metadata_review: nil,
        regents_club_metadata_result: result,
        regents_club_metadata_notice: metadata_notice(:finalized)
      )}
@@ -693,11 +698,12 @@ defmodule AshPlatformWeb.ShellLive do
         %{
           assigns: %{
             route_spec: %{route_id: :regents_club_metadata},
-            regents_club_metadata_status: :ready,
+            regents_club_metadata_status: status,
             regents_club_metadata_attempts: attempts
           }
         } = socket
-      ) do
+      )
+      when status in [:ready, :observing] do
     if Map.has_key?(attempts, attempt_id) do
       {:noreply, socket}
     else
@@ -707,13 +713,11 @@ defmodule AshPlatformWeb.ShellLive do
            socket
            |> assign(
              regents_club_metadata_attempts:
-               Map.put(attempts, attempt_id, %{envelope: envelope, polls: 0}),
+               Map.put(attempts, attempt_id, %{envelope: envelope, polls: 0, handed_off: false}),
+             regents_club_metadata_status: :review,
+             regents_club_metadata_review: envelope,
              regents_club_metadata_notice: nil
-           )
-           |> push_event("regents-club-metadata:prepared", %{
-             attempt_id: attempt_id,
-             envelope: envelope
-           })}
+           )}
 
         {:error, reason} ->
           {:noreply,
@@ -725,6 +729,40 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   def handle_event("prepare_regents_club_metadata", _params, socket), do: {:noreply, socket}
+
+  def handle_event(
+        "confirm_regents_club_metadata",
+        %{"attempt_id" => attempt_id},
+        %{
+          assigns: %{
+            route_spec: %{route_id: :regents_club_metadata},
+            regents_club_metadata_status: :review,
+            regents_club_metadata_attempts: attempts
+          }
+        } = socket
+      ) do
+    case attempts[attempt_id] do
+      %{envelope: envelope, handed_off: false} = attempt ->
+        attempts = Map.put(attempts, attempt_id, Map.put(attempt, :handed_off, true))
+
+        {:noreply,
+         socket
+         |> assign(
+           regents_club_metadata_attempts: attempts,
+           regents_club_metadata_status: :observing,
+           regents_club_metadata_review: nil
+         )
+         |> push_event("regents-club-metadata:prepared", %{
+           attempt_id: attempt_id,
+           envelope: envelope
+         })}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("confirm_regents_club_metadata", _params, socket), do: {:noreply, socket}
 
   def handle_event(
         "regents_club_metadata_submitted",
@@ -746,7 +784,12 @@ defmodule AshPlatformWeb.ShellLive do
         %{"attempt_id" => attempt_id},
         socket
       ) do
-    observe_metadata_attempt(socket, attempt_id, &RegentsClubActions.recover_unknown/1)
+    observe_metadata_attempt(
+      socket,
+      attempt_id,
+      &RegentsClubActions.recover_unknown/1,
+      %{recovery: true}
+    )
   end
 
   def handle_event(event, %{"attempt_id" => attempt_id}, socket)
@@ -828,9 +871,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope, polls: polls} when polls < 40 ->
-        hash = envelope_hash(socket, attempt_id)
-
+      %{envelope: envelope, polls: polls} = attempt when polls < 40 ->
         attempts =
           put_in(socket.assigns.regents_club_metadata_attempts, [attempt_id, :polls], polls + 1)
 
@@ -838,7 +879,9 @@ defmodule AshPlatformWeb.ShellLive do
          socket
          |> assign(regents_club_metadata_attempts: attempts)
          |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
-           RegentsClubActions.observe_hash(envelope, hash)
+           if attempt[:recovery],
+             do: RegentsClubActions.recover_unknown(envelope),
+             else: RegentsClubActions.observe_hash(envelope, attempt[:hash])
          end)}
 
       %{polls: _polls} ->
@@ -1130,6 +1173,7 @@ defmodule AshPlatformWeb.ShellLive do
           wallet={@regents_club_metadata_wallet}
           notice={@regents_club_metadata_notice}
           result={@regents_club_metadata_result}
+          review={@regents_club_metadata_review}
         />
 
         <.page
@@ -1297,18 +1341,20 @@ defmodule AshPlatformWeb.ShellLive do
          %{route_id: :regents_club_metadata},
          generation
        ) do
+    lease = socket.assigns.session_lease
+
     socket
     |> assign(regents_club_metadata_status: :checking)
     |> start_async({:regents_club_metadata_status, generation}, fn ->
-      {generation, RegentsClubActions.deployment_readiness(), RegentsClubActions.status()}
+      {generation, RegentsClubActions.deployment_readiness(lease), RegentsClubActions.status()}
     end)
   end
 
   defp maybe_start_regents_club_metadata(socket, _route_spec, _generation), do: socket
 
-  defp observe_metadata_attempt(socket, attempt_id, observer, extra \\ %{}) do
+  defp observe_metadata_attempt(socket, attempt_id, observer, extra) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope} = attempt ->
+      %{envelope: envelope, handed_off: true} = attempt ->
         attempts =
           Map.put(
             socket.assigns.regents_club_metadata_attempts,
@@ -1331,9 +1377,6 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply, socket}
     end
   end
-
-  defp envelope_hash(socket, attempt_id),
-    do: get_in(socket.assigns.regents_club_metadata_attempts, [attempt_id, :hash])
 
   defp drop_metadata_attempt(socket, attempt_id) do
     assign(
@@ -1366,6 +1409,13 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp metadata_notice(:readiness_failed),
     do: %{tone: :error, message: "Privy or trusted Base RPC readiness did not pass."}
+
+  defp metadata_notice(:changed_unverified),
+    do: %{
+      tone: :error,
+      message:
+        "The URI changed, but this node has no exact finalized transaction evidence. Manual founder review is required."
+    }
 
   defp metadata_notice(_reason),
     do: %{tone: :error, message: "The exact cutover could not be prepared. Nothing was sent."}

@@ -151,6 +151,40 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     refute Envelope.valid_for_confirmation?(other, @validation)
   end
 
+  test "an expired Regents Club envelope is observation-only and remains signature-verifiable" do
+    old = DateTime.utc_now() |> DateTime.add(-601, :second)
+    previous = Application.get_env(:ash_platform, :wallet_action_clock)
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> old end)
+
+    envelope =
+      Envelope.new("set_base_uri", @signer, @data,
+        to: @target,
+        resource: "regents_club_metadata",
+        contract_name: "RegentsClub",
+        risk_copy: "Review",
+        arguments: %{attempt_id: "c56a4180-65aa-42ec-a945-5fd21dec0538"},
+        metadata: %{anchor_block_hash: "0x" <> String.duplicate("ab", 32)}
+      )
+
+    Application.put_env(:ash_platform, :wallet_action_clock, fn -> DateTime.utc_now() end)
+    on_exit(fn -> restore(:wallet_action_clock, previous) end)
+
+    validation = [
+      to: @target,
+      signer: @signer,
+      resource: "regents_club_metadata",
+      contract_name: "RegentsClub",
+      action: "set_base_uri"
+    ]
+
+    refute Envelope.valid?(envelope, validation)
+    assert Envelope.valid_for_confirmation?(envelope, validation)
+
+    refute envelope
+           |> put_in([:metadata, :anchor_block_hash], "0xchanged")
+           |> Envelope.valid_for_confirmation?(validation)
+  end
+
   defp launch_context do
     [
       to: @target,

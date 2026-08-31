@@ -17,6 +17,14 @@ defmodule AshPlatform.TestRegentsClubChainClient do
          anchor: %{number: 42, hash: hash(42)},
          owner: owner,
          base_uri: RegentsClub.old_base_uri(),
+         token_uris: %{
+           first: RegentsClub.old_base_uri() <> "1",
+           last: RegentsClub.old_base_uri() <> "1998"
+         },
+         total_supply: 1998,
+         erc4906_supported: true,
+         owner_simulation: "success",
+         non_owner_simulation: "revert",
          runtime_keccak256: RegentsClub.runtime_keccak256(),
          gas_estimate: 81_189
        }}
@@ -24,12 +32,19 @@ defmodule AshPlatform.TestRegentsClubChainClient do
   end
 
   def observe(envelope, hash) do
-    response(:observe, {:ok, {:finalized, finalized(envelope, hash)}})
+    default =
+      if String.starts_with?(hash, "0x" <> String.duplicate("de", 4)),
+        do: {:ok, :reverted},
+        else: {:ok, {:finalized, finalized(envelope, hash)}}
+
+    response(:observe, default)
   end
 
   def recover(envelope) do
-    response(:recover, {:ok, {:unknown, {envelope.attempt_id, :no_unique_match}}})
+    response(:recover, {:ok, {:unknown, {envelope.arguments.attempt_id, :no_unique_match}}})
   end
+
+  def media_readiness, do: response(:media_readiness, :ok)
 
   defp response(key, default) do
     :ash_platform

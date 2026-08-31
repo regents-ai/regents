@@ -42,6 +42,15 @@ export const RegentsClubMetadataWallet: Hook = {
         window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
         return
       }
+      const confirmation = target?.closest<HTMLElement>("[data-regents-club-metadata-confirm]")
+      if (confirmation) {
+        event.preventDefault()
+        const attemptId = confirmation.dataset.attemptId
+        if (attemptId && state.attempts.has(attemptId)) {
+          this.pushEvent("confirm_regents_club_metadata", {attempt_id: attemptId})
+        }
+        return
+      }
       if (!target?.closest("[data-regents-club-metadata-submit]")) return
       event.preventDefault()
 

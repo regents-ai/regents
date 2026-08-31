@@ -3,7 +3,7 @@ product: ash-platform
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 91b1aa935bf597b6e2274e1c441b0df29a5c84bd6c891ca5e13765cf976e9dc0
+    evidence_sha256: 9435fe39ebdb51af5ab0278fa3a09ed9d20610ab94a06440b10e9c6316d8ad5f
     chain_target: base-mainnet
     authority: evidence_only
     autolaunch_consumer_freeze:
@@ -56,7 +56,7 @@ contracts:
         source_url: "https://basescan.org/address/0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487#code"
         runtime_keccak256: "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"
         abi_path: abi/regents-club.json
-        abi_sha256: aea5f85c16c9b91b9e6b8fa44d42b68fc0cbf25a7961cbe45d9cfcc9569ec311
+        abi_sha256: 05e58830ff8454bdd0b0130b96d2a59b350802ef79a1d540f743c44107ff1be2
         reads:
           - id: owner
             signature: owner()
@@ -67,8 +67,34 @@ contracts:
           - id: token_uri
             signature: tokenURI(uint256)
             selector: "0xc87b56dd"
+          - id: total_supply
+            signature: totalSupply()
+            selector: "0x18160ddd"
+          - id: supports_interface
+            signature: supportsInterface(bytes4)
+            selector: "0x01ffc9a7"
         signer: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
         value: "0"
+        total_supply: 1998
+        erc4906_interface_id: "0x49064906"
+        calldata: "0x55f804b30000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002268747470733a2f2f6d656469612e726567656e74732e73682f6d657461646174612f000000000000000000000000000000000000000000000000000000000000"
+        calldata_keccak256: "0x6deed736ab66e25b399711cd1e6ab10d4c7380d283a0b49f68e367189cde78ce"
+        owner_simulation: success
+        non_owner_simulation: revert
+        boundary_token_uris:
+          before:
+            first: "https://regents.sh/metadata/1"
+            last: "https://regents.sh/metadata/1998"
+          after:
+            first: "https://media.regents.sh/metadata/1"
+            last: "https://media.regents.sh/metadata/1998"
+        media_release_attestation:
+          active_image_digest: "sha256:03b40ae0c61d28bbc0c28b62032d3cb1a0c7c41d09bb1e46ed6327a0f10353f6"
+          artifact_manifest_sha256: 493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a
+          production_deployment_verification_sha256: 6bb8a3e812222a29b1551470a7a18d8c715130102c7535dd73ed62d611dfa727
+          isolated_verification_sha256: 52ed1913b9160d41981614687253a33ed7d437a793a8c4ec154004afc25143bd
+          full_corpus_route_count: 1998
+          operator_attestation_required: true
         fixed_arguments:
           new_base_uri: "https://media.regents.sh/metadata/"
         confirmation_event_signature: BatchMetadataUpdate(uint256,uint256)

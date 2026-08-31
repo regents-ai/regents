@@ -7,6 +7,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
   attr :wallet, :string, default: nil
   attr :notice, :map, default: nil
   attr :result, :map, default: nil
+  attr :review, :map, default: nil
 
   def page(assigns) do
     ~H"""
@@ -54,12 +55,10 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         <p :if={!@wallet}>Select the exact owner wallet in Privy before continuing.</p>
         <p :if={@wallet}>Active owner wallet: <code>0x45C9…98E0</code></p>
 
-        <button
-          :if={@status == :ready && @wallet}
-          type="button"
-          data-regents-club-metadata-submit
-        >
-          Review in owner wallet
+        <button :if={@wallet} type="button" data-regents-club-metadata-submit>
+          {if @status == :observing,
+            do: "Review another independent attempt",
+            else: "Review in owner wallet"}
         </button>
         <button
           :if={@status == :ready && !@wallet}
@@ -69,8 +68,54 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
           Connect or switch wallet
         </button>
         <p :if={@status == :observing} role="status">
-          The server is checking the canonical Base receipt and post-state. Do not submit again.
+          Existing attempts continue independently while the server checks their finalized Base
+          receipt and post-state.
         </p>
+      </section>
+
+      <section :if={@status == :review && @review} aria-label="Founder transaction review">
+        <h2>Confirm the exact reviewed transaction</h2>
+        <dl>
+          <div>
+            <dt>Signer</dt><dd><code>{@review.expected_signer}</code></dd>
+          </div>
+          <div>
+            <dt>Contract</dt><dd><code>{@review.to}</code></dd>
+          </div>
+          <div>
+            <dt>Network</dt><dd>Base (8453)</dd>
+          </div>
+          <div>
+            <dt>Value</dt><dd>0 ETH</dd>
+          </div>
+          <div>
+            <dt>New URI</dt><dd><code>{@review.arguments.new_base_uri}</code></dd>
+          </div>
+          <div>
+            <dt>Calldata Keccak-256</dt><dd><code>{@review.metadata.calldata_keccak256}</code></dd>
+          </div>
+          <div>
+            <dt>Fresh gas estimate</dt><dd>{@review.metadata.gas_estimate}</dd>
+          </div>
+          <div>
+            <dt>Canonical anchor</dt><dd>
+              {@review.metadata.anchor_block_number} <code>{@review.metadata.anchor_block_hash}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Effect</dt><dd>Collection-wide metadata update for tokens 1–1998</dd>
+          </div>
+        </dl>
+        <p role="alert">
+          {@review.risk_copy} Confirm only after reviewing every value above.
+        </p>
+        <button
+          type="button"
+          data-regents-club-metadata-confirm
+          data-attempt-id={@review.arguments.attempt_id}
+        >
+          Confirm and open owner wallet
+        </button>
       </section>
 
       <section :if={@status == :unknown} role="alert">
@@ -85,7 +130,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         <h2>Cutover finalized and this route is closed</h2>
         <p>
           Trusted Base RPC verified the exact transaction, canonical receipt,
-          BatchMetadataUpdate(1, 1998), safe finality, and the new boundary token URIs.
+          BatchMetadataUpdate(1, 1998), finalized Base state, and the new boundary token URIs.
           The runtime gate has been disabled on this node. Remove the deployment flag before restart.
         </p>
         <p :if={@result}><code>{@result.transaction_hash}</code></p>

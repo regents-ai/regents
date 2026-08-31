@@ -265,8 +265,10 @@ defmodule AshPlatformWeb.RouteCatalog do
   end
 
   def design_handoff do
+    routes = Enum.reject(@entries, &(&1.route_spec_id == :regents_club_metadata))
+
     json =
-      %{"schema_version" => 1, "routes" => Enum.map(@entries, &handoff_route/1)}
+      %{"schema_version" => 1, "routes" => Enum.map(routes, &handoff_route/1)}
       |> ordered_json_value()
       |> Jason.encode!()
 

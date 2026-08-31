@@ -70,6 +70,51 @@ defmodule AshPlatform.WalletActions.Rpc do
          do: block_identity(header)
   end
 
+  @doc "One canonical finalized Base block, after chain identity is proved."
+  @spec finalized_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def finalized_block(opts \\ []) do
+    with :ok <- verify_base_chain(opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["finalized", false], opts),
+         do: block_identity(header)
+  end
+
+  @doc false
+  def request_preserving_rpc_error(method, params, opts \\ []) do
+    request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
+
+    client =
+      Application.get_env(
+        :ash_platform,
+        Keyword.get(opts, :client_key, :wallet_http_client),
+        Req
+      )
+
+    case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
+           json: request,
+           connect_options: [timeout: 3_000],
+           pool_timeout: 3_000,
+           receive_timeout: @timeout,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: %{"result" => result}}} ->
+        {:ok, result}
+
+      {:ok, %{status: 200, body: %{"error" => error}}} when is_map(error) ->
+        {:rpc_error, error}
+
+      {:ok, _response} ->
+        {:error, :chain_unavailable}
+
+      {:error, reason} ->
+        log_failure(method, reason, opts)
+        {:error, :chain_unavailable}
+    end
+  rescue
+    error ->
+      log_failure(method, error, opts)
+      {:error, :chain_unavailable}
+  end
+
   @doc """
   The exact canonical outcome of one submitted transaction against one safe head.
 

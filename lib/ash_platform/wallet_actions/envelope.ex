@@ -12,6 +12,7 @@ defmodule AshPlatform.WalletActions.Envelope do
     autolaunch_bid
     autolaunch_subject_wallet
     autolaunch_launch
+    regents_club_metadata
   )
 
   def new(action, signer, data, opts \\ []) do
@@ -52,10 +53,14 @@ defmodule AshPlatform.WalletActions.Envelope do
       risk_copy: risk_copy,
       approval: Keyword.get(opts, :approval),
       arguments: Keyword.get(opts, :arguments, %{}),
-      metadata: %{
-        contract_name: contract_name,
-        calldata_sha256: sha256(String.downcase(data))
-      }
+      metadata:
+        Map.merge(
+          Keyword.get(opts, :metadata, %{}),
+          %{
+            contract_name: contract_name,
+            calldata_sha256: sha256(String.downcase(data))
+          }
+        )
     }
 
     Map.put(envelope, :confirmation_token, sign(envelope))

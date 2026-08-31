@@ -395,15 +395,16 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
              "animata_redeemer.approve_nft_collection",
              "animata_redeemer.approve_exact_usdc",
              "animata_redeemer.redeem",
-             "animata_redeemer.claim"
+             "animata_redeemer.claim",
+             "regents_club.set_base_uri"
            ]
 
     evidence = Map.new(admission["reviewed_action_evidence"], &{&1["contract_id"], &1})
 
-    # Every reviewed contract other than the staking and redeemer ones,
+    # Every reviewed contract other than the three admitted purpose-specific ones,
     # including every Autolaunch one, is absent.
     for {contract_id, entry} <- evidence,
-        contract_id not in ["regent_revenue_staking", "animata_redeemer"],
+        contract_id not in ["regent_revenue_staking", "animata_redeemer", "regents_club"],
         action_id <- entry["action_ids"] do
       refute "#{contract_id}.#{action_id}" in admission["admitted_prepared_actions"]
     end
@@ -838,6 +839,70 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
       assert keccak(signature) ==
                AshPlatform.WalletActions.LaunchAbi.selector(launch_event_id(signature))
     end
+  end
+
+  test "Regents Club admits one exact forward metadata cutover with independent evidence", %{
+    manifest: manifest
+  } do
+    contract = manifest["contracts"]["regents_club"]
+    abi_digest = "05e58830ff8454bdd0b0130b96d2a59b350802ef79a1d540f743c44107ff1be2"
+
+    calldata =
+      "0x55f804b30000000000000000000000000000000000000000000000000000000000000020" <>
+        "0000000000000000000000000000000000000000000000000000000000000022" <>
+        "68747470733a2f2f6d656469612e726567656e74732e73682f6d657461646174612f" <>
+        String.duplicate("0", 60)
+
+    assert contract["address"] == "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487"
+    assert contract["abi"]["canonical_sha256"] == abi_digest
+    assert contract["runtime_code"]["bytes"] == 19_658
+
+    assert contract["runtime_code"]["keccak256"] ==
+             "0x69e7a7158f30acb817dc83a4e21af19a216c3a2ae57db423599ca82f321e3041"
+
+    constants = contract["onchain_constants"]
+    assert constants["owner"] == "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
+    assert constants["total_supply"] == 1998
+    assert constants["erc4906_interface_id"] == "0x49064906"
+    assert constants["current_base_uri"] <> "1" == "https://regents.sh/metadata/1"
+    assert constants["current_base_uri"] <> "1998" == "https://regents.sh/metadata/1998"
+    assert constants["calldata_keccak256"] == keccak(calldata)
+
+    assert contract["prepared_actions"] == [
+             %{
+               "id" => "set_base_uri",
+               "signature" => "setBaseURI(string)",
+               "selector" => "0x55f804b3",
+               "value" => "0",
+               "signer_class" => "exact_regents_club_owner",
+               "beneficiary_class" => "regents_club_collection",
+               "argument_bindings" => %{
+                 "new_base_uri" => "https://media.regents.sh/metadata/",
+                 "expected_signer" => "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
+               }
+             }
+           ]
+
+    assert Enum.map(contract["reads"], & &1["signature"]) == [
+             "owner()",
+             "baseURI()",
+             "tokenURI(uint256)",
+             "totalSupply()",
+             "supportsInterface(bytes4)"
+           ]
+
+    assert contract["confirmation_event"] == %{
+             "signature" => "BatchMetadataUpdate(uint256,uint256)",
+             "topic0" => keccak("BatchMetadataUpdate(uint256,uint256)"),
+             "from_token_id" => 1,
+             "to_token_id" => 1998
+           }
+
+    assert calldata == AshPlatform.RegentsClub.calldata()
+    assert_selectors(contract["reads"] ++ contract["prepared_actions"])
+
+    abi_path = Path.join([@root, "contracts", contract["abi"]["path"]])
+    assert Base.encode16(:crypto.hash(:sha256, File.read!(abi_path)), case: :lower) == abi_digest
   end
 
   defp launch_event_id("LaunchCreated" <> _rest), do: :launch_created

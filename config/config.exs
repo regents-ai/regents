@@ -50,6 +50,8 @@ config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
 config :ash_platform, :notebook_static_server, false
 config :ash_platform, :app_surfaces, true
 config :ash_platform, :regents_club_metadata_cutover, false
+config :ash_platform, :regents_club_privy_origin_canary, false
+config :ash_platform, :regents_club_media_full_corpus_attestation, nil
 config :ash_platform, :opensea_api_key, nil
 config :ash_platform, :opensea_http_client, AshPlatform.OpenSea.HttpClient
 

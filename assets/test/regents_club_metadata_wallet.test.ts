@@ -33,7 +33,10 @@ function wallet(rpc: EthereumProvider): SelectedWallet {
 
 function envelope(): PreparedMetadataAction {
   return {
-    attempt_id: attemptId,
+    action_id: "signed-action",
+    idempotency_key: "signed-action",
+    resource: "regents_club_metadata",
+    confirmation_token: "signed",
     action: "set_base_uri",
     chain_id: 8453,
     to: target,
@@ -42,13 +45,27 @@ function envelope(): PreparedMetadataAction {
     expected_signer: owner,
     prepared_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + 60_000).toISOString(),
-    risk_copy: "Reviewed metadata cutover",
+    risk_copy:
+      "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists.",
+    arguments: {
+      attempt_id: attemptId,
+      new_base_uri: manifest.contracts.regents_club.onchain_constants.cutover_base_uri,
+    },
     metadata: {
       anchor_block_number: 42,
       anchor_block_hash: `0x${"42".repeat(32)}`,
       current_base_uri: manifest.contracts.regents_club.onchain_constants.current_base_uri,
+      boundary_token_uris: {
+        first: `${manifest.contracts.regents_club.onchain_constants.current_base_uri}1`,
+        last: `${manifest.contracts.regents_club.onchain_constants.current_base_uri}1998`,
+      },
+      total_supply: 1998,
+      erc4906_supported: true,
+      owner_simulation: "success",
+      non_owner_simulation: "revert",
       gas_estimate: "81189",
       runtime_keccak256: manifest.contracts.regents_club.runtime_code.keccak256 as Hash,
+      calldata_keccak256: manifest.contracts.regents_club.onchain_constants.calldata_keccak256 as Hash,
     },
   }
 }
@@ -62,10 +79,11 @@ describe("Regents Club metadata wallet action", () => {
     const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
 
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).resolves.toBe(hash)
-    expect(rpc.request).toHaveBeenLastCalledWith({
+    expect(vi.mocked(rpc.request).mock.calls.at(-1)?.[0]).toEqual({
       method: "eth_sendTransaction",
       params: [{from: owner, to: target, data: exactMetadataCalldata(), value: "0x0"}],
     })
+    expect(vi.mocked(rpc.request).mock.calls.at(-2)?.[0]).toEqual({method: "eth_chainId"})
 
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
       kind: "refused",
@@ -78,6 +96,9 @@ describe("Regents Club metadata wallet action", () => {
     ["target", (value: PreparedMetadataAction) => (value.to = owner)],
     ["value", (value: PreparedMetadataAction) => (value.value = "1" as "0")],
     ["calldata", (value: PreparedMetadataAction) => (value.data = "0xdeadbeef")],
+    ["runtime", (value: PreparedMetadataAction) => (value.metadata.runtime_keccak256 = hash)],
+    ["supply", (value: PreparedMetadataAction) => (value.metadata.total_supply = 1 as 1998)],
+    ["risk copy", (value: PreparedMetadataAction) => (value.risk_copy = "changed")],
     ["expiry", (value: PreparedMetadataAction) => (value.expires_at = new Date(0).toISOString())],
   ])("refuses a changed %s before opening the wallet", async (_name, mutate) => {
     const rpc = provider()
@@ -106,6 +127,74 @@ describe("Regents Club metadata wallet action", () => {
     )
   })
 
+  it("refuses account drift between chain and account checks without a send", async () => {
+    let accountReads = 0
+    const rpc: EthereumProvider = {
+      request: vi.fn(async ({method}) => {
+        if (method === "eth_chainId") return "0x2105"
+        if (method === "eth_accounts") {
+          accountReads += 1
+          return [accountReads === 1 ? owner : target]
+        }
+        if (method === "eth_sendTransaction") return hash
+      }),
+    }
+    const selected = () => wallet(rpc)
+    const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
+
+    await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
+      kind: "refused",
+    })
+    expect(vi.mocked(rpc.request).mock.calls.map(([call]) => call.method)).not.toContain(
+      "eth_sendTransaction",
+    )
+  })
+
+  it("Base-bound transport catches chain drift immediately before submission", async () => {
+    let chainReads = 0
+    const rpc: EthereumProvider = {
+      request: vi.fn(async ({method}) => {
+        if (method === "eth_chainId") {
+          chainReads += 1
+          return chainReads < 4 ? "0x2105" : "0x1"
+        }
+        if (method === "eth_accounts") return [owner]
+        if (method === "eth_sendTransaction") return hash
+      }),
+    }
+    const selected = () => wallet(rpc)
+    const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
+
+    await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
+      kind: "refused",
+    })
+    expect(vi.mocked(rpc.request).mock.calls.map(([call]) => call.method)).not.toContain(
+      "eth_sendTransaction",
+    )
+
+    await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toMatchObject({
+      kind: "refused",
+    })
+  })
+
+  it("lets two distinct deliberate attempts reach the fake wallet independently", async () => {
+    const rpc = provider()
+    const selected = () => wallet(rpc)
+    const first = await beginMetadataAttempt(crypto.randomUUID(), wallet(rpc), selected)
+    const second = await beginMetadataAttempt(crypto.randomUUID(), wallet(rpc), selected)
+    const firstEnvelope = envelope()
+    const secondEnvelope = envelope()
+    firstEnvelope.arguments.attempt_id = first.attemptId
+    secondEnvelope.arguments.attempt_id = second.attemptId
+
+    await expect(executePreparedMetadataAction(first, firstEnvelope, selected)).resolves.toBe(hash)
+    await expect(executePreparedMetadataAction(second, secondEnvelope, selected)).resolves.toBe(hash)
+
+    expect(
+      vi.mocked(rpc.request).mock.calls.filter(([call]) => call.method === "eth_sendTransaction"),
+    ).toHaveLength(2)
+  })
+
   it("consumes cancellation and an absent hash without retrying", async () => {
     for (const [result, kind] of [
       [{code: 4001}, "cancelled"],
@@ -123,7 +212,7 @@ describe("Regents Club metadata wallet action", () => {
       const selected = () => wallet(rpc)
       const attempt = await beginMetadataAttempt(crypto.randomUUID(), wallet(rpc), selected)
       const prepared = envelope()
-      prepared.attempt_id = attempt.attemptId
+      prepared.arguments.attempt_id = attempt.attemptId
 
       await expect(executePreparedMetadataAction(attempt, prepared, selected)).rejects.toEqual(
         new MetadataExecutionFailure(kind),

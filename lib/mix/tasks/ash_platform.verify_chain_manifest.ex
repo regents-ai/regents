@@ -23,8 +23,8 @@ defmodule Mix.Tasks.AshPlatform.VerifyChainManifest do
     root = File.cwd!()
     manifest = root |> Path.join("contracts/base-mainnet.json") |> read_json!()
 
-    unless selection in ["all", "staking", "redemption"] do
-      Mix.raise("--contract must be one of: all, staking, redemption")
+    unless selection in ["all", "staking", "redemption", "regents-club"] do
+      Mix.raise("--contract must be one of: all, staking, redemption, regents-club")
     end
 
     assert_equal!(
@@ -47,9 +47,110 @@ defmodule Mix.Tasks.AshPlatform.VerifyChainManifest do
       verify_redemption!(cast, rpc_url, historical_rpc_url, root, manifest)
     end
 
+    if selection in ["all", "regents-club"] do
+      verify_regents_club!(cast, rpc_url, root, manifest)
+    end
+
     Mix.shell().info(
       "Verified #{selection} Base contract evidence without sending a transaction."
     )
+  end
+
+  defp verify_regents_club!(cast, rpc_url, root, manifest) do
+    Mix.shell().info("Verifying Regents Club metadata cutover evidence...")
+    contract = manifest["contracts"]["regents_club"]
+    address = contract["address"]
+    constants = contract["onchain_constants"]
+    action = List.first(contract["prepared_actions"])
+
+    assert_equal!(address, "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487", "Regents Club address")
+    verify_runtime!(cast, rpc_url, "regents_club", contract)
+
+    abi_path = Path.join([root, "contracts", contract["abi"]["path"]])
+    abi_sha256 = :crypto.hash(:sha256, File.read!(abi_path)) |> Base.encode16(case: :lower)
+    assert_equal!(abi_sha256, contract["abi"]["canonical_sha256"], "Regents Club ABI digest")
+
+    assert_address!(
+      call_one!(cast, rpc_url, address, "owner()(address)"),
+      "0x45C9a201e2937608905fEF17De9A67f25F9f98E0",
+      "Regents Club owner"
+    )
+
+    assert_equal!(
+      call_one!(cast, rpc_url, address, "totalSupply()(uint256)")
+      |> integer_value!("Regents Club totalSupply"),
+      1998,
+      "Regents Club totalSupply"
+    )
+
+    assert_equal!(
+      call_one!(cast, rpc_url, address, "supportsInterface(bytes4)(bool)", ["0x49064906"]),
+      true,
+      "Regents Club ERC-4906 support"
+    )
+
+    old_uri = constants["current_base_uri"]
+    assert_equal!(call_one!(cast, rpc_url, address, "baseURI()(string)"), old_uri, "baseURI")
+
+    for token_id <- [1, 1998] do
+      assert_equal!(
+        call_one!(cast, rpc_url, address, "tokenURI(uint256)(string)", [to_string(token_id)]),
+        old_uri <> to_string(token_id),
+        "Regents Club tokenURI(#{token_id})"
+      )
+    end
+
+    calldata =
+      cast!(
+        cast,
+        ["calldata", "setBaseURI(string)", constants["cutover_base_uri"]],
+        "Regents Club cutover calldata"
+      )
+
+    evidence =
+      root
+      |> Path.join("contracts/chain-contracts.yaml")
+      |> YamlElixir.read_from_file!()
+      |> Map.fetch!("contracts")
+      |> List.first()
+      |> Map.fetch!("reviewed_action_evidence")
+      |> Enum.find(&(&1["contract_id"] == "regents_club"))
+
+    assert_equal!(String.downcase(calldata), evidence["calldata"], "Regents Club calldata")
+    assert_equal!(action["value"], "0", "Regents Club value")
+    assert_equal!(action["selector"], "0x55f804b3", "Regents Club selector")
+
+    assert_equal!(
+      simulate_call!(
+        cast,
+        rpc_url,
+        address,
+        "setBaseURI(string)",
+        [constants["cutover_base_uri"]],
+        constants["owner"],
+        "Regents Club owner simulation"
+      ),
+      "0x",
+      "Regents Club owner simulation"
+    )
+
+    cast_failure!(
+      cast,
+      [
+        "call",
+        address,
+        "setBaseURI(string)",
+        constants["cutover_base_uri"],
+        "--from",
+        @probe_address,
+        "--rpc-url",
+        rpc_url
+      ],
+      "Regents Club non-owner simulation"
+    )
+
+    topic = cast!(cast, ["keccak", "BatchMetadataUpdate(uint256,uint256)"], "event topic")
+    assert_equal!(String.downcase(topic), contract["confirmation_event"]["topic0"], "event topic")
   end
 
   defp verify_staking!(cast, rpc_url, historical_rpc_url, root, manifest) do

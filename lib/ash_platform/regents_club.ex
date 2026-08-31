@@ -10,9 +10,12 @@ defmodule AshPlatform.RegentsClub do
 
   @manifest @manifest_path |> File.read!() |> Jason.decode!()
   @contract get_in(@manifest, ["contracts", "regents_club"])
-  @abi @abi_path |> File.read!() |> Jason.decode!()
+  @abi_contents File.read!(@abi_path)
+  @abi Jason.decode!(@abi_contents)
+  @abi_sha256 :crypto.hash(:sha256, @abi_contents) |> Base.encode16(case: :lower)
 
   @chain_id 8453
+  @contract_address "0x2208aaDBdEcd47D3B4430b5b75a175f6d885D487"
   @owner "0x45c9a201e2937608905fef17de9a67f25f9f98e0"
   @new_base_uri "https://media.regents.sh/metadata/"
   @old_base_uri "https://regents.sh/metadata/"
@@ -23,6 +26,9 @@ defmodule AshPlatform.RegentsClub do
   @owner_selector "0x8da5cb5b"
   @base_uri_selector "0x6c0360eb"
   @token_uri_selector "0xc87b56dd"
+  @total_supply_selector "0x18160ddd"
+  @supports_interface_selector "0x01ffc9a7"
+  @erc4906_interface_id "0x49064906"
   @batch_topic "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c"
 
   @calldata "0x55f804b30000000000000000000000000000000000000000000000000000000000000020" <>
@@ -37,19 +43,46 @@ defmodule AshPlatform.RegentsClub do
       {"function", "owner()"},
       {"function", "baseURI()"},
       {"function", "tokenURI(uint256)"},
+      {"function", "totalSupply()"},
+      {"function", "supportsInterface(bytes4)"},
       {"function", "setBaseURI(string)"},
       {"event", "BatchMetadataUpdate(uint256,uint256)"}
     ]
 
     Enum.each(expected, fn {kind, signature} -> Abi.declared!(@abi, kind, signature) end)
 
-    if @contract["address"] |> Address.normalize() != {:ok, contract_address()} do
-      raise "Regents Club manifest address is not canonical"
-    end
+    action = @contract["prepared_actions"] |> List.first()
+    constants = @contract["onchain_constants"]
+    {:ok, calldata_keccak256} = runtime_hash(@calldata)
 
-    unless get_in(@contract, ["prepared_actions", Access.at(0), "selector"]) == @selector do
-      raise "Regents Club manifest does not admit the exact setter"
-    end
+    checks = [
+      get_in(@manifest, ["chain", "id"]) == @chain_id,
+      Address.equal?(@contract["address"], @contract_address),
+      Address.equal?(constants["owner"], @owner),
+      constants["current_base_uri"] == @old_base_uri,
+      constants["cutover_base_uri"] == @new_base_uri,
+      constants["first_token_id"] == @first_token_id,
+      constants["last_token_id"] == @last_token_id,
+      constants["total_supply"] == 1998,
+      constants["erc4906_interface_id"] == @erc4906_interface_id,
+      constants["calldata_keccak256"] == calldata_keccak256,
+      @contract["abi"]["canonical_sha256"] == @abi_sha256,
+      @contract["abi"]["function_count"] == 6,
+      Enum.count(@abi, &(&1["type"] == "function")) == 6,
+      Enum.count(@abi, &(&1["type"] == "event")) == 1,
+      match?([_, _, _, _, _, _, _], @abi),
+      match?([_], @contract["prepared_actions"]),
+      action["id"] == @action,
+      action["signature"] == "setBaseURI(string)",
+      action["selector"] == @selector,
+      action["value"] == "0",
+      action["argument_bindings"]["new_base_uri"] == @new_base_uri,
+      Address.equal?(action["argument_bindings"]["expected_signer"], @owner),
+      @contract["confirmation_event"]["topic0"] == @batch_topic,
+      Abi.topic0("BatchMetadataUpdate(uint256,uint256)") == @batch_topic
+    ]
+
+    unless Enum.all?(checks), do: raise("Regents Club authority manifest is inconsistent")
   end
 
   def enabled?,
@@ -69,8 +102,9 @@ defmodule AshPlatform.RegentsClub do
   def chain_id, do: @chain_id
   def action, do: @action
   def owner, do: @owner
-  def contract_address, do: @contract["address"] |> normalize!()
+  def contract_address, do: normalize!(@contract_address)
   def runtime_keccak256, do: get_in(@contract, ["runtime_code", "keccak256"])
+  def runtime_bytes, do: get_in(@contract, ["runtime_code", "bytes"])
   def new_base_uri, do: @new_base_uri
   def old_base_uri, do: @old_base_uri
   def first_token_id, do: @first_token_id
@@ -79,6 +113,16 @@ defmodule AshPlatform.RegentsClub do
   def selector, do: @selector
   def owner_calldata, do: @owner_selector
   def base_uri_calldata, do: @base_uri_selector
+  def total_supply_calldata, do: @total_supply_selector
+
+  def supports_erc4906_calldata,
+    do:
+      @supports_interface_selector <>
+        String.trim_leading(@erc4906_interface_id, "0x") <> String.duplicate("0", 56)
+
+  def erc4906_interface_id, do: @erc4906_interface_id
+  def calldata_keccak256, do: get_in(@contract, ["onchain_constants", "calldata_keccak256"])
+  def media_release_attestation, do: @contract["media_release_attestation"]
   def batch_metadata_topic, do: @batch_topic
 
   def token_uri_calldata(token_id) when token_id in [@first_token_id, @last_token_id] do
@@ -95,12 +139,14 @@ defmodule AshPlatform.RegentsClub do
   def valid_attempt_id?(_attempt_id), do: false
 
   def runtime_hash("0x" <> hex) do
-    with {:ok, bytes} <- Base.decode16(hex, case: :mixed) do
-      {:ok,
-       "0x" <>
-         Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)}
-    else
-      :error -> :error
+    case Base.decode16(hex, case: :mixed) do
+      {:ok, bytes} ->
+        {:ok,
+         "0x" <>
+           Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)}
+
+      :error ->
+        :error
     end
   end
 
@@ -116,6 +162,23 @@ defmodule AshPlatform.RegentsClub do
   end
 
   def decode_address(_value), do: :error
+
+  def decode_uint("0x" <> hex) when byte_size(hex) == 64 do
+    case Integer.parse(hex, 16) do
+      {value, ""} -> {:ok, value}
+      _ -> :error
+    end
+  end
+
+  def decode_uint(_value), do: :error
+
+  def decode_bool(value) do
+    case decode_uint(value) do
+      {:ok, 0} -> {:ok, false}
+      {:ok, 1} -> {:ok, true}
+      _ -> :error
+    end
+  end
 
   def decode_string("0x" <> hex) do
     with {:ok, bytes} <- Base.decode16(hex, case: :mixed),
@@ -147,7 +210,7 @@ defmodule AshPlatform.RegentsClub do
           false
       end)
 
-    length(matching) == 1
+    match?([_], matching)
   end
 
   def batch_metadata_event?(_logs), do: false

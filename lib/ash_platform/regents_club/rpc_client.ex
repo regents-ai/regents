@@ -7,6 +7,8 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   @rpc_opts [client_key: :regents_club_http_client, log_scope: "regents_club_metadata"]
   @scan_blocks 64
+  @non_owner "0x0000000000000000000000000000000000000001"
+  @revert_codes [3, -32_000, -32_015]
 
   def readiness, do: Rpc.verify_base_chain(@rpc_opts)
 
@@ -16,7 +18,7 @@ defmodule AshPlatform.RegentsClub.RpcClient do
          {:ok, state} <- snapshot(block) do
       cond do
         ready?(state) -> {:ok, Map.put(state, :state, :ready)}
-        complete?(state) -> {:ok, Map.put(state, :state, :complete)}
+        complete?(state) -> {:ok, Map.put(state, :state, :changed_unverified)}
         true -> {:error, :contract_state_mismatch}
       end
     end
@@ -35,6 +37,11 @@ defmodule AshPlatform.RegentsClub.RpcClient do
          anchor: final.block,
          owner: final.owner,
          base_uri: final.base_uri,
+         token_uris: final.token_uris,
+         total_supply: final.total_supply,
+         erc4906_supported: final.erc4906_supported,
+         owner_simulation: final.owner_simulation,
+         non_owner_simulation: final.non_owner_simulation,
          runtime_keccak256: final.runtime_keccak256,
          gas_estimate: final.gas_estimate
        }}
@@ -48,10 +55,10 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     with true <- Actions.valid_observation_envelope?(envelope),
          true <- valid_hash?(hash),
          :ok <- readiness(),
-         {:ok, safe} <- Rpc.safe_block(@rpc_opts),
+         {:ok, finalized} <- Rpc.finalized_block(@rpc_opts),
          {:ok, transaction} <- rpc("eth_getTransactionByHash", [hash]),
          {:ok, receipt} <- rpc("eth_getTransactionReceipt", [hash]) do
-      observe_pair(transaction, receipt, envelope, hash, safe)
+      observe_pair(transaction, receipt, envelope, hash, finalized)
     else
       false -> {:error, :invalid_observation}
       {:error, reason} -> {:error, reason}
@@ -63,11 +70,11 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   def recover(envelope) do
     with true <- Actions.valid_observation_envelope?(envelope),
          :ok <- readiness(),
-         {:ok, safe} <- Rpc.safe_block(@rpc_opts),
-         {:ok, hashes} <- scan(envelope, safe) do
+         {:ok, finalized} <- Rpc.finalized_block(@rpc_opts),
+         {:ok, hashes} <- scan(envelope, finalized) do
       case hashes do
         [hash] -> observe(envelope, hash)
-        [] -> {:ok, {:unknown, :no_unique_match}}
+        [] -> {:ok, :pending}
         _ -> {:ok, {:unknown, :multiple_matches}}
       end
     else
@@ -79,9 +86,15 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   defp preflight(owner) do
     with {:ok, block} <- Rpc.safe_block(@rpc_opts),
          {:ok, state} <- snapshot(block),
-         :ok <- simulate(block, owner),
+         :ok <- simulate_owner(block, owner),
+         :ok <- simulate_non_owner_revert(block),
          {:ok, gas} <- estimate_gas(block, owner) do
-      {:ok, state |> Map.put(:block, block) |> Map.put(:gas_estimate, gas)}
+      {:ok,
+       state
+       |> Map.put(:block, block)
+       |> Map.put(:owner_simulation, "success")
+       |> Map.put(:non_owner_simulation, "revert")
+       |> Map.put(:gas_estimate, gas)}
     end
   end
 
@@ -89,16 +102,21 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     with {:ok, code} <-
            rpc("eth_getCode", [RegentsClub.contract_address(), block_parameter(block)]),
          true <- code != "0x",
-         {:ok, runtime_hash} <- RegentsClub.runtime_hash(code),
+         true <- runtime_bytes(code) == RegentsClub.runtime_bytes(),
+         {:ok, runtime_hash} <- verified_runtime_hash(code),
          {:ok, owner} <- read_address(RegentsClub.owner_calldata(), block),
          {:ok, base_uri} <- read_string(RegentsClub.base_uri_calldata(), block),
-         {:ok, token_uris} <- boundary_uris(base_uri, block) do
+         {:ok, total_supply} <- read_uint(RegentsClub.total_supply_calldata(), block),
+         {:ok, erc4906_supported} <- read_bool(RegentsClub.supports_erc4906_calldata(), block),
+         {:ok, token_uris} <- boundary_uris(block) do
       {:ok,
        %{
          block: block,
          runtime_keccak256: runtime_hash,
          owner: owner,
          base_uri: base_uri,
+         total_supply: total_supply,
+         erc4906_supported: erc4906_supported,
          token_uris: token_uris
        }}
     else
@@ -108,41 +126,47 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp boundary_uris(base_uri, block) do
-    if base_uri == RegentsClub.new_base_uri() do
-      with {:ok, first} <- read_string(RegentsClub.token_uri_calldata(1), block),
-           {:ok, last} <- read_string(RegentsClub.token_uri_calldata(1998), block) do
-        {:ok, %{first: first, last: last}}
-      end
-    else
-      {:ok, nil}
+  defp boundary_uris(block) do
+    with {:ok, first} <- read_string(RegentsClub.token_uri_calldata(1), block),
+         {:ok, last} <- read_string(RegentsClub.token_uri_calldata(1998), block) do
+      {:ok, %{first: first, last: last}}
     end
   end
 
   defp ready?(state),
     do:
       state.runtime_keccak256 == RegentsClub.runtime_keccak256() and
-        state.owner == RegentsClub.owner() and state.base_uri == RegentsClub.old_base_uri()
+        state.owner == RegentsClub.owner() and state.base_uri == RegentsClub.old_base_uri() and
+        state.total_supply == 1998 and state.erc4906_supported == true and
+        state.token_uris == %{
+          first: RegentsClub.old_base_uri() <> "1",
+          last: RegentsClub.old_base_uri() <> "1998"
+        }
 
   defp complete?(state),
     do:
       state.runtime_keccak256 == RegentsClub.runtime_keccak256() and
         state.owner == RegentsClub.owner() and state.base_uri == RegentsClub.new_base_uri() and
+        state.total_supply == 1998 and state.erc4906_supported == true and
         state.token_uris == %{
           first: RegentsClub.new_base_uri() <> "1",
           last: RegentsClub.new_base_uri() <> "1998"
         }
 
   defp read_address(data, block) do
-    with {:ok, result} <- call(data, block),
-         {:ok, value} <- RegentsClub.decode_address(result),
-         do: {:ok, value}
+    with {:ok, result} <- call(data, block), do: RegentsClub.decode_address(result)
   end
 
   defp read_string(data, block) do
-    with {:ok, result} <- call(data, block),
-         {:ok, value} <- RegentsClub.decode_string(result),
-         do: {:ok, value}
+    with {:ok, result} <- call(data, block), do: RegentsClub.decode_string(result)
+  end
+
+  defp read_uint(data, block) do
+    with {:ok, result} <- call(data, block), do: RegentsClub.decode_uint(result)
+  end
+
+  defp read_bool(data, block) do
+    with {:ok, result} <- call(data, block), do: RegentsClub.decode_bool(result)
   end
 
   defp call(data, block),
@@ -152,11 +176,24 @@ defmodule AshPlatform.RegentsClub.RpcClient do
         block_parameter(block)
       ])
 
-  defp simulate(block, owner) do
+  defp simulate_owner(block, owner) do
     case rpc("eth_call", [transaction(owner), block_parameter(block)]) do
       {:ok, "0x"} -> :ok
       {:ok, _} -> {:error, :invalid_simulation_response}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp simulate_non_owner_revert(block) do
+    case rpc_preserving_error("eth_call", [transaction(@non_owner), block_parameter(block)]) do
+      {:rpc_error, error} when is_map(error) ->
+        if expected_revert?(error), do: :ok, else: {:error, :invalid_non_owner_simulation}
+
+      {:ok, _result} ->
+        {:error, :non_owner_simulation_succeeded}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -180,19 +217,19 @@ defmodule AshPlatform.RegentsClub.RpcClient do
       value: "0x0"
     }
 
-  defp observe_pair(nil, nil, _envelope, _hash, _safe), do: {:ok, :pending}
-  defp observe_pair(_transaction, nil, _envelope, _hash, _safe), do: {:ok, :pending}
-  defp observe_pair(nil, _receipt, _envelope, _hash, _safe), do: {:ok, :pending}
+  defp observe_pair(nil, nil, _envelope, _hash, _finalized), do: {:ok, :pending}
+  defp observe_pair(_transaction, nil, _envelope, _hash, _finalized), do: {:ok, :pending}
+  defp observe_pair(nil, _receipt, _envelope, _hash, _finalized), do: {:ok, :pending}
 
-  defp observe_pair(transaction, receipt, envelope, hash, safe) do
+  defp observe_pair(transaction, receipt, envelope, hash, finalized) do
     with :ok <- transaction_identity(transaction, envelope, hash),
          :ok <- receipt_identity(receipt, hash),
          {:ok, number} <- quantity(receipt["blockNumber"]),
-         true <- number <= safe.number,
+         true <- number <= finalized.number,
          :ok <- canonical(number, receipt["blockHash"]) do
       case receipt["status"] do
         "0x0" -> {:ok, :reverted}
-        "0x1" -> verify_success(receipt, envelope, safe)
+        "0x1" -> verify_success(receipt, envelope, finalized)
         _ -> {:error, :invalid_receipt}
       end
     else
@@ -203,9 +240,9 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp verify_success(%{"logs" => logs} = receipt, envelope, safe) when is_list(logs) do
+  defp verify_success(%{"logs" => logs} = receipt, envelope, finalized) when is_list(logs) do
     with true <- RegentsClub.batch_metadata_event?(logs),
-         {:ok, post_state} <- snapshot(safe),
+         {:ok, post_state} <- snapshot(finalized),
          true <- complete?(post_state) do
       {:ok,
        {:finalized,
@@ -215,8 +252,8 @@ defmodule AshPlatform.RegentsClub.RpcClient do
           block_hash: String.downcase(receipt["blockHash"]),
           anchor_block_number: envelope.metadata.anchor_block_number,
           anchor_block_hash: envelope.metadata.anchor_block_hash,
-          finality_block_number: safe.number,
-          finality_block_hash: safe.hash,
+          finality_block_number: finalized.number,
+          finality_block_hash: finalized.hash,
           base_uri: post_state.base_uri,
           token_uris: post_state.token_uris
         }}}
@@ -226,46 +263,73 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp verify_success(_receipt, _envelope, _safe), do: {:error, :invalid_receipt}
+  defp verify_success(_receipt, _envelope, _finalized), do: {:error, :invalid_receipt}
 
-  defp scan(envelope, safe) do
+  defp scan(envelope, finalized) do
     first = envelope.metadata.anchor_block_number + 1
-    last = min(safe.number, envelope.metadata.anchor_block_number + @scan_blocks)
+    last = min(finalized.number, envelope.metadata.anchor_block_number + @scan_blocks)
 
     if last < first do
       {:ok, []}
     else
-      Enum.reduce_while(first..last, {:ok, []}, fn number, {:ok, found} ->
-        case rpc("eth_getBlockByNumber", [hex_quantity(number), true]) do
-          {:ok, %{"transactions" => transactions}} when is_list(transactions) ->
-            matches =
-              for tx <- transactions,
-                  transaction_identity(tx, envelope, tx["hash"]) == :ok,
-                  exact_event?(tx["hash"]),
-                  do: tx["hash"]
-
-            {:cont, {:ok, found ++ matches}}
-
-          {:ok, _} ->
-            {:halt, {:error, :invalid_block_header}}
-
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
-      end)
-      |> case do
-        {:ok, hashes} -> {:ok, Enum.uniq(hashes)}
-        error -> error
-      end
+      first..last
+      |> Enum.reduce_while({:ok, []}, &collect_block_matches(&1, &2, envelope))
+      |> scan_event_matches()
     end
   end
 
-  defp exact_event?(hash) do
+  defp collect_block_matches(number, {:ok, found}, envelope) do
+    case matching_transactions(number, envelope) do
+      {:ok, matches} -> {:cont, {:ok, found ++ matches}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp scan_event_matches({:ok, hashes}), do: hashes |> Enum.uniq() |> event_matches()
+  defp scan_event_matches(error), do: error
+
+  defp matching_transactions(number, envelope) do
+    with {:ok, %{"number" => encoded, "hash" => hash, "transactions" => transactions}}
+         when is_list(transactions) <-
+           rpc("eth_getBlockByNumber", [hex_quantity(number), true]),
+         {:ok, ^number} <- quantity(encoded),
+         true <- valid_hash?(hash) do
+      {:ok,
+       for(
+         tx <- transactions,
+         transaction_identity(tx, envelope, tx["hash"]) == :ok,
+         do: tx["hash"]
+       )}
+    else
+      false -> {:error, :invalid_block_header}
+      {:ok, _malformed} -> {:error, :invalid_block_header}
+      :error -> {:error, :invalid_block_header}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp event_matches(hashes) do
+    hashes
+    |> Enum.reduce_while({:ok, []}, &collect_event_match/2)
+    |> reverse_event_matches()
+  end
+
+  defp collect_event_match(hash, {:ok, matches}) do
     case rpc("eth_getTransactionReceipt", [hash]) do
-      {:ok, %{"status" => "0x1", "logs" => logs}} -> RegentsClub.batch_metadata_event?(logs)
-      _ -> false
+      {:ok, %{"status" => "0x1", "logs" => logs}} when is_list(logs) ->
+        matches = if RegentsClub.batch_metadata_event?(logs), do: [hash | matches], else: matches
+        {:cont, {:ok, matches}}
+
+      {:ok, _not_successful} ->
+        {:cont, {:ok, matches}}
+
+      {:error, reason} ->
+        {:halt, {:error, reason}}
     end
   end
+
+  defp reverse_event_matches({:ok, matches}), do: {:ok, Enum.reverse(matches)}
+  defp reverse_event_matches(error), do: error
 
   defp transaction_identity(tx, envelope, hash) when is_map(tx) do
     with true <- valid_hash?(hash),
@@ -295,8 +359,9 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   defp canonical(number, expected_hash) do
     with true <- valid_hash?(expected_hash),
-         {:ok, %{"hash" => actual_hash}} <-
+         {:ok, %{"number" => encoded, "hash" => actual_hash}} <-
            rpc("eth_getBlockByNumber", [hex_quantity(number), false]),
+         {:ok, ^number} <- quantity(encoded),
          true <-
            is_binary(actual_hash) and
              String.downcase(actual_hash) == String.downcase(expected_hash) do
@@ -309,6 +374,41 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   defp block_parameter(%{hash: hash}), do: %{blockHash: hash, requireCanonical: true}
   defp rpc(method, params), do: Rpc.request(method, params, @rpc_opts)
+
+  defp rpc_preserving_error(method, params),
+    do: Rpc.request_preserving_rpc_error(method, params, @rpc_opts)
+
+  defp expected_revert?(%{"code" => code} = error) when code in @revert_codes do
+    message = Map.get(error, "message", "")
+    data = Map.get(error, "data")
+
+    (is_binary(message) and String.contains?(String.downcase(message), "revert")) or
+      revert_data?(data)
+  end
+
+  defp expected_revert?(_error), do: false
+
+  defp revert_data?("0x" <> hex),
+    do:
+      byte_size(hex) > 0 and rem(byte_size(hex), 2) == 0 and
+        String.match?(hex, ~r/\A[0-9a-fA-F]+\z/)
+
+  defp revert_data?(%{"data" => data}), do: revert_data?(data)
+  defp revert_data?(_data), do: false
+
+  defp runtime_bytes("0x" <> hex) when rem(byte_size(hex), 2) == 0, do: div(byte_size(hex), 2)
+  defp runtime_bytes(_), do: -1
+
+  if Mix.env() == :test do
+    defp verified_runtime_hash(code) do
+      case Application.get_env(:ash_platform, :regents_club_test_runtime_hasher) do
+        hasher when is_function(hasher, 1) -> hasher.(code)
+        _real_hash -> RegentsClub.runtime_hash(code)
+      end
+    end
+  else
+    defp verified_runtime_hash(code), do: RegentsClub.runtime_hash(code)
+  end
 
   defp quantity("0x" <> hex) when hex != "" do
     case Integer.parse(hex, 16) do

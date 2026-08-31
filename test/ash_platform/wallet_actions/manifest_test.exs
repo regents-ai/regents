@@ -14,7 +14,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     },
     "regents_club" => %{
       "path" => "abi/regents-club.json",
-      "sha256" => "aea5f85c16c9b91b9e6b8fa44d42b68fc0cbf25a7961cbe45d9cfcc9569ec311"
+      "sha256" => "05e58830ff8454bdd0b0130b96d2a59b350802ef79a1d540f743c44107ff1be2"
     }
   }
   @actions %{
