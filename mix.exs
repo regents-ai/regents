@@ -79,7 +79,7 @@ defmodule AshPlatform.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "assets.setup", "assets.build"],
+      setup: ["deps.get", "cmd npm ci", "assets.setup", "assets.build"],
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": ["compile", "esbuild ash_platform"],
       "assets.deploy": [

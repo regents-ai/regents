@@ -41,6 +41,17 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
            ]
 
     assert manifest["shell_slots"] == ["content"]
+
+    assert "lib/ash_platform_web/components/shell.ex" in manifest["design_owned_paths"]
+
+    for retired_path <- [
+          "lib/ash_platform_web/components/shell/header.ex",
+          "lib/ash_platform_web/components/shell/content_frame.ex"
+        ] do
+      refute retired_path in manifest["design_owned_paths"]
+      refute retired_path in manifest["ash_owned_exclusions"]
+    end
+
     assert manifest["theme_interface"]["choices"] == ["system", "light", "dark"]
 
     assert manifest["theme_interface"]["ash_owned_paths"] == [

@@ -199,13 +199,13 @@ defmodule AshPlatformWeb.RouteCatalog do
        [:wallet_status, :network_status, :profile_actions], :none, :regent_record, :detail, %{}},
     techtree:
       {:techtree, :techtree, "Techtree", "Techtree", "/techtree",
-       [:search, :view_switcher, :profile_actions], :techtree, :techtree_overview, :overview, %{}},
+       [:view_switcher, :profile_actions], :none, :techtree_overview, :overview, %{}},
     techtree_node:
       {:techtree_node, :techtree, "Techtree", "Node", "/techtree",
-       [:search, :view_switcher, :profile_actions], :techtree, :techtree_node, :detail, %{}},
+       [:view_switcher, :profile_actions], :none, :techtree_node, :detail, %{}},
     techtree_tree:
       {:techtree_tree, :techtree, "Techtree", nil, "/techtree",
-       [:search, :view_switcher, :profile_actions], :techtree, :techtree_tree, :tree,
+       [:view_switcher, :profile_actions], :none, :techtree_tree, :tree,
        %{presentation: %{default: :map, values: [:map, :list]}}},
     autolaunch:
       {:autolaunch, :autolaunch, "Autolaunch", "Autolaunch", "/autolaunch",

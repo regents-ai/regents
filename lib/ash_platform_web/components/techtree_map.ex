@@ -21,13 +21,19 @@ defmodule AshPlatformWeb.Components.TechtreeMap do
       id="techtree-map-stage"
       class="techtree-map-stage"
       phx-hook="TechtreeCamera"
+      role="region"
       aria-label={@label}
-      tabindex="0"
+      aria-describedby={if(@nodes == [], do: nil, else: "techtree-map-instructions")}
+      tabindex={if(@nodes == [], do: nil, else: "0")}
     >
       <div :if={@nodes == []} class="techtree-empty">
         <h2>No nodes yet</h2>
         <p>Published nodes will appear here as the tree's connected map.</p>
       </div>
+
+      <p :if={@nodes != []} id="techtree-map-instructions" class="visually-hidden">
+        Use the arrow keys to pan the map. Use plus and minus to zoom.
+      </p>
 
       <div
         :if={@nodes != []}

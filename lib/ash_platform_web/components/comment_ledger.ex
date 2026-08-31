@@ -46,9 +46,12 @@ defmodule AshPlatformWeb.Components.CommentLedger do
           rows="4"
           required
           autocomplete="off"
+          aria-describedby="comment-body-guidance"
         >{@draft}</textarea>
         <div class="comment-ledger__composer-actions">
-          <p>Links, emphasis, code, and lists are supported.</p>
+          <p id="comment-body-guidance">
+            Up to 2,000 characters. Links, emphasis, code, and lists are supported.
+          </p>
           <button type="submit">Post comment</button>
         </div>
       </form>
