@@ -107,10 +107,13 @@ export async function executePreparedMetadataAction(
       transport: custom(chainBoundProvider(attempt, selected)),
     })
 
-    const result = await client.request({
-      method: "eth_sendTransaction",
-      params: [unsignedTransaction(attempt.signer)],
-    })
+    const result = await client.request(
+      {
+        method: "eth_sendTransaction",
+        params: [unsignedTransaction(attempt.signer)],
+      },
+      {retryCount: 0},
+    )
     if (!validHash(result)) throw unknown()
     return result
   } catch (error) {

@@ -47,12 +47,19 @@ test("an authenticated human uses the exact selected signer and sees every termi
 
   const recorded = await sends(page)
   expect(recorded).toHaveLength(4)
+  expect(recorded.map(transaction => transaction.chainId)).toEqual([
+    "0x2105",
+    "0x2105",
+    "0x2105",
+    "0x2105",
+  ])
   expect(recorded.slice(0, 3).map(transaction => transaction.from)).toEqual([
     other.toLowerCase(),
     other.toLowerCase(),
     other.toLowerCase(),
   ])
   expect(recorded[3]).toEqual({
+    chainId: "0x2105",
     from: owner.toLowerCase(),
     to: "0x2208aadbdecd47d3b4430b5b75a175f6d885d487",
     data:
@@ -110,6 +117,7 @@ async function installWallet(page: Page, initialAddress: string): Promise<void> 
           const transaction = params?.[0] || {}
           const recorded = JSON.parse(sessionStorage.getItem(sendsKey) || "[]")
           recorded.push({
+            chainId: transaction.chainId,
             from: transaction.from?.toLowerCase(),
             to: transaction.to?.toLowerCase(),
             data: transaction.data?.toLowerCase(),

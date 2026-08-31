@@ -284,4 +284,21 @@ describe("Regents Club metadata wallet action", () => {
       ).toHaveLength(1)
     }
   })
+
+  it("does not resend when the provider throws after accepting the request", async () => {
+    const rpc = provider()
+    vi.mocked(rpc.request).mockImplementation(async ({method}) => {
+      if (method === "eth_chainId") return "0x2105"
+      if (method === "eth_accounts") return [signer]
+      if (method === "eth_sendTransaction") throw new Error("provider lost transaction hash")
+    })
+    const selected = () => wallet(rpc)
+    const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
+
+    await expect(executePreparedMetadataAction(attempt, envelope(), selected)).rejects.toEqual(
+      new MetadataExecutionFailure("submission_unknown"),
+    )
+    expect(vi.mocked(rpc.request).mock.calls.filter(([call]) => call.method === "eth_sendTransaction"))
+      .toHaveLength(1)
+  })
 })
