@@ -461,8 +461,23 @@ export function signInIsTerminal(documentRoot: Document): boolean {
   return terminalSignInDocuments.has(documentRoot)
 }
 
-export function reportSignInFailure(failure: SignInFailureDiagnostic): void {
+export function reportSignInFailure(
+  failure: SignInFailureDiagnostic,
+  fetcher: typeof fetch = fetch,
+): void {
   console.warn("Regent Privy sign-in failure", failure)
+
+  const csrf = browserCsrfToken()
+  if (!csrf) return
+
+  void fetcher("/auth/privy/failure", {
+    method: "POST",
+    credentials: "same-origin",
+    redirect: "error",
+    keepalive: true,
+    headers: {"content-type": "application/json", "x-csrf-token": csrf},
+    body: JSON.stringify({reason: failure}),
+  }).catch(() => undefined)
 }
 
 export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Promise<boolean> {

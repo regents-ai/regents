@@ -10,6 +10,17 @@ defmodule AshPlatformWeb.PrivySessionController do
   require Logger
 
   @account_evidence_reasons [:missing_linked_wallet, :invalid_verified_identity]
+  @browser_failure_reasons ~w(
+    bridge_startup
+    flow_closed
+    invalid_message
+    provider_error
+    request_timeout
+    session_exchange
+    unable_to_sign
+  )
+  @browser_failure_limit 20
+  @browser_failure_window_seconds 60
 
   @doc """
   The browser-session state matrix.
@@ -27,6 +38,29 @@ defmodule AshPlatformWeb.PrivySessionController do
   and no CSRF session state.
   """
   def csrf(conn, _params), do: admit_bootstrap(conn, claim(conn))
+
+  @doc """
+  Records a bounded browser-side Privy failure without accepting provider text,
+  identity, wallet, token, signature, or exception data.
+
+  The response is deliberately identical for valid, invalid, and rate-limited
+  reports because diagnostics must never become part of the sign-in control flow.
+  """
+  def failure(conn, %{"reason" => reason}) when reason in @browser_failure_reasons do
+    {key, _source} = client_key(conn)
+
+    if ClaimRateLimiter.admit(
+         {:privy_browser_failure, key},
+         @browser_failure_limit,
+         @browser_failure_window_seconds
+       ) == :ok do
+      Logger.warning("Privy browser reported sign-in failure reason=#{reason}")
+    end
+
+    diagnostic_accepted(conn)
+  end
+
+  def failure(conn, _untrusted_params), do: diagnostic_accepted(conn)
 
   def create(conn, _untrusted_params) do
     with {:ok, pair} <- session_pair(conn),
@@ -95,6 +129,12 @@ defmodule AshPlatformWeb.PrivySessionController do
     |> put_resp_header("cache-control", "no-store")
     |> put_status(:too_many_requests)
     |> json(%{error: "rate_limited"})
+  end
+
+  defp diagnostic_accepted(conn) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> send_resp(:no_content, "")
   end
 
   # Fly terminates the connection, so the peer is the proxy and the client

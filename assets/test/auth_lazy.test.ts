@@ -9,6 +9,7 @@ import {
   installAccountAuthLazyLoader,
   proveAnonymousSession,
   reloadDocumentOnce,
+  reportSignInFailure,
   showAccountAuthFailure,
   writeSignOutHandoff,
   type AccountRequest,
@@ -112,6 +113,28 @@ function accountDocument({
 }
 
 describe("lazy browser authentication", () => {
+  it("reports only the fixed Privy failure category to the same-origin server", async () => {
+    vi.stubGlobal("document", {
+      querySelector: (selector: string) =>
+        selector === "meta[name='csrf-token']" ? {content: "csrf-safe"} : null,
+    })
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const fetcher = vi.fn(async () => new Response(null, {status: 204})) as unknown as typeof fetch
+
+    reportSignInFailure("provider_error", fetcher)
+
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
+    expect(fetcher).toHaveBeenCalledWith("/auth/privy/failure", {
+      method: "POST",
+      credentials: "same-origin",
+      redirect: "error",
+      keepalive: true,
+      headers: {"content-type": "application/json", "x-csrf-token": "csrf-safe"},
+      body: JSON.stringify({reason: "provider_error"}),
+    })
+    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "provider_error")
+  })
+
   it("cancels an uncommitted establishment before one local deletion and blocks later writes", async () => {
     const sessionMutations = createSessionMutationCoordinator()
     const order: string[] = []

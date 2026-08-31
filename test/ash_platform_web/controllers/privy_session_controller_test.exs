@@ -22,6 +22,77 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   @other_peer {203, 0, 113, 8}
   @denial_event [:ash_platform, :session_bootstrap, :rate_limited]
 
+  test "BROWSER_FAILURE_DIAGNOSTIC: logs only an allowlisted reason", %{conn: conn} do
+    log =
+      capture_log(fn ->
+        response =
+          conn
+          |> init_test_session(%{})
+          |> put_valid_csrf()
+          |> post("/auth/privy/failure", %{"reason" => "provider_error"})
+
+        assert response.status == 204
+        assert get_resp_header(response, "cache-control") == ["no-store"]
+      end)
+
+    assert log =~ "Privy browser reported sign-in failure reason=provider_error"
+  end
+
+  test "BROWSER_FAILURE_DIAGNOSTIC: ignores raw or unknown provider data", %{conn: conn} do
+    malicious = "unknown bearer=secret wallet=0x1234"
+
+    log =
+      capture_log(fn ->
+        response =
+          conn
+          |> init_test_session(%{})
+          |> put_valid_csrf()
+          |> post("/auth/privy/failure", %{"reason" => malicious, "token" => "secret"})
+
+        assert response.status == 204
+      end)
+
+    refute log =~ "Privy browser reported sign-in failure"
+    refute log =~ malicious
+    refute log =~ "secret"
+  end
+
+  test "BROWSER_FAILURE_DIAGNOSTIC: requires the browser CSRF boundary", %{conn: conn} do
+    log =
+      capture_log(fn ->
+        assert_raise Plug.CSRFProtection.InvalidCSRFTokenError, fn ->
+          conn
+          |> init_test_session(%{})
+          |> enforce_csrf()
+          |> put_session("_csrf_token", Plug.CSRFProtection.dump_state())
+          |> post("/auth/privy/failure", %{"reason" => "provider_error"})
+        end
+      end)
+
+    refute log =~ "Privy browser reported sign-in failure"
+  end
+
+  test "BROWSER_FAILURE_DIAGNOSTIC: accepts every report but logs at most twenty per IP" do
+    ClaimRateLimiter.reset()
+    on_exit(&ClaimRateLimiter.reset/0)
+
+    log =
+      capture_log(fn ->
+        responses =
+          for _attempt <- 1..21 do
+            build_conn()
+            |> init_test_session(%{})
+            |> put_valid_csrf()
+            |> put_req_header("fly-client-ip", "198.51.100.44")
+            |> post("/auth/privy/failure", %{"reason" => "provider_error"})
+          end
+
+        assert Enum.all?(responses, &(&1.status == 204))
+      end)
+
+    assert length(Regex.scan(~r/Privy browser reported sign-in failure/, log)) == 20
+  end
+
   test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
     conn: conn
   } do

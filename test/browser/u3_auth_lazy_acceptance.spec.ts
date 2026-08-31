@@ -238,6 +238,12 @@ test("a production-like digested bridge source remains same-origin and callable"
 for (const viewport of retryViewports) {
   test(`sign-in stops after a failed deferred bridge load at ${viewport.name} width`, async ({page}) => {
     const bridgeRequests: string[] = []
+    const failureDiagnostics: string[] = []
+    page.on("request", request => {
+      if (request.method() === "POST" && request.url().endsWith("/auth/privy/failure")) {
+        failureDiagnostics.push(request.postData() ?? "")
+      }
+    })
     await page.setViewportSize({width: viewport.width, height: viewport.height})
     await page.addInitScript(() => {
       ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
@@ -268,6 +274,9 @@ for (const viewport of retryViewports) {
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
     await expect(page.getByRole("button", {name: "Sign In"})).toBeDisabled()
+    await expect.poll(() => failureDiagnostics).toEqual([
+      JSON.stringify({reason: "bridge_startup"}),
+    ])
 
     await page.locator("#account-control [data-account-target='sign-in']").dispatchEvent("click")
     await page.waitForTimeout(50)
@@ -286,6 +295,33 @@ for (const viewport of retryViewports) {
     ).toEqual([])
   })
 }
+
+test("the bounded failure report survives the recommended immediate reload exactly once", async ({
+  page,
+}) => {
+  const failureDiagnostics: string[] = []
+  page.on("request", request => {
+    if (request.method() === "POST" && request.url().endsWith("/auth/privy/failure")) {
+      failureDiagnostics.push(request.postData() ?? "")
+    }
+  })
+  await page.route(bridgePattern, route =>
+    route.fulfill({status: 503, body: "deferred bridge unavailable"}),
+  )
+
+  await page.goto("/app")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await page.getByRole("button", {name: "Sign In"}).click()
+  await expect(page.locator("#account-auth-status")).toHaveText(
+    "Sign-in is unavailable on this page. Reload it or contact support.",
+  )
+
+  await page.reload()
+
+  await expect.poll(() => failureDiagnostics).toEqual([
+    JSON.stringify({reason: "bridge_startup"}),
+  ])
+})
 
 test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no session", async ({
   page,

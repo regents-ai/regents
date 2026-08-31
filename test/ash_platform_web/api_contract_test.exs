@@ -26,11 +26,17 @@ defmodule AshPlatformWeb.ApiContractTest do
              "/api/techtree/v1/trees",
              "/api/techtree/v1/trees/{slug}/nodes",
              "/auth/csrf",
+             "/auth/privy/failure",
              "/auth/privy/session",
              "/auth/session"
            ]
 
-    assert Map.take(contract["paths"], ["/auth/csrf", "/auth/privy/session", "/auth/session"]) ==
+    assert Map.take(contract["paths"], [
+             "/auth/csrf",
+             "/auth/privy/failure",
+             "/auth/privy/session",
+             "/auth/session"
+           ]) ==
              %{
                "/auth/csrf" => %{
                  "get" => %{
@@ -75,6 +81,42 @@ defmodule AshPlatformWeb.ApiContractTest do
                          }
                        }
                      }
+                   }
+                 }
+               },
+               "/auth/privy/failure" => %{
+                 "post" => %{
+                   "operationId" => "reportPrivyBrowserFailure",
+                   "security" => [%{"csrfToken" => []}],
+                   "requestBody" => %{
+                     "required" => true,
+                     "content" => %{
+                       "application/json" => %{
+                         "schema" => %{
+                           "type" => "object",
+                           "additionalProperties" => false,
+                           "required" => ["reason"],
+                           "properties" => %{
+                             "reason" => %{
+                               "type" => "string",
+                               "enum" => [
+                                 "bridge_startup",
+                                 "flow_closed",
+                                 "invalid_message",
+                                 "provider_error",
+                                 "request_timeout",
+                                 "session_exchange",
+                                 "unable_to_sign"
+                               ]
+                             }
+                           }
+                         }
+                       }
+                     }
+                   },
+                   "responses" => %{
+                     "204" => %{"description" => "Diagnostic accepted or safely ignored"},
+                     "403" => %{"$ref" => "#/components/responses/CsrfForbidden"}
                    }
                  }
                },

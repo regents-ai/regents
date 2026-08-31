@@ -378,6 +378,25 @@ paths:
                 required: [error]
                 properties:
                   error: {type: string, const: rate_limited}
+  /auth/privy/failure:
+    post:
+      operationId: reportPrivyBrowserFailure
+      security: [{csrfToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [bridge_startup, flow_closed, invalid_message, provider_error, request_timeout, session_exchange, unable_to_sign]
+      responses:
+        "204": {description: Diagnostic accepted or safely ignored}
+        "403": {$ref: "#/components/responses/CsrfForbidden"}
   /auth/privy/session:
     post:
       operationId: createPrivyBrowserSession
