@@ -17,7 +17,6 @@ import {activeEthereumWallet, type EthereumProvider, type SelectedWallet} from "
 const contract = manifestJson.contracts.regents_club
 const abi = abiJson as Abi
 const target = getAddress(contract.address)
-const owner = getAddress(contract.onchain_constants.owner)
 const riskCopy =
   "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists."
 const calldata = encodeFunctionData({
@@ -83,7 +82,6 @@ export async function beginMetadataAttempt(
     signer: getAddress(wallet.address),
     provider: wallet.provider,
   })
-  if (attempt.signer !== owner) throw refused()
   await verifyProvider(attempt, selected)
   return attempt
 }
@@ -104,13 +102,13 @@ export async function executePreparedMetadataAction(
 
   try {
     const client = createWalletClient({
-      account: owner,
+      account: attempt.signer,
       chain: base,
       transport: custom(chainBoundProvider(attempt, selected)),
     })
 
     const result = await client.sendTransaction({
-      account: owner,
+      account: attempt.signer,
       chain: base,
       to: target,
       data: calldata,

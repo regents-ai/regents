@@ -12,6 +12,8 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
   @transaction_hash "0x" <> String.duplicate("ab", 32)
   @second_transaction_hash "0x" <> String.duplicate("cd", 32)
   @receipt_block_number 47
+  @contract_owner "0x2222222222222222222222222222222222222222"
+  @selected_signer "0x1111111111111111111111111111111111111111"
   @risk_copy "Collection-wide metadata cutover for Regents Club tokens 1 through 1998. No prepared rollback exists."
 
   defmodule HttpClient do
@@ -123,9 +125,9 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
 
     install(&preflight_result(&1, runtime, expected_revert()))
 
-    assert {:ok, prepared} = RpcClient.prepare(RegentsClub.owner())
+    assert {:ok, prepared} = RpcClient.prepare()
     assert prepared.anchor == %{number: 32, hash: @safe_hash}
-    assert prepared.owner == RegentsClub.owner()
+    assert prepared.owner == @contract_owner
     assert prepared.base_uri == RegentsClub.old_base_uri()
     assert prepared.total_supply == 1_998
     assert prepared.erc4906_supported
@@ -166,18 +168,46 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
 
     install(&preflight_result(&1, runtime, %{"code" => -32_602, "message" => "invalid params"}))
 
-    assert RpcClient.prepare(RegentsClub.owner()) ==
-             {:error, :invalid_non_owner_simulation}
+    assert RpcClient.prepare() == {:error, :invalid_non_owner_simulation}
 
     install(&preflight_result(&1, runtime, :accepted))
-    assert RpcClient.prepare(RegentsClub.owner()) == {:error, :non_owner_simulation_succeeded}
+    assert RpcClient.prepare() == {:error, :non_owner_simulation_succeeded}
+  end
+
+  test "preflight rejects a zero contract owner before behavior simulation" do
+    runtime = "0x" <> String.duplicate("00", RegentsClub.runtime_bytes())
+    zero = "0x0000000000000000000000000000000000000000"
+
+    Application.put_env(:ash_platform, :regents_club_test_runtime_hasher, fn
+      ^runtime -> {:ok, RegentsClub.runtime_keccak256()}
+      _other -> :error
+    end)
+
+    install(fn request ->
+      case request do
+        %{method: "eth_call", params: [%{data: data}, _block]} ->
+          if data == RegentsClub.owner_calldata(),
+            do: address(zero),
+            else: preflight_result(request, runtime, expected_revert())
+
+        _other ->
+          preflight_result(request, runtime, expected_revert())
+      end
+    end)
+
+    assert RpcClient.prepare() == {:error, :invalid_chain_response}
+
+    refute Enum.any?(drain_requests(), fn
+             %{params: [%{from: ^zero}, _block]} -> true
+             _request -> false
+           end)
   end
 
   test "minimal ABI decoders and the exact cutover event fail closed" do
     owner_word =
-      "0x" <> String.duplicate("0", 24) <> String.trim_leading(RegentsClub.owner(), "0x")
+      "0x" <> String.duplicate("0", 24) <> String.trim_leading(@contract_owner, "0x")
 
-    assert RegentsClub.decode_address(owner_word) == {:ok, RegentsClub.owner()}
+    assert RegentsClub.decode_address(owner_word) == {:ok, @contract_owner}
     assert RegentsClub.decode_uint("0x" <> word(1998)) == {:ok, 1998}
     assert RegentsClub.decode_bool("0x" <> word(1)) == {:ok, true}
     assert RegentsClub.decode_bool("0x" <> word(2)) == :error
@@ -232,6 +262,21 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
                requireCanonical: true
              }
     end
+  end
+
+  test "a selected non-owner signer may reach a mined contract revert" do
+    envelope = observation_envelope()
+
+    install(fn request ->
+      case observation_result(request, "0x", @receipt_block_number) do
+        %{"status" => "0x1"} = receipt -> Map.put(receipt, "status", "0x0")
+        result -> result
+      end
+    end)
+
+    assert envelope.expected_signer == @selected_signer
+    assert envelope.expected_signer != RegentsClub.owner()
+    assert RpcClient.observe(envelope, @transaction_hash) == {:ok, :reverted}
   end
 
   test "missing-hash recovery scans through the canonical head capped at anchor plus 1024" do
@@ -313,6 +358,32 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
     assert RpcClient.recover(envelope) == {:ok, {:unknown, :multiple_matches}}
   end
 
+  test "missing-hash recovery matches the envelope signer instead of the contract owner" do
+    envelope = observation_envelope()
+    inclusion = envelope.metadata.anchor_block_number + 1
+
+    install(fn
+      %{method: "eth_chainId"} ->
+        "0x2105"
+
+      %{method: "eth_getBlockByNumber", params: ["safe", false]} ->
+        %{"number" => hex_quantity(inclusion), "hash" => block_hash(inclusion)}
+
+      %{method: "eth_getBlockByNumber", params: [encoded, true]} ->
+        %{
+          "number" => encoded,
+          "hash" => block_hash(inclusion),
+          "transactions" => [exact_transaction(@transaction_hash, @contract_owner)]
+        }
+    end)
+
+    assert envelope.expected_signer == @selected_signer
+    assert envelope.expected_signer != @contract_owner
+    assert RpcClient.recover(envelope) == {:ok, {:unknown, :no_unique_match}}
+
+    refute Enum.any?(drain_requests(), &(&1.method == "eth_getTransactionReceipt"))
+  end
+
   test "observation deadline closes direct and missing-hash observation without RPC traffic" do
     prepared_at = ~U[2026-08-31 12:00:00Z]
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> prepared_at end)
@@ -375,7 +446,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
          _runtime,
          _non_owner
        ) do
-    if from == RegentsClub.owner(), do: "0x13d25", else: raise("unexpected estimate signer")
+    if from == @contract_owner, do: "0x13d25", else: raise("unexpected estimate signer")
   end
 
   defp preflight_result(
@@ -384,7 +455,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
          non_owner
        ) do
     cond do
-      data == RegentsClub.calldata() and Map.get(transaction, :from) == RegentsClub.owner() ->
+      data == RegentsClub.calldata() and Map.get(transaction, :from) == @contract_owner ->
         "0x"
 
       data == RegentsClub.calldata() and
@@ -398,7 +469,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
 
   defp preflight_reads do
     %{
-      RegentsClub.owner_calldata() => address(RegentsClub.owner()),
+      RegentsClub.owner_calldata() => address(@contract_owner),
       RegentsClub.base_uri_calldata() => abi_string(RegentsClub.old_base_uri()),
       RegentsClub.total_supply_calldata() => "0x" <> word(1_998),
       RegentsClub.supports_erc4906_calldata() => "0x" <> word(1),
@@ -437,7 +508,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
        ) do
     %{
       "hash" => @transaction_hash,
-      "from" => RegentsClub.owner(),
+      "from" => @selected_signer,
       "to" => RegentsClub.contract_address(),
       "input" => RegentsClub.calldata(),
       "value" => "0x0"
@@ -467,7 +538,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
        ) do
     cond do
       data == RegentsClub.owner_calldata() ->
-        address(RegentsClub.owner())
+        address(@contract_owner)
 
       data == RegentsClub.base_uri_calldata() ->
         abi_string(RegentsClub.new_base_uri())
@@ -549,7 +620,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
   defp observation_envelope do
     prepared_at = Envelope.current_time()
 
-    Envelope.new(RegentsClub.action(), RegentsClub.owner(), RegentsClub.calldata(),
+    Envelope.new(RegentsClub.action(), @selected_signer, RegentsClub.calldata(),
       to: RegentsClub.contract_address(),
       resource: "regents_club_metadata",
       contract_name: "RegentsClub",
@@ -580,10 +651,10 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
     )
   end
 
-  defp exact_transaction(hash) do
+  defp exact_transaction(hash, signer \\ @selected_signer) do
     %{
       "hash" => hash,
-      "from" => RegentsClub.owner(),
+      "from" => signer,
       "to" => RegentsClub.contract_address(),
       "input" => RegentsClub.calldata(),
       "value" => "0x0"
@@ -602,7 +673,7 @@ defmodule AshPlatform.RegentsClub.RpcClientTest do
 
   defp post_state_reads do
     %{
-      RegentsClub.owner_calldata() => address(RegentsClub.owner()),
+      RegentsClub.owner_calldata() => address(@contract_owner),
       RegentsClub.base_uri_calldata() => abi_string(RegentsClub.new_base_uri()),
       RegentsClub.total_supply_calldata() => "0x" <> word(1_998),
       RegentsClub.supports_erc4906_calldata() => "0x" <> word(1),

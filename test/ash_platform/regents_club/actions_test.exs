@@ -10,6 +10,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
 
   @owner "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
   @other "0x1111111111111111111111111111111111111111"
+  @selected "0x2222222222222222222222222222222222222222"
   @attempt "c56a4180-65aa-42ec-a945-5fd21dec0538"
 
   defmodule MediaHttpClient do
@@ -159,10 +160,10 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     :ok
   end
 
-  test "prepares only the exact reviewed action inside the current owner lease" do
-    account = account!("owner", [@owner])
+  test "binds the exact reviewed action to any normalized selected wallet inside the current lease" do
+    account = account!("selected-wallet", [@other])
 
-    assert {:ok, envelope} = Actions.prepare(@owner, @attempt, current_lease(account.id))
+    assert {:ok, envelope} = Actions.prepare(@selected, @attempt, current_lease(account.id))
     assert envelope.arguments.attempt_id == @attempt
     assert is_binary(envelope.confirmation_token)
     assert envelope.action == "set_base_uri"
@@ -170,7 +171,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert envelope.to == RegentsClub.contract_address()
     assert envelope.value == "0"
     assert envelope.data == RegentsClub.calldata()
-    assert envelope.expected_signer == RegentsClub.owner()
+    assert envelope.expected_signer == String.downcase(@selected)
     assert envelope.metadata.anchor_block_number == 42
     assert envelope.metadata.current_base_uri == RegentsClub.old_base_uri()
     {:ok, prepared_at, _offset} = DateTime.from_iso8601(envelope.prepared_at)
@@ -191,18 +192,17 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     end
   end
 
-  test "fails closed for a disabled gate, a different signer, or a signer absent from linked wallets" do
-    account = account!("owner", [@owner])
+  test "fails closed for a disabled gate or invalid wallet but does not require a linked owner" do
+    account = account!("authenticated", [@other])
     lease = current_lease(account.id)
 
     Application.put_env(:ash_platform, :regents_club_metadata_cutover, false)
-    assert Actions.prepare(@owner, @attempt, lease) == {:error, :not_authorized}
+    assert Actions.prepare(@selected, @attempt, lease) == {:error, :not_authorized}
 
     Application.put_env(:ash_platform, :regents_club_metadata_cutover, true)
-    assert Actions.prepare(@other, @attempt, lease) == {:error, :not_authorized}
-
-    other = account!("other", [@other])
-    assert Actions.prepare(@owner, @attempt, current_lease(other.id)) == {:error, :not_authorized}
+    assert {:ok, envelope} = Actions.prepare(@selected, @attempt, lease)
+    assert envelope.expected_signer == String.downcase(@selected)
+    assert Actions.prepare("not-an-address", @attempt, lease) == {:error, :not_authorized}
   end
 
   test "rejects stale session authority before trusted preflight" do
@@ -236,17 +236,14 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
              {:error, :privy_origin_canary_required}
   end
 
-  test "deployment readiness revalidates the owner lease and exact media attestations" do
-    owner = account!("readiness-owner", [@owner])
-    other = account!("readiness-other", [@other])
-
-    assert Actions.deployment_readiness(current_lease(other.id)) == {:error, :not_authorized}
-
-    lease = current_lease(owner.id)
+  test "deployment readiness accepts any current human lease and revalidates exact media attestations" do
+    account = account!("readiness-human", [@other])
+    lease = current_lease(account.id)
+    assert Actions.deployment_readiness(lease) == :ok
     assert is_binary(SessionAuthority.revoke(%{lineage: lease.lineage, generation: 1}))
     assert Actions.deployment_readiness(lease) == {:error, :session_unavailable}
 
-    current = current_lease(owner.id)
+    current = current_lease(account.id)
 
     Application.put_env(
       :ash_platform,
@@ -435,7 +432,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       end
     })
 
-    assert Actions.prepare(@owner, @attempt, current_lease(account.id)) ==
+    assert Actions.prepare(@selected, @attempt, current_lease(account.id)) ==
              {:error, :not_authorized}
   end
 

@@ -16,7 +16,9 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
       <h1>Regents Club metadata cutover</h1>
       <p>
         This page can only prepare the reviewed Base transaction that changes the collection URI
-        to <code>https://media.regents.sh/metadata/</code>. Value is always zero.
+        to <code>https://media.regents.sh/metadata/</code>. Value is always zero. The contract
+        enforces signer authorization onchain; this website does not pre-authorize the selected
+        wallet.
       </p>
 
       <p :if={@notice} role={if @notice.tone == :error, do: "alert", else: "status"}>
@@ -42,7 +44,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
             <dt>Collection</dt><dd><code>0x2208…D487</code></dd>
           </div>
           <div>
-            <dt>Owner</dt><dd><code>0x45C9…98E0</code></dd>
+            <dt>Authorization</dt><dd>Enforced by the Regents Club contract onchain</dd>
           </div>
           <div>
             <dt>Value</dt><dd>0 ETH</dd>
@@ -52,13 +54,17 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
           </div>
         </dl>
 
-        <p :if={!@wallet}>Select the exact owner wallet in Privy before continuing.</p>
-        <p :if={@wallet}>Active owner wallet: <code>0x45C9…98E0</code></p>
+        <p :if={!@wallet}>Select an Ethereum wallet in Privy before continuing.</p>
+        <p :if={@wallet}>Selected Privy wallet: <code>{@wallet}</code></p>
+        <p :if={@wallet}>
+          If this wallet is not authorized by the contract, the transaction may be mined as a
+          contract revert.
+        </p>
 
         <button :if={@wallet} type="button" data-regents-club-metadata-submit>
           {if @status == :observing,
             do: "Review another independent attempt",
-            else: "Review in owner wallet"}
+            else: "Review with selected wallet"}
         </button>
         <button
           :if={@status == :ready && !@wallet}
@@ -114,7 +120,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
           data-regents-club-metadata-confirm
           data-attempt-id={@review.arguments.attempt_id}
         >
-          Confirm and open owner wallet
+          Confirm and open selected wallet
         </button>
       </section>
 

@@ -197,9 +197,7 @@ defmodule AshPlatformWeb.ShellLive do
   defp app_target_open?(_target), do: true
 
   defp authorize_route(socket, %{route_id: :regents_club_metadata}) do
-    account = current_account(socket.assigns.access_context)
-
-    if RegentsClub.enabled?() and RegentsClub.authorized_account?(account),
+    if RegentsClub.enabled?() and authenticated?(socket.assigns.access_context),
       do: {:ok, socket},
       else: {:redirect, redirect(socket, to: "/")}
   end
@@ -704,7 +702,6 @@ defmodule AshPlatformWeb.ShellLive do
         %{assigns: %{route_spec: %{route_id: :regents_club_metadata}}} = socket
       ) do
     wallet = normalized_wallet(address)
-    wallet = if wallet == RegentsClub.owner(), do: wallet
     {:noreply, assign(socket, regents_club_metadata_wallet: wallet)}
   end
 
@@ -759,41 +756,51 @@ defmodule AshPlatformWeb.ShellLive do
       ) do
     case attempts[attempt_id] do
       %{handed_off: false} = attempt ->
-        case RegentsClubActions.prepare(
-               socket.assigns.regents_club_metadata_wallet,
-               attempt_id,
-               socket.assigns.session_lease
-             ) do
-          {:ok, fresh_envelope} ->
-            fresh_attempt =
-              attempt
-              |> Map.put(:envelope, fresh_envelope)
-              |> Map.put(:handed_off, true)
+        wallet = socket.assigns.regents_club_metadata_wallet
 
-            {:noreply,
-             socket
-             |> assign(
-               regents_club_metadata_attempts: Map.put(attempts, attempt_id, fresh_attempt),
-               regents_club_metadata_status: :observing,
-               regents_club_metadata_review: nil
-             )
-             |> push_event("regents-club-metadata:prepared", %{
-               attempt_id: attempt_id,
-               envelope: fresh_envelope
-             })}
+        if Address.equal?(wallet, attempt.envelope.expected_signer) do
+          case RegentsClubActions.prepare(wallet, attempt_id, socket.assigns.session_lease) do
+            {:ok, fresh_envelope} ->
+              fresh_attempt =
+                attempt
+                |> Map.put(:envelope, fresh_envelope)
+                |> Map.put(:handed_off, true)
 
-          {:error, reason} ->
-            status = if RegentsClub.enabled?(), do: :ready, else: :unavailable
+              {:noreply,
+               socket
+               |> assign(
+                 regents_club_metadata_attempts: Map.put(attempts, attempt_id, fresh_attempt),
+                 regents_club_metadata_status: :observing,
+                 regents_club_metadata_review: nil
+               )
+               |> push_event("regents-club-metadata:prepared", %{
+                 attempt_id: attempt_id,
+                 envelope: fresh_envelope
+               })}
 
-            {:noreply,
-             socket
-             |> drop_metadata_attempt(attempt_id)
-             |> assign(
-               regents_club_metadata_status: status,
-               regents_club_metadata_review: nil,
-               regents_club_metadata_notice: metadata_notice(reason)
-             )
-             |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
+            {:error, reason} ->
+              status = if RegentsClub.enabled?(), do: :ready, else: :unavailable
+
+              {:noreply,
+               socket
+               |> drop_metadata_attempt(attempt_id)
+               |> assign(
+                 regents_club_metadata_status: status,
+                 regents_club_metadata_review: nil,
+                 regents_club_metadata_notice: metadata_notice(reason)
+               )
+               |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
+          end
+        else
+          {:noreply,
+           socket
+           |> drop_metadata_attempt(attempt_id)
+           |> assign(
+             regents_club_metadata_status: :ready,
+             regents_club_metadata_review: nil,
+             regents_club_metadata_notice: metadata_notice(:wallet_changed)
+           )
+           |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
         end
 
       _ ->
@@ -1435,7 +1442,10 @@ defmodule AshPlatformWeb.ShellLive do
     do: %{tone: :success, message: "The exact cutover finalized and this route is now closed."}
 
   defp metadata_notice(:reverted),
-    do: %{tone: :error, message: "The owner transaction reverted. No metadata change finalized."}
+    do: %{
+      tone: :error,
+      message: "The selected wallet transaction reverted onchain. No metadata change finalized."
+    }
 
   defp metadata_notice(:cancelled),
     do: %{tone: :info, message: "The wallet request was canceled. It will not be retried."}
@@ -1447,7 +1457,16 @@ defmodule AshPlatformWeb.ShellLive do
     }
 
   defp metadata_notice(:browser_refused),
-    do: %{tone: :error, message: "Select the exact owner wallet on Base. Nothing was sent."}
+    do: %{
+      tone: :error,
+      message: "Keep one selected Ethereum wallet on Base through confirmation. Nothing was sent."
+    }
+
+  defp metadata_notice(:wallet_changed),
+    do: %{
+      tone: :error,
+      message: "The selected Privy wallet changed after review. Review again. Nothing was sent."
+    }
 
   defp metadata_notice(:session_unavailable),
     do: %{tone: :error, message: "The verified session changed. Reload before continuing."}

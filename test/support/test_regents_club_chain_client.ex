@@ -9,13 +9,13 @@ defmodule AshPlatform.TestRegentsClubChainClient do
     response(:status, {:ok, %{state: :ready, base_uri: RegentsClub.old_base_uri()}})
   end
 
-  def prepare(owner) do
+  def prepare do
     response(
       :prepare,
       {:ok,
        %{
          anchor: %{number: 42, hash: hash(42)},
-         owner: owner,
+         owner: RegentsClub.owner(),
          base_uri: RegentsClub.old_base_uri(),
          token_uris: %{
            first: RegentsClub.old_base_uri() <> "1",

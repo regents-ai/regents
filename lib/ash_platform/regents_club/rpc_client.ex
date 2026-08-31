@@ -7,7 +7,9 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   @rpc_opts [client_key: :regents_club_http_client, log_scope: "regents_club_metadata"]
   @scan_blocks 1024
+  @zero_address "0x0000000000000000000000000000000000000000"
   @non_owner "0x0000000000000000000000000000000000000001"
+  @non_owner_fallback "0x0000000000000000000000000000000000000002"
   @revert_codes [3, -32_000, -32_015]
 
   def readiness, do: Rpc.verify_base_chain(@rpc_opts)
@@ -26,11 +28,11 @@ defmodule AshPlatform.RegentsClub.RpcClient do
 
   # The second complete pass is the envelope's anchor. Nothing after it can
   # quietly substitute browser-provider reads for trusted RPC evidence.
-  def prepare(owner) do
+  def prepare do
     with :ok <- readiness(),
-         {:ok, first} <- preflight(owner),
+         {:ok, first} <- preflight(),
          true <- ready?(first),
-         {:ok, final} <- preflight(owner),
+         {:ok, final} <- preflight(),
          true <- ready?(final) do
       {:ok,
        %{
@@ -99,12 +101,13 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp preflight(owner) do
+  defp preflight do
     with {:ok, block} <- Rpc.safe_block(@rpc_opts),
          {:ok, state} <- snapshot(block),
-         :ok <- simulate_owner(block, owner),
-         :ok <- simulate_non_owner_revert(block),
-         {:ok, gas} <- estimate_gas(block, owner) do
+         true <- valid_contract_owner?(state.owner),
+         :ok <- simulate_owner(block, state.owner),
+         :ok <- simulate_non_owner_revert(block, state.owner),
+         {:ok, gas} <- estimate_gas(block, state.owner) do
       {:ok,
        state
        |> Map.put(:block, block)
@@ -152,7 +155,7 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   defp ready?(state),
     do:
       state.runtime_keccak256 == RegentsClub.runtime_keccak256() and
-        state.owner == RegentsClub.owner() and state.base_uri == RegentsClub.old_base_uri() and
+        valid_contract_owner?(state.owner) and state.base_uri == RegentsClub.old_base_uri() and
         state.total_supply == 1998 and state.erc4906_supported == true and
         state.token_uris == %{
           first: RegentsClub.old_base_uri() <> "1",
@@ -162,7 +165,7 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   defp complete?(state),
     do:
       state.runtime_keccak256 == RegentsClub.runtime_keccak256() and
-        state.owner == RegentsClub.owner() and state.base_uri == RegentsClub.new_base_uri() and
+        valid_contract_owner?(state.owner) and state.base_uri == RegentsClub.new_base_uri() and
         state.total_supply == 1998 and state.erc4906_supported == true and
         state.token_uris == %{
           first: RegentsClub.new_base_uri() <> "1",
@@ -200,8 +203,11 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     end
   end
 
-  defp simulate_non_owner_revert(block) do
-    case rpc_preserving_error("eth_call", [transaction(@non_owner), block_parameter(block)]) do
+  defp simulate_non_owner_revert(block, owner) do
+    case rpc_preserving_error("eth_call", [
+           transaction(non_owner(owner)),
+           block_parameter(block)
+         ]) do
       {:rpc_error, error} when is_map(error) ->
         if expected_revert?(error), do: :ok, else: {:error, :invalid_non_owner_simulation}
 
@@ -232,6 +238,16 @@ defmodule AshPlatform.RegentsClub.RpcClient do
       data: RegentsClub.calldata(),
       value: "0x0"
     }
+
+  defp non_owner(@non_owner), do: @non_owner_fallback
+  defp non_owner(_owner), do: @non_owner
+
+  defp valid_contract_owner?(owner) do
+    case Address.normalize(owner) do
+      {:ok, ^owner} when owner != @zero_address -> true
+      _ -> false
+    end
+  end
 
   defp observe_pair(nil, nil, _envelope, _hash, _finalized), do: {:ok, :pending}
   defp observe_pair(_transaction, nil, _envelope, _hash, _finalized), do: {:ok, :pending}

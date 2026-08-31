@@ -11,7 +11,9 @@ import {
   type PreparedMetadataAction,
 } from "../js/wallet_actions/regents_club_metadata"
 
-const owner = getAddress(manifest.contracts.regents_club.onchain_constants.owner)
+const manifestOwner = getAddress(manifest.contracts.regents_club.onchain_constants.owner)
+const signer = getAddress("0x1111111111111111111111111111111111111111")
+const wrongSigner = getAddress("0x3333333333333333333333333333333333333333")
 const target = getAddress(manifest.contracts.regents_club.address)
 const hash = `0x${"ab".repeat(32)}` as Hash
 const attemptId = "c56a4180-65aa-42ec-a945-5fd21dec0538"
@@ -20,7 +22,7 @@ function provider(result: unknown = hash): EthereumProvider {
   return {
     request: vi.fn(async ({method}) => {
       if (method === "eth_chainId") return "0x2105"
-      if (method === "eth_accounts") return [owner]
+      if (method === "eth_accounts") return [signer]
       if (method === "eth_sendTransaction") return result
       throw new Error(`unexpected ${method}`)
     }),
@@ -28,7 +30,7 @@ function provider(result: unknown = hash): EthereumProvider {
 }
 
 function wallet(rpc: EthereumProvider): SelectedWallet {
-  return {address: owner, provider: rpc}
+  return {address: signer, provider: rpc}
 }
 
 function envelope(): PreparedMetadataAction {
@@ -44,7 +46,7 @@ function envelope(): PreparedMetadataAction {
     to: target,
     value: "0",
     data: exactMetadataCalldata(),
-    expected_signer: owner,
+    expected_signer: signer,
     prepared_at: preparedAt.toISOString(),
     expires_at: new Date(preparedAt.getTime() + 60_000).toISOString(),
     risk_copy:
@@ -76,15 +78,16 @@ function envelope(): PreparedMetadataAction {
 describe("Regents Club metadata wallet action", () => {
   beforeEach(() => vi.restoreAllMocks())
 
-  it("recomputes and sends one exact zero-value Base transaction", async () => {
+  it("lets an arbitrary selected signer send one exact zero-value Base transaction", async () => {
     const rpc = provider()
     const selected = () => wallet(rpc)
     const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
 
+    expect(signer).not.toBe(manifestOwner)
     await expect(executePreparedMetadataAction(attempt, envelope(), selected)).resolves.toBe(hash)
     expect(vi.mocked(rpc.request).mock.calls.at(-1)?.[0]).toEqual({
       method: "eth_sendTransaction",
-      params: [{from: owner, to: target, data: exactMetadataCalldata(), value: "0x0"}],
+      params: [{from: signer, to: target, data: exactMetadataCalldata(), value: "0x0"}],
     })
     expect(vi.mocked(rpc.request).mock.calls.at(-2)?.[0]).toEqual({method: "eth_chainId"})
 
@@ -96,7 +99,8 @@ describe("Regents Club metadata wallet action", () => {
   })
 
   it.each([
-    ["target", (value: PreparedMetadataAction) => (value.to = owner)],
+    ["signer", (value: PreparedMetadataAction) => (value.expected_signer = wrongSigner)],
+    ["target", (value: PreparedMetadataAction) => (value.to = wrongSigner)],
     ["value", (value: PreparedMetadataAction) => (value.value = "1" as "0")],
     ["calldata", (value: PreparedMetadataAction) => (value.data = "0xdeadbeef")],
     ["runtime", (value: PreparedMetadataAction) => (value.metadata.runtime_keccak256 = hash)],
@@ -142,7 +146,7 @@ describe("Regents Club metadata wallet action", () => {
         if (method === "eth_chainId") return "0x2105"
         if (method === "eth_accounts") {
           accountReads += 1
-          return [accountReads === 1 ? owner : target]
+          return [accountReads === 1 ? signer : wrongSigner]
         }
         if (method === "eth_sendTransaction") return hash
       }),
@@ -166,7 +170,7 @@ describe("Regents Club metadata wallet action", () => {
           chainReads += 1
           return chainReads < 4 ? "0x2105" : "0x1"
         }
-        if (method === "eth_accounts") return [owner]
+        if (method === "eth_accounts") return [signer]
         if (method === "eth_sendTransaction") return hash
       }),
     }
@@ -211,7 +215,7 @@ describe("Regents Club metadata wallet action", () => {
       const rpc = provider()
       vi.mocked(rpc.request).mockImplementation(async ({method}) => {
         if (method === "eth_chainId") return "0x2105"
-        if (method === "eth_accounts") return [owner]
+        if (method === "eth_accounts") return [signer]
         if (method === "eth_sendTransaction") {
           if (kind === "cancelled") throw result
           return result

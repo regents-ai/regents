@@ -7,21 +7,19 @@ const successHash = `0x${"ab".repeat(32)}`
 const revertHash = `0x${"de".repeat(32)}`
 const sendsKey = "regent:test:regents-club-metadata-sends"
 
-test("owner reviews one exact send and sees cancellation, unknown, revert, and finalized closure", async ({
+test("an authenticated human uses the exact selected signer and sees every terminal outcome", async ({
   page,
 }) => {
-  const auth = await installAuthenticatedPrivy(page, "valid-regents-club")
+  const auth = await installAuthenticatedPrivy(page, "valid")
   await installWallet(page, other)
   await auth.establishLocalSession()
   await page.goto("/regents-club/metadata-cutover")
   await auth.expectAuthenticatedSession()
 
   await expect(page.getByRole("heading", {name: "Regents Club metadata cutover"})).toBeVisible()
-  await expect(page.getByRole("button", {name: "Connect or switch wallet"})).toBeVisible()
+  await expect(page.getByText(`Selected Privy wallet: ${other.toLowerCase()}`)).toBeVisible()
+  await expect(page.getByRole("button", {name: "Review with selected wallet"})).toBeVisible()
   expect(await sends(page)).toHaveLength(0)
-
-  await selectWallet(page, owner)
-  await expect(page.getByRole("button", {name: "Review in owner wallet"})).toBeVisible()
 
   await setMode(page, "cancel")
   await reviewAndConfirm(page)
@@ -30,7 +28,7 @@ test("owner reviews one exact send and sees cancellation, unknown, revert, and f
 
   await setMode(page, "revert")
   await reviewAndConfirm(page)
-  await expect(page.getByText("The owner transaction reverted.", {exact: false})).toBeVisible()
+  await expect(page.getByText("The selected wallet transaction reverted", {exact: false})).toBeVisible()
   expect(await sends(page)).toHaveLength(2)
 
   await setMode(page, "unknown")
@@ -49,6 +47,11 @@ test("owner reviews one exact send and sees cancellation, unknown, revert, and f
 
   const recorded = await sends(page)
   expect(recorded).toHaveLength(4)
+  expect(recorded.slice(0, 3).map(transaction => transaction.from)).toEqual([
+    other.toLowerCase(),
+    other.toLowerCase(),
+    other.toLowerCase(),
+  ])
   expect(recorded[3]).toEqual({
     from: owner.toLowerCase(),
     to: "0x2208aadbdecd47d3b4430b5b75a175f6d885d487",
@@ -62,7 +65,7 @@ test("owner reviews one exact send and sees cancellation, unknown, revert, and f
 })
 
 async function reviewAndConfirm(page: Page): Promise<void> {
-  await page.getByRole("button", {name: "Review in owner wallet"}).click()
+  await page.getByRole("button", {name: "Review with selected wallet"}).click()
   const review = page.getByRole("region", {name: "Founder transaction review"})
   await expect(review).toBeVisible()
   await expect(review).toContainText("Base (8453)")
@@ -70,7 +73,7 @@ async function reviewAndConfirm(page: Page): Promise<void> {
   await expect(review).toContainText(
     "0x6deed736ab66e25b399711cd1e6ab10d4c7380d283a0b49f68e367189cde78ce",
   )
-  await review.getByRole("button", {name: "Confirm and open owner wallet"}).click()
+  await review.getByRole("button", {name: "Confirm and open selected wallet"}).click()
 }
 
 async function setMode(page: Page, mode: "cancel" | "unknown" | "revert" | "success") {
@@ -95,13 +98,13 @@ async function sends(page: Page): Promise<Array<Record<string, string>>> {
 
 async function installWallet(page: Page, initialAddress: string): Promise<void> {
   await page.addInitScript(
-    ({owner, initialAddress, successHash, revertHash, sendsKey}) => {
+    ({initialAddress, successHash, revertHash, sendsKey}) => {
       const provider = {
         async request({method, params}: {method: string; params?: Array<Record<string, string>>}) {
           const wallet = (window as Window & {__ashPlatformTestWallet?: {address: string}})
             .__ashPlatformTestWallet
           if (method === "eth_chainId") return "0x2105"
-          if (method === "eth_accounts") return [wallet?.address || owner]
+          if (method === "eth_accounts") return [wallet?.address || initialAddress]
           if (method !== "eth_sendTransaction") throw new Error(`unexpected ${method}`)
 
           const transaction = params?.[0] || {}
@@ -127,6 +130,6 @@ async function installWallet(page: Page, initialAddress: string): Promise<void> 
         provider,
       }
     },
-    {owner, initialAddress, successHash, revertHash, sendsKey},
+    {initialAddress, successHash, revertHash, sendsKey},
   )
 }

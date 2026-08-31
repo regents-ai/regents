@@ -115,12 +115,6 @@ defmodule AshPlatform.RegentsClub do
     :ok
   end
 
-  def authorized_account?(%{wallet_addresses: wallets}) when is_list(wallets) do
-    Enum.any?(wallets, &Address.equal?(&1, @owner))
-  end
-
-  def authorized_account?(_account), do: false
-
   def chain_id, do: @chain_id
   def action, do: @action
   def owner, do: @owner

@@ -438,13 +438,9 @@ defmodule AshPlatform.RegentsClub.Actions do
   @media_task_timeout 200_000
 
   def deployment_readiness(%{lineage: lineage, account_id: account_id}) do
-    callback = fn account ->
-      with true <- RegentsClub.authorized_account?(account),
-           :ok <- functional_readiness(account) do
+    callback = fn _account ->
+      with :ok <- functional_readiness() do
         {:ok, :ok}
-      else
-        false -> {:error, :not_authorized}
-        {:error, reason} -> {:error, reason}
       end
     end
 
@@ -463,8 +459,7 @@ defmodule AshPlatform.RegentsClub.Actions do
   def prepare(active_wallet, attempt_id, %{lineage: lineage, account_id: account_id}) do
     with true <- RegentsClub.enabled?(),
          true <- RegentsClub.valid_attempt_id?(attempt_id),
-         {:ok, signer} <- Address.normalize(active_wallet),
-         true <- signer == RegentsClub.owner() do
+         {:ok, signer} <- Address.normalize(active_wallet) do
       callback = fn account -> prepare_current(account, signer, attempt_id) end
 
       case SessionAuthority.transact_lease(lineage, account_id, callback) do
@@ -480,13 +475,13 @@ defmodule AshPlatform.RegentsClub.Actions do
   def prepare(_active_wallet, _attempt_id, _lease), do: {:error, :session_unavailable}
 
   def valid_envelope?(envelope) do
-    Envelope.valid?(envelope, validation()) and exact_envelope?(envelope)
+    Envelope.valid?(envelope, validation(envelope)) and exact_envelope?(envelope)
   rescue
     _ -> false
   end
 
   def valid_observation_envelope?(envelope) do
-    Envelope.valid_for_confirmation?(envelope, validation()) and exact_envelope?(envelope)
+    Envelope.valid_for_confirmation?(envelope, validation(envelope)) and exact_envelope?(envelope)
   rescue
     _ -> false
   end
@@ -503,11 +498,9 @@ defmodule AshPlatform.RegentsClub.Actions do
 
   def observation_open?(_envelope), do: false
 
-  defp prepare_current(account, signer, attempt_id) do
-    with true <- RegentsClub.authorized_account?(account),
-         true <- signer == RegentsClub.owner(),
-         :ok <- functional_readiness(account),
-         {:ok, preflight} <- chain_client().prepare(signer),
+  defp prepare_current(_account, signer, attempt_id) do
+    with :ok <- functional_readiness(),
+         {:ok, preflight} <- chain_client().prepare(),
          envelope <- envelope(attempt_id, signer, preflight),
          true <- valid_envelope?(envelope) do
       {:ok, envelope}
@@ -560,7 +553,7 @@ defmodule AshPlatform.RegentsClub.Actions do
       field(envelope, :to) == RegentsClub.contract_address(),
       field(envelope, :value) == "0",
       field(envelope, :data) == RegentsClub.calldata(),
-      field(envelope, :expected_signer) == RegentsClub.owner(),
+      valid_signer?(field(envelope, :expected_signer)),
       field(envelope, :risk_copy) == @risk_copy
     ]
 
@@ -607,19 +600,18 @@ defmodule AshPlatform.RegentsClub.Actions do
     end
   end
 
-  defp validation do
+  defp validation(envelope) do
     [
       to: RegentsClub.contract_address(),
-      signer: RegentsClub.owner(),
+      signer: field(envelope, :expected_signer),
       resource: @resource,
       contract_name: @contract_name,
       action: RegentsClub.action()
     ]
   end
 
-  defp functional_readiness(account) do
-    with true <- RegentsClub.authorized_account?(account),
-         :ok <- public_privy_bootstrap(),
+  defp functional_readiness do
+    with :ok <- public_privy_bootstrap(),
          :ok <- server_verifier(),
          true <- Application.get_env(:ash_platform, :regents_club_privy_origin_canary, false),
          :ok <- media_attestation(),
@@ -629,6 +621,13 @@ defmodule AshPlatform.RegentsClub.Actions do
     else
       false -> {:error, :privy_origin_canary_required}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp valid_signer?(signer) do
+    case Address.normalize(signer) do
+      {:ok, ^signer} -> true
+      _ -> false
     end
   end
 
