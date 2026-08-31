@@ -323,8 +323,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
           </p>
           <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
             <li :for={position <- @claimed_token_positions}>
+              <% presentation = position_token_presentation(position) %>
               <.link patch={"/autolaunch/tokens/#{position.token.id}"}>
-                <strong>{position.token.name} · {position.token.symbol}</strong>
+                <strong>{presentation.name} · {presentation.symbol}</strong>
                 <span>Claimed from {bid_title(position)}</span>
               </.link>
             </li>
@@ -640,9 +641,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <p :if={@tokens == []} class="autolaunch-empty">No related tokens yet.</p>
         <ol :if={@tokens != []} class="autolaunch-record-list">
           <li :for={token <- @tokens}>
+            <% presentation = Token.presentation(token) %>
             <.link patch={"/autolaunch/tokens/#{token.id}"}>
-              <strong>{token.name} · {token.symbol}</strong>
-              <span>{token.summary || "No public token summary yet."}</span>
+              <strong>{presentation.name} · {presentation.symbol}</strong>
+              <span>{presentation.summary || "No public token summary yet."}</span>
             </.link>
           </li>
         </ol>
@@ -1525,9 +1527,18 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp launch_agent(%{agent_name: value}) when is_binary(value) and value != "", do: value
   defp launch_agent(%{agent_id: value}), do: value
 
-  defp bid_title(%{token: %{name: name, symbol: symbol}}), do: "#{name} · #{symbol}"
+  defp bid_title(%{token: %Token{}} = position) do
+    presentation = position_token_presentation(position)
+    "#{presentation.name} · #{presentation.symbol}"
+  end
+
   defp bid_title(%{auction: %{title: title}}), do: title
   defp bid_title(%{bid_id: bid_id}), do: "Bid #{bid_id}"
+
+  defp position_token_presentation(%{token: %Token{} = token, auction: %{title: _} = auction}),
+    do: token |> Map.put(:auction, auction) |> Token.presentation()
+
+  defp position_token_presentation(%{token: %Token{} = token}), do: Token.presentation(token)
 
   defp display_status(value) do
     value

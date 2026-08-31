@@ -59,7 +59,8 @@ defmodule AshPlatform.Accounts.XOAuthTest do
             :x_oauth_strategy,
             :x_oauth_clock,
             :x_oauth_test_authorize,
-            :x_oauth_test_callback
+            :x_oauth_test_callback,
+            :x_oauth_expired_cleanup_observer
           ],
           do: Application.delete_env(:ash_platform, key)
     end)
@@ -184,8 +185,10 @@ defmodule AshPlatform.Accounts.XOAuthTest do
         else: {:error, :wrong_verifier}
     end)
 
-    assert {:error, :wrong_verifier} =
+    assert {:error, :wrong_verifier, %{role: :profile, generation: generation}} =
              XOAuth.callback(claim, %{"state" => state, "code" => "wrong-verifier"})
+
+    assert generation == connection.attempt_generation
 
     assert {:ok, refused} = Accounts.get_my_x_connection(:profile, actor: actor)
     assert refused.x_user_id == nil
@@ -214,14 +217,14 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert {:ok, before} = Accounts.get_my_x_connection(:profile, actor: human(account))
     assert before.username == "verified_creator"
 
-    assert {:ok, _started} = XOAuth.begin(claim, :profile, intent())
+    assert {:ok, %{generation: generation}} = XOAuth.begin(claim, :profile, intent())
     assert_receive {:authorize, _config, state, _verifier}
 
     Application.put_env(:ash_platform, :x_oauth_test_callback, fn _config, _params ->
       {:error, :provider_refused}
     end)
 
-    assert {:error, :provider_refused} =
+    assert {:error, :provider_refused, %{role: :profile, generation: ^generation}} =
              XOAuth.callback(claim, %{"state" => state, "error" => "access_denied"})
 
     assert {:ok, retained} = Accounts.get_my_x_connection(:profile, actor: human(account))
@@ -256,7 +259,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
       |> Enum.map(fn {:ok, result} -> result end)
 
     assert Enum.count(results, &match?({:ok, _payload}, &1)) == 1
-    assert Enum.count(results, &match?({:error, _reason}, &1)) == 1
+    assert Enum.count(results, &match?({:error, _reason, _payload}, &1)) == 1
   end
 
   test "logout while the provider callback is in flight makes the completion inert" do
@@ -293,7 +296,7 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert_receive {:provider_waiting, provider_pid}
     assert is_binary(SessionAuthority.revoke(claim))
     send(provider_pid, :release_provider)
-    assert {:error, _reason} = Task.await(callback)
+    assert {:error, _reason, %{role: :profile, generation: _generation}} = Task.await(callback)
 
     assert {:ok, public} = Accounts.list_public_x_connections([account.id])
     assert public == []
@@ -328,7 +331,9 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert_receive {:authorize, _config, new_state, _verifier}
 
     send(provider_pid, :release_reconnect)
-    assert {:error, :stale_attempt} = Task.await(old_callback)
+
+    assert {:error, :stale_attempt, %{role: :profile, generation: _generation}} =
+             Task.await(old_callback)
 
     Application.put_env(:ash_platform, :x_oauth_test_callback, successful_callback)
 
@@ -428,6 +433,46 @@ defmodule AshPlatform.Accounts.XOAuthTest do
     assert expired.intent_generation == newer.intent_generation
     assert expired.attempt_state == nil
     assert expired.attempt_verifier == nil
+  end
+
+  test "expired cleanup cannot clear an attempt that replaced its stale snapshot", %{clock: clock} do
+    account = account!("expired-cleanup-race")
+    claim = claim!(account)
+    actor = human(account)
+    old_intent = intent()
+    test_pid = self()
+
+    assert {:ok, _started} = XOAuth.begin(claim, :profile, old_intent)
+    assert_receive {:authorize, _config, _state, _verifier}
+    Agent.update(clock, &DateTime.add(&1, 601, :second))
+
+    Application.put_env(:ash_platform, :x_oauth_expired_cleanup_observer, fn snapshot ->
+      send(test_pid, {:expired_snapshot_observed, self(), snapshot})
+
+      receive do
+        :continue_expired_cleanup -> :ok
+      end
+    end)
+
+    cleanup = Task.async(fn -> XOAuth.list_for_account(account) end)
+
+    assert_receive {:expired_snapshot_observed, cleanup_pid,
+                    %{role: :profile, generation: old_generation}}
+
+    newer_intent = intent_after(old_intent, 1)
+    assert {:ok, %{generation: new_generation}} = XOAuth.begin(claim, :profile, newer_intent)
+    assert_receive {:authorize, _config, new_state, _verifier}
+    refute new_generation == old_generation
+
+    send(cleanup_pid, :continue_expired_cleanup)
+    assert {:ok, [listed]} = Task.await(cleanup)
+    assert listed.attempt_state == new_state
+    assert listed.attempt_generation == new_generation
+
+    assert {:ok, current} = Accounts.get_my_x_connection(:profile, actor: actor)
+    assert current.attempt_state == new_state
+    assert current.attempt_generation == new_generation
+    assert current.intent_generation == newer_intent.intent_generation
   end
 
   defp connect!(claim, role) do

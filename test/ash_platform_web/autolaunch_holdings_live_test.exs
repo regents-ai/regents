@@ -78,7 +78,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     html = render(view)
 
     assert has_element?(view, "#autolaunch-bid-live\\:returnable", "Returnable")
-    assert has_element?(view, "#autolaunch-bid-live\\:claimed", "Claimed Research Token")
+    assert has_element?(view, "#autolaunch-bid-live\\:claimed", "Claimed Research Launch · CRT")
     assert html =~ "Bid amount"
     assert html =~ "25"
     assert html =~ "Maximum price"
@@ -102,8 +102,10 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     assert has_element?(
              view,
              ~s(#autolaunch-held-tokens a[href="/autolaunch/tokens/#{claimed_token.id}"]),
-             "Claimed Research Token"
+             "Claimed Research Launch · CRT"
            )
+
+    refute html =~ "Claimed Research Token"
 
     refute has_element?(view, "#autolaunch-bid-live\\:other-user")
     refute has_element?(view, "#autolaunch-bid-positions dd", "999")
@@ -154,9 +156,10 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     assert has_element?(
              view,
              ~s(#autolaunch-held-tokens a[href="/autolaunch/tokens/#{token.id}"]),
-             "One Token · ONE"
+             "One Token Launch · ONE"
            )
 
+    refute html =~ "One Token · ONE"
     refute html =~ "Ambiguous Token"
     refute html =~ "AMB"
   end

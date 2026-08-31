@@ -42,6 +42,7 @@ defmodule AshPlatformWeb.XOAuthController do
     result =
       case XOAuth.callback(claim(conn), params) do
         {:ok, payload} -> Map.merge(payload, %{status: "connected"})
+        {:error, _reason, payload} -> Map.merge(payload, %{status: "failed"})
         {:error, _reason} -> %{role: nil, generation: nil, status: "failed"}
       end
 

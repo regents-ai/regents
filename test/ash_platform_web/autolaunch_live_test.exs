@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
   alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.{Accounts, Autolaunch, Discussions, Formation}
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.Autolaunch.{Auction, LabMarketFeed, LaunchDraft}
+  alias AshPlatform.Autolaunch.{Auction, LabMarketFeed, LaunchDraft, Token}
   alias AshPlatform.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias AshPlatformWeb.{AutolaunchLive, RouteCatalog}
 
@@ -100,6 +100,62 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     canonical = String.duplicate("x", 80)
     render_patch(empty, "/autolaunch?q=#{overlong}")
     assert_patch(empty, "/autolaunch?q=#{canonical}")
+  end
+
+  test "held tokens use their auction presentation instead of divergent legacy token text" do
+    token_id = Ash.UUID.generate()
+
+    auction = %Auction{
+      id: Ash.UUID.generate(),
+      title: "Canonical Holding Auction",
+      token_symbol: "HOLD",
+      summary: "Canonical holding summary."
+    }
+
+    token = %Token{
+      id: token_id,
+      name: "Legacy Holding Token",
+      symbol: "LEG",
+      summary: "Legacy holding summary."
+    }
+
+    html =
+      render_component(&AutolaunchLive.page/1,
+        route_spec: RouteCatalog.fetch!(:autolaunch_holdings),
+        params: %{},
+        account_control: %AccountControl{
+          kind: :signed_in,
+          label: "Account",
+          profile_path: nil,
+          settings_path: "/settings"
+        },
+        featured_auctions: [],
+        recent_auctions: [],
+        top_tokens: [],
+        graduated_tokens: [],
+        records: [],
+        record: nil,
+        subject_tokens: [],
+        subject_actions: [],
+        subject_settlements: [],
+        bid_positions: [],
+        returnable_positions: [],
+        claimed_token_positions: [%{bid_id: "held:canonical", token: token, auction: auction}],
+        launch_drafts: [],
+        draft_values: AutolaunchLive.blank_draft_fields(),
+        draft_errors: %{},
+        status: :ready,
+        comments: [],
+        comments_status: :ready,
+        comment_request_id: Ash.UUID.generate(),
+        comment_draft: "",
+        comment_admin: false
+      )
+
+    assert html =~ ~s(href="/autolaunch/tokens/#{token_id}")
+    assert html =~ "Canonical Holding Auction · HOLD"
+    refute html =~ "Legacy Holding Token"
+    refute html =~ "LEG"
   end
 
   test "a connected market page receives shared block updates without navigation", %{conn: conn} do
@@ -291,8 +347,8 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     auction =
       Autolaunch.import_auction!(
-        "Subject detail auction",
-        nil,
+        "Canonical Subject Auction",
+        "Canonical subject summary.",
         false,
         :graduated,
         DateTime.utc_now(),
@@ -304,9 +360,9 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       Autolaunch.import_subject_token!(
         auction.id,
         subject.subject_id,
-        "Related Subject Token",
+        "Legacy Related Token",
         "RST",
-        "Linked to the subject.",
+        "Legacy related summary.",
         DateTime.utc_now(),
         nil,
         actor: %System{}
@@ -368,7 +424,10 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(detail, "#autolaunch-subject-detail")
     assert has_element?(detail, "#autolaunch-subject-detail", subject.subject_id)
     assert has_element?(detail, "#subject-revenue-title", "Revenue")
-    assert has_element?(detail, "#subject-related-tokens", token.name)
+    assert has_element?(detail, "#subject-related-tokens", "Canonical Subject Auction · RST")
+    assert has_element?(detail, "#subject-related-tokens", "Canonical subject summary.")
+    refute has_element?(detail, "#subject-related-tokens", token.name)
+    refute has_element?(detail, "#subject-related-tokens", token.summary)
 
     assert has_element?(
              detail,

@@ -151,6 +151,45 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
     assert get_resp_header(callback, "content-security-policy") != []
   end
 
+  test "a provider denial returns only the exact preflighted popup identity", %{conn: conn} do
+    account = account!("provider-denial")
+
+    started =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> put_valid_csrf()
+      |> post("/auth/x/connections/profile", intent_params())
+
+    %{"generation" => generation} = json_response(started, 200)
+
+    Application.put_env(:ash_platform, :x_controller_callback, fn _config, _params ->
+      {:error, :access_denied}
+    end)
+
+    denied =
+      started
+      |> recycle()
+      |> get("/auth/x/callback", %{
+        "state" => "controller-state",
+        "error" => "access_denied"
+      })
+
+    denied_body = html_response(denied, 200)
+    assert denied_body =~ ~s(data-status="failed")
+    assert denied_body =~ ~s(data-role="profile")
+    assert denied_body =~ ~s(data-generation="#{generation}")
+
+    invalid =
+      started
+      |> recycle()
+      |> get("/auth/x/callback", %{"state" => "wrong-state", "error" => "access_denied"})
+
+    invalid_body = html_response(invalid, 200)
+    assert invalid_body =~ ~s(data-status="failed")
+    assert invalid_body =~ ~s(data-role="")
+    assert invalid_body =~ ~s(data-generation="")
+  end
+
   test "missing X configuration disables start without changing the session", %{conn: conn} do
     Application.delete_env(:ash_platform, :x_oauth_client_id)
     account = account!("disabled")

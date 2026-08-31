@@ -182,6 +182,34 @@ describe("direct X role connections", () => {
     expect(root.status.textContent).toBe("X account connected.")
   })
 
+  it("closes the exact popup and reports a preflighted provider denial", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({
+        url: "https://x.example.test/authorize",
+        role: "profile",
+        generation: "generation-denied",
+      }),
+    )
+
+    root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
+    await settled()
+
+    messageListener({
+      origin: "http://localhost:4000",
+      source: activePopup,
+      data: {
+        source: "ash-x-oauth",
+        status: "failed",
+        role: "profile",
+        generation: "generation-denied",
+      },
+    } as unknown as MessageEvent)
+
+    expect(activePopup.close).toHaveBeenCalledOnce()
+    expect(root.status.textContent).toBe("X connection was not completed.")
+    expect(pushEvent).not.toHaveBeenCalled()
+  })
+
   it("reports popup cancellation and failed start without claiming a connection", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       response({
