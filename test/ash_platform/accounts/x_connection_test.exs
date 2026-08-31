@@ -87,57 +87,7 @@ defmodule AshPlatform.Accounts.XConnectionTest do
     assert {:ok, []} = Accounts.list_public_x_connections([owner.id])
   end
 
-  test "public creator search treats adapter wildcards and Unicode as literal text" do
-    nonce = Elixir.System.unique_integer([:positive])
-
-    fixtures = [
-      {"Percent %pct#{nonce}", "creatora#{nonce}"},
-      {"Percent pct#{nonce}", "creatorb#{nonce}"},
-      {"Under _under#{nonce}", "creatorc#{nonce}"},
-      {"Under Xunder#{nonce}", "creatord#{nonce}"},
-      {"Slash \\slash#{nonce}", "creatore#{nonce}"},
-      {"Slash slash#{nonce}", "creatorf#{nonce}"},
-      {"研究 #{nonce}", "creatorg#{nonce}"}
-    ]
-
-    connections =
-      Enum.map(fixtures, fn {display_name, username} ->
-        account = account!(username)
-        actor = human(account)
-
-        begin!(actor, :profile)
-        |> complete!(actor, username, display_name)
-      end)
-
-    for {query, expected} <- [
-          {"%pct#{nonce}", Enum.at(connections, 0)},
-          {"_under#{nonce}", Enum.at(connections, 2)},
-          {"\\slash#{nonce}", Enum.at(connections, 4)},
-          {"研究 #{nonce}", Enum.at(connections, 6)}
-        ] do
-      assert {:ok, [found]} = Accounts.search_public_x_connections(query)
-      assert found.id == expected.id
-    end
-
-    assert {:error, %Ash.Error.Invalid{}} =
-             Accounts.search_public_x_connections(String.duplicate("x", 81))
-  end
-
   defp begin!(actor, role), do: Accounts.begin_x_connection_attempt!(attempt(role), actor: actor)
-
-  defp complete!(connection, actor, username, display_name) do
-    Accounts.complete_x_connection_attempt!(
-      connection,
-      %{
-        x_user_id: "id-#{username}",
-        username: username,
-        display_name: display_name,
-        verified_at: DateTime.utc_now(),
-        next_generation: Ash.UUID.generate()
-      },
-      actor: actor
-    )
-  end
 
   defp attempt(role) do
     %{

@@ -1449,16 +1449,10 @@ defmodule AshPlatformWeb.ShellLive do
     query = normalize_autolaunch_query(params["q"] || "")
     term = String.downcase(query)
 
-    with {:ok, matching_x} <- matching_x_connections(term),
-         matching_creator_ids = matching_x |> Enum.map(& &1.human_account_id) |> Enum.uniq(),
-         {:ok, graduated} <-
-           Autolaunch.list_graduated_launchpad_tokens(term, matching_creator_ids),
-         {:ok, active} <-
-           Autolaunch.list_active_launchpad_auctions(term, matching_creator_ids),
-         {:ok, explore_auctions} <-
-           Autolaunch.list_explore_launchpad_auctions(term, matching_creator_ids),
-         {:ok, explore_tokens} <-
-           Autolaunch.list_explore_launchpad_tokens(term, matching_creator_ids),
+    with {:ok, graduated} <- Autolaunch.list_graduated_launchpad_tokens(term),
+         {:ok, active} <- Autolaunch.list_active_launchpad_auctions(term),
+         {:ok, explore_auctions} <- Autolaunch.list_explore_launchpad_auctions(term),
+         {:ok, explore_tokens} <- Autolaunch.list_explore_launchpad_tokens(term),
          explore = merge_explore(explore_auctions, explore_tokens),
          creator_ids = market_creator_ids(active, graduated, explore),
          {:ok, connections} <- XOAuth.public_for_humans(creator_ids) do
@@ -1647,9 +1641,6 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp normalize_autolaunch_query(_query), do: ""
-
-  defp matching_x_connections(""), do: {:ok, []}
-  defp matching_x_connections(term), do: Accounts.search_public_x_connections(term)
 
   defp merge_explore(auctions, tokens) do
     (Enum.map(auctions, &%{kind: :auction, record: &1}) ++

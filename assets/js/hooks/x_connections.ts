@@ -13,6 +13,7 @@ type CallbackMessage = {
 type XConnectionsHook = Hook & {
   el: HTMLElement
   pushEvent(event: string, payload: unknown): void
+  roleMutations?: Partial<Record<XRole, Promise<void>>>
   activePopup?: Window | null
   activeRole?: XRole
   activeGeneration?: string
@@ -48,6 +49,8 @@ async function mutate(path: string, method: "POST" | "DELETE"): Promise<Response
 
 export const XConnections: Hook = {
   mounted(this: XConnectionsHook) {
+    this.roleMutations = {}
+
     const reset = () => {
       if (this.popupPoll) window.clearInterval(this.popupPoll)
       this.popupPoll = undefined
@@ -56,7 +59,21 @@ export const XConnections: Hook = {
       this.activeGeneration = undefined
     }
 
-    const start = async (selectedRole: XRole) => {
+    const enqueue = (selectedRole: XRole, mutation: () => Promise<void>) => {
+      const prior = this.roleMutations?.[selectedRole] ?? Promise.resolve()
+      const next = prior.catch(() => undefined).then(mutation)
+      this.roleMutations![selectedRole] = next
+
+      void next.finally(() => {
+        if (this.roleMutations?.[selectedRole] === next) {
+          delete this.roleMutations[selectedRole]
+        }
+      })
+
+      return next
+    }
+
+    const start = (selectedRole: XRole) => {
       this.activePopup?.close()
       reset()
       const popup = window.open("", "regents-x-oauth", "popup,width=620,height=720")
@@ -76,38 +93,53 @@ export const XConnections: Hook = {
         status(this.el, "X connection was not completed.")
       }, 250)
 
-      try {
-        const response = await mutate(`/auth/x/connections/${selectedRole}`, "POST")
-        const body = await json(response)
-        if (
-          !response.ok ||
-          body.role !== selectedRole ||
-          typeof body.url !== "string" ||
-          typeof body.generation !== "string"
-        ) {
-          throw new Error("start refused")
-        }
-
+      void enqueue(selectedRole, async () => {
         if (this.activePopup !== popup || popup.closed) return
-        this.activeGeneration = body.generation
-        popup.location.replace(body.url)
-      } catch {
-        popup.close()
-        reset()
-        status(this.el, "X connection could not start. Try again.")
-      }
+
+        try {
+          const response = await mutate(`/auth/x/connections/${selectedRole}`, "POST")
+          const body = await json(response)
+          if (
+            !response.ok ||
+            body.role !== selectedRole ||
+            typeof body.url !== "string" ||
+            typeof body.generation !== "string"
+          ) {
+            throw new Error("start refused")
+          }
+
+          if (this.activePopup !== popup || popup.closed) return
+          this.activeGeneration = body.generation
+          popup.location.replace(body.url)
+        } catch {
+          popup.close()
+
+          if (this.activePopup === popup) {
+            reset()
+            status(this.el, "X connection could not start. Try again.")
+          }
+        }
+      })
     }
 
-    const disconnect = async (selectedRole: XRole) => {
-      status(this.el, `Disconnecting ${selectedRole} X…`)
-      try {
-        const response = await mutate(`/auth/x/connections/${selectedRole}`, "DELETE")
-        if (!response.ok) throw new Error("disconnect refused")
-        status(this.el, "X account disconnected.")
-        this.pushEvent("refresh_x_connections", {role: selectedRole, status: "disconnected"})
-      } catch {
-        status(this.el, "X account could not be disconnected. Try again.")
+    const disconnect = (selectedRole: XRole) => {
+      if (this.activeRole === selectedRole) {
+        this.activePopup?.close()
+        reset()
       }
+
+      status(this.el, `Disconnecting ${selectedRole} X…`)
+
+      void enqueue(selectedRole, async () => {
+        try {
+          const response = await mutate(`/auth/x/connections/${selectedRole}`, "DELETE")
+          if (!response.ok) throw new Error("disconnect refused")
+          status(this.el, "X account disconnected.")
+          this.pushEvent("refresh_x_connections", {role: selectedRole, status: "disconnected"})
+        } catch {
+          status(this.el, "X account could not be disconnected. Try again.")
+        }
+      })
     }
 
     this.clickListener = event => {

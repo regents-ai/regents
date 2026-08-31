@@ -26,7 +26,8 @@ defmodule AshPlatform.Accounts.XConnection do
     otp_app: :ash_platform,
     domain: AshPlatform.Accounts,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   require Ash.Query
 
@@ -96,6 +97,23 @@ defmodule AshPlatform.Accounts.XConnection do
   end
 
   actions do
+    read :related_public do
+      primary? true
+
+      prepare build(
+                select: [
+                  :id,
+                  :role,
+                  :x_user_id,
+                  :username,
+                  :display_name,
+                  :avatar_url,
+                  :verified_at,
+                  :human_account_id
+                ]
+              )
+    end
+
     create :begin_attempt do
       accept [:role, :attempt_state, :attempt_verifier, :attempt_generation, :attempt_expires_at]
       change AshPlatform.Accounts.XConnection.Changes.AssignOwner
@@ -136,33 +154,6 @@ defmodule AshPlatform.Accounts.XConnection do
                   :human_account_id
                 ]
               )
-    end
-
-    read :public_search do
-      argument :query, :string, allow_nil?: false, constraints: [max_length: 80]
-      filter expr(not is_nil(verified_at))
-
-      prepare fn query, _context ->
-        term = query.arguments.query |> String.trim() |> String.downcase()
-        pattern = literal_search_pattern(term)
-
-        query
-        |> Ash.Query.filter(
-          ilike(username, ^pattern) or
-            ilike(display_name, ^pattern)
-        )
-        |> Ash.Query.limit(100)
-        |> Ash.Query.select([
-          :id,
-          :role,
-          :x_user_id,
-          :username,
-          :display_name,
-          :avatar_url,
-          :verified_at,
-          :human_account_id
-        ])
-      end
     end
 
     update :replace_attempt do
@@ -206,7 +197,11 @@ defmodule AshPlatform.Accounts.XConnection do
   end
 
   policies do
-    policy action([:public_for_humans, :public_search]) do
+    policy action(:related_public) do
+      authorize_if expr(not is_nil(verified_at))
+    end
+
+    policy action(:public_for_humans) do
       authorize_if always()
     end
 
@@ -230,13 +225,5 @@ defmodule AshPlatform.Accounts.XConnection do
     references do
       reference(:human_account, on_delete: :delete)
     end
-  end
-
-  defp literal_search_pattern(term) do
-    "%" <>
-      (term
-       |> String.replace("\\", "\\\\")
-       |> String.replace("%", "\\%")
-       |> String.replace("_", "\\_")) <> "%"
   end
 end

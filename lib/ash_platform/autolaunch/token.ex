@@ -110,7 +110,6 @@ defmodule AshPlatform.Autolaunch.Token do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
-      argument :creator_human_account_ids, {:array, :integer}, default: []
       prepare fn query, _context -> launchpad_query(query, 8) end
     end
 
@@ -119,7 +118,6 @@ defmodule AshPlatform.Autolaunch.Token do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
-      argument :creator_human_account_ids, {:array, :integer}, default: []
       prepare fn query, _context -> launchpad_query(query, 24) end
     end
 
@@ -233,34 +231,18 @@ defmodule AshPlatform.Autolaunch.Token do
 
   defp launchpad_query(query, limit) do
     term = query.arguments.query |> String.trim() |> String.downcase()
-    creator_ids = query.arguments.creator_human_account_ids || []
     pattern = literal_search_pattern(term)
 
     query
-    |> launchpad_search_filter(term, creator_ids, pattern)
+    |> launchpad_search_filter(term, pattern)
     |> Ash.Query.sort(graduated_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
     |> Ash.Query.load([:treasury_security_report, :auction])
   end
 
-  defp launchpad_search_filter(query, "", [], _pattern), do: query
+  defp launchpad_search_filter(query, "", _pattern), do: query
 
-  defp launchpad_search_filter(query, "", creator_ids, _pattern),
-    do: Ash.Query.filter(query, auction.creator_human_account_id in ^creator_ids)
-
-  defp launchpad_search_filter(query, _term, [], pattern) do
-    Ash.Query.filter(
-      query,
-      ilike(name, ^pattern) or
-        ilike(symbol, ^pattern) or
-        ilike(summary, ^pattern) or
-        ilike(auction.title, ^pattern) or
-        ilike(auction.summary, ^pattern) or
-        ilike(auction.auction_address, ^pattern)
-    )
-  end
-
-  defp launchpad_search_filter(query, _term, creator_ids, pattern) do
+  defp launchpad_search_filter(query, _term, pattern) do
     Ash.Query.filter(
       query,
       ilike(name, ^pattern) or
@@ -269,7 +251,11 @@ defmodule AshPlatform.Autolaunch.Token do
         ilike(auction.title, ^pattern) or
         ilike(auction.summary, ^pattern) or
         ilike(auction.auction_address, ^pattern) or
-        auction.creator_human_account_id in ^creator_ids
+        exists(
+          [:auction, :creator_x_connections],
+          not is_nil(verified_at) and
+            (ilike(username, ^pattern) or ilike(display_name, ^pattern))
+        )
     )
   end
 

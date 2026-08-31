@@ -1,7 +1,8 @@
 defmodule AshPlatform.Autolaunch.AuctionTokenTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.Actors.System
+  alias AshPlatform.Accounts
+  alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.Auction
 
@@ -125,14 +126,15 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
           {"\\#{nonce}", slash},
           {"猫の市場 #{nonce}", unicode}
         ] do
-      assert {:ok, records} = Autolaunch.list_active_launchpad_auctions(query, [])
+      assert {:ok, records} = Autolaunch.list_active_launchpad_auctions(query)
       assert Enum.map(records, & &1.id) == [expected.id]
     end
   end
 
-  test "launchpad search covers presentation, mixed-case addresses, creator batches and bounds" do
+  test "launchpad search covers presentation, mixed-case addresses, X identities and bounds" do
     nonce = Elixir.System.unique_integer([:positive])
     creator = account!(nonce)
+    connect_x!(creator, "creator#{nonce}", "Launch Creator #{nonce}")
     address = "0xAbCdEf0000000000000000000000000000000001"
 
     auction =
@@ -159,28 +161,54 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
           "description #{nonce}",
           String.upcase(address)
         ] do
-      assert {:ok, records} = Autolaunch.list_active_launchpad_auctions(query, [])
+      assert {:ok, records} = Autolaunch.list_active_launchpad_auctions(query)
       assert Enum.any?(records, &(&1.id == auction.id))
     end
 
-    assert {:ok, by_creator} =
-             Autolaunch.list_active_launchpad_auctions("no-text-match", [creator.id])
+    assert {:ok, by_creator} = Autolaunch.list_active_launchpad_auctions("CREATOR#{nonce}")
 
     assert Enum.any?(by_creator, &(&1.id == auction.id))
 
-    for query <- ["GRAD#{nonce}", "token description #{nonce}", String.upcase(address)] do
-      assert {:ok, records} = Autolaunch.list_graduated_launchpad_tokens(query, [])
+    for query <- [
+          "GRAD#{nonce}",
+          "token description #{nonce}",
+          String.upcase(address),
+          "launch creator #{nonce}"
+        ] do
+      assert {:ok, records} = Autolaunch.list_graduated_launchpad_tokens(query)
       assert Enum.any?(records, &(&1.id == token.id))
     end
 
-    assert {:ok, active} = Autolaunch.list_active_launchpad_auctions("", [])
+    assert {:ok, active} = Autolaunch.list_active_launchpad_auctions("")
     assert length(active) <= 8
 
-    assert {:ok, explored} = Autolaunch.list_explore_launchpad_auctions("", [])
+    assert {:ok, explored} = Autolaunch.list_explore_launchpad_auctions("")
     assert length(explored) <= 24
 
     assert {:error, %Ash.Error.Invalid{}} =
-             Autolaunch.list_active_launchpad_auctions(String.duplicate("x", 81), [])
+             Autolaunch.list_active_launchpad_auctions(String.duplicate("x", 81))
+  end
+
+  test "launchpad creator search remains complete beyond one hundred matching X identities" do
+    nonce = Elixir.System.unique_integer([:positive])
+    username = "sharedcreator#{nonce}"
+
+    Enum.each(1..100, fn index ->
+      nonce
+      |> account!(index)
+      |> connect_x!(username, "Shared creator")
+    end)
+
+    creator = account!(nonce, 101)
+    connect_x!(creator, username, "Shared creator")
+
+    auction =
+      projected_auction!("Target beyond old X prefilter #{nonce}", "OVER#{nonce}",
+        creator_human_account_id: creator.id
+      )
+
+    assert {:ok, records} = Autolaunch.list_active_launchpad_auctions(username)
+    assert Enum.any?(records, &(&1.id == auction.id))
   end
 
   defp auction! do
@@ -212,14 +240,43 @@ defmodule AshPlatform.Autolaunch.AuctionTokenTest do
     |> Ash.create!(domain: Autolaunch, actor: %System{})
   end
 
-  defp account!(nonce) do
-    wallet = "0x" <> String.pad_leading(Integer.to_string(nonce, 16), 40, "0")
+  defp account!(nonce, index \\ 0) do
+    wallet_seed = nonce * 1_000 + index
+    wallet = "0x" <> String.pad_leading(Integer.to_string(wallet_seed, 16), 40, "0")
 
-    AshPlatform.Accounts.register_verified!(
-      "did:privy:auction-search:#{nonce}",
+    Accounts.register_verified!(
+      "did:privy:auction-search:#{nonce}:#{index}",
       wallet,
       [wallet],
       actor: %System{}
+    )
+  end
+
+  defp connect_x!(account, username, display_name) do
+    actor = %Human{human_account_id: account.id}
+
+    connection =
+      Accounts.begin_x_connection_attempt!(
+        %{
+          role: :profile,
+          attempt_state: "state-#{Ash.UUID.generate()}",
+          attempt_verifier: "verifier-#{Ash.UUID.generate()}",
+          attempt_generation: Ash.UUID.generate(),
+          attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
+        },
+        actor: actor
+      )
+
+    Accounts.complete_x_connection_attempt!(
+      connection,
+      %{
+        x_user_id: "id-#{username}",
+        username: username,
+        display_name: display_name,
+        verified_at: DateTime.utc_now(),
+        next_generation: Ash.UUID.generate()
+      },
+      actor: actor
     )
   end
 end

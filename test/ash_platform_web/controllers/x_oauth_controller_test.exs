@@ -1,8 +1,11 @@
 defmodule AshPlatformWeb.XOAuthControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  require Logger
 
   defmodule Strategy do
     def authorize_url(config),
@@ -111,14 +114,28 @@ defmodule AshPlatformWeb.XOAuthControllerTest do
 
     %{"generation" => generation} = json_response(started, 200)
 
-    callback =
-      started
-      |> recycle()
-      |> Map.put(:host, "attacker.example")
-      |> get("/auth/x/callback", %{
-        "state" => "controller-state",
-        "code" => "callback-code"
-      })
+    test_process = self()
+
+    logs =
+      capture_log(fn ->
+        Logger.warning("X callback log-capture sentinel")
+
+        callback =
+          started
+          |> recycle()
+          |> Map.put(:host, "attacker.example")
+          |> get("/auth/x/callback", %{
+            "state" => "controller-state",
+            "code" => "callback-code"
+          })
+
+        send(test_process, {:x_callback_response, callback})
+      end)
+
+    assert_received {:x_callback_response, callback}
+    assert logs =~ "X callback log-capture sentinel"
+    refute logs =~ "controller-state"
+    refute logs =~ "callback-code"
 
     body = html_response(callback, 200)
     assert body =~ ~s(data-origin="#{AshPlatform.Accounts.XOAuth.origin()}")

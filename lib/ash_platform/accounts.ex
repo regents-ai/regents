@@ -74,8 +74,6 @@ defmodule AshPlatform.Accounts do
         action: :public_for_humans,
         args: [:human_account_ids]
 
-      define :search_public_x_connections, action: :public_search, args: [:query]
-
       define :replace_x_connection_attempt, action: :replace_attempt
       define :complete_x_connection_attempt, action: :complete_attempt
       define :clear_x_connection_attempt, action: :clear_attempt

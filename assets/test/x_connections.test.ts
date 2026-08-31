@@ -239,4 +239,49 @@ describe("direct X role connections", () => {
     })
     expect(root.status.textContent).toBe("X account disconnected.")
   })
+
+  it("settles a delayed start before disconnecting the same role", async () => {
+    let resolveStart!: (value: Response) => void
+    const delayedStart = new Promise<Response>(resolve => {
+      resolveStart = resolve
+    })
+
+    vi.mocked(fetch)
+      .mockImplementationOnce(() => delayedStart)
+      .mockResolvedValueOnce(response({ok: true, role: "profile"}))
+
+    root.listeners.get("click")?.({target: new RoleTarget("connect", "profile")} as unknown as Event)
+    await settled()
+    const startPopup = activePopup
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    root.listeners
+      .get("click")
+      ?.({target: new RoleTarget("disconnect", "profile")} as unknown as Event)
+
+    expect(startPopup.close).toHaveBeenCalledOnce()
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    resolveStart(
+      response({
+        url: "https://x.example.test/authorize",
+        role: "profile",
+        generation: "generation-delayed",
+      }),
+    )
+    await settled()
+
+    expect(startPopup.location.replace).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenNthCalledWith(2, "/auth/x/connections/profile", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: {"x-csrf-token": "csrf-token", accept: "application/json"},
+    })
+    expect(pushEvent).toHaveBeenCalledWith("refresh_x_connections", {
+      role: "profile",
+      status: "disconnected",
+    })
+    expect(root.status.textContent).toBe("X account disconnected.")
+  })
 })

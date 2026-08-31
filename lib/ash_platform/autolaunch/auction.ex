@@ -94,6 +94,11 @@ defmodule AshPlatform.Autolaunch.Auction do
       attribute_type :integer
     end
 
+    has_many :creator_x_connections, AshPlatform.Accounts.XConnection do
+      source_attribute :creator_human_account_id
+      destination_attribute :human_account_id
+    end
+
     belongs_to :treasury_security_report,
                AshPlatform.Autolaunch.TreasurySecurityReport do
       attribute_public? true
@@ -132,7 +137,6 @@ defmodule AshPlatform.Autolaunch.Auction do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
-      argument :creator_human_account_ids, {:array, :integer}, default: []
       prepare fn query, _context -> market_query(query, [:created, :active], 8) end
     end
 
@@ -141,7 +145,6 @@ defmodule AshPlatform.Autolaunch.Auction do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
-      argument :creator_human_account_ids, {:array, :integer}, default: []
       prepare fn query, _context -> market_query(query, [:created, :active, :failed], 24) end
     end
 
@@ -375,40 +378,30 @@ defmodule AshPlatform.Autolaunch.Auction do
 
   defp market_query(query, states, limit) do
     term = query.arguments.query |> String.trim() |> String.downcase()
-    creator_ids = query.arguments.creator_human_account_ids || []
     pattern = literal_search_pattern(term)
 
     query
     |> Ash.Query.filter(state in ^states)
-    |> market_search_filter(term, creator_ids, pattern)
+    |> market_search_filter(term, pattern)
     |> Ash.Query.sort(inserted_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
     |> Ash.Query.load(:treasury_security_report)
   end
 
-  defp market_search_filter(query, "", [], _pattern), do: query
+  defp market_search_filter(query, "", _pattern), do: query
 
-  defp market_search_filter(query, "", creator_ids, _pattern),
-    do: Ash.Query.filter(query, creator_human_account_id in ^creator_ids)
-
-  defp market_search_filter(query, _term, [], pattern) do
-    Ash.Query.filter(
-      query,
-      ilike(title, ^pattern) or
-        ilike(summary, ^pattern) or
-        ilike(token_symbol, ^pattern) or
-        ilike(auction_address, ^pattern)
-    )
-  end
-
-  defp market_search_filter(query, _term, creator_ids, pattern) do
+  defp market_search_filter(query, _term, pattern) do
     Ash.Query.filter(
       query,
       ilike(title, ^pattern) or
         ilike(summary, ^pattern) or
         ilike(token_symbol, ^pattern) or
         ilike(auction_address, ^pattern) or
-        creator_human_account_id in ^creator_ids
+        exists(
+          creator_x_connections,
+          not is_nil(verified_at) and
+            (ilike(username, ^pattern) or ilike(display_name, ^pattern))
+        )
     )
   end
 
