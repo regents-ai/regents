@@ -34,7 +34,7 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
     refute_receive {:open_sea_request, _, _, _}
   end
 
-  test "INVALIDATION: a confirmed redemption starts a fresh lookup without stranding the old one" do
+  test "INVALIDATION: a read that predates a confirmed redemption is never served after it" do
     test_pid = self()
 
     old =
@@ -51,9 +51,15 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
     assert_receive {:old_lookup_started, old_loader}
     HoldingsCache.invalidate(@normalized)
 
-    assert {:ok, :fresh} = HoldingsCache.fetch(@normalized, fn -> {:ok, :fresh} end)
+    assert {:error, :unavailable} =
+             HoldingsCache.fetch(@normalized, fn ->
+               flunk("the running read holds the address")
+             end)
+
     send(old_loader, :finish_old_lookup)
     assert {:ok, :old} = Task.await(old)
+
+    assert {:ok, :fresh} = HoldingsCache.fetch(@normalized, fn -> {:ok, :fresh} end)
 
     assert {:ok, :fresh} =
              HoldingsCache.fetch(@normalized, fn -> flunk("fresh result should be cached") end)

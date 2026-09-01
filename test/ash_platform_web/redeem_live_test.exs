@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
+  @third "0x3333333333333333333333333333333333333333"
 
   defmodule GatedChainClient do
     @behaviour AshPlatform.Redemption.ChainClient
@@ -594,6 +595,69 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="42"]))
   end
 
+  test "LOOPING_REFRESH: repeated post-redemption refreshes buy one extra provider read", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+    view = conn |> mount_redeem() |> activate(@wallet)
+    render_async(view)
+    assert length(drain_requests()) == 3
+
+    for _ <- 1..3 do
+      render_hook(view, "refresh_redemption", %{"refresh_owned" => true})
+      render_async(view)
+    end
+
+    assert length(drain_requests()) == 3
+    assert has_element?(view, "#redemption-token-id")
+  end
+
+  test "TYPING_KEEPS_ITS_SHARE: token ID edits during an outage never spend a lookup", %{
+    conn: conn
+  } do
+    hold_lookup_share(2)
+
+    Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
+      if String.contains?(url, String.downcase(@wallet)),
+        do: {:ok, %{status: 502, body: %{}}},
+        else: {:ok, %{status: 200, body: %{"nfts" => [%{"identifier" => "84"}]}}}
+    end)
+
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    view = conn |> mount_redeem() |> activate(@wallet)
+    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
+    assert length(drain_requests()) == 3
+
+    for token_id <- ["4", "42", "421"], do: select(view, "animata_i", token_id)
+
+    assert drain_requests() == []
+    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
+
+    activate(view, @other)
+    assert length(drain_requests()) == 3
+    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="84"]))
+  end
+
+  test "LOOKUP_BUDGET: a connection past its share falls back to manual entry", %{conn: conn} do
+    hold_lookup_share(2)
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    view = conn |> mount_redeem() |> activate(@wallet)
+    activate(view, @other)
+    assert length(drain_requests()) == 6
+
+    activate(view, @third)
+    assert drain_requests() == []
+    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
+    assert has_element?(view, "#redemption-collection")
+    assert has_element?(view, "#redemption-token-id")
+    refute has_element?(view, ~s(.redeem-notice[role="alert"]))
+
+    render_hook(view, "prepare_redemption", %{"action" => "claim", "attempt_id" => "still-open"})
+    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
+  end
+
   test "WALLET_SWITCH: owned lookup never carries across wallets", %{conn: conn} do
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
       id = if String.contains?(url, String.downcase(@wallet)), do: "42", else: "84"
@@ -693,6 +757,20 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       "to" => "0x3333333333333333333333333333333333333333",
       "data" => "0xa9059cbb"
     }
+
+  defp hold_lookup_share(share) do
+    previous = Application.get_env(:ash_platform, :opensea_lookups_per_minute)
+    Application.put_env(:ash_platform, :opensea_lookups_per_minute, share)
+    on_exit(fn -> Application.put_env(:ash_platform, :opensea_lookups_per_minute, previous) end)
+  end
+
+  defp drain_requests(acc \\ []) do
+    receive do
+      {:open_sea_request, url, _options, _pid} -> drain_requests([url | acc])
+    after
+      50 -> Enum.reverse(acc)
+    end
+  end
 
   defp mount_redeem(conn) do
     {:ok, view, _html} = live(conn, "/redeem")
