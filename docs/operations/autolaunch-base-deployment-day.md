@@ -11,41 +11,52 @@ reviewed.
 ## Why deployment is blocked
 
 The canonical Ash contract source is
-`/Users/sean/Documents/regent/ash-platform/contracts/chain-contracts.yaml`. It
-currently admits staking and redemption evidence only. It admits no Autolaunch
-contract and `admitted_prepared_actions` is empty.
+`/Users/sean/Documents/regent/repos/ash-platform/contracts/chain-contracts.yaml`.
+It admits staking, Animata redemption, and Regents Club actions only.
+`admitted_prepared_actions` holds ten entries, and not one of them is an
+Autolaunch action. The manifest's `autolaunch_consumer_freeze` block records
+`admission: disabled` and `deployment_status: deployment_pending`, which is the
+fact that blocks deployment day.
 
-The Autolaunch Solidity workspace under
-`/Users/sean/Documents/regent/platform/contracts` is quarantined historical
-evidence. Its scripts and tests are useful inputs, but that repository is not the
-active product authority and must not be deployed directly from its current
-working tree.
+The active Autolaunch Solidity authority is
+`/Users/sean/Documents/regent/repos/autolaunch-contracts`, whose own gates and
+frozen deployment packet govern the ceremony. That packet's authorization state
+is `not authorized`, so nothing in that repository may be signed or broadcast
+from its working tree. The former `platform/contracts` workspace is retired and
+no longer exists at that path; its scripts and tests are historical evidence
+only.
 
-These closure tickets are mandatory before a production packet can exist:
+These gates are mandatory before a production packet can exist:
 
-- `regent-ctzr`: remove stale oracle and buyback deployment instructions.
-- `regent-8ici`: disposition every current Solidity security finding.
-- `regent-qccf`: reproduce the current source in a clean deployment rehearsal.
-- `regent-ygdg`: attest every external Base address and its bytecode.
-- `regent-ekpv`: approve and prove the Safe ownership model and acceptances.
-- `regent-gnaq`: admit the reviewed contracts and actions to the canonical Ash
-  chain manifest.
+- `regent-839.7`: prepare, audit, and founder-approve the Autolaunch Base
+  deployment ceremony. It owns the frozen deployment packet, the offline, fork,
+  and unsigned-rehearsal gates, the Slither dispositions, and the independent
+  review. The closure ticket ids this document previously cited no longer exist
+  in the tracker.
+- Admission of the reviewed Autolaunch contracts and actions to the canonical Ash
+  chain manifest, which flips `autolaunch_consumer_freeze.admission` from
+  `disabled` and adds Autolaunch entries to `admitted_prepared_actions`. The
+  manifest records that the freezes in `regent-alv1.6` and `regent-839.5.1`
+  govern that admission. Until it lands, deployment day is blocked regardless of
+  contract-side readiness.
 
-Local evidence reproduced by the orchestrator on 2026-07-14:
+Contract-side evidence now lives with the contracts, at `autolaunch-contracts`
+commit `0fa0bc49429d43258d57836b478aa5943366942a`:
 
-- `forge fmt --check src test scripts` passed.
-- Offline build passed with the configured Solidity versions.
-- `forge test --offline` passed: **314 passed, 0 failed, 0 skipped**, including
-  fuzz and invariant runs.
-- Coverage completed with many source-anchor warnings. Totals were **77.84% lines,
-  78.04% statements, 11.29% branches, and 74.97% functions**. The warnings and
-  low branch coverage remain an acceptance gate.
-- `slither . --exclude-dependencies` completed with **24 raw detector results**.
-  They are untriaged. No severity summary or security approval exists for this
-  run. Every result needs an independent disposition before deployment.
+- The offline gate reports **240 test identities executed** and **215 recorded,
+  active requirements** with none pending. 191 are due at that gate and 24 belong
+  to another.
+- Slither ran all **101 registered detectors** and produced **11 results, each
+  carrying its own written disposition**.
+- A read-only Base fork gate ran 27 checks across blocks `50541328` and
+  `50541628` with zero failures and zero skips.
+- An unsigned rehearsal simulated the exact deployment script against a read-only
+  copy of Base with no signer and no broadcast flag, and sent nothing.
 
-Green tests do not override the missing manifest authority or unresolved security
-review.
+That evidence is recorded and reconciled in that repository and is not reproduced
+here. Contract-side green does not override the missing manifest authority. Ash
+still admits no Autolaunch contract or action, and that alone blocks deployment
+day.
 
 ## Network target and evidence boundary
 
@@ -60,7 +71,12 @@ admitted to the active Ash chain manifest.
 Base publishes connection details at
 [Connecting to Base](https://docs.base.org/base-chain/quickstart/connecting-to-base).
 
-## Historical deployment shape to reconcile
+## Superseded deployment shape (historical only)
+
+The approved ceremony is five zero-value contract creations from one disposable
+account, with no permission grant, ownership handoff, governance transaction, or
+example launch. The scripts below are the retired infrastructure ceremony,
+recorded for history only. Nothing in this section is a deployment-day input.
 
 The historical scripts describe two separate operations.
 
@@ -103,7 +119,8 @@ One immutable packet must contain all of the following:
 - Full, checksummed addresses for every dependency and role.
 - Constructor arguments, configuration values, deployment order, expected
   transaction count, expected nonce range, and expected gas ceiling.
-- Decoded calldata for every non-constructor call.
+- Confirmation that the ceremony contains no non-constructor call, as the
+  approved five-creation shape requires.
 - Exact expected events, state changes, token flows, permissions, owners, pending
   owners, beneficiaries, and balances.
 - Local and exact-state fork simulation output.
@@ -118,7 +135,7 @@ material, or plaintext signing credential.
 
 ## Safe rehearsal commands with no signing or broadcast
 
-Run these only in the clean rehearsal checkout named by `regent-qccf`. They do
+Run these only in a clean rehearsal checkout of the reviewed source. They do
 not require an RPC URL or wallet:
 
 ```sh
@@ -132,9 +149,9 @@ slither . --exclude-dependencies
 Slither usage and detector guidance live in the
 [official Slither documentation](https://github.com/crytic/slither/wiki/Usage).
 
-The exact dry-run command is generated by `regent-qccf` after the clean source and
-public inputs are frozen. It must omit `--broadcast`. Foundry runs local and
-onchain simulation before optional broadcasting; see
+The exact dry-run command comes from the `autolaunch-contracts` deployment gate
+after the clean source and public inputs are frozen. It must omit `--broadcast`.
+Foundry runs local and onchain simulation before optional broadcasting; see
 [Foundry deployment and scripting](https://getfoundry.sh/forge/deploying/) and
 [Foundry security best practices](https://getfoundry.sh/tutorials/best-practices/).
 
@@ -145,7 +162,7 @@ document until the release packet passes all gates.
 
 ### 1. Open the change window
 
-- Confirm all six closure tickets above are closed with immutable evidence.
+- Confirm every gate above is closed with immutable evidence.
 - Confirm the canonical manifest and release packet hashes on two independent
   machines.
 - Confirm Base chain `8453`, the exact expected deployment nonce, current base
@@ -162,7 +179,8 @@ Stop if any value differs from the reviewed packet.
 - Simulate from the exact intended block state and broadcaster.
 - Compare transaction count, nonce sequence, created addresses, calldata, events,
   gas, permissions, owners, and balances against the packet.
-- Run Safe simulation for every ownership-acceptance and governance transaction.
+- Confirm the sequence contains no ownership-acceptance or governance
+  transaction. The approved ceremony performs neither.
 - Record the trace and state diff before requesting any signature.
 
 Stop on any revert, unexpected call, `DELEGATECALL`, native value, approval,
@@ -170,9 +188,14 @@ recipient, permission, address, or balance change.
 
 ### 3. Founder go/no-go
 
-Sean reviews the human-readable summary, exact hashes, full addresses, economics,
-Safe configuration, simulations, maximum ETH cost, and irreversible effects. Approval
-must name the exact release-packet hash.
+Sean reviews the human-readable summary, exact identities, full addresses,
+economics, Safe configuration, simulation output, a live funding estimate taken
+at ceremony time, and the irreversible effects. Approval is a `GO_TO_DEPLOY`
+naming the deployment packet's own digest: the value in the packet's
+`digest.value` field, computed over the packet rendered with that field set to
+null. It is neither the packet file's raw checksum nor the release manifest's
+checksum, and naming any other value authorizes nothing. Approval also names the
+signing method, which is never stored in any repository.
 
 ### 4. Broadcast only the reviewed packet
 
@@ -184,21 +207,13 @@ nonce and state; Foundry documents that resume does not simulate the script agai
 After every transaction, compare the receipt and resulting nonce to the packet.
 Stop before the next transaction if they differ.
 
-### 5. Complete two-step ownership
+### 5. Confirm no ownership handoff is pending
 
-`transferOwnership(Safe)` only sets a pending owner. The old owner remains active
-until the destination Safe separately executes `acceptOwnership()`.
-
-For every owned contract:
-
-1. Verify current `owner()` and zero `pendingOwner()`.
-2. Execute the reviewed `transferOwnership` call from the current owner.
-3. Verify `pendingOwner()` is the exact destination Safe.
-4. Propose and simulate `acceptOwnership()` from that Safe.
-5. Collect the required Safe threshold and execute.
-6. Verify `owner()` is the Safe and `pendingOwner()` is zero.
-
-The deployment is incomplete while any pending ownership remains.
+The approved ceremony performs no ownership transfer. The Governance and Regent
+Safe is compiled into the factory as its sole mutable authority, so there is no
+pending owner to accept and no two-step handoff to complete. Confirm that the
+deployed factory reports the expected Safe as its authority, and treat any
+pending ownership anywhere in the graph as an unexpected state and a stop.
 
 ### 6. Verify and close
 
@@ -234,8 +249,8 @@ Do not sign or broadcast if any of these is true:
   is unverified.
 - Safe owners, threshold, nonce, modules, guard, fallback handler, or pending
   transactions differ from the approved record.
-- Any ownership acceptance remains unexplained or cannot be completed in the same
-  operating session.
+- Any ownership handoff appears at all, which the approved ceremony does not
+  perform.
 - Simulation differs from the proposed transaction or cannot decode it fully.
 - Required signers or independent reviewer are unavailable.
 - Someone requests a private key, seed phrase, blind signature, unexplained
@@ -250,6 +265,5 @@ Official references:
 - [Base transaction finality](https://docs.base.org/base-chain/network-information/transaction-finality)
 - [Foundry deployment and scripting](https://getfoundry.sh/forge/deploying/)
 - [Foundry security best practices](https://getfoundry.sh/tutorials/best-practices/)
-- [OpenZeppelin two-step ownership](https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable2Step)
 - [Slither usage](https://github.com/crytic/slither/wiki/Usage)
 - [Basescan contract verification](https://basescan.org/verifyContract)
