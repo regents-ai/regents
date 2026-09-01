@@ -2,7 +2,6 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
   AccountAuthFailure,
-  acrossCookieRotation,
   createBrowserPrivyBridgeImporter,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
@@ -136,48 +135,19 @@ describe("lazy browser authentication", () => {
     expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "provider_error")
   })
 
-  it("adopts a rotated cookie before reporting its terminal session failure", async () => {
-    const meta = {content: "retired-token"}
+  it("does not duplicate the session diagnostic owned by the rejecting server endpoint", async () => {
     vi.stubGlobal("document", {
       querySelector: (selector: string) =>
-        selector === "meta[name='csrf-token']" ? meta : null,
+        selector === "meta[name='csrf-token']" ? {content: "csrf-safe"} : null,
     })
-    vi.spyOn(console, "warn").mockImplementation(() => undefined)
-
-    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-      if (input === "/auth/csrf") {
-        return new Response(JSON.stringify({csrf_token: "current-token"}), {
-          status: 200,
-          headers: {"content-type": "application/json"},
-        })
-      }
-
-      return new Response(null, {status: 204})
-    }) as unknown as typeof fetch
-
-    await expect(
-      acrossCookieRotation(async renewed => {
-        renewed()
-        throw new Error("session response was rejected after rotating its cookie")
-      }),
-    ).rejects.toThrow()
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const fetcher = vi.fn(async () => new Response(null, {status: 204})) as unknown as typeof fetch
 
     reportSignInFailure("session_exchange", fetcher)
 
-    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
-    expect(fetcher).toHaveBeenNthCalledWith(
-      1,
-      "/auth/csrf",
-      expect.objectContaining({credentials: "same-origin", signal: expect.any(AbortSignal)}),
-    )
-    expect(fetcher).toHaveBeenNthCalledWith(2, "/auth/privy/failure", {
-      method: "POST",
-      credentials: "same-origin",
-      redirect: "error",
-      keepalive: true,
-      headers: {"content-type": "application/json", "x-csrf-token": "current-token"},
-      body: JSON.stringify({reason: "session_exchange"}),
-    })
+    await Promise.resolve()
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "session_exchange")
   })
 
   it("cancels an uncommitted establishment before one local deletion and blocks later writes", async () => {

@@ -469,6 +469,11 @@ export function reportSignInFailure(
 ): void {
   console.warn("Regent Privy sign-in failure", failure)
 
+  // The session endpoint records this category before returning its rejecting
+  // response. Waiting for a post-rotation CSRF adoption here would make the
+  // diagnostic vulnerable to the immediate reload the terminal UI recommends.
+  if (failure === "session_exchange") return
+
   void (async () => {
     if (!csrfStateIsCurrent()) await adoptUnreadRenewal(fetcher)
     if (!csrfStateIsCurrent()) return

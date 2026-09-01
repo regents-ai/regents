@@ -153,6 +153,34 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert length(Regex.scan(~r/reason=provider_error/, log)) == 1
   end
 
+  test "SESSION_FAILURE_DIAGNOSTIC: the rejecting endpoint emits exactly once before responding" do
+    handler = "privy-session-failure-#{Elixir.System.unique_integer([:positive])}"
+    parent = self()
+
+    :telemetry.attach(
+      handler,
+      @browser_failure_event,
+      fn event, measurements, metadata, _config ->
+        send(parent, {:session_failure, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    response =
+      browser()
+      |> put_privy_pair("unverifiable")
+      |> post("/auth/privy/session", %{})
+
+    assert json_response(response, 401) == %{"error" => "unauthorized"}
+
+    assert_receive {:session_failure, @browser_failure_event, %{count: 1},
+                    %{reason: "session_exchange"}}
+
+    refute_receive {:session_failure, _, _, _}
+  end
+
   test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
     conn: conn
   } do

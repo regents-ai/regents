@@ -54,7 +54,7 @@ defmodule AshPlatformWeb.PrivySessionController do
          @browser_failure_limit,
          @browser_failure_window_seconds
        ) == :ok do
-      report_browser_failure(reason)
+      report_sign_in_failure(reason)
     end
 
     diagnostic_accepted(conn)
@@ -137,7 +137,7 @@ defmodule AshPlatformWeb.PrivySessionController do
     |> send_resp(:no_content, "")
   end
 
-  defp report_browser_failure(reason) do
+  defp report_sign_in_failure(reason) do
     Logger.warning("Privy browser reported sign-in failure reason=#{reason}")
 
     :telemetry.execute([:ash_platform, :privy, :browser_failure], %{count: 1}, %{
@@ -237,6 +237,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   # The refused pair is never interpolated, inspected or answered differently.
   defp refuse(conn, stage, reason) do
     Logger.debug("Privy session rejected stage=#{stage} reason=#{reason}")
+    report_sign_in_failure("session_exchange")
     conn |> mark_recoverable(stage, reason) |> unauthorized()
   end
 
