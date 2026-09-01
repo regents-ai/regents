@@ -40,10 +40,6 @@ defmodule AshPlatform.TestRegentsClubChainClient do
     response(:observe, default)
   end
 
-  def recover(envelope) do
-    response(:recover, {:ok, {:unknown, {envelope.arguments.attempt_id, :no_unique_match}}})
-  end
-
   def media_readiness, do: response(:media_readiness, :ok)
 
   defp response(key, default) do

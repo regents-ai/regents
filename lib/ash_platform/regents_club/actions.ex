@@ -22,7 +22,6 @@ defmodule AshPlatform.RegentsClub.Actions do
   end
 
   def observe_hash(envelope, hash), do: chain_client().observe(envelope, hash)
-  def recover_unknown(envelope), do: chain_client().recover(envelope)
 
   def prepare(active_wallet, attempt_id, lease) do
     with true <- RegentsClub.enabled?(),

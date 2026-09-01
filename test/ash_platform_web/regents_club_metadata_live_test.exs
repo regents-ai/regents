@@ -330,7 +330,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     assert render(view) =~ "Manual founder review is required"
   end
 
-  test "missing hash stays manual when another same-signer attempt can overlap", %{conn: conn} do
+  test "missing hash stays manual without guessing a transaction", %{conn: conn} do
     Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
       recover: {:ok, {:finalized, %{transaction_hash: @hash}}}
     })
@@ -339,11 +339,9 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     {:ok, view, _html} = mount(conn, account)
     render_async(view)
 
-    for attempt_id <- [@attempt, @second_attempt] do
-      prepare_review(view, attempt_id)
-      confirm_attempt(view, attempt_id)
-      assert_push_event(view, "regents-club-metadata:prepared", %{attempt_id: ^attempt_id})
-    end
+    prepare_review(view, @attempt)
+    confirm_attempt(view, @attempt)
+    assert_push_event(view, "regents-club-metadata:prepared", %{attempt_id: @attempt})
 
     render_hook(view, "regents_club_metadata_submission_unknown", %{"attempt_id" => @attempt})
 

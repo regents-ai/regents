@@ -6,7 +6,6 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   alias AshPlatform.WalletActions.{Address, Rpc}
 
   @rpc_opts [client_key: :regents_club_http_client, log_scope: "regents_club_metadata"]
-  @scan_blocks 1024
   @zero_address "0x0000000000000000000000000000000000000000"
   @non_owner "0x0000000000000000000000000000000000000001"
   @non_owner_fallback "0x0000000000000000000000000000000000000002"
@@ -67,31 +66,6 @@ defmodule AshPlatform.RegentsClub.RpcClient do
     else
       false ->
         {:error, :invalid_observation}
-
-      {:error, :observation_deadline_elapsed} ->
-        {:ok, {:unknown, :observation_deadline_elapsed}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # A missing wallet hash never re-opens a send. Only a unique exact transaction
-  # with the exact event inside this fixed post-anchor window can be recovered.
-  def recover(envelope) do
-    with :ok <- observation_authorized(envelope),
-         :ok <- readiness(),
-         {:ok, head} <- Rpc.safe_block(@rpc_opts),
-         {:ok, hashes} <- scan(envelope, head),
-         true <- Actions.observation_open?(envelope) do
-      case hashes do
-        [hash] -> observe(envelope, hash)
-        [] -> {:ok, {:unknown, :no_unique_match}}
-        _ -> {:ok, {:unknown, :multiple_matches}}
-      end
-    else
-      false ->
-        {:ok, {:unknown, :observation_deadline_elapsed}}
 
       {:error, :observation_deadline_elapsed} ->
         {:ok, {:unknown, :observation_deadline_elapsed}}
@@ -298,91 +272,6 @@ defmodule AshPlatform.RegentsClub.RpcClient do
   end
 
   defp verify_success(_receipt, _envelope, _finalized), do: {:error, :invalid_receipt}
-
-  defp scan(envelope, head) do
-    first = envelope.metadata.anchor_block_number + 1
-    last = min(head.number, envelope.metadata.anchor_block_number + @scan_blocks)
-
-    if last < first do
-      {:ok, []}
-    else
-      first..last
-      |> Enum.reduce_while({:ok, []}, &collect_block_matches(&1, &2, envelope))
-      |> scan_event_matches(envelope)
-    end
-  end
-
-  defp collect_block_matches(number, {:ok, found}, envelope) do
-    if Actions.observation_open?(envelope) do
-      case matching_transactions(number, envelope) do
-        {:ok, matches} -> {:cont, {:ok, found ++ matches}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    else
-      {:halt, {:error, :observation_deadline_elapsed}}
-    end
-  end
-
-  defp scan_event_matches({:ok, hashes}, envelope),
-    do: hashes |> Enum.uniq() |> event_matches(envelope)
-
-  defp scan_event_matches(error, _envelope), do: error
-
-  defp matching_transactions(number, envelope) do
-    with {:ok, %{"number" => encoded, "hash" => hash, "transactions" => transactions}}
-         when is_list(transactions) <-
-           rpc("eth_getBlockByNumber", [hex_quantity(number), true]),
-         {:ok, ^number} <- quantity(encoded),
-         true <- valid_hash?(hash) do
-      {:ok,
-       for(
-         tx <- transactions,
-         transaction_identity(tx, envelope, tx["hash"]) == :ok,
-         do: tx["hash"]
-       )}
-    else
-      false -> {:error, :invalid_block_header}
-      {:ok, _malformed} -> {:error, :invalid_block_header}
-      :error -> {:error, :invalid_block_header}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp event_matches(hashes, envelope) do
-    hashes
-    |> Enum.reduce_while({:ok, []}, &collect_event_match(&1, &2, envelope))
-    |> reverse_event_matches()
-  end
-
-  defp collect_event_match(hash, {:ok, matches}, envelope) do
-    if Actions.observation_open?(envelope),
-      do: collect_open_event_match(hash, matches),
-      else: {:halt, {:error, :observation_deadline_elapsed}}
-  end
-
-  defp collect_open_event_match(hash, matches) do
-    case rpc("eth_getTransactionReceipt", [hash]) do
-      {:ok, %{"status" => "0x1", "logs" => logs}} when is_list(logs) ->
-        {:cont, {:ok, maybe_add_event_match(matches, hash, logs)}}
-
-      {:ok, _not_successful} ->
-        {:cont, {:ok, matches}}
-
-      {:error, reason} ->
-        {:halt, {:error, reason}}
-    end
-  end
-
-  defp maybe_add_event_match(matches, hash, logs) do
-    if RegentsClub.batch_metadata_event?(logs) do
-      [hash | matches]
-    else
-      matches
-    end
-  end
-
-  defp reverse_event_matches({:ok, matches}), do: {:ok, Enum.reverse(matches)}
-  defp reverse_event_matches(error), do: error
 
   defp transaction_identity(tx, envelope, hash) when is_map(tx) do
     with true <- valid_hash?(hash),
