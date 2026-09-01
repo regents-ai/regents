@@ -38,6 +38,7 @@ defmodule AshPlatformWeb.Router do
 
   scope "/", AshPlatformWeb do
     get "/healthz", HealthController, :show
+    get "/metrics", MetricsController, :show
   end
 
   scope "/api", AshPlatformWeb do

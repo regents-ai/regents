@@ -16,7 +16,7 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
     :ok
   end
 
-  test "[U2] the marketing page, the health check and signing out are the only routes left open" do
+  test "[U2] only the public operational routes, marketing page and sign-out stay open" do
     still_open =
       for route <- routes(),
           conn = request(route),
@@ -25,6 +25,7 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
 
     assert still_open == [
              {:get, "/healthz"},
+             {:get, "/metrics"},
              {:get, "/"},
              {:delete, "/auth/privy/session"}
            ]

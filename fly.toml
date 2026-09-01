@@ -9,6 +9,10 @@ primary_region = "iad"
 [env]
   PORT = "4000"
 
+[metrics]
+  port = 4000
+  path = "/metrics"
+
 [http_service]
   internal_port = 4000
   force_https = true

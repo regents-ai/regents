@@ -2,6 +2,11 @@ import Config
 
 require Logger
 
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN"),
+  release: System.get_env("SENTRY_RELEASE"),
+  environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
+
 privy_verification_key =
   case System.get_env("PRIVY_VERIFICATION_KEY") do
     nil ->

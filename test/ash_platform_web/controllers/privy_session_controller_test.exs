@@ -21,6 +21,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   @peer {203, 0, 113, 7}
   @other_peer {203, 0, 113, 8}
   @denial_event [:ash_platform, :session_bootstrap, :rate_limited]
+  @browser_failure_event [:ash_platform, :privy, :browser_failure]
 
   test "BROWSER_FAILURE_DIAGNOSTIC: logs only an allowlisted reason", %{conn: conn} do
     log =
@@ -36,6 +37,37 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       end)
 
     assert log =~ "Privy browser reported sign-in failure reason=provider_error"
+  end
+
+  test "BROWSER_FAILURE_DIAGNOSTIC: emits one bounded telemetry event after admission", %{
+    conn: conn
+  } do
+    handler = "privy-browser-failure-#{Elixir.System.unique_integer([:positive])}"
+    parent = self()
+
+    :telemetry.attach(
+      handler,
+      @browser_failure_event,
+      fn event, measurements, metadata, _config ->
+        send(parent, {:browser_failure, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    response =
+      conn
+      |> init_test_session(%{})
+      |> put_valid_csrf()
+      |> post("/auth/privy/failure", %{"reason" => "provider_error", "raw" => "secret"})
+
+    assert response.status == 204
+
+    assert_receive {:browser_failure, @browser_failure_event, %{count: 1},
+                    %{reason: "provider_error"}}
+
+    refute_receive {:browser_failure, _, _, _}
   end
 
   test "BROWSER_FAILURE_DIAGNOSTIC: ignores raw or unknown provider data", %{conn: conn} do

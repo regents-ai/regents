@@ -89,6 +89,12 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
+config :sentry,
+  environment_name: config_env(),
+  json_library: Jason,
+  enable_metrics: false,
+  tags: %{app: "ash_platform"}
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
