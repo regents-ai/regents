@@ -47,18 +47,15 @@ defmodule AshPlatform.Redemption.Snapshot do
   end
 
   policies do
-    policy action(:overview) do
-      authorize_if always()
-    end
-
     policy action([
+             :overview,
              :account_for_wallet,
              :prepare_nft_approval,
              :prepare_usdc_approval,
              :prepare_redeem,
              :prepare_claim
            ]) do
-      authorize_if AshPlatform.Redemption.Checks.HumanActor
+      authorize_if always()
     end
   end
 end

@@ -21,10 +21,13 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert snapshot.block_hash == Stub.safe_hash()
     assert snapshot.wallet_address == @wallet
     assert snapshot.wallet_stake_allowance_raw == "0"
+    assert snapshot.available_regent_reward_inventory == "250000"
+    assert snapshot.reserved_usdc == "125000"
+    assert snapshot.emission_apr_percent == "12"
     assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
 
     blocks = Stub.call_blocks()
-    assert Enum.count_until(blocks, 9) == 9
+    assert length(blocks) == 15
     assert Enum.uniq(blocks) == [%{blockHash: Stub.safe_hash(), requireCanonical: true}]
   end
 
@@ -66,16 +69,28 @@ defmodule AshPlatform.Staking.RpcClientTest do
   end
 
   defp call(data, state) do
-    cond do
-      data == Abi.encode_read("stake_token") -> Stub.uint(word(Abi.stake_token_address()))
-      data == Abi.encode_read("usdc") -> Stub.uint(word(Abi.usdc_address()))
-      data == Abi.encode_read("paused") -> Stub.uint(0)
-      data == Abi.encode_read("total_staked") -> Stub.uint(Map.get(state, :total_staked, 100))
-      data == Abi.encode_supply_denominator() -> Stub.uint(Map.get(state, :denominator, 1_000))
-      String.starts_with?(data, "0xdd62ed3e") -> Stub.uint(Map.get(state, :allowance, 0))
-      true -> Stub.uint(Map.get(state, :uint, 5))
+    values = %{
+      Abi.encode_read("stake_token") => word(Abi.stake_token_address()),
+      Abi.encode_read("usdc") => word(Abi.usdc_address()),
+      Abi.encode_read("paused") => 0,
+      Abi.encode_read("total_staked") => Map.get(state, :total_staked, 100),
+      Abi.encode_supply_denominator() => Map.get(state, :denominator, 1_000),
+      Abi.encode_available_regent_reward_inventory() =>
+        Map.get(state, :available_regent, 250_000_000_000_000_000_000_000),
+      Abi.encode_reserved_usdc() => Map.get(state, :reserved_usdc, 125_000_000_000),
+      Abi.encode_emission_apr_bps() => Map.get(state, :emission_apr_bps, 1_200)
+    }
+
+    case Map.fetch(values, data) do
+      {:ok, value} -> Stub.uint(value)
+      :error -> fallback_call(data, state)
     end
   end
+
+  defp fallback_call("0xdd62ed3e" <> _data, state),
+    do: Stub.uint(Map.get(state, :allowance, 0))
+
+  defp fallback_call(_data, state), do: Stub.uint(Map.get(state, :uint, 5))
 
   defp word(address), do: String.to_integer(String.trim_leading(address, "0x"), 16)
 end

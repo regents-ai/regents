@@ -2,6 +2,7 @@ defmodule AshPlatform.OpenSea.Holdings do
   @moduledoc "Bounded, data-layer-less OpenSea lookup for the three fixed Base collections."
   use Ash.Resource, domain: AshPlatform.OpenSea, authorizers: [Ash.Policy.Authorizer]
   require Logger
+  alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.WalletActions.Address
 
   @collections ["animata", "regent-animata-ii", "regents-club"]
@@ -18,7 +19,7 @@ defmodule AshPlatform.OpenSea.Holdings do
 
   policies do
     policy action(:fetch_owned_collectibles) do
-      authorize_if AshPlatform.Staking.Checks.HumanActor
+      authorize_if always()
     end
   end
 
@@ -26,14 +27,18 @@ defmodule AshPlatform.OpenSea.Holdings do
     with {:ok, address} <- Address.normalize(address),
          key when is_binary(key) and key != "" <-
            Application.get_env(:ash_platform, :opensea_api_key) do
-      task = Task.async(fn -> fetch_all(address, key) end)
-
-      case Task.yield(task, @lookup_timeout) || Task.shutdown(task, :brutal_kill) do
-        {:ok, result} -> result
-        _ -> unavailable(:lookup_timeout)
-      end
+      HoldingsCache.fetch(address, fn -> bounded_fetch_all(address, key) end)
     else
       _ -> unavailable(:missing_key)
+    end
+  end
+
+  defp bounded_fetch_all(address, key) do
+    task = Task.async(fn -> fetch_all(address, key) end)
+
+    case Task.yield(task, @lookup_timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      _ -> unavailable(:lookup_timeout)
     end
   end
 

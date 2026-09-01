@@ -90,6 +90,10 @@ function accountDocument({
     removeEventListener(type: string) {
       listeners.delete(type)
     },
+    dispatchEvent(event: Event) {
+      listeners.get(event.type)?.(event)
+      return true
+    },
   } as unknown as Document
 
   return {
@@ -108,6 +112,9 @@ function accountDocument({
     click(accountTarget: "sign-in" | "sign-out") {
       const target = accountTarget === "sign-in" ? signInControls[0] : new AccountElement("sign-out")
       listeners.get("click")?.({target, preventDefault: vi.fn()} as unknown as Event)
+    },
+    dispatch(type: string) {
+      listeners.get(type)?.({type} as Event)
     },
   }
 }
@@ -251,6 +258,7 @@ describe("lazy browser authentication", () => {
     const order: string[] = []
     const handleRequest = vi.fn(
       createAccountRequestHandler({
+        connectWallet: vi.fn(async () => undefined),
         signIn: vi.fn(async () => undefined),
         providerLogout: vi.fn(async () => {
           order.push("provider")
@@ -562,6 +570,38 @@ describe("lazy browser authentication", () => {
       "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
     )
     expect(warning).toHaveBeenLastCalledWith("Regent Privy sign-in failure", "session_exchange")
+  })
+
+  it("loads Privy for the first anonymous wallet connection without starting sign in", async () => {
+    const page = accountDocument()
+    const handleRequest = vi.fn(async () => undefined)
+    const startPrivyBridge = vi.fn(async () => ({request: handleRequest}))
+    const importer = vi.fn(async () => ({startPrivyBridge}))
+
+    installAccountAuthLazyLoader(page.documentRoot, importer)
+    page.dispatch("ash:wallet-connect")
+
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("connect-wallet"))
+    expect(importer).toHaveBeenCalledOnce()
+    expect(startPrivyBridge).toHaveBeenCalledOnce()
+    expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+  })
+
+  it("announces an anonymous wallet connection failure to the active route", async () => {
+    const page = accountDocument()
+    const failed = vi.fn()
+    page.documentRoot.addEventListener("ash:wallet-connect-failed", failed)
+
+    installAccountAuthLazyLoader(
+      page.documentRoot,
+      vi.fn(async () => {
+        throw new Error("chunk unavailable")
+      }),
+    )
+    page.dispatch("ash:wallet-connect")
+
+    await vi.waitFor(() => expect(failed).toHaveBeenCalledOnce())
+    expect(page.status.textContent).toBe("Wallet connection couldn’t start. Try again.")
   })
 
   // Privy runs its login callback immediately for an already-authenticated

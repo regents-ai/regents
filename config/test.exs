@@ -13,6 +13,7 @@ config :ash_platform, :content_provider, AshPlatform.TestContentProvider
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
+config :ash_platform, :wallet_transaction_observer, AshPlatform.TestWalletTransactionObserver
 config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient
 config :ash_platform, :opensea_api_key, "test-only-key"
 config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
@@ -50,6 +51,10 @@ if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
   config :ash_platform,
          :autolaunch_launch_chain_client,
          AshPlatform.TestAutolaunchLaunchChainClient
+
+  config :ash_platform,
+         :wallet_transaction_observer,
+         AshPlatform.TestBrowserWalletTransactionObserver
 end
 
 config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]

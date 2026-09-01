@@ -1,13 +1,14 @@
 defmodule AshPlatform.OpenSea.HoldingsTest do
   use ExUnit.Case, async: false
 
-  alias AshPlatform.Actors.Human
   alias AshPlatform.OpenSea
+  alias AshPlatform.OpenSea.HoldingsCache
 
   @wallet "0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD"
   @normalized "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 
   setup do
+    HoldingsCache.clear()
     previous_key = Application.get_env(:ash_platform, :opensea_api_key)
     Application.put_env(:ash_platform, :opensea_api_key, "test-key")
 
@@ -18,13 +19,47 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
       Application.delete_env(:ash_platform, :test_open_sea_watcher)
     end)
 
-    %{opts: [actor: %Human{human_account_id: 1}]}
+    :ok
   end
 
-  test "FIXED_BASE_COLLECTIONS: only the three allowed slugs are requested after normalization",
-       %{
-         opts: opts
-       } do
+  test "SAME_WALLET_COALESCING: simultaneous lookups share one provider read" do
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    first = Task.async(fn -> OpenSea.fetch_owned_collectibles(@wallet) end)
+    second = Task.async(fn -> OpenSea.fetch_owned_collectibles(@wallet) end)
+
+    assert {:ok, _} = Task.await(first)
+    assert {:ok, _} = Task.await(second)
+    assert length(requests(3)) == 3
+    refute_receive {:open_sea_request, _, _, _}
+  end
+
+  test "INVALIDATION: a confirmed redemption starts a fresh lookup without stranding the old one" do
+    test_pid = self()
+
+    old =
+      Task.async(fn ->
+        HoldingsCache.fetch(@normalized, fn ->
+          send(test_pid, {:old_lookup_started, self()})
+
+          receive do
+            :finish_old_lookup -> {:ok, :old}
+          end
+        end)
+      end)
+
+    assert_receive {:old_lookup_started, old_loader}
+    HoldingsCache.invalidate(@normalized)
+
+    assert {:ok, :fresh} = HoldingsCache.fetch(@normalized, fn -> {:ok, :fresh} end)
+    send(old_loader, :finish_old_lookup)
+    assert {:ok, :old} = Task.await(old)
+
+    assert {:ok, :fresh} =
+             HoldingsCache.fetch(@normalized, fn -> flunk("fresh result should be cached") end)
+  end
+
+  test "FIXED_BASE_COLLECTIONS: only the three allowed slugs are requested after normalization" do
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url, options ->
@@ -38,7 +73,7 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
       {:ok, %{status: 200, body: %{"nfts" => [%{"identifier" => id}]}}}
     end)
 
-    assert {:ok, holdings} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+    assert {:ok, holdings} = OpenSea.fetch_owned_collectibles(@wallet)
     assert Enum.map(holdings.animata, & &1.label) == ["Animata I #42", "Animata II #42"]
     assert [%{label: "Regents Club #1123"}] = holdings.regents_club
 
@@ -52,36 +87,33 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
            |> Enum.sort() == ["animata", "regent-animata-ii", "regents-club"]
   end
 
-  test "HUMAN_ONLY: anonymous callers cannot trigger the provider" do
+  test "CONNECTED_WALLET_ONLY: a valid public wallet can request the fixed collections" do
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+    assert {:ok, %{animata: [], regents_club: []}} = OpenSea.fetch_owned_collectibles(@wallet)
+    assert length(requests(3)) == 3
+  end
+
+  test "MISSING_KEY: lookup fails closed without a provider request" do
+    Application.put_env(:ash_platform, :opensea_api_key, nil)
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
     assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet)
     refute_receive {:open_sea_request, _, _, _}
   end
 
-  test "MISSING_KEY: lookup fails closed without a provider request", %{opts: opts} do
-    Application.put_env(:ash_platform, :opensea_api_key, nil)
-    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
-    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
-    refute_receive {:open_sea_request, _, _, _}
-  end
-
-  test "SEEN_CURSOR: a repeated cursor is rejected after two requests per collection", %{
-    opts: opts
-  } do
+  test "SEEN_CURSOR: a repeated cursor is rejected after two requests per collection" do
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn _url ->
       {:ok, %{status: 200, body: %{"nfts" => [], "next" => "same"}}}
     end)
 
-    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet)
     urls = drain_requests()
     assert length(urls) <= 6
     assert Enum.frequencies_by(urls, &collection/1) |> Map.values() |> Enum.all?(&(&1 <= 2))
   end
 
-  test "BOUNDED_PAGES: each collection stops at ten pages and aggregate requests never exceed thirty",
-       %{opts: opts} do
+  test "BOUNDED_PAGES: each collection stops at ten pages and aggregate requests never exceed thirty" do
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
@@ -90,7 +122,7 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
       {:ok, %{status: 200, body: %{"nfts" => [], "next" => next}}}
     end)
 
-    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet)
     urls = drain_requests()
     assert length(urls) == 30
 
@@ -101,7 +133,7 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
            }
   end
 
-  test "MALFORMED_EVIDENCE: malformed cursors and NFT identifiers fail closed", %{opts: opts} do
+  test "MALFORMED_EVIDENCE: malformed cursors and NFT identifiers fail closed" do
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
     for response <- [
@@ -113,12 +145,12 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
         {:ok, %{status: 200, body: response}}
       end)
 
-      assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+      assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet)
       assert length(drain_requests()) == 3
     end
   end
 
-  test "REQUEST_TIMEOUT: each page has one five-second whole-call bound", %{opts: opts} do
+  test "REQUEST_TIMEOUT: each page has one five-second whole-call bound" do
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn _url ->
@@ -128,7 +160,7 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
     end)
 
     started_at = System.monotonic_time(:millisecond)
-    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet, opts)
+    assert {:error, _} = OpenSea.fetch_owned_collectibles(@wallet)
     assert System.monotonic_time(:millisecond) - started_at < 10_000
     assert length(drain_requests()) == 3
   end

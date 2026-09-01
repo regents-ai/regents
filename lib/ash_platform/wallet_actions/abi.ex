@@ -20,6 +20,12 @@ defmodule AshPlatform.WalletActions.Abi do
   # carry is encoded here against the pinned ABI's own declaration of it.
   @supply_denominator_signature "revenueShareSupplyDenominator()"
   @supply_denominator_selector "0xe3961f2a"
+  @available_regent_signature "availableRegentRewardInventory()"
+  @available_regent_selector "0xe2cfe6b9"
+  @reserved_usdc_signature "reservedUsdc()"
+  @reserved_usdc_selector "0x017a2078"
+  @emission_apr_signature "emissionAprBps()"
+  @emission_apr_selector "0x8ba7fda0"
 
   @event_signatures %{
     approval: "Approval(address,address,uint256)",
@@ -36,7 +42,10 @@ defmodule AshPlatform.WalletActions.Abi do
   # runs the moment it is.
   @after_compile __MODULE__
   @declarations [
-    {"function", @supply_denominator_signature}
+    {"function", @supply_denominator_signature},
+    {"function", @available_regent_signature},
+    {"function", @reserved_usdc_signature},
+    {"function", @emission_apr_signature}
     | for({id, signature} <- @event_signatures, id != :approval, do: {"event", signature})
   ]
 
@@ -61,6 +70,9 @@ defmodule AshPlatform.WalletActions.Abi do
   def stake_token_address, do: get_in(@staking, ["onchain_constants", "stake_token"])
   def usdc_address, do: get_in(@staking, ["onchain_constants", "usdc"])
   def encode_supply_denominator, do: @supply_denominator_selector
+  def encode_available_regent_reward_inventory, do: @available_regent_selector
+  def encode_reserved_usdc, do: @reserved_usdc_selector
+  def encode_emission_apr_bps, do: @emission_apr_selector
   def supply_denominator_signature, do: @supply_denominator_signature
 
   def encode_action(id, arguments) when is_binary(id) and is_list(arguments) do

@@ -1,8 +1,7 @@
 defmodule AshPlatform.RedemptionTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Redemption}
-  alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Redemption
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -32,6 +31,10 @@ defmodule AshPlatform.RedemptionTest do
          payout_raw: "5000000000000000000000000",
          payout: "5000000",
          vest_duration_seconds: 604_800,
+         max_source_token_id: 999,
+         animata_i_held_by_redeemer: 327,
+         animata_ii_held_by_redeemer: 284,
+         regents_club_ready: 388,
          wallet_address: wallet,
          selected_collection: collection,
          token_id: token_id,
@@ -71,26 +74,22 @@ defmodule AshPlatform.RedemptionTest do
     Process.put(:redemption_test_pid, self())
     on_exit(fn -> restore(:redemption_chain_client, previous_client) end)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:redemption", @wallet, [@wallet], actor: %System{})
-
-    %{actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
+    :ok
   end
 
-  test "CHAIN_FACTS_ONLY: account reads require the active linked wallet", %{
-    actor: actor,
-    opts: opts
-  } do
+  test "CHAIN_FACTS_ONLY: account reads accept the active connected wallet without a login" do
     assert {:ok, %{wallet_address: nil}} = Redemption.overview()
     assert_receive {:overview, nil, nil, nil}
 
     assert {:ok, %{wallet_address: @wallet, token_id: 42}} =
-             Redemption.account_for_wallet(@wallet, "animata_i", 42, opts)
+             Redemption.account_for_wallet(@wallet, "animata_i", 42)
 
     assert_receive {:overview, @wallet, @animata_i, 42}
-    assert {:error, error} = Redemption.account_for_wallet(@other, "animata_i", 42, opts)
-    assert refusal(error) == :wrong_signer
-    assert {:error, _} = Redemption.account_for_wallet(@wallet, "animata_i", 42, actor: actor)
+
+    assert {:ok, %{wallet_address: @other}} =
+             Redemption.account_for_wallet(@other, "animata_i", 42)
+
+    assert {:error, _} = Redemption.account_for_wallet("not-a-wallet", "animata_i", 42)
   end
 
   test "NEXT_ONCHAIN_STEP: selection exposes exactly the action Base currently requires" do
@@ -105,54 +104,52 @@ defmodule AshPlatform.RedemptionTest do
     assert Redemption.next_step(base, @wallet) == :ready
   end
 
-  test "APPROVE_NFT: preparation rereads ownership and the current step", %{opts: opts} do
+  test "APPROVE_NFT: preparation rereads ownership and the current step" do
     Process.put(:nft_approved, false)
-    assert {:ok, envelope} = Redemption.prepare_nft_approval(@wallet, "animata_i", 42, opts)
+    assert {:ok, envelope} = Redemption.prepare_nft_approval(@wallet, "animata_i", 42)
     assert envelope.action == "approve_nft_collection"
     assert envelope.to == @animata_i
     assert_receive {:overview, @wallet, @animata_i, 42}
 
     Process.put(:nft_approved, true)
-    assert {:error, error} = Redemption.prepare_nft_approval(@wallet, "animata_i", 42, opts)
+    assert {:error, error} = Redemption.prepare_nft_approval(@wallet, "animata_i", 42)
     assert refusal(error) == :ready
   end
 
-  test "APPROVE_80_USDC: exact approval is available only at its current step", %{opts: opts} do
+  test "APPROVE_80_USDC: exact approval is available only at its current step" do
     Process.put(:usdc_allowance_raw, "0")
-    assert {:ok, envelope} = Redemption.prepare_usdc_approval(@wallet, "animata_i", 42, opts)
+    assert {:ok, envelope} = Redemption.prepare_usdc_approval(@wallet, "animata_i", 42)
     assert envelope.action == "approve_exact_usdc"
     assert envelope.arguments.amount_atomic == "80000000"
     assert envelope.arguments.mode == "exact"
 
     Process.put(:nft_approved, false)
-    assert {:error, error} = Redemption.prepare_usdc_approval(@wallet, "animata_i", 42, opts)
+    assert {:error, error} = Redemption.prepare_usdc_approval(@wallet, "animata_i", 42)
     assert refusal(error) == :nft_approval_required
   end
 
-  test "REDEEM_NOW: identical eligible clicks remain distinct direct requests", %{opts: opts} do
-    assert {:ok, first} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
-    assert {:ok, second} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
+  test "REDEEM_NOW: identical eligible clicks remain distinct direct requests" do
+    assert {:ok, first} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
+    assert {:ok, second} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
     assert first.action == "redeem"
     refute first.action_id == second.action_id
   end
 
-  test "CLAIM_UNLOCKED: claim rereads positive chain state", %{opts: opts} do
-    assert {:ok, %{action: "claim"}} = Redemption.prepare_claim(@wallet, opts)
+  test "CLAIM_UNLOCKED: claim rereads positive chain state" do
+    assert {:ok, %{action: "claim"}} = Redemption.prepare_claim(@wallet)
     Process.put(:claimable_raw, "0")
-    assert {:error, error} = Redemption.prepare_claim(@wallet, opts)
+    assert {:error, error} = Redemption.prepare_claim(@wallet)
     assert refusal(error) == :nothing_claimable
   end
 
-  test "CHAIN_AUTHORITY: owner failure and changed approvals refuse before an envelope", %{
-    opts: opts
-  } do
+  test "CHAIN_AUTHORITY: owner failure and changed approvals refuse before an envelope" do
     Process.put(:owner_unavailable, true)
-    assert {:error, error} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
+    assert {:error, error} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
     assert refusal(error) == :nft_owner_unavailable
 
     Process.put(:owner_unavailable, false)
     Process.put(:usdc_allowance_raw, "0")
-    assert {:error, error} = Redemption.prepare_redeem(@wallet, "animata_i", 42, opts)
+    assert {:error, error} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
     assert refusal(error) == :exact_usdc_approval_required
   end
 

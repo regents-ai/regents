@@ -3,6 +3,7 @@ import {
   type PrivyEvents,
   getIdentityToken,
   useActiveWallet,
+  useConnectWallet,
   useLogin,
   useLinkAccount,
   usePrivy,
@@ -36,24 +37,30 @@ import {
 } from "./auth_lazy"
 import {
   activeEthereumWallet,
-  eligibleActiveWallet,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
 type AccountRequestHandlerOptions = {
+  connectWallet: () => Promise<void>
   signIn: () => Promise<void>
   providerLogout: () => Promise<void>
   synchronizeWallets: () => Promise<void>
 }
 
 export function createAccountRequestHandler({
+  connectWallet,
   signIn,
   providerLogout,
   synchronizeWallets,
 }: AccountRequestHandlerOptions): (request: AccountRequest) => Promise<void> {
   return async request => {
+    if (request === "connect-wallet") {
+      await connectWallet()
+      return
+    }
+
     if (request === "sign-in") {
       await signIn()
       return
@@ -387,7 +394,7 @@ export function createProviderSessionReconciler({
     // to end, and only this reading of it counts: the page may have been
     // replaced while the provider was being sampled, and an anonymous page waiting
     // for its first sign in must be left exactly as it is.
-    if (!signedIn()) return false
+    if (!signedIn()) return true
 
     await clearSession()
     reload()
@@ -518,12 +525,14 @@ export type PrivyBridgeProviderState = {
   wallets: ReturnType<typeof useWallets>["wallets"]
   activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
   connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
+  connectWallet?: ReturnType<typeof useConnectWallet>["connectWallet"]
 }
 
 function AccountBridge({mode, providerState, publishRequestHandler}: AccountBridgeProps) {
   const privy = usePrivy()
   const providerWallets = useWallets()
   const providerActiveWallet = useActiveWallet()
+  const providerWalletConnector = useConnectWallet()
   const authenticated = providerState?.authenticated ?? privy.authenticated
   const logout = providerState?.logout ?? privy.logout
   const ready = providerState?.ready ?? privy.ready
@@ -531,6 +540,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const wallets = providerState?.wallets ?? providerWallets.wallets
   const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
   const connectActiveWallet = providerState?.connectActiveWallet ?? providerActiveWallet.connect
+  const connectWallet = providerState?.connectWallet ?? providerWalletConnector.connectWallet
   const signOutOnly = mode === "sign-out-only"
   const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
     signOutOnly ? "preterminal" : "terminal",
@@ -626,6 +636,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const walletSyncGeneration = React.useRef(0)
+  const selectedWalletRef = React.useRef<typeof activeWallet>(null)
   const reconcileProviderSession = React.useMemo(
     () =>
       createProviderSessionReconciler({
@@ -648,16 +659,20 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   // still announces `ash:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
-    const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase() ?? null
+    const selectedWallet =
+      activeWallet?.type === "ethereum" &&
+      wallets.some(wallet => wallet.address.toLowerCase() === activeWallet.address.toLowerCase())
+        ? activeWallet
+        : null
 
     // The wallet the customer just left stops being Stake's wallet here, before
     // any of the work below can await, so nothing can be prepared or sent for it
     // while the newly selected provider is still resolving.
-    const cached = activeEthereumWallet()?.address ?? null
-    if (cached && cached !== selected) {
+    if (activeEthereumWallet() && selectedWalletRef.current !== selectedWallet) {
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
     }
+    selectedWalletRef.current = selectedWallet
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (walletSyncGeneration.current !== generation) return
@@ -672,20 +687,32 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     // resolve is not a wallet here, so a failed selection leaves Stake with no
     // active wallet rather than with the previous one.
     const resolved = await Promise.allSettled(
-      wallets.map(
-        async wallet =>
-          [
-            wallet.address.toLowerCase(),
-            (await wallet.getEthereumProvider()) as EthereumProvider,
-          ] as const,
-      ),
+      wallets.map(async wallet => ({
+        address: wallet.address.toLowerCase(),
+        provider: (await wallet.getEthereumProvider()) as EthereumProvider,
+      })),
     )
     if (walletSyncGeneration.current !== generation) return
 
     const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
-    const active = entries.find(([address]) => address === selected)
-    replaceConnectedEthereumWallets(entries)
-    replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
+    const selectedIndex = selectedWallet ? wallets.indexOf(selectedWallet) : -1
+    const selectedResult = selectedIndex >= 0 ? resolved[selectedIndex] : null
+    let selectedProvider =
+      selectedResult?.status === "fulfilled" ? selectedResult.value.provider : null
+    if (selectedWallet && selectedIndex < 0) {
+      try {
+        selectedProvider = (await selectedWallet.getEthereumProvider()) as EthereumProvider
+      } catch {
+        selectedProvider = null
+      }
+      if (walletSyncGeneration.current !== generation) return
+    }
+    replaceConnectedEthereumWallets(entries.map(entry => [entry.address, entry.provider]))
+    replaceActiveEthereumWallet(
+      selectedWallet && selectedProvider
+        ? {address: selectedWallet.address, provider: selectedProvider}
+        : null,
+    )
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady])
 
@@ -697,13 +724,16 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     }
   }, [signOutOnly, synchronizeWallets])
 
-  // Stake's connect-or-switch affordance opens Privy's own chooser. Nothing here
-  // picks a wallet: the customer's selection is the only thing that changes.
-  React.useEffect(() => {
-    const openChooser = () => void Promise.resolve(connectActiveWallet()).catch(() => undefined)
-    window.addEventListener("ash:wallet-connect", openChooser)
-    return () => window.removeEventListener("ash:wallet-connect", openChooser)
-  }, [connectActiveWallet])
+  const connectSelectedWallet = React.useCallback(async () => {
+    const request =
+      wallets.length === 0
+        ? connectWallet({
+            walletChainType: "ethereum-only",
+            description: "Connect a wallet to stake or redeem on Base.",
+          })
+        : connectActiveWallet()
+    await Promise.resolve(request)
+  }, [connectActiveWallet, connectWallet, wallets.length])
 
   const markSignOutTerminal = React.useCallback(() => {
     signOutOnlyState.current = "terminal"
@@ -713,11 +743,12 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const ordinaryRequestHandler = React.useMemo(
     () =>
       createAccountRequestHandler({
+        connectWallet: connectSelectedWallet,
         signIn: signInRequest.signIn,
         providerLogout: () => provider.current.logout(),
         synchronizeWallets,
       }),
-    [signInRequest, synchronizeWallets],
+    [connectSelectedWallet, signInRequest, synchronizeWallets],
   )
 
   const ordinaryIdentityHandler = React.useMemo(

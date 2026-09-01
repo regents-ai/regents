@@ -31,6 +31,33 @@ defmodule AshPlatform.Staking.RpcClient do
              block,
              @rpc_opts
            ),
+         {:ok, [available_regent, reserved_usdc, emission_apr_bps]} <-
+           parallel_reads([
+             fn ->
+               Rpc.call_uint(
+                 Abi.staking_address(),
+                 Abi.encode_available_regent_reward_inventory(),
+                 block,
+                 @rpc_opts
+               )
+             end,
+             fn ->
+               Rpc.call_uint(
+                 Abi.staking_address(),
+                 Abi.encode_reserved_usdc(),
+                 block,
+                 @rpc_opts
+               )
+             end,
+             fn ->
+               Rpc.call_uint(
+                 Abi.staking_address(),
+                 Abi.encode_emission_apr_bps(),
+                 block,
+                 @rpc_opts
+               )
+             end
+           ]),
          {:ok, stake_token} <- read_address("stake_token", block),
          {:ok, usdc} <- read_address("usdc", block),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
@@ -52,7 +79,13 @@ defmodule AshPlatform.Staking.RpcClient do
          total_staked: Rpc.format_units(total_staked, 18),
          supply_denominator_raw: Integer.to_string(denominator),
          remaining_capacity_raw: Integer.to_string(capacity),
-         remaining_capacity: Rpc.format_units(capacity, 18)
+         remaining_capacity: Rpc.format_units(capacity, 18),
+         available_regent_reward_inventory_raw: Integer.to_string(available_regent),
+         available_regent_reward_inventory: Rpc.format_units(available_regent, 18),
+         reserved_usdc_raw: Integer.to_string(reserved_usdc),
+         reserved_usdc: Rpc.format_units(reserved_usdc, 6),
+         emission_apr_bps: emission_apr_bps,
+         emission_apr_percent: format_bps(emission_apr_bps)
        })}
     else
       false -> {:error, :contract_constants_mismatch}
@@ -143,4 +176,31 @@ defmodule AshPlatform.Staking.RpcClient do
 
   defp read_address(id, block),
     do: Rpc.call_address(Abi.staking_address(), Abi.encode_read(id), block, @rpc_opts)
+
+  defp format_bps(bps) do
+    bps
+    |> Decimal.new()
+    |> Decimal.div(100)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  defp parallel_reads(reads) do
+    reads
+    |> Task.async_stream(& &1.(),
+      max_concurrency: length(reads),
+      ordered: true,
+      timeout: @overview_timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, value}}, {:ok, values} -> {:cont, {:ok, [value | values]}}
+      {:ok, {:error, reason}}, _ -> {:halt, {:error, reason}}
+      _, _ -> {:halt, {:error, :chain_timeout}}
+    end)
+    |> case do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
+    end
+  end
 end

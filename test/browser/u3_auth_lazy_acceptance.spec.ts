@@ -173,6 +173,25 @@ test("anonymous load does not request the deferred Privy bridge", async ({page})
   expect(bridgeRequests).toEqual([])
 })
 
+test("anonymous Stake connect loads Privy and requests its wallet connector", async ({page}) => {
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
+  )
+
+  await page.goto("/stake")
+  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await page.getByRole("button", {name: "Connect wallet to stake"}).click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
+      ),
+    )
+    .toEqual(["connect-wallet"])
+  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+})
+
 for (const invalidHandoff of [
   {name: "malformed", value: "not-json"},
   {name: "future", value: JSON.stringify({version: 1, issuedAtMs: Date.now() + 60_000})},

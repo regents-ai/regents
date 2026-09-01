@@ -1,7 +1,6 @@
 defmodule AshPlatform.Staking.Actions do
   @moduledoc false
   alias AshPlatform.Accounts
-  alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
   alias AshPlatform.Staking.ChainClient
   alias AshPlatform.WalletActions.{Abi, Address, Envelope}
@@ -28,15 +27,13 @@ defmodule AshPlatform.Staking.Actions do
 
   def account(_input, _context), do: {:error, :authentication_required}
 
-  def account_for_wallet(input, %{actor: %Human{}} = context) do
-    with {:ok, signer, _lease} <- current_wallet(input.arguments.expected_signer, context),
+  def account_for_wallet(input, _context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
          do: ChainClient.module().overview(signer)
   end
 
-  def account_for_wallet(_input, _context), do: {:error, :authentication_required}
-
-  def prepare(action, input, %{actor: %Human{}} = context) do
-    with {:ok, signer, lease} <- current_wallet(input.arguments.expected_signer, context),
+  def prepare(action, input, _context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
          {:ok, amount} <- requested_amount(action, input.arguments),
          :ok <- within_limits(action, amount, signer),
          {:ok, data, approval, arguments} <- calldata(action, amount, signer),
@@ -48,36 +45,13 @@ defmodule AshPlatform.Staking.Actions do
              risk_copy: Map.fetch!(@risk, action),
              approval: approval,
              arguments: arguments
-           ) do
-      return_current(lease, signer, envelope)
-    end
-  end
-
-  def prepare(_action, _input, _context), do: {:error, :authentication_required}
-
-  defp current_wallet(address, context) do
-    with {:ok, signer} <- normalize_address(address),
-         {:ok, lease} <- lease(context),
-         account when not is_nil(account) <-
-           SessionAuthority.leased_account(lease.lineage, lease.account_id),
-         :ok <- wallet_member(account, signer),
-         do: {:ok, signer, lease}
-  end
-
-  defp return_current(lease, signer, envelope) do
-    callback = fn account -> current_envelope(account, signer, envelope) end
-
-    case SessionAuthority.transact_lease(lease.lineage, lease.account_id, callback) do
-      {:error, :stale_authority} -> refusal(:session_unavailable)
+           ),
+         true <- valid_envelope?(envelope) do
+      {:ok, envelope}
+    else
       false -> refusal(:stale_or_invalid_action)
-      result -> result
+      error -> error
     end
-  end
-
-  defp current_envelope(account, signer, envelope) do
-    with :ok <- wallet_member(account, signer),
-         true <- valid_envelope?(envelope),
-         do: {:ok, envelope}
   end
 
   defp valid_envelope?(envelope),
@@ -237,19 +211,6 @@ defmodule AshPlatform.Staking.Actions do
       :error -> 0
     end
   end
-
-  defp lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
-       when is_binary(lineage) and is_integer(account_id),
-       do: {:ok, %{lineage: lineage, account_id: account_id}}
-
-  defp lease(_), do: {:error, :session_lease_required}
-
-  defp wallet_member(%{wallet_addresses: wallets}, signer),
-    do:
-      if(Enum.any?(wallets || [], &Address.equal?(&1, signer)),
-        do: :ok,
-        else: refusal(:wrong_signer)
-      )
 
   defp normalize_address(value) do
     case Address.normalize(value) do

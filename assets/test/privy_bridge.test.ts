@@ -9,6 +9,7 @@ const productionPrivyHooks = vi.hoisted(() => ({
   linkFarcaster: vi.fn(),
   unlinkOAuth: vi.fn(async () => undefined),
   unlinkFarcaster: vi.fn(async () => undefined),
+  connectWallet: vi.fn(async () => ({})),
   connectActiveWallet: vi.fn(async () => ({})),
 }))
 
@@ -20,6 +21,7 @@ vi.mock("@privy-io/react-auth", () => ({
   PrivyProvider: "privy-provider",
   usePrivy: () => ({authenticated: false, logout: vi.fn(), ready: true}),
   useWallets: () => ({ready: true, wallets: []}),
+  useConnectWallet: () => ({connectWallet: productionPrivyHooks.connectWallet}),
   useActiveWallet: () => ({
     wallet: undefined,
     connect: productionPrivyHooks.connectActiveWallet,
@@ -46,6 +48,7 @@ import {
   clearLocalSession,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
+  type AccountRequest,
 } from "../js/auth_lazy"
 import {
   activeEthereumWallet,
@@ -129,6 +132,7 @@ function installAccountBridgeRenderer() {
 // schedules that turn on it name their marker; the default page shows neither.
 function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null) {
   const dispatched: string[] = []
+  const listeners = new Map<string, () => void>()
   const reload = vi.fn()
 
   vi.stubGlobal("document", {
@@ -140,8 +144,8 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null)
         : null,
   })
   vi.stubGlobal("window", {
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
+    addEventListener: (event: string, listener: () => void) => void listeners.set(event, listener),
+    removeEventListener: (event: string) => void listeners.delete(event),
     dispatchEvent: (event: {type: string}) => dispatched.push(event.type),
     location: {origin: "https://regents.sh", reload},
   })
@@ -152,7 +156,7 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null)
     },
   )
 
-  return {dispatched, reload}
+  return {dispatched, listeners, reload}
 }
 
 function stubSessionRequests(): Array<{url: string; method: string}> {
@@ -199,6 +203,7 @@ function signInLoader(signIn: () => Promise<void>) {
   return createLazyAuthLoader(async () => ({
     startPrivyBridge: async () => ({
       request: createAccountRequestHandler({
+        connectWallet: async () => undefined,
         signIn,
         providerLogout: async () => undefined,
         synchronizeWallets: async () => undefined,
@@ -301,6 +306,7 @@ describe("Privy session bridge", () => {
     const providerLogout = vi.fn(async () => undefined)
     const synchronizeWallets = vi.fn(async () => undefined)
     const request = createAccountRequestHandler({
+      connectWallet: vi.fn(async () => undefined),
       signIn,
       providerLogout,
       synchronizeWallets,
@@ -899,6 +905,7 @@ describe("Privy session bridge", () => {
   it("leaves local deletion and reload to the always-loaded sign-out path", async () => {
     const order: string[] = []
     const request = createAccountRequestHandler({
+      connectWallet: vi.fn(async () => undefined),
       signIn: vi.fn(async () => undefined),
       providerLogout: vi.fn(async () => {
         order.push("provider")
@@ -915,7 +922,7 @@ describe("Privy session bridge", () => {
   it("keeps sign-out-only startup preterminal until one provider attempt settles", async () => {
     let finishProviderLogout: (() => void) | undefined
     const ordinaryRequest = vi.fn(
-      (request: "sign-in" | "sign-out" | "sync") =>
+      (request: AccountRequest) =>
         request === "sign-out"
           ? new Promise<void>(resolve => {
               finishProviderLogout = resolve
@@ -959,7 +966,7 @@ describe("Privy session bridge", () => {
       let resolveProvider: (() => void) | undefined
       let rejectProvider: ((error: Error) => void) | undefined
       const order: string[] = []
-      const ordinaryRequest = vi.fn((request: "sign-in" | "sign-out" | "sync") => {
+      const ordinaryRequest = vi.fn((request: AccountRequest) => {
         order.push(request)
         return request === "sign-out"
           ? new Promise<void>((resolve, reject) => {
@@ -1097,7 +1104,7 @@ describe("Privy session bridge", () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a page showing neither account marker deletes nothing", async () => {
+  it("ANONYMOUS_WALLET_ACCESS: a page showing neither account marker keeps wallet hydration active", async () => {
     const clearSession = vi.fn(async () => undefined)
     const reload = vi.fn()
     const reconcile = createProviderSessionReconciler({
@@ -1107,14 +1114,14 @@ describe("Privy session bridge", () => {
       signedIn: () => false,
     })
 
-    await expect(reconcile()).resolves.toBe(false)
+    await expect(reconcile()).resolves.toBe(true)
     expect(clearSession).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
 
   // The page can be replaced while the provider state is sampled, so the only
   // reading of the account control that may end a session is the last one.
-  it("POSITIVE_SIGN_OUT_OWNS_DELETION: a marker lost during the provider sample authorizes nothing", async () => {
+  it("ANONYMOUS_WALLET_ACCESS: a marker lost during the provider sample keeps wallet hydration active", async () => {
     const clearSession = vi.fn(async () => undefined)
     const reload = vi.fn()
     let signedIn = true
@@ -1128,7 +1135,7 @@ describe("Privy session bridge", () => {
       signedIn: () => signedIn,
     })
 
-    await expect(reconcile()).resolves.toBe(false)
+    await expect(reconcile()).resolves.toBe(true)
     expect(clearSession).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -1156,6 +1163,72 @@ describe("Privy session bridge", () => {
 
   it("does not own or inject server-rendered account markup", () => {
     expect(bridge).not.toHaveProperty("loadLocalSession")
+  })
+
+  it("ANONYMOUS_WALLET_CONNECT: opens Privy's Ethereum wallet connector without starting login", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const login = vi.fn()
+    const connectWallet = vi.fn(async () => ({}))
+    const connectActiveWallet = vi.fn(async () => ({}))
+    productionPrivyHooks.login = login
+
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: async () => null,
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [],
+      connectActiveWallet,
+      connectWallet,
+    })
+    renderAccountBridge(renderedAccountBridge())
+    const handle = await startup
+    await handle.request("connect-wallet")
+
+    expect(connectWallet).toHaveBeenCalledOnce()
+    expect(connectWallet).toHaveBeenCalledWith({
+      walletChainType: "ethereum-only",
+      description: "Connect a wallet to stake or redeem on Base.",
+    })
+    expect(connectActiveWallet).not.toHaveBeenCalled()
+    expect(login).not.toHaveBeenCalled()
+    expect(sessionRequests).toEqual([])
+  })
+
+  it("ANONYMOUS_WALLET_ACCESS: publishes a connected wallet without a Privy login session", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      {
+        appId: "test-app",
+        authenticated: false,
+        getAccessToken: async () => null,
+        logout: async () => undefined,
+        ready: true,
+        walletsReady: true,
+        wallets: [wallet],
+        activeWallet: wallet,
+      } as unknown as bridge.PrivyBridgeProviderState,
+    )
+    renderAccountBridge(renderedAccountBridge())
+    await startup
+    await until(() => activeEthereumWallet()?.provider === wallet.provider)
+
+    expect(dispatched).toContain("ash:wallet-state")
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
   })
 
   // The anonymous page is where sign in starts, so Privy has nothing to report
@@ -1385,6 +1458,41 @@ describe("Privy session bridge", () => {
     await until(() => dispatched.length === 5)
     expect(activeEthereumWallet()).toBeNull()
     expect(new Set(dispatched)).toEqual(new Set(["ash:wallet-state"]))
+  })
+
+  it("binds the active provider when two Privy wallets share an address", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals()
+    const address = "0x1111111111111111111111111111111111111111"
+    const first = ethereumWallet(address)
+    const second = ethereumWallet(address)
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [first, second],
+      activeWallet: first,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+
+    providerState.activeWallet = second
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet()?.provider === second.provider)
+
+    expect(activeEthereumWallet()?.address).toBe(address)
   })
 
   // The customer's new choice is known before any of the reconciliation it

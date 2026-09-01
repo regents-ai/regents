@@ -50,12 +50,8 @@ defmodule AshPlatform.Staking.Snapshot do
   end
 
   policies do
-    policy action(:overview) do
-      authorize_if always()
-    end
-
     policy action([
-             :account,
+             :overview,
              :account_for_wallet,
              :prepare_stake,
              :prepare_unstake,
@@ -63,6 +59,10 @@ defmodule AshPlatform.Staking.Snapshot do
              :prepare_claim_regent,
              :prepare_claim_and_restake_regent
            ]) do
+      authorize_if always()
+    end
+
+    policy action(:account) do
       authorize_if AshPlatform.Staking.Checks.HumanActor
     end
   end
