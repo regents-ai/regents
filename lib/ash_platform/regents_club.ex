@@ -19,7 +19,7 @@ defmodule AshPlatform.RegentsClub do
   @abi Jason.decode!(@abi_contents)
   @abi_sha256 :crypto.hash(:sha256, @abi_contents) |> Base.encode16(case: :lower)
   @release_manifest_contents File.read!(@release_manifest_path)
-  @release_manifest_sha256 "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
+  @release_manifest_sha256 "5c8c4a7bcce2dc38d3f1d3dcdd13aee064ed9c03799056c37f273a08a453e402"
   @release_manifest_header Enum.join(
                              ~w(token_id image_path image_sha256 image_bytes video_path video_sha256 video_bytes metadata_path metadata_sha256 metadata_bytes),
                              "\t"
@@ -282,7 +282,7 @@ defmodule AshPlatform.RegentsClub do
       ] ->
         with {:ok, ^expected_token_id} <- canonical_positive_integer(token_id),
              true <- image_path == "images/animata/cards/#{expected_token_id}.png",
-             true <- video_path == "videos/regents-club/#{expected_token_id}-v1.mp4",
+             true <- video_path == "videos/regents-club/#{expected_token_id}-v2.mp4",
              true <- metadata_path == "metadata/regents-club/#{expected_token_id}.json",
              true <- valid_sha256?(image_sha256),
              true <- valid_sha256?(video_sha256),

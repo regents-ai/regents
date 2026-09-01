@@ -872,15 +872,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert media == %{
              "active_image_digest" =>
-               "sha256:03b40ae0c61d28bbc0c28b62032d3cb1a0c7c41d09bb1e46ed6327a0f10353f6",
+               "sha256:c695ab4233a8bee881c70bba7ef7c66ea6de38072f04bc773206c41ea0bc7512",
              "artifact_manifest_sha256" =>
-               "493d99596cd8ab2cdeae1d1bbafac20aa216470c95bdad25cbc4db163e3a4c6a",
+               "24425228e8d4d8ecd62ff45e273327c2026c0c196b7a02702bb11b5693c5c3dd",
              "release_manifest_sha256" =>
-               "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789",
+               "5c8c4a7bcce2dc38d3f1d3dcdd13aee064ed9c03799056c37f273a08a453e402",
              "production_deployment_verification_sha256" =>
-               "6bb8a3e812222a29b1551470a7a18d8c715130102c7535dd73ed62d611dfa727",
+               "ee310f58dc8dcfa4042453c061dea30991d457e10b02328eed63251010f6609c",
              "isolated_verification_sha256" =>
-               "52ed1913b9160d41981614687253a33ed7d437a793a8c4ec154004afc25143bd",
+               "dda79f803c220770bd8e38028f3a7c34a5abf9bd132c9d6630ec00f33203fa2b",
              "full_corpus_route_count" => 1998,
              "live_probe_token_ids" => [1, 1000, 1998],
              "operator_attestation_required" => true

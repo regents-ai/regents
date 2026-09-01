@@ -59,7 +59,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     def metadata(token_id) do
       Jason.encode!(%{
         "image" => "https://media.regents.sh/images/animata/cards/#{token_id}.png",
-        "animation_url" => "https://media.regents.sh/videos/regents-club/#{token_id}-v1.mp4"
+        "animation_url" => "https://media.regents.sh/videos/regents-club/#{token_id}-v2.mp4"
       })
     end
 
@@ -80,7 +80,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
                bytes: byte_size(@png)
              },
              video: %{
-               path: "videos/regents-club/#{token_id}-v1.mp4",
+               path: "videos/regents-club/#{token_id}-v2.mp4",
                sha256: mp4_sha256,
                bytes: byte_size(@mp4)
              },
@@ -289,7 +289,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       request_paths(requests, ~r/\A\/metadata\/regents-club\/[1-9][0-9]*\.json\z/)
 
     png_paths = request_paths(requests, ~r/\A\/images\/animata\/cards\/[1-9][0-9]*\.png\z/)
-    mp4_paths = request_paths(requests, ~r/\A\/videos\/regents-club\/[1-9][0-9]*-v1\.mp4\z/)
+    mp4_paths = request_paths(requests, ~r/\A\/videos\/regents-club\/[1-9][0-9]*-v2\.mp4\z/)
 
     assert Enum.count(requests, &match?({:get, "/healthz", _options}, &1)) == 1
     assert MapSet.new(metadata_paths) == representative_metadata_paths()
@@ -312,7 +312,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     contents = File.read!(path)
 
     assert sha256(contents) ==
-             "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
+             "5c8c4a7bcce2dc38d3f1d3dcdd13aee064ed9c03799056c37f273a08a453e402"
 
     assert {:ok, rows} = RegentsClub.parse_release_manifest(contents)
     assert rows == RegentsClub.release_manifest()
@@ -326,19 +326,19 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
                bytes: 1_508_008
              },
              video: %{
-               path: "videos/regents-club/1-v1.mp4",
-               sha256: "8f35377f52ded731bb834fc00c1726d9e4812bad6afab53f75879258a455eaa3",
-               bytes: 136_647
+               path: "videos/regents-club/1-v2.mp4",
+               sha256: "4c274efb3a133d0e3162fb96ff2bf27c66fa3bfa0e9cd341b2b4b4b24ff4137c",
+               bytes: 452_948
              },
              metadata: %{
                path: "metadata/regents-club/1.json",
-               sha256: "24b5a36bb9d0231db1c9657ad2fccf7302ec8d9b6f27b8aac3ff8e26fbe82041",
+               sha256: "7a940e11903de7b74225ccbc6e2c9ed495f2a170a12c98f6086f36ef441d0c63",
                bytes: 740
              }
            }
 
     assert rows[1998].image.path == "images/animata/cards/1998.png"
-    assert rows[1998].video.path == "videos/regents-club/1998-v1.mp4"
+    assert rows[1998].video.path == "videos/regents-club/1998-v2.mp4"
     assert rows[1998].metadata.path == "metadata/regents-club/1998.json"
 
     assert :error == RegentsClub.parse_release_manifest("bad header\n" <> contents)
@@ -497,7 +497,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
         if mode == :crossed_urls and token_id == 1000 do
           Jason.encode!(%{
             "image" => "https://media.regents.sh/images/animata/cards/999.png",
-            "animation_url" => "https://media.regents.sh/videos/regents-club/1000-v1.mp4"
+            "animation_url" => "https://media.regents.sh/videos/regents-club/1000-v2.mp4"
           })
         else
           MediaFixtures.metadata(token_id)
@@ -520,7 +520,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
         [_, encoded] = match
         asset_response(:get, :png, encoded, options, mode)
 
-      match = Regex.run(~r/\A\/videos\/regents-club\/([1-9][0-9]*)-v1\.mp4\z/, path) ->
+      match = Regex.run(~r/\A\/videos\/regents-club\/([1-9][0-9]*)-v2\.mp4\z/, path) ->
         [_, encoded] = match
         asset_response(:get, :mp4, encoded, options, mode)
 
