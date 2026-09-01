@@ -38,6 +38,8 @@ defmodule AshPlatformWeb.ShellLive do
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
   @regents_club_observation_interval 15_000
   @max_wallet_observations 8
+  @open_sea_lookup_window 60_000
+  @default_open_sea_lookups_per_minute 6
 
   @impl true
   def mount(params, _session, socket) do
@@ -117,6 +119,7 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
        owned_collectibles_limit: 24,
        open_sea_lookup: nil,
+       open_sea_lookup_starts: [],
        staking: nil,
        staking_action: "stake",
        staking_amount: "",
@@ -455,8 +458,10 @@ defmodule AshPlatformWeb.ShellLive do
           }
         } = socket
       ) do
+    read = socket.assigns.redemption_read
+
     refresh_block =
-      case socket.assigns.redemption_read do
+      case read do
         %{name: ^name, announce_refresh: true} -> redemption.block_number
         _ -> socket.assigns.redemption_refresh_block
       end
@@ -470,7 +475,7 @@ defmodule AshPlatformWeb.ShellLive do
        redemption_refresh_block: refresh_block,
        redemption_snapshot_selection: current_redemption_selection(socket.assigns)
      )
-     |> start_open_sea_lookup(generation)}
+     |> maybe_start_open_sea_lookup(match?(%{name: ^name, lookup_owned: true}, read), generation)}
   end
 
   def handle_async(
@@ -1137,6 +1142,9 @@ defmodule AshPlatformWeb.ShellLive do
     socket =
       if params["refresh_owned"] in [true, "true"] and
            is_binary(socket.assigns.redemption_wallet) do
+        # A confirmed redemption is the one moment the collection on screen is
+        # known to be out of date. The cache honours one such reset per wallet
+        # per cache window, so a page repeating the request buys no extra reads.
         HoldingsCache.invalidate(socket.assigns.redemption_wallet)
 
         socket
@@ -1148,7 +1156,12 @@ defmodule AshPlatformWeb.ShellLive do
         socket
       end
 
-    {:noreply, start_redemption_read(socket, preserve_snapshot: true, announce_refresh: true)}
+    {:noreply,
+     start_redemption_read(socket,
+       preserve_snapshot: true,
+       announce_refresh: true,
+       lookup_owned: true
+     )}
   end
 
   defp handle_redemption_event("show_more_collectibles", _params, socket) do
@@ -2148,7 +2161,8 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp human_actor(_socket), do: nil
 
-  defp maybe_start_redemption(socket, %{route_id: :redeem}, _), do: start_redemption_read(socket)
+  defp maybe_start_redemption(socket, %{route_id: :redeem}, _),
+    do: start_redemption_read(socket, lookup_owned: true)
 
   defp maybe_start_redemption(socket, _, _) do
     socket
@@ -2166,7 +2180,7 @@ defmodule AshPlatformWeb.ShellLive do
     )
   end
 
-  defp start_redemption_read(socket, options \\ []) do
+  defp start_redemption_read(socket, options) do
     socket = cancel_redemption_read(socket)
     generation = socket.assigns.redemption_generation + 1
     name = {:redemption, generation}
@@ -2187,7 +2201,11 @@ defmodule AshPlatformWeb.ShellLive do
         if(announce_refresh, do: nil, else: socket.assigns.redemption_refresh_block),
       redemption_notice: if(announce_refresh, do: nil, else: socket.assigns.redemption_notice),
       redemption_generation: generation,
-      redemption_read: %{name: name, announce_refresh: announce_refresh}
+      redemption_read: %{
+        name: name,
+        announce_refresh: announce_refresh,
+        lookup_owned: Keyword.get(options, :lookup_owned, false)
+      }
     )
     |> start_async(name, fn ->
       {generation,
@@ -2212,7 +2230,7 @@ defmodule AshPlatformWeb.ShellLive do
         owned_collectibles: %{status: :idle, animata: [], regents_club: []},
         owned_collectibles_limit: 24
       )
-      |> start_redemption_read(preserve_snapshot: true)
+      |> start_redemption_read(preserve_snapshot: true, lookup_owned: true)
 
   defp redemption_read_failed(socket, _) do
     collectibles =
@@ -2307,6 +2325,22 @@ defmodule AshPlatformWeb.ShellLive do
       else: nil
   end
 
+  # Editing a token ID re-reads Base, but it says nothing new about which
+  # collectibles the wallet holds. Only a wallet change or an explicit refresh
+  # asks for the collection again, so typing never spends the page's share of
+  # lookups and an outage cannot cost a visitor the panel for the rest of a
+  # minute.
+  defp maybe_start_open_sea_lookup(socket, true, generation),
+    do: start_open_sea_lookup(socket, generation)
+
+  defp maybe_start_open_sea_lookup(socket, false, _generation), do: socket
+
+  # Every owned-collectible lookup spends the server's own OpenSea credentials on
+  # behalf of a visitor who needs no account, so one connection may only start
+  # @default_open_sea_lookups_per_minute of them a minute. A page past its share
+  # is told the lookup is unavailable, which is the same thing it is told when
+  # OpenSea itself cannot answer: the manual collection and token ID fields stay
+  # open and no wallet action is refused.
   defp start_open_sea_lookup(
          %{
            assigns: %{
@@ -2318,17 +2352,38 @@ defmodule AshPlatformWeb.ShellLive do
          _generation
        )
        when is_binary(wallet) and status in [:idle, :unavailable, :refreshing] do
-    name = {:open_sea, wallet}
+    now = System.monotonic_time(:millisecond)
 
-    socket
-    |> assign(
-      open_sea_lookup: name,
-      owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
-    )
-    |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet) end)
+    recent =
+      Enum.filter(socket.assigns.open_sea_lookup_starts, &(&1 > now - @open_sea_lookup_window))
+
+    if length(recent) >= open_sea_lookups_per_minute() do
+      assign(socket,
+        open_sea_lookup_starts: recent,
+        owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
+      )
+    else
+      name = {:open_sea, wallet}
+
+      socket
+      |> assign(
+        open_sea_lookup: name,
+        open_sea_lookup_starts: [now | recent],
+        owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
+      )
+      |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet) end)
+    end
   end
 
   defp start_open_sea_lookup(socket, _), do: socket
+
+  defp open_sea_lookups_per_minute,
+    do:
+      Application.get_env(
+        :ash_platform,
+        :opensea_lookups_per_minute,
+        @default_open_sea_lookups_per_minute
+      )
 
   defp loading_collectibles(%{status: :idle}),
     do: %{status: :loading, animata: [], regents_club: []}
