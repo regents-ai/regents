@@ -899,11 +899,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
                "signature" => "setBaseURI(string)",
                "selector" => "0x55f804b3",
                "value" => "0",
-               "signer_class" => "exact_regents_club_owner",
+               "signer_class" => "selected_privy_wallet",
                "beneficiary_class" => "regents_club_collection",
                "argument_bindings" => %{
                  "new_base_uri" => "https://media.regents.sh/metadata/",
-                 "expected_signer" => "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
+                 "expected_signer" => "selected_privy_wallet"
                }
              }
            ]
@@ -925,6 +925,24 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert calldata == AshPlatform.RegentsClub.calldata()
     assert_selectors(contract["reads"] ++ contract["prepared_actions"])
+
+    assert evidence["signer"] == "selected_privy_wallet"
+    assert evidence["onchain_owner"] == constants["owner"]
+
+    assert Mix.Tasks.AshPlatform.VerifyChainManifest.reviewed_regents_club_base_uri?(
+             constants["current_base_uri"],
+             constants
+           )
+
+    assert Mix.Tasks.AshPlatform.VerifyChainManifest.reviewed_regents_club_base_uri?(
+             constants["cutover_base_uri"],
+             constants
+           )
+
+    refute Mix.Tasks.AshPlatform.VerifyChainManifest.reviewed_regents_club_base_uri?(
+             "https://example.invalid/metadata/",
+             constants
+           )
 
     abi_path = Path.join([@root, "contracts", contract["abi"]["path"]])
     assert Base.encode16(:crypto.hash(:sha256, File.read!(abi_path)), case: :lower) == abi_digest

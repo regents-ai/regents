@@ -24,7 +24,6 @@ defmodule AshPlatform.RuntimeConfigTest do
       "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
       "ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER",
       "ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY",
-      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY"
     ]
@@ -328,36 +327,22 @@ defmodule AshPlatform.RuntimeConfigTest do
     end
   end
 
-  test "Regents Club protected readiness attestations fail closed and require exact values" do
+  test "Regents Club Privy origin canary fails closed and requires the exact value" do
     refute runtime_config(:regents_club_privy_origin_canary)
-    assert runtime_config(:regents_club_media_full_corpus_attestation) == nil
 
     System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "passed")
-
-    System.put_env(
-      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
-      "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
-    )
-
     assert runtime_config(:regents_club_privy_origin_canary)
-
-    assert runtime_config(:regents_club_media_full_corpus_attestation) ==
-             "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
 
     System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "true")
     refute runtime_config(:regents_club_privy_origin_canary)
   end
 
-  test "production image includes the fixed media decode tools before dropping privileges" do
+  test "production image does not install the temporary media decoder tools" do
     dockerfile = File.read!(@dockerfile)
     [_, app_stage] = String.split(dockerfile, "FROM slim AS app", parts: 2)
-
-    {install_offset, _length} =
-      :binary.match(app_stage, "apt-get install -y --no-install-recommends coreutils ffmpeg")
-
-    {user_offset, _length} = :binary.match(app_stage, "USER app")
-
-    assert install_offset < user_offset
+    refute app_stage =~ "ffmpeg"
+    refute app_stage =~ "ffprobe"
+    refute app_stage =~ "coreutils"
   end
 
   defp autolaunch_surfaces?(environment),

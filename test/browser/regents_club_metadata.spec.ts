@@ -23,12 +23,12 @@ test("an authenticated human uses the exact selected signer and sees every termi
 
   await setMode(page, "cancel")
   await reviewAndConfirm(page)
-  await expect(page.getByText("The wallet request was canceled. It will not be retried.")).toBeVisible()
+  await expect(page.getByText("This wallet request was canceled and will not be retried.")).toBeVisible()
   expect(await sends(page)).toHaveLength(1)
 
   await setMode(page, "revert")
   await reviewAndConfirm(page)
-  await expect(page.getByText("The selected wallet transaction reverted", {exact: false})).toBeVisible()
+  await expect(page.getByText("This wallet transaction reverted onchain.")).toBeVisible()
   expect(await sends(page)).toHaveLength(2)
 
   await setMode(page, "unknown")

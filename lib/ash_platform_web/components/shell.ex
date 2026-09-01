@@ -17,6 +17,7 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:content_status, :atom, required: true)
   attr(:presentation, :atom, required: true)
   attr(:shell_instance, :integer, required: true)
+  attr(:navigation, :atom, values: [:patch, :navigate], default: :patch)
   slot(:content, required: true)
 
   def shell(assigns) do
@@ -60,7 +61,8 @@ defmodule AshPlatformWeb.Components.Shell do
               <.link
                 :for={target <- @app_targets}
                 :if={target.app_id != @route_spec.app_id}
-                patch={target.path}
+                patch={link_path(@navigation, :patch, target.path)}
+                navigate={link_path(@navigation, :navigate, target.path)}
               >
                 {target.label}
               </.link>
@@ -112,7 +114,8 @@ defmodule AshPlatformWeb.Components.Shell do
             <div class="account-menu__content shell-popover">
               <.link
                 :if={@account_control.profile_path}
-                patch={@account_control.profile_path}
+                patch={link_path(@navigation, :patch, @account_control.profile_path)}
+                navigate={link_path(@navigation, :navigate, @account_control.profile_path)}
                 class="account-menu__row"
                 data-account-menu-item="profile"
               >
@@ -120,7 +123,8 @@ defmodule AshPlatformWeb.Components.Shell do
                 <span>Profile</span>
               </.link>
               <.link
-                patch={@account_control.settings_path}
+                patch={link_path(@navigation, :patch, @account_control.settings_path)}
+                navigate={link_path(@navigation, :navigate, @account_control.settings_path)}
                 class="account-menu__row"
                 data-account-menu-item="settings"
               >
@@ -198,6 +202,7 @@ defmodule AshPlatformWeb.Components.Shell do
               route_spec={@route_spec}
               account_control={@account_control}
               presentation={@presentation}
+              navigation={@navigation}
             />
           </li>
         </ul>
@@ -229,13 +234,15 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:presentation, :atom, required: true)
+  attr(:navigation, :atom, required: true)
 
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
     assigns = assign(assigns, :target, target)
 
     ~H"""
     <.link
-      patch={@target.path}
+      patch={link_path(@navigation, :patch, @target.path)}
+      navigate={link_path(@navigation, :navigate, @target.path)}
       aria-current={if @route_spec.destination == @target.path, do: "page"}
     >
       {@target.label}
@@ -249,7 +256,8 @@ defmodule AshPlatformWeb.Components.Shell do
     ~H"""
     <div data-tree={@target.tree_slug}>
       <.link
-        patch={@target.path}
+        patch={link_path(@navigation, :patch, @target.path)}
+        navigate={link_path(@navigation, :navigate, @target.path)}
         aria-current={if @route_spec.destination == @target.path, do: "page"}
       >
         {@target.label}
@@ -257,7 +265,8 @@ defmodule AshPlatformWeb.Components.Shell do
       <span role="group" aria-label={"#{@target.label} presentation"}>
         <.link
           :for={presentation <- @target.presentations}
-          patch={@target.path}
+          patch={link_path(@navigation, :patch, @target.path)}
+          navigate={link_path(@navigation, :navigate, @target.path)}
           data-tree-presentation={presentation}
           data-tree-path={@target.path}
           aria-label={"#{@target.label} #{presentation}"}
@@ -276,7 +285,11 @@ defmodule AshPlatformWeb.Components.Shell do
     assigns = assign(assigns, :target, target)
 
     ~H"""
-    <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
+    <.link
+      :if={@account_control.profile_path}
+      patch={link_path(@navigation, :patch, @account_control.profile_path)}
+      navigate={link_path(@navigation, :navigate, @account_control.profile_path)}
+    >
       {@target.label}
     </.link>
     """
@@ -286,6 +299,9 @@ defmodule AshPlatformWeb.Components.Shell do
     do: is_binary(path) and path != ""
 
   defp visible_sidebar_target?(_target, _account_control), do: true
+
+  defp link_path(mode, mode, path), do: path
+  defp link_path(_navigation, _kind, _path), do: nil
 
   attr(:name, :atom, required: true)
 

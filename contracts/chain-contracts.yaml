@@ -3,7 +3,7 @@ product: ash-platform
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 8b56a9ffd4d864990d67a2c89c391fcec0fcb62a6a13b7ab4f3c4c932dafbb05
+    evidence_sha256: 601ce2c0545a7bd7cf10f38131cc73c132c0b54522d00751868085b0c4e30189
     chain_target: base-mainnet
     authority: evidence_only
     autolaunch_consumer_freeze:
@@ -73,7 +73,8 @@ contracts:
           - id: supports_interface
             signature: supportsInterface(bytes4)
             selector: "0x01ffc9a7"
-        signer: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
+        signer: selected_privy_wallet
+        onchain_owner: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
         value: "0"
         total_supply: 1998
         erc4906_interface_id: "0x49064906"

@@ -69,7 +69,9 @@ export const RegentsClubMetadataWallet: Hook = {
             attempt_id: attempt.attemptId,
           })
         })
-        .catch(() => this.pushEvent("regents_club_metadata_browser_refused", {}))
+        .catch(() => {
+          if (state.alive) this.pushEvent("regents_club_metadata_browser_refused", {})
+        })
     }
 
     this.el.addEventListener("click", state.click)
@@ -84,11 +86,15 @@ export const RegentsClubMetadataWallet: Hook = {
       if (typeof id !== "string" || !envelope) return
       const attempt = state.attempts.get(id)
       if (!attempt) return
-      state.attempts.delete(id)
 
       void executePreparedMetadataAction(attempt, envelope)
-        .then(hash => this.pushEvent("regents_club_metadata_submitted", {attempt_id: id, hash}))
+        .then(hash => {
+          state.attempts.delete(id)
+          if (state.alive) this.pushEvent("regents_club_metadata_submitted", {attempt_id: id, hash})
+        })
         .catch(error => {
+          state.attempts.delete(id)
+          if (!state.alive) return
           const kind = error instanceof MetadataExecutionFailure ? error.kind : "refused"
           this.pushEvent(`regents_club_metadata_${kind}`, {attempt_id: id})
         })

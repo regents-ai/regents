@@ -6,7 +6,6 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
   alias AshPlatform.Actors.System
   alias AshPlatform.RegentsClub
   alias AshPlatform.RegentsClub.Actions
-  alias AshPlatform.RegentsClub.MediaDecoder
 
   @owner "0x45C9a201e2937608905fEF17De9A67f25F9f98E0"
   @other "0x1111111111111111111111111111111111111111"
@@ -113,12 +112,9 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       :regents_club_chain_client,
       :test_regents_club_chain_responses,
       :regents_club_privy_origin_canary,
-      :regents_club_media_full_corpus_attestation,
       :regents_club_media_probe_module,
       :regents_club_media_http_client,
       :regents_club_media_manifest_module,
-      :regents_club_media_executable_finder,
-      :regents_club_media_temp_cleanup,
       :test_regents_club_media_handler,
       :wallet_action_clock,
       :privy,
@@ -138,12 +134,6 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     Application.put_env(:ash_platform, :privy, app_id: "public-test-id")
     Application.put_env(:ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier)
     Application.put_env(:ash_platform, :regents_club_privy_origin_canary, true)
-
-    Application.put_env(
-      :ash_platform,
-      :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["release_manifest_sha256"]
-    )
 
     Application.put_env(
       :ash_platform,
@@ -213,10 +203,40 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert Actions.prepare(@owner, @attempt, lease) == {:error, :session_unavailable}
   end
 
+  test "network and media checks complete before the final session transaction" do
+    account = account!("transaction-boundary", [@other])
+    test_pid = self()
+
+    record = fn check ->
+      send(test_pid, {:external_check, check, AshPlatform.Repo.in_transaction?()})
+    end
+
+    Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
+      media_readiness: fn ->
+        record.(:media)
+        :ok
+      end,
+      status: fn ->
+        record.(:status)
+        {:ok, %{state: :ready, base_uri: RegentsClub.old_base_uri()}}
+      end,
+      prepare: fn ->
+        record.(:prepare)
+        {:ok, preflight()}
+      end
+    })
+
+    assert {:ok, _envelope} = Actions.prepare(@selected, @attempt, current_lease(account.id))
+
+    for check <- [:media, :status, :prepare] do
+      assert_receive {:external_check, ^check, false}
+    end
+  end
+
   test "deployment readiness checks public bootstrap, verifier capability, and Base identity" do
     account = account!("readiness", [@owner])
     lease = current_lease(account.id)
-    assert Actions.deployment_readiness(lease) == :ok
+    assert {:ok, %{state: :ready}} = Actions.deployment_readiness(lease)
 
     Application.put_env(:ash_platform, :privy, app_id: "")
     assert Actions.deployment_readiness(lease) == {:error, :privy_unavailable}
@@ -224,7 +244,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     Application.put_env(:ash_platform, :privy, app_id: "public-test-id")
 
     Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
-      readiness: {:error, :wrong_chain}
+      status: {:error, :wrong_chain}
     })
 
     assert Actions.deployment_readiness(lease) == {:error, :wrong_chain}
@@ -236,29 +256,14 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
              {:error, :privy_origin_canary_required}
   end
 
-  test "deployment readiness accepts any current human lease and revalidates exact media attestations" do
+  test "deployment readiness accepts any current human lease and revalidates runtime probes" do
     account = account!("readiness-human", [@other])
     lease = current_lease(account.id)
-    assert Actions.deployment_readiness(lease) == :ok
+    assert {:ok, %{state: :ready}} = Actions.deployment_readiness(lease)
     assert is_binary(SessionAuthority.revoke(%{lineage: lease.lineage, generation: 1}))
     assert Actions.deployment_readiness(lease) == {:error, :session_unavailable}
 
     current = current_lease(account.id)
-
-    Application.put_env(
-      :ash_platform,
-      :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["artifact_manifest_sha256"]
-    )
-
-    assert Actions.deployment_readiness(current) ==
-             {:error, :media_full_corpus_attestation_required}
-
-    Application.put_env(
-      :ash_platform,
-      :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["release_manifest_sha256"]
-    )
 
     Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
       media_readiness: {:error, :media_probe_failed}
@@ -272,24 +277,34 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert Actions.deployment_readiness(current) == {:error, :privy_verifier_unavailable}
   end
 
-  test "live media readiness validates the complete 1,998-token release and representative bytes" do
+  test "runtime checks only three representative media rows; release verification checks all rows" do
     use_live_media_handler(:ok)
     account = account!("media-complete", [@owner])
 
-    assert Actions.deployment_readiness(current_lease(account.id)) == :ok
+    assert {:ok, %{state: :ready}} = Actions.deployment_readiness(current_lease(account.id))
 
     requests = collect_media_requests([])
-    metadata_paths = request_paths(requests, ~r/\A\/metadata\/[1-9][0-9]*\z/)
+
+    metadata_paths =
+      request_paths(requests, ~r/\A\/metadata\/regents-club\/[1-9][0-9]*\.json\z/)
+
     png_paths = request_paths(requests, ~r/\A\/images\/animata\/cards\/[1-9][0-9]*\.png\z/)
     mp4_paths = request_paths(requests, ~r/\A\/videos\/regents-club\/[1-9][0-9]*-v1\.mp4\z/)
 
     assert Enum.count(requests, &match?({:get, "/healthz", _options}, &1)) == 1
-    assert MapSet.new(metadata_paths) == expected_metadata_paths()
-    assert length(metadata_paths) == 1_998
-    assert MapSet.size(MapSet.new(png_paths)) == 1_998
-    assert length(png_paths) == 2_001
-    assert MapSet.size(MapSet.new(mp4_paths)) == 1_998
-    assert length(mp4_paths) == 2_001
+    assert MapSet.new(metadata_paths) == representative_metadata_paths()
+    assert length(metadata_paths) == 3
+    assert length(png_paths) == 3
+    assert length(mp4_paths) == 3
+
+    assert :ok =
+             Mix.Tasks.AshPlatform.VerifyChainManifest.verify_media_release(
+               MediaHttpClient,
+               elem(MediaFixtures.release_manifest(), 1)
+             )
+
+    release_requests = collect_media_requests([])
+    assert length(release_requests) == 1 + 1_998 * 3
   end
 
   test "packaged release manifest has the exact approved bytes and contiguous mappings" do
@@ -336,39 +351,6 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert :error == RegentsClub.parse_release_manifest(String.trim_trailing(contents))
   end
 
-  test "production decoder accepts genuine media and rejects corrupt payload, container, sample, and codec" do
-    assert MediaDecoder.validate(:png, MediaFixtures.png())
-    assert MediaDecoder.validate(:mp4, MediaFixtures.mp4())
-
-    refute MediaDecoder.validate(:png, corrupt_png_payload(MediaFixtures.png()))
-    refute MediaDecoder.validate(:mp4, structural_mp4())
-    refute MediaDecoder.validate(:mp4, corrupt_mp4_sample(MediaFixtures.mp4()))
-
-    bad_codec = :binary.replace(MediaFixtures.mp4(), "avc1", "zzzz", [:global])
-    refute MediaDecoder.validate(:mp4, bad_codec)
-  end
-
-  test "production decoder fails closed on missing tools, timeout, command failure, excess output, and cleanup failure" do
-    Application.put_env(:ash_platform, :regents_club_media_executable_finder, fn _name -> nil end)
-    refute MediaDecoder.validate(:png, MediaFixtures.png())
-    Application.delete_env(:ash_platform, :regents_club_media_executable_finder)
-
-    sleep = Elixir.System.find_executable("sleep") || flunk("sleep executable unavailable")
-    failing = Elixir.System.find_executable("false") || flunk("false executable unavailable")
-    noisy = Elixir.System.find_executable("yes") || flunk("yes executable unavailable")
-
-    assert :error == MediaDecoder.test_run_bounded(sleep, ["1"], 10, 1_024)
-    assert :error == MediaDecoder.test_run_bounded(failing, [], 1_000, 1_024)
-    assert :error == MediaDecoder.test_run_bounded(noisy, [], 1_000, 128)
-
-    Application.put_env(:ash_platform, :regents_club_media_temp_cleanup, fn directory ->
-      {:ok, _removed} = File.rm_rf(directory)
-      {:error, directory, :eacces}
-    end)
-
-    refute MediaDecoder.validate(:png, MediaFixtures.png())
-  end
-
   test "live media readiness refuses crossed same-token asset URLs" do
     use_live_media_handler(:crossed_urls)
     account = account!("media-crossed", [@owner])
@@ -387,25 +369,32 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     end
   end
 
-  test "live media readiness refuses a broken middle token, wrong asset size, and partial manifest" do
+  test "release verification refuses a broken middle token, wrong asset size, and partial manifest" do
     use_live_media_handler(:broken_middle)
-    account = account!("media-partial", [@owner])
-    lease = current_lease(account.id)
+    release_manifest = elem(MediaFixtures.release_manifest(), 1)
 
-    assert Actions.deployment_readiness(lease) ==
-             {:error, :media_probe_failed}
+    assert {:error, _reason} =
+             Mix.Tasks.AshPlatform.VerifyChainManifest.verify_media_release(
+               MediaHttpClient,
+               release_manifest
+             )
 
     use_live_media_handler(:wrong_asset_size)
-    assert Actions.deployment_readiness(lease) == {:error, :media_probe_failed}
 
-    Application.put_env(
-      :ash_platform,
-      :regents_club_media_manifest_module,
-      PartialMediaFixtures
-    )
+    assert {:error, _reason} =
+             Mix.Tasks.AshPlatform.VerifyChainManifest.verify_media_release(
+               MediaHttpClient,
+               release_manifest
+             )
 
     use_live_media_handler(:ok)
-    assert Actions.deployment_readiness(lease) == {:error, :media_probe_failed}
+    assert {:ok, partial} = PartialMediaFixtures.release_manifest()
+
+    assert {:error, :invalid_media_release} =
+             Mix.Tasks.AshPlatform.VerifyChainManifest.verify_media_release(
+               MediaHttpClient,
+               partial
+             )
   end
 
   test "a signed envelope is not prepared when any authoritative preflight invariant drifts" do
@@ -442,6 +431,24 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     )
   end
 
+  defp preflight do
+    %{
+      anchor: %{number: 42, hash: "0x" <> String.duplicate("42", 32)},
+      owner: RegentsClub.owner(),
+      base_uri: RegentsClub.old_base_uri(),
+      token_uris: %{
+        first: RegentsClub.old_base_uri() <> "1",
+        last: RegentsClub.old_base_uri() <> "1998"
+      },
+      total_supply: 1998,
+      erc4906_supported: true,
+      owner_simulation: "success",
+      non_owner_simulation: "revert",
+      runtime_keccak256: RegentsClub.runtime_keccak256(),
+      gas_estimate: 81_189
+    }
+  end
+
   defp use_live_media_handler(mode) do
     recipient = self()
     Application.delete_env(:ash_platform, :regents_club_media_probe_module)
@@ -471,16 +478,18 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     for {:get, path, _options} <- requests, Regex.match?(pattern, path), do: path
   end
 
-  defp expected_metadata_paths do
-    1..1998
-    |> Enum.map(&"/metadata/#{&1}")
+  defp representative_metadata_paths do
+    [1, 1000, 1998]
+    |> Enum.map(&"/metadata/regents-club/#{&1}.json")
     |> MapSet.new()
   end
 
   defp media_response(:get, "/healthz", _options, _mode),
     do: {:ok, %{status: 200, headers: [], body: "ok"}}
 
-  defp media_response(:get, "/metadata/" <> encoded, _options, mode) do
+  defp media_response(:get, "/metadata/regents-club/" <> encoded, _options, mode) do
+    encoded = String.trim_trailing(encoded, ".json")
+
     with {token_id, ""} <- Integer.parse(encoded),
          true <- token_id in 1..1998,
          false <- mode == :broken_middle and token_id == 1001 do
@@ -579,38 +588,6 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
       _ -> false
     end)
   end
-
-  defp corrupt_png_payload(png) do
-    {type_offset, 4} = :binary.match(png, "IDAT")
-    <<length::32>> = binary_part(png, type_offset - 4, 4)
-    data_offset = type_offset + 4
-    tail_offset = data_offset + length + 4
-    prefix = binary_part(png, 0, data_offset)
-    tail = binary_part(png, tail_offset, byte_size(png) - tail_offset)
-    corrupt_data = :binary.copy(<<0>>, length)
-
-    prefix <>
-      corrupt_data <>
-      <<:erlang.crc32("IDAT" <> corrupt_data)::32>> <>
-      tail
-  end
-
-  defp corrupt_mp4_sample(mp4) do
-    {type_offset, 4} = :binary.match(mp4, "mdat")
-    <<box_size::32>> = binary_part(mp4, type_offset - 4, 4)
-    data_offset = type_offset + 4
-    data_size = box_size - 8
-    tail_offset = data_offset + data_size
-    prefix = binary_part(mp4, 0, data_offset)
-    tail = binary_part(mp4, tail_offset, byte_size(mp4) - tail_offset)
-    prefix <> :binary.copy(<<0>>, data_size) <> tail
-  end
-
-  defp structural_mp4,
-    do: mp4_box("ftyp", "isom") <> mp4_box("moov", "x") <> mp4_box("mdat", "x")
-
-  defp mp4_box(type, data),
-    do: <<byte_size(data) + 8::32, type::binary-size(4), data::binary>>
 
   defp sha256(contents),
     do: :sha256 |> :crypto.hash(contents) |> Base.encode16(case: :lower)

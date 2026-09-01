@@ -19,7 +19,6 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       :regents_club_chain_client,
       :test_regents_club_chain_responses,
       :regents_club_privy_origin_canary,
-      :regents_club_media_full_corpus_attestation,
       :regents_club_media_probe_module,
       :wallet_action_clock,
       :privy,
@@ -38,12 +37,6 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     Application.put_env(:ash_platform, :privy, app_id: "public-test-id")
     Application.put_env(:ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier)
     Application.put_env(:ash_platform, :regents_club_privy_origin_canary, true)
-
-    Application.put_env(
-      :ash_platform,
-      :regents_club_media_full_corpus_attestation,
-      RegentsClub.media_release_attestation()["release_manifest_sha256"]
-    )
 
     Application.put_env(
       :ash_platform,
@@ -88,13 +81,13 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       "attempt_id" => @attempt
     })
 
-    review = render(view)
+    review = render_async(view)
     assert review =~ "Confirm the exact reviewed transaction"
     assert review =~ RegentsClub.calldata_keccak256()
     assert review =~ "No prepared rollback exists"
     refute_push_event(view, "regents-club-metadata:prepared", _payload)
 
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
 
     assert_push_event(view, "regents-club-metadata:prepared", %{
       attempt_id: @attempt,
@@ -128,8 +121,18 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
         "attempt_id" => attempt_id
       })
 
-      assert render(view) =~ "Confirm the exact reviewed transaction"
-      render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => attempt_id})
+      assert render_async(view) =~ "Confirm the exact reviewed transaction"
+    end
+
+    assert has_element?(view, "[data-attempt-id='#{@attempt}'][data-attempt-phase='review']")
+
+    assert has_element?(
+             view,
+             "[data-attempt-id='#{@second_attempt}'][data-attempt-phase='review']"
+           )
+
+    for attempt_id <- [@attempt, @second_attempt] do
+      confirm_attempt(view, attempt_id)
 
       assert_push_event(view, "regents-club-metadata:prepared", %{
         attempt_id: ^attempt_id,
@@ -139,7 +142,12 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       assert envelope.arguments.attempt_id == attempt_id
     end
 
-    assert render(view) =~ "Review another independent attempt"
+    assert has_element?(view, "[data-attempt-id='#{@attempt}'][data-attempt-phase='handed_off']")
+
+    assert has_element?(
+             view,
+             "[data-attempt-id='#{@second_attempt}'][data-attempt-phase='handed_off']"
+           )
   end
 
   test "confirmation replaces the reviewed envelope with a freshly revalidated anchor", %{
@@ -165,8 +173,9 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       "attempt_id" => @attempt
     })
 
-    assert render(view) =~ "41 <code>"
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    render_async(view)
+    assert has_element?(view, "[aria-label='Founder transaction review'][data-anchor-block='41']")
+    confirm_attempt(view, @attempt)
 
     assert_push_event(view, "regents-club-metadata:prepared", %{
       attempt_id: @attempt,
@@ -203,7 +212,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       prepare_review(view, @attempt)
       drift.()
 
-      render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+      confirm_attempt(view, @attempt)
       assert_push_event(view, "regents-club-metadata:refused", %{attempt_id: @attempt})
       refute_push_event(view, "regents-club-metadata:prepared", _payload)
       assert render(view) =~ "Nothing was sent"
@@ -219,7 +228,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
 
     assert {:ok, _lapsed} = Accounts.refresh_verified(account, nil, [], actor: %System{})
 
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
     assert has_element?(view, "#account-control [data-account-target=sign-in]")
     refute_push_event(view, "regents-club-metadata:prepared", _payload)
 
@@ -230,7 +239,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     prepare_review(second_view, @second_attempt)
 
     assert SessionAuthority.revoke(second_conn |> get_session() |> SessionAuthority.claim())
-    render_hook(second_view, "confirm_regents_club_metadata", %{"attempt_id" => @second_attempt})
+    confirm_attempt(second_view, @second_attempt)
     assert has_element?(second_view, "#account-control [data-account-target=sign-in]")
     refute_push_event(second_view, "regents-club-metadata:prepared", _payload)
   end
@@ -242,12 +251,11 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     prepare_review(view, @attempt)
 
     render_hook(view, "regents_club_metadata_active_wallet", %{"address" => @other})
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
 
     assert_push_event(view, "regents-club-metadata:refused", %{attempt_id: @attempt})
     refute_push_event(view, "regents-club-metadata:prepared", _payload)
-    assert render(view) =~ "selected Privy wallet changed after review"
-    assert render(view) =~ "Nothing was sent"
+    assert render(view) =~ "selected Privy wallet changed"
   end
 
   test "finality observation continues beyond forty polls and never reopens a send", %{conn: conn} do
@@ -259,7 +267,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     {:ok, view, _html} = mount(conn, account)
     render_async(view)
     prepare_review(view, @attempt)
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
     assert_push_event(view, "regents-club-metadata:prepared", _payload)
 
     render_hook(view, "regents_club_metadata_submitted", %{
@@ -275,7 +283,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     end
 
     refute render(view) =~ "Manual founder review is required"
-    assert render(view) =~ "Review another independent attempt"
+    assert has_element?(view, "[data-attempt-id='#{@attempt}'][data-attempt-phase='observing']")
     refute_push_event(view, "regents-club-metadata:prepared", _payload)
 
     Application.delete_env(:ash_platform, :test_regents_club_chain_responses)
@@ -291,7 +299,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     {:ok, view, _html} = mount(conn, account)
     render_async(view)
     prepare_review(view, @attempt)
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
     assert_push_event(view, "regents-club-metadata:prepared", _payload)
 
     Application.put_env(:ash_platform, :wallet_action_clock, fn ->
@@ -313,7 +321,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     render_async(view)
     prepare_review(view, @attempt)
 
-    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => @attempt})
+    confirm_attempt(view, @attempt)
     assert_push_event(view, "regents-club-metadata:prepared", _payload)
     render_hook(view, "regents_club_metadata_submission_unknown", %{"attempt_id" => @attempt})
     assert render_async(view) =~ "Manual founder review is required"
@@ -331,7 +339,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
 
     account = account!("selected-changed", [@other])
     {:ok, view, _html} = mount(conn, account)
-    assert render_async(view) =~ "has no exact finalized transaction evidence"
+    assert render_async(view) =~ "changed without exact finalized transaction evidence"
     refute render(view) =~ "Review with selected wallet"
     assert RegentsClub.enabled?()
   end
@@ -350,7 +358,12 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
       "attempt_id" => attempt_id
     })
 
-    assert render(view) =~ "Confirm the exact reviewed transaction"
+    assert render_async(view) =~ "Confirm the exact reviewed transaction"
+  end
+
+  defp confirm_attempt(view, attempt_id) do
+    render_hook(view, "confirm_regents_club_metadata", %{"attempt_id" => attempt_id})
+    render_async(view)
   end
 
   defp preflight(anchor) do

@@ -249,8 +249,9 @@ defmodule AshPlatformWeb.RouteCatalog do
       {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}},
     regents_club_metadata:
-      {:regents_club_metadata, :regent_ops, "Regents Labs", "Regents Club Metadata", "/app",
-       [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}}
+      {:regents_club_metadata, :regent_ops, "Regents Labs", "Regents Club Metadata",
+       "/regents-club/metadata-cutover", [:wallet_status, :network_status, :profile_actions],
+       :none, :regents_labs, :workflow, %{}}
   }
 
   def entries, do: @entries

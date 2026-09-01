@@ -37,10 +37,6 @@ config :ash_platform,
        :regents_club_privy_origin_canary,
        System.get_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY") == "passed"
 
-config :ash_platform,
-       :regents_club_media_full_corpus_attestation,
-       System.get_env("ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256")
-
 Logger.info(
   "Regents Club metadata cutover #{if regents_club_metadata_cutover?, do: "enabled", else: "disabled"}"
 )
@@ -51,10 +47,6 @@ Logger.info(
 if config_env() == :test and System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
   config :ash_platform, :regents_club_metadata_cutover, true
   config :ash_platform, :regents_club_privy_origin_canary, true
-
-  config :ash_platform,
-         :regents_club_media_full_corpus_attestation,
-         "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
 
   config :ash_platform,
          :regents_club_chain_client,
