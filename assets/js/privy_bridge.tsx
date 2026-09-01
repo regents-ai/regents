@@ -71,17 +71,24 @@ export function createAccountRequestHandler({
 // Both refusals carry the same message. This type is never exported, so only a
 // sign in inside this module can tell the one refusal the server marked as
 // recoverable apart from every other one, which stays generic and final.
-class StaleProviderSessionError extends Error {
+class ServerReportedSessionError extends Error {
   constructor() {
     super("Sign in could not be completed.")
   }
 }
 
+class StaleProviderSessionError extends ServerReportedSessionError {
+  constructor() {
+    super()
+  }
+}
+
 function refusal(response: Response): Error {
-  return response.status === 401 &&
-    response.headers.get("x-ash-provider-relogin") === "allowed"
+  if (response.status !== 401) return new Error("Sign in could not be completed.")
+
+  return response.headers.get("x-ash-provider-relogin") === "allowed"
     ? new StaleProviderSessionError()
-    : new Error("Sign in could not be completed.")
+    : new ServerReportedSessionError()
 }
 
 type SignInRequestOptions = {
@@ -121,7 +128,11 @@ export function createSignInRequest({
         await completeLogin()
       } catch (refused) {
         if (!(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
-          throw new AccountAuthFailure("session", "session_exchange")
+          throw new AccountAuthFailure(
+            "session",
+            "session_exchange",
+            refused instanceof ServerReportedSessionError,
+          )
         }
 
         recoveryAvailable.current = false

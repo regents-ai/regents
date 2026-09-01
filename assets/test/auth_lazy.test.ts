@@ -135,7 +135,7 @@ describe("lazy browser authentication", () => {
     expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "provider_error")
   })
 
-  it("does not duplicate the session diagnostic owned by the rejecting server endpoint", async () => {
+  it("reports a client-owned session diagnostic that never reached a rejecting endpoint", async () => {
     vi.stubGlobal("document", {
       querySelector: (selector: string) =>
         selector === "meta[name='csrf-token']" ? {content: "csrf-safe"} : null,
@@ -145,7 +145,35 @@ describe("lazy browser authentication", () => {
 
     reportSignInFailure("session_exchange", fetcher)
 
-    await Promise.resolve()
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
+    expect(fetcher).toHaveBeenCalledWith(
+      "/auth/privy/failure",
+      expect.objectContaining({
+        method: "POST",
+        keepalive: true,
+        body: JSON.stringify({reason: "session_exchange"}),
+      }),
+    )
+    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "session_exchange")
+  })
+
+  it("does not duplicate a session diagnostic already emitted by the rejecting endpoint", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const fetcher = vi.fn(async () => new Response(null, {status: 204}))
+    vi.stubGlobal("fetch", fetcher)
+    const page = accountDocument()
+
+    installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: vi.fn(async () => ({
+        request: () =>
+          Promise.reject(new AccountAuthFailure("session", "session_exchange", true)),
+      })),
+    }))
+
+    page.click("sign-in")
+
+    await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(fetcher).not.toHaveBeenCalled()
     expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "session_exchange")
   })

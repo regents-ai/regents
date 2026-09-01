@@ -16,6 +16,7 @@ export class AccountAuthFailure extends Error {
   constructor(
     readonly kind: SignInFailureKind,
     readonly diagnostic: SignInFailureDiagnostic,
+    readonly diagnosticReported = false,
   ) {
     super("Sign in could not be completed.")
   }
@@ -469,11 +470,6 @@ export function reportSignInFailure(
 ): void {
   console.warn("Regent Privy sign-in failure", failure)
 
-  // The session endpoint records this category before returning its rejecting
-  // response. Waiting for a post-rotation CSRF adoption here would make the
-  // diagnostic vulnerable to the immediate reload the terminal UI recommends.
-  if (failure === "session_exchange") return
-
   void (async () => {
     if (!csrfStateIsCurrent()) await adoptUnreadRenewal(fetcher)
     if (!csrfStateIsCurrent()) return
@@ -784,7 +780,13 @@ export function installAccountAuthLazyLoader(
   const showLoadFailure = (request: AccountRequest, error: unknown) => {
     const classified = error instanceof AccountAuthFailure ? error : null
     if (request === "sign-in") {
-      reportSignInFailure(classified?.diagnostic ?? "bridge_startup")
+      const diagnostic = classified?.diagnostic ?? "bridge_startup"
+
+      if (classified?.diagnosticReported) {
+        console.warn("Regent Privy sign-in failure", diagnostic)
+      } else {
+        reportSignInFailure(diagnostic)
+      }
     }
     showAccountAuthFailure(request, documentRoot, classified?.kind ?? "startup")
   }

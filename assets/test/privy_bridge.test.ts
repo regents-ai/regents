@@ -724,7 +724,10 @@ describe("Privy session bridge", () => {
       const refused = signInScenario({answer: () => answer})
       if (answer === "marked") refused.recoveryAvailable.current = false
 
-      await expect(refused.request.signIn()).rejects.toThrow("Sign in could not be completed.")
+      await expect(refused.request.signIn()).rejects.toMatchObject({
+        message: "Sign in could not be completed.",
+        diagnosticReported: true,
+      })
 
       expect(refused.order).toEqual(["csrf", "post Bearer stale"])
       expect(refused.providerLogout).not.toHaveBeenCalled()
@@ -808,7 +811,10 @@ describe("Privy session bridge", () => {
       },
     })
 
-    await expect(stuck.request.signIn()).rejects.toThrow("Sign in could not be completed.")
+    await expect(stuck.request.signIn()).rejects.toMatchObject({
+      message: "Sign in could not be completed.",
+      diagnosticReported: false,
+    })
 
     expect(stuck.openLogin).not.toHaveBeenCalled()
     expect(stuck.recoveryAvailable.current).toBe(false)

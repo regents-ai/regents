@@ -181,6 +181,32 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     refute_receive {:session_failure, _, _, _}
   end
 
+  test "SESSION_FAILURE_DIAGNOSTIC: repeated rejected sessions share the actionable bound" do
+    ClaimRateLimiter.reset()
+    on_exit(&ClaimRateLimiter.reset/0)
+    handler = "bounded-session-failure-#{Elixir.System.unique_integer([:positive])}"
+    parent = self()
+
+    :telemetry.attach(
+      handler,
+      @browser_failure_event,
+      fn _event, _measurements, %{reason: "session_exchange"}, _config ->
+        send(parent, :bounded_session_failure)
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    replay = browser() |> put_privy_pair("unverifiable")
+
+    responses = for _attempt <- 1..21, do: post(replay, "/auth/privy/session", %{})
+
+    assert Enum.all?(responses, &(&1.status == 401))
+    for _event <- 1..20, do: assert_receive(:bounded_session_failure)
+    refute_receive :bounded_session_failure
+  end
+
   test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
     conn: conn
   } do

@@ -47,16 +47,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   reports because diagnostics must never become part of the sign-in control flow.
   """
   def failure(conn, %{"reason" => reason}) when reason in @browser_failure_reasons do
-    {key, _source} = client_key(conn)
-
-    if ClaimRateLimiter.admit(
-         {:privy_browser_failure, browser_failure_bucket(reason), key},
-         @browser_failure_limit,
-         @browser_failure_window_seconds
-       ) == :ok do
-      report_sign_in_failure(reason)
-    end
-
+    report_bounded_sign_in_failure(conn, reason)
     diagnostic_accepted(conn)
   end
 
@@ -163,6 +154,18 @@ defmodule AshPlatformWeb.PrivySessionController do
   defp browser_failure_bucket("flow_closed"), do: :retryable
   defp browser_failure_bucket(_actionable_reason), do: :actionable
 
+  defp report_bounded_sign_in_failure(conn, reason) do
+    {key, _source} = client_key(conn)
+
+    if ClaimRateLimiter.admit(
+         {:privy_browser_failure, browser_failure_bucket(reason), key},
+         @browser_failure_limit,
+         @browser_failure_window_seconds
+       ) == :ok do
+      report_sign_in_failure(reason)
+    end
+  end
+
   # Fly terminates the connection, so the peer is the proxy and the client
   # address arrives in one header the proxy sets itself. Anything but exactly one
   # parseable value keys the proxy-wide peer bucket rather than a second header a
@@ -237,7 +240,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   # The refused pair is never interpolated, inspected or answered differently.
   defp refuse(conn, stage, reason) do
     Logger.debug("Privy session rejected stage=#{stage} reason=#{reason}")
-    report_sign_in_failure("session_exchange")
+    report_bounded_sign_in_failure(conn, "session_exchange")
     conn |> mark_recoverable(stage, reason) |> unauthorized()
   end
 
