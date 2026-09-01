@@ -1,3 +1,4 @@
+app = "regents-staging"
 primary_region = "iad"
 
 [build]
@@ -8,7 +9,7 @@ primary_region = "iad"
 
 [env]
   PORT = "4000"
-  ASH_PLATFORM_DEPLOYMENT_ROLE = "production"
+  ASH_PLATFORM_DEPLOYMENT_ROLE = "staging"
 
 [metrics]
   port = 4000

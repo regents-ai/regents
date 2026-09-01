@@ -5,6 +5,7 @@ defmodule AshPlatform.ReleasePackageTest do
   @dockerfile Path.join(@package_root, "Dockerfile")
   @dockerignore Path.join(@package_root, "Dockerfile.dockerignore")
   @fly_template Path.join(@package_root, "fly.toml")
+  @fly_staging_template Path.join(@package_root, "fly.staging.toml")
   @context_script Path.join(@package_root, "scripts/build-release-context.sh")
   @release_commands ~w(migrate bootstrap-staging pending-migrations)
 
@@ -12,6 +13,7 @@ defmodule AshPlatform.ReleasePackageTest do
     assert File.regular?(@dockerfile)
     assert File.regular?(@dockerignore)
     assert File.regular?(@fly_template)
+    assert File.regular?(@fly_staging_template)
     assert File.regular?(@context_script)
     assert File.stat!(@context_script).mode |> Bitwise.band(0o100) != 0
   end
