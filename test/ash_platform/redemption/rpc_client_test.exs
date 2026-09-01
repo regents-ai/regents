@@ -25,6 +25,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert snapshot.wallet_address == @wallet
     assert snapshot.nft_owner == @wallet
     assert snapshot.usdc_allowance_raw == "80000000"
+    assert snapshot.max_source_token_id == 999
+    assert snapshot.animata_i_held_by_redeemer == 12
+    assert snapshot.animata_ii_held_by_redeemer == 12
+    assert snapshot.regents_club_ready == 12
     assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
 
     assert Enum.uniq(Stub.call_blocks()) == [
@@ -80,7 +84,16 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     )
   end
 
-  defp call(data, state), do: selector(String.slice(data, 0, 10), state)
+  defp call(data, state) do
+    if String.starts_with?(data, "0x70a08231") do
+      if String.ends_with?(data, Stub.address_word(RedemptionAbi.redeemer_address())),
+        do: Stub.uint(Map.get(state, :collection_balance, 12)),
+        else: Stub.uint(Map.get(state, :usdc_balance, 100_000_000))
+    else
+      selector(String.slice(data, 0, 10), state)
+    end
+  end
+
   defp selector("0x5817e9d1", _), do: address(RedemptionAbi.animata_i_address())
   defp selector("0x65d32f1e", _), do: address(RedemptionAbi.animata_ii_address())
   defp selector("0xe54b3581", _), do: address(RedemptionAbi.result_collection_address())
@@ -91,7 +104,6 @@ defmodule AshPlatform.Redemption.RpcClientTest do
   defp selector("0xde12a91e", _), do: Stub.uint(5_000_000_000_000_000_000_000_000)
   defp selector("0x6e6941c5", _), do: Stub.uint(604_800)
   defp selector("0x17bac052", _), do: Stub.uint(999)
-  defp selector("0x70a08231", state), do: Stub.uint(Map.get(state, :usdc_balance, 100_000_000))
   defp selector("0xdd62ed3e", state), do: Stub.uint(Map.get(state, :allowance, @price))
   defp selector("0x402914f5", _), do: Stub.uint(1_000_000_000_000_000_000)
   defp selector("0x474fc417", _), do: "0x" <> String.duplicate(Stub.hex_word(1), 4)

@@ -1,39 +1,164 @@
-.redeem-page,
-.redeem-heading,
-.redeem-actions,
-.redeem-owned {
+.redeem-page {
   display: grid;
-  gap: 0.75rem;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+  min-width: 0;
 }
 
-.redeem-page {
-  gap: 1.5rem;
+.redeem-intro,
+.redeem-collections,
+.redeem-actions,
+.redeem-position,
+.redeem-owned,
+.redeem-contract-details {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--material-radius);
+  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(var(--material-blur));
+  -webkit-backdrop-filter: blur(var(--material-blur));
 }
 
 .redeem-intro {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
-  gap: clamp(1.25rem, 4vw, 3rem);
+  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.7fr);
+  gap: clamp(1.5rem, 5vw, 4rem);
   align-items: center;
-  min-width: 0;
-  padding: clamp(1rem, 3vw, 2rem);
-  border: 1px solid currentColor;
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+.redeem-intro::before {
+  position: absolute;
+  inset: -12rem auto auto -10rem;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-accent) 14%, transparent);
+  filter: blur(3.5rem);
+  content: "";
+  pointer-events: none;
+}
+
+.redeem-intro > * {
+  position: relative;
+  z-index: 1;
+}
+
+.redeem-intro-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.redeem-intro-copy > *,
+.redeem-section-heading h2,
+.redeem-actions h2,
+.redeem-actions h3,
+.redeem-position h2,
+.redeem-owned h2,
+.redeem-collection-card h3 {
+  margin: 0;
+}
+
+.redeem-intro-copy h1 {
+  max-width: 11ch;
+  font-size: clamp(2.8rem, 7vw, 6.1rem);
+  line-height: 0.88;
+  letter-spacing: -0.065em;
+}
+
+.redeem-lede {
+  max-width: 58ch;
+  color: var(--color-fg-muted);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+}
+
+.redeem-kicker,
+.redeem-collection-copy > p,
+.redeem-collection-copy dt,
+.redeem-metric-label,
+.redeem-vest-heading,
+.redeem-vest dt,
+.redeem-nft-type,
+.redeem-dialog-kicker,
+.redeem-dialog-meta dt,
+.redeem-contract-details dt {
+  font-family: var(--font-family-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.redeem-kicker,
+.redeem-auth-note,
+.redeem-collection-copy > p,
+.redeem-section-heading > p,
+.redeem-snapshot-note,
+.redeem-dialog-kicker,
+.redeem-owned-status {
+  color: var(--color-fg-muted);
+}
+
+.redeem-equation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.redeem-equation span {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--color-surface-elevated);
+  font-family: var(--font-family-mono);
+  font-size: 0.76rem;
+}
+
+.redeem-equation b {
+  color: var(--color-fg-muted);
+  font-weight: 500;
+}
+
+.redeem-intro-actions,
+.redeem-wallet-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.redeem-intro-actions a,
+.redeem-collection-card a,
+.redeem-result-dialog a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.8rem;
+  text-underline-offset: 0.22em;
+}
+
+.redeem-auth-note {
+  margin: 0;
+  font-size: 0.82rem;
 }
 
 .redeem-intro-media {
   position: relative;
-  width: min(100%, 24rem);
+  width: min(100%, 23rem);
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid currentColor;
-  background: CanvasText;
+  border: 1px solid var(--hairline-strong);
+  border-radius: calc(var(--material-radius) * 1.1);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 1.4rem 3.5rem rgb(0 0 0 / 22%);
+  transform: rotate(1.5deg);
 }
 
 .redeem-intro-video,
 .redeem-intro-poster {
   display: block;
   width: 100%;
-  height: auto;
   aspect-ratio: 2 / 3;
   object-fit: cover;
 }
@@ -42,165 +167,688 @@
   display: none;
 }
 
-.redeem-intro-copy {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.redeem-intro-copy > * {
-  margin: 0;
-}
-
-.redeem-intro-copy h1 {
-  max-width: 18ch;
-  overflow-wrap: anywhere;
-}
-
-.redeem-intro-links {
+.redeem-intro-media figcaption {
+  position: absolute;
+  inset: auto 0 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-}
-
-.redeem-intro a {
-  text-underline-offset: 0.2em;
-}
-
-.redeem-heading > *,
-.redeem-actions > *,
-.redeem-owned > * {
-  margin: 0;
-}
-
-.redeem-kicker,
-.redeem-mono {
-  font-family: ui-monospace, monospace;
-}
-
-.redeem-kicker {
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  background: linear-gradient(transparent, rgb(0 0 0 / 86%));
+  color: white;
+  font-family: var(--font-family-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.redeem-facts,
-.redeem-summary {
+.redeem-content {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 1px;
-  margin: 0;
-  border: 1px solid currentColor;
-  background: currentColor;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
 }
 
-.redeem-metric {
-  display: grid;
-  gap: 0.35rem;
-  padding: 1rem;
-  background: Canvas;
-  color: CanvasText;
-}
-
-.redeem-summary {
-  gap: 0;
-  background: transparent;
-}
-
-.redeem-summary .redeem-metric {
-  box-shadow: 1px 0 0 currentColor, 0 1px 0 currentColor;
-}
-
-.redeem-metric > * {
-  margin: 0;
-}
-
-.redeem-metric-label {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-/* An exact 18-decimal figure is one unbreakable word, so it is allowed to break
-   inside its own cell rather than run across the metric beside it. */
-.redeem-metric-value {
-  min-width: 0;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-
-.redeem-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.75fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-
+.redeem-collections,
 .redeem-actions,
+.redeem-position,
 .redeem-owned {
-  padding: 1rem;
-  border: 1px solid currentColor;
-  min-width: 0;
-}
-
-#redemption-selection {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 1.25rem;
+  padding: clamp(1rem, 3vw, 2rem);
 }
 
-#redemption-selection label {
-  align-self: end;
-}
-
-#redemption-selection select,
-#redemption-selection input {
-  min-height: 2.75rem;
-  padding: 0.5rem;
-}
-
-.redeem-button-row {
+.redeem-section-heading {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
 }
 
-.redeem-owned {
-  grid-column: 1 / -1;
+.redeem-section-heading h2 {
+  margin-top: 0.25rem;
 }
 
-.redeem-owned-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.redeem-section-heading > p {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: right;
 }
 
-.redeem-owned-list > * {
+.redeem-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.redeem-collection-card {
+  display: grid;
+  grid-template-rows: 9.5rem minmax(0, 1fr);
   min-width: 0;
-  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.redeem-collection-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-accent) 20%, transparent), transparent 60%),
+    url("/images/redeem/animata1and2-poster.jpg") center 38% / cover;
+}
+
+.redeem-collection-card[data-kind="source"]:nth-child(2) .redeem-collection-art {
+  background-position: center 72%;
+  filter: saturate(0.85) hue-rotate(18deg);
+}
+
+.redeem-collection-card[data-kind="result"] .redeem-collection-art {
+  background:
+    radial-gradient(circle at 25% 20%, color-mix(in oklch, var(--color-accent) 42%, transparent), transparent 42%),
+    linear-gradient(145deg, var(--color-surface-elevated), color-mix(in oklch, var(--color-accent) 18%, var(--color-surface-elevated)));
+}
+
+.redeem-collection-art::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 20%, rgb(0 0 0 / 55%));
+  content: "";
+}
+
+.redeem-collection-art > span {
+  position: relative;
+  z-index: 1;
+  color: white;
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  font-weight: 760;
+  letter-spacing: -0.07em;
+  text-shadow: 0 0.3rem 1rem rgb(0 0 0 / 45%);
+}
+
+.redeem-collection-copy {
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+  padding: 1rem;
+}
+
+.redeem-collection-copy > p {
+  margin: 0;
+}
+
+.redeem-collection-copy h3 {
+  font-size: 1.35rem;
+  letter-spacing: -0.025em;
+}
+
+.redeem-collection-copy dl {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.redeem-collection-copy dl > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.redeem-collection-copy dd {
+  min-width: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
-.redeem-notice,
-.redeem-status,
-.redeem-refresh-status,
-.redeem-selection-status {
-  padding: 0.75rem;
-  border-left: 3px solid currentColor;
+.redeem-collection-card a {
+  justify-self: start;
+  min-height: auto;
+  margin-top: auto;
+  font-size: 0.83rem;
 }
 
 .redeem-refresh-status {
-  grid-column: 1 / -1;
-  min-height: 4.75rem;
+  min-height: 2.6em;
   margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
 }
 
 .redeem-refresh-status[data-visible="false"] {
   visibility: hidden;
 }
 
+.redeem-layout {
+  display: grid;
+  grid-template-columns: minmax(21rem, 1.08fr) minmax(0, 0.92fr);
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+  align-items: start;
+}
+
+.redeem-signer,
+.redeem-network {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+}
+
+.redeem-signer > span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0.7rem color-mix(in oklch, var(--color-accent) 70%, transparent);
+}
+
+.redeem-connect-panel,
+.redeem-wallet-flow {
+  display: grid;
+  gap: 1rem;
+}
+
+.redeem-connect-panel > p,
+.redeem-connect-panel ul {
+  margin: 0;
+}
+
+.redeem-connect-panel > p,
+.redeem-connect-panel li {
+  color: var(--color-fg-muted);
+}
+
+.redeem-connect-panel ul {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.25rem;
+  font-size: 0.86rem;
+}
+
+.redeem-wallet-loading,
+.redeem-transaction-progress {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--color-accent) 40%, var(--hairline));
+  border-radius: var(--material-radius);
+  background: color-mix(in oklch, var(--color-accent) 8%, var(--color-surface-elevated));
+}
+
+.redeem-wallet-recovery {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.redeem-wallet-recovery p {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.redeem-wallet-recovery > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.redeem-wallet-loading p,
+.redeem-transaction-progress p {
+  margin: 0;
+}
+
+.redeem-transaction-progress[hidden] {
+  display: none;
+}
+
+.redeem-transaction-progress p {
+  margin-top: 0.15rem;
+  color: var(--color-fg-muted);
+  font-size: 0.86rem;
+}
+
+.redeem-progress-mark {
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid color-mix(in oklch, var(--color-accent) 35%, transparent);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: redeem-spin 700ms linear infinite;
+}
+
+.redeem-transaction-progress[data-phase="confirmed"] .redeem-progress-mark {
+  border: 0;
+  background: var(--color-accent);
+  animation: none;
+}
+
+.redeem-transaction-progress[data-phase="failed"] .redeem-progress-mark {
+  border: 1px solid var(--color-fg-muted);
+  background: transparent;
+  animation: none;
+}
+
+@keyframes redeem-spin {
+  to { transform: rotate(1turn); }
+}
+
+.redeem-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.redeem-stepper li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  text-align: center;
+}
+
+.redeem-stepper li::before {
+  position: absolute;
+  top: 0.9rem;
+  right: 50%;
+  left: -50%;
+  height: 1px;
+  background: var(--hairline-strong);
+  content: "";
+}
+
+.redeem-stepper li:first-child::before {
+  display: none;
+}
+
+.redeem-stepper li > span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 50%;
+  background: var(--color-surface-elevated);
+  font-family: var(--font-family-mono);
+  font-size: 0.7rem;
+}
+
+.redeem-stepper li[data-state="complete"] > span,
+.redeem-stepper li[data-state="current"] > span {
+  border-color: var(--color-accent);
+}
+
+.redeem-stepper li[data-state="complete"] > span {
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+}
+
+.redeem-stepper li[data-state="current"] > span {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent) 20%, transparent);
+}
+
+.redeem-stepper p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.7rem;
+}
+
+.redeem-stepper li[data-state="current"] p,
+.redeem-stepper li[data-state="complete"] p {
+  color: var(--color-fg);
+}
+
+#redemption-selection {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+#redemption-selection > div {
+  display: grid;
+  gap: 0.4rem;
+}
+
+#redemption-selection label {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+#redemption-selection select,
+#redemption-selection input {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.55rem 0.7rem;
+  border-color: var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.redeem-next-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid color-mix(in oklch, var(--color-accent) 45%, var(--hairline));
+  border-radius: var(--material-radius);
+  background: color-mix(in oklch, var(--color-accent) 8%, var(--color-surface-elevated));
+}
+
+.redeem-next-step > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.redeem-next-step p {
+  margin: 0;
+}
+
+.redeem-next-step > div > p:last-child {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.redeem-wallet-footer {
+  justify-content: space-between;
+}
+
+.redeem-position {
+  position: sticky;
+  top: 1rem;
+}
+
+.redeem-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+  background: var(--hairline);
+}
+
+.redeem-metric {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.9rem;
+  background: var(--color-surface-elevated);
+}
+
+.redeem-metric > * {
+  margin: 0;
+}
+
+.redeem-metric-value {
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.redeem-vest {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.redeem-vest-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.redeem-vest-heading strong {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+}
+
+.redeem-vest progress {
+  width: 100%;
+  height: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  appearance: none;
+  background: var(--color-surface-elevated);
+}
+
+.redeem-vest progress::-webkit-progress-bar { background: var(--color-surface-elevated); }
+.redeem-vest progress::-webkit-progress-value,
+.redeem-vest progress::-moz-progress-bar { border-radius: 999px; background: var(--color-accent); }
+
+.redeem-vest dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.redeem-vest dl > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.redeem-vest dd {
+  min-width: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.redeem-claim {
+  width: 100%;
+  min-height: 3rem !important;
+}
+
+.redeem-snapshot-note {
+  min-height: 1.2rem;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.redeem-owned {
+  overflow: hidden;
+}
+
+.redeem-owned-status {
+  margin: 0;
+}
+
+.redeem-owned-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.8rem;
+}
+
+.redeem-owned-more {
+  justify-self: start;
+}
+
+.redeem-nft-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(8rem, 1fr) auto auto auto;
+  gap: 0.3rem;
+  min-width: 0;
+  min-height: 15rem;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
+  text-align: left;
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(0.65rem);
+  animation: redeem-card-enter 260ms var(--ease-out) forwards;
+  animation-delay: calc(var(--card-index, 0) * 45ms);
+  transition:
+    transform 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out);
+}
+
+.redeem-nft-art {
+  display: block;
+  width: 100%;
+  background: url("/images/redeem/animata1and2-poster.jpg") center 35% / cover;
+}
+
+.redeem-nft-card[data-collection="animata_ii"] .redeem-nft-art {
+  background-position: center 72%;
+  filter: saturate(0.85) hue-rotate(18deg);
+}
+
+.redeem-nft-card-club .redeem-nft-art {
+  background:
+    radial-gradient(circle at 25% 20%, color-mix(in oklch, var(--color-accent) 48%, transparent), transparent 45%),
+    linear-gradient(145deg, var(--color-surface-elevated), color-mix(in oklch, var(--color-accent) 20%, var(--color-surface-elevated)));
+}
+
+.redeem-nft-type,
+.redeem-nft-card > strong,
+.redeem-nft-action {
+  margin-inline: 0.8rem;
+}
+
+.redeem-nft-card > strong {
+  min-width: 0;
+  font-size: 1.4rem;
+  overflow-wrap: anywhere;
+}
+
+.redeem-nft-action {
+  margin-bottom: 0.8rem;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+}
+
+@keyframes redeem-card-enter {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.redeem-contract-details {
+  overflow: hidden;
+}
+
+.redeem-contract-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem clamp(1rem, 3vw, 2rem);
+  cursor: pointer;
+  list-style: none;
+}
+
+.redeem-contract-details summary::-webkit-details-marker { display: none; }
+.redeem-contract-details summary > span:first-child { display: grid; gap: 0.2rem; }
+.redeem-contract-details summary > span:last-child { transition: transform 180ms var(--ease-out); }
+.redeem-contract-details[open] summary > span:last-child { transform: rotate(45deg); }
+
+.redeem-contract-details > dl {
+  margin: 0;
+  padding: 0 clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 2rem);
+  border-top: 1px solid var(--hairline);
+}
+
+.redeem-contract-details dl > div,
+.redeem-dialog-meta > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 0.85rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.redeem-contract-details dd,
+.redeem-dialog-meta dd {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.redeem-contract-details code {
+  max-width: 100%;
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.redeem-page button,
+.redeem-page select,
+.redeem-page input,
+.redeem-result-dialog button {
+  border-radius: var(--material-radius);
+}
+
+.redeem-page button,
+.redeem-result-dialog button {
+  min-height: 2.8rem;
+  border-color: var(--hairline-strong);
+  transition:
+    transform 140ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    background-color 180ms var(--ease-out),
+    color 180ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+}
+
+.redeem-primary {
+  padding-inline: 1.2rem;
+  border-color: transparent !important;
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+  font-weight: 700;
+}
+
+.redeem-primary:disabled {
+  background: var(--hairline-strong);
+  color: var(--color-fg-muted);
+}
+
+.redeem-page button:not(:disabled):active,
+.redeem-result-dialog button:not(:disabled):active,
+.redeem-nft-card:active {
+  transform: scale(0.97);
+}
+
+.redeem-notice,
+.redeem-status {
+  margin: 0;
+  padding: 0.75rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-surface-elevated);
+}
+
 .redeem-result-dialog {
-  width: min(32rem, calc(100vw - 2rem));
-  padding: clamp(1rem, 4vw, 1.5rem);
+  width: min(34rem, calc(100vw - 2rem));
+  padding: clamp(1.1rem, 4vw, 1.75rem);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--material-radius);
   background: var(--color-surface-elevated);
@@ -208,74 +856,90 @@
   box-shadow: var(--material-shadow);
 }
 
-.redeem-result-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
+.redeem-result-dialog::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(0.2rem); }
+.redeem-result-dialog h2 { margin: 0.25rem 0 0.75rem; }
+.redeem-dialog-kicker,
+.redeem-dialog-summary,
+.redeem-dialog-detail { margin-block: 0 0.75rem; }
+.redeem-dialog-summary { font-size: 1.05rem; font-weight: 650; }
+.redeem-dialog-detail { color: var(--color-fg-muted); }
+.redeem-dialog-meta { margin: 0; }
+.redeem-result-dialog a { margin-block-end: 1rem; }
+.redeem-result-dialog a[hidden] { display: none; }
+.redeem-result-dialog form { display: flex; justify-content: flex-end; }
+
+@media (hover: hover) and (pointer: fine) {
+  .redeem-page button:not(:disabled):hover,
+  .redeem-result-dialog button:not(:disabled):hover {
+    border-color: var(--color-accent);
+  }
+
+  .redeem-primary:not(:disabled):hover {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--color-accent) 87%, var(--color-fg));
+  }
+
+  .redeem-nft-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0.9rem 2rem rgb(0 0 0 / 16%);
+    transform: translateY(-0.2rem);
+  }
 }
 
-.redeem-result-dialog h2,
-.redeem-result-dialog p {
-  margin-block: 0 1rem;
-}
-
-.redeem-result-dialog a {
-  display: inline-block;
-  margin-block-end: 1rem;
-}
-
-.redeem-result-dialog a[hidden] {
-  display: none;
-}
-
-.redeem-result-dialog form {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* The single next step reads as the one thing to do, so it carries the page's
-   accent while Claim stays an ordinary secondary control beside it. */
-.redeem-next-step {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-left: 3px solid var(--color-accent, currentColor);
-}
-
-.redeem-next-step p {
-  margin: 0;
-}
-
-.redeem-next-step button {
-  justify-self: start;
-  min-height: 2.75rem;
+@media (max-width: 64rem) {
+  .redeem-intro { grid-template-columns: minmax(0, 1fr); }
+  .redeem-intro-media { width: min(100%, 19rem); }
+  .redeem-layout { grid-template-columns: minmax(0, 1fr); }
+  .redeem-position { position: static; }
 }
 
 @media (max-width: 50rem) {
-  .redeem-intro,
-  .redeem-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .redeem-intro-media {
-    width: min(100%, 18rem);
-  }
+  .redeem-collection-grid { grid-template-columns: minmax(0, 1fr); }
+  .redeem-collection-card { grid-template-columns: minmax(8rem, 0.55fr) minmax(0, 1fr); grid-template-rows: auto; }
+  .redeem-collection-art { min-height: 13rem; }
+  .redeem-section-heading { flex-direction: column; }
+  .redeem-section-heading > p { text-align: left; }
 }
 
-@media (max-width: 30rem) {
-  .redeem-intro {
-    padding: 0.75rem;
-  }
-
-  #redemption-selection {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 36rem) {
+  .redeem-intro,
+  .redeem-collections,
+  .redeem-actions,
+  .redeem-position,
+  .redeem-owned { padding: 1rem; }
+  .redeem-collection-card { grid-template-columns: minmax(0, 1fr); grid-template-rows: 9rem auto; }
+  .redeem-collection-art { min-height: 0; }
+  .redeem-stepper p { font-size: 0.62rem; }
+  #redemption-selection,
+  .redeem-next-step,
+  .redeem-summary,
+  .redeem-vest dl { grid-template-columns: minmax(0, 1fr); }
+  .redeem-next-step button { width: 100%; }
+  .redeem-contract-details dl > div,
+  .redeem-dialog-meta > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .redeem-intro-video {
-    display: none;
-  }
+  .redeem-intro-video { display: none; }
+  .redeem-intro-poster { display: block; }
+  .redeem-intro-media { transform: none; }
+  .redeem-progress-mark,
+  .redeem-nft-card { animation: none; opacity: 1; transform: none; }
+  .redeem-page button,
+  .redeem-result-dialog button,
+  .redeem-nft-card,
+  .redeem-contract-details summary > span:last-child { transition: none; }
+}
 
-  .redeem-intro-poster {
-    display: block;
+@media (prefers-reduced-transparency: reduce) {
+  .redeem-intro,
+  .redeem-collections,
+  .redeem-actions,
+  .redeem-position,
+  .redeem-owned,
+  .redeem-contract-details {
+    background: var(--color-surface-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

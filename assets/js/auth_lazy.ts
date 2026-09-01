@@ -1,4 +1,4 @@
-export type AccountRequest = "sign-in" | "sign-out" | "sync"
+export type AccountRequest = "connect-wallet" | "sign-in" | "sign-out" | "sync"
 
 export type IdentityProvider = "x" | "github" | "farcaster"
 
@@ -403,6 +403,7 @@ export function showAccountAuthFailure(
   const status = documentRoot?.querySelector<HTMLElement>("#account-auth-status")
   if (!status) return
   status.textContent = {
+    "connect-wallet": "Wallet connection couldn’t start. Try again.",
     "sign-in": "Sign in couldn’t start. Try again.",
     "sign-out": "Sign out couldn’t finish. Try again.",
     sync: "Account connection couldn’t refresh. Try again.",
@@ -701,12 +702,18 @@ export function installAccountAuthLazyLoader(
   }
   const showLoadFailure = (request: AccountRequest) =>
     showAccountAuthFailure(request, documentRoot)
+  const walletEvents: EventTarget = documentRoot.defaultView ?? documentRoot
   // The leading clear owns this click's startup. Nothing clears afterwards: a
   // login callback that failed while the request was settling has already
   // written the failure this click must leave visible.
   const request = (accountRequest: AccountRequest) => {
     clearStatus()
-    void loader.request(accountRequest).catch(() => showLoadFailure(accountRequest))
+    void loader.request(accountRequest).catch(() => {
+      showLoadFailure(accountRequest)
+      if (accountRequest === "connect-wallet") {
+        walletEvents.dispatchEvent(new Event("ash:wallet-connect-failed"))
+      }
+    })
   }
   let signOutInFlight: Promise<void> | null = null
   const signOut = () => {
@@ -751,6 +758,7 @@ export function installAccountAuthLazyLoader(
       .then(clearStatus)
       .catch(() => showIdentityFailure())
   }
+  const onWalletConnect = () => request("connect-wallet")
   const showIdentityFailure = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -769,6 +777,7 @@ export function installAccountAuthLazyLoader(
 
   documentRoot.addEventListener("click", onClick)
   documentRoot.addEventListener("ash:identity-request", onIdentityRequest)
+  walletEvents.addEventListener("ash:wallet-connect", onWalletConnect)
   if (consumedHandoff) {
     void proveAnonymousSession().then(async anonymous => {
       if (!anonymous) {
@@ -794,6 +803,7 @@ export function installAccountAuthLazyLoader(
   return () => {
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
+    walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)
   }
 }
 

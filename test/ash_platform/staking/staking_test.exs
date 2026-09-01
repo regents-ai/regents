@@ -1,8 +1,7 @@
 defmodule AshPlatform.StakingTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Staking}
-  alias AshPlatform.Actors.{Human, System}
+  alias AshPlatform.Staking
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -39,6 +38,12 @@ defmodule AshPlatform.StakingTest do
         supply_denominator_raw: "1000000000000000000000",
         remaining_capacity_raw: Process.get(:capacity_raw, "900000000000000000000"),
         remaining_capacity: "900",
+        available_regent_reward_inventory_raw: "250000000000000000000000",
+        available_regent_reward_inventory: "250000",
+        reserved_usdc_raw: "125000000000",
+        reserved_usdc: "125000",
+        emission_apr_bps: 1_200,
+        emission_apr_percent: "12",
         wallet_address: wallet,
         wallet_token_balance_raw: positioned(wallet, :token_raw, "10000000000000000000"),
         wallet_token_balance: positioned(wallet, :token, "10"),
@@ -67,61 +72,55 @@ defmodule AshPlatform.StakingTest do
     Process.put(:staking_test_pid, self())
     on_exit(fn -> restore_env(:staking_chain_client, previous_client) end)
 
-    {:ok, account} =
-      Accounts.register_verified("did:privy:staking", @wallet, [@wallet], actor: %System{})
-
-    %{account: account, actor: %Human{human_account_id: account.id}, opts: leased(account.id)}
+    :ok
   end
 
-  test "CHAIN_FACTS_ONLY: public and linked-wallet reads come directly from Base", %{
-    actor: actor,
-    opts: opts
-  } do
+  test "CHAIN_FACTS_ONLY: public and connected-wallet reads come directly from Base" do
     assert {:ok, %{chain_id: 8453, wallet_address: nil}} = Staking.overview()
     assert_receive {:overview, nil}
-    assert {:ok, %{wallet_address: @wallet}} = Staking.account_for_wallet(@wallet, opts)
+    assert {:ok, %{wallet_address: @wallet}} = Staking.account_for_wallet(@wallet)
     assert_receive {:overview, @wallet}
-    assert {:error, _} = Staking.account_for_wallet(@other, opts)
-    assert {:error, _} = Staking.account_for_wallet(@wallet, actor: actor)
-    assert {:error, _} = Staking.account_for_wallet(@wallet)
+    assert {:ok, %{wallet_address: @other}} = Staking.account_for_wallet(@other)
+    assert_receive {:overview, @other}
+    assert {:error, _} = Staking.account_for_wallet("not-a-wallet")
   end
 
-  test "FRESH_ACTION_ID: identical clicks create distinct direct wallet envelopes", %{opts: opts} do
-    assert {:ok, first} = Staking.prepare_unstake(@wallet, "1", opts)
-    assert {:ok, second} = Staking.prepare_unstake(@wallet, "1", opts)
+  test "FRESH_ACTION_ID: identical clicks create distinct direct wallet envelopes" do
+    assert {:ok, first} = Staking.prepare_unstake(@wallet, "1")
+    assert {:ok, second} = Staking.prepare_unstake(@wallet, "1")
     assert first.action == "unstake"
     assert second.action == "unstake"
     refute first.action_id == second.action_id
   end
 
-  test "CURRENT_ALLOWANCE: a sufficient stake asks only for Stake", %{opts: opts} do
+  test "CURRENT_ALLOWANCE: a sufficient stake asks only for Stake" do
     Process.put(:allowance, :sufficient)
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.25", opts)
+    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.25")
     assert envelope.action == "stake"
     assert envelope.approval == nil
     assert envelope.arguments.amount_atomic == "1250000000000000000"
     assert_receive {:allowance, @wallet, 1_250_000_000_000_000_000}
   end
 
-  test "CURRENT_ALLOWANCE: an insufficient stake carries its exact approval", %{opts: opts} do
+  test "CURRENT_ALLOWANCE: an insufficient stake carries its exact approval" do
     Process.put(:allowance, :insufficient)
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1", opts)
+    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1")
     assert envelope.approval.mode == "exact"
     assert envelope.approval.amount == "1000000000000000000"
     assert envelope.approval.spender == envelope.to
   end
 
-  test "CURRENT_CHAIN_LIMITS: amounts and claims are refused from fresh Base facts", %{opts: opts} do
+  test "CURRENT_CHAIN_LIMITS: amounts and claims are refused from fresh Base facts" do
     Process.put(:token_raw, "1")
-    assert {:error, error} = Staking.prepare_stake(@wallet, "1", opts)
+    assert {:error, error} = Staking.prepare_stake(@wallet, "1")
     assert refusal(error) == :amount_above_balance
 
     Process.put(:stake_raw, "1")
-    assert {:error, error} = Staking.prepare_unstake(@wallet, "1", opts)
+    assert {:error, error} = Staking.prepare_unstake(@wallet, "1")
     assert refusal(error) == :amount_above_stake
 
     Process.put(:claimable_usdc_raw, "0")
-    assert {:error, error} = Staking.prepare_claim_usdc(@wallet, opts)
+    assert {:error, error} = Staking.prepare_claim_usdc(@wallet)
     assert refusal(error) == :no_claimable_usdc
   end
 
@@ -133,27 +132,22 @@ defmodule AshPlatform.StakingTest do
     end
   end
 
-  test "DIRECT_CONTROLS: every claim returns a sendable envelope without persisted state", %{
-    opts: opts
-  } do
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet, opts)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet, opts)
+  test "DIRECT_CONTROLS: every claim returns a sendable envelope without persisted state" do
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
+    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
 
     assert {:ok, %{action: "claim_and_restake_regent"}} =
-             Staking.prepare_claim_and_restake_regent(@wallet, opts)
+             Staking.prepare_claim_and_restake_regent(@wallet)
   end
 
-  test "PAUSED: claim and restake is unavailable while other claims and unstake remain available",
-       %{
-         opts: opts
-       } do
+  test "PAUSED: claim and restake is unavailable while other claims and unstake remain available" do
     Process.put(:paused, true)
 
-    assert {:error, error} = Staking.prepare_claim_and_restake_regent(@wallet, opts)
+    assert {:error, error} = Staking.prepare_claim_and_restake_regent(@wallet)
     assert refusal(error) == :staking_paused
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet, opts)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet, opts)
-    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1", opts)
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
+    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
+    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
   end
 
   defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),

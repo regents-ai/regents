@@ -11,6 +11,7 @@ defmodule AshPlatform.Application do
       [
         AshPlatformWeb.Telemetry,
         {AshPlatform.AgentAuth.ClaimRateLimiter, []},
+        {AshPlatform.OpenSea.HoldingsCache, []},
         database_child(),
         autolaunch_indexer_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},

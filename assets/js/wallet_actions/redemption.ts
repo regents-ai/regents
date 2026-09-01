@@ -54,11 +54,6 @@ const chainRequestTimeoutMs = 5_000
 const switchRequestTimeoutMs = 15_000
 const simulationRequestTimeoutMs = 15_000
 const sendRequestTimeoutMs = 120_000
-const observationRequestTimeoutMs = 4_000
-const observationOffsetsSeconds = [
-  ...Array.from({length: 15}, (_, index) => (index + 1) * 2),
-  ...Array.from({length: 9}, (_, index) => (index + 4) * 10),
-]
 
 export type RedemptionAction =
   | "approve_nft_collection"
@@ -109,10 +104,9 @@ export type SubmittedRedemptionTransaction = Readonly<{
   hash: Hash
 }>
 
-export type ObservedRedemptionResult = "success" | "reverted" | "delayed" | "unavailable"
-
 export type RedemptionRuntime = {
   alive(): boolean
+  hostAlive(): boolean
   registerCancellation(cancel: () => void): () => void
 }
 
@@ -124,17 +118,9 @@ export class RedemptionExecutionFailure extends Error {
   }
 }
 
-const deadObservations = new WeakSet<object>()
 const deadGenerations = new WeakSet<object>()
 const walletDrifts = new WeakSet<object>()
-class ObservationTimeout extends Error {}
 class RequestTimeout extends Error {}
-class DeadObservation extends Error {
-  constructor() {
-    super("redemption observation ended")
-    deadObservations.add(this)
-  }
-}
 
 class DeadGeneration extends Error {
   constructor() {
@@ -152,6 +138,7 @@ class WalletDrift extends Error {
 
 const alwaysAliveRuntime: RedemptionRuntime = {
   alive: () => true,
+  hostAlive: () => true,
   registerCancellation: () => () => undefined,
 }
 
@@ -193,6 +180,8 @@ export async function executePreparedRedemptionAction(
   clients: RedemptionClients = clientsForRedemption(provider),
   currentWallet: CurrentRedemptionWallet = activeEthereumWallet,
   runtime: RedemptionRuntime = alwaysAliveRuntime,
+  onWalletRequestStarted: () => void = () => undefined,
+  onSubmissionUnknown: () => void = () => undefined,
 ): Promise<SubmittedRedemptionTransaction> {
   let walletRequestStarted = false
 
@@ -220,7 +209,9 @@ export async function executePreparedRedemptionAction(
       runtime,
       () => {
         walletRequestStarted = true
+        onWalletRequestStarted()
       },
+      onSubmissionUnknown,
     )
     if (!validHash(hash)) throw new Error("The wallet did not return a transaction hash.")
 
@@ -279,6 +270,7 @@ async function sendWithCurrentWallet(
   transaction: {to: Address; data: Hex; value: bigint},
   runtime: RedemptionRuntime,
   onHandoff: () => void,
+  onHandoffTimeout?: () => void,
 ): Promise<Hash> {
   assertActiveWallet(envelope.expected_signer, provider, currentWallet)
   if (await boundRequest(() => clients.chainId(), chainRequestTimeoutMs, runtime) !== base.id) {
@@ -299,6 +291,7 @@ async function sendWithCurrentWallet(
     sendRequestTimeoutMs,
     runtime,
     onHandoff,
+    onHandoffTimeout,
   )
 }
 
@@ -307,6 +300,7 @@ function boundRequest<T>(
   timeoutMs: number,
   runtime: RedemptionRuntime,
   onHandoff?: () => void,
+  onHandoffTimeout?: () => void,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!runtime.alive()) {
@@ -315,6 +309,7 @@ function boundRequest<T>(
     }
 
     let active = true
+    let handedToWallet = false
     let unregister = (): void => undefined
     const finish = (result: () => void): void => {
       if (!active) return
@@ -323,14 +318,30 @@ function boundRequest<T>(
       unregister()
       result()
     }
-    const timer = globalThis.setTimeout(() => finish(() => reject(new RequestTimeout())), timeoutMs)
-    unregister = runtime.registerCancellation(() => finish(() => reject(new DeadGeneration())))
+    const timer = globalThis.setTimeout(() => {
+      if (handedToWallet && onHandoffTimeout && runtime.hostAlive()) {
+        onHandoffTimeout()
+        return
+      }
+      finish(() => reject(new RequestTimeout()))
+    }, timeoutMs)
+    unregister = runtime.registerCancellation(() => {
+      if (handedToWallet && runtime.hostAlive()) return
+      finish(() => reject(new DeadGeneration()))
+    })
     if (!active) return
 
     try {
-      onHandoff?.()
+      if (onHandoff) {
+        handedToWallet = true
+        onHandoff()
+      }
       operation().then(
-        value => finish(() => (runtime.alive() ? resolve(value) : reject(new DeadGeneration()))),
+        value => finish(() => (
+          runtime.alive() || (handedToWallet && runtime.hostAlive())
+            ? resolve(value)
+            : reject(new DeadGeneration())
+        )),
         error => finish(() => reject(error)),
       )
     } catch (error) {
@@ -339,258 +350,8 @@ function boundRequest<T>(
   })
 }
 
-export function observeRedemptionTransaction(
-  submitted: SubmittedRedemptionTransaction,
-  runtime: RedemptionRuntime,
-  settle: (result: ObservedRedemptionResult) => void,
-): void {
-  const returnedAt = performance.now()
-  let settled = false
-  const observationCancellations = new Set<() => void>()
-  const observationRuntime: RedemptionRuntime = {
-    alive: () => !settled && runtime.alive(),
-    registerCancellation: cancel => {
-      if (settled || !runtime.alive()) {
-        cancel()
-        return () => undefined
-      }
-
-      let active = true
-      let unregisterParent = (): void => undefined
-      const cancelOnce = (): void => {
-        if (!active) return
-        active = false
-        observationCancellations.delete(cancelOnce)
-        unregisterParent()
-        cancel()
-      }
-      observationCancellations.add(cancelOnce)
-      unregisterParent = runtime.registerCancellation(cancelOnce)
-      return () => {
-        if (!active) return
-        active = false
-        observationCancellations.delete(cancelOnce)
-        unregisterParent()
-      }
-    },
-  }
-
-  const finish = (result: ObservedRedemptionResult): void => {
-    if (settled || !runtime.alive()) return
-    settled = true
-    for (const cancel of [...observationCancellations]) cancel()
-    observationCancellations.clear()
-    settle(result)
-  }
-
-  for (const offset of observationOffsetsSeconds) {
-    schedule(observationRuntime, Math.max(0, returnedAt + offset * 1_000 - performance.now()), async () => {
-      if (settled) return
-      try {
-        const result = await sampleReceipt(submitted, observationRuntime)
-        if (result === "success" || result === "reverted" || result === "unavailable") {
-          finish(result)
-        } else if (offset === 120) {
-          finish("delayed")
-        }
-      } catch (error) {
-        if (!isDeadObservation(error)) finish("unavailable")
-      }
-    })
-  }
-}
-
-async function sampleReceipt(
-  submitted: SubmittedRedemptionTransaction,
-  runtime: RedemptionRuntime,
-): Promise<ObservedRedemptionResult | "pending"> {
-  const transaction = await baseBoundRequest(
-    submitted.provider,
-    "eth_getTransactionByHash",
-    [submitted.hash],
-    runtime,
-  )
-  const transactionBlock =
-    transaction === null ? null : transactionIdentity(transaction, submitted)
-  if (transaction !== null && !transactionBlock) return "unavailable"
-
-  const receipt = await baseBoundRequest(
-    submitted.provider,
-    "eth_getTransactionReceipt",
-    [submitted.hash],
-    runtime,
-  )
-  if (receipt === null) return "pending"
-  if (!transactionBlock || transactionBlock.state !== "included") return "unavailable"
-  const identity = receiptIdentity(receipt, submitted, transactionBlock)
-  if (!identity) return "unavailable"
-
-  const block = await baseBoundRequest(
-    submitted.provider,
-    "eth_getBlockByHash",
-    [identity.blockHash, false],
-    runtime,
-  )
-  if (!validBlock(block, identity, submitted.hash)) return "unavailable"
-  return identity.status
-}
-
-async function baseBoundRequest(
-  provider: EthereumProvider,
-  method: string,
-  params: unknown[],
-  runtime: RedemptionRuntime,
-): Promise<unknown> {
-  const before = await rawRequest(provider, {method: "eth_chainId"}, runtime)
-  if (!baseChain(before)) throw new Error("wrong chain")
-  const result = await rawRequest(provider, {method, params}, runtime)
-  const after = await rawRequest(provider, {method: "eth_chainId"}, runtime)
-  if (!baseChain(after)) throw new Error("wrong chain")
-  return result
-}
-
-function rawRequest(
-  provider: EthereumProvider,
-  args: {method: string; params?: unknown[]},
-  runtime: RedemptionRuntime,
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    if (!runtime.alive()) {
-      reject(new DeadObservation())
-      return
-    }
-
-    let active = true
-    let unregister = (): void => undefined
-    const finish = (result: () => void): void => {
-      if (!active) return
-      active = false
-      clearTimeout(timer)
-      unregister()
-      result()
-    }
-    const timer = globalThis.setTimeout(
-      () => finish(() => reject(new ObservationTimeout())),
-      observationRequestTimeoutMs,
-    )
-    unregister = runtime.registerCancellation(() => finish(() => reject(new DeadObservation())))
-
-    try {
-      const request = provider.request(args)
-      request.then(
-        value => finish(() => (runtime.alive() ? resolve(value) : reject(new DeadObservation()))),
-        error => finish(() => reject(error)),
-      )
-    } catch {
-      finish(() => reject(new Error("provider request failed")))
-    }
-  })
-}
-
-function schedule(runtime: RedemptionRuntime, delay: number, run: () => Promise<void>): void {
-  let unregister = (): void => undefined
-  const timer = globalThis.setTimeout(() => {
-    unregister()
-    if (runtime.alive()) void run()
-  }, delay)
-  unregister = runtime.registerCancellation(() => clearTimeout(timer))
-}
-
-function transactionIdentity(
-  value: unknown,
-  expected: SubmittedRedemptionTransaction,
-):
-  | {state: "pending"}
-  | {state: "included"; blockHash: `0x${string}`; blockNumber: string}
-  | null {
-  if (!record(value)) return null
-  const transaction = expected.transaction
-  const exactTransaction =
-    sameHash(value.hash, expected.hash) &&
-    sameAddress(value.from, expected.signer) &&
-    sameAddress(value.to, transaction.to) &&
-    typeof value.input === "string" &&
-    value.input.toLowerCase() === transaction.data.toLowerCase() &&
-    zeroQuantity(value.value)
-  if (!exactTransaction) return null
-  if (value.blockHash === null && value.blockNumber === null) return {state: "pending"}
-  if (validHash(value.blockHash) && validQuantity(value.blockNumber)) {
-    return {state: "included", blockHash: value.blockHash, blockNumber: value.blockNumber}
-  }
-  return null
-}
-
-function receiptIdentity(
-  value: unknown,
-  expected: SubmittedRedemptionTransaction,
-  transactionBlock: {state: "included"; blockHash: `0x${string}`; blockNumber: string},
-): {status: "success" | "reverted"; blockHash: `0x${string}`; blockNumber: string} | null {
-  if (!record(value)) return null
-  const status = value.status === "0x1" ? "success" : value.status === "0x0" ? "reverted" : null
-  if (
-    !status ||
-    !sameHash(value.transactionHash, expected.hash) ||
-    !sameAddress(value.from, expected.signer) ||
-    !sameAddress(value.to, expected.transaction.to) ||
-    !validHash(value.blockHash) ||
-    !validQuantity(value.blockNumber) ||
-    !sameHash(value.blockHash, transactionBlock.blockHash) ||
-    BigInt(value.blockNumber) !== BigInt(transactionBlock.blockNumber)
-  ) {
-    return null
-  }
-  return {status, blockHash: value.blockHash, blockNumber: value.blockNumber}
-}
-
-function validBlock(
-  value: unknown,
-  identity: {blockHash: `0x${string}`; blockNumber: string},
-  hash: Hash,
-): boolean {
-  if (!record(value) || !Array.isArray(value.transactions)) return false
-  return (
-    sameHash(value.hash, identity.blockHash) &&
-    validQuantity(value.number) &&
-    BigInt(value.number) === BigInt(identity.blockNumber) &&
-    value.transactions.some(transaction => sameHash(transaction, hash))
-  )
-}
-
 function validHash(value: unknown): value is Hash {
   return typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value)
-}
-
-function validQuantity(value: unknown): value is string {
-  return typeof value === "string" && /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(value)
-}
-
-function zeroQuantity(value: unknown): boolean {
-  return validQuantity(value) && BigInt(value) === 0n
-}
-
-function baseChain(value: unknown): boolean {
-  return validQuantity(value) && BigInt(value) === BigInt(base.id)
-}
-
-function sameAddress(value: unknown, expected: Address): boolean {
-  if (typeof value !== "string") return false
-  try {
-    return getAddress(value) === expected
-  } catch {
-    return false
-  }
-}
-
-function sameHash(value: unknown, expected: Hash): boolean {
-  return validHash(value) && value.toLowerCase() === expected.toLowerCase()
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function isDeadObservation(error: unknown): boolean {
-  return typeof error === "object" && error !== null && deadObservations.has(error)
 }
 
 function isDeadGeneration(error: unknown): boolean {

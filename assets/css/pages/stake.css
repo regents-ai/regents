@@ -1,14 +1,14 @@
 .stake-page {
   display: grid;
-  gap: 1.25rem;
+  gap: clamp(1rem, 2.4vw, 1.5rem);
   min-width: 0;
 }
 
 .stake-heading,
 .stake-overview,
 .stake-actions,
-.stake-contract-details,
-.stake-how-it-works {
+.stake-how-it-works,
+.stake-contract-details {
   min-width: 0;
   border: 1px solid transparent;
   border-radius: var(--material-radius);
@@ -18,43 +18,71 @@
   -webkit-backdrop-filter: blur(var(--material-blur));
 }
 
-.stake-heading,
-.stake-overview,
-.stake-actions,
-.stake-contract-details,
-.stake-how-it-works {
-  padding: clamp(1rem, 3vw, 2rem);
-}
-
 .stake-heading {
+  position: relative;
   display: grid;
-  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+  align-items: end;
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 3.5rem);
 }
 
-.stake-heading > *,
-.stake-actions > *,
-.stake-how-it-works > * {
-  margin-block: 0;
+.stake-heading::before {
+  position: absolute;
+  inset: auto -7rem -12rem auto;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-accent) 17%, transparent);
+  filter: blur(3.5rem);
+  content: "";
+  pointer-events: none;
+}
+
+.stake-heading > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stake-heading-copy {
+  display: grid;
+  gap: 1rem;
+  align-content: end;
+}
+
+.stake-heading-copy > *,
+.stake-actions h2,
+.stake-actions h3,
+.stake-overview h2,
+.stake-how-it-works h2,
+.stake-how-it-works h3 {
+  margin: 0;
 }
 
 .stake-heading h1 {
-  max-width: 14ch;
-  font-size: clamp(2.25rem, 5vw, 4rem);
-  line-height: 0.95;
-  letter-spacing: -0.045em;
+  max-width: 10ch;
+  font-size: clamp(2.8rem, 7vw, 6.25rem);
+  line-height: 0.88;
+  letter-spacing: -0.065em;
 }
 
-.stake-heading > p:last-child {
-  max-width: 68ch;
+.stake-lede {
+  max-width: 58ch;
   color: var(--color-fg-muted);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
 }
 
 .stake-kicker,
 .stake-section-kicker,
+.stake-benefit-card dt,
 .stake-capacity-heading,
 .stake-capacity-facts dt,
 .stake-contract-facts dt,
-.stake-metric dt {
+.stake-metric dt,
+.stake-dialog-kicker,
+.stake-dialog-meta dt,
+.stake-preview dt {
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -62,45 +90,101 @@
 }
 
 .stake-kicker,
-.stake-section-kicker {
+.stake-section-kicker,
+.stake-auth-note,
+.stake-fine-print,
+.stake-snapshot-note,
+.stake-dialog-kicker {
   color: var(--color-fg-muted);
+}
+
+.stake-heading-actions,
+.stake-footer,
+.stake-button-row,
+.stake-mode,
+.stake-amount-tools,
+.stake-amount-tools > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stake-heading-actions a,
+.stake-contract-link,
+.stake-result-dialog a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.8rem;
+  text-underline-offset: 0.22em;
+}
+
+.stake-auth-note,
+.stake-fine-print {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.stake-benefit-grid {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.stake-benefit-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--material-radius) * 0.8);
+  background: color-mix(in oklch, var(--color-surface-elevated) 72%, transparent);
+}
+
+.stake-benefit-card-primary {
+  padding-block: 1.3rem;
+  border-color: color-mix(in oklch, var(--color-accent) 60%, var(--hairline));
+  background: color-mix(in oklch, var(--color-accent) 11%, var(--color-surface-elevated));
+}
+
+.stake-benefit-card dd,
+.stake-benefit-card p {
+  margin: 0;
+}
+
+.stake-benefit-card dd {
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.stake-benefit-card p {
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
 }
 
 .stake-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.75fr);
-  gap: 1.25rem;
-  min-width: 0;
+  grid-template-columns: minmax(21rem, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(1rem, 2.4vw, 1.5rem);
   align-items: start;
+  min-width: 0;
 }
 
-.stake-overview {
-  position: relative;
+.stake-actions,
+.stake-overview,
+.stake-how-it-works {
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.stake-actions {
   display: grid;
-  gap: clamp(1.25rem, 3vw, 2.25rem);
-  overflow: hidden;
+  gap: 1.25rem;
 }
 
-.stake-overview::after {
-  position: absolute;
-  right: -5rem;
-  bottom: -7rem;
-  width: 18rem;
-  height: 18rem;
-  border-radius: 50%;
-  background: color-mix(in oklch, var(--color-accent) 14%, transparent);
-  filter: blur(2rem);
-  content: "";
-  pointer-events: none;
-}
-
-.stake-overview > * {
-  position: relative;
-  z-index: 1;
-}
-
-.stake-overview-heading,
 .stake-section-heading,
+.stake-overview-heading,
 .stake-capacity-heading {
   display: flex;
   align-items: flex-start;
@@ -108,11 +192,361 @@
   gap: 1rem;
 }
 
-.stake-overview-heading h2,
 .stake-section-heading h2,
-.stake-actions h2,
-.stake-how-it-works h2 {
-  margin-block: 0.35rem 0;
+.stake-overview-heading h2 {
+  margin-top: 0.25rem;
+}
+
+.stake-signer,
+.stake-network {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+}
+
+.stake-signer > span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0.7rem color-mix(in oklch, var(--color-accent) 70%, transparent);
+}
+
+.stake-connect-flow,
+.stake-wallet-controls {
+  display: grid;
+  gap: 1rem;
+}
+
+.stake-connect-flow ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stake-connect-flow li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.stake-connect-flow li > span {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 50%;
+  font-family: var(--font-family-mono);
+  font-size: 0.74rem;
+}
+
+.stake-connect-flow li p,
+.stake-wallet-loading p {
+  margin: 0;
+}
+
+.stake-wallet-loading,
+.stake-transaction-progress {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--color-accent) 40%, var(--hairline));
+  border-radius: var(--material-radius);
+  background: color-mix(in oklch, var(--color-accent) 8%, var(--color-surface-elevated));
+}
+
+.stake-wallet-recovery {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.stake-wallet-recovery p {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.stake-wallet-recovery > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.stake-transaction-progress[hidden] {
+  display: none;
+}
+
+.stake-transaction-progress div {
+  min-width: 0;
+}
+
+.stake-transaction-progress p {
+  margin: 0.15rem 0 0;
+  color: var(--color-fg-muted);
+  font-size: 0.86rem;
+}
+
+.stake-progress-mark {
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid color-mix(in oklch, var(--color-accent) 35%, transparent);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: stake-spin 700ms linear infinite;
+}
+
+.stake-transaction-progress[data-phase="confirmed"] .stake-progress-mark {
+  border: 0;
+  background: var(--color-accent);
+  animation: none;
+}
+
+.stake-transaction-progress[data-phase="failed"] .stake-progress-mark {
+  border: 1px solid var(--color-fg-muted);
+  background: transparent;
+  animation: none;
+}
+
+@keyframes stake-spin {
+  to { transform: rotate(1turn); }
+}
+
+.stake-wallet-summary,
+.stake-capacity-facts,
+.stake-preview,
+.stake-contract-facts,
+.stake-dialog-meta {
+  margin: 0;
+}
+
+.stake-wallet-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+  background: var(--hairline);
+}
+
+.stake-metric {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.9rem;
+  background: var(--color-surface-elevated);
+}
+
+.stake-metric dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.stake-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.stake-mode button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.stake-mode button[aria-pressed="true"] {
+  border-color: var(--hairline-strong);
+  background: var(--material-fill);
+  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 10%);
+  font-weight: 650;
+}
+
+.stake-actions form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.stake-actions label {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.stake-amount {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--material-radius);
+  background: var(--color-surface-elevated);
+}
+
+.stake-amount:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 25%, transparent);
+}
+
+.stake-amount input {
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  background: transparent;
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.stake-amount input:focus {
+  outline: 0;
+}
+
+.stake-amount > span {
+  padding-inline: 0.9rem;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+}
+
+.stake-amount-tools {
+  justify-content: space-between;
+}
+
+.stake-amount-tools p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stake-amount-tools button {
+  min-height: 2rem;
+  padding-inline: 0.65rem;
+  font-size: 0.78rem;
+}
+
+.stake-amount-notice {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
+}
+
+.stake-amount-notice[data-visible="false"] {
+  visibility: hidden;
+}
+
+.stake-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--material-radius);
+}
+
+.stake-preview div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.stake-preview dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.stake-approval-note {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
+}
+
+.stake-actions button,
+.stake-heading button,
+.stake-result-dialog button {
+  min-height: 2.8rem;
+  border-radius: var(--material-radius);
+  border-color: var(--hairline-strong);
+  transition:
+    transform 140ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    background-color 180ms var(--ease-out),
+    color 180ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+}
+
+.stake-primary {
+  padding-inline: 1.2rem;
+  border-color: transparent !important;
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+  font-weight: 700;
+}
+
+.stake-submit {
+  width: 100%;
+  min-height: 3.25rem !important;
+}
+
+.stake-primary:disabled {
+  background: var(--hairline-strong);
+  color: var(--color-fg-muted);
+}
+
+.stake-actions button:not(:disabled):active,
+.stake-heading button:not(:disabled):active,
+.stake-result-dialog button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.stake-rewards {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.stake-button-row button {
+  flex: 1 1 8rem;
+}
+
+.stake-footer {
+  justify-content: space-between;
+  padding-top: 0.25rem;
+}
+
+.stake-overview {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2.2rem);
+  overflow: hidden;
 }
 
 .stake-contract-status {
@@ -137,21 +571,9 @@
   box-shadow: none;
 }
 
-.stake-network {
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 999px;
-  font-family: var(--font-family-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .stake-total {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.4rem 0.8rem;
+  display: grid;
+  gap: 0.4rem;
   min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
@@ -159,9 +581,9 @@
 
 .stake-total strong {
   min-width: 0;
-  font-size: clamp(3rem, 8vw, 6.5rem);
-  font-weight: 650;
-  line-height: 0.85;
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 680;
+  line-height: 0.86;
   letter-spacing: -0.065em;
   overflow-wrap: anywhere;
 }
@@ -169,7 +591,9 @@
 .stake-total span {
   color: var(--color-fg-muted);
   font-family: var(--font-family-mono);
-  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .stake-capacity {
@@ -177,14 +601,9 @@
   gap: 0.75rem;
 }
 
-.stake-capacity-heading strong {
-  color: var(--color-fg);
-  font-variant-numeric: tabular-nums;
-}
-
 .stake-capacity progress {
   width: 100%;
-  height: 0.8rem;
+  height: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--hairline-strong);
   border-radius: 999px;
@@ -192,25 +611,9 @@
   background: var(--color-surface-elevated);
 }
 
-.stake-capacity progress::-webkit-progress-bar {
-  background: var(--color-surface-elevated);
-}
-
-.stake-capacity progress::-webkit-progress-value {
-  border-radius: 999px;
-  background: var(--color-accent);
-}
-
-.stake-capacity progress::-moz-progress-bar {
-  border-radius: 999px;
-  background: var(--color-accent);
-}
-
-.stake-capacity-facts,
-.stake-contract-facts,
-.stake-wallet-summary {
-  margin: 0;
-}
+.stake-capacity progress::-webkit-progress-bar { background: var(--color-surface-elevated); }
+.stake-capacity progress::-webkit-progress-value,
+.stake-capacity progress::-moz-progress-bar { border-radius: 999px; background: var(--color-accent); }
 
 .stake-capacity-facts {
   display: grid;
@@ -221,11 +624,9 @@
 .stake-capacity-facts div {
   display: grid;
   gap: 0.25rem;
-  min-width: 0;
 }
 
-.stake-capacity-facts dd,
-.stake-contract-facts dd {
+.stake-capacity-facts dd {
   min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
@@ -233,216 +634,125 @@
 }
 
 .stake-snapshot-note {
+  min-height: 1.3rem;
   margin: 0;
-  color: var(--color-fg-muted);
-  font-size: 0.85rem;
-}
-
-.stake-actions {
-  display: grid;
-  gap: 1rem;
-}
-
-.stake-wallet-access {
-  align-content: start;
-}
-
-.stake-actions form {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.stake-actions label {
-  color: var(--color-fg-muted);
-  font-size: 0.9rem;
-}
-
-.stake-wallet-summary {
-  display: grid;
-  border-block: 1px solid var(--hairline);
-}
-
-.stake-metric {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-block: 0.8rem;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.stake-metric:last-child {
-  border-bottom: 0;
-}
-
-.stake-metric dt,
-.stake-metric dd {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.stake-metric dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.stake-mode,
-.stake-amount,
-.stake-button-row,
-.stake-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.stake-actions button,
-.stake-actions input {
-  min-height: 2.75rem;
-  border-radius: var(--material-radius);
-  border-color: var(--hairline-strong);
-  transition:
-    border-color var(--duration-fast) var(--ease-out),
-    background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-}
-
-.stake-actions input {
-  padding: 0.5rem 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.stake-amount input {
-  flex: 1 1 10rem;
-  min-width: 0;
-  font-size: 1.05rem;
-}
-
-.stake-mode button[aria-pressed="true"] {
-  border-color: var(--color-accent);
-  font-weight: 600;
-}
-
-.stake-available {
-  margin: 0;
-  color: var(--color-fg-muted);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.stake-actions .stake-primary {
-  justify-self: start;
-  min-height: 2.75rem;
-  padding-inline: 1.25rem;
-  border-color: transparent;
-  background: var(--color-accent);
-  color: var(--color-fg-on-accent);
-  font-weight: 600;
-}
-
-.stake-primary:disabled {
-  background: var(--hairline-strong);
-  color: var(--color-fg-muted);
-}
-
-.stake-footer {
-  justify-content: space-between;
-}
-
-.stake-footer a,
-.stake-contract-link,
-.stake-result-dialog a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  text-underline-offset: 0.2em;
-}
-
-.stake-amount-notice,
-.stake-notice,
-.stake-status {
-  margin: 0;
-  padding: 0.75rem;
-  border-left: 3px solid var(--color-accent);
-  background: var(--color-surface-elevated);
-}
-
-.stake-contract-details {
-  display: grid;
-  grid-column: 1 / -1;
-  gap: 1.25rem;
-}
-
-.stake-section-heading > div {
-  min-width: 0;
-}
-
-.stake-section-heading p,
-.stake-section-heading h2 {
-  margin-block: 0;
-}
-
-.stake-contract-link {
-  flex: 0 1 auto;
-  gap: 0.35rem;
-  max-width: 100%;
-  text-align: right;
-}
-
-.stake-contract-facts {
-  display: grid;
-}
-
-.stake-contract-facts > div {
-  display: grid;
-  grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
-  gap: 1rem;
-  padding-block: 0.9rem;
-  border-top: 1px solid var(--hairline);
-}
-
-.stake-contract-facts dd {
-  display: grid;
-  gap: 0.3rem;
-  justify-items: start;
-}
-
-.stake-contract-facts code {
-  max-width: 100%;
-  font-family: var(--font-family-mono);
   font-size: 0.82rem;
-  word-break: break-all;
+}
+
+.stake-inline-loading::before {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  content: "";
+  animation: stake-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes stake-pulse {
+  to { opacity: 0.35; transform: scale(0.75); }
 }
 
 .stake-how-it-works {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(10rem, 0.35fr) repeat(2, minmax(0, 1fr));
-  gap: 0.75rem clamp(1rem, 3vw, 2.5rem);
+  grid-template-columns: minmax(13rem, 0.8fr) repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
 }
 
-.stake-how-it-works .stake-section-kicker,
-.stake-how-it-works h2 {
-  grid-column: 1;
+.stake-how-it-works article {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding-left: 1rem;
+  border-left: 1px solid var(--hairline);
 }
 
-.stake-how-it-works p:not(.stake-section-kicker) {
+.stake-how-it-works article > span {
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
+  font-size: 0.72rem;
+}
+
+.stake-how-it-works article p {
+  margin: 0;
   color: var(--color-fg-muted);
+  font-size: 0.9rem;
 }
 
-.stake-how-it-works p:nth-of-type(2) {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+.stake-contract-details {
+  grid-column: 1 / -1;
+  overflow: hidden;
 }
 
-.stake-how-it-works p:nth-of-type(3) {
-  grid-column: 3;
-  grid-row: 1 / span 2;
+.stake-contract-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem clamp(1rem, 3vw, 2rem);
+  cursor: pointer;
+  list-style: none;
+}
+
+.stake-contract-details summary::-webkit-details-marker { display: none; }
+.stake-contract-details summary > span:first-child { display: grid; gap: 0.2rem; }
+.stake-contract-details[open] summary > span:last-child { transform: rotate(45deg); }
+.stake-contract-details summary > span:last-child { transition: transform 180ms var(--ease-out); }
+
+.stake-contract-details-body {
+  display: grid;
+  gap: 1rem;
+  padding: 0 clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 2rem);
+  border-top: 1px solid var(--hairline);
+}
+
+.stake-contract-link {
+  justify-self: start;
+}
+
+.stake-contract-facts > div,
+.stake-dialog-meta > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 0.85rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.stake-contract-facts dd,
+.stake-dialog-meta dd {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.stake-contract-facts code {
+  max-width: 100%;
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.stake-amount-notice[data-visible="true"],
+.stake-notice,
+.stake-status {
+  padding: 0.75rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-surface-elevated);
+}
+
+.stake-notice,
+.stake-status {
+  margin: 0;
 }
 
 .stake-result-dialog {
-  width: min(32rem, calc(100vw - 2rem));
-  padding: clamp(1rem, 4vw, 1.5rem);
+  width: min(34rem, calc(100vw - 2rem));
+  padding: clamp(1.1rem, 4vw, 1.75rem);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--material-radius);
   background: var(--color-surface-elevated);
@@ -450,94 +760,76 @@
   box-shadow: var(--material-shadow);
 }
 
-.stake-result-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
-}
-
-.stake-result-dialog h2,
-.stake-result-dialog p {
-  margin-block: 0 1rem;
-}
-
-.stake-result-dialog a {
-  margin-block-end: 1rem;
-}
-
-.stake-result-dialog a[hidden] {
-  display: none;
-}
-
-.stake-result-dialog form {
-  display: flex;
-  justify-content: flex-end;
-}
+.stake-result-dialog::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(0.2rem); }
+.stake-result-dialog h2 { margin: 0.25rem 0 0.75rem; }
+.stake-dialog-kicker,
+.stake-dialog-summary,
+.stake-dialog-detail { margin-block: 0 0.75rem; }
+.stake-dialog-summary { font-size: 1.05rem; font-weight: 650; }
+.stake-dialog-detail { color: var(--color-fg-muted); }
+.stake-result-dialog a { margin-block-end: 1rem; }
+.stake-result-dialog a[hidden] { display: none; }
+.stake-result-dialog form { display: flex; justify-content: flex-end; }
 
 @media (hover: hover) and (pointer: fine) {
-  .stake-actions button:not(:disabled):hover {
+  .stake-actions button:not(:disabled):hover,
+  .stake-heading button:not(:disabled):hover,
+  .stake-result-dialog button:not(:disabled):hover {
     border-color: var(--color-accent);
   }
 
   .stake-primary:not(:disabled):hover {
     border-color: transparent;
-    background: color-mix(in oklch, var(--color-accent) 88%, var(--color-fg));
+    background: color-mix(in oklch, var(--color-accent) 87%, var(--color-fg));
   }
 }
 
-@media (max-width: 48rem) {
-  .stake-layout,
-  .stake-how-it-works {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .stake-contract-details,
-  .stake-how-it-works,
-  .stake-how-it-works .stake-section-kicker,
-  .stake-how-it-works h2,
-  .stake-how-it-works p:nth-of-type(2),
-  .stake-how-it-works p:nth-of-type(3) {
-    grid-column: 1;
-  }
-
-  .stake-how-it-works p:nth-of-type(2),
-  .stake-how-it-works p:nth-of-type(3) {
-    grid-row: auto;
-  }
-
-  .stake-section-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .stake-contract-link {
-    text-align: left;
-  }
-
-  .stake-contract-facts > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.35rem;
-  }
-
-  .stake-actions .stake-primary {
-    justify-self: stretch;
-  }
+@media (max-width: 64rem) {
+  .stake-heading { grid-template-columns: minmax(0, 1fr); }
+  .stake-benefit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stake-layout { grid-template-columns: minmax(0, 1fr); }
+  .stake-overview { position: static; }
+  .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stake-how-it-works > div { grid-column: 1 / -1; }
 }
 
-@media (max-width: 26rem) {
-  .stake-capacity-facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 46rem) {
+  .stake-benefit-grid,
+  .stake-how-it-works { grid-template-columns: minmax(0, 1fr); }
+  .stake-how-it-works > div { grid-column: 1; }
+  .stake-how-it-works article { padding: 1rem 0 0; border-top: 1px solid var(--hairline); border-left: 0; }
+  .stake-wallet-summary { grid-template-columns: minmax(0, 1fr); }
+  .stake-section-heading { flex-direction: column; }
+}
 
-  .stake-total strong {
-    font-size: clamp(2.6rem, 18vw, 4rem);
-  }
+@media (max-width: 30rem) {
+  .stake-heading,
+  .stake-actions,
+  .stake-overview,
+  .stake-how-it-works { padding: 1rem; }
+  .stake-benefit-grid,
+  .stake-capacity-facts,
+  .stake-preview { grid-template-columns: minmax(0, 1fr); }
+  .stake-total strong { font-size: clamp(2.6rem, 18vw, 4rem); }
+  .stake-contract-facts > div,
+  .stake-dialog-meta > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stake-progress-mark,
+  .stake-inline-loading::before { animation: none; }
+  .stake-actions button,
+  .stake-heading button,
+  .stake-result-dialog button,
+  .stake-contract-details summary > span:last-child { transition: none; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .stake-heading,
   .stake-overview,
   .stake-actions,
-  .stake-contract-details,
-  .stake-how-it-works {
+  .stake-how-it-works,
+  .stake-contract-details {
     background: var(--color-surface-elevated);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

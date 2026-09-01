@@ -16,9 +16,7 @@ import type {EthereumProvider} from "../js/wallet_actions/connected_wallet"
 import {
   clientsForRedemption,
   executePreparedRedemptionAction,
-  observeRedemptionTransaction,
   RedemptionExecutionFailure,
-  type ObservedRedemptionResult,
   type PreparedRedemptionAction,
   type RedemptionAction,
   type RedemptionClients,
@@ -347,23 +345,29 @@ describe("bounded redemption wallet phases", () => {
     expect(rpc.send).not.toHaveBeenCalled()
   })
 
-  it("uses the handoff bound for a hung send and ignores its late result", async () => {
+  it("reports a slow handoff without discarding its late transaction hash", async () => {
     vi.useFakeTimers()
     let resolveSend!: (value: Hash) => void
     const rpc = clients({send: vi.fn(() => new Promise<Hash>(resolve => (resolveSend = resolve)))})
-    const execution = executePreparedRedemptionAction(envelope(), provider, rpc, selected)
-    const unknown = expect(execution).rejects.toMatchObject({
-      kind: "submission_unknown",
-      displayMessage: "The submission outcome is unknown.",
-    })
+    const submissionUnknown = vi.fn()
+    const execution = executePreparedRedemptionAction(
+      envelope(),
+      provider,
+      rpc,
+      selected,
+      undefined,
+      undefined,
+      submissionUnknown,
+    )
 
     await vi.advanceTimersByTimeAsync(119_999)
     expect(rpc.send).toHaveBeenCalledOnce()
+    expect(submissionUnknown).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1)
-    await unknown
+    expect(submissionUnknown).toHaveBeenCalledOnce()
 
     resolveSend(hash)
-    await Promise.resolve()
+    await expect(execution).resolves.toMatchObject({hash})
     expect(rpc.send).toHaveBeenCalledOnce()
   })
 
@@ -396,6 +400,9 @@ it("discards a prepared action that arrives after the wallet generation changed"
   vi.stubGlobal("window", fakeWindow)
 
   const text = {textContent: ""}
+  const dialogTitle = {textContent: ""}
+  const detail = {textContent: ""}
+  const walletText = {textContent: ""}
   const link = {
     textContent: "",
     hidden: true,
@@ -409,8 +416,14 @@ it("discards a prepared action that arrives after the wallet generation changed"
   const dialog = {
     open: false,
     isConnected: true,
-    querySelector: (selector: string) =>
-      selector === "[data-redemption-result-text]" ? text : link,
+    dataset: {},
+    querySelector: (selector: string) => {
+      if (selector === "[data-redemption-result-title]") return dialogTitle
+      if (selector === "[data-redemption-result-text]") return text
+      if (selector === "[data-redemption-result-detail]") return detail
+      if (selector === "[data-redemption-result-wallet]") return walletText
+      return link
+    },
     addEventListener: vi.fn((event: string, listener: () => void) =>
       dialogListeners.set(event, listener)
     ),
@@ -419,11 +432,19 @@ it("discards a prepared action that arrives after the wallet generation changed"
     close: vi.fn(),
   }
   const rootListeners = new Map<string, (event: MouseEvent) => void>()
+  const progress = {hidden: true, dataset: {phase: "idle"}}
+  const progressTitle = {textContent: ""}
+  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const root = {
     isConnected: true,
-    querySelector: (selector: string) =>
-      selector === "#redemption-result-dialog" ? dialog : heading,
+    querySelector: (selector: string) => {
+      if (selector === "#redemption-result-dialog") return dialog
+      if (selector === "[data-redemption-progress]") return progress
+      if (selector === "[data-redemption-progress-title]") return progressTitle
+      if (selector === "[data-redemption-progress-copy]") return progressCopy
+      return heading
+    },
     addEventListener: vi.fn((event: string, listener: (event: MouseEvent) => void) =>
       rootListeners.set(event, listener)
     ),
@@ -477,13 +498,23 @@ type RedemptionHookHarness = {
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   text: {textContent: string}
+  link: {hidden: boolean; href: string}
+  progress: {hidden: boolean; dataset: {phase: string}}
+  progressTitle: {textContent: string}
+  progressCopy: {textContent: string}
   pushEvent: ReturnType<typeof vi.fn>
+  settleNext(result: "success" | "reverted" | "delayed" | "unavailable"): void
 }
 
 function redemptionHookProvider(options: {
   chainResponses?: Array<string | Promise<string>>
-  sendResponse?: (transaction: unknown) => Hash | "hang"
-} = {}): {provider: EthereumProvider; requests: ReturnType<typeof vi.fn>} {
+  sendResponse?: (transaction: unknown) => Hash | Promise<Hash> | "hang"
+  observation?: "pending" | "unavailable" | "manual"
+} = {}): {
+  provider: EthereumProvider
+  requests: ReturnType<typeof vi.fn>
+  observation?: "pending" | "unavailable" | "manual"
+} {
   const chainResponses = [...(options.chainResponses ?? [])]
   const transactions = new Map<string, {from: string; to: string; data: string}>()
   const requests = vi.fn(async (request: {method: string; params?: unknown[]}) => {
@@ -506,24 +537,38 @@ function redemptionHookProvider(options: {
         }
         const response = options.sendResponse?.(transaction) ?? hash
         if (response === "hang") return new Promise<never>(() => undefined)
-        transactions.set(response, transaction)
-        return response
+        const resolved = await response
+        transactions.set(resolved, transaction)
+        return resolved
       }
       case "eth_getTransactionByHash": {
         const requestedHash = request.params?.[0]
         const transaction = typeof requestedHash === "string" ? transactions.get(requestedHash) : undefined
         if (!transaction) return null
+        if (options.observation === "unavailable") {
+          return {
+            hash: requestedHash,
+            from: transaction.from,
+            to: transaction.to,
+            input: "0xdeadbeef",
+            value: "0x0",
+            blockHash: null,
+            blockNumber: null,
+          }
+        }
+        const pending = options.observation === "pending"
         return {
           hash: requestedHash,
           from: transaction.from,
           to: transaction.to,
           input: transaction.data,
           value: "0x0",
-          blockHash,
-          blockNumber: "0x10",
+          blockHash: pending ? null : blockHash,
+          blockNumber: pending ? null : "0x10",
         }
       }
       case "eth_getTransactionReceipt": {
+        if (options.observation === "pending") return null
         const requestedHash = request.params?.[0]
         const transaction = typeof requestedHash === "string" ? transactions.get(requestedHash) : undefined
         if (!transaction) return null
@@ -542,10 +587,12 @@ function redemptionHookProvider(options: {
         return "0x"
     }
   })
-  return {provider: {request: requests}, requests}
+  return {provider: {request: requests}, requests, observation: options.observation}
 }
 
-function redemptionHookHarness(provider: EthereumProvider): RedemptionHookHarness {
+function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof redemptionHookProvider>): RedemptionHookHarness {
+  const provider = "provider" in source ? source.provider : source
+  const observationMode = "provider" in source ? source.observation : undefined
   const windowListeners = new Map<string, () => void>()
   const fakeWindow: {
     location: {origin: string}
@@ -563,6 +610,9 @@ function redemptionHookHarness(provider: EthereumProvider): RedemptionHookHarnes
   vi.stubGlobal("window", fakeWindow)
 
   const text = {textContent: ""}
+  const dialogTitle = {textContent: ""}
+  const detail = {textContent: ""}
+  const walletText = {textContent: ""}
   const link = {
     textContent: "",
     hidden: true,
@@ -575,8 +625,14 @@ function redemptionHookHarness(provider: EthereumProvider): RedemptionHookHarnes
   const dialog = {
     open: false,
     isConnected: true,
-    querySelector: (selector: string) =>
-      selector === "[data-redemption-result-text]" ? text : link,
+    dataset: {},
+    querySelector: (selector: string) => {
+      if (selector === "[data-redemption-result-title]") return dialogTitle
+      if (selector === "[data-redemption-result-text]") return text
+      if (selector === "[data-redemption-result-detail]") return detail
+      if (selector === "[data-redemption-result-wallet]") return walletText
+      return link
+    },
     addEventListener: vi.fn((event: string, listener: () => void) => dialogListeners.set(event, listener)),
     removeEventListener: vi.fn((event: string) => dialogListeners.delete(event)),
     showModal: vi.fn(() => {
@@ -587,25 +643,44 @@ function redemptionHookHarness(provider: EthereumProvider): RedemptionHookHarnes
       dialogListeners.get("close")?.()
     }),
   }
+  const progress = {hidden: true, dataset: {phase: "idle"}}
+  const progressTitle = {textContent: ""}
+  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
     isConnected: true,
-    querySelector: (selector: string) =>
-      selector === "#redemption-result-dialog" ? dialog : heading,
+    querySelector: (selector: string) => {
+      if (selector === "#redemption-result-dialog") return dialog
+      if (selector === "[data-redemption-progress]") return progress
+      if (selector === "[data-redemption-progress-title]") return progressTitle
+      if (selector === "[data-redemption-progress-copy]") return progressCopy
+      return heading
+    },
     addEventListener: vi.fn((event: string, listener: (event: Event) => void) =>
       rootListeners.set(event, listener)),
     removeEventListener: vi.fn((event: string) => rootListeners.delete(event)),
   }
   let walletAction!: (payload: unknown) => void
   let walletRefusal!: (payload: unknown) => void
-  const pushEvent = vi.fn()
+  let transactionResult!: (payload: unknown) => void
+  const pendingObservations: string[] = []
+  const pushEvent = vi.fn((event: string, payload: {observation_id?: string}) => {
+    if (event !== "observe_redemption_transaction" || !payload.observation_id) return
+    if (observationMode === "manual") {
+      pendingObservations.push(payload.observation_id)
+      return
+    }
+    const result = observationMode === "pending" ? "delayed" : observationMode ?? "success"
+    queueMicrotask(() => transactionResult({observation_id: payload.observation_id, result}))
+  })
   const hook = {
     el: root,
     pushEvent,
     handleEvent: vi.fn((event: string, listener: (payload: unknown) => void) => {
       if (event === "redemption:wallet-action") walletAction = listener
       if (event === "redemption:wallet-refusal") walletRefusal = listener
+      if (event === "redemption:transaction-result") transactionResult = listener
     }),
   }
 
@@ -660,7 +735,15 @@ function redemptionHookHarness(provider: EthereumProvider): RedemptionHookHarnes
     destroy,
     dialog,
     text,
+    link,
+    progress,
+    progressTitle,
+    progressCopy,
     pushEvent,
+    settleNext: result => {
+      const observationId = pendingObservations.shift()
+      if (observationId) transactionResult({observation_id: observationId, result})
+    },
   }
 }
 
@@ -672,7 +755,7 @@ describe("redemption hook ownership and result ordering", () => {
   it("cancels a hung pre-send phase on teardown before it can send", async () => {
     const chain = deferred<string>()
     const walletProvider = redemptionHookProvider({chainResponses: [chain.promise]})
-    const harness = redemptionHookHarness(walletProvider.provider)
+    const harness = redemptionHookHarness(walletProvider)
 
     const attemptId = harness.click()
     harness.walletAction(attemptId, envelope("claim"))
@@ -693,7 +776,7 @@ describe("redemption hook ownership and result ordering", () => {
     const chain = deferred<string>()
     const walletProvider = redemptionHookProvider({chainResponses: [chain.promise]})
     const other = redemptionHookProvider()
-    const harness = redemptionHookHarness(walletProvider.provider)
+    const harness = redemptionHookHarness(walletProvider)
 
     const staleAttempt = harness.click()
     harness.walletAction(staleAttempt, envelope("claim"))
@@ -718,15 +801,95 @@ describe("redemption hook ownership and result ordering", () => {
     harness.destroy()
   })
 
+  it("keeps a submitted result under its original signer after the active wallet changes", async () => {
+    const walletProvider = redemptionHookProvider({observation: "manual"})
+    const other = redemptionHookProvider()
+    const harness = redemptionHookHarness(walletProvider)
+
+    const attemptId = harness.click("claim")
+    harness.walletAction(attemptId, envelope("claim"))
+    await vi.waitFor(() =>
+      expect(walletProvider.requests.mock.calls.filter(([request]) =>
+        request.method === "eth_sendTransaction"
+      )).toHaveLength(1),
+    )
+    harness.setWallet(otherWallet, other.provider)
+    harness.settleNext("success")
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    harness.destroy()
+  })
+
+  it("keeps a Privy send when the wallet changes before Privy returns its hash", async () => {
+    vi.useFakeTimers()
+    const pendingHash = deferred<Hash>()
+    const walletProvider = redemptionHookProvider({sendResponse: () => pendingHash.promise})
+    const other = redemptionHookProvider()
+    const harness = redemptionHookHarness(walletProvider)
+
+    const attemptId = harness.click("claim")
+    harness.walletAction(attemptId, envelope("claim"))
+    await vi.waitFor(() =>
+      expect(walletProvider.requests.mock.calls.filter(([request]) =>
+        request.method === "eth_sendTransaction"
+      )).toHaveLength(1),
+    )
+    harness.setWallet(otherWallet, other.provider)
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("The submission outcome is unknown.")
+    harness.dialog.close()
+
+    pendingHash.resolve(hash)
+    await flushHookPromises()
+
+    expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    harness.destroy()
+  })
+
+  it("advances to a retained result when a wallet change removes the visible error", async () => {
+    let sends = 0
+    const walletProvider = redemptionHookProvider({
+      sendResponse: () => {
+        sends += 1
+        if (sends === 1) throw {code: 4001}
+        return secondHash
+      },
+    })
+    const other = redemptionHookProvider()
+    const harness = redemptionHookHarness(walletProvider)
+
+    const canceledAttempt = harness.click("claim")
+    harness.walletAction(canceledAttempt, envelope("claim"))
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledOnce())
+    expect(harness.text.textContent).toBe("Request canceled.")
+
+    const redeemAttempt = harness.click("redeem")
+    harness.walletAction(redeemAttempt, envelope("redeem"))
+    await vi.waitFor(() => expect(sends).toBe(2))
+    harness.setWallet(otherWallet, other.provider)
+
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledTimes(2))
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
+    harness.destroy()
+  })
+
   it("preserves a pending Claim while retiring only selection-derived attempts", async () => {
     const walletProvider = redemptionHookProvider()
-    const harness = redemptionHookHarness(walletProvider.provider)
+    const harness = redemptionHookHarness(walletProvider)
 
     const claimAttempt = harness.click("claim")
     const nftAttempt = harness.click("approve_nft_collection")
     const usdcAttempt = harness.click("approve_exact_usdc")
     const redeemAttempt = harness.click("redeem")
     harness.changeSelection()
+    expect(harness.progress.hidden).toBe(true)
+    expect(harness.progress.dataset.phase).toBe("idle")
     harness.walletAction(nftAttempt, envelope("approve_nft_collection"))
     harness.walletAction(usdcAttempt, envelope("approve_exact_usdc"))
     harness.walletAction(redeemAttempt, envelope("redeem"))
@@ -747,7 +910,7 @@ describe("redemption hook ownership and result ordering", () => {
   it("preserves a handed-off redemption and its result across selection changes", async () => {
     vi.useFakeTimers()
     const walletProvider = redemptionHookProvider()
-    const harness = redemptionHookHarness(walletProvider.provider)
+    const harness = redemptionHookHarness(walletProvider)
 
     const attemptId = harness.click("redeem")
     harness.walletAction(attemptId, envelope("redeem"))
@@ -760,11 +923,11 @@ describe("redemption hook ownership and result ordering", () => {
     harness.changeSelection()
     await vi.advanceTimersByTimeAsync(2_000)
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
-    expect(harness.text.textContent).toBe("Animata redemption succeeded on Base.")
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
 
     harness.changeSelection()
     expect(harness.dialog.open).toBe(true)
-    expect(harness.text.textContent).toBe("Animata redemption succeeded on Base.")
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
     harness.destroy()
   })
 
@@ -776,7 +939,7 @@ describe("redemption hook ownership and result ordering", () => {
           ? "hang"
           : secondHash,
     })
-    const harness = redemptionHookHarness(provider.provider)
+    const harness = redemptionHookHarness(provider)
 
     const claimAttempt = harness.click("claim")
     harness.walletAction(claimAttempt, envelope("claim"))
@@ -795,7 +958,7 @@ describe("redemption hook ownership and result ordering", () => {
 
     harness.dialog.close()
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
-    expect(harness.text.textContent).toBe("Animata redemption succeeded on Base.")
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
     harness.destroy()
   })
 
@@ -805,7 +968,7 @@ describe("redemption hook ownership and result ordering", () => {
       sendResponse: transaction =>
         (transaction as {data: string}).data === envelope("claim").data ? hash : secondHash,
     })
-    const harness = redemptionHookHarness(provider.provider)
+    const harness = redemptionHookHarness(provider)
 
     const refusedAttempt = harness.click("redeem")
     const claimAttempt = harness.click("claim")
@@ -820,7 +983,7 @@ describe("redemption hook ownership and result ordering", () => {
       )).toHaveLength(1),
     )
     await vi.advanceTimersByTimeAsync(2_000)
-    expect(harness.text.textContent).toBe("REGENT claim succeeded on Base.")
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
 
     harness.walletAction(slowAttempt, envelope("redeem"))
     await vi.waitFor(() =>
@@ -829,11 +992,11 @@ describe("redemption hook ownership and result ordering", () => {
       )).toHaveLength(2),
     )
     await vi.advanceTimersByTimeAsync(2_000)
-    expect(harness.text.textContent).toBe("REGENT claim succeeded on Base.")
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
 
     harness.dialog.close()
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
-    expect(harness.text.textContent).toBe("Animata redemption succeeded on Base.")
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
     harness.destroy()
   })
 
@@ -843,7 +1006,7 @@ describe("redemption hook ownership and result ordering", () => {
       sendResponse: transaction =>
         (transaction as {data: string}).data === envelope("claim").data ? hash : secondHash,
     })
-    const harness = redemptionHookHarness(provider.provider)
+    const harness = redemptionHookHarness(provider)
 
     const olderAttempt = harness.click("redeem")
     const visibleAttempt = harness.click("claim")
@@ -854,7 +1017,7 @@ describe("redemption hook ownership and result ordering", () => {
       )).toHaveLength(1),
     )
     await vi.advanceTimersByTimeAsync(2_000)
-    expect(harness.text.textContent).toBe("REGENT claim succeeded on Base.")
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
 
     harness.walletAction(olderAttempt, envelope("redeem"))
     await vi.waitFor(() =>
@@ -865,7 +1028,7 @@ describe("redemption hook ownership and result ordering", () => {
     await vi.advanceTimersByTimeAsync(2_000)
 
     harness.dialog.close()
-    expect(harness.text.textContent).toBe("Animata redemption succeeded on Base.")
+    expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
     harness.dialog.close()
 
     const laterAttempt = harness.click("claim")
@@ -877,240 +1040,32 @@ describe("redemption hook ownership and result ordering", () => {
     )
     await vi.advanceTimersByTimeAsync(2_000)
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(3)
-    expect(harness.text.textContent).toBe("REGENT claim succeeded on Base.")
+    expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
     harness.destroy()
   })
-})
 
-function submittedTransaction(
-  observationProvider: SubmittedRedemptionTransaction["provider"],
-): SubmittedRedemptionTransaction {
-  const prepared = envelope("redeem")
-  return Object.freeze({
-    actionId: prepared.action_id,
-    action: prepared.action,
-    provider: observationProvider,
-    chainId: 8453,
-    signer: wallet,
-    transaction: Object.freeze({
-      from: wallet,
-      to: prepared.to,
-      data: prepared.data,
-      value: "0x0" as const,
-    }),
-    hash,
-  })
-}
-
-function liveRuntime(): RedemptionRuntime {
-  return {alive: () => true, registerCancellation: () => () => undefined}
-}
-
-async function observe(
-  transaction: SubmittedRedemptionTransaction,
-  milliseconds: number,
-): Promise<ObservedRedemptionResult[]> {
-  const results: ObservedRedemptionResult[] = []
-  observeRedemptionTransaction(transaction, liveRuntime(), result => results.push(result))
-  await vi.advanceTimersByTimeAsync(milliseconds)
-  return results
-}
-
-function includedProvider(status: "0x0" | "0x1") {
-  let expected!: SubmittedRedemptionTransaction
-  const receiptProvider = {
-    request: vi.fn(async ({method}: {method: string}) => {
-      switch (method) {
-        case "eth_chainId":
-          return "0x2105"
-        case "eth_getTransactionByHash":
-          return {
-            hash: expected.hash,
-            from: expected.signer,
-            to: expected.transaction.to,
-            input: expected.transaction.data,
-            value: "0x0",
-            blockHash,
-            blockNumber: "0x10",
-          }
-        case "eth_getTransactionReceipt":
-          return {
-            transactionHash: expected.hash,
-            from: expected.signer,
-            to: expected.transaction.to,
-            status,
-            blockHash,
-            blockNumber: "0x10",
-          }
-        case "eth_getBlockByHash":
-          return {hash: blockHash, number: "0x10", transactions: [expected.hash]}
-        default:
-          throw new Error(`unexpected ${method}`)
-      }
-    }),
-  }
-  expected = submittedTransaction(receiptProvider)
-  return expected
-}
-
-describe("chain-authoritative redemption observation", () => {
   it.each([
-    ["0x1", "success"],
-    ["0x0", "reverted"],
-  ] as const)("maps validated receipt status %s to %s", async (status, outcome) => {
+    ["delayed", "pending" as const, 120_000, "Confirmation is taking longer"],
+    ["unavailable", "unavailable" as const, 2_000, "Confirmation unavailable"],
+  ])("keeps BaseScan and inline status available when confirmation is %s", async (_result, observation, wait, title) => {
     vi.useFakeTimers()
-    expect(await observe(includedProvider(status), 2_000)).toEqual([outcome])
-    expect(vi.getTimerCount()).toBe(0)
-  })
+    const walletProvider = redemptionHookProvider({observation})
+    const harness = redemptionHookHarness(walletProvider)
 
-  it("reports a still-pending transaction as delayed only at 120 seconds", async () => {
-    vi.useFakeTimers()
-    let expected!: SubmittedRedemptionTransaction
-    const pendingProvider = {
-      request: vi.fn(async ({method}: {method: string}) => {
-        if (method === "eth_chainId") return "0x2105"
-        if (method === "eth_getTransactionReceipt") return null
-        return {
-          hash: expected.hash,
-          from: expected.signer,
-          to: expected.transaction.to,
-          input: expected.transaction.data,
-          value: "0x0",
-          blockHash: null,
-          blockNumber: null,
-        }
-      }),
-    }
-    expected = submittedTransaction(pendingProvider)
-    const results: ObservedRedemptionResult[] = []
-    observeRedemptionTransaction(expected, liveRuntime(), result => results.push(result))
-
-    await vi.advanceTimersByTimeAsync(119_999)
-    expect(results).toEqual([])
-    await vi.advanceTimersByTimeAsync(1)
-    expect(results).toEqual(["delayed"])
-
-    const methods = pendingProvider.request.mock.calls.map(([request]) => request.method)
-    expect(methods.filter(method => method === "eth_chainId")).toHaveLength(96)
-    expect(methods.filter(method => method === "eth_getTransactionByHash")).toHaveLength(24)
-    expect(methods.filter(method => method === "eth_getTransactionReceipt")).toHaveLength(24)
-    expect(methods).not.toContain("eth_getBlockByHash")
-  })
-
-  it("rejects wrong-chain and contradictory inclusion evidence", async () => {
-    vi.useFakeTimers()
-    const wrongChain = {request: vi.fn(async () => "0x1")}
-    expect(await observe(submittedTransaction(wrongChain), 2_000)).toEqual(["unavailable"])
-
-    vi.clearAllTimers()
-    let expected!: SubmittedRedemptionTransaction
-    const contradictory = {
-      request: vi.fn(async ({method}: {method: string}) => {
-        if (method === "eth_chainId") return "0x2105"
-        if (method === "eth_getTransactionByHash") {
-          return {
-            hash: expected.hash,
-            from: expected.signer,
-            to: expected.transaction.to,
-            input: expected.transaction.data,
-            value: "0x0",
-            blockHash,
-            blockNumber: "0x10",
-          }
-        }
-        return {
-          transactionHash: expected.hash,
-          from: expected.signer,
-          to: expected.transaction.to,
-          status: "0x1",
-          blockHash: `0x${"ef".repeat(32)}`,
-          blockNumber: "0x10",
-        }
-      }),
-    }
-    expected = submittedTransaction(contradictory)
-    expect(await observe(expected, 2_000)).toEqual(["unavailable"])
-  })
-
-  it("rejects malformed transaction identity and a chain that drifts after a read", async () => {
-    vi.useFakeTimers()
-    let malformedExpected!: SubmittedRedemptionTransaction
-    const malformed = {
-      request: vi.fn(async ({method}: {method: string}) => {
-        if (method === "eth_chainId") return "0x2105"
-        if (method === "eth_getTransactionByHash") {
-          return {
-            hash: malformedExpected.hash,
-            from: malformedExpected.signer,
-            to: malformedExpected.transaction.to,
-            input: malformedExpected.transaction.data,
-            value: "0x1",
-            blockHash: null,
-            blockNumber: null,
-          }
-        }
-        return null
-      }),
-    }
-    malformedExpected = submittedTransaction(malformed)
-    expect(await observe(malformedExpected, 2_000)).toEqual(["unavailable"])
-
-    vi.clearAllTimers()
-    let driftExpected!: SubmittedRedemptionTransaction
-    let chainRead = 0
-    const drift = {
-      request: vi.fn(async ({method}: {method: string}) => {
-        if (method === "eth_chainId") return ++chainRead === 1 ? "0x2105" : "0x1"
-        return {
-          hash: driftExpected.hash,
-          from: driftExpected.signer,
-          to: driftExpected.transaction.to,
-          input: driftExpected.transaction.data,
-          value: "0x0",
-          blockHash: null,
-          blockNumber: null,
-        }
-      }),
-    }
-    driftExpected = submittedTransaction(drift)
-    expect(await observe(driftExpected, 2_000)).toEqual(["unavailable"])
-  })
-
-  it("reports a hung provider as unavailable after the bounded request timeout", async () => {
-    vi.useFakeTimers()
-    const hung = {request: vi.fn(() => new Promise<unknown>(() => undefined))}
-    const results: ObservedRedemptionResult[] = []
-    observeRedemptionTransaction(submittedTransaction(hung), liveRuntime(), result =>
-      results.push(result)
+    const attemptId = harness.click("claim")
+    harness.walletAction(attemptId, envelope("claim"))
+    await vi.waitFor(() =>
+      expect(walletProvider.requests.mock.calls.map(([request]) => request.method)).toContain(
+        "eth_sendTransaction",
+      ),
     )
+    await vi.advanceTimersByTimeAsync(wait)
 
-    await vi.advanceTimersByTimeAsync(5_999)
-    expect(results).toEqual([])
-    await vi.advanceTimersByTimeAsync(1)
-    expect(results).toEqual(["unavailable"])
-    expect(vi.getTimerCount()).toBe(0)
-  })
-
-  it("makes every scheduled callback inert when its wallet generation ends", async () => {
-    vi.useFakeTimers()
-    const pending = {request: vi.fn(async () => null)}
-    const transaction = submittedTransaction(pending)
-    const cancellations = new Set<() => void>()
-    let alive = true
-    const runtime: RedemptionRuntime = {
-      alive: () => alive,
-      registerCancellation: cancel => {
-        cancellations.add(cancel)
-        return () => cancellations.delete(cancel)
-      },
-    }
-    const results: ObservedRedemptionResult[] = []
-    observeRedemptionTransaction(transaction, runtime, result => results.push(result))
-
-    alive = false
-    for (const cancel of [...cancellations]) cancel()
-    await vi.advanceTimersByTimeAsync(120_000)
-    expect(results).toEqual([])
-    expect(vi.getTimerCount()).toBe(0)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.link.hidden).toBe(false)
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    expect(harness.progress.dataset.phase).toBe("submitted")
+    expect(harness.progressTitle.textContent).toBe(title)
+    harness.destroy()
   })
 })

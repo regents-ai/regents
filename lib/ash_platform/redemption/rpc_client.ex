@@ -45,6 +45,12 @@ defmodule AshPlatform.Redemption.RpcClient do
              vest_duration,
              max_token_id
            ),
+         {:ok, [animata_i_held, animata_ii_held, regents_club_ready]} <-
+           parallel_reads([
+             fn -> balance_of(animata_i, redeemer, block) end,
+             fn -> balance_of(animata_ii, redeemer, block) end,
+             fn -> balance_of(result_collection, redeemer, block) end
+           ]),
          {:ok, account} <- account_reads(wallet, collection, token_id, usdc, redeemer, block) do
       {:ok,
        Map.merge(account, %{
@@ -62,7 +68,11 @@ defmodule AshPlatform.Redemption.RpcClient do
          price: Rpc.format_units(price, 6),
          payout_raw: Integer.to_string(payout),
          payout: Rpc.format_units(payout, 18),
-         vest_duration_seconds: vest_duration
+         vest_duration_seconds: vest_duration,
+         max_source_token_id: max_token_id,
+         animata_i_held_by_redeemer: animata_i_held,
+         animata_ii_held_by_redeemer: animata_ii_held,
+         regents_club_ready: regents_club_ready
        })}
     end
   end
@@ -178,6 +188,27 @@ defmodule AshPlatform.Redemption.RpcClient do
       vest_claimed: nil,
       vest_start: nil
     }
+  end
+
+  defp parallel_reads(reads) do
+    timeout = Application.get_env(:ash_platform, :redemption_overview_timeout, 12_000)
+
+    reads
+    |> Task.async_stream(& &1.(),
+      max_concurrency: length(reads),
+      ordered: true,
+      timeout: timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, value}}, {:ok, values} -> {:cont, {:ok, [value | values]}}
+      {:ok, {:error, reason}}, _ -> {:halt, {:error, reason}}
+      _, _ -> {:halt, {:error, :chain_timeout}}
+    end)
+    |> case do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
+    end
   end
 
   defp verify_constants(

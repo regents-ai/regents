@@ -7,11 +7,9 @@ import {StakeWallet} from "../js/hooks/stake_wallet"
 import type {EthereumProvider, SelectedWallet} from "../js/wallet_actions/connected_wallet"
 import {
   executeStakingClick,
-  observeStakingTransaction,
   prepareStakingClick,
   StakingLocalRefusal,
   type ImmediateStakingResult,
-  type ObservedStakingResult,
   type PreparedStakingClick,
   type StakingAction,
   type StakingExecutionCallbacks,
@@ -31,8 +29,6 @@ const approvalAbi = parseAbi(["function approve(address spender,uint256 amount)"
 const amount = 1_500_000_000_000_000_000n
 const hash = `0x${"ab".repeat(32)}` as const
 const secondHash = `0x${"de".repeat(32)}` as const
-const blockHash = `0x${"cd".repeat(32)}` as const
-
 type ProviderRequest = {method: string; params?: unknown[]}
 
 afterEach(() => {
@@ -92,7 +88,7 @@ function prepare(
 }
 
 function liveRuntime(): StakingRuntime {
-  return {alive: () => true, registerCancellation: () => () => undefined}
+  return {alive: () => true, hostAlive: () => true, registerCancellation: () => () => undefined}
 }
 
 function callbackRecorder() {
@@ -101,6 +97,7 @@ function callbackRecorder() {
   const immediate: ImmediateStakingResult[] = []
   const submitted: SubmittedStakingTransaction[] = []
   const started: string[] = []
+  const timedOut: string[] = []
   const callbacks: StakingExecutionCallbacks = {
     claimRole: (actionId, role) => {
       const key = `${actionId}:${role}`
@@ -110,10 +107,11 @@ function callbackRecorder() {
     },
     timing: event => timing.push(event),
     walletRequestStarted: (actionId, role) => started.push(`${actionId}:${role}`),
+    handoffTimedOut: (actionId, role) => timedOut.push(`${actionId}:${role}`),
     immediate: result => immediate.push(result),
     submitted: transaction => submitted.push(transaction),
   }
-  return {callbacks, timing, immediate, submitted, started}
+  return {callbacks, timing, immediate, submitted, started, timedOut}
 }
 
 function selected(provider: EthereumProvider, address: Address = wallet): SelectedWallet {
@@ -122,8 +120,13 @@ function selected(provider: EthereumProvider, address: Address = wallet): Select
 
 function stakingHookProvider(options: {
   chainResponses?: Array<string | Promise<string> | "hang">
-  sendResponses?: Array<`0x${string}` | "hang">
-} = {}): {provider: EthereumProvider; requests: ProviderRequest[]} {
+  sendResponses?: Array<`0x${string}` | Promise<`0x${string}`> | "hang" | "reject">
+  observation?: "pending" | "unavailable" | "manual"
+} = {}): {
+  provider: EthereumProvider
+  requests: ProviderRequest[]
+  observation?: "pending" | "unavailable" | "manual"
+} {
   const chainResponses = [...(options.chainResponses ?? [])]
   const sendResponses = [...(options.sendResponses ?? [])]
   const transactions = new Map<string, {from: string; to: string; data: string}>()
@@ -151,46 +154,17 @@ function stakingHookProvider(options: {
           }
           const response = sendResponses.shift() ?? secondHash
           if (response === "hang") return new Promise<never>(() => undefined)
-          transactions.set(response, transaction)
-          return response
+          if (response === "reject") throw {code: 4001}
+          const resolved = await response
+          transactions.set(resolved, transaction)
+          return resolved
         }
-        case "eth_getTransactionByHash": {
-          const requestedHash = request.params?.[0]
-          const transaction =
-            typeof requestedHash === "string" ? transactions.get(requestedHash) : undefined
-          if (!transaction) return null
-          return {
-            hash: requestedHash,
-            from: transaction.from,
-            to: transaction.to,
-            input: transaction.data,
-            value: "0x0",
-            blockHash,
-            blockNumber: "0x10",
-          }
-        }
-        case "eth_getTransactionReceipt": {
-          const requestedHash = request.params?.[0]
-          const transaction =
-            typeof requestedHash === "string" ? transactions.get(requestedHash) : undefined
-          if (!transaction) return null
-          return {
-            transactionHash: requestedHash,
-            from: transaction.from,
-            to: transaction.to,
-            status: "0x1",
-            blockHash,
-            blockNumber: "0x10",
-          }
-        }
-        case "eth_getBlockByHash":
-          return {hash: blockHash, number: "0x10", transactions: [...transactions.keys()]}
         default:
           return "0x"
       }
     },
   }
-  return {provider, requests}
+  return {provider, requests, observation: options.observation}
 }
 
 type StakeHookHarness = {
@@ -208,10 +182,15 @@ type StakeHookHarness = {
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   text: {textContent: string}
+  link: {hidden: boolean; href: string}
+  progress: {hidden: boolean; dataset: {phase: string}}
+  progressTitle: {textContent: string}
+  progressCopy: {textContent: string}
+  settleNext(result: "success" | "reverted" | "delayed" | "unavailable"): void
 }
 
 function stakingHookHarness(
-  source: {provider: EthereumProvider; requests: ProviderRequest[]},
+  source: ReturnType<typeof stakingHookProvider>,
   allowanceAtomic = amount.toString(),
 ): StakeHookHarness {
   const provider = source.provider
@@ -232,6 +211,9 @@ function stakingHookHarness(
   vi.stubGlobal("window", fakeWindow)
 
   const text = {textContent: ""}
+  const dialogTitle = {textContent: ""}
+  const detail = {textContent: ""}
+  const walletText = {textContent: ""}
   const link = {
     textContent: "",
     hidden: true,
@@ -244,7 +226,14 @@ function stakingHookHarness(
   const dialog = {
     open: false,
     isConnected: true,
-    querySelector: (selector: string) => selector === "[data-staking-result-text]" ? text : link,
+    dataset: {},
+    querySelector: (selector: string) => {
+      if (selector === "[data-staking-result-title]") return dialogTitle
+      if (selector === "[data-staking-result-text]") return text
+      if (selector === "[data-staking-result-detail]") return detail
+      if (selector === "[data-staking-result-wallet]") return walletText
+      return link
+    },
     addEventListener: vi.fn((event: string, listener: () => void) => dialogListeners.set(event, listener)),
     removeEventListener: vi.fn((event: string) => dialogListeners.delete(event)),
     showModal: vi.fn(() => {
@@ -256,6 +245,9 @@ function stakingHookHarness(
     }),
   }
   const input = {value: "1.5"}
+  const progress = {hidden: true, dataset: {phase: "idle"}}
+  const progressTitle = {textContent: ""}
+  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
@@ -268,15 +260,32 @@ function stakingHookHarness(
     querySelector: (selector: string) => {
       if (selector === "#staking-result-dialog") return dialog
       if (selector === "#staking-amount") return input
+      if (selector === "[data-staking-progress]") return progress
+      if (selector === "[data-staking-progress-title]") return progressTitle
+      if (selector === "[data-staking-progress-copy]") return progressCopy
       return heading
     },
     addEventListener: vi.fn((event: string, listener: (event: Event) => void) =>
       rootListeners.set(event, listener)),
     removeEventListener: vi.fn((event: string) => rootListeners.delete(event)),
   }
+  let transactionResult!: (payload: unknown) => void
+  const pendingObservations: string[] = []
+  const pushEvent = vi.fn((event: string, payload: {observation_id?: string}) => {
+    if (event !== "observe_staking_transaction" || !payload.observation_id) return
+    if (source.observation === "manual") {
+      pendingObservations.push(payload.observation_id)
+      return
+    }
+    const result = source.observation === "pending" ? "delayed" : source.observation ?? "success"
+    queueMicrotask(() => transactionResult({observation_id: payload.observation_id, result}))
+  })
   const hook = {
     el: root,
-    pushEvent: vi.fn(),
+    pushEvent,
+    handleEvent: vi.fn((event: string, listener: (payload: unknown) => void) => {
+      if (event === "staking:transaction-result") transactionResult = listener
+    }),
   }
   StakeWallet.mounted!.call(hook as never)
 
@@ -328,6 +337,14 @@ function stakingHookHarness(
     destroy,
     dialog,
     text,
+    link,
+    progress,
+    progressTitle,
+    progressCopy,
+    settleNext: result => {
+      const observationId = pendingObservations.shift()
+      if (observationId) transactionResult({observation_id: observationId, result})
+    },
   }
 }
 
@@ -336,6 +353,16 @@ async function flushStakeHookPromises(): Promise<void> {
 }
 
 describe("stake hook ownership and result ordering", () => {
+  it("shows a recoverable error when Privy cannot open the wallet connector", () => {
+    const harness = stakingHookHarness(stakingHookProvider())
+
+    harness.windowListeners.get("ash:wallet-connect-failed")?.()
+
+    expect(harness.progress.dataset.phase).toBe("failed")
+    expect(harness.progressTitle.textContent).toBe("Wallet connection not completed")
+    harness.destroy()
+  })
+
   it("cancels a hung pre-send phase on teardown before it can send", async () => {
     const chain = deferred<string>()
     const source = stakingHookProvider({chainResponses: [chain.promise]})
@@ -376,8 +403,8 @@ describe("stake hook ownership and result ordering", () => {
   })
 
   it.each([
-    ["claim", "claim_regent" as const, "REGENT claim succeeded on Base."],
-    ["stake", "stake" as const, "Stake succeeded on Base."],
+    ["claim", "claim_regent" as const, "Your available REGENT rewards were claimed."],
+    ["stake", "stake" as const, "1.5 REGENT was staked successfully."],
   ])("preserves a handed-off %s and its result across amount, action, and fill edits", async (_name, action, message) => {
     vi.useFakeTimers()
     const source = stakingHookProvider()
@@ -399,7 +426,7 @@ describe("stake hook ownership and result ordering", () => {
     harness.destroy()
   })
 
-  it("suppresses an approval result and invalidates its main send across A-to-B-to-A", async () => {
+  it("presents a submitted approval and invalidates its main send across A-to-B-to-A", async () => {
     const actionChain = deferred<string>()
     const source = stakingHookProvider({chainResponses: ["0x2105", actionChain.promise]})
     const other = stakingHookProvider()
@@ -415,7 +442,113 @@ describe("stake hook ownership and result ordering", () => {
     await flushStakeHookPromises()
 
     expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1)
-    expect(harness.dialog.showModal).not.toHaveBeenCalled()
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    harness.destroy()
+  })
+
+  it("keeps a signed approval visible when the following stake request is canceled", async () => {
+    const source = stakingHookProvider({sendResponses: [hash, "reject"]})
+    const harness = stakingHookHarness(source, "0")
+
+    harness.click("stake")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(2),
+    )
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("REGENT spending was approved successfully.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+
+    harness.dialog.close()
+    expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
+    expect(harness.text.textContent).toBe("Request canceled.")
+    harness.destroy()
+  })
+
+  it("keeps a submitted result under its original signer after the active wallet changes", async () => {
+    const source = stakingHookProvider({observation: "manual"})
+    const other = stakingHookProvider()
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    harness.setWallet(otherWallet, other.provider)
+    harness.settleNext("success")
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("Your available REGENT rewards were claimed.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
+    harness.destroy()
+  })
+
+  it("fully retires a dismissed canonical result before the wallet changes", async () => {
+    const source = stakingHookProvider({observation: "manual"})
+    const other = stakingHookProvider()
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    harness.settleNext("success")
+    expect(harness.progress.dataset.phase).toBe("confirmed")
+
+    harness.dialog.close()
+    harness.setWallet(otherWallet, other.provider)
+
+    expect(harness.dialog.open).toBe(false)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.progress.hidden).toBe(true)
+    expect(harness.progress.dataset.phase).toBe("idle")
+    harness.destroy()
+  })
+
+  it("keeps a Privy send when the wallet changes before Privy returns its hash", async () => {
+    vi.useFakeTimers()
+    const pendingHash = deferred<`0x${string}`>()
+    const source = stakingHookProvider({sendResponses: [pendingHash.promise]})
+    const other = stakingHookProvider()
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    harness.setWallet(otherWallet, other.provider)
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("The submission outcome is unknown.")
+    harness.dialog.close()
+
+    pendingHash.resolve(hash)
+    await flushStakeHookPromises()
+
+    expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
+    expect(harness.text.textContent).toBe("Your available REGENT rewards were claimed.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    harness.destroy()
+  })
+
+  it("advances to a retained result when a wallet change removes the visible error", async () => {
+    const source = stakingHookProvider({sendResponses: ["reject", secondHash]})
+    const other = stakingHookProvider()
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledOnce())
+    expect(harness.text.textContent).toBe("Request canceled.")
+
+    harness.click("claim_usdc")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(2),
+    )
+    harness.setWallet(otherWallet, other.provider)
+
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledTimes(2))
+    expect(harness.text.textContent).toBe("Your available USDC rewards were claimed.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
     harness.destroy()
   })
 
@@ -438,7 +571,29 @@ describe("stake hook ownership and result ordering", () => {
 
     harness.dialog.close()
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
-    expect(harness.text.textContent).toBe("USDC claim succeeded on Base.")
+    expect(harness.text.textContent).toBe("Your available USDC rewards were claimed.")
+    harness.destroy()
+  })
+
+  it.each([
+    ["delayed", "pending" as const, 120_000, "Confirmation is taking longer"],
+    ["unavailable", "unavailable" as const, 2_000, "Confirmation unavailable"],
+  ])("keeps BaseScan and inline status available when confirmation is %s", async (_result, observation, wait, title) => {
+    vi.useFakeTimers()
+    const source = stakingHookProvider({observation})
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() =>
+      expect(harness.requests.map(request => request.method)).toContain("eth_sendTransaction"),
+    )
+    await vi.advanceTimersByTimeAsync(wait)
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.link.hidden).toBe(false)
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
+    expect(harness.progress.dataset.phase).toBe("submitted")
+    expect(harness.progressTitle.textContent).toBe(title)
     harness.destroy()
   })
 })
@@ -662,7 +817,7 @@ describe("immediate wallet handoff", () => {
     expect(recorder.submitted).toHaveLength(2)
   })
 
-  it("reports exact rejection and makes late timed-out wallet responses inert", async () => {
+  it("reports exact rejection and accepts a wallet hash returned after the handoff timeout", async () => {
     const rejected = fakeProvider(request => {
       if (request.method === "eth_chainId") return "0x2105"
       throw {code: 4001, message: "private provider text"}
@@ -694,12 +849,12 @@ describe("immediate wallet handoff", () => {
       () => selected(timedOut.provider),
     )
     await vi.advanceTimersByTimeAsync(120_000)
-    await execution
-    expect(timedOutRecorder.immediate).toMatchObject([{kind: "submission_unknown"}])
+    expect(timedOutRecorder.timedOut).toEqual([`${timedOutClick.actionId}:action`])
+    expect(timedOutRecorder.immediate).toEqual([])
     resolveWallet(hash)
-    await Promise.resolve()
-    expect(timedOutRecorder.submitted).toEqual([])
-    expect(timedOutRecorder.immediate).toHaveLength(1)
+    await execution
+    expect(timedOutRecorder.submitted).toMatchObject([{hash}])
+    expect(timedOutRecorder.immediate).toEqual([])
   })
 
   it("preserves an exact 4001 from a synchronous provider request throw", async () => {
@@ -837,160 +992,5 @@ describe("immediate wallet handoff", () => {
       expect(JSON.stringify(event)).not.toContain(wallet.toLowerCase())
       expect(JSON.stringify(event)).not.toContain(hash)
     }
-  })
-})
-
-function submitted(provider: EthereumProvider): SubmittedStakingTransaction {
-  const click = prepare("unstake", selected(provider))
-  return Object.freeze({
-    actionId: click.actionId,
-    traceId: click.traceId,
-    action: click.action,
-    role: "action",
-    provider,
-    chainId: 8453,
-    signer: click.signer,
-    transaction: click.transaction,
-    hash,
-  })
-}
-
-function receiptProvider(status: "0x0" | "0x1") {
-  let expected!: SubmittedStakingTransaction
-  const fake = fakeProvider(request => {
-    switch (request.method) {
-      case "eth_chainId":
-        return "0x2105"
-      case "eth_getTransactionByHash":
-        return {
-          hash: expected.hash,
-          from: expected.signer,
-          to: expected.transaction.to,
-          input: expected.transaction.data,
-          value: "0x0",
-          blockHash,
-          blockNumber: "0x10",
-        }
-      case "eth_getTransactionReceipt":
-        return {
-          transactionHash: expected.hash,
-          from: expected.signer,
-          to: expected.transaction.to,
-          status,
-          blockHash,
-          blockNumber: "0x10",
-        }
-      case "eth_getBlockByHash":
-        return {hash: blockHash, number: "0x10", transactions: [expected.hash]}
-      default:
-        throw new Error(`unexpected ${request.method}`)
-    }
-  })
-  expected = submitted(fake.provider)
-  return {expected}
-}
-
-async function observe(
-  transaction: SubmittedStakingTransaction,
-  milliseconds: number,
-): Promise<ObservedStakingResult[]> {
-  const results: ObservedStakingResult[] = []
-  observeStakingTransaction(transaction, liveRuntime(), result => results.push(result))
-  await vi.advanceTimersByTimeAsync(milliseconds)
-  return results
-}
-
-describe("chain-authoritative receipt observation", () => {
-  it.each([
-    ["0x1", "success"],
-    ["0x0", "reverted"],
-  ] as const)("maps validated receipt status %s to %s", async (status, outcome) => {
-    vi.useFakeTimers()
-    const {expected} = receiptProvider(status)
-
-    expect(await observe(expected, 2_000)).toEqual([outcome])
-    expect(vi.getTimerCount()).toBe(0)
-  })
-
-  it("reports delayed inclusion only after the 120 second sample", async () => {
-    vi.useFakeTimers()
-    const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : null))
-    const transaction = submitted(fake.provider)
-    const results: ObservedStakingResult[] = []
-    observeStakingTransaction(transaction, liveRuntime(), result => results.push(result))
-
-    await vi.advanceTimersByTimeAsync(119_999)
-    expect(results).toEqual([])
-    await vi.advanceTimersByTimeAsync(1)
-    expect(results).toEqual(["delayed"])
-  })
-
-  it("reports malformed, wrong-chain, and hung evidence as unavailable once", async () => {
-    vi.useFakeTimers()
-    const wrongChain = fakeProvider(() => "0x1")
-    expect(await observe(submitted(wrongChain.provider), 2_000)).toEqual(["unavailable"])
-
-    vi.clearAllTimers()
-    const malformed = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : {}))
-    expect(await observe(submitted(malformed.provider), 2_000)).toEqual(["unavailable"])
-
-    vi.clearAllTimers()
-    let resolveHung!: (value: unknown) => void
-    const hung = fakeProvider(request => {
-      if (request.method === "eth_chainId") return "0x2105"
-      return new Promise(resolve => (resolveHung = resolve))
-    })
-    const results = await observe(submitted(hung.provider), 6_000)
-    expect(results).toEqual(["unavailable"])
-    resolveHung(null)
-    await Promise.resolve()
-    expect(results).toEqual(["unavailable"])
-  })
-
-  it("keeps a valid pending transaction neutral and rejects contradictory block evidence", async () => {
-    vi.useFakeTimers()
-    let pendingTransaction!: SubmittedStakingTransaction
-    const pending = fakeProvider(request => {
-      if (request.method === "eth_chainId") return "0x2105"
-      if (request.method === "eth_getTransactionReceipt") return null
-      return {
-        hash: pendingTransaction.hash,
-        from: pendingTransaction.signer,
-        to: pendingTransaction.transaction.to,
-        input: pendingTransaction.transaction.data,
-        value: "0x0",
-        blockHash: null,
-        blockNumber: null,
-      }
-    })
-    pendingTransaction = submitted(pending.provider)
-    expect(await observe(pendingTransaction, 120_000)).toEqual(["delayed"])
-
-    vi.clearAllTimers()
-    let contradictoryTransaction!: SubmittedStakingTransaction
-    const contradictory = fakeProvider(request => {
-      if (request.method === "eth_chainId") return "0x2105"
-      if (request.method === "eth_getTransactionByHash") {
-        return {
-          hash: contradictoryTransaction.hash,
-          from: contradictoryTransaction.signer,
-          to: contradictoryTransaction.transaction.to,
-          input: contradictoryTransaction.transaction.data,
-          value: "0x0",
-          blockHash,
-          blockNumber: "0x10",
-        }
-      }
-      return {
-        transactionHash: contradictoryTransaction.hash,
-        from: contradictoryTransaction.signer,
-        to: contradictoryTransaction.transaction.to,
-        status: "0x1",
-        blockHash: `0x${"ef".repeat(32)}`,
-        blockNumber: "0x10",
-      }
-    })
-    contradictoryTransaction = submitted(contradictory.provider)
-    expect(await observe(contradictoryTransaction, 2_000)).toEqual(["unavailable"])
   })
 })

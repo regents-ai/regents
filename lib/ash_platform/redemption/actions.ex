@@ -1,7 +1,5 @@
 defmodule AshPlatform.Redemption.Actions do
   @moduledoc false
-  alias AshPlatform.Accounts.SessionAuthority
-  alias AshPlatform.Actors.Human
   alias AshPlatform.Redemption.ChainClient
   alias AshPlatform.WalletActions.{Abi, Address, Envelope, RedemptionAbi}
 
@@ -18,23 +16,31 @@ defmodule AshPlatform.Redemption.Actions do
 
   def overview(_input, _context), do: ChainClient.module().overview(nil, nil, nil)
 
-  def account_for_wallet(input, %{actor: %Human{}} = context) do
-    with {:ok, signer, _lease} <- current_wallet(input.arguments.expected_signer, context),
+  def account_for_wallet(input, _context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
          {:ok, collection} <-
            optional_collection(input.arguments.collection, input.arguments.token_id),
          do: ChainClient.module().overview(signer, collection, input.arguments.token_id)
   end
 
-  def account_for_wallet(_input, _context), do: {:error, :authentication_required}
-
-  def prepare(action, input, %{actor: %Human{}} = context) do
-    with {:ok, signer, lease} <- current_wallet(input.arguments.expected_signer, context),
-         {:ok, envelope} <- prepare_action(action, input.arguments, signer) do
-      return_current(lease, signer, envelope)
+  def prepare(action, input, _context) do
+    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+         {:ok, envelope} <- prepare_action(action, input.arguments, signer),
+         {:ok, target, contract} <- RedemptionAbi.action_identity(envelope),
+         true <-
+           Envelope.valid_for_confirmation?(envelope,
+             resource: @resource,
+             to: target,
+             signer: signer,
+             contract_name: contract,
+             actions: @actions
+           ) do
+      {:ok, envelope}
+    else
+      false -> refusal(:stale_or_invalid_action)
+      error -> error
     end
   end
-
-  def prepare(_, _, _), do: {:error, :authentication_required}
 
   defp prepare_action("approve_nft_collection", arguments, signer) do
     with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
@@ -142,39 +148,6 @@ defmodule AshPlatform.Redemption.Actions do
     end
   end
 
-  defp current_wallet(address, context) do
-    with {:ok, signer} <- normalize_address(address),
-         {:ok, lease} <- lease(context),
-         account when not is_nil(account) <-
-           SessionAuthority.leased_account(lease.lineage, lease.account_id),
-         :ok <- wallet_member(account, signer),
-         do: {:ok, signer, lease}
-  end
-
-  defp return_current(lease, signer, envelope) do
-    callback = fn account -> current_envelope(account, signer, envelope) end
-
-    case SessionAuthority.transact_lease(lease.lineage, lease.account_id, callback) do
-      {:error, :stale_authority} -> refusal(:session_unavailable)
-      false -> refusal(:stale_or_invalid_action)
-      result -> result
-    end
-  end
-
-  defp current_envelope(account, signer, envelope) do
-    with :ok <- wallet_member(account, signer),
-         {:ok, target, contract} <- RedemptionAbi.action_identity(envelope),
-         true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: @resource,
-             to: target,
-             signer: signer,
-             contract_name: contract,
-             actions: @actions
-           ),
-         do: {:ok, envelope}
-  end
-
   defp positive_claimable(facts) do
     case atomic(facts.claimable_raw) do
       {:ok, value} when value > 0 -> :ok
@@ -201,19 +174,6 @@ defmodule AshPlatform.Redemption.Actions do
       _ -> :error
     end
   end
-
-  defp lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
-       when is_binary(lineage) and is_integer(account_id),
-       do: {:ok, %{lineage: lineage, account_id: account_id}}
-
-  defp lease(_), do: {:error, :session_lease_required}
-
-  defp wallet_member(%{wallet_addresses: wallets}, signer),
-    do:
-      if(Enum.any?(wallets || [], &Address.equal?(&1, signer)),
-        do: :ok,
-        else: refusal(:wrong_signer)
-      )
 
   defp normalize_address(value) do
     case Address.normalize(value) do
