@@ -10,15 +10,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @subject_splitter_abi_sha256 "f507fa80395283b722259f6da9dec0ab65b3f33f4b9d5a2a80399593561b3a66"
-  @payment_receiver_abi_sha256 "14e6ff28b277866ad60f97abbb89890b7d5168c0723f23b830aca598e14e84e2"
-  @factory_abi_sha256 "1cd2fce9c969dea3f043d6478505ce4c6e1b8657208e1eed3bc3290a4999d1f4"
-  @strategy_abi_sha256 "29205b15c3cd9f010a9b4b946463d281a4a059c6327c3eff73286784b537ea68"
-  @c9_source_commit "5cf4a6b48388d54593b83230342542fee7c0f131"
-  @c9_source_tree "33b80348eab6e7ba9bfd4947327a3710981d2092"
-  @c9_abi_surface_sha256 "8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31"
-  @c9_release_manifest_sha256 "a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04"
-  @c9_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
+  @subject_splitter_abi_sha256 "d22d5f5820ecf7cd79955ef35d86682ae693d3f274bc7e7a9088d1b22d69aae2"
+  @payment_receiver_abi_sha256 "2bbc54dd8086f8e1ce76bac1ffadb5056fbc7247e585df58a101b52e2a37ce87"
+  @factory_abi_sha256 "12517d23c31364c207fda412e0e4ca95fda4ffb58272a4128d58e94703a0f538"
+  @strategy_abi_sha256 "f6d4784580d255cf7d7ea67e5cc19692f6bc659c71cd2a3b2622589649170f78"
+  @c9_source_commit "f4114f5276386f48bf8dc53ee344189d98c8896e"
+  @c9_source_tree "bb660324bb1d5cc322adeb243b0bd51779821fcb"
+  @c9_abi_surface_sha256 "ef5dea8e9c9c17cb999a056e3045b72497ab5850a5c82f729fd7f1849df2f7d5"
+  @c9_release_manifest_sha256 "6247280e8d0366a051b3b9a8e88de0e2ca25a1fdee358bdce2737581f1e3650b"
+  @c9_fork_observations_sha256 "b4636352c25678c32a3a690e3ff1caff0f1a4fd1504844d3ae138fdbced4e2c0"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -453,22 +453,22 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     assert subject_erc20["target"] == "stored_subject_token_address"
     assert subject_erc20["implementation_provenance"] =~ @c9_source_commit
-    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:65"
+    assert subject_erc20["implementation_provenance"] =~ "SubjectSplitterV1.sol:66"
     assert subject_erc20["implementation_provenance"] =~ "exact splitter spender"
 
     assert splitter["contract_name"] == "SubjectSplitterV1"
     assert splitter["target"] == "stored_subject_splitter_address"
     assert splitter["action_ids"] == ["stake", "unstake", "claim", "claim_all"]
     assert splitter["implementation_provenance"] =~ "SubjectSplitterV1.sol"
-    assert splitter["implementation_provenance"] =~ "lines 189-236"
+    assert splitter["implementation_provenance"] =~ "lines 201-250"
     assert splitter["interface_note"] =~ "no recipient-argument overload and no"
     assert splitter["interface_note"] =~ "truthful no-op"
 
-    # The two facts C9 added to that same surface: supply-proportional coverage,
-    # and an exit that waits for a later block than the caller's own stake.
+    # The two facts pinned about that same surface: supply-proportional coverage,
+    # and an exit delay that now covers every path value can leave an account by.
     assert splitter["interface_note"] =~ "complete 100-billion"
     assert splitter["interface_note"] =~ "leaves the treasury the exact"
-    assert splitter["interface_note"] =~ "refuses any unstake in the caller's own latest stake"
+    assert splitter["interface_note"] =~ "refuse an unstake, a claim and a claim-all alike in"
     assert splitter["interface_note"] =~ "no getter"
 
     assert receiver["contract_name"] == "PaymentReceiverV1"
@@ -477,6 +477,11 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert receiver["implementation_provenance"] =~ "PaymentReceiverV1.sol"
     assert receiver["interface_note"] =~ "referralBps() is 0"
     assert receiver["interface_note"] =~ "projected canonical_receiver_address"
+
+    # A sweep names only the token, and the reference its routing event carries is
+    # the zero word the receiver itself supplies.
+    assert receiver["implementation_provenance"] =~ "Sweep takes only the token"
+    assert receiver["implementation_provenance"] =~ "zero payment reference"
 
     # Both entries pin the exact integrated contract source and tree.
     for entry <- [splitter, receiver] do
@@ -681,7 +686,9 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     by_name = Map.new(abi, &{&1["name"], &1})
 
     assert Enum.map(by_name["pay"]["inputs"], & &1["type"]) == ["address", "uint256", "bytes32"]
-    assert Enum.map(by_name["sweep"]["inputs"], & &1["type"]) == ["address", "bytes32"]
+    # A sweep names only the token; the routed reference is the receiver's own zero.
+    assert Enum.map(by_name["sweep"]["inputs"], & &1["type"]) == ["address"]
+    assert by_name["sweep"]["notice"] =~ "under the zero payment reference"
     assert Enum.map(by_name["setReceiverNote"]["inputs"], & &1["type"]) == ["bytes32"]
     assert by_name["referralBps"]["stateMutability"] == "view"
     assert Enum.map(by_name["referralBps"]["outputs"], & &1["type"]) == ["uint16"]

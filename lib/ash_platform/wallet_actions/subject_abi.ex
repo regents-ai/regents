@@ -35,7 +35,7 @@ defmodule AshPlatform.WalletActions.SubjectAbi do
 
   @receiver_actions %{
     pay: {"pay(address,uint256,bytes32)", "0x5e5571ac"},
-    sweep: {"sweep(address,bytes32)", "0x8a738683"},
+    sweep: {"sweep(address)", "0x01681a62"},
     set_receiver_note: {"setReceiverNote(bytes32)", "0xb1379b2f"}
   }
 
@@ -138,9 +138,14 @@ defmodule AshPlatform.WalletActions.SubjectAbi do
   def encode_pay(token, amount, payment_reference),
     do: selector(:pay) <> address!(token) <> uint256!(amount) <> bytes32!(payment_reference)
 
-  @spec encode_sweep(String.t(), String.t()) :: String.t()
-  def encode_sweep(token, payment_reference),
-    do: selector(:sweep) <> address!(token) <> bytes32!(payment_reference)
+  @doc """
+  A sweep names only the token.
+
+  A bare aggregate balance asserts no attributable payment, so the receiver
+  routes it under the zero reference and there is nothing for a caller to choose.
+  """
+  @spec encode_sweep(String.t()) :: String.t()
+  def encode_sweep(token), do: selector(:sweep) <> address!(token)
 
   @spec encode_set_receiver_note(String.t()) :: String.t()
   def encode_set_receiver_note(note), do: selector(:set_receiver_note) <> bytes32!(note)

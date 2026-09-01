@@ -37,6 +37,12 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
   @bps_denominator 10_000
   @subject_total_supply 100_000_000_000 * Integer.pow(10, 18)
 
+  # The one reference a sweep is ever routed under. `sweep(address)` carries no
+  # reference of its own, so `PaymentReceiverV1` recognizes a bare aggregate
+  # balance as the zero word, and only a routing event carrying exactly that word
+  # confirms this action.
+  @swept_payment_reference "0x" <> String.duplicate("0", 64)
+
   @kinds [:stake, :unstake, :claim, :claim_all, :pay, :sweep, :set_note]
   @splitter_kinds [:stake, :unstake, :claim, :claim_all]
   @receiver_kinds [:pay, :sweep, :set_note]
@@ -389,17 +395,18 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
 
   # The receiver's own current balance is what a sweep routes, so it is reviewed
   # rather than chosen, and the event supplies the amount that actually moved.
+  # The reference is not chosen either: a bare aggregate balance asserts no
+  # attributable payment, so the receiver routes it under exactly the zero word,
+  # which is what this action's own routing event then has to carry.
   defp planned(:sweep, asset, _params, snapshot, _signer) do
     held = snapshot.receiver.balances[asset]
 
     if held > 0 do
-      reference = payment_reference()
-
       {:ok,
        %{
          amount: held,
-         payment_reference: reference,
-         data: SubjectAbi.encode_sweep(asset_address(snapshot, asset), reference)
+         payment_reference: @swept_payment_reference,
+         data: SubjectAbi.encode_sweep(asset_address(snapshot, asset))
        }}
     else
       unavailable(:nothing_to_sweep)
@@ -825,7 +832,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActions do
 
   defp note_editor(_snapshot, _signer), do: unavailable(:canonical_receiver_unavailable)
 
-  # Every operation carries its own cryptographically random reference, so two
+  # Every payment carries its own cryptographically random reference, so two
   # payments of the same amount are never the same reviewed transaction.
   defp payment_reference,
     do: "0x" <> (32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower))

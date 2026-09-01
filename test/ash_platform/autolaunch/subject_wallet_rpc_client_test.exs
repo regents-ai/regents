@@ -16,6 +16,8 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
   @receiver "0x3333333333333333333333333333333333333333"
   @token "0x4444444444444444444444444444444444444444"
   @reference "0x" <> String.duplicate("7e", 32)
+  # A sweep carries no reference of its own, so its routing event is the zero word.
+  @swept_reference "0x" <> String.duplicate("00", 32)
   @hash "0x" <> String.duplicate("ab", 32)
   @safe_block "0x20"
 
@@ -173,7 +175,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
 
     test "a sweep adopts the amount its own event reports, whatever the review showed" do
       envelope = envelope(:sweep)
-      install(envelope, :action, logs: [routed_log(250, 0, 250)])
+      install(envelope, :action, logs: [routed_log(@swept_reference, 250, 0, 250)])
 
       assert {:ok, %{outcome: :confirmed, result: result}} =
                SubjectWalletRpcClient.verify(envelope, :action, @hash)
@@ -274,7 +276,7 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
         "receiver" => @receiver,
         "token" => @token,
         "amount_atomic" => "100",
-        "payment_reference" => @reference,
+        "payment_reference" => reference(kind),
         "note" => @reference,
         "bound_tokens" => %{"subject" => @token, "usdc" => usdc(), "regent" => regent()},
         "steps" => steps(kind)
@@ -300,8 +302,11 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
   defp data(:claim), do: SubjectAbi.encode_claim(@token)
   defp data(:claim_all), do: SubjectAbi.encode_claim_all()
   defp data(:pay), do: SubjectAbi.encode_pay(@token, 100, @reference)
-  defp data(:sweep), do: SubjectAbi.encode_sweep(@token, @reference)
+  defp data(:sweep), do: SubjectAbi.encode_sweep(@token)
   defp data(:set_note), do: SubjectAbi.encode_set_receiver_note(@reference)
+
+  defp reference(:sweep), do: @swept_reference
+  defp reference(_kind), do: @reference
 
   defp target(kind) when kind in [:pay, :sweep, :set_note], do: @receiver
   defp target(_splitter_kind), do: @splitter
@@ -349,12 +354,14 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
     do:
       event(@splitter, SubjectAbi.selector(:claimed), [word(@signer), word(token)], [uint(amount)])
 
-  defp routed_log(gross, referral, net),
+  defp routed_log(gross, referral, net), do: routed_log(@reference, gross, referral, net)
+
+  defp routed_log(reference, gross, referral, net),
     do:
       event(
         @receiver,
         SubjectAbi.selector(:payment_routed),
-        [body(@reference), body(@reference), word(@token)],
+        [body(reference), body(@reference), word(@token)],
         [uint(gross), uint(referral), uint(net)]
       )
 

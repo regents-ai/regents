@@ -75,7 +75,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     },
     "payment_receiver_v1" => %{
       "pay" => {"pay(address,uint256,bytes32)", "0x5e5571ac"},
-      "sweep" => {"sweep(address,bytes32)", "0x8a738683"},
+      "sweep" => {"sweep(address)", "0x01681a62"},
       "set_receiver_note" => {"setReceiverNote(bytes32)", "0xb1379b2f"}
     },
     # The final launch interface stays reviewed and digest-pinned while no launch
@@ -94,25 +94,25 @@ defmodule AshPlatform.WalletActions.ManifestTest do
   # derived from are excluded by that repository's own .gitignore, so the durable
   # evidence is the compiler's metadata Keccak-256 of the exact source files,
   # alongside the runtime hashes its own pinned release manifest records.
-  @c9_source_commit "5cf4a6b48388d54593b83230342542fee7c0f131"
-  @c9_source_tree "33b80348eab6e7ba9bfd4947327a3710981d2092"
-  @factory_source_keccak256 "0x0c09b28c782252ed8a99d68c027f7125c52c64410d6e4a03d018ff022c245c9a"
-  @strategy_source_keccak256 "0x214e642ba5105763d7952909552f501800adb7e3887b67024afb797fa02ede01"
-  @splitter_source_keccak256 "0xd411b2c4c69184ea684bfe63d118907c786fdad5a54cb3505488733161c58f4f"
-  @c9_abi_surface_sha256 "8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31"
-  @c9_release_manifest_sha256 "a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04"
-  @c9_fork_observations_sha256 "198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c"
+  @c9_source_commit "f4114f5276386f48bf8dc53ee344189d98c8896e"
+  @c9_source_tree "bb660324bb1d5cc322adeb243b0bd51779821fcb"
+  @factory_source_keccak256 "0x365a31acbff3ba9e63160e6bf461ae28fe99dd12c7bee1e92f693d3840433108"
+  @strategy_source_keccak256 "0x9a757096a5834b3d521933ea5f92ae79ec8633791e28b8f0e2d54af35563d82f"
+  @splitter_source_keccak256 "0xb9232cc9efd7a684a40c82d1f0907fdef1e8417d6cb109515cc6e4222b3d92e1"
+  @c9_abi_surface_sha256 "ef5dea8e9c9c17cb999a056e3045b72497ab5850a5c82f729fd7f1849df2f7d5"
+  @c9_release_manifest_sha256 "6247280e8d0366a051b3b9a8e88de0e2ca25a1fdee358bdce2737581f1e3650b"
+  @c9_fork_observations_sha256 "b4636352c25678c32a3a690e3ff1caff0f1a4fd1504844d3ae138fdbced4e2c0"
 
   # The frozen-artifact runtime hashes each consumer contract must present, and
   # the SubjectSplitterV1 implementation hash the factory itself admits by code
   # hash, all read from that same release manifest.
   @runtime_keccak256 %{
     "regents_autolaunch_factory_v1" =>
-      "0x38787efb5e28dc9d53e3e19a51ef7f83d02033e98e3414029df0f0841c06ff20",
+      "0xc6a3cc79c3a28e75b30cf55091e921773de32f7798d474712f8e1e24f1a021d4",
     "regent_lbp_strategy_v1" =>
-      "0x5ee28f1c96259ac3cb8134873cca3f24a07fa151bcc8818064a66480f2d59fb6",
-    "subject_splitter_v1" => "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105",
-    "payment_receiver_v1" => "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573"
+      "0xdfdda2748e2d1ce9f13d99f6b76ea120fec2f8727f9ea97772d0445f8e5b699f",
+    "subject_splitter_v1" => "0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e",
+    "payment_receiver_v1" => "0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc"
   }
 
   # The exact six the strategy refuses as a launch treasury: three read at the

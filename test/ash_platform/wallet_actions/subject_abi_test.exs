@@ -21,7 +21,7 @@ defmodule AshPlatform.WalletActions.SubjectAbiTest do
       assert SubjectAbi.selector(:claim) == "0x1e83409a"
       assert SubjectAbi.selector(:claim_all) == "0xd1058e59"
       assert SubjectAbi.selector(:pay) == "0x5e5571ac"
-      assert SubjectAbi.selector(:sweep) == "0x8a738683"
+      assert SubjectAbi.selector(:sweep) == "0x01681a62"
       assert SubjectAbi.selector(:set_receiver_note) == "0xb1379b2f"
     end
 
@@ -49,8 +49,10 @@ defmodule AshPlatform.WalletActions.SubjectAbiTest do
 
       assert byte_size(pay) == 2 + 8 + 3 * 64
 
-      sweep = SubjectAbi.encode_sweep(@token, @reference)
-      assert byte_size(sweep) == 2 + 8 + 2 * 64
+      # One word: the token. A sweep names no amount and no reference.
+      sweep = SubjectAbi.encode_sweep(@token)
+      assert sweep == "0x01681a62" <> word(@token)
+      assert byte_size(sweep) == 2 + 8 + 64
 
       note = SubjectAbi.encode_set_receiver_note(@reference)
       assert byte_size(note) == 2 + 8 + 64
@@ -108,7 +110,7 @@ defmodule AshPlatform.WalletActions.SubjectAbiTest do
             SubjectAbi.encode_claim(@token),
             SubjectAbi.encode_claim_all(),
             SubjectAbi.encode_pay(@token, 1, @reference),
-            SubjectAbi.encode_sweep(@token, @reference),
+            SubjectAbi.encode_sweep(@token),
             SubjectAbi.encode_set_receiver_note(@reference)
           ] do
         assert rem(byte_size(data) - 10, 64) == 0

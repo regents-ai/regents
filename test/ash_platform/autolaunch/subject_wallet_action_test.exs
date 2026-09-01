@@ -239,9 +239,11 @@ defmodule AshPlatform.Autolaunch.SubjectWalletActionTest do
       arguments = operation.envelope["arguments"]
       assert arguments["amount"] == "7"
       assert [action] = arguments["steps"]
+      assert action["data"] == SubjectAbi.encode_sweep(Fixture.usdc())
 
-      assert action["data"] ==
-               SubjectAbi.encode_sweep(Fixture.usdc(), arguments["payment_reference"])
+      # A sweep chooses no reference: the receiver routes a bare balance under the
+      # zero word, and only that word can confirm this action.
+      assert arguments["payment_reference"] == "0x" <> String.duplicate("0", 64)
 
       # Nothing is swept from an asset the receiver is not holding.
       assert {:error, error} = prepare(context, :sweep, %{"asset" => "regent"})
