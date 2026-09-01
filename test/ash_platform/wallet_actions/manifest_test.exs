@@ -94,14 +94,14 @@ defmodule AshPlatform.WalletActions.ManifestTest do
   # derived from are excluded by that repository's own .gitignore, so the durable
   # evidence is the compiler's metadata Keccak-256 of the exact source files,
   # alongside the runtime hashes its own pinned release manifest records.
-  @c9_source_commit "f4114f5276386f48bf8dc53ee344189d98c8896e"
-  @c9_source_tree "bb660324bb1d5cc322adeb243b0bd51779821fcb"
+  @c9_source_commit "0fa0bc49429d43258d57836b478aa5943366942a"
+  @c9_source_tree "3f11b0a6ceb295ee9455f580003d7bdaac09f954"
   @factory_source_keccak256 "0x365a31acbff3ba9e63160e6bf461ae28fe99dd12c7bee1e92f693d3840433108"
   @strategy_source_keccak256 "0x9a757096a5834b3d521933ea5f92ae79ec8633791e28b8f0e2d54af35563d82f"
   @splitter_source_keccak256 "0xb9232cc9efd7a684a40c82d1f0907fdef1e8417d6cb109515cc6e4222b3d92e1"
   @c9_abi_surface_sha256 "ef5dea8e9c9c17cb999a056e3045b72497ab5850a5c82f729fd7f1849df2f7d5"
   @c9_release_manifest_sha256 "6247280e8d0366a051b3b9a8e88de0e2ca25a1fdee358bdce2737581f1e3650b"
-  @c9_fork_observations_sha256 "b4636352c25678c32a3a690e3ff1caff0f1a4fd1504844d3ae138fdbced4e2c0"
+  @c9_fork_observations_sha256 "86be9f50d64699411b2f09746fa5b6e9757b250095f1ce4a09a230e06d0bbbc6"
 
   # The frozen-artifact runtime hashes each consumer contract must present, and
   # the SubjectSplitterV1 implementation hash the factory itself admits by code

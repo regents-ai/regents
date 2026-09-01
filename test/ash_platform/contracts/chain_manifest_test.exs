@@ -10,15 +10,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @bid_submitted_signature "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_submitted_topic0 "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
   @erc20_approve_abi_sha256 "c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec"
-  @subject_splitter_abi_sha256 "d22d5f5820ecf7cd79955ef35d86682ae693d3f274bc7e7a9088d1b22d69aae2"
-  @payment_receiver_abi_sha256 "2bbc54dd8086f8e1ce76bac1ffadb5056fbc7247e585df58a101b52e2a37ce87"
-  @factory_abi_sha256 "12517d23c31364c207fda412e0e4ca95fda4ffb58272a4128d58e94703a0f538"
-  @strategy_abi_sha256 "f6d4784580d255cf7d7ea67e5cc19692f6bc659c71cd2a3b2622589649170f78"
-  @c9_source_commit "f4114f5276386f48bf8dc53ee344189d98c8896e"
-  @c9_source_tree "bb660324bb1d5cc322adeb243b0bd51779821fcb"
+  @subject_splitter_abi_sha256 "90d42d515ffec4973e42d926ac84e62d001612677c9eeac1360f87940568fc49"
+  @payment_receiver_abi_sha256 "4c297d2200b17c6253861ad699c7f03f0f97491c30632cc9f7b90daeb1c1fc3b"
+  @factory_abi_sha256 "f2800add2b781fc7353a670f87914118c47bea3856df17dcdb3de2af42fd5eba"
+  @strategy_abi_sha256 "f0294ec55ba24f897be5618a675e5871aa7439e879de91e69392fabc452f650c"
+  @c9_source_commit "0fa0bc49429d43258d57836b478aa5943366942a"
+  @c9_source_tree "3f11b0a6ceb295ee9455f580003d7bdaac09f954"
   @c9_abi_surface_sha256 "ef5dea8e9c9c17cb999a056e3045b72497ab5850a5c82f729fd7f1849df2f7d5"
   @c9_release_manifest_sha256 "6247280e8d0366a051b3b9a8e88de0e2ca25a1fdee358bdce2737581f1e3650b"
-  @c9_fork_observations_sha256 "b4636352c25678c32a3a690e3ff1caff0f1a4fd1504844d3ae138fdbced4e2c0"
+  @c9_fork_observations_sha256 "86be9f50d64699411b2f09746fa5b6e9757b250095f1ce4a09a230e06d0bbbc6"
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()

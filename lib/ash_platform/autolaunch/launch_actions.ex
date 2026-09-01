@@ -35,9 +35,9 @@ defmodule AshPlatform.Autolaunch.LaunchActions do
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
 
   # Three of the exact six treasuries the strategy refuses are frozen constants
-  # rather than reads: autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+  # rather than reads: autolaunch-contracts 0fa0bc49429d43258d57836b478aa5943366942a
   # src/bindings/BaseBindings.sol lines 19-21, refused together with the factory,
-  # the strategy and its hook at src/strategy/RegentLBPStrategy.sol lines 673-679.
+  # the strategy and its hook at src/strategy/RegentLBPStrategy.sol lines 681-687.
   @frozen_refused_treasuries [
     "0x498581fF718922c3f8e6A244956aF099B2652b2b",
     "0x7C5f5A4bBd8fD63184577525326123B519429bDc",

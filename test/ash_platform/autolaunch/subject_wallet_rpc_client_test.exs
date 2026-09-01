@@ -186,6 +186,18 @@ defmodule AshPlatform.Autolaunch.SubjectWalletRpcClientTest do
       assert envelope["arguments"]["amount_atomic"] == "100"
     end
 
+    test "a routed event carrying any other reference confirms no sweep" do
+      envelope = envelope(:sweep)
+
+      # A sweep is routed under the zero reference and nothing else, so a routing
+      # event this receiver emitted for some other payment in the same block is a
+      # different payment, not this action's proof.
+      install(envelope, :action, logs: [routed_log(@reference, 250, 0, 250)])
+
+      assert SubjectWalletRpcClient.verify(envelope, :action, @hash) ==
+               {:ok, %{outcome: :unverified}}
+    end
+
     test "the exact note event is authority and a receipt-block read only corroborates it" do
       envelope = envelope(:set_note)
 
