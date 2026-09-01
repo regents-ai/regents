@@ -257,6 +257,23 @@ describe("Regents Club metadata wallet action", () => {
     ).toHaveLength(2)
   })
 
+  it("lets only one concurrent delivery of the same attempt reach the wallet", async () => {
+    const rpc = provider()
+    const selected = () => wallet(rpc)
+    const attempt = await beginMetadataAttempt(attemptId, wallet(rpc), selected)
+
+    const results = await Promise.allSettled([
+      executePreparedMetadataAction(attempt, envelope(), selected),
+      executePreparedMetadataAction(attempt, envelope(), selected),
+    ])
+
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1)
+    expect(results.filter(result => result.status === "rejected")).toHaveLength(1)
+    expect(
+      vi.mocked(rpc.request).mock.calls.filter(([call]) => call.method === "eth_sendTransaction"),
+    ).toHaveLength(1)
+  })
+
   it("consumes cancellation and an absent hash without retrying", async () => {
     for (const [result, kind] of [
       [{code: 4001}, "cancelled"],

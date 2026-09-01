@@ -149,6 +149,7 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
     if wallet && RegentsClub.valid_attempt_id?(attempt_id) && !Map.has_key?(attempts, attempt_id) do
       attempt = %{
         id: attempt_id,
+        signer: wallet,
         phase: :preparing,
         envelope: nil,
         hash: nil,
@@ -208,7 +209,17 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         %{"attempt_id" => attempt_id},
         socket
       ) do
-    observe_attempt(socket, attempt_id, %{recovery: true}, &Actions.recover_unknown/1)
+    case socket.assigns.attempts[attempt_id] do
+      %{phase: :handed_off, signer: signer} ->
+        if overlapping_attempt?(socket.assigns.attempts, attempt_id, signer) do
+          {:noreply, unknown_attempt(socket, attempt_id)}
+        else
+          observe_attempt(socket, attempt_id, %{recovery: true}, &Actions.recover_unknown/1)
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event(event, %{"attempt_id" => attempt_id}, socket)
@@ -475,6 +486,19 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
     socket
     |> assign(:attempts, Map.put(socket.assigns.attempts, attempt_id, attempt))
     |> stream_insert(:attempts, attempt)
+  end
+
+  defp overlapping_attempt?(attempts, current_id, signer) do
+    Enum.any?(attempts, fn
+      {^current_id, _attempt} ->
+        false
+
+      {_attempt_id, %{signer: ^signer, phase: phase}} ->
+        phase not in [:refused, :cancelled, :browser_refused, :reverted]
+
+      _other ->
+        false
+    end)
   end
 
   defp open_app_targets do

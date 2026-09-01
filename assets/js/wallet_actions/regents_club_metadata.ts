@@ -93,12 +93,14 @@ export async function executePreparedMetadataAction(
 ): Promise<Hash> {
   if (consumed.has(attempt)) throw refused()
   assertEnvelope(attempt, envelope)
+
+  // Claim the exact attempt before the first asynchronous provider read. Two
+  // concurrent deliveries of one prepared response must not open two wallet
+  // requests.
+  consumed.add(attempt)
+
   await verifyProvider(attempt, selected)
   verifySelected(attempt, selected())
-
-  // Consume before any wallet-owned await. A duplicate LiveView response can
-  // never produce a second request for this attempt.
-  consumed.add(attempt)
 
   try {
     const client = createWalletClient({

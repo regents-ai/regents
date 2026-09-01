@@ -330,6 +330,28 @@ defmodule AshPlatformWeb.RegentsClubMetadataLiveTest do
     assert render(view) =~ "Manual founder review is required"
   end
 
+  test "missing hash stays manual when another same-signer attempt can overlap", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{
+      recover: {:ok, {:finalized, %{transaction_hash: @hash}}}
+    })
+
+    account = account!("selected-overlapping-unknown", [@other])
+    {:ok, view, _html} = mount(conn, account)
+    render_async(view)
+
+    for attempt_id <- [@attempt, @second_attempt] do
+      prepare_review(view, attempt_id)
+      confirm_attempt(view, attempt_id)
+      assert_push_event(view, "regents-club-metadata:prepared", %{attempt_id: ^attempt_id})
+    end
+
+    render_hook(view, "regents_club_metadata_submission_unknown", %{"attempt_id" => @attempt})
+
+    assert render(view) =~ "Manual founder review is required"
+    assert has_element?(view, "[data-attempt-id='#{@attempt}'][data-attempt-phase='unknown']")
+    refute render(view) =~ "Cutover finalized and this route is closed"
+  end
+
   test "new URI without exact finalized transaction evidence requires manual review", %{
     conn: conn
   } do
