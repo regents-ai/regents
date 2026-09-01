@@ -5,6 +5,21 @@ defmodule AshPlatform.DatabaseConfig do
   @cluster_name "regents-pg-test"
   @production_database_host "direct.nvwq9ozp9ye03kl1.flympg.net"
   @production_identities ["regents-platform-prod", "platform-phx"]
+  @production_hosts [@production_database_host]
+  @staging_hosts ["regents-staging-db.flycast", "regents-staging-db.internal"]
+  # The staging role can never reach production, so its refusals name production's
+  # cluster, database host, and web application wherever they could appear in a
+  # URL -- host, database, or credentials -- not only as the hostname the
+  # allowlist already rejects. These terms are staging's alone: production runs as
+  # the Fly application regents-sh-web, so refusing that name on the production
+  # role would refuse production's own release commands.
+  @staging_refusals [
+    @cluster_id,
+    @production_database_host,
+    "regents-sh-web" | @production_identities
+  ]
+  @deployment_role_variable "ASH_PLATFORM_DEPLOYMENT_ROLE"
+  @deployment_role_error ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging")
   @rehearsal_target_error "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test"
   @production_migration_error "production migration requires separate Chief-authorized production migration configuration"
 
@@ -13,7 +28,13 @@ defmodule AshPlatform.DatabaseConfig do
   def runtime_config!(:test, _getenv), do: nil
 
   def runtime_config!(:prod, getenv) do
-    database_url!(getenv, "DATABASE_POOLED_URL", @production_database_host)
+    case deployment_role!(getenv) do
+      :production ->
+        database_url!(getenv, "DATABASE_POOLED_URL", @production_hosts, @production_identities)
+
+      :staging ->
+        database_url!(getenv, "DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
+    end
   end
 
   def runtime_config!(:dev, getenv) do
@@ -26,11 +47,33 @@ defmodule AshPlatform.DatabaseConfig do
   def runtime_config!(_environment, _getenv), do: nil
 
   def release_config!(getenv \\ &System.get_env/1) do
-    require_rehearsal_target!(getenv)
-    database_url!(getenv, "DATABASE_DIRECT_URL", @production_database_host)
+    case deployment_role!(getenv) do
+      :production ->
+        require_rehearsal_target!(getenv)
+        database_url!(getenv, "DATABASE_DIRECT_URL", @production_hosts, @production_identities)
+
+      :staging ->
+        database_url!(getenv, "DATABASE_DIRECT_URL", @staging_hosts, @staging_refusals)
+    end
   end
 
-  defp database_url!(getenv, variable, required_host \\ nil) do
+  # Deployments say which venue they are. There is no default and no fallback
+  # between roles: an unset or unrecognized role stops the boot before any
+  # database URL is read.
+  defp deployment_role!(getenv) do
+    case getenv.(@deployment_role_variable) do
+      "production" -> :production
+      "staging" -> :staging
+      _unset_or_unknown -> raise @deployment_role_error
+    end
+  end
+
+  defp database_url!(
+         getenv,
+         variable,
+         admitted_hosts \\ nil,
+         refused_terms \\ @production_identities
+       ) do
     with value when is_binary(value) and value != "" <- getenv.(variable),
          {:ok, %URI{scheme: scheme, host: host, path: "/" <> database, userinfo: userinfo} = uri} <-
            parse_uri(value),
@@ -38,12 +81,12 @@ defmodule AshPlatform.DatabaseConfig do
          true <- present?(host),
          true <- present?(database),
          true <- valid_userinfo?(userinfo),
-         false <- production_identity?(uri),
-         {:ok, admitted_host} <- admit_host(host, required_host),
+         false <- refused_identity?(uri, refused_terms),
+         {:ok, admitted_host} <- admit_host(host, admitted_hosts),
          true <- safe_query?(uri),
          true <- safe_port?(uri),
          true <- valid_ecto_url?(value) do
-      connection_options(canonical_url(value, uri, required_host), admitted_host)
+      connection_options(canonical_url(value, uri, admitted_hosts, admitted_host), admitted_host)
     else
       nil -> raise "#{variable} is required"
       "" -> raise "#{variable} is required"
@@ -53,14 +96,18 @@ defmodule AshPlatform.DatabaseConfig do
 
   defp admit_host(host, nil), do: {:ok, host}
 
-  defp admit_host(host, required_host) do
-    if String.downcase(host) == required_host,
-      do: {:ok, required_host},
+  defp admit_host(host, admitted_hosts) do
+    admitted_host = String.downcase(host)
+
+    if admitted_host in admitted_hosts,
+      do: {:ok, admitted_host},
       else: :error
   end
 
-  defp canonical_url(value, _uri, nil), do: value
-  defp canonical_url(_value, uri, required_host), do: URI.to_string(%{uri | host: required_host})
+  defp canonical_url(value, _uri, nil, _admitted_host), do: value
+
+  defp canonical_url(_value, uri, _admitted_hosts, admitted_host),
+    do: URI.to_string(%{uri | host: admitted_host})
 
   defp parse_uri(value) do
     URI.new(value)
@@ -180,17 +227,19 @@ defmodule AshPlatform.DatabaseConfig do
 
   defp valid_userinfo?(_userinfo), do: false
 
-  defp production_identity?(%URI{} = uri) do
+  defp refused_identity?(%URI{} = uri, refused_terms) do
     [uri.host, uri.path, uri.userinfo]
-    |> Enum.any?(&production_identity?/1)
+    |> Enum.any?(&names_any?(&1, refused_terms))
   end
 
-  defp production_identity?(value) when is_binary(value) do
+  defp production_identity?(value), do: names_any?(value, @production_identities)
+
+  defp names_any?(value, terms) when is_binary(value) do
     decoded = decode(value) |> String.downcase()
-    Enum.any?(@production_identities, &String.contains?(decoded, &1))
+    Enum.any?(terms, &String.contains?(decoded, &1))
   end
 
-  defp production_identity?(_value), do: false
+  defp names_any?(_value, _terms), do: false
 
   defp decode(value) do
     URI.decode(value)

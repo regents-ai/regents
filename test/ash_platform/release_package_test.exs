@@ -6,6 +6,7 @@ defmodule AshPlatform.ReleasePackageTest do
   @dockerignore Path.join(@package_root, "Dockerfile.dockerignore")
   @fly_template Path.join(@package_root, "fly.toml")
   @context_script Path.join(@package_root, "scripts/build-release-context.sh")
+  @release_commands ~w(migrate bootstrap-staging pending-migrations)
 
   test "PKG-IMAGE and PKG-TEMPLATE ship the release package files" do
     assert File.regular?(@dockerfile)
@@ -13,6 +14,17 @@ defmodule AshPlatform.ReleasePackageTest do
     assert File.regular?(@fly_template)
     assert File.regular?(@context_script)
     assert File.stat!(@context_script).mode |> Bitwise.band(0o100) != 0
+  end
+
+  test "PKG-IMAGE ships every release command as an executable overlay" do
+    for command <- @release_commands do
+      path = Path.join(@package_root, "rel/overlays/bin/#{command}")
+
+      assert File.regular?(path), "#{command} is missing from the release overlay"
+
+      assert File.stat!(path).mode |> Bitwise.band(0o100) != 0,
+             "#{command} would not ship executable"
+    end
   end
 
   # Reading the ignore rules cannot tell you what they admit: a bare directory
