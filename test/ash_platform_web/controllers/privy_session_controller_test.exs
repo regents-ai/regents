@@ -125,6 +125,34 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert length(Regex.scan(~r/Privy browser reported sign-in failure/, log)) == 20
   end
 
+  test "BROWSER_FAILURE_DIAGNOSTIC: retryable closes cannot consume the actionable budget" do
+    ClaimRateLimiter.reset()
+    on_exit(&ClaimRateLimiter.reset/0)
+
+    log =
+      capture_log(fn ->
+        for _attempt <- 1..21 do
+          build_conn()
+          |> init_test_session(%{})
+          |> put_valid_csrf()
+          |> put_req_header("fly-client-ip", "198.51.100.45")
+          |> post("/auth/privy/failure", %{"reason" => "flow_closed"})
+        end
+
+        response =
+          build_conn()
+          |> init_test_session(%{})
+          |> put_valid_csrf()
+          |> put_req_header("fly-client-ip", "198.51.100.45")
+          |> post("/auth/privy/failure", %{"reason" => "provider_error"})
+
+        assert response.status == 204
+      end)
+
+    assert length(Regex.scan(~r/reason=flow_closed/, log)) == 20
+    assert length(Regex.scan(~r/reason=provider_error/, log)) == 1
+  end
+
   test "CANONICAL_AUTHORITY_ROW: a signed-in cookie carries a claim and never an account", %{
     conn: conn
   } do

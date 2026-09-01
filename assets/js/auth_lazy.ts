@@ -1,6 +1,7 @@
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
 export type SignInFailureKind = "closed" | "provider" | "session" | "startup"
+type TerminalSignInFailureKind = Exclude<SignInFailureKind, "closed">
 
 export type SignInFailureDiagnostic =
   | "bridge_startup"
@@ -66,7 +67,7 @@ const signOutHandoffKey = "regent:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
-const terminalSignInDocuments = new WeakSet<Document>()
+const terminalSignInFailures = new WeakMap<Document, TerminalSignInFailureKind>()
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
@@ -201,8 +202,8 @@ export function holdSocketDuringCookieRotation(
 
 // One read, shared by every attempt overlapping it, including the long poll the
 // pinned `connectWithFallback` swaps in behind the websocket.
-function adoptUnreadRenewal(fetcher: typeof fetch): void {
-  if (adoptingRenewal) return
+function adoptUnreadRenewal(fetcher: typeof fetch): Promise<void> {
+  if (adoptingRenewal) return adoptingRenewal
 
   const settled = () => {
     adoptingRenewal = null
@@ -223,6 +224,7 @@ function adoptUnreadRenewal(fetcher: typeof fetch): void {
     heldSockets.forEach(release => release())
   })
   void adoptingRenewal.then(settled, settled)
+  return adoptingRenewal
 }
 
 // The interval between a response that rotated or dropped the cookie and this
@@ -424,7 +426,7 @@ export function showAccountAuthFailure(
 ): void {
   if (!documentRoot) return
   if (request === "sign-in" && signInFailure !== "closed") {
-    terminalSignInDocuments.add(documentRoot)
+    terminalSignInFailures.set(documentRoot, signInFailure)
     disableSignInControls(documentRoot)
   }
   const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
@@ -458,7 +460,7 @@ function disableSignInControls(documentRoot: Document): void {
 }
 
 export function signInIsTerminal(documentRoot: Document): boolean {
-  return terminalSignInDocuments.has(documentRoot)
+  return terminalSignInFailures.has(documentRoot)
 }
 
 export function reportSignInFailure(
@@ -467,17 +469,22 @@ export function reportSignInFailure(
 ): void {
   console.warn("Regent Privy sign-in failure", failure)
 
-  const csrf = browserCsrfToken()
-  if (!csrf) return
+  void (async () => {
+    if (!csrfStateIsCurrent()) await adoptUnreadRenewal(fetcher)
+    if (!csrfStateIsCurrent()) return
 
-  void fetcher("/auth/privy/failure", {
-    method: "POST",
-    credentials: "same-origin",
-    redirect: "error",
-    keepalive: true,
-    headers: {"content-type": "application/json", "x-csrf-token": csrf},
-    body: JSON.stringify({reason: failure}),
-  }).catch(() => undefined)
+    const csrf = browserCsrfToken()
+    if (!csrf) return
+
+    await fetcher("/auth/privy/failure", {
+      method: "POST",
+      credentials: "same-origin",
+      redirect: "error",
+      keepalive: true,
+      headers: {"content-type": "application/json", "x-csrf-token": csrf},
+      body: JSON.stringify({reason: failure}),
+    })
+  })().catch(() => undefined)
 }
 
 export async function proveAnonymousSession(fetcher: typeof fetch = fetch): Promise<boolean> {
@@ -780,8 +787,9 @@ export function installAccountAuthLazyLoader(
   // login callback that failed while the request was settling has already
   // written the failure this click must leave visible.
   const request = (accountRequest: AccountRequest) => {
-    if (accountRequest === "sign-in" && signInIsTerminal(documentRoot)) {
-      disableSignInControls(documentRoot)
+    const terminalFailure = terminalSignInFailures.get(documentRoot)
+    if (accountRequest === "sign-in" && terminalFailure) {
+      showAccountAuthFailure("sign-in", documentRoot, terminalFailure)
       return
     }
     clearStatus()

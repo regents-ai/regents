@@ -50,7 +50,7 @@ defmodule AshPlatformWeb.PrivySessionController do
     {key, _source} = client_key(conn)
 
     if ClaimRateLimiter.admit(
-         {:privy_browser_failure, key},
+         {:privy_browser_failure, browser_failure_bucket(reason), key},
          @browser_failure_limit,
          @browser_failure_window_seconds
        ) == :ok do
@@ -159,6 +159,9 @@ defmodule AshPlatformWeb.PrivySessionController do
       _absent -> false
     end
   end
+
+  defp browser_failure_bucket("flow_closed"), do: :retryable
+  defp browser_failure_bucket(_actionable_reason), do: :actionable
 
   # Fly terminates the connection, so the peer is the proxy and the client
   # address arrives in one header the proxy sets itself. Anything but exactly one
