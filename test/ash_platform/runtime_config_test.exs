@@ -3,6 +3,8 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   @runtime_config Path.expand("../../config/runtime.exs", __DIR__)
   @dockerfile Path.expand("../../Dockerfile", __DIR__)
+  @fly_production_config Path.expand("../../fly.toml", __DIR__)
+  @fly_staging_config Path.expand("../../fly.staging.toml", __DIR__)
 
   setup do
     names = [
@@ -175,6 +177,28 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert_raise RuntimeError,
                  ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging"),
                  fn -> read_runtime_config(:prod) end
+  end
+
+  # The deployment files are the only place the role is named, so each one has to
+  # carry its own venue's value and the staging file has to name the staging app.
+  test "PKG-RUNTIME each deployment file names the venue it deploys" do
+    assert env_section(@fly_production_config) =~
+             ~s(\n  ASH_PLATFORM_DEPLOYMENT_ROLE = "production"\n)
+
+    assert env_section(@fly_staging_config) =~
+             ~s(\n  ASH_PLATFORM_DEPLOYMENT_ROLE = "staging"\n)
+
+    assert File.read!(@fly_staging_config) =~ ~s(app = "regents-staging"\n)
+  end
+
+  # Staging reviews the image production will receive, so the machine it runs on
+  # and the command that prepares its database have to be production's.
+  test "PKG-RUNTIME the staging deployment keeps production's shape" do
+    staging = File.read!(@fly_staging_config)
+
+    assert staging =~ ~s(primary_region = "iad"\n)
+    assert staging =~ ~s(  release_command = "/app/bin/migrate"\n)
+    assert staging =~ "  memory_mb = 1024\n"
   end
 
   test "production runtime fails closed without pooled access" do
@@ -383,6 +407,14 @@ defmodule AshPlatform.RuntimeConfigTest do
     {user_offset, _length} = :binary.match(app_stage, "USER app")
 
     assert install_offset < user_offset
+  end
+
+  # Fly applies a table until the next one begins, so a role line outside [env] --
+  # under [build], or in a comment -- would never reach the machines.
+  defp env_section(path) do
+    [_, rest] = path |> File.read!() |> String.split("[env]", parts: 2)
+
+    rest |> String.split(~r/\n\[/, parts: 2) |> hd()
   end
 
   defp autolaunch_surfaces?(environment),
