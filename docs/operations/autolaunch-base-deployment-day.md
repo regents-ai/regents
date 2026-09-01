@@ -169,6 +169,17 @@ document until the release packet passes all gates.
   fee, deployer ETH balance, and no competing pending transaction.
 - Confirm all Safes' full addresses, owners, thresholds, nonces, modules, guards,
   fallback handlers, and pending transactions.
+- Re-read the live staking contract's `paused()` state on Base at ceremony time,
+  and stop if it reports paused. The founder approval packet at
+  `/Users/sean/Documents/regent/control/docs/decisions/autolaunch-c10-approval-2026-09-01/founder-approval-packet.md`
+  records this obligation as "Open by design — a ceremony-time action", because
+  that state is mutable and "must be read again immediately before any
+  authorized deployment, and finding it paused is a stop".
+- Take a fresh funding estimate against the selected deployer account at ceremony
+  time and compare it with the release packet's expected gas ceiling above. The
+  same packet records this obligation as "Open by design" and directs funding
+  "from a live estimate taken against this exact account at ceremony time", not
+  from any number committed in the deployment packet.
 - Establish a deployment operator, Safe proposer, independent reviewer, Safe
   signers, and evidence recorder. One person must not fill every role.
 
@@ -249,6 +260,9 @@ Do not sign or broadcast if any of these is true:
   is unverified.
 - Safe owners, threshold, nonce, modules, guard, fallback handler, or pending
   transactions differ from the approved record.
+- The live staking contract reports paused.
+- The fresh ceremony-time funding estimate is missing, or exceeds the release
+  packet's expected gas ceiling.
 - Any ownership handoff appears at all, which the approved ceremony does not
   perform.
 - Simulation differs from the proposed transaction or cannot decode it fully.
