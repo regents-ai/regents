@@ -655,6 +655,32 @@ describe("Privy session bridge", () => {
     expect(reportFailure).not.toHaveBeenCalled()
   })
 
+  it("does not duplicate a session rejection already reported by the server", async () => {
+    const loginOpen = {current: true}
+    const showFailure = vi.fn()
+    const reportFailure = vi.fn()
+    const callbacks = createPrivyLoginCallbacks({
+      completeLogin: () =>
+        createLocalSession(
+          {accessToken: "access", identityToken: "identity"},
+          (async input =>
+            String(input) === "/auth/csrf"
+              ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+              : new Response(JSON.stringify({error: "unauthorized"}), {status: 401})) as typeof fetch,
+        ).then(() => undefined),
+      loginOpen,
+      showFailure,
+      reportFailure,
+    })
+
+    callbacks.onComplete?.({} as Parameters<NonNullable<typeof callbacks.onComplete>>[0])
+    await until(() => showFailure.mock.calls.length === 1)
+
+    expect(reportFailure).not.toHaveBeenCalled()
+    expect(showFailure).toHaveBeenCalledOnce()
+    expect(showFailure).toHaveBeenCalledWith("session")
+  })
+
   it("maps provider errors to closed diagnostics without logging raw values", () => {
     const malicious = "unknown-auth-error bearer=secret wallet=0x1234"
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined)

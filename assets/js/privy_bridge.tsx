@@ -477,9 +477,11 @@ export function createPrivyLoginCallbacks({
     onComplete: () => {
       const opened = loginOpen.current
       loginOpen.current = false
-      void completeLogin().catch(() => {
+      void completeLogin().catch(error => {
         if (!opened) return
-        reportFailure("session_exchange")
+        if (!(error instanceof ServerReportedSessionError)) {
+          reportFailure("session_exchange")
+        }
         showFailure("session")
       })
     },
