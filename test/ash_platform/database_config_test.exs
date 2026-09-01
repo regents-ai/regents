@@ -8,6 +8,10 @@ defmodule AshPlatform.DatabaseConfigTest do
   @mpg_pooled "postgresql://pooled_user:pooled-secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net:5432/ash_platform"
   @mpg_direct "postgresql://direct_user:direct-secret@direct.nvwq9ozp9ye03kl1.flympg.net:5432/ash_platform"
   @socket_options [:inet6]
+  @role "ASH_PLATFORM_DEPLOYMENT_ROLE"
+  @staging_flycast "postgresql://staging_user:staging-secret@regents-staging-db.flycast:5432/ash_platform"
+  @staging_internal "postgresql://staging_user:staging-secret@regents-staging-db.internal:5432/ash_platform"
+  @role_error ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging")
 
   test "test always keeps the fixed local database" do
     config =
@@ -428,7 +432,166 @@ defmodule AshPlatform.DatabaseConfigTest do
     refute Keyword.has_key?(effective, :prepare)
   end
 
-  defp env(values), do: &Map.get(values, &1)
+  test "a missing or unrecognized deployment role stops production before any URL is read" do
+    for role <- [nil, "", "prod", "PRODUCTION", "Staging", "staging ", "rehearsal"] do
+      getenv = fn
+        @role -> role
+        "DATABASE_POOLED_URL" -> flunk("production runtime read a database URL without a role")
+        "DATABASE_DIRECT_URL" -> flunk("the release path read a database URL without a role")
+        _name -> nil
+      end
+
+      assert_raise RuntimeError, @role_error, fn ->
+        DatabaseConfig.runtime_config!(:prod, getenv)
+      end
+
+      assert_raise RuntimeError, @role_error, fn -> DatabaseConfig.release_config!(getenv) end
+    end
+  end
+
+  test "development and test never read the deployment role" do
+    getenv = fn
+      @role -> flunk("a local environment read the deployment role")
+      "USER" -> "local-user"
+      _name -> nil
+    end
+
+    assert DatabaseConfig.runtime_config!(:test, getenv) == nil
+    assert DatabaseConfig.runtime_config!(:dev, getenv)[:database] == "ash_platform_dev"
+  end
+
+  test "the staging role admits exactly the two staging hosts, with no rehearsal ceremony" do
+    for url <- [@staging_flycast, @staging_internal] do
+      runtime =
+        DatabaseConfig.runtime_config!(:prod, staging_env(%{"DATABASE_POOLED_URL" => url}))
+
+      release = DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => url}))
+
+      assert runtime == [url: url, socket_options: @socket_options]
+      assert release == [url: url, socket_options: @socket_options]
+    end
+  end
+
+  test "the staging role normalizes an admitted host before Repo parsing" do
+    uppercase = "postgresql://user:secret@REGENTS-STAGING-DB.FLYCAST:5432/ash_platform"
+
+    for config <- [
+          DatabaseConfig.runtime_config!(
+            :prod,
+            staging_env(%{"DATABASE_POOLED_URL" => uppercase})
+          ),
+          DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => uppercase}))
+        ] do
+      assert effective_repo_config(config)[:hostname] == "regents-staging-db.flycast"
+    end
+  end
+
+  test "the staging role refuses production hosts, the production cluster, and every identity" do
+    refused = [
+      @mpg_direct,
+      @mpg_pooled,
+      "postgresql://user:secret@custom.cluster.flympg.net:5432/ash_platform",
+      "postgresql://user:secret@flympg.net:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/nvwq9ozp9ye03kl1",
+      "postgresql://nvwq9ozp9ye03kl1:secret@regents-staging-db.flycast:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/regents-platform-prod",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/platform-phx",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/regents-sh-web",
+      "postgresql://regents-sh-web:secret@regents-staging-db.flycast:5432/ash_platform",
+      "postgresql://user:secret@regents-sh-web:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/direct.nvwq9ozp9ye03kl1.flympg.net",
+      "postgresql://direct.nvwq9ozp9ye03kl1.flympg.net:secret@regents-staging-db.flycast:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.flycast.attacker.example:5432/ash_platform",
+      "postgresql://user:secret@other-regents-staging-db.flycast:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.example.test:5432/ash_platform"
+    ]
+
+    for url <- refused,
+        {selector, variable} <- [
+          {fn value ->
+             DatabaseConfig.runtime_config!(:prod, staging_env(%{"DATABASE_POOLED_URL" => value}))
+           end, "DATABASE_POOLED_URL"},
+          {fn value ->
+             DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => value}))
+           end, "DATABASE_DIRECT_URL"}
+        ] do
+      error = assert_raise RuntimeError, fn -> selector.(url) end
+
+      assert Exception.message(error) ==
+               "#{variable} must be a valid PostgreSQL URL for the approved target"
+
+      refute Exception.message(error) =~ "secret"
+    end
+  end
+
+  test "the production role refuses the staging database hosts on both paths" do
+    for url <- [@staging_flycast, @staging_internal] do
+      assert_raise RuntimeError,
+                   "DATABASE_POOLED_URL must be a valid PostgreSQL URL for the approved target",
+                   fn ->
+                     DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url}))
+                   end
+
+      assert_raise RuntimeError,
+                   "DATABASE_DIRECT_URL must be a valid PostgreSQL URL for the approved target",
+                   fn ->
+                     DatabaseConfig.release_config!(
+                       env(rehearsal_env(%{"DATABASE_DIRECT_URL" => url}))
+                     )
+                   end
+    end
+  end
+
+  # Production runs as the Fly application regents-sh-web, so that name belongs to
+  # staging's refusal list alone. If the production role evaluated it anywhere,
+  # this deployment -- the real one -- would stop on its own name.
+  test "the production role reads regents-sh-web exactly as it did before staging existed" do
+    named_url =
+      "postgresql://user:secret@direct.nvwq9ozp9ye03kl1.flympg.net:5432/regents-sh-web"
+
+    assert DatabaseConfig.release_config!(
+             env(
+               rehearsal_env(%{
+                 "FLY_APP_NAME" => "regents-sh-web",
+                 "DATABASE_DIRECT_URL" => @mpg_direct
+               })
+             )
+           ) ==
+             DatabaseConfig.release_config!(
+               env(rehearsal_env(%{"DATABASE_DIRECT_URL" => @mpg_direct}))
+             )
+
+    assert DatabaseConfig.runtime_config!(
+             :prod,
+             env(%{"FLY_APP_NAME" => "regents-sh-web", "DATABASE_POOLED_URL" => @mpg_direct})
+           ) ==
+             DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => @mpg_direct}))
+
+    for {selector, variable} <- [
+          {&DatabaseConfig.runtime_config!(:prod, &1), "DATABASE_POOLED_URL"},
+          {&DatabaseConfig.release_config!/1, "DATABASE_DIRECT_URL"}
+        ] do
+      config = selector.(env(rehearsal_env(%{variable => named_url})))
+
+      assert effective_repo_config(config)[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
+    end
+
+    assert DatabaseConfig.runtime_config!(:dev, env(%{"FLY_APP_NAME" => "regents-sh-web"})) == [
+             username: nil,
+             password: nil,
+             hostname: "127.0.0.1",
+             port: 5432,
+             database: "ash_platform_dev",
+             pool_size: 2
+           ]
+  end
+
+  # Every deployed path names its venue. These cases exercise the production
+  # role unless they say otherwise; the role's own admission is proven by the
+  # deployment-role cases above.
+  defp env(values), do: &Map.get(Map.put_new(values, @role, "production"), &1)
+
+  defp staging_env(values), do: env(Map.put(values, @role, "staging"))
 
   defp rehearsal_env(overrides) do
     Map.merge(

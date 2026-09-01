@@ -15,6 +15,7 @@ defmodule AshPlatform.RuntimeConfigTest do
       "ASH_PLATFORM_DATABASE_CLUSTER_ID",
       "ASH_PLATFORM_DATABASE_CLUSTER_NAME",
       "ASH_PLATFORM_DATABASE_TARGET_MODE",
+      "ASH_PLATFORM_DEPLOYMENT_ROLE",
       "ASH_PLATFORM_RELEASE_COMMAND",
       "FLY_APP_NAME",
       "PHX_HOST",
@@ -104,6 +105,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "production runtime enables the repository with pooled access" do
+    put_production_role()
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     pooled =
@@ -148,6 +150,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME serving uses the host without its surrounding whitespace" do
+    put_production_role()
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     System.put_env(
@@ -164,13 +167,26 @@ defmodule AshPlatform.RuntimeConfigTest do
              "shadow.example.test"
   end
 
+  test "production boot fails closed until the deployment says which venue it is" do
+    put_pooled_url()
+    System.put_env("PHX_HOST", "shadow.example.test")
+    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
+
+    assert_raise RuntimeError,
+                 ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging"),
+                 fn -> read_runtime_config(:prod) end
+  end
+
   test "production runtime fails closed without pooled access" do
+    put_production_role()
+
     assert_raise RuntimeError, "DATABASE_POOLED_URL is required", fn ->
       read_runtime_config(:prod)
     end
   end
 
   test "migration runtime selects direct access only for the exact rehearsal target" do
+    put_production_role()
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     direct =
@@ -198,6 +214,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "migration runtime rejects an arbitrary direct URL without rehearsal identity" do
+    put_production_role()
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("DATABASE_DIRECT_URL", "postgresql://direct:secret@direct.example.test/db")
 
@@ -207,6 +224,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "migration runtime refuses production mode before reading direct access" do
+    put_production_role()
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "production")
 
@@ -216,12 +234,14 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME serving fails closed without a host" do
+    put_production_role()
     put_pooled_url()
 
     assert_raise System.EnvError, ~r/PHX_HOST/, fn -> read_runtime_config(:prod) end
   end
 
   test "PKG-RUNTIME serving fails closed on a blank host" do
+    put_production_role()
     put_pooled_url()
     System.put_env("PHX_HOST", " ")
     System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
@@ -232,6 +252,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME serving fails closed without a session secret" do
+    put_production_role()
     put_pooled_url()
     System.put_env("PHX_HOST", "shadow.example.test")
 
@@ -239,6 +260,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME serving fails closed on an undersized session secret" do
+    put_production_role()
     put_pooled_url()
     System.put_env("PHX_HOST", "shadow.example.test")
     System.put_env("SECRET_KEY_BASE", "too-short")
@@ -249,6 +271,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "PKG-RUNTIME migration startup does not require serving-only endpoint values" do
+    put_production_role()
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     direct =
@@ -282,6 +305,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   # Production must name the Base endpoint it trusts, so every production-path
   # case here supplies one and one case proves the boot without it.
   test "PKG-RUNTIME production fails closed without a Base read endpoint" do
+    put_production_role()
     put_pooled_url()
     System.put_env("PHX_HOST", "shadow.example.test")
     System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
@@ -299,6 +323,7 @@ defmodule AshPlatform.RuntimeConfigTest do
   end
 
   test "Autolaunch surfaces open by default only under test, and otherwise only on an exact on" do
+    put_production_role()
     put_pooled_url()
     System.put_env("PHX_HOST", "shadow.example.test")
     System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
@@ -362,6 +387,10 @@ defmodule AshPlatform.RuntimeConfigTest do
 
   defp autolaunch_surfaces?(environment),
     do: get_in(read_runtime_config(environment), [:ash_platform, :autolaunch_surfaces])
+
+  defp put_production_role do
+    System.put_env("ASH_PLATFORM_DEPLOYMENT_ROLE", "production")
+  end
 
   defp put_pooled_url do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")

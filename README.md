@@ -90,6 +90,7 @@ development and from the deployment's secret store in production.
 | `PHX_HOST` | Yes in production | Public hostname the endpoint builds URLs from. |
 | `SECRET_KEY_BASE` | Yes in production | Session signing secret; must be at least 64 bytes. |
 | `PORT` | No | HTTP port. Defaults to `4000`. |
+| `ASH_PLATFORM_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
 | `DATABASE_POOLED_URL` | Yes in production | Pooled Postgres connection string. Rejected unless it is a well-formed PostgreSQL URL for an approved target. |
 | `DATABASE_DIRECT_URL` | Only when migrating | Direct Postgres connection string, used by the migration release command. |
 | `ASH_PLATFORM_DATABASE_TARGET_MODE` | Only when migrating | Must be `rehearsal`. `production` is refused outright. |
@@ -161,11 +162,14 @@ Other relevant checks are available for browser behavior, asset budgets, and ext
 
 > [!WARNING]
 > Deploying runs `/app/bin/migrate` as its release command, so a deploy writes database
-> migrations. The migration path refuses to run unless the target is the approved rehearsal
-> cluster; a production target is refused outright and needs separately authorised
-> configuration. Production boot also fails unless `ASH_PLATFORM_APP_SURFACES`,
-> `BASE_READ_RPC_URL`, `PHX_HOST`, and a 64-byte `SECRET_KEY_BASE` are all set. Confirm the
-> target and its secrets before running a deploy.
+> migrations. Every deployment must name its venue in `ASH_PLATFORM_DEPLOYMENT_ROLE`, and
+> each role admits only its own database hosts. Under the `production` role the migration
+> path refuses to run unless the target is the approved rehearsal cluster; a production
+> target is refused outright and needs separately authorised configuration. Production boot
+> also fails unless `ASH_PLATFORM_APP_SURFACES`, `BASE_READ_RPC_URL`, `PHX_HOST`, and a
+> 64-byte `SECRET_KEY_BASE` are all set. `/app/bin/pending-migrations` reports what a
+> deployed database and the release image disagree about, without applying anything.
+> Confirm the target and its secrets before running a deploy.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
 
