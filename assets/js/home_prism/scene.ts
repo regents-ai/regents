@@ -12,7 +12,7 @@
 import {draw, effect, frame, sampler, target} from "vgpu"
 import type {Draw, Effect, Geometry, Gpu, Surface, Target} from "vgpu"
 
-import {FIELD_PALETTE} from "../home_field/palette"
+import {FIELD_PALETTE, heroPalette, type Rgba} from "../home_field/palette"
 import {fieldWgsl} from "../home_field/shader"
 import {cameraView, rotationMatrix, type CameraView} from "./camera"
 import {crownLightGeometry, updateCrownLightGeometry} from "./crown-light"
@@ -26,6 +26,7 @@ import {
   CROWN_LIGHT_PLANE_Z,
   CROWN_POSTPROCESS,
   type Vec2,
+  type Vec3,
 } from "./crown-types"
 import bloomUpsampleWgsl from "./shaders/bloom-upsample"
 import bloomWgsl from "./shaders/bloom"
@@ -37,8 +38,13 @@ import presentWgsl from "./shaders/present"
 
 const ENVIRONMENT_ROTATION = rotationMatrix(CROWN_GLASS.environmentRotation)
 const BLOOM_LEVELS = 4
-/** The page ground, in the values this scene composes in. */
-const GROUND = [...FIELD_PALETTE.composedGround] as [number, number, number, number]
+/**
+ * The page ground, in the values this scene composes in. It is read fresh so the
+ * crown clears to whatever ground the page canvas is drawing, and the two never
+ * disagree at the seam. The palette's tuples never change, so the frame path hands
+ * this one straight on rather than copying it.
+ */
+const ground = () => heroPalette().composedGround
 type BloomTargets = readonly [Target, Target, Target, Target]
 
 export interface PrismScene {
@@ -60,6 +66,7 @@ export interface PrismScene {
   readonly sceneSampler: ReturnType<typeof sampler>
   orbit: Vec2
   lightAim: Vec2
+  beam: Vec3
   aspect: number
   view: CameraView
   readonly label: string
@@ -71,7 +78,8 @@ export function createScene(gpu: Gpu, output: readonly [number, number], label: 
   const bloomUpsampleEffect = (name: string) =>
     effect(gpu, bloomUpsampleWgsl, {label: `${label}.bloom-upsample-${name}`, blend: "additive"})
   const crown = crownGeometry(gpu, `${label}.crown`)
-  const lightSheet = crownLightGeometry(gpu, [0, 0], aspect, `${label}.light-sheet`)
+  const beam = heroPalette().beam
+  const lightSheet = crownLightGeometry(gpu, [0, 0], aspect, beam, `${label}.light-sheet`)
 
   return {
     gpu,
@@ -123,6 +131,7 @@ export function createScene(gpu: Gpu, output: readonly [number, number], label: 
     }),
     orbit: [0, 0],
     lightAim: [0, 0],
+    beam,
     aspect,
     view: cameraView(aspect),
     label,
@@ -138,7 +147,17 @@ export function setOrbit(scene: PrismScene, x: number, y: number): void {
 /** Swings the three lasers, which means retracing them on the processor. */
 export function setLightAim(scene: PrismScene, x: number, y: number): void {
   scene.lightAim = [Math.min(1, Math.max(-1, x)), Math.min(1, Math.max(-1, y))]
-  updateCrownLightGeometry(scene.lightSheet, scene.lightAim, scene.aspect)
+  updateCrownLightGeometry(scene.lightSheet, scene.lightAim, scene.aspect, scene.beam)
+}
+
+/**
+ * Recolours the three lasers. Their colour lives in the vertices, so this is the
+ * same one retrace a swing costs, and it is only ever paid when the pointer
+ * moves between cards.
+ */
+export function setBeamColor(scene: PrismScene, beam: Vec3): void {
+  scene.beam = beam
+  updateCrownLightGeometry(scene.lightSheet, scene.lightAim, scene.aspect, scene.beam)
 }
 
 export function resizeScene(scene: PrismScene, output: readonly [number, number]): void {
@@ -148,7 +167,7 @@ export function resizeScene(scene: PrismScene, output: readonly [number, number]
   scene.sceneTargets?.[1].resize(output)
   scene.bloomTargets?.forEach((bloomTarget, level) => bloomTarget.resize(bloomLevelSize(output, level)))
   scene.view = cameraView(scene.aspect, scene.orbit[0], scene.orbit[1])
-  updateCrownLightGeometry(scene.lightSheet, scene.lightAim, scene.aspect)
+  updateCrownLightGeometry(scene.lightSheet, scene.lightAim, scene.aspect, scene.beam)
 }
 
 function glassUniforms(scene: PrismScene): Record<string, unknown> {
@@ -180,7 +199,7 @@ export async function prepareScene(scene: PrismScene, output: Surface): Promise<
   scene.bloomTargets ??= (Array.from({length: BLOOM_LEVELS}, (_, level) =>
     hdrTarget(`bloom-${level}`, bloomLevelSize(output.size, level)),
   ) as unknown as BloomTargets)
-  bind(scene)
+  bind(scene, ground())
   await Promise.all([
     scene.field.compile(scene.sceneTargets[0]),
     scene.light.compile(scene.sceneTargets[0]),
@@ -197,17 +216,18 @@ export async function prepareScene(scene: PrismScene, output: Surface): Promise<
 export function presentScene(scene: PrismScene, output: Surface): void {
   const [readTarget, writeTarget] = scene.sceneTargets!
   const bloomTargets = scene.bloomTargets!
-  bind(scene)
+  const clear = ground()
+  bind(scene, clear)
   frame(scene.gpu, current => {
-    current.pass({target: readTarget, clear: GROUND}, pass => {
+    current.pass({target: readTarget, clear}, pass => {
       pass.draw(scene.field)
       pass.draw(scene.light)
     })
-    current.pass({target: writeTarget, clear: GROUND}, pass => {
+    current.pass({target: writeTarget, clear}, pass => {
       pass.draw(scene.copyToBack)
       pass.draw(scene.glassBack)
     })
-    current.pass({target: readTarget, clear: GROUND}, pass => {
+    current.pass({target: readTarget, clear}, pass => {
       pass.draw(scene.copyToFront)
       pass.draw(scene.glassFront)
     })
@@ -223,14 +243,14 @@ export function presentScene(scene: PrismScene, output: Surface): void {
   })
 }
 
-function bind(scene: PrismScene): void {
+function bind(scene: PrismScene, groundColor: Rgba): void {
   const [readTarget, writeTarget] = scene.sceneTargets!
   const bloomTargets = scene.bloomTargets!
   // The hero canvas composes in high dynamic range and encodes once at the end,
   // so the field is handed the values that come out of that pass as the page's.
   scene.field.set({
     params: {
-      groundColor: GROUND,
+      groundColor,
       squareColor: FIELD_PALETTE.composedSquare,
       resolution: scene.outputSize,
       intensity: FIELD_PALETTE.intensity,

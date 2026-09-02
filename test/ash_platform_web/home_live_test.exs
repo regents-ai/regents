@@ -1,11 +1,35 @@
 defmodule AshPlatformWeb.HomeLiveTest do
   use AshPlatformWeb.ConnCase, async: true
 
-  # Nous is the runtime the products run on, not a Regents product: it has no tile and no number.
-  @products [
-    {"techtree", "Techtree", "Prove what makes an agent better."},
-    {"autolaunch", "Autolaunch", "Turn proven edge into runway."},
-    {"regent", "Regent", "Designed for use by Hermes agents."}
+  # Nous is the runtime the products run on, not a Regents product: it has no chapter of its own.
+  @chapters ~w(techtree autolaunch regent)
+
+  # The three products the hero lists, in the founder's order, with his one-liners. Only
+  # techtree has a site to open today; the other two say so on a control that does nothing.
+  @hero_products [
+    %{
+      name: "autolaunch",
+      line: "Agents raise funds through CCA auctions on Base. Earn when they earn.",
+      site: "https://autolaunch.sh",
+      github: "https://github.com/regents-ai/autolaunch",
+      open: false
+    },
+    %{
+      name: "techtree",
+      line:
+        "Upgrade your agent with proven skill, harness, and env improvements. Buy and sell upgrades with other agents.",
+      site: "https://techtree.sh",
+      github: "https://github.com/regents-ai/techtree",
+      open: true
+    },
+    %{
+      name: "patchbay",
+      line:
+        "Collaborative WebMCP forum for troubleshooting Tool calling issues. Agents help agents.",
+      site: "https://patchbay.help",
+      github: "https://github.com/regents-ai/patchbay",
+      open: false
+    }
   ]
 
   @nav [
@@ -68,29 +92,25 @@ defmodule AshPlatformWeb.HomeLiveTest do
     }
   ]
 
-  test "the header indexes the page and the bento reaches every chapter", %{conn: conn} do
+  test "the header indexes the page and the hero lists every product", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, "#public-home[phx-hook=HomeHero]")
     assert has_element?(view, "[data-home-header]")
     assert has_element?(view, "[data-home-hero-copy]")
-    assert has_element?(view, "#home-products[data-home-hero-cards]")
+    assert has_element?(view, "ul#home-products[data-home-hero-cards]")
 
     for {slug, label, target} <- @nav do
       assert has_element?(view, "#home-nav-#{slug}[href=\"#{target}\"]", label)
     end
 
-    for {anchor, label, _tagline} <- @products do
-      assert has_element?(
-               view,
-               "#home-card-#{anchor}[data-home-hero-card][href=\"##{anchor}\"]",
-               label
-             )
-
+    for anchor <- @chapters do
       assert has_element?(view, "##{anchor}.rl-chapter")
     end
 
-    assert length(Regex.scan(~r/data-home-hero-card=""/, html)) == 3
+    # Each card names itself, which is how pointing at one tells the hero what to become.
+    assert attribute(html, "[data-home-hero-card]", "data-home-hero-card") ==
+             Enum.map(@hero_products, & &1.name)
 
     assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
   end
@@ -124,25 +144,70 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute has_element?(view, "a.rl-action--disabled")
   end
 
-  test "the hero states the stack and offers one in-page way into it", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/")
+  test "the hero names the company and what it is", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "h1#home-title", "Prove the edge. Fund the agent.")
-    assert html =~ "The Verifiers eval stack for Hermes agents"
+    assert has_element?(view, "h1#home-title", "Regents Agentic Product Labs")
 
     assert has_element?(
              view,
              ".rl-hero-copy p",
-             "techtree verifies your harness uplift. autolaunch allows agents to raise funds by CLI auctions on Base."
+             "a no-equity company with onchain revenue split"
            )
+  end
 
-    assert attribute(html, ".rl-hero-actions a", "href") == ["#home-products"]
+  test "each product card carries the founder's line and its two controls", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert texts(html, "[data-home-hero-card] strong") == Enum.map(@hero_products, & &1.name)
+    assert texts(html, "[data-home-hero-card] > p") == Enum.map(@hero_products, & &1.line)
+
+    for product <- @hero_products do
+      card = "#home-card-#{product.name}"
+
+      if product.open do
+        assert has_element?(
+                 view,
+                 ~s(#{card} .rl-card-actions a.rl-action[href="#{product.site}"][target="_blank"][rel="noopener noreferrer"]),
+                 "Open #{product.name} ↗"
+               )
+      else
+        # A site that is not open yet keeps its place on a control that really does nothing.
+        assert has_element?(
+                 view,
+                 ~s(#{card} .rl-card-actions button.rl-action[type="button"][disabled][aria-disabled="true"]),
+                 "Open #{product.name} ↗"
+               )
+
+        assert attribute(html, "#{card} .rl-card-actions a.rl-action", "href") == []
+      end
+
+      assert has_element?(
+               view,
+               ~s(#{card} a.rl-card-source[href="#{product.github}"][target="_blank"][rel="noopener noreferrer"][aria-label="#{product.name} on GitHub"])
+             )
+    end
+
+    assert attribute(html, "[data-home-hero-card] a.rl-card-source", "href") ==
+             Enum.map(@hero_products, & &1.github)
+  end
+
+  test "the hero closes on what staking pays and the two ways to take part", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert sentences(html, ".rl-hero-stakers > p") == [
+             "Regents Labs is unique in that REGENT token stakers receive their share of all product's USDC revenue"
+           ]
 
     assert has_element?(
              view,
-             ~s(.rl-hero-actions a.rl-action--strong[href="#home-products"]),
-             "See how it works"
+             ~s(.rl-stakers-actions a.rl-action[href^="https://dexscreener.com/"][target="_blank"][rel="noopener noreferrer"]),
+             "Buy REGENT ↗"
            )
+
+    # Staking is ours, so it opens where the visitor already is.
+    assert has_element?(view, ~s(.rl-stakers-actions a.rl-action[href="/stake"]), "Stake REGENT")
+    assert attribute(html, ~s(.rl-stakers-actions a[href="/stake"]), "target") == []
   end
 
   test "the page closes on the system summary the About tab points at", %{conn: conn} do
@@ -190,21 +255,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert attribute(html, ".rl-footer a", "href") == []
   end
 
-  test "the hero bento reads the page order and names each product in founder words", %{
-    conn: conn
-  } do
+  test "the cards stand in the founder's order", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     assert attribute(html, "[data-home-hero-card]", "id") ==
-             Enum.map(@products, fn {anchor, _label, _tagline} -> "home-card-#{anchor}" end)
-
-    assert texts(html, "[data-home-hero-card] strong") ==
-             Enum.map(@products, &elem(&1, 1))
-
-    assert texts(
-             html,
-             "[data-home-hero-card] > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels)"
-           ) == Enum.map(@products, &elem(&1, 2))
+             Enum.map(@hero_products, &"home-card-#{&1.name}")
   end
 
   test "every section states its founder copy in order", %{conn: conn} do
@@ -273,8 +328,6 @@ defmodule AshPlatformWeb.HomeLiveTest do
              ~s(img.rl-hero-art[src="/images/home/hero-bg-dark.svg"][loading="eager"])
            )
 
-    assert length(Regex.scan(~r/data-home-voxel=""/, html)) == 18
-
     refute html =~ "partners"
     refute html =~ "customers"
   end
@@ -321,18 +374,23 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert texts(html, "a.rl-action") == [
              "Stake REGENT",
-             "See how it works",
+             "Open techtree ↗",
+             "Buy REGENT ↗",
+             "Stake REGENT",
              "Create Agent on Nous",
              "Explore the system"
            ]
 
-    assert texts(html, "button.rl-action") == ["Copy Instructions to My Hermes"]
+    assert texts(html, "button.rl-action") == [
+             "Open autolaunch ↗",
+             "Open patchbay ↗",
+             "Copy Instructions to My Hermes"
+           ]
 
-    # Three primary actions, one per beat: enter the story, create the agent, start again.
-    assert texts(html, ".rl-hero-actions .rl-action--strong") == ["See how it works"]
+    # Two primary actions, one per beat that asks for something: create the agent, start again.
     assert texts(html, "#regent .rl-action--strong") == ["Create Agent on Nous"]
     assert texts(html, "#home-closing .rl-action--strong") == ["Explore the system"]
-    assert length(texts(html, ".rl-action--strong")) == 3
+    assert length(texts(html, ".rl-action--strong")) == 2
   end
 
   test "the landing is one document for everyone and declares the dark it paints", %{conn: conn} do
@@ -462,6 +520,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
     |> String.replace(~r/data-phx-static="[^"]*"/, ~s(data-phx-static="STATIC"))
     |> String.replace(~r/id="phx-[^"]*"/, ~s(id="ID"))
   end
+
+  # The server may wrap a long sentence across source lines; a browser reads it as one.
+  defp sentences(html, selector),
+    do: html |> texts(selector) |> Enum.map(&(&1 |> String.split() |> Enum.join(" ")))
 
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)

@@ -1,6 +1,12 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {
+  HERO_PALETTES,
+  HERO_PALETTE_EVENT,
+  heroPalette,
+  setHeroPalette,
+} from "../js/home_field/palette"
+import {
   HomeHero,
   createHomeHeroController,
   type HomeHeroAnimation,
@@ -11,13 +17,13 @@ const element = () =>
   ({
     style: {},
     dataset: {},
+    // A plain element sits inside nothing the hero asks about.
+    closest: vi.fn(() => null),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(() => true),
     querySelector: vi.fn(() => null),
   }) as unknown as HTMLElement
-
-const gateway = (id: string, href: string) =>
-  ({...element(), id, getAttribute: (name: string) => (name === "href" ? href : null)}) as HTMLElement
 
 // The server renders this payload into data-copy-hermes-instructions; the hook must hand it to
 // the clipboard unchanged, so it is spelled out here rather than read back from the fixture.
@@ -162,45 +168,10 @@ describe("homepage hero enhancement", () => {
     })
   })
 
-  it("leaves the four server-owned OPEN gateway destinations unchanged", () => {
-    const cards = [
-      gateway("home-card-formation", "/formation"),
-      gateway("home-card-autolaunch", "/autolaunch"),
-      gateway("home-card-techtree", "/techtree"),
-      gateway("home-card-regent", "/app"),
-    ]
-    const root = element()
-    root.querySelectorAll = vi.fn((selector: string) =>
-      selector === "[data-home-hero-card]" ? cards : [],
-    ) as unknown as typeof root.querySelectorAll
-    const driver: HomeHeroDriver = {
-      animate: vi.fn(() => ({cancel: vi.fn(), seek: vi.fn()})),
-    }
-    const controller = createHomeHeroController(root, {
-      driver,
-      reducedMotion: () => false,
-      requestFrame: callback => {
-        callback(0)
-        return 1
-      },
-    })
-
-    controller.mount()
-
-    expect(cards.map(card => [card.id, card.getAttribute("href")])).toEqual([
-      ["home-card-formation", "/formation"],
-      ["home-card-autolaunch", "/autolaunch"],
-      ["home-card-techtree", "/techtree"],
-      ["home-card-regent", "/app"],
-    ])
-    expect(driver.animate).toHaveBeenCalledWith(cards, expect.any(Object))
-  })
-
-  it("enhances all four already-readable cards together after first paint", () => {
+  it("enhances the words and the three server-rendered cards together after first paint", () => {
     const header = element()
     const copy = element()
-    const cards = [element(), element(), element(), element()]
-    const voxels = [element(), element()]
+    const cards = [element(), element(), element()]
     const root = element()
     root.querySelectorAll = vi.fn((selector: string) => {
       switch (selector) {
@@ -208,8 +179,6 @@ describe("homepage hero enhancement", () => {
           return [header, copy]
         case "[data-home-hero-card]":
           return cards
-        case "[data-home-voxel]":
-          return voxels
         default:
           return []
       }
@@ -236,7 +205,7 @@ describe("homepage hero enhancement", () => {
 
     expect(root.dataset.heroEnhanced).toBe("true")
     expect(root.dataset.heroMotion).toBe("pending")
-    expect(animations).toHaveLength(3)
+    expect(animations).toHaveLength(2)
     expect(driver.animate).toHaveBeenNthCalledWith(
       1,
       [header, copy],
@@ -246,11 +215,6 @@ describe("homepage hero enhancement", () => {
       2,
       cards,
       expect.objectContaining({duration: 500, opacity: [0, 1], translateY: [12, 0]}),
-    )
-    expect(driver.animate).toHaveBeenNthCalledWith(
-      3,
-      voxels,
-      expect.objectContaining({duration: 400, opacity: [0.35, 0.82]}),
     )
     for (const animation of animations) {
       expect(animation.options.loop).not.toBe(true)
@@ -300,7 +264,7 @@ describe("homepage hero enhancement", () => {
   it("cancels active motion and restores a clean remount boundary", () => {
     const root = element()
     root.querySelectorAll = vi.fn(() => [element()]) as unknown as typeof root.querySelectorAll
-    const animations = Array.from({length: 3}, () => ({cancel: vi.fn(), seek: vi.fn()}))
+    const animations = Array.from({length: 2}, () => ({cancel: vi.fn(), seek: vi.fn()}))
     const driver: HomeHeroDriver = {animate: vi.fn(() => animations.shift()!)}
     const controller = createHomeHeroController(root, {
       driver,
@@ -315,7 +279,7 @@ describe("homepage hero enhancement", () => {
     const active = controller.active
     controller.destroy()
 
-    expect(active).toHaveLength(3)
+    expect(active).toHaveLength(2)
     expect(active?.every(animation => vi.mocked(animation.cancel).mock.calls.length === 1)).toBe(true)
     expect(root.dataset.heroEnhanced).toBeUndefined()
     expect(root.dataset.heroMotion).toBeUndefined()
@@ -324,8 +288,8 @@ describe("homepage hero enhancement", () => {
   it("cancels an earlier enhancement before starting the latest mount", () => {
     const root = element()
     root.querySelectorAll = vi.fn(() => [element()]) as unknown as typeof root.querySelectorAll
-    const first = Array.from({length: 3}, () => ({cancel: vi.fn(), seek: vi.fn()}))
-    const second = Array.from({length: 3}, () => ({cancel: vi.fn(), seek: vi.fn()}))
+    const first = Array.from({length: 2}, () => ({cancel: vi.fn(), seek: vi.fn()}))
+    const second = Array.from({length: 2}, () => ({cancel: vi.fn(), seek: vi.fn()}))
     const animations = [...first, ...second]
     const driver: HomeHeroDriver = {animate: vi.fn(() => animations.shift()!)}
     const controller = createHomeHeroController(root, {
@@ -378,5 +342,176 @@ describe("homepage hero enhancement", () => {
     expect(root.dataset.heroMotion).toBe("settled")
     expect(targets.every(target => target.style.opacity === "")).toBe(true)
     expect(targets.every(target => target.style.transform === "")).toBe(true)
+  })
+})
+
+describe("homepage hero palette", () => {
+  const HERO = ".rl-hero"
+  const COLUMN = "[data-home-hero-cards]"
+  const CARD = "[data-home-hero-card]"
+
+  const pointAt = (target: unknown) => ({target}) as unknown as Event
+  const leaveFor = (relatedTarget: unknown) => ({relatedTarget}) as unknown as Event
+
+  const heroPage = () => {
+    const hero = element()
+    const column = element()
+    const root = element()
+    // The column contains itself as far as closest() is concerned, and a card really
+    // does sit inside it, so both fakes answer that question the way the DOM would.
+    Object.assign(column, {
+      closest: (selector: string) => (selector === COLUMN ? column : null),
+    })
+    const card = (name: string) => {
+      const node = {dataset: {homeHeroCard: name}} as unknown as HTMLElement
+      Object.assign(node, {
+        closest: (selector: string) =>
+          selector === CARD ? node : selector === COLUMN ? column : null,
+      })
+      return node
+    }
+    root.querySelector = vi.fn((selector: string) =>
+      selector === HERO ? hero : selector === COLUMN ? column : null,
+    ) as unknown as typeof root.querySelector
+    root.querySelectorAll = vi.fn(() => []) as unknown as typeof root.querySelectorAll
+    return {card, column, hero, root}
+  }
+
+  const start = (fine: boolean) => {
+    const nodes = heroPage()
+    const controller = createHomeHeroController(nodes.root, {
+      finePointer: () => fine,
+      requestFrame: vi.fn(() => 1),
+    })
+    controller.mount()
+    const on = (type: string) =>
+      vi.mocked(nodes.column.addEventListener).mock.calls.find(([name]) => name === type)?.[1] as
+        | EventListener
+        | undefined
+    return {...nodes, controller, on}
+  }
+
+  afterEach(() => {
+    setHeroPalette("rest")
+  })
+
+  it("colours the hero for the card being pointed at and clears it on the way out", () => {
+    const page = start(true)
+
+    page.on("pointerover")!(pointAt(page.card("techtree")))
+
+    expect(page.hero.dataset.heroProduct).toBe("techtree")
+    expect(heroPalette()).toBe(HERO_PALETTES.techtree)
+
+    page.on("pointerout")!(leaveFor(null))
+
+    expect(page.hero.dataset.heroProduct).toBeUndefined()
+    expect(heroPalette()).toBe(HERO_PALETTES.rest)
+  })
+
+  it("gives a keyboard reader the same colours as the pointer", () => {
+    const page = start(true)
+
+    page.on("focusin")!(pointAt(page.card("autolaunch")))
+
+    expect(page.hero.dataset.heroProduct).toBe("autolaunch")
+    expect(heroPalette()).toBe(HERO_PALETTES.autolaunch)
+
+    page.on("focusout")!(leaveFor(null))
+
+    expect(page.hero.dataset.heroProduct).toBeUndefined()
+  })
+
+  // The hairline between two cards belongs to the column, so crossing it is not
+  // leaving the products: the hero goes straight from one colour to the next.
+  it("changes colour once when the pointer crosses the gap between two cards", () => {
+    const page = start(true)
+
+    page.on("pointerover")!(pointAt(page.card("autolaunch")))
+    page.on("pointerout")!(leaveFor(page.column))
+    page.on("pointerover")!(pointAt(page.card("techtree")))
+
+    expect(page.hero.dataset.heroProduct).toBe("techtree")
+    expect(heroPalette()).toBe(HERO_PALETTES.techtree)
+    expect(page.hero.dispatchEvent).toHaveBeenCalledTimes(2)
+  })
+
+  // Moving from a card's words to its own buttons is not leaving the card.
+  it("holds the colour while the pointer stays inside one card", () => {
+    const page = start(true)
+    const patchbay = page.card("patchbay")
+
+    page.on("pointerover")!(pointAt(patchbay))
+    page.on("pointerout")!(leaveFor(patchbay))
+
+    expect(page.hero.dataset.heroProduct).toBe("patchbay")
+    expect(heroPalette()).toBe(HERO_PALETTES.patchbay)
+  })
+
+  // The two ways in are held apart, so a pointer passing through cannot take the
+  // page out from under a keyboard reader standing on a card.
+  it("gives the pointer the lead and hands the page back to the keyboard after it", () => {
+    const page = start(true)
+
+    page.on("focusin")!(pointAt(page.card("techtree")))
+    expect(page.hero.dataset.heroProduct).toBe("techtree")
+
+    page.on("pointerover")!(pointAt(page.card("autolaunch")))
+    expect(page.hero.dataset.heroProduct).toBe("autolaunch")
+    expect(heroPalette()).toBe(HERO_PALETTES.autolaunch)
+
+    page.on("pointerout")!(leaveFor(null))
+    expect(page.hero.dataset.heroProduct).toBe("techtree")
+    expect(heroPalette()).toBe(HERO_PALETTES.techtree)
+
+    page.on("focusout")!(leaveFor(null))
+    expect(page.hero.dataset.heroProduct).toBeUndefined()
+    expect(heroPalette()).toBe(HERO_PALETTES.rest)
+  })
+
+  // Both canvases follow one announcement, so the crown and the ground cannot disagree.
+  it("announces the change once, on the hero, for the whole page to hear", () => {
+    const page = start(true)
+
+    page.on("pointerover")!(pointAt(page.card("techtree")))
+
+    expect(page.hero.dispatchEvent).toHaveBeenCalledTimes(1)
+    const announced = vi.mocked(page.hero.dispatchEvent).mock.calls[0]![0]
+    expect(announced.type).toBe(HERO_PALETTE_EVENT)
+    expect(announced.bubbles).toBe(true)
+  })
+
+  it("says nothing when the pointer has not really moved to another card", () => {
+    const page = start(true)
+
+    page.on("pointerover")!(pointAt(page.card("techtree")))
+    page.on("pointerover")!(pointAt(page.card("techtree")))
+
+    expect(page.hero.dispatchEvent).toHaveBeenCalledTimes(1)
+  })
+
+  // A touch is not a hover, so a phone is left with the resting page.
+  it("installs nothing for a coarse pointer", () => {
+    const page = start(false)
+
+    expect(page.column.addEventListener).not.toHaveBeenCalled()
+    expect(page.hero.dataset.heroProduct).toBeUndefined()
+    expect(heroPalette()).toBe(HERO_PALETTES.rest)
+  })
+
+  it("returns the page to rest and lets the card column go when the hook is destroyed", () => {
+    const page = start(true)
+    page.on("pointerover")!(pointAt(page.card("autolaunch")))
+
+    page.controller.destroy()
+
+    expect(page.hero.dataset.heroProduct).toBeUndefined()
+    expect(heroPalette()).toBe(HERO_PALETTES.rest)
+    expect(vi.mocked(page.column.removeEventListener).mock.calls.map(([type]) => type)).toEqual([
+      "pointerover",
+      "pointerout",
+      "focusin",
+      "focusout",
+    ])
   })
 })

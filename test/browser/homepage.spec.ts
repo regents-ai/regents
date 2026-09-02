@@ -29,19 +29,65 @@ const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   ).toBe(true)
 }
 
-test("[U2] homepage is server-readable and keeps the three product gateways", async ({browser}) => {
+test("[U2] homepage is server-readable and lists all three products", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Prove the edge. Fund the agent."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Regents Agentic Product Labs"})).toBeVisible()
+  await expect(page.getByText("a no-equity company with onchain revenue split")).toBeVisible()
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
-  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
+
+  const cards = page.locator("[data-home-hero-card]")
+  await expect(cards).toHaveCount(3)
+  expect(await cards.evaluateAll(elements => elements.map(element => element.id))).toEqual([
+    "home-card-autolaunch",
+    "home-card-techtree",
+    "home-card-patchbay",
+  ])
+
+  // techtree is the one site that is open, so it is the one live site link.
+  const open = page.locator("#home-card-techtree a.rl-action")
+  await expect(open).toHaveText("Open techtree ↗")
+  await expect(open).toHaveAttribute("href", "https://techtree.sh")
+  await expect(open).toHaveAttribute("target", "_blank")
+  await expect(open).toHaveAttribute("rel", "noopener noreferrer")
+
+  const unopened = page.locator("[data-home-hero-card] button.rl-action")
+  await expect(unopened).toHaveCount(2)
+  await expect(unopened).toHaveText(["Open autolaunch ↗", "Open patchbay ↗"])
+  for (const name of ["autolaunch", "patchbay"]) {
+    const button = page.locator(`#home-card-${name} button.rl-action`)
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute("aria-disabled", "true")
+    // The label is there to read; the tab stop is not there to reach.
+    expect(
+      await button.evaluate(element => {
+        element.focus()
+        return document.activeElement === element
+      }),
+    ).toBe(false)
+  }
+  await expect(page.locator("[data-home-hero-card] a.rl-action")).toHaveCount(1)
+
+  const sources = page.locator("[data-home-hero-card] a.rl-card-source")
+  await expect(sources).toHaveCount(3)
+  expect(
+    await sources.evaluateAll(elements => elements.map(element => element.getAttribute("href"))),
+  ).toEqual([
+    "https://github.com/regents-ai/autolaunch",
+    "https://github.com/regents-ai/techtree",
+    "https://github.com/regents-ai/patchbay",
+  ])
+
+  const buy = page.locator(".rl-stakers-actions a", {hasText: "Buy REGENT"})
+  await expect(buy).toHaveAttribute("href", /^https:\/\/dexscreener\.com\//)
+  await expect(buy).toHaveAttribute("target", "_blank")
+  const stake = page.locator(".rl-stakers-actions a", {hasText: "Stake REGENT"})
+  await expect(stake).toHaveAttribute("href", "/stake")
+  await expect(stake).not.toHaveAttribute("target", /.+/)
+
   await expect(page.locator("#techtree, #autolaunch, #regent")).toHaveCount(3)
-  await expect(page.locator(".rl-hero-actions a")).toHaveAttribute("href", "#home-products")
   await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
 })
@@ -161,12 +207,21 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
 
       const hero = await boxOf(".rl-hero")
       const copy = await boxOf("[data-home-hero-copy]")
+      const cards = await boxOf("#home-products")
       const crown = await boxOf("#home-prism")
 
       expect(copy.left).toBeGreaterThanOrEqual(hero.left)
       expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
         hero.left + hero.width / 2,
       )
+      expect(cards.left, "the products start on the same edge as the words").toBeCloseTo(
+        copy.left,
+        0,
+      )
+      expect(cards.right, "the products stay in the left half").toBeLessThanOrEqual(
+        hero.left + hero.width / 2,
+      )
+      expect(cards.top, "the products come under the words").toBeGreaterThanOrEqual(copy.bottom)
       expect(crown.left).toBeLessThanOrEqual(hero.left)
       expect(crown.right).toBeGreaterThanOrEqual(hero.right)
     })
@@ -182,11 +237,17 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
       // On a phone the copy block hands its own lines to the hero stack, so it has no box
       // of its own: the heading stands for the words above the crown.
       const title = await boxOf("#home-title")
+      const tagline = await boxOf(".rl-hero-copy p")
       const crown = await boxOf("#home-prism")
-      const actions = await boxOf(".rl-hero-actions")
+      const cards = await boxOf("#home-products")
+      const stakers = await boxOf(".rl-hero-stakers")
 
-      expect(title.bottom, "the heading sits above the crown").toBeLessThanOrEqual(crown.top)
-      expect(crown.bottom, "the crown sits above the way in").toBeLessThanOrEqual(actions.top)
+      expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
+      expect(tagline.bottom, "the tagline sits above the crown").toBeLessThanOrEqual(crown.top)
+      expect(crown.bottom, "the crown sits above the products").toBeLessThanOrEqual(cards.top)
+      expect(cards.bottom, "the products sit above the stakers band").toBeLessThanOrEqual(
+        stakers.top,
+      )
     })
   }
 })
@@ -213,19 +274,8 @@ for (const viewport of [
     )
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
-    if (viewport.width <= 390) {
-      expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(3)
-      const collisionCount = await cards.evaluateAll(elements =>
-        elements.reduce((count, card) => {
-          const voxels = card.querySelector(".rl-card-voxels")?.getBoundingClientRect()
-          const tagline = card.querySelector(":scope > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels)")?.getBoundingClientRect()
-          if (!voxels || !tagline) return count
-          const overlaps = !(voxels.right <= tagline.left || voxels.left >= tagline.right || voxels.bottom <= tagline.top || voxels.top >= tagline.bottom)
-          return count + Number(overlaps)
-        }, 0),
-      )
-      expect(collisionCount).toBe(0)
-    }
+    // One column at every width: three cards, three distinct rows, none beside another.
+    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(3)
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -239,11 +289,7 @@ for (const viewport of [
   })
 }
 
-test("[U1][U2] the hero bento ranks Techtree, then Autolaunch, then Regent at every viewport", async ({page}) => {
-  const area = (card: {height: number; width: number}) => card.width * card.height
-  const declaredArea = (card: {declaredHeight: number; width: number}) =>
-    card.width * card.declaredHeight
-
+test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewport", async ({page}) => {
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -255,47 +301,70 @@ test("[U1][U2] the hero bento ranks Techtree, then Autolaunch, then Regent at ev
         elements.map(element => {
           const box = element.getBoundingClientRect()
           return {
-            declaredHeight: Number.parseFloat(getComputedStyle(element).minHeight),
-            height: box.height,
             id: element.id,
             left: box.left,
+            product: element.dataset.homeHeroCard,
             top: box.top,
-            width: box.width,
           }
         }),
       )
 
+      expect(cards.map(card => card.product)).toEqual(["autolaunch", "techtree", "patchbay"])
       expect(cards.map(card => card.id)).toEqual([
-        "home-card-techtree",
         "home-card-autolaunch",
-        "home-card-regent",
+        "home-card-techtree",
+        "home-card-patchbay",
       ])
 
-      const [lead, second, ...secondary] = cards
-      expect(lead.top).toBeLessThanOrEqual(Math.min(...cards.map(card => card.top)))
-      expect(lead.left).toBeLessThanOrEqual(Math.min(...cards.map(card => card.left)))
-
-      for (const card of cards) {
-        expect(card.height, `${card.id} renders at least its stylesheet height`)
-          .toBeGreaterThanOrEqual(card.declaredHeight)
-      }
-
-      expect(area(lead)).toBeGreaterThan(area(second))
-      expect(declaredArea(lead)).toBeGreaterThan(declaredArea(second))
-
-      for (const card of secondary) {
-        expect(area(second), `Autolaunch outranks ${card.id}`).toBeGreaterThan(area(card))
-        expect(declaredArea(second)).toBeGreaterThan(declaredArea(card))
-      }
-
-      // Where the lead shares its row band, it spans the whole band: both stacked ranks fit beside it.
-      if (Math.round(lead.top) === Math.round(second.top)) {
-        expect(lead.height).toBeGreaterThanOrEqual(
-          second.height + Math.max(...secondary.map(card => card.height)),
-        )
+      // One column: each card stands below the one before it, on the same left edge.
+      for (const [index, card] of cards.entries()) {
+        if (index === 0) continue
+        expect(card.top).toBeGreaterThan(cards[index - 1].top)
+        expect(card.left).toBeCloseTo(cards[0].left, 0)
       }
     })
   }
+})
+
+// Pointing at a product is what recolours the hero: the section says which product it is
+// showing, and only that card takes the colour.
+test("[U2] pointing at a product colours the hero for it, and nothing else", async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const hero = page.locator(".rl-hero")
+  const colorOf = (product: string) =>
+    page.locator(`#home-card-${product}`).evaluate(element => {
+      const style = getComputedStyle(element)
+      return {color: style.color, edge: style.borderInlineStartColor}
+    })
+
+  await expect(hero).not.toHaveAttribute("data-hero-product", /.+/)
+  const resting = await colorOf("techtree")
+
+  const taken: Record<string, {color: string; edge: string}> = {}
+  for (const product of ["autolaunch", "techtree", "patchbay"]) {
+    await page.locator(`#home-card-${product} strong`).hover()
+    await expect(hero).toHaveAttribute("data-hero-product", product)
+
+    const hovered = await colorOf(product)
+    expect(hovered.color, `${product} takes its own colour`).not.toBe(resting.color)
+    expect(hovered.edge, `${product} marks its own edge`).toBe(hovered.color)
+    taken[product] = hovered
+
+    for (const other of ["autolaunch", "techtree", "patchbay"]) {
+      if (other === product) continue
+      expect((await colorOf(other)).color, `${other} stays at rest`).toBe(resting.color)
+    }
+  }
+
+  // Three products, three colours: no two share one.
+  expect(new Set(Object.values(taken).map(value => value.color)).size).toBe(3)
+
+  await page.mouse.move(0, 0)
+  await expect(hero).not.toHaveAttribute("data-hero-product", /.+/)
+  expect((await colorOf("techtree")).color).toBe(resting.color)
 })
 
 // The Techtree chapter reads as description then supporting line: both muted, both distinct from
@@ -489,7 +558,7 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 test("[U2] the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
-  const action = page.getByRole("link", {name: "See how it works"})
+  const action = page.getByRole("link", {name: "Explore the system"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}
@@ -508,20 +577,19 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
     await waitForHomepage(page)
 
     const primaryActions = page.locator(".rl-action--strong")
-    await expect(primaryActions).toHaveCount(3)
+    await expect(primaryActions).toHaveCount(2)
 
     const reached = new Set<string>()
     const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
 
-    for (let tab = 0; tab <= focusableCount && reached.size < 3; tab += 1) {
+    for (let tab = 0; tab <= focusableCount && reached.size < 2; tab += 1) {
       await page.keyboard.press("Tab")
       const focused = page.locator(".rl-action--strong:focus-visible")
       if (await focused.count() === 0) continue
 
-      const identity = await focused.evaluate(element => {
-        if (element.closest(".rl-closing")) return "closing"
-        return element.closest(".rl-chapter-actions") ? "regent" : "hero"
-      })
+      const identity = await focused.evaluate(element =>
+        element.closest(".rl-closing") ? "closing" : "regent",
+      )
       if (reached.has(identity)) continue
       reached.add(identity)
       await expect(focused).toBeVisible()
@@ -611,7 +679,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["closing", "hero", "regent"])
+    expect([...reached].sort()).toEqual(["closing", "regent"])
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({
@@ -620,4 +688,71 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       })
     }
   }
+})
+
+// The hero tints its own words for the product under the pointer or the keyboard, but
+// the focus ring belongs to the whole site: it has to stay the one blue mark a reader
+// can always find, even on the card whose colour the page is currently wearing.
+test("[U1] every hero control keeps the site's blue focus ring, whatever colour the hero is wearing", async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const asRgb = (color: string) =>
+    page.evaluate(value => {
+      const canvas = document.createElement("canvas")
+      canvas.width = 1
+      canvas.height = 1
+      const context = canvas.getContext("2d", {willReadFrequently: true})
+      if (!context) return "unreadable"
+      context.fillStyle = value
+      context.fillRect(0, 0, 1, 1)
+      return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).join(",")
+    }, color)
+
+  const siteBlue = await asRgb("oklch(74% 0.11 250)")
+  const techtreeGreen = await asRgb("oklch(78% 0.17 150)")
+  expect(siteBlue).not.toBe(techtreeGreen)
+  await expect(page.locator(".rl-root")).toHaveCSS("--rl-accent", "oklch(74% 0.11 250)")
+
+  const rings = new Map<string, {heroProduct: string | undefined; outlineColor: string}>()
+  const focusableCount = await page
+    .locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])")
+    .count()
+
+  for (let tab = 0; tab <= focusableCount; tab += 1) {
+    await page.keyboard.press("Tab")
+    const seen = await page.evaluate(() => {
+      const element = document.activeElement
+      const hero = element instanceof HTMLElement ? element.closest<HTMLElement>(".rl-hero") : null
+      if (!hero || !element || !(element as HTMLElement).matches(":focus-visible")) return null
+      const control = element as HTMLElement
+      return {
+        heroProduct: hero.dataset.heroProduct,
+        name: control.getAttribute("aria-label") ?? control.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        outlineColor: getComputedStyle(control).outlineColor,
+      }
+    })
+    if (!seen) continue
+    rings.set(seen.name, {heroProduct: seen.heroProduct, outlineColor: seen.outlineColor})
+  }
+
+  expect([...rings.keys()]).toEqual([
+    "autolaunch on GitHub",
+    "Open techtree ↗",
+    "techtree on GitHub",
+    "patchbay on GitHub",
+    "Buy REGENT ↗",
+    "Stake REGENT",
+  ])
+
+  for (const [name, ring] of rings) {
+    expect(`${name}: ${await asRgb(ring.outlineColor)}`).toBe(`${name}: ${siteBlue}`)
+  }
+
+  // The techtree card is wearing its green while its own button is focused, and the ring
+  // is still blue against it — the exact case the review caught.
+  const techtree = rings.get("Open techtree ↗")!
+  expect(techtree.heroProduct).toBe("techtree")
+  expect(await asRgb(techtree.outlineColor)).not.toBe(techtreeGreen)
 })

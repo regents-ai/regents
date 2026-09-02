@@ -1,7 +1,6 @@
 .rl-root {
   --rl-bg: oklch(14.5% 0 0);
   --rl-panel: oklch(18% 0 0);
-  --rl-panel-strong: oklch(21% 0 0);
   --rl-ink: oklch(97% 0 0);
   --rl-muted: color-mix(in oklch, var(--rl-ink) 65%, transparent);
   --rl-line: color-mix(in oklch, var(--rl-ink) 16%, transparent);
@@ -170,17 +169,45 @@
   }
 }
 
+/* The words and the cards hold the left column; the crown has the rest of the frame to
+   itself, and the stakers band closes the hero across both columns. At rest the hero's
+   colour is the page ink, so a card only takes a product's colour while it is being
+   pointed at. This is the hero's own token: the focus ring keeps the site's. */
 .rl-hero {
+  --hero-accent: var(--rl-ink);
+  /* The hero keeps the page band and the same inner gutter every chapter uses, so the
+     heading, the cards and the stakers band all start on the page's one left edge. */
+  --hero-inset: clamp(1rem, 3vw, 2.5rem);
+  --hero-gutter: calc(max(1rem, (100vw - var(--rl-max)) / 2) + var(--hero-inset));
   position: relative;
   isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   column-gap: clamp(3rem, 7vw, 7rem);
+  row-gap: clamp(1.75rem, 3vw, 2.75rem);
   min-height: min(52rem, calc(100svh - 4rem));
-  padding: clamp(3rem, 8vw, 7.5rem) max(1rem, calc((100vw - var(--rl-max)) / 2));
+  padding: clamp(3rem, 8vw, 7.5rem) var(--hero-gutter);
   overflow: hidden;
   border-block-end: 1px solid var(--rl-line);
+}
+
+/* Placeholder product colours. Each pair is the accent the hovered card takes and the
+   ground the hero stands on; the two canvases are handed the same pair from one place
+   in the scripts, so changing a colour here means changing it there. */
+.rl-hero[data-hero-product="autolaunch"] {
+  --hero-accent: oklch(80% 0.16 70);
+  --rl-bg: oklch(16% 0.03 60);
+}
+
+.rl-hero[data-hero-product="techtree"] {
+  --hero-accent: oklch(78% 0.17 150);
+  --rl-bg: oklch(15% 0.03 160);
+}
+
+.rl-hero[data-hero-product="patchbay"] {
+  --hero-accent: oklch(72% 0.18 300);
+  --rl-bg: oklch(15% 0.035 300);
 }
 
 .rl-hero-art,
@@ -230,10 +257,17 @@
     linear-gradient(0deg, var(--rl-bg), transparent 28%);
 }
 
+/* Alone in the hero — the holding page — the words stand in the middle of the frame. */
 .rl-hero-copy {
+  grid-row: 1 / -1;
   align-self: center;
-  max-width: 38rem;
-  padding-inline: clamp(1rem, 3vw, 2.5rem);
+  max-width: calc(38rem - 2 * var(--hero-inset));
+}
+
+/* On the home page they are the first of the three rows: the cards come under them and
+   the stakers band closes the hero. */
+.rl-hero-copy[data-home-hero-copy] {
+  grid-row: 1;
 }
 
 .rl-overline,
@@ -261,18 +295,6 @@
   text-wrap: pretty;
 }
 
-/* Each product sentence stands on its own line. */
-.rl-hero-copy > p:last-of-type span {
-  display: block;
-}
-
-/* The product names read as commands: the pixel face in full ink, 4pt above the sentence. */
-.rl-hero-copy code {
-  color: var(--rl-ink);
-  font-size: calc(1em + 4pt);
-  font-family: var(--font-family-pixel);
-}
-
 .rl-hero-actions,
 .rl-closing-actions {
   display: flex;
@@ -297,115 +319,116 @@
   color: var(--rl-bg) !important;
 }
 
+/* One column of products, separated by the same hairline the rest of the page draws. */
 .rl-hero-cards {
-  grid-column: 1 / -1;
-  align-self: end;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
-  margin-block-start: clamp(3rem, 8vw, 7rem);
+  margin: 0;
+  padding: 0;
   border: 1px solid var(--rl-line);
   background: var(--rl-line);
+  list-style: none;
 }
 
-/* Card order is product priority: the lead holds the left half across both rows, the other two
-   products stack beside it, and each rank sets its own height, padding, and type scale. */
+/* The marker edge is always there and only ever changes colour, so nothing moves when a
+   card is pointed at. Everything inside the card draws from the card's own colour. */
 .rl-hero-card {
-  --card-accent: var(--rl-regent);
-  --card-ground: color-mix(in oklch, var(--rl-panel) 90%, transparent);
-  --card-height: 8.5rem;
-  --card-pad: 1rem;
-  --card-title: clamp(1.15rem, 1.6vw, 1.55rem);
-  --voxel-size: 0.45rem;
-  position: relative;
   display: flex;
   flex-direction: column;
+  gap: 0.6rem;
   min-width: 0;
-  min-height: var(--card-height);
-  padding: var(--card-pad);
-  overflow: hidden;
-  background: var(--card-ground);
+  padding: clamp(1rem, 1.6vw, 1.4rem);
+  border-inline-start: 2px solid transparent;
+  background: color-mix(in oklch, var(--rl-panel) 90%, transparent);
 }
 
-.rl-hero-card:first-child {
-  --card-ground: color-mix(in oklch, var(--rl-panel-strong) 92%, transparent);
-  --card-height: 14rem;
-  --card-pad: clamp(1rem, 2.2vw, 1.75rem);
-  --card-title: clamp(1.75rem, 3.4vw, 3rem);
-  --voxel-size: 0.6rem;
-  grid-row: span 2;
-  background:
-    linear-gradient(
-      152deg,
-      color-mix(in oklch, var(--card-accent) 16%, transparent),
-      transparent 62%
-    ),
-    var(--card-ground);
-}
-
-.rl-hero-card:nth-child(2) {
-  --card-height: 11.5rem;
-  --card-pad: clamp(1rem, 1.4vw, 1.25rem);
-  --card-title: clamp(1.35rem, 2.1vw, 1.9rem);
-  --voxel-size: 0.5rem;
-}
-
-.rl-hero-card:first-child > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels) {
-  max-width: 26rem;
-  font-size: 0.95rem;
-}
-
-.rl-hero-card--nous { --card-accent: var(--rl-nous); }
-.rl-hero-card--autolaunch { --card-accent: var(--rl-autolaunch); }
-.rl-hero-card--techtree { --card-accent: var(--rl-techtree); }
-
-.rl-card-head {
-  color: var(--rl-muted);
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-family: var(--font-family-pixel);
-}
-
-.rl-hero-card strong {
-  margin-block-start: auto;
-  font-family: var(--font-family-display);
-  font-size: var(--card-title);
-  font-weight: 400;
-}
-
-.rl-hero-card > span:not(.rl-card-head, .rl-card-arrow, .rl-card-voxels) {
-  color: var(--rl-muted);
-  font-size: 0.78rem;
-}
-
-.rl-card-arrow {
-  position: absolute;
-  inset: var(--card-pad) var(--card-pad) auto auto;
-  color: var(--card-accent);
-}
-
-.rl-card-voxels {
-  position: absolute;
-  inset: calc(var(--card-pad) * 0.75) auto auto 50%;
-  display: grid;
-  grid-template-columns: repeat(3, var(--voxel-size));
-  gap: 0.18rem;
-  padding: 0;
-  opacity: 0.55;
-  transform: translateX(-50%);
-}
-
-.rl-card-voxels i {
-  width: var(--voxel-size);
-  height: var(--voxel-size);
-  background: var(--card-accent);
+.rl-hero-card:focus-within {
+  border-inline-start-color: var(--hero-accent);
+  color: var(--hero-accent);
 }
 
 @media (hover: hover) {
   .rl-hero-card:hover {
-    --card-ground: color-mix(in oklch, var(--card-accent) 10%, var(--rl-panel));
+    border-inline-start-color: var(--hero-accent);
+    color: var(--hero-accent);
   }
+}
+
+/* The names are the founder's, lower case, in the same face the page sets commands in. */
+.rl-hero-card strong {
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+  font-weight: 400;
+  font-family: var(--font-family-pixel);
+}
+
+.rl-hero-card p {
+  max-width: 34rem;
+  color: var(--rl-muted);
+  font-size: var(--rl-quiet);
+}
+
+.rl-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.25rem;
+}
+
+/* A product name inside a button is still the product's name, so it keeps its case. */
+.rl-card-actions .rl-action {
+  border-color: color-mix(in oklch, currentColor 40%, transparent);
+  text-transform: none;
+}
+
+/* A site that is not open yet says so by being unavailable, not by hiding. */
+.rl-root .rl-card-actions button.rl-action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.rl-card-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  border: 1px solid color-mix(in oklch, currentColor 40%, transparent);
+  border-radius: 2px;
+}
+
+.rl-card-source svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* The band that closes the hero: what staking pays, and the two ways to take part. */
+.rl-hero-stakers {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1rem, 3vw, 2rem);
+  margin-block-start: clamp(2rem, 6vw, 5rem);
+  padding-block-start: clamp(1.5rem, 3vw, 2.25rem);
+  border-block-start: 1px solid var(--rl-line);
+}
+
+.rl-hero-stakers p {
+  max-width: 44rem;
+  color: color-mix(in oklch, var(--rl-ink) 78%, transparent);
+  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  text-wrap: pretty;
+}
+
+.rl-stakers-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .rl-chapter,
@@ -656,29 +679,23 @@
 }
 
 @media (max-width: 60rem) {
-  /* Not enough width for two readable columns: the copy takes the hero back, and the
-     crown composes itself behind it as it did before there was a second column. */
+  /* Not enough width for two readable columns: a hero with only words in it takes the
+     whole frame back. */
   .rl-hero {
     grid-template-columns: minmax(0, 1fr);
   }
-}
 
-@media (max-width: 44rem) {
-  .rl-brand span {
-    display: none;
-  }
-
-  /* One column in reading order: the sentences, the crown, then the way in. The copy
-     hands its own parts to that stack so the crown can stand in the middle of it. */
-  .rl-hero {
+  /* The home hero has more than words, so it reads as one column instead: the heading,
+     the tagline, the crown, the products, and what staking pays. The copy hands its own
+     lines to that stack so the crown can stand in the middle of it. */
+  .rl-hero--home {
     display: flex;
     flex-direction: column;
     gap: 0;
     min-height: auto;
-    padding-block-start: 4rem;
   }
 
-  .rl-hero-copy {
+  .rl-hero--home .rl-hero-copy {
     display: contents;
   }
 
@@ -688,7 +705,6 @@
 
   .rl-hero-copy h1 {
     order: 2;
-    font-size: clamp(2.5rem, 14vw, 4.25rem);
   }
 
   .rl-hero-copy > p:last-of-type {
@@ -705,8 +721,51 @@
     width: auto;
     height: clamp(17rem, 82vw, 22rem);
     margin-block: 1.75rem 1rem;
-    margin-inline: calc(-1 * max(1rem, (100vw - var(--rl-max)) / 2));
+    margin-inline: calc(-1 * var(--hero-gutter));
     overflow: hidden;
+  }
+
+  .rl-hero-scrim {
+    z-index: -2;
+  }
+
+  .rl-hero-cards {
+    order: 5;
+    align-self: stretch;
+  }
+
+  .rl-hero-actions {
+    order: 6;
+  }
+
+  .rl-hero-stakers {
+    order: 7;
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 44rem) {
+  .rl-brand span {
+    display: none;
+  }
+
+  /* On a phone every hero reads as one column, products or not, and the words start on
+     the page band itself, where every chapter below them starts. */
+  .rl-hero {
+    --hero-inset: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: auto;
+    padding-block-start: 4rem;
+  }
+
+  .rl-hero-copy {
+    display: contents;
+  }
+
+  .rl-hero-copy h1 {
+    font-size: clamp(2.5rem, 14vw, 4.25rem);
   }
 
   /* The camera leaves a margin the crown does not need on a phone, so the band is
@@ -714,28 +773,6 @@
   .rl-hero-prism canvas {
     transform: scale(1.28);
     transform-origin: center;
-  }
-
-  .rl-hero-scrim {
-    z-index: -2;
-  }
-
-  .rl-hero-actions {
-    order: 5;
-  }
-
-  .rl-hero-cards {
-    order: 6;
-    align-self: stretch;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .rl-hero-card:first-child {
-    grid-area: auto;
-  }
-
-  .rl-hero-card {
-    --card-height: 9.5rem;
   }
 
   .rl-chapter-intro,

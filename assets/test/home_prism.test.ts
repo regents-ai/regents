@@ -2,6 +2,11 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import type {PrismRenderer} from "../js/home_prism"
 import {EASING_FRAME_LIMIT} from "../js/canvas_island"
+import {
+  HERO_PALETTES,
+  HERO_PALETTE_EVENT,
+  setHeroPalette,
+} from "../js/home_field/palette"
 import {createHomePrismController} from "../js/hooks/home_prism"
 
 type Rect = {left: number; top: number; width: number; height: number}
@@ -115,6 +120,7 @@ const fakeRenderer = (step: (snap: boolean) => boolean = () => false): FakeRende
   return {
     aim: vi.fn(),
     rest: vi.fn(),
+    setBeamColor: vi.fn(),
     resize: vi.fn(),
     step: vi.fn(step),
     present: vi.fn(),
@@ -227,6 +233,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  setHeroPalette("rest")
 })
 
 // The renderer chunk is the expensive part of this feature. A visitor who asked for
@@ -520,6 +527,33 @@ describe("responding to the pointer", () => {
     expect(harness.renderer.present).toHaveBeenCalled()
   })
 
+  // The colour lives in the beams' own vertices, so taking a new one is one retrace,
+  // and the crown then draws the frame that shows it.
+  it("takes the hovered product's beam colour and draws it", async () => {
+    const harness = mount({renderer: fakeRenderer(() => true)})
+    await settleFirstFrame(harness)
+    harness.frames.drain()
+    const presentsBefore = vi.mocked(harness.renderer.present).mock.calls.length
+
+    setHeroPalette("patchbay")
+    heroListener(harness, HERO_PALETTE_EVENT)(new Event(HERO_PALETTE_EVENT))
+    harness.frames.drain()
+
+    expect(harness.renderer.setBeamColor).toHaveBeenCalledWith(HERO_PALETTES.patchbay.beam)
+    expect(
+      vi.mocked(harness.renderer.present).mock.calls.length - presentsBefore,
+    ).toBeGreaterThan(0)
+  })
+
+  it("leaves the crown at rest for a coarse pointer, which has no hover to read", async () => {
+    const harness = mount({fine: false})
+
+    await settleFirstFrame(harness)
+
+    expect(heroListener(harness, HERO_PALETTE_EVENT)).toBeUndefined()
+    expect(harness.renderer.setBeamColor).not.toHaveBeenCalled()
+  })
+
   it("reads the page for a coarse pointer only, and stops when the island goes", async () => {
     const fine = mount()
     await settleFirstFrame(fine)
@@ -555,6 +589,7 @@ describe("owning the island", () => {
     expect(vi.mocked(harness.hero.addEventListener).mock.calls.map(([type]) => type)).toEqual([
       "pointermove",
       "pointerleave",
+      HERO_PALETTE_EVENT,
     ])
 
     harness.controller.destroy()
@@ -564,6 +599,7 @@ describe("owning the island", () => {
     expect(vi.mocked(harness.hero.removeEventListener).mock.calls.map(([type]) => type)).toEqual([
       "pointermove",
       "pointerleave",
+      HERO_PALETTE_EVENT,
     ])
 
     await settleFirstFrame(harness)

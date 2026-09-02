@@ -17,16 +17,19 @@ import {
   prepareScene,
   presentScene,
   resizeScene,
+  setBeamColor,
   setLightAim,
   setOrbit,
 } from "./scene"
-import {CAMERA_ORBIT_LERP, quantizeCrownAim, type Vec2} from "./crown-types"
+import {CAMERA_ORBIT_LERP, quantizeCrownAim, type Vec2, type Vec3} from "./crown-types"
 
 export interface PrismRenderer {
   /** Pointer position inside the hero, both components normalized to [0, 1]. */
   aim(x: number, y: number): void
   /** The pointer left the hero: ease everything back to the composed shot. */
   rest(): void
+  /** Recolours the three lasers, which means retracing them on the processor. */
+  setBeamColor(beam: Vec3): void
   resize(width: number, height: number): void
   /** Advances the easing one frame, or snaps it home. True when the picture moved. */
   step(snap: boolean): boolean
@@ -85,6 +88,9 @@ export async function createPrismRenderer(
     },
     rest() {
       orbitTarget = CANONICAL_ORBIT
+    },
+    setBeamColor(beam) {
+      setBeamColor(scene, beam)
     },
     resize(width, height) {
       canvasSurface.resize([width, height])

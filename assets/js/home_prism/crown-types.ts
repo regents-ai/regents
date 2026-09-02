@@ -128,8 +128,8 @@ export const CROWN_LIGHT = {
 
 /**
  * The three lasers. They enter from the right of the crown, one per cube row,
- * and the pointer swings them within a narrow angle. The beams themselves are
- * white; only what the glass separates out of them carries colour.
+ * and the pointer swings them within a narrow angle. What colour they are is the
+ * hero palette's to say; everything here is their shape and their strength.
  */
 export const CROWN_BEAM = {
   angleBase: -0.065,
@@ -144,12 +144,7 @@ export const CROWN_BEAM = {
   inputIntensity: 3.9,
   internalIntensity: 0.1,
   spectralIntensity: 0.72,
-  inputColor: [1, 1, 1],
-  internalColor: [1, 1, 1],
-} as const satisfies {readonly inputColor: Vec3; readonly internalColor: Vec3} & Record<
-  string,
-  number | Vec3
->;
+} as const satisfies Record<string, number>;
 
 /** Snaps an aim to the grid the beam geometry is rebuilt on. */
 export function quantizeCrownAim(aim: Vec2): Vec2 {

@@ -149,7 +149,7 @@ test("all approved routes render within their page budget", async ({page, reques
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
-test("the public homepage presents the three-product mat hero and marketing chapters", async ({page}) => {
+test("the public homepage presents the product hero and marketing chapters", async ({page}) => {
   await page.goto("/")
 
   const home = page.locator("#public-home")
@@ -158,10 +158,15 @@ test("the public homepage presents the three-product mat hero and marketing chap
     "src",
     "/images/home/hero-bg-dark.svg",
   )
+  await expect(page.locator("#home-title")).toHaveText("Regents Agentic Product Labs")
+  // The cards name the three products; the chapters below them are a separate story.
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
-  await expect(page.locator("#home-card-techtree")).toHaveAttribute("href", "#techtree")
-  await expect(page.locator("#home-card-autolaunch")).toHaveAttribute("href", "#autolaunch")
-  await expect(page.locator("#home-card-regent")).toHaveAttribute("href", "#regent")
+  expect(
+    await page
+      .locator("[data-home-hero-card]")
+      .evaluateAll(elements => elements.map(element => element.dataset.homeHeroCard)),
+  ).toEqual(["autolaunch", "techtree", "patchbay"])
+  await expect(page.locator(".rl-hero-stakers")).toBeVisible()
 
   const sectionTops = await page
     .locator("#techtree, #autolaunch, #regent")
@@ -197,10 +202,13 @@ test("the hero fallback and simulated-ready crown never block the action", async
     await expect(page.locator(".rl-hero-art")).toBeVisible()
     await expect(page.locator("#home-title")).toBeVisible()
 
-    // The fallback state answers through the full-hero canvas.
-    const action = page.getByRole("link", {name: "See how it works"})
-    await action.click()
-    await expect(page).toHaveURL(/#home-products$/)
+    // The full-hero canvas lies over the hero's own controls, so they must still
+    // be reachable: a trial click runs every actionability check and presses nothing.
+    const staking = page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"})
+    await staking.click({trial: true})
+    await page.locator("#home-card-techtree").getByRole("link", {name: "Open techtree"}).click({
+      trial: true,
+    })
     await expect(page.locator("#home-products")).toBeVisible()
 
     // Simulate the state reached only after the real GPU's first frame settles.
@@ -216,8 +224,7 @@ test("the hero fallback and simulated-ready crown never block the action", async
     await expect(prism).toHaveCSS("transition-property", "opacity")
     await expect(prism).toHaveCSS("pointer-events", "none")
     await expect(canvas).toHaveCSS("pointer-events", "none")
-    await page.getByRole("link", {name: "See how it works"}).click()
-    await expect(page).toHaveURL(/#home-products$/)
+    await staking.click({trial: true})
     await expect(page.locator("#home-products")).toBeVisible()
     await prism.evaluate(element => delete (element as HTMLElement).dataset.prismReady)
     await expect(prism).toHaveCSS("opacity", "0")
@@ -229,7 +236,7 @@ test("the hero fallback and simulated-ready crown never block the action", async
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
-  const action = page.getByRole("link", {name: "See how it works"})
+  const action = page.getByRole("link", {name: "Explore the system"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}
@@ -247,7 +254,7 @@ test("the primary homepage action keeps its contrast on hover", async ({page}) =
     .toEqual(before)
 })
 
-test("the three homepage destinations remain full-width and ordered on mobile", async ({page}) => {
+test("the three homepage product cards remain full-width and ordered on mobile", async ({page}) => {
   await page.setViewportSize({width: 390, height: 844})
   await page.goto("/")
 
