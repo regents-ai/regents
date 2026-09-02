@@ -109,7 +109,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert html =~ "Redeem your Animata"
     assert html =~ "80 USDC"
-    assert html =~ "5,000,000 REGENT"
+    assert html =~ "5 million REGENT"
     assert html =~ "7-day"
     assert html =~ "No Regent account or Privy login is required"
     assert has_element?(view, ~s(button[data-redeem-connect]), "Connect wallet to redeem")

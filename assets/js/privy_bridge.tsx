@@ -380,7 +380,9 @@ export function switchedAccountOf(
   previous: ConnectedWallet | null,
   wallets: readonly ConnectedWallet[],
 ): ConnectedWallet | null {
-  if (!previous) return null
+  // Privy names an injected provider it does not recognise "unknown", so two
+  // such apps are indistinguishable and neither may stand in for the other.
+  if (!previous || previous.walletClientType === "unknown") return null
   const sameApp = wallets.filter(
     wallet =>
       wallet.type === "ethereum" &&
@@ -707,7 +709,10 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       return
     }
 
-    if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
+    // A sign-out-only bridge has just ended the session on purpose, so there is
+    // nothing to reconcile; reconciling would end it a second time and reload.
+    const reconciled = ready && (signOutOnly || (await reconcileProviderSession()))
+    if (!reconciled || !walletsReady) {
       if (walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
@@ -747,7 +752,15 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
         : null,
     )
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-  }, [activeWallet, ready, reconcileProviderSession, setActiveWallet, wallets, walletsReady])
+  }, [
+    activeWallet,
+    ready,
+    reconcileProviderSession,
+    setActiveWallet,
+    signOutOnly,
+    wallets,
+    walletsReady,
+  ])
 
   // A sign-out-only bridge publishes nothing while the provider sign out is
   // still settling. From the moment it settles it publishes exactly as an

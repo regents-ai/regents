@@ -17,13 +17,15 @@ defmodule AshPlatformWeb.TokenDisplayTest do
           {"76750000", "76.75 million"},
           {"755500000", "755.5 million"},
           {"1044000000", "1.044 billion"},
-          {"7321632890.079463764963354621", "7.322 billion"},
-          {"4958887696.28029413182457336", "4.959 billion"},
-          {"128185.507825379036090931", "128.2k"},
+          {"7321632890.079463764963354621", "7.321 billion"},
+          {"4958887696.28029413182457336", "4.958 billion"},
+          {"128185.507825379036090931", "128.1k"},
           {"100000000000", "100 billion"},
+          {"1500000000000", "1.5 trillion"},
+          {"123456789012345.678", "123.4 trillion"},
           {"67000", "67k"},
           {"100", "100"},
-          {"1.23456", "1.235"},
+          {"1.23456", "1.234"},
           {"0.5", "0.5"},
           {"0", "0"},
           {"0.000000000000000001", "0.000000000000000001"}
@@ -33,18 +35,28 @@ defmodule AshPlatformWeb.TokenDisplayTest do
     end
   end
 
-  # Rounding is done before the scale is chosen, so a figure a hair under a
-  # boundary is written at the scale it rounds to, never as 1000k.
-  test "COMPACT_ROUNDS_BEFORE_IT_SCALES" do
-    assert TokenDisplay.compact("999.96") == "1k"
-    assert TokenDisplay.compact("999960") == "1 million"
-    assert TokenDisplay.compact("999950000") == "1 billion"
+  # Display is allowed to say less than the position, never more: a customer
+  # who types exactly the figure shown must never be refused for exceeding it.
+  test "COMPACT_TRUNCATES_AND_NEVER_ROUNDS_A_BALANCE_UP" do
+    for {value, expected} <- [
+          {"999.96", "999.9"},
+          {"999960", "999.9k"},
+          {"999950000", "999.9 million"},
+          {"7389999999.9", "7.389 billion"},
+          {"999999999.999999999999999999", "999.9 million"},
+          {"7390000000.123456789012345678", "7.39 billion"}
+        ] do
+      assert TokenDisplay.compact(value) == expected,
+             "#{value} read #{TokenDisplay.compact(value)}"
+    end
   end
 
-  # USDC is money: always two decimals, always grouped, never shortened.
+  # USDC is money: always two decimals, always grouped, never shortened, and a
+  # third decimal is dropped rather than rounded up.
   test "MONEY_IS_ALWAYS_TWO_DECIMALS" do
     for {value, expected} <- [
           {"103.030615", "103.03"},
+          {"100.999999", "100.99"},
           {"0", "0.00"},
           {"10432.123", "10,432.12"},
           {"4.25", "4.25"},
@@ -81,7 +93,7 @@ defmodule AshPlatformWeb.TokenDisplayTest do
     html = amount(%{amount: "7321632890.079463764963354621", unit: "REGENT"})
 
     assert html =~
-             ~s(<span aria-hidden="true" title="7,321,632,890.079463764963354621 REGENT">7.322 billion REGENT</span>)
+             ~s(<span aria-hidden="true" title="7,321,632,890.079463764963354621 REGENT">7.321 billion REGENT</span>)
 
     assert html =~
              ~s(<span class="visually-hidden">7,321,632,890.079463764963354621 REGENT</span>)

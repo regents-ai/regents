@@ -13,6 +13,7 @@ defmodule AshPlatformWeb.TokenDisplay do
 
   @significant_digits 4
   @scales [
+    {Decimal.new(1_000_000_000_000), " trillion"},
     {Decimal.new(1_000_000_000), " billion"},
     {Decimal.new(1_000_000), " million"},
     {Decimal.new(1_000), "k"}
@@ -63,11 +64,14 @@ defmodule AshPlatformWeb.TokenDisplay do
   @doc "A whole count such as a block number, with thousands separators."
   def count(value) when is_integer(value), do: value |> Integer.to_string() |> delimit()
 
-  @doc "Money: always two decimals with thousands separators, as in 10,432.12."
+  @doc """
+  Money: always two decimals with thousands separators, as in 10,432.12. The
+  third decimal is dropped, never rounded up, so a balance is never overstated.
+  """
   def money(amount) do
     amount
     |> Decimal.new()
-    |> Decimal.round(2, :half_up)
+    |> Decimal.round(2, :down)
     |> Decimal.to_string(:normal)
     |> delimit()
   end
@@ -75,7 +79,10 @@ defmodule AshPlatformWeb.TokenDisplay do
   @doc """
   A token amount to four significant digits, suffixed by its scale: 9.76k,
   10.45k, 101.4k, 76.75 million, 755.5 million, 1.044 billion. Trailing zeros
-  are dropped, so 67,000 is 67k and 100,000,000,000 is 100 billion.
+  are dropped, so 67,000 is 67k and 100,000,000,000 is 100 billion. The digits
+  beyond the fourth are dropped, never rounded up: the figure shown is allowed
+  to say less than the position, never more, so a customer who types exactly
+  what they read is never refused for exceeding it.
   """
   def compact(amount) do
     rounded = amount |> Decimal.new() |> significant(@significant_digits)
@@ -95,10 +102,10 @@ defmodule AshPlatformWeb.TokenDisplay do
   defp significant(%Decimal{coef: 0} = zero, _digits), do: zero
 
   # The exponent of the leading digit decides how many decimal places keep
-  # exactly `digits` significant ones; a negative count rounds whole digits.
+  # exactly `digits` significant ones; a negative count drops whole digits.
   defp significant(%Decimal{coef: coef, exp: exp} = decimal, digits) do
     magnitude = exp + length(Integer.digits(coef)) - 1
-    Decimal.round(decimal, digits - 1 - magnitude, :half_up)
+    Decimal.round(decimal, digits - 1 - magnitude, :down)
   end
 
   # Only the whole part is grouped: 1234567.89 reads 1,234,567.89.

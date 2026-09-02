@@ -82,7 +82,7 @@ defmodule AshPlatform.Redemption.RpcClient do
     end
   end
 
-  defp account_facts([], nil, nil), do: blank_account()
+  defp account_facts([], nil, _collection), do: blank_account()
 
   defp account_facts(
          [usdc_balance, usdc_allowance, claimable, [pool, released, claimed, start] | approval],
@@ -196,6 +196,7 @@ defmodule AshPlatform.Redemption.RpcClient do
     ]
   end
 
+  defp approval_calls(nil, _collection), do: []
   defp approval_calls(_wallet, nil), do: []
 
   defp approval_calls(wallet, collection) do

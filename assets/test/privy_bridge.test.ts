@@ -1522,6 +1522,41 @@ describe("Privy session bridge", () => {
     expect(sessionRequests).toEqual([])
   })
 
+  it("SIGN_OUT_ONLY_WALLETS: never ends the session again or reloads while the page still shows its sign-out control", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched, reload} = stubBrowserGlobals("sign-out")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const providerState = {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: async () => null,
+      logout: vi.fn(async () => undefined),
+      ready: true,
+      walletsReady: true,
+      wallets: [wallet],
+      activeWallet: wallet,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {mode: "sign-out-only"},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    const handle = await startup
+    await handle.request("sign-out")
+    await until(() => activeEthereumWallet()?.provider === wallet.provider)
+
+    // The session was ended on purpose a moment ago; the settled bridge only
+    // publishes the wallet, it never reconciles the session it just closed.
+    expect(dispatched).toEqual(["ash:wallet-state"])
+    expect(sessionRequests).toEqual([])
+    expect(reload).not.toHaveBeenCalled()
+  })
+
   it("FOLLOWS_A_SWITCHED_ACCOUNT: adopts the same wallet app's new account when Privy drops the selected one", async () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
@@ -1564,6 +1599,20 @@ describe("Privy session bridge", () => {
     providerState.activeWallet = switched
     renderAccountBridge(accountElement)
     await until(() => activeEthereumWallet()?.provider === switched.provider)
+  })
+
+  it("FOLLOWS_A_SWITCHED_ACCOUNT: an unrecognised wallet app never counts as the same app", () => {
+    type Connected = Parameters<typeof bridge.switchedAccountOf>[0]
+    const previous = ethereumWallet("0x1111111111111111111111111111111111111111", {
+      walletClientType: "unknown",
+    }) as unknown as Connected
+    const next = ethereumWallet("0x2222222222222222222222222222222222222222", {
+      walletClientType: "unknown",
+    }) as unknown as Connected
+    const known = ethereumWallet("0x3333333333333333333333333333333333333333") as unknown as Connected
+
+    expect(bridge.switchedAccountOf(previous, [next as NonNullable<Connected>])).toBeNull()
+    expect(bridge.switchedAccountOf(known, [next as NonNullable<Connected>])).toBeNull()
   })
 
   it("FOLLOWS_A_SWITCHED_ACCOUNT: never stands in another app's account or chooses between several", async () => {

@@ -144,6 +144,18 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert {:error, :contract_constants_mismatch} = overview()
   end
 
+  test "PUBLIC_TOKEN_LOOKUP: a token can be read with no wallet, without any account calls" do
+    assert {:ok, snapshot} = RpcClient.overview(nil, animata_i(), @token_id)
+
+    assert snapshot.wallet_address == nil
+    assert snapshot.nft_approved == nil
+    assert snapshot.selected_collection == animata_i()
+    assert snapshot.token_id == @token_id
+    assert snapshot.nft_owner == @wallet
+    assert_received {:rpc, "eth_call", [%{data: data}, _block]}
+    assert data == aggregate(protocol_calls())
+  end
+
   test "NON_CANONICAL_BLOCK: a block that moved fails the read instead of answering it" do
     Stub.put(%{canonical_block_hash: "0x" <> String.duplicate("9d", 32)})
 

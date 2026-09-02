@@ -50,7 +50,7 @@ defmodule AshPlatformWeb.RedeemLive do
             class="redeem-equation"
             aria-label="One Animata plus 80 USDC becomes one Regents Club membership and five million REGENT vested over seven days"
           >
-            <span>1 Animata</span><b>+</b><span>80 USDC</span><b>→</b><span>Regents Club</span><b>+</b><span>5M REGENT</span>
+            <span>1 Animata</span><b>+</b><span>80 USDC</span><b>→</b><span>Regents Club</span><b>+</b><span>5 million REGENT</span>
           </div>
           <div class="redeem-intro-actions">
             <button :if={!@wallet} type="button" class="redeem-primary" data-redeem-connect>Connect wallet to redeem</button>
@@ -84,7 +84,7 @@ defmodule AshPlatformWeb.RedeemLive do
             src="/images/redeem/animata1and2-poster.jpg"
             alt="Animata I and II artwork"
           />
-          <figcaption><span>5,000,000 REGENT</span><span>7-day linear vest</span></figcaption>
+          <figcaption><span>5 million REGENT</span><span>7-day linear vest</span></figcaption>
         </figure>
       </section>
 
