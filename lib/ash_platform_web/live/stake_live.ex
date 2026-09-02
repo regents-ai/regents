@@ -12,14 +12,24 @@ defmodule AshPlatformWeb.StakeLive do
   attr :reading, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
-  attr :available_claims, :list, default: []
+  attr :available_claims, :map, default: %{}
+
+  @claims [
+    {"claim_usdc", "Claim USDC"},
+    {"claim_regent", "Claim REGENT"},
+    {"claim_and_restake_regent", "Claim and restake"}
+  ]
 
   def page(assigns) do
+    claims = claims(assigns.available_claims)
+
     assigns =
       assigns
       |> assign(:dashboard, staking_dashboard(assigns.staking))
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
+      |> assign(:claims, claims)
+      |> assign(:claim_hints, Enum.filter(claims, & &1.hint))
 
     ~H"""
     <section
@@ -251,21 +261,15 @@ defmodule AshPlatformWeb.StakeLive do
               </div>
               <div class="stake-button-row">
                 <button
+                  :for={claim <- @claims}
                   type="button"
-                  data-staking-action="claim_usdc"
-                  disabled={"claim_usdc" not in @available_claims}
-                >Claim USDC</button>
-                <button
-                  type="button"
-                  data-staking-action="claim_regent"
-                  disabled={"claim_regent" not in @available_claims}
-                >Claim REGENT</button>
-                <button
-                  type="button"
-                  data-staking-action="claim_and_restake_regent"
-                  disabled={"claim_and_restake_regent" not in @available_claims}
-                >Claim and restake</button>
+                  data-staking-action={claim.action}
+                  aria-describedby={claim.hint_id}
+                >{claim.label}</button>
               </div>
+              <p :for={claim <- @claim_hints} id={claim.hint_id} class="stake-fine-print">
+                {claim.label} — {claim.hint}
+              </p>
             </section>
 
             <div class="stake-footer">
@@ -455,6 +459,34 @@ defmodule AshPlatformWeb.StakeLive do
       _ -> nil
     end
   end
+
+  # Every claim control is offered. The last reading from Base only supplies the
+  # sentence beside it, so a customer knows what that reading found before the
+  # contract answers for itself.
+  defp claims(available) do
+    for {action, label} <- @claims do
+      hint = claim_hint(Map.get(available, action))
+      %{action: action, label: label, hint: hint, hint_id: hint && "staking-claim-hint-#{action}"}
+    end
+  end
+
+  defp claim_hint(nil), do: nil
+  defp claim_hint(:no_claimable_usdc), do: "no USDC rewards in the last reading from Base."
+
+  defp claim_hint(:no_regent_rewards),
+    do: "no REGENT rewards accrued in the last reading from Base."
+
+  defp claim_hint(:regent_rewards_not_funded),
+    do:
+      "the funded REGENT reward inventory is below what is claimable in the last reading from Base."
+
+  defp claim_hint(:staking_paused), do: "staking shows as paused in the last reading from Base."
+
+  defp claim_hint(:amount_above_capacity),
+    do:
+      "restaking the claimable REGENT exceeds the capacity the contract can still take in the last reading from Base."
+
+  defp claim_hint(:chain_unavailable), do: "the last reading from Base is unavailable."
 
   defp wallet_ready?(staking, wallet) when is_map(staking) and is_binary(wallet),
     do: Map.get(staking, :wallet_address) == wallet

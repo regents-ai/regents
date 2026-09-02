@@ -229,6 +229,63 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute_push_event(view, "staking:wallet-action", _)
   end
 
+  test "CLAIM_HINTS: every claim stays clickable and the reading only explains itself", %{
+    conn: conn
+  } do
+    view = conn |> mount_stake() |> activate(@wallet)
+
+    assert_every_claim_live(view)
+    refute render(view) =~ "in the last reading from Base"
+
+    reread(view, %{usdc_claimable: "0"})
+    assert_every_claim_live(view)
+    assert_hint(view, "claim_usdc", "Claim USDC — no USDC rewards in the last reading from Base.")
+
+    reread(view, %{regent_claimable: "0", regent_funded: "0"})
+    assert_every_claim_live(view)
+
+    assert_hint(
+      view,
+      "claim_regent",
+      "Claim REGENT — no REGENT rewards accrued in the last reading from Base."
+    )
+
+    assert_hint(
+      view,
+      "claim_and_restake_regent",
+      "Claim and restake — no REGENT rewards accrued in the last reading from Base."
+    )
+
+    reread(view, %{regent_claimable: "2000000000000000000", regent_funded: "1000000000000000000"})
+    assert_every_claim_live(view)
+
+    assert_hint(
+      view,
+      "claim_regent",
+      "the funded REGENT reward inventory is below what is claimable in the last reading from Base."
+    )
+
+    Application.put_env(:ash_platform, :test_staking_denominator, "101000000000000000000")
+    reread(view, %{})
+    assert_every_claim_live(view)
+
+    assert_hint(
+      view,
+      "claim_and_restake_regent",
+      "restaking the claimable REGENT exceeds the capacity the contract can still take in the last reading from Base."
+    )
+
+    Application.put_env(:ash_platform, :test_staking_paused, true)
+    reread(view, %{})
+    assert_every_claim_live(view)
+
+    assert_hint(
+      view,
+      "claim_and_restake_regent",
+      "Claim and restake — staking shows as paused in the last reading from Base."
+    )
+  end
+
   test "REFRESH_ONLY: refreshing rereads Base without any wallet request", %{conn: conn} do
     view = conn |> mount_stake() |> activate(@wallet)
     view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
@@ -495,6 +552,30 @@ defmodule AshPlatformWeb.StakeLiveTest do
       "to" => @contract,
       "data" => "0xa9059cbb"
     }
+
+  defp assert_every_claim_live(view) do
+    for action <- ~w(claim_usdc claim_regent claim_and_restake_regent) do
+      assert has_element?(view, ~s|button[data-staking-action="#{action}"]:not([disabled])|)
+    end
+
+    refute has_element?(view, "button[data-staking-action][disabled]")
+  end
+
+  defp assert_hint(view, action, copy) do
+    assert has_element?(
+             view,
+             ~s|button[data-staking-action="#{action}"][aria-describedby="staking-claim-hint-#{action}"]|
+           )
+
+    assert has_element?(view, "p#staking-claim-hint-#{action}", copy)
+  end
+
+  defp reread(view, balances) do
+    Application.put_env(:ash_platform, :test_staking_balances, %{@wallet => balances})
+    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    render_async(view)
+    view
+  end
 
   defp set_amount(view, amount),
     do: view |> form("#staking-amount-form", %{"amount" => amount}) |> render_change()

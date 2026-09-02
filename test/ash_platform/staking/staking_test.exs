@@ -142,6 +142,48 @@ defmodule AshPlatform.StakingTest do
              Staking.prepare_claim_and_restake_regent(@wallet)
   end
 
+  test "CLAIM_READING: the reading names each claim's reason and withholds nothing" do
+    assert {:ok, funded} = Staking.account_for_wallet(@wallet)
+
+    assert Staking.available_claims(funded) == %{
+             "claim_usdc" => nil,
+             "claim_regent" => nil,
+             "claim_and_restake_regent" => nil
+           }
+
+    Process.put(:claimable_usdc_raw, "0")
+    Process.put(:claimable_regent_raw, "0")
+    Process.put(:funded_regent_raw, "0")
+    assert {:ok, empty} = Staking.account_for_wallet(@wallet)
+
+    assert Staking.available_claims(empty) == %{
+             "claim_usdc" => :no_claimable_usdc,
+             "claim_regent" => :no_regent_rewards,
+             "claim_and_restake_regent" => :no_regent_rewards
+           }
+
+    Process.put(:claimable_regent_raw, "2000000000000000000")
+    Process.put(:funded_regent_raw, "1000000000000000000")
+    assert {:ok, short} = Staking.account_for_wallet(@wallet)
+
+    assert %{
+             "claim_regent" => :regent_rewards_not_funded,
+             "claim_and_restake_regent" => :regent_rewards_not_funded
+           } = Staking.available_claims(short)
+
+    assert Staking.available_claims(nil) == %{
+             "claim_usdc" => :chain_unavailable,
+             "claim_regent" => :chain_unavailable,
+             "claim_and_restake_regent" => :chain_unavailable
+           }
+
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
+    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
+
+    assert {:ok, %{action: "claim_and_restake_regent"}} =
+             Staking.prepare_claim_and_restake_regent(@wallet)
+  end
+
   test "PAUSED: Base, not the server, decides a claim while the contract is paused" do
     Process.put(:paused, true)
 

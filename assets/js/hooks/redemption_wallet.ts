@@ -157,7 +157,7 @@ export const RedemptionWallet: Hook = {
           order: state.nextOrder++,
         })
         state.preparingAttemptId = attemptId
-        setProgress(state, "preparing", `Preparing ${actionLabel(action).toLowerCase()}`, "Checking the latest Base state before your wallet is asked to sign.")
+        setProgress(state, "preparing", `Preparing ${actionLabel(action).toLowerCase()}`, "Building the exact transaction for your wallet to sign.")
         this.pushEvent("prepare_redemption", {action, attempt_id: attemptId})
       }
     }

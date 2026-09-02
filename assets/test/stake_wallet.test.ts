@@ -715,6 +715,33 @@ describe("local transaction construction", () => {
   })
 })
 
+describe("claims the page hinted against", () => {
+  it.each(actionCases.filter(({action}) => action.startsWith("claim")))(
+    "sends exact $action calldata from a control the reading argued against",
+    async ({action, expectedData}) => {
+      // The page renders every claim control whatever the last reading from
+      // Base said about it, so the browser has nothing to gate on and builds
+      // the same calldata it would at any other reading.
+      const source = stakingHookProvider({sendResponses: [hash]})
+      const harness = stakingHookHarness(source, "0")
+
+      harness.click(action)
+      await vi.waitFor(() =>
+        expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+      )
+
+      const send = harness.requests.find(request => request.method === "eth_sendTransaction")
+      expect(send?.params?.[0]).toEqual({
+        from: wallet,
+        to: staking,
+        data: expectedData,
+        value: "0x0",
+      })
+      harness.destroy()
+    },
+  )
+})
+
 describe("immediate wallet handoff", () => {
   it("performs only one Base chain read before a direct action send", async () => {
     const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))

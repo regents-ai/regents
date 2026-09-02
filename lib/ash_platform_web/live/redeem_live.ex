@@ -3,8 +3,12 @@ defmodule AshPlatformWeb.RedeemLive do
   use Phoenix.Component
   alias AshPlatformWeb.TokenDisplay
 
-  @unavailable_owner "Unable to verify this NFT. Check the collection and token ID."
-  def unavailable_owner_copy, do: @unavailable_owner
+  @control_labels %{
+    "approve_nft_collection" => "Approve NFT collection",
+    "approve_exact_usdc" => "Approve 80 USDC",
+    "redeem" => "Redeem Animata"
+  }
+  @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
 
   attr :redemption, :map, default: nil
   attr :status, :atom, required: true
@@ -23,7 +27,10 @@ defmodule AshPlatformWeb.RedeemLive do
       assigns
       |> assign(:wallet_ready, wallet_ready?(assigns.redemption, assigns.wallet))
       |> assign(:vest_progress, vest_progress(assigns.redemption))
+      |> assign(:token_selected, token_selected?(assigns.token_id))
       |> assign_owned_collectibles()
+
+    assigns = assign(assigns, :controls, controls(assigns.step, assigns.token_selected))
 
     ~H"""
     <section
@@ -270,16 +277,22 @@ defmodule AshPlatformWeb.RedeemLive do
 
               <section class="redeem-next-step" aria-label="Next step" data-step={@step}>
                 <div>
-                  <p class="redeem-kicker">Next required action</p><h3>{step_control(@step)}</h3><p>
-                    {step_label(@step)}
-                  </p>
+                  <p class="redeem-kicker">Next required action</p><h3>
+                    {step_heading(
+                      @step,
+                      @token_selected
+                    )}
+                  </h3><p id="redemption-step-hint">{step_label(@step, @token_selected)}</p>
                 </div>
-                <button
-                  type="button"
-                  class="redeem-primary"
-                  data-redemption-action={step_action(@step)}
-                  disabled={is_nil(step_action(@step))}
-                >{step_control(@step)}</button>
+                <div :if={@controls != []}>
+                  <button
+                    :for={control <- @controls}
+                    type="button"
+                    class="redeem-primary"
+                    data-redemption-action={control.action}
+                    aria-describedby="redemption-step-hint"
+                  >{control.label}</button>
+                </div>
               </section>
 
               <div class="redeem-wallet-footer">
@@ -344,12 +357,9 @@ defmodule AshPlatformWeb.RedeemLive do
               </dl>
             </div>
 
-            <button
-              type="button"
-              class="redeem-claim"
-              data-redemption-action="claim"
-              disabled={!claim_ready?(@redemption)}
-            >Claim unlocked REGENT</button>
+            <button type="button" class="redeem-claim" data-redemption-action="claim">
+              Claim unlocked REGENT
+            </button>
             <p class="redeem-snapshot-note">
               <span>Confirmed at Base block {format_block_number(@redemption.block_number)}.</span><span :if={
                 @reading
@@ -463,35 +473,68 @@ defmodule AshPlatformWeb.RedeemLive do
     )
   end
 
-  defp step_label(:token_selection_required),
-    do: "Choose an eligible Animata collection and token ID."
+  # A control is offered whenever its calldata can be built, which needs only a
+  # connected wallet and a selected token. When the last reading from Base names
+  # the step, that one control is offered; when it does not, all three are, and
+  # the hint says why. Nothing here withholds a send.
+  defp controls(_step, false), do: []
 
-  defp step_label(:nft_owner_unavailable), do: @unavailable_owner
-  defp step_label(:nft_not_owned), do: "This wallet does not own the selected Animata token."
+  defp controls(step, true) do
+    for action <- step_controls(step), do: %{action: action, label: @control_labels[action]}
+  end
 
-  defp step_label(:nft_approval_required),
+  defp step_controls(:nft_approval_required), do: ["approve_nft_collection"]
+  defp step_controls(:exact_usdc_approval_required), do: ["approve_exact_usdc"]
+
+  defp step_controls(step) when step in [:ready, :nft_not_owned, :insufficient_usdc],
+    do: ["redeem"]
+
+  defp step_controls(_unknown), do: @every_control
+
+  defp step_heading(_step, false), do: "Select an Animata"
+
+  defp step_heading(step, true) do
+    case step_controls(step) do
+      [action] -> @control_labels[action]
+      _every -> "Approve or redeem"
+    end
+  end
+
+  defp step_label(_step, false), do: "Choose an eligible Animata collection and token ID."
+
+  defp step_label(:nft_approval_required, true),
     do: "Allow the redeemer to transfer from this NFT collection."
 
-  defp step_label(:exact_usdc_approval_required),
+  defp step_label(:exact_usdc_approval_required, true),
     do: "Set the redeemer’s allowance to exactly 80 USDC."
 
-  defp step_label(:insufficient_usdc),
-    do: "This wallet needs at least 80 USDC before it can redeem."
+  defp step_label(:ready, true), do: "Exchange the selected Animata and 80 USDC on Base."
 
-  defp step_label(:ready), do: "Exchange the selected Animata and 80 USDC on Base."
-  defp step_label(_), do: "Choose an Animata to see the required action."
+  defp step_label(:nft_not_owned, true),
+    do: "This wallet does not own the selected Animata in the last reading from Base."
 
-  defp step_action(:nft_approval_required), do: "approve_nft_collection"
-  defp step_action(:exact_usdc_approval_required), do: "approve_exact_usdc"
-  defp step_action(:ready), do: "redeem"
-  defp step_action(_), do: nil
+  defp step_label(:insufficient_usdc, true),
+    do: "This wallet holds less than 80 USDC in the last reading from Base."
 
-  defp step_control(:token_selection_required), do: "Select an Animata"
-  defp step_control(:nft_approval_required), do: "Approve NFT collection"
-  defp step_control(:exact_usdc_approval_required), do: "Approve 80 USDC"
-  defp step_control(:insufficient_usdc), do: "80 USDC required"
-  defp step_control(:ready), do: "Redeem Animata"
-  defp step_control(_), do: "Action unavailable"
+  defp step_label(:nft_owner_unavailable, true),
+    do:
+      "The owner of the selected Animata could not be read in the last reading from Base, so any of these steps can be sent."
+
+  defp step_label(:chain_unavailable, true),
+    do: "The last reading from Base is unavailable, so any of these steps can be sent."
+
+  defp step_label(_step, true),
+    do:
+      "The last reading from Base does not yet say which step is needed, so any of these steps can be sent."
+
+  defp token_selected?(token_id) when is_binary(token_id) do
+    case Integer.parse(token_id) do
+      {id, ""} -> id in 1..999
+      _ -> false
+    end
+  end
+
+  defp token_selected?(_token_id), do: false
 
   defp flow_state(1, :token_selection_required), do: "current"
   defp flow_state(1, nil), do: "current"
@@ -512,13 +555,6 @@ defmodule AshPlatformWeb.RedeemLive do
     do: Map.get(redemption, :wallet_address) == wallet
 
   defp wallet_ready?(_, _), do: false
-
-  defp claim_ready?(redemption) do
-    case Integer.parse(redemption.claimable_raw || "") do
-      {value, ""} -> value > 0
-      _ -> false
-    end
-  end
 
   defp vest_progress(nil), do: %{label: "0%", value: "0"}
 

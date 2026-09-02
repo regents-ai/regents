@@ -36,6 +36,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
+  @redemption_preparation_failure_notice "That action could not be prepared. Check the wallet and selection."
   @regents_club_observation_interval 15_000
   @max_wallet_observations 8
   @open_sea_lookup_window 60_000
@@ -1112,27 +1113,23 @@ defmodule AshPlatformWeb.ShellLive do
          socket
        )
        when is_binary(attempt_id) and attempt_id != "" do
-    if action == "claim" or redemption_selection_ready?(socket.assigns) do
-      case prepare_redemption(action, socket) do
-        {:ok, envelope} ->
-          {:noreply,
-           socket
-           |> assign(redemption_notice: nil)
-           |> push_event("redemption:wallet-action", %{
-             attempt_id: attempt_id,
-             envelope: envelope
-           })}
+    case prepare_redemption(action, socket) do
+      {:ok, envelope} ->
+        {:noreply,
+         socket
+         |> assign(redemption_notice: nil)
+         |> push_event("redemption:wallet-action", %{
+           attempt_id: attempt_id,
+           envelope: envelope
+         })}
 
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(
-             redemption_notice: %{tone: :error, message: preparation_error(refusal(reason))}
-           )
-           |> push_event("redemption:wallet-refusal", %{attempt_id: attempt_id})}
-      end
-    else
-      {:noreply, push_event(socket, "redemption:wallet-refusal", %{attempt_id: attempt_id})}
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> assign(
+           redemption_notice: %{tone: :error, message: @redemption_preparation_failure_notice}
+         )
+         |> push_event("redemption:wallet-refusal", %{attempt_id: attempt_id})}
     end
   end
 
@@ -2432,31 +2429,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: reason
 
   defp refusal(reason), do: reason
-
-  defp preparation_error(:nft_not_owned),
-    do: "This wallet does not own the selected Animata token."
-
-  defp preparation_error(:nft_approval_required), do: "Approve the selected NFT collection first."
-  defp preparation_error(:insufficient_usdc), do: "This wallet needs at least 80 USDC."
-
-  defp preparation_error(:exact_usdc_approval_required),
-    do: "Set the USDC allowance to exactly 80 USDC before redeeming."
-
-  defp preparation_error(:nothing_claimable), do: "No REGENT is unlocked to claim yet."
-
-  defp preparation_error(:nft_owner_unavailable), do: unavailable_owner_copy()
-
-  defp preparation_error(:chain_unavailable),
-    do: "Base could not be reached to check this wallet. Nothing was prepared. Try again shortly."
-
-  defp preparation_error(_reason),
-    do: "That action could not be prepared. Check the wallet and selection."
-
-  defp staking_preparation_error(:no_claimable_usdc),
-    do: "This wallet has no USDC rewards to claim right now."
-
-  defp staking_preparation_error(:regent_rewards_not_funded),
-    do: "The funded REGENT reward inventory is not enough to claim or reinvest yet."
 
   defp staking_preparation_error(:chain_unavailable),
     do: "Base could not be reached to check this wallet. Nothing was prepared. Try again shortly."

@@ -53,6 +53,8 @@ test("Redeem sends each click and presents successful results in click order", a
   await expect(page.locator(".redeem-next-step button")).toHaveText("Approve NFT collection")
   await expect(page.getByRole("button", {name: "Approve 80 USDC"})).toHaveCount(0)
   await expect(page.getByRole("button", {name: "Redeem", exact: true})).toHaveCount(0)
+  await expect(page.locator("[data-redemption-action][disabled]")).toHaveCount(0)
+  await expect(page.getByRole("button", {name: "Claim unlocked REGENT", exact: true})).toBeEnabled()
 
   await page.locator(".redeem-next-step button").click()
   await expect.poll(() => sendCount(page)).toBe(1)
@@ -101,6 +103,29 @@ test("Redeem sends each click and presents successful results in click order", a
   await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
   expect(await sendCount(page)).toBe(3)
+})
+
+// A control is offered whenever its calldata can be built, which needs only a
+// connected wallet and a selected token. Nothing else withholds one.
+test("Redeem offers its step controls only once a token is selected", async ({page}) => {
+  await installWallet(page)
+  await page.goto("/redeem")
+
+  const controls = page.locator(".redeem-next-step button")
+  await expect(controls).toHaveCount(0)
+  await expect(page.locator(".redeem-next-step h3")).toHaveText("Select an Animata")
+
+  await page.getByLabel("Token ID").fill("42")
+  await expect(controls).toHaveCount(1)
+  await expect(controls).toHaveAttribute("data-redemption-action", "approve_nft_collection")
+  await expect(controls).toBeEnabled()
+
+  await page.getByLabel("Token ID").fill("")
+  await expect(controls).toHaveCount(0)
+  await expect(page.locator(".redeem-next-step p").last()).toHaveText(
+    "Choose an eligible Animata collection and token ID.",
+  )
+  await expect(page.getByRole("button", {name: "Claim unlocked REGENT", exact: true})).toBeEnabled()
 })
 
 test("Redeem refresh retains the current snapshot and scroll position", async ({page}) => {

@@ -37,12 +37,14 @@ The four actions are intentionally separate:
 
 - **NFT collection approval** allows the verified redeemer to transfer tokens from the selected
   Animata collection. It is a collection-wide approval and remains until revoked.
-- **USDC approval** sets the redeemer allowance to exactly 80 USDC. A larger or smaller allowance
-  does not satisfy redemption preparation.
+- **USDC approval** sets the redeemer allowance to exactly 80 USDC. The redeemer contract decides
+  whether an allowance is acceptable; the page prepares this approval whenever you ask for it and
+  only reports what the last reading from Base found.
 - **Redemption** requires the connected wallet to own the selected token, the NFT collection
   approval to be active, at least 80 USDC to be present, and the allowance to equal exactly
   80 USDC.
-- **Claim** is available only when REGENT is currently unlocked.
+- **Claim** is always offered. The contract releases whatever REGENT is unlocked at the moment it
+  runs; the page only reports the unlocked amount from the last reading from Base.
 
 Only choose **Confirm in wallet** if you intentionally want that Base mainnet transaction. The app
 never advances automatically from one action to the next. After a hash is submitted, retrying

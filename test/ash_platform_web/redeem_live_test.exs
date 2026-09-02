@@ -7,6 +7,16 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
   @third "0x3333333333333333333333333333333333333333"
+  @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
+  @redeem_42_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002a"
+  @redeem_43_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002b"
+  @control_calldata [
+    {"approve_nft_collection",
+     "0xa22cb46500000000000000000000000071065b775a590c43933f10c0055dc7d74afabb0e0000000000000000000000000000000000000000000000000000000000000001"},
+    {"approve_exact_usdc",
+     "0x095ea7b300000000000000000000000071065b775a590c43933f10c0055dc7d74afabb0e0000000000000000000000000000000000000000000000000000000004c4b400"},
+    {"redeem", @redeem_42_data}
+  ]
 
   defmodule GatedChainClient do
     @behaviour AshPlatform.Redemption.ChainClient
@@ -171,7 +181,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(view, ".redeem-next-step button", "Approve 80 USDC")
   end
 
-  test "SELECTION_FAILURE: prior facts remain visible but selection actions stay disabled", %{
+  test "SELECTION_FAILURE: prior facts remain visible and every step stays sendable", %{
     conn: conn
   } do
     previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
@@ -183,7 +193,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     view = conn |> mount_redeem() |> activate(@wallet)
     select(view, "animata_i", "42")
-    assert has_element?(view, ".redeem-next-step button:not([disabled])", "Redeem")
+    assert has_element?(view, control("redeem"), "Redeem Animata")
 
     Application.put_env(:ash_platform, :test_redemption_read_result, :error)
 
@@ -194,19 +204,26 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
 
     assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
-    assert has_element?(view, ".redeem-next-step button[disabled]")
-    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
     assert render(view) =~ "Refresh failed"
+
+    for action <- @every_control, do: assert(has_element?(view, control(action)))
+
+    assert has_element?(
+             view,
+             "#redemption-step-hint",
+             "does not yet say which step is needed"
+           )
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
-      "attempt_id" => "stale-selection"
+      "attempt_id" => "newer-selection"
     })
 
-    refute_push_event(view, "redemption:wallet-action", _)
-    assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: "stale-selection"})
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "newer-selection",
+      envelope: %{action: "redeem", data: @redeem_43_data, arguments: %{token_id: 43}}
+    })
 
-    Application.put_env(:ash_platform, :test_redemption_read_result, :ok)
     assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
 
     render_hook(view, "prepare_redemption", %{
@@ -218,6 +235,93 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       attempt_id: "account-wide-claim",
       envelope: %{action: "claim", expected_signer: @wallet}
     })
+  end
+
+  test "PENDING_READ: while Base is being reread all three steps prepare exact calldata", %{
+    conn: conn
+  } do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    view = conn |> mount_redeem() |> activate(@wallet)
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+
+    view
+    |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "42"})
+    |> render_change()
+
+    assert_receive {:redemption_read_waiting, read}
+
+    for action <- @every_control, do: assert(has_element?(view, control(action)))
+
+    assert has_element?(view, "#redemption-step-hint", "does not yet say which step is needed")
+
+    for {action, data} <- @control_calldata do
+      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
+
+      assert_push_event(view, "redemption:wallet-action", %{
+        attempt_id: ^action,
+        envelope: %{action: ^action, data: ^data, expected_signer: @wallet}
+      })
+    end
+
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
+    render_async(view)
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+  end
+
+  test "SNAPSHOT_NEVER_REFUSES: a predicted shortfall or non-ownership still redeems", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_redemption_nft_owner, @other)
+    view = conn |> mount_redeem() |> activate(@wallet)
+    select(view, "animata_i", "42")
+
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+    assert has_element?(view, "#redemption-step-hint", "does not own the selected Animata")
+    refute render(view) =~ "80 USDC required"
+
+    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "not-owned"})
+
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "not-owned",
+      envelope: %{action: "redeem", data: @redeem_42_data}
+    })
+
+    Application.delete_env(:ash_platform, :test_redemption_nft_owner)
+    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 1)
+    view |> element("#redemption-refresh") |> render_click()
+    render_async(view)
+
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+    assert has_element?(view, "#redemption-step-hint", "holds less than 80 USDC")
+
+    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "short-usdc"})
+
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "short-usdc",
+      envelope: %{action: "redeem", data: @redeem_42_data}
+    })
+  end
+
+  test "NO_TOKEN_NO_CALLDATA: controls appear only once a token is selected", %{conn: conn} do
+    view = conn |> mount_redeem() |> activate(@wallet)
+
+    refute has_element?(view, ".redeem-next-step button")
+    assert has_element?(view, ".redeem-next-step h3", "Select an Animata")
+    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
+
+    select(view, "animata_i", "42")
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+
+    select(view, "animata_i", "")
+    refute has_element?(view, ".redeem-next-step button")
+    assert has_element?(view, "#redemption-step-hint", "Choose an eligible Animata")
   end
 
   test "REFRESH_FEEDBACK: unchanged data is acknowledged and a later snapshot updates stats", %{
@@ -347,18 +451,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert first.action == "redeem"
     assert first.expected_signer == @wallet
-
-    Application.put_env(:ash_platform, :test_redemption_nft_owner, @other)
-
-    render_hook(view, "prepare_redemption", %{
-      "action" => "redeem",
-      "attempt_id" => "refused-attempt"
-    })
-
-    assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: "refused-attempt"})
-    refute_push_event(view, "redemption:wallet-action", %{attempt_id: "refused-attempt"})
-
-    Application.delete_env(:ash_platform, :test_redemption_nft_owner)
+    assert first.data == @redeem_42_data
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
@@ -765,6 +858,9 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     for observer <- held, do: send(observer, {:wallet_observation_result, :success})
     render_async(view)
   end
+
+  defp control(action),
+    do: ~s|.redeem-next-step button[data-redemption-action="#{action}"]:not([disabled])|
 
   defp observation(id),
     do: %{

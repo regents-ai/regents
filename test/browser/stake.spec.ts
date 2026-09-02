@@ -59,6 +59,13 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   await dialog.getByRole("button", {name: "Done"}).click()
   await expect(dialog).toBeHidden()
 
+  // Every claim is offered whatever the last reading from Base said about it,
+  // so no control is ever disabled and each carries its own action for the hook.
+  await expect(page.locator("button[data-staking-action][disabled]")).toHaveCount(0)
+  for (const action of ["claim_usdc", "claim_regent", "claim_and_restake_regent"]) {
+    await expect(page.locator(`button[data-staking-action="${action}"]`)).toBeEnabled()
+  }
+
   await page.getByRole("button", {name: "Claim USDC", exact: true}).click()
   await expect.poll(() => sendCount(page)).toBe(5)
 

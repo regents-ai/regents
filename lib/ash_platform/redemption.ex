@@ -26,7 +26,7 @@ defmodule AshPlatform.Redemption do
     end
   end
 
-  # The one Redeem ladder, owned here so the page's next step and the named
-  # preparation action can only ever answer the same way.
+  # A display-only projection of the last reading from Base, used for the page's
+  # stepper and its hint copy; preparing an action never consults it.
   defdelegate next_step(facts, signer), to: AshPlatform.Redemption.Actions
 end

@@ -164,10 +164,17 @@ defmodule AshPlatform.Staking.Actions do
     end
   end
 
-  def available_claims(nil), do: []
+  @doc """
+  What the last Base reading says about each claim, keyed by action.
+
+  A reason here is hint copy and nothing else: every claim control stays
+  clickable, the click prepares exact calldata, and the contract decides the
+  outcome. `nil` means the reading had nothing to say about that claim.
+  """
+  def available_claims(nil), do: Map.new(@claims, &{&1, :chain_unavailable})
 
   def available_claims(staking),
-    do: Enum.filter(@claims, &is_nil(limit_refusal(staking, &1, nil)))
+    do: Map.new(@claims, &{&1, limit_refusal(staking, &1, nil)})
 
   def spendable(%{wallet_token_balance_raw: wallet, remaining_capacity_raw: capacity}, "stake"),
     do: min(available(wallet), available(capacity))
@@ -175,10 +182,16 @@ defmodule AshPlatform.Staking.Actions do
   def spendable(%{wallet_stake_balance_raw: staked}, "unstake"), do: available(staked)
   def spendable(_, _), do: 0
 
+  # Nothing earned and an inventory too small to cover what was earned are
+  # different facts, and the page says which one the reading found.
   defp funded_regent(staking) do
     with {:ok, earned} <- atomic(staking.wallet_claimable_regent_raw),
          {:ok, funded} <- atomic(staking.wallet_funded_claimable_regent_raw) do
-      if earned > 0 and funded >= earned, do: nil, else: :regent_rewards_not_funded
+      cond do
+        earned == 0 -> :no_regent_rewards
+        funded < earned -> :regent_rewards_not_funded
+        true -> nil
+      end
     else
       :error -> :chain_unavailable
     end

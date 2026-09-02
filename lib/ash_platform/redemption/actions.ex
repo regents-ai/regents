@@ -42,10 +42,10 @@ defmodule AshPlatform.Redemption.Actions do
     end
   end
 
+  # Each action's calldata is fixed by the action, the collection and the token
+  # id the customer selected. Base decides whether the transaction succeeds.
   defp prepare_action("approve_nft_collection", arguments, signer) do
-    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
-         {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments[:token_id]),
-         :nft_approval_required <- next_step(facts, signer) do
+    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection) do
       redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
 
       {:ok,
@@ -59,16 +59,11 @@ defmodule AshPlatform.Redemption.Actions do
          risk_copy: @risk["approve_nft_collection"],
          arguments: %{collection: collection, operator: redeemer, approved: true}
        )}
-    else
-      step when is_atom(step) -> refusal(step)
-      error -> error
     end
   end
 
   defp prepare_action("approve_exact_usdc", arguments, signer) do
-    with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
-         {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments.token_id),
-         :exact_usdc_approval_required <- next_step(facts, signer) do
+    with {:ok, _collection} <- RedemptionAbi.collection(arguments.collection) do
       redeemer = Abi.normalize_address!(RedemptionAbi.redeemer_address())
       usdc = Abi.normalize_address!(RedemptionAbi.usdc_address())
       amount = String.to_integer(RedemptionAbi.price_atomic())
@@ -84,17 +79,12 @@ defmodule AshPlatform.Redemption.Actions do
          risk_copy: @risk["approve_exact_usdc"],
          arguments: %{spender: redeemer, amount_atomic: Integer.to_string(amount), mode: "exact"}
        )}
-    else
-      step when is_atom(step) -> refusal(step)
-      error -> error
     end
   end
 
   defp prepare_action("redeem", arguments, signer) do
     with {:ok, collection} <- RedemptionAbi.collection(arguments.collection),
-         :ok <- valid_token_id(arguments.token_id),
-         {:ok, facts} <- ChainClient.module().overview(signer, collection, arguments.token_id),
-         :ready <- next_step(facts, signer) do
+         :ok <- valid_token_id(arguments.token_id) do
       {:ok,
        Envelope.new(
          "redeem",
@@ -106,15 +96,11 @@ defmodule AshPlatform.Redemption.Actions do
          risk_copy: @risk["redeem"],
          arguments: %{collection: collection, token_id: arguments.token_id}
        )}
-    else
-      step when is_atom(step) -> refusal(step)
-      error -> error
     end
   end
 
-  defp prepare_action("claim", _arguments, signer) do
-    with {:ok, facts} <- ChainClient.module().overview(signer, nil, nil),
-         :ok <- positive_claimable(facts) do
+  defp prepare_action("claim", _arguments, signer),
+    do:
       {:ok,
        Envelope.new("claim", signer, RedemptionAbi.encode_action("claim", []),
          resource: @resource,
@@ -123,11 +109,13 @@ defmodule AshPlatform.Redemption.Actions do
          risk_copy: @risk["claim"],
          arguments: %{}
        )}
-    end
-  end
 
   defp prepare_action(_, _, _), do: {:error, :unknown_action}
 
+  @doc """
+  The step the last Base reading says a selection needs, for the page's stepper
+  and its hint copy. It never decides whether an action may be prepared.
+  """
   def next_step(%{token_id: nil}, _), do: :token_selection_required
   def next_step(%{nft_owner_unavailable: true}, _), do: :nft_owner_unavailable
 
@@ -145,14 +133,6 @@ defmodule AshPlatform.Redemption.Actions do
       end
     else
       :error -> :chain_unavailable
-    end
-  end
-
-  defp positive_claimable(facts) do
-    case atomic(facts.claimable_raw) do
-      {:ok, value} when value > 0 -> :ok
-      {:ok, _} -> refusal(:nothing_claimable)
-      :error -> refusal(:chain_unavailable)
     end
   end
 
