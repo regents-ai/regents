@@ -7,6 +7,8 @@ defmodule AshPlatform.Autolaunch.LaunchOperationsTest do
 
   use AshPlatformWeb.ConnCase, async: false
 
+  import AshPlatform.SandboxRace, only: [race: 2, race_each: 1]
+
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Autolaunch
   alias AshPlatform.Autolaunch.LaunchOperations
@@ -29,6 +31,9 @@ defmodule AshPlatform.Autolaunch.LaunchOperationsTest do
     context
   end
 
+  # `race/2` sends two callers at the same step at the same moment and shows
+  # that one of them wins; the `FOR UPDATE` proof further down is what shows the
+  # row itself is locked while that happens.
   describe "ONE_WINNER_PER_DISPATCH: the database decides every race" do
     test "two sockets claiming one dispatch produce exactly one winner", context do
       {:ok, operation} = review(context)
@@ -274,41 +279,5 @@ defmodule AshPlatform.Autolaunch.LaunchOperationsTest do
 
   defp selects(emitted, table) do
     for {^table, query} <- emitted, String.starts_with?(query, "SELECT"), do: query
-  end
-
-  # These tasks are allowed onto the test's own sandboxed connection, so they
-  # share it and their statements take turns rather than running in parallel.
-  # What the barrier proves is that two callers arriving at the same step in
-  # either order still produce exactly one winner; the `FOR UPDATE` proof above
-  # is what shows the row itself is locked while that happens.
-  defp race(work, count), do: race_each(List.duplicate(work, count))
-
-  defp race_each(works) do
-    parent = self()
-    barrier = :erlang.unique_integer()
-
-    works
-    |> Enum.map(fn work ->
-      Task.async(fn ->
-        Ecto.Adapters.SQL.Sandbox.allow(AshPlatform.Repo, parent, self())
-        send(parent, {:ready, barrier, self()})
-
-        receive do
-          {:go, ^barrier} -> work.()
-        end
-      end)
-    end)
-    |> started(barrier)
-    |> Enum.map(&Task.await(&1, 15_000))
-  end
-
-  defp started(tasks, barrier) do
-    for _task <- tasks do
-      receive do
-        {:ready, ^barrier, pid} -> send(pid, {:go, barrier})
-      end
-    end
-
-    tasks
   end
 end

@@ -73,7 +73,19 @@ config :ash_platform, AshPlatform.Repo,
   port: 5432,
   database: "ash_platform#{System.get_env("MIX_TEST_PARTITION")}_test",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
+  pool_size: 10,
+  # A case that sends two callers at one row shares one sandboxed connection
+  # between them, so the second caller waits while the first one holds it. The
+  # sandbox drops a waiting caller once it has waited longer than twice
+  # :queue_target, and it looks for callers to drop once every :queue_interval,
+  # which is one second. At the default target of 50ms that abandons a caller
+  # after a tenth of a second, and the case then fails on a checkout error
+  # rather than on anything it set out to prove. The 1_000ms below lets a
+  # caller wait two seconds instead. Across 180 raced callers on a machine held
+  # at a load average of 24, the longest any of them held the connection was
+  # 70ms, so a tenth of a second leaves almost no room and two seconds leaves
+  # plenty.
+  queue_target: 1_000
 
 config :ash, :disable_async?, true
 config :ash, :missed_notifications, :ignore

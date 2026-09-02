@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  import AshPlatform.SandboxRace, only: [race_each: 1]
+
   alias AshPlatform.{Accounts, Formation, Techtree}
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.AgentAuth.AgentIdentity
@@ -360,32 +362,23 @@ defmodule AshPlatformWeb.TechtreeEvidenceControllerTest do
 
   test "concurrent owner appends both commit and GET selects the forced tie winner", context do
     node = publish_node(context, "concurrent")
-    parent = self()
 
-    tasks =
-      for {status, reason} <- [
-            {"reproduced", "concurrent reproduction"},
-            {"disputed", "concurrent dispute"}
-          ] do
-        Task.async(fn ->
-          Process.put(:agent_verification_result, {:ok, context.identity})
-          send(parent, {:ready, self()})
-
-          receive do
-            :go ->
-              post_evidence(
-                node.id,
-                Jason.encode!(%{"status" => status, "reason" => reason}),
-                {:ok, context.identity}
-              )
+    responses =
+      race_each(
+        for {status, reason} <- [
+              {"reproduced", "concurrent reproduction"},
+              {"disputed", "concurrent dispute"}
+            ] do
+          fn ->
+            post_evidence(
+              node.id,
+              Jason.encode!(%{"status" => status, "reason" => reason}),
+              {:ok, context.identity}
+            )
           end
-        end)
-      end
+        end
+      )
 
-    Enum.each(tasks, fn _task -> assert_receive {:ready, _pid}, 1_000 end)
-    Enum.each(tasks, fn task -> send(task.pid, :go) end)
-
-    responses = Enum.map(tasks, &Task.await(&1, 5_000))
     assert Enum.map(responses, & &1.status) == [201, 201]
     assert evidence_count(node.id) == 2
 

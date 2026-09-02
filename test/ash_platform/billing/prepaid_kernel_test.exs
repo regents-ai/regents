@@ -1,6 +1,8 @@
 defmodule AshPlatform.Billing.PrepaidKernelTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  import AshPlatform.SandboxRace, only: [race_each: 1]
+
   alias AshPlatform.{Accounts, Billing}
   alias AshPlatform.Actors.{Human, System}
 
@@ -198,19 +200,13 @@ defmodule AshPlatform.Billing.PrepaidKernelTest do
 
   test "concurrent reservations cannot make available credit negative" do
     {account, owner} = funded_owner_fixture("concurrency", 500)
-    parent = self()
 
-    tasks =
-      for key <- ["concurrent-a", "concurrent-b"] do
-        Task.async(fn ->
-          send(parent, {:ready, self()})
-          receive do: (:go -> Billing.reserve_spend(account.id, key, 400, actor: owner))
-        end)
-      end
-
-    pids = for _ <- tasks, do: receive(do: ({:ready, pid} -> pid))
-    Enum.each(pids, &send(&1, :go))
-    results = Task.await_many(tasks, 10_000)
+    results =
+      race_each(
+        for key <- ["concurrent-a", "concurrent-b"] do
+          fn -> Billing.reserve_spend(account.id, key, 400, actor: owner) end
+        end
+      )
 
     assert 1 == Enum.count(results, &match?({:ok, _}, &1))
     assert 1 == Enum.count(results, &match?({:error, _}, &1))
