@@ -19,6 +19,9 @@ export PRIVY_VERIFICATION_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC 
 `PRIVY_VERIFICATION_KEY` is Privy's PEM-encoded ES256 verification public key, not the Privy app
 secret. Native multiline PEM and one-line `\n`-escaped values are both accepted.
 
+Setting `BASE_READ_RPC_URL` here makes local Stake and Redeem read the same Base endpoint
+production reads; startup names only its host, never the key-bearing address itself.
+
 ## Before the first sign in
 
 Turn identity tokens on for this app in the Privy Dashboard, under the app's user-data settings.

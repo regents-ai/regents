@@ -142,6 +142,19 @@ if database_config do
   config :ash_platform, AshPlatform.Repo, database_config
 end
 
+# Local Stake and Redeem read the same Base endpoint as production when
+# `BASE_READ_RPC_URL` names one; without it the public default in `config.exs`
+# stands. Only the host is logged, because provider URLs carry the API key.
+if config_env() == :dev do
+  base_read_rpc_url = String.trim(System.get_env("BASE_READ_RPC_URL", ""))
+
+  if base_read_rpc_url != "" do
+    config :ash_platform, :base_read_rpc_url, base_read_rpc_url
+
+    Logger.info("Development Base read endpoint host #{URI.parse(base_read_rpc_url).host}")
+  end
+end
+
 if config_env() == :prod do
   # Stake and Redeem read one canonical `safe` Base block through this endpoint.
   # Development has a default in `config.exs`; production must say which

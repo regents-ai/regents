@@ -22,7 +22,9 @@ transaction.
 
 1. Complete the local Privy setup in [`local-privy-auth.md`](local-privy-auth.md).
 2. Install the locked dependencies with `mix deps.get` and `npm install`.
-3. Start the app with `ASH_PLATFORM_LOCAL_DB=1 mix phx.server`.
+3. Start the app with `ASH_PLATFORM_LOCAL_DB=1 mix phx.server`. When `BASE_READ_RPC_URL` is set,
+   local Stake and Redeem read that same Base endpoint production reads; startup names only its
+   host, never the key-bearing address itself.
 4. Open `http://localhost:4000/stake` and sign in with the Privy account whose embedded wallet you
    intend to use.
 5. Confirm the page shows Base, the deployed staking contract, your REGENT balance, your current

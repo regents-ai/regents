@@ -338,12 +338,34 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert_raise System.EnvError, ~r/BASE_READ_RPC_URL/, fn -> read_runtime_config(:prod) end
   end
 
-  test "PKG-RUNTIME development keeps its default Base read endpoint" do
+  test "PKG-RUNTIME development keeps its default Base read endpoint without one named" do
+    System.delete_env("BASE_READ_RPC_URL")
+
     assert get_in(read_runtime_config(:dev), [:ash_platform, :base_read_rpc_url]) == nil
 
     assert "config/config.exs"
            |> Config.Reader.read!(env: :dev, target: :host)
            |> get_in([:ash_platform, :base_read_rpc_url]) == "https://base-rpc.publicnode.com"
+  end
+
+  test "PKG-RUNTIME development reads the named Base endpoint, and blank keeps the default" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test/v2/key")
+
+    assert get_in(read_runtime_config(:dev), [:ash_platform, :base_read_rpc_url]) ==
+             "https://base.example.test/v2/key"
+
+    System.put_env("BASE_READ_RPC_URL", "   ")
+
+    assert get_in(read_runtime_config(:dev), [:ash_platform, :base_read_rpc_url]) == nil
+  end
+
+  # The test client is fixed and must never be pointed at a live endpoint.
+  test "PKG-RUNTIME test runtime ignores a named Base endpoint" do
+    System.put_env("BASE_READ_RPC_URL", "https://base.example.test/v2/key")
+
+    assert get_in(read_runtime_config(:test), [:ash_platform, :base_read_rpc_url]) == nil
+
+    refute File.read!("config/test.exs") =~ "BASE_READ_RPC_URL"
   end
 
   test "Autolaunch surfaces open by default only under test, and otherwise only on an exact on" do
