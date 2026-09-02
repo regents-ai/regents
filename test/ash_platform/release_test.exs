@@ -227,6 +227,24 @@ defmodule AshPlatform.ReleaseTest do
     refute migration_table?(config)
   end
 
+  # The listing is meant to be safe to run while a migration is in flight, which
+  # is only true if it never queues behind the migration lock. A second
+  # connection holds exactly the lock Ecto's Postgres adapter takes for
+  # migrations, and both reads run against the same configuration: the listing
+  # completes, and the otherwise identical read that does take the lock waits
+  # for it until the connection's lock timeout cancels it.
+  test "the listing reads a database whose migration lock is held, unlike a read that takes it" do
+    config = with_lock_timeout(bootstrapped_database())
+    hold_migration_lock(config)
+
+    assert capture_io(fn -> Release.pending_migrations_for_test(config: config) end) == "none\n"
+
+    # Ecto's migrator matches on a successful lock statement, so the cancelled
+    # wait reaches the caller as a MatchError carrying PostgreSQL's own reason.
+    error = assert_raise MatchError, fn -> locking_migration_status(config) end
+    assert {:error, %Postgrex.Error{postgres: %{code: :lock_not_available}}} = error.term
+  end
+
   defp staging_getenv do
     fn
       @role -> "staging"
@@ -317,17 +335,92 @@ defmodule AshPlatform.ReleaseTest do
     query!(config, "SELECT to_regclass('public.schema_migrations') IS NOT NULL").rows == [[true]]
   end
 
-  defp query!(config, sql, params \\ []) do
-    previous = Application.get_env(:ash_platform, AshPlatform.Repo)
-    Application.put_env(:ash_platform, AshPlatform.Repo, config)
+  # A bounded lock timeout is what makes the comparison observable rather than a
+  # hang: whichever read asks for the held lock is cancelled by PostgreSQL, and
+  # the read that never asks for it is untouched.
+  defp with_lock_timeout(config) do
+    Keyword.put(config, :after_connect, {Postgrex, :query!, ["SET lock_timeout = '500ms'", []]})
+  end
 
-    try do
+  # Ecto's Postgres adapter takes the migration lock as SHARE UPDATE EXCLUSIVE
+  # on the migration table inside a transaction, so holding that exact lock from
+  # another connection is what an in-flight migration looks like to any other
+  # reader. The lock conflicts with itself and with nothing this listing does.
+  defp hold_migration_lock(config) do
+    owner = self()
+
+    holder =
+      spawn(fn ->
+        {:ok, connection} = Postgrex.start_link(config)
+
+        Postgrex.transaction(
+          connection,
+          fn transaction ->
+            Postgrex.query!(
+              transaction,
+              "LOCK TABLE public.schema_migrations IN SHARE UPDATE EXCLUSIVE MODE",
+              []
+            )
+
+            send(owner, :migration_lock_held)
+
+            receive do
+              :release_migration_lock -> :ok
+            end
+          end,
+          timeout: :infinity
+        )
+
+        GenServer.stop(connection)
+      end)
+
+    on_exit(fn -> release_migration_lock(holder) end)
+    assert_receive :migration_lock_held, 30_000
+    :ok
+  end
+
+  # The disposable database cannot be dropped while this connection is open, so
+  # the holder is gone before the teardown that created it runs.
+  defp release_migration_lock(holder) do
+    monitor = Process.monitor(holder)
+    send(holder, :release_migration_lock)
+
+    receive do
+      {:DOWN, ^monitor, :process, ^holder, _reason} -> :ok
+    after
+      30_000 -> raise "the migration lock holder outlived the case that took it"
+    end
+  end
+
+  # The listing's read with the migration lock left in, and nothing else changed.
+  defp locking_migration_status(config) do
+    with_config(config, fn ->
+      {:ok, migrations, _started} =
+        Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo ->
+          Ecto.Migrator.migrations(repo, [release_migrations_path()], skip_table_creation: true)
+        end)
+
+      migrations
+    end)
+  end
+
+  defp query!(config, sql, params \\ []) do
+    with_config(config, fn ->
       {:ok, result, _started} =
         Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo ->
           Ecto.Adapters.SQL.query!(repo, sql, params)
         end)
 
       result
+    end)
+  end
+
+  defp with_config(config, fun) do
+    previous = Application.get_env(:ash_platform, AshPlatform.Repo)
+    Application.put_env(:ash_platform, AshPlatform.Repo, config)
+
+    try do
+      fun.()
     after
       if previous,
         do: Application.put_env(:ash_platform, AshPlatform.Repo, previous),

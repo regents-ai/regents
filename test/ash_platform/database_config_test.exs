@@ -524,6 +524,39 @@ defmodule AshPlatform.DatabaseConfigTest do
     end
   end
 
+  # The staging hostname fixes the venue just as the production one does, so the
+  # staging role admits no query options and no port but PostgreSQL's either.
+  test "the staging role refuses URL queries and non-PostgreSQL ports on both hosts" do
+    queried =
+      for base <- [@staging_flycast, @staging_internal],
+          query <- ["ssl=false", "s%73l=false", "prepare=named", "hostname=attacker.example"],
+          do: "#{base}?#{query}"
+
+    refused =
+      queried ++
+        [
+          "postgresql://staging_user:staging-secret@regents-staging-db.flycast:6543/ash_platform",
+          "postgresql://staging_user:staging-secret@regents-staging-db.internal:6543/ash_platform"
+        ]
+
+    for url <- refused,
+        {selector, variable} <- [
+          {fn value ->
+             DatabaseConfig.runtime_config!(:prod, staging_env(%{"DATABASE_POOLED_URL" => value}))
+           end, "DATABASE_POOLED_URL"},
+          {fn value ->
+             DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => value}))
+           end, "DATABASE_DIRECT_URL"}
+        ] do
+      error = assert_raise RuntimeError, fn -> selector.(url) end
+
+      assert Exception.message(error) ==
+               "#{variable} must be a valid PostgreSQL URL for the approved target"
+
+      refute Exception.message(error) =~ "staging-secret"
+    end
+  end
+
   test "the production role refuses the staging database hosts on both paths" do
     for url <- [@staging_flycast, @staging_internal] do
       assert_raise RuntimeError,

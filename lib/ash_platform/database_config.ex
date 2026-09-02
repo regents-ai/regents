@@ -123,16 +123,25 @@ defmodule AshPlatform.DatabaseConfig do
   end
 
   # Ecto turns every URL query key into an atom and merges parsed URL options
-  # after the explicit Repo configuration. MPG URLs therefore admit no query
-  # options: even encoded or future aliases cannot weaken TLS, replace the
+  # after the explicit Repo configuration. Allowlisted URLs therefore admit no
+  # query options: even encoded or future aliases cannot weaken TLS, replace the
   # endpoint, or restore named prepares after this module's checks.
   defp safe_query?(%URI{host: host, query: query}) do
-    not fly_mpg_host?(host) or query in [nil, ""]
+    not bound_host?(host) or query in [nil, ""]
   end
 
   defp safe_port?(%URI{host: host, port: port}) do
-    not fly_mpg_host?(host) or port in [nil, 5432]
+    not bound_host?(host) or port in [nil, 5432]
   end
+
+  # Every venue an allowlist admits -- production's MPG cluster and the two
+  # staging hosts -- is fixed by its hostname alone, so none of them may carry
+  # query options or a port other than PostgreSQL's.
+  defp bound_host?(host) when is_binary(host) do
+    fly_mpg_host?(host) or String.downcase(host) in @staging_hosts
+  end
+
+  defp bound_host?(_host), do: false
 
   defp connection_options(value, host) do
     options = [url: value, socket_options: [:inet6]]
