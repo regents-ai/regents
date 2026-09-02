@@ -158,6 +158,15 @@ Other relevant checks are available for browser behavior, asset budgets, and ext
 | `npm run test:budgets` | Enforces the asset size budgets. |
 | `mix test.external` | Runs three browser-fixture tests and one Docker build-context test. Excluded from `mix precommit` because they require local services or tools outside the hermetic test suite. |
 
+The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test` ending.
+Setting it is required, not advisory, whenever more than one test run can happen on a machine: every
+writer and every working tree gives it its own value, an underscore followed by a short id, so that
+the runs use separate databases. `MIX_TEST_PARTITION=_regent_88a` gives the database
+`ash_platform_regent_88a_test`. The Autolaunch indexer tests deliberately run outside the sandbox,
+empty the whole ledger when they start and finish, and compete for a single chain cursor row, so two
+runs sharing one database corrupt each other's results. Run `MIX_ENV=test mix ecto.create` once for
+a new value; the suite builds the schema itself on its first run.
+
 ## Deployment
 
 > [!WARNING]
