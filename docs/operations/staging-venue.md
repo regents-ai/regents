@@ -99,6 +99,10 @@ machine that already holds the four pinned base images and the app stage's
 `apt-get` layer. Warm a cold machine by running the same build once online —
 `docker build --platform linux/amd64 -f <context>/Dockerfile -t warm <context>` —
 and then run the sealed build, which reuses what that left in the daemon's store.
+The assembly script leaves out env-shaped files itself and refuses to publish a
+context that holds one. Still list the context before an upload: the script can
+vouch for it only up to the moment it hands it over, never for anything that
+lands in it afterwards.
 
 ```sh
 # 1. Assemble the sealed build context. It nests this checkout under

@@ -164,14 +164,23 @@ mkdir -p "$staging/ash-platform" "$staging/elixir-utils/privy" \
   "$staging/design-system/regent_ui" "$staging/$(dirname -- "$native_artifact")" \
   "$staging/npm-cache"
 
-# The checkouts enter whole, minus their own build output.
-# Dockerfile.dockerignore, not this script, decides what the build may see, and
-# a proof test holds it to that.
-rsync -a --exclude '.git' --exclude '_build/' --exclude 'node_modules/' \
-  "$repo_root/" "$staging/ash-platform/"
-rsync -a --exclude '.git' "$privy_source/" "$staging/elixir-utils/privy/"
-rsync -a --exclude '.git' --exclude '_build/' --exclude 'deps/' \
-  --exclude 'node_modules/' "$regent_ui_source/" "$staging/design-system/regent_ui/"
+# The checkouts enter whole, minus their own build output and anything shaped
+# like a secrets file. This script excludes those itself, so the assembled
+# context on disk never carries one; Dockerfile.dockerignore additionally
+# narrows what a local build sees, and a proof test holds it to that.
+# The pattern has no slash, so it matches at every depth, and it takes a
+# directory named .envs/ with it: deliberate, and none exists today.
+# rsync offers no portable case-insensitive filter, so an oddly cased name like
+# .ENV survives the copy; the guard below is case-insensitive and catches it.
+env_filters=(--exclude '.env*')
+
+rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
+  --exclude 'node_modules/' "$repo_root/" "$staging/ash-platform/"
+rsync -a "${env_filters[@]}" --exclude '.git' \
+  "$privy_source/" "$staging/elixir-utils/privy/"
+rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
+  --exclude 'deps/' --exclude 'node_modules/' \
+  "$regent_ui_source/" "$staging/design-system/regent_ui/"
 
 # The sealed npm directory is the cache payload itself, so it lands one level
 # down: npm resolves its content under <cache>/_cacache.
@@ -187,6 +196,13 @@ tar -xf "$mix_supply/MIX-CACHE.tar" -C "$staging"
 
 install -m 0644 "$repo_root/Dockerfile" "$staging/Dockerfile"
 install -m 0644 "$repo_root/Dockerfile.dockerignore" "$staging/Dockerfile.dockerignore"
+
+# Last look before anything is published, covering the sealed payloads the
+# filters above never see and any casing they cannot match. It runs while the
+# previous destination is still intact, so a refusal leaves that one in place.
+# Paths only, never contents.
+offender="$(find "$staging" -iname '.env*' -print -quit)" || die "context scan failed"
+[ -z "$offender" ] || die "context contains a secrets-shaped file: $offender"
 
 if [ -e "$destination" ]; then
   chmod -R u+w "$destination"
