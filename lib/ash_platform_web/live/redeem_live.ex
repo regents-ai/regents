@@ -268,6 +268,7 @@ defmodule AshPlatformWeb.RedeemLive do
                     id="redemption-token-id"
                     name="token_id"
                     value={@token_id}
+                    phx-debounce="300"
                     inputmode="numeric"
                     autocomplete="off"
                     placeholder="1–999"

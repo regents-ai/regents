@@ -237,6 +237,40 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     })
   end
 
+  test "UNCHANGED_SELECTION_NO_READ: edits that leave the selected token unchanged buy no read",
+       %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    view = conn |> mount_redeem() |> activate(@wallet)
+    select(view, "animata_i", "42")
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+
+    for token_id <- ["42", "042"] do
+      view
+      |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => token_id})
+      |> render_change()
+    end
+
+    refute_received {:redemption_read_waiting, _read}
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+
+    view
+    |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "43"})
+    |> render_change()
+
+    assert_receive {:redemption_read_waiting, read}
+    refute_received {:redemption_read_waiting, _second}
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(read, :continue_redemption_read)
+    render_async(view)
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+  end
+
   test "PENDING_READ: while Base is being reread all three steps prepare exact calldata", %{
     conn: conn
   } do

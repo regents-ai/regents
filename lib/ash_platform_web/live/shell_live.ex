@@ -1123,11 +1123,10 @@ defmodule AshPlatformWeb.ShellLive do
       assign(socket,
         redemption_collection: params["collection"] || socket.assigns.redemption_collection,
         redemption_token_id: params["token_id"] || "",
-        redemption_notice: nil,
-        redemption_snapshot_selection: nil
+        redemption_notice: nil
       )
 
-    {:noreply, start_redemption_read(socket, preserve_snapshot: true)}
+    {:noreply, read_selection(socket)}
   end
 
   defp handle_redemption_event(
@@ -1139,11 +1138,10 @@ defmodule AshPlatformWeb.ShellLive do
       assign(socket,
         redemption_collection: collection,
         redemption_token_id: token_id,
-        redemption_notice: nil,
-        redemption_snapshot_selection: nil
+        redemption_notice: nil
       )
 
-    {:noreply, start_redemption_read(socket, preserve_snapshot: true)}
+    {:noreply, read_selection(socket)}
   end
 
   defp handle_redemption_event(
@@ -2287,6 +2285,7 @@ defmodule AshPlatformWeb.ShellLive do
       redemption_generation: generation,
       redemption_read: %{
         name: name,
+        selection: {collection, token_id},
         announce_refresh: announce_refresh,
         lookup_owned: Keyword.get(options, :lookup_owned, false)
       }
@@ -2298,6 +2297,19 @@ defmodule AshPlatformWeb.ShellLive do
          else: Redemption.overview()
        )}
     end)
+  end
+
+  # A keystroke that leaves the selection Base was asked about unchanged buys
+  # no read: the reading in flight or the snapshot on screen already answers
+  # it. Only a selection neither of them covers is read.
+  defp read_selection(socket) do
+    selection = current_redemption_selection(socket.assigns)
+
+    cond do
+      match?(%{selection: ^selection}, socket.assigns.redemption_read) -> socket
+      redemption_selection_ready?(socket.assigns) -> cancel_redemption_read(socket)
+      true -> start_redemption_read(socket, preserve_snapshot: true)
+    end
   end
 
   defp adopt_redemption_wallet(socket, wallet),
@@ -2401,7 +2413,9 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp current_redemption_selection(assigns),
-    do: {Map.get(assigns, :redemption_collection), Map.get(assigns, :redemption_token_id)}
+    do:
+      {Map.get(assigns, :redemption_collection),
+       parsed_token_id(Map.get(assigns, :redemption_token_id))}
 
   defp redemption_step(assigns) do
     if redemption_selection_ready?(assigns),

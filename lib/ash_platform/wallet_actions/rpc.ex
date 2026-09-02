@@ -171,13 +171,16 @@ defmodule AshPlatform.WalletActions.Rpc do
   Several reads of one Base block, answered by one `eth_call` to `aggregator`.
 
   `calls` is the ordered list of `{target, calldata, kind}` this read wants,
-  `kind` being `:uint`, `:bool` or `:address`. The whole aggregate is pinned to
+  `kind` being `:uint`, `:bool`, `:address` or `{:words, count}` for a call
+  returning exactly `count` unsigned words. The whole aggregate is pinned to
   the caller's block hash with `requireCanonical`, exactly as a single read is,
   so a moved block fails rather than answering, and `allowFailure` is `false`,
   so a reverting sub-call reverts everything and the page is told the chain is
   unavailable instead of being handed a partial reading.
   """
-  @spec aggregate3(String.t(), [{String.t(), String.t(), atom()}], block(), keyword()) ::
+  @type kind :: :uint | :bool | :address | {:words, pos_integer()}
+
+  @spec aggregate3(String.t(), [{String.t(), String.t(), kind()}], block(), keyword()) ::
           {:ok, [term()]} | {:error, atom()}
   def aggregate3(aggregator, calls, %{hash: hash}, opts \\ []) when calls != [] do
     data = Abi.encode_aggregate3(Enum.map(calls, fn {to, calldata, _kind} -> {to, calldata} end))
@@ -260,6 +263,7 @@ defmodule AshPlatform.WalletActions.Rpc do
   defp decode_kind(:uint, value), do: decode_uint(value)
   defp decode_kind(:bool, value), do: decode_bool(value)
   defp decode_kind(:address, value), do: decode_address(value)
+  defp decode_kind({:words, count}, value), do: decode_words(value, count)
 
   def request(method, params, opts \\ []) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
