@@ -7,6 +7,8 @@ defmodule AshPlatform.Redemption.Snapshot do
 
   alias AshPlatform.Redemption.Actions
 
+  # Closures rather than captures: a capture evaluated inside the DSL would
+  # make the implementation module a compile-time dependency of this resource.
   actions do
     action :overview, :map do
       run fn input, context -> Actions.overview(input, context) end

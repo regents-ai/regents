@@ -18,8 +18,6 @@ defmodule AshPlatform.Staking do
     end
   end
 
-  def refresh_position(opts), do: account(opts)
-
   # The two Stake rules a presenter needs, owned here so the page and the named
   # preparation action can only ever answer the same way.
   defdelegate limit_refusal(snapshot, action, amount), to: AshPlatform.Staking.Actions

@@ -216,6 +216,7 @@ defmodule AshPlatformWeb.StakeLive do
                   inputmode="decimal"
                   autocomplete="off"
                   placeholder="0.0"
+                  phx-debounce="200"
                   aria-describedby="staking-available staking-amount-feedback"
                 />
                 <span>REGENT</span>

@@ -144,13 +144,6 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert {:error, :contract_constants_mismatch} = overview()
   end
 
-  test "INVALID_SELECTION: a selection outside the manifest is refused before any request" do
-    assert {:error, :invalid_collection} = RpcClient.overview(@wallet, @other, @token_id)
-    assert {:error, :invalid_token_selection} = RpcClient.overview(@wallet, animata_i(), 1_000)
-    assert {:error, :invalid_token_selection} = RpcClient.overview(nil, animata_i(), @token_id)
-    refute_received {:rpc, _method, _params}
-  end
-
   test "NON_CANONICAL_BLOCK: a block that moved fails the read instead of answering it" do
     Stub.put(%{canonical_block_hash: "0x" <> String.duplicate("9d", 32)})
 

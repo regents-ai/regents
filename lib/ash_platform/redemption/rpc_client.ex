@@ -9,11 +9,8 @@ defmodule AshPlatform.Redemption.RpcClient do
   @rpc_opts [client_key: :redemption_http_client, log_scope: "redemption"]
 
   @impl true
-  def overview(wallet, collection, token_id) do
-    with {:ok, selection} <- selection(wallet, collection, token_id) do
-      bounded(fn -> read(selection) end)
-    end
-  end
+  def overview(wallet, collection, token_id),
+    do: bounded(fn -> read({wallet, collection, token_id}) end)
 
   # One `latest` block owns every figure, and one aggregate returns them all:
   # the redeemer's constants proved against the pinned manifest, the three
@@ -236,21 +233,6 @@ defmodule AshPlatform.Redemption.RpcClient do
       do: :ok,
       else: {:error, :contract_constants_mismatch}
   end
-
-  defp selection(nil, nil, nil), do: {:ok, {nil, nil, nil}}
-
-  defp selection(wallet, nil, nil) when is_binary(wallet),
-    do: {:ok, {normalized(wallet), nil, nil}}
-
-  defp selection(wallet, collection, token_id)
-       when is_binary(wallet) and is_binary(collection) and
-              (is_nil(token_id) or token_id in 1..999) do
-    if RedemptionAbi.collection_id(collection),
-      do: {:ok, {normalized(wallet), normalized(collection), token_id}},
-      else: {:error, :invalid_collection}
-  end
-
-  defp selection(_wallet, _collection, _token_id), do: {:error, :invalid_token_selection}
 
   defp aggregator, do: Abi.multicall3_address()
 
