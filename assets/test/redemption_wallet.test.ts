@@ -486,6 +486,7 @@ type RedemptionHookHarness = {
   requests: ReturnType<typeof vi.fn>
   rootListeners: Map<string, (event: Event) => void>
   windowListeners: Map<string, () => void>
+  dispatched: string[]
   fakeWindow: {
     location: {origin: string}
     __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
@@ -595,6 +596,7 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
   const provider = "provider" in source ? source.provider : source
   const observationMode = "provider" in source ? source.observation : undefined
   const windowListeners = new Map<string, () => void>()
+  const dispatched: string[] = []
   const fakeWindow: {
     location: {origin: string}
     __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
@@ -606,7 +608,7 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     __ashPlatformTestWallet: {address: wallet, provider},
     addEventListener: (event, listener) => void windowListeners.set(event, listener),
     removeEventListener: event => void windowListeners.delete(event),
-    dispatchEvent: () => undefined,
+    dispatchEvent: event => void dispatched.push(event.type),
   }
   vi.stubGlobal("window", fakeWindow)
 
@@ -728,6 +730,7 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     rootListeners,
     windowListeners,
     fakeWindow,
+    dispatched,
     walletAction: (attemptId, prepared) => walletAction({attempt_id: attemptId, envelope: prepared}),
     walletRefusal: attemptId => walletRefusal({attempt_id: attemptId}),
     click,
@@ -754,6 +757,13 @@ async function flushHookPromises(): Promise<void> {
 }
 
 describe("redemption hook ownership and result ordering", () => {
+  it("asks the wallet bridge for Privy's wallets as soon as it mounts", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider())
+
+    expect(harness.dispatched).toEqual(["ash:wallet-sync"])
+    harness.destroy()
+  })
+
   it("cancels a hung pre-send phase on teardown before it can send", async () => {
     const chain = deferred<string>()
     const walletProvider = redemptionHookProvider({chainResponses: [chain.promise]})

@@ -587,6 +587,40 @@ describe("lazy browser authentication", () => {
     expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
   })
 
+  it("synchronizes Privy's wallets when a wallet page mounts, without starting sign in", async () => {
+    const page = accountDocument()
+    const handleRequest = vi.fn(async () => undefined)
+    const startPrivyBridge = vi.fn(async () => ({request: handleRequest}))
+    const importer = vi.fn(async () => ({startPrivyBridge}))
+
+    installAccountAuthLazyLoader(page.documentRoot, importer)
+    page.dispatch("ash:wallet-sync")
+
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sync"))
+    expect(importer).toHaveBeenCalledOnce()
+    expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+    expect(handleRequest).not.toHaveBeenCalledWith("connect-wallet")
+    expect(page.status.hidden).toBe(true)
+  })
+
+  it("keeps a wallet page quiet when its mount synchronization cannot start", async () => {
+    const page = accountDocument()
+    const failed = vi.fn()
+    page.documentRoot.addEventListener("ash:wallet-connect-failed", failed)
+    const importer = vi.fn(async () => {
+      throw new Error("chunk unavailable")
+    })
+
+    installAccountAuthLazyLoader(page.documentRoot, importer)
+    page.dispatch("ash:wallet-sync")
+
+    await vi.waitFor(() => expect(importer).toHaveBeenCalledOnce())
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(failed).not.toHaveBeenCalled()
+    expect(page.status.textContent).toBe("")
+    expect(page.status.hidden).toBe(true)
+  })
+
   it("announces an anonymous wallet connection failure to the active route", async () => {
     const page = accountDocument()
     const failed = vi.fn()

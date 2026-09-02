@@ -1,5 +1,6 @@
 import {
   PrivyProvider,
+  type ConnectedWallet,
   type PrivyEvents,
   getIdentityToken,
   useActiveWallet,
@@ -371,6 +372,27 @@ async function establishLocalSession(
   }
 }
 
+// The one account the same wallet app now reports in place of the account the
+// customer had selected there. Anything else is not a switch: the selected
+// account still listed, that app gone entirely, several of its accounts to
+// choose between, or an account from a different app.
+export function switchedAccountOf(
+  previous: ConnectedWallet | null,
+  wallets: readonly ConnectedWallet[],
+): ConnectedWallet | null {
+  if (!previous) return null
+  const sameApp = wallets.filter(
+    wallet =>
+      wallet.type === "ethereum" &&
+      wallet.walletClientType === previous.walletClientType &&
+      wallet.connectorType === previous.connectorType,
+  )
+  const [candidate] = sameApp
+  return sameApp.length === 1 && candidate.address.toLowerCase() !== previous.address.toLowerCase()
+    ? candidate
+    : null
+}
+
 type ProviderSessionReconcilerOptions = {
   clearSession: () => Promise<void>
   providerAuthenticated: () => boolean
@@ -525,6 +547,7 @@ export type PrivyBridgeProviderState = {
   wallets: ReturnType<typeof useWallets>["wallets"]
   activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
   connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
+  setActiveWallet?: ReturnType<typeof useActiveWallet>["setActiveWallet"]
   connectWallet?: ReturnType<typeof useConnectWallet>["connectWallet"]
 }
 
@@ -540,6 +563,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const wallets = providerState?.wallets ?? providerWallets.wallets
   const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
   const connectActiveWallet = providerState?.connectActiveWallet ?? providerActiveWallet.connect
+  const setActiveWallet = providerState?.setActiveWallet ?? providerActiveWallet.setActiveWallet
   const connectWallet = providerState?.connectWallet ?? providerWalletConnector.connectWallet
   const signOutOnly = mode === "sign-out-only"
   const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
@@ -636,7 +660,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const walletSyncGeneration = React.useRef(0)
-  const selectedWalletRef = React.useRef<typeof activeWallet>(null)
+  const selectedWalletRef = React.useRef<ConnectedWallet | null>(null)
   const reconcileProviderSession = React.useMemo(
     () =>
       createProviderSessionReconciler({
@@ -664,6 +688,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       wallets.some(wallet => wallet.address.toLowerCase() === activeWallet.address.toLowerCase())
         ? activeWallet
         : null
+    const switchedAccount = selectedWallet ? null : switchedAccountOf(selectedWalletRef.current, wallets)
 
     // The wallet the customer just left stops being Stake's wallet here, before
     // any of the work below can await, so nothing can be prepared or sent for it
@@ -673,6 +698,14 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
     }
     selectedWalletRef.current = selectedWallet
+
+    // An account switched inside the wallet app the customer was already using
+    // is their own choice, so Privy's selection follows it. This run ends with
+    // no wallet; the run Privy's new selection starts publishes the account.
+    if (switchedAccount) {
+      setActiveWallet(switchedAccount)
+      return
+    }
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (walletSyncGeneration.current !== generation) return
@@ -714,10 +747,17 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
         : null,
     )
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
-  }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady])
+  }, [activeWallet, ready, reconcileProviderSession, setActiveWallet, wallets, walletsReady])
+
+  // A sign-out-only bridge publishes nothing while the provider sign out is
+  // still settling. From the moment it settles it publishes exactly as an
+  // ordinary bridge does: the wallets Privy still holds, and every wallet the
+  // customer connects afterwards on this page.
+  const synchronizeWalletsRef = React.useRef(synchronizeWallets)
+  synchronizeWalletsRef.current = synchronizeWallets
 
   React.useEffect(() => {
-    if (signOutOnly) return
+    if (signOutOnly && signOutOnlyState.current !== "terminal") return
     void synchronizeWallets()
     return () => {
       walletSyncGeneration.current += 1
@@ -738,6 +778,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const markSignOutTerminal = React.useCallback(() => {
     signOutOnlyState.current = "terminal"
     walletSyncGeneration.current += 1
+    void synchronizeWalletsRef.current()
   }, [])
 
   const ordinaryRequestHandler = React.useMemo(

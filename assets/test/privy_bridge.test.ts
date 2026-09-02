@@ -182,9 +182,25 @@ function renderedAccountBridge(): React.ReactElement {
   return providerElement.props.children
 }
 
-function ethereumWallet(address: string) {
+// Every test wallet names the wallet app it came from, as Privy's do, so the
+// same-app account switch below can be told apart from an unrelated wallet.
+function ethereumWallet(
+  address: string,
+  {walletClientType = "metamask", connectorType = "injected"} = {},
+) {
   const provider: EthereumProvider = {request: vi.fn()}
-  return {address, type: "ethereum", provider, getEthereumProvider: async () => provider}
+  return {
+    address,
+    type: "ethereum",
+    provider,
+    walletClientType,
+    connectorType,
+    getEthereumProvider: async () => provider,
+  }
+}
+
+async function settled(): Promise<void> {
+  for (let tick = 0; tick < 4; tick += 1) await new Promise(resolve => setTimeout(resolve, 0))
 }
 
 // Yields to the event loop until `reached` holds, so an ordering assertion waits
@@ -1458,6 +1474,149 @@ describe("Privy session bridge", () => {
     await until(() => dispatched.length === 5)
     expect(activeEthereumWallet()).toBeNull()
     expect(new Set(dispatched)).toEqual(new Set(["ash:wallet-state"]))
+  })
+
+  it("SIGN_OUT_ONLY_WALLETS: publishes the wallets Privy holds once the provider sign out settles", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {dispatched} = stubBrowserGlobals("sign-in")
+    const sessionRequests = stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    let finishProviderLogout: (() => void) | undefined
+    const providerState = {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: async () => null,
+      logout: vi.fn(
+        () =>
+          new Promise<void>(resolve => {
+            finishProviderLogout = resolve
+          }),
+      ),
+      ready: true,
+      walletsReady: true,
+      wallets: [wallet],
+      activeWallet: wallet,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {mode: "sign-out-only"},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    const handle = await startup
+    const providerAttempt = handle.request("sign-out")
+    await settled()
+
+    // Nothing is a wallet here while the provider sign out is still settling.
+    expect(activeEthereumWallet()).toBeNull()
+    expect(dispatched).toEqual([])
+
+    finishProviderLogout?.()
+    await providerAttempt
+    await until(() => activeEthereumWallet()?.provider === wallet.provider)
+
+    expect(dispatched).toEqual(["ash:wallet-state"])
+    expect(sessionRequests).toEqual([])
+  })
+
+  it("FOLLOWS_A_SWITCHED_ACCOUNT: adopts the same wallet app's new account when Privy drops the selected one", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals()
+    const first = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const switched = ethereumWallet("0x2222222222222222222222222222222222222222")
+    const setActiveWallet = vi.fn()
+    const providerState = {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: async () => null,
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [first],
+      activeWallet: first as typeof first | undefined,
+      setActiveWallet,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+
+    // The wallet app switched accounts: it now reports only the new account,
+    // and Privy's selection still names the account that is gone.
+    providerState.wallets = [switched]
+    providerState.activeWallet = undefined
+    renderAccountBridge(accountElement)
+    await until(() => setActiveWallet.mock.calls.length === 1)
+
+    expect(setActiveWallet).toHaveBeenCalledWith(switched)
+    expect(activeEthereumWallet()).toBeNull()
+
+    providerState.activeWallet = switched
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet()?.provider === switched.provider)
+  })
+
+  it("FOLLOWS_A_SWITCHED_ACCOUNT: never stands in another app's account or chooses between several", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals()
+    const first = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const otherApp = ethereumWallet("0x2222222222222222222222222222222222222222", {
+      walletClientType: "rabby_wallet",
+    })
+    const second = ethereumWallet("0x3333333333333333333333333333333333333333")
+    const third = ethereumWallet("0x4444444444444444444444444444444444444444")
+    const setActiveWallet = vi.fn()
+    const providerState = {
+      appId: "test-app",
+      authenticated: false,
+      getAccessToken: async () => null,
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [first],
+      activeWallet: first as typeof first | undefined,
+      setActiveWallet,
+    }
+
+    const startup = bridge.startPrivyBridge(
+      {},
+      providerState as unknown as bridge.PrivyBridgeProviderState,
+    )
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+
+    providerState.wallets = [otherApp]
+    providerState.activeWallet = undefined
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet() === null)
+    await settled()
+    expect(setActiveWallet).not.toHaveBeenCalled()
+
+    providerState.activeWallet = first
+    providerState.wallets = [first]
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet()?.provider === first.provider)
+
+    providerState.wallets = [second, third]
+    providerState.activeWallet = undefined
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet() === null)
+    await settled()
+    expect(setActiveWallet).not.toHaveBeenCalled()
   })
 
   it("binds the active provider when two Privy wallets share an address", async () => {

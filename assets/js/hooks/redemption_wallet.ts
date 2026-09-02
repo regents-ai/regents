@@ -197,6 +197,7 @@ export const RedemptionWallet: Hook = {
     window.addEventListener("ash:wallet-state", state.publishActiveWallet)
     window.addEventListener("ash:wallet-connect-failed", state.walletFailure)
     state.publishActiveWallet()
+    window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
 
     this.handleEvent("redemption:wallet-action", payload => {
       const {attempt_id: attemptId, envelope} = payload as {

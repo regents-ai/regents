@@ -856,6 +856,10 @@ export function installAccountAuthLazyLoader(
       .catch(() => showIdentityFailure())
   }
   const onWalletConnect = () => request("connect-wallet")
+  // A wallet page asks for the wallets Privy already holds as soon as it
+  // mounts, so a returning customer sees their wallet without a click. Nothing
+  // is shown when that cannot happen: the page still offers the connection.
+  const onWalletSync = () => void loader.request("sync").catch(() => undefined)
   const showIdentityFailure = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -875,6 +879,7 @@ export function installAccountAuthLazyLoader(
   documentRoot.addEventListener("click", onClick)
   documentRoot.addEventListener("ash:identity-request", onIdentityRequest)
   walletEvents.addEventListener("ash:wallet-connect", onWalletConnect)
+  walletEvents.addEventListener("ash:wallet-sync", onWalletSync)
   if (consumedHandoff) {
     void proveAnonymousSession().then(async anonymous => {
       if (!anonymous) {
@@ -901,6 +906,7 @@ export function installAccountAuthLazyLoader(
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
     walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)
+    walletEvents.removeEventListener("ash:wallet-sync", onWalletSync)
   }
 }
 

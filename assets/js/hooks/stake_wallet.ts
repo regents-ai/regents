@@ -305,6 +305,7 @@ export const StakeWallet: Hook = {
     window.addEventListener("ash:wallet-state", state.publishActiveWallet)
     window.addEventListener("ash:wallet-connect-failed", state.walletFailure)
     state.publishActiveWallet()
+    window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
 
     this.handleEvent("staking:transaction-result", payload => {
       const {observation_id: observationId, result} = payload as {

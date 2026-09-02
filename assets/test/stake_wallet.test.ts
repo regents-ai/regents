@@ -172,6 +172,7 @@ type StakeHookHarness = {
   requests: ProviderRequest[]
   rootListeners: Map<string, (event: Event) => void>
   windowListeners: Map<string, () => void>
+  dispatched: string[]
   fakeWindow: {
     location: {origin: string}
     __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
@@ -197,6 +198,7 @@ function stakingHookHarness(
 ): StakeHookHarness {
   const provider = source.provider
   const windowListeners = new Map<string, () => void>()
+  const dispatched: string[] = []
   const fakeWindow: {
     location: {origin: string}
     __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
@@ -208,7 +210,7 @@ function stakingHookHarness(
     __ashPlatformTestWallet: {address: wallet, provider},
     addEventListener: (event, listener) => void windowListeners.set(event, listener),
     removeEventListener: event => void windowListeners.delete(event),
-    dispatchEvent: () => undefined,
+    dispatchEvent: event => void dispatched.push(event.type),
   }
   vi.stubGlobal("window", fakeWindow)
 
@@ -333,6 +335,7 @@ function stakingHookHarness(
     rootListeners,
     windowListeners,
     fakeWindow,
+    dispatched,
     click,
     editAmountActionAndFill,
     setWallet,
@@ -357,6 +360,13 @@ async function flushStakeHookPromises(): Promise<void> {
 }
 
 describe("stake hook ownership and result ordering", () => {
+  it("asks the wallet bridge for Privy's wallets as soon as it mounts", () => {
+    const harness = stakingHookHarness(stakingHookProvider())
+
+    expect(harness.dispatched).toEqual(["ash:wallet-sync"])
+    harness.destroy()
+  })
+
   it("shows a recoverable error when Privy cannot open the wallet connector", () => {
     const harness = stakingHookHarness(stakingHookProvider())
 
