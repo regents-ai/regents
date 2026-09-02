@@ -84,7 +84,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert html =~ "10 REGENT"
     assert html =~ "4.25 USDC"
     assert html =~ "5 REGENT"
-    assert html =~ "1.5 USDC"
+    assert html =~ "1.50 USDC"
     assert html =~ "2 REGENT"
     assert has_element?(view, ~s(a[href="/formation"]), "Run your Regent")
     refute html =~ "Sign in to see any wallet verified on your account"

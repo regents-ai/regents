@@ -102,10 +102,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-total strong", "100")
     assert has_element?(view, ".stake-total span", "REGENT staked")
     assert has_element?(view, ".stake-benefit-card-primary", "12%")
-    assert has_element?(view, ".stake-benefit-grid", "125,000 USDC")
-    assert has_element?(view, ".stake-benefit-grid", "250,000 REGENT")
-    assert html =~ "67,000 REGENT"
-    assert html =~ "66,900 REGENT"
+    assert has_element?(view, ".stake-benefit-grid", "125,000.00 USDC")
+    assert has_element?(view, ".stake-benefit-grid", "250k REGENT")
+    assert html =~ "67k REGENT"
+    assert html =~ "66.9k REGENT"
     assert html =~ "Base block #1,234"
     assert has_element?(view, ".stake-contract-facts dt", ~r/\ABase block\z/)
     assert html =~ @contract
@@ -179,7 +179,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert html =~ "Staking paused"
     assert has_element?(view, ~s(.stake-contract-status[data-state="paused"]))
     assert has_element?(view, "#staking-utilization")
-    assert html =~ "67,000 REGENT"
+    assert html =~ "67k REGENT"
     refute has_element?(view, "button[data-staking-action]")
   end
 

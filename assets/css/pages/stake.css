@@ -670,7 +670,6 @@
 
 .stake-how-it-works {
   display: grid;
-  grid-column: 1 / -1;
   grid-template-columns: minmax(13rem, 0.8fr) repeat(3, minmax(0, 1fr));
   gap: clamp(1rem, 3vw, 2rem);
 }
@@ -696,7 +695,6 @@
 }
 
 .stake-contract-details {
-  grid-column: 1 / -1;
   overflow: hidden;
 }
 

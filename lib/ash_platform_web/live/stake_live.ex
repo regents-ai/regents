@@ -67,12 +67,14 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
           <div class="stake-benefit-card">
             <dt>USDC reserved</dt>
-            <dd>{@dashboard.reserved_usdc}</dd>
+            <dd><TokenDisplay.amount amount={@staking.reserved_usdc} unit="USDC" /></dd>
             <p>USDC currently reserved for staker rewards.</p>
           </div>
           <div class="stake-benefit-card">
             <dt>REGENT reward inventory</dt>
-            <dd>{@dashboard.available_regent_rewards}</dd>
+            <dd>
+              <TokenDisplay.amount amount={@staking.available_regent_reward_inventory} unit="REGENT" />
+            </dd>
             <p>Reward inventory currently available onchain.</p>
           </div>
         </dl>
@@ -181,7 +183,7 @@ defmodule AshPlatformWeb.StakeLive do
 
           <div :if={@wallet_ready} class="stake-wallet-controls">
             <p class="stake-wallet-block">
-              Your position at Base block #{format_number(@staking.wallet_block_number)}.
+              Your position at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
             </p>
             <dl class="stake-wallet-summary">
               <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
@@ -219,7 +221,9 @@ defmodule AshPlatformWeb.StakeLive do
                 <span>REGENT</span>
               </div>
               <div class="stake-amount-tools">
-                <p id="staking-available">Available {token_amount(@spendable)} REGENT</p>
+                <p id="staking-available">
+                  Available <TokenDisplay.amount amount={token_amount(@spendable)} unit="REGENT" />
+                </p>
                 <div>
                   <button
                     type="button"
@@ -246,7 +250,9 @@ defmodule AshPlatformWeb.StakeLive do
 
               <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
                 <div>
-                  <dt>Position after</dt><dd>{@preview.position} REGENT</dd>
+                  <dt>Position after</dt><dd>
+                    <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
+                  </dd>
                 </div>
                 <div>
                   <dt>Pool share after</dt><dd>{@preview.share}</dd>
@@ -316,7 +322,7 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
 
           <p class="stake-total">
-            <strong>{@dashboard.total_staked}</strong><span>REGENT staked</span>
+            <strong><TokenDisplay.amount amount={@staking.total_staked} /></strong><span>REGENT staked</span>
           </p>
 
           <div class="stake-capacity">
@@ -331,17 +337,21 @@ defmodule AshPlatformWeb.StakeLive do
             >{@dashboard.utilization.label}</progress>
             <dl class="stake-capacity-facts">
               <div>
-                <dt>Contract capacity</dt><dd>{@dashboard.capacity} REGENT</dd>
+                <dt>Contract capacity</dt><dd>
+                  <TokenDisplay.amount amount={@dashboard.capacity} unit="REGENT" />
+                </dd>
               </div>
               <div>
-                <dt>Capacity remaining</dt><dd>{@dashboard.remaining_capacity} REGENT</dd>
+                <dt>Capacity remaining</dt><dd>
+                  <TokenDisplay.amount amount={@staking.remaining_capacity} unit="REGENT" />
+                </dd>
               </div>
             </dl>
           </div>
 
           <p class="stake-snapshot-note">
             <span>
-              Confirmed at Base block #{format_number(@staking.block_number)}, read {snapshot_age(
+              Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {snapshot_age(
                 @staking
               )}.
             </span>
@@ -357,60 +367,64 @@ defmodule AshPlatformWeb.StakeLive do
             label="Refresh contract data"
           />
         </section>
-
-        <section class="stake-how-it-works" aria-labelledby="staking-explainer-heading">
-          <div>
-            <p class="stake-section-kicker">Why stake</p>
-            <h2 id="staking-explainer-heading">One position, two reward sources</h2>
-          </div>
-          <article>
-            <span aria-hidden="true">01</span><h3>USDC revenue rewards</h3><p>
-              Eligible USDC deposited into the contract is accounted across stakers according to stake share.
-            </p>
-          </article>
-          <article>
-            <span aria-hidden="true">02</span><h3>REGENT emissions</h3><p>
-              The contract currently reports a {@dashboard.emission_apr} emissions APR, subject to onchain changes and available inventory.
-            </p>
-          </article>
-          <article>
-            <span aria-hidden="true">03</span><h3>You stay in control</h3><p>
-              Stake, unstake, claim, or compound through the connected wallet. Every transaction requires your signature.
-            </p>
-          </article>
-        </section>
-
-        <details class="stake-contract-details">
-          <summary>
-            <span><span class="stake-section-kicker">Verification</span> Contract and snapshot details</span>
-            <span aria-hidden="true">+</span>
-          </summary>
-          <div class="stake-contract-details-body">
-            <a
-              class="stake-contract-link"
-              href={@dashboard.basescan_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >View verified staking contract on BaseScan <span aria-hidden="true">↗</span></a>
-            <dl class="stake-contract-facts">
-              <div>
-                <dt>Staking contract</dt><dd><code>{@staking.contract_address}</code></dd>
-              </div>
-              <div>
-                <dt>REGENT token</dt><dd><code>{@staking.stake_token_address}</code></dd>
-              </div>
-              <div>
-                <dt>USDC token</dt><dd><code>{@staking.usdc_address}</code></dd>
-              </div>
-              <div>
-                <dt>Base block</dt><dd>
-                  <span>#{format_number(@staking.block_number)}</span><code>{@staking.block_hash}</code>
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </details>
       </div>
+
+      <section
+        :if={@status == :ready && @staking}
+        class="stake-how-it-works"
+        aria-labelledby="staking-explainer-heading"
+      >
+        <div>
+          <p class="stake-section-kicker">Why stake</p>
+          <h2 id="staking-explainer-heading">One position, two reward sources</h2>
+        </div>
+        <article>
+          <span aria-hidden="true">01</span><h3>USDC revenue rewards</h3><p>
+            Eligible USDC deposited into the contract is accounted across stakers according to stake share.
+          </p>
+        </article>
+        <article>
+          <span aria-hidden="true">02</span><h3>REGENT emissions</h3><p>
+            The contract currently reports a {@dashboard.emission_apr} emissions APR, subject to onchain changes and available inventory.
+          </p>
+        </article>
+        <article>
+          <span aria-hidden="true">03</span><h3>You stay in control</h3><p>
+            Stake, unstake, claim, or compound through the connected wallet. Every transaction requires your signature.
+          </p>
+        </article>
+      </section>
+
+      <details :if={@status == :ready && @staking} class="stake-contract-details">
+        <summary>
+          <span><span class="stake-section-kicker">Verification</span> Contract and snapshot details</span>
+          <span aria-hidden="true">+</span>
+        </summary>
+        <div class="stake-contract-details-body">
+          <a
+            class="stake-contract-link"
+            href={@dashboard.basescan_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >View verified staking contract on BaseScan <span aria-hidden="true">↗</span></a>
+          <dl class="stake-contract-facts">
+            <div>
+              <dt>Staking contract</dt><dd><code>{@staking.contract_address}</code></dd>
+            </div>
+            <div>
+              <dt>REGENT token</dt><dd><code>{@staking.stake_token_address}</code></dd>
+            </div>
+            <div>
+              <dt>USDC token</dt><dd><code>{@staking.usdc_address}</code></dd>
+            </div>
+            <div>
+              <dt>Base block</dt><dd>
+                <span>#{TokenDisplay.count(@staking.block_number)}</span><code>{@staking.block_hash}</code>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </details>
     </section>
     """
   end
@@ -459,13 +473,8 @@ defmodule AshPlatformWeb.StakeLive do
   defp staking_dashboard(staking) do
     %{
       basescan_url: "https://basescan.org/address/#{staking.contract_address}",
-      capacity: staking.supply_denominator_raw |> token_amount() |> format_number(),
-      remaining_capacity: format_number(staking.remaining_capacity),
-      total_staked: format_number(staking.total_staked),
-      available_regent_rewards:
-        "#{format_number(Map.get(staking, :available_regent_reward_inventory, "0"))} REGENT",
-      reserved_usdc: "#{format_number(Map.get(staking, :reserved_usdc, "0"))} USDC",
-      emission_apr: "#{format_number(Map.get(staking, :emission_apr_percent, "0"))}%",
+      capacity: token_amount(staking.supply_denominator_raw),
+      emission_apr: "#{TokenDisplay.compact(staking.emission_apr_percent)}%",
       utilization: utilization(staking.total_staked_raw, staking.supply_denominator_raw)
     }
   end
@@ -510,7 +519,7 @@ defmodule AshPlatformWeb.StakeLive do
           else: {max(current_position - requested, 0), max(total - requested, 0)}
 
       %{
-        position: position |> token_amount() |> format_number(),
+        position: token_amount(position),
         share: percentage(position, pool)
       }
     else
@@ -587,18 +596,6 @@ defmodule AshPlatformWeb.StakeLive do
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
   defp short_wallet(wallet), do: wallet
-
-  defp format_number(value) when is_integer(value),
-    do: value |> Integer.to_string() |> format_number()
-
-  defp format_number(value) when is_binary(value) do
-    case String.split(value, ".", parts: 2) do
-      [whole] -> delimit_whole(whole)
-      [whole, fraction] -> "#{delimit_whole(whole)}.#{fraction}"
-    end
-  end
-
-  defp delimit_whole(whole), do: Regex.replace(~r/\B(?=(\d{3})+(?!\d))/, whole, ",")
 
   defp stake_allowance(staking) when is_map(staking),
     do: Map.get(staking, :wallet_stake_allowance_raw, "0")

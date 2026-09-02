@@ -341,7 +341,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(
              view,
              ".redeem-summary .redeem-metric:first-child",
-             "80 USDC"
+             "80.00 USDC"
            )
 
     assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
@@ -358,7 +358,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> element("#redemption-refresh") |> render_click()
     assert_receive {:redemption_read_waiting, read}
 
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80 USDC")
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80.00 USDC")
 
     assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
 
@@ -381,8 +381,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> element("#redemption-refresh") |> render_click()
     assert_receive {:redemption_read_waiting, read}
 
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80 USDC")
-    refute has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80.00 USDC")
+    refute has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
     assert has_element?(view, ".redeem-summary")
     assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
     refute render(view) =~ "Refresh complete. Data is current"
@@ -393,7 +393,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(
              view,
              ".redeem-summary .redeem-metric:first-child",
-             "125 USDC"
+             "125.00 USDC"
            )
 
     assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
@@ -402,14 +402,14 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     Application.put_env(:ash_platform, :test_redemption_read_gate, self())
     view |> element("#redemption-refresh") |> render_click()
     assert_receive {:redemption_read_waiting, read}
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
     assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
     refute render(view) =~ "Refresh complete. Data is current"
     Application.delete_env(:ash_platform, :test_redemption_read_gate)
     send(read, :continue_redemption_read)
     render_async(view)
 
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
     assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
     assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
 
@@ -418,7 +418,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> element("#redemption-refresh") |> render_click()
     assert_receive {:redemption_read_waiting, read}
     refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125 USDC")
+    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
     assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
     Application.delete_env(:ash_platform, :test_redemption_read_gate)
     send(read, :continue_redemption_read)

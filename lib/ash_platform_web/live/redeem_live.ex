@@ -191,7 +191,7 @@ defmodule AshPlatformWeb.RedeemLive do
           aria-atomic="true"
           aria-hidden={to_string(is_nil(@refresh_block))}
         >
-          <span :if={@refresh_block}>Refresh complete. Data is current at Base block {format_block_number(
+          <span :if={@refresh_block}>Refresh complete. Data is current at Base block {TokenDisplay.count(
             @refresh_block
           )}.</span>
         </p>
@@ -361,7 +361,7 @@ defmodule AshPlatformWeb.RedeemLive do
               Claim unlocked REGENT
             </button>
             <p class="redeem-snapshot-note">
-              <span>Confirmed at Base block {format_block_number(@redemption.block_number)}.</span><span :if={
+              <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={
                 @reading
               }> Updating from Base…</span>
             </p>
@@ -445,7 +445,7 @@ defmodule AshPlatformWeb.RedeemLive do
             </div>
             <div>
               <dt>Base block</dt><dd>
-                <span>{format_block_number(@redemption.block_number)}</span><code>{@redemption.block_hash}</code>
+                <span>{TokenDisplay.count(@redemption.block_number)}</span><code>{@redemption.block_hash}</code>
               </dd>
             </div>
           </dl>
@@ -583,14 +583,6 @@ defmodule AshPlatformWeb.RedeemLive do
 
   defp short_wallet(wallet), do: wallet
 
-  defp format_block_number(block_number) do
-    block_number
-    |> to_string()
-    |> String.reverse()
-    |> String.replace(~r/(.{3})(?=.)/, "\\1,")
-    |> String.reverse()
-  end
-
   attr :kind, :string, required: true
   attr :index, :string, required: true
   attr :title, :string, required: true
@@ -607,7 +599,7 @@ defmodule AshPlatformWeb.RedeemLive do
         <h3>{@title}</h3>
         <dl>
           <div>
-            <dt>Live contract count</dt><dd>{format_block_number(@count)} {@count_label}</dd>
+            <dt>Live contract count</dt><dd>{TokenDisplay.count(@count)} {@count_label}</dd>
           </div><div>
             <dt>{if @kind == "source", do: "Eligible IDs", else: "Received on redeem"}</dt><dd>
               {if @kind == "source", do: "1–999", else: "1 membership NFT"}

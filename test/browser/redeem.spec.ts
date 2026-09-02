@@ -133,7 +133,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   await installWallet(page)
 
   await page.goto("/redeem")
-  await expect(page.locator(".redeem-summary")).toContainText("100 USDC")
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator("#redemption-refresh-status")).toBeHidden()
 
   const refresh = page.getByRole("button", {name: "Refresh wallet data", exact: true})
@@ -144,7 +144,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   expect(before.top).toBeGreaterThan(0)
 
   await refresh.click()
-  await expect(page.locator(".redeem-summary")).toContainText("100 USDC")
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   await expect(page.locator("#redemption-refresh-status")).toHaveText(
     "Refresh complete. Data is current at Base block 1,234.",
@@ -156,7 +156,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   expect(afterRefresh.height).toBe(before.height)
 
   await page.getByLabel("Token ID").fill("42")
-  await expect(page.locator(".redeem-summary")).toContainText("100 USDC")
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   const afterSelection = await scrollSnapshot(scroller, summary)
   expect(Math.abs(afterSelection.top - before.top)).toBeLessThanOrEqual(16)
@@ -170,7 +170,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   })
   await action.click()
   await expect.poll(() => sendCount(page)).toBe(1)
-  await expect(page.locator(".redeem-summary")).toContainText("100 USDC")
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator("#redemption-transaction-progress")).toBeVisible()
 })
 

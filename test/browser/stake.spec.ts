@@ -109,7 +109,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.getByText("Staking active")).toBeVisible()
     await expect(page.locator(".stake-total")).toContainText("100")
     await expect(page.locator(".stake-total")).toContainText("REGENT staked")
-    await expect(page.getByText("1,000 REGENT", {exact: true})).toBeVisible()
+    await expect(page.getByText("1k REGENT", {exact: true})).toBeVisible()
     await expect(page.getByText("900 REGENT", {exact: true})).toBeVisible()
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
@@ -118,8 +118,8 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     )
     await expect(page.locator("button.stake-shared-refresh")).toHaveCount(0)
     await expect(page.locator(".stake-benefit-card-primary")).toContainText("12%")
-    await expect(page.locator(".stake-benefit-grid")).toContainText("125,000 USDC")
-    await expect(page.locator(".stake-benefit-grid")).toContainText("250,000 REGENT")
+    await expect(page.locator(".stake-benefit-grid")).toContainText("125,000.00 USDC")
+    await expect(page.locator(".stake-benefit-grid")).toContainText("250k REGENT")
 
     await page.locator(".stake-contract-details summary").click()
     await expect(page.getByText(contract, {exact: true})).toBeVisible()
