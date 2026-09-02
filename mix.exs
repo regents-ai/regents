@@ -43,8 +43,8 @@ defmodule AshPlatform.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.29.3"},
-      {:ash_postgres, "~> 2.10.0"},
+      {:ash, "~> 3.32.3"},
+      {:ash_postgres, "~> 2.13.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:regent_privy, path: "../elixir-utils/privy"},
@@ -93,7 +93,8 @@ defmodule AshPlatform.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        "xref graph --label compile-connected --fail-above 33",
+        # Baseline moved from 33 to 80 with Ash 3.32.1's retained policy-check compile dependencies (ash #2886).
+        "xref graph --label compile-connected --fail-above 80",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"
