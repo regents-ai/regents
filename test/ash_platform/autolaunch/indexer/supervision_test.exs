@@ -86,8 +86,23 @@ defmodule AshPlatform.Autolaunch.Indexer.SupervisionTest do
       # The runner goes down, and the pass it last dispatched finishes, while
       # this test still owns the connection they both borrowed.
       stop_supervised!(Runner)
+
+      # The stop returns with the runner and its work already down, so anything
+      # waiting in this mailbox was announced by the runner while it was still
+      # running. Clearing it leaves the refutation below saying the one thing it
+      # means: a stopped runner dispatches nothing more.
+      drain_announcements()
       refute_receive {:rpc, "eth_chainId"}, 100
     end)
+  end
+
+  # Every announcement already waiting, and never a wait for one to arrive.
+  defp drain_announcements do
+    receive do
+      {:rpc, _method} -> drain_announcements()
+    after
+      0 -> :ok
+    end
   end
 
   defp configure_endpoint do
