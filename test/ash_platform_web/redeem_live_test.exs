@@ -894,11 +894,71 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     end
   end
 
+  # The wallet arrives while the public read is still open, so that read is
+  # cancelled and replaced. A cancelled read reported nothing about Base and
+  # must not be mistaken for a failed one.
+  test "WALLET_DURING_FIRST_READ: replacing the open public read never reports Base unavailable",
+       %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+
+    view = mount_redeem(conn)
+    assert_receive {:redemption_read_waiting, public_read}
+    public_read_ref = Process.monitor(public_read)
+
+    render_hook(view, "redemption_active_wallet", %{"address" => @wallet})
+
+    assert_receive {:redemption_read_waiting, wallet_read}
+    assert_receive {:DOWN, ^public_read_ref, :process, ^public_read, _reason}
+
+    refute render(view) =~ "Redemption details are unavailable right now."
+    assert redemption_assigns(view).redemption_status == :loading
+
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(wallet_read, :continue_redemption_read)
+    render_async(view)
+
+    assigns = redemption_assigns(view)
+    assert assigns.redemption_status == :ready
+    assert assigns.redemption_wallet == @wallet
+    assert has_element?(view, "#redemption-collections")
+  end
+
+  # A first read that genuinely failed still says the page is unavailable.
+  test "FIRST_READ_FAILURE: a failed first read reports Base unavailable", %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+    Application.put_env(:ash_platform, :test_redemption_read_result, :error)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    view = mount_redeem(conn)
+    render_async(view)
+
+    assert redemption_assigns(view).redemption_status == :error
+
+    assert has_element?(
+             view,
+             ~s(p[role="alert"]),
+             "Redemption details are unavailable right now."
+           )
+  end
+
   defp mount_redeem(conn) do
     {:ok, view, _html} = live(conn, "/redeem")
 
     view
   end
+
+  defp redemption_assigns(view), do: :sys.get_state(view.pid).socket.assigns
 
   defp activate(view, wallet) do
     render_async(view)

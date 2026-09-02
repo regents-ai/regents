@@ -378,6 +378,58 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, ".stake-wallet-loading")
   end
 
+  # The wallet arrives while the public read is still open, so that read is
+  # cancelled and replaced. A cancelled read reported nothing about Base and
+  # must not be mistaken for a failed one.
+  test "WALLET_DURING_FIRST_READ: replacing the open public read never reports Base unavailable",
+       %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
+    Application.put_env(:ash_platform, :staking_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :staking_chain_client, previous_client)
+    end)
+
+    Application.put_env(:ash_platform, :test_staking_read_gate, self())
+
+    view = mount_stake(conn)
+    assert_receive {:staking_read_waiting, public_read}
+    public_read_ref = Process.monitor(public_read)
+
+    render_hook(view, "staking_active_wallet", %{"address" => @wallet})
+
+    assert_receive {:staking_read_waiting, wallet_read}
+    assert_receive {:DOWN, ^public_read_ref, :process, ^public_read, _reason}
+
+    refute render(view) =~ "Staking details are unavailable right now."
+    assert staking_assigns(view).staking_status == :loading
+
+    Application.delete_env(:ash_platform, :test_staking_read_gate)
+    send(wallet_read, :continue_staking_read)
+    render_async(view)
+
+    assert staking_assigns(view).staking_status == :ready
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert render(view) =~ @wallet
+  end
+
+  # A read that genuinely crashed with nothing on screen still says the
+  # dashboard is unavailable.
+  test "FIRST_READ_CRASH: a crashed first read still reports Base unavailable", %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
+    Application.put_env(:ash_platform, :staking_chain_client, CrashingChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :staking_chain_client, previous_client)
+    end)
+
+    view = mount_stake(conn)
+    render_async(view)
+
+    assert staking_assigns(view).staking_status == :error
+    assert render(view) =~ "Staking details are unavailable right now."
+  end
+
   test "REFRESH_NOTICE_SCOPE: a successful read preserves an unrelated notice" do
     name = {:staking, 7}
     notice = %{tone: :error, message: "An unrelated wallet action notice."}
@@ -585,6 +637,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     view
   end
+
+  defp staking_assigns(view), do: :sys.get_state(view.pid).socket.assigns
 
   defp activate(view, wallet) do
     render_async(view)
