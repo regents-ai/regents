@@ -6,12 +6,6 @@ export type ResultDisplay = Readonly<{
   tone: "success" | "error" | "pending"
 }>
 
-type ProgressView = {
-  progress: HTMLElement
-  progressTitle: HTMLElement
-  progressCopy: HTMLElement
-}
-
 type ResultView = {
   dialog: HTMLDialogElement
   dialogTitle: HTMLElement
@@ -19,25 +13,6 @@ type ResultView = {
   detail: HTMLElement
   walletText: HTMLElement
   link: HTMLAnchorElement
-}
-
-export function setProgress(
-  view: ProgressView,
-  phase: string,
-  title: string,
-  copy: string,
-): void {
-  view.progress.hidden = false
-  view.progress.dataset.phase = phase
-  view.progressTitle.textContent = title
-  view.progressCopy.textContent = copy
-}
-
-export function clearProgress(view: ProgressView): void {
-  view.progress.hidden = true
-  view.progress.dataset.phase = "idle"
-  view.progressTitle.textContent = ""
-  view.progressCopy.textContent = ""
 }
 
 export function renderResult(

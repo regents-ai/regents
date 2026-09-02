@@ -913,25 +913,16 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("staking_amount_changed", %{"amount" => amount}, socket),
     do: {:noreply, assign(socket, staking_amount: amount, staking_notice: nil)}
 
-  # This socket's own connected wallet, read again at a fresh block. Any
-  # connected wallet may do this, signed in or not; with no wallet connected
-  # there is nothing about this visitor to read.
-  def handle_event("refresh_staking", _params, %{assigns: %{staking_wallet: wallet}} = socket)
-      when not is_nil(wallet),
-      do: {:noreply, start_staking_read(socket, socket.assigns.content_generation)}
+  def handle_event("refresh_staking", _params, socket),
+    do: {:noreply, read_connected_wallet(socket)}
 
-  def handle_event("refresh_staking", _params, socket), do: {:noreply, socket}
+  def handle_event("refresh_shared_snapshot", _params, socket),
+    do: {:noreply, read_shared_snapshot(socket)}
 
-  # Re-reading the contract replaces what every visitor sees, so only a
-  # signed-in session may ask for it, and the socket's own session decides that
-  # here rather than the markup that offered the control.
-  def handle_event("refresh_shared_snapshot", _params, socket) do
-    if authenticated?(socket.assigns.access_context) do
-      {:noreply, request_shared_refresh(socket)}
-    else
-      {:noreply, socket}
-    end
-  end
+  # The Stake footer asks for both readings at once, on the same terms each is
+  # asked for on its own.
+  def handle_event("refresh_data", _params, socket),
+    do: {:noreply, socket |> read_connected_wallet() |> read_shared_snapshot()}
 
   def handle_event(
         "observe_staking_transaction",
@@ -1667,6 +1658,26 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp clear_staking_refresh_failure(%{message: @staking_refresh_failure_notice}), do: nil
   defp clear_staking_refresh_failure(notice), do: notice
+
+  # This socket's own connected wallet, read again at a fresh block. Any
+  # connected wallet may do this, signed in or not; with no wallet connected
+  # there is nothing about this visitor to read.
+  defp read_connected_wallet(%{assigns: %{staking_wallet: wallet}} = socket)
+       when not is_nil(wallet),
+       do: start_staking_read(socket, socket.assigns.content_generation)
+
+  defp read_connected_wallet(socket), do: socket
+
+  # Re-reading the contract replaces what every visitor sees, so only a
+  # signed-in session may ask for it, and the socket's own session decides that
+  # here rather than the markup that offered the control.
+  defp read_shared_snapshot(socket) do
+    if authenticated?(socket.assigns.access_context) do
+      request_shared_refresh(socket)
+    else
+      socket
+    end
+  end
 
   defp request_shared_refresh(socket) do
     case SnapshotCache.refresh() do

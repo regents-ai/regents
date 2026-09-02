@@ -48,13 +48,12 @@ defmodule AshPlatformWeb.StakeLive do
           <p class="stake-kicker">REGENT staking · Base</p>
           <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
           <p class="stake-lede">
-            Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions. Explore the live contract before connecting a wallet.
+            Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
           </p>
-          <div class="stake-heading-actions">
-            <button :if={!@wallet} type="button" class="stake-primary" data-stake-connect>
+          <div :if={!@wallet} class="stake-heading-actions">
+            <button type="button" class="stake-primary" data-stake-connect>
               Connect wallet to stake
             </button>
-            <a href="#staking-contract-overview">Explore contract data</a>
           </div>
           <p class="stake-auth-note">No Regent account or Privy login is required.</p>
         </div>
@@ -79,24 +78,6 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
         </dl>
       </header>
-
-      <div
-        id="staking-transaction-progress"
-        class="stake-transaction-progress"
-        data-staking-progress
-        data-phase="idle"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        phx-update="ignore"
-        hidden
-      >
-        <span class="stake-progress-mark" aria-hidden="true"></span>
-        <div>
-          <strong data-staking-progress-title></strong>
-          <p data-staking-progress-copy></p>
-        </div>
-      </div>
 
       <dialog
         id="staking-result-dialog"
@@ -177,7 +158,6 @@ defmodule AshPlatformWeb.StakeLive do
             <p>Your wallet is connected, but its latest Base position could not be loaded.</p>
             <div>
               <button type="button" phx-click="refresh_staking">Try again</button>
-              <button type="button" data-stake-connect>Switch wallet</button>
             </div>
           </div>
 
@@ -289,15 +269,13 @@ defmodule AshPlatformWeb.StakeLive do
             </section>
 
             <div class="stake-footer">
-              <button type="button" phx-click="refresh_staking" disabled={@reading}>
-                {if @reading, do: "Updating…", else: "Refresh position"}
+              <button
+                type="button"
+                phx-click="refresh_data"
+                disabled={@reading || @shared_reading}
+              >
+                {if @reading || @shared_reading, do: "Updating…", else: "Refresh Data"}
               </button>
-              <.shared_refresh
-                :if={@signed_in}
-                reading={@shared_reading}
-                label="Refresh contract data"
-              />
-              <button type="button" data-stake-connect>Switch wallet</button>
             </div>
           </div>
         </section>
@@ -362,11 +340,6 @@ defmodule AshPlatformWeb.StakeLive do
           </p>
 
           <.notice :if={!@wallet && @notice} notice={@notice} />
-          <.shared_refresh
-            :if={@signed_in}
-            reading={@shared_reading}
-            label="Refresh contract data"
-          />
         </section>
       </div>
 

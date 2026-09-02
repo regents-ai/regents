@@ -640,13 +640,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert has_element?(view, ".redeem-collections", "Three connected collections")
     assert has_element?(view, ".redeem-wallet-recovery", "Try again")
-
-    assert has_element?(
-             view,
-             ".redeem-wallet-recovery button[data-redeem-connect]",
-             "Switch wallet"
-           )
-
     refute has_element?(view, ".redeem-wallet-loading")
   end
 

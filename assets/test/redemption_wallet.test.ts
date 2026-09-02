@@ -432,17 +432,11 @@ it("discards a prepared action that arrives after the wallet generation changed"
     close: vi.fn(),
   }
   const rootListeners = new Map<string, (event: MouseEvent) => void>()
-  const progress = {hidden: true, dataset: {phase: "idle"}}
-  const progressTitle = {textContent: ""}
-  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const root = {
     isConnected: true,
     querySelector: (selector: string) => {
       if (selector === "#redemption-result-dialog") return dialog
-      if (selector === "[data-redemption-progress]") return progress
-      if (selector === "[data-redemption-progress-title]") return progressTitle
-      if (selector === "[data-redemption-progress-copy]") return progressCopy
       return heading
     },
     addEventListener: vi.fn((event: string, listener: (event: MouseEvent) => void) =>
@@ -498,12 +492,10 @@ type RedemptionHookHarness = {
   setWallet(address: string, provider: EthereumProvider): void
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
+  dialogTitle: {textContent: string}
   text: {textContent: string}
   detail: {textContent: string}
   link: {hidden: boolean; href: string}
-  progress: {hidden: boolean; dataset: {phase: string}}
-  progressTitle: {textContent: string}
-  progressCopy: {textContent: string}
   pushEvent: ReturnType<typeof vi.fn>
   settleNext(result: "success" | "reverted" | "delayed" | "unavailable"): void
 }
@@ -646,18 +638,12 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
       dialogListeners.get("close")?.()
     }),
   }
-  const progress = {hidden: true, dataset: {phase: "idle"}}
-  const progressTitle = {textContent: ""}
-  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
     isConnected: true,
     querySelector: (selector: string) => {
       if (selector === "#redemption-result-dialog") return dialog
-      if (selector === "[data-redemption-progress]") return progress
-      if (selector === "[data-redemption-progress-title]") return progressTitle
-      if (selector === "[data-redemption-progress-copy]") return progressCopy
       return heading
     },
     addEventListener: vi.fn((event: string, listener: (event: Event) => void) =>
@@ -738,12 +724,10 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     setWallet,
     destroy,
     dialog,
+    dialogTitle,
     text,
     detail,
     link,
-    progress,
-    progressTitle,
-    progressCopy,
     pushEvent,
     settleNext: result => {
       const observationId = pendingObservations.shift()
@@ -921,8 +905,6 @@ describe("redemption hook ownership and result ordering", () => {
     const usdcAttempt = harness.click("approve_exact_usdc")
     const redeemAttempt = harness.click("redeem")
     harness.changeSelection()
-    expect(harness.progress.hidden).toBe(true)
-    expect(harness.progress.dataset.phase).toBe("idle")
     harness.walletAction(nftAttempt, envelope("approve_nft_collection"))
     harness.walletAction(usdcAttempt, envelope("approve_exact_usdc"))
     harness.walletAction(redeemAttempt, envelope("redeem"))
@@ -1080,7 +1062,7 @@ describe("redemption hook ownership and result ordering", () => {
   it.each([
     ["delayed", "pending" as const, 120_000, "Confirmation is taking longer"],
     ["unavailable", "unavailable" as const, 2_000, "Confirmation unavailable"],
-  ])("keeps BaseScan and inline status available when confirmation is %s", async (_result, observation, wait, title) => {
+  ])("keeps BaseScan and the outcome title available when confirmation is %s", async (_result, observation, wait, title) => {
     vi.useFakeTimers()
     const walletProvider = redemptionHookProvider({observation})
     const harness = redemptionHookHarness(walletProvider)
@@ -1097,8 +1079,7 @@ describe("redemption hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     expect(harness.link.hidden).toBe(false)
     expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
-    expect(harness.progress.dataset.phase).toBe("submitted")
-    expect(harness.progressTitle.textContent).toBe(title)
+    expect(harness.dialogTitle.textContent).toBe(title)
     harness.destroy()
   })
 })

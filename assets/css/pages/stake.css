@@ -111,7 +111,6 @@
   gap: 0.6rem;
 }
 
-.stake-heading-actions a,
 .stake-contract-link,
 .stake-result-dialog a {
   display: inline-flex;
@@ -271,8 +270,7 @@
   margin: 0;
 }
 
-.stake-wallet-loading,
-.stake-transaction-progress {
+.stake-wallet-loading {
   display: flex;
   gap: 0.75rem;
   align-items: center;
@@ -303,20 +301,6 @@
   gap: 0.6rem;
 }
 
-.stake-transaction-progress[hidden] {
-  display: none;
-}
-
-.stake-transaction-progress div {
-  min-width: 0;
-}
-
-.stake-transaction-progress p {
-  margin: 0.15rem 0 0;
-  color: var(--color-fg-muted);
-  font-size: 0.86rem;
-}
-
 .stake-progress-mark {
   flex: 0 0 auto;
   width: 0.7rem;
@@ -325,18 +309,6 @@
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: stake-spin 700ms linear infinite;
-}
-
-.stake-transaction-progress[data-phase="confirmed"] .stake-progress-mark {
-  border: 0;
-  background: var(--color-accent);
-  animation: none;
-}
-
-.stake-transaction-progress[data-phase="failed"] .stake-progress-mark {
-  border: 1px solid var(--color-fg-muted);
-  background: transparent;
-  animation: none;
 }
 
 @keyframes stake-spin {

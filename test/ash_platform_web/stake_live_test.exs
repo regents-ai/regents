@@ -221,11 +221,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
 
     # Far past every interval and allowance, so the only thing that can refuse
-    # this click is the socket's own session. Without that guard the click buys
-    # a reading for everybody.
+    # either event is the socket's own session. Without that guard the click
+    # buys a reading for everybody.
     Application.put_env(:ash_platform, :staking_snapshot_clock, fn -> 10_000_000 end)
 
     render_hook(view, "refresh_shared_snapshot", %{})
+    render_hook(view, "refresh_data", %{})
 
     refute_receive {:staking_read, _scope, _reader}, 200
     assert has_element?(view, ".stake-total strong", "100")
@@ -235,10 +236,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     conn: conn
   } do
     seed_snapshot()
-    view = signed_in_stake(conn, "shared-budget")
+    view = conn |> signed_in_stake("shared-budget") |> activate(@wallet)
     assert has_element?(view, ".stake-total strong", "100")
 
-    view |> element(".stake-overview button.stake-shared-refresh") |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     html = render_async(view)
 
     assert html =~ @budget_refusal
@@ -250,30 +251,44 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-total strong", "100")
   end
 
-  # The two readings are separate things a person can ask for, and a signed-in
-  # visitor with a wallet connected may ask for either: their own position,
-  # which changes nothing for anyone else, or the contract reading, which
-  # replaces what every visitor is shown.
-  test "BOTH_REFRESH_CONTROLS: a signed-in visitor with a wallet is offered each reading", %{
+  # One control asks for both readings a person can want here: their own
+  # position, which changes nothing for anyone else, and the contract reading,
+  # which replaces what every visitor is shown. Each reading is labelled with
+  # the block it was taken at, so one click has to move both blocks.
+  test "REFRESH_DATA: one click reads this wallet's position and the contract everyone shares", %{
     conn: conn
   } do
     seed_snapshot()
-    view = conn |> signed_in_stake("both-controls") |> activate(@wallet)
+    view = conn |> signed_in_stake("refresh-data") |> activate(@wallet)
 
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-wallet-block", "Base block #1,240")
+    assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
+
+    Application.put_env(:ash_platform, :test_staking_wallet_block, @receipt_block)
+    Application.put_env(:ash_platform, :test_staking_protocol_block, 9_876)
+
+    on_exit(fn ->
+      Application.delete_env(:ash_platform, :test_staking_wallet_block)
+      Application.delete_env(:ash_platform, :test_staking_protocol_block)
+    end)
+
+    # Past every interval and allowance, so the shared reading this click asks
+    # for is not turned away by the budget that guards it.
+    Application.put_env(:ash_platform, :staking_snapshot_clock, fn -> 10_000_000 end)
 
     assert has_element?(
              view,
-             ~s(.stake-footer button[phx-click="refresh_staking"]),
-             "Refresh position"
+             ~s(.stake-footer button[phx-click="refresh_data"]),
+             "Refresh Data"
            )
 
-    assert has_element?(
-             view,
-             ~s(.stake-footer button.stake-shared-refresh[phx-click="refresh_shared_snapshot"]),
-             "Refresh contract data"
-           )
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
+    assert_receive {:staking_snapshot, _snapshot}
+    render_async(view)
+
+    assert has_element?(view, ".stake-wallet-block", "Base block #1,249")
+    assert has_element?(view, ".stake-snapshot-note", "Base block #9,876")
   end
 
   test "SHARED_FAN_OUT: one visitor's reading reaches another page without touching its wallet",
@@ -483,7 +498,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   test "REFRESH_ONLY: refreshing rereads Base without any wallet request", %{conn: conn} do
     view = conn |> mount_stake() |> activate(@wallet)
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
     refute_push_event(view, "staking:wallet-action", _)
   end
@@ -497,7 +512,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     set_amount(view, "1")
     Application.put_env(:ash_platform, :test_staking_read_gate, self())
 
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     assert_receive {:staking_read_waiting, read}
 
     assert has_element?(view, ~s(#regent-staking[aria-busy="true"]))
@@ -524,7 +539,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     view = conn |> mount_stake() |> activate(@wallet)
     Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
@@ -532,14 +547,14 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     Application.delete_env(:ash_platform, :test_staking_wallet_error)
     Application.put_env(:ash_platform, :staking_chain_client, CrashingChainClient)
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
     assert render(view) =~ @refresh_failure
 
     Application.put_env(:ash_platform, :staking_chain_client, previous_client)
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
@@ -557,13 +572,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ".stake-overview", "Live contract position")
     assert has_element?(view, ".stake-wallet-recovery", "Try again")
-
-    assert has_element?(
-             view,
-             ".stake-wallet-recovery button[data-stake-connect]",
-             "Switch wallet"
-           )
-
     refute has_element?(view, ".stake-wallet-loading")
   end
 
@@ -847,7 +855,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   defp reread(view, balances) do
     Application.put_env(:ash_platform, :test_staking_balances, %{@wallet => balances})
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
     view
   end

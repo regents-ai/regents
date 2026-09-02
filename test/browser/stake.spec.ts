@@ -221,7 +221,11 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
   }
 })
 
-test("Stake keeps an immediate approval failure inline instead of presenting a receipt", async ({page}) => {
+// An approval is a wallet prerequisite, not a staking result. One that never
+// returns a usable hash buys nothing on Base, so the page must not hand out a
+// receipt for it, must not send the stake behind it, and must leave the amount
+// exactly where the customer typed it.
+test("Stake presents no receipt when an approval returns no usable hash", async ({page}) => {
   await installWallet(page)
   await page.goto("/stake")
   await selectWallet(page, wallet)
@@ -234,8 +238,12 @@ test("Stake keeps an immediate approval failure inline instead of presenting a r
   await page.locator("button.stake-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(page.locator("#staking-result-dialog")).toBeHidden()
-  await expect(page.locator("#staking-transaction-progress")).toBeVisible()
-  await expect(page.getByText("The submission outcome is unknown.")).toBeVisible()
+  await expect(page.locator("button.stake-submit")).toBeEnabled()
+  await expect(page.getByLabel("Amount", {exact: true})).toHaveValue("1")
+
+  // The wallet is offered again only once the click is over, so the count here
+  // is final: the approval was the one and only transaction the wallet saw.
+  expect(await sendCount(page)).toBe(1)
 })
 
 async function installWallet(page: Page): Promise<void> {

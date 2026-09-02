@@ -1,11 +1,6 @@
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/connected_wallet"
-import {
-  clearProgress,
-  renderResult,
-  setProgress,
-  type ResultDisplay,
-} from "./transaction_feedback"
+import {renderResult, type ResultDisplay} from "./transaction_feedback"
 import {
   executePreparedRedemptionAction,
   isRedemptionWalletDrift,
@@ -56,15 +51,11 @@ type RedemptionState = {
   detail: HTMLElement
   walletText: HTMLElement
   link: HTMLAnchorElement
-  progress: HTMLElement
-  progressTitle: HTMLElement
-  progressCopy: HTMLElement
   click: (event: MouseEvent) => void
   selectionChanged: (event: Event) => void
   close: () => void
   cancel: () => void
   publishActiveWallet: () => void
-  walletFailure: () => void
 }
 
 type RedemptionHook = Hook & {
@@ -104,15 +95,11 @@ export const RedemptionWallet: Hook = {
       detail: requiredElement(dialog, "[data-redemption-result-detail]"),
       walletText: requiredElement(dialog, "[data-redemption-result-wallet]"),
       link: requiredElement<HTMLAnchorElement>(dialog, "[data-redemption-result-link]"),
-      progress: requiredElement(this.el, "[data-redemption-progress]"),
-      progressTitle: requiredElement(this.el, "[data-redemption-progress-title]"),
-      progressCopy: requiredElement(this.el, "[data-redemption-progress-copy]"),
       click: () => undefined,
       selectionChanged: () => undefined,
       close: () => undefined,
       cancel: () => undefined,
       publishActiveWallet: () => undefined,
-      walletFailure: () => undefined,
     }
     this.redemptionState = state
 
@@ -125,7 +112,6 @@ export const RedemptionWallet: Hook = {
     state.click = event => {
       const target = event.target as HTMLElement | null
       if (target?.closest("[data-redeem-connect]")) {
-        setProgress(state, "preparing", "Opening wallet connection", "Choose a wallet in Privy to continue on Base.")
         window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
         return
       }
@@ -157,7 +143,6 @@ export const RedemptionWallet: Hook = {
           order: state.nextOrder++,
         })
         state.preparingAttemptId = attemptId
-        setProgress(state, "preparing", `Preparing ${actionLabel(action).toLowerCase()}`, "Building the exact transaction for your wallet to sign.")
         this.pushEvent("prepare_redemption", {action, attempt_id: attemptId})
       }
     }
@@ -185,9 +170,6 @@ export const RedemptionWallet: Hook = {
       presentNext(this.el, state)
     }
     state.cancel = () => undefined
-    state.walletFailure = () => {
-      setProgress(state, "failed", "Wallet connection not completed", "Try again and finish the connection in Privy.")
-    }
 
     this.el.addEventListener("click", state.click)
     this.el.addEventListener("change", state.selectionChanged)
@@ -195,7 +177,6 @@ export const RedemptionWallet: Hook = {
     state.dialog.addEventListener("close", state.close)
     state.dialog.addEventListener("cancel", state.cancel)
     window.addEventListener("ash:wallet-state", state.publishActiveWallet)
-    window.addEventListener("ash:wallet-connect-failed", state.walletFailure)
     state.publishActiveWallet()
     window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
 
@@ -230,7 +211,6 @@ export const RedemptionWallet: Hook = {
       }
 
       const runtime = runtimeFor(state, slot.generation)
-      setProgress(state, "preparing", `Preparing ${actionLabel(slot.action).toLowerCase()}`, "Simulating the exact transaction on Base.")
       void executePreparedRedemptionAction(
         envelope,
         initiator.provider,
@@ -239,7 +219,6 @@ export const RedemptionWallet: Hook = {
         runtime,
         () => {
           slot.handedOff = true
-          setProgress(state, "signature", `${actionLabel(slot.action)} in your wallet`, "Review the exact Base transaction, then confirm or cancel it.")
         },
         () => settleImmediate(this.el, state, slot, "The submission outcome is unknown."),
       )
@@ -249,7 +228,6 @@ export const RedemptionWallet: Hook = {
           restoreDismissedSlot(state, slot)
           slot.submitted = submitted
           state.observations.set(slot.id, slot)
-          setProgress(state, "submitted", "Transaction submitted", "Waiting for Base to confirm the transaction.")
           updateSubmittedResult(this.el, state, slot, submitted.hash)
           this.pushEvent("observe_redemption_transaction", observation(slot.id, submitted))
         })
@@ -276,10 +254,8 @@ export const RedemptionWallet: Hook = {
     this.handleEvent("redemption:wallet-refusal", payload => {
       const attemptId = (payload as {attempt_id?: unknown}).attempt_id
       if (typeof attemptId === "string") {
-        const initiator = state.initiators.get(attemptId)
         state.initiators.delete(attemptId)
         state.preparingAttemptId = null
-        if (initiator) setProgress(state, "failed", `${actionLabel(initiator.action)} is not ready`, "Review the current Base status shown on the page, then try again.")
       }
     })
 
@@ -306,7 +282,6 @@ export const RedemptionWallet: Hook = {
     state.dialog.removeEventListener("close", state.close)
     state.dialog.removeEventListener("cancel", state.cancel)
     window.removeEventListener("ash:wallet-state", state.publishActiveWallet)
-    window.removeEventListener("ash:wallet-connect-failed", state.walletFailure)
     state.visible = null
     state.queue.length = 0
     state.results.clear()
@@ -340,7 +315,6 @@ function settleImmediate(
   message: string,
 ): void {
   if (!liveSlot(state, slot)) return
-  setProgress(state, "failed", `${actionLabel(slot.action)} not completed`, message)
   const display: ResultDisplay = Object.freeze({
     title: `${actionLabel(slot.action)} not completed`,
     message,
@@ -396,15 +370,8 @@ function settleObserved(
             tone: "pending",
           }
   state.results.set(slot.id, Object.freeze(display))
-  if (result === "success") {
-    setProgress(state, "confirmed", `${label} confirmed`, "Refreshing your redemption data from Base.")
-    if (sameAddress(slot.signer, state.wallet?.address)) {
-      hook.pushEvent("refresh_redemption", {refresh_owned: slot.action === "redeem"})
-    }
-  } else if (result === "reverted") {
-    setProgress(state, "failed", `${label} reverted`, "The confirmed position did not change.")
-  } else {
-    setProgress(state, "submitted", display.title, display.message)
+  if (result === "success" && sameAddress(slot.signer, state.wallet?.address)) {
+    hook.pushEvent("refresh_redemption", {refresh_owned: slot.action === "redeem"})
   }
   presentOrUpdate(hook.el, state, slot, display)
 }
@@ -476,7 +443,6 @@ function invalidateGeneration(root: HTMLElement, state: RedemptionState): void {
   state.initiators.clear()
   state.nextOrder = retainedSlots.reduce((next, slot) => Math.max(next, slot.order + 1), 0)
   state.preparingAttemptId = null
-  if (retained.size === 0) clearProgress(state)
   if (state.dialog.open && !visible) {
     state.ignoreNextClose = true
     state.dialog.close()
@@ -506,16 +472,11 @@ function retainOnly<T>(map: Map<string, T>, ids: Set<string>): void {
 }
 
 function clearPendingInitiators(state: RedemptionState): void {
-  let clearedPreparing = false
   for (const [attemptId, initiator] of state.initiators) {
     if (initiator.action !== "claim") {
       state.initiators.delete(attemptId)
-      if (state.preparingAttemptId === attemptId) clearedPreparing = true
+      if (state.preparingAttemptId === attemptId) state.preparingAttemptId = null
     }
-  }
-  if (clearedPreparing) {
-    state.preparingAttemptId = null
-    clearProgress(state)
   }
 }
 

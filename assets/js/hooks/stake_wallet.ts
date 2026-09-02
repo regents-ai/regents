@@ -1,11 +1,6 @@
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/connected_wallet"
-import {
-  clearProgress,
-  renderResult,
-  setProgress,
-  type ResultDisplay,
-} from "./transaction_feedback"
+import {renderResult, type ResultDisplay} from "./transaction_feedback"
 import {
   executeStakingClick,
   prepareStakingClick,
@@ -48,14 +43,10 @@ type StakeState = {
   detail: HTMLElement
   walletText: HTMLElement
   link: HTMLAnchorElement
-  progress: HTMLElement
-  progressTitle: HTMLElement
-  progressCopy: HTMLElement
   click: (event: MouseEvent) => void
   close: () => void
   cancel: (event: Event) => void
   publishActiveWallet: () => void
-  walletFailure: () => void
 }
 
 type StakeHook = Hook & {
@@ -94,14 +85,10 @@ export const StakeWallet: Hook = {
       detail: requiredElement(dialog, "[data-staking-result-detail]"),
       walletText: requiredElement(dialog, "[data-staking-result-wallet]"),
       link: requiredElement<HTMLAnchorElement>(dialog, "[data-staking-result-link]"),
-      progress: requiredElement(this.el, "[data-staking-progress]"),
-      progressTitle: requiredElement(this.el, "[data-staking-progress-title]"),
-      progressCopy: requiredElement(this.el, "[data-staking-progress-copy]"),
       click: () => undefined,
       close: () => undefined,
       cancel: () => undefined,
       publishActiveWallet: () => undefined,
-      walletFailure: () => undefined,
     }
     this.stakeState = state
 
@@ -137,17 +124,12 @@ export const StakeWallet: Hook = {
         return true
       },
       timing: logTiming,
-      walletRequestStarted: (_actionId: string, role: StakingTransactionRole): void => {
+      walletRequestStarted: (_actionId: string, _role: StakingTransactionRole): void => {
         slot.handedOff = true
-        const label = role === "approval" ? "Approve REGENT" : roleLabel(slot.action)
-        setProgress(state, "signature", `${label} in your wallet`, "Review the exact Base transaction, then confirm or cancel it.")
       },
       handoffTimedOut: (_actionId: string, role: StakingTransactionRole): void => {
         if (!liveSlot(state, slot)) return
-        if (role === "approval") {
-          setProgress(state, "submitted", "Approval outcome unknown", "Privy has not returned a transaction hash yet. You can keep using the page.")
-          return
-        }
+        if (role === "approval") return
         settleImmediate(this.el, state, slot, "The submission outcome is unknown.")
       },
       immediate: (result: ImmediateStakingResult): void => {
@@ -156,7 +138,6 @@ export const StakeWallet: Hook = {
         restoreDismissedSlot(state, slot)
         // Approval is a wallet prerequisite, not a Regent result surface.
         if (result.role === "approval") {
-          setProgress(state, "failed", "Approval not completed", result.message)
           discard(slot)
           return
         }
@@ -177,21 +158,12 @@ export const StakeWallet: Hook = {
           const actionIndex = state.queue.indexOf(slot)
           state.queue.splice(actionIndex, 0, approval)
           state.observationSlots.set(approval.id, approval)
-          setProgress(
-            state,
-            "submitted",
-            "REGENT approval submitted",
-            runtime.alive()
-              ? "Now confirm the staking transaction in your wallet."
-              : "Waiting for Base to confirm the approval.",
-          )
           this.pushEvent("observe_staking_transaction", observation(approval.id, submitted))
           if (!runtime.alive()) discard(slot)
           return
         }
         slot.submitted = submitted
         state.observationSlots.set(slot.id, slot)
-        setProgress(state, "submitted", "Transaction submitted", "Waiting for Base to confirm the transaction.")
         updateSubmittedResult(this.el, state, slot, submitted.hash)
         this.pushEvent("observe_staking_transaction", observation(slot.id, submitted))
       },
@@ -200,7 +172,6 @@ export const StakeWallet: Hook = {
     state.click = event => {
       const target = event.target as HTMLElement | null
       if (target?.closest("[data-stake-connect]")) {
-        setProgress(state, "preparing", "Opening wallet connection", "Choose a wallet in Privy to continue on Base.")
         window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
         return
       }
@@ -233,7 +204,6 @@ export const StakeWallet: Hook = {
         submitted: null,
       }
       reserve(slot)
-      setProgress(state, "preparing", `Preparing ${roleLabel(action).toLowerCase()}`, "Checking the selected wallet and Base transaction details.")
 
       const clickedAt = performance.now()
       const traceId = crypto.randomUUID()
@@ -295,15 +265,11 @@ export const StakeWallet: Hook = {
       presentNext(this.el, state)
     }
     state.cancel = () => undefined
-    state.walletFailure = () => {
-      setProgress(state, "failed", "Wallet connection not completed", "Try again and finish the connection in Privy.")
-    }
 
     this.el.addEventListener("click", state.click)
     state.dialog.addEventListener("close", state.close)
     state.dialog.addEventListener("cancel", state.cancel)
     window.addEventListener("ash:wallet-state", state.publishActiveWallet)
-    window.addEventListener("ash:wallet-connect-failed", state.walletFailure)
     state.publishActiveWallet()
     window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
 
@@ -329,7 +295,6 @@ export const StakeWallet: Hook = {
     state.dialog.removeEventListener("close", state.close)
     state.dialog.removeEventListener("cancel", state.cancel)
     window.removeEventListener("ash:wallet-state", state.publishActiveWallet)
-    window.removeEventListener("ash:wallet-connect-failed", state.walletFailure)
     if (state.dialog.open) state.dialog.close()
     state.replayClaims.clear()
     state.observationSlots.clear()
@@ -376,7 +341,6 @@ function invalidateGeneration(root: HTMLElement, state: StakeState): void {
   retainOnly(state.results, retained)
   state.visible = visible
   state.replayClaims.clear()
-  if (retained.size === 0) clearProgress(state)
   if (state.dialog.open && !visible) {
     state.ignoreNextClose = true
     state.dialog.close()
@@ -399,7 +363,6 @@ function restoreDismissedSlot(state: StakeState, slot: ResultSlot): void {
 
 function settleImmediate(root: HTMLElement, state: StakeState, slot: ResultSlot, message: string): void {
   if (!liveSlot(state, slot)) return
-  setProgress(state, "failed", `${roleLabel(slot.action)} not completed`, message)
   const display: ResultDisplay = Object.freeze({
     title: `${roleLabel(slot.action)} not completed`,
     message,
@@ -456,13 +419,8 @@ function settleObserved(
             tone: "pending",
           }
   state.results.set(slot.id, Object.freeze(display))
-  if (result === "success") {
-    setProgress(state, "confirmed", `${label} confirmed`, "Refreshing your position from Base.")
-    if (sameAddress(slot.signer, state.wallet?.address)) hook.pushEvent("refresh_staking", {})
-  } else if (result === "reverted") {
-    setProgress(state, "failed", `${label} reverted`, "The confirmed position did not change.")
-  } else {
-    setProgress(state, "submitted", display.title, display.message)
+  if (result === "success" && sameAddress(slot.signer, state.wallet?.address)) {
+    hook.pushEvent("refresh_staking", {})
   }
   presentOrUpdate(hook.el, state, slot, display)
 }

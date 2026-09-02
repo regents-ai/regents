@@ -67,7 +67,7 @@ test("Redeem sends each click and presents successful results in click order", a
 
   // The UI does not predict chain changes from a prompt. Refresh rereads Base,
   // and the deterministic browser chain still reports NFT approval as next.
-  await page.getByRole("button", {name: "Refresh wallet data", exact: true}).click()
+  await page.getByRole("button", {name: "Refresh Data", exact: true}).click()
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   await expect(page.locator("#redemption-refresh-status")).toHaveText(
     "Refresh complete. Data is current at Base block 1,234.",
@@ -136,7 +136,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator("#redemption-refresh-status")).toBeHidden()
 
-  const refresh = page.getByRole("button", {name: "Refresh wallet data", exact: true})
+  const refresh = page.getByRole("button", {name: "Refresh Data", exact: true})
   await refresh.scrollIntoViewIfNeeded()
   const scroller = page.locator("#app-shell-scroller")
   const summary = page.locator(".redeem-summary")
@@ -165,14 +165,14 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   const action = page.locator(".redeem-next-step button")
   await expect(action).toBeEnabled()
   await action.scrollIntoViewIfNeeded()
-  await page.evaluate(() => {
-    ;(window as Window & {__ashRedemptionReceiptMode?: string}).__ashRedemptionReceiptMode =
-      "pending"
-  })
   await action.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
-  await expect(page.locator("#redemption-transaction-progress")).toBeVisible()
+  await expect(
+    page
+      .locator("#redemption-result-dialog")
+      .getByText("The selected NFT collection was approved successfully."),
+  ).toBeVisible()
 })
 
 test("Redeem keeps submitted results when the active wallet changes", async ({page}) => {

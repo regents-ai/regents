@@ -129,7 +129,6 @@
   gap: 0.65rem;
 }
 
-.redeem-intro-actions a,
 .redeem-collection-card a,
 .redeem-result-dialog a {
   display: inline-flex;
@@ -371,8 +370,7 @@
   font-size: 0.86rem;
 }
 
-.redeem-wallet-loading,
-.redeem-transaction-progress {
+.redeem-wallet-loading {
   display: flex;
   gap: 0.75rem;
   align-items: center;
@@ -403,19 +401,8 @@
   gap: 0.65rem;
 }
 
-.redeem-wallet-loading p,
-.redeem-transaction-progress p {
+.redeem-wallet-loading p {
   margin: 0;
-}
-
-.redeem-transaction-progress[hidden] {
-  display: none;
-}
-
-.redeem-transaction-progress p {
-  margin-top: 0.15rem;
-  color: var(--color-fg-muted);
-  font-size: 0.86rem;
 }
 
 .redeem-progress-mark {
@@ -426,18 +413,6 @@
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: redeem-spin 700ms linear infinite;
-}
-
-.redeem-transaction-progress[data-phase="confirmed"] .redeem-progress-mark {
-  border: 0;
-  background: var(--color-accent);
-  animation: none;
-}
-
-.redeem-transaction-progress[data-phase="failed"] .redeem-progress-mark {
-  border: 1px solid var(--color-fg-muted);
-  background: transparent;
-  animation: none;
 }
 
 @keyframes redeem-spin {

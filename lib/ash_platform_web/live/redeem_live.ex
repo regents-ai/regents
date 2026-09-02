@@ -44,7 +44,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <p class="redeem-kicker">Animata redemption · Base</p>
           <h1 id="redemption-page-heading" tabindex="-1">Redeem your Animata.</h1>
           <p class="redeem-lede">
-            Turn an eligible Animata I or II into Regents Club membership and a seven-day REGENT vest. Review the full exchange before connecting.
+            Turn an eligible Animata I or II into Regents Club membership and a seven-day REGENT vest.
           </p>
           <div
             class="redeem-equation"
@@ -52,9 +52,8 @@ defmodule AshPlatformWeb.RedeemLive do
           >
             <span>1 Animata</span><b>+</b><span>80 USDC</span><b>→</b><span>Regents Club</span><b>+</b><span>5 million REGENT</span>
           </div>
-          <div class="redeem-intro-actions">
-            <button :if={!@wallet} type="button" class="redeem-primary" data-redeem-connect>Connect wallet to redeem</button>
-            <a href="#redemption-collections">Review collections</a>
+          <div :if={!@wallet} class="redeem-intro-actions">
+            <button type="button" class="redeem-primary" data-redeem-connect>Connect wallet to redeem</button>
           </div>
           <p class="redeem-auth-note">
             No Regent account or Privy login is required. Every Base transaction is confirmed in your wallet.
@@ -88,23 +87,6 @@ defmodule AshPlatformWeb.RedeemLive do
         </figure>
       </section>
 
-      <div
-        id="redemption-transaction-progress"
-        class="redeem-transaction-progress"
-        data-redemption-progress
-        data-phase="idle"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        phx-update="ignore"
-        hidden
-      >
-        <span class="redeem-progress-mark" aria-hidden="true"></span>
-        <div>
-          <strong data-redemption-progress-title></strong><p data-redemption-progress-copy></p>
-        </div>
-      </div>
-
       <dialog
         id="redemption-result-dialog"
         class="redeem-result-dialog"
@@ -137,7 +119,7 @@ defmodule AshPlatformWeb.RedeemLive do
           type="button"
           phx-click="refresh_redemption"
           disabled={@reading}
-        >Try again</button>
+        >Refresh Data</button>
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-content">
@@ -240,7 +222,6 @@ defmodule AshPlatformWeb.RedeemLive do
               </p>
               <div>
                 <button type="button" phx-click="refresh_redemption">Try again</button>
-                <button type="button" data-redeem-connect>Switch wallet</button>
               </div>
             </div>
 
@@ -304,9 +285,8 @@ defmodule AshPlatformWeb.RedeemLive do
                   disabled={@reading}
                   aria-describedby={if(@refresh_block, do: "redemption-refresh-status")}
                 >
-                  {if @reading, do: "Updating…", else: "Refresh wallet data"}
+                  {if @reading, do: "Updating…", else: "Refresh Data"}
                 </button>
-                <button type="button" data-redeem-connect>Switch wallet</button>
               </div>
             </div>
           </section>

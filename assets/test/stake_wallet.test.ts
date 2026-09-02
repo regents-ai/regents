@@ -182,12 +182,10 @@ type StakeHookHarness = {
   setWallet(address: string, provider: EthereumProvider): void
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
+  dialogTitle: {textContent: string}
   text: {textContent: string}
   detail: {textContent: string}
   link: {hidden: boolean; href: string}
-  progress: {hidden: boolean; dataset: {phase: string}}
-  progressTitle: {textContent: string}
-  progressCopy: {textContent: string}
   pushEvent: ReturnType<typeof vi.fn>
   settleNext(result: "success" | "reverted" | "delayed" | "unavailable"): void
 }
@@ -249,9 +247,6 @@ function stakingHookHarness(
     }),
   }
   const input = {value: "1.5"}
-  const progress = {hidden: true, dataset: {phase: "idle"}}
-  const progressTitle = {textContent: ""}
-  const progressCopy = {textContent: ""}
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
@@ -264,9 +259,6 @@ function stakingHookHarness(
     querySelector: (selector: string) => {
       if (selector === "#staking-result-dialog") return dialog
       if (selector === "#staking-amount") return input
-      if (selector === "[data-staking-progress]") return progress
-      if (selector === "[data-staking-progress-title]") return progressTitle
-      if (selector === "[data-staking-progress-copy]") return progressCopy
       return heading
     },
     addEventListener: vi.fn((event: string, listener: (event: Event) => void) =>
@@ -341,12 +333,10 @@ function stakingHookHarness(
     setWallet,
     destroy,
     dialog,
+    dialogTitle,
     text,
     detail,
     link,
-    progress,
-    progressTitle,
-    progressCopy,
     pushEvent,
     settleNext: result => {
       const observationId = pendingObservations.shift()
@@ -364,16 +354,6 @@ describe("stake hook ownership and result ordering", () => {
     const harness = stakingHookHarness(stakingHookProvider())
 
     expect(harness.dispatched).toEqual(["ash:wallet-sync"])
-    harness.destroy()
-  })
-
-  it("shows a recoverable error when Privy cannot open the wallet connector", () => {
-    const harness = stakingHookHarness(stakingHookProvider())
-
-    harness.windowListeners.get("ash:wallet-connect-failed")?.()
-
-    expect(harness.progress.dataset.phase).toBe("failed")
-    expect(harness.progressTitle.textContent).toBe("Wallet connection not completed")
     harness.destroy()
   })
 
@@ -525,15 +505,13 @@ describe("stake hook ownership and result ordering", () => {
       expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
     )
     harness.settleNext("success")
-    expect(harness.progress.dataset.phase).toBe("confirmed")
+    expect(harness.dialogTitle.textContent).toBe("REGENT claim confirmed")
 
     harness.dialog.close()
     harness.setWallet(otherWallet, other.provider)
 
     expect(harness.dialog.open).toBe(false)
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
-    expect(harness.progress.hidden).toBe(true)
-    expect(harness.progress.dataset.phase).toBe("idle")
     harness.destroy()
   })
 
@@ -610,7 +588,7 @@ describe("stake hook ownership and result ordering", () => {
   it.each([
     ["delayed", "pending" as const, 120_000, "Confirmation is taking longer"],
     ["unavailable", "unavailable" as const, 2_000, "Confirmation unavailable"],
-  ])("keeps BaseScan and inline status available when confirmation is %s", async (_result, observation, wait, title) => {
+  ])("keeps BaseScan and the outcome title available when confirmation is %s", async (_result, observation, wait, title) => {
     vi.useFakeTimers()
     const source = stakingHookProvider({observation})
     const harness = stakingHookHarness(source)
@@ -624,8 +602,7 @@ describe("stake hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     expect(harness.link.hidden).toBe(false)
     expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
-    expect(harness.progress.dataset.phase).toBe("submitted")
-    expect(harness.progressTitle.textContent).toBe(title)
+    expect(harness.dialogTitle.textContent).toBe(title)
     harness.destroy()
   })
 })
