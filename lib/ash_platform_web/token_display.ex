@@ -3,11 +3,13 @@ defmodule AshPlatformWeb.TokenDisplay do
   How the Stake, Redeem and Account pages write a figure.
 
   A token amount is written to four significant digits with a thousand,
-  million or billion suffix: 9.76k, 101.4k, 76.75 million, 1.044 billion. USDC
-  is money and is always written in full to two decimals with thousands
-  separators: 10,432.12. A count such as a block number is a whole number with
-  separators. Wherever a figure was shortened, the exact figure stays readable
-  to assistive technology and on hover.
+  million, billion or trillion suffix: 9.76k, 101.4k, 76.75 million,
+  1.044 billion. USDC is money and is always written in full to two decimals
+  with thousands separators: 10,432.12. Digits beyond what is shown are
+  dropped, never rounded up, so a figure never says more than the position
+  behind it. A count such as a block number is a whole number with separators.
+  Wherever a figure was shortened, the exact figure stays readable to
+  assistive technology and on hover.
   """
   use Phoenix.Component
 
