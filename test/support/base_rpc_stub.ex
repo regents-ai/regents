@@ -2,9 +2,9 @@ defmodule AshPlatform.BaseRpcStub do
   @moduledoc """
   One JSON-RPC transport double for the Base reads a Stake or Redeem test makes.
 
-  Chain identity, the `latest` and `safe` headers, headers by number, receipts
-  and transactions have exactly one shape for both surfaces. Only the
-  block-pinned `eth_call` answers differ, so a test supplies those as the
+  Chain identity, the `latest` and `safe` headers, headers by number, receipts,
+  transactions and recorded logs have exactly one shape for both surfaces. Only
+  the block-pinned `eth_call` answers differ, so a test supplies those as the
   `:calls` function it installs.
 
   The two heads answer with different hashes, so a test that pins a read to one
@@ -189,6 +189,35 @@ defmodule AshPlatform.BaseRpcStub do
   defp result("eth_call", [%{data: data}, block], state) do
     if canonical?(block, state), do: state.calls.(data, state), else: :unavailable
   end
+
+  # The logs this stub holds that the filter actually selects: this emitter,
+  # these topics in these positions, and a block inside the requested range. A
+  # reader asking for a range in pieces is answered piece by piece, so a piece
+  # holding nothing answers with nothing rather than with the whole history.
+  #
+  # `:refused_log_range` names one `fromBlock`, so a test can fail exactly one
+  # piece of a range and prove what a reader does with the rest.
+  defp result("eth_getLogs", [filter], state) do
+    if quantity(filter.fromBlock) == Map.get(state, :refused_log_range),
+      do: :unavailable,
+      else: state |> Map.get(:logs, []) |> Enum.filter(&selected?(&1, filter))
+  end
+
+  defp selected?(log, filter) do
+    same_hex?(log["address"], filter.address) and
+      matching_topics?(log["topics"], filter.topics) and
+      quantity(log["blockNumber"]) in quantity(filter.fromBlock)..quantity(filter.toBlock)//1
+  end
+
+  defp same_hex?(left, right), do: String.downcase(left) == String.downcase(right)
+
+  # A filter names the leading topics it wants and says nothing about the rest.
+  defp matching_topics?(topics, wanted) do
+    length(topics) >= length(wanted) and
+      topics |> Enum.zip(wanted) |> Enum.all?(fn {topic, want} -> same_hex?(topic, want) end)
+  end
+
+  defp quantity("0x" <> hex), do: String.to_integer(hex, 16)
 
   # A block-pinned read is only answered when it names the canonical hash and
   # asks for canonicality, exactly as a Base node behaves. A test naming a

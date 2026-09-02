@@ -67,6 +67,14 @@ config :ash_platform, :staking_snapshot_boot_read, true
 config :ash_platform, :staking_shared_refreshes_per_minute, 6
 config :ash_platform, :staking_snapshot_clock, &AshPlatform.Staking.SnapshotCache.monotonic_ms/0
 
+# The circulating REGENT supply, in the token's own eighteen-decimal units.
+# Nothing on chain reports it, so the Stake page shows this published figure and
+# derives nothing. 35 billion REGENT is the founder's answer of 2026-09-02, "use
+# 35 billion until I say otherwise", and this line is its only source.
+config :ash_platform,
+       :regent_circulating_supply_atomic,
+       "35000000000000000000000000000"
+
 config :ash_platform, :session_options,
   store: :cookie,
   key: "_ash_platform_key",

@@ -109,26 +109,45 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.getByText("Staking active")).toBeVisible()
     await expect(page.locator(".stake-total")).toContainText("100")
     await expect(page.locator(".stake-total")).toContainText("REGENT staked")
-    await expect(page.getByText("1k REGENT", {exact: true})).toBeVisible()
-    await expect(page.getByText("900 REGENT", {exact: true})).toBeVisible()
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
     await expect(page.locator(".stake-snapshot-note")).toContainText(
       /Confirmed at Base block #1,234, read .+ ago\./,
     )
     await expect(page.locator("button.stake-shared-refresh")).toHaveCount(0)
-    await expect(page.locator(".stake-benefit-card-primary")).toContainText("12%")
-    await expect(page.locator(".stake-benefit-grid")).toContainText("125,000.00 USDC")
-    await expect(page.locator(".stake-benefit-grid")).toContainText("250k REGENT")
+
+    // The hero is the two cards the contract answers for.
+    const earned = page.locator(".stake-benefit-card-primary")
+    await expect(earned).toContainText("Regent Labs USDC Earned")
+    await expect(earned).toContainText("Last 7 days")
+    await expect(earned).toContainText("1,250.50 USDC")
+    await expect(earned).toContainText("Lifetime")
+    await expect(earned).toContainText("5,074.87 USDC")
+    await expect(page.locator(".stake-benefit-grid")).toContainText("REGENT Staked")
+    await expect(page.locator(".stake-benefit-grid")).toContainText("100 REGENT")
+
+    // The supply block: three figures and one bar carrying both proportions.
+    const supply = page.locator(".stake-supply-facts")
+    await expect(supply).toContainText("Circulating supply")
+    await expect(supply).toContainText("35 billion REGENT")
+    await expect(supply).toContainText("Total supply")
+    await expect(supply).toContainText("100 billion REGENT")
+    await expect(page.locator(".stake-supply-heading")).toContainText(
+      "0% of circulating supply staked",
+    )
 
     await page.locator(".stake-contract-details summary").click()
     await expect(page.getByText(contract, {exact: true})).toBeVisible()
     await expect(page.getByText(regent, {exact: true})).toBeVisible()
     await expect(page.getByText(usdc, {exact: true})).toBeVisible()
 
-    const progress = page.getByRole("progressbar", {name: "Staking capacity utilization"})
-    await expect(progress).toHaveAttribute("max", "100")
-    await expect(progress).toHaveAttribute("value", "10")
+    const bar = page.getByRole("img", {
+      name: "0% of circulating supply staked, and 35% of total supply circulating",
+    })
+    await expect(bar).toHaveAttribute(
+      "style",
+      "--circulating-share: 35%; --staked-share: 0%",
+    )
 
     const contractLink = page.getByRole("link", {
       name: "View verified staking contract on BaseScan",
@@ -167,18 +186,18 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
     const presentation = await page.evaluate(() => {
       const total = document.querySelector<HTMLElement>(".stake-total strong")!
-      const capacity = document.querySelector<HTMLElement>(".stake-capacity-facts dd")!
+      const supply = document.querySelector<HTMLElement>(".stake-supply-facts dd")!
       const connect = document.querySelector<HTMLElement>("[data-stake-connect]")!
       const contractLink = document.querySelector<HTMLElement>(".stake-contract-link")!
       return {
-        capacityFont: Number.parseFloat(getComputedStyle(capacity).fontSize),
         connectHeight: connect.getBoundingClientRect().height,
         contractLinkHeight: contractLink.getBoundingClientRect().height,
+        supplyFont: Number.parseFloat(getComputedStyle(supply).fontSize),
         totalFont: Number.parseFloat(getComputedStyle(total).fontSize),
       }
     })
 
-    expect(presentation.totalFont).toBeGreaterThan(presentation.capacityFont * 2)
+    expect(presentation.totalFont).toBeGreaterThan(presentation.supplyFont * 2)
     expect(presentation.connectHeight).toBeGreaterThanOrEqual(44)
     expect(presentation.contractLinkHeight).toBeGreaterThanOrEqual(44)
   }

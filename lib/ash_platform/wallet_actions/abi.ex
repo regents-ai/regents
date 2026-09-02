@@ -24,12 +24,16 @@ defmodule AshPlatform.WalletActions.Abi do
   # carry is encoded here against the pinned ABI's own declaration of it.
   @supply_denominator_signature "revenueShareSupplyDenominator()"
   @supply_denominator_selector "0xe3961f2a"
-  @available_regent_signature "availableRegentRewardInventory()"
-  @available_regent_selector "0xe2cfe6b9"
-  @reserved_usdc_signature "reservedUsdc()"
-  @reserved_usdc_selector "0x017a2078"
+  @total_usdc_received_signature "totalUsdcReceived()"
+  @total_usdc_received_selector "0xcf51bfdd"
   @emission_apr_signature "emissionAprBps()"
   @emission_apr_selector "0x8ba7fda0"
+
+  # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
+  # not proved against the staking ABI below. The same selector is recorded for
+  # the Regents Club token in contracts/chain-contracts.yaml.
+  @erc20_total_supply_signature "totalSupply()"
+  @erc20_total_supply_selector "0x18160ddd"
 
   # Multicall3 is the canonical read aggregator, deployed at the same address on
   # every chain it reaches, Base included. It is never a send target: the only
@@ -54,8 +58,13 @@ defmodule AshPlatform.WalletActions.Abi do
     stake_updated: "StakeUpdated(address,uint256,uint256)",
     usdc_reward_claimed: "USDCRewardClaimed(address,uint256,address)",
     reward_token_claimed: "RewardTokenClaimed(address,uint256,address)",
-    reward_token_compounded: "RewardTokenCompounded(address,uint256,uint256,uint256)"
+    reward_token_compounded: "RewardTokenCompounded(address,uint256,uint256,uint256)",
+    usdc_revenue_deposited:
+      "USDCRevenueDeposited(uint256,uint256,uint256,uint8,address,bytes32,bytes32)"
   }
+
+  @usdc_revenue_indexed 3
+  @usdc_revenue_data_words 4
 
   # A derived selector or topic is only proof if the deployed ABI really declares
   # the signature it was derived from. `Approval` belongs to the REGENT token, not
@@ -65,8 +74,7 @@ defmodule AshPlatform.WalletActions.Abi do
   @after_compile __MODULE__
   @declarations [
     {"function", @supply_denominator_signature},
-    {"function", @available_regent_signature},
-    {"function", @reserved_usdc_signature},
+    {"function", @total_usdc_received_signature},
     {"function", @emission_apr_signature}
     | for({id, signature} <- @event_signatures, id != :approval, do: {"event", signature})
   ]
@@ -102,10 +110,12 @@ defmodule AshPlatform.WalletActions.Abi do
   def stake_token_address, do: get_in(@staking, ["onchain_constants", "stake_token"])
   def usdc_address, do: get_in(@staking, ["onchain_constants", "usdc"])
   def encode_supply_denominator, do: @supply_denominator_selector
-  def encode_available_regent_reward_inventory, do: @available_regent_selector
-  def encode_reserved_usdc, do: @reserved_usdc_selector
+  def encode_total_usdc_received, do: @total_usdc_received_selector
   def encode_emission_apr_bps, do: @emission_apr_selector
+  def encode_erc20_total_supply, do: @erc20_total_supply_selector
   def supply_denominator_signature, do: @supply_denominator_signature
+  def total_usdc_received_signature, do: @total_usdc_received_signature
+  def erc20_total_supply_signature, do: @erc20_total_supply_signature
 
   def multicall3_address, do: @multicall3_address
   def multicall3_runtime_keccak256, do: @multicall3_runtime_keccak256
@@ -300,6 +310,35 @@ defmodule AshPlatform.WalletActions.Abi do
   end
 
   def one_event(_logs, _topic, _emitter, _indexed_count, _data_words), do: :error
+
+  @doc """
+  The USDC every `USDCRevenueDeposited` in `logs` recorded, added together.
+
+  `amountReceived` is the first of the event's four unindexed words and is the
+  exact figure the contract adds to `totalUsdcReceived`, so the logs of a block
+  range add up to what was registered over that range. Both recorded sources, a
+  direct deposit and a redeposited surplus, raise that total and are counted
+  here.
+
+  A log this contract did not emit, or one carrying any other shape, fails the
+  whole sum: a figure assembled from the logs that happened to parse would
+  understate what the contract registered.
+  """
+  def usdc_revenue_received(logs) when is_list(logs) do
+    topic = event_topic(:usdc_revenue_deposited)
+
+    Enum.reduce_while(logs, {:ok, 0}, fn log, {:ok, total} ->
+      with true <- emitted?(log, topic, staking_address()),
+           {:ok, {_indexed, [received | _rest]}} <-
+             decode_event(log, @usdc_revenue_indexed, @usdc_revenue_data_words) do
+        {:cont, {:ok, total + received}}
+      else
+        _contradiction -> {:halt, :error}
+      end
+    end)
+  end
+
+  def usdc_revenue_received(_logs), do: :error
 
   @doc "The address a 32-byte word names, which requires its leading twelve bytes to be zero."
   def word_address(value) when is_integer(value) and value > 0 and value < @address_bound,

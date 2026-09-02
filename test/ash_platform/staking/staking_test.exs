@@ -46,13 +46,15 @@ defmodule AshPlatform.StakingTest do
         paused: Process.get(:paused, false),
         total_staked: "100",
         total_staked_raw: "100000000000000000000",
-        supply_denominator_raw: "1000000000000000000000",
         remaining_capacity_raw: Process.get(:capacity_raw, "900000000000000000000"),
-        remaining_capacity: "900",
-        available_regent_reward_inventory_raw: "250000000000000000000000",
-        available_regent_reward_inventory: "250000",
-        reserved_usdc_raw: "125000000000",
-        reserved_usdc: "125000",
+        # Seven days of blocks before block 42 is before the chain began.
+        usdc_received_from_block: 0,
+        usdc_received_7d_raw: "1250500000",
+        usdc_received_7d: "1250.5",
+        usdc_received_lifetime_raw: "5074870000",
+        usdc_received_lifetime: "5074.87",
+        regent_total_supply_raw: "100000000000000000000000000000",
+        regent_total_supply: "100000000000",
         emission_apr_bps: 1_200,
         emission_apr_percent: "12"
       }

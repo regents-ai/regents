@@ -39,6 +39,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
             :test_staking_paused,
             :test_staking_read_gate,
             :test_staking_read_at,
+            :test_staking_usdc_7d,
             :test_wallet_observation_watcher,
             :staking_snapshot_clock
           ] do
@@ -101,21 +102,35 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert html =~ "Staking active"
     assert has_element?(view, ".stake-total strong", "100")
     assert has_element?(view, ".stake-total span", "REGENT staked")
-    assert has_element?(view, ".stake-benefit-card-primary", "12%")
-    assert has_element?(view, ".stake-benefit-grid", "125,000.00 USDC")
-    assert has_element?(view, ".stake-benefit-grid", "250k REGENT")
-    assert html =~ "67k REGENT"
-    assert html =~ "66.9k REGENT"
+
+    # The hero is exactly the two cards the contract answers for: what Regent
+    # Labs earned, over seven days and over its lifetime, and what is staked.
+    assert has_element?(view, ".stake-benefit-card-primary dt", "Regent Labs USDC Earned")
+    assert has_element?(view, ".stake-earned-part", "Last 7 days")
+    assert has_element?(view, ".stake-earned-part", "Lifetime")
+    assert has_element?(view, ".stake-benefit-card-primary", "1,250.50 USDC")
+    assert has_element?(view, ".stake-benefit-card-primary", "5,074.87 USDC")
+    assert has_element?(view, ".stake-benefit-card dt", "REGENT Staked")
+    assert has_element?(view, ".stake-benefit-grid", "100 REGENT")
+
+    # The emissions APR is no longer one of them, though the contract's own
+    # figure still explains why staking earns REGENT at all.
+    refute has_element?(view, ".stake-benefit-grid", "12%")
+    assert has_element?(view, ".stake-how-it-works", "12% emissions APR")
+
+    # The supply block: the three figures and the one proportion it names.
+    assert has_element?(view, "#staking-supply-bar")
+    assert has_element?(view, ".stake-supply-facts dt", "Total staked")
+    assert has_element?(view, ".stake-supply-facts dt", "Circulating supply")
+    assert has_element?(view, ".stake-supply-facts dt", "Total supply")
+    assert has_element?(view, ".stake-supply-facts", "35 billion REGENT")
+    assert has_element?(view, ".stake-supply-facts", "100 billion REGENT")
+    assert has_element?(view, ".stake-supply-heading", "% of circulating supply staked")
     assert html =~ "Base block #1,234"
     assert has_element?(view, ".stake-contract-facts dt", ~r/\ABase block\z/)
     assert html =~ @contract
     assert html =~ @regent
     assert html =~ @usdc
-
-    assert has_element?(
-             view,
-             ~s(progress#staking-utilization[value="0.15"][max="100"][aria-label="Staking capacity utilization"])
-           )
 
     assert has_element?(
              view,
@@ -156,6 +171,58 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute_receive {:staking_read, _scope, _reader}, 200
   end
 
+  # A week in which the contract recorded nothing is a figure like any other.
+  # Writing anything else there would invite a reader to supply their own number.
+  test "ZERO_IS_A_FIGURE: a seven-day window with no deposits reads 0.00 USDC", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_usdc_7d, "0")
+
+    view = mount_stake(conn)
+
+    assert has_element?(view, ".stake-earned-part", "Last 7 days")
+    assert has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
+    assert has_element?(view, ".stake-benefit-card-primary", "5,074.87 USDC")
+    refute render(view) =~ "yet"
+  end
+
+  # One bar carries both proportions, and each is the arithmetic of the figures
+  # beside it rather than anything the page decides.
+  test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do
+    view = mount_stake(conn)
+
+    # 100 REGENT staked is nothing against 35 billion circulating, and that 35
+    # billion is 35% of the 100 billion the token reports.
+    assert render(view) =~ "--circulating-share: 35%; --staked-share: 0%"
+
+    assert has_element?(
+             view,
+             ~s(#staking-supply-bar[aria-label="0% of circulating supply staked, and 35% of total supply circulating"])
+           )
+
+    # The same page against a circulating supply the staked figure can be seen
+    # against: 100 of 500 REGENT.
+    put_circulating("500000000000000000000")
+    view = mount_stake(conn)
+
+    assert has_element?(view, ".stake-supply-heading", "20% of circulating supply staked")
+    assert render(view) =~ "--staked-share: 20%"
+  end
+
+  # 100 REGENT staked of 3,200 circulating is exactly 3.125%, the halfway case a
+  # rounded figure would overstate. The share is cut to two decimals like every
+  # other figure here, so the page says 3.12% and never 3.13%.
+  test "SUPPLY_SHARE_TRUNCATES: a share landing halfway is cut rather than rounded up", %{
+    conn: conn
+  } do
+    put_circulating("3200000000000000000000")
+
+    view = mount_stake(conn)
+    html = render(view)
+
+    assert has_element?(view, ".stake-supply-heading", "3.12% of circulating supply staked")
+    assert html =~ "--staked-share: 3.12%"
+    refute html =~ "3.13"
+  end
+
   test "SNAPSHOT_AGE: the page says which block the contract data came from and how old it is", %{
     conn: conn
   } do
@@ -178,8 +245,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert html =~ "Staking paused"
     assert has_element?(view, ~s(.stake-contract-status[data-state="paused"]))
-    assert has_element?(view, "#staking-utilization")
-    assert html =~ "67k REGENT"
+    assert has_element?(view, "#staking-supply-bar")
+    assert has_element?(view, ".stake-supply-facts", "35 billion REGENT")
     refute has_element?(view, "button[data-staking-action]")
   end
 
@@ -192,7 +259,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
     assert html =~ "A signed-in visitor can ask for a new reading."
     refute has_element?(view, ".stake-layout")
-    refute has_element?(view, "#staking-utilization")
+    refute has_element?(view, "#staking-supply-bar")
     refute has_element?(view, "button.stake-shared-refresh")
     refute html =~ @wallet
   end
@@ -904,6 +971,17 @@ defmodule AshPlatformWeb.StakeLiveTest do
     previous = Application.get_env(:ash_platform, :staking_chain_client)
     Application.put_env(:ash_platform, :staking_chain_client, module)
     on_exit(fn -> Application.put_env(:ash_platform, :staking_chain_client, previous) end)
+  end
+
+  # The circulating supply is published rather than read from Base, so a test
+  # that wants a different one says so and puts the published figure back.
+  defp put_circulating(atomic) do
+    previous = Application.fetch_env!(:ash_platform, :regent_circulating_supply_atomic)
+    Application.put_env(:ash_platform, :regent_circulating_supply_atomic, atomic)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :regent_circulating_supply_atomic, previous)
+    end)
   end
 
   defp staking_assigns(view), do: :sys.get_state(view.pid).socket.assigns

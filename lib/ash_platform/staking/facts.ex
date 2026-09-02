@@ -6,6 +6,11 @@ defmodule AshPlatform.Staking.Facts do
   one account. They are taken at different blocks and neither waits for the
   other, so each carries the block it was read at and the page labels its
   figures with that block. Merging them never rewrites the other's block.
+
+  The protocol reading also carries a stretch of history rather than a single
+  moment: the seven days of recorded USDC end at the block it was read at and
+  begin at `usdc_received_from_block`, so the window is always the chain's own
+  and never the clock's.
   """
 
   @protocol_keys [
@@ -20,13 +25,14 @@ defmodule AshPlatform.Staking.Facts do
     :paused,
     :total_staked_raw,
     :total_staked,
-    :supply_denominator_raw,
     :remaining_capacity_raw,
-    :remaining_capacity,
-    :available_regent_reward_inventory_raw,
-    :available_regent_reward_inventory,
-    :reserved_usdc_raw,
-    :reserved_usdc,
+    :usdc_received_from_block,
+    :usdc_received_7d_raw,
+    :usdc_received_7d,
+    :usdc_received_lifetime_raw,
+    :usdc_received_lifetime,
+    :regent_total_supply_raw,
+    :regent_total_supply,
     :emission_apr_bps,
     :emission_apr_percent
   ]

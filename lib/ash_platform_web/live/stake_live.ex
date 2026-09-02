@@ -60,21 +60,25 @@ defmodule AshPlatformWeb.StakeLive do
 
         <dl :if={@dashboard} class="stake-benefit-grid" aria-label="Current staking benefits">
           <div class="stake-benefit-card stake-benefit-card-primary">
-            <dt>REGENT emissions APR</dt>
-            <dd>{@dashboard.emission_apr}</dd>
-            <p>Current rate set by the staking contract.</p>
-          </div>
-          <div class="stake-benefit-card">
-            <dt>USDC reserved</dt>
-            <dd><TokenDisplay.amount amount={@staking.reserved_usdc} unit="USDC" /></dd>
-            <p>USDC currently reserved for staker rewards.</p>
-          </div>
-          <div class="stake-benefit-card">
-            <dt>REGENT reward inventory</dt>
-            <dd>
-              <TokenDisplay.amount amount={@staking.available_regent_reward_inventory} unit="REGENT" />
+            <dt>Regent Labs USDC Earned</dt>
+            <dd class="stake-earned-split">
+              <span class="stake-earned-part">
+                <span class="stake-earned-label">Last 7 days</span>
+                <span class="stake-earned-figure">
+                  <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
+                </span>
+              </span>
+              <span class="stake-earned-part">
+                <span class="stake-earned-label">Lifetime</span>
+                <span class="stake-earned-figure">
+                  <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
+                </span>
+              </span>
             </dd>
-            <p>Reward inventory currently available onchain.</p>
+          </div>
+          <div class="stake-benefit-card">
+            <dt>REGENT Staked</dt>
+            <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
           </div>
         </dl>
       </header>
@@ -304,25 +308,35 @@ defmodule AshPlatformWeb.StakeLive do
             <strong><TokenDisplay.amount amount={@staking.total_staked} /></strong><span>REGENT staked</span>
           </p>
 
-          <div class="stake-capacity">
-            <div class="stake-capacity-heading">
-              <span>Capacity utilization</span><strong>{@dashboard.utilization.label}</strong>
+          <div class="stake-supply">
+            <div class="stake-supply-heading">
+              <span>REGENT supply</span><strong>{@dashboard.supply.label}</strong>
             </div>
-            <progress
-              id="staking-utilization"
-              max="100"
-              value={@dashboard.utilization.value}
-              aria-label="Staking capacity utilization"
-            >{@dashboard.utilization.label}</progress>
-            <dl class="stake-capacity-facts">
+            <div
+              id="staking-supply-bar"
+              class="stake-supply-bar"
+              role="img"
+              aria-label={@dashboard.supply.description}
+              style={"--circulating-share: #{@dashboard.supply.circulating_share}%; --staked-share: #{@dashboard.supply.staked_share}%"}
+            >
+              <span class="stake-supply-circulating">
+                <span class="stake-supply-staked"></span>
+              </span>
+            </div>
+            <dl class="stake-supply-facts">
               <div>
-                <dt>Contract capacity</dt><dd>
-                  <TokenDisplay.amount amount={@dashboard.capacity} unit="REGENT" />
+                <dt>Total staked</dt><dd>
+                  <TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" />
                 </dd>
               </div>
               <div>
-                <dt>Capacity remaining</dt><dd>
-                  <TokenDisplay.amount amount={@staking.remaining_capacity} unit="REGENT" />
+                <dt>Circulating supply</dt><dd>
+                  <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
+                </dd>
+              </div>
+              <div>
+                <dt>Total supply</dt><dd>
+                  <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
                 </dd>
               </div>
             </dl>
@@ -445,40 +459,61 @@ defmodule AshPlatformWeb.StakeLive do
   defp staking_dashboard(nil), do: nil
 
   defp staking_dashboard(staking) do
+    circulating_raw = circulating_supply_raw()
+
     %{
       basescan_url: "https://basescan.org/address/#{staking.contract_address}",
-      capacity: token_amount(staking.supply_denominator_raw),
+      circulating_supply: token_amount(circulating_raw),
       emission_apr: "#{TokenDisplay.compact(staking.emission_apr_percent)}%",
-      utilization: utilization(staking.total_staked_raw, staking.supply_denominator_raw)
+      supply: supply(staking.total_staked_raw, circulating_raw, staking.regent_total_supply_raw)
     }
   end
 
-  defp utilization(total_raw, denominator_raw) do
-    total = Decimal.new(total_raw)
-    denominator = Decimal.new(denominator_raw)
+  # The circulating supply is a published figure rather than something the
+  # contract reports, so it comes from configuration and never from a reading.
+  defp circulating_supply_raw,
+    do: Application.fetch_env!(:ash_platform, :regent_circulating_supply_atomic)
 
-    percentage =
-      if Decimal.positive?(denominator) do
-        total
-        |> Decimal.mult(100)
-        |> Decimal.div(denominator)
-        |> Decimal.round(2)
-        |> Decimal.normalize()
-      else
-        Decimal.new(0)
-      end
-
-    progress_value =
-      cond do
-        Decimal.negative?(percentage) -> Decimal.new(0)
-        Decimal.gt?(percentage, 100) -> Decimal.new(100)
-        true -> percentage
-      end
+  # One bar carries both proportions: how much of the total supply is
+  # circulating, and how much of that circulating supply is staked.
+  defp supply(staked_raw, circulating_raw, total_raw) do
+    staked_of_circulating = share(staked_raw, circulating_raw)
+    circulating_of_total = share(circulating_raw, total_raw)
+    label = "#{Decimal.to_string(staked_of_circulating, :normal)}% of circulating supply staked"
 
     %{
-      label: "#{Decimal.to_string(percentage, :normal)}%",
-      value: Decimal.to_string(progress_value, :normal)
+      label: label,
+      description:
+        "#{label}, and #{Decimal.to_string(circulating_of_total, :normal)}% of total supply circulating",
+      staked_share: Decimal.to_string(bounded_share(staked_of_circulating), :normal),
+      circulating_share: Decimal.to_string(bounded_share(circulating_of_total), :normal)
     }
+  end
+
+  # Two decimals, with the third dropped rather than rounded up, as every other
+  # figure on this page does it: a share is allowed to say less than the truth
+  # and never more.
+  defp share(part_raw, whole_raw) do
+    whole = Decimal.new(whole_raw)
+
+    if Decimal.positive?(whole) do
+      part_raw
+      |> Decimal.new()
+      |> Decimal.mult(100)
+      |> Decimal.div(whole)
+      |> Decimal.round(2, :down)
+      |> Decimal.normalize()
+    else
+      Decimal.new(0)
+    end
+  end
+
+  defp bounded_share(percentage) do
+    cond do
+      Decimal.negative?(percentage) -> Decimal.new(0)
+      Decimal.gt?(percentage, 100) -> Decimal.new(100)
+      true -> percentage
+    end
   end
 
   defp position_preview(%{staking: nil}), do: nil

@@ -4,9 +4,23 @@ defmodule AshPlatform.Staking.RpcClient do
 
   alias AshPlatform.WalletActions.{Abi, Rpc}
 
-  @read_timeout 12_000
+  @read_timeout 20_000
   @chain_id 8453
   @rpc_opts [client_key: :staking_http_client, log_scope: "staking"]
+
+  # Base confirms a block about every two seconds, so seven days is 302,400 of
+  # them. The window is counted back from the block this reading was taken at
+  # and never from the clock, so the figure and the block beside it always
+  # describe the same stretch of chain. Both ends of the range are counted, so
+  # the window's first block is 302,399 blocks before its last.
+  @window_blocks 302_400
+
+  # A public Base endpoint answers `eth_getLogs` over at most ten thousand
+  # blocks, so the window is asked for in that many at a time. The requests go
+  # out together, a few at a time, and any one of them failing fails the whole
+  # reading.
+  @chunk_blocks 10_000
+  @chunk_concurrency 8
 
   @impl true
   def protocol_snapshot, do: bounded(fn -> read_protocol() end)
@@ -29,9 +43,10 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
-  # One `latest` block owns every figure below it, and one call returns them
-  # all: a partial reading is unavailable, so nothing on the page can pair one
-  # block's balance with another's total.
+  # One `latest` block owns every figure below it: one call returns all the
+  # contract's current answers, and the deposit window ends at that same block,
+  # so nothing on the page can pair one block's total with another's history. A
+  # partial reading is unavailable rather than shown.
   defp read_protocol do
     with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          :ok <- identified_aggregator(block),
@@ -40,14 +55,16 @@ defmodule AshPlatform.Staking.RpcClient do
             paused,
             total_staked,
             denominator,
-            available_regent,
-            reserved_usdc,
+            usdc_received,
             emission_apr_bps,
             stake_token,
-            usdc
+            usdc,
+            regent_total_supply
           ]} <- Rpc.aggregate3(aggregator(), protocol_calls(), block, @rpc_opts),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
-         true <- usdc == Abi.normalize_address!(Abi.usdc_address()) do
+         true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
+         from_block <- max(block.number - @window_blocks + 1, 0),
+         {:ok, usdc_received_window} <- usdc_received_between(from_block, block.number) do
       capacity = max(denominator - total_staked, 0)
 
       {:ok,
@@ -63,13 +80,14 @@ defmodule AshPlatform.Staking.RpcClient do
          paused: paused,
          total_staked_raw: Integer.to_string(total_staked),
          total_staked: Rpc.format_units(total_staked, 18),
-         supply_denominator_raw: Integer.to_string(denominator),
          remaining_capacity_raw: Integer.to_string(capacity),
-         remaining_capacity: Rpc.format_units(capacity, 18),
-         available_regent_reward_inventory_raw: Integer.to_string(available_regent),
-         available_regent_reward_inventory: Rpc.format_units(available_regent, 18),
-         reserved_usdc_raw: Integer.to_string(reserved_usdc),
-         reserved_usdc: Rpc.format_units(reserved_usdc, 6),
+         usdc_received_from_block: from_block,
+         usdc_received_7d_raw: Integer.to_string(usdc_received_window),
+         usdc_received_7d: Rpc.format_units(usdc_received_window, 6),
+         usdc_received_lifetime_raw: Integer.to_string(usdc_received),
+         usdc_received_lifetime: Rpc.format_units(usdc_received, 6),
+         regent_total_supply_raw: Integer.to_string(regent_total_supply),
+         regent_total_supply: Rpc.format_units(regent_total_supply, 18),
          emission_apr_bps: emission_apr_bps,
          emission_apr_percent: format_bps(emission_apr_bps)
        }}
@@ -78,6 +96,57 @@ defmodule AshPlatform.Staking.RpcClient do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # Every deposit the contract recorded over the window, added up from its own
+  # logs. The range is asked for in endpoint-sized pieces at once rather than
+  # one after another, and a piece that fails takes the whole reading with it:
+  # a total missing one piece would understate what the contract registered,
+  # and the shared reading treats a failure as "the previous reading stays".
+  defp usdc_received_between(from_block, to_block) do
+    from_block
+    |> chunks(to_block)
+    |> Task.async_stream(&chunk_received/1,
+      max_concurrency: @chunk_concurrency,
+      ordered: false,
+      timeout: @read_timeout
+    )
+    |> Enum.reduce_while({:ok, 0}, fn
+      {:ok, {:ok, received}}, {:ok, total} -> {:cont, {:ok, total + received}}
+      {:ok, {:error, reason}}, _total -> {:halt, {:error, reason}}
+      {:exit, _reason}, _total -> {:halt, {:error, :chain_unavailable}}
+    end)
+  end
+
+  defp chunks(from_block, to_block) do
+    from_block
+    |> Stream.iterate(&(&1 + @chunk_blocks))
+    |> Stream.take_while(&(&1 <= to_block))
+    |> Enum.map(&{&1, min(&1 + @chunk_blocks - 1, to_block)})
+  end
+
+  defp chunk_received({from_block, to_block}) do
+    with {:ok, logs} <-
+           Rpc.request(
+             "eth_getLogs",
+             [
+               %{
+                 address: Abi.staking_address(),
+                 topics: [Abi.event_topic(:usdc_revenue_deposited)],
+                 fromBlock: hex_quantity(from_block),
+                 toBlock: hex_quantity(to_block)
+               }
+             ],
+             @rpc_opts
+           ),
+         {:ok, received} <- Abi.usdc_revenue_received(logs) do
+      {:ok, received}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp hex_quantity(value), do: "0x" <> (value |> Integer.to_string(16) |> String.downcase())
 
   # A wallet reading always takes its own fresh block. A person watching their
   # own transaction confirm needs the block their receipt was mined into or a
@@ -121,6 +190,11 @@ defmodule AshPlatform.Staking.RpcClient do
   # Under the aggregator every sub-call is made by the aggregator, so a read
   # about an account names that account in its own arguments and never relies on
   # who is calling.
+  #
+  # The last sub-call reads the REGENT token rather than the staking contract.
+  # It names the pinned token address, and the `stake_token` read beside it
+  # proves the staking contract answers with that same address before any of
+  # this reading is believed.
   defp protocol_calls do
     staking = Abi.staking_address()
 
@@ -128,11 +202,11 @@ defmodule AshPlatform.Staking.RpcClient do
       {staking, Abi.encode_read("paused"), :bool},
       {staking, Abi.encode_read("total_staked"), :uint},
       {staking, Abi.encode_supply_denominator(), :uint},
-      {staking, Abi.encode_available_regent_reward_inventory(), :uint},
-      {staking, Abi.encode_reserved_usdc(), :uint},
+      {staking, Abi.encode_total_usdc_received(), :uint},
       {staking, Abi.encode_emission_apr_bps(), :uint},
       {staking, Abi.encode_read("stake_token"), :address},
-      {staking, Abi.encode_read("usdc"), :address}
+      {staking, Abi.encode_read("usdc"), :address},
+      {Abi.stake_token_address(), Abi.encode_erc20_total_supply(), :uint}
     ]
   end
 

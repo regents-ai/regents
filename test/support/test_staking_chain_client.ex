@@ -14,6 +14,18 @@ defmodule AshPlatform.TestStakingChainClient do
   @denominator "1000000000000000000000"
   @total_staked "100000000000000000000"
 
+  # Seven days of Base blocks, exactly as the reader counts them, so the window
+  # this reports starts where a real reading's would.
+  @window_blocks 302_400
+
+  # USDC to six places and REGENT to eighteen. The lifetime total and the token's
+  # whole supply are fixed: nothing a test does moves them. The seven-day sum is
+  # the one figure a test sets, and it starts non-zero so a test asking for zero
+  # is asking for something.
+  @seven_day_usdc "1250500000"
+  @lifetime_usdc "5074870000"
+  @regent_total_supply "100000000000000000000000000000"
+
   # The two readings are taken at different blocks on purpose: a proof that
   # pairs one map's figure with the other's block fails here rather than in
   # production.
@@ -64,11 +76,13 @@ defmodule AshPlatform.TestStakingChainClient do
     total = String.to_integer(@total_staked)
     denominator = String.to_integer(setting(:test_staking_denominator, @denominator))
     capacity = max(denominator - total, 0)
+    block = setting(:test_staking_protocol_block, @protocol_block)
+    seven_day_usdc = setting(:test_staking_usdc_7d, @seven_day_usdc)
 
     %{
       chain_id: 8453,
       chain_label: "Base",
-      block_number: setting(:test_staking_protocol_block, @protocol_block),
+      block_number: block,
       block_hash: "0x" <> String.duplicate("1b", 32),
       read_at: setting(:test_staking_read_at, DateTime.utc_now()),
       contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
@@ -77,13 +91,14 @@ defmodule AshPlatform.TestStakingChainClient do
       paused: Application.get_env(:ash_platform, :test_staking_paused, false),
       total_staked_raw: @total_staked,
       total_staked: scaled(@total_staked, 18),
-      supply_denominator_raw: Integer.to_string(denominator),
       remaining_capacity_raw: Integer.to_string(capacity),
-      remaining_capacity: scaled(Integer.to_string(capacity), 18),
-      available_regent_reward_inventory_raw: "250000000000000000000000",
-      available_regent_reward_inventory: "250000",
-      reserved_usdc_raw: "125000000000",
-      reserved_usdc: "125000",
+      usdc_received_from_block: max(block - @window_blocks + 1, 0),
+      usdc_received_7d_raw: seven_day_usdc,
+      usdc_received_7d: scaled(seven_day_usdc, 6),
+      usdc_received_lifetime_raw: @lifetime_usdc,
+      usdc_received_lifetime: scaled(@lifetime_usdc, 6),
+      regent_total_supply_raw: @regent_total_supply,
+      regent_total_supply: scaled(@regent_total_supply, 18),
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }

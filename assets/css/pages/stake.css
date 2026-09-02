@@ -76,8 +76,9 @@
 .stake-kicker,
 .stake-section-kicker,
 .stake-benefit-card dt,
-.stake-capacity-heading,
-.stake-capacity-facts dt,
+.stake-earned-label,
+.stake-supply-heading,
+.stake-supply-facts dt,
 .stake-contract-facts dt,
 .stake-metric dt,
 .stake-dialog-kicker,
@@ -159,12 +160,8 @@
   background: color-mix(in oklch, var(--color-accent) 11%, var(--color-surface-elevated));
 }
 
-.stake-benefit-card dd,
-.stake-benefit-card p {
-  margin: 0;
-}
-
 .stake-benefit-card dd {
+  margin: 0;
   font-size: clamp(1.2rem, 3vw, 2rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -172,9 +169,30 @@
   overflow-wrap: anywhere;
 }
 
-.stake-benefit-card p {
+.stake-earned-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.stake-earned-part {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.stake-earned-part + .stake-earned-part {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--hairline);
+}
+
+.stake-earned-label {
   color: var(--color-fg-muted);
-  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.stake-earned-figure {
+  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
 }
 
 .stake-layout {
@@ -198,7 +216,7 @@
 
 .stake-section-heading,
 .stake-overview-heading,
-.stake-capacity-heading {
+.stake-supply-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -316,7 +334,7 @@
 }
 
 .stake-wallet-summary,
-.stake-capacity-facts,
+.stake-supply-facts,
 .stake-preview,
 .stake-contract-facts,
 .stake-dialog-meta {
@@ -582,37 +600,49 @@
   text-transform: uppercase;
 }
 
-.stake-capacity {
+.stake-supply {
   display: grid;
   gap: 0.75rem;
 }
 
-.stake-capacity progress {
+/* One track holds both proportions: its full width is the total supply, the
+   band inside it is the circulating supply, and the fill inside that band is
+   what is staked. */
+.stake-supply-bar {
   width: 100%;
   height: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--hairline-strong);
   border-radius: 999px;
-  appearance: none;
   background: var(--color-surface-elevated);
 }
 
-.stake-capacity progress::-webkit-progress-bar { background: var(--color-surface-elevated); }
-.stake-capacity progress::-webkit-progress-value,
-.stake-capacity progress::-moz-progress-bar { border-radius: 999px; background: var(--color-accent); }
+.stake-supply-circulating {
+  display: block;
+  width: var(--circulating-share);
+  height: 100%;
+  background: color-mix(in oklch, var(--color-accent) 24%, transparent);
+}
 
-.stake-capacity-facts {
+.stake-supply-staked {
+  display: block;
+  width: var(--staked-share);
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.stake-supply-facts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.stake-capacity-facts div {
+.stake-supply-facts div {
   display: grid;
   gap: 0.25rem;
 }
 
-.stake-capacity-facts dd {
+.stake-supply-facts dd {
   min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
@@ -770,7 +800,7 @@
 
 @media (max-width: 64rem) {
   .stake-heading { grid-template-columns: minmax(0, 1fr); }
-  .stake-benefit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stake-benefit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
   .stake-overview { position: static; }
   .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -792,7 +822,7 @@
   .stake-overview,
   .stake-how-it-works { padding: 1rem; }
   .stake-benefit-grid,
-  .stake-capacity-facts,
+  .stake-supply-facts,
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-total strong { font-size: clamp(2.6rem, 18vw, 4rem); }
   .stake-contract-facts > div,

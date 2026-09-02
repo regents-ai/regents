@@ -10,6 +10,20 @@ defmodule AshPlatform.Staking.RpcClientTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @amount 1_500_000_000_000_000_000
 
+  # Seven days of Base blocks, and the largest range a public endpoint answers
+  # `eth_getLogs` over. Both are stated here rather than read from the reader, so
+  # a change to either has to be made twice on purpose.
+  @window_blocks 302_400
+  @chunk_blocks 10_000
+
+  # High enough that a whole seven-day window sits below it, so the window
+  # arithmetic is proved against a block a real reading could have.
+  @head 40_000_000
+
+  # The window ends at @head and both ends of it are counted, so it holds
+  # @window_blocks blocks only if it begins one block after @head - @window_blocks.
+  @window_start @head - @window_blocks + 1
+
   setup do
     Stub.install(:staking_http_client, &call/2)
     Stub.install_multicall3_identity()
@@ -24,16 +38,103 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert %DateTime{} = snapshot.read_at
     assert snapshot.paused == false
     assert snapshot.total_staked_raw == "100"
-    assert snapshot.supply_denominator_raw == "1000"
     assert snapshot.remaining_capacity_raw == "900"
-    assert snapshot.available_regent_reward_inventory == "250000"
-    assert snapshot.reserved_usdc == "125000"
+    assert snapshot.usdc_received_lifetime_raw == "125000000000"
+    assert snapshot.usdc_received_lifetime == "125000"
+    assert snapshot.regent_total_supply_raw == "100000000000000000000000000000"
+    assert snapshot.regent_total_supply == "100000000000"
     assert snapshot.emission_apr_percent == "12"
     assert snapshot.stake_token_address == Abi.normalize_address!(Abi.stake_token_address())
     assert snapshot.usdc_address == Abi.normalize_address!(Abi.usdc_address())
     assert Enum.sort(Map.keys(snapshot)) == Enum.sort(Facts.protocol_keys())
 
     one_aggregate(Abi.encode_aggregate3(expected_protocol_calls()))
+  end
+
+  # A selector that named some other function would return some other number
+  # while every other proof here still passed, so the two reads this page adds
+  # are derived from the signatures the pinned ABI declares.
+  test "PINNED_SELECTORS: each locally encoded read is the Keccak-256 of its own signature" do
+    assert Abi.total_usdc_received_signature() == "totalUsdcReceived()"
+    assert Abi.erc20_total_supply_signature() == "totalSupply()"
+
+    assert selector(Abi.total_usdc_received_signature()) == Abi.encode_total_usdc_received()
+    assert selector(Abi.erc20_total_supply_signature()) == Abi.encode_erc20_total_supply()
+  end
+
+  # The window is the chain's own: it ends at the block this reading was taken
+  # at and holds exactly seven days of blocks, that last one among them, and the
+  # pieces it is asked for in cover that range once each and reach nothing
+  # outside it.
+  test "SEVEN_DAY_WINDOW: the deposit range is asked for in contiguous endpoint-sized pieces" do
+    head(@head)
+
+    assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+    assert snapshot.usdc_received_from_block == @window_start
+
+    ranges = log_ranges()
+    {first_from, _first_to} = List.first(ranges)
+    {_last_from, last_to} = List.last(ranges)
+
+    assert length(ranges) == 31
+    assert first_from == @window_start
+    assert last_to == @head
+    assert last_to - first_from + 1 == @window_blocks
+
+    for {from, to} <- ranges do
+      assert to >= from
+      assert to - from + 1 <= @chunk_blocks
+    end
+
+    # Each piece begins exactly where the one before it ended, so nothing in the
+    # window is asked for twice and nothing is skipped.
+    for [{_from, to}, {next_from, _next_to}] <- Enum.chunk_every(ranges, 2, 1, :discard) do
+      assert next_from == to + 1
+    end
+  end
+
+  test "SEVEN_DAY_SUM: every recorded deposit in the window is added up across the pieces" do
+    head(@head)
+
+    Stub.put(%{
+      logs: [
+        revenue_log(@window_start, 1_500_000),
+        revenue_log(@head - 12_345, 2_250_000),
+        revenue_log(@head, 400_000),
+        # The block before the window opens, and a deposit some other contract
+        # recorded: both are somebody else's history and neither belongs in
+        # this figure.
+        revenue_log(@window_start - 1, 9_000_000),
+        %{revenue_log(@head, 7_000_000) | "address" => Abi.usdc_address()}
+      ]
+    })
+
+    assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+    assert snapshot.usdc_received_7d_raw == "4150000"
+    assert snapshot.usdc_received_7d == "4.15"
+  end
+
+  test "SEVEN_DAY_SUM_IS_ZERO: a window with no deposits is zero rather than unavailable" do
+    assert {:ok, %{usdc_received_7d_raw: "0", usdc_received_7d: "0"}} =
+             RpcClient.protocol_snapshot()
+  end
+
+  # A total assembled from the pieces that happened to answer would understate
+  # what the contract registered, so one refused piece takes the whole reading
+  # with it and the shared reading keeps the one it already has.
+  test "FAILING_PIECE: one refused piece of the window fails the whole reading" do
+    head(@head)
+    Stub.put(%{refused_log_range: @window_start + 3 * @chunk_blocks})
+
+    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot()
+  end
+
+  # A log this contract did not emit, or one carrying another event's shape,
+  # fails the sum rather than being skipped past.
+  test "MALFORMED_LOG: a log that does not decode fails the reading" do
+    Stub.put(%{logs: [%{revenue_log(0x20, 1_000_000) | "data" => "0x"}]})
+
+    assert {:error, :invalid_chain_response} = RpcClient.protocol_snapshot()
   end
 
   test "ONE_WALLET_CALL: seven wallet reads arrive as one aggregate on a fresh block" do
@@ -153,13 +254,51 @@ defmodule AshPlatform.Staking.RpcClientTest do
       {staking, Abi.encode_read("paused")},
       {staking, Abi.encode_read("total_staked")},
       {staking, Abi.encode_supply_denominator()},
-      {staking, Abi.encode_available_regent_reward_inventory()},
-      {staking, Abi.encode_reserved_usdc()},
+      {staking, Abi.encode_total_usdc_received()},
       {staking, Abi.encode_emission_apr_bps()},
       {staking, Abi.encode_read("stake_token")},
-      {staking, Abi.encode_read("usdc")}
+      {staking, Abi.encode_read("usdc")},
+      {Abi.stake_token_address(), Abi.encode_erc20_total_supply()}
     ]
   end
+
+  defp head(number),
+    do:
+      Stub.put(%{latest_block: %{"number" => hex_quantity(number), "hash" => Stub.latest_hash()}})
+
+  defp selector(signature), do: signature |> Abi.topic0() |> String.slice(0, 10)
+
+  # One `USDCRevenueDeposited` exactly as the contract writes it: three indexed
+  # topics beside the event's own, and four data words whose first is the
+  # `amountReceived` this sum is made of.
+  defp revenue_log(block_number, amount) do
+    %{
+      "address" => Abi.staking_address(),
+      "topics" => [
+        Abi.event_topic(:usdc_revenue_deposited)
+        | List.duplicate("0x" <> Stub.hex_word(0), 3)
+      ],
+      "data" => "0x" <> Stub.hex_word(amount) <> String.duplicate(Stub.hex_word(0), 3),
+      "blockNumber" => hex_quantity(block_number)
+    }
+  end
+
+  # Every block range this reading asked the endpoint for, in order.
+  defp log_ranges(ranges \\ []) do
+    receive do
+      {:rpc, "eth_getLogs", [filter]} ->
+        log_ranges([{quantity(filter.fromBlock), quantity(filter.toBlock)} | ranges])
+
+      {:rpc, _method, _params} ->
+        log_ranges(ranges)
+    after
+      0 -> Enum.sort(ranges)
+    end
+  end
+
+  defp hex_quantity(value), do: "0x" <> (value |> Integer.to_string(16) |> String.downcase())
+
+  defp quantity("0x" <> hex), do: String.to_integer(hex, 16)
 
   defp expected_wallet_calls do
     staking = Abi.staking_address()
@@ -211,11 +350,11 @@ defmodule AshPlatform.Staking.RpcClientTest do
       Stub.uint(0),
       Stub.uint(Map.get(state, :total_staked, 100)),
       Stub.uint(Map.get(state, :denominator, 1_000)),
-      Stub.uint(250_000_000_000_000_000_000_000),
       Stub.uint(125_000_000_000),
       Stub.uint(1_200),
       Stub.uint(Map.get(state, :stake_token) || word(Abi.stake_token_address())),
-      Stub.uint(Map.get(state, :usdc) || word(Abi.usdc_address()))
+      Stub.uint(Map.get(state, :usdc) || word(Abi.usdc_address())),
+      Stub.uint(100_000_000_000_000_000_000_000_000_000)
     ]
   end
 
