@@ -12,7 +12,6 @@ defmodule AshPlatformWeb.StakeLive do
   attr :reading, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
-  attr :amount_valid, :boolean, default: false
   attr :available_claims, :list, default: []
 
   def page(assigns) do
@@ -242,7 +241,6 @@ defmodule AshPlatformWeb.StakeLive do
                 class="stake-primary stake-submit"
                 type="button"
                 data-staking-action={@action}
-                disabled={!@amount_valid}
               >{mode_label(@action)} REGENT</button>
             </form>
 
@@ -438,7 +436,7 @@ defmodule AshPlatformWeb.StakeLive do
     }
   end
 
-  defp position_preview(%{amount_valid: false}), do: nil
+  defp position_preview(%{staking: nil}), do: nil
 
   defp position_preview(%{staking: staking, action: action, amount: amount}) do
     with {:ok, requested} <- AshPlatform.Staking.parse_amount(amount),

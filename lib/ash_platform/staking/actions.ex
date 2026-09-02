@@ -35,7 +35,6 @@ defmodule AshPlatform.Staking.Actions do
   def prepare(action, input, _context) do
     with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
          {:ok, amount} <- requested_amount(action, input.arguments),
-         :ok <- within_limits(action, amount, signer),
          {:ok, data, approval, arguments} <- calldata(action, amount, signer),
          envelope <-
            Envelope.new(action, signer, data,
@@ -117,19 +116,6 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   def parse_amount(_), do: {:error, :invalid_amount}
-
-  defp within_limits(action, amount, signer) do
-    case ChainClient.module().overview(signer) do
-      {:ok, staking} ->
-        case limit_refusal(staking, action, amount) do
-          nil -> :ok
-          reason -> refusal(reason)
-        end
-
-      _ ->
-        refusal(:chain_unavailable)
-    end
-  end
 
   def limit_refusal(%{paused: true}, "stake", _), do: :staking_paused
 

@@ -110,18 +110,20 @@ defmodule AshPlatform.StakingTest do
     assert envelope.approval.spender == envelope.to
   end
 
-  test "CURRENT_CHAIN_LIMITS: amounts and claims are refused from fresh Base facts" do
+  test "CURRENT_CHAIN_LIMITS: Base, not the server, decides amounts and claims" do
     Process.put(:token_raw, "1")
-    assert {:error, error} = Staking.prepare_stake(@wallet, "1")
-    assert refusal(error) == :amount_above_balance
+    assert {:ok, %{action: "stake"}} = Staking.prepare_stake(@wallet, "1")
 
     Process.put(:stake_raw, "1")
-    assert {:error, error} = Staking.prepare_unstake(@wallet, "1")
-    assert refusal(error) == :amount_above_stake
+    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
 
     Process.put(:claimable_usdc_raw, "0")
-    assert {:error, error} = Staking.prepare_claim_usdc(@wallet)
-    assert refusal(error) == :no_claimable_usdc
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
+  end
+
+  test "ONLY_SHAPE_REFUSALS: amount shape and signer shape are the server's last two refusals" do
+    assert {:error, _} = Staking.prepare_stake(@wallet, "0")
+    assert {:error, _} = Staking.prepare_stake("not-a-wallet", "1")
   end
 
   test "EXACT_AMOUNTS: values are positive decimals with at most 18 places" do
@@ -140,20 +142,17 @@ defmodule AshPlatform.StakingTest do
              Staking.prepare_claim_and_restake_regent(@wallet)
   end
 
-  test "PAUSED: claim and restake is unavailable while other claims and unstake remain available" do
+  test "PAUSED: Base, not the server, decides a claim while the contract is paused" do
     Process.put(:paused, true)
 
-    assert {:error, error} = Staking.prepare_claim_and_restake_regent(@wallet)
-    assert refusal(error) == :staking_paused
+    assert {:ok, %{action: "claim_and_restake_regent"}} =
+             Staking.prepare_claim_and_restake_regent(@wallet)
+
     assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
     assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
     assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
   end
 
-  defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
-    do: reason
-
-  defp refusal(_), do: nil
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore_env(key, value), do: Application.put_env(:ash_platform, key, value)
 end
