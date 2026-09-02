@@ -1,6 +1,7 @@
 defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
+  alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.TokenDisplay
 
   @control_labels %{
@@ -21,6 +22,7 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :step, :atom, default: nil
   attr :owned_collectibles, :map, default: %{status: :idle, animata: [], regents_club: []}
   attr :owned_collectibles_limit, :integer, default: 24
+  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in, :mismatch]
 
   def redemption_page(assigns) do
     assigns =
@@ -53,7 +55,9 @@ defmodule AshPlatformWeb.RedeemLive do
             <span class="redeem-pill">1 Animata</span><b>+</b><span class="redeem-pill">80 USDC</span><b>→</b><span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>
           </div>
           <div :if={!@wallet} class="redeem-intro-actions">
-            <button type="button" class="redeem-primary" data-redeem-connect>Connect wallet to redeem</button>
+            <button type="button" class="redeem-primary" data-account-target="sign-in">
+              Connect wallet to redeem
+            </button>
           </div>
         </div>
 
@@ -182,16 +186,18 @@ defmodule AshPlatformWeb.RedeemLive do
                   {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
                 </h2>
               </div>
-              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{short_wallet(
+              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{Shell.short_wallet(
                 @wallet
               )}</span>
             </div>
 
             <div :if={!@wallet} class="redeem-connect-panel">
               <p>
-                Connect the wallet that owns your Animata. Privy provides the wallet connection; it does not sign in to Regent.
+                Sign in with Privy and connect the wallet that owns your Animata.
               </p>
-              <button type="button" class="redeem-primary" data-redeem-connect>Connect wallet</button>
+              <button type="button" class="redeem-primary" data-account-target="sign-in">
+                Connect wallet
+              </button>
               <ul>
                 <li>The page checks ownership and allowances on Base.</li>
                 <li>Approvals are requested only when the contract needs them.</li>
@@ -267,7 +273,8 @@ defmodule AshPlatformWeb.RedeemLive do
                     :for={control <- @controls}
                     type="button"
                     class="redeem-primary"
-                    data-redemption-action={control.action}
+                    data-redemption-action={@actions != :sign_in && control.action}
+                    data-account-target={@actions == :sign_in && "sign-in"}
                     aria-describedby="redemption-step-hint"
                   >{control.label}</button>
                 </div>
@@ -334,7 +341,12 @@ defmodule AshPlatformWeb.RedeemLive do
               </dl>
             </div>
 
-            <button type="button" class="redeem-claim" data-redemption-action="claim">
+            <button
+              type="button"
+              class="redeem-claim"
+              data-redemption-action={@actions != :sign_in && "claim"}
+              data-account-target={@actions == :sign_in && "sign-in"}
+            >
               Claim unlocked REGENT
             </button>
             <p class="redeem-snapshot-note">
@@ -554,11 +566,6 @@ defmodule AshPlatformWeb.RedeemLive do
       _ -> %{label: "0%", value: "0"}
     end
   end
-
-  defp short_wallet("0x" <> address) when byte_size(address) == 40,
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_wallet(wallet), do: wallet
 
   attr :kind, :string, required: true
   attr :index, :string, required: true

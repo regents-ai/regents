@@ -173,23 +173,24 @@ test("anonymous load does not request the deferred Privy bridge", async ({page})
   expect(bridgeRequests).toEqual([])
 })
 
-test("anonymous Stake connect loads Privy and requests its wallet connector", async ({page}) => {
+// Connecting a wallet on Stake is the Privy sign-in, the same one the header
+// runs: Privy signs the visitor in and connects the wallet's accounts with it.
+test("anonymous Stake connect loads Privy and opens its sign-in", async ({page}) => {
   await page.route(bridgePattern, route =>
     route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
   )
 
   await page.goto("/stake")
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await page.getByRole("button", {name: "Connect wallet to stake"}).click()
 
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
-      ),
-    )
-    .toEqual(["connect-wallet"])
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  const bridgeCalls = () =>
+    page.evaluate(() => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [])
+
+  await expect.poll(bridgeCalls).toContain("sign-in")
+  // The connect-only path is gone from this page: connecting is the sign-in.
+  expect(await bridgeCalls()).not.toContain("connect-wallet")
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
 })
 
 for (const invalidHandoff of [
@@ -427,7 +428,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   ).toBe(false)
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()
   await page.locator("#account-menu summary").click()
-  await expect(page.getByRole("button", {name: "Log Out"})).toBeVisible()
+  await expect(page.getByRole("button", {name: "Disconnect"})).toBeVisible()
   await page.getByRole("link", {name: "Settings"}).click()
   await expect(page.locator("#settings-verified-connections")).toBeVisible()
   await page.evaluate(() => {
@@ -638,7 +639,7 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await page.goto("/app")
   await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Log Out"}).click()
+  await page.getByRole("button", {name: "Disconnect"}).click()
   await expect.poll(() => sessionDeletes).toBe(1)
 
   await expect.poll(() => documentRequests.length).toBe(2)
@@ -778,7 +779,7 @@ test("the second document proves anonymous server truth before importing Privy",
   await page.goto("/app")
   await expect.poll(() => bridgeLoads).toBe(1)
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Log Out"}).click()
+  await page.getByRole("button", {name: "Disconnect"}).click()
 
   await expect.poll(() => sessionDeletes).toBe(1)
   await expect.poll(() => documentRequests.length).toBe(2)

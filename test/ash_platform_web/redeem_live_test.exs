@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.RedeemLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  alias AshPlatform.Accounts
+  alias AshPlatform.Actors.System
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatformWeb.ShellLive
 
@@ -119,7 +121,12 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert html =~
              ~s(<span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>)
 
-    assert has_element?(view, ~s(button[data-redeem-connect]), "Connect wallet to redeem")
+    assert has_element?(
+             view,
+             ~s|button.redeem-primary[data-account-target="sign-in"]|,
+             "Connect wallet to redeem"
+           )
+
     refute has_element?(view, "#redemption-selection")
 
     assert has_element?(
@@ -158,7 +165,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   } do
     view = mount_redeem(conn)
     render_async(view)
-    assert has_element?(view, "button[data-redeem-connect]")
+    assert has_element?(view, ~s|button.redeem-primary[data-account-target="sign-in"]|)
 
     activate(view, @other)
     assert has_element?(view, "#redemption-selection")
@@ -168,6 +175,69 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert render(view) =~ "Claimable now"
     assert render(view) =~ "1 REGENT"
     assert has_element?(view, ~s(#account-control button[data-account-target="sign-in"]))
+  end
+
+  test "SIGN_IN_BEFORE_SENDING: a wallet with no sign-in reads its position and sends nothing", %{
+    conn: conn
+  } do
+    view = conn |> mount_redeem() |> activate(@wallet)
+    select(view, "animata_i", "42")
+
+    # Reading this wallet is open to everyone.
+    assert render(view) =~ "Claimable now"
+    assert has_element?(view, "#redemption-selection")
+
+    assert_offers_sign_in(view)
+    refute_push_event(view, "redemption:wallet-action", _)
+  end
+
+  test "WALLET_MISMATCH: a sign-in on one wallet cannot send from another", %{conn: conn} do
+    view = redeem_as_signer(conn, "wallet-mismatch")
+    select(view, "animata_i", "42")
+
+    # The wallet the sign-in names sends as it always did.
+    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "matching"})
+    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "matching"})
+
+    # The browser switches to a wallet this account never signed in with.
+    activate(view, @other)
+    select(view, "animata_i", "42")
+
+    assert_refuses_every_action(
+      view,
+      "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222."
+    )
+
+    refute_push_event(view, "redemption:wallet-action", _)
+
+    # Switching back to the wallet the sign-in names restores every step.
+    activate(view, @wallet)
+    select(view, "animata_i", "42")
+    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "restored"})
+    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "restored"})
+  end
+
+  test "DISCONNECTED_WALLET: releasing every wallet clears the position and offers the connection again",
+       %{conn: conn} do
+    view = conn |> mount_redeem() |> activate(@wallet)
+
+    assert redemption_assigns(view).redemption_wallet == @wallet
+    assert has_element?(view, "#redemption-selection")
+
+    # Exactly what the browser pushes once Disconnect has released every wallet.
+    activate(view, nil)
+
+    assigns = redemption_assigns(view)
+    assert assigns.redemption_wallet == nil
+    assert assigns.redemption.wallet_address == nil
+    assert assigns.redemption.usdc_balance == nil
+    assert assigns.redemption.nft_owner == nil
+    assert assigns.owned_collectibles == %{status: :idle, animata: [], regents_club: []}
+
+    html = render(view)
+    assert has_element?(view, ~s|button.redeem-primary[data-account-target="sign-in"]|)
+    refute has_element?(view, "#redemption-selection")
+    refute html =~ "Claimable now"
   end
 
   test "CURRENT_NEXT_STEP: only Base's current action is exposed", %{conn: conn} do
@@ -198,7 +268,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
     end)
 
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "selection-failure")
     select(view, "animata_i", "42")
     assert has_element?(view, control("redeem"), "Redeem Animata")
 
@@ -253,7 +323,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
     end)
 
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "unchanged-selection")
     select(view, "animata_i", "42")
     Application.put_env(:ash_platform, :test_redemption_read_gate, self())
 
@@ -288,7 +358,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
     end)
 
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "pending-read")
     Application.put_env(:ash_platform, :test_redemption_read_gate, self())
 
     view
@@ -320,7 +390,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     conn: conn
   } do
     Application.put_env(:ash_platform, :test_redemption_nft_owner, @other)
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "snapshot-never-refuses")
     select(view, "animata_i", "42")
 
     assert has_element?(view, control("redeem"), "Redeem Animata")
@@ -351,7 +421,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   end
 
   test "NO_TOKEN_NO_CALLDATA: controls appear only once a token is selected", %{conn: conn} do
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "no-token-no-calldata")
 
     refute has_element?(view, ".redeem-next-step button")
     assert has_element?(view, ".redeem-next-step h3", "Select an Animata")
@@ -477,7 +547,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   test "DIRECT_REDEEM: each eligible click pushes one fresh envelope with no lifecycle UI", %{
     conn: conn
   } do
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "direct-redeem")
     select(view, "animata_i", "42")
 
     render_hook(view, "prepare_redemption", %{
@@ -514,7 +584,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   end
 
   test "CLAIM_DIRECTLY: unlocked REGENT is its own exact control", %{conn: conn} do
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "claim-directly")
     assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
 
     render_hook(view, "prepare_redemption", %{
@@ -771,7 +841,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     hold_lookup_share(2)
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = conn |> signed_in_redeem("lookup-budget", @third) |> activate(@wallet)
     activate(view, @other)
     assert length(drain_requests()) == 6
 
@@ -790,7 +860,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     hold_server_minute(0)
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
-    view = conn |> mount_redeem() |> activate(@wallet)
+    view = redeem_as_signer(conn, "server-lookup-ceiling")
 
     assert drain_requests() == []
     assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
@@ -985,6 +1055,63 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              "Redemption details are unavailable right now."
            )
   end
+
+  # Every step that ends in a wallet request answers with the same refusal, and
+  # no transaction is prepared for any of them.
+  defp assert_refuses_every_action(view, refusal) do
+    for action <- ["claim" | @every_control] do
+      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
+
+      assert_push_event(view, "redemption:wallet-refusal", %{
+        attempt_id: ^action,
+        sign_in: false
+      })
+
+      assert has_element?(view, ~s(.redeem-notice[role="alert"]), refusal)
+    end
+  end
+
+  # With nobody signed in, every step is the Privy sign-in instead, and a step
+  # pushed straight at the server still prepares nothing.
+  defp assert_offers_sign_in(view) do
+    refute has_element?(view, "button[data-redemption-action]")
+
+    assert has_element?(
+             view,
+             ~s|.redeem-next-step button[data-account-target="sign-in"]|,
+             "Redeem Animata"
+           )
+
+    assert has_element?(
+             view,
+             ~s|button.redeem-claim[data-account-target="sign-in"]|,
+             "Claim unlocked REGENT"
+           )
+
+    for action <- ["claim" | @every_control] do
+      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
+      assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: ^action, sign_in: true})
+    end
+
+    refute has_element?(view, ~s(.redeem-notice[role="alert"]))
+  end
+
+  defp signed_in_redeem(conn, suffix, wallet) do
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:#{suffix}", wallet, [wallet], actor: %System{})
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/redeem")
+
+    view
+  end
+
+  # The Redeem page as someone who may send a transaction sees it: signed in,
+  # with the browser's active wallet being the one that sign-in names.
+  defp redeem_as_signer(conn, suffix),
+    do: conn |> signed_in_redeem(suffix, @wallet) |> activate(@wallet)
 
   defp mount_redeem(conn) do
     {:ok, view, _html} = live(conn, "/redeem")

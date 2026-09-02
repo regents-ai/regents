@@ -1,20 +1,41 @@
 import {expect, test, type Page} from "@playwright/test"
 
+import {identityTokenFor} from "./support/authenticated_privy"
+
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
 const sendsKey = "regent:test:staking-wallet-sends"
+const disconnectedKey = "regent:wallet-disconnected:v1"
+// The sign-in this page's staking bearer names is the wallet above.
+const stakingBearer = "valid-staking"
+const bridgePattern =
+  /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
+const bridgeStub = `
+export async function startPrivyBridge() {
+  return {async request() {}}
+}
+`
+// The same stub, keeping a record of what the page asked Privy for.
+const bridgeRecorder = `
+window.__privyRequests = window.__privyRequests || []
+export async function startPrivyBridge() {
+  return {async request(kind) { window.__privyRequests.push(kind) }}
+}
+`
 
 test("Stake hands each click directly to the active Base wallet and presents every result", async ({page}) => {
   await installWallet(page)
 
   await page.goto("/stake")
   await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
 
   await selectWallet(page, otherWallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
   await expect(page.locator(".stake-signer")).toHaveAttribute("title", otherWallet)
 
+  await signIn(page)
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
 
@@ -90,10 +111,131 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   expect(await page.evaluate(() => sessionStorage.getItem("regent:staking:submitted"))).toBeNull()
 
   await page.reload()
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await expect(page.locator("#account-menu")).toBeVisible()
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
   expect(await sendCount(page)).toBe(5)
 })
+
+// Nothing is sent for a visitor who has not signed in. Every control that would
+// end in a wallet request opens the Privy sign-in instead, and the visitor
+// chooses the action again once they are signed in.
+test("Stake opens the Privy sign-in instead of sending for a visitor with no sign-in", async ({
+  page,
+}) => {
+  await installWallet(page)
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeRecorder, contentType: "application/javascript"}),
+  )
+
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+
+  // The position is read and shown; nothing a transaction could be built from is.
+  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
+  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
+  await expect(page.locator("button.stake-submit")).toHaveAttribute(
+    "data-account-target",
+    "sign-in",
+  )
+
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.locator("button.stake-submit").click()
+
+  // The click asks Privy for the sign-in, and this page never asks Privy for the
+  // connect-only path at all.
+  await expect.poll(() => privyRequests(page)).toContain("sign-in")
+  expect(await privyRequests(page)).not.toContain("connect-wallet")
+  expect(await sendCount(page)).toBe(0)
+  await expect(page.locator(".stake-notice")).toHaveCount(0)
+})
+
+// A sign-in stays fixed to the account it was made with. Nothing this page
+// sends can come from a different wallet than the one the header names.
+test("Stake refuses every action while the sign-in and the active wallet differ", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  await page.goto("/stake")
+  await selectWallet(page, otherWallet)
+  await expect(page.locator(".stake-signer")).toHaveAttribute("title", otherWallet)
+
+  // Reading this wallet still works while nothing may be sent from it.
+  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
+  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
+
+  await page.locator("button.stake-submit").click()
+  await expect(page.locator(".stake-notice")).toHaveText(
+    "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222.",
+  )
+  expect(await sendCount(page)).toBe(0)
+
+  // Connecting again with the wallet the sign-in names restores every action.
+  await selectWallet(page, wallet)
+  await expect(page.locator("button[data-staking-action='stake']")).toBeVisible()
+  await expect(page.locator(".stake-notice")).toHaveCount(0)
+})
+
+// Disconnect ends the wallet connection, and it stays ended across reloads
+// while the browser wallet still reports the same account.
+test("Disconnect leaves Stake unconnected, and a reload keeps it that way", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
+
+  await page.locator("#account-menu summary").click()
+  await page.getByRole("button", {name: "Disconnect"}).click()
+
+  await expectDisconnected(page)
+  expect(await page.evaluate(key => localStorage.getItem(key), disconnectedKey)).toBe("true")
+
+  // The wallet app still reports the same account to this page, and it is still
+  // not this page's wallet.
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & {__ashPlatformTestWallet?: {address: string}})
+          .__ashPlatformTestWallet?.address,
+    ),
+  ).toBe(wallet)
+
+  await page.reload()
+  await expectDisconnected(page)
+})
+
+async function expectDisconnected(page: Page): Promise<void> {
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  await expect(page.getByRole("button", {name: "Connect wallet to stake"})).toBeVisible()
+  await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
+  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
+  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+}
+
+// A signed-in document asks for the Privy bridge on load. These acceptance
+// runs answer with a bridge that does nothing, so the wallet under test stays
+// the deterministic one this file installs.
+async function signIn(page: Page): Promise<void> {
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
+  )
+
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const response = await page.request.post("/auth/privy/session", {
+    headers: {
+      authorization: `Bearer ${stakingBearer}`,
+      "privy-id-token": identityTokenFor(stakingBearer),
+      "x-csrf-token": csrfToken,
+    },
+    data: {},
+  })
+
+  expect(response.status()).toBe(200)
+}
 
 test("Anonymous Stake dashboard is public and fits desktop and mobile widths", async ({page}) => {
   const contract = "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
@@ -156,7 +298,10 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(contractLink).toHaveAttribute("target", "_blank")
     await expect(contractLink).toHaveAttribute("rel", "noopener noreferrer")
 
-    await expect(page.getByRole("button", {name: "Connect wallet to stake"})).toBeVisible()
+    const connect = page.getByRole("button", {name: "Connect wallet to stake"})
+    await expect(connect).toBeVisible()
+    // Connecting a wallet here is the Privy sign-in, the same one the header runs.
+    await expect(connect).toHaveAttribute("data-account-target", "sign-in")
     await expect(page.getByText("Available REGENT", {exact: true})).toHaveCount(0)
     await expect(page.getByText("Currently staked", {exact: true})).toHaveCount(0)
     await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
@@ -185,7 +330,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
         ".stake-benefit-card:not(.stake-benefit-card-primary) dd",
       )!
       const supply = document.querySelector<HTMLElement>(".stake-supply-facts dd")!
-      const connect = document.querySelector<HTMLElement>("[data-stake-connect]")!
+      const connect = document.querySelector<HTMLElement>(".stake-connect-flow .stake-primary")!
       const contractLink = document.querySelector<HTMLElement>(".stake-contract-link")!
       return {
         connectHeight: connect.getBoundingClientRect().height,
@@ -246,6 +391,7 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
 // exactly where the customer typed it.
 test("Stake presents no receipt when an approval returns no usable hash", async ({page}) => {
   await installWallet(page)
+  await signIn(page)
   await page.goto("/stake")
   await selectWallet(page, wallet)
   await page.getByLabel("Amount", {exact: true}).fill("1")
@@ -311,6 +457,12 @@ async function installWallet(page: Page): Promise<void> {
 
 function expectedHash(index: number): string {
   return `0x${index.toString(16).padStart(64, "0")}`
+}
+
+async function privyRequests(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () => (window as Window & {__privyRequests?: string[]}).__privyRequests ?? [],
+  )
 }
 
 async function sendCount(page: Page): Promise<number> {

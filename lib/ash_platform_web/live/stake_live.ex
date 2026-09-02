@@ -1,6 +1,7 @@
 defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
+  alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.TokenDisplay
 
   attr :staking, :map, default: nil
@@ -15,6 +16,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
   attr :available_claims, :map, default: %{}
+  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in, :mismatch]
 
   @claims [
     {"claim_usdc", "Claim USDC"},
@@ -31,6 +33,7 @@ defmodule AshPlatformWeb.StakeLive do
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
       |> assign(:claims, claims)
+      |> assign(:signer, if(assigns.actions == :ready, do: assigns.wallet))
 
     ~H"""
     <section
@@ -39,8 +42,8 @@ defmodule AshPlatformWeb.StakeLive do
       class="stake-page"
       aria-busy={to_string(@reading)}
       data-staking-chain-id={@staking && @staking.chain_id}
-      data-staking-signer={@wallet}
-      data-staking-allowance={@wallet && stake_allowance(@staking)}
+      data-staking-signer={@signer}
+      data-staking-allowance={@signer && stake_allowance(@staking)}
     >
       <header class="stake-heading">
         <div class="stake-heading-copy">
@@ -50,7 +53,7 @@ defmodule AshPlatformWeb.StakeLive do
             Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
           </p>
           <div :if={!@wallet} class="stake-heading-actions">
-            <button type="button" class="stake-primary" data-stake-connect>
+            <button type="button" class="stake-primary" data-account-target="sign-in">
               Connect wallet to stake
             </button>
           </div>
@@ -127,7 +130,7 @@ defmodule AshPlatformWeb.StakeLive do
               </h2>
             </div>
             <span :if={@wallet} class="stake-signer" title={@wallet}>
-              <span aria-hidden="true"></span>{short_wallet(@wallet)}
+              <span aria-hidden="true"></span>{Shell.short_wallet(@wallet)}
             </span>
           </div>
 
@@ -143,9 +146,11 @@ defmodule AshPlatformWeb.StakeLive do
                 <span>3</span><p><strong>Confirm</strong> each Base transaction in your wallet.</p>
               </li>
             </ol>
-            <button type="button" class="stake-primary" data-stake-connect>Connect wallet</button>
+            <button type="button" class="stake-primary" data-account-target="sign-in">
+              Connect wallet
+            </button>
             <p class="stake-fine-print">
-              Connecting a wallet does not create a Regent account. Nothing is sent without your wallet confirmation.
+              Signing in with Privy connects your wallet. Nothing is sent without your wallet confirmation.
             </p>
           </div>
 
@@ -248,7 +253,9 @@ defmodule AshPlatformWeb.StakeLive do
               <button
                 class="stake-primary stake-submit"
                 type="button"
-                data-staking-action={@action}
+                data-staking-action={@actions == :ready && @action}
+                data-account-target={@actions == :sign_in && "sign-in"}
+                phx-click={@actions == :mismatch && "refuse_staking_action"}
               >{mode_label(@action)} REGENT</button>
             </form>
 
@@ -262,7 +269,9 @@ defmodule AshPlatformWeb.StakeLive do
                   :for={claim <- @claims}
                   type="button"
                   class={if claim.claimable, do: "stake-claim-ready"}
-                  data-staking-action={claim.action}
+                  data-staking-action={@actions == :ready && claim.action}
+                  data-account-target={@actions == :sign_in && "sign-in"}
+                  phx-click={@actions == :mismatch && "refuse_staking_action"}
                 >{claim.label}<span class="visually-hidden">{claim_state(claim.claimable)}</span></button>
               </div>
             </section>
@@ -577,11 +586,6 @@ defmodule AshPlatformWeb.StakeLive do
   end
 
   defp atomic(_), do: :error
-
-  defp short_wallet("0x" <> address) when byte_size(address) == 40,
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_wallet(wallet), do: wallet
 
   defp stake_allowance(staking) when is_map(staking),
     do: Map.get(staking, :wallet_stake_allowance_raw, "0")

@@ -171,11 +171,6 @@ export const StakeWallet: Hook = {
 
     state.click = event => {
       const target = event.target as HTMLElement | null
-      if (target?.closest("[data-stake-connect]")) {
-        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
-        return
-      }
-
       if (target === state.dialog) {
         state.dialog.close()
         return

@@ -894,6 +894,23 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("staking_active_wallet", _params, socket), do: {:noreply, socket}
 
+  # While the sign-in and the active wallet disagree, the Stake page sends its
+  # action clicks here instead of to a wallet: the page carries no transaction
+  # parameters, so nothing can be built, and the visitor is told which wallet to
+  # come back with.
+  def handle_event(
+        "refuse_staking_action",
+        _params,
+        %{assigns: %{route_spec: %{route_id: :stake}} = assigns} = socket
+      ) do
+    case transaction_gate(assigns.access_context, assigns.staking_wallet) do
+      {:mismatch, notice} -> {:noreply, assign(socket, staking_notice: notice)}
+      _gate -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("refuse_staking_action", _params, socket), do: {:noreply, socket}
+
   def handle_event("select_staking_action", %{"mode" => mode}, socket)
       when mode in ["stake", "unstake"],
       do:
@@ -1142,7 +1159,9 @@ defmodule AshPlatformWeb.ShellLive do
          socket
        )
        when is_binary(attempt_id) and attempt_id != "" do
-    case prepare_redemption(action, socket) do
+    gate = transaction_gate(socket.assigns.access_context, socket.assigns.redemption_wallet)
+
+    case redemption_attempt(gate, action, socket) do
       {:ok, envelope} ->
         {:noreply,
          socket
@@ -1152,13 +1171,14 @@ defmodule AshPlatformWeb.ShellLive do
            envelope: envelope
          })}
 
-      {:error, _reason} ->
+      {:refused, notice} ->
         {:noreply,
          socket
-         |> assign(
-           redemption_notice: %{tone: :error, message: @redemption_preparation_failure_notice}
-         )
-         |> push_event("redemption:wallet-refusal", %{attempt_id: attempt_id})}
+         |> assign(redemption_notice: notice)
+         |> push_event("redemption:wallet-refusal", %{
+           attempt_id: attempt_id,
+           sign_in: gate == :sign_in
+         })}
     end
   end
 
@@ -1200,6 +1220,20 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles_limit: min(socket.assigns.owned_collectibles_limit + 24, total)
      )}
   end
+
+  # Nothing is prepared for a visitor who has not signed in, and nothing for one
+  # whose sign-in names a wallet the browser no longer has active.
+  defp redemption_attempt(:ready, action, socket) do
+    case prepare_redemption(action, socket) do
+      {:ok, envelope} ->
+        {:ok, envelope}
+
+      {:error, _reason} ->
+        {:refused, %{tone: :error, message: @redemption_preparation_failure_notice}}
+    end
+  end
+
+  defp redemption_attempt(gate, _action, _socket), do: {:refused, refusal_notice(gate)}
 
   @impl true
   def render(assigns) do
@@ -1333,6 +1367,7 @@ defmodule AshPlatformWeb.ShellLive do
           spendable={Staking.spendable(@staking, @staking_action)}
           amount_notice={staking_amount_notice(assigns)}
           available_claims={Staking.available_claims(@staking)}
+          actions={gate_state(transaction_gate(@access_context, @staking_wallet))}
         />
 
         <.redemption_page
@@ -1348,6 +1383,7 @@ defmodule AshPlatformWeb.ShellLive do
           step={redemption_step(assigns)}
           owned_collectibles={@owned_collectibles}
           owned_collectibles_limit={@owned_collectibles_limit}
+          actions={gate_state(transaction_gate(@access_context, @redemption_wallet))}
         />
 
         <section
@@ -1608,13 +1644,8 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  defp maybe_start_staking(socket, %{route_id: :stake}, generation) do
-    socket = paint_shared_snapshot(socket)
-
-    if socket.assigns.staking_wallet,
-      do: start_staking_read(socket, generation),
-      else: socket
-  end
+  defp maybe_start_staking(socket, %{route_id: :stake}, generation),
+    do: socket |> paint_shared_snapshot() |> start_staking_read(generation)
 
   defp maybe_start_staking(socket, _route, _generation),
     do: socket |> clear_staking_form() |> assign(staking: nil, staking_status: :loading)
@@ -1662,13 +1693,9 @@ defmodule AshPlatformWeb.ShellLive do
   defp clear_staking_refresh_failure(notice), do: notice
 
   # This socket's own connected wallet, read again at a fresh block. Any
-  # connected wallet may do this, signed in or not; with no wallet connected
-  # there is nothing about this visitor to read.
-  defp read_connected_wallet(%{assigns: %{staking_wallet: wallet}} = socket)
-       when not is_nil(wallet),
-       do: start_staking_read(socket, socket.assigns.content_generation)
-
-  defp read_connected_wallet(socket), do: socket
+  # connected wallet may do this, signed in or not.
+  defp read_connected_wallet(socket),
+    do: start_staking_read(socket, socket.assigns.content_generation)
 
   # Re-reading the contract replaces what every visitor sees, so only a
   # signed-in session may ask for it, and the socket's own session decides that
@@ -1692,6 +1719,10 @@ defmodule AshPlatformWeb.ShellLive do
         )
     end
   end
+
+  # With no wallet connected there is nothing about this visitor to read, and
+  # the shared contract reading on screen already answers for everyone.
+  defp start_staking_read(%{assigns: %{staking_wallet: nil}} = socket, _generation), do: socket
 
   defp start_staking_read(socket, generation) do
     wallet = socket.assigns.staking_wallet
@@ -1722,6 +1753,41 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp current_account(%{principal: {:human, account}}), do: account
   defp current_account(_access_context), do: nil
+
+  # Sending a transaction is something a signed-in visitor does with the wallet
+  # their sign-in names. Reading these pages and connecting a wallet to see a
+  # position stay open to everyone; only these three answers stand between a
+  # click and a wallet request.
+  defp transaction_gate(access_context, active_wallet) do
+    case current_account(access_context) do
+      nil -> :sign_in
+      account -> wallet_gate(account_wallet(account), active_wallet)
+    end
+  end
+
+  # A sign-in stays fixed to the account it was made with, while these pages
+  # follow whichever wallet the browser has active. Two different addresses mean
+  # nothing signed here would come from the account the header names.
+  defp wallet_gate(account_wallet, active_wallet)
+       when is_binary(account_wallet) and is_binary(active_wallet) and
+              account_wallet != active_wallet,
+       do:
+         {:mismatch,
+          %{
+            tone: :error,
+            message:
+              "You must disconnect #{short_wallet(account_wallet)} and connect again with wallet address #{short_wallet(active_wallet)}."
+          }}
+
+  defp wallet_gate(_account_wallet, _active_wallet), do: :ready
+
+  defp gate_state({:mismatch, _notice}), do: :mismatch
+  defp gate_state(gate), do: gate
+
+  defp refusal_notice({:mismatch, notice}), do: notice
+  defp refusal_notice(_gate), do: nil
+
+  defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
   defp current_human_id(%{principal: {:human, account}}), do: account.id
   defp current_human_id(_access_context), do: nil

@@ -483,13 +483,15 @@ type RedemptionHookHarness = {
   dispatched: string[]
   fakeWindow: {
     location: {origin: string}
-    __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
+    __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
   }
   walletAction(attemptId: string, envelope: PreparedRedemptionAction): void
-  walletRefusal(attemptId: string): void
+  walletRefusal(attemptId: string, signIn?: boolean): void
+  signInControl: {click: ReturnType<typeof vi.fn>}
   click(action?: RedemptionAction): string
   changeSelection(): void
   setWallet(address: string, provider: EthereumProvider): void
+  releaseWallet(): void
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   dialogTitle: {textContent: string}
@@ -591,7 +593,7 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
   const dispatched: string[] = []
   const fakeWindow: {
     location: {origin: string}
-    __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
+    __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
     addEventListener: (event: string, listener: () => void) => void
     removeEventListener: (event: string) => void
     dispatchEvent: (event: Event) => void
@@ -639,9 +641,14 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     }),
   }
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
+  const signInControl = {click: vi.fn()}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
     isConnected: true,
+    ownerDocument: {
+      querySelector: (selector: string) =>
+        selector === "[data-account-target='sign-in']" ? signInControl : null,
+    },
     querySelector: (selector: string) => {
       if (selector === "#redemption-result-dialog") return dialog
       return heading
@@ -706,6 +713,10 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     fakeWindow.__ashPlatformTestWallet = {address, provider: nextProvider}
     windowListeners.get("ash:wallet-state")?.()
   }
+  const releaseWallet = (): void => {
+    delete fakeWindow.__ashPlatformTestWallet
+    windowListeners.get("ash:wallet-state")?.()
+  }
   const destroy = (): void => {
     RedemptionWallet.destroyed!.call(hook as never)
   }
@@ -718,10 +729,13 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     fakeWindow,
     dispatched,
     walletAction: (attemptId, prepared) => walletAction({attempt_id: attemptId, envelope: prepared}),
-    walletRefusal: attemptId => walletRefusal({attempt_id: attemptId}),
+    walletRefusal: (attemptId, signIn = false) =>
+      walletRefusal({attempt_id: attemptId, sign_in: signIn}),
+    signInControl,
     click,
     changeSelection,
     setWallet,
+    releaseWallet,
     destroy,
     dialog,
     dialogTitle,
@@ -745,6 +759,17 @@ describe("redemption hook ownership and result ordering", () => {
     const harness = redemptionHookHarness(redemptionHookProvider())
 
     expect(harness.dispatched).toEqual(["ash:wallet-sync"])
+    harness.destroy()
+  })
+
+  // Disconnect leaves this page with no wallet at all, and the server is told
+  // exactly that rather than being left holding the last one.
+  it("tells the server it has no wallet once every wallet is released", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider())
+
+    harness.releaseWallet()
+
+    expect(harness.pushEvent).toHaveBeenCalledWith("redemption_active_wallet", {address: null})
     harness.destroy()
   })
 
@@ -975,6 +1000,24 @@ describe("redemption hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
     expect(harness.text.textContent).toBe("Animata #42 was redeemed successfully.")
     harness.destroy()
+  })
+
+  it("turns a step the server will not prepare without a sign-in into the sign-in", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider({}))
+    const attempt = harness.click("redeem")
+
+    harness.walletRefusal(attempt, true)
+
+    expect(harness.signInControl.click).toHaveBeenCalledOnce()
+    expect(harness.dialog.showModal).not.toHaveBeenCalled()
+  })
+
+  it("leaves the sign-in alone when a step is refused for any other reason", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider({}))
+
+    harness.walletRefusal(harness.click("redeem"))
+
+    expect(harness.signInControl.click).not.toHaveBeenCalled()
   })
 
   it("keeps FIFO healthy when an earlier preparation refuses and a later one arrives slowly", async () => {

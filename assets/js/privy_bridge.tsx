@@ -38,8 +38,10 @@ import {
 } from "./auth_lazy"
 import {
   activeEthereumWallet,
+  forgetWalletDisconnected,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
+  walletDisconnected,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
@@ -57,6 +59,11 @@ export function createAccountRequestHandler({
   synchronizeWallets,
 }: AccountRequestHandlerOptions): (request: AccountRequest) => Promise<void> {
   return async request => {
+    // Asking for a wallet is not getting one: both of these only open Privy's
+    // own window, and they answer as soon as it is open. What ends the
+    // disconnected state is the visitor coming back with a wallet, which Privy
+    // reports on its own callbacks, so nothing about the Disconnect changes
+    // here.
     if (request === "connect-wallet") {
       await connectWallet()
       return
@@ -508,6 +515,11 @@ export function createPrivyLoginCallbacks({
     onComplete: () => {
       const opened = loginOpen.current
       loginOpen.current = false
+      // The visitor signed in, which is one of the two ways they come back with
+      // a wallet. This runs before the session completion reloads the document,
+      // so the page that replaces this one reads a cleared note on its first
+      // wallet sync.
+      forgetWalletDisconnected()
       void completeLogin().catch(error => {
         if (!opened) return
         if (!(error instanceof ServerReportedSessionError)) {
@@ -557,7 +569,10 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const privy = usePrivy()
   const providerWallets = useWallets()
   const providerActiveWallet = useActiveWallet()
-  const providerWalletConnector = useConnectWallet()
+  // The other way a visitor comes back with a wallet: they finished Privy's
+  // connect flow. Abandoning that window never reaches here, so the Disconnect
+  // stands until a wallet is actually connected again.
+  const providerWalletConnector = useConnectWallet({onSuccess: forgetWalletDisconnected})
   const authenticated = providerState?.authenticated ?? privy.authenticated
   const logout = providerState?.logout ?? privy.logout
   const ready = providerState?.ready ?? privy.ready
@@ -685,6 +700,18 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   // still announces `ash:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     const generation = ++walletSyncGeneration.current
+
+    // Disconnect is the visitor's own choice and outlives the document it was
+    // made in. Until they connect a wallet or sign in again, nothing the wallet
+    // app still reports to Privy is this page's wallet.
+    if (walletDisconnected()) {
+      selectedWalletRef.current = null
+      replaceConnectedEthereumWallets([])
+      replaceActiveEthereumWallet(null)
+      window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+      return
+    }
+
     const selectedWallet =
       activeWallet?.type === "ethereum" &&
       wallets.some(wallet => wallet.address.toLowerCase() === activeWallet.address.toLowerCase())
@@ -728,6 +755,9 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       wallets.map(async wallet => ({
         address: wallet.address.toLowerCase(),
         provider: (await wallet.getEthereumProvider()) as EthereumProvider,
+        // Privy's own way of letting go of this wallet, carried beside the
+        // provider so Disconnect can release both without the bridge.
+        disconnect: () => wallet.disconnect(),
       })),
     )
     if (walletSyncGeneration.current !== generation) return
@@ -745,7 +775,14 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       }
       if (walletSyncGeneration.current !== generation) return
     }
-    replaceConnectedEthereumWallets(entries.map(entry => [entry.address, entry.provider]))
+    // Everything above was awaited, so Disconnect may have landed while this
+    // sync was in flight. The generation counter only knows about newer syncs,
+    // which is why the visitor's own choice is read again here, last.
+    if (walletDisconnected()) return
+
+    replaceConnectedEthereumWallets(
+      entries.map(entry => [entry.address, {provider: entry.provider, disconnect: entry.disconnect}]),
+    )
     replaceActiveEthereumWallet(
       selectedWallet && selectedProvider
         ? {address: selectedWallet.address, provider: selectedProvider}
@@ -778,14 +815,22 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   }, [signOutOnly, synchronizeWallets])
 
   const connectSelectedWallet = React.useCallback(async () => {
-    const request =
-      wallets.length === 0
-        ? connectWallet({
-            walletChainType: "ethereum-only",
-            description: "Connect a wallet to stake or redeem on Base.",
-          })
-        : connectActiveWallet()
-    await Promise.resolve(request)
+    if (wallets.length === 0) {
+      // Privy's window says whether the visitor finished, on the connector's own
+      // success callback above, so there is nothing to read from this answer.
+      await Promise.resolve(
+        connectWallet({
+          walletChainType: "ethereum-only",
+          description: "Connect a wallet to stake or redeem on Base.",
+        }),
+      )
+      return
+    }
+
+    // Privy already holds this wallet, so connecting it answers with the wallet
+    // itself. An answer carrying one is the visitor back with a wallet.
+    const {wallet} = await connectActiveWallet()
+    if (wallet) forgetWalletDisconnected()
   }, [connectActiveWallet, connectWallet, wallets.length])
 
   const markSignOutTerminal = React.useCallback(() => {

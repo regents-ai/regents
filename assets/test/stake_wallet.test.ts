@@ -175,11 +175,12 @@ type StakeHookHarness = {
   dispatched: string[]
   fakeWindow: {
     location: {origin: string}
-    __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
+    __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
   }
   click(action: StakingAction): void
   editAmountActionAndFill(): void
   setWallet(address: string, provider: EthereumProvider): void
+  releaseWallet(): void
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   dialogTitle: {textContent: string}
@@ -199,7 +200,7 @@ function stakingHookHarness(
   const dispatched: string[] = []
   const fakeWindow: {
     location: {origin: string}
-    __ashPlatformTestWallet: {address: string; provider: EthereumProvider}
+    __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
     addEventListener: (event: string, listener: () => void) => void
     removeEventListener: (event: string) => void
     dispatchEvent: (event: Event) => void
@@ -317,6 +318,10 @@ function stakingHookHarness(
     fakeWindow.__ashPlatformTestWallet = {address, provider: nextProvider}
     windowListeners.get("ash:wallet-state")?.()
   }
+  const releaseWallet = (): void => {
+    delete fakeWindow.__ashPlatformTestWallet
+    windowListeners.get("ash:wallet-state")?.()
+  }
   const destroy = (): void => {
     StakeWallet.destroyed!.call(hook as never)
   }
@@ -331,6 +336,7 @@ function stakingHookHarness(
     click,
     editAmountActionAndFill,
     setWallet,
+    releaseWallet,
     destroy,
     dialog,
     dialogTitle,
@@ -354,6 +360,17 @@ describe("stake hook ownership and result ordering", () => {
     const harness = stakingHookHarness(stakingHookProvider())
 
     expect(harness.dispatched).toEqual(["ash:wallet-sync"])
+    harness.destroy()
+  })
+
+  // Disconnect leaves this page with no wallet at all, and the server is told
+  // exactly that rather than being left holding the last one.
+  it("tells the server it has no wallet once every wallet is released", () => {
+    const harness = stakingHookHarness(stakingHookProvider())
+
+    harness.releaseWallet()
+
+    expect(harness.pushEvent).toHaveBeenCalledWith("staking_active_wallet", {address: null})
     harness.destroy()
   })
 

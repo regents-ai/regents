@@ -18,6 +18,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
   @receipt_block 1_249
   @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
   @budget_refusal "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
+  # Every control on this page that ends in a wallet request, by the copy it
+  # carries. The submit control names whichever mode is selected.
+  @claim_controls ["Claim USDC", "Claim REGENT", "Claim and restake"]
 
   setup do
     SnapshotCache.clear()
@@ -137,7 +140,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
              "View verified staking contract on BaseScan"
            )
 
-    assert has_element?(view, ~s(button[data-stake-connect]), "Connect wallet to stake")
+    assert has_element?(
+             view,
+             ~s|button.stake-primary[data-account-target="sign-in"]|,
+             "Connect wallet to stake"
+           )
+
     refute html =~ "Sign in for wallet access"
 
     for private_fact <- [
@@ -420,16 +428,15 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
   end
 
-  test "ANONYMOUS_ACTIVE_WALLET: any connected wallet can use staking without Regent login", %{
+  test "ANONYMOUS_ACTIVE_WALLET: any connected wallet is read without a Regent login", %{
     conn: conn
   } do
     view = mount_stake(conn)
-    assert has_element?(view, "button[data-stake-connect]")
+    assert has_element?(view, ~s|button.stake-primary[data-account-target="sign-in"]|)
     refute has_element?(view, "#staking-amount")
 
     activate(view, @other)
     assert has_element?(view, "#staking-amount")
-    assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@other}"]))
 
     activate(view, @wallet)
     assert has_element?(view, "#staking-amount")
@@ -441,10 +448,95 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(#account-control button[data-account-target="sign-in"]))
   end
 
-  test "DIRECT_STAKE: canonical browser data renders without a server preparation event", %{
+  test "SIGN_IN_BEFORE_SENDING: a wallet with no sign-in reads its position and sends nothing", %{
     conn: conn
   } do
     view = conn |> mount_stake() |> activate(@wallet)
+
+    # Reading this wallet is open to everyone.
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+
+    assert_offers_sign_in(view)
+  end
+
+  test "WALLET_MISMATCH: a sign-in on one wallet cannot send from another", %{conn: conn} do
+    view = stake_as_signer(conn, "wallet-mismatch")
+
+    # The wallet the sign-in names can send.
+    assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@wallet}"]))
+    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
+
+    # The browser switches to a wallet this account never signed in with.
+    activate(view, @other)
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+
+    assert_refuses_every_action(
+      view,
+      "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222."
+    )
+
+    # Switching back to the wallet the sign-in names restores every action.
+    activate(view, @wallet)
+    assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@wallet}"]))
+    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
+    refute render(view) =~ "You must disconnect"
+  end
+
+  test "REFUSAL_IS_ONLY_A_REFUSAL: the event changes nothing when there is nothing to refuse", %{
+    conn: conn
+  } do
+    for view <- [conn |> mount_stake() |> activate(@wallet), stake_as_signer(conn, "no-refusal")] do
+      # A notice the visitor is already reading, put there by something else.
+      Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
+      view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
+      render_async(view)
+      Application.delete_env(:ash_platform, :test_staking_wallet_error)
+      assert render(view) =~ @refresh_failure
+
+      # The page only sends this event while the wallets disagree. A browser
+      # sending it anyway has nothing refused and wipes nothing.
+      render_hook(view, "refuse_staking_action", %{})
+
+      assert render(view) =~ @refresh_failure
+      refute render(view) =~ "You must disconnect"
+    end
+  end
+
+  test "DISCONNECTED_WALLET: releasing every wallet clears the position and offers the connection again",
+       %{conn: conn} do
+    view = conn |> mount_stake() |> activate(@wallet)
+
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert has_element?(view, "#staking-amount")
+    assert has_element?(view, ".stake-wallet-summary")
+
+    # Exactly what the browser pushes once Disconnect has released every wallet.
+    activate(view, nil)
+
+    assigns = staking_assigns(view)
+    assert assigns.staking_wallet == nil
+    assert assigns.staking_amount == ""
+
+    for key <- AshPlatform.Staking.Facts.wallet_keys() do
+      assert Map.fetch!(assigns.staking, key) == nil
+    end
+
+    html = render(view)
+    assert has_element?(view, ~s|button.stake-primary[data-account-target="sign-in"]|)
+    refute has_element?(view, "#staking-amount")
+    refute has_element?(view, ".stake-wallet-summary")
+    refute has_element?(view, "#regent-staking[data-staking-allowance]")
+    refute html =~ "Currently staked"
+    refute html =~ @refresh_failure
+
+    # The contract figures every visitor shares stay exactly where they were.
+    assert has_element?(view, ".stake-benefit-grid", "100 REGENT")
+  end
+
+  test "DIRECT_STAKE: canonical browser data renders without a server preparation event", %{
+    conn: conn
+  } do
+    view = stake_as_signer(conn, "direct-stake")
     set_amount(view, "1")
 
     assert has_element?(
@@ -468,7 +560,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
        %{
          conn: conn
        } do
-    view = conn |> mount_stake() |> activate(@wallet)
+    view = stake_as_signer(conn, "allowance-snapshot")
 
     assert has_element?(view, ~s(#regent-staking[data-staking-allowance="0"]))
     refute_push_event(view, "staking:wallet-action", _)
@@ -486,7 +578,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     conn: conn
   } do
     Application.put_env(:ash_platform, :test_staking_denominator, "105000000000000000000")
-    view = conn |> mount_stake() |> activate(@wallet)
+    view = stake_as_signer(conn, "amount-limits")
 
     view |> element(~s(button[phx-value-portion="max"])) |> render_click()
     assert has_element?(view, ~s(#staking-amount[value="5"]))
@@ -504,7 +596,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "CLAIM_GLOW: every claim stays clickable and only a reward that is there is lit", %{
     conn: conn
   } do
-    view = conn |> mount_stake() |> activate(@wallet)
+    view = stake_as_signer(conn, "claim-hints")
 
     assert_every_claim_live(view)
     assert lit_claims(view) == ~w(claim_usdc claim_regent claim_and_restake_regent)
@@ -560,7 +652,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   } do
     swap_client(GatedChainClient)
 
-    view = conn |> mount_stake() |> activate(@wallet)
+    view = stake_as_signer(conn, "in-place-refresh")
     set_amount(view, "1")
     Application.put_env(:ash_platform, :test_staking_read_gate, self())
 
@@ -942,6 +1034,52 @@ defmodule AshPlatformWeb.StakeLiveTest do
     {:ok, view, _html} = live(conn, "/stake")
 
     view
+  end
+
+  # The Stake page as someone who may send a transaction sees it: signed in, with
+  # the browser's active wallet being the one that sign-in names.
+  defp stake_as_signer(conn, suffix) do
+    seed_snapshot()
+    conn |> signed_in_stake(suffix) |> activate(@wallet)
+  end
+
+  # Every control that ends in a wallet request answers with the same refusal,
+  # and the page carries nothing a transaction could be built from.
+  # With nobody signed in, every control that would end in a wallet request is
+  # the Privy sign-in instead, and the page carries nothing a transaction could
+  # be built from.
+  defp assert_offers_sign_in(view) do
+    refute has_element?(view, "#regent-staking[data-staking-signer]")
+    refute has_element?(view, "#regent-staking[data-staking-allowance]")
+    refute has_element?(view, "button[data-staking-action]")
+
+    for label <- ["Stake REGENT" | @claim_controls] do
+      assert has_element?(view, sign_in_control(), label)
+    end
+
+    view |> element(~s|.stake-mode button[phx-value-mode="unstake"]|) |> render_click()
+    assert has_element?(view, sign_in_control(), "Unstake REGENT")
+    view |> element(~s|.stake-mode button[phx-value-mode="stake"]|) |> render_click()
+  end
+
+  defp sign_in_control,
+    do: ~s|#regent-staking button[data-account-target="sign-in"]:not([data-staking-action])|
+
+  defp assert_refuses_every_action(view, refusal) do
+    refute has_element?(view, "#regent-staking[data-staking-signer]")
+    refute has_element?(view, "#regent-staking[data-staking-allowance]")
+    refute has_element?(view, "button[data-staking-action]")
+
+    for label <- ["Stake REGENT" | @claim_controls] do
+      view |> element("#regent-staking button", label) |> render_click()
+      assert render(view) =~ refusal
+    end
+
+    view |> element(~s|.stake-mode button[phx-value-mode="unstake"]|) |> render_click()
+    view |> element("#regent-staking button", "Unstake REGENT") |> render_click()
+    assert render(view) =~ refusal
+
+    view |> element(~s|.stake-mode button[phx-value-mode="stake"]|) |> render_click()
   end
 
   defp signed_in_stake(conn, suffix) do

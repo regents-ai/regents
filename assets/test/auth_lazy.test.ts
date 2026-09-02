@@ -19,6 +19,12 @@ import {
   createAccountRequestHandler,
   createProviderSessionReconciler,
 } from "../js/privy_bridge"
+import {
+  connectedEthereumWallet,
+  replaceConnectedEthereumWallets,
+  walletDisconnected,
+  type EthereumProvider,
+} from "../js/wallet_actions/connected_wallet"
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -707,6 +713,105 @@ describe("lazy browser authentication", () => {
     expect(clearSession).toHaveBeenCalledOnce()
     expect(reload).toHaveBeenCalledOnce()
     expect(importer).not.toHaveBeenCalled()
+  })
+
+  // Disconnect is one command: the Regent session goes, every wallet Privy holds
+  // is released and asked to drop the site, this page is disconnected for good,
+  // and the document that replaces it finishes the provider sign out.
+  it("ends the session, releases every wallet, and hands the provider sign out on", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    vi.stubGlobal("window", {
+      location: {origin: "https://regents.sh"},
+      localStorage: memoryStorage(),
+    })
+
+    const order: string[] = []
+    const page = accountDocument()
+    page.documentRoot.addEventListener("ash:wallet-state", () => void order.push("wallet-state"))
+
+    const storage = memoryStorage()
+    const setItem = storage.setItem.getMockImplementation()!
+    storage.setItem.mockImplementation((key, value) => {
+      order.push("handoff")
+      setItem(key, value)
+    })
+    const clearSession = vi.fn(async () => void order.push("local"))
+    const reload = vi.fn(() => void order.push("reload"))
+
+    const wallet = (name: string): [string, {provider: EthereumProvider; disconnect: () => void}] => {
+      const provider: EthereumProvider = {
+        request: vi.fn(async () => {
+          order.push(`revoke:${name}`)
+          // The second wallet app has never heard of the request and says so.
+          if (name === "second") throw new Error("Unsupported method")
+          return undefined
+        }),
+      }
+
+      return [
+        `0x${name === "first" ? "1" : "2"}`.padEnd(42, name === "first" ? "1" : "2"),
+        {provider, disconnect: vi.fn(() => void order.push(`disconnect:${name}`))},
+      ]
+    }
+
+    const first = wallet("first")
+    const second = wallet("second")
+    replaceConnectedEthereumWallets([first, second])
+
+    installAccountAuthLazyLoader(page.documentRoot, vi.fn<() => Promise<PrivyBridgeModule>>(), {
+      clearSession,
+      handoffStorage: storage,
+      now: () => 1_000,
+      reload,
+      sessionMutations: createSessionMutationCoordinator(),
+    })
+    page.click("sign-out")
+
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    expect(order).toEqual([
+      "handoff",
+      "local",
+      "wallet-state",
+      "disconnect:first",
+      "revoke:first",
+      "disconnect:second",
+      "revoke:second",
+      "reload",
+    ])
+
+    for (const [, held] of [first, second]) {
+      expect(held.disconnect).toHaveBeenCalledOnce()
+    }
+
+    for (const [, held] of [first, second]) {
+      expect(held.provider.request).toHaveBeenCalledWith({
+        method: "wallet_revokePermissions",
+        params: [{eth_accounts: {}}],
+      })
+    }
+
+    // Nothing on this page is a wallet any more, and nothing will be until the
+    // visitor asks for one again.
+    expect(connectedEthereumWallet()).toBeNull()
+    expect(connectedEthereumWallet(first[0])).toBeNull()
+    expect(walletDisconnected()).toBe(true)
+
+    // The document that replaces this one carries the provider sign out.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({authenticated: false}), {status: 200})),
+    )
+    const request = vi.fn(async () => undefined)
+    const importer = vi.fn(async () => ({
+      startPrivyBridge: vi.fn(async () => ({request, finishSignOutOnly: vi.fn()})),
+    }))
+
+    installAccountAuthLazyLoader(accountDocument().documentRoot, importer, {
+      handoffStorage: storage,
+      now: () => 1_001,
+    })
+
+    await vi.waitFor(() => expect(request).toHaveBeenCalledWith("sign-out"))
   })
 
   it("reloads once when provider reconciliation and explicit sign out share a held deletion", async () => {

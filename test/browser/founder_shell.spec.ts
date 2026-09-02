@@ -363,7 +363,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await account.locator("summary").first().click()
   await expect(account.getByRole("link", {name: "Profile"})).toHaveCount(0)
   await expect(account.getByRole("link", {name: "Settings"})).toBeVisible()
-  await expect(account.getByRole("button", {name: "Log Out"})).toBeVisible()
+  await expect(account.getByRole("button", {name: "Disconnect"})).toBeVisible()
 
   await account.getByRole("link", {name: "Settings"}).click()
   await expect(page).toHaveURL(/\/settings$/)

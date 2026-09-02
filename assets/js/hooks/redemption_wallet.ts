@@ -111,11 +111,6 @@ export const RedemptionWallet: Hook = {
 
     state.click = event => {
       const target = event.target as HTMLElement | null
-      if (target?.closest("[data-redeem-connect]")) {
-        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
-        return
-      }
-
       if (target === state.dialog) {
         state.dialog.close()
         return
@@ -252,11 +247,17 @@ export const RedemptionWallet: Hook = {
     })
 
     this.handleEvent("redemption:wallet-refusal", payload => {
-      const attemptId = (payload as {attempt_id?: unknown}).attempt_id
+      const {attempt_id: attemptId, sign_in: signIn} = payload as {
+        attempt_id?: unknown
+        sign_in?: unknown
+      }
       if (typeof attemptId === "string") {
         state.initiators.delete(attemptId)
         state.preparingAttemptId = null
       }
+      // A step the server will not prepare without a sign-in becomes the sign-in
+      // itself; the visitor chooses the step again once they are signed in.
+      if (signIn === true) signInControl(this.el)?.click()
     })
 
     this.handleEvent("redemption:transaction-result", payload => {
@@ -515,6 +516,12 @@ function takeInitiator(
     candidate.provider === state.wallet?.provider
   ) return candidate
   return null
+}
+
+// The sign-in the page can offer: the header's control, or a step that has become
+// one while nobody is signed in.
+function signInControl(root: HTMLElement): HTMLElement | null {
+  return root.ownerDocument.querySelector<HTMLElement>("[data-account-target='sign-in']")
 }
 
 function restoreFocus(root: HTMLElement, initiator: HTMLElement): void {

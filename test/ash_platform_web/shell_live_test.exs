@@ -119,7 +119,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(
              view,
              "#account-control button[type=button][data-account-target=sign-out]",
-             "Log Out"
+             "Disconnect"
            )
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
@@ -141,7 +141,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
       |> live("/app")
 
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
-    refute has_element?(view, "#account-control [data-account-target=sign-out]", "Log Out")
+    refute has_element?(view, "#account-control [data-account-target=sign-out]", "Disconnect")
   end
 
   test "signed-in account presentation survives an in-shell patch", %{conn: conn} do
@@ -163,7 +163,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222…2222")
-    assert has_element?(view, "#account-control [data-account-target=sign-out]", "Log Out")
+    assert has_element?(view, "#account-control [data-account-target=sign-out]", "Disconnect")
   end
 
   test "account control renders Profile only for a server-supplied canonical path" do
@@ -184,7 +184,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert html =~ ~s(href="/settings")
     assert html =~ ~s(data-account-menu-item="settings")
     assert html =~ ~r/>\s*Settings\s*<\/span>/
-    assert html =~ "Log Out"
+    assert html =~ "Disconnect"
     refute html =~ "Sign Out"
   end
 

@@ -1,8 +1,21 @@
 import {expect, test, type Locator, type Page} from "@playwright/test"
 
+import {identityTokenFor} from "./support/authenticated_privy"
+
 const wallet = "0x1111111111111111111111111111111111111111"
+const otherWallet = "0x2222222222222222222222222222222222222222"
 const sendsKey = "regent:test:redemption-wallet-sends"
 const revertedHash = `0x${"f".repeat(64)}`
+const disconnectedKey = "regent:wallet-disconnected:v1"
+// The sign-in this page's redemption bearer names is the wallet above.
+const redemptionBearer = "valid-redemption"
+const bridgePattern =
+  /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
+const bridgeStub = `
+export async function startPrivyBridge() {
+  return {async request() {}}
+}
+`
 
 test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
   await page.setViewportSize({width: 320, height: 720})
@@ -10,6 +23,12 @@ test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
   await page.goto("/redeem")
 
   await expect(page.getByRole("heading", {name: "Redeem your Animata."})).toBeVisible()
+
+  // Connecting a wallet here is the Privy sign-in, the same one the header runs.
+  await expect(page.getByRole("button", {name: "Connect wallet to redeem"})).toHaveAttribute(
+    "data-account-target",
+    "sign-in",
+  )
 
   for (const [name, href] of [
     ["Animata I", "https://opensea.io/collection/animata"],
@@ -41,10 +60,11 @@ test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
 
 test("Redeem sends each click and presents successful results in click order", async ({page}) => {
   await installWallet(page)
+  await signIn(page)
 
   await page.goto("/redeem")
   await expect(page.getByRole("heading", {name: "Redeem your Animata."})).toBeVisible()
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await expect(page.locator("#account-menu")).toBeVisible()
   await expect(page.getByLabel("Collection", {exact: true})).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
 
@@ -99,7 +119,7 @@ test("Redeem sends each click and presents successful results in click order", a
   expect(await page.evaluate(() => sessionStorage.getItem("regent:redemption:submitted"))).toBeNull()
 
   await page.reload()
-  await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
+  await expect(page.locator("#account-menu")).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
   expect(await sendCount(page)).toBe(3)
 })
@@ -108,6 +128,7 @@ test("Redeem sends each click and presents successful results in click order", a
 // connected wallet and a selected token. Nothing else withholds one.
 test("Redeem offers its step controls only once a token is selected", async ({page}) => {
   await installWallet(page)
+  await signIn(page)
   await page.goto("/redeem")
 
   const controls = page.locator(".redeem-next-step button")
@@ -130,6 +151,7 @@ test("Redeem offers its step controls only once a token is selected", async ({pa
 test("Redeem refresh retains the current snapshot and scroll position", async ({page}) => {
   await page.setViewportSize({width: 390, height: 600})
   await installWallet(page)
+  await signIn(page)
 
   await page.goto("/redeem")
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
@@ -176,6 +198,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
 
 test("Redeem keeps submitted results when the active wallet changes", async ({page}) => {
   await installWallet(page)
+  await signIn(page)
 
   await page.goto("/redeem")
   await page.getByLabel("Token ID").fill("42")
@@ -206,6 +229,7 @@ test("Redeem keeps submitted results when the active wallet changes", async ({pa
 
 test("Redeem distinguishes an unknown submission from a canonical revert", async ({page}) => {
   await installWallet(page)
+  await signIn(page)
   await page.goto("/redeem")
   await page.getByLabel("Token ID").fill("42")
 
@@ -232,6 +256,94 @@ test("Redeem distinguishes an unknown submission from a canonical revert", async
     `https://basescan.org/tx/${revertedHash}`,
   )
 })
+
+// A sign-in stays fixed to the account it was made with. No step of a
+// redemption can be prepared for a wallet the header does not name.
+test("Redeem refuses every step while the sign-in and the active wallet differ", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  await page.goto("/redeem")
+  await selectWallet(page, otherWallet)
+  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", otherWallet)
+
+  // Reading this wallet still works while nothing may be sent from it.
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
+
+  await page.getByLabel("Token ID").fill("42")
+  await page.locator(".redeem-next-step button").click()
+  await expect(page.locator(".redeem-notice")).toHaveText(
+    "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222.",
+  )
+  expect(await sendCount(page)).toBe(0)
+
+  // Connecting again with the wallet the sign-in names restores every step.
+  await selectWallet(page, wallet)
+  await page.getByLabel("Token ID").fill("42")
+  await page.locator(".redeem-next-step button").click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+})
+
+// Disconnect ends the wallet connection, and it stays ended across reloads
+// while the browser wallet still reports the same account.
+test("Disconnect leaves Redeem unconnected, and a reload keeps it that way", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  await page.goto("/redeem")
+  await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
+
+  await page.locator("#account-menu summary").click()
+  await page.getByRole("button", {name: "Disconnect"}).click()
+
+  await expectDisconnected(page)
+  expect(await page.evaluate(key => localStorage.getItem(key), disconnectedKey)).toBe("true")
+
+  // The wallet app still reports the same account to this page, and it is still
+  // not this page's wallet.
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & {__ashPlatformTestWallet?: {address: string}})
+          .__ashPlatformTestWallet?.address,
+    ),
+  ).toBe(wallet)
+
+  await page.reload()
+  await expectDisconnected(page)
+})
+
+async function expectDisconnected(page: Page): Promise<void> {
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  await expect(page.getByRole("button", {name: "Connect wallet to redeem"})).toHaveAttribute(
+    "data-account-target",
+    "sign-in",
+  )
+  await expect(page.locator(".redeem-signer")).toHaveCount(0)
+  await expect(page.locator("#redemption-selection")).toHaveCount(0)
+}
+
+// A signed-in document asks for the Privy bridge on load. These acceptance
+// runs answer with a bridge that does nothing, so the wallet under test stays
+// the deterministic one this file installs.
+async function signIn(page: Page): Promise<void> {
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
+  )
+
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const response = await page.request.post("/auth/privy/session", {
+    headers: {
+      authorization: `Bearer ${redemptionBearer}`,
+      "privy-id-token": identityTokenFor(redemptionBearer),
+      "x-csrf-token": csrfToken,
+    },
+    data: {},
+  })
+
+  expect(response.status()).toBe(200)
+}
 
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(

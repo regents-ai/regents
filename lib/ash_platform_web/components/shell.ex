@@ -11,6 +11,16 @@ defmodule AshPlatformWeb.Components.Shell do
     ViewerProfileTarget
   }
 
+  @doc """
+  The short form every wallet address is named by on screen: its first four hex
+  digits and its last four, as the header pill and the Stake and Redeem wallet
+  pills all show them.
+  """
+  def short_wallet("0x" <> address) when byte_size(address) == 40,
+    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
+
+  def short_wallet(wallet), do: wallet
+
   attr(:route_spec, :map, required: true)
   attr(:app_targets, :list, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
@@ -131,11 +141,11 @@ defmodule AshPlatformWeb.Components.Shell do
               <button
                 type="button"
                 class="account-menu__row account-menu__row--danger"
-                data-account-menu-item="log-out"
+                data-account-menu-item="disconnect"
                 data-account-target="sign-out"
               >
                 <.account_menu_icon name={:logout} />
-                <span>Log Out</span>
+                <span>Disconnect</span>
               </button>
             </div>
           </details>
