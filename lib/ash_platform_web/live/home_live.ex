@@ -11,6 +11,18 @@ defmodule AshPlatformWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <div id="public-home" class="rl-root" phx-hook="HomeHero">
+      <%!-- The field of squares behind the page. Like the hero crown, the browser owns
+            everything inside this boundary, and the page is complete without it. --%>
+      <div
+        id="home-field"
+        class="rl-home-field"
+        phx-hook="HomeField"
+        phx-update="ignore"
+        aria-hidden="true"
+      >
+        <canvas data-home-field-canvas></canvas>
+      </div>
+
       <.landing_header />
 
       <main>

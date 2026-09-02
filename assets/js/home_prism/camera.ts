@@ -25,6 +25,8 @@ const CAMERA_FIT_SAFETY = 1.005
 
 export interface CameraView {
   readonly camera: SceneCamera
+  /** Projection shifted in clip space without changing the physical view ray. */
+  readonly viewProjection: Float32Array
   readonly position: Vec3
   /** Orthonormal basis: where the camera looks, and the frame's axes. */
   readonly forward: Vec3
@@ -50,8 +52,9 @@ const normalize = (value: Vec3): Vec3 => {
 /**
  * The camera for a pointer position, both components in [-1, 1] with 0 at rest.
  *
- * It swings on a sphere around the origin and keeps looking at it, so the prism
- * crown stays put in the frame while its studio reflections shift across the glass.
+ * It swings on a sphere around the origin and keeps looking at it. A clip-space
+ * offset composes the crown in the right-hand field on wide screens without
+ * changing the physical view ray that creates its reflections.
  */
 export function cameraView(aspect: number, orbitX = 0, orbitY = 0): CameraView {
   const distance = crownCameraDistance(aspect)
@@ -65,17 +68,22 @@ export function cameraView(aspect: number, orbitX = 0, orbitY = 0): CameraView {
   ]
   const forward = normalize([-position[0], -position[1], -position[2]])
   const right = normalize(cross(forward, [0, 1, 0]))
+  const camera = perspectiveCamera({
+    fov: CAMERA_FOV_DEGREES,
+    aspect,
+    // The whole scene sits between the wall at z = 0 and the glass in front of it,
+    // so the depth range only has to bracket a couple of units.
+    near: 0.05,
+    far: 4 * distance,
+    position,
+    target: [0, 0, 0],
+  })
   return {
-    camera: perspectiveCamera({
-      fov: CAMERA_FOV_DEGREES,
-      aspect,
-      // The whole scene sits between the wall at z = 0 and the glass in front of it,
-      // so the depth range only has to bracket a couple of units.
-      near: 0.05,
-      far: 4 * distance,
-      position,
-      target: [0, 0, 0],
-    }),
+    camera,
+    viewProjection: shiftedViewProjection(
+      camera.viewProjection,
+      crownFrameOffsetNdc(aspect, camera.viewProjection),
+    ),
     position,
     forward,
     right,
@@ -121,6 +129,50 @@ export function crownCameraDistance(aspect: number): number {
   }
 
   return Math.max(CAMERA_DISTANCE, required * CAMERA_FIT_SAFETY)
+}
+
+/** Keeps narrow layouts low and centred, then composes wide layouts at 70%. */
+export function crownFrameOffsetNdc(
+  aspect: number,
+  centeredViewProjection?: Float32Array,
+): readonly [number, number] {
+  const landscapeProgress = clamp((aspect - 1.35) / 0.2, 0, 1)
+  const narrowProgress = clamp((1.45 - aspect) / 0.6, 0, 1)
+  const desiredX = 0.46 * landscapeProgress
+  const desiredY = -0.55 * narrowProgress
+  if (!centeredViewProjection) return [desiredX, desiredY]
+
+  const bounds = projectedCrownBounds(centeredViewProjection)
+  const usableNdc = 1 - CROWN_FRAME_MARGIN * 2
+  return [
+    Math.min(desiredX, usableNdc - bounds.maxX),
+    Math.max(desiredY, -usableNdc - bounds.minY),
+  ]
+}
+
+function projectedCrownBounds(matrix: Float32Array) {
+  let minY = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  for (const [x, y, z] of CROWN_AABB_CORNERS) {
+    const clipX = matrix[0]! * x + matrix[4]! * y + matrix[8]! * z + matrix[12]!
+    const clipY = matrix[1]! * x + matrix[5]! * y + matrix[9]! * z + matrix[13]!
+    const clipW = matrix[3]! * x + matrix[7]! * y + matrix[11]! * z + matrix[15]!
+    maxX = Math.max(maxX, clipX / clipW)
+    minY = Math.min(minY, clipY / clipW)
+  }
+  return {maxX, minY}
+}
+
+function shiftedViewProjection(
+  matrix: Float32Array,
+  [offsetX, offsetY]: readonly [number, number],
+): Float32Array {
+  const shifted = new Float32Array(matrix)
+  for (let column = 0; column < 4; column++) {
+    shifted[column * 4] += offsetX * matrix[column * 4 + 3]!
+    shifted[column * 4 + 1] += offsetY * matrix[column * 4 + 3]!
+  }
+  return shifted
 }
 
 const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]

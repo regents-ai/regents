@@ -279,10 +279,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute html =~ "customers"
   end
 
-  # The hero art is the picture the server promises. The prism is one decorative canvas
-  # the browser may put in front of it, and nothing else: it carries no copy, takes no
-  # focus, sends nothing back, and cannot come between a visitor and an action.
-  test "the hero art carries one inert, client-owned decoration", %{conn: conn} do
+  # The hero art is the picture the server promises. The crown and the field of squares
+  # are two decorative canvases the browser may put behind it, and nothing else: they
+  # carry no copy, take no focus, send nothing back, and cannot come between a visitor
+  # and an action.
+  test "the page carries two inert, client-owned decorations", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(
@@ -290,13 +291,28 @@ defmodule AshPlatformWeb.HomeLiveTest do
              ~s(.rl-hero > #home-prism.rl-hero-prism[phx-hook="HomePrism"][phx-update="ignore"][aria-hidden="true"])
            )
 
+    assert has_element?(
+             view,
+             ~s(#public-home > #home-field.rl-home-field[phx-hook="HomeField"][phx-update="ignore"][aria-hidden="true"])
+           )
+
+    assert has_element?(view, ~s(.rl-hero > .rl-hero-copy[data-home-hero-copy] h1#home-title))
+
     assert attribute(html, "#home-prism canvas", "data-home-prism-canvas") == [""]
-    assert attribute(html, "#home-prism canvas", "tabindex") == []
-    assert texts(html, "#home-prism") == [""]
-    assert attribute(html, "#home-prism a, #home-prism button", "id") == []
+    assert attribute(html, "#home-field canvas", "data-home-field-canvas") == [""]
+
+    for island <- ~w(#home-prism #home-field) do
+      assert attribute(html, "#{island} canvas", "tabindex") == []
+      assert texts(html, island) == [""]
+      assert attribute(html, "#{island} a, #{island} button", "id") == []
+    end
 
     for reactive <- ~w(phx-click phx-change phx-submit phx-value data-prism-ready) do
       assert attribute(html, "#home-prism", reactive) == []
+    end
+
+    for reactive <- ~w(phx-click phx-change phx-submit phx-value data-field-ready) do
+      assert attribute(html, "#home-field", reactive) == []
     end
   end
 

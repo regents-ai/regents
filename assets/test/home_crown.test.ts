@@ -16,7 +16,7 @@ vi.mock("vgpu", () => ({
   effect: vi.fn(() => ({compile: vi.fn(), set: vi.fn()})),
   frame: vi.fn(),
   geometry: vi.fn((_gpu: unknown, options: Record<string, unknown>) => {
-    const value = {options, destroy: vi.fn()}
+    const value = {options, destroy: vi.fn(), write: vi.fn()}
     gpuCalls.geometries.push(value)
     return value
   }),
@@ -35,6 +35,11 @@ import {
   rotationMatrix,
 } from "../js/home_prism/camera"
 import {
+  CROWN_LIGHT_VERTEX_CAPACITY,
+  CROWN_LIGHT_VERTEX_FLOATS,
+  crownLightMeshData,
+} from "../js/home_prism/crown-light"
+import {
   CROWN_VERTEX_FLOATS,
   crownMeshData,
 } from "../js/home_prism/crown-mesh"
@@ -44,12 +49,14 @@ import {
   CAMERA_ORBIT_LERP,
   CROWN_AABB_CORNERS,
   CROWN_BACK_Z,
+  CROWN_BEAM,
   CROWN_CELL_CENTERS,
   CROWN_CELL_COUNT,
   CROWN_FRONT_Z,
   CROWN_GLASS,
   CROWN_GRID,
   CROWN_HALF_SIZE,
+  type Vec2,
   type Vec3,
 } from "../js/home_prism/crown-types"
 import {createScene, destroyScene} from "../js/home_prism/scene"
@@ -218,77 +225,106 @@ describe("Regents crown scene ownership", () => {
     gpuCalls.geometries.length = 0
   })
 
-  it("uses exactly one indexed crown geometry for both glass draws", () => {
+  it("uses one indexed crown for both glass draws and one sheet for the lasers", () => {
     const scene = createScene({} as never, [390, 844], "crown-test")
-    expect(gpuCalls.geometries).toHaveLength(1)
+    expect(gpuCalls.geometries).toHaveLength(2)
     const glassDraws = gpuCalls.draws.filter(draw =>
       ["crown-test.glass-back", "crown-test.glass-front"].includes(draw.label as string),
     )
     expect(glassDraws).toHaveLength(2)
     expect(glassDraws[0]!.geometry).toBe(scene.crown)
     expect(glassDraws[1]!.geometry).toBe(scene.crown)
-    expect(gpuCalls.draws.map(draw => draw.label)).not.toContain("crown-test.light")
+
+    const light = gpuCalls.draws.find(draw => draw.label === "crown-test.light")!
+    expect(light.geometry).toBe(scene.lightSheet)
+    // The beams add their light to the picture; they occlude nothing and are not solid.
+    expect(light.blend).toBe("additive")
+    expect(light.cull).toBe("none")
+    expect(light.depth).toBe(false)
     expect(gpuCalls.draws.some(draw => String(draw.label).includes("wireframe"))).toBe(false)
 
     destroyScene(scene)
     expect(scene.crown.destroy).toHaveBeenCalledTimes(1)
+    expect(scene.lightSheet.destroy).toHaveBeenCalledTimes(1)
   })
 
-  it("aims the fixed studio key at the crown's front faces", () => {
+  it("keeps the studio key grazing the crown's flat front faces", () => {
     const rotation = rotationMatrix(CROWN_GLASS.environmentRotation)
     const reflectedFront: Vec3 = [rotation[8]!, rotation[9]!, rotation[10]!]
-    const studioKey = [0.612, 0.354, 0.707] as const
-    expect(dot(reflectedFront, studioKey)).toBeGreaterThan(0.995)
-    expect(CROWN_GLASS.environmentExposure).toBe(0.8)
-    expect(CROWN_GLASS.iridescenceStrength).toBe(0.02)
+    // A camera on the axis reflects off the flat faces straight back down +z. The
+    // environment is turned across that line, so its key grazes instead of glaring.
+    const graze = (Math.acos(dot(reflectedFront, [0, 0, 1])) * 180) / Math.PI
+    expect(graze).toBeCloseTo(28, 4)
+    expect(reflectedFront[1]).toBeCloseTo(0, 12)
+    // The film of colour on the faces stays faint: the beams carry the colour.
+    expect(CROWN_GLASS.iridescenceStrength).toBeLessThan(0.05)
+    // Near-neutral absorption: the cubes read as smoked glass, not as a colour.
+    expect(Math.max(...CROWN_GLASS.absorption) - Math.min(...CROWN_GLASS.absorption)).toBeLessThan(
+      0.1,
+    )
+  })
+})
+
+describe("Regents crown lasers", () => {
+  const beams = (aim: Vec2 = [0, 0], aspect = 16 / 9) => {
+    const mesh = crownLightMeshData(aim, aspect)
+    const vertices = []
+    for (let index = 0; index < mesh.activeVertexCount; index += 1) {
+      const offset = index * CROWN_LIGHT_VERTEX_FLOATS
+      vertices.push({
+        color: [
+          mesh.vertices[offset + 2]!,
+          mesh.vertices[offset + 3]!,
+          mesh.vertices[offset + 4]!,
+        ] as Vec3,
+        intensity: mesh.vertices[offset + 5]!,
+        profile: mesh.vertices[offset + 6]!,
+      })
+    }
+    return {mesh, vertices}
+  }
+
+  it("sends one white beam into each row of cubes", () => {
+    const {mesh, vertices} = beams()
+    // The middle row carries the shot at full strength; the outer two support it.
+    // The vertex buffer holds single-precision floats, so the strengths it was
+    // handed come back rounded to them.
+    const strength = (value: number) => Math.fround(value)
+    const entering = vertices.filter(
+      vertex =>
+        vertex.intensity === strength(CROWN_BEAM.inputIntensity) ||
+        vertex.intensity === strength(CROWN_BEAM.inputIntensity * 0.64),
+    )
+    expect(entering).toHaveLength(18)
+    expect(entering.every(vertex => vertex.color.every(channel => channel === 1))).toBe(true)
+    expect(new Set(entering.map(vertex => vertex.intensity)).size).toBe(2)
+    expect(mesh.hitCellCount).toBeGreaterThanOrEqual(3)
   })
 
-  it("keeps triangle tracer, light, and wireframe modules outside the live closure", () => {
-    const entry = new URL("../js/home_prism/index.ts", import.meta.url)
-    const closure = new Set<string>()
-    const visit = (file: URL) => {
-      if (closure.has(file.href)) return
-      closure.add(file.href)
-      const source = readText(file)
-      for (const match of source.matchAll(/(?:from\s+|import\s*\()["'](\.[^"']+)["']/g)) {
-        const base = new URL(match[1]!, file)
-        const imported = [base, new URL(`${base.href}.ts`), new URL(`${base.href}/index.ts`)].find(
-          candidate => {
-            try {
-              readFileSync(candidate)
-              return true
-            } catch {
-              return false
-            }
-          },
-        )
-        if (imported) visit(imported)
+  it("leaves the glass with the colour the white light was carrying", () => {
+    const {vertices} = beams()
+    const spread = (color: Vec3) => Math.max(...color) - Math.min(...color)
+    expect(vertices.some(vertex => spread(vertex.color) > 0.2)).toBe(true)
+  })
+
+  it("moves with the aim and stays inside its fixed vertex budget", () => {
+    const rest = crownLightMeshData([0, 0], 16 / 9)
+    const swung = crownLightMeshData([1, 1], 16 / 9)
+    expect(swung.vertices).not.toEqual(rest.vertices)
+
+    for (const aspect of [0.6, 1.22, 1.78, 3.2]) {
+      for (const aim of [
+        [-1, -1],
+        [0, 0],
+        [1, 1],
+      ] as Vec2[]) {
+        const mesh = crownLightMeshData(aim, aspect)
+        expect(mesh.vertexCount).toBe(CROWN_LIGHT_VERTEX_CAPACITY)
+        expect(mesh.activeVertexCount).toBeLessThanOrEqual(CROWN_LIGHT_VERTEX_CAPACITY)
+        expect(mesh.activeVertexCount % 6).toBe(0)
+        expect(mesh.segmentCount).toBe(mesh.activeVertexCount / 6)
+        expect([...mesh.vertices].every(Number.isFinite)).toBe(true)
       }
-    }
-    visit(entry)
-
-    for (const forbidden of [
-      "/assets/js/home_prism/light-mesh.ts",
-      "/assets/js/home_prism/optics.ts",
-      "/assets/js/home_prism/prism-mesh.ts",
-      "/assets/js/home_prism/shaders/light.ts",
-      "/assets/js/home_prism/shaders/glass.ts",
-      "/assets/js/home_prism/shaders/glass-back.ts",
-      "/assets/js/home_prism/types.ts",
-    ]) {
-      expect([...closure].some(file => file.endsWith(forbidden))).toBe(false)
-    }
-
-    const liveSource = [...closure].map(file => readText(new URL(file))).join("\n")
-    for (const forbidden of [
-      "buildLightMesh",
-      "tracePrismDetailed",
-      "setLampAim",
-      "lightBuffer",
-      "crownWireframeGeometry",
-      "uniqueWireframeIndices",
-    ]) {
-      expect(liveSource).not.toContain(forbidden)
     }
   })
 })

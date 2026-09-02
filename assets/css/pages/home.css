@@ -14,6 +14,7 @@
   --rl-max: 88rem;
   --rl-quiet: 0.88rem;
 
+  isolation: isolate;
   min-height: 100vh;
   background: var(--rl-bg);
   color: var(--rl-ink);
@@ -59,6 +60,28 @@
 
 .rl-root [id] {
   scroll-margin-block-start: 8rem;
+}
+
+/* The field of squares behind the whole page. It stays with the viewport rather
+   than the document, so the page reads as content moving across one still ground. */
+.rl-home-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms ease-out;
+}
+
+.rl-home-field[data-field-ready="true"] {
+  opacity: 1;
+}
+
+.rl-home-field canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .rl-header {
@@ -151,7 +174,9 @@
   position: relative;
   isolation: isolate;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
   grid-template-rows: 1fr auto;
+  column-gap: clamp(3rem, 7vw, 7rem);
   min-height: min(52rem, calc(100svh - 4rem));
   padding: clamp(3rem, 8vw, 7.5rem) max(1rem, calc((100vw - var(--rl-max)) / 2));
   overflow: hidden;
@@ -177,8 +202,11 @@
 }
 
 /* The prism is inert — the hero reads hover for it, and every action stays clickable
-   through it. */
+   through it. Its stage is the first screenful of the hero, so the crown is framed the
+   same way on every window and never reaches down behind the product cards. */
 .rl-hero-prism {
+  bottom: auto;
+  height: min(100%, calc(100svh - 4rem));
   z-index: -2;
   pointer-events: none;
   opacity: 0;
@@ -198,13 +226,13 @@
 .rl-hero-scrim {
   z-index: -1;
   background:
-    linear-gradient(90deg, color-mix(in oklch, var(--rl-bg) 96%, transparent), transparent 72%),
-    linear-gradient(0deg, var(--rl-bg), transparent 48%);
+    linear-gradient(90deg, color-mix(in oklch, var(--rl-bg) 92%, transparent), transparent 52%),
+    linear-gradient(0deg, var(--rl-bg), transparent 28%);
 }
 
 .rl-hero-copy {
   align-self: center;
-  max-width: 57rem;
+  max-width: 38rem;
   padding-inline: clamp(1rem, 3vw, 2.5rem);
 }
 
@@ -220,7 +248,7 @@
 .rl-hero-copy h1 {
   max-width: 17ch;
   margin-block: 1rem 1.25rem;
-  font-size: clamp(2.7rem, 7vw, 6.8rem);
+  font-size: clamp(2.7rem, 4.6vw, 4.75rem);
   line-height: 0.93;
   letter-spacing: -0.035em;
   text-wrap: balance;
@@ -270,6 +298,7 @@
 }
 
 .rl-hero-cards {
+  grid-column: 1 / -1;
   align-self: end;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -626,21 +655,78 @@
   }
 }
 
+@media (max-width: 60rem) {
+  /* Not enough width for two readable columns: the copy takes the hero back, and the
+     crown composes itself behind it as it did before there was a second column. */
+  .rl-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 44rem) {
   .rl-brand span {
     display: none;
   }
 
+  /* One column in reading order: the sentences, the crown, then the way in. The copy
+     hands its own parts to that stack so the crown can stand in the middle of it. */
   .rl-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     min-height: auto;
     padding-block-start: 4rem;
   }
 
+  .rl-hero-copy {
+    display: contents;
+  }
+
+  .rl-hero-copy > .rl-overline {
+    order: 1;
+  }
+
   .rl-hero-copy h1 {
+    order: 2;
     font-size: clamp(2.5rem, 14vw, 4.25rem);
   }
 
+  .rl-hero-copy > p:last-of-type {
+    order: 3;
+  }
+
+  /* The crown takes a band of its own, and the scrim drops behind it: there is no copy
+     over the crown here to keep legible. */
+  .rl-hero-prism {
+    position: relative;
+    inset: auto;
+    z-index: -1;
+    order: 4;
+    width: auto;
+    height: clamp(17rem, 82vw, 22rem);
+    margin-block: 1.75rem 1rem;
+    margin-inline: calc(-1 * max(1rem, (100vw - var(--rl-max)) / 2));
+    overflow: hidden;
+  }
+
+  /* The camera leaves a margin the crown does not need on a phone, so the band is
+     zoomed until the crown nearly fills it. */
+  .rl-hero-prism canvas {
+    transform: scale(1.28);
+    transform-origin: center;
+  }
+
+  .rl-hero-scrim {
+    z-index: -2;
+  }
+
+  .rl-hero-actions {
+    order: 5;
+  }
+
   .rl-hero-cards {
+    order: 6;
+    align-self: stretch;
     grid-template-columns: minmax(0, 1fr);
   }
 

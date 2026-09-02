@@ -1,17 +1,13 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import type {PrismRenderer} from "../js/home_prism"
-import {
-  EASING_FRAME_LIMIT,
-  MAX_DEVICE_PIXEL_RATIO,
-  MAX_DRAWING_BUFFER_PIXELS,
-  createHomePrismController,
-  drawingBufferSize,
-} from "../js/hooks/home_prism"
+import {EASING_FRAME_LIMIT} from "../js/canvas_island"
+import {createHomePrismController} from "../js/hooks/home_prism"
 
 type Rect = {left: number; top: number; width: number; height: number}
 
 const HERO: Rect = {left: 0, top: 0, width: 1200, height: 800}
+const VIEWPORT_HEIGHT = 900
 
 const element = (rect: Rect) =>
   ({
@@ -42,19 +38,24 @@ const mediaQuery = (initial: boolean) => {
   return query
 }
 
-/** A page the test can really hide and show. */
+/** A page the test can really hide, show and scroll. */
 const pageDocument = () => {
-  const listeners = new Set<() => void>()
+  const listeners = new Map<string, Set<() => void>>()
+  const announce = (type: string) => listeners.get(type)?.forEach(listener => listener())
   const page = {
     hidden: false,
-    addEventListener: vi.fn((_type: string, listener: () => void) => void listeners.add(listener)),
+    addEventListener: vi.fn((type: string, listener: () => void) => {
+      const registered = listeners.get(type) ?? new Set<() => void>()
+      listeners.set(type, registered.add(listener))
+    }),
     removeEventListener: vi.fn(
-      (_type: string, listener: () => void) => void listeners.delete(listener),
+      (type: string, listener: () => void) => void listeners.get(type)?.delete(listener),
     ),
     hide(hidden: boolean) {
       page.hidden = hidden
-      listeners.forEach(listener => listener())
+      announce("visibilitychange")
     },
+    scroll: () => announce("scroll"),
   }
   return page
 }
@@ -131,11 +132,13 @@ const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0))
 
 const island = () => {
   const hero = element(HERO)
-  const canvas = element(HERO)
+  // The canvas travels with the page, so the test can move it under the viewport.
+  const canvasRect = {...HERO}
+  const canvas = element(canvasRect)
   const root = element(HERO)
   Object.defineProperty(root, "parentElement", {value: hero})
   root.querySelector = vi.fn(() => canvas) as unknown as typeof root.querySelector
-  return {canvas, hero, root}
+  return {canvas, canvasRect, hero, root}
 }
 
 const mount = (
@@ -161,6 +164,7 @@ const mount = (
     pointerQuery: () => mediaQuery(overrides.fine ?? true),
     requestFrame: frames.request,
     supportsWebGpu: () => overrides.supportsWebGpu ?? true,
+    viewportHeight: () => VIEWPORT_HEIGHT,
   })
   return {...nodes, controller, frames, loadRenderer, motion, renderer}
 }
@@ -496,12 +500,47 @@ describe("responding to the pointer", () => {
     expect(harness.frames.pending()).toBe(0)
   })
 
-  it("leaves a coarse pointer with the composed shot and no listeners", async () => {
+  // A tap is not a hover. On a touch screen the crown turns through the shot as the
+  // hero travels up the page instead of chasing a pointer that is not there.
+  it("aims the crown from the reading position when the pointer is coarse", async () => {
     const harness = mount({fine: false})
 
     await settleFirstFrame(harness)
 
     expect(harness.hero.addEventListener).not.toHaveBeenCalled()
+    // The visitor may arrive part-way down, so the first shot is composed for where
+    // the hero already is.
+    expect(harness.renderer.aim).toHaveBeenLastCalledWith(0.5, 900 / 1700)
+
+    harness.canvasRect.top = -400
+    page.scroll()
+    harness.frames.drain()
+
+    expect(harness.renderer.aim).toHaveBeenLastCalledWith(0.5, 1300 / 1700)
+    expect(harness.renderer.present).toHaveBeenCalled()
+  })
+
+  it("reads the page for a coarse pointer only, and stops when the island goes", async () => {
+    const fine = mount()
+    await settleFirstFrame(fine)
+    expect(vi.mocked(page.addEventListener).mock.calls.map(([type]) => type)).toEqual([
+      "visibilitychange",
+    ])
+
+    const coarse = mount({fine: false})
+    await settleFirstFrame(coarse)
+    expect(vi.mocked(page.addEventListener).mock.calls.map(([type]) => type)).toEqual([
+      "visibilitychange",
+      "visibilitychange",
+      "scroll",
+    ])
+
+    coarse.controller.destroy()
+
+    expect(vi.mocked(page.removeEventListener).mock.calls.map(([type]) => type)).toEqual([
+      "visibilitychange",
+      "scroll",
+    ])
   })
 })
 
@@ -642,37 +681,5 @@ describe("owning the island", () => {
     expect(replacement.present).toHaveBeenCalledTimes(1)
     expect(replacement.dispose).not.toHaveBeenCalled()
     expect(harness.frames.pending()).toBe(0)
-  })
-})
-
-// The visitor never asked for a 4K backing store behind a headline.
-describe("bounding the drawing buffer", () => {
-  it("never exceeds the device pixel ratio ceiling", () => {
-    expect(drawingBufferSize(400, 300, 3)).toEqual([
-      400 * MAX_DEVICE_PIXEL_RATIO,
-      300 * MAX_DEVICE_PIXEL_RATIO,
-    ])
-    expect(drawingBufferSize(400, 300, 0.5)).toEqual([400, 300])
-  })
-
-  it("never exceeds the pixel budget, at any shape", () => {
-    for (const [width, height] of [
-      [3840, 2160],
-      [2560, 1080],
-      [1200, 3000],
-      [1600, 900],
-      [390, 844],
-    ] as const) {
-      const [bufferWidth, bufferHeight] = drawingBufferSize(width, height, 3)
-
-      expect(bufferWidth * bufferHeight, `${width}x${height}`).toBeLessThanOrEqual(
-        MAX_DRAWING_BUFFER_PIXELS,
-      )
-      expect(bufferWidth / bufferHeight, `${width}x${height}`).toBeCloseTo(width / height, 1)
-    }
-  })
-
-  it("always produces a drawable size", () => {
-    expect(drawingBufferSize(0, 0, 1)).toEqual([1, 1])
   })
 })

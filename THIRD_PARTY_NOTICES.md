@@ -24,10 +24,17 @@ Pinned npm packages, exact versions, no ranges:
 
 ### What was taken
 
-Camera, optics, prism mesh, spectral light mesh, scene graph and the production
-shaders — `wall`, `light`, `glass`, `glass-back`, `glass-common`, `environment`,
+Camera, scene graph and the production shaders — `glass-common`, `environment`,
 `copy-linear`, `bloom`, `bloom-upsample`, `present` — together with the shared
 `scene` uniform block and `@vgpu/wgsl-std/color`.
+
+The laser sheet and the field of squares behind the page arrived by way of the
+Techtree platform, which adapted them from the same prism background: the CPU beam
+tracer in `assets/js/home_prism/crown-light.ts`, its additive sheet shader
+`assets/js/home_prism/shaders/crown-light.ts`, and the field composition in
+`assets/js/home_field/shader.ts`. The camera in `assets/js/home_prism/camera.ts`
+came from Techtree whole, so that the crown can be framed to one side of the page
+copy.
 
 The current visible solid is the Regents 3/5/5 crown. Its mesh and crown-specific
 front/back/common glass shaders were supplied in the standalone
@@ -46,6 +53,10 @@ prism example at the pinned commit above. Its exact source SHA-256 values were:
 | `crown-mesh.test.ts` | `b415cec1bf6f90f79d37ab4797556bb0c32d00d733d5d2981e4221a594638be7` |
 | `THIRD_PARTY_NOTICES.md` | `da6af60647c0f6601d64782e18cc682c6270b6e63e4e7e02fd41c83977340ec3` |
 
+`crown-types.ts` has since been adapted for the laser pass: it carries the beam and
+sheet constants and the retuned glass and bloom settings the three white lasers need.
+The digest above is the value the bundle arrived with.
+
 The versioned `environment.wgsl` remains the exact upstream file at the pinned
 commit and path above, SHA-256
 `382157376c95468a7a9ad1b5c50ba4d630aa3ec15589e7c86041b074d6f54d90`.
@@ -60,9 +71,10 @@ shader, the shader validation module, the wireframe and light-wireframe paths an
 shaders, the alternate wall/back-face/caustic view modes, the headless thumbnail and
 gallery renderer, and the upstream test suites.
 
-The old triangle tracer and spectral light sheet remain only as unimported source
-history. They are not allocated or bundled by the crown renderer; a crown-aware
-spectral tracer is intentionally deferred.
+The upstream triangle prism mesh, its spectral light sheet, the shared optics
+helpers and the `wall`, `light`, `glass` and `glass-back` shaders are gone. The
+crown has its own mesh, its own glass shaders and, now, its own beam tracer, so
+none of the triangle-era material was reachable.
 
 ### How the shaders got here
 

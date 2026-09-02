@@ -17,9 +17,10 @@ import {
   prepareScene,
   presentScene,
   resizeScene,
+  setLightAim,
   setOrbit,
 } from "./scene"
-import {CAMERA_ORBIT_LERP, type Vec2} from "./crown-types"
+import {CAMERA_ORBIT_LERP, quantizeCrownAim, type Vec2} from "./crown-types"
 
 export interface PrismRenderer {
   /** Pointer position inside the hero, both components normalized to [0, 1]. */
@@ -75,9 +76,10 @@ export async function createPrismRenderer(
 
   let orbitTarget = CANONICAL_ORBIT
   let orbitCurrent = CANONICAL_ORBIT
+  let lightApplied = CANONICAL_ORBIT
 
   return {
-    // Pointer motion is decorative and camera-only.
+    // Pointer motion is decorative: it turns the camera and swings the lasers.
     aim(x, y) {
       orbitTarget = [clampUnit(x) * 2 - 1, clampUnit(y) * 2 - 1]
     },
@@ -94,7 +96,15 @@ export async function createPrismRenderer(
         orbitCurrent = nextOrbit
         setOrbit(scene, nextOrbit[0], nextOrbit[1])
       }
-      return Boolean(nextOrbit)
+      // Every beam is retraced on the processor, so the lasers follow the eased
+      // camera in steps rather than at every fraction of it.
+      const nextLight = quantizeCrownAim(orbitCurrent)
+      const lightMoved = nextLight[0] !== lightApplied[0] || nextLight[1] !== lightApplied[1]
+      if (lightMoved) {
+        lightApplied = nextLight
+        setLightAim(scene, nextLight[0], nextLight[1])
+      }
+      return Boolean(nextOrbit) || lightMoved
     },
     present() {
       presentScene(scene, canvasSurface)

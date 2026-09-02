@@ -78,6 +78,8 @@ export const CAMERA_YAW_DEGREES = 0;
 export const CAMERA_PITCH_DEGREES = 0;
 export const CAMERA_ORBIT_DEGREES = 3.5;
 export const CAMERA_ORBIT_LERP = 0.08;
+/** The beams are rebuilt on the CPU, so their aim moves in visible steps only. */
+export const CROWN_AIM_QUANTIZATION_STEP = 1 / 64;
 
 export interface CrownGlassMaterial {
   readonly ior: number;
@@ -92,25 +94,71 @@ export interface CrownGlassMaterial {
 }
 
 /**
- * Reviewed prism material, with only the planned homepage-legibility tuning:
- * the existing studio key is aimed at the flat crown faces, its exposure is
- * restrained, and the spectral film is reduced to a neutral titanium edge.
+ * Reviewed prism material, tuned for the dark hero: the environment is turned
+ * to graze the flat crown faces, absorption is close to neutral so the cubes
+ * read as smoked glass rather than a colour, and the spectral film stays at the
+ * faint titanium edge.
  */
 export const CROWN_GLASS: CrownGlassMaterial = {
   ior: 1.244,
   reflectionStrength: 2.21,
-  absorption: [0.58, 0.685, 0.15],
+  absorption: [0.45, 0.48, 0.52],
   frostRadius: 0.3,
   dispersion: 0.015,
   iridescenceStrength: 0.02,
   iridescenceFrequency: 2,
-  environmentExposure: 0.8,
-  environmentRotation: [-22, 40, 0],
+  environmentExposure: 1.25,
+  environmentRotation: [0, -28, 0],
 };
 
-/** HDR operations carried forward unchanged from the reviewed prism renderer. */
+/** HDR operations: the beams and the lit glass edges bloom, the dark field does not. */
 export const CROWN_POSTPROCESS = {
-  bloomStrength: 0.6,
+  bloomStrength: 0.85,
   bloomThreshold: 0.45,
   bloomRadius: 1,
 } as const;
+
+/** Falloff of a beam across its width and along its path. */
+export const CROWN_LIGHT = {
+  opacity: 1,
+  edgeFalloff: 16,
+  rainbowFalloffRate: 3.8,
+  rainbowFalloffPower: 3.7,
+} as const;
+
+/**
+ * The three lasers. They enter from the right of the crown, one per cube row,
+ * and the pointer swings them within a narrow angle. The beams themselves are
+ * white; only what the glass separates out of them carries colour.
+ */
+export const CROWN_BEAM = {
+  angleBase: -0.065,
+  angleRange: 0.075,
+  rowConvergence: 0.032,
+  verticalTravel: 0.11,
+  dispersionStrength: 0.04,
+  wedgeStrength: 0.14,
+  spectralSamples: 20,
+  beamHalfWidth: 0.044,
+  spectralHalfWidth: 0.01,
+  inputIntensity: 3.9,
+  internalIntensity: 0.1,
+  spectralIntensity: 0.72,
+  inputColor: [1, 1, 1],
+  internalColor: [1, 1, 1],
+} as const satisfies {readonly inputColor: Vec3; readonly internalColor: Vec3} & Record<
+  string,
+  number | Vec3
+>;
+
+/** Snaps an aim to the grid the beam geometry is rebuilt on. */
+export function quantizeCrownAim(aim: Vec2): Vec2 {
+  const quantize = (value: number): number => {
+    const clamped = Math.min(1, Math.max(-1, Number.isFinite(value) ? value : 0));
+    return (
+      Math.round(clamped / CROWN_AIM_QUANTIZATION_STEP) * CROWN_AIM_QUANTIZATION_STEP
+    );
+  };
+
+  return [quantize(aim[0]), quantize(aim[1])];
+}

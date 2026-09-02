@@ -104,6 +104,60 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("GeistPixel Circle")
 })
 
+// The founder's hero: the sentences on one side and the crown on the other where there is
+// room for both, and the same three things in reading order where there is not.
+test("[U1][U2] the hero sets its words beside the crown, and above it on a phone", async ({page}) => {
+  const boxOf = (selector: string) =>
+    page.locator(selector).evaluate(element => {
+      const box = element.getBoundingClientRect()
+      return {
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        width: box.width,
+      }
+    })
+
+  for (const width of [1440, 1024]) {
+    await test.step(`${width} wide`, async () => {
+      await page.setViewportSize({width, height: 900})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const hero = await boxOf(".rl-hero")
+      const copy = await boxOf("[data-home-hero-copy]")
+      const crown = await boxOf("#home-prism")
+
+      expect(copy.left).toBeGreaterThanOrEqual(hero.left)
+      expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
+        hero.left + hero.width / 2,
+      )
+      expect(crown.left).toBeLessThanOrEqual(hero.left)
+      expect(crown.right).toBeGreaterThanOrEqual(hero.right)
+    })
+  }
+
+  for (const width of [390, 375]) {
+    await test.step(`${width} wide`, async () => {
+      await page.setViewportSize({width, height: 844})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      // On a phone the copy block hands its own lines to the hero stack, so it has no box
+      // of its own: the heading stands for the words above the crown.
+      const title = await boxOf("#home-title")
+      const crown = await boxOf("#home-prism")
+      const actions = await boxOf(".rl-hero-actions")
+
+      expect(title.bottom, "the heading sits above the crown").toBeLessThanOrEqual(crown.top)
+      expect(crown.bottom, "the crown sits above the way in").toBeLessThanOrEqual(actions.top)
+    })
+  }
+})
+
 for (const viewport of [
   {name: "mobile-320", width: 320, height: 720},
   {name: "mobile-390", width: 390, height: 844},

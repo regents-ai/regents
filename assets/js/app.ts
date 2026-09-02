@@ -19,6 +19,7 @@ import {
   type ShellState,
 } from "./shell_state"
 import {applyTheme, isThemeChoice, readTheme, type ThemeChoice} from "./theme"
+import {HomeField} from "./hooks/home_field"
 import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
@@ -289,6 +290,7 @@ const hooks = {
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,
+  HomeField,
   HomeHero,
   HomePrism,
   ShellBehavior: composeHooks(shellBehavior, designShellHook),
