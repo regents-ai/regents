@@ -6,6 +6,13 @@ defmodule AshPlatform.AutolaunchIndexerCase do
   so a sandbox transaction no second connection could see would prove nothing.
   These tests run unboxed and remove exactly the ledger rows they minted, and
   they wait on lock state and messages rather than on elapsed time.
+
+  They do that by emptying all four ledger tables when a case starts and again
+  when it finishes, and every case competes for the single chain 8453 cursor row
+  the lease lives on. So the test database has to belong to one run: give each
+  working tree its own `MIX_TEST_PARTITION`, as the README describes, or a
+  second run deletes these rows mid-test and takes the lease they are waiting
+  for.
   """
 
   use ExUnit.CaseTemplate
