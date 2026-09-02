@@ -100,7 +100,7 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert Keyword.take(test_repo, [:hostname, :port, :database]) == [
              hostname: "127.0.0.1",
              port: 5432,
-             database: "ash_platform_test"
+             database: "ash_platform#{System.get_env("MIX_TEST_PARTITION")}_test"
            ]
   end
 

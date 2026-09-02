@@ -71,7 +71,7 @@ config :ash_platform, AshPlatform.Repo,
   password: nil,
   hostname: "127.0.0.1",
   port: 5432,
-  database: "ash_platform_test",
+  database: "ash_platform#{System.get_env("MIX_TEST_PARTITION")}_test",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10
 
