@@ -21,7 +21,7 @@ defmodule AshPlatform.Redemption.RpcClient do
   defp do_overview(wallet, collection, token_id) do
     redeemer = normalized(RedemptionAbi.redeemer_address())
 
-    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          {:ok, animata_i} <- read_address("animata_i", redeemer, block),
          {:ok, animata_ii} <- read_address("animata_ii", redeemer, block),
          {:ok, result_collection} <- read_address("result_collection", redeemer, block),

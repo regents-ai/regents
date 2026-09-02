@@ -70,6 +70,22 @@ defmodule AshPlatform.WalletActions.Rpc do
          do: block_identity(header)
   end
 
+  @doc """
+  One `latest` Base block, accepted only after the chain identity is proved.
+
+  Base's sequencer confirms `latest` in about two seconds, while `safe` trails it
+  by well over a minute, so this is the head a person waiting on their own
+  transaction is actually watching. It owns a read exactly as `safe_block/1`
+  does: every read pinned to it uses this block hash, and a moved block fails
+  rather than answering.
+  """
+  @spec latest_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def latest_block(opts \\ []) do
+    with :ok <- verify_base_chain(opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
+         do: block_identity(header)
+  end
+
   @doc "One canonical finalized Base block, after chain identity is proved."
   @spec finalized_block(keyword()) :: {:ok, block()} | {:error, atom()}
   def finalized_block(opts \\ []) do
@@ -116,23 +132,26 @@ defmodule AshPlatform.WalletActions.Rpc do
   end
 
   @doc """
-  The exact canonical outcome of one submitted transaction against one safe head.
+  The exact canonical outcome of one submitted transaction against one head.
+
+  The caller chooses which head it judges against; this reads that head and
+  nothing about how far behind the chain tip it sits.
 
   `:pending` is every state that may still resolve differently: a hash this RPC
-  has not observed yet, no receipt yet, a receipt above the safe head, and a
-  receipt whose block is no longer canonical. Success and revert are both read
-  only from a receipt that is already canonical, so neither can be reported from
-  a block this transaction may yet leave.
+  has not observed yet, no receipt yet, a receipt above that head, and a receipt
+  whose block is no longer canonical. Success and revert are both read only from
+  a receipt that is already canonical, so neither can be reported from a block
+  this transaction may yet leave.
 
-  The safe block passed in already proved the chain identity, so nothing here
+  The head block passed in already proved the chain identity, so nothing here
   asks for it a second time.
   """
   @spec canonical_outcome(String.t(), String.t(), String.t(), String.t(), block(), keyword()) ::
           {:ok, :pending | :reverted | {:success, [map()]}} | {:error, atom()}
-  def canonical_outcome(hash, signer, to, data, safe_block, opts \\ []) do
+  def canonical_outcome(hash, signer, to, data, head, opts \\ []) do
     with {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts),
          {:ok, number, block_hash} <- receipt_block(receipt),
-         :ok <- canonical(number, block_hash, safe_block, opts),
+         :ok <- canonical(number, block_hash, head, opts),
          do: settled(receipt)
   end
 
@@ -266,12 +285,12 @@ defmodule AshPlatform.WalletActions.Rpc do
 
   defp receipt_block(_receipt), do: {:error, :invalid_receipt}
 
-  # Above the safe head, and mined into a block that is no longer the canonical
-  # one, are both states this transaction may still leave: neither is an answer,
-  # whichever status the receipt carries right now.
-  defp canonical(number, _hash, %{number: safe}, _opts) when number > safe, do: {:ok, :pending}
+  # Above the caller's head, and mined into a block that is no longer the
+  # canonical one, are both states this transaction may still leave: neither is
+  # an answer, whichever status the receipt carries right now.
+  defp canonical(number, _hash, %{number: head}, _opts) when number > head, do: {:ok, :pending}
 
-  defp canonical(number, hash, _safe, opts) do
+  defp canonical(number, hash, _head, opts) do
     with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
          {:ok, %{hash: ^hash}} <- block_identity(header) do
       :ok

@@ -367,7 +367,7 @@ function settleObserved(
     ? {
         title: `${label} confirmed`,
         message: redemptionSuccess(slot),
-        detail: "Your collection and vest are refreshing in place from the latest safe Base block.",
+        detail: "Your collection and vest are refreshing in place from the latest Base block.",
         href,
         tone: "success",
       }

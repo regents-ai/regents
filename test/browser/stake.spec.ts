@@ -98,7 +98,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.locator(".stake-total")).toContainText("REGENT staked")
     await expect(page.getByText("1,000 REGENT", {exact: true})).toBeVisible()
     await expect(page.getByText("900 REGENT", {exact: true})).toBeVisible()
-    await expect(page.getByText("Confirmed at Base safe block #1,234.")).toBeVisible()
+    await expect(page.getByText("Confirmed at Base block #1,234.")).toBeVisible()
     await expect(page.locator(".stake-benefit-card-primary")).toContainText("12%")
     await expect(page.locator(".stake-benefit-grid")).toContainText("125,000 USDC")
     await expect(page.locator(".stake-benefit-grid")).toContainText("250,000 REGENT")

@@ -182,10 +182,12 @@ type StakeHookHarness = {
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   text: {textContent: string}
+  detail: {textContent: string}
   link: {hidden: boolean; href: string}
   progress: {hidden: boolean; dataset: {phase: string}}
   progressTitle: {textContent: string}
   progressCopy: {textContent: string}
+  pushEvent: ReturnType<typeof vi.fn>
   settleNext(result: "success" | "reverted" | "delayed" | "unavailable"): void
 }
 
@@ -337,10 +339,12 @@ function stakingHookHarness(
     destroy,
     dialog,
     text,
+    detail,
     link,
     progress,
     progressTitle,
     progressCopy,
+    pushEvent,
     settleNext: result => {
       const observationId = pendingObservations.shift()
       if (observationId) transactionResult({observation_id: observationId, result})
@@ -480,6 +484,24 @@ describe("stake hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     expect(harness.text.textContent).toBe("Your available REGENT rewards were claimed.")
     expect(harness.link.href).toBe(`https://basescan.org/tx/${secondHash}`)
+    harness.destroy()
+  })
+
+  it("names the latest Base block and refreshes the position once a send confirms", async () => {
+    const source = stakingHookProvider({observation: "manual"})
+    const harness = stakingHookHarness(source)
+
+    harness.click("claim_regent")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    expect(harness.pushEvent.mock.calls.map(([event]) => event)).not.toContain("refresh_staking")
+
+    harness.settleNext("success")
+
+    expect(harness.detail.textContent)
+      .toBe("Your position is refreshing in place from the latest Base block.")
+    expect(harness.pushEvent).toHaveBeenCalledWith("refresh_staking", {})
     harness.destroy()
   })
 

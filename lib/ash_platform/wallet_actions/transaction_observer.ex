@@ -6,7 +6,12 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
   @callback observe(map(), :staking | :redemption) ::
               :success | :reverted | :delayed | :unavailable
 
-  @delays [0] ++ List.duplicate(2_000, 15) ++ List.duplicate(10_000, 9)
+  # Base confirms a block about every two seconds, so one poll per block for a
+  # minute covers an ordinary confirmation many times over.
+  @delays [0] ++ List.duplicate(2_000, 30)
+
+  @doc false
+  def delays, do: @delays
 
   def observe(transaction, scope) when scope in [:staking, :redemption] do
     module = Application.get_env(:ash_platform, :wallet_transaction_observer, __MODULE__)
@@ -19,17 +24,19 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
   @doc false
   def observe_rpc(transaction, scope, delays) when scope in [:staking, :redemption] do
     case exact_transaction(transaction) do
-      {:ok, exact} -> poll(exact, rpc_options(scope), delays)
+      {:ok, exact} -> poll(exact, rpc_options(scope), delays, :delayed)
       :error -> :unavailable
     end
   end
 
-  defp poll(_transaction, _opts, []), do: :delayed
+  # An exhausted schedule reports the last thing Base actually said about this
+  # transaction: still unconfirmed, or unreadable.
+  defp poll(_transaction, _opts, [], unresolved), do: unresolved
 
-  defp poll(transaction, opts, [delay | remaining]) do
+  defp poll(transaction, opts, [delay | remaining], _unresolved) do
     if delay > 0, do: Process.sleep(delay)
 
-    with {:ok, block} <- Rpc.safe_block(opts),
+    with {:ok, block} <- Rpc.latest_block(opts),
          {:ok, outcome} <-
            Rpc.canonical_outcome(
              transaction.hash,
@@ -40,12 +47,23 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
              opts
            ) do
       case outcome do
-        :pending -> poll(transaction, opts, remaining)
+        :pending -> poll(transaction, opts, remaining, :delayed)
         :reverted -> :reverted
         {:success, _logs} -> :success
       end
     else
-      _unavailable -> :unavailable
+      # A read that did not happen is worth repeating: at the chain head a node
+      # may time out or refuse mid-schedule, which says nothing about this
+      # transaction. Only an exhausted schedule reports it, and it can never
+      # become a success — only a canonical receipt does that.
+      {:error, :chain_unavailable} ->
+        poll(transaction, opts, remaining, :unavailable)
+
+      # Every other reason is a decided answer about this provider, this
+      # receipt, or this transaction. Repeating the read would return it again,
+      # so it is reported at once.
+      {:error, _decided} ->
+        :unavailable
     end
   end
 

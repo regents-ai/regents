@@ -193,7 +193,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_async(view)
 
-    assert has_element?(view, ".redeem-snapshot-note", "Base safe block 1,234")
+    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
     assert has_element?(view, ".redeem-next-step button[disabled]")
     assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
     assert render(view) =~ "Refresh failed"
@@ -240,7 +240,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              "80 USDC"
            )
 
-    assert has_element?(view, ".redeem-snapshot-note", "Base safe block 1,234")
+    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
+    assert has_element?(view, ".redeem-contract-details dt", ~r/\ABase block\z/)
 
     assert has_element?(
              view,
@@ -255,7 +256,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80 USDC")
 
-    assert has_element?(view, ".redeem-snapshot-note", "Base safe block 1,234")
+    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
 
     assert has_element?(view, ".redeem-summary")
     refute has_element?(view, ".redeem-status[aria-busy=true]")
@@ -268,7 +269,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(
              view,
              ~s(#redemption-refresh-status[data-visible="true"][aria-hidden="false"][role="status"][aria-live="polite"][aria-atomic="true"]),
-             "Refresh complete. Data is current at Base safe block 1,234."
+             "Refresh complete. Data is current at Base block 1,234."
            )
 
     Application.put_env(:ash_platform, :test_redemption_usdc_balance, 125_000_000)
@@ -291,7 +292,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              "125 USDC"
            )
 
-    assert has_element?(view, ".redeem-snapshot-note", "Base safe block 1,234")
+    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
 
     Application.put_env(:ash_platform, :test_redemption_read_result, :error)
     Application.put_env(:ash_platform, :test_redemption_read_gate, self())
@@ -324,7 +325,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(
              view,
              ~s(#redemption-refresh-status[data-visible="true"]),
-             "Refresh complete. Data is current at Base safe block 1,234."
+             "Refresh complete. Data is current at Base block 1,234."
            )
   end
 

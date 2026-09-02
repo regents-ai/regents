@@ -2,15 +2,21 @@ defmodule AshPlatform.BaseRpcStub do
   @moduledoc """
   One JSON-RPC transport double for the Base reads a Stake or Redeem test makes.
 
-  Chain identity, the `safe` header, headers by number, receipts and transactions
-  have exactly one shape for both surfaces. Only the block-pinned `eth_call`
-  answers differ, so a test supplies those as the `:calls` function it installs.
+  Chain identity, the `latest` and `safe` headers, headers by number, receipts
+  and transactions have exactly one shape for both surfaces. Only the
+  block-pinned `eth_call` answers differ, so a test supplies those as the
+  `:calls` function it installs.
+
+  The two heads answer with different hashes, so a test that pins a read to one
+  of them cannot silently pass against the other.
   """
 
   @safe_hash "0x" <> String.duplicate("5a", 32)
+  @latest_hash "0x" <> String.duplicate("1c", 32)
   @receipt_block_hash "0x" <> String.duplicate("7b", 32)
 
   def safe_hash, do: @safe_hash
+  def latest_hash, do: @latest_hash
   def receipt_block_hash, do: @receipt_block_hash
 
   def post(_url, options) do
@@ -107,6 +113,9 @@ defmodule AshPlatform.BaseRpcStub do
 
   defp result("eth_getBlockByNumber", ["safe", false], state),
     do: Map.get(state, :safe_block, %{"number" => "0x20", "hash" => @safe_hash})
+
+  defp result("eth_getBlockByNumber", ["latest", false], state),
+    do: Map.get(state, :latest_block, %{"number" => "0x20", "hash" => @latest_hash})
 
   defp result("eth_getBlockByNumber", [number, false], state),
     do:

@@ -68,7 +68,7 @@ test("Redeem sends each click and presents successful results in click order", a
   await page.getByRole("button", {name: "Refresh wallet data", exact: true}).click()
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   await expect(page.locator("#redemption-refresh-status")).toHaveText(
-    "Refresh complete. Data is current at Base safe block 1,234.",
+    "Refresh complete. Data is current at Base block 1,234.",
   )
   await expect(page.locator(".redeem-next-step button")).toHaveText("Approve NFT collection")
   expect(await sendCount(page)).toBe(1)
@@ -122,7 +122,7 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   await expect(page.locator(".redeem-summary")).toContainText("100 USDC")
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   await expect(page.locator("#redemption-refresh-status")).toHaveText(
-    "Refresh complete. Data is current at Base safe block 1,234.",
+    "Refresh complete. Data is current at Base block 1,234.",
   )
 
   const afterRefresh = await scrollSnapshot(scroller, summary)

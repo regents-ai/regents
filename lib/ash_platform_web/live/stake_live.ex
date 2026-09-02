@@ -324,7 +324,7 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
 
           <p class="stake-snapshot-note">
-            <span>Confirmed at Base safe block #{format_number(@staking.block_number)}.</span>
+            <span>Confirmed at Base block #{format_number(@staking.block_number)}.</span>
             <span :if={@reading} class="stake-inline-loading"> Updating from Base…</span>
           </p>
         </section>
@@ -374,7 +374,7 @@ defmodule AshPlatformWeb.StakeLive do
                 <dt>USDC token</dt><dd><code>{@staking.usdc_address}</code></dd>
               </div>
               <div>
-                <dt>Safe Base block</dt><dd>
+                <dt>Base block</dt><dd>
                   <span>#{format_number(@staking.block_number)}</span><code>{@staking.block_hash}</code>
                 </dd>
               </div>

@@ -18,10 +18,10 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
-  # One `safe` block owns every read below it. A partial read is unavailable, so
-  # nothing on the page can pair one block's balance with another's total.
+  # One `latest` block owns every read below it. A partial read is unavailable,
+  # so nothing on the page can pair one block's balance with another's total.
   defp do_overview(wallet_address) do
-    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          {:ok, paused} <- read_bool("paused", block),
          {:ok, total_staked} <- read_uint("total_staked", block),
          {:ok, denominator} <-
@@ -95,7 +95,7 @@ defmodule AshPlatform.Staking.RpcClient do
 
   @impl true
   def allowance(signer, amount) do
-    with {:ok, block} <- Rpc.safe_block(@rpc_opts),
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          {:ok, allowance} <-
            Rpc.call_uint(
              Abi.stake_token_address(),
