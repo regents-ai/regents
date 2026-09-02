@@ -4,7 +4,8 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
 
   @call_timeout 17_000
   @default_ttl_ms 15_000
-  @default_max_in_flight 4
+  @default_live_lookups_per_minute 60
+  @lookup_window_ms 60_000
   @max_entries 512
 
   def start_link(_options), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -17,6 +18,9 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
 
   def invalidate(address) when is_binary(address),
     do: GenServer.call(__MODULE__, {:invalidate, address})
+
+  @doc false
+  def monotonic_ms, do: System.monotonic_time(:millisecond)
 
   @impl true
   def init(_), do: {:ok, empty()}
@@ -37,7 +41,7 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   # a redemption confirm gets the fresh read it needs, while a page repeating the
   # same request only ever gets the one read the window already allowed.
   def handle_call({:invalidate, address}, _from, state) do
-    now = System.monotonic_time(:millisecond)
+    now = now()
     cooldowns = prune(state.cooldowns, now)
 
     if Map.has_key?(cooldowns, address),
@@ -46,7 +50,7 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   end
 
   def handle_call({:fetch, address, loader}, from, state) do
-    now = System.monotonic_time(:millisecond)
+    now = now()
     cache = prune(state.cache, now)
 
     case cache[address] do
@@ -54,7 +58,7 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
         {:reply, result, %{state | cache: cache}}
 
       _ ->
-        join_or_start(address, loader, from, %{state | cache: cache})
+        join_or_start(address, loader, from, now, %{state | cache: cache})
     end
   end
 
@@ -79,9 +83,9 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   end
 
   # A loader can die without answering: the OpenSea read runs linked tasks, and a
-  # crash in one of them takes the loader with it. Its slot is released and its
-  # waiters are told the lookup is unavailable, so a dead read never costs the
-  # server a live-read slot for good.
+  # crash in one of them takes the loader with it. It is forgotten and its waiters
+  # are told the lookup is unavailable, so a dead read never leaves the address
+  # looking busy to every page that asks next.
   def handle_info({:DOWN, monitor, :process, _pid, _reason}, state) do
     case Enum.find(state.in_flight, fn {_address, lookup} -> lookup.monitor == monitor end) do
       {address, %{waiters: waiters}} ->
@@ -93,7 +97,7 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
     end
   end
 
-  defp empty, do: %{cache: %{}, in_flight: %{}, cooldowns: %{}}
+  defp empty, do: %{cache: %{}, in_flight: %{}, cooldowns: %{}, starts: []}
 
   defp safely_load(loader) do
     loader.()
@@ -107,11 +111,10 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   # joiner is always welcome, except on a read that started before the address
   # was invalidated: that answer is exactly the one the invalidation said not to
   # trust, so the page is told the lookup is unavailable instead of being handed
-  # a collection that predates its own redemption. A new address is only worth a
-  # loader while the server is under its live-read ceiling; past it the page is
-  # told the lookup is unavailable rather than left queued behind reads it cannot
-  # see.
-  defp join_or_start(address, loader, from, state) do
+  # a collection that predates its own redemption. Only a new read spends the
+  # server's minute of live lookups; past that minute the page is told the lookup
+  # is unavailable rather than left queued behind reads it cannot see.
+  defp join_or_start(address, loader, from, now, state) do
     case state.in_flight[address] do
       %{stale: true} ->
         {:reply, {:error, :unavailable}, state}
@@ -121,10 +124,17 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
         {:noreply, %{state | in_flight: in_flight}}
 
       nil ->
-        if map_size(state.in_flight) >= max_in_flight() do
-          {:reply, {:error, :unavailable}, state}
+        starts = Enum.filter(state.starts, &(&1 > now - @lookup_window_ms))
+
+        if length(starts) >= live_lookups_per_minute() do
+          {:reply, {:error, :unavailable}, %{state | starts: starts}}
         else
-          {:noreply, %{state | in_flight: start_load(state.in_flight, address, loader, from)}}
+          {:noreply,
+           %{
+             state
+             | in_flight: start_load(state.in_flight, address, loader, from),
+               starts: [now | starts]
+           }}
         end
     end
   end
@@ -139,8 +149,8 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   end
 
   # A read that is still running answered from before the invalidation, so its
-  # result is no longer worth remembering. It keeps its live-read slot until it
-  # actually ends: a slot the server has not got back is not a slot to hand out.
+  # result is no longer worth remembering: it is neither cached nor handed to a
+  # page that asks again while it runs.
   defp forget(state, address, cooldowns, now) do
     %{
       state
@@ -158,7 +168,7 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
   end
 
   defp cache_result(cache, address, result),
-    do: remember(cache, address, {System.monotonic_time(:millisecond) + ttl(), result})
+    do: remember(cache, address, {now() + ttl(), result})
 
   defp remember(entries, address, entry) do
     entries = Map.put(entries, address, entry)
@@ -183,7 +193,19 @@ defmodule AshPlatform.OpenSea.HoldingsCache do
         0
       )
 
-  defp max_in_flight,
+  defp live_lookups_per_minute,
     do:
-      Application.get_env(:ash_platform, :opensea_holdings_max_in_flight, @default_max_in_flight)
+      max(
+        Application.get_env(
+          :ash_platform,
+          :opensea_live_lookups_per_minute,
+          @default_live_lookups_per_minute
+        ),
+        0
+      )
+
+  defp now, do: clock().()
+
+  defp clock,
+    do: Application.get_env(:ash_platform, :opensea_holdings_clock, &__MODULE__.monotonic_ms/0)
 end

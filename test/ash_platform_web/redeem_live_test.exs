@@ -659,6 +659,22 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
   end
 
+  test "SERVER_LOOKUP_CEILING: a server past its minute of lookups still redeems", %{conn: conn} do
+    hold_server_minute(0)
+    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
+
+    view = conn |> mount_redeem() |> activate(@wallet)
+
+    assert drain_requests() == []
+    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
+    assert has_element?(view, "#redemption-collection")
+    assert has_element?(view, "#redemption-token-id")
+    refute has_element?(view, ~s(.redeem-notice[role="alert"]))
+
+    render_hook(view, "prepare_redemption", %{"action" => "claim", "attempt_id" => "still-open"})
+    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
+  end
+
   test "WALLET_SWITCH: owned lookup never carries across wallets", %{conn: conn} do
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
       id = if String.contains?(url, String.downcase(@wallet)), do: "42", else: "84"
@@ -763,6 +779,15 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     previous = Application.get_env(:ash_platform, :opensea_lookups_per_minute)
     Application.put_env(:ash_platform, :opensea_lookups_per_minute, share)
     on_exit(fn -> Application.put_env(:ash_platform, :opensea_lookups_per_minute, previous) end)
+  end
+
+  defp hold_server_minute(lookups) do
+    previous = Application.get_env(:ash_platform, :opensea_live_lookups_per_minute)
+    Application.put_env(:ash_platform, :opensea_live_lookups_per_minute, lookups)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :opensea_live_lookups_per_minute, previous)
+    end)
   end
 
   defp drain_requests(acc \\ []) do

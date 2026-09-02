@@ -54,8 +54,9 @@ config :ash_platform, :regents_club_privy_origin_canary, false
 config :ash_platform, :regents_club_media_full_corpus_attestation, nil
 config :ash_platform, :opensea_api_key, nil
 config :ash_platform, :opensea_http_client, AshPlatform.OpenSea.HttpClient
-config :ash_platform, :opensea_holdings_max_in_flight, 4
+config :ash_platform, :opensea_live_lookups_per_minute, 60
 config :ash_platform, :opensea_lookups_per_minute, 6
+config :ash_platform, :opensea_holdings_clock, &AshPlatform.OpenSea.HoldingsCache.monotonic_ms/0
 # Also bounds how often one address may be reset: once per window.
 config :ash_platform, :opensea_holdings_cache_ttl_ms, 15_000
 
