@@ -18,6 +18,12 @@ test("Stake hands each click directly to the active Base wallet and presents eve
 
   await selectWallet(page, wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
+
+  // The wallet position carries its own block, which is not the block the
+  // shared contract reading was taken at.
+  await expect(page.locator(".stake-wallet-block")).toContainText("Base block #1,240")
+  await expect(page.locator(".stake-snapshot-note")).toContainText("Base block #1,234")
+
   await page.getByLabel("Amount", {exact: true}).fill("1")
 
   // The test wallet reports zero allowance. One accepted Stake click therefore
@@ -105,7 +111,12 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.locator(".stake-total")).toContainText("REGENT staked")
     await expect(page.getByText("1,000 REGENT", {exact: true})).toBeVisible()
     await expect(page.getByText("900 REGENT", {exact: true})).toBeVisible()
-    await expect(page.getByText("Confirmed at Base block #1,234.")).toBeVisible()
+    // The contract reading every visitor is shown, with the block it came from
+    // and how old it is. An anonymous visitor is offered no way to replace it.
+    await expect(page.locator(".stake-snapshot-note")).toContainText(
+      /Confirmed at Base block #1,234, read .+ ago\./,
+    )
+    await expect(page.locator("button.stake-shared-refresh")).toHaveCount(0)
     await expect(page.locator(".stake-benefit-card-primary")).toContainText("12%")
     await expect(page.locator(".stake-benefit-grid")).toContainText("125,000 USDC")
     await expect(page.locator(".stake-benefit-grid")).toContainText("250,000 REGENT")

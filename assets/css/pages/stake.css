@@ -94,6 +94,7 @@
 .stake-auth-note,
 .stake-fine-print,
 .stake-snapshot-note,
+.stake-wallet-block,
 .stake-dialog-kicker {
   color: var(--color-fg-muted);
 }
@@ -123,6 +124,19 @@
 .stake-fine-print {
   margin: 0;
   font-size: 0.82rem;
+}
+
+/* The contract reading is shared by every visitor, so the control that takes a
+   new one sits with the contract data rather than with a wallet position. */
+.stake-shared-refresh {
+  justify-self: start;
+}
+
+/* Wallet figures carry their own block, which is not the contract reading's. */
+.stake-wallet-block {
+  margin: 0;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .stake-benefit-grid {

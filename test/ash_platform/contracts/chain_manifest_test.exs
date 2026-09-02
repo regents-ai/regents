@@ -1,6 +1,8 @@
 defmodule AshPlatform.Contracts.ChainManifestTest do
   use ExUnit.Case, async: true
 
+  alias AshPlatform.WalletActions.Abi
+
   @root Path.expand("../../..", __DIR__)
   @manifest_path Path.join(@root, "contracts/base-mainnet.json")
   @staking_abi_sha256 "c8c5570f76f32b72e3bdb0a062fc97cb7f74aacadf03683d796b57a765f1ca23"
@@ -19,6 +21,22 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   @c9_abi_surface_sha256 "ef5dea8e9c9c17cb999a056e3045b72497ab5850a5c82f729fd7f1849df2f7d5"
   @c9_release_manifest_sha256 "6247280e8d0366a051b3b9a8e88de0e2ca25a1fdee358bdce2737581f1e3650b"
   @c9_fork_observations_sha256 "86be9f50d64699411b2f09746fa5b6e9757b250095f1ce4a09a230e06d0bbbc6"
+  @multicall3_abi_sha256 "37abf10ee8402b89482af88b281653256b79eb6d96eb4599200c03f542d8689d"
+  @multicall3_address "0xcA11bde05977b3631167028862bE2a173976CA11"
+  @multicall3_runtime_keccak256 "0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891"
+  @multicall3_runtime_sha256 "2756d7c52baee85cacb504f6ee1df7aad6809ac8d94a4a111d76991f90d36d6e"
+  @multicall3_runtime_bytes 3808
+  @aggregate3_signature "aggregate3((address,bool,bytes)[])"
+  @aggregate3_selector "0x82ad56cb"
+
+  # The reading aggregator is not part of any send path. These are the modules
+  # that build prepared actions and confirm them, and none of them may so much
+  # as name it.
+  @send_path_modules [
+    "lib/ash_platform/wallet_actions/envelope.ex",
+    "lib/ash_platform/staking/actions.ex",
+    "lib/ash_platform/redemption/actions.ex"
+  ]
 
   setup_all do
     manifest = @manifest_path |> File.read!() |> Jason.decode!()
@@ -935,6 +953,80 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
 
     abi_path = Path.join([@root, "contracts", contract["abi"]["path"]])
     assert Base.encode16(:crypto.hash(:sha256, File.read!(abi_path)), case: :lower) == abi_digest
+  end
+
+  test "pins the reading aggregator's identity beside the frozen evidence it is not part of" do
+    entry =
+      admission!()
+      |> Map.fetch!("reviewed_action_evidence")
+      |> Enum.find(&(&1["contract_id"] == "multicall3"))
+
+    assert entry["contract_name"] == "Multicall3"
+    assert entry["target"] == "canonical_multicall3"
+    assert entry["address"] == @multicall3_address
+    assert entry["runtime_keccak256"] == @multicall3_runtime_keccak256
+    assert entry["runtime_sha256"] == @multicall3_runtime_sha256
+    assert entry["runtime_bytes"] == @multicall3_runtime_bytes
+    assert entry["abi_path"] == "abi/multicall3.json"
+    assert entry["abi_sha256"] == @multicall3_abi_sha256
+
+    assert entry["reads"] == [
+             %{
+               "id" => "aggregate3",
+               "signature" => @aggregate3_signature,
+               "selector" => @aggregate3_selector
+             }
+           ]
+
+    # Nothing is prepared against it, and nothing about it is admitted to send.
+    assert entry["action_ids"] == []
+    assert entry["interface_note"] =~ "reading only"
+    assert entry["interface_note"] =~ "never a send target"
+    assert entry["address_provenance"] =~ "eth_getCode"
+
+    refute Enum.any?(
+             admission!()["admitted_prepared_actions"],
+             &String.starts_with?(&1, "multicall3.")
+           )
+  end
+
+  test "the aggregator ABI copy, its digest and the constants the code reads all agree" do
+    digest =
+      @root
+      |> Path.join("contracts/abi/multicall3.json")
+      |> File.read!()
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    assert digest == @multicall3_abi_sha256
+
+    # Trimmed the way every other consumer copy here is: exactly the one
+    # function this codebase calls, and nothing else Multicall3 declares.
+    abi = consumer_abi("multicall3.json")
+    assert [%{"type" => "function", "name" => "aggregate3"}] = abi
+
+    assert Abi.multicall3_address() == @multicall3_address
+    assert Abi.multicall3_runtime_keccak256() == @multicall3_runtime_keccak256
+    assert Abi.multicall3_runtime_sha256() == @multicall3_runtime_sha256
+    assert Abi.multicall3_runtime_bytes() == @multicall3_runtime_bytes
+    assert Abi.aggregate3_signature() == @aggregate3_signature
+    assert Abi.aggregate3_selector() == @aggregate3_selector
+    assert keccak(@aggregate3_signature) |> String.slice(0, 10) == @aggregate3_selector
+
+    # The frozen evidence file carries nothing about the aggregator, and stays
+    # exactly as it was.
+    manifest = @manifest_path |> File.read!() |> Jason.decode!()
+    refute Map.has_key?(manifest["contracts"], "multicall3")
+  end
+
+  test "no module that prepares or confirms a transaction so much as names the aggregator" do
+    for path <- @send_path_modules do
+      source = @root |> Path.join(path) |> File.read!() |> String.downcase()
+
+      refute source =~ "multicall"
+      refute source =~ "aggregate3"
+      refute source =~ String.downcase(@multicall3_address)
+    end
   end
 
   defp launch_event_id("LaunchCreated" <> _rest), do: :launch_created

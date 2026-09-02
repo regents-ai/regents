@@ -3,13 +3,15 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
 
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  alias AshPlatform.Staking.SnapshotCache
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
 
   test "U1_U2_U3_VALID_ACCOUNT_ENTRY: anonymous visitors meet an Account page that promises no wallet",
        %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/app")
-    html = render_async(view)
+    seed_shared_reading()
+    {:ok, view, html} = live(conn, "/app")
 
     assert has_element?(view, "#regent-ops-overview .regent-ops-heading h1", "Account")
     assert html =~ "See your account, any verified wallet, balances, and rewards on Base."
@@ -30,8 +32,8 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   # Each metric is a term and its value inside a definition list, so the pairing
   # is exposed as a pairing rather than as loose terms in a generic container.
   test "U2_VALID_METRIC_SEMANTICS: the overview summary is a definition list", %{conn: conn} do
+    seed_shared_reading()
     {:ok, view, _html} = live(conn, "/app")
-    render_async(view)
 
     assert has_element?(
              view,
@@ -47,18 +49,14 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   test "U6_VALID_ACTIONS_WITHOUT_NETWORK_SUMMARY: account actions outlive the summary read", %{
     conn: conn
   } do
-    Application.put_env(:ash_platform, :test_staking_overview_error, :chain_unavailable)
-    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_overview_error) end)
+    SnapshotCache.clear()
+    on_exit(&SnapshotCache.clear/0)
 
-    {:ok, view, loading} = live(conn, "/app")
+    {:ok, view, html} = live(conn, "/app")
 
-    assert loading =~ "Loading network details…"
-    assert loading =~ "Stake REGENT"
-    assert loading =~ "Redeem Animata"
-    assert loading =~ "Run your Regent"
-
-    html = render_async(view)
-
+    assert html =~ "Stake REGENT"
+    assert html =~ "Redeem Animata"
+    assert html =~ "Run your Regent"
     assert html =~ "Network details are unavailable right now."
     refute has_element?(view, "dl.regent-ops-summary")
 
@@ -70,6 +68,8 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   end
 
   test "a signed-in account sees its wallet balances, position, and rewards", %{conn: conn} do
+    seed_shared_reading()
+
     {:ok, account} =
       Accounts.register_verified("did:privy:regent-ops", @wallet, [@wallet], actor: %System{})
 
@@ -89,5 +89,44 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert has_element?(view, ~s(a[href="/formation"]), "Run your Regent")
     refute html =~ "Sign in to see any wallet verified on your account"
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
+  end
+
+  # A wallet reading that fails says nothing about the wallet, so its figures are
+  # left blank. Printing blanks and nothing else would tell the account holder
+  # their balances are zero, so the page says the reading failed and keeps the
+  # contract figures every visitor shares.
+  test "WALLET_READ_FAILURE_IS_SAID: a failed wallet reading is named, not shown as blanks", %{
+    conn: conn
+  } do
+    seed_shared_reading()
+    Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_wallet_error) end)
+
+    {:ok, account} =
+      Accounts.register_verified("did:privy:regent-ops-failure", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/app")
+
+    html = render_async(view)
+
+    assert has_element?(view, ~s(.regent-ops-status[role="alert"]), @refresh_failure)
+    assert html =~ "100 REGENT"
+    assert has_element?(view, "dl.regent-ops-summary")
+    refute html =~ "Network details are unavailable right now."
+  end
+
+  # The shared contract reading already exists before anyone opens the page,
+  # exactly as it does on a running server after its own first read.
+  defp seed_shared_reading do
+    SnapshotCache.clear()
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+    on_exit(&SnapshotCache.clear/0)
+    assert :ok = SnapshotCache.refresh(self())
+    assert_receive {:staking_snapshot, _reading}
   end
 end

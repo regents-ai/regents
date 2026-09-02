@@ -41,6 +41,7 @@ defmodule Mix.Tasks.AshPlatform.VerifyChainManifest do
 
     if selection in ["all", "staking"] do
       verify_staking!(cast, rpc_url, historical_rpc_url, root, manifest)
+      verify_multicall3!(cast, rpc_url, root)
     end
 
     if selection in ["all", "redemption"] do
@@ -151,6 +152,70 @@ defmodule Mix.Tasks.AshPlatform.VerifyChainManifest do
 
     topic = cast!(cast, ["keccak", "BatchMetadataUpdate(uint256,uint256)"], "event topic")
     assert_equal!(String.downcase(topic), contract["confirmation_event"]["topic0"], "event topic")
+  end
+
+  # The reading aggregator is identified, never prepared against. Its identity
+  # lives in chain-contracts.yaml and in module constants, because the reviewed
+  # evidence manifest stays byte-for-byte frozen.
+  defp verify_multicall3!(cast, rpc_url, root) do
+    Mix.shell().info("Verifying the Multicall3 reading aggregator...")
+
+    entry =
+      root
+      |> Path.join("contracts/chain-contracts.yaml")
+      |> YamlElixir.read_from_file!()
+      |> Map.fetch!("contracts")
+      |> List.first()
+      |> Map.fetch!("reviewed_action_evidence")
+      |> Enum.find(&(&1["contract_id"] == "multicall3"))
+
+    address = entry["address"]
+    code = cast!(cast, ["code", address, "--rpc-url", rpc_url], "Multicall3 runtime")
+
+    if code == "0x", do: Mix.raise("Multicall3 has no deployed runtime code")
+
+    bytes = code |> String.trim_leading("0x") |> Base.decode16!(case: :mixed)
+    assert_equal!(byte_size(bytes), entry["runtime_bytes"], "Multicall3 runtime byte length")
+
+    assert_equal!(
+      :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower),
+      entry["runtime_sha256"],
+      "Multicall3 runtime SHA-256"
+    )
+
+    assert_equal!(
+      cast!(cast, ["keccak", code], "Multicall3 runtime Keccak-256") |> String.downcase(),
+      entry["runtime_keccak256"],
+      "Multicall3 runtime Keccak-256"
+    )
+
+    abi_path = Path.join([root, "contracts", entry["abi_path"]])
+
+    assert_equal!(
+      :crypto.hash(:sha256, File.read!(abi_path)) |> Base.encode16(case: :lower),
+      entry["abi_sha256"],
+      "Multicall3 ABI digest"
+    )
+
+    [read] = entry["reads"]
+
+    selector =
+      cast!(cast, ["sig", read["signature"]], "aggregate3 selector") |> String.downcase()
+
+    assert_equal!(selector, read["selector"], "aggregate3 selector")
+
+    runtime_selectors =
+      cast!(cast, ["selectors", code], "Multicall3 selectors")
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line -> line |> String.split() |> hd() |> String.downcase() end)
+      |> MapSet.new()
+
+    unless MapSet.member?(runtime_selectors, selector) do
+      Mix.raise("the deployed Multicall3 runtime does not declare #{read["signature"]}")
+    end
+
+    # It is identified, and it is never prepared against.
+    assert_equal!(entry["action_ids"], [], "Multicall3 prepared actions")
   end
 
   defp verify_staking!(cast, rpc_url, historical_rpc_url, root, manifest) do

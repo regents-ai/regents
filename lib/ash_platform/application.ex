@@ -15,6 +15,9 @@ defmodule AshPlatform.Application do
         database_child(),
         autolaunch_indexer_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
+        # After PubSub: its first reading is announced to every page on the
+        # topic the staking pages subscribe to.
+        {AshPlatform.Staking.SnapshotCache, []},
         notebook_static_server_child(),
         # Start a worker by calling: AshPlatform.Worker.start_link(arg)
         # {AshPlatform.Worker, arg},

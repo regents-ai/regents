@@ -12,6 +12,15 @@ config :ash_platform, AshPlatformWeb.Endpoint,
 config :ash_platform, :content_provider, AshPlatform.TestContentProvider
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
+
+# No ExUnit run reads Base at startup. A case that wants a shared reading asks
+# for one, which is the same path a signed-in visitor takes. The browser server
+# does take its one reading at startup, because a person opening the page in a
+# browser should meet the warm server a release gives them.
+config :ash_platform,
+       :staking_snapshot_boot_read,
+       System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
+
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
 config :ash_platform, :wallet_transaction_observer, AshPlatform.TestWalletTransactionObserver
 config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient

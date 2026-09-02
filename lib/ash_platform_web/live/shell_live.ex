@@ -21,6 +21,8 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.Actors.Human
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.RegentsClub.Actions, as: RegentsClubActions
+  alias AshPlatform.Staking.Facts, as: StakingFacts
+  alias AshPlatform.Staking.SnapshotCache
   alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatform.WalletActions.TransactionObserver
@@ -36,6 +38,10 @@ defmodule AshPlatformWeb.ShellLive do
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
+  # Names the budget it belongs to. The Redeem page has its own, unrelated
+  # per-visitor limit on looking up owned NFTs, and the two refusals must never
+  # read as the same thing.
+  @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
   @redemption_preparation_failure_notice "That action could not be prepared. Check the wallet and selection."
   @regents_club_observation_interval 15_000
   @max_wallet_observations 8
@@ -56,6 +62,9 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp mount_authorized(params, route_spec, socket) do
+    if connected?(socket),
+      do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+
     {:ok,
      assign(socket,
        app_targets: open_app_targets(),
@@ -127,6 +136,7 @@ defmodule AshPlatformWeb.ShellLive do
        staking_wallet: nil,
        staking_notice: nil,
        staking_read: nil,
+       staking_shared_reading: false,
        staking_status: :loading,
        regents_club_metadata_status: :checking,
        regents_club_metadata_wallet: nil,
@@ -390,60 +400,44 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
+  # A wallet reading answers for one account at its own block and says nothing
+  # about the contract, so it is set beside the shared reading rather than over
+  # it. With no shared reading on screen there is no dashboard to attach it to,
+  # and the page keeps saying so.
   def handle_async(
         {:staking, generation} = name,
-        {:ok, {generation, {:ok, staking}}},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
+        {:ok, {generation, {:ok, wallet_facts}}},
+        %{assigns: %{content_generation: generation, staking: staking}} = socket
+      )
+      when is_map(staking) do
     {:noreply,
      socket
      |> release_staking_read(name)
      |> assign(
-       staking: staking,
+       staking: StakingFacts.merge(staking, wallet_facts),
        staking_status: :ready,
        staking_notice: clear_staking_refresh_failure(socket.assigns.staking_notice)
      )}
   end
 
-  # A failed wallet read says nothing new about the connected wallet or Base, so
-  # keep the last confirmed snapshot in place and surface the refresh failure.
-  def handle_async(
-        {:staking, generation} = name,
-        {:ok, {generation, {:error, reason}}},
-        %{
-          assigns: %{
-            content_generation: generation,
-            route_spec: %{route_id: :stake},
-            staking_wallet: wallet
-          }
-        } = socket
-      )
-      when not is_nil(wallet) do
-    {:noreply,
-     socket
-     |> release_staking_read(name)
-     |> staking_read_failed(refusal(reason), generation)}
-  end
-
+  # A failed or crashed wallet read says nothing new about the connected wallet
+  # or the contract, so the shared reading stays exactly where it is and only
+  # the refresh failure is surfaced. With nothing on screen at all, the page
+  # keeps reporting Base unavailable.
   def handle_async(
         {:staking, generation} = name,
         {:ok, {generation, {:error, _reason}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply,
-     socket |> release_staking_read(name) |> staking_read_failed(:unavailable, generation)}
+    {:noreply, socket |> release_staking_read(name) |> staking_read_failed()}
   end
 
-  # A crashed read answered nothing about Base. Release the refresh control,
-  # preserve an existing snapshot, and use the unavailable state only on the
-  # initial read where no prior snapshot exists.
   def handle_async(
         {:staking, generation} = name,
         {:exit, _reason},
-        %{assigns: %{content_generation: generation, route_spec: %{route_id: :stake}}} = socket
+        %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply,
-     socket |> release_staking_read(name) |> staking_read_failed(:unavailable, generation)}
+    {:noreply, socket |> release_staking_read(name) |> staking_read_failed()}
   end
 
   def handle_async({:staking, _generation} = name, _result, socket),
@@ -919,8 +913,25 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("staking_amount_changed", %{"amount" => amount}, socket),
     do: {:noreply, assign(socket, staking_amount: amount, staking_notice: nil)}
 
-  def handle_event("refresh_staking", _params, socket),
-    do: {:noreply, start_staking_read(socket, socket.assigns.content_generation)}
+  # This socket's own connected wallet, read again at a fresh block. Any
+  # connected wallet may do this, signed in or not; with no wallet connected
+  # there is nothing about this visitor to read.
+  def handle_event("refresh_staking", _params, %{assigns: %{staking_wallet: wallet}} = socket)
+      when not is_nil(wallet),
+      do: {:noreply, start_staking_read(socket, socket.assigns.content_generation)}
+
+  def handle_event("refresh_staking", _params, socket), do: {:noreply, socket}
+
+  # Re-reading the contract replaces what every visitor sees, so only a
+  # signed-in session may ask for it, and the socket's own session decides that
+  # here rather than the markup that offered the control.
+  def handle_event("refresh_shared_snapshot", _params, socket) do
+    if authenticated?(socket.assigns.access_context) do
+      {:noreply, request_shared_refresh(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   def handle_event(
         "observe_staking_transaction",
@@ -940,7 +951,35 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("observe_redemption_transaction", _params, socket), do: {:noreply, socket}
 
+  # One visitor's refresh re-reads the contract for everyone. Only the contract
+  # figures are replaced: each page keeps whatever it knows about its own
+  # connected wallet, still labelled with the block that wallet was read at, and
+  # nothing re-reads a wallet on its own.
   @impl true
+  def handle_info(
+        {:staking_snapshot, protocol},
+        %{assigns: %{route_spec: %{route_id: route_id}}} = socket
+      )
+      when route_id in [:stake, :app] do
+    {:noreply,
+     assign(socket,
+       staking: StakingFacts.adopt_protocol(socket.assigns.staking, protocol),
+       staking_shared_reading: false,
+       staking_status: :ready
+     )}
+  end
+
+  def handle_info({:staking_snapshot, _protocol}, socket), do: {:noreply, socket}
+
+  # Only the pages that asked for the reading hear that it failed, and what they
+  # were already showing stays on screen.
+  def handle_info({:staking_snapshot_unavailable, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(staking_shared_reading: false)
+     |> staking_read_failed()}
+  end
+
   def handle_info(
         {:comments_changed, target_type, target_id},
         %{assigns: %{comment_target: %{type: target_type, id: target_id}}} = socket
@@ -1269,6 +1308,7 @@ defmodule AshPlatformWeb.ShellLive do
           :if={@route_spec.route_id == :app}
           staking={@staking}
           status={@staking_status}
+          notice={@staking_notice}
           account_control={@account_control}
           account={current_account(@access_context)}
         />
@@ -1297,6 +1337,8 @@ defmodule AshPlatformWeb.ShellLive do
           amount={@staking_amount}
           notice={@staking_notice}
           reading={staking_reading?(assigns)}
+          shared_reading={@staking_shared_reading}
+          signed_in={authenticated?(@access_context)}
           spendable={Staking.spendable(@staking, @staking_action)}
           amount_notice={staking_amount_notice(assigns)}
           available_claims={Staking.available_claims(@staking)}
@@ -1559,22 +1601,48 @@ defmodule AshPlatformWeb.ShellLive do
   defp metadata_notice(_reason),
     do: %{tone: :error, message: "The exact cutover could not be prepared. Nothing was sent."}
 
+  # An anonymous visitor to either page buys no chain read at all: the shared
+  # contract reading is already on the server and is painted as it is. Only a
+  # signed-in account has a wallet to look up here, and that lookup takes its
+  # own fresh block.
   defp maybe_start_staking(socket, %{route_id: :app}, generation) do
-    actor = staking_actor(socket)
+    socket = socket |> clear_staking_form() |> paint_shared_snapshot()
 
-    socket
-    |> clear_staking_form()
-    |> assign(staking: nil, staking_status: :loading)
-    |> start_async({:staking, generation}, fn ->
-      {generation, if(actor, do: Staking.account(actor: actor), else: Staking.overview())}
-    end)
+    case staking_actor(socket) do
+      %Human{} = actor ->
+        start_wallet_read(socket, generation, fn -> Staking.account(actor: actor) end)
+
+      nil ->
+        socket
+    end
   end
 
-  defp maybe_start_staking(socket, %{route_id: :stake}, generation),
-    do: socket |> assign(staking: nil, staking_status: :loading) |> start_staking_read(generation)
+  defp maybe_start_staking(socket, %{route_id: :stake}, generation) do
+    socket = paint_shared_snapshot(socket)
+
+    if socket.assigns.staking_wallet,
+      do: start_staking_read(socket, generation),
+      else: socket
+  end
 
   defp maybe_start_staking(socket, _route, _generation),
     do: socket |> clear_staking_form() |> assign(staking: nil, staking_status: :loading)
+
+  # With no successful shared reading yet, there is nothing honest to show and
+  # nothing this visitor can do about it alone; the page says so and a signed-in
+  # visitor is offered the control that takes one.
+  defp paint_shared_snapshot(socket) do
+    case SnapshotCache.snapshot() do
+      nil ->
+        assign(socket, staking: nil, staking_status: :error)
+
+      protocol ->
+        assign(socket,
+          staking: StakingFacts.merge(protocol, StakingFacts.blank_wallet()),
+          staking_status: :ready
+        )
+    end
+  end
 
   defp clear_staking_form(socket),
     do:
@@ -1585,7 +1653,7 @@ defmodule AshPlatformWeb.ShellLive do
         staking_notice: nil
       )
 
-  defp staking_read_failed(socket, _, _) do
+  defp staking_read_failed(socket) do
     if socket.assigns.staking do
       assign(socket,
         staking_status: :ready,
@@ -1602,16 +1670,36 @@ defmodule AshPlatformWeb.ShellLive do
   defp clear_staking_refresh_failure(%{message: @staking_refresh_failure_notice}), do: nil
   defp clear_staking_refresh_failure(notice), do: notice
 
+  defp request_shared_refresh(socket) do
+    case SnapshotCache.refresh() do
+      :ok ->
+        assign(socket, staking_shared_reading: true, staking_notice: nil)
+
+      {:error, :refresh_too_soon} ->
+        assign(socket,
+          staking_notice: %{tone: :info, message: @shared_refresh_budget_notice}
+        )
+    end
+  end
+
   defp start_staking_read(socket, generation) do
-    name = {:staking, generation}
     wallet = socket.assigns.staking_wallet
+    start_wallet_read(socket, generation, fn -> Staking.account_for_wallet(wallet) end)
+  end
+
+  # A wallet reading answers for one account and carries no contract figures, so
+  # with no shared reading on screen there is nothing for it to be shown beside.
+  # Buying one anyway spends four round trips on an answer that would be thrown
+  # away, so it is not bought until the contract reading is there.
+  defp start_wallet_read(%{assigns: %{staking: nil}} = socket, _generation, _read), do: socket
+
+  defp start_wallet_read(socket, generation, read) do
+    name = {:staking, generation}
 
     socket
     |> cancel_async(name)
     |> assign(staking_read: %{name: name})
-    |> start_async(name, fn ->
-      {generation, if(wallet, do: Staking.account_for_wallet(wallet), else: Staking.overview())}
-    end)
+    |> start_async(name, fn -> {generation, read.()} end)
   end
 
   defp release_staking_read(%{assigns: %{staking_read: %{name: name}}} = socket, name),
@@ -2455,38 +2543,23 @@ defmodule AshPlatformWeb.ShellLive do
   defp authenticated?(%{principal: {:human, _}}), do: true
   defp authenticated?(_), do: false
 
+  # A different wallet's position is not this one's. The contract reading stays
+  # exactly as it is while the new wallet is looked up at its own fresh block.
   defp adopt_staking_wallet(socket, wallet),
     do:
       socket
       |> assign(
-        staking: public_staking_snapshot(socket.assigns.staking),
-        staking_status: if(socket.assigns.staking, do: :ready, else: :loading),
+        staking: forget_wallet_facts(socket.assigns.staking),
         staking_wallet: wallet,
         staking_amount: "",
         staking_notice: nil
       )
       |> start_staking_read(socket.assigns.content_generation)
 
-  defp public_staking_snapshot(nil), do: nil
+  defp forget_wallet_facts(nil), do: nil
 
-  defp public_staking_snapshot(staking) do
-    Map.merge(staking, %{
-      wallet_address: nil,
-      wallet_token_balance_raw: nil,
-      wallet_token_balance: nil,
-      wallet_usdc_balance_raw: nil,
-      wallet_usdc_balance: nil,
-      wallet_stake_allowance_raw: nil,
-      wallet_stake_balance_raw: nil,
-      wallet_stake_balance: nil,
-      wallet_claimable_usdc_raw: nil,
-      wallet_claimable_usdc: nil,
-      wallet_claimable_regent_raw: nil,
-      wallet_claimable_regent: nil,
-      wallet_funded_claimable_regent_raw: nil,
-      wallet_funded_claimable_regent: nil
-    })
-  end
+  defp forget_wallet_facts(staking),
+    do: StakingFacts.merge(staking, StakingFacts.blank_wallet())
 
   defp public_redemption_snapshot(nil), do: nil
 

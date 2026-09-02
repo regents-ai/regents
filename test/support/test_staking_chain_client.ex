@@ -14,14 +14,33 @@ defmodule AshPlatform.TestStakingChainClient do
   @denominator "1000000000000000000000"
   @total_staked "100000000000000000000"
 
+  # The two readings are taken at different blocks on purpose: a proof that
+  # pairs one map's figure with the other's block fails here rather than in
+  # production.
+  @protocol_block 1_234
+  @wallet_block 1_240
+
+  def protocol_block, do: @protocol_block
+  def wallet_block, do: @wallet_block
+
   # An unavailable Base read is its own outcome: it is never a zero balance and
   # never evidence about which wallet is asking.
   @impl true
-  def overview(wallet) do
-    report_read(Application.get_env(:ash_platform, :test_staking_read_watcher))
+  def protocol_snapshot do
+    report_read(:protocol)
 
-    case Application.get_env(:ash_platform, :test_staking_overview_error) do
-      nil -> {:ok, snapshot(wallet)}
+    case Application.get_env(:ash_platform, :test_staking_protocol_error) do
+      nil -> {:ok, protocol()}
+      reason -> {:error, reason}
+    end
+  end
+
+  @impl true
+  def wallet_snapshot(wallet) do
+    report_read(:wallet)
+
+    case Application.get_env(:ash_platform, :test_staking_wallet_error) do
+      nil -> {:ok, wallet_facts(wallet)}
       reason -> {:error, reason}
     end
   end
@@ -32,12 +51,16 @@ defmodule AshPlatform.TestStakingChainClient do
     {:ok, if(current >= amount, do: :sufficient, else: :insufficient)}
   end
 
-  # A test may watch the process doing a position read, so an ordering proof can
-  # wait for that read to finish rather than for a duration.
-  defp report_read(nil), do: :ok
-  defp report_read(test), do: send(test, {:staking_read, self()})
+  # A test may watch the process doing a read, so an ordering proof can wait for
+  # that read to finish rather than for a duration.
+  defp report_read(scope) do
+    case Application.get_env(:ash_platform, :test_staking_read_watcher) do
+      nil -> :ok
+      test -> send(test, {:staking_read, scope, self()})
+    end
+  end
 
-  defp snapshot(wallet) do
+  defp protocol do
     total = String.to_integer(@total_staked)
     denominator = String.to_integer(setting(:test_staking_denominator, @denominator))
     capacity = max(denominator - total, 0)
@@ -45,8 +68,9 @@ defmodule AshPlatform.TestStakingChainClient do
     %{
       chain_id: 8453,
       chain_label: "Base",
-      block_number: 1_234,
+      block_number: setting(:test_staking_protocol_block, @protocol_block),
       block_hash: "0x" <> String.duplicate("1b", 32),
+      read_at: setting(:test_staking_read_at, DateTime.utc_now()),
       contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
       stake_token_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
       usdc_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -61,12 +85,20 @@ defmodule AshPlatform.TestStakingChainClient do
       reserved_usdc_raw: "125000000000",
       reserved_usdc: "125000",
       emission_apr_bps: 1_200,
-      emission_apr_percent: "12",
+      emission_apr_percent: "12"
+    }
+  end
+
+  defp wallet_facts(wallet) do
+    %{
+      wallet_block_number: setting(:test_staking_wallet_block, @wallet_block),
+      wallet_block_hash: "0x" <> String.duplicate("2c", 32),
       wallet_address: wallet,
       wallet_token_balance_raw: raw(wallet, :token),
       wallet_token_balance: regent(wallet, :token),
       wallet_usdc_balance_raw: raw(wallet, :usdc_wallet),
       wallet_usdc_balance: usdc(wallet, :usdc_wallet),
+      wallet_stake_allowance_raw: "0",
       wallet_stake_balance_raw: raw(wallet, :stake),
       wallet_stake_balance: regent(wallet, :stake),
       wallet_claimable_usdc_raw: raw(wallet, :usdc_claimable),
@@ -77,8 +109,6 @@ defmodule AshPlatform.TestStakingChainClient do
       wallet_funded_claimable_regent: regent(wallet, :regent_funded)
     }
   end
-
-  defp raw(nil, _key), do: nil
 
   # Balances are configured per wallet, so a proof can tell one wallet's
   # position from another's.
@@ -93,8 +123,6 @@ defmodule AshPlatform.TestStakingChainClient do
 
   defp regent(wallet, key), do: scaled(raw(wallet, key), 18)
   defp usdc(wallet, key), do: scaled(raw(wallet, key), 6)
-
-  defp scaled(nil, _decimals), do: nil
 
   defp scaled(raw, decimals) do
     raw

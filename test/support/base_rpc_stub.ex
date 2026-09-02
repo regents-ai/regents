@@ -66,6 +66,25 @@ defmodule AshPlatform.BaseRpcStub do
     end)
   end
 
+  @doc """
+  Lets the aggregator's pinned identity be met by the code this stub returns.
+
+  The deployed runtime is thousands of bytes no test can hold, so the hash the
+  reader observes is supplied here while the length check still runs against
+  the real pinned length.
+  """
+  def install_multicall3_identity do
+    previous = Application.get_env(:ash_platform, :test_runtime_hasher)
+
+    Application.put_env(
+      :ash_platform,
+      :test_runtime_hasher,
+      fn _code -> AshPlatform.WalletActions.Abi.multicall3_runtime_keccak256() end
+    )
+
+    ExUnit.Callbacks.on_exit(fn -> restore(:test_runtime_hasher, previous) end)
+  end
+
   def state, do: Application.get_env(:ash_platform, :rpc_stub, %{})
 
   def put(changes), do: Application.put_env(:ash_platform, :rpc_stub, Map.merge(state(), changes))
@@ -99,6 +118,35 @@ defmodule AshPlatform.BaseRpcStub do
     end
   end
 
+  @doc """
+  One `aggregate3` response carrying exactly these `0x`-prefixed return values.
+
+  Every entry reports success, because `allowFailure` is false on every
+  sub-call a reader here makes and Multicall3 reverts rather than reporting one
+  that did not.
+  """
+  def aggregate3_result(values) when is_list(values) do
+    entries = Enum.map(values, &aggregate3_entry/1)
+    heads_bytes = length(entries) * 32
+
+    {heads, _next} =
+      Enum.map_reduce(entries, heads_bytes, fn entry, offset ->
+        {hex_word(offset), offset + div(byte_size(entry), 2)}
+      end)
+
+    "0x" <> hex_word(32) <> hex_word(length(entries)) <> Enum.join(heads) <> Enum.join(entries)
+  end
+
+  defp aggregate3_entry("0x" <> data),
+    do:
+      hex_word(1) <>
+        hex_word(64) <>
+        hex_word(div(byte_size(data), 2)) <>
+        String.pad_trailing(data, div(byte_size(data) + 63, 64) * 64, "0")
+
+  @doc "Deployed runtime code of exactly `bytes` length, for an identity check."
+  def runtime_code(bytes), do: "0x" <> String.duplicate("ab", bytes)
+
   def uint(value), do: "0x" <> hex_word(value)
 
   def hex_word(value),
@@ -129,7 +177,27 @@ defmodule AshPlatform.BaseRpcStub do
   defp result("eth_getTransactionByHash", [hash], state),
     do: state |> Map.get(:transactions, %{}) |> Map.get(hash)
 
-  defp result("eth_call", [%{data: data}, _block], state), do: state.calls.(data, state)
+  defp result("eth_getCode", [_address, block], state) do
+    if canonical?(block, state),
+      do:
+        Map.get_lazy(state, :code, fn ->
+          runtime_code(AshPlatform.WalletActions.Abi.multicall3_runtime_bytes())
+        end),
+      else: :unavailable
+  end
+
+  defp result("eth_call", [%{data: data}, block], state) do
+    if canonical?(block, state), do: state.calls.(data, state), else: :unavailable
+  end
+
+  # A block-pinned read is only answered when it names the canonical hash and
+  # asks for canonicality, exactly as a Base node behaves. A test naming a
+  # different canonical hash proves a moved block fails rather than answering,
+  # and a read pinned any other way is never answered at all.
+  defp canonical?(%{blockHash: hash, requireCanonical: true}, state),
+    do: Map.get(state, :canonical_block_hash, hash) == hash
+
+  defp canonical?(_block, _state), do: false
 
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)

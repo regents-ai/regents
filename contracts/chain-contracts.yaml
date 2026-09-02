@@ -103,6 +103,37 @@ contracts:
         confirmation_event_topic0: "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c"
         action_ids:
           - set_base_uri
+      - contract_id: multicall3
+        contract_name: Multicall3
+        target: canonical_multicall3
+        address: "0xcA11bde05977b3631167028862bE2a173976CA11"
+        source_url: "https://basescan.org/address/0xcA11bde05977b3631167028862bE2a173976CA11#code"
+        runtime_keccak256: "0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891"
+        runtime_sha256: 2756d7c52baee85cacb504f6ee1df7aad6809ac8d94a4a111d76991f90d36d6e
+        runtime_bytes: 3808
+        abi_path: abi/multicall3.json
+        abi_sha256: 37abf10ee8402b89482af88b281653256b79eb6d96eb4599200c03f542d8689d
+        address_provenance: >-
+          Multicall3 is deployed at the same address on every chain that carries it, Base
+          included. The runtime identity above was recorded at admission from a read-only
+          eth_getCode pinned to Base block 50767245
+          (0x164fba1ff76fe80adef28ad9780776f5cf56331279d7b852b4c1cfb61e26a0e6, requireCanonical),
+          and is re-proved on every read before any answer of the aggregator's is believed.
+          The frozen base-mainnet.json evidence file is not amended: this identity lives in
+          module constants beside the reads that file does not carry.
+        interface_note: >-
+          aggregate3 is used here for reading only. It is declared payable and it is never a
+          send target: no prepared action, envelope or confirmation path names this contract,
+          and every use of it is an eth_call pinned to one block hash with requireCanonical.
+          allowFailure is false on every sub-call, so a reverting sub-call reverts the whole
+          aggregate rather than yielding a partial reading, and each sub-call names the account
+          it reads about in its own arguments because msg.sender under the aggregator is the
+          aggregator. Nothing else Multicall3 declares is derived or prepared.
+        reads:
+          - id: aggregate3
+            signature: aggregate3((address,bool,bytes)[])
+            selector: "0x82ad56cb"
+        action_ids: []
       - contract_id: continuous_clearing_auction
         contract_name: IContinuousClearingAuction
         target: stored_auction_address

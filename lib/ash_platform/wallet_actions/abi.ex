@@ -5,16 +5,20 @@ defmodule AshPlatform.WalletActions.Abi do
 
   @manifest_path Path.expand("../../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../../contracts/abi/regent-revenue-staking.json", __DIR__)
+  @multicall3_abi_path Path.expand("../../../contracts/abi/multicall3.json", __DIR__)
   @external_resource @manifest_path
   @external_resource @abi_path
+  @external_resource @multicall3_abi_path
 
   @manifest @manifest_path |> File.read!() |> Jason.decode!()
   @abi @abi_path |> File.read!() |> Jason.decode!()
+  @multicall3_abi @multicall3_abi_path |> File.read!() |> Jason.decode!()
   @staking get_in(@manifest, ["contracts", "regent_revenue_staking"])
   @actions Map.new(@staking["prepared_actions"], &{&1["id"], &1})
   @reads Map.new(@staking["reads"], &{&1["id"], &1})
 
   @address_bound Integer.pow(2, 160)
+  @word_bytes 32
 
   # The evidence manifest stays byte-for-byte frozen, so the one read it does not
   # carry is encoded here against the pinned ABI's own declaration of it.
@@ -26,6 +30,24 @@ defmodule AshPlatform.WalletActions.Abi do
   @reserved_usdc_selector "0x017a2078"
   @emission_apr_signature "emissionAprBps()"
   @emission_apr_selector "0x8ba7fda0"
+
+  # Multicall3 is the canonical read aggregator, deployed at the same address on
+  # every chain it reaches, Base included. It is never a send target: the only
+  # thing this codebase asks it for is one `eth_call` that returns several reads
+  # of one block together, and its identity is proved against the runtime code
+  # hash below before any answer of its is believed.
+  #
+  # The evidence manifest stays byte-for-byte frozen, so the identity lives here
+  # as module constants, exactly as the reads it does not carry do. Recorded at
+  # admission from a live read-only `eth_getCode` at Base block 50767245
+  # (0x164fba1ff76fe80adef28ad9780776f5cf56331279d7b852b4c1cfb61e26a0e6,
+  # requireCanonical); see artifacts/web-ops-2026-09-01/multicall3-admission-2026-09-02.md.
+  @multicall3_address "0xcA11bde05977b3631167028862bE2a173976CA11"
+  @multicall3_runtime_keccak256 "0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891"
+  @multicall3_runtime_sha256 "2756d7c52baee85cacb504f6ee1df7aad6809ac8d94a4a111d76991f90d36d6e"
+  @multicall3_runtime_bytes 3808
+  @aggregate3_signature "aggregate3((address,bool,bytes)[])"
+  @aggregate3_selector "0x82ad56cb"
 
   @event_signatures %{
     approval: "Approval(address,address,uint256)",
@@ -50,8 +72,10 @@ defmodule AshPlatform.WalletActions.Abi do
   ]
 
   @doc false
-  def __after_compile__(_env, _bytecode),
-    do: Enum.each(@declarations, fn {kind, signature} -> declared!(@abi, kind, signature) end)
+  def __after_compile__(_env, _bytecode) do
+    Enum.each(@declarations, fn {kind, signature} -> declared!(@abi, kind, signature) end)
+    declared!(@multicall3_abi, "function", @aggregate3_signature)
+  end
 
   @doc "Raises unless `abi` declares exactly this function or event signature."
   def declared!(abi, kind, signature) do
@@ -59,12 +83,20 @@ defmodule AshPlatform.WalletActions.Abi do
 
     Enum.any?(abi, fn
       %{"type" => ^kind, "name" => ^name, "inputs" => inputs} ->
-        "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+        "#{name}(#{Enum.map_join(inputs, ",", &canonical_type/1)})" == signature
 
       _entry ->
         false
     end) || raise "pinned ABI is missing #{signature}"
   end
+
+  # A tuple's ABI type is its component list, so a struct argument is proved
+  # against the exact signature its selector was derived from rather than
+  # against the placeholder word `tuple`.
+  defp canonical_type(%{"type" => "tuple" <> suffix, "components" => components}),
+    do: "(#{Enum.map_join(components, ",", &canonical_type/1)})#{suffix}"
+
+  defp canonical_type(%{"type" => type}), do: type
 
   def staking_address, do: @staking["address"]
   def stake_token_address, do: get_in(@staking, ["onchain_constants", "stake_token"])
@@ -74,6 +106,161 @@ defmodule AshPlatform.WalletActions.Abi do
   def encode_reserved_usdc, do: @reserved_usdc_selector
   def encode_emission_apr_bps, do: @emission_apr_selector
   def supply_denominator_signature, do: @supply_denominator_signature
+
+  def multicall3_address, do: @multicall3_address
+  def multicall3_runtime_keccak256, do: @multicall3_runtime_keccak256
+  def multicall3_runtime_sha256, do: @multicall3_runtime_sha256
+  def multicall3_runtime_bytes, do: @multicall3_runtime_bytes
+  def aggregate3_signature, do: @aggregate3_signature
+  def aggregate3_selector, do: @aggregate3_selector
+
+  @doc """
+  Calldata for one Multicall3 `aggregate3` carrying exactly these sub-calls.
+
+  `allowFailure` is `false` on every sub-call and is not a caller's choice: a
+  sub-call that reverts reverts the whole aggregate, so a page never renders a
+  reading assembled from some answers and some silence. Under Multicall3 the
+  `msg.sender` each sub-call sees is Multicall3 itself, so every sub-call here
+  names the account it reads about in its own arguments.
+
+  `calls` is a list of `{target, calldata}` pairs, both `0x`-prefixed hex.
+  """
+  def encode_aggregate3(calls) when is_list(calls) and calls != [] do
+    bodies = Enum.map(calls, &encode_call3/1)
+    heads_bytes = length(bodies) * @word_bytes
+
+    {heads, _next} =
+      Enum.map_reduce(bodies, heads_bytes, fn body, offset ->
+        {word(offset), offset + hex_bytes(body)}
+      end)
+
+    @aggregate3_selector <>
+      word(@word_bytes) <> word(length(bodies)) <> Enum.join(heads) <> Enum.join(bodies)
+  end
+
+  @doc """
+  The `bytes` each sub-call of one `aggregate3` returned, in the order asked.
+
+  Every offset the response declares is checked against the payload it points
+  into before a single byte is read through it, and a sub-call reporting
+  anything other than success is refused: `allowFailure` was `false`, so an
+  unsuccessful entry is a contradiction rather than a value to interpret.
+  """
+  def decode_aggregate3("0x" <> hex, count) when is_integer(count) and count > 0 do
+    with {:ok, payload} <- Base.decode16(hex, case: :mixed),
+         {:ok, array_offset} <- word_at(payload, 0),
+         {:ok, array} <- region(payload, array_offset),
+         {:ok, ^count} <- word_at(array, 0),
+         {:ok, entries} <- decode_entries(binary_part(array, 32, byte_size(array) - 32), count) do
+      {:ok, entries}
+    else
+      _malformed -> :error
+    end
+  end
+
+  def decode_aggregate3(_value, _count), do: :error
+
+  # Each entry is bounded by the one that follows it before anything inside it
+  # is read, so a declared width can never reach into the next entry's bytes or
+  # into trailing rubbish. Canonical encoding lays the entries out in order, so
+  # offsets that are not strictly ascending are refused rather than reordered.
+  defp decode_entries(body, count) do
+    with {:ok, offsets} <- entry_offsets(body, count),
+         true <- ascending_entries?(offsets, count * @word_bytes, byte_size(body)) do
+      offsets
+      |> Enum.zip(tl(offsets) ++ [byte_size(body)])
+      |> Enum.map(fn {offset, bound} -> binary_part(body, offset, bound - offset) end)
+      |> collect(&decode_entry/1)
+    else
+      _malformed -> :error
+    end
+  end
+
+  # Every element decodes, or none of them does.
+  defp collect(items, decoder) do
+    items
+    |> Enum.reduce_while({:ok, []}, fn item, {:ok, decoded} ->
+      case decoder.(item) do
+        {:ok, value} -> {:cont, {:ok, [value | decoded]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, decoded} -> {:ok, Enum.reverse(decoded)}
+      :error -> :error
+    end
+  end
+
+  defp entry_offsets(body, count),
+    do: collect(0..(count - 1)//1, &word_at(body, &1 * @word_bytes))
+
+  # An entry may not start inside the head words that hold the offsets, may not
+  # start where another one does or before it, and may not start outside the
+  # payload; every start is word-aligned. One strictly ascending rule says the
+  # middle of that, and because it holds, the first offset is the lowest and the
+  # last the highest, so the two bounds either side of it mean what they say.
+  defp ascending_entries?(offsets, heads_bytes, size) do
+    Enum.all?(offsets, &(rem(&1, @word_bytes) == 0)) and
+      List.first(offsets) >= heads_bytes and
+      List.last(offsets) + 2 * @word_bytes <= size and
+      strictly_ascending?(offsets)
+  end
+
+  defp strictly_ascending?(offsets),
+    do:
+      offsets
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.all?(fn [start, next] -> next > start end)
+
+  # `(bool success, bytes returnData)`, read only from an entry already bounded
+  # to its own width. `allowFailure` was false, so anything other than success
+  # is a contradiction rather than a value to interpret, and the payload has to
+  # fill its entry exactly.
+  defp decode_entry(entry) do
+    with {:ok, 1} <- word_at(entry, 0),
+         {:ok, data_offset} <- word_at(entry, @word_bytes),
+         true <- data_offset >= 2 * @word_bytes,
+         {:ok, data} <- region(entry, data_offset),
+         {:ok, size} <- word_at(data, 0),
+         true <- byte_size(data) - @word_bytes == padded(size) do
+      {:ok, "0x" <> Base.encode16(binary_part(data, @word_bytes, size), case: :lower)}
+    else
+      _malformed -> :error
+    end
+  end
+
+  # An offset is only usable when it is word-aligned and leaves at least one
+  # whole word inside the payload it points into.
+  defp region(payload, offset)
+       when is_integer(offset) and rem(offset, @word_bytes) == 0 and
+              offset + @word_bytes <= byte_size(payload),
+       do: {:ok, binary_part(payload, offset, byte_size(payload) - offset)}
+
+  defp region(_payload, _offset), do: :error
+
+  defp word_at(payload, at) when at >= 0 and at + @word_bytes <= byte_size(payload),
+    do: {:ok, :binary.decode_unsigned(binary_part(payload, at, @word_bytes))}
+
+  defp word_at(_payload, _at), do: :error
+
+  defp padded(size), do: div(size + @word_bytes - 1, @word_bytes) * @word_bytes
+
+  defp encode_call3({target, "0x" <> data}) when rem(byte_size(data), 2) == 0 do
+    encode_static("address", target) <>
+      word(0) <>
+      word(3 * @word_bytes) <>
+      word(div(byte_size(data), 2)) <> pad_trailing(String.downcase(data))
+  end
+
+  defp hex_bytes(hex), do: div(byte_size(hex), 2)
+
+  defp pad_trailing(""), do: ""
+
+  defp pad_trailing(hex),
+    do: String.pad_trailing(hex, div(byte_size(hex) + 63, 64) * 64, "0")
+
+  defp word(value) when is_integer(value) and value >= 0,
+    do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
 
   def encode_action(id, arguments) when is_binary(id) and is_list(arguments) do
     entry = Map.fetch!(@actions, id)

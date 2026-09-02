@@ -10,6 +10,8 @@ defmodule AshPlatformWeb.StakeLive do
   attr :amount, :string, required: true
   attr :notice, :map, default: nil
   attr :reading, :boolean, default: false
+  attr :shared_reading, :boolean, default: false
+  attr :signed_in, :boolean, default: false
   attr :spendable, :integer, default: 0
   attr :amount_notice, :string, default: nil
   attr :available_claims, :map, default: %{}
@@ -123,7 +125,11 @@ defmodule AshPlatformWeb.StakeLive do
       </div>
       <div :if={@status == :error} class="stake-status">
         <p role="alert">Staking details are unavailable right now.</p>
-        <button type="button" phx-click="refresh_staking" disabled={@reading}>Try again</button>
+        <.notice :if={@notice} notice={@notice} />
+        <.shared_refresh :if={@signed_in} reading={@shared_reading} label="Read the contract" />
+        <p :if={!@signed_in} class="stake-fine-print">
+          Contract data is read once for everyone. A signed-in visitor can ask for a new reading.
+        </p>
       </div>
 
       <div :if={@status == :ready && @staking} class="stake-layout">
@@ -174,6 +180,9 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
 
           <div :if={@wallet_ready} class="stake-wallet-controls">
+            <p class="stake-wallet-block">
+              Your position at Base block #{format_number(@staking.wallet_block_number)}.
+            </p>
             <dl class="stake-wallet-summary">
               <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
               <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
@@ -276,6 +285,11 @@ defmodule AshPlatformWeb.StakeLive do
               <button type="button" phx-click="refresh_staking" disabled={@reading}>
                 {if @reading, do: "Updating…", else: "Refresh position"}
               </button>
+              <.shared_refresh
+                :if={@signed_in}
+                reading={@shared_reading}
+                label="Refresh contract data"
+              />
               <button type="button" data-stake-connect>Switch wallet</button>
             </div>
           </div>
@@ -326,9 +340,22 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
 
           <p class="stake-snapshot-note">
-            <span>Confirmed at Base block #{format_number(@staking.block_number)}.</span>
-            <span :if={@reading} class="stake-inline-loading"> Updating from Base…</span>
+            <span>
+              Confirmed at Base block #{format_number(@staking.block_number)}, read {snapshot_age(
+                @staking
+              )}.
+            </span>
+            <span :if={@reading || @shared_reading} class="stake-inline-loading">
+              Updating from Base…
+            </span>
           </p>
+
+          <.notice :if={!@wallet && @notice} notice={@notice} />
+          <.shared_refresh
+            :if={@signed_in}
+            reading={@shared_reading}
+            label="Refresh contract data"
+          />
         </section>
 
         <section class="stake-how-it-works" aria-labelledby="staking-explainer-heading">
@@ -387,6 +414,37 @@ defmodule AshPlatformWeb.StakeLive do
     </section>
     """
   end
+
+  attr :reading, :boolean, required: true
+  attr :label, :string, required: true
+
+  # Re-reading the contract replaces what every visitor is shown, so the server
+  # decides whether this click is allowed to; the control only asks.
+  defp shared_refresh(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="stake-shared-refresh"
+      phx-click="refresh_shared_snapshot"
+      disabled={@reading}
+    >
+      {if @reading, do: "Reading Base…", else: @label}
+    </button>
+    """
+  end
+
+  @doc "How long ago this contract reading was taken, in plain words."
+  def snapshot_age(%{read_at: %DateTime{} = read_at}),
+    do: read_at |> DateTime.diff(DateTime.utc_now()) |> abs() |> elapsed()
+
+  def snapshot_age(_staking), do: "just now"
+
+  defp elapsed(seconds) when seconds < 10, do: "moments ago"
+  defp elapsed(seconds) when seconds < 60, do: "#{seconds} seconds ago"
+  defp elapsed(seconds) when seconds < 120, do: "a minute ago"
+  defp elapsed(seconds) when seconds < 3_600, do: "#{div(seconds, 60)} minutes ago"
+  defp elapsed(seconds) when seconds < 7_200, do: "an hour ago"
+  defp elapsed(seconds), do: "#{div(seconds, 3_600)} hours ago"
 
   def token_amount(value),
     do:

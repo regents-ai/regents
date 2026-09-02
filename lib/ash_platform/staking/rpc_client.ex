@@ -4,94 +4,16 @@ defmodule AshPlatform.Staking.RpcClient do
 
   alias AshPlatform.WalletActions.{Abi, Rpc}
 
-  @overview_timeout 12_000
+  @read_timeout 12_000
   @chain_id 8453
   @rpc_opts [client_key: :staking_http_client, log_scope: "staking"]
 
   @impl true
-  def overview(wallet_address) do
-    task = Task.async(fn -> do_overview(wallet_address) end)
+  def protocol_snapshot, do: bounded(fn -> read_protocol() end)
 
-    case Task.yield(task, @overview_timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, result} -> result
-      _timeout -> {:error, :chain_timeout}
-    end
-  end
-
-  # One `latest` block owns every read below it. A partial read is unavailable,
-  # so nothing on the page can pair one block's balance with another's total.
-  defp do_overview(wallet_address) do
-    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
-         {:ok, paused} <- read_bool("paused", block),
-         {:ok, total_staked} <- read_uint("total_staked", block),
-         {:ok, denominator} <-
-           Rpc.call_uint(
-             Abi.staking_address(),
-             Abi.encode_supply_denominator(),
-             block,
-             @rpc_opts
-           ),
-         {:ok, [available_regent, reserved_usdc, emission_apr_bps]} <-
-           parallel_reads([
-             fn ->
-               Rpc.call_uint(
-                 Abi.staking_address(),
-                 Abi.encode_available_regent_reward_inventory(),
-                 block,
-                 @rpc_opts
-               )
-             end,
-             fn ->
-               Rpc.call_uint(
-                 Abi.staking_address(),
-                 Abi.encode_reserved_usdc(),
-                 block,
-                 @rpc_opts
-               )
-             end,
-             fn ->
-               Rpc.call_uint(
-                 Abi.staking_address(),
-                 Abi.encode_emission_apr_bps(),
-                 block,
-                 @rpc_opts
-               )
-             end
-           ]),
-         {:ok, stake_token} <- read_address("stake_token", block),
-         {:ok, usdc} <- read_address("usdc", block),
-         true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
-         true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
-         {:ok, account} <- account_reads(wallet_address, stake_token, usdc, block) do
-      capacity = max(denominator - total_staked, 0)
-
-      {:ok,
-       Map.merge(account, %{
-         chain_id: @chain_id,
-         chain_label: "Base",
-         block_number: block.number,
-         block_hash: block.hash,
-         contract_address: Abi.normalize_address!(Abi.staking_address()),
-         stake_token_address: stake_token,
-         usdc_address: usdc,
-         paused: paused,
-         total_staked_raw: Integer.to_string(total_staked),
-         total_staked: Rpc.format_units(total_staked, 18),
-         supply_denominator_raw: Integer.to_string(denominator),
-         remaining_capacity_raw: Integer.to_string(capacity),
-         remaining_capacity: Rpc.format_units(capacity, 18),
-         available_regent_reward_inventory_raw: Integer.to_string(available_regent),
-         available_regent_reward_inventory: Rpc.format_units(available_regent, 18),
-         reserved_usdc_raw: Integer.to_string(reserved_usdc),
-         reserved_usdc: Rpc.format_units(reserved_usdc, 6),
-         emission_apr_bps: emission_apr_bps,
-         emission_apr_percent: format_bps(emission_apr_bps)
-       })}
-    else
-      false -> {:error, :contract_constants_mismatch}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @impl true
+  def wallet_snapshot(wallet_address),
+    do: bounded(fn -> read_wallet(Abi.normalize_address!(wallet_address)) end)
 
   @impl true
   def allowance(signer, amount) do
@@ -107,44 +29,77 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
-  defp account_reads(nil, _stake_token, _usdc, _block) do
-    {:ok,
-     %{
-       wallet_address: nil,
-       wallet_token_balance_raw: nil,
-       wallet_token_balance: nil,
-       wallet_usdc_balance_raw: nil,
-       wallet_usdc_balance: nil,
-       wallet_stake_allowance_raw: nil,
-       wallet_stake_balance_raw: nil,
-       wallet_stake_balance: nil,
-       wallet_claimable_usdc_raw: nil,
-       wallet_claimable_usdc: nil,
-       wallet_claimable_regent_raw: nil,
-       wallet_claimable_regent: nil,
-       wallet_funded_claimable_regent_raw: nil,
-       wallet_funded_claimable_regent: nil
-     }}
-  end
+  # One `latest` block owns every figure below it, and one call returns them
+  # all: a partial reading is unavailable, so nothing on the page can pair one
+  # block's balance with another's total.
+  defp read_protocol do
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
+         :ok <- identified_aggregator(block),
+         {:ok,
+          [
+            paused,
+            total_staked,
+            denominator,
+            available_regent,
+            reserved_usdc,
+            emission_apr_bps,
+            stake_token,
+            usdc
+          ]} <- Rpc.aggregate3(aggregator(), protocol_calls(), block, @rpc_opts),
+         true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
+         true <- usdc == Abi.normalize_address!(Abi.usdc_address()) do
+      capacity = max(denominator - total_staked, 0)
 
-  defp account_reads(wallet_address, stake_token, usdc, block) do
-    wallet = Abi.normalize_address!(wallet_address)
-
-    with {:ok, token_balance} <- balance_of(stake_token, wallet, block),
-         {:ok, usdc_balance} <- balance_of(usdc, wallet, block),
-         {:ok, stake_allowance} <-
-           Rpc.call_uint(
-             stake_token,
-             Abi.encode_erc20("allowance", [wallet, Abi.staking_address()]),
-             block,
-             @rpc_opts
-           ),
-         {:ok, staked} <- read_uint("staked_balance", [wallet], block),
-         {:ok, claimable_usdc} <- read_uint("claimable_usdc", [wallet], block),
-         {:ok, claimable_regent} <- read_uint("claimable_regent", [wallet], block),
-         {:ok, funded_regent} <- read_uint("funded_claimable_regent", [wallet], block) do
       {:ok,
        %{
+         chain_id: @chain_id,
+         chain_label: "Base",
+         block_number: block.number,
+         block_hash: block.hash,
+         read_at: DateTime.utc_now(),
+         contract_address: Abi.normalize_address!(Abi.staking_address()),
+         stake_token_address: stake_token,
+         usdc_address: usdc,
+         paused: paused,
+         total_staked_raw: Integer.to_string(total_staked),
+         total_staked: Rpc.format_units(total_staked, 18),
+         supply_denominator_raw: Integer.to_string(denominator),
+         remaining_capacity_raw: Integer.to_string(capacity),
+         remaining_capacity: Rpc.format_units(capacity, 18),
+         available_regent_reward_inventory_raw: Integer.to_string(available_regent),
+         available_regent_reward_inventory: Rpc.format_units(available_regent, 18),
+         reserved_usdc_raw: Integer.to_string(reserved_usdc),
+         reserved_usdc: Rpc.format_units(reserved_usdc, 6),
+         emission_apr_bps: emission_apr_bps,
+         emission_apr_percent: format_bps(emission_apr_bps)
+       }}
+    else
+      false -> {:error, :contract_constants_mismatch}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # A wallet reading always takes its own fresh block. A person watching their
+  # own transaction confirm needs the block their receipt was mined into or a
+  # later one, which a remembered block cannot promise.
+  defp read_wallet(wallet) do
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
+         :ok <- identified_aggregator(block),
+         {:ok,
+          [
+            token_balance,
+            usdc_balance,
+            stake_allowance,
+            staked,
+            claimable_usdc,
+            claimable_regent,
+            funded_regent
+          ]} <-
+           Rpc.aggregate3(aggregator(), wallet_calls(wallet), block, @rpc_opts) do
+      {:ok,
+       %{
+         wallet_block_number: block.number,
+         wallet_block_hash: block.hash,
          wallet_address: wallet,
          wallet_token_balance_raw: Integer.to_string(token_balance),
          wallet_token_balance: Rpc.format_units(token_balance, 18),
@@ -163,19 +118,59 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
-  defp balance_of(token, wallet, block),
-    do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [wallet]), block, @rpc_opts)
+  # Under the aggregator every sub-call is made by the aggregator, so a read
+  # about an account names that account in its own arguments and never relies on
+  # who is calling.
+  defp protocol_calls do
+    staking = Abi.staking_address()
 
-  defp read_uint(id, block), do: read_uint(id, [], block)
+    [
+      {staking, Abi.encode_read("paused"), :bool},
+      {staking, Abi.encode_read("total_staked"), :uint},
+      {staking, Abi.encode_supply_denominator(), :uint},
+      {staking, Abi.encode_available_regent_reward_inventory(), :uint},
+      {staking, Abi.encode_reserved_usdc(), :uint},
+      {staking, Abi.encode_emission_apr_bps(), :uint},
+      {staking, Abi.encode_read("stake_token"), :address},
+      {staking, Abi.encode_read("usdc"), :address}
+    ]
+  end
 
-  defp read_uint(id, arguments, block),
-    do: Rpc.call_uint(Abi.staking_address(), Abi.encode_read(id, arguments), block, @rpc_opts)
+  defp wallet_calls(wallet) do
+    staking = Abi.staking_address()
+    stake_token = Abi.stake_token_address()
 
-  defp read_bool(id, block),
-    do: Rpc.call_bool(Abi.staking_address(), Abi.encode_read(id), block, @rpc_opts)
+    [
+      {stake_token, Abi.encode_erc20("balance_of", [wallet]), :uint},
+      {Abi.usdc_address(), Abi.encode_erc20("balance_of", [wallet]), :uint},
+      {stake_token, Abi.encode_erc20("allowance", [wallet, staking]), :uint},
+      {staking, Abi.encode_read("staked_balance", [wallet]), :uint},
+      {staking, Abi.encode_read("claimable_usdc", [wallet]), :uint},
+      {staking, Abi.encode_read("claimable_regent", [wallet]), :uint},
+      {staking, Abi.encode_read("funded_claimable_regent", [wallet]), :uint}
+    ]
+  end
 
-  defp read_address(id, block),
-    do: Rpc.call_address(Abi.staking_address(), Abi.encode_read(id), block, @rpc_opts)
+  defp aggregator, do: Abi.multicall3_address()
+
+  defp identified_aggregator(block),
+    do:
+      Rpc.verified_runtime_code(
+        aggregator(),
+        Abi.multicall3_runtime_keccak256(),
+        Abi.multicall3_runtime_bytes(),
+        block,
+        @rpc_opts
+      )
+
+  defp bounded(read) do
+    task = Task.async(read)
+
+    case Task.yield(task, @read_timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      _timeout -> {:error, :chain_timeout}
+    end
+  end
 
   defp format_bps(bps) do
     bps
@@ -183,24 +178,5 @@ defmodule AshPlatform.Staking.RpcClient do
     |> Decimal.div(100)
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
-  end
-
-  defp parallel_reads(reads) do
-    reads
-    |> Task.async_stream(& &1.(),
-      max_concurrency: length(reads),
-      ordered: true,
-      timeout: @overview_timeout,
-      on_timeout: :kill_task
-    )
-    |> Enum.reduce_while({:ok, []}, fn
-      {:ok, {:ok, value}}, {:ok, values} -> {:cont, {:ok, [value | values]}}
-      {:ok, {:error, reason}}, _ -> {:halt, {:error, reason}}
-      _, _ -> {:halt, {:error, :chain_timeout}}
-    end)
-    |> case do
-      {:ok, values} -> {:ok, Enum.reverse(values)}
-      error -> error
-    end
   end
 end

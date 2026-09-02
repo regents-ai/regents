@@ -3,7 +3,7 @@ defmodule AshPlatform.WalletActions.Rpc do
 
   require Logger
 
-  alias AshPlatform.WalletActions.Address
+  alias AshPlatform.WalletActions.{Abi, Address}
 
   @timeout 8_000
   @chain_id 8453
@@ -166,6 +166,100 @@ defmodule AshPlatform.WalletActions.Rpc do
   def call_words(to, data, block, count, opts \\ []) when is_integer(count) and count > 0 do
     call(to, data, block, &decode_words(&1, count), opts)
   end
+
+  @doc """
+  Several reads of one Base block, answered by one `eth_call` to `aggregator`.
+
+  `calls` is the ordered list of `{target, calldata, kind}` this read wants,
+  `kind` being `:uint`, `:bool` or `:address`. The whole aggregate is pinned to
+  the caller's block hash with `requireCanonical`, exactly as a single read is,
+  so a moved block fails rather than answering, and `allowFailure` is `false`,
+  so a reverting sub-call reverts everything and the page is told the chain is
+  unavailable instead of being handed a partial reading.
+  """
+  @spec aggregate3(String.t(), [{String.t(), String.t(), atom()}], block(), keyword()) ::
+          {:ok, [term()]} | {:error, atom()}
+  def aggregate3(aggregator, calls, %{hash: hash}, opts \\ []) when calls != [] do
+    data = Abi.encode_aggregate3(Enum.map(calls, fn {to, calldata, _kind} -> {to, calldata} end))
+
+    with {:ok, result} <-
+           request(
+             "eth_call",
+             [
+               %{to: aggregator, data: data},
+               %{blockHash: hash, requireCanonical: true}
+             ],
+             opts
+           ),
+         {:ok, returned} <- Abi.decode_aggregate3(result, length(calls)),
+         {:ok, decoded} <- decode_each(returned, calls) do
+      {:ok, decoded}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    _ -> {:error, :invalid_chain_response}
+  end
+
+  @doc """
+  The runtime code deployed at `address`, proved against a pinned identity.
+
+  The check runs against the same block hash the reads themselves are pinned
+  to, so the code that answered a read and the code that was identified are the
+  same code, and a `requireCanonical` refusal fails the whole reading.
+  """
+  @spec verified_runtime_code(String.t(), String.t(), non_neg_integer(), block(), keyword()) ::
+          :ok | {:error, atom()}
+  def verified_runtime_code(address, keccak256, bytes, %{hash: hash}, opts \\ []) do
+    with {:ok, "0x" <> hex} <-
+           request("eth_getCode", [address, %{blockHash: hash, requireCanonical: true}], opts),
+         {:ok, code} <- Base.decode16(hex, case: :mixed),
+         true <- byte_size(code) == bytes,
+         true <- keccak256(code) == keccak256 do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _mismatch -> {:error, :runtime_mismatch}
+    end
+  end
+
+  defp real_keccak256(bytes),
+    do: "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)
+
+  # The runtime this identifies is thousands of bytes of deployed code that no
+  # test can hold, so a test supplies the hash it wants observed instead, the
+  # same way the Regents Club reader does. Nothing of this survives into a
+  # release: outside the test build there is only the real hash.
+  if Mix.env() == :test do
+    defp keccak256(bytes) do
+      case Application.get_env(:ash_platform, :test_runtime_hasher) do
+        hasher when is_function(hasher, 1) -> hasher.(bytes)
+        _real_hash -> real_keccak256(bytes)
+      end
+    end
+  else
+    defp keccak256(bytes), do: real_keccak256(bytes)
+  end
+
+  defp decode_each(returned, calls) do
+    returned
+    |> Enum.zip(calls)
+    |> Enum.reduce_while({:ok, []}, fn {value, {_to, _data, kind}}, {:ok, decoded} ->
+      case decode_kind(kind, value) do
+        {:ok, decoded_value} -> {:cont, {:ok, [decoded_value | decoded]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, decoded} -> {:ok, Enum.reverse(decoded)}
+      :error -> :error
+    end
+  end
+
+  defp decode_kind(:uint, value), do: decode_uint(value)
+  defp decode_kind(:bool, value), do: decode_bool(value)
+  defp decode_kind(:address, value), do: decode_address(value)
 
   def request(method, params, opts \\ []) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}

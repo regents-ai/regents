@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
   alias AshPlatform.AccessContext.AccountControl
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  alias AshPlatform.Staking.SnapshotCache
   alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.RouteCatalog
   alias AshPlatformWeb.ShellLive
@@ -332,8 +333,55 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert unchanged.assigns.content_status == :ready
   end
 
+  # /app shows the same shared contract reading every other page does, and an
+  # anonymous visitor there buys no chain read either.
+  test "anonymous /app paints the shared contract reading without reading Base", %{conn: conn} do
+    seed_shared_snapshot()
+    Application.put_env(:ash_platform, :test_staking_read_watcher, self())
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
+
+    {:ok, view, _html} = live(conn, "/app")
+
+    assert has_element?(view, ".regent-ops-metric", "Total REGENT staked")
+    assert render(view) =~ "100 REGENT"
+    refute_received {:staking_read, _scope, _reader}
+
+    # Nothing about any wallet is on screen for a visitor who has not signed in.
+    refute has_element?(view, ".regent-ops-balances")
+  end
+
+  test "signed-in /app reads the account wallet at its own fresh block", %{conn: conn} do
+    seed_shared_snapshot()
+    account = register_account("app-wallet-read", "0x1111111111111111111111111111111111111111")
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/app")
+
+    render_async(view)
+
+    assert has_element?(view, ".regent-ops-balances", "Staked REGENT")
+    assert render(view) =~ "5 REGENT"
+
+    staking = :sys.get_state(view.pid).socket.assigns.staking
+
+    assert staking.block_number == AshPlatform.TestStakingChainClient.protocol_block()
+    assert staking.wallet_block_number == AshPlatform.TestStakingChainClient.wallet_block()
+    assert staking.wallet_address == "0x1111111111111111111111111111111111111111"
+  end
+
   test "malformed and reserved route parameters return not found", %{conn: conn} do
     assert_error_sent(404, fn -> get(conn, "/techtree/nodes") end)
+  end
+
+  defp seed_shared_snapshot do
+    SnapshotCache.clear()
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+    on_exit(&SnapshotCache.clear/0)
+    assert :ok = SnapshotCache.refresh(self())
+    assert_receive {:staking_snapshot, snapshot}
+    snapshot
   end
 
   defp register_account(suffix, wallet) do

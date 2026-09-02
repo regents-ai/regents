@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.RegentOpsLive do
 
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
+  attr :notice, :map, default: nil
   attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
   attr :account, :map, default: nil
 
@@ -24,6 +25,14 @@ defmodule AshPlatformWeb.RegentOpsLive do
 
       <div :if={@status == :error} class="regent-ops-status" role="alert">
         Network details are unavailable right now. Stake and Redeem remain available.
+      </div>
+
+      <div
+        :if={@notice}
+        class="regent-ops-status"
+        role={if @notice.tone == :error, do: "alert", else: "status"}
+      >
+        {@notice.message}
       </div>
 
       <div :if={@status == :ready && @staking} class="regent-ops-layout">

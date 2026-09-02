@@ -1,6 +1,10 @@
 defmodule AshPlatformWeb.StakeLiveTest do
   use AshPlatformWeb.ConnCase, async: false
 
+  alias AshPlatform.Accounts
+  alias AshPlatform.Actors.System
+  alias AshPlatform.Staking.SnapshotCache
+  alias AshPlatform.TestStakingChainClient
   alias AshPlatformWeb.ShellLive
 
   @wallet "0x1111111111111111111111111111111111111111"
@@ -9,8 +13,16 @@ defmodule AshPlatformWeb.StakeLiveTest do
   @regent "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   @hash "0x" <> String.duplicate("a", 64)
+  # Later than the wallet block the stub answers with by default, so a reading
+  # taken before the transaction confirmed cannot pass for one taken after it.
+  @receipt_block 1_249
+  @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
+  @budget_refusal "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
 
   setup do
+    SnapshotCache.clear()
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+
     Application.put_env(
       :ash_platform,
       :test_staking_denominator,
@@ -22,13 +34,18 @@ defmodule AshPlatformWeb.StakeLiveTest do
             :test_staking_allowance,
             :test_staking_balances,
             :test_staking_denominator,
-            :test_staking_overview_error,
+            :test_staking_protocol_error,
+            :test_staking_wallet_error,
             :test_staking_paused,
             :test_staking_read_gate,
-            :test_wallet_observation_watcher
+            :test_staking_read_at,
+            :test_wallet_observation_watcher,
+            :staking_snapshot_clock
           ] do
         Application.delete_env(:ash_platform, key)
       end
+
+      SnapshotCache.clear()
     end)
 
     :ok
@@ -38,7 +55,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     @behaviour AshPlatform.Staking.ChainClient
 
     @impl true
-    def overview(_wallet), do: exit(:simulated_refresh_crash)
+    def protocol_snapshot, do: exit(:simulated_refresh_crash)
+
+    @impl true
+    def wallet_snapshot(_wallet), do: exit(:simulated_refresh_crash)
 
     @impl true
     def allowance(_wallet, _amount), do: {:ok, :insufficient}
@@ -48,7 +68,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     @behaviour AshPlatform.Staking.ChainClient
 
     @impl true
-    def overview(wallet) do
+    def protocol_snapshot, do: AshPlatform.TestStakingChainClient.protocol_snapshot()
+
+    @impl true
+    def wallet_snapshot(wallet) do
       if test_pid = Application.get_env(:ash_platform, :test_staking_read_gate) do
         send(test_pid, {:staking_read_waiting, self()})
 
@@ -59,7 +82,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
         end
       end
 
-      AshPlatform.TestStakingChainClient.overview(wallet)
+      AshPlatform.TestStakingChainClient.wallet_snapshot(wallet)
     end
 
     @impl true
@@ -71,8 +94,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
        %{
          conn: conn
        } do
-    {:ok, view, _html} = live(conn, "/stake")
-    html = render_async(view)
+    view = mount_stake(conn)
+    html = render(view)
 
     assert html =~ "No Regent account or Privy login is required."
     assert html =~ "Staking active"
@@ -119,11 +142,39 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "#regent-staking[data-staking-allowance]")
   end
 
+  # The whole point of the shared reading: opening the page costs Base nothing.
+  test "NO_READ_FOR_A_VISITOR: an anonymous visit with no wallet reads Base not at all", %{
+    conn: conn
+  } do
+    seed_snapshot()
+    Application.put_env(:ash_platform, :test_staking_read_watcher, self())
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
+
+    {:ok, view, _html} = live(conn, "/stake")
+    assert has_element?(view, ".stake-total strong", "100")
+
+    refute_receive {:staking_read, _scope, _reader}, 200
+  end
+
+  test "SNAPSHOT_AGE: the page says which block the contract data came from and how old it is", %{
+    conn: conn
+  } do
+    Application.put_env(
+      :ash_platform,
+      :test_staking_read_at,
+      DateTime.add(DateTime.utc_now(), -95, :second)
+    )
+
+    view = mount_stake(conn)
+
+    assert has_element?(view, ".stake-snapshot-note", "Base block #1,234, read a minute ago")
+  end
+
   test "PAUSED_SNAPSHOT: anonymous dashboard identifies a paused contract", %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_paused, true)
 
-    {:ok, view, _html} = live(conn, "/stake")
-    html = render_async(view)
+    view = mount_stake(conn)
+    html = render(view)
 
     assert html =~ "Staking paused"
     assert has_element?(view, ~s(.stake-contract-status[data-state="paused"]))
@@ -132,26 +183,166 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "button[data-staking-action]")
   end
 
-  test "UNAVAILABLE_SNAPSHOT: failed public reads expose no dashboard or wallet data", %{
-    conn: conn
-  } do
-    Application.put_env(:ash_platform, :test_staking_overview_error, :provider_failure)
-
+  test "UNAVAILABLE_SNAPSHOT: with no shared reading the page offers an anonymous visitor no control",
+       %{conn: conn} do
     {:ok, view, _html} = live(conn, "/stake")
-    html = render_async(view)
+    html = render(view)
 
     assert html =~ "Staking details are unavailable right now."
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
+    assert html =~ "A signed-in visitor can ask for a new reading."
     refute has_element?(view, ".stake-layout")
     refute has_element?(view, "#staking-utilization")
+    refute has_element?(view, "button.stake-shared-refresh")
     refute html =~ @wallet
+  end
+
+  test "UNAVAILABLE_SNAPSHOT_SIGNED_IN: a signed-in visitor is offered the shared reading", %{
+    conn: conn
+  } do
+    view = signed_in_stake(conn, "unavailable-shared")
+
+    assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
+    assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
+    refute render(view) =~ "A signed-in visitor can ask for a new reading."
+
+    view |> element("button.stake-shared-refresh") |> render_click()
+    assert render_async(view) =~ "Base block #1,234"
+    assert has_element?(view, ".stake-total strong", "100")
+  end
+
+  test "SHARED_REFRESH_IS_SIGNED_IN_ONLY: an anonymous socket is refused server-side", %{
+    conn: conn
+  } do
+    view = mount_stake(conn)
+    refute has_element?(view, "button.stake-shared-refresh")
+
+    Application.put_env(:ash_platform, :test_staking_read_watcher, self())
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
+
+    # Far past every interval and allowance, so the only thing that can refuse
+    # this click is the socket's own session. Without that guard the click buys
+    # a reading for everybody.
+    Application.put_env(:ash_platform, :staking_snapshot_clock, fn -> 10_000_000 end)
+
+    render_hook(view, "refresh_shared_snapshot", %{})
+
+    refute_receive {:staking_read, _scope, _reader}, 200
+    assert has_element?(view, ".stake-total strong", "100")
+  end
+
+  test "SHARED_REFRESH_BUDGET: a refusal says so in its own words, not as a Base failure", %{
+    conn: conn
+  } do
+    seed_snapshot()
+    view = signed_in_stake(conn, "shared-budget")
+    assert has_element?(view, ".stake-total strong", "100")
+
+    view |> element(".stake-overview button.stake-shared-refresh") |> render_click()
+    html = render_async(view)
+
+    assert html =~ @budget_refusal
+    refute html =~ @refresh_failure
+
+    # The Redeem page's own per-visitor lookup limit says something else
+    # entirely; neither refusal can be mistaken for the other.
+    refute html =~ "Owned NFT lookup is unavailable."
+    assert has_element?(view, ".stake-total strong", "100")
+  end
+
+  # The two readings are separate things a person can ask for, and a signed-in
+  # visitor with a wallet connected may ask for either: their own position,
+  # which changes nothing for anyone else, or the contract reading, which
+  # replaces what every visitor is shown.
+  test "BOTH_REFRESH_CONTROLS: a signed-in visitor with a wallet is offered each reading", %{
+    conn: conn
+  } do
+    seed_snapshot()
+    view = conn |> signed_in_stake("both-controls") |> activate(@wallet)
+
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, ".stake-total strong", "100")
+
+    assert has_element?(
+             view,
+             ~s(.stake-footer button[phx-click="refresh_staking"]),
+             "Refresh position"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.stake-footer button.stake-shared-refresh[phx-click="refresh_shared_snapshot"]),
+             "Refresh contract data"
+           )
+  end
+
+  test "SHARED_FAN_OUT: one visitor's reading reaches another page without touching its wallet",
+       %{
+         conn: conn
+       } do
+    view = conn |> mount_stake() |> activate(@wallet)
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+
+    Application.put_env(:ash_platform, :test_staking_protocol_block, 9_876)
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_protocol_block) end)
+
+    # Someone else's refresh, announced to every page.
+    share_new_snapshot()
+    assert render_async(view) =~ "Base block #9,876"
+
+    # The wallet map kept its own block and its own figures.
+    assert has_element?(view, ".stake-wallet-block", "Base block #1,240")
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert render(view) =~ "5 REGENT"
+  end
+
+  test "TWO_BLOCKS: contract figures and wallet figures are labelled with their own blocks", %{
+    conn: conn
+  } do
+    view = conn |> mount_stake() |> activate(@wallet)
+
+    assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
+    assert has_element?(view, ".stake-wallet-block", "Base block #1,240")
+    assert TestStakingChainClient.wallet_block() != TestStakingChainClient.protocol_block()
+  end
+
+  # A confirmed transaction is only visible from the block its receipt was mined
+  # into. The refresh the browser pushes the moment a receipt confirms therefore
+  # takes a fresh block of its own; answering it from the remembered contract
+  # block would show the person their position from before their own
+  # transaction and leave them staring at a figure that never moves.
+  test "POST_CONFIRMATION_REFRESH: the wallet is re-read at the receipt's block, not the cached one",
+       %{conn: conn} do
+    view = conn |> mount_stake() |> activate(@wallet)
+
+    assert staking_assigns(view).staking.wallet_block_number ==
+             TestStakingChainClient.wallet_block()
+
+    # The transaction confirms, and Base now answers about this wallet at the
+    # block the receipt was mined into.
+    Application.put_env(:ash_platform, :test_staking_wallet_block, @receipt_block)
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_wallet_block) end)
+
+    # Exactly what the browser pushes once it has a confirmed receipt.
+    render_hook(view, "refresh_staking", %{})
+    render_async(view)
+
+    staking = staking_assigns(view).staking
+    assert staking.wallet_block_number == @receipt_block
+    assert staking.wallet_block_number > TestStakingChainClient.wallet_block()
+    assert has_element?(view, ".stake-wallet-block", "Base block #1,249")
+
+    # The contract figures keep the block they were read at, and the one reading
+    # every visitor shares was not replaced by this wallet's lookup.
+    assert staking.block_number == TestStakingChainClient.protocol_block()
+    assert SnapshotCache.snapshot().block_number == TestStakingChainClient.protocol_block()
+    assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
   end
 
   test "ANONYMOUS_ACTIVE_WALLET: any connected wallet can use staking without Regent login", %{
     conn: conn
   } do
     view = mount_stake(conn)
-    render_async(view)
     assert has_element?(view, "button[data-stake-connect]")
     refute has_element?(view, "#staking-amount")
 
@@ -265,7 +456,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
       "the funded REGENT reward inventory is below what is claimable in the last reading from Base."
     )
 
+    # Capacity is a contract limit, so this hint only moves once the shared
+    # reading does; the wallet reading alone never changes it.
     Application.put_env(:ash_platform, :test_staking_denominator, "101000000000000000000")
+    share_new_snapshot()
     reread(view, %{})
     assert_every_claim_live(view)
 
@@ -276,6 +470,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     )
 
     Application.put_env(:ash_platform, :test_staking_paused, true)
+    share_new_snapshot()
     reread(view, %{})
     assert_every_claim_live(view)
 
@@ -296,12 +491,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "IN_PLACE_REFRESH: confirmed facts and actions remain visible while Base is reread", %{
     conn: conn
   } do
-    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
-    Application.put_env(:ash_platform, :staking_chain_client, GatedChainClient)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :staking_chain_client, previous_client)
-    end)
+    swap_client(GatedChainClient)
 
     view = conn |> mount_stake() |> activate(@wallet)
     set_amount(view, "1")
@@ -333,35 +523,34 @@ defmodule AshPlatformWeb.StakeLiveTest do
     on_exit(fn -> Application.put_env(:ash_platform, :staking_chain_client, previous_client) end)
 
     view = conn |> mount_stake() |> activate(@wallet)
-    Application.put_env(:ash_platform, :test_staking_overview_error, :provider_failure)
+    Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
     view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
-    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+    assert render(view) =~ @refresh_failure
 
-    Application.delete_env(:ash_platform, :test_staking_overview_error)
+    Application.delete_env(:ash_platform, :test_staking_wallet_error)
     Application.put_env(:ash_platform, :staking_chain_client, CrashingChainClient)
     view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
-    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+    assert render(view) =~ @refresh_failure
 
     Application.put_env(:ash_platform, :staking_chain_client, previous_client)
     view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-overview", "Live contract position")
-    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
+    refute render(view) =~ @refresh_failure
   end
 
   test "FIRST_WALLET_READ_FAILURE: contract data stays visible with recovery controls", %{
     conn: conn
   } do
     view = mount_stake(conn)
-    render_async(view)
-    Application.put_env(:ash_platform, :test_staking_overview_error, :provider_failure)
+    Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
 
     render_hook(view, "staking_active_wallet", %{"address" => @wallet})
     render_async(view)
@@ -378,34 +567,31 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, ".stake-wallet-loading")
   end
 
-  # The wallet arrives while the public read is still open, so that read is
-  # cancelled and replaced. A cancelled read reported nothing about Base and
-  # must not be mistaken for a failed one.
-  test "WALLET_DURING_FIRST_READ: replacing the open public read never reports Base unavailable",
+  # A second wallet arrives while the first wallet's read is still open, so that
+  # read is cancelled and replaced. A cancelled read reported nothing about
+  # Base and must not be mistaken for a failed one.
+  test "WALLET_DURING_FIRST_READ: replacing the open wallet read never reports Base unavailable",
        %{conn: conn} do
-    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
-    Application.put_env(:ash_platform, :staking_chain_client, GatedChainClient)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :staking_chain_client, previous_client)
-    end)
-
+    swap_client(GatedChainClient)
     Application.put_env(:ash_platform, :test_staking_read_gate, self())
 
     view = mount_stake(conn)
-    assert_receive {:staking_read_waiting, public_read}
-    public_read_ref = Process.monitor(public_read)
+    render_hook(view, "staking_active_wallet", %{"address" => @other})
+    assert_receive {:staking_read_waiting, first_read}
+    first_read_ref = Process.monitor(first_read)
 
     render_hook(view, "staking_active_wallet", %{"address" => @wallet})
 
-    assert_receive {:staking_read_waiting, wallet_read}
-    assert_receive {:DOWN, ^public_read_ref, :process, ^public_read, _reason}
+    assert_receive {:staking_read_waiting, second_read}
+    assert_receive {:DOWN, ^first_read_ref, :process, ^first_read, _reason}
 
     refute render(view) =~ "Staking details are unavailable right now."
-    assert staking_assigns(view).staking_status == :loading
+    refute render(view) =~ @refresh_failure
+    assert staking_assigns(view).staking_status == :ready
+    assert has_element?(view, ".stake-total strong", "100")
 
     Application.delete_env(:ash_platform, :test_staking_read_gate)
-    send(wallet_read, :continue_staking_read)
+    send(second_read, :continue_staking_read)
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
@@ -413,21 +599,53 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ @wallet
   end
 
-  # A read that genuinely crashed with nothing on screen still says the
-  # dashboard is unavailable.
-  test "FIRST_READ_CRASH: a crashed first read still reports Base unavailable", %{conn: conn} do
-    previous_client = Application.get_env(:ash_platform, :staking_chain_client)
-    Application.put_env(:ash_platform, :staking_chain_client, CrashingChainClient)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :staking_chain_client, previous_client)
-    end)
-
+  # A wallet read that genuinely crashed leaves the contract data alone and
+  # offers the wallet its own way back.
+  test "WALLET_READ_CRASH: a crashed wallet read keeps the contract data and recovers", %{
+    conn: conn
+  } do
     view = mount_stake(conn)
+    swap_client(CrashingChainClient)
+
+    render_hook(view, "staking_active_wallet", %{"address" => @wallet})
     render_async(view)
 
+    assert staking_assigns(view).staking_status == :ready
+    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, ".stake-wallet-recovery", "Try again")
+    assert render(view) =~ @refresh_failure
+  end
+
+  # A wallet reading carries no contract figures, so with no contract reading on
+  # the server there is nothing to show it beside. The page says so and buys
+  # nothing rather than spending four round trips on an answer it would discard.
+  test "COLD_START_WALLET: connecting a wallet with no contract reading buys no chain read", %{
+    conn: conn
+  } do
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+    Application.put_env(:ash_platform, :test_staking_read_watcher, self())
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
+
+    {:ok, view, _html} = live(conn, "/stake")
+    render_hook(view, "staking_active_wallet", %{"address" => @wallet})
+
+    refute_receive {:staking_read, _scope, _reader}, 200
     assert staking_assigns(view).staking_status == :error
-    assert render(view) =~ "Staking details are unavailable right now."
+
+    # The page never claims to be loading something nobody asked Base for, and
+    # an anonymous visitor is told who can put it right.
+    html = render(view)
+    assert html =~ "Staking details are unavailable right now."
+    assert html =~ "A signed-in visitor can ask for a new reading."
+    refute html =~ "Loading staking contract data"
+    refute has_element?(view, ".stake-wallet-summary")
+
+    # Once a reading exists, the wallet already connected is looked up.
+    share_new_snapshot()
+    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
+    render_async(view)
+
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
   end
 
   test "REFRESH_NOTICE_SCOPE: a successful read preserves an unrelated notice" do
@@ -438,16 +656,22 @@ defmodule AshPlatformWeb.StakeLiveTest do
       assigns: %{
         __changed__: %{},
         content_generation: 7,
+        staking: %{total_staked: "100"},
         staking_notice: notice,
         staking_read: %{name: name}
       }
     }
 
     assert {:noreply, updated} =
-             ShellLive.handle_async(name, {:ok, {7, {:ok, %{total_staked: "100"}}}}, socket)
+             ShellLive.handle_async(
+               name,
+               {:ok, {7, {:ok, %{wallet_stake_balance: "5"}}}},
+               socket
+             )
 
     assert updated.assigns.staking_notice == notice
     assert updated.assigns.staking_status == :ready
+    assert updated.assigns.staking == %{total_staked: "100", wallet_stake_balance: "5"}
   end
 
   test "OBSERVATION_REPORTS: a well-formed observation returns the Base outcome to the page", %{
@@ -591,7 +815,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   defp watched_stake(conn) do
     view = mount_stake(conn)
-    render_async(view)
     Application.put_env(:ash_platform, :test_wallet_observation_watcher, self())
     view
   end
@@ -632,16 +855,52 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp set_amount(view, amount),
     do: view |> form("#staking-amount-form", %{"amount" => amount}) |> render_change()
 
+  # The shared reading exists before anyone opens the page, exactly as it does
+  # in production after the server's own first read.
+  defp seed_snapshot do
+    SnapshotCache.clear()
+    assert :ok = SnapshotCache.refresh(self())
+    assert_receive {:staking_snapshot, snapshot}
+    snapshot
+  end
+
+  defp share_new_snapshot do
+    SnapshotCache.clear()
+    assert :ok = SnapshotCache.refresh(self())
+    assert_receive {:staking_snapshot, _snapshot}
+    :ok
+  end
+
   defp mount_stake(conn) do
+    seed_snapshot()
     {:ok, view, _html} = live(conn, "/stake")
 
     view
   end
 
+  defp signed_in_stake(conn, suffix) do
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:#{suffix}", @wallet, [@wallet],
+               actor: %System{}
+             )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/stake")
+
+    view
+  end
+
+  defp swap_client(module) do
+    previous = Application.get_env(:ash_platform, :staking_chain_client)
+    Application.put_env(:ash_platform, :staking_chain_client, module)
+    on_exit(fn -> Application.put_env(:ash_platform, :staking_chain_client, previous) end)
+  end
+
   defp staking_assigns(view), do: :sys.get_state(view.pid).socket.assigns
 
   defp activate(view, wallet) do
-    render_async(view)
     render_hook(view, "staking_active_wallet", %{"address" => wallet})
     render_async(view)
     view

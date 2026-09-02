@@ -17,19 +17,19 @@ defmodule AshPlatform.Staking.Actions do
     "claim_and_restake_regent" => "Claim available REGENT rewards and add them to your stake."
   }
 
-  def overview(_input, _context), do: ChainClient.module().overview(nil)
+  def overview(_input, _context), do: ChainClient.module().protocol_snapshot()
 
   def account(_input, %{actor: %Human{} = actor}) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
          {:ok, wallet} <- normalize_address(account.wallet_address),
-         do: ChainClient.module().overview(wallet)
+         do: ChainClient.module().wallet_snapshot(wallet)
   end
 
   def account(_input, _context), do: {:error, :authentication_required}
 
   def account_for_wallet(input, _context) do
     with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
-         do: ChainClient.module().overview(signer)
+         do: ChainClient.module().wallet_snapshot(signer)
   end
 
   def prepare(action, input, _context) do

@@ -60,6 +60,13 @@ config :ash_platform, :opensea_holdings_clock, &AshPlatform.OpenSea.HoldingsCach
 # Also bounds how often one address may be reset: once per window.
 config :ash_platform, :opensea_holdings_cache_ttl_ms, 15_000
 
+# The shared staking contract reading. The boot read runs once at startup and
+# never blocks it; the allowance bounds how often signed-in visitors may ask
+# for a new shared reading, on top of the ten seconds between any two.
+config :ash_platform, :staking_snapshot_boot_read, true
+config :ash_platform, :staking_shared_refreshes_per_minute, 6
+config :ash_platform, :staking_snapshot_clock, &AshPlatform.Staking.SnapshotCache.monotonic_ms/0
+
 config :ash_platform, :session_options,
   store: :cookie,
   key: "_ash_platform_key",

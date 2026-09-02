@@ -87,7 +87,10 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "launch" =>
         {"launch((string,string,string,string,string,address,uint128,uint256))", "0xd0464e3e"}
     },
-    "regent_lbp_strategy_v1" => %{}
+    "regent_lbp_strategy_v1" => %{},
+    # The reading aggregator is reviewed and digest-pinned like the rest, and
+    # prepares nothing at all: it is only ever read through.
+    "multicall3" => %{}
   }
 
   # The final C9 source fingerprints. The upstream build artifacts these ABIs are
