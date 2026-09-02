@@ -1,7 +1,7 @@
 <!-- BEGIN REGENT META GENERATED -->
 ## Repo Contract
 
-Generated from `metaprogramming/stack.yaml` and repo `repo.yaml` files. Local notes may live outside this block.
+Generated from `/Users/sean/Documents/regent/control/stack.yaml` and this repo's `repo.yaml`. Local notes may live outside this block.
 
 - Repo contract: `ash-platform/repo.yaml`
 - Owner: `ash-platform`
