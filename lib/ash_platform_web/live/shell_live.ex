@@ -1302,7 +1302,6 @@ defmodule AshPlatformWeb.ShellLive do
           reading={staking_reading?(assigns)}
           spendable={Staking.spendable(@staking, @staking_action)}
           amount_notice={staking_amount_notice(assigns)}
-          amount_valid={staking_amount_valid?(assigns)}
           available_claims={Staking.available_claims(@staking)}
         />
 
@@ -2558,18 +2557,6 @@ defmodule AshPlatformWeb.ShellLive do
       {:error, _} -> blank_or_invalid(amount)
     end
   end
-
-  defp staking_amount_valid?(%{staking: staking, staking_action: action, staking_amount: amount})
-       when is_map(staking) and action in ["stake", "unstake"] do
-    with {:ok, requested} <- Staking.parse_amount(String.trim(amount)),
-         nil <- Staking.limit_refusal(staking, action, requested) do
-      true
-    else
-      _ -> false
-    end
-  end
-
-  defp staking_amount_valid?(_), do: false
 
   defp blank_or_invalid(amount),
     do: if(String.trim(amount) == "", do: nil, else: "Enter an amount in REGENT above zero.")

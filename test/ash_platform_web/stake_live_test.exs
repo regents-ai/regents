@@ -209,7 +209,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end
   end
 
-  test "AMOUNT_LIMITS: Max follows capacity and invalid amounts disable submission", %{
+  test "AMOUNT_LIMITS: Max follows capacity and an over-limit amount still reaches the wallet", %{
     conn: conn
   } do
     Application.put_env(:ash_platform, :test_staking_denominator, "105000000000000000000")
@@ -220,7 +220,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     set_amount(view, "5.000000000000000001")
     assert render(view) =~ "more REGENT than the staking contract can still take"
-    assert has_element?(view, ~s(button[data-staking-action="stake"][disabled]))
+    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+
+    set_amount(view, "11")
+    assert render(view) =~ "That is more REGENT than this wallet holds"
+    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+    refute_push_event(view, "staking:wallet-action", _)
   end
 
   test "REFRESH_ONLY: refreshing rereads Base without any wallet request", %{conn: conn} do
