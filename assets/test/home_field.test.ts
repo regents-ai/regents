@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import type {FieldRenderer} from "../js/home_field"
+import {HERO_PALETTE_EVENT, setHeroPalette} from "../js/home_field/palette"
 import {createHomeFieldController} from "../js/hooks/home_field"
 
 type Rect = {left: number; top: number; width: number; height: number}
@@ -134,7 +135,10 @@ const mount = (
   } = {},
 ) => {
   const canvas = element(PAGE)
+  const page = element(PAGE)
   const root = element(PAGE)
+  // The field is rendered inside the page section, and reads the hero's palette from it.
+  Object.defineProperty(root, "parentElement", {value: page})
   root.querySelector = vi.fn(() => canvas) as unknown as typeof root.querySelector
   const renderer = overrides.renderer ?? fakeRenderer()
   const frames = frameQueue()
@@ -149,7 +153,7 @@ const mount = (
     requestFrame: frames.request,
     supportsWebGpu: () => overrides.supportsWebGpu ?? true,
   })
-  return {canvas, controller, frames, loadRenderer, motion, renderer, root}
+  return {canvas, controller, frames, loadRenderer, motion, page, renderer, root}
 }
 
 /** The newest island reports that it is in view, as a real observer does on observe. */
@@ -196,6 +200,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  setHeroPalette("rest")
 })
 
 describe("loading the page field", () => {
@@ -315,7 +320,29 @@ describe("owning the page field", () => {
     expect(vi.mocked(page.addEventListener).mock.calls.map(([type]) => type)).toEqual([
       "visibilitychange",
     ])
+    expect(vi.mocked(harness.page.addEventListener).mock.calls.map(([type]) => type)).toEqual([
+      HERO_PALETTE_EVENT,
+    ])
     expect(harness.canvas.addEventListener).not.toHaveBeenCalled()
+  })
+
+  // The ground is read fresh for every frame, so the field needs telling only that the
+  // hero has changed its mind — not what the new colour is.
+  it("redraws the ground when the hero says the palette changed", async () => {
+    const harness = mount()
+    await settleFirstFrame(harness)
+    harness.renderer.finishFrame()
+    await flushPromises()
+    expect(harness.frames.pending()).toBe(0)
+
+    setHeroPalette("autolaunch")
+    const announce = vi
+      .mocked(harness.page.addEventListener)
+      .mock.calls.find(([type]) => type === HERO_PALETTE_EVENT)![1] as EventListener
+    announce(new Event(HERO_PALETTE_EVENT))
+    harness.frames.drain()
+
+    expect(harness.renderer.present).toHaveBeenCalledTimes(2)
   })
 
   it("draws nothing while the tab is hidden", async () => {
@@ -354,6 +381,9 @@ describe("owning the page field", () => {
     expect(FakeObserver.intersection[0]!.disconnects).toBe(1)
     expect(vi.mocked(page.removeEventListener).mock.calls.map(([type]) => type)).toEqual([
       "visibilitychange",
+    ])
+    expect(vi.mocked(harness.page.removeEventListener).mock.calls.map(([type]) => type)).toEqual([
+      HERO_PALETTE_EVENT,
     ])
     expect(harness.renderer.dispose).toHaveBeenCalledTimes(1)
     expect(harness.root.dataset.fieldReady).toBeUndefined()

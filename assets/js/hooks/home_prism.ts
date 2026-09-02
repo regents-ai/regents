@@ -1,4 +1,5 @@
 import type {PrismRenderer} from "../home_prism"
+import {HERO_PALETTE_EVENT, heroPalette} from "../home_field/palette"
 import {
   createCanvasIsland,
   type CanvasIslandController,
@@ -45,6 +46,12 @@ export const createHomePrismController = (
         renderer()?.rest()
         nudge()
       }
+      // The lasers carry their colour in their vertices, so a palette change is
+      // one retrace — the same one a swing costs, and only between cards.
+      const onPalette = () => {
+        renderer()?.setBeamColor(heroPalette().beam)
+        nudge()
+      }
       // A touch is not a hover, so the crown takes its aim from the reading position:
       // it turns through the shot as the hero travels up the screen.
       const onScroll = () => {
@@ -61,6 +68,7 @@ export const createHomePrismController = (
       if (fine) {
         hero().addEventListener("pointermove", onPointerMove, {passive: true})
         hero().addEventListener("pointerleave", onPointerLeave, {passive: true})
+        hero().addEventListener(HERO_PALETTE_EVENT, onPalette)
       } else {
         document.addEventListener("scroll", onScroll, {passive: true})
         // The visitor may arrive part-way down the page, so the first shot is
@@ -72,6 +80,7 @@ export const createHomePrismController = (
         if (fine) {
           hero().removeEventListener("pointermove", onPointerMove)
           hero().removeEventListener("pointerleave", onPointerLeave)
+          hero().removeEventListener(HERO_PALETTE_EVENT, onPalette)
         } else {
           document.removeEventListener("scroll", onScroll)
         }

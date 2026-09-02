@@ -1,5 +1,7 @@
 import {animate, type AnimationParams} from "animejs"
 
+import {HERO_PALETTE_EVENT, setHeroPalette, type HeroPaletteName} from "../home_field/palette"
+
 type RequestFrame = (callback: FrameRequestCallback) => number
 type CancelFrame = (handle: number) => void
 
@@ -17,6 +19,7 @@ type WriteClipboard = (text: string) => Promise<void>
 type HomeHeroOptions = {
   cancelFrame?: CancelFrame
   driver?: HomeHeroDriver
+  finePointer?: () => boolean
   reducedMotion?: () => boolean
   requestFrame?: RequestFrame
   writeClipboard?: WriteClipboard
@@ -42,10 +45,17 @@ const browserCancelFrame: CancelFrame = handle => {
 const browserReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
+// A touch is not a hover, so a coarse pointer is left with the resting page.
+const browserFinePointer = () =>
+  typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches
+
 // Async so a browser that refuses clipboard access synchronously still lands in the failure branch.
 const browserWriteClipboard: WriteClipboard = async text => navigator.clipboard.writeText(text)
 
 const COPY_TRIGGER = "[data-copy-hermes-instructions]"
+const HERO = ".rl-hero"
+const CARD_COLUMN = "[data-home-hero-cards]"
+const CARD = "[data-home-hero-card]"
 
 const clearAnimationStyles = (targets: HTMLElement[]) => {
   targets.forEach(target => {
@@ -63,6 +73,7 @@ export const createHomeHeroController = (
 ): HomeHeroController => {
   const cancelFrame = options.cancelFrame ?? browserCancelFrame
   const driver = options.driver ?? animeDriver
+  const finePointer = options.finePointer ?? browserFinePointer
   const reducedMotion = options.reducedMotion ?? browserReducedMotion
   const requestFrame = options.requestFrame ?? browserRequestFrame
   const writeClipboard = options.writeClipboard ?? browserWriteClipboard
@@ -71,6 +82,10 @@ export const createHomeHeroController = (
   let targets: HTMLElement[] = []
   let generation = 0
   let clipboardAttached = false
+  // The hero and its card column, held from the moment hover is wired up so that
+  // colouring and releasing never have to go looking for them again.
+  let hovering: {cards: HTMLElement; hero: HTMLElement} | undefined
+  let shown: HeroPaletteName = "rest"
 
   const announce = (message: string) => {
     root.querySelector<HTMLElement>("#regent-copy-status")!.textContent = message
@@ -84,6 +99,29 @@ export const createHomeHeroController = (
       () => announce("Instructions copied."),
       () => announce("Couldn’t copy. Try again."),
     )
+  }
+
+  // Pointing at a card colours the whole hero: the stylesheet reads the attribute,
+  // and the two canvases take the same palette from the one signal that follows it.
+  const show = (name: HeroPaletteName) => {
+    if (!hovering || name === shown) return
+    shown = name
+    const {hero} = hovering
+    if (name === "rest") delete hero.dataset.heroProduct
+    else hero.dataset.heroProduct = name
+    setHeroPalette(name)
+    hero.dispatchEvent(new Event(HERO_PALETTE_EVENT, {bubbles: true}))
+  }
+
+  const onCardEnter = (event: Event) => {
+    const card = (event.target as Element | null)?.closest<HTMLElement>(CARD)
+    if (card) show(card.dataset.homeHeroCard as HeroPaletteName)
+  }
+
+  // Leaving one part of a card for another part of it is not leaving the card.
+  const onCardLeave = (event: Event) => {
+    const next = (event as PointerEvent | FocusEvent).relatedTarget as Element | null
+    if (!next?.closest(CARD)) show("rest")
   }
 
   const stopCurrentEnhancement = () => {
@@ -107,6 +145,18 @@ export const createHomeHeroController = (
         clipboardAttached = true
       }
 
+      // One pair of listeners on the column reads every card, pointer and keyboard alike.
+      if (!hovering && finePointer()) {
+        hovering = {
+          cards: root.querySelector<HTMLElement>(CARD_COLUMN)!,
+          hero: root.querySelector<HTMLElement>(HERO)!,
+        }
+        hovering.cards.addEventListener("pointerover", onCardEnter, {passive: true})
+        hovering.cards.addEventListener("pointerout", onCardLeave, {passive: true})
+        hovering.cards.addEventListener("focusin", onCardEnter)
+        hovering.cards.addEventListener("focusout", onCardLeave)
+      }
+
       stopCurrentEnhancement()
       let completed = false
       const handle = requestFrame(() => {
@@ -123,9 +173,8 @@ export const createHomeHeroController = (
         const introduction = Array.from(
           root.querySelectorAll<HTMLElement>("[data-home-header], [data-home-hero-copy]"),
         )
-        const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-home-hero-card]"))
-        const voxels = Array.from(root.querySelectorAll<HTMLElement>("[data-home-voxel]"))
-        targets = [...introduction, ...cards, ...voxels]
+        const cards = Array.from(root.querySelectorAll<HTMLElement>(CARD))
+        targets = [...introduction, ...cards]
         const groups = [
           {
             targets: introduction,
@@ -143,16 +192,6 @@ export const createHomeHeroController = (
               opacity: [0, 1],
               translateY: [12, 0],
               duration: 500,
-              ease: "outQuart",
-              loop: false,
-            },
-          },
-          {
-            targets: voxels,
-            options: {
-              opacity: [0.35, 0.82],
-              translateX: [-4, 0],
-              duration: 400,
               ease: "outQuart",
               loop: false,
             },
@@ -193,6 +232,16 @@ export const createHomeHeroController = (
       stopCurrentEnhancement()
       root.removeEventListener("click", onClipboardClick)
       clipboardAttached = false
+      if (hovering) {
+        // The listeners go first: they are released against the column this hook
+        // held, not against whatever the page looks like by now.
+        hovering.cards.removeEventListener("pointerover", onCardEnter)
+        hovering.cards.removeEventListener("pointerout", onCardLeave)
+        hovering.cards.removeEventListener("focusin", onCardEnter)
+        hovering.cards.removeEventListener("focusout", onCardLeave)
+        show("rest")
+        hovering = undefined
+      }
       delete root.dataset.heroEnhanced
       delete root.dataset.heroMotion
     },

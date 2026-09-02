@@ -11,7 +11,7 @@
 
 import {effect, frame, init, surface, type Gpu} from "vgpu"
 
-import {FIELD_PALETTE} from "./palette"
+import {FIELD_PALETTE, heroPalette} from "./palette"
 import {fieldWgsl} from "./shader"
 
 export interface FieldRenderer {
@@ -55,10 +55,12 @@ export async function createFieldRenderer(
   })
 
   // The canvas writes straight to the screen, so these are the displayed values.
+  // The ground is read fresh here, so the palette showing when a frame is asked
+  // for is the palette that frame is drawn in.
   const bind = () =>
     field.set({
       params: {
-        groundColor: FIELD_PALETTE.displayedGround,
+        groundColor: heroPalette().displayedGround,
         squareColor: FIELD_PALETTE.displayedSquare,
         resolution: canvasSurface.size,
         intensity: FIELD_PALETTE.intensity,

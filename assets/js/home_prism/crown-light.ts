@@ -1,10 +1,14 @@
 /**
  * The three lasers, traced on the CPU into one additive sheet.
  *
- * Each row of cubes gets one white beam entering from the right of the crown.
- * A beam is refracted cube by cube; the white input is drawn up to the first
- * face, the path inside the glass is drawn faintly, and every wavelength is
- * traced separately afterwards so the glass fans the white light into colour.
+ * Each row of cubes gets one beam entering from the right of the crown. A beam
+ * is refracted cube by cube; the input is drawn up to the first face, the path
+ * inside the glass is drawn faintly, and every wavelength is traced separately
+ * afterwards so the glass fans the light into colour.
+ *
+ * The beam colour is white while the page is at rest, and the hovered product's
+ * while it is not: the entering and internal segments are drawn in it outright,
+ * and the fan the glass separates out is tinted by it.
  *
  * Adapted from the Techtree crown, itself derived from the Vercel vgpu prism
  * background. See THIRD_PARTY_NOTICES.md.
@@ -71,7 +75,7 @@ export interface CrownLightMeshData {
   readonly hitCellCount: number
 }
 
-export function crownLightMeshData(aim: Vec2 = [0, 0], aspect = 16 / 9): CrownLightMeshData {
+export function crownLightMeshData(aim: Vec2, aspect: number, beam: Vec3): CrownLightMeshData {
   const wall: Vec2 = [Math.max(2.65, aspect * 1.82), 1.55]
   const output: number[] = []
   const hitCells = new Set<number>()
@@ -93,7 +97,7 @@ export function crownLightMeshData(aim: Vec2 = [0, 0], aspect = 16 / 9): CrownLi
         source,
         firstEntry,
         CROWN_BEAM.beamHalfWidth,
-        CROWN_BEAM.inputColor,
+        beam,
         CROWN_BEAM.inputIntensity * rowWeight,
       )
     }
@@ -105,7 +109,7 @@ export function crownLightMeshData(aim: Vec2 = [0, 0], aspect = 16 / 9): CrownLi
         segment.start,
         segment.end,
         CROWN_BEAM.beamHalfWidth * 0.72,
-        CROWN_BEAM.internalColor,
+        beam,
         CROWN_BEAM.internalIntensity * rowWeight * segment.intensity,
         segment.travel,
       )
@@ -116,7 +120,7 @@ export function crownLightMeshData(aim: Vec2 = [0, 0], aspect = 16 / 9): CrownLi
       const wavelength = 400 + position * 300
       const trace = traceCrown(source, direction, iorAt(wavelength), wall)
       trace.cells.forEach(cell => hitCells.add(cell))
-      const color = wavelengthToBeamRgb(wavelength)
+      const color = tint(wavelengthToBeamRgb(wavelength), beam)
 
       for (const segment of trace.segments) {
         if (!segment.afterGlass) continue
@@ -152,9 +156,10 @@ export function crownLightGeometry(
   gpu: Gpu,
   aim: Vec2,
   aspect: number,
+  beam: Vec3,
   label = "regents-crown-light",
 ): Geometry {
-  const {vertices, vertexCount} = crownLightMeshData(aim, aspect)
+  const {vertices, vertexCount} = crownLightMeshData(aim, aspect, beam)
   return geometry(gpu, {
     label,
     vertexCount,
@@ -178,11 +183,19 @@ export function updateCrownLightGeometry(
   light: Geometry,
   aim: Vec2,
   aspect: number,
+  beam: Vec3,
 ): CrownLightMeshData {
-  const mesh = crownLightMeshData(aim, aspect)
+  const mesh = crownLightMeshData(aim, aspect, beam)
   light.write(mesh.vertices)
   return mesh
 }
+
+/** The fan the glass separates out, carrying the beam's colour through it. */
+const tint = (color: Vec3, beam: Vec3): Vec3 => [
+  color[0] * beam[0],
+  color[1] * beam[1],
+  color[2] * beam[2],
+]
 
 function beamDirection(row: number, aim: Vec2): Vec2 {
   const rowPosition = row / CROWN_PITCH

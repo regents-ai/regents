@@ -39,6 +39,7 @@ import {
   CROWN_LIGHT_VERTEX_FLOATS,
   crownLightMeshData,
 } from "../js/home_prism/crown-light"
+import {HERO_PALETTES} from "../js/home_field/palette"
 import {
   CROWN_VERTEX_FLOATS,
   crownMeshData,
@@ -266,8 +267,12 @@ describe("Regents crown scene ownership", () => {
 })
 
 describe("Regents crown lasers", () => {
-  const beams = (aim: Vec2 = [0, 0], aspect = 16 / 9) => {
-    const mesh = crownLightMeshData(aim, aspect)
+  const beams = (
+    aim: Vec2 = [0, 0],
+    aspect = 16 / 9,
+    beam: Vec3 = HERO_PALETTES.rest.beam,
+  ) => {
+    const mesh = crownLightMeshData(aim, aspect, beam)
     const vertices = []
     for (let index = 0; index < mesh.activeVertexCount; index += 1) {
       const offset = index * CROWN_LIGHT_VERTEX_FLOATS
@@ -307,9 +312,38 @@ describe("Regents crown lasers", () => {
     expect(vertices.some(vertex => spread(vertex.color) > 0.2)).toBe(true)
   })
 
+  // Hovering a product changes the light going in. The glass is not touched, so every
+  // colour it throws is the white-light colour filtered by the product's own.
+  it("shoots the hovered product's colour through the glass", () => {
+    const {beam} = HERO_PALETTES.autolaunch
+    const white = beams()
+    const tinted = beams([0, 0], 16 / 9, beam)
+
+    expect(tinted.vertices).toHaveLength(white.vertices.length)
+
+    const entering = tinted.vertices.filter(
+      vertex => vertex.intensity === Math.fround(CROWN_BEAM.inputIntensity),
+    )
+    expect(entering).not.toHaveLength(0)
+    expect(
+      entering.every(vertex =>
+        vertex.color.every((channel, index) => channel === Math.fround(beam[index]!)),
+      ),
+    ).toBe(true)
+
+    tinted.vertices.forEach((vertex, index) => {
+      const before = white.vertices[index]!
+      expect(vertex.intensity).toBe(before.intensity)
+      vertex.color.forEach((channel, axis) => {
+        expect(channel).toBeCloseTo(before.color[axis]! * beam[axis]!, 5)
+      })
+    })
+  })
+
   it("moves with the aim and stays inside its fixed vertex budget", () => {
-    const rest = crownLightMeshData([0, 0], 16 / 9)
-    const swung = crownLightMeshData([1, 1], 16 / 9)
+    const white = HERO_PALETTES.rest.beam
+    const rest = crownLightMeshData([0, 0], 16 / 9, white)
+    const swung = crownLightMeshData([1, 1], 16 / 9, white)
     expect(swung.vertices).not.toEqual(rest.vertices)
 
     for (const aspect of [0.6, 1.22, 1.78, 3.2]) {
@@ -318,7 +352,7 @@ describe("Regents crown lasers", () => {
         [0, 0],
         [1, 1],
       ] as Vec2[]) {
-        const mesh = crownLightMeshData(aim, aspect)
+        const mesh = crownLightMeshData(aim, aspect, white)
         expect(mesh.vertexCount).toBe(CROWN_LIGHT_VERTEX_CAPACITY)
         expect(mesh.activeVertexCount).toBeLessThanOrEqual(CROWN_LIGHT_VERTEX_CAPACITY)
         expect(mesh.activeVertexCount % 6).toBe(0)

@@ -93,7 +93,7 @@ defmodule AshPlatformWeb.HomeLive do
 
   defp hero(assigns) do
     ~H"""
-    <section class="rl-hero" aria-labelledby="home-title">
+    <section class="rl-hero rl-hero--home" aria-labelledby="home-title">
       <img
         class="rl-hero-art"
         src={~p"/images/home/hero-bg-dark.svg"}
@@ -119,37 +119,78 @@ defmodule AshPlatformWeb.HomeLive do
       <span class="rl-hero-scrim" aria-hidden="true"></span>
 
       <div class="rl-hero-copy" data-home-hero-copy>
-        <p class="rl-overline">The Verifiers eval stack for Hermes agents</p>
-        <h1 id="home-title">Prove the edge. Fund the agent.</h1>
-        <p>
-          <span><code>techtree</code> verifies your harness uplift.</span>
-          <span><code>autolaunch</code> allows agents to raise funds by CLI auctions on Base.</span>
-        </p>
-        <div class="rl-hero-actions">
-          <a href="#home-products" class="rl-action rl-action--strong">See how it works</a>
-        </div>
+        <h1 id="home-title">Regents Agentic Product Labs</h1>
+        <p>a no-equity company with onchain revenue split</p>
       </div>
 
-      <%!-- The bento reads top-left first, so it takes the page order: the stylesheet gives the
-            first and second cards the size their place in the story earns. --%>
-      <div id="home-products" class="rl-hero-cards" data-home-hero-cards aria-label="Regent products">
-        <a
-          :for={product <- products()}
-          id={"home-card-#{product.anchor}"}
-          href={"##{product.anchor}"}
-          class={["rl-hero-card", "rl-hero-card--#{product.anchor}"]}
-          data-home-hero-card
+      <%!-- Each card carries its own name, so pointing at one tells the hero which
+            colours to take without asking the server anything. --%>
+      <ul
+        id="home-products"
+        class="rl-hero-cards"
+        role="list"
+        data-home-hero-cards
+        aria-label="Regents products"
+      >
+        <li
+          :for={product <- hero_products()}
+          id={"home-card-#{product.name}"}
+          class="rl-hero-card"
+          data-home-hero-card={product.name}
         >
-          <span class="rl-card-head" aria-hidden="true">{product.index}</span>
           <strong>{product.name}</strong>
-          <span>{product.title}</span>
-          <span class="rl-card-arrow" aria-hidden="true">↓</span>
-          <span class="rl-card-voxels" aria-hidden="true">
-            <i :for={index <- 1..6} data-home-voxel data-voxel-index={index}></i>
-          </span>
-        </a>
+          <p>{product.line}</p>
+          <div class="rl-card-actions">
+            <.product_site product={product} />
+            <a
+              href={product.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rl-card-source"
+              aria-label={"#{product.name} on GitHub"}
+            >
+              <.source_icon kind={:github} />
+            </a>
+          </div>
+        </li>
+      </ul>
+
+      <div class="rl-hero-stakers">
+        <p>
+          Regents Labs is unique in that REGENT token stakers receive their share of all
+          product's USDC revenue
+        </p>
+        <div class="rl-stakers-actions">
+          <a
+            href="https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rl-action"
+          >
+            Buy REGENT <span aria-hidden="true">↗</span>
+          </a>
+          <a href={~p"/stake"} class="rl-action">Stake REGENT</a>
+        </div>
       </div>
     </section>
+    """
+  end
+
+  # A product whose site is not open yet keeps its place and its label on a control that
+  # does nothing, so the row reads the same on all three cards.
+  defp product_site(%{product: %{enabled: true}} = assigns) do
+    ~H"""
+    <a href={@product.site} target="_blank" rel="noopener noreferrer" class="rl-action">
+      Open {@product.name} <span aria-hidden="true">↗</span>
+    </a>
+    """
+  end
+
+  defp product_site(assigns) do
+    ~H"""
+    <button type="button" disabled aria-disabled="true" class="rl-action">
+      Open {@product.name} <span aria-hidden="true">↗</span>
+    </button>
     """
   end
 
@@ -295,14 +336,43 @@ defmodule AshPlatformWeb.HomeLive do
       {"About", "home-closing"}
     ]
 
+  # The three products the hero offers, in the founder's order. A product whose site is not
+  # open to visitors yet carries `enabled: false`; opening it is that one word.
+  defp hero_products do
+    [
+      %{
+        name: "autolaunch",
+        line: "Agents raise funds through CCA auctions on Base. Earn when they earn.",
+        site: "https://autolaunch.sh",
+        github: "https://github.com/regents-ai/autolaunch",
+        enabled: false
+      },
+      %{
+        name: "techtree",
+        line:
+          "Upgrade your agent with proven skill, harness, and env improvements. Buy and sell upgrades with other agents.",
+        site: "https://techtree.sh",
+        github: "https://github.com/regents-ai/techtree",
+        enabled: true
+      },
+      %{
+        name: "patchbay",
+        line:
+          "Collaborative WebMCP forum for troubleshooting Tool calling issues. Agents help agents.",
+        site: "https://patchbay.help",
+        github: "https://github.com/regents-ai/patchbay",
+        enabled: false
+      }
+    ]
+  end
+
   # The three Regents products, in the founder narrative: prove, fund, operate. The chapter number
-  # is the position in that story, and the hero bento reads the same order.
+  # is the position in that story.
   defp products do
     [
       %{
         index: "01",
         anchor: "techtree",
-        name: "Techtree",
         eyebrow: "Techtree — Climb + Verify",
         title: "Prove what makes an agent better.",
         description:
@@ -343,7 +413,6 @@ defmodule AshPlatformWeb.HomeLive do
       %{
         index: "02",
         anchor: "autolaunch",
-        name: "Autolaunch",
         eyebrow: "Autolaunch — Fund",
         title: "Turn proven edge into runway.",
         description:
@@ -374,7 +443,6 @@ defmodule AshPlatformWeb.HomeLive do
       %{
         index: "03",
         anchor: "regent",
-        name: "Regent",
         eyebrow: "Regent — Operate",
         title: "Designed for use by Hermes agents.",
         description:
