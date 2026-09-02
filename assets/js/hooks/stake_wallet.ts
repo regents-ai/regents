@@ -427,7 +427,7 @@ function settleObserved(
     ? {
         title: `${label} confirmed`,
         message: successMessage(slot),
-        detail: "Your position is refreshing in place from the latest safe Base block.",
+        detail: "Your position is refreshing in place from the latest Base block.",
         href,
         tone: "success",
       }

@@ -83,7 +83,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-benefit-grid", "250,000 REGENT")
     assert html =~ "67,000 REGENT"
     assert html =~ "66,900 REGENT"
-    assert html =~ "Base safe block #1,234"
+    assert html =~ "Base block #1,234"
+    assert has_element?(view, ".stake-contract-facts dt", ~r/\ABase block\z/)
     assert html =~ @contract
     assert html =~ @regent
     assert html =~ @usdc

@@ -18,10 +18,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     :ok
   end
 
-  test "ONE_SAFE_BLOCK: account and selection facts share one canonical Base block" do
+  test "ONE_LATEST_BLOCK: account and selection facts share one canonical Base block" do
     assert {:ok, snapshot} = overview()
     assert snapshot.block_number == 0x20
-    assert snapshot.block_hash == Stub.safe_hash()
+    assert snapshot.block_hash == Stub.latest_hash()
     assert snapshot.wallet_address == @wallet
     assert snapshot.nft_owner == @wallet
     assert snapshot.usdc_allowance_raw == "80000000"
@@ -29,10 +29,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert snapshot.animata_i_held_by_redeemer == 12
     assert snapshot.animata_ii_held_by_redeemer == 12
     assert snapshot.regents_club_ready == 12
-    assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
+    assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
 
     assert Enum.uniq(Stub.call_blocks()) == [
-             %{blockHash: Stub.safe_hash(), requireCanonical: true}
+             %{blockHash: Stub.latest_hash(), requireCanonical: true}
            ]
   end
 
@@ -53,9 +53,9 @@ defmodule AshPlatform.Redemption.RpcClientTest do
 
   test "UNAVAILABLE_CHAIN: malformed or wrong-chain facts fail closed" do
     for state <- [
-          %{safe_block: :unavailable},
-          %{safe_block: %{"number" => "0x20"}},
-          %{safe_block: %{"number" => "0x20", "hash" => "0xnope"}},
+          %{latest_block: :unavailable},
+          %{latest_block: %{"number" => "0x20"}},
+          %{latest_block: %{"number" => "0x20", "hash" => "0xnope"}},
           %{chain_id: "0x1"}
         ] do
       Stub.put(state)

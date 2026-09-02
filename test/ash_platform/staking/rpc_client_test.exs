@@ -15,20 +15,20 @@ defmodule AshPlatform.Staking.RpcClientTest do
     :ok
   end
 
-  test "ONE_SAFE_BLOCK: every overview read is pinned to one canonical Base block" do
+  test "ONE_LATEST_BLOCK: every overview read is pinned to one canonical Base block" do
     assert {:ok, snapshot} = RpcClient.overview(@wallet)
     assert snapshot.block_number == 0x20
-    assert snapshot.block_hash == Stub.safe_hash()
+    assert snapshot.block_hash == Stub.latest_hash()
     assert snapshot.wallet_address == @wallet
     assert snapshot.wallet_stake_allowance_raw == "0"
     assert snapshot.available_regent_reward_inventory == "250000"
     assert snapshot.reserved_usdc == "125000"
     assert snapshot.emission_apr_percent == "12"
-    assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
+    assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
 
     blocks = Stub.call_blocks()
     assert length(blocks) == 15
-    assert Enum.uniq(blocks) == [%{blockHash: Stub.safe_hash(), requireCanonical: true}]
+    assert Enum.uniq(blocks) == [%{blockHash: Stub.latest_hash(), requireCanonical: true}]
   end
 
   test "CURRENT_CAPACITY: remaining capacity is floored at zero" do
@@ -39,10 +39,10 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert {:ok, %{remaining_capacity_raw: "0"}} = RpcClient.overview(@wallet)
   end
 
-  test "CURRENT_ALLOWANCE: a fresh safe-block read reports sufficient or insufficient" do
+  test "CURRENT_ALLOWANCE: a fresh latest-block read reports sufficient or insufficient" do
     Stub.put(%{allowance: @amount})
     assert {:ok, :sufficient} = RpcClient.allowance(@wallet, @amount)
-    assert_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
+    assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
 
     Stub.put(%{allowance: @amount - 1})
     assert {:ok, :insufficient} = RpcClient.allowance(@wallet, @amount)
@@ -50,9 +50,9 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
   test "UNAVAILABLE_CHAIN: malformed or wrong-chain facts never become zero balances" do
     for state <- [
-          %{safe_block: :unavailable},
-          %{safe_block: %{"number" => "0x20"}},
-          %{safe_block: %{"number" => "later", "hash" => Stub.safe_hash()}},
+          %{latest_block: :unavailable},
+          %{latest_block: %{"number" => "0x20"}},
+          %{latest_block: %{"number" => "later", "hash" => Stub.latest_hash()}},
           %{chain_id: "0x1"}
         ] do
       Stub.put(state)

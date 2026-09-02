@@ -2257,7 +2257,7 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  # Every observation polls Base for up to two minutes, so a socket may only ever
+  # Every observation polls Base for up to one minute, so a socket may only ever
   # hold @max_wallet_observations of them at once. A repeated or overflowing push
   # buys no chain reads, but it is still answered: the transaction was sent, so
   # the page is told the confirmation is unavailable rather than left waiting on

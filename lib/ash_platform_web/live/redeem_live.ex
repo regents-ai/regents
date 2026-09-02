@@ -184,7 +184,7 @@ defmodule AshPlatformWeb.RedeemLive do
           aria-atomic="true"
           aria-hidden={to_string(is_nil(@refresh_block))}
         >
-          <span :if={@refresh_block}>Refresh complete. Data is current at Base safe block {format_block_number(
+          <span :if={@refresh_block}>Refresh complete. Data is current at Base block {format_block_number(
             @refresh_block
           )}.</span>
         </p>
@@ -351,7 +351,7 @@ defmodule AshPlatformWeb.RedeemLive do
               disabled={!claim_ready?(@redemption)}
             >Claim unlocked REGENT</button>
             <p class="redeem-snapshot-note">
-              <span>Confirmed at Base safe block {format_block_number(@redemption.block_number)}.</span><span :if={
+              <span>Confirmed at Base block {format_block_number(@redemption.block_number)}.</span><span :if={
                 @reading
               }> Updating from Base…</span>
             </p>
@@ -434,7 +434,7 @@ defmodule AshPlatformWeb.RedeemLive do
               <dt>Regents Club</dt><dd><code>{@redemption.result_collection_address}</code></dd>
             </div>
             <div>
-              <dt>Safe Base block</dt><dd>
+              <dt>Base block</dt><dd>
                 <span>{format_block_number(@redemption.block_number)}</span><code>{@redemption.block_hash}</code>
               </dd>
             </div>

@@ -498,6 +498,7 @@ type RedemptionHookHarness = {
   destroy(): void
   dialog: {open: boolean; close: () => void; showModal: ReturnType<typeof vi.fn>}
   text: {textContent: string}
+  detail: {textContent: string}
   link: {hidden: boolean; href: string}
   progress: {hidden: boolean; dataset: {phase: string}}
   progressTitle: {textContent: string}
@@ -735,6 +736,7 @@ function redemptionHookHarness(source: EthereumProvider | ReturnType<typeof rede
     destroy,
     dialog,
     text,
+    detail,
     link,
     progress,
     progressTitle,
@@ -819,6 +821,27 @@ describe("redemption hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     expect(harness.text.textContent).toBe("Your unlocked REGENT was claimed successfully.")
     expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    harness.destroy()
+  })
+
+  it("names the latest Base block and refreshes the collection once a send confirms", async () => {
+    const walletProvider = redemptionHookProvider({observation: "manual"})
+    const harness = redemptionHookHarness(walletProvider)
+
+    const attemptId = harness.click("claim")
+    harness.walletAction(attemptId, envelope("claim"))
+    await vi.waitFor(() =>
+      expect(walletProvider.requests.mock.calls.filter(([request]) =>
+        request.method === "eth_sendTransaction"
+      )).toHaveLength(1),
+    )
+    expect(harness.pushEvent.mock.calls.map(([event]) => event)).not.toContain("refresh_redemption")
+
+    harness.settleNext("success")
+
+    expect(harness.detail.textContent)
+      .toBe("Your collection and vest are refreshing in place from the latest Base block.")
+    expect(harness.pushEvent).toHaveBeenCalledWith("refresh_redemption", {refresh_owned: false})
     harness.destroy()
   })
 
