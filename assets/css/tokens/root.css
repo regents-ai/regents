@@ -1,0 +1,57 @@
+/* The one palette the shell, Stake and Redeem stand on.
+   Dark carries the marketing page's own values; light is the same grammar on an
+   inverted ground. The marketing page keeps its literal values in home.css and
+   stays dark whichever theme is saved. */
+
+/* RegentUI states one colour scheme per product, at a weight that would
+   otherwise decide the document's for it, so the shell's own statement is made
+   at the same weight and the document agrees with what its head declares. */
+:root[data-brand="platform"][data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-brand="platform"][data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Inside the shell the visitor's choice wins on every product, not only the
+   one this palette is named for. */
+:root[data-theme="light"] #app-shell {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] #app-shell {
+  color-scheme: dark;
+}
+
+:root {
+  --ash-ground: light-dark(oklch(97% 0 0), oklch(14.5% 0 0));
+  --ash-panel: light-dark(oklch(100% 0 0), oklch(18% 0 0));
+  --ash-panel-strong: light-dark(oklch(94% 0 0), oklch(21% 0 0));
+  --ash-ink: light-dark(oklch(14.5% 0 0), oklch(97% 0 0));
+  --ash-muted: color-mix(in oklch, var(--ash-ink) 65%, transparent);
+  --ash-line: color-mix(in oklch, var(--ash-ink) 16%, transparent);
+  --ash-line-strong: color-mix(in oklch, var(--ash-ink) 28%, transparent);
+
+  /* One hue each, darkened on the light ground only as far as 4.5:1 against the
+     panels needs: on the deepest light panel accent reads 5.0:1 and REGENT
+     5.0:1; both clear 7:1 on the dark ground. */
+  --ash-accent: light-dark(oklch(50% 0.11 250), oklch(74% 0.11 250));
+  --ash-regent: light-dark(oklch(50% 0.11 91), oklch(82% 0.11 91));
+
+  /* Collection art is a picture, not a surface: it keeps one dark ground in both
+     themes so a single white monogram reads on every card. */
+  --ash-art: oklch(21% 0 0);
+
+  /* Compounding borrows Autolaunch's green from the marketing page, so the one
+     action that puts a reward straight back to work reads the same colour here. */
+  --ash-green: oklch(78% 0.17 155);
+
+  /* The theme switch's own cell: a dark wire cube on a pale stage in light, a
+     pale one on a dark stage in dark. */
+  --theme-toggle-stage: var(--ash-panel-strong);
+  --theme-toggle-laser: var(--ash-accent);
+  --theme-toggle-laser-glow: color-mix(in oklch, var(--ash-accent) 55%, transparent);
+  --theme-toggle-cube-face: color-mix(in oklch, var(--ash-ink) 15%, transparent);
+  --theme-toggle-cube-edge: color-mix(in oklch, var(--ash-ink) 80%, transparent);
+}

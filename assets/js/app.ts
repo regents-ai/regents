@@ -18,7 +18,6 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
-import {applyTheme, isThemeChoice, readTheme, type ThemeChoice} from "./theme"
 import {HomeField} from "./hooks/home_field"
 import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
@@ -45,11 +44,82 @@ type ShellHook = Hook & {
 
 let cachedShellState: ShellState | undefined
 
+// The colour theme travels in a cookie so the server can render it before the
+// first paint. The switch itself is client-owned: it writes the cookie, restyles
+// the document, and re-announces itself after every live navigation.
+const themeCookie = "regent_theme"
+const themeMaxAge = 60 * 60 * 24 * 365
+const themes = {
+  light: {name: "Light", nextName: "Dark"},
+  dark: {name: "Dark", nextName: "Light"},
+}
+type Theme = keyof typeof themes
+
+const isTheme = (value: string | undefined): value is Theme =>
+  value === "light" || value === "dark"
+
+function readThemeCookie(): Theme | undefined {
+  const prefix = `${themeCookie}=`
+  const value = document.cookie
+    .split("; ")
+    .find(cookie => cookie.startsWith(prefix))
+    ?.slice(prefix.length)
+
+  return isTheme(value) ? value : undefined
+}
+
+function writeThemeCookie(theme: Theme) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : ""
+  document.cookie =
+    `${themeCookie}=${theme}; Path=/; Max-Age=${themeMaxAge}; SameSite=Lax${secure}`
+}
+
+let savedTheme = readThemeCookie()
+
+const pageTheme = (): Theme => savedTheme ?? "dark"
+
+// The marketing page is painted dark for everyone, so the saved theme never
+// reaches it.
+const marketingLanding = () => window.location.pathname === "/"
+
+function applyTheme(theme: Theme) {
+  const selected = themes[theme]
+  document.documentElement.dataset.theme = theme
+
+  document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach(toggle => {
+    toggle.setAttribute("aria-pressed", String(theme === "light"))
+    toggle.setAttribute(
+      "aria-label",
+      `Color theme: ${selected.name}. Activate ${selected.nextName} theme.`,
+    )
+    toggle.setAttribute("title", `Switch to ${selected.nextName}`)
+    const state = toggle.querySelector("[data-theme-toggle-state]")
+    if (state) state.textContent = `${selected.name} theme active`
+  })
+}
+
+function syncTheme() {
+  if (marketingLanding()) return
+  applyTheme(pageTheme())
+}
+
+document.addEventListener("click", event => {
+  if (!(event.target instanceof Element) || !event.target.closest("[data-theme-toggle]")) return
+
+  const active = document.documentElement.dataset.theme
+  const theme: Theme = (isTheme(active) ? active : pageTheme()) === "dark" ? "light" : "dark"
+  savedTheme = theme
+  writeThemeCookie(theme)
+  applyTheme(theme)
+})
+
+window.addEventListener("phx:page-loading-stop", syncTheme)
+syncTheme()
+
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
     const root = document.documentElement
-    const colorPreference = window.matchMedia("(prefers-color-scheme: dark)")
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)")
 
     const initialState: ShellState = {
@@ -63,9 +133,6 @@ const shellBehavior: Hook = {
     this.shellState = cachedShellState
       ? reconcileShellState(cachedShellState, initialState)
       : initialState
-
-    const setTheme = (choice: ThemeChoice) =>
-      applyTheme(root, localStorage, choice, colorPreference.matches)
 
     const setMotion = () => {
       root.dataset.reducedMotion = motionPreference.matches ? "true" : "false"
@@ -130,14 +197,7 @@ const shellBehavior: Hook = {
       const target = event.target instanceof Element ? event.target : null
       shell.dataset.motionSource =
         event instanceof MouseEvent && event.detail === 0 ? "keyboard" : "pointer"
-      const themeButton = target?.closest<HTMLElement>("[data-theme-choice]")
       const presentationLink = target?.closest<HTMLAnchorElement>("[data-tree-presentation]")
-      const themeChoice = themeButton?.dataset.themeChoice ?? null
-
-      if (isThemeChoice(themeChoice)) {
-        setTheme(themeChoice)
-        themeButton?.closest("details")?.removeAttribute("open")
-      }
 
       if (target?.closest("#mobile-menu-button")) {
         if (this.shellState) this.shellState.menuOpen = !this.shellState.menuOpen
@@ -205,10 +265,6 @@ const shellBehavior: Hook = {
 
     }
 
-    const onColorChange = () => {
-      if (readTheme(localStorage) === "system") setTheme("system")
-    }
-
     const onHistoryNavigation = () => {
       shell.dataset.motionSource = "keyboard"
       scroller()?.scrollTo({top: 0})
@@ -216,10 +272,8 @@ const shellBehavior: Hook = {
 
     shell.addEventListener("click", onClick)
     shell.addEventListener("keydown", onKeydown)
-    colorPreference.addEventListener("change", onColorChange)
     motionPreference.addEventListener("change", setMotion)
     window.addEventListener("popstate", onHistoryNavigation)
-    setTheme(readTheme(localStorage))
     setMotion()
     this.restoreState()
     scroller()?.scrollTo({top: 0})
@@ -229,7 +283,6 @@ const shellBehavior: Hook = {
       closeMenu(false)
       shell.removeEventListener("click", onClick)
       shell.removeEventListener("keydown", onKeydown)
-      colorPreference.removeEventListener("change", onColorChange)
       motionPreference.removeEventListener("change", setMotion)
       window.removeEventListener("popstate", onHistoryNavigation)
     }
@@ -239,7 +292,7 @@ const shellBehavior: Hook = {
     this.destinationBeforeUpdate = this.el.dataset.destination ?? ""
     this.openPopoverIds = [
       ...this.el.querySelectorAll<HTMLDetailsElement>(
-        "#app-selector details[open], #account-control details[open], #theme-control details[open]",
+        "#app-selector details[open], #account-control details[open]",
       ),
     ]
       .map(details => details.parentElement?.id)

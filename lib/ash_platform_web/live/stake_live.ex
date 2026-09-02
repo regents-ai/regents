@@ -31,7 +31,6 @@ defmodule AshPlatformWeb.StakeLive do
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
       |> assign(:claims, claims)
-      |> assign(:claim_hints, Enum.filter(claims, & &1.hint))
 
     ~H"""
     <section
@@ -55,7 +54,6 @@ defmodule AshPlatformWeb.StakeLive do
               Connect wallet to stake
             </button>
           </div>
-          <p class="stake-auth-note">No Regent account or Privy login is required.</p>
         </div>
 
         <dl :if={@dashboard} class="stake-benefit-grid" aria-label="Current staking benefits">
@@ -263,13 +261,10 @@ defmodule AshPlatformWeb.StakeLive do
                 <button
                   :for={claim <- @claims}
                   type="button"
+                  class={if claim.claimable, do: "stake-claim-ready"}
                   data-staking-action={claim.action}
-                  aria-describedby={claim.hint_id}
-                >{claim.label}</button>
+                >{claim.label}<span class="visually-hidden">{claim_state(claim.claimable)}</span></button>
               </div>
-              <p :for={claim <- @claim_hints} id={claim.hint_id} class="stake-fine-print">
-                {claim.label} — {claim.hint}
-              </p>
             </section>
 
             <div class="stake-footer">
@@ -303,10 +298,6 @@ defmodule AshPlatformWeb.StakeLive do
             </div>
             <span class="stake-network">Base</span>
           </div>
-
-          <p class="stake-total">
-            <strong><TokenDisplay.amount amount={@staking.total_staked} /></strong><span>REGENT staked</span>
-          </p>
 
           <div class="stake-supply">
             <div class="stake-supply-heading">
@@ -536,33 +527,19 @@ defmodule AshPlatformWeb.StakeLive do
     end
   end
 
-  # Every claim control is offered. The last reading from Base only supplies the
-  # sentence beside it, so a customer knows what that reading found before the
+  # Every claim control is offered. The last reading from Base decides which of
+  # them is lit, so a reward that is actually waiting stands out before the
   # contract answers for itself.
   defp claims(available) do
     for {action, label} <- @claims do
-      hint = claim_hint(Map.get(available, action))
-      %{action: action, label: label, hint: hint, hint_id: hint && "staking-claim-hint-#{action}"}
+      %{action: action, label: label, claimable: is_nil(Map.get(available, action))}
     end
   end
 
-  defp claim_hint(nil), do: nil
-  defp claim_hint(:no_claimable_usdc), do: "no USDC rewards in the last reading from Base."
-
-  defp claim_hint(:no_regent_rewards),
-    do: "no REGENT rewards accrued in the last reading from Base."
-
-  defp claim_hint(:regent_rewards_not_funded),
-    do:
-      "the funded REGENT reward inventory is below what is claimable in the last reading from Base."
-
-  defp claim_hint(:staking_paused), do: "staking shows as paused in the last reading from Base."
-
-  defp claim_hint(:amount_above_capacity),
-    do:
-      "restaking the claimable REGENT exceeds the capacity the contract can still take in the last reading from Base."
-
-  defp claim_hint(:chain_unavailable), do: "the last reading from Base is unavailable."
+  # The glow is a colour, so the same news is carried in the control's name for
+  # anyone who does not see it.
+  defp claim_state(true), do: "(available)"
+  defp claim_state(false), do: "(nothing to claim)"
 
   defp wallet_ready?(staking, wallet) when is_map(staking) and is_binary(wallet),
     do: Map.get(staking, :wallet_address) == wallet

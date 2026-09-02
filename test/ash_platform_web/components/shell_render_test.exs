@@ -23,13 +23,16 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
                  )
   @app_css Path.expand("../../../assets/css/app.css", __DIR__)
   @material_css Path.expand("../../../assets/css/tokens/material.css", __DIR__)
+  @root_tokens_css Path.expand("../../../assets/css/tokens/root.css", __DIR__)
   @shell_css Path.expand("../../../assets/css/components/shell.css", __DIR__)
 
-  test "[U2][U3] seeds branding and the light default from the server, not from script" do
+  test "[U2][U3] seeds branding and the saved theme from the server, not from script" do
     root = File.read!(@root_template)
 
     assert root =~ ~s(data-brand={)
-    assert root =~ ~s(data-theme="light")
+    assert root =~ ~s(<% theme = if @conn.request_path == "/", do: "dark", else: @theme %>)
+    assert root =~ ~s(data-theme={theme})
+    assert root =~ ~s(<meta name="color-scheme" content={theme} />)
   end
 
   test "renders every canonical background slot as inert themed mask content" do
@@ -69,18 +72,17 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     end
   end
 
-  test "[U4] RegentUI owns every ground, guide, and base control color Ash paints" do
+  test "[U4] the mat guide follows the brand while the shell stands on one stated palette" do
     app = File.read!(@app_css)
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
+    tokens = File.read!(@root_tokens_css)
 
     assert material =~ "--shell-background-ground: var(--color-bg)"
     assert material =~ "--material-fill: var(--glass-panel-bg)"
-    assert material =~ "--material-fill-strong: var(--glass-shell-bg)"
     assert material =~ "--material-stroke: var(--glass-panel-border)"
     assert material =~ "--material-blur: var(--glass-blur)"
     assert material =~ "--material-shadow: var(--glass-panel-shadow)"
-    assert shell =~ "background: var(--shell-background-ground)"
     assert shell =~ "mask: var(--shell-background-mask) center / cover no-repeat"
 
     assert shell =~ "--shell-background-guide: var(--color-accent)"
@@ -91,25 +93,30 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     assert app =~ "color: var(--color-fg, CanvasText)"
     assert app =~ "outline: 3px solid var(--color-accent, AccentColor)"
 
-    # The unbranded public page is the only surface allowed its own palette, so
-    # nothing the shell paints may name a color RegentUI did not resolve.
+    # The marketing palette is stated once, in the token file, and every other
+    # shell stylesheet names a token rather than a color of its own.
     for stylesheet <- [app, material, shell] do
       refute stylesheet =~ ~r/#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab)\(\s*[.\d]/
     end
 
+    assert tokens =~ "--ash-ground: light-dark(oklch(97% 0 0), oklch(14.5% 0 0))"
+    assert tokens =~ "--ash-ink: light-dark(oklch(14.5% 0 0), oklch(97% 0 0))"
     refute shell =~ "prefers-color-scheme"
   end
 
-  test "[U1][U4] structural material is square, RegentUI-backed, and motion independent" do
+  test "[U1][U4] the shell is square, token-backed, and moves only where the switch does" do
     material = File.read!(@material_css)
     shell = File.read!(@shell_css)
 
     assert material =~ "--material-radius: 4px"
-    assert material =~ "--material-focus-radius: 0"
 
-    assert shell =~ "background: var(--material-fill) padding-box"
-    assert shell =~ "@media (prefers-reduced-transparency: reduce)"
-    refute shell =~ ~r/\.shell-material\s*\{[^}]*transition:/s
-    refute shell =~ ~r/transition:\s*all|animation:/
+    assert shell =~ "background: var(--ash-ground)"
+    assert shell =~ "border: 1px solid var(--ash-line)"
+
+    # The theme switch's cube is the shell's only moving part, and it stops when
+    # the reader asks for less motion.
+    assert shell =~ "animation: theme-cube-spin 14s linear infinite"
+    assert shell =~ "@media (prefers-reduced-motion: reduce)"
+    refute shell =~ ~r/transition:\s*all/
   end
 end

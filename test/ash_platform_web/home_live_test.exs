@@ -335,6 +335,27 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert length(texts(html, ".rl-action--strong")) == 3
   end
 
+  test "the landing is one document for everyone and declares the dark it paints", %{conn: conn} do
+    landing = fn theme ->
+      conn
+      |> Plug.Test.put_req_cookie("regent_theme", theme)
+      |> get("/")
+      |> html_response(200)
+    end
+
+    plain = conn |> get("/") |> html_response(200)
+    light = landing.("light")
+    dark = landing.("dark")
+
+    assert stable_render(light) == stable_render(plain)
+    assert stable_render(dark) == stable_render(plain)
+
+    for html <- [plain, light, dark] do
+      assert attribute(html, "html", "data-theme") == ["dark"]
+      assert attribute(html, "meta[name=color-scheme]", "content") == ["dark"]
+    end
+  end
+
   test "the homepage stays outside the application shell and within its HTML budget", %{
     conn: conn
   } do
@@ -430,6 +451,16 @@ defmodule AshPlatformWeb.HomeLiveTest do
         ] do
       refute html =~ archived
     end
+  end
+
+  # Everything a landing render is allowed to differ by: the CSRF token and the
+  # LiveView handshake, all minted per request.
+  defp stable_render(html) do
+    html
+    |> String.replace(~r/csrf-token" content="[^"]*"/, ~s(csrf-token" content="TOKEN"))
+    |> String.replace(~r/data-phx-session="[^"]*"/, ~s(data-phx-session="SESSION"))
+    |> String.replace(~r/data-phx-static="[^"]*"/, ~s(data-phx-static="STATIC"))
+    |> String.replace(~r/id="phx-[^"]*"/, ~s(id="ID"))
   end
 
   defp attribute(html, selector, name),

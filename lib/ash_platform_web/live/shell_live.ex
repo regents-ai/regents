@@ -49,8 +49,9 @@ defmodule AshPlatformWeb.ShellLive do
   @default_open_sea_lookups_per_minute 6
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
+    socket = assign(socket, :theme, session["theme"])
 
     case authorize_route(socket, route_spec) do
       {:redirect, socket} ->
@@ -1210,6 +1211,7 @@ defmodule AshPlatformWeb.ShellLive do
       content_status={@content_status}
       presentation={@presentation}
       shell_instance={@shell_instance}
+      theme={@theme}
     >
       <:content>
         <AutolaunchLive.page

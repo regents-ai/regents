@@ -20,7 +20,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
   test "an anonymous shell cannot patch into settings", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/app")
     refute has_element?(view, "#route-content h1", "Settings")
-    refute has_element?(view, "#route-content [aria-label=Appearance]")
+    refute has_element?(view, "#route-content .verified-connections")
 
     render_patch(view, "/settings")
 
@@ -51,13 +51,39 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert render_async(view) =~ "No public Techtree node exists"
   end
 
+  test "the switch states the theme the server just served", %{conn: conn} do
+    {:ok, dark, _html} = live(conn, "/stake")
+
+    assert has_element?(
+             dark,
+             ~s(#theme-control button.theme-toggle[aria-pressed=false][title="Switch to Light"]),
+             "Dark theme active"
+           )
+
+    {:ok, light, _html} =
+      conn
+      |> Plug.Test.put_req_cookie("regent_theme", "light")
+      |> live("/stake")
+
+    assert has_element?(
+             light,
+             ~s(#theme-control button.theme-toggle[aria-pressed=true][title="Switch to Dark"]),
+             "Light theme active"
+           )
+
+    assert has_element?(
+             light,
+             ~s(button.theme-toggle[aria-label="Color theme: Light. Activate Dark theme."])
+           )
+  end
+
   test "anonymous account control renders Sign In separately from the app selector", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/app")
 
     assert has_element?(view, "#app-selector details")
     assert has_element?(view, "#app-selector summary", "Regents Labs")
     assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
-    assert has_element?(view, "#theme-control details")
+    assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
 
     assert has_element?(
@@ -98,7 +124,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
     assert has_element?(view, "#account-control a[data-account-menu-item=settings]", "Settings")
-    refute has_element?(view, "#shell-header [data-theme-choice]")
+    assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
     refute has_element?(view, ".app-switcher [data-account-target]")
   end
@@ -162,19 +188,15 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute html =~ "Sign Out"
   end
 
-  test "Settings owns an Appearance section rather than relabeling the whole page" do
+  test "Settings owns its own page rather than relabeling the whole shell" do
     assert Code.ensure_loaded?(AshPlatformWeb.SettingsLive)
     assert function_exported?(AshPlatformWeb.SettingsLive, :page, 1)
 
     html = render_component(&AshPlatformWeb.SettingsLive.page/1, %{})
 
     assert html =~ ">Settings<"
-    assert html =~ ">Appearance<"
-    assert html =~ ~s(role="group")
-    assert html =~ ~s(aria-label="Appearance")
-    assert html =~ ~s(data-theme-choice="system")
-    assert html =~ ~s(data-theme-choice="light")
-    assert html =~ ~s(data-theme-choice="dark")
+    assert html =~ ~s(id="settings-verified-connections")
+    assert html =~ ">Verified connections<"
   end
 
   test "Settings shows live connected, disconnected, and conflict states", %{conn: conn} do
@@ -401,6 +423,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
       content_status: :ready,
       presentation: :none,
       shell_instance: 1,
+      theme: "dark",
       content: [%{inner_block: fn _, _ -> "Fixture content" end}]
     )
   end

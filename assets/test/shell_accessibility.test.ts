@@ -78,8 +78,13 @@ class FakeElement {
 const fakeDocument = {
   activeElement: null as FakeElement | null,
   documentElement: new FakeElement(),
+  cookie: "",
+  addEventListener: vi.fn(),
   querySelector(selector: string) {
     return selector === "meta[name='csrf-token']" ? {content: "csrf"} : null
+  },
+  querySelectorAll(_selector: string): FakeElement[] {
+    return []
   },
 }
 
@@ -87,6 +92,8 @@ const fakeStorage = new Map<string, string>()
 
 const fakeWindow = {
   liveSocket: undefined as unknown,
+  // The shell under test is a signed-in page, never the marketing landing.
+  location: {pathname: "/stake"},
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   matchMedia: () => ({
@@ -346,26 +353,33 @@ describe("shell material contract", () => {
   it("[U1][U4] loads RegentUI before shell and preserves existing page/status imports", () => {
     const appCss = readCss("../css/app.css")
     expect(appCss).toMatch(
-      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
+      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/tokens\/root\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
     )
   })
 
-  it("[U4][U6] keeps structural material square, responsive, and free of fabricated artwork", () => {
+  it("[U4][U6] keeps the shared material aliases and a square, responsive shell", () => {
     const material = readCss("../css/tokens/material.css")
+    const tokens = readCss("../css/tokens/root.css")
     const shell = readCss("../css/components/shell.css")
 
     expect(material).toContain("--material-radius: 4px")
     expect(material).toContain("--material-fill: var(--glass-panel-bg)")
-    expect(material).toContain("--material-fill-strong: var(--glass-shell-bg)")
     expect(material).toContain("--material-stroke: var(--glass-panel-border)")
     expect(material).toContain("--material-blur: var(--glass-blur)")
     expect(material).toContain("--material-shadow: var(--glass-panel-shadow)")
+    expect(material).toContain("--shell-background-ground: var(--color-bg)")
+    expect(tokens).toMatch(
+      /:root\[data-brand="platform"\]\[data-theme="light"\] \{\s*color-scheme: light;/,
+    )
+    expect(tokens).toMatch(
+      /:root\[data-brand="platform"\]\[data-theme="dark"\] \{\s*color-scheme: dark;/,
+    )
+    expect(tokens).toMatch(/--ash-ground: light-dark\(oklch\(97% 0 0\), oklch\(14\.5% 0 0\)\);/)
+    expect(shell).toContain("background: var(--ash-ground)")
     expect(shell).toContain("min-height: 2.75rem")
     expect(shell).toContain("100dvh")
-    expect(shell).toContain("prefers-reduced-transparency: reduce")
     expect(shell).toContain('#shell-sidebar [aria-pressed="true"]')
     expect(shell).toContain(".shell-menu-scrim")
-    expect(shell).toMatch(/\.shell-material[\s\S]*var\(--material-fill\) padding-box/)
     expect(shell).not.toMatch(/url\([^)]*backgrounds\//)
     expect(shell).not.toMatch(/border-radius:\s*(?:[5-9]|\d{2,})px/)
   })

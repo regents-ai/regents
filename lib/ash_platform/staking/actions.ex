@@ -167,9 +167,10 @@ defmodule AshPlatform.Staking.Actions do
   @doc """
   What the last Base reading says about each claim, keyed by action.
 
-  A reason here is hint copy and nothing else: every claim control stays
-  clickable, the click prepares exact calldata, and the contract decides the
-  outcome. `nil` means the reading had nothing to say about that claim.
+  A reason here is what decides whether a claim reads as available: every claim
+  control stays clickable, the click prepares exact calldata, and the contract
+  decides the outcome. `nil` means the reading had nothing to say against that
+  claim, so it is offered as available.
   """
   def available_claims(nil), do: Map.new(@claims, &{&1, :chain_unavailable})
 

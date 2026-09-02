@@ -9,7 +9,6 @@ test("Stake hands each click directly to the active Base wallet and presents eve
 
   await page.goto("/stake")
   await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-  await expect(page.getByText("No Regent account or Privy login is required.")).toBeVisible()
   await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
 
   await selectWallet(page, otherWallet)
@@ -72,7 +71,7 @@ test("Stake hands each click directly to the active Base wallet and presents eve
     await expect(page.locator(`button[data-staking-action="${action}"]`)).toBeEnabled()
   }
 
-  await page.getByRole("button", {name: "Claim USDC", exact: true}).click()
+  await page.getByRole("button", {name: "Claim USDC (available)", exact: true}).click()
   await expect.poll(() => sendCount(page)).toBe(5)
 
   await expect(dialog.getByText("Your available USDC rewards were claimed.")).toBeVisible()
@@ -107,8 +106,6 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
     await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
     await expect(page.getByText("Staking active")).toBeVisible()
-    await expect(page.locator(".stake-total")).toContainText("100")
-    await expect(page.locator(".stake-total")).toContainText("REGENT staked")
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
     await expect(page.locator(".stake-snapshot-note")).toContainText(
@@ -159,7 +156,6 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(contractLink).toHaveAttribute("target", "_blank")
     await expect(contractLink).toHaveAttribute("rel", "noopener noreferrer")
 
-    await expect(page.getByText("No Regent account or Privy login is required.")).toBeVisible()
     await expect(page.getByRole("button", {name: "Connect wallet to stake"})).toBeVisible()
     await expect(page.getByText("Available REGENT", {exact: true})).toHaveCount(0)
     await expect(page.getByText("Currently staked", {exact: true})).toHaveCount(0)
@@ -185,7 +181,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     expect(columns, `Stake dashboard columns at ${width}`).toBe(width > 768 ? 2 : 1)
 
     const presentation = await page.evaluate(() => {
-      const total = document.querySelector<HTMLElement>(".stake-total strong")!
+      const staked = document.querySelector<HTMLElement>(
+        ".stake-benefit-card:not(.stake-benefit-card-primary) dd",
+      )!
       const supply = document.querySelector<HTMLElement>(".stake-supply-facts dd")!
       const connect = document.querySelector<HTMLElement>("[data-stake-connect]")!
       const contractLink = document.querySelector<HTMLElement>(".stake-contract-link")!
@@ -193,11 +191,13 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
         connectHeight: connect.getBoundingClientRect().height,
         contractLinkHeight: contractLink.getBoundingClientRect().height,
         supplyFont: Number.parseFloat(getComputedStyle(supply).fontSize),
-        totalFont: Number.parseFloat(getComputedStyle(total).fontSize),
+        stakedFont: Number.parseFloat(getComputedStyle(staked).fontSize),
       }
     })
 
-    expect(presentation.totalFont).toBeGreaterThan(presentation.supplyFont * 2)
+    // The staked figure leads in the hero card and is repeated at reading size
+    // in the supply block, so the hero has to be the larger of the two.
+    expect(presentation.stakedFont).toBeGreaterThan(presentation.supplyFont)
     expect(presentation.connectHeight).toBeGreaterThanOrEqual(44)
     expect(presentation.contractLinkHeight).toBeGreaterThanOrEqual(44)
   }

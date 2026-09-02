@@ -44,7 +44,6 @@ test("Redeem sends each click and presents successful results in click order", a
 
   await page.goto("/redeem")
   await expect(page.getByRole("heading", {name: "Redeem your Animata."})).toBeVisible()
-  await expect(page.getByText("No Regent account or Privy login is required.")).toBeVisible()
   await expect(page.locator("[data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByLabel("Collection", {exact: true})).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()

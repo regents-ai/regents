@@ -26,19 +26,19 @@ async function switchApp(page: Page, label: string) {
   await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
 }
 
-// The four integrated product colors, as each family resolves them: Regent
-// routes on Charcoal under Platinum with a Powder Blue mat guide, Formation
-// carrying the Tangerine product guide, Autolaunch on Tangerine under black
-// with a Powder Blue guide, and Techtree on Powder Blue under Charcoal.
+// The shell stands on one palette per theme, so the mat guide is the only
+// colour that still changes with the application: Powder Blue for Regent routes
+// and Autolaunch, Tangerine for Formation, Charcoal for Techtree.
 const charcoal = "rgb(22, 22, 22)"
-const platinum = "rgb(229, 227, 210)"
 const tangerine = "rgb(255, 91, 25)"
 const powderBlue = "rgb(174, 202, 205)"
 
-const regentFamily = {ground: charcoal, text: platinum, guide: powderBlue}
-const formationFamily = {...regentFamily, guide: tangerine}
-const autolaunchFamily = {ground: tangerine, text: "rgb(0, 0, 0)", guide: powderBlue}
-const techtreeFamily = {ground: powderBlue, text: charcoal, guide: charcoal}
+const routeGuides = {
+  "/stake": powderBlue,
+  "/formation": tangerine,
+  "/autolaunch": powderBlue,
+  "/techtree": charcoal,
+} as const
 
 // The guide is read where it is painted, so it proves the whole chain from the
 // shared token through `--shell-background-guide` onto the mat mask.
@@ -54,45 +54,54 @@ function readFamily(page: Page) {
   })
 }
 
-async function chooseTheme(page: Page, choice: "Light" | "Dark") {
+async function chooseTheme(page: Page, choice: "light" | "dark") {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await page.locator("#theme-control summary").click()
-  await page.locator("#theme-control").getByRole("button", {name: choice}).click()
-  await expect(page.locator("html")).toHaveAttribute("data-theme", choice.toLowerCase())
+  if ((await page.locator("html").getAttribute("data-theme")) !== choice) {
+    await page.locator("#theme-control [data-theme-toggle]").click()
+  }
+  await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
 }
 
-test("[U2] every application family keeps its product ground, text, and mat guide in both theme choices", async ({page}) => {
-  for (const choice of ["Light", "Dark"] as const) {
+test("[U2] the shell keeps one ground per theme while the mat guide follows each application", async ({page}) => {
+  const palette: Record<string, {ground: string | null; text: string | null}> = {}
+
+  for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
 
-    for (const [route, family] of [
-      ["/stake", regentFamily],
-      ["/formation", formationFamily],
-      ["/autolaunch", autolaunchFamily],
-      ["/techtree", techtreeFamily],
-    ] as const) {
+    for (const [route, guide] of Object.entries(routeGuides)) {
       await page.goto(route)
-      await expect(page.locator("html")).toHaveAttribute("data-theme", choice.toLowerCase())
-      await expect.poll(() => readFamily(page), `${route} ${choice}`).toEqual(family)
+      await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
+      await expect.poll(() => readFamily(page).then(read => read.guide), `${route} ${choice}`)
+        .toBe(guide)
+
+      const {ground, text} = await readFamily(page)
+      palette[choice] ??= {ground, text}
+      expect({ground, text}, `${route} ${choice}`).toEqual(palette[choice])
     }
 
-    // Switching inside the persistent shell must land the same families a
-    // direct load does.
+    // Switching inside the persistent shell must land the same guide a direct
+    // load does, on the same ground.
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    await expect.poll(() => readFamily(page), `/app ${choice}`).toEqual(regentFamily)
 
     await switchApp(page, "Techtree")
     await expect(page).toHaveURL(/\/techtree$/)
-    await expect.poll(() => readFamily(page), `switched Techtree ${choice}`).toEqual(techtreeFamily)
+    await expect.poll(() => readFamily(page), `switched Techtree ${choice}`).toEqual({
+      ...palette[choice],
+      guide: routeGuides["/techtree"],
+    })
 
     await switchApp(page, "Autolaunch")
     await expect(page).toHaveURL(/\/autolaunch$/)
-    await expect
-      .poll(() => readFamily(page), `switched Autolaunch ${choice}`)
-      .toEqual(autolaunchFamily)
+    await expect.poll(() => readFamily(page), `switched Autolaunch ${choice}`).toEqual({
+      ...palette[choice],
+      guide: routeGuides["/autolaunch"],
+    })
   }
+
+  // Two themes, two grounds: the switch is not decorative.
+  expect(palette.light).not.toEqual(palette.dark)
 })
 
 test("[U2] direct application loads seed the canonical RegentUI brand", async ({
@@ -106,7 +115,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
   ] as const) {
     const served = await (await request.get(route)).text()
     expect(served).toContain(`data-brand="${brand}"`)
-    expect(served).toContain('data-theme="light"')
+    expect(served).toContain('data-theme="dark"')
 
     await page.goto(route)
     await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
@@ -285,12 +294,12 @@ test("anonymous Sign In stays separate from the app selector", async ({page}) =>
   await page.getByRole("link", {name: "Anonymous Settings patch"}).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
-  await expect(page.getByRole("heading", {name: "Appearance"})).toHaveCount(0)
+  await expect(page.getByRole("heading", {name: "Verified connections"})).toHaveCount(0)
 
   await page.goto("/settings")
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
-  await expect(page.getByRole("heading", {name: "Appearance"})).toHaveCount(0)
+  await expect(page.getByRole("heading", {name: "Verified connections"})).toHaveCount(0)
 })
 
 test("a signed-in account without a Regent shows its available account menu", async ({page}) => {
@@ -332,7 +341,7 @@ test("a signed-in account without a Regent shows its available account menu", as
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await expect(page.locator("#shell-header [data-theme-choice]")).toHaveCount(0)
+  await expect(page.locator("#theme-control [data-theme-toggle]")).toBeVisible()
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
 
@@ -352,17 +361,17 @@ test("a signed-in account without a Regent shows its available account menu", as
   await account.getByRole("link", {name: "Settings"}).click()
   await expect(page).toHaveURL(/\/settings$/)
   await expect(page.getByRole("heading", {name: "Settings", level: 1})).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Appearance", level: 2})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Verified connections", level: 2})).toBeVisible()
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 2, syncs: 1})
 
-  const appearance = page.getByRole("group", {name: "Appearance"})
-  await appearance.getByRole("button", {name: "Dark"}).click()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
-  expect(await page.evaluate(() => localStorage.getItem("regent:theme"))).toBe("dark")
+  await page.locator("#theme-control [data-theme-toggle]").click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  expect(await page.evaluate(() => document.cookie)).toContain("regent_theme=light")
 
   await page.reload()
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 2, sessionChecks: 3, syncs: 2})
 })
@@ -835,8 +844,28 @@ test("theme and reduced-motion preferences apply immediately", async ({browser})
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   await expect(page.locator("html")).toHaveAttribute("data-reduced-motion", "true")
-  await page.locator("#theme-control summary").click()
-  await page.locator("#theme-control").getByRole("button", {name: "Dark"}).click()
+
+  // With nothing saved the server renders the dark theme, and the switch says so
+  // before it is touched.
+  const toggle = page.locator("#theme-control [data-theme-toggle]")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(toggle).toHaveAttribute("aria-pressed", "false")
+  await expect(toggle).toHaveAttribute(
+    "aria-label",
+    "Color theme: Dark. Activate Light theme.",
+  )
+  await expect(toggle.locator("[data-theme-toggle-state]")).toHaveText("Dark theme active")
+
+  await toggle.click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+  await expect(toggle.locator("[data-theme-toggle-state]")).toHaveText("Light theme active")
+
+  await page.reload()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+
+  await toggle.click()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await page.reload()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")

@@ -109,9 +109,16 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert html =~ "Redeem your Animata"
     assert html =~ "80 USDC"
-    assert html =~ "5 million REGENT"
-    assert html =~ "7-day"
-    assert html =~ "No Regent account or Privy login is required"
+    assert html =~ "seven-day REGENT vest"
+
+    assert has_element?(
+             view,
+             ~s(.redeem-equation[aria-label="One Animata plus 80 USDC becomes five million REGENT vested over seven days and one Regents Club membership"])
+           )
+
+    assert html =~
+             ~s(<span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>)
+
     assert has_element?(view, ~s(button[data-redeem-connect]), "Connect wallet to redeem")
     refute has_element?(view, "#redemption-selection")
 

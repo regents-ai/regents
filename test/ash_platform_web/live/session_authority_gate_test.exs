@@ -23,7 +23,8 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
 
     assert session == %{
              "render_topic" => SessionAuthority.topic(lineage),
-             "render_route" => "/formation"
+             "render_route" => "/formation",
+             "theme" => "dark"
            }
 
     refute markup =~ lineage
@@ -38,11 +39,11 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert session["render_topic"] == cookie_topic
   end
 
-  test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route" do
+  test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route and colour theme" do
     assert %{session: %{"render_route" => "/formation"} = session} =
              build_conn() |> get("/formation") |> html_response(200) |> static_session!()
 
-    assert Map.keys(session) == ["render_route"]
+    assert Map.keys(session) == ["render_route", "theme"]
   end
 
   # A LiveView outside the product shell, so what this characterizes is the

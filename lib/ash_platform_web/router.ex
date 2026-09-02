@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.Router do
     plug :fetch_session
     plug :enforce_session_authority
     plug :fetch_live_flash
+    plug AshPlatformWeb.Plugs.Theme
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug AshPlatformWeb.Plugs.LaunchGate
     plug :protect_from_forgery

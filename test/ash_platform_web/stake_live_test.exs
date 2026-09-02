@@ -98,10 +98,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view = mount_stake(conn)
     html = render(view)
 
-    assert html =~ "No Regent account or Privy login is required."
     assert html =~ "Staking active"
-    assert has_element?(view, ".stake-total strong", "100")
-    assert has_element?(view, ".stake-total span", "REGENT staked")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, ".stake-supply-facts dt", "Total staked")
 
     # The hero is exactly the two cards the contract answers for: what Regent
     # Labs earned, over seven days and over its lifetime, and what is staked.
@@ -166,7 +165,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)
 
     {:ok, view, _html} = live(conn, "/stake")
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
 
     refute_receive {:staking_read, _scope, _reader}, 200
   end
@@ -275,7 +274,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     view |> element("button.stake-shared-refresh") |> render_click()
     assert render_async(view) =~ "Base block #1,234"
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
   test "SHARED_REFRESH_IS_SIGNED_IN_ONLY: an anonymous socket is refused server-side", %{
@@ -296,7 +295,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_hook(view, "refresh_data", %{})
 
     refute_receive {:staking_read, _scope, _reader}, 200
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
   test "SHARED_REFRESH_BUDGET: a refusal says so in its own words, not as a Base failure", %{
@@ -304,7 +303,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   } do
     seed_snapshot()
     view = conn |> signed_in_stake("shared-budget") |> activate(@wallet)
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
 
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     html = render_async(view)
@@ -315,7 +314,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     # The Redeem page's own per-visitor lookup limit says something else
     # entirely; neither refusal can be mistaken for the other.
     refute html =~ "Owned NFT lookup is unavailable."
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
   # One control asks for both readings a person can want here: their own
@@ -502,65 +501,51 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute_push_event(view, "staking:wallet-action", _)
   end
 
-  test "CLAIM_HINTS: every claim stays clickable and the reading only explains itself", %{
+  test "CLAIM_GLOW: every claim stays clickable and only a reward that is there is lit", %{
     conn: conn
   } do
     view = conn |> mount_stake() |> activate(@wallet)
 
     assert_every_claim_live(view)
-    refute render(view) =~ "in the last reading from Base"
+    assert lit_claims(view) == ~w(claim_usdc claim_regent claim_and_restake_regent)
+
+    # The glow is a colour, so each control also says in its own name whether
+    # there is anything to take.
+    assert claim_name(view, "claim_usdc") == "Claim USDC (available)"
+    assert claim_name(view, "claim_regent") == "Claim REGENT (available)"
+    assert claim_name(view, "claim_and_restake_regent") == "Claim and restake (available)"
 
     reread(view, %{usdc_claimable: "0"})
     assert_every_claim_live(view)
-    assert_hint(view, "claim_usdc", "Claim USDC — no USDC rewards in the last reading from Base.")
+    assert lit_claims(view) == ~w(claim_regent claim_and_restake_regent)
 
     reread(view, %{regent_claimable: "0", regent_funded: "0"})
     assert_every_claim_live(view)
-
-    assert_hint(
-      view,
-      "claim_regent",
-      "Claim REGENT — no REGENT rewards accrued in the last reading from Base."
-    )
-
-    assert_hint(
-      view,
-      "claim_and_restake_regent",
-      "Claim and restake — no REGENT rewards accrued in the last reading from Base."
-    )
+    assert lit_claims(view) == ~w(claim_usdc)
+    assert claim_name(view, "claim_usdc") == "Claim USDC (available)"
+    assert claim_name(view, "claim_regent") == "Claim REGENT (nothing to claim)"
+    assert claim_name(view, "claim_and_restake_regent") == "Claim and restake (nothing to claim)"
 
     reread(view, %{regent_claimable: "2000000000000000000", regent_funded: "1000000000000000000"})
     assert_every_claim_live(view)
+    assert lit_claims(view) == ~w(claim_usdc)
 
-    assert_hint(
-      view,
-      "claim_regent",
-      "the funded REGENT reward inventory is below what is claimable in the last reading from Base."
-    )
-
-    # Capacity is a contract limit, so this hint only moves once the shared
-    # reading does; the wallet reading alone never changes it.
+    # Capacity is a contract limit, so compounding only goes dark once the shared
+    # reading moves; the wallet reading alone never changes it.
     Application.put_env(:ash_platform, :test_staking_denominator, "101000000000000000000")
     share_new_snapshot()
     reread(view, %{})
     assert_every_claim_live(view)
-
-    assert_hint(
-      view,
-      "claim_and_restake_regent",
-      "restaking the claimable REGENT exceeds the capacity the contract can still take in the last reading from Base."
-    )
+    assert lit_claims(view) == ~w(claim_usdc claim_regent)
 
     Application.put_env(:ash_platform, :test_staking_paused, true)
     share_new_snapshot()
     reread(view, %{})
     assert_every_claim_live(view)
+    assert lit_claims(view) == ~w(claim_usdc claim_regent)
 
-    assert_hint(
-      view,
-      "claim_and_restake_regent",
-      "Claim and restake — staking shows as paused in the last reading from Base."
-    )
+    # The row is buttons alone: the reading is shown by which of them is lit.
+    refute render(view) =~ "in the last reading from Base"
   end
 
   test "REFRESH_ONLY: refreshing rereads Base without any wallet request", %{conn: conn} do
@@ -584,8 +569,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ~s(#regent-staking[aria-busy="true"]))
     assert has_element?(view, ".stake-overview", "Live contract position")
-    assert has_element?(view, ".stake-total strong", "100")
-    assert has_element?(view, ".stake-total span", "REGENT staked")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, ".stake-supply-facts dt", "Total staked")
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")
     assert has_element?(view, ~s(#staking-amount[value="1"]))
     assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
@@ -663,7 +648,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute render(view) =~ "Staking details are unavailable right now."
     refute render(view) =~ @refresh_failure
     assert staking_assigns(view).staking_status == :ready
-    assert has_element?(view, ".stake-total strong", "100")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
 
     Application.delete_env(:ash_platform, :test_staking_read_gate)
     send(second_read, :continue_staking_read)
@@ -911,13 +896,19 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "button[data-staking-action][disabled]")
   end
 
-  defp assert_hint(view, action, copy) do
-    assert has_element?(
-             view,
-             ~s|button[data-staking-action="#{action}"][aria-describedby="staking-claim-hint-#{action}"]|
-           )
+  defp claim_name(view, action) do
+    view
+    |> element(~s|button[data-staking-action="#{action}"]|)
+    |> render()
+    |> String.replace(~r/<[^>]*>/, " ")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
 
-    assert has_element?(view, "p#staking-claim-hint-#{action}", copy)
+  defp lit_claims(view) do
+    for action <- ~w(claim_usdc claim_regent claim_and_restake_regent),
+        has_element?(view, ~s|button[data-staking-action="#{action}"].stake-claim-ready|),
+        do: action
   end
 
   defp reread(view, balances) do

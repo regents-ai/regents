@@ -75,21 +75,54 @@ test("[U2] homepage settles immediately for reduced motion", async ({browser}) =
   await context.close()
 })
 
-test("[U3] public landing stays light and unbranded without changing saved appearance", async ({browser}) => {
-  const context = await browser.newContext()
-  await context.addInitScript(() => localStorage.setItem("regent:theme", "dark"))
-  const page = await context.newPage()
+// Everything a landing render is allowed to differ by: the CSRF token and the
+// LiveView handshake, all minted per request.
+const stableRender = (html: string) =>
+  html
+    .replace(/csrf-token" content="[^"]*"/g, 'csrf-token" content="TOKEN"')
+    .replace(/data-phx-session="[^"]*"/g, 'data-phx-session="SESSION"')
+    .replace(/data-phx-static="[^"]*"/g, 'data-phx-static="STATIC"')
+    .replace(/id="phx-[^"]*"/g, 'id="ID"')
 
-  const served = await (await context.request.get("/")).text()
-  expect(served).toContain('data-theme="light"')
-  expect(served).not.toContain("data-brand")
+test("[U3] the public landing is one page for everyone, pinned dark", async ({browser}) => {
+  const landing = async (saved?: "light" | "dark") => {
+    const context = await browser.newContext()
+    if (saved) {
+      await context.addCookies([
+        {name: "regent_theme", value: saved, url: "http://127.0.0.1:4002"},
+      ])
+    }
+    const served = await (await context.request.get("/")).text()
+    await context.close()
+    return served
+  }
+
+  const [none, light, dark] = await Promise.all([landing(), landing("light"), landing("dark")])
+
+  expect(stableRender(light)).toBe(stableRender(none))
+  expect(stableRender(dark)).toBe(stableRender(none))
+
+  for (const served of [none, light, dark]) {
+    expect(served).toContain('data-theme="dark"')
+    expect(served).toContain('content="dark"')
+    expect(served).not.toContain("data-brand")
+  }
+})
+
+test("[U3] the landing keeps its dark paint and the visitor's saved theme", async ({browser}) => {
+  const context = await browser.newContext()
+  await context.addCookies([
+    {name: "regent_theme", value: "light", url: "http://127.0.0.1:4002"},
+  ])
+  const page = await context.newPage()
 
   await page.goto("/")
   await waitForHomepage(page)
 
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await expect(page.locator("html")).not.toHaveAttribute("data-brand", /.+/)
-  expect(await page.evaluate(() => localStorage.getItem("regent:theme"))).toBe("dark")
+  const saved = (await context.cookies()).find(cookie => cookie.name === "regent_theme")
+  expect(saved?.value).toBe("light")
   await context.close()
 })
 

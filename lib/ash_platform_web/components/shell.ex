@@ -17,6 +17,7 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:content_status, :atom, required: true)
   attr(:presentation, :atom, required: true)
   attr(:shell_instance, :integer, required: true)
+  attr(:theme, :string, required: true)
   slot(:content, required: true)
 
   def shell(assigns) do
@@ -36,7 +37,7 @@ defmodule AshPlatformWeb.Components.Shell do
     >
       <Background.background slot={@route_spec.background_slot} />
 
-      <header id="shell-header" class="shell-material shell-material--strong">
+      <header id="shell-header">
         <div id="app-selector" class="app-selector">
           <details>
             <summary aria-label={"Switch application. Current application: #{@route_spec.app_display_label}"}>
@@ -151,21 +152,11 @@ defmodule AshPlatformWeb.Components.Shell do
           </p>
         </div>
 
-        <div :if={@account_control.kind == :sign_in} id="theme-control" class="theme-control">
-          <details>
-            <summary aria-label="Choose appearance">Theme <span aria-hidden="true">⌄</span></summary>
-            <div class="theme-menu shell-popover" role="group" aria-label="Theme">
-              <button type="button" data-theme-choice="system">System</button>
-              <button type="button" data-theme-choice="light">Light</button>
-              <button type="button" data-theme-choice="dark">Dark</button>
-            </div>
-          </details>
-        </div>
+        <.theme_toggle id="theme-control" theme={@theme} />
       </header>
 
       <nav
         id="shell-sidebar"
-        class="shell-material"
         data-motion-region
         aria-label="Context navigation"
         tabindex="-1"
@@ -177,17 +168,6 @@ defmodule AshPlatformWeb.Components.Shell do
           <span>Search</span>
           <input type="search" name="mobile-search" autocomplete="off" />
         </label>
-        <div
-          :if={@account_control.kind == :sign_in}
-          class="shell-mobile-theme theme-menu"
-          role="group"
-          aria-label="Theme"
-        >
-          <span>Appearance</span>
-          <button type="button" data-theme-choice="system">System</button>
-          <button type="button" data-theme-choice="light">Light</button>
-          <button type="button" data-theme-choice="dark">Dark</button>
-        </div>
         <ul>
           <li
             :for={target <- @route_spec.sidebar_model.targets}
@@ -214,7 +194,6 @@ defmodule AshPlatformWeb.Components.Shell do
       <div id="app-shell-scroller" tabindex="-1">
         <main
           id="route-content"
-          class="shell-material shell-material--strong"
           data-motion-region
           aria-busy={@content_status == :loading}
         >
@@ -224,6 +203,52 @@ defmodule AshPlatformWeb.Components.Shell do
     </div>
     """
   end
+
+  attr(:id, :string, required: true)
+  attr(:theme, :string, required: true)
+
+  @doc """
+  The colour theme switch: one control that flips between the two themes.
+
+  The browser owns its state. It writes the theme cookie the server reads on the
+  next render, and restates the current theme here on load and after every live
+  navigation, so the control is left out of LiveView's patching. The server
+  renders the theme it just served, so the control reads correctly before any
+  script runs and for anyone browsing without one.
+  """
+  def theme_toggle(assigns) do
+    ~H"""
+    <div id={@id} class="theme-control" phx-update="ignore">
+      <button
+        class="theme-toggle"
+        type="button"
+        aria-label={"Color theme: #{theme_name(@theme)}. Activate #{next_theme_name(@theme)} theme."}
+        aria-pressed={to_string(@theme == "light")}
+        title={"Switch to #{next_theme_name(@theme)}"}
+        data-theme-toggle
+      >
+        <span class="theme-toggle__stage" aria-hidden="true">
+          <span class="theme-toggle__laser"></span>
+          <span class="theme-toggle__cube">
+            <span class="theme-toggle__face theme-toggle__face--front"></span>
+            <span class="theme-toggle__face theme-toggle__face--back"></span>
+            <span class="theme-toggle__face theme-toggle__face--left"></span>
+            <span class="theme-toggle__face theme-toggle__face--right"></span>
+            <span class="theme-toggle__face theme-toggle__face--top"></span>
+            <span class="theme-toggle__face theme-toggle__face--bottom"></span>
+          </span>
+        </span>
+        <span class="visually-hidden" data-theme-toggle-state>{theme_name(@theme)} theme active</span>
+      </button>
+    </div>
+    """
+  end
+
+  defp theme_name("light"), do: "Light"
+  defp theme_name("dark"), do: "Dark"
+
+  defp next_theme_name("light"), do: "Dark"
+  defp next_theme_name("dark"), do: "Light"
 
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)

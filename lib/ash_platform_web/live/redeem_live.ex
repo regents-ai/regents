@@ -48,16 +48,13 @@ defmodule AshPlatformWeb.RedeemLive do
           </p>
           <div
             class="redeem-equation"
-            aria-label="One Animata plus 80 USDC becomes one Regents Club membership and five million REGENT vested over seven days"
+            aria-label="One Animata plus 80 USDC becomes five million REGENT vested over seven days and one Regents Club membership"
           >
-            <span>1 Animata</span><b>+</b><span>80 USDC</span><b>→</b><span>Regents Club</span><b>+</b><span>5 million REGENT</span>
+            <span class="redeem-pill">1 Animata</span><b>+</b><span class="redeem-pill">80 USDC</span><b>→</b><span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>
           </div>
           <div :if={!@wallet} class="redeem-intro-actions">
             <button type="button" class="redeem-primary" data-redeem-connect>Connect wallet to redeem</button>
           </div>
-          <p class="redeem-auth-note">
-            No Regent account or Privy login is required. Every Base transaction is confirmed in your wallet.
-          </p>
         </div>
 
         <figure id="redeem-intro-media" class="redeem-intro-media">
@@ -83,7 +80,6 @@ defmodule AshPlatformWeb.RedeemLive do
             src="/images/redeem/animata1and2-poster.jpg"
             alt="Animata I and II artwork"
           />
-          <figcaption><span>5 million REGENT</span><span>7-day linear vest</span></figcaption>
         </figure>
       </section>
 
@@ -131,7 +127,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <div class="redeem-section-heading">
             <div>
               <p class="redeem-kicker">Three connected collections</p><h2 id="redemption-collections-heading">
-                What goes in. What comes out.
+                Animata I+II + USDC are redeemed for REGENT + RC NFT
               </h2>
             </div>
             <p>Eligible source token IDs are 1–{@redemption.max_source_token_id}.</p>
@@ -353,7 +349,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <div class="redeem-section-heading">
             <div>
               <p class="redeem-kicker">Connected collection</p><h2 id="redemption-owned-heading">
-                Your supported NFTs
+                Owned Collectibles
               </h2>
             </div>
             <p>Select an Animata card to fill the redemption form.</p>

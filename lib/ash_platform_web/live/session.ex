@@ -20,16 +20,19 @@ defmodule AshPlatformWeb.Live.Session do
   with it because a connected mount cannot otherwise learn it — `connect_info`
   `:uri` is the transport's own `/live/websocket` address and `socket.host_uri`
   carries no path, so only `handle_params` sees the page route, and that is too
-  late to refuse a mount.
+  late to refuse a mount. The colour theme travels with it so the shell header
+  can state the theme the request was served with; it is a display preference
+  the markup already shows in plain sight.
 
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
-  static_token_session)`, so both keys are the render's own and can never stand
+  static_token_session)`, so these keys are the render's own and can never stand
   in for the authority the socket connected with.
   """
   def render_context(conn) do
     conn.assigns.current_lineage
     |> rendered_topic()
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
+    |> Map.put("theme", conn.assigns.theme)
   end
 
   # The lease starts absent on every mount and is only ever granted by a

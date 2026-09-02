@@ -1,5 +1,6 @@
 @import "../../../design-system/regent_ui/assets/css/regent.css";
 @import "./tokens/material.css";
+@import "./tokens/root.css";
 @import "./components/shell.css";
 @import "./components/comment_ledger.css";
 @import "./pages/home.css";
@@ -62,15 +63,6 @@
   --radius-full: 999px;
   --radius-button: 3px;
   font-family: var(--font-family-ui);
-}
-
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 * {

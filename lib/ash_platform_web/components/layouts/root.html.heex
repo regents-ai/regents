@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<%!-- The marketing page is painted dark whatever the visitor saved, so it says so
+and reads the same for everyone. --%>
+<% theme = if @conn.request_path == "/", do: "dark", else: @theme %>
 <html
   lang="en"
   data-brand={
@@ -9,11 +12,12 @@
       _ -> "platform"
     end
   }
-  data-theme="light"
+  data-theme={theme}
 >
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content={theme} />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="privy-app-id" content={Application.get_env(:ash_platform, :privy, [])[:app_id]} />
     <meta
@@ -25,28 +29,6 @@
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
-    </script>
-    <script>
-      (() => {
-        if (window.location.pathname === "/") return;
-
-        // Blocked storage throws on read; the server-rendered light default already stands.
-        let storedTheme = null;
-        try {
-          storedTheme = localStorage.getItem("regent:theme");
-        } catch {}
-
-        const root = document.documentElement;
-        const choice = ["system", "light", "dark"].includes(storedTheme)
-          ? storedTheme
-          : "system";
-        const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
-
-        root.dataset.theme = choice === "dark" || (choice === "system" && prefersDark)
-          ? "dark"
-          : "light";
-        root.dataset.themeChoice = choice;
-      })();
     </script>
   </head>
   <body>
