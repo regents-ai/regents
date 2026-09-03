@@ -101,8 +101,6 @@
            [
              files: %{
                excluded: [
-                 # Billing behavior is protected and cannot receive semantic refactors in this ticket.
-                 "lib/ash_platform/billing/**/*.ex",
                  # This LiveView owns protected wallet, stake, and redemption flows.
                  "lib/ash_platform_web/live/shell_live.ex",
                  # The reset task crosses the protected authentication boundary.
@@ -178,10 +176,7 @@
                  # Exact-size assertions are clearer test failures than counting helpers.
                  "test/**/*.exs",
                  # These validations require an exact ABI/domain shape, not an emptiness test.
-                 "lib/ash_platform/autolaunch/indexer/chain.ex",
-                 "lib/ash_platform/techtree/uplift_report.ex",
-                 "lib/ash_platform_web/controllers/techtree_evidence_controller.ex",
-                 "lib/ash_platform_web/controllers/techtree_notebook_artifact_controller.ex"
+                 "lib/ash_platform/autolaunch/indexer/chain.ex"
                ]
              }
            ]},
@@ -200,15 +195,7 @@
           {CredoAsh.Check.Warning.PoliciesWithoutAuthorizer, []},
           {CredoAsh.Check.Warning.AuthorizerWithoutPolicies, []},
           {CredoAsh.Check.Warning.UnprotectedResource, []},
-          {CredoAsh.Check.Warning.AshCallInLoop,
-           [
-             files: %{
-               excluded: [
-                 # These table-driven tests intentionally exercise each independent case.
-                 "test/ash_platform_web/controllers/techtree_publication_controller_test.exs"
-               ]
-             }
-           ]},
+          {CredoAsh.Check.Warning.AshCallInLoop, []},
           {CredoAsh.Check.Warning.ActorOnExecution, []},
           {CredoAsh.Check.Warning.DirectRepoCall, []},
           {CredoAsh.Check.Warning.UnjustifiedAuthorizeFalse, []},

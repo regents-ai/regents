@@ -16,7 +16,7 @@ test("[U3] the marketing page is served with product surfaces open", async ({pag
 })
 
 test("[U4] product routes render the shell while surfaces are open", async ({page, request}) => {
-  for (const route of ["/app", "/techtree", "/autolaunch"]) {
+  for (const route of ["/app", "/autolaunch"]) {
     const response = await request.get(route)
     expect(response.status()).toBe(200)
     expect(response.headers()["retry-after"]).toBeUndefined()

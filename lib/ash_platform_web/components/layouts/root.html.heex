@@ -7,7 +7,6 @@ and reads the same for everyone. --%>
   data-brand={
     case Path.split(@conn.request_path) do
       ["/"] -> nil
-      ["/", "techtree" | _] -> "techtree"
       ["/", "autolaunch" | _] -> "autolaunch"
       _ -> "platform"
     end

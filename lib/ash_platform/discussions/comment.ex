@@ -11,7 +11,7 @@ defmodule AshPlatform.Discussions.Comment do
     attribute :target_type, :atom do
       allow_nil? false
       public? true
-      constraints one_of: [:techtree_node, :autolaunch_auction, :autolaunch_token]
+      constraints one_of: [:autolaunch_auction, :autolaunch_token]
     end
 
     attribute :target_id, :uuid do
@@ -49,7 +49,7 @@ defmodule AshPlatform.Discussions.Comment do
 
       argument :target_type, :atom do
         allow_nil? false
-        constraints one_of: [:techtree_node, :autolaunch_auction, :autolaunch_token]
+        constraints one_of: [:autolaunch_auction, :autolaunch_token]
       end
 
       argument :target_id, :uuid, allow_nil?: false
@@ -74,7 +74,7 @@ defmodule AshPlatform.Discussions.Comment do
     read :list_for_target do
       argument :target_type, :atom do
         allow_nil? false
-        constraints one_of: [:techtree_node, :autolaunch_auction, :autolaunch_token]
+        constraints one_of: [:autolaunch_auction, :autolaunch_token]
       end
 
       argument :target_id, :uuid, allow_nil?: false

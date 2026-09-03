@@ -7,7 +7,6 @@ defmodule AshPlatformWeb.Components.Shell do
 
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
-    TreeTarget,
     ViewerProfileTarget
   }
 
@@ -24,7 +23,6 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:content_status, :atom, required: true)
-  attr(:presentation, :atom, required: true)
   attr(:shell_instance, :integer, required: true)
   attr(:theme, :string, required: true)
   slot(:content, required: true)
@@ -39,7 +37,6 @@ defmodule AshPlatformWeb.Components.Shell do
       data-background={@route_spec.background_slot}
       data-content-transition={@route_spec.content_transition_kind}
       data-menu-open="false"
-      data-presentation={@presentation}
       data-route-id={@route_spec.route_id}
       data-destination={@route_spec.destination}
       data-shell-instance={@shell_instance}
@@ -176,7 +173,6 @@ defmodule AshPlatformWeb.Components.Shell do
               target={target}
               route_spec={@route_spec}
               account_control={@account_control}
-              presentation={@presentation}
             />
           </li>
         </ul>
@@ -252,7 +248,6 @@ defmodule AshPlatformWeb.Components.Shell do
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
-  attr(:presentation, :atom, required: true)
 
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
     assigns = assign(assigns, :target, target)
@@ -264,35 +259,6 @@ defmodule AshPlatformWeb.Components.Shell do
     >
       {@target.label}
     </.link>
-    """
-  end
-
-  defp sidebar_target(%{target: %TreeTarget{} = target} = assigns) do
-    assigns = assign(assigns, :target, target)
-
-    ~H"""
-    <div data-tree={@target.tree_slug}>
-      <.link
-        patch={@target.path}
-        aria-current={if @route_spec.destination == @target.path, do: "page"}
-      >
-        {@target.label}
-      </.link>
-      <span role="group" aria-label={"#{@target.label} presentation"}>
-        <.link
-          :for={presentation <- @target.presentations}
-          patch={@target.path}
-          data-tree-presentation={presentation}
-          data-tree-path={@target.path}
-          aria-label={"#{@target.label} #{presentation}"}
-          aria-pressed={
-            to_string(@route_spec.destination == @target.path && @presentation == presentation)
-          }
-        >
-          {presentation |> Atom.to_string() |> String.capitalize()}
-        </.link>
-      </span>
-    </div>
     """
   end
 

@@ -18,12 +18,6 @@ defmodule AshPlatformWeb.Router do
     plug AshPlatformWeb.Plugs.LaunchGate
   end
 
-  pipeline :agent_write_api do
-    plug :accepts, ["json"]
-    plug AshPlatformWeb.Plugs.LaunchGate
-    plug AshPlatform.AgentAuth.TechtreeWritePlug
-  end
-
   pipeline :session_api do
     plug :accepts, ["json"]
     plug AshPlatformWeb.Plugs.LaunchGate
@@ -45,11 +39,6 @@ defmodule AshPlatformWeb.Router do
   scope "/api", AshPlatformWeb do
     pipe_through :api
 
-    get "/techtree/v1/trees", TechtreeReadController, :trees
-    get "/techtree/v1/trees/:slug/nodes", TechtreeReadController, :tree_nodes
-    get "/techtree/v1/nodes/:id", TechtreeReadController, :node
-    get "/techtree/v1/nodes/:id/payload", TechtreeReadController, :payload
-    get "/techtree/v1/tree/nodes", TechtreeNodeController, :index
     get "/autolaunch/v1/auctions", AutolaunchAuctionController, :index
     get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
     post "/autolaunch/v1/auctions/:id/bid-quote", AutolaunchAuctionController, :bid_quote
@@ -57,14 +46,6 @@ defmodule AshPlatformWeb.Router do
     get "/autolaunch/v1/treasury-security/:address", AutolaunchTreasuryController, :show
 
     post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
-  end
-
-  scope "/api/techtree/v1", AshPlatformWeb do
-    pipe_through :agent_write_api
-
-    post "/nodes", TechtreePublicationController, :create
-    post "/nodes/:id/evidence-state", TechtreeEvidenceController, :create
-    post "/nodes/:id/notebook-artifact", TechtreeNotebookArtifactController, :create
   end
 
   scope "/api", AshPlatformWeb do
@@ -92,9 +73,6 @@ defmodule AshPlatformWeb.Router do
       # live "/settings", ShellLive, :settings
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
-      live "/techtree", ShellLive, :techtree
-      live "/techtree/nodes/:node_id", ShellLive, :techtree_node
-      live "/techtree/:tree_slug", ShellLive, :techtree_tree
       live "/autolaunch", ShellLive, :autolaunch
       live "/autolaunch/auctions", ShellLive, :autolaunch_auctions
       live "/autolaunch/auctions/:auction_id", ShellLive, :autolaunch_auction

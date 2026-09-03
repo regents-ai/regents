@@ -14,7 +14,6 @@ config :ash_platform,
     AshPlatform.Accounts,
     AshPlatform.Discussions,
     AshPlatform.Formation,
-    AshPlatform.Techtree,
     AshPlatform.Autolaunch,
     AshPlatform.OpenSea,
     AshPlatform.Redemption,
@@ -34,13 +33,7 @@ config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvide
 config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
 config :ash_platform, :siwa, base_url: nil, audience: nil
-config :ash_platform, :techtree_publication_rate_limit, limit: 10, window_seconds: 60
 config :ash_platform, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
-
-config :ash_platform, :techtree_payload,
-  gateway_url: "https://ipfs.io/ipfs",
-  timeout: 5_000,
-  max_bytes: 5_242_880
 
 config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
@@ -52,8 +45,6 @@ config :ash_platform, :ens_lookup_deadline_ms, 4_000
 config :ash_platform, :ens_avatar_http_client, AshPlatform.Ens.AvatarHttpClient
 config :ash_platform, :ens_avatar_deadline_ms, 2_000
 config :ash_platform, :autolaunch_indexer_rpc_url, nil
-config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
-config :ash_platform, :notebook_static_server, false
 config :ash_platform, :app_surfaces, true
 config :ash_platform, :regents_club_metadata_cutover, false
 config :ash_platform, :regents_club_privy_origin_canary, false

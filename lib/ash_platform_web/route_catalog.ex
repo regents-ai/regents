@@ -8,15 +8,11 @@ defmodule AshPlatformWeb.RouteCatalog do
     RouteTarget,
     SidebarModel,
     Spec,
-    TreeTarget,
     ViewerProfileTarget
   }
 
   @identifier ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
   @slug ~r/\A[a-z0-9][a-z0-9-]{0,62}\z/
-
-  @trees Enum.map(AshPlatform.Techtree.SeedTrees.all(), &{&1.slug, &1.name})
-  @tree_names Map.new(@trees)
 
   @entries [
     %Entry{
@@ -53,27 +49,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       parameter_schema: %{slug: :slug},
       reserved_values: %{},
       route_spec_id: :regent_profile
-    },
-    %Entry{
-      path_pattern: "/techtree",
-      live_action: :techtree,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :techtree
-    },
-    %Entry{
-      path_pattern: "/techtree/nodes/:node_id",
-      live_action: :techtree_node,
-      parameter_schema: %{node_id: :identifier},
-      reserved_values: %{},
-      route_spec_id: :techtree_node
-    },
-    %Entry{
-      path_pattern: "/techtree/:tree_slug",
-      live_action: :techtree_tree,
-      parameter_schema: %{tree_slug: :tree_slug},
-      reserved_values: %{tree_slug: ["nodes"]},
-      route_spec_id: :techtree_tree
     },
     %Entry{
       path_pattern: "/autolaunch",
@@ -189,16 +164,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regent_record, :detail, %{}},
-    techtree:
-      {:techtree, :techtree, "Techtree", "Techtree", "/techtree",
-       [:view_switcher, :profile_actions], :none, :techtree_overview, :overview, %{}},
-    techtree_node:
-      {:techtree_node, :techtree, "Techtree", "Node", "/techtree",
-       [:view_switcher, :profile_actions], :none, :techtree_node, :detail, %{}},
-    techtree_tree:
-      {:techtree_tree, :techtree, "Techtree", nil, "/techtree",
-       [:view_switcher, :profile_actions], :none, :techtree_tree, :tree,
-       %{presentation: %{default: :map, values: [:map, :list]}}},
     autolaunch:
       {:autolaunch, :autolaunch, "Autolaunch", "Autolaunch", "/autolaunch",
        [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :overview, %{}},
@@ -247,8 +212,6 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   def entries, do: @entries
 
-  def tree_roots, do: @trees
-
   def fetch!(action, params \\ %{}) do
     entry = Enum.find(@entries, &(&1.live_action == action)) || raise(NotFoundError)
     validate_params!(entry, params)
@@ -281,9 +244,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   defp valid_parameter?(:identifier, value),
     do: is_binary(value) and Regex.match?(@identifier, value)
 
-  defp valid_parameter?(:tree_slug, value),
-    do: is_binary(value) and is_map_key(@tree_names, value)
-
   defp build_spec(action, params) do
     {route_id, app_id, app_label, page_label, root, controls, search, background, transition,
      local_state} = Map.fetch!(@specs, action)
@@ -293,7 +253,7 @@ defmodule AshPlatformWeb.RouteCatalog do
       destination: destination(action, params),
       app_id: app_id,
       app_display_label: app_label,
-      page_display_label: page_label || Map.fetch!(@tree_names, params["tree_slug"]),
+      page_display_label: page_label,
       canonical_root: root,
       sidebar_model: sidebar_model(app_id),
       header_controls: controls,
@@ -311,23 +271,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     %SidebarModel{
       id: :formation,
       targets: []
-    }
-  end
-
-  defp sidebar_model(:techtree) do
-    tree_targets =
-      Enum.map(@trees, fn {slug, label} ->
-        %TreeTarget{
-          tree_slug: slug,
-          label: label,
-          path: "/techtree/#{slug}",
-          presentations: [:map, :list]
-        }
-      end)
-
-    %SidebarModel{
-      id: :techtree,
-      targets: tree_targets
     }
   end
 
@@ -418,24 +361,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     }
   end
 
-  defp sidebar_target_handoff(%TreeTarget{} = target) do
-    %{
-      "type" => "tree",
-      "label" => target.label,
-      "destination" => target.path,
-      "tree" => target.tree_slug,
-      "presentations" =>
-        Enum.map(target.presentations, fn presentation ->
-          %{
-            "type" => "tree_presentation",
-            "destination" => target.path,
-            "tree" => target.tree_slug,
-            "presentation" => presentation
-          }
-        end)
-    }
-  end
-
   defp sidebar_target_handoff(%ViewerProfileTarget{} = target) do
     %{
       "type" => "viewer_profile",
@@ -445,11 +370,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   end
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
-  defp handoff_params(:techtree_node), do: %{"node_id" => "node"}
-
-  defp handoff_params(:techtree_tree),
-    do: %{"tree_slug" => "genebench-pro-reference-lab"}
-
   defp handoff_params(:autolaunch_auction), do: %{"auction_id" => "auction"}
   defp handoff_params(:autolaunch_token), do: %{"token_id" => "token"}
   defp handoff_params(:autolaunch_launch), do: %{"id" => "launch"}
@@ -457,8 +377,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
-  defp destination(:techtree_node, %{"node_id" => node_id}), do: "/techtree/nodes/#{node_id}"
-  defp destination(:techtree_tree, %{"tree_slug" => slug}), do: "/techtree/#{slug}"
 
   defp destination(:autolaunch_auction, %{"auction_id" => auction_id}),
     do: "/autolaunch/auctions/#{auction_id}"

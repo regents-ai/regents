@@ -18,14 +18,11 @@ defmodule AshPlatform.PublicContent do
   end
 
   defp summary(:formation), do: "Review the shape of your Regent before setup begins."
-  defp summary(:techtree), do: "Explore the five initial research collections."
   defp summary(:autolaunch), do: "Review launches, auctions, and graduated tokens."
   defp summary(:stake), do: "Staking actions are not available in this preview."
   defp summary(:redeem), do: "Redemption actions are not available in this preview."
   defp summary(_), do: "This preview establishes the page and its place in Regent."
 
-  defp details(:techtree_tree, %{"tree_slug" => slug}), do: [{"Dataset", slug}]
-  defp details(:techtree_node, %{"node_id" => id}), do: [{"Node", id}]
   defp details(:regent_profile, %{"slug" => slug}), do: [{"Regent", slug}]
   defp details(:autolaunch_auction, %{"auction_id" => id}), do: [{"Auction", id}]
   defp details(:autolaunch_token, %{"token_id" => id}), do: [{"Token", id}]

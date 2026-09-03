@@ -6,7 +6,6 @@ defmodule Mix.Tasks.AshPlatform.ResetLocal do
     :database_exists,
     :start_application,
     :preflight,
-    :comments_cleanup,
     :identity_cleanup,
     :database_reset,
     :stop_application,
@@ -14,7 +13,6 @@ defmodule Mix.Tasks.AshPlatform.ResetLocal do
   ]
   @reset_injection_keys [
     :preflight,
-    :comments_cleanup,
     :identity_cleanup,
     :database_reset,
     :stop_application,
@@ -72,9 +70,6 @@ defmodule Mix.Tasks.AshPlatform.ResetLocal do
     preflight =
       Keyword.get(opts, :preflight, &Mix.Tasks.AshPlatform.ResetBrowserIdentity.preflight!/1)
 
-    comments_cleanup =
-      Keyword.get(opts, :comments_cleanup, &Mix.Tasks.AshPlatform.ResetBrowserComments.reset!/0)
-
     identity_cleanup =
       Keyword.get(opts, :identity_cleanup, &Mix.Tasks.AshPlatform.ResetBrowserIdentity.reset!/1)
 
@@ -84,7 +79,6 @@ defmodule Mix.Tasks.AshPlatform.ResetLocal do
     stop_application = Keyword.get(opts, :stop_application, fn -> :ok end)
 
     proof = preflight.(run_id)
-    comments_cleanup.()
     identity_cleanup.(preflight: proof)
     stop_application.()
 
@@ -111,7 +105,6 @@ defmodule Mix.Tasks.AshPlatform.ResetLocal do
 
   defp cleanup_generated_files! do
     File.rm_rf!("priv/static/assets")
-    File.rm_rf!("priv/static/notebooks")
     File.rm("priv/static/cache_manifest.json")
     :ok
   end

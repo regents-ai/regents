@@ -3,9 +3,6 @@ export const backgroundManifest = {
   regents_labs: "/images/backgrounds/regents_labs.svg",
   formation: "/images/backgrounds/formation.svg",
   regent_record: "/images/backgrounds/regent_record.svg",
-  techtree_overview: "/images/backgrounds/techtree_overview.svg",
-  techtree_node: "/images/backgrounds/techtree_node.svg",
-  techtree_tree: "/images/backgrounds/techtree_tree.svg",
   autolaunch: "/images/backgrounds/autolaunch.svg",
 } as const
 

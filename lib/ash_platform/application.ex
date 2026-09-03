@@ -21,7 +21,6 @@ defmodule AshPlatform.Application do
         # After PubSub: its first reading is announced to every page on the
         # topic the staking pages subscribe to.
         {AshPlatform.Staking.SnapshotCache, []},
-        notebook_static_server_child(),
         # Start a worker by calling: AshPlatform.Worker.start_link(arg)
         # {AshPlatform.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -52,13 +51,6 @@ defmodule AshPlatform.Application do
        max_in_flight: 1}
     else
       _disabled -> nil
-    end
-  end
-
-  defp notebook_static_server_child do
-    case Application.get_env(:ash_platform, :notebook_static_server, false) do
-      false -> nil
-      options -> {Bandit, Keyword.merge([plug: AshPlatformWeb.NotebookStaticPlug], options)}
     end
   end
 

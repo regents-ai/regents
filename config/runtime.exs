@@ -84,11 +84,6 @@ config :ash_platform, :siwa,
   base_url: System.get_env("SIWA_SERVER_URL"),
   audience: System.get_env("SIWA_AUDIENCE")
 
-config :ash_platform, :techtree_publication_rate_limit,
-  limit: String.to_integer(System.get_env("TECHTREE_PUBLICATION_RATE_LIMIT", "10")),
-  window_seconds:
-    String.to_integer(System.get_env("TECHTREE_PUBLICATION_RATE_WINDOW_SECONDS", "60"))
-
 # Production must say out loud whether the product surfaces are open. Anything
 # but "on" keeps them closed, so a typo closes rather than opens.
 app_surfaces_setting =

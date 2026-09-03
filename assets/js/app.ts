@@ -29,7 +29,6 @@ import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
-import {TechtreeCamera} from "./hooks/techtree_camera"
 import {VoxelDelight} from "./hooks/voxel"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
@@ -126,8 +125,6 @@ const shellBehavior: Hook = {
       routeId: shell.dataset.routeId ?? "",
       destination: shell.dataset.destination ?? "",
       menuOpen: shell.dataset.menuOpen === "true",
-      presentation: shell.dataset.presentation ?? "none",
-      supportsPresentation: shell.querySelectorAll("[data-tree-presentation]").length > 0,
     }
     root.dataset.brand = brandForShellApp(shell.dataset.app)
     this.shellState = cachedShellState
@@ -178,26 +175,15 @@ const shellBehavior: Hook = {
       if (!state) return
 
       shell.dataset.menuOpen = String(state.menuOpen)
-      shell.dataset.presentation = state.presentation
       cachedShellState = state
       menuButton()?.setAttribute("aria-expanded", String(state.menuOpen))
       syncMenuAccessibility()
-      shell.querySelectorAll<HTMLAnchorElement>("[data-tree-presentation]").forEach(link => {
-        link.setAttribute(
-          "aria-pressed",
-          String(
-            link.dataset.treePath === state.destination &&
-              link.dataset.treePresentation === state.presentation,
-          ),
-        )
-      })
     }
 
     const onClick = (event: Event) => {
       const target = event.target instanceof Element ? event.target : null
       shell.dataset.motionSource =
         event instanceof MouseEvent && event.detail === 0 ? "keyboard" : "pointer"
-      const presentationLink = target?.closest<HTMLAnchorElement>("[data-tree-presentation]")
 
       if (target?.closest("#mobile-menu-button")) {
         if (this.shellState) this.shellState.menuOpen = !this.shellState.menuOpen
@@ -207,14 +193,6 @@ const shellBehavior: Hook = {
 
       if (target?.closest("[data-shell-menu-scrim], [data-shell-menu-close]")) {
         closeMenu()
-      }
-
-      if (presentationLink) {
-        const presentation = presentationLink.dataset.treePresentation
-        const treePath = presentationLink.dataset.treePath
-        if (this.shellState && presentation) this.shellState.presentation = presentation
-        this.restoreState?.()
-        if (treePath === this.shellState?.destination) event.preventDefault()
       }
 
       if (target?.closest("#shell-sidebar a")) closeMenu()
@@ -302,8 +280,6 @@ const shellBehavior: Hook = {
     const incoming = {
       routeId: this.el.dataset.routeId ?? "",
       destination: this.el.dataset.destination ?? "",
-      presentation: this.el.dataset.presentation ?? "none",
-      supportsPresentation: this.el.querySelectorAll("[data-tree-presentation]").length > 0,
     }
 
     const menuWasOpen = this.shellState?.menuOpen === true
@@ -348,7 +324,6 @@ const hooks = {
   RedemptionWallet,
   RegentsClubMetadataWallet,
   StakeWallet,
-  TechtreeCamera,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

@@ -179,7 +179,6 @@ defmodule AshPlatform.LocalDatabaseFixture do
   defp setup_human_account_fixture! do
     create_local_human_accounts_table!()
     migrate_application_schema!()
-    seed_techtree!()
   end
 
   defp fixture_setup!(opts, env) do
@@ -343,13 +342,6 @@ defmodule AshPlatform.LocalDatabaseFixture do
     )
   end
 
-  defp seed_techtree! do
-    case AshPlatform.Techtree.ensure_seed_trees(actor: %AshPlatform.Actors.System{}) do
-      :ok -> :ok
-      {:error, error} -> raise error
-    end
-  end
-
   defmodule PostgresAdapter do
     @moduledoc false
 
@@ -371,25 +363,20 @@ defmodule AshPlatform.LocalDatabaseFixture do
         migrations_path = Application.app_dir(:ash_platform, "priv/repo/migrations")
         Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
 
-        case AshPlatform.Techtree.ensure_seed_trees(actor: %AshPlatform.Actors.System{}) do
-          :ok -> :ok
-          {:error, error} -> raise error
-        end
-
         Ecto.Adapters.SQL.query!(AshPlatform.Repo, "CREATE SCHEMA acceptance_harness", [])
 
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, database_name text NOT NULL, database_owner text NOT NULL, migration_versions text[] NOT NULL, seed_count bigint NOT NULL, seed_fingerprint text NOT NULL, empty_counts jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
+          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, database_name text NOT NULL, database_owner text NOT NULL, migration_versions text[] NOT NULL, empty_counts jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
           []
         )
 
-        {versions, seed_count, seed_fingerprint, empty_counts} = capture_baseline!()
+        {versions, empty_counts} = capture_baseline!()
 
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "INSERT INTO acceptance_harness.baseline (run_id, database_name, database_owner, migration_versions, seed_count, seed_fingerprint, empty_counts) VALUES ($1, current_database(), current_user, $2, $3, $4, $5::jsonb)",
-          [run_id, versions, seed_count, seed_fingerprint, empty_counts]
+          "INSERT INTO acceptance_harness.baseline (run_id, database_name, database_owner, migration_versions, empty_counts) VALUES ($1, current_database(), current_user, $2, $3::jsonb)",
+          [run_id, versions, empty_counts]
         )
       end)
     end
@@ -456,41 +443,19 @@ defmodule AshPlatform.LocalDatabaseFixture do
         ).rows
         |> List.flatten()
 
-      seed_rows =
-        Ecto.Adapters.SQL.query!(
-          AshPlatform.Repo,
-          "SELECT slug, name, description, position FROM techtree.trees ORDER BY position, slug",
-          []
-        ).rows
-
-      expected_seed_rows =
-        Enum.map(AshPlatform.Techtree.SeedTrees.all(), fn tree ->
-          [tree.slug, tree.name, tree.description, tree.position]
-        end)
-
-      unless seed_rows == expected_seed_rows do
-        raise "local acceptance reference seed baseline mismatch"
-      end
-
-      seed_fingerprint =
-        seed_rows
-        |> :erlang.term_to_binary()
-        |> then(&:crypto.hash(:sha256, &1))
-        |> Base.encode16(case: :lower)
-
       counts =
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "SELECT (SELECT count(*) FROM techtree.nodes), (SELECT count(*) FROM techtree.notebook_artifacts), (SELECT count(*) FROM discussions.comments), (SELECT count(*) FROM discussions.comment_reactions)",
+          "SELECT (SELECT count(*) FROM discussions.comments)",
           []
         ).rows
         |> List.first()
 
-      unless counts == [0, 0, 0, 0] do
+      unless counts == [0] do
         raise "local acceptance empty product baseline mismatch"
       end
 
-      {versions, length(seed_rows), seed_fingerprint, counts}
+      {versions, counts}
     end
 
     defp with_repo(config, fun) do

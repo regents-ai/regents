@@ -14,8 +14,7 @@ defmodule AshPlatformWeb.ShellLive do
     OpenSea,
     Redemption,
     RegentsClub,
-    Staking,
-    Techtree
+    Staking
   }
 
   alias AshPlatform.Actors.Human
@@ -23,7 +22,6 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.RegentsClub.Actions, as: RegentsClubActions
   alias AshPlatform.Staking.Facts, as: StakingFacts
   alias AshPlatform.Staking.SnapshotCache
-  alias AshPlatform.Techtree.{Payload, Provenance, UpliftReport}
   alias AshPlatform.WalletActions.Address
   alias AshPlatform.WalletActions.TransactionObserver
   alias AshPlatformWeb.AutolaunchLive
@@ -35,7 +33,6 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RouteCatalog
   # Settings returns soon (founder, 2026-09-03): switched off, not removed.
   # alias AshPlatformWeb.SettingsLive
-  alias AshPlatformWeb.TechtreeLive
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
@@ -76,7 +73,6 @@ defmodule AshPlatformWeb.ShellLive do
        content_status: :loading,
        comments: [],
        comments_status: :ready,
-       comment_reactions: %{},
        comment_target: nil,
        comment_topic: nil,
        comment_request_id: Ash.UUID.generate(),
@@ -104,19 +100,8 @@ defmodule AshPlatformWeb.ShellLive do
        autolaunch_draft_revision: nil,
        autolaunch_draft_notice: nil,
        autolaunch_status: :loading,
-       techtree_trees: [],
-       techtree_tree: nil,
-       techtree_nodes: [],
-       techtree_edges: [],
-       techtree_node: nil,
-       techtree_provenance: nil,
-       techtree_uplift_report: nil,
-       techtree_payload_status: :not_available,
-       techtree_notebook_artifact: nil,
-       techtree_status: :loading,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
-       presentation: initial_presentation(route_spec),
        redemption: nil,
        redemption_collection: "animata_i",
        redemption_token_id: "",
@@ -173,7 +158,6 @@ defmodule AshPlatformWeb.ShellLive do
         content_error: nil,
         content_generation: generation,
         content_status: :loading,
-        presentation: initial_presentation(route_spec),
         route_spec: route_spec,
         route_params: params
       )
@@ -181,7 +165,6 @@ defmodule AshPlatformWeb.ShellLive do
     socket =
       socket
       |> load_regent_route(route_spec, params)
-      |> load_techtree_route(route_spec, params)
       |> load_autolaunch_route(route_spec, params)
       |> load_verified_connections(route_spec)
       |> load_comments_route(route_spec)
@@ -623,36 +606,6 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   def handle_event(
-        "react_comment",
-        %{"id" => comment_id, "reaction" => reaction},
-        %{assigns: %{comment_target: %{type: :techtree_node}}} = socket
-      ) do
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, value} <- reaction_value(reaction),
-         comment when not is_nil(comment) <-
-           Enum.find(socket.assigns.comments, &(&1.id == comment_id)),
-         :ok <- toggle_comment_reaction(comment, value, actor) do
-      {:noreply,
-       socket
-       |> assign(comment_notice: %{tone: :success, message: "Reaction updated."})
-       |> reload_comment_reactions()}
-    else
-      _ ->
-        {:noreply,
-         assign(socket,
-           comment_notice: %{tone: :error, message: "That reaction could not be updated."}
-         )}
-    end
-  end
-
-  def handle_event("react_comment", _params, socket) do
-    {:noreply,
-     assign(socket,
-       comment_notice: %{tone: :error, message: "Reactions are available on Techtree comments."}
-     )}
-  end
-
-  def handle_event(
         "request_verified_connection",
         %{"action" => action, "provider" => provider},
         socket
@@ -1001,17 +954,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:comments_changed, _target_type, _target_id}, socket), do: {:noreply, socket}
 
-  def handle_info(
-        {:comment_reactions_changed, target_type, target_id},
-        %{assigns: %{comment_target: %{type: target_type, id: target_id}}} = socket
-      ) do
-    notice = socket.assigns.comment_notice || %{tone: :info, message: "Reactions updated."}
-    {:noreply, socket |> assign(comment_notice: notice) |> reload_comment_reactions()}
-  end
-
-  def handle_info({:comment_reactions_changed, _target_type, _target_id}, socket),
-    do: {:noreply, socket}
-
   def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
       %{envelope: envelope} = attempt ->
@@ -1244,7 +1186,6 @@ defmodule AshPlatformWeb.ShellLive do
       route_spec={@route_spec}
       account_control={@account_control}
       content_status={@content_status}
-      presentation={@presentation}
       shell_instance={@shell_instance}
       theme={@theme}
     >
@@ -1295,31 +1236,6 @@ defmodule AshPlatformWeb.ShellLive do
           comment_draft={@comment_draft}
           current_human_id={current_human_id(@access_context)}
           comment_admin={@comment_admin?}
-        />
-
-        <TechtreeLive.page
-          :if={@route_spec.route_id in [:techtree, :techtree_tree, :techtree_node]}
-          route_spec={@route_spec}
-          params={@route_params}
-          trees={@techtree_trees}
-          tree={@techtree_tree}
-          nodes={@techtree_nodes}
-          edges={@techtree_edges}
-          node={@techtree_node}
-          provenance={@techtree_provenance}
-          uplift_report={@techtree_uplift_report}
-          payload_status={@techtree_payload_status}
-          status={@techtree_status}
-          presentation={@presentation}
-          comments={@comments}
-          comments_status={@comments_status}
-          comment_notice={@comment_notice}
-          comment_request_id={@comment_request_id}
-          comment_draft={@comment_draft}
-          current_human_id={current_human_id(@access_context)}
-          comment_admin={@comment_admin?}
-          comment_reactions={@comment_reactions}
-          notebook_artifact={@techtree_notebook_artifact}
         />
 
         <FormationLive.page :if={@route_spec.route_id == :formation} />
@@ -1398,9 +1314,6 @@ defmodule AshPlatformWeb.ShellLive do
               :stake,
               :redeem,
               :regents_club_metadata,
-              :techtree,
-              :techtree_tree,
-              :techtree_node,
               :autolaunch,
               :autolaunch_auctions,
               :autolaunch_auction,
@@ -1432,9 +1345,6 @@ defmodule AshPlatformWeb.ShellLive do
               :stake,
               :redeem,
               :regents_club_metadata,
-              :techtree,
-              :techtree_tree,
-              :techtree_node,
               :autolaunch,
               :autolaunch_auctions,
               :autolaunch_auction,
@@ -1465,9 +1375,6 @@ defmodule AshPlatformWeb.ShellLive do
             :stake,
             :redeem,
             :regents_club_metadata,
-            :techtree,
-            :techtree_tree,
-            :techtree_node,
             :autolaunch,
             :autolaunch_auctions,
             :autolaunch_auction,
@@ -1513,11 +1420,6 @@ defmodule AshPlatformWeb.ShellLive do
   defp cancel_content(%{assigns: %{content_async_name: name}} = socket) do
     cancel_async(socket, name)
   end
-
-  defp initial_presentation(%{local_state: %{presentation: %{default: presentation}}}),
-    do: presentation
-
-  defp initial_presentation(_route_spec), do: :none
 
   defp maybe_start_regents_club_metadata(
          socket,
@@ -1883,161 +1785,6 @@ defmodule AshPlatformWeb.ShellLive do
     assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
   end
 
-  defp load_techtree_route(socket, %{route_id: :techtree}, _params) do
-    case Techtree.list_trees() do
-      {:ok, trees} ->
-        assign(socket,
-          techtree_trees: trees,
-          techtree_tree: nil,
-          techtree_nodes: [],
-          techtree_edges: [],
-          techtree_node: nil,
-          techtree_provenance: nil,
-          techtree_uplift_report: nil,
-          techtree_payload_status: :not_available,
-          techtree_notebook_artifact: nil,
-          techtree_status: :ready
-        )
-
-      {:error, _error} ->
-        assign(socket, techtree_trees: [], techtree_status: :error)
-    end
-  end
-
-  defp load_techtree_route(socket, %{route_id: :techtree_tree}, %{"tree_slug" => slug}) do
-    with {:ok, tree} when not is_nil(tree) <- Techtree.get_tree_by_slug(slug),
-         {:ok, nodes} <- Techtree.list_tree_nodes(tree.id),
-         {:ok, edges} <- Techtree.list_tree_edges(tree.id) do
-      assign(socket,
-        techtree_trees: list_techtree_roots(),
-        techtree_tree: tree,
-        techtree_nodes: Enum.map(nodes, &Provenance.browser_node/1),
-        techtree_edges: edges,
-        techtree_node: nil,
-        techtree_provenance: nil,
-        techtree_uplift_report: nil,
-        techtree_payload_status: :not_available,
-        techtree_notebook_artifact: nil,
-        techtree_status: :ready
-      )
-    else
-      {:ok, nil} ->
-        assign(socket,
-          techtree_tree: nil,
-          techtree_nodes: [],
-          techtree_edges: [],
-          techtree_provenance: nil,
-          techtree_uplift_report: nil,
-          techtree_payload_status: :not_available,
-          techtree_notebook_artifact: nil,
-          techtree_status: :empty
-        )
-
-      {:error, _error} ->
-        assign(socket,
-          techtree_tree: nil,
-          techtree_nodes: [],
-          techtree_edges: [],
-          techtree_provenance: nil,
-          techtree_uplift_report: nil,
-          techtree_payload_status: :not_available,
-          techtree_notebook_artifact: nil,
-          techtree_status: :error
-        )
-    end
-  end
-
-  defp load_techtree_route(socket, %{route_id: :techtree_node}, %{"node_id" => node_id}) do
-    case Techtree.get_public_node(node_id) do
-      {:ok, nil} ->
-        assign(socket,
-          techtree_node: nil,
-          techtree_edges: [],
-          techtree_provenance: nil,
-          techtree_uplift_report: nil,
-          techtree_payload_status: :not_available,
-          techtree_notebook_artifact: nil,
-          techtree_status: :empty
-        )
-
-      {:ok, node} ->
-        {provenance, uplift_report, payload_status} = node_presentation(node)
-
-        assign(socket,
-          techtree_node: node,
-          techtree_edges: [],
-          techtree_provenance: provenance,
-          techtree_uplift_report: uplift_report,
-          techtree_payload_status: payload_status,
-          techtree_notebook_artifact: current_notebook_artifact(node),
-          techtree_status: :ready
-        )
-
-      {:error, _error} ->
-        assign(socket,
-          techtree_node: nil,
-          techtree_edges: [],
-          techtree_provenance: nil,
-          techtree_uplift_report: nil,
-          techtree_payload_status: :not_available,
-          techtree_notebook_artifact: nil,
-          techtree_status: :empty
-        )
-    end
-  end
-
-  defp load_techtree_route(socket, _route_spec, _params), do: socket
-
-  defp node_presentation(node) do
-    case Payload.fetch_if_referenced(node) do
-      {:ok, %{bytes: bytes, verification: verification}} ->
-        {Provenance.public_node(node, [], verification), project_uplift_report(node, bytes),
-         :ready}
-
-      {:error, :artifact_unavailable} ->
-        verification = %{
-          status: :unavailable,
-          expected_hash: Map.get(node, :manifest_hash),
-          actual_hash: nil
-        }
-
-        {Provenance.public_node(node, [], verification), nil, :artifact_unavailable}
-    end
-  end
-
-  defp project_uplift_report(node, bytes) when is_binary(bytes) do
-    if uplift_report_node?(node) do
-      case UpliftReport.project_json(bytes) do
-        {:ok, report} -> report
-        :not_uplift_report -> UpliftReport.not_recognized()
-      end
-    else
-      nil
-    end
-  end
-
-  defp project_uplift_report(_node, _bytes), do: nil
-
-  defp uplift_report_node?(node),
-    do: Map.get(node, :kind) in [:uplift_report, "uplift_report"]
-
-  defp current_notebook_artifact(%{payload_hash: payload_hash} = node)
-       when is_binary(payload_hash) do
-    case Techtree.list_current_notebook_artifacts(node.id, payload_hash) do
-      {:ok, [artifact]} -> artifact
-      _result -> nil
-    end
-  end
-
-  defp current_notebook_artifact(_node), do: nil
-
-  defp list_techtree_roots do
-    case Techtree.list_trees() do
-      {:ok, trees} -> trees
-      {:error, _error} -> []
-    end
-  end
-
   defp load_autolaunch_route(socket, %{route_id: :autolaunch}, _params) do
     with {:ok, featured} <- Autolaunch.list_featured_auctions(),
          {:ok, recent} <- Autolaunch.list_recent_auctions(),
@@ -2210,10 +1957,6 @@ defmodule AshPlatformWeb.ShellLive do
     )
   end
 
-  defp load_comments_route(socket, %{route_id: :techtree_node}) do
-    set_comment_target(socket, :techtree_node, socket.assigns.techtree_node)
-  end
-
   defp load_comments_route(socket, %{route_id: :autolaunch_auction}) do
     set_comment_target(socket, :autolaunch_auction, socket.assigns.autolaunch_record)
   end
@@ -2246,7 +1989,6 @@ defmodule AshPlatformWeb.ShellLive do
     |> assign(
       comments: [],
       comments_status: :ready,
-      comment_reactions: %{},
       comment_target: nil,
       comment_request_id: Ash.UUID.generate(),
       comment_draft: "",
@@ -2268,91 +2010,14 @@ defmodule AshPlatformWeb.ShellLive do
   defp reload_comments(%{assigns: %{comment_target: %{type: type, id: id}}} = socket) do
     case Discussions.list_comments(type, id) do
       {:ok, comments} ->
-        socket
-        |> assign(comments: comments, comments_status: :ready)
-        |> reload_comment_reactions()
+        assign(socket, comments: comments, comments_status: :ready)
 
       {:error, _error} ->
-        assign(socket, comments: [], comments_status: :error, comment_reactions: %{})
+        assign(socket, comments: [], comments_status: :error)
     end
   end
 
   defp reload_comments(socket), do: socket
-
-  defp reload_comment_reactions(
-         %{assigns: %{comment_target: %{type: :techtree_node}, comments: comments}} = socket
-       ) do
-    comment_ids = Enum.map(comments, & &1.id)
-
-    case Discussions.list_comment_reactions(comment_ids) do
-      {:ok, reactions} ->
-        assign(socket,
-          comment_reactions:
-            summarize_comment_reactions(
-              reactions,
-              current_human_id(socket.assigns.access_context)
-            )
-        )
-
-      {:error, _error} ->
-        assign(socket, comment_reactions: %{})
-    end
-  end
-
-  defp reload_comment_reactions(socket), do: assign(socket, comment_reactions: %{})
-
-  defp summarize_comment_reactions(reactions, current_human_id) do
-    Enum.reduce(reactions, %{}, fn reaction, summaries ->
-      summary =
-        Map.get(summaries, reaction.comment_id, %{
-          current: nil,
-          counts: %{useful: 0, off_topic: 0, negative: 0}
-        })
-
-      summary =
-        summary
-        |> put_in([:counts, reaction.value], summary.counts[reaction.value] + 1)
-        |> then(fn summary ->
-          if reaction.reactor_id == current_human_id,
-            do: %{summary | current: reaction.value},
-            else: summary
-        end)
-
-      Map.put(summaries, reaction.comment_id, summary)
-    end)
-  end
-
-  defp toggle_comment_reaction(comment, value, actor) do
-    case Discussions.get_my_comment_reaction(comment.id, actor: actor) do
-      {:ok, %{value: ^value} = reaction} ->
-        case Discussions.remove_comment_reaction(reaction, actor: actor) do
-          {:ok, _reaction} -> :ok
-          :ok -> :ok
-          {:error, error} -> {:error, error}
-        end
-
-      {:ok, nil} ->
-        set_comment_reaction(comment.id, value, actor)
-
-      {:ok, _reaction} ->
-        set_comment_reaction(comment.id, value, actor)
-
-      {:error, error} ->
-        {:error, error}
-    end
-  end
-
-  defp set_comment_reaction(comment_id, value, actor) do
-    case Discussions.set_comment_reaction(comment_id, value, actor: actor) do
-      {:ok, _reaction} -> :ok
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  defp reaction_value("useful"), do: {:ok, :useful}
-  defp reaction_value("off_topic"), do: {:ok, :off_topic}
-  defp reaction_value("negative"), do: {:ok, :negative}
-  defp reaction_value(_value), do: {:error, :invalid_reaction}
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id}

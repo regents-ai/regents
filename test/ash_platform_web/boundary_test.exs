@@ -151,6 +151,12 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [remove_billing_migration] =
              Path.wildcard("priv/repo/migrations/*_remove_billing.exs")
 
+    assert [remove_techtree_migration] =
+             Path.wildcard("priv/repo/migrations/*_remove_techtree.exs")
+
+    assert [remove_techtree_comments_migration] =
+             Path.wildcard("priv/repo/migrations/*_remove_techtree_comments.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -193,7 +199,9 @@ defmodule AshPlatformWeb.BoundaryTest do
                c9_consumer_migration,
                treasury_custody_migration,
                account_ens_identities_migration,
-               remove_billing_migration
+               remove_billing_migration,
+               remove_techtree_migration,
+               remove_techtree_comments_migration
              ])
 
     assert_additive_migration(
@@ -983,7 +991,6 @@ defmodule AshPlatformWeb.BoundaryTest do
              AshPlatform.Accounts,
              AshPlatform.Discussions,
              AshPlatform.Formation,
-             AshPlatform.Techtree,
              AshPlatform.Autolaunch,
              AshPlatform.OpenSea,
              AshPlatform.Redemption,

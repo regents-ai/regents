@@ -16,23 +16,6 @@ defmodule AshPlatform.Discussions do
         args: [:id],
         not_found_error?: false
     end
-
-    resource AshPlatform.Discussions.CommentReaction do
-      define :set_comment_reaction,
-        action: :set,
-        args: [:comment_id, :value]
-
-      define :list_comment_reactions,
-        action: :list_for_comments,
-        args: [:comment_ids]
-
-      define :get_my_comment_reaction,
-        action: :mine_for_comment,
-        args: [:comment_id],
-        not_found_error?: false
-
-      define :remove_comment_reaction, action: :remove
-    end
   end
 
   def comment_topic(target_type, target_id), do: "comments:#{target_type}:#{target_id}"

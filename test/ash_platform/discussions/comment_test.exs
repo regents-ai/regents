@@ -1,7 +1,7 @@
 defmodule AshPlatform.Discussions.CommentTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Discussions, Techtree}
+  alias AshPlatform.{Accounts, Autolaunch, Discussions}
   alias AshPlatform.Actors.{Human, System}
 
   @owner_wallet "0x1111111111111111111111111111111111111111"
@@ -11,18 +11,21 @@ defmodule AshPlatform.Discussions.CommentTest do
   setup do
     prior = Application.get_env(:ash_platform, :admin_wallet_addresses, [])
     Application.put_env(:ash_platform, :admin_wallet_addresses, [String.downcase(@admin_wallet)])
-    on_exit(fn -> Application.put_env(:ash_platform, :admin_wallet_addresses, prior) end)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :admin_wallet_addresses, prior)
+    end)
   end
 
   test "a signed human posts one idempotent immutable comment and public reads are newest-first" do
-    {node, owner, _other, _admin} = fixture!()
+    {auction, owner, _other, _admin} = fixture!()
     actor = human(owner)
     request_id = Ash.UUID.generate()
 
     assert {:ok, first} =
              Discussions.post_comment(
-               :techtree_node,
-               node.id,
+               :autolaunch_auction,
+               auction.id,
                "First **comment**",
                request_id,
                actor: actor
@@ -30,8 +33,8 @@ defmodule AshPlatform.Discussions.CommentTest do
 
     assert {:ok, retried} =
              Discussions.post_comment(
-               :techtree_node,
-               node.id,
+               :autolaunch_auction,
+               auction.id,
                "First **comment**",
                request_id,
                actor: actor
@@ -41,28 +44,28 @@ defmodule AshPlatform.Discussions.CommentTest do
 
     second =
       Discussions.post_comment!(
-        :techtree_node,
-        node.id,
+        :autolaunch_auction,
+        auction.id,
         "Second comment",
         Ash.UUID.generate(),
         actor: actor
       )
 
-    assert {:ok, comments} = Discussions.list_comments(:techtree_node, node.id)
+    assert {:ok, comments} = Discussions.list_comments(:autolaunch_auction, auction.id)
     assert Enum.map(comments, & &1.id) == [second.id, first.id]
     assert hd(comments).author.id == owner.id
     assert Ash.Resource.Info.action(AshPlatform.Discussions.Comment, :update) == nil
   end
 
   test "an idempotency key cannot be reused for different comment content" do
-    {node, owner, _other, _admin} = fixture!()
+    {auction, owner, _other, _admin} = fixture!()
     actor = human(owner)
     request_id = Ash.UUID.generate()
 
     assert {:ok, _comment} =
              Discussions.post_comment(
-               :techtree_node,
-               node.id,
+               :autolaunch_auction,
+               auction.id,
                "Original comment",
                request_id,
                actor: actor
@@ -70,8 +73,8 @@ defmodule AshPlatform.Discussions.CommentTest do
 
     assert {:error, %Ash.Error.Invalid{}} =
              Discussions.post_comment(
-               :techtree_node,
-               node.id,
+               :autolaunch_auction,
+               auction.id,
                "Changed comment",
                request_id,
                actor: actor
@@ -79,11 +82,11 @@ defmodule AshPlatform.Discussions.CommentTest do
   end
 
   test "target existence, exact human principal, and comment content are enforced" do
-    {node, owner, _other, _admin} = fixture!()
+    {auction, owner, _other, _admin} = fixture!()
 
     assert {:error, %Ash.Error.Invalid{}} =
              Discussions.post_comment(
-               :techtree_node,
+               :autolaunch_auction,
                Ash.UUID.generate(),
                "Missing target",
                Ash.UUID.generate(),
@@ -93,8 +96,8 @@ defmodule AshPlatform.Discussions.CommentTest do
     for actor <- [nil, %{role: :human, human_account_id: owner.id}, %System{}] do
       assert {:error, %Ash.Error.Forbidden{}} =
                Discussions.post_comment(
-                 :techtree_node,
-                 node.id,
+                 :autolaunch_auction,
+                 auction.id,
                  "Nope",
                  Ash.UUID.generate(),
                  actor: actor
@@ -103,8 +106,8 @@ defmodule AshPlatform.Discussions.CommentTest do
 
     assert {:error, %Ash.Error.Invalid{}} =
              Discussions.post_comment(
-               :techtree_node,
-               node.id,
+               :autolaunch_auction,
+               auction.id,
                "# Not allowed",
                Ash.UUID.generate(),
                actor: human(owner)
@@ -112,9 +115,9 @@ defmodule AshPlatform.Discussions.CommentTest do
   end
 
   test "author and configured admin may delete; another human may not; audit remains private" do
-    {node, owner, other, admin} = fixture!()
+    {auction, owner, other, admin} = fixture!()
 
-    author_comment = post!(node, owner, "Author removal")
+    author_comment = post!(auction, owner, "Author removal")
 
     assert {:error, %Ash.Error.Forbidden{}} =
              Discussions.delete_comment(author_comment, actor: human(other))
@@ -125,12 +128,12 @@ defmodule AshPlatform.Discussions.CommentTest do
     assert deleted_by_author.deletion_authority == :author
     assert deleted_by_author.deleted_by_human_account_id == owner.id
     assert deleted_by_author.deleted_at
-    assert {:ok, []} = Discussions.list_comments(:techtree_node, node.id)
+    assert {:ok, []} = Discussions.list_comments(:autolaunch_auction, auction.id)
 
     assert {:error, _error} =
              Discussions.delete_comment(deleted_by_author, actor: human(owner))
 
-    admin_comment = post!(node, owner, "Admin removal")
+    admin_comment = post!(auction, owner, "Admin removal")
 
     assert {:ok, deleted_by_admin} =
              Discussions.delete_comment(admin_comment, actor: human(admin))
@@ -144,27 +147,25 @@ defmodule AshPlatform.Discussions.CommentTest do
   end
 
   test "post and delete broadcast the target after the action transaction" do
-    {node, owner, _other, _admin} = fixture!()
-    node_id = node.id
-    topic = Discussions.comment_topic(:techtree_node, node.id)
+    {auction, owner, _other, _admin} = fixture!()
+    auction_id = auction.id
+    topic = Discussions.comment_topic(:autolaunch_auction, auction.id)
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, topic)
 
-    comment = post!(node, owner, "Realtime")
-    assert_receive {:comments_changed, :techtree_node, ^node_id}
+    comment = post!(auction, owner, "Realtime")
+    assert_receive {:comments_changed, :autolaunch_auction, ^auction_id}
 
     Discussions.delete_comment!(comment, actor: human(owner))
-    assert_receive {:comments_changed, :techtree_node, ^node_id}
+    assert_receive {:comments_changed, :autolaunch_auction, ^auction_id}
   end
 
   defp fixture! do
-    tree = Techtree.get_tree_by_slug!("skill-training-lab")
-
-    node =
-      Techtree.import_public_node!(tree.id, "Comment target", nil, "sha256:comment-target",
+    auction =
+      Autolaunch.import_auction!("Commented launch", nil, false, :active, DateTime.utc_now(),
         actor: %System{}
       )
 
-    {node, account!("owner", @owner_wallet), account!("other", @other_wallet),
+    {auction, account!("owner", @owner_wallet), account!("other", @other_wallet),
      account!("admin", @admin_wallet)}
   end
 
@@ -179,10 +180,10 @@ defmodule AshPlatform.Discussions.CommentTest do
 
   defp human(account), do: %Human{human_account_id: account.id}
 
-  defp post!(node, account, body) do
+  defp post!(auction, account, body) do
     Discussions.post_comment!(
-      :techtree_node,
-      node.id,
+      :autolaunch_auction,
+      auction.id,
       body,
       Ash.UUID.generate(),
       actor: human(account)

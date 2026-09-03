@@ -1,7 +1,7 @@
 defmodule AshPlatform.Discussions.Comment.Changes.ValidateAndNormalize do
   use Ash.Resource.Change
 
-  alias AshPlatform.{Autolaunch, Techtree}
+  alias AshPlatform.Autolaunch
   alias AshPlatform.Discussions.Markdown
 
   @impl true
@@ -27,7 +27,6 @@ defmodule AshPlatform.Discussions.Comment.Changes.ValidateAndNormalize do
     end
   end
 
-  defp target_exists?(:techtree_node, id), do: present?(Techtree.get_public_node(id))
   defp target_exists?(:autolaunch_auction, id), do: present?(Autolaunch.get_public_auction(id))
   defp target_exists?(:autolaunch_token, id), do: present?(Autolaunch.get_public_token(id))
   defp target_exists?(_target_type, _id), do: false

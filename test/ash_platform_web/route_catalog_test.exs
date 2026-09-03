@@ -5,7 +5,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
-    TreeTarget,
     ViewerProfileTarget
   }
 
@@ -16,9 +15,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     # "/settings",
     "/formation",
     "/regents/:slug",
-    "/techtree",
-    "/techtree/nodes/:node_id",
-    "/techtree/:tree_slug",
     "/autolaunch",
     "/autolaunch/auctions",
     "/autolaunch/auctions/:auction_id",
@@ -49,9 +45,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     catalog_routes = Enum.map(RouteCatalog.entries(), &{&1.path_pattern, &1.live_action})
 
     assert runtime_routes == catalog_routes
-
-    assert Enum.find_index(runtime_routes, &match?({"/techtree/nodes/:node_id", _}, &1)) <
-             Enum.find_index(runtime_routes, &match?({"/techtree/:tree_slug", _}, &1))
   end
 
   test "every catalog entry builds the route spec it declares, including /app" do
@@ -81,18 +74,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   #   assert settings.content_transition_kind == :detail
   #   assert settings.local_state == %{}
   # end
-
-  test "accepts only the five named tree slugs and reserves nodes" do
-    assert Enum.count(RouteCatalog.tree_roots()) == 5
-
-    assert_raise NotFoundError, fn ->
-      RouteCatalog.fetch!(:techtree_tree, %{"tree_slug" => "nodes"})
-    end
-
-    assert_raise NotFoundError, fn ->
-      RouteCatalog.fetch!(:techtree_tree, %{"tree_slug" => "other"})
-    end
-  end
 
   test "Formation keeps its route truth without local panel targets or state" do
     formation = RouteCatalog.fetch!(:formation)
@@ -149,23 +130,12 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %ViewerProfileTarget{label: "Profile"}
            ]
-
-    assert RouteCatalog.fetch!(:techtree).sidebar_model.targets ==
-             Enum.map(RouteCatalog.tree_roots(), fn {slug, label} ->
-               %TreeTarget{
-                 tree_slug: slug,
-                 label: label,
-                 path: "/techtree/#{slug}",
-                 presentations: [:map, :list]
-               }
-             end)
   end
 
   test "rejects empty and malformed dynamic identifiers before content loading" do
     for {action, params} <- [
           {:regent_profile, %{"slug" => ""}},
           {:regent_profile, %{"slug" => "not valid"}},
-          {:techtree_node, %{"node_id" => "../node"}},
           {:autolaunch_auction, %{"auction_id" => String.duplicate("a", 129)}},
           {:autolaunch_token, %{}},
           {:autolaunch_launch, %{"id" => "launch/slash"}},
@@ -183,13 +153,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert searchable != []
     assert Enum.all?(searchable, &(&1.app_id == :autolaunch))
-
-    for action <- [:techtree, :techtree_tree, :techtree_node] do
-      spec = RouteCatalog.fetch!(action, sample_params(action))
-
-      assert spec.search_kind == :none
-      refute :search in spec.header_controls
-    end
   end
 
   test "header controls use the closed contract" do
@@ -209,15 +172,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
            end)
   end
 
-  test "same-tree presentation is local and every route starts at the top" do
-    tree =
-      RouteCatalog.fetch!(:techtree_tree, %{
-        "tree_slug" => "genebench-pro-reference-lab"
-      })
-
-    assert tree.local_state == %{presentation: %{default: :map, values: [:map, :list]}}
-    assert tree.scroll_policy == :top
-
+  test "every route starts at the top" do
     assert Enum.all?(RouteCatalog.entries(), fn entry ->
              RouteCatalog.fetch!(entry.live_action, sample_params(entry.live_action)).scroll_policy ==
                :top
@@ -230,8 +185,8 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    # Settings returns soon (founder, 2026-09-03): switched off, not removed. (21 routes with it)
-    assert length(decoded["routes"]) == 20
+    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
+    assert length(decoded["routes"]) == 17
     refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
@@ -247,18 +202,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              when is_binary(path) and is_binary(route_id) ->
                true
 
-             %{
-               "type" => "tree",
-               "destination" => path,
-               "tree" => tree,
-               "presentations" => [
-                 %{"type" => "tree_presentation", "presentation" => "map"},
-                 %{"type" => "tree_presentation", "presentation" => "list"}
-               ]
-             }
-             when is_binary(path) and is_binary(tree) ->
-               true
-
              %{"type" => "viewer_profile", "destination" => "/regents/:viewer_slug"} ->
                true
 
@@ -272,9 +215,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     refute Enum.any?(targets, &(&1["destination"] == "/regents-club/metadata-cutover"))
   end
 
-  defp sample_params(:techtree_tree), do: %{"tree_slug" => "genebench-pro-reference-lab"}
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}
-  defp sample_params(:techtree_node), do: %{"node_id" => "node"}
   defp sample_params(:autolaunch_auction), do: %{"auction_id" => "auction"}
   defp sample_params(:autolaunch_token), do: %{"token_id" => "token"}
   defp sample_params(:autolaunch_launch), do: %{"id" => "launch"}

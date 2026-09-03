@@ -24,9 +24,6 @@
     "priv/static/images/backgrounds/regents_labs.svg",
     "priv/static/images/backgrounds/formation.svg",
     "priv/static/images/backgrounds/regent_record.svg",
-    "priv/static/images/backgrounds/techtree_overview.svg",
-    "priv/static/images/backgrounds/techtree_node.svg",
-    "priv/static/images/backgrounds/techtree_tree.svg",
     "priv/static/images/backgrounds/autolaunch.svg",
     "docs/design/founder-shell/**"
   ],
@@ -69,7 +66,6 @@
     "route_spec",
     "account_control",
     "content_status",
-    "presentation",
     "shell_instance"
   ],
   "shell_slots": ["content"],
@@ -94,9 +90,6 @@
     {"slot": "regents_labs", "path": "priv/static/images/backgrounds/regents_labs.svg"},
     {"slot": "formation", "path": "priv/static/images/backgrounds/formation.svg"},
     {"slot": "regent_record", "path": "priv/static/images/backgrounds/regent_record.svg"},
-    {"slot": "techtree_overview", "path": "priv/static/images/backgrounds/techtree_overview.svg"},
-    {"slot": "techtree_node", "path": "priv/static/images/backgrounds/techtree_node.svg"},
-    {"slot": "techtree_tree", "path": "priv/static/images/backgrounds/techtree_tree.svg"},
     {"slot": "autolaunch", "path": "priv/static/images/backgrounds/autolaunch.svg"}
   ],
   "acceptance_commands": [

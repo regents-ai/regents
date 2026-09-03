@@ -190,7 +190,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
                  record_reset_step({:preflight, run_id})
                  :owned
                end,
-               comments_cleanup: fn -> record_reset_step(:comments) end,
                identity_cleanup: fn opts -> record_reset_step({:identity, opts}) end,
                stop_application: fn -> record_reset_step(:stop_application) end,
                database_reset: fn run_id, opts ->
@@ -202,7 +201,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
 
     assert Process.get(:reset_steps) == [
              {:preflight, "ordered"},
-             :comments,
              {:identity, [preflight: :owned]},
              :stop_application,
              {:database, "ordered", []}
@@ -222,7 +220,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
                end,
                start_application: fn -> record_reset_step(:start_application) end,
                preflight: fn _run_id -> record_reset_step(:preflight) end,
-               comments_cleanup: fn -> record_reset_step(:comments) end,
                identity_cleanup: fn _opts -> record_reset_step(:identity) end,
                database_reset: fn _run_id, _opts -> record_reset_step(:database) end,
                cleanup_files: fn -> record_reset_step(:files) end
@@ -246,7 +243,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
                  record_reset_step({:preflight, run_id})
                  :owned
                end,
-               comments_cleanup: fn -> record_reset_step(:comments) end,
                identity_cleanup: fn opts -> record_reset_step({:identity, opts}) end,
                stop_application: fn -> record_reset_step(:stop_application) end,
                database_reset: fn run_id, opts ->
@@ -260,7 +256,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
              {:exists, "present", []},
              :start_application,
              {:preflight, "present"},
-             :comments,
              {:identity, [preflight: :owned]},
              :stop_application,
              {:database, "present", []},
@@ -342,14 +337,12 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
     assert_raise RuntimeError, "marker mismatch", fn ->
       Mix.Tasks.AshPlatform.ResetLocal.reset!("wrong_marker",
         preflight: fn _run_id -> raise "marker mismatch" end,
-        comments_cleanup: fn -> send(parent, :unexpected_comments_cleanup) end,
         identity_cleanup: fn _opts -> send(parent, :unexpected_identity_cleanup) end,
         database_reset: fn _run_id, _opts -> send(parent, :unexpected_database_reset) end,
         cleanup_files?: false
       )
     end
 
-    refute_received :unexpected_comments_cleanup
     refute_received :unexpected_identity_cleanup
     refute_received :unexpected_database_reset
   end
@@ -360,7 +353,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
 
     injected_options = [
       preflight: fn _run_id -> send(parent, :preflight_called) end,
-      comments_cleanup: fn -> send(parent, :comments_called) end,
       identity_cleanup: fn _opts -> send(parent, :identity_called) end,
       database_reset: fn _run_id, _opts -> send(parent, :database_called) end,
       stop_application: fn -> send(parent, :stop_called) end,
@@ -380,7 +372,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
     end
 
     refute_received :preflight_called
-    refute_received :comments_called
     refute_received :identity_called
     refute_received :database_called
     refute_received :stop_called
@@ -394,7 +385,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
       database_exists: fn _run_id, _opts -> send(parent, :database_exists_called) end,
       start_application: fn -> send(parent, :start_application_called) end,
       preflight: fn _run_id -> send(parent, :orchestrator_preflight_called) end,
-      comments_cleanup: fn -> send(parent, :orchestrator_comments_called) end,
       identity_cleanup: fn _opts -> send(parent, :orchestrator_identity_called) end,
       database_reset: fn _run_id, _opts -> send(parent, :orchestrator_database_called) end,
       stop_application: fn -> send(parent, :orchestrator_stop_called) end,
@@ -416,7 +406,6 @@ defmodule AshPlatform.LocalAcceptanceTasksTest do
     refute_received :database_exists_called
     refute_received :start_application_called
     refute_received :orchestrator_preflight_called
-    refute_received :orchestrator_comments_called
     refute_received :orchestrator_identity_called
     refute_received :orchestrator_database_called
     refute_received :orchestrator_stop_called

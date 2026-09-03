@@ -108,7 +108,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
     assert has_element?(
              view,
              "#formation-nous-portal-disclosure",
-             "Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch and Techtree in their cloud runtime."
+             "Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch in their cloud runtime."
            )
 
     for selector <- [

@@ -119,36 +119,6 @@
   text-underline-offset: 0.18em;
 }
 
-.comment-ledger__reactions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.comment-ledger__reactions button,
-.comment-ledger__reactions span {
-  min-height: 2.25rem;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
-  font-size: 0.72rem;
-  line-height: 1;
-}
-
-.comment-ledger__reactions button[aria-pressed="true"] {
-  border-color: color-mix(in oklch, var(--color-accent) 62%, transparent);
-  background: color-mix(in oklch, var(--color-accent) 10%, transparent);
-  color: var(--color-text);
-}
-
-.comment-ledger__reactions button:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
 .comment-ledger article > button {
   justify-self: start;
   min-height: 2.75rem;

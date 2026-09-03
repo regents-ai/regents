@@ -178,7 +178,6 @@ defmodule AshPlatform.ReleaseTest do
            ]
 
     assert applied_versions(config) == release_versions()
-    assert column_names(config, "techtree", "trees") != []
   end
 
   test "the listing prints none on a database the release agrees with" do

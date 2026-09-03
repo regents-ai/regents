@@ -8,9 +8,6 @@ const shellRoutes = [
   "/app",
   "/formation",
   "/regents/regent",
-  "/techtree",
-  "/techtree/nodes/node-1",
-  "/techtree/genebench-pro-reference-lab",
   "/autolaunch",
   "/autolaunch/auctions",
   "/autolaunch/auctions/auction-1",
@@ -41,8 +38,7 @@ async function patchTo(page: Page, path: string) {
 
 // The shell stands on one palette per theme, so the mat guide is the only
 // colour that still changes with the application: Powder Blue for Regent routes
-// and Autolaunch, Tangerine for Formation, Charcoal for Techtree.
-const charcoal = "rgb(22, 22, 22)"
+// and Autolaunch, Tangerine for Formation.
 const tangerine = "rgb(255, 91, 25)"
 const powderBlue = "rgb(174, 202, 205)"
 
@@ -50,7 +46,6 @@ const routeGuides = {
   "/stake": powderBlue,
   "/formation": tangerine,
   "/autolaunch": powderBlue,
-  "/techtree": charcoal,
 } as const
 
 // The guide is read where it is painted, so it proves the whole chain from the
@@ -98,11 +93,11 @@ test("[U2] the shell keeps one ground per theme while the mat guide follows each
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-    await patchTo(page, "/techtree")
-    await expect(page).toHaveURL(/\/techtree$/)
-    await expect.poll(() => readFamily(page), `switched Techtree ${choice}`).toEqual({
+    await patchTo(page, "/formation")
+    await expect(page).toHaveURL(/\/formation$/)
+    await expect.poll(() => readFamily(page), `switched Formation ${choice}`).toEqual({
       ...palette[choice],
-      guide: routeGuides["/techtree"],
+      guide: routeGuides["/formation"],
     })
 
     await patchTo(page, "/autolaunch")
@@ -123,7 +118,6 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 }) => {
   for (const [route, brand] of [
     ["/formation", "platform"],
-    ["/techtree", "techtree"],
     ["/autolaunch", "autolaunch"],
   ] as const) {
     const served = await (await request.get(route)).text()
@@ -449,9 +443,9 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
 
-  await patchTo(page, "/techtree")
-  await expect(page).toHaveURL(/\/techtree$/)
-  await expect(page.locator("html")).toHaveAttribute("data-brand", "techtree")
+  await patchTo(page, "/formation")
+  await expect(page).toHaveURL(/\/formation$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
 
   expect(
@@ -470,8 +464,8 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   })
 
   await page.goBack()
-  await expect(page).toHaveURL(/\/techtree$/)
-  await expect(page.locator("html")).toHaveAttribute("data-brand", "techtree")
+  await expect(page).toHaveURL(/\/formation$/)
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
@@ -492,8 +486,8 @@ test("rapid app switches settle only the latest scene and remove motion copies",
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  await patchTo(page, "/techtree")
-  await expect(page).toHaveURL(/\/techtree$/)
+  await patchTo(page, "/formation")
+  await expect(page).toHaveURL(/\/formation$/)
   await patchTo(page, "/autolaunch")
 
   await expect(page).toHaveURL(/\/autolaunch$/)
@@ -503,157 +497,9 @@ test("rapid app switches settle only the latest scene and remove motion copies",
   await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
 })
 
-test("Map and List stay local without adding browser history", async ({page}) => {
-  await page.goto("/techtree/genebench-pro-reference-lab")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  const historyLength = await page.evaluate(() => history.length)
-  await page.locator(".techtree-list-tab").click()
 
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "list")
-  await expect(page.locator("#route-content .techtree-list-panel")).toHaveCSS(
-    "transform",
-    "matrix(1, 0, 0, 1, 0, 0)",
-  )
-  expect(await page.evaluate(() => history.length)).toBe(historyLength)
 
-  await page.locator(".techtree-map-tab").click()
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "map")
-  expect(await page.evaluate(() => history.length)).toBe(historyLength)
-})
 
-test("Techtree overview and node detail keep the initial web boundary honest", async ({page}) => {
-  await page.goto("/techtree")
-  await expect(page.getByRole("heading", {name: "Research with Techtree"})).toBeVisible()
-  await expect(page.locator("#techtree-overview code")).toHaveText([
-    "regents techtree start",
-    "regents techtree node create",
-  ])
-  await expect(page.locator("#techtree-overview .techtree-roots a")).toHaveCount(5)
-
-  await page.goto("/techtree/nodes/00000000-0000-0000-0000-000000000001")
-  const node = page.locator("#techtree-node")
-  await expect(node.getByRole("heading", {name: "Node not found"})).toBeVisible()
-  await expect(node.getByRole("link", {name: "Publish", exact: true})).toHaveCount(0)
-  await expect(node.getByRole("button", {name: "Publish", exact: true})).toHaveCount(0)
-})
-
-test("a Techtree notebook runs interactively in a credentialless cross-origin local-compute sandbox", async ({page}) => {
-  test.setTimeout(120_000)
-  await page.goto("/techtree/skill-training-lab")
-  await page.getByRole("link", {name: "Browser notebook fixture"}).first().click()
-
-  const iframe = page.locator("#local-notebook iframe")
-  await expect(iframe).toHaveAttribute("sandbox", "allow-scripts allow-same-origin")
-  await expect(iframe).toHaveAttribute("credentialless", "")
-
-  const runUrl = await iframe.getAttribute("src")
-  expect(runUrl).toMatch(
-    /^http:\/\/127\.0\.0\.1:4003\/[0-9a-f]{64}\/index\.html$/,
-  )
-  const notebookResponse = await page.request.get(runUrl!)
-  expect(notebookResponse.headers()["access-control-allow-origin"]).toBe("*")
-  expect(notebookResponse.headers()["content-security-policy"]).toContain("default-src 'none'")
-
-  const notebook = page.frameLocator("#local-notebook iframe")
-  const notebookBody = notebook.locator("body")
-  expect(await notebookBody.evaluate(() => document.cookie)).toBe("")
-  await expect(notebookBody).toContainText("Local result: 6", {
-    timeout: 90_000,
-  })
-  expect(
-    await page.evaluate(() =>
-      document.querySelector<HTMLIFrameElement>("#local-notebook iframe")?.contentDocument === null
-    ),
-  ).toBe(true)
-
-  const slider = notebook.getByRole("slider")
-  await expect(slider).toBeVisible({timeout: 90_000})
-  await slider.press("ArrowRight")
-  await slider.press("ArrowRight")
-  await expect(notebookBody).toContainText("Local result: 10", {
-    timeout: 30_000,
-  })
-})
-
-test("node comments post once, update another reader live, preserve scroll, and delete cleanly", async ({
-  browser,
-  page,
-}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid")
-  await auth.establishLocalSession()
-
-  const publicContext = await browser.newContext()
-  const publicPage = await publicContext.newPage()
-  const publicSession = await publicPage.request.get("/auth/session")
-  const publicOrigin = new URL(publicSession.url()).origin
-  expect(publicSession.status()).toBe(200)
-  expect((await publicSession.json()).authenticated).toBe(false)
-  const publicBridgeRequests: string[] = []
-  publicPage.on("request", request => {
-    if (matchesAuthenticatedPrivyBridgeUrl(request.url(), publicOrigin)) {
-      publicBridgeRequests.push(request.url())
-    }
-  })
-  await publicPage.goto("/techtree/skill-training-lab")
-  expect(publicBridgeRequests).toEqual([])
-  expect(
-    await publicPage.evaluate(
-      () => typeof (window as Window & {__authenticatedPrivyRecordSync?: unknown})
-        .__authenticatedPrivyRecordSync,
-    ),
-  ).toBe("undefined")
-
-  await page.goto("/techtree/skill-training-lab")
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
-  await page.getByRole("link", {name: "Browser comment fixture"}).first().click()
-  await expect(page.getByRole("heading", {name: "Browser comment fixture"})).toBeVisible()
-
-  await publicPage.goto(page.url())
-  await expect(publicPage.locator("#comment-ledger")).toContainText("Sign in to add a comment")
-  expect(publicBridgeRequests).toEqual([])
-
-  const publicScroller = publicPage.locator("#app-shell-scroller")
-  await publicScroller.evaluate(element => element.scrollTo(0, element.scrollHeight))
-  const scrollBefore = await publicScroller.evaluate(element => element.scrollTop)
-
-  const uniqueCopy = `Browser proof ${Date.now()}`
-  await page.getByLabel("Add a comment").fill(`**${uniqueCopy}**`)
-  await page.getByRole("button", {name: "Post comment"}).click()
-
-  const signedComment = page.locator("#comment-ledger article").filter({hasText: uniqueCopy})
-  const publicComment = publicPage.locator("#comment-ledger article").filter({hasText: uniqueCopy})
-  await expect(signedComment).toBeVisible()
-  await expect(signedComment.locator(".comment-ledger__body strong")).toHaveText(uniqueCopy)
-  await expect(publicComment).toBeVisible()
-  expect(await publicScroller.evaluate(element => element.scrollTop)).toBe(scrollBefore)
-
-  const reactionScrollBefore = await publicScroller.evaluate(element => element.scrollTop)
-  await signedComment.getByRole("button", {name: "Useful 0"}).click()
-  await expect(signedComment.getByRole("button", {name: "Useful 1"})).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  )
-  await expect(publicComment.locator('[data-reaction-value="useful"]')).toHaveText("Useful 1")
-  expect(await publicScroller.evaluate(element => element.scrollTop)).toBe(reactionScrollBefore)
-
-  await signedComment.getByRole("button", {name: "Negative 0"}).click()
-  await expect(signedComment.getByRole("button", {name: "Negative 1"})).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  )
-  await expect(publicComment.locator('[data-reaction-value="useful"]')).toHaveText("Useful 0")
-
-  await signedComment.getByRole("button", {name: "Negative 1"}).click()
-  await expect(publicComment.locator('[data-reaction-value="negative"]')).toHaveText("Negative 0")
-
-  page.once("dialog", dialog => void dialog.accept())
-  await signedComment.getByRole("button", {name: "Delete"}).click()
-  await expect(signedComment).toHaveCount(0)
-  await expect(publicComment).toHaveCount(0)
-
-  await publicContext.close()
-})
 
 test("Autolaunch overview, detail, and Create stay useful without fake market data", async ({page}) => {
   await page.goto("/autolaunch")
@@ -778,19 +624,6 @@ test("Create fits a 390px viewport and wraps long draft values instead of cuttin
   expect(wrapping.clipped).toBeLessThanOrEqual(0)
 })
 
-test("tree names preserve presentation while explicit selectors force it", async ({page}) => {
-  await page.goto("/techtree/genebench-pro-reference-lab")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await page.getByRole("link", {name: "GeneBench-Pro Reference Lab list"}).click()
-  await page.getByRole("link", {name: "Question Forge Metaskills", exact: true}).click()
-
-  await expect(page).toHaveURL(/\/techtree\/question-forge-metaskills$/)
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "list")
-
-  await page.getByRole("link", {name: "BixBench Capsule Lab map"}).click()
-  await expect(page).toHaveURL(/\/techtree\/bixbench-capsule-lab$/)
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-presentation", "map")
-})
 
 test("Formation keeps one in-shell heading and an exact inactive Nous handoff", async ({page}) => {
   const requests: string[] = []
@@ -891,7 +724,7 @@ test("theme and reduced-motion preferences apply immediately", async ({browser})
 for (const width of [320, 390]) {
   test(`${width}px drawer contains focus and cleans up every close path`, async ({page}) => {
     await page.setViewportSize({width, height: 720})
-    await page.goto("/techtree")
+    await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
     const menu = page.getByRole("button", {name: "Menu"})
@@ -928,7 +761,7 @@ for (const width of [320, 390]) {
     await expect(menu).toBeFocused()
 
     await menu.click()
-    const destination = sidebar.locator('a[href]:not([href="/techtree"])').first()
+    const destination = sidebar.locator('a[href]:not([href="/app"])').first()
     await destination.click()
     await expect(menu).toHaveAttribute("aria-expanded", "false")
     await expect(scrim).toBeHidden()
@@ -947,7 +780,7 @@ test("tablet, desktop, and effective 200 percent zoom have no horizontal overflo
     {width: 640, height: 900},
   ]) {
     await page.setViewportSize(viewport)
-    await page.goto("/techtree")
+    await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       viewport.width,

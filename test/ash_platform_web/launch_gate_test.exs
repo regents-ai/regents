@@ -9,7 +9,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
   alias AshPlatformWeb.Plugs.LaunchGate
 
   # Settings returns soon (founder, 2026-09-03): switched off, not removed. (/settings left out of the gated paths)
-  @gated_shell_paths ~w(/app /formation /regents/example /techtree /autolaunch /stake /redeem)
+  @gated_shell_paths ~w(/app /formation /regents/example /autolaunch /stake /redeem)
   @autolaunch_paths ~w(/autolaunch /autolaunch/auctions /autolaunch/holdings /autolaunch/create)
   @closed_message "This part of Regent isn't open yet."
   @draft_fields %{
@@ -96,7 +96,10 @@ defmodule AshPlatformWeb.LaunchGateTest do
     close_surfaces()
 
     assert secure_headers(get(build_conn(), "/app")) == secure_headers(open)
-    assert secure_headers(get(build_conn(), "/api/techtree/v1/trees")) == secure_headers(open)
+
+    assert secure_headers(get(build_conn(), "/api/autolaunch/v1/auctions")) ==
+             secure_headers(open)
+
     assert secure_headers(open) != %{}
   end
 
@@ -104,9 +107,9 @@ defmodule AshPlatformWeb.LaunchGateTest do
     close_surfaces()
 
     for conn <- [
-          get(build_conn(), "/api/techtree/v1/trees"),
+          get(build_conn(), "/api/autolaunch/v1/auctions"),
           get(build_conn(), "/api/formation/v1/regents/1/agent-links"),
-          post(build_conn(), "/api/techtree/v1/nodes", %{}),
+          post(build_conn(), "/api/formation/v1/regents/1/agent-links/claim", %{}),
           get(build_conn(), "/auth/session")
         ] do
       assert json_response(conn, 503) == %{"error" => @closed_message}
@@ -115,11 +118,16 @@ defmodule AshPlatformWeb.LaunchGateTest do
     end
   end
 
-  test "[U2] the gate answers agent writes before agent authentication runs" do
-    assert json_response(publish_as_signed_in_person(), 401)
+  test "[U2] the gate answers agent writes before pairing runs" do
+    assert json_response(claim_as_signed_in_person(), 400) == %{
+             "error" => %{
+               "code" => "pairing_failed",
+               "message" => "The pairing code could not be used."
+             }
+           }
 
     close_surfaces()
-    assert json_response(publish_as_signed_in_person(), 503) == %{"error" => @closed_message}
+    assert json_response(claim_as_signed_in_person(), 503) == %{"error" => @closed_message}
   end
 
   test "[U3] the marketing page, health check and static files are untouched by the gate" do
@@ -165,7 +173,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
     {:ok, view, _html} = live(conn, "/app")
 
     close_surfaces()
-    render_patch(view, "/techtree")
+    render_patch(view, "/formation")
 
     assert_redirect(view, "/")
   end
@@ -196,12 +204,11 @@ defmodule AshPlatformWeb.LaunchGateTest do
     assert json_response(get(build_conn(), "/api/autolaunch/v1/auctions"), 503) ==
              %{"error" => @closed_message}
 
-    for path <- ~w(/ /app /stake /redeem /techtree) do
+    for path <- ~w(/ /app /stake /redeem /formation) do
       assert get(build_conn(), path).status == 200, "#{path} closed with Autolaunch"
     end
 
     assert get(build_conn(), "/auth/csrf").status == 200
-    assert get(build_conn(), "/api/techtree/v1/trees").status == 200
   end
 
   test "[U4] an Autolaunch mount arriving over the socket is sent to the application home" do
@@ -278,10 +285,10 @@ defmodule AshPlatformWeb.LaunchGateTest do
   defp restore_setting(nil), do: System.delete_env("ASH_PLATFORM_APP_SURFACES")
   defp restore_setting(setting), do: System.put_env("ASH_PLATFORM_APP_SURFACES", setting)
 
-  defp publish_as_signed_in_person do
+  defp claim_as_signed_in_person do
     build_conn()
     |> put_req_header("authorization", "Bearer privy-token")
-    |> post("/api/techtree/v1/nodes", %{})
+    |> post("/api/formation/v1/regents/1/agent-links/claim", %{})
   end
 
   defp secure_headers(conn) do

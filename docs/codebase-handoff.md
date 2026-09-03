@@ -19,10 +19,9 @@ Four public surfaces are open today:
 | `/redeem` | Animata I / II → Regents Club membership + REGENT vest |
 | `/app` | The signed-in Regent shell |
 
-Autolaunch and Techtree routes also still exist in this app but are **not the
-product's future**: both are moving to their own repositories (`autolaunch-web` →
-autolaunch.sh, `techtree` → techtree.sh). See §9 for exactly where that stands —
-this matters, because a careless deletion can destroy another lane's source.
+Autolaunch routes still exist in this app and are **not the product's future**:
+that work is moving to `autolaunch-web` → autolaunch.sh. See §9. Techtree has
+already left this app; its product copy on `/` and `/stake` stays.
 
 Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.32 · AshPostgres · Privy for sign-in ·
 Base (chain 8453) for every on-chain figure.
@@ -109,10 +108,9 @@ lib/ash_platform/
   redemption/     rpc_client, actions, snapshot
   regents_club/   membership metadata cutover
   wallet_actions/ abi.ex, redemption_abi.ex, rpc.ex, envelope, observer
-  discussions/    comments (shared by techtree + autolaunch), reactions
+  discussions/    comments (used by Autolaunch)
   formation/      regents, agent links, cloud runtimes
   autolaunch/     auctions, bids, tokens, indexer   (moving out — see §9)
-  techtree/       trees, nodes, artifacts           (moving out — see §9)
 lib/ash_platform_web/
   route_catalog.ex   the route allowlist and its behaviour metadata
   live/shell_live.ex the one shell LiveView (large; read the region you need)
@@ -258,17 +256,9 @@ These come from the founder and override normal instincts:
 
 ## 9. Open work
 
-**`regent-kzt` — removing the Techtree vertical. Parked mid-flight.**
-Branch `regent/regent-kzt-remove-techtree` at `699c2b0`; **it does not compile**, by
-design — it was stopped at a deliberate point, and `main` is untouched. Done so far:
-the Techtree domain, resources, controllers, LiveView and map component are deleted;
-its routes and the agent-write API pipeline are out of the router; the route catalog,
-tree sidebar targets and the shell's Techtree loading/template/comment wiring are
-gone. Comment **reactions** came out too — they were structurally Techtree-only, so
-they die with the vertical. Remaining steps are listed in that commit message; the
-open question is whether the `techtree` schema and the reactions table get dropped in
-production or simply left orphaned. Techtree product copy on /stake and the home page
-**stays** — Techtree is still a business and still a revenue source.
+**`regent-kzt` — Techtree has left this app.** The vertical, its routes, OpenAPI
+paths, comment reactions, and the `techtree` schema tables are gone. Product copy
+on `/` and `/stake` stays — Techtree is still a business and still a revenue source.
 
 **Autolaunch stays in this app for now.** The `autolaunch-web` repo holds roughly
 5,500 lines against 12,300 here and two page types against eight routes: the port is

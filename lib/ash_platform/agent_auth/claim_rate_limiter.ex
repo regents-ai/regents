@@ -1,11 +1,11 @@
 defmodule AshPlatform.AgentAuth.ClaimRateLimiter do
   @moduledoc """
-  Rate limiting for signed-agent claim and Techtree publication requests.
+  Rate limiting for signed-agent claim requests.
 
-  The Techtree publication limit is a per-node best-effort bound, not a global hard
-  cap. With N application instances, an identity can publish up to N × limit in one
-  window. The post-v0.1 upgrade trigger is before horizontal scaling of the write
-  path: replace this with a distributed/shared-state budget.
+  This is a per-instance best-effort bound, not a global hard cap. With N
+  application instances, an identity can claim up to N × limit in one window.
+  Replace this with a distributed budget before horizontal scaling of the write
+  path.
 
   Concurrent identical duplicates may transiently 429 and self-heal on retry; correctness is guaranteed by the idempotency constraint.
   """

@@ -26,7 +26,6 @@ config :ash_platform, :wallet_transaction_observer, AshPlatform.TestWalletTransa
 config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient
 config :ash_platform, :opensea_api_key, "test-only-key"
 config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
-config :ash_platform, :marimo_exporter, AshPlatform.TestMarimoArtifact.UvxExporter
 
 config :ash_platform,
        :agent_verification_client,
@@ -73,15 +72,6 @@ if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
          :wallet_transaction_observer,
          AshPlatform.TestBrowserWalletTransactionObserver
 end
-
-config :ash_platform, :notebook_origins, ["http://127.0.0.1:4003"]
-
-config :ash_platform,
-       :notebook_static_server,
-       if(System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1",
-         do: [scheme: :http, ip: {127, 0, 0, 1}, port: 4003, startup_log: false],
-         else: false
-       )
 
 config :ash_platform, AshPlatform.Repo,
   username: System.get_env("USER"),

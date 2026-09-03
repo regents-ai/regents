@@ -40,7 +40,7 @@ defmodule AshPlatform.ReleasePackageTest do
     # A miniature stand-in for the real parent context, holding one file for
     # every rule: package sources, the sibling Privy source, the narrow slice of
     # the RegentUI source the build compiles and styles from, the sealed offline
-    # inputs, and the things that must never enter -- notebook output, host
+    # inputs, and the things that must never enter -- host
     # build artifacts under a dependency's priv, a sibling's tests, lockfile,
     # tooling files, digested output and JavaScript, environment files, and
     # everything outside the declared allowlist. A real context carries one
@@ -52,7 +52,6 @@ defmodule AshPlatform.ReleasePackageTest do
       {"ash-platform/contracts/base-mainnet.json", "{}\n"},
       {"ash-platform/rel/overlays/bin/migrate", "#!/bin/sh\n"},
       {"ash-platform/priv/static/app.css", "body{}\n"},
-      {"ash-platform/priv/static/notebooks/generated.js", "notebook output\n"},
       {"ash-platform/mix.exs", "defmodule App.MixProject do\nend\n"},
       {"ash-platform/mix.lock", "%{}\n"},
       {"ash-platform/package.json", "{}\n"},

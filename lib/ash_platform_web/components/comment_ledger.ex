@@ -12,8 +12,6 @@ defmodule AshPlatformWeb.Components.CommentLedger do
   attr :admin, :boolean, default: false
   attr :request_id, :string, required: true
   attr :draft, :string, default: ""
-  attr :reactions_enabled, :boolean, default: false
-  attr :reaction_summaries, :map, default: %{}
 
   def comment_ledger(assigns) do
     ~H"""
@@ -78,30 +76,6 @@ defmodule AshPlatformWeb.Components.CommentLedger do
               </time>
             </header>
             <div class="comment-ledger__body">{Markdown.to_safe_html(comment.body)}</div>
-            <div
-              :if={@reactions_enabled}
-              class="comment-ledger__reactions"
-              aria-label="Comment reactions"
-            >
-              <%= for {value, label} <- reaction_options() do %>
-                <button
-                  :if={@current_human_id}
-                  type="button"
-                  phx-click="react_comment"
-                  phx-value-id={comment.id}
-                  phx-value-reaction={value}
-                  data-reaction-value={value}
-                  aria-pressed={
-                    to_string(reaction_summary(@reaction_summaries, comment.id).current == value)
-                  }
-                >
-                  {label} {reaction_count(@reaction_summaries, comment.id, value)}
-                </button>
-                <span :if={is_nil(@current_human_id)} data-reaction-value={value}>
-                  {label} {reaction_count(@reaction_summaries, comment.id, value)}
-                </span>
-              <% end %>
-            </div>
             <button
               :if={@admin || comment.author_id == @current_human_id}
               type="button"
@@ -120,23 +94,5 @@ defmodule AshPlatformWeb.Components.CommentLedger do
 
   defp display_time(%DateTime{} = datetime) do
     Calendar.strftime(datetime, "%b %-d, %Y · %H:%M UTC")
-  end
-
-  defp reaction_options do
-    [{:useful, "Useful"}, {:off_topic, "Off-topic"}, {:negative, "Negative"}]
-  end
-
-  defp reaction_count(summaries, comment_id, value) do
-    summaries
-    |> reaction_summary(comment_id)
-    |> Map.fetch!(:counts)
-    |> Map.fetch!(value)
-  end
-
-  defp reaction_summary(summaries, comment_id) do
-    Map.get(summaries, comment_id, %{
-      current: nil,
-      counts: %{useful: 0, off_topic: 0, negative: 0}
-    })
   end
 end

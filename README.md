@@ -8,8 +8,8 @@
 
 Ash Platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
-it owns human identity, Formation, public Regent records, and the Techtree and
-Autolaunch product areas.
+it owns human identity, Formation, public Regent records, and Autolaunch.
+Techtree remains a named product on the public site; it no longer lives in this app.
 
 > [!IMPORTANT]
 > This is a live, in-development application, not a demo. It runs against PostgreSQL, signs
@@ -85,8 +85,6 @@ development and from the deployment's secret store in production.
 | `ASH_PLATFORM_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |
 | `ASH_PLATFORM_AUTOLAUNCH_SURFACES` | No | `on` opens the Autolaunch pages and endpoints. Closed unless set. |
 | `REGENT_ADMIN_WALLET_ADDRESSES` | No | Comma-separated wallets allowed to remove comments from any public record. |
-| `TECHTREE_PUBLICATION_RATE_LIMIT` | No | Publications allowed per window. Defaults to `10`. |
-| `TECHTREE_PUBLICATION_RATE_WINDOW_SECONDS` | No | Length of that window in seconds. Defaults to `60`. |
 | `PHX_HOST` | Yes in production | Public hostname the endpoint builds URLs from. |
 | `SECRET_KEY_BASE` | Yes in production | Session signing secret; must be at least 64 bytes. |
 | `PORT` | No | HTTP port. Defaults to `4000`. |
@@ -106,20 +104,16 @@ is a map, not the contract.
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/healthz` | GET | Liveness check, used by the Fly health check. |
-| `/api/techtree/v1/trees` | GET | List published skill trees. |
-| `/api/techtree/v1/trees/:slug/nodes` | GET | Nodes of one tree. |
-| `/api/techtree/v1/nodes/:id` | GET | One node, and `/payload` for its contents. |
-| `/api/techtree/v1/nodes` | POST | Publish a node (authenticated). |
 | `/api/autolaunch/v1/auctions` | GET | List auctions; `/:id` for one, `/:id/bid-quote` to price a bid. |
 | `/api/autolaunch/v1/tokens` | GET | List launched tokens. |
 | `/api/formation/v1/regents/:regent_id/agent-links` | GET, POST | Read and claim agent links. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
-| `/` and `/app`, `/techtree`, `/autolaunch`, `/stake`, `/redeem`, `/settings` | LiveView | The public home page and the signed-in product shell. |
+| `/` and `/app`, `/autolaunch`, `/stake`, `/redeem`, `/settings` | LiveView | The public home page and the signed-in product shell. |
 
 ## Repository layout
 
 ```text
-lib/ash_platform/       Ash domains: accounts, formation, techtree, autolaunch,
+lib/ash_platform/       Ash domains: accounts, formation, autolaunch,
                         discussions, identity, durable work
 lib/ash_platform_web/   Endpoint, router, LiveViews, controllers, components
 lib/mix/tasks/          Local setup, reset, contract sync, and route-handoff checks

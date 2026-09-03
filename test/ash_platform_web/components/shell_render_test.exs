@@ -10,9 +10,6 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     regents_labs: "/images/backgrounds/regents_labs.svg",
     formation: "/images/backgrounds/formation.svg",
     regent_record: "/images/backgrounds/regent_record.svg",
-    techtree_overview: "/images/backgrounds/techtree_overview.svg",
-    techtree_node: "/images/backgrounds/techtree_node.svg",
-    techtree_tree: "/images/backgrounds/techtree_tree.svg",
     autolaunch: "/images/backgrounds/autolaunch.svg"
   }
 
@@ -54,7 +51,7 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
     end
   end
 
-  test "keeps exactly eight inert and replaceable geometry masks" do
+  test "keeps exactly five inert and replaceable geometry masks" do
     expected_files = @backgrounds |> Map.values() |> Enum.map(&Path.basename/1)
 
     assert Enum.sort(File.ls!(@background_dir)) == Enum.sort(expected_files)

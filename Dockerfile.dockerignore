@@ -24,9 +24,6 @@
 !esbuild-linux-arm64
 !esbuild-linux-x64
 
-# Notebook output is generated on a developer machine and is not source.
-ash-platform/priv/static/notebooks/**
-
 # Dependencies enter as source. A dependency's priv carries compiler output,
 # including extensionless host binaries. Two subtrees under it are shipped
 # source rather than output: priv/static holds the JavaScript clients the

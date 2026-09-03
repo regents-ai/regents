@@ -9,10 +9,8 @@ owns:
   - ash_domain_interfaces
   - public_api_serving
   - human_identity
-  - billing
   - formation
   - public_regent_records
-  - techtree_product_area
   - autolaunch_product_area
 source_of_truth:
   repo_contract: repo.yaml
@@ -34,19 +32,12 @@ code_map:
     path: lib/ash_platform_web/router.ex
   - id: accounts
     path: lib/ash_platform/accounts.ex
-  - id: techtree
-    path: lib/ash_platform/techtree.ex
 domain_interfaces:
   - id: accounts
     owner: ash-platform
     path: lib/ash_platform/accounts.ex
-  - id: techtree
-    owner: ash-platform
-    path: lib/ash_platform/techtree.ex
 capability_status_at_b1884bf:
   human_identity: admitted
-  techtree_read: admitted
-  billing: not_admitted
   formation: not_admitted
   public_regent_records: not_admitted
   autolaunch: not_admitted

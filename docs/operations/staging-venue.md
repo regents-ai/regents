@@ -169,7 +169,7 @@ and anything that touches production. Each step below says which.
    production's Privy app, so this is an edit to production's Privy configuration
    (see [What staging shares with production](#what-staging-shares-with-production)).
 6. **Manager.** The first deploy, per [First deploy](#first-deploy), then open a
-   database-backed page — `/app` signed out, then `/techtree` — in addition to
+   database-backed page — `/app` signed out, then `/autolaunch` — in addition to
    `/healthz`. `/healthz` is static and never touches the database, so it alone
    does not prove the venue works.
 7. **Founder.** At this venue's own production deploy, which is the first promote

@@ -16,7 +16,6 @@ vi.mock("../js/auth_lazy", () => ({
 }))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
-vi.mock("../js/hooks/techtree_camera", () => ({TechtreeCamera: {}}))
 vi.mock("../js/hooks/voxel", () => ({VoxelDelight: {}}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {
@@ -142,13 +141,6 @@ function shellFixture() {
       : null
   }
   const scroller = Object.assign(new FakeElement(), {scrollTo: vi.fn()})
-  const mapLink = new FakeElement()
-  mapLink.dataset.treePath = "/techtree"
-  mapLink.dataset.treePresentation = "map"
-  mapLink.setAttribute("aria-current", "true")
-  const listLink = new FakeElement()
-  listLink.dataset.treePath = "/techtree"
-  listLink.dataset.treePresentation = "list"
   const sidebar = Object.assign(new FakeElement(), {
     querySelectorAll: () => [firstLink, lastLink],
     contains: (element: unknown) => element === firstLink || element === lastLink,
@@ -163,7 +155,6 @@ function shellFixture() {
       return null
     },
     querySelectorAll(selector: string) {
-      if (selector === "[data-tree-presentation]") return [mapLink, listLink]
       if (selector.includes("details[open]")) return accountMenu.open ? [accountMenu] : []
       return []
     },
@@ -175,10 +166,9 @@ function shellFixture() {
     },
   })
 
-  shell.dataset.routeId = "techtree"
-  shell.dataset.destination = "/techtree"
+  shell.dataset.routeId = "autolaunch"
+  shell.dataset.destination = "/autolaunch"
   shell.dataset.menuOpen = "false"
-  shell.dataset.presentation = "map"
 
   return {
     shell,
@@ -187,8 +177,6 @@ function shellFixture() {
     scrim,
     accountMenu,
     accountMenuLink,
-    mapLink,
-    listLink,
     scroller,
     firstLink,
     lastLink,
@@ -314,26 +302,14 @@ describe("mobile shell navigation", () => {
     expect(page.accountMenu.getAttribute("open")).toBeNull()
   })
 
-  it("restores one selected Techtree presentation with aria-pressed", () => {
-    const page = shellFixture()
-    const hook = captured.hooks.ShellBehavior
-    const context = {el: page.shell} as never
-
-    hook.mounted?.call(context)
-    expect(page.mapLink.getAttribute("aria-current")).toBe("true")
-    expect(page.listLink.getAttribute("aria-current")).toBeNull()
-    expect(page.mapLink.getAttribute("aria-pressed")).toBe("true")
-    expect(page.listLink.getAttribute("aria-pressed")).toBe("false")
-  })
-
   it("[U2] reconciles RegentUI brand from authoritative shell app patches", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
 
-    page.shell.dataset.app = "techtree"
+    page.shell.dataset.app = "autolaunch"
     hook.mounted?.call(context)
-    expect(fakeDocument.documentElement.dataset.brand).toBe("techtree")
+    expect(fakeDocument.documentElement.dataset.brand).toBe("autolaunch")
 
     page.shell.dataset.app = "autolaunch"
     hook.updated?.call(context)
@@ -352,7 +328,7 @@ describe("shell material contract", () => {
   it("[U1][U4] loads RegentUI before shell and preserves existing page/status imports", () => {
     const appCss = readCss("../css/app.css")
     expect(appCss).toMatch(
-      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/tokens\/root\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/techtree\.css";/,
+      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/tokens\/root\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/autolaunch\.css";/,
     )
   })
 

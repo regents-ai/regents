@@ -40,17 +40,18 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute_push_event(view, "verified-connections:request", _payload)
   end
 
-  test "direct deep links render the persistent shell and honest node state", %{conn: conn} do
-    {:ok, view, html} =
-      live(conn, "/techtree/nodes/00000000-0000-0000-0000-000000000001")
+  test "direct deep links render the persistent shell and honest missing-record state", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/regents/not-here")
 
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="shell-header")
     assert html =~ ~s(id="shell-sidebar")
     assert html =~ ~s(id="app-shell-scroller")
     assert byte_size(html) <= 100 * 1024
-    assert html =~ "Node not found"
-    assert render_async(view) =~ "No public Techtree node exists"
+    assert html =~ "Regent not found"
+    assert render_async(view) =~ "This public Regent profile does not exist."
   end
 
   test "the switch states the theme the server just served", %{conn: conn} do
@@ -301,28 +302,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#route-content h1", "Put REGENT to work.")
   end
 
-  test "same-tree Map and List controls are local buttons rather than navigation", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/techtree/genebench-pro-reference-lab")
-    render_async(view)
-
-    assert has_element?(
-             view,
-             ~s(a[data-tree-presentation="map"][data-tree-path="/techtree/genebench-pro-reference-lab"][aria-pressed="true"])
-           )
-
-    assert has_element?(
-             view,
-             ~s(a[data-tree-presentation="list"][data-tree-path="/techtree/genebench-pro-reference-lab"][aria-pressed="false"])
-           )
-
-    assert has_element?(
-             view,
-             ~s(a[data-tree-presentation][href="/techtree/genebench-pro-reference-lab"])
-           )
-
-    refute has_element?(view, ~s([data-tree-presentation][phx-click]))
-  end
-
   test "Formation remains owned by ShellLive with its background and only the handoff", %{
     conn: conn
   } do
@@ -427,8 +406,12 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert staking.wallet_address == "0x1111111111111111111111111111111111111111"
   end
 
-  test "malformed and reserved route parameters return not found", %{conn: conn} do
-    assert_error_sent(404, fn -> get(conn, "/techtree/nodes") end)
+  test "malformed route parameters return not found", %{conn: conn} do
+    auction_id = String.duplicate("a", 129)
+
+    assert_error_sent 404, fn ->
+      get(conn, "/autolaunch/auctions/#{auction_id}")
+    end
   end
 
   defp seed_shared_snapshot do
@@ -454,7 +437,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
       route_spec: route_spec,
       account_control: account_control,
       content_status: :ready,
-      presentation: :none,
       shell_instance: 1,
       theme: "dark",
       content: [%{inner_block: fn _, _ -> "Fixture content" end}]

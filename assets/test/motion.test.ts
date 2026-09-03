@@ -141,7 +141,7 @@ describe("shell motion", () => {
     expect(animations.every(({options}) => !("translateX" in options) && !("translateY" in options))).toBe(true)
   })
 
-  it("accelerates Techtree surfaces away and decelerates staggered entries into place", () => {
+  it("accelerates marked surfaces away and decelerates staggered entries into place", () => {
     const {animations, driver, root, scope} = harness()
     const outgoing = element()
     outgoing.dataset.motionSurface = "list-item"
@@ -186,7 +186,7 @@ describe("shell motion", () => {
     expect(detail.style).toMatchObject({opacity: "1", transform: "none"})
   })
 
-  it("runs marked Techtree entrances through the controller on mount", () => {
+  it("runs marked surface entrances through the controller on mount", () => {
     const {animations, driver, root, scope} = harness()
     const listItem = element()
     listItem.dataset.motionSurface = "list-item"
@@ -311,8 +311,8 @@ describe("shell motion", () => {
 
     ShellMotion.beforeUpdate.call(state)
     root.current = [node("region", 20), node("background"), node("header")]
-    root.dataset.motionApp = "techtree"
-    root.dataset.destination = "/techtree"
+    root.dataset.motionApp = "formation"
+    root.dataset.destination = "/formation"
     ShellMotion.updated.call(state)
     expect(animations.slice(0, firstCount).every((animation) => vi.mocked(animation.cancel).mock.calls.length === 1)).toBe(true)
     expect(removed.length).toBe(3)
