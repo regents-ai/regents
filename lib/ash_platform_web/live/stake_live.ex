@@ -251,7 +251,7 @@ defmodule AshPlatformWeb.StakeLive do
                   </dd>
                 </div>
                 <div>
-                  <dt>Pool share after</dt><dd>{@preview.share}</dd>
+                  <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
                 </div>
               </dl>
 
@@ -528,16 +528,15 @@ defmodule AshPlatformWeb.StakeLive do
 
   defp position_preview(%{staking: staking, action: action, amount: amount}) do
     with {:ok, requested} <- AshPlatform.Staking.parse_amount(amount),
-         {:ok, current_position} <- atomic(staking.wallet_stake_balance_raw),
-         {:ok, total} <- atomic(staking.total_staked_raw) do
-      {position, pool} =
+         {:ok, current_position} <- atomic(staking.wallet_stake_balance_raw) do
+      position =
         if action == "stake",
-          do: {current_position + requested, total + requested},
-          else: {max(current_position - requested, 0), max(total - requested, 0)}
+          do: current_position + requested,
+          else: max(current_position - requested, 0)
 
       %{
         position: token_amount(position),
-        share: percentage(position, pool)
+        revenue_share: revenue_share(position, staking.regent_total_supply_raw)
       }
     else
       _ -> nil
@@ -573,17 +572,23 @@ defmodule AshPlatformWeb.StakeLive do
   end
 
   defp approval_needed?(_, _, _), do: false
-  defp percentage(_part, 0), do: "0%"
+  # Revenue is accounted against the whole supply, so a staker's share of it is
+  # their position over the total supply. Four decimals are always shown, the
+  # fifth dropped rather than rounded up, as every other share on this page is.
+  defp revenue_share(position, total_supply_raw) do
+    case atomic(total_supply_raw) do
+      {:ok, total_supply} when total_supply > 0 ->
+        position
+        |> Decimal.new()
+        |> Decimal.mult(100)
+        |> Decimal.div(Decimal.new(total_supply))
+        |> Decimal.round(4, :down)
+        |> Decimal.to_string(:normal)
+        |> Kernel.<>("%")
 
-  defp percentage(part, whole) do
-    part
-    |> Decimal.new()
-    |> Decimal.mult(100)
-    |> Decimal.div(Decimal.new(whole))
-    |> Decimal.round(4)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-    |> Kernel.<>("%")
+      _unavailable ->
+        "0.0000%"
+    end
   end
 
   defp atomic(value) when is_binary(value) do

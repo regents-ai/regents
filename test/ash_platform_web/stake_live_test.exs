@@ -593,6 +593,43 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute_push_event(view, "staking:wallet-action", _)
   end
 
+  test "REVENUE_SHARE: the preview reads a staker's share of revenue against the whole supply", %{
+    conn: conn
+  } do
+    # Revenue is accounted against the whole 100 billion REGENT supply, so this
+    # figure is the position over that supply, never over the staked pool.
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{
+        stake: "1500000000000000000000000000",
+        token: "1000000000000000000000000000"
+      }
+    })
+
+    Application.put_env(
+      :ash_platform,
+      :test_staking_denominator,
+      "9" <> String.duplicate("0", 30)
+    )
+
+    view = stake_as_signer(conn, "revenue-share")
+
+    set_amount(view, "500000000")
+    html = render(view)
+
+    assert html =~ "USDC Revenue Share"
+    refute html =~ "Pool share"
+    assert html =~ "2.0000%"
+
+    # Four places are always shown, and the fifth is dropped rather than rounded
+    # up, so the figure never claims more than the position earns.
+    set_amount(view, "89999999")
+    assert render(view) =~ "1.5899%"
+
+    view |> element(~s(button[phx-value-mode="unstake"])) |> render_click()
+    set_amount(view, "500000000")
+    assert render(view) =~ "1.0000%"
+  end
+
   test "CLAIM_GLOW: every claim stays clickable and only a reward that is there is lit", %{
     conn: conn
   } do
