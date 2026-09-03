@@ -1,12 +1,19 @@
 defmodule AshPlatform.PublicIdentity do
-  @moduledoc "Resolves the public label for a signed human without exposing its private identity."
+  @moduledoc """
+  Resolves the public name and picture for a signed human without exposing its
+  private identity.
+
+  A wallet that publishes an ENS name is called by it and drawn with the picture
+  that name carries; a wallet that publishes neither is called by its shortened
+  address and drawn with a picture generated from that address.
+  """
 
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
 
   def label(identity) when is_map(identity) do
     identity
     |> preferred_labels()
-    |> Enum.find_value(&present_label/1)
+    |> Enum.find_value(&present/1)
     |> case do
       nil -> short_wallet(Map.get(identity, :wallet_address))
       label -> label
@@ -15,14 +22,21 @@ defmodule AshPlatform.PublicIdentity do
 
   def label(_identity), do: "Account"
 
-  def avatar_data_uri(identity) when is_map(identity) do
-    case normalize_wallet(Map.get(identity, :wallet_address)) do
+  def avatar_src(identity) when is_map(identity) do
+    case present(Map.get(identity, :ens_avatar_url)) do
+      nil -> generated_avatar(Map.get(identity, :wallet_address))
+      avatar -> avatar
+    end
+  end
+
+  def avatar_src(_identity), do: nil
+
+  defp generated_avatar(wallet) do
+    case normalize_wallet(wallet) do
       nil -> nil
       wallet -> wallet_avatar(wallet)
     end
   end
-
-  def avatar_data_uri(_identity), do: nil
 
   defp preferred_labels(identity) do
     [
@@ -32,14 +46,14 @@ defmodule AshPlatform.PublicIdentity do
     ]
   end
 
-  defp present_label(label) when is_binary(label) do
-    case String.trim(label) do
+  defp present(value) when is_binary(value) do
+    case String.trim(value) do
       "" -> nil
-      label -> label
+      value -> value
     end
   end
 
-  defp present_label(_label), do: nil
+  defp present(_value), do: nil
 
   defp short_wallet(<<"0x", hex::binary-size(40)>> = wallet) do
     if String.match?(hex, ~r/\A[0-9a-fA-F]{40}\z/),

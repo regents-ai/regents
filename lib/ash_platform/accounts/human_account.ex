@@ -22,6 +22,7 @@ defmodule AshPlatform.Accounts.HumanAccount do
       get? true
       argument :id, :integer, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare build(load: [:ens_name, :ens_avatar_url])
     end
 
     read :public_comment_author
@@ -93,5 +94,18 @@ defmodule AshPlatform.Accounts.HumanAccount do
     attribute :avatar, :map
     create_timestamp :created_at
     update_timestamp :updated_at
+  end
+
+  relationships do
+    has_one :ens_identity, AshPlatform.Accounts.EnsIdentity do
+      destination_attribute :human_account_id
+    end
+  end
+
+  # What Ethereum mainnet says about this account's wallet, flattened onto the
+  # account so one display shape serves every identity a page renders.
+  calculations do
+    calculate :ens_name, :string, expr(ens_identity.ens_name)
+    calculate :ens_avatar_url, :string, expr(ens_identity.ens_avatar_url)
   end
 end

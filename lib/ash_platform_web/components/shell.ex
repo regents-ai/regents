@@ -93,10 +93,13 @@ defmodule AshPlatformWeb.Components.Shell do
 
           <details :if={@account_control.kind == :signed_in} id="account-menu">
             <summary>
+              <%!-- A name's own picture is served by whoever the name points at,
+              and that host has no business learning which page the person is on. --%>
               <img
-                :if={@account_control.avatar_data_uri}
+                :if={@account_control.avatar_src}
                 class="account-avatar"
-                src={@account_control.avatar_data_uri}
+                src={@account_control.avatar_src}
+                referrerpolicy="no-referrer"
                 width="36"
                 height="36"
                 alt=""

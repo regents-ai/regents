@@ -47,6 +47,7 @@ defmodule AshPlatform.MixProject do
       {:ash_postgres, "~> 2.13.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
+      {:ens_elixir, "~> 0.1.1"},
       {:regent_privy, path: "../elixir-utils/privy"},
       {:regent_ui, path: "../design-system/regent_ui"},
       {:picosat_elixir, "~> 0.2.3"},
@@ -93,8 +94,9 @@ defmodule AshPlatform.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Baseline moved from 33 to 80 with Ash 3.32.1's retained policy-check compile dependencies (ash #2886).
-        "xref graph --label compile-connected --fail-above 80",
+        # Baseline moved from 33 to 80 with Ash 3.32.1's retained policy-check compile dependencies (ash #2886),
+        # then to 82 for the account's ENS identity resource and its policy check.
+        "xref graph --label compile-connected --fail-above 82",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"

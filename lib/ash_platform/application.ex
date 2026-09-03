@@ -15,6 +15,9 @@ defmodule AshPlatform.Application do
         database_child(),
         autolaunch_indexer_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
+        # After PubSub: a finished ENS lookup announces itself on the topic the
+        # signed-in shell listens on.
+        AshPlatform.Ens,
         # After PubSub: its first reading is announced to every page on the
         # topic the staking pages subscribe to.
         {AshPlatform.Staking.SnapshotCache, []},

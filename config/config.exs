@@ -45,6 +45,11 @@ config :ash_platform, :techtree_payload,
 
 config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+# ENS lives on Ethereum mainnet, which has no public endpoint this product is
+# willing to trust: without one named at boot, no name or picture is looked up.
+config :ash_platform, :ethereum_read_rpc_url, nil
+config :ash_platform, :ethereum_rpc_module, AgentEns.Internal.RPC
+config :ash_platform, :ens_lookup_deadline_ms, 4_000
 config :ash_platform, :autolaunch_indexer_rpc_url, nil
 config :ash_platform, :notebook_origins, ["https://notebooks.regents.sh"]
 config :ash_platform, :notebook_static_server, false

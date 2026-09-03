@@ -43,6 +43,12 @@ config :ash_platform,
        :autolaunch_indexer_http_client,
        AshPlatform.TestAutolaunchIndexerChainClient
 
+# ENS lookups answer from a stubbed mainnet whose replies are chosen by the
+# wallet asking, so no test reaches a real endpoint.
+config :ash_platform, :ethereum_read_rpc_url, "https://ethereum.test.invalid"
+config :ash_platform, :ethereum_rpc_module, AshPlatform.TestEnsChainClient
+config :ash_platform, :ens_lookup_deadline_ms, 200
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused

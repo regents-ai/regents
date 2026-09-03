@@ -128,6 +128,19 @@ if config_env() != :test do
          System.get_env("AUTOLAUNCH_INDEXER_RPC_URL")
 end
 
+# The signed wallet's ENS name and picture are read from Ethereum mainnet. The
+# test environment owns this setting outright, and only the host is logged
+# because provider URLs carry the API key.
+if config_env() != :test do
+  ethereum_read_rpc_url = String.trim(System.get_env("ETHEREUM_READ_RPC_URL", ""))
+
+  if ethereum_read_rpc_url != "" do
+    config :ash_platform, :ethereum_read_rpc_url, ethereum_read_rpc_url
+
+    Logger.info("Ethereum read endpoint host #{URI.parse(ethereum_read_rpc_url).host}")
+  end
+end
+
 migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
 
 database_config =

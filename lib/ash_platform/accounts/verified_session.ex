@@ -3,6 +3,7 @@ defmodule AshPlatform.Accounts.VerifiedSession do
 
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.System
+  alias AshPlatform.Ens
 
   @social_providers [:x, :github, :farcaster]
 
@@ -18,6 +19,8 @@ defmodule AshPlatform.Accounts.VerifiedSession do
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
              {:ok, conflicts} <-
                reconcile_linked_identities(account, verified.linked_socials, actor) do
+          # Started, never awaited: the chain is slow and sign-in is not.
+          Ens.refresh(account)
           {:ok, account, conflicts}
         end
 

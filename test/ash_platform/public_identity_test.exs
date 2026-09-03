@@ -27,17 +27,17 @@ defmodule AshPlatform.PublicIdentityTest do
 
   test "wallet avatars are local, deterministic, and address-specific" do
     first =
-      PublicIdentity.avatar_data_uri(%{
+      PublicIdentity.avatar_src(%{
         wallet_address: "0x111111111111111111111111111111111111a1b2"
       })
 
     retry =
-      PublicIdentity.avatar_data_uri(%{
+      PublicIdentity.avatar_src(%{
         wallet_address: "0x111111111111111111111111111111111111A1B2"
       })
 
     other =
-      PublicIdentity.avatar_data_uri(%{
+      PublicIdentity.avatar_src(%{
         wallet_address: "0x222222222222222222222222222222222222a1b2"
       })
 
@@ -46,6 +46,18 @@ defmodule AshPlatform.PublicIdentityTest do
     assert "data:image/svg+xml;base64," <> encoded = first
     assert Base.decode64!(encoded) =~ ~s(<svg xmlns="http://www.w3.org/2000/svg")
     refute first =~ "0x1111"
-    assert PublicIdentity.avatar_data_uri(%{wallet_address: nil}) == nil
+    assert PublicIdentity.avatar_src(%{wallet_address: nil}) == nil
+  end
+
+  test "an ENS picture is preferred, and a blank one leaves the generated picture" do
+    wallet = %{wallet_address: "0x111111111111111111111111111111111111a1b2"}
+    generated = PublicIdentity.avatar_src(wallet)
+
+    assert PublicIdentity.avatar_src(
+             Map.put(wallet, :ens_avatar_url, "https://avatars.regents.test/atlas.png")
+           ) == "https://avatars.regents.test/atlas.png"
+
+    assert PublicIdentity.avatar_src(Map.put(wallet, :ens_avatar_url, " ")) == generated
+    assert PublicIdentity.avatar_src(Map.put(wallet, :ens_avatar_url, nil)) == generated
   end
 end

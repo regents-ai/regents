@@ -31,7 +31,7 @@ defmodule AshPlatform.AccessContext do
       label: name,
       profile_path: "/regents/#{slug}",
       settings_path: "/settings",
-      avatar_data_uri: PublicIdentity.avatar_data_uri(account)
+      avatar_src: PublicIdentity.avatar_src(account)
     }
   end
 
@@ -41,7 +41,7 @@ defmodule AshPlatform.AccessContext do
       label: PublicIdentity.label(account),
       profile_path: nil,
       settings_path: "/settings",
-      avatar_data_uri: PublicIdentity.avatar_data_uri(account)
+      avatar_src: PublicIdentity.avatar_src(account)
     }
   end
 end

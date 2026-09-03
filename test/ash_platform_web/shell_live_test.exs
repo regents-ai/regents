@@ -169,7 +169,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
         label: "Ada.regent.eth",
         profile_path: "/regents/ada",
         settings_path: "/settings",
-        avatar_data_uri: "data:image/svg+xml;base64,PHN2Zy8+"
+        avatar_src: "data:image/svg+xml;base64,PHN2Zy8+"
       })
 
     assert html =~ ~s(data-account-target="profile")
@@ -183,6 +183,42 @@ defmodule AshPlatformWeb.ShellLiveTest do
     # assert html =~ ~r/>\s*Settings\s*<\/span>/
     assert html =~ "Disconnect"
     refute html =~ "Sign Out"
+  end
+
+  test "an open page takes the ENS name as soon as the chain answers", %{conn: conn} do
+    account =
+      register_account(
+        "ens-late-arrival",
+        AshPlatform.TestEnsChainClient.wallet(:named_with_avatar)
+      )
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/app")
+
+    assert has_element?(view, "#account-control [data-account-target=profile]", "0xaaaa…0001")
+
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
+    assert AshPlatform.Ens.refresh(account) == :ok
+    assert_receive {:ens_lookup_finished, _account_id}, 2_000
+
+    assert render(view) =~ ~s(src="https://avatars.regents.test/atlas.png")
+    assert has_element?(view, "#account-control [data-account-target=profile]", "atlas.eth")
+  end
+
+  test "the account chip shows the wallet's ENS name and picture" do
+    html =
+      render_shell(%AccountControl{
+        kind: :signed_in,
+        label: "atlas.eth",
+        profile_path: nil,
+        settings_path: "/settings",
+        avatar_src: "https://avatars.regents.test/atlas.png"
+      })
+
+    assert html =~ ~s(src="https://avatars.regents.test/atlas.png")
+    assert html =~ ~r/data-account-target="profile">\s*atlas.eth\s*</
   end
 
   test "Settings owns its own page rather than relabeling the whole shell" do

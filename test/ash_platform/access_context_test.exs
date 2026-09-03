@@ -22,6 +22,20 @@ defmodule AshPlatform.AccessContextTest do
              AccessContext.account_control(AccessContext.human(account))
   end
 
+  test "a wallet's ENS name and picture become the account control" do
+    account = %{
+      wallet_address: @wallet,
+      ens_name: "atlas.eth",
+      ens_avatar_url: "https://avatars.regents.test/atlas.png"
+    }
+
+    assert %{
+             kind: :signed_in,
+             label: "atlas.eth",
+             avatar_src: "https://avatars.regents.test/atlas.png"
+           } = AccessContext.account_control(AccessContext.human(account))
+  end
+
   test "only a server-supplied Regent creates the canonical profile target" do
     account = %{wallet_address: @wallet, display_name: "Human account label"}
     regent = %{slug: "ada", display_name: "Ada Regent"}
@@ -31,7 +45,7 @@ defmodule AshPlatform.AccessContextTest do
              label: "Ada Regent",
              profile_path: "/regents/ada",
              settings_path: "/settings",
-             avatar_data_uri: "data:image/svg+xml;base64," <> _
+             avatar_src: "data:image/svg+xml;base64," <> _
            } = AccessContext.account_control(AccessContext.human(account), regent)
   end
 end

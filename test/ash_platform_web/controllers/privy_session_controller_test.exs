@@ -231,7 +231,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert payload["authenticated"] == true
     assert get_resp_header(signed_in, "x-ash-session-changed") == ["true"]
     assert payload["account_control"]["profile_path"] == nil
-    assert payload["account_control"]["avatar_data_uri"] =~ "data:image/svg+xml;base64,"
+    assert payload["account_control"]["avatar_src"] =~ "data:image/svg+xml;base64,"
 
     assert signed_in.private[:plug_session_info] == :renew
     assert session_cookie(signed_in) != visitor_cookie

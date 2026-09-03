@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.Live.Session do
   import Phoenix.LiveView,
     only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
-  alias AshPlatform.{AccessContext, Formation}
+  alias AshPlatform.{AccessContext, Ens, Formation}
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.Human
 
@@ -86,10 +86,20 @@ defmodule AshPlatformWeb.Live.Session do
   # that read rather than from the struct the mount captured.
   defp hold(socket, lineage, generation, account) do
     lease = %{lineage: lineage, account_id: account.id, generation_at_mount: generation}
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, Ens.topic(account.id))
 
     socket
     |> assign_principal(account)
     |> Phoenix.Component.assign(:session_lease, lease)
+    # The wallet's ENS name and picture arrive from Ethereum after sign-in has
+    # already finished, so the page that is already open takes them as they land.
+    |> attach_hook(:session_ens_identity, :handle_info, fn
+      {:ens_lookup_finished, _account_id}, socket ->
+        {:halt, reidentify(socket, leased(lease))}
+
+      _message, socket ->
+        {:cont, socket}
+    end)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
       case leased(lease) do
         nil -> {:halt, redirect(lapsed(socket), to: @public_root)}
@@ -103,6 +113,12 @@ defmodule AshPlatformWeb.Live.Session do
       end
     end)
   end
+
+  # A lease that has lapsed by the time a lookup lands is left to the next
+  # navigation or action to withdraw, which is the only place that can also send
+  # the page somewhere it is still allowed to be.
+  defp reidentify(socket, nil), do: socket
+  defp reidentify(socket, account), do: assign_principal(socket, account)
 
   # A lapsed lease is withdrawn along with the principal, so nothing downstream
   # can still present it as authority for a write.

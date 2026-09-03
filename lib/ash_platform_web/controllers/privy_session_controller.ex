@@ -304,7 +304,7 @@ defmodule AshPlatformWeb.PrivySessionController do
         kind: :sign_in,
         label: "Sign In",
         profile_path: nil,
-        avatar_data_uri: nil
+        avatar_src: nil
       }
     }
 

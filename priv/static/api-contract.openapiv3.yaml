@@ -1433,14 +1433,14 @@ components:
         account_control:
           type: object
           additionalProperties: false
-          required: [kind, label, profile_path, avatar_data_uri]
+          required: [kind, label, profile_path, avatar_src]
           properties:
             kind: {type: string, enum: [sign_in, signed_in]}
             label: {type: string}
             profile_path: {type: [string, "null"]}
-            avatar_data_uri:
+            avatar_src:
               type: [string, "null"]
-              pattern: "^data:image/svg\\+xml;base64,"
+              pattern: "^(https://|data:image/svg\\+xml;base64,)"
     Error:
       type: object
       additionalProperties: false
