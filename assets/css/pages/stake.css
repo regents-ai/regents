@@ -276,31 +276,14 @@
   margin: 0;
 }
 
-.stake-wallet-loading,
-.stake-wallet-recovery {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel-strong);
-}
-
 .stake-wallet-loading {
   display: flex;
   gap: 0.75rem;
   align-items: center;
   min-width: 0;
-}
-
-.stake-wallet-recovery p {
-  margin: 0;
-  color: var(--ash-muted);
-}
-
-.stake-wallet-recovery > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--ash-panel-strong);
 }
 
 .stake-progress-mark {

@@ -797,6 +797,26 @@ describe("local transaction construction", () => {
     })
   })
 
+  // The page carries no allowance when the last reading could not get one. A
+  // press is never held back over a figure the page does not have: the approval
+  // goes to the wallet, and the wallet decides.
+  it("asks for the approval when the page carries no allowance", () => {
+    const {provider} = fakeProvider(() => undefined)
+    const click = prepare("stake", selected(provider), {allowanceAtomic: ""})
+
+    expect(click.approval).toEqual({
+      from: wallet,
+      to: token,
+      data: encodeFunctionData({
+        abi: approvalAbi,
+        functionName: "approve",
+        args: [staking, amount],
+      }),
+      value: "0x0",
+    })
+    expect(click.transaction.to).toEqual(staking)
+  })
+
   it.each([
     "",
     "0",

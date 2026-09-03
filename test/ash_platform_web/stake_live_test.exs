@@ -191,6 +191,77 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute render(view) =~ "yet"
   end
 
+  # The seven-day window is read from the contract's own log history rather than
+  # from its current answers, so an endpoint that refuses that history has said
+  # nothing about anything else on the page. One figure goes missing and says so;
+  # everything else, and every control, is exactly where it was.
+  test "UNAVAILABLE_WINDOW: a missing seven-day figure costs nothing else on the page", %{
+    conn: conn
+  } do
+    Application.put_env(:ash_platform, :test_staking_usdc_7d, :unavailable)
+
+    view = stake_as_signer(conn, "unavailable-window")
+
+    assert staking_assigns(view).staking_status == :ready
+    refute render(view) =~ "Staking details are unavailable right now."
+
+    # The one figure that was lost says so, in words rather than as a zero.
+    assert has_element?(view, ".stake-earned-part", "Last 7 days")
+
+    assert has_element?(
+             view,
+             ".stake-benefit-card-primary .figure-unavailable",
+             "Unavailable right now"
+           )
+
+    refute has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
+
+    # Every other figure on the page is there and exact.
+    assert has_element?(view, ".stake-benefit-card-primary", "5,074.87 USDC")
+    assert has_element?(view, ".stake-benefit-card", "100 REGENT")
+    assert has_element?(view, "#staking-supply-bar")
+    assert has_element?(view, ".stake-supply-facts", "35 billion REGENT")
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, ".stake-contract-facts", @contract)
+
+    # Every control still reaches the wallet, and the refresh path stays open.
+    assert_every_claim_live(view)
+    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+    assert has_element?(view, ~s|button[phx-value-portion="max"]:not([disabled])|)
+
+    # The next reading that gets the window puts the figure back.
+    Application.delete_env(:ash_platform, :test_staking_usdc_7d)
+    share_new_snapshot()
+    render_async(view)
+    assert has_element?(view, ".stake-benefit-card-primary", "1,250.50 USDC")
+    refute has_element?(view, ".figure-unavailable")
+  end
+
+  # The whole-page notice belongs to one failure and one only: the contract
+  # reading itself. A page that has never had one shows nothing but the notice.
+  test "CORE_READING_FAILS: only a failed contract reading empties the page", %{conn: conn} do
+    Application.put_env(:ash_platform, :test_staking_protocol_error, :provider_failure)
+
+    view = signed_in_stake(conn, "core-reading-fails")
+
+    assert staking_assigns(view).staking_status == :error
+    assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
+    refute has_element?(view, ".stake-layout")
+    refute has_element?(view, "button[data-staking-action]")
+
+    # The one control this state offers is the reading itself, and once that
+    # reading lands the page is whole again.
+    assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
+    Application.delete_env(:ash_platform, :test_staking_protocol_error)
+    view |> element("button.stake-shared-refresh") |> render_click()
+    render_async(view)
+
+    assert staking_assigns(view).staking_status == :ready
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    refute render(view) =~ "Staking details are unavailable right now."
+  end
+
   # One bar carries both proportions, and each is the arithmetic of the figures
   # beside it rather than anything the page decides.
   test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do
@@ -742,18 +813,47 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute render(view) =~ @refresh_failure
   end
 
-  test "FIRST_WALLET_READ_FAILURE: contract data stays visible with recovery controls", %{
-    conn: conn
-  } do
-    view = mount_stake(conn)
+  # A position nobody could read is that wallet's figures and nothing else. The
+  # contract data stays, the wallet's own section stays, each of its figures says
+  # it is missing, and every control on it still reaches the wallet.
+  test "FIRST_WALLET_READ_FAILURE: only this wallet's figures go missing", %{conn: conn} do
+    view = stake_as_signer(conn, "first-wallet-failure")
     Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
 
-    render_hook(view, "staking_active_wallet", %{"address" => @wallet})
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
+    assert staking_assigns(view).staking_status == :ready
     assert has_element?(view, ".stake-overview", "Live contract position")
-    assert has_element?(view, ".stake-wallet-recovery", "Try again")
+    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, ".stake-benefit-card", "1,250.50 USDC")
     refute has_element?(view, ".stake-wallet-loading")
+
+    # The wallet's own section is still there, saying which figures it lost.
+    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+
+    assert has_element?(
+             view,
+             ".stake-wallet-summary .figure-unavailable",
+             "Unavailable right now"
+           )
+
+    assert has_element?(view, ".stake-wallet-block", "could not be read just now")
+    refute render(view) =~ "Staking details are unavailable right now."
+
+    # Every control that ends in a wallet request is still live.
+    assert_every_claim_live(view)
+    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+
+    # An amount the page cannot check against a missing figure is still sent.
+    set_amount(view, "3")
+    assert render(view) =~ "this amount is not checked against it"
+    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+
+    # With no allowance to go by, the browser is told to expect the approval
+    # step rather than the press being held back.
+    refute has_element?(view, "#regent-staking[data-staking-allowance]")
+    assert render(view) =~ "will first request an exact REGENT approval"
   end
 
   # A second wallet arrives while the first wallet's read is still open, so that
@@ -788,9 +888,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ @wallet
   end
 
-  # A wallet read that genuinely crashed leaves the contract data alone and
-  # offers the wallet its own way back.
-  test "WALLET_READ_CRASH: a crashed wallet read keeps the contract data and recovers", %{
+  # A wallet read that genuinely crashed is the same news as one that failed.
+  test "WALLET_READ_CRASH: a crashed wallet read keeps every other figure and control", %{
     conn: conn
   } do
     view = mount_stake(conn)
@@ -801,7 +900,14 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert staking_assigns(view).staking_status == :ready
     assert has_element?(view, ".stake-overview", "Live contract position")
-    assert has_element?(view, ".stake-wallet-recovery", "Try again")
+
+    assert has_element?(
+             view,
+             ".stake-wallet-summary .figure-unavailable",
+             "Unavailable right now"
+           )
+
+    assert has_element?(view, ~s(.stake-footer button[phx-click="refresh_data"]))
     assert render(view) =~ @refresh_failure
   end
 
@@ -831,7 +937,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     # Once a reading exists, the wallet already connected is looked up.
     share_new_snapshot()
-    view |> element(~s(button[phx-click="refresh_staking"])) |> render_click()
     render_async(view)
 
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")

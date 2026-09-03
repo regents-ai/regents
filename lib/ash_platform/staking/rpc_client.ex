@@ -2,6 +2,8 @@ defmodule AshPlatform.Staking.RpcClient do
   @moduledoc false
   @behaviour AshPlatform.Staking.ChainClient
 
+  require Logger
+
   alias AshPlatform.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
@@ -16,14 +18,20 @@ defmodule AshPlatform.Staking.RpcClient do
   @window_blocks 302_400
 
   # A public Base endpoint answers `eth_getLogs` over at most ten thousand
-  # blocks, so the window is asked for in that many at a time. The requests go
-  # out together, a few at a time, and any one of them failing fails the whole
-  # reading.
+  # blocks, so the window is asked for in that many at a time, a few at a time.
   @chunk_blocks 10_000
   @chunk_concurrency 8
 
+  # The contract's current answers are the reading; the seven-day window is one
+  # figure read beside them, from logs rather than from the contract, and an
+  # endpoint that refuses a log range has said nothing against the answers it
+  # already gave. So the window is read on its own once the reading exists, and
+  # when it fails only that figure is marked unavailable.
   @impl true
-  def protocol_snapshot, do: bounded(fn -> read_protocol() end)
+  def protocol_snapshot do
+    with {:ok, protocol} <- bounded(fn -> read_protocol() end),
+         do: {:ok, Map.merge(protocol, usdc_received_window(protocol.block_number))}
+  end
 
   @impl true
   def wallet_snapshot(wallet_address),
@@ -44,9 +52,9 @@ defmodule AshPlatform.Staking.RpcClient do
   end
 
   # One `latest` block owns every figure below it: one call returns all the
-  # contract's current answers, and the deposit window ends at that same block,
-  # so nothing on the page can pair one block's total with another's history. A
-  # partial reading is unavailable rather than shown.
+  # contract's current answers, and the deposit window read afterwards ends at
+  # that same block, so nothing on the page can pair one block's total with
+  # another's history. A partial aggregate is unavailable rather than shown.
   defp read_protocol do
     with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          :ok <- identified_aggregator(block),
@@ -62,9 +70,7 @@ defmodule AshPlatform.Staking.RpcClient do
             regent_total_supply
           ]} <- Rpc.aggregate3(aggregator(), protocol_calls(), block, @rpc_opts),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
-         true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
-         from_block <- max(block.number - @window_blocks + 1, 0),
-         {:ok, usdc_received_window} <- usdc_received_between(from_block, block.number) do
+         true <- usdc == Abi.normalize_address!(Abi.usdc_address()) do
       capacity = max(denominator - total_staked, 0)
 
       {:ok,
@@ -81,9 +87,6 @@ defmodule AshPlatform.Staking.RpcClient do
          total_staked_raw: Integer.to_string(total_staked),
          total_staked: Rpc.format_units(total_staked, 18),
          remaining_capacity_raw: Integer.to_string(capacity),
-         usdc_received_from_block: from_block,
-         usdc_received_7d_raw: Integer.to_string(usdc_received_window),
-         usdc_received_7d: Rpc.format_units(usdc_received_window, 6),
          usdc_received_lifetime_raw: Integer.to_string(usdc_received),
          usdc_received_lifetime: Rpc.format_units(usdc_received, 6),
          regent_total_supply_raw: Integer.to_string(regent_total_supply),
@@ -97,23 +100,65 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
+  # The seven days of recorded USDC ending at `to_block`, as the three figures
+  # the page shows for it. A window nobody answered for is marked unavailable in
+  # each of them and named in the log by the stretch of blocks that failed; a
+  # total assembled from the pieces that happened to answer would understate what
+  # the contract registered, so no such total is ever made.
+  defp usdc_received_window(to_block) do
+    from_block = max(to_block - @window_blocks + 1, 0)
+
+    case read_window(from_block, to_block) do
+      {:ok, received} ->
+        %{
+          usdc_received_from_block: from_block,
+          usdc_received_7d_raw: Integer.to_string(received),
+          usdc_received_7d: Rpc.format_units(received, 6)
+        }
+
+      {:error, {failed_from, failed_to}, reason} ->
+        Logger.warning(
+          "staking seven-day USDC window unavailable for blocks " <>
+            "#{failed_from}..#{failed_to}: #{inspect(reason)}"
+        )
+
+        %{
+          usdc_received_from_block: :unavailable,
+          usdc_received_7d_raw: :unavailable,
+          usdc_received_7d: :unavailable
+        }
+    end
+  end
+
+  # The window has a deadline of its own. A stretch of history nobody answered
+  # for in time is one unavailable figure and never a reading held open, so the
+  # whole window is given up on as a single span once the deadline passes.
+  defp read_window(from_block, to_block) do
+    case bounded(fn -> usdc_received_between(from_block, to_block) end) do
+      {:error, :chain_timeout} -> {:error, {from_block, to_block}, :chain_timeout}
+      result -> result
+    end
+  end
+
   # Every deposit the contract recorded over the window, added up from its own
-  # logs. The range is asked for in endpoint-sized pieces at once rather than
-  # one after another, and a piece that fails takes the whole reading with it:
-  # a total missing one piece would understate what the contract registered,
-  # and the shared reading treats a failure as "the previous reading stays".
+  # logs. The range is asked for in endpoint-sized pieces at once rather than one
+  # after another, and the first piece that fails ends the sum, naming its own
+  # span.
   defp usdc_received_between(from_block, to_block) do
-    from_block
-    |> chunks(to_block)
+    pieces = chunks(from_block, to_block)
+
+    pieces
     |> Task.async_stream(&chunk_received/1,
       max_concurrency: @chunk_concurrency,
-      ordered: false,
-      timeout: @read_timeout
+      timeout: @read_timeout,
+      on_timeout: :kill_task
     )
+    |> Stream.zip(pieces)
     |> Enum.reduce_while({:ok, 0}, fn
-      {:ok, {:ok, received}}, {:ok, total} -> {:cont, {:ok, total + received}}
-      {:ok, {:error, reason}}, _total -> {:halt, {:error, reason}}
-      {:exit, _reason}, _total -> {:halt, {:error, :chain_unavailable}}
+      {{:ok, {:ok, received}}, _piece}, {:ok, total} -> {:cont, {:ok, total + received}}
+      {{:ok, {:error, reason}}, piece}, _total -> {:halt, {:error, piece, reason}}
+      {{:exit, :timeout}, piece}, _total -> {:halt, {:error, piece, :chain_timeout}}
+      {{:exit, _reason}, piece}, _total -> {:halt, {:error, piece, :chain_unavailable}}
     end)
   end
 

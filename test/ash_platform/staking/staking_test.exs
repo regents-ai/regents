@@ -225,6 +225,76 @@ defmodule AshPlatform.StakingTest do
     assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
   end
 
+  # A wallet reading nobody could get is one wallet's figures and nothing else.
+  # The contract reading it sits beside is untouched, and every control that
+  # ends in a wallet request still prepares exactly what it always did.
+  test "UNAVAILABLE_POSITION: a failed wallet read costs that wallet's figures alone" do
+    assert {:ok, protocol} = Staking.overview()
+    reading = Facts.merge(protocol, Facts.unavailable_wallet(@wallet))
+
+    # Every contract figure is still exactly what Base answered.
+    assert reading.total_staked == "100"
+    assert reading.usdc_received_7d == "1250.5"
+    assert reading.regent_total_supply == "100000000000"
+    assert reading.paused == false
+
+    # The wallet keeps its address, so the page keeps its section, and each of
+    # its figures says it is missing rather than reading as a zero.
+    assert reading.wallet_address == @wallet
+
+    for key <- Facts.wallet_keys(), key != :wallet_address do
+      assert Map.fetch!(reading, key) == :unavailable
+    end
+
+    # An amount cannot be counted from a figure that is not there, and no claim
+    # can be spoken for, but neither answer is a zero.
+    assert Staking.spendable(reading, "stake") == :unavailable
+    assert Staking.spendable(reading, "unstake") == :unavailable
+
+    assert Staking.available_claims(reading) == %{
+             "claim_usdc" => :chain_unavailable,
+             "claim_regent" => :chain_unavailable,
+             "claim_and_restake_regent" => :chain_unavailable
+           }
+
+    # Every wallet request is still prepared in full.
+    assert {:ok, %{action: "stake"}} = Staking.prepare_stake(@wallet, "1")
+    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
+    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
+    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
+
+    assert {:ok, %{action: "claim_and_restake_regent"}} =
+             Staking.prepare_claim_and_restake_regent(@wallet)
+  end
+
+  # The seven-day window is read beside the contract's answers rather than with
+  # them, so losing it costs that one figure and leaves the wallet's own
+  # reading, and every other contract figure, exactly as they were.
+  test "UNAVAILABLE_WINDOW: a missing seven-day figure leaves the rest of the reading whole" do
+    assert {:ok, protocol} = Staking.overview()
+    assert {:ok, wallet_facts} = Staking.account_for_wallet(@wallet)
+
+    reading =
+      protocol
+      |> Map.merge(%{
+        usdc_received_from_block: :unavailable,
+        usdc_received_7d_raw: :unavailable,
+        usdc_received_7d: :unavailable
+      })
+      |> Facts.merge(wallet_facts)
+
+    assert reading.usdc_received_lifetime == "5074.87"
+    assert reading.total_staked == "100"
+    assert reading.wallet_stake_balance == "5"
+    assert Staking.spendable(reading, "stake") == 10_000_000_000_000_000_000
+
+    assert Staking.available_claims(reading) == %{
+             "claim_usdc" => nil,
+             "claim_regent" => nil,
+             "claim_and_restake_regent" => nil
+           }
+  end
+
   # What a page holds: the shared contract reading with this wallet's reading
   # beside it, each still carrying its own block.
   defp page_reading(wallet) do

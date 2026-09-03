@@ -414,16 +414,16 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
-  # A failed or crashed wallet read says nothing new about the connected wallet
-  # or the contract, so the shared reading stays exactly where it is and only
-  # the refresh failure is surfaced. With nothing on screen at all, the page
-  # keeps reporting Base unavailable.
+  # A failed or crashed wallet read says nothing about the contract reading
+  # beside it, so that reading stays exactly where it is and only this wallet's
+  # own figures are marked unavailable. The page keeps its layout and every
+  # control on it.
   def handle_async(
         {:staking, generation} = name,
         {:ok, {generation, {:error, _reason}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, socket |> release_staking_read(name) |> staking_read_failed()}
+    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
   end
 
   def handle_async(
@@ -431,7 +431,7 @@ defmodule AshPlatformWeb.ShellLive do
         {:exit, _reason},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, socket |> release_staking_read(name) |> staking_read_failed()}
+    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
   end
 
   def handle_async({:staking, _generation} = name, _result, socket),
@@ -913,10 +913,17 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("fill_staking_amount", %{"portion" => portion}, socket)
       when portion in ["half", "max"] do
-    amount = Staking.spendable(socket.assigns.staking, socket.assigns.staking_action)
+    case Staking.spendable(socket.assigns.staking, socket.assigns.staking_action) do
+      :unavailable ->
+        {:noreply, socket}
 
-    {:noreply,
-     assign(socket, staking_amount: token_amount(portioned(amount, portion)), staking_notice: nil)}
+      amount ->
+        {:noreply,
+         assign(socket,
+           staking_amount: token_amount(portioned(amount, portion)),
+           staking_notice: nil
+         )}
+    end
   end
 
   def handle_event("fill_staking_amount", _params, socket), do: {:noreply, socket}
@@ -956,7 +963,7 @@ defmodule AshPlatformWeb.ShellLive do
   # One visitor's refresh re-reads the contract for everyone. Only the contract
   # figures are replaced: each page keeps whatever it knows about its own
   # connected wallet, still labelled with the block that wallet was read at, and
-  # nothing re-reads a wallet on its own.
+  # a wallet already answered for is never re-read on its own.
   @impl true
   def handle_info(
         {:staking_snapshot, protocol},
@@ -964,11 +971,13 @@ defmodule AshPlatformWeb.ShellLive do
       )
       when route_id in [:stake, :app] do
     {:noreply,
-     assign(socket,
+     socket
+     |> assign(
        staking: StakingFacts.adopt_protocol(socket.assigns.staking, protocol),
        staking_shared_reading: false,
        staking_status: :ready
-     )}
+     )
+     |> read_unanswered_wallet()}
   end
 
   def handle_info({:staking_snapshot, _protocol}, socket), do: {:noreply, socket}
@@ -979,7 +988,7 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply,
      socket
      |> assign(staking_shared_reading: false)
-     |> staking_read_failed()}
+     |> shared_read_failed()}
   end
 
   def handle_info(
@@ -1669,7 +1678,26 @@ defmodule AshPlatformWeb.ShellLive do
         staking_notice: nil
       )
 
-  defp staking_read_failed(socket) do
+  # A wallet reading that failed leaves every figure it would have carried
+  # marked unavailable, beside the contract reading it never spoke about. With
+  # no contract reading to sit beside there is nothing to mark.
+  defp wallet_read_failed(%{assigns: %{staking: nil}} = socket), do: shared_read_failed(socket)
+
+  defp wallet_read_failed(socket) do
+    assign(socket,
+      staking:
+        StakingFacts.merge(
+          socket.assigns.staking,
+          StakingFacts.unavailable_wallet(socket.assigns.staking_wallet)
+        ),
+      staking_status: :ready,
+      staking_notice: %{tone: :error, message: @staking_refresh_failure_notice}
+    )
+  end
+
+  # Only the contract reading can leave a page with nothing honest to show. A
+  # reading that fails leaves the previous one exactly where it was.
+  defp shared_read_failed(socket) do
     if socket.assigns.staking do
       assign(socket,
         staking_status: :ready,
@@ -1713,6 +1741,21 @@ defmodule AshPlatformWeb.ShellLive do
         )
     end
   end
+
+  # A wallet connected while there was no contract reading has nothing to be
+  # shown beside, so nothing was bought for it. The moment a contract reading
+  # arrives that wallet is looked up, rather than leaving somebody to ask for a
+  # reading they already asked for. A wallet the page has an answer for, however
+  # that answer turned out, is left alone.
+  defp read_unanswered_wallet(%{assigns: %{staking_wallet: nil}} = socket), do: socket
+
+  defp read_unanswered_wallet(
+         %{assigns: %{staking: %{wallet_address: wallet}, staking_wallet: wallet}} = socket
+       ),
+       do: socket
+
+  defp read_unanswered_wallet(socket),
+    do: start_staking_read(socket, socket.assigns.content_generation)
 
   # With no wallet connected there is nothing about this visitor to read, and
   # the shared contract reading on screen already answers for everyone.
@@ -2694,6 +2737,12 @@ defmodule AshPlatformWeb.ShellLive do
     do: if(String.trim(amount) == "", do: nil, else: "Enter an amount in REGENT above zero.")
 
   defp limit_copy(nil), do: nil
+
+  # Nothing here refuses the amount: the figure it would be checked against is
+  # missing, and the wallet still decides.
+  defp limit_copy(:chain_unavailable),
+    do: "Your position is unavailable right now, so this amount is not checked against it."
+
   defp limit_copy(reason), do: staking_preparation_error(reason)
   defp portioned(balance, "half"), do: div(balance, 2)
   defp portioned(balance, "max"), do: balance

@@ -177,11 +177,27 @@ defmodule AshPlatform.Staking.Actions do
   def available_claims(staking),
     do: Map.new(@claims, &{&1, limit_refusal(staking, &1, nil)})
 
-  def spendable(%{wallet_token_balance_raw: wallet, remaining_capacity_raw: capacity}, "stake"),
-    do: min(available(wallet), available(capacity))
+  @doc """
+  The most REGENT the last reading lets this wallet stake or unstake, or
+  `:unavailable` when a figure it would be counted from could not be read.
+  """
+  def spendable(%{wallet_token_balance_raw: wallet, remaining_capacity_raw: capacity}, "stake") do
+    with {:ok, wallet} <- atomic(wallet),
+         {:ok, capacity} <- atomic(capacity) do
+      min(wallet, capacity)
+    else
+      :error -> :unavailable
+    end
+  end
 
-  def spendable(%{wallet_stake_balance_raw: staked}, "unstake"), do: available(staked)
-  def spendable(_, _), do: 0
+  def spendable(%{wallet_stake_balance_raw: staked}, "unstake") do
+    case atomic(staked) do
+      {:ok, staked} -> staked
+      :error -> :unavailable
+    end
+  end
+
+  def spendable(_, _), do: :unavailable
 
   # Nothing earned and an inventory too small to cover what was earned are
   # different facts, and the page says which one the reading found.
@@ -198,19 +214,16 @@ defmodule AshPlatform.Staking.Actions do
     end
   end
 
-  defp atomic(value) do
-    case Integer.parse(value || "") do
+  # A figure is an exact integer written out; nothing else, blank or
+  # unavailable, is a number this reading can count with.
+  defp atomic(value) when is_binary(value) do
+    case Integer.parse(value) do
       {amount, ""} -> {:ok, amount}
       _ -> :error
     end
   end
 
-  defp available(value) do
-    case atomic(value) do
-      {:ok, amount} -> amount
-      :error -> 0
-    end
-  end
+  defp atomic(_value), do: :error
 
   defp normalize_address(value) do
     case Address.normalize(value) do

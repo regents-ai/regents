@@ -11,6 +11,11 @@ defmodule AshPlatform.Staking.Facts do
   moment: the seven days of recorded USDC end at the block it was read at and
   begin at `usdc_received_from_block`, so the window is always the chain's own
   and never the clock's.
+
+  A figure the reading asked for and could not get holds the atom
+  `:unavailable` in place of its value. Every figure has that one shape, whether
+  it was read alone, like the seven-day window, or with the rest of a wallet
+  reading, so a page writes it out in words and never as a blank or a zero.
   """
 
   @protocol_keys [
@@ -61,6 +66,16 @@ defmodule AshPlatform.Staking.Facts do
 
   @doc "A wallet reading that found nothing, which is never a set of zero balances."
   def blank_wallet, do: Map.new(@wallet_keys, &{&1, nil})
+
+  @doc """
+  The wallet reading of `wallet` after the call for it failed.
+
+  Every figure is unavailable and the address stays, so the page keeps the
+  wallet's own section, writes each figure out as unavailable, and leaves every
+  control on it exactly where it was.
+  """
+  def unavailable_wallet(wallet),
+    do: @wallet_keys |> Map.new(&{&1, :unavailable}) |> Map.put(:wallet_address, wallet)
 
   @doc "One page reading: this protocol reading with this wallet reading beside it."
   def merge(protocol, wallet) when is_map(protocol) and is_map(wallet),

@@ -128,6 +128,14 @@ input:focus-visible,
   content: "…";
 }
 
+/* A figure the last reading could not get. It is set in the page's quiet voice
+   so it reads as a missing figure rather than as a number. */
+.figure-unavailable {
+  color: var(--ash-muted);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
 /* Carries the exact figure behind a shortened one, for assistive technology. */
 .visually-hidden {
   position: absolute;

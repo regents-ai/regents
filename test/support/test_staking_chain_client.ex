@@ -77,7 +77,6 @@ defmodule AshPlatform.TestStakingChainClient do
     denominator = String.to_integer(setting(:test_staking_denominator, @denominator))
     capacity = max(denominator - total, 0)
     block = setting(:test_staking_protocol_block, @protocol_block)
-    seven_day_usdc = setting(:test_staking_usdc_7d, @seven_day_usdc)
 
     %{
       chain_id: 8453,
@@ -92,9 +91,6 @@ defmodule AshPlatform.TestStakingChainClient do
       total_staked_raw: @total_staked,
       total_staked: scaled(@total_staked, 18),
       remaining_capacity_raw: Integer.to_string(capacity),
-      usdc_received_from_block: max(block - @window_blocks + 1, 0),
-      usdc_received_7d_raw: seven_day_usdc,
-      usdc_received_7d: scaled(seven_day_usdc, 6),
       usdc_received_lifetime_raw: @lifetime_usdc,
       usdc_received_lifetime: scaled(@lifetime_usdc, 6),
       regent_total_supply_raw: @regent_total_supply,
@@ -102,6 +98,27 @@ defmodule AshPlatform.TestStakingChainClient do
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }
+    |> Map.merge(seven_day_window(block))
+  end
+
+  # The seven-day window is read beside the contract's answers rather than with
+  # them, so a test can take it away without taking anything else with it.
+  defp seven_day_window(block) do
+    case Application.get_env(:ash_platform, :test_staking_usdc_7d, @seven_day_usdc) do
+      :unavailable ->
+        %{
+          usdc_received_from_block: :unavailable,
+          usdc_received_7d_raw: :unavailable,
+          usdc_received_7d: :unavailable
+        }
+
+      received ->
+        %{
+          usdc_received_from_block: max(block - @window_blocks + 1, 0),
+          usdc_received_7d_raw: received,
+          usdc_received_7d: scaled(received, 6)
+        }
+    end
   end
 
   defp wallet_facts(wallet) do

@@ -13,7 +13,7 @@ defmodule AshPlatformWeb.StakeLive do
   attr :reading, :boolean, default: false
   attr :shared_reading, :boolean, default: false
   attr :signed_in, :boolean, default: false
-  attr :spendable, :integer, default: 0
+  attr :spendable, :any, default: :unavailable
   attr :amount_notice, :string, default: nil
   attr :available_claims, :map, default: %{}
   attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in, :mismatch]
@@ -169,16 +169,13 @@ defmodule AshPlatformWeb.StakeLive do
             <p>Loading this wallet’s position while contract data remains on screen…</p>
           </div>
 
-          <div :if={@wallet && !@wallet_ready && !@reading} class="stake-wallet-recovery">
-            <p>Your wallet is connected, but its latest Base position could not be loaded.</p>
-            <div>
-              <button type="button" phx-click="refresh_staking">Try again</button>
-            </div>
-          </div>
-
           <div :if={@wallet_ready} class="stake-wallet-controls">
-            <p class="stake-wallet-block">
+            <p :if={is_integer(@staking.wallet_block_number)} class="stake-wallet-block">
               Your position at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
+            </p>
+            <p :if={@staking.wallet_block_number == :unavailable} class="stake-wallet-block">
+              Your position could not be read just now. Everything else here is current, and every
+              action below still goes to your wallet.
             </p>
             <dl class="stake-wallet-summary">
               <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
@@ -218,20 +215,21 @@ defmodule AshPlatformWeb.StakeLive do
               </div>
               <div class="stake-amount-tools">
                 <p id="staking-available">
-                  Available <TokenDisplay.amount amount={token_amount(@spendable)} unit="REGENT" />
+                  Available
+                  <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
                 </p>
                 <div>
                   <button
                     type="button"
                     phx-click="fill_staking_amount"
                     phx-value-portion="half"
-                    disabled={div(@spendable, 2) == 0}
+                    disabled={not fillable?(@spendable, "half")}
                   >50%</button>
                   <button
                     type="button"
                     phx-click="fill_staking_amount"
                     phx-value-portion="max"
-                    disabled={@spendable == 0}
+                    disabled={not fillable?(@spendable, "max")}
                   >Max</button>
                 </div>
               </div>
@@ -557,10 +555,26 @@ defmodule AshPlatformWeb.StakeLive do
   defp claim_state(true), do: "(available)"
   defp claim_state(false), do: "(nothing to claim)"
 
+  # What the amount controls may fill in, or nothing at all when the figure they
+  # would count from could not be read. Filling a box is not a wallet request,
+  # so these two are the only controls on this page a reading ever quiets.
+  defp spendable_figure(:unavailable), do: :unavailable
+  defp spendable_figure(spendable), do: token_amount(spendable)
+
+  defp fillable?(:unavailable, _portion), do: false
+  defp fillable?(spendable, "half"), do: div(spendable, 2) > 0
+  defp fillable?(spendable, "max"), do: spendable > 0
+
   defp wallet_ready?(staking, wallet) when is_map(staking) and is_binary(wallet),
     do: Map.get(staking, :wallet_address) == wallet
 
   defp wallet_ready?(_, _), do: false
+
+  # An allowance nobody could read is treated as none: the wallet is told to
+  # expect the approval step, and the browser asks for one, rather than the
+  # press being held back over a figure this page does not have.
+  defp approval_needed?(%{wallet_stake_allowance_raw: :unavailable}, "stake", amount),
+    do: match?({:ok, _}, AshPlatform.Staking.parse_amount(amount))
 
   defp approval_needed?(staking, "stake", amount) when is_map(staking) do
     with {:ok, requested} <- AshPlatform.Staking.parse_amount(amount),
@@ -600,13 +614,13 @@ defmodule AshPlatformWeb.StakeLive do
 
   defp atomic(_), do: :error
 
-  defp stake_allowance(staking) when is_map(staking),
-    do: Map.get(staking, :wallet_stake_allowance_raw, "0")
+  defp stake_allowance(%{wallet_stake_allowance_raw: allowance}) when is_binary(allowance),
+    do: allowance
 
   defp stake_allowance(_staking), do: nil
 
   attr :label, :string, required: true
-  attr :amount, :string, default: nil
+  attr :amount, :any, default: nil
   attr :unit, :string, required: true
 
   defp metric(assigns) do

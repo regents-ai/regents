@@ -120,21 +120,48 @@ defmodule AshPlatform.Staking.RpcClientTest do
   end
 
   # A total assembled from the pieces that happened to answer would understate
-  # what the contract registered, so one refused piece takes the whole reading
-  # with it and the shared reading keeps the one it already has.
-  test "FAILING_PIECE: one refused piece of the window fails the whole reading" do
+  # what the contract registered, so a refused piece takes the seven-day figure
+  # with it. It takes nothing else: the contract already answered for every
+  # other figure, and that answer stands.
+  test "FAILING_PIECE: a refused piece of the window costs that figure and nothing else" do
     head(@head)
     Stub.put(%{refused_log_range: @window_start + 3 * @chunk_blocks})
 
-    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot()
+    log =
+      capture_log(fn ->
+        assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+
+        assert snapshot.usdc_received_7d == :unavailable
+        assert snapshot.usdc_received_7d_raw == :unavailable
+        assert snapshot.usdc_received_from_block == :unavailable
+
+        # Every figure the contract itself answered for is there and exact.
+        assert snapshot.block_number == @head
+        assert snapshot.total_staked_raw == "100"
+        assert snapshot.remaining_capacity_raw == "900"
+        assert snapshot.usdc_received_lifetime_raw == "125000000000"
+        assert snapshot.regent_total_supply == "100000000000"
+        assert Enum.sort(Map.keys(snapshot)) == Enum.sort(Facts.protocol_keys())
+      end)
+
+    # The log names the stretch of blocks that failed and why, and never the
+    # endpoint it asked.
+    failed_from = @window_start + 3 * @chunk_blocks
+    assert log =~ "seven-day USDC window unavailable"
+    assert log =~ "blocks #{failed_from}..#{failed_from + @chunk_blocks - 1}"
+    refute log =~ "http"
   end
 
   # A log this contract did not emit, or one carrying another event's shape,
-  # fails the sum rather than being skipped past.
-  test "MALFORMED_LOG: a log that does not decode fails the reading" do
+  # fails the sum rather than being skipped past. The sum is the seven-day
+  # figure alone, so nothing else in the reading answers for it.
+  test "MALFORMED_LOG: a log that does not decode fails the seven-day figure" do
     Stub.put(%{logs: [%{revenue_log(0x20, 1_000_000) | "data" => "0x"}]})
 
-    assert {:error, :invalid_chain_response} = RpcClient.protocol_snapshot()
+    capture_log(fn ->
+      assert {:ok, %{usdc_received_7d: :unavailable, usdc_received_lifetime: "125000"}} =
+               RpcClient.protocol_snapshot()
+    end)
   end
 
   test "ONE_WALLET_CALL: seven wallet reads arrive as one aggregate on a fresh block" do

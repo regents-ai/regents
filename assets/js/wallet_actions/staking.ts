@@ -180,7 +180,7 @@ export function prepareStakingClick(
 
   let approval: StakingTransaction | null = null
   if (action === "stake") {
-    const allowance = exactUint(rendered.allowanceAtomic)
+    const allowance = readAllowance(rendered.allowanceAtomic)
     if (allowance < requiredAmount(amount)) {
       const approvalData = encodeFunctionData({
         abi: approvalAbi,
@@ -412,6 +412,13 @@ function exactAmount(value: string): bigint {
 
 function invalidAmount(): StakingLocalRefusal {
   return new StakingLocalRefusal("Enter a positive REGENT amount with no more than 18 decimal places.")
+}
+
+// The page carries no allowance when the last reading could not get one. That
+// is treated as none, so the approval goes to the wallet and the press is never
+// held back over a figure the page does not have.
+function readAllowance(value: string): bigint {
+  return value === "" ? 0n : exactUint(value)
 }
 
 function exactUint(value: string): bigint {

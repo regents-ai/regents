@@ -21,16 +21,25 @@ defmodule AshPlatformWeb.TokenDisplay do
     {Decimal.new(1_000), "k"}
   ]
 
-  attr :amount, :string, default: nil
+  attr :amount, :any, default: nil
   attr :unit, :string, default: nil
 
   @doc """
   A read-only figure. It is shortened on screen while the exact amount stays
   readable to assistive technology and on hover. Never an input.
+
+  A figure the last reading could not get is `:unavailable` and is written out
+  in words, so nobody reads a missing figure as a zero.
   """
   def amount(%{amount: nil} = assigns) do
     ~H"""
     —
+    """
+  end
+
+  def amount(%{amount: :unavailable} = assigns) do
+    ~H"""
+    <span class="figure-unavailable">Unavailable right now</span>
     """
   end
 
