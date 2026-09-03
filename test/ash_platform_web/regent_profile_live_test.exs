@@ -30,7 +30,6 @@ defmodule AshPlatformWeb.RegentProfileLiveTest do
     assert html =~ "Research and synthesis."
     assert html =~ account.wallet_address
     refute html =~ account.privy_user_id
-    refute html =~ "Billing"
   end
 
   test "an unknown Regent slug has an honest empty state", %{conn: conn} do

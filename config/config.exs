@@ -12,7 +12,6 @@ config :mime, :types, %{"application/yaml" => ["yaml"]}
 config :ash_platform,
   ash_domains: [
     AshPlatform.Accounts,
-    AshPlatform.Billing,
     AshPlatform.Discussions,
     AshPlatform.Formation,
     AshPlatform.Techtree,

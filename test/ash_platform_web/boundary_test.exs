@@ -148,6 +148,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [account_ens_identities_migration] =
              Path.wildcard("priv/repo/migrations/*_regent_gu2_23_account_ens_identities.exs")
 
+    assert [remove_billing_migration] =
+             Path.wildcard("priv/repo/migrations/*_remove_billing.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                regent_migration,
@@ -189,7 +192,8 @@ defmodule AshPlatformWeb.BoundaryTest do
                launch_operations_migration,
                c9_consumer_migration,
                treasury_custody_migration,
-               account_ens_identities_migration
+               account_ens_identities_migration,
+               remove_billing_migration
              ])
 
     assert_additive_migration(
@@ -912,9 +916,9 @@ defmodule AshPlatformWeb.BoundaryTest do
     # No raw session lineage is ever a column on a launch operation either.
     refute File.read!(launch_operations_migration) =~ "lineage"
 
-    # The one deliberately destructive migration in this repository. It takes
-    # away exactly the deleted recovery-admin column and gives back exactly that
-    # column, so it is asserted whole rather than through the additive helper.
+    # This deliberately destructive migration takes away exactly the deleted
+    # recovery-admin column and gives back exactly that column, so it is
+    # asserted whole rather than through the additive helper.
     [c9_up, c9_down] =
       c9_consumer_migration |> File.read!() |> String.split("  def down do", parts: 2)
 
@@ -977,7 +981,6 @@ defmodule AshPlatformWeb.BoundaryTest do
   test "only the admitted canonical domains are configured" do
     assert Application.fetch_env!(:ash_platform, :ash_domains) == [
              AshPlatform.Accounts,
-             AshPlatform.Billing,
              AshPlatform.Discussions,
              AshPlatform.Formation,
              AshPlatform.Techtree,

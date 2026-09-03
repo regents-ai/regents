@@ -125,7 +125,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
       refute has_element?(view, selector)
     end
 
-    for copy <- ["Form your Regent", "Hermes Skills", "Billing", "Provision Sprite"] do
+    for copy <- ["Form your Regent", "Hermes Skills", "Provision Sprite"] do
       refute html =~ copy
     end
   end

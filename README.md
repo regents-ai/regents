@@ -8,7 +8,7 @@
 
 Ash Platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
-it owns human identity, billing, Formation, public Regent records, and the Techtree and
+it owns human identity, Formation, public Regent records, and the Techtree and
 Autolaunch product areas.
 
 > [!IMPORTANT]
@@ -119,7 +119,7 @@ is a map, not the contract.
 ## Repository layout
 
 ```text
-lib/ash_platform/       Ash domains: accounts, billing, formation, techtree, autolaunch,
+lib/ash_platform/       Ash domains: accounts, formation, techtree, autolaunch,
                         discussions, identity, durable work
 lib/ash_platform_web/   Endpoint, router, LiveViews, controllers, components
 lib/mix/tasks/          Local setup, reset, contract sync, and route-handoff checks
