@@ -1,16 +1,20 @@
+/* The marketing page is painted dark whichever theme is saved, so it cannot ask which one
+   is showing: the Regents dark palette is stated here outright. Blue proves and orange
+   earns — Techtree and the Nous chapter that runs its work share the palette's Accent
+   Blue, Autolaunch and the Revenue chapter share its Accent Orange, and Patchbay keeps
+   its own warm grey. */
 .rl-root {
-  --rl-bg: oklch(14.5% 0 0);
-  --rl-panel: oklch(18% 0 0);
-  --rl-ink: oklch(97% 0 0);
+  --rl-bg: #0b0b0b;
+  --rl-panel: #141414;
+  --rl-ink: #e5e3d2;
   --rl-muted: color-mix(in oklch, var(--rl-ink) 65%, transparent);
-  --rl-line: color-mix(in oklch, var(--rl-ink) 16%, transparent);
-  --rl-line-strong: color-mix(in oklch, var(--rl-ink) 28%, transparent);
-  --rl-accent: oklch(74% 0.11 250);
-  --rl-nous: oklch(68% 0.16 45);
-  --rl-autolaunch: oklch(78% 0.17 155);
-  --rl-techtree: oklch(72% 0.11 250);
-  --rl-patchbay: oklch(72% 0.18 300);
-  --rl-chapter-default: oklch(82% 0.11 91);
+  --rl-line: #2a2a2a;
+  --rl-line-strong: color-mix(in oklab, #e5e3d2 40%, #2a2a2a);
+  --rl-nous: #aecacd;
+  --rl-autolaunch: #ff5b19;
+  --rl-techtree: #aecacd;
+  --rl-patchbay: #b9b7a6;
+  --rl-chapter-default: #ff5b19;
   --rl-header-h: calc(4rem + 1px);
   --rl-max: 88rem;
   --rl-quiet: 0.88rem;
@@ -34,9 +38,13 @@
   text-decoration: none;
 }
 
+/* The focus ring is the page's own mark, so it cannot be a product's colour. Both of the
+   palette's accents are spoken for here — Accent Blue is techtree's, Accent Orange is
+   autolaunch's — and a card wearing its colour would swallow a ring drawn in it. The ring
+   is set in Text, the one colour the page wears whichever card is being read. */
 .rl-root a:focus-visible,
 .rl-root button:focus-visible {
-  outline: 2px solid var(--rl-accent);
+  outline: 2px solid var(--rl-ink);
   outline-offset: -2px;
 }
 
@@ -196,22 +204,23 @@
   border-block-end: 1px solid var(--rl-line);
 }
 
-/* Placeholder product colours. Each pair is the accent the hovered card takes and the
-   ground the hero stands on; the two canvases are handed the same pair from one place
-   in the scripts, so changing a colour here means changing it there. */
+/* Each product's own colour, and the ground the hero stands on while that card is being
+   read: the product folded into the page's Background far enough to tint it and no
+   further. The two canvases are handed the same pair from one place in the scripts, so
+   changing a colour here means changing it there. */
 .rl-hero[data-hero-product="autolaunch"] {
-  --hero-accent: oklch(80% 0.16 70);
-  --rl-bg: oklch(16% 0.03 60);
+  --hero-accent: var(--rl-autolaunch);
+  --rl-bg: color-mix(in oklab, #ff5b19 8%, #0b0b0b);
 }
 
 .rl-hero[data-hero-product="techtree"] {
-  --hero-accent: oklch(78% 0.17 150);
-  --rl-bg: oklch(15% 0.03 160);
+  --hero-accent: var(--rl-techtree);
+  --rl-bg: color-mix(in oklab, #aecacd 8%, #0b0b0b);
 }
 
 .rl-hero[data-hero-product="patchbay"] {
   --hero-accent: var(--rl-patchbay);
-  --rl-bg: oklch(15% 0.035 300);
+  --rl-bg: color-mix(in oklab, #b9b7a6 8%, #0b0b0b);
 }
 
 /* The home hero is one screenful: the words stand beside the crown for as much of it as the

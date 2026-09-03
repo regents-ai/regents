@@ -695,7 +695,7 @@ test("[U2] the primary homepage action keeps its contrast on hover", async ({pag
   })).toEqual(before)
 })
 
-test("[U1] the white primary action has a square high-contrast keyboard focus ring", async ({page}, testInfo) => {
+test("[U1] the block primary action has a square high-contrast keyboard focus ring", async ({page}, testInfo) => {
   for (const viewport of focusViewports) {
     await page.setViewportSize({width: viewport.width, height: viewport.height})
     await page.goto("/")
@@ -814,9 +814,11 @@ test("[U1] the white primary action has a square high-contrast keyboard focus ri
 })
 
 // The hero tints its own words for the product under the pointer or the keyboard, but
-// the focus ring belongs to the whole site: it has to stay the one blue mark a reader
-// can always find, even on the card whose colour the page is currently wearing.
-test("[U1] every hero control keeps the site's blue focus ring, whatever colour the hero is wearing", async ({page}) => {
+// the focus ring belongs to the whole page. Both of the palette's accents are a product's
+// colour here, so the ring is set in Text — the one colour the page wears whichever card
+// is being read — and it has to stay that same mark on every control, including the card
+// whose colour the page is currently wearing.
+test("[U1] every hero control keeps the page's own focus ring, whatever colour the hero is wearing", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
   await waitForHomepage(page)
@@ -833,12 +835,19 @@ test("[U1] every hero control keeps the site's blue focus ring, whatever colour 
       return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).join(",")
     }, color)
 
-  const siteBlue = await asRgb("oklch(74% 0.11 250)")
-  const techtreeGreen = await asRgb("oklch(78% 0.17 150)")
-  expect(siteBlue).not.toBe(techtreeGreen)
-  await expect(page.locator(".rl-root")).toHaveCSS("--rl-accent", "oklch(74% 0.11 250)")
+  const pageMark = await asRgb("#e5e3d2")
+  const productColors = {
+    techtree: await asRgb("#aecacd"),
+    autolaunch: await asRgb("#ff5b19"),
+    patchbay: await asRgb("#b9b7a6"),
+  }
+  expect(Object.values(productColors)).not.toContain(pageMark)
+  await expect(page.locator(".rl-root")).toHaveCSS("--rl-ink", "#e5e3d2")
 
-  const rings = new Map<string, {heroProduct: string | undefined; outlineColor: string}>()
+  const rings = new Map<
+    string,
+    {heroProduct: string | undefined; outlineColor: string; color: string}
+  >()
   const focusableCount = await page
     .locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])")
     .count()
@@ -850,14 +859,20 @@ test("[U1] every hero control keeps the site's blue focus ring, whatever colour 
       const hero = element instanceof HTMLElement ? element.closest<HTMLElement>(".rl-hero") : null
       if (!hero || !element || !(element as HTMLElement).matches(":focus-visible")) return null
       const control = element as HTMLElement
+      const style = getComputedStyle(control)
       return {
         heroProduct: hero.dataset.heroProduct,
         name: control.getAttribute("aria-label") ?? control.textContent?.replace(/\s+/g, " ").trim() ?? "",
-        outlineColor: getComputedStyle(control).outlineColor,
+        outlineColor: style.outlineColor,
+        color: style.color,
       }
     })
     if (!seen) continue
-    rings.set(seen.name, {heroProduct: seen.heroProduct, outlineColor: seen.outlineColor})
+    rings.set(seen.name, {
+      heroProduct: seen.heroProduct,
+      outlineColor: seen.outlineColor,
+      color: seen.color,
+    })
   }
 
   expect([...rings.keys()]).toEqual([
@@ -870,12 +885,13 @@ test("[U1] every hero control keeps the site's blue focus ring, whatever colour 
   ])
 
   for (const [name, ring] of rings) {
-    expect(`${name}: ${await asRgb(ring.outlineColor)}`).toBe(`${name}: ${siteBlue}`)
+    expect(`${name}: ${await asRgb(ring.outlineColor)}`).toBe(`${name}: ${pageMark}`)
   }
 
-  // The techtree card is wearing its green while its own button is focused, and the ring
-  // is still blue against it — the exact case the review caught.
+  // The techtree card really is wearing its blue while its own button is focused, and the
+  // ring is still the page's own mark against it — the exact case the review caught.
   const techtree = rings.get("Open techtree ↗")!
   expect(techtree.heroProduct).toBe("techtree")
-  expect(await asRgb(techtree.outlineColor)).not.toBe(techtreeGreen)
+  expect(await asRgb(techtree.color)).toBe(productColors.techtree)
+  expect(await asRgb(techtree.outlineColor)).not.toBe(productColors.techtree)
 })

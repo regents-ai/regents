@@ -99,8 +99,8 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
       refute stylesheet =~ ~r/#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab)\(\s*[.\d]/
     end
 
-    assert tokens =~ "--ash-ground: light-dark(oklch(97% 0 0), oklch(14.5% 0 0))"
-    assert tokens =~ "--ash-ink: light-dark(oklch(14.5% 0 0), oklch(97% 0 0))"
+    assert tokens =~ "--ash-ground: light-dark(#f6f4ea, #0b0b0b)"
+    assert tokens =~ "--ash-ink: light-dark(#161616, #e5e3d2)"
     refute shell =~ "prefers-color-scheme"
   end
 

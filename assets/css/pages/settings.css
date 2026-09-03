@@ -37,7 +37,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem;
-  border: 1px solid var(--hairline, currentColor);
+  border: 1px solid var(--ash-line);
 }
 
 .verified-connections__list li > div {
@@ -46,16 +46,25 @@
 }
 
 .verified-connections__list span {
-  color: var(--color-fg-muted);
+  color: var(--ash-muted);
+}
+
+/* The row's action is the page's primary action and is drawn as one: the ink
+   block Stake and Redeem use, so it turns over with the theme instead of
+   standing on a raised surface that does not. */
+.verified-connections__list button {
+  border-color: var(--ash-ink);
+  background: var(--ash-ink);
+  color: var(--ash-ground);
 }
 
 .verified-connections__notice {
   padding-inline-start: 0.75rem;
-  border-inline-start: 3px solid var(--product-autolaunch, currentColor);
+  border-inline-start: 3px solid var(--ash-accent);
 }
 
 .verified-connections__notice--error {
-  border-inline-start-color: var(--color-error);
+  border-inline-start-color: var(--ash-accent-warm);
 }
 
 @media (max-width: 30rem) {

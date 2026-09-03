@@ -151,7 +151,7 @@
 
 .stake-benefit-card dd {
   margin: 0;
-  color: var(--ash-regent);
+  color: var(--ash-accent-warm);
   font-family: var(--font-family-display);
   font-size: clamp(1.2rem, 3vw, 2rem);
   font-weight: 400;
@@ -558,8 +558,9 @@
   text-wrap: balance;
 }
 
-/* A reward the last reading from Base actually found is lit in its own colour:
-   blue for the revenue share, white for REGENT, green where it compounds. */
+/* A reward the last reading from Base actually found is lit in its own colour: the
+   palette's Accent Blue for the revenue share, the page ink for REGENT, and its Accent
+   Orange where the reward goes straight back to work. */
 .stake-button-row button.stake-claim-ready[data-staking-action="claim_usdc"] {
   box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-accent) 40%, transparent);
 }
@@ -569,7 +570,7 @@
 }
 
 .stake-button-row button.stake-claim-ready[data-staking-action="claim_and_restake_regent"] {
-  box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-green) 40%, transparent);
+  box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-accent-warm) 40%, transparent);
 }
 
 .stake-footer {
@@ -699,7 +700,7 @@
 }
 
 .stake-how-it-works article > span {
-  color: var(--ash-regent);
+  color: var(--ash-accent-warm);
   font-family: var(--font-family-pixel);
   font-size: 0.9rem;
 }
@@ -800,7 +801,7 @@
   color: var(--ash-ink);
 }
 
-.stake-result-dialog::backdrop { background: color-mix(in oklch, black 72%, transparent); }
+.stake-result-dialog::backdrop { background: var(--ash-scrim); }
 .stake-result-dialog h2 { margin: 0.25rem 0 0.75rem; }
 .stake-dialog-kicker,
 .stake-dialog-summary,

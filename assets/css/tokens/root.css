@@ -1,7 +1,8 @@
-/* The one palette the shell, Stake and Redeem stand on.
-   Dark carries the marketing page's own values; light is the same grammar on an
-   inverted ground. The marketing page keeps its literal values in home.css and
-   stays dark whichever theme is saved. */
+/* The one palette the shell, Stake and Redeem stand on: the founder's Regents light and
+   Regents dark sheets, swatch for swatch. Every colour on those surfaces is one of the
+   eight swatches or a mix of exactly two of them, and nothing else states a colour.
+   The marketing page keeps its own values in home.css, because it stays dark whichever
+   theme is saved and so cannot ask which one is showing. */
 
 /* RegentUI states one colour scheme per product, at a weight that would
    otherwise decide the document's for it, so the shell's own statement is made
@@ -25,27 +26,46 @@
 }
 
 :root {
-  --ash-ground: light-dark(oklch(97% 0 0), oklch(14.5% 0 0));
-  --ash-panel: light-dark(oklch(100% 0 0), oklch(18% 0 0));
-  --ash-panel-strong: light-dark(oklch(94% 0 0), oklch(21% 0 0));
-  --ash-ink: light-dark(oklch(14.5% 0 0), oklch(97% 0 0));
+  /* Background, Surface, Text and Border, taken outright. */
+  --ash-ground: light-dark(#f6f4ea, #0b0b0b);
+  --ash-panel: light-dark(#ffffff, #141414);
+  --ash-ink: light-dark(#161616, #e5e3d2);
+  --ash-line: light-dark(#dad8c7, #2a2a2a);
+
+  /* One step past the panel, for the row the visitor is standing on and for the
+     cells that carry a figure: Border folded into Surface, away from the page. */
+  --ash-panel-strong: light-dark(
+    color-mix(in oklab, #dad8c7 55%, #ffffff),
+    color-mix(in oklab, #2a2a2a 50%, #141414)
+  );
+
   --ash-muted: color-mix(in oklch, var(--ash-ink) 65%, transparent);
-  --ash-line: color-mix(in oklch, var(--ash-ink) 16%, transparent);
-  --ash-line-strong: color-mix(in oklch, var(--ash-ink) 28%, transparent);
 
-  /* One hue each, darkened on the light ground only as far as 4.5:1 against the
-     panels needs: on the deepest light panel accent reads 5.0:1 and REGENT
-     5.0:1; both clear 7:1 on the dark ground. */
-  --ash-accent: light-dark(oklch(50% 0.11 250), oklch(74% 0.11 250));
-  --ash-regent: light-dark(oklch(50% 0.11 91), oklch(82% 0.11 91));
+  /* The edge of a control has to be found before the control can be used, so it
+     is drawn at 3:1 against both the fill inside it and the page outside it:
+     Text folded into Border, far enough to clear that on every surface. */
+  --ash-line-strong: light-dark(
+    color-mix(in oklab, #161616 40%, #dad8c7),
+    color-mix(in oklab, #e5e3d2 40%, #2a2a2a)
+  );
 
-  /* Collection art is a picture, not a surface: it keeps one dark ground in both
-     themes so a single white monogram reads on every card. */
-  --ash-art: oklch(21% 0 0);
+  /* The palette carries two accents and the shell reads them as two. Blue is what
+     the page points at: focus, links, the revenue share. Orange is what carries
+     value or risk: the REGENT figures, compounding, disconnecting, an error.
+     Dark takes both swatches raw. Light folds each into Primary only as far as
+     4.5:1 on the deepest light panel needs — blue reads 4.7:1 there and orange
+     4.6:1, and both clear 5:1 on Surface. */
+  --ash-accent: light-dark(color-mix(in oklab, #aecacd 50%, #161616), #aecacd);
+  --ash-accent-warm: light-dark(color-mix(in oklab, #ff5b19 68%, #161616), #ff5b19);
 
-  /* Compounding borrows Autolaunch's green from the marketing page, so the one
-     action that puts a reward straight back to work reads the same colour here. */
-  --ash-green: oklch(78% 0.17 155);
+  /* Collection art is a picture, not a surface: it keeps Primary as its ground in
+     both themes so a single Surface-white monogram reads on every card. */
+  --ash-art: #161616;
+  --ash-art-ink: #ffffff;
+
+  /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
+     in front of it reads the same whichever ground it was opened from. */
+  --ash-scrim: color-mix(in oklab, #161616 72%, transparent);
 
   /* The theme switch's own cell: a dark wire cube on a pale stage in light, a
      pale one on a dark stage in dark. */

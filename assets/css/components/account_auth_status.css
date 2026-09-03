@@ -11,17 +11,13 @@
   width: min(20rem, calc(100vw - 1.5rem));
   margin: 0;
   padding: 0.5rem 0.625rem;
-  border: 1px solid color-mix(in oklch, CanvasText 26%, transparent);
+  border: 1px solid var(--ash-line-strong);
   border-radius: 2px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklch, Canvas 98%, transparent),
-    color-mix(in oklch, Canvas 95%, transparent)
-  );
-  color: CanvasText;
+  background: linear-gradient(145deg, var(--ash-panel), var(--ash-panel-strong));
+  color: var(--ash-ink);
   box-shadow:
-    0 1px 0 color-mix(in oklch, CanvasText 8%, transparent),
-    0 12px 30px color-mix(in oklch, CanvasText 18%, transparent);
+    0 1px 0 color-mix(in oklch, var(--ash-ink) 8%, transparent),
+    0 12px 30px color-mix(in oklch, var(--ash-ink) 18%, transparent);
   font-size: 0.8125rem;
   line-height: 1.35;
   text-align: start;

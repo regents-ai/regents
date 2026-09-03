@@ -298,7 +298,7 @@ details[open] > summary .shell-chevron {
 
 .account-menu__row--danger {
   border-block-end: 0;
-  color: var(--color-error);
+  color: var(--ash-accent-warm);
 }
 
 /* The theme switch, as Techtree draws it: a spinning wire cube behind a laser,

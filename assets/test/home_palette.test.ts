@@ -24,31 +24,22 @@ const encode = (value: number) =>
 
 const presented = (value: number) => encode(aces(value))
 
-// The laser colours are the stylesheet's own, so they are derived here from the same
-// oklch the CSS names rather than compared against a copied-out number. A laser is that
-// colour scaled until its brightest channel is as bright as white; scaling, not clamping,
-// is what keeps the hue when the colour lies outside what a screen can show.
+// The laser colours are the products' own palette values, so they are derived here from
+// the same hexes the stylesheet names rather than compared against a copied-out number. A
+// laser is that colour in linear light, scaled until its brightest channel is as bright as
+// white; scaling, not clamping, is what keeps the hue when the colour lies outside what a
+// screen can show.
 const LASER_SOURCES = {
-  autolaunch: [0.8, 0.16, 70],
-  techtree: [0.78, 0.17, 150],
-  patchbay: [0.72, 0.18, 300],
-} as const satisfies Record<string, readonly [number, number, number]>
+  autolaunch: "#FF5B19",
+  techtree: "#AECACD",
+  patchbay: "#B9B7A6",
+} as const satisfies Record<string, string>
 
-const linearFromOklch = ([lightness, chroma, hue]: readonly [number, number, number]) => {
-  const radians = (hue * Math.PI) / 180
-  const a = chroma * Math.cos(radians)
-  const b = chroma * Math.sin(radians)
-  const cone = [
-    (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3,
-    (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3,
-    (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3,
-  ] as const
-  return [
-    [4.0767416621, -3.3077115913, 0.2309699292],
-    [-1.2684380046, 2.6097574011, -0.3413193965],
-    [-0.0041960863, -0.7034186147, 1.707614701],
-  ].map(row => row.reduce((total, weight, index) => total + weight * cone[index]!, 0))
-}
+const decode = (channel: number) =>
+  channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+
+const linearFromHex = (hex: string) =>
+  [1, 3, 5].map(start => decode(Number.parseInt(hex.slice(start, start + 2), 16) / 255))
 
 const normalise = (channels: number[]) => {
   const brightest = Math.max(...channels)
@@ -77,12 +68,24 @@ describe("the hero palette", () => {
     }
   })
 
-  // Only the ground follows the hover. The squares lit on top of it, and how far a lit
-  // cell travels toward them, are the field's own and were not touched.
-  it("keeps the field's squares the colour they already were", () => {
-    expect(FIELD_PALETTE.displayedSquare).toEqual([0.9569, 0.9333, 0.8941, 1])
-    expect(FIELD_PALETTE.composedSquare).toEqual([0.18441, 0.17923, 0.17068, 1])
+  // Only the ground follows the hover. The squares lit on top of it are the palette's own
+  // Text, #E5E3D2, and how far a lit cell travels toward them is the field's own.
+  it("lights the field's squares in the palette's cream", () => {
+    expect(FIELD_PALETTE.displayedSquare).toEqual([0.898039, 0.890196, 0.823529, 1])
     expect(FIELD_PALETTE.intensity).toBe(0.2)
+
+    // The crown composes the same picture and finishes it with the ACES curve and the sRGB
+    // encode, so its square is the value that comes out of that pass as the displayed one.
+    // The two are matched at a lit amount of 0.118, the field's own operating point.
+    const amount = 0.118
+    FIELD_PALETTE.composedSquare.slice(0, 3).forEach((composed, channel) => {
+      const ground = HERO_PALETTES.rest
+      const page =
+        ground.displayedGround[channel]! * (1 - amount) +
+        FIELD_PALETTE.displayedSquare[channel]! * amount
+      const crown = presented(ground.composedGround[channel]! * (1 - amount) + composed * amount)
+      expect(crown).toBeCloseTo(page, 4)
+    })
   })
 
   it("leaves the resting page exactly as it was: a white shot on a near-black ground", () => {
@@ -104,7 +107,7 @@ describe("the hero palette", () => {
     expect(HERO_PALETTES.rest.beam).toEqual([1, 1, 1])
 
     for (const [name, source] of Object.entries(LASER_SOURCES)) {
-      const expected = normalise(linearFromOklch(source))
+      const expected = normalise(linearFromHex(source))
       const beam = HERO_PALETTES[name as HeroPaletteName].beam
       beam.forEach((channel, index) => expect(channel).toBeCloseTo(expected[index]!, 4))
       // Scaling puts the brightest channel exactly at white and the rest below it, so a
