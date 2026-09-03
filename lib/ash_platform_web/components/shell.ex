@@ -114,6 +114,7 @@ defmodule AshPlatformWeb.Components.Shell do
                 <.account_menu_icon name={:profile} />
                 <span>Profile</span>
               </.link>
+              <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
               <.link
                 patch={@account_control.settings_path}
                 class="account-menu__row"
@@ -122,6 +123,7 @@ defmodule AshPlatformWeb.Components.Shell do
                 <.account_menu_icon name={:settings} />
                 <span>Settings</span>
               </.link>
+              --%>
               <button
                 type="button"
                 class="account-menu__row account-menu__row--danger"

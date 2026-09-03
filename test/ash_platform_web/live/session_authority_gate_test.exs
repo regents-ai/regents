@@ -96,7 +96,7 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     browser = init_test_session(build_conn(), %{human_account_id: account!().id})
 
     # The socket's own session names a different lineage and a decoy route.
-    handshake = Map.put(get_session(browser), "render_route", "/settings")
+    handshake = Map.put(get_session(browser), "render_route", "/stake")
 
     assert {:error, {:redirect, %{to: "/formation"}}} =
              page |> connects_with(handshake) |> live("/formation")
@@ -210,7 +210,7 @@ defmodule AshPlatformWeb.Live.SessionAuthorityGateTest do
     assert has_element?(view, @profile)
 
     # A live navigation over the same transport revalidates under the drift.
-    assert render_patch(view, "/settings") =~ @signed_in_markup
+    assert render_patch(view, "/app") =~ @signed_in_markup
 
     assert SessionAuthority.revoke(claim(signed_in))
     render_click(view, "refresh_verified_connections", %{})

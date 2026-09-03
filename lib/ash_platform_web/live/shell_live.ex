@@ -33,7 +33,8 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RegentsClubMetadataLive
   alias AshPlatformWeb.RouteCatalog
-  alias AshPlatformWeb.SettingsLive
+  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
+  # alias AshPlatformWeb.SettingsLive
   alias AshPlatformWeb.TechtreeLive
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
@@ -1329,11 +1330,13 @@ defmodule AshPlatformWeb.ShellLive do
           account={current_account(@access_context)}
         />
 
+        <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
         <SettingsLive.page
           :if={@route_spec.route_id == :settings}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
         />
+        --%>
 
         <RegentsClubMetadataLive.page
           :if={@route_spec.route_id == :regents_club_metadata}

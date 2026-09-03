@@ -8,7 +8,8 @@ defmodule AshPlatformWeb.LaunchGateTest do
   alias AshPlatformWeb.Live.LaunchGateHook
   alias AshPlatformWeb.Plugs.LaunchGate
 
-  @gated_shell_paths ~w(/app /settings /formation /regents/example /techtree /autolaunch /stake /redeem)
+  # Settings returns soon (founder, 2026-09-03): switched off, not removed. (/settings left out of the gated paths)
+  @gated_shell_paths ~w(/app /formation /regents/example /techtree /autolaunch /stake /redeem)
   @autolaunch_paths ~w(/autolaunch /autolaunch/auctions /autolaunch/holdings /autolaunch/create)
   @closed_message "This part of Regent isn't open yet."
   @draft_fields %{

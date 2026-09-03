@@ -88,7 +88,8 @@ defmodule AshPlatformWeb.Router do
       session: {AshPlatformWeb.Live.Session, :render_context, []},
       on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
-      live "/settings", ShellLive, :settings
+      # Settings returns soon (founder, 2026-09-03): switched off, not removed.
+      # live "/settings", ShellLive, :settings
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
       live "/techtree", ShellLive, :techtree

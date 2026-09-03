@@ -12,7 +12,8 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   @paths [
     "/",
     "/app",
-    "/settings",
+    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
+    # "/settings",
     "/formation",
     "/regents/:slug",
     "/techtree",
@@ -64,21 +65,22 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert RouteCatalog.fetch!(:app).route_id == :app
   end
 
-  test "settings is the canonical Regents Labs detail route" do
-    settings = RouteCatalog.fetch!(:settings)
+  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
+  # test "settings is the canonical Regents Labs detail route" do
+  #   settings = RouteCatalog.fetch!(:settings)
 
-    assert settings.route_id == :settings
-    assert settings.destination == "/settings"
-    assert settings.app_id == :regent_ops
-    assert settings.app_display_label == "Regents Labs"
-    assert settings.page_display_label == "Settings"
-    assert settings.canonical_root == "/app"
-    assert settings.header_controls == [:profile_actions]
-    assert settings.search_kind == :none
-    assert settings.background_slot == :regents_labs
-    assert settings.content_transition_kind == :detail
-    assert settings.local_state == %{}
-  end
+  #   assert settings.route_id == :settings
+  #   assert settings.destination == "/settings"
+  #   assert settings.app_id == :regent_ops
+  #   assert settings.app_display_label == "Regents Labs"
+  #   assert settings.page_display_label == "Settings"
+  #   assert settings.canonical_root == "/app"
+  #   assert settings.header_controls == [:profile_actions]
+  #   assert settings.search_kind == :none
+  #   assert settings.background_slot == :regents_labs
+  #   assert settings.content_transition_kind == :detail
+  #   assert settings.local_state == %{}
+  # end
 
   test "accepts only the five named tree slugs and reserves nodes" do
     assert Enum.count(RouteCatalog.tree_roots()) == 5
@@ -228,7 +230,8 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 21
+    # Settings returns soon (founder, 2026-09-03): switched off, not removed. (21 routes with it)
+    assert length(decoded["routes"]) == 20
     refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
