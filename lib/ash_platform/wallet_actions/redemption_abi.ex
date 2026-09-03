@@ -111,7 +111,7 @@ defmodule AshPlatform.WalletActions.RedemptionAbi do
   end
 
   def encode_erc721(id, arguments)
-      when id in ["owner_of", "is_approved_for_all", "set_approval_for_all"] do
+      when id in ["owner_of", "is_approved_for_all", "set_approval_for_all", "total_supply"] do
     encode_standard("erc721", id, arguments)
   end
 

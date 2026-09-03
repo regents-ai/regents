@@ -705,8 +705,6 @@
 }
 
 .stake-overview {
-  position: sticky;
-  top: 0;
   display: grid;
   gap: clamp(1.25rem, 3vw, 2.2rem);
 }
@@ -980,7 +978,6 @@
 @media (max-width: 64rem) {
   .stake-heading { grid-template-columns: minmax(0, 1fr); }
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
-  .stake-overview { position: static; }
   .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .stake-how-it-works > div { grid-column: 1 / -1; }
 }

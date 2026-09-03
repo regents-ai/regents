@@ -3,7 +3,7 @@ product: ash-platform
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 8b56a9ffd4d864990d67a2c89c391fcec0fcb62a6a13b7ab4f3c4c932dafbb05
+    evidence_sha256: c606fdb32ae4b89b653f3cfac7879b74729334efaebaa439a358bd0ee7071e87
     chain_target: base-mainnet
     authority: evidence_only
     autolaunch_consumer_freeze:

@@ -358,7 +358,7 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
 
     const fit = await page.locator(".redeem-collection-card dd").first().evaluate(
       (node, viewport) => {
-        node.textContent = "7390000000 memberships ready"
+        node.textContent = "7,390,000,000 / 7,390,000,000"
         const card = node.closest(".redeem-collection-card") as HTMLElement
         return {
           card: card.scrollWidth - card.clientWidth,

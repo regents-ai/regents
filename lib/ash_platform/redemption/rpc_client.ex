@@ -50,9 +50,10 @@ defmodule AshPlatform.Redemption.RpcClient do
            payout,
            vest_duration,
            max_token_id,
-           animata_i_held,
-           animata_ii_held,
-           regents_club_ready | account
+           animata_i_supply,
+           animata_ii_supply,
+           regents_club_supply,
+           regents_club_unclaimed | account
          ],
          wallet,
          collection
@@ -75,9 +76,10 @@ defmodule AshPlatform.Redemption.RpcClient do
          payout: Rpc.format_units(payout, 18),
          vest_duration_seconds: vest_duration,
          max_source_token_id: max_token_id,
-         animata_i_held_by_redeemer: animata_i_held,
-         animata_ii_held_by_redeemer: animata_ii_held,
-         regents_club_ready: regents_club_ready
+         animata_i_supply: animata_i_supply,
+         animata_ii_supply: animata_ii_supply,
+         regents_club_supply: regents_club_supply,
+         regents_club_claimed: regents_club_supply - regents_club_unclaimed
        })}
     end
   end
@@ -155,7 +157,10 @@ defmodule AshPlatform.Redemption.RpcClient do
 
   # The collection counts are read from the manifest's addresses, which the
   # same aggregate proves are the ones the redeemer names: a manifest that
-  # disagreed with the contract would fail the whole reading.
+  # disagreed with the contract would fail the whole reading. What has been
+  # claimed is the memberships that have left the redeemer, so the membership
+  # supply and the redeemer's own holding are read together in one block and
+  # subtracted here, never across two readings.
   defp protocol_calls do
     redeemer = RedemptionAbi.redeemer_address()
 
@@ -170,9 +175,10 @@ defmodule AshPlatform.Redemption.RpcClient do
       {redeemer, RedemptionAbi.encode_read("regent_payout"), :uint},
       {redeemer, RedemptionAbi.encode_read("vest_duration"), :uint},
       {redeemer, RedemptionAbi.encode_read("max_source_token_id"), :uint},
-      {RedemptionAbi.animata_i_address(), RedemptionAbi.encode_erc20("balance_of", [redeemer]),
+      {RedemptionAbi.animata_i_address(), RedemptionAbi.encode_erc721("total_supply", []), :uint},
+      {RedemptionAbi.animata_ii_address(), RedemptionAbi.encode_erc721("total_supply", []),
        :uint},
-      {RedemptionAbi.animata_ii_address(), RedemptionAbi.encode_erc20("balance_of", [redeemer]),
+      {RedemptionAbi.result_collection_address(), RedemptionAbi.encode_erc721("total_supply", []),
        :uint},
       {RedemptionAbi.result_collection_address(),
        RedemptionAbi.encode_erc20("balance_of", [redeemer]), :uint}

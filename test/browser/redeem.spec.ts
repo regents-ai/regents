@@ -51,9 +51,13 @@ test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
     "Animata I or II + USDC are redeemed for REGENT + Regents Club Digital Pass",
   )
   await expect(page.locator(".redeem-collection-card")).toHaveCount(3)
-  await expect(page.locator(".redeem-collection-grid")).toContainText("327 held by redeemer")
-  await expect(page.locator(".redeem-collection-grid")).toContainText("284 held by redeemer")
-  await expect(page.locator(".redeem-collection-grid")).toContainText("388 memberships ready")
+  await expect(page.locator(".redeem-collection-grid")).toContainText("Remaining Passes")
+  await expect(page.locator(".redeem-collection-grid")).toContainText("327")
+  await expect(page.locator(".redeem-collection-grid")).toContainText("284")
+  await expect(page.locator(".redeem-collection-grid")).toContainText(
+    "Regents Club Passes claimed",
+  )
+  await expect(page.locator(".redeem-collection-grid")).toContainText("1,610 / 1,998")
 
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,

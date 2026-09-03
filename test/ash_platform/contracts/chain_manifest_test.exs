@@ -339,7 +339,8 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert Enum.map(standard["erc721"], & &1["id"]) == [
              "owner_of",
              "is_approved_for_all",
-             "set_approval_for_all"
+             "set_approval_for_all",
+             "total_supply"
            ]
 
     standard |> Map.values() |> List.flatten() |> assert_selectors()

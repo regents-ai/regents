@@ -94,9 +94,11 @@ defmodule AshPlatformWeb.RedeemLiveTest do
              "View collection on OpenSea"
            )
 
-    assert has_element?(view, ".redeem-collection-card", "327 held by redeemer")
-    assert has_element?(view, ".redeem-collection-card", "284 held by redeemer")
-    assert has_element?(view, ".redeem-collection-card", "388 memberships ready")
+    assert has_element?(view, ".redeem-collection-card", "Remaining Passes")
+    assert has_element?(view, ".redeem-collection-card dd", "327")
+    assert has_element?(view, ".redeem-collection-card dd", "284")
+    assert has_element?(view, ".redeem-collection-card", "Regents Club Passes claimed")
+    assert has_element?(view, ".redeem-collection-card dd", "1,610 / 1,998")
     assert has_element?(view, ".redeem-collection-card", "1–999")
 
     assert has_element?(

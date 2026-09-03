@@ -141,24 +141,24 @@ defmodule AshPlatformWeb.RedeemLive do
               kind="source"
               index="I"
               title="Animata I"
-              count={@redemption.animata_i_held_by_redeemer}
-              count_label="held by redeemer"
+              count_label="Remaining Passes"
+              count={TokenDisplay.count(@redemption.animata_i_supply)}
               href="https://opensea.io/collection/animata"
             />
             <.collection_card
               kind="source"
               index="II"
               title="Animata II"
-              count={@redemption.animata_ii_held_by_redeemer}
-              count_label="held by redeemer"
+              count_label="Remaining Passes"
+              count={TokenDisplay.count(@redemption.animata_ii_supply)}
               href="https://opensea.io/collection/regent-animata-ii"
             />
             <.collection_card
               kind="result"
               index="RC"
               title="Regents Club"
-              count={@redemption.regents_club_ready}
-              count_label="memberships ready"
+              count_label="Regents Club Passes claimed"
+              count={"#{TokenDisplay.count(@redemption.regents_club_claimed)} / #{TokenDisplay.count(@redemption.regents_club_supply)}"}
               href="https://opensea.io/collection/regents-club"
             />
           </div>
@@ -570,7 +570,7 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :kind, :string, required: true
   attr :index, :string, required: true
   attr :title, :string, required: true
-  attr :count, :integer, required: true
+  attr :count, :string, required: true
   attr :count_label, :string, required: true
   attr :href, :string, required: true
 
@@ -583,7 +583,7 @@ defmodule AshPlatformWeb.RedeemLive do
         <h3>{@title}</h3>
         <dl>
           <div>
-            <dt>Live contract count</dt><dd>{TokenDisplay.count(@count)} {@count_label}</dd>
+            <dt>{@count_label}</dt><dd>{@count}</dd>
           </div><div>
             <dt>{if @kind == "source", do: "Eligible IDs", else: "Received on redeem"}</dt><dd>
               {if @kind == "source", do: "1–999", else: "1 membership NFT"}

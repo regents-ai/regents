@@ -21,7 +21,7 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     :ok
   end
 
-  test "ONE_PUBLIC_CALL: constants and all three collection counts arrive as one aggregate" do
+  test "ONE_PUBLIC_CALL: constants, the three supplies and the membership holding are one aggregate" do
     assert {:ok, snapshot} = RpcClient.overview(nil, nil, nil)
 
     assert snapshot.block_number == 0x20
@@ -41,9 +41,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert snapshot.payout == "5000000"
     assert snapshot.vest_duration_seconds == 604_800
     assert snapshot.max_source_token_id == 999
-    assert snapshot.animata_i_held_by_redeemer == 12
-    assert snapshot.animata_ii_held_by_redeemer == 13
-    assert snapshot.regents_club_ready == 14
+    assert snapshot.animata_i_supply == 240
+    assert snapshot.animata_ii_supply == 309
+    assert snapshot.regents_club_supply == 1998
+    assert snapshot.regents_club_claimed == 1449
     assert snapshot.wallet_address == nil
     assert snapshot.selected_collection == nil
     assert snapshot.token_id == nil
@@ -76,7 +77,7 @@ defmodule AshPlatform.Redemption.RpcClientTest do
     assert snapshot.vest_released == "1"
     assert snapshot.vest_claimed == "0"
     assert snapshot.vest_start == 1_700_000_000
-    assert snapshot.animata_i_held_by_redeemer == 12
+    assert snapshot.animata_i_supply == 240
 
     assert pinned_calls() == [
              {aggregator(), aggregate(protocol_calls() ++ account_calls() ++ approval_calls()),
@@ -235,8 +236,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
       {redeemer, RedemptionAbi.encode_read("regent_payout")},
       {redeemer, RedemptionAbi.encode_read("vest_duration")},
       {redeemer, RedemptionAbi.encode_read("max_source_token_id")},
-      {RedemptionAbi.animata_i_address(), RedemptionAbi.encode_erc20("balance_of", [redeemer])},
-      {RedemptionAbi.animata_ii_address(), RedemptionAbi.encode_erc20("balance_of", [redeemer])},
+      {RedemptionAbi.animata_i_address(), RedemptionAbi.encode_erc721("total_supply", [])},
+      {RedemptionAbi.animata_ii_address(), RedemptionAbi.encode_erc721("total_supply", [])},
+      {RedemptionAbi.result_collection_address(),
+       RedemptionAbi.encode_erc721("total_supply", [])},
       {RedemptionAbi.result_collection_address(),
        RedemptionAbi.encode_erc20("balance_of", [redeemer])}
     ]
@@ -305,9 +308,10 @@ defmodule AshPlatform.Redemption.RpcClientTest do
       Stub.uint(@payout),
       Stub.uint(604_800),
       Stub.uint(999),
-      Stub.uint(12),
-      Stub.uint(13),
-      Stub.uint(14)
+      Stub.uint(240),
+      Stub.uint(309),
+      Stub.uint(1998),
+      Stub.uint(549)
     ]
   end
 

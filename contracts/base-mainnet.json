@@ -141,7 +141,8 @@
     "erc721": [
       {"id": "owner_of", "signature": "ownerOf(uint256)", "selector": "0x6352211e"},
       {"id": "is_approved_for_all", "signature": "isApprovedForAll(address,address)", "selector": "0xe985e9c5"},
-      {"id": "set_approval_for_all", "signature": "setApprovalForAll(address,bool)", "selector": "0xa22cb465"}
+      {"id": "set_approval_for_all", "signature": "setApprovalForAll(address,bool)", "selector": "0xa22cb465"},
+      {"id": "total_supply", "signature": "totalSupply()", "selector": "0x18160ddd"}
     ]
   },
   "redemption_policy": {
