@@ -171,7 +171,7 @@ test("the public homepage presents the product hero and marketing chapters", asy
     "src",
     "/images/home/hero-bg-dark.svg",
   )
-  await expect(page.locator("#home-title")).toHaveText("Regents Agentic Product Labs")
+  await expect(page.locator("#home-title")).toHaveText("Regents Labs")
   // The cards name the three products; the chapters below them are a separate story.
   await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
   expect(
@@ -182,7 +182,7 @@ test("the public homepage presents the product hero and marketing chapters", asy
   await expect(page.locator(".rl-hero-stakers")).toBeVisible()
 
   const sectionTops = await page
-    .locator("#techtree, #autolaunch, #regent")
+    .locator("#techtree, #autolaunch, #patchbay")
     .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
   expect(sectionTops).toHaveLength(3)
   expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))

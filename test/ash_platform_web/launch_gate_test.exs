@@ -125,8 +125,15 @@ defmodule AshPlatformWeb.LaunchGateTest do
     close_surfaces()
     home = get(build_conn(), "/")
 
+    title =
+      home.resp_body
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("h1#home-title")
+      |> LazyHTML.text()
+      |> String.trim()
+
     assert home.status == 200
-    assert home.resp_body =~ "Regents Agentic Product Labs"
+    assert title == "Regents Labs"
     refute home.resp_body =~ "Not open yet"
 
     assert get(build_conn(), "/healthz").status == 200

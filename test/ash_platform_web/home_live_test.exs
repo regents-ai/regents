@@ -2,7 +2,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
   use AshPlatformWeb.ConnCase, async: true
 
   # Nous is the runtime the products run on, not a Regents product: it has no chapter of its own.
-  @chapters ~w(techtree autolaunch regent)
+  @chapters ~w(techtree autolaunch patchbay)
 
   # The three products the hero lists, in the founder's order, with his one-liners. Only
   # techtree has a site to open today; the other two say so on a control that does nothing.
@@ -35,13 +35,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
   @nav [
     {"techtree", "Techtree", "#techtree"},
     {"autolaunch", "Autolaunch", "#autolaunch"},
-    {"regent", "Regent", "#regent"},
+    {"patchbay", "Patchbay", "#patchbay"},
     {"about", "About", "#home-closing"}
   ]
 
   # Prove, fund, earn, operate, run: revenue follows the launch that produces it, and Nous closes
   # the product story as the runtime the three products run on.
-  @sections ~w(techtree autolaunch revenue regent nous home-closing)
+  @sections ~w(techtree autolaunch revenue patchbay nous home-closing)
 
   # Every section's founder copy: the eyebrows it shows, its headline, and its body paragraphs
   # in order, so a dropped or reordered supporting line fails here.
@@ -75,11 +75,11 @@ defmodule AshPlatformWeb.HomeLiveTest do
       ]
     },
     %{
-      anchor: "regent",
-      eyebrows: ["Regent — Operate"],
-      title: "Designed for use by Hermes agents.",
+      anchor: "patchbay",
+      eyebrows: ["Patchbay — Repair"],
+      title: "Agents help agents fix broken tools.",
       body: [
-        "Nous Portal is the fastest way to create an always-on agent to be used with Techtree and Autolaunch."
+        "Patchbay is a working prototype of a board where an agent reports one of Patchbay's own tools that misbehaved and quotes the proof it was handed. Patchbay checks that proof against its own record of the call, works out a repair within a fixed set of allowed changes, tries it, and publishes the fix."
       ]
     },
     %{
@@ -112,7 +112,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert attribute(html, "[data-home-hero-card]", "data-home-hero-card") ==
              Enum.map(@hero_products, & &1.name)
 
-    assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|regent)"/, html)) == 3
+    assert length(Regex.scan(~r/<section id="(?:techtree|autolaunch|patchbay)"/, html)) == 3
   end
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
@@ -144,16 +144,20 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute has_element?(view, "a.rl-action--disabled")
   end
 
-  test "the hero names the company and what it is", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/")
+  test "the hero names the company, what it is, and what it makes", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "h1#home-title", "Regents Agentic Product Labs")
+    assert has_element?(view, "h1#home-title", "Regents Labs")
 
-    assert has_element?(
-             view,
-             ".rl-hero-copy p",
-             "a no-equity company with onchain revenue split"
-           )
+    # The capitals are the stylesheet's doing; the sentence itself is written once, plainly.
+    assert texts(html, ".rl-hero-copy p") == [
+             "A no-equity company with onchain revenue split"
+           ]
+
+    # The visible label above the cards is the list's own name, so it is not invented twice.
+    assert has_element?(view, "p#home-products-label", "Agentic Products")
+    assert attribute(html, "ul#home-products", "aria-labelledby") == ["home-products-label"]
+    assert attribute(html, "ul#home-products", "aria-label") == []
   end
 
   test "each product card carries the founder's line and its two controls", %{conn: conn} do
@@ -242,7 +246,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     assert has_element?(
              view,
              ".rl-footer .rl-footer-brand strong",
-             "Regents Labs builds Techtree and Autolaunch."
+             "Regents Labs builds Techtree, Autolaunch and Patchbay."
            )
 
     assert has_element?(
@@ -286,7 +290,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Techtree — Climb + Verify",
              "Autolaunch — Fund",
              "Earn",
-             "Regent — Operate",
+             "Patchbay — Repair",
              "Nous — Run"
            ]
   end
@@ -312,6 +316,16 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert texts(html, "#autolaunch .rl-proof-grid article .rl-proof-state") ==
              ["Live", "Preview", "Preview"]
+
+    assert texts(html, "#patchbay .rl-proof-grid article h3") == [
+             "A report carries its own proof.",
+             "The repair happens on its own.",
+             "The open page keeps up."
+           ]
+
+    # Patchbay claims no more than Techtree does, and wears the same label for it.
+    assert texts(html, "#patchbay .rl-proof-grid article .rl-proof-state") ==
+             ["Working prototype", "Working prototype", "Working prototype"]
 
     assert has_element?(
              view,
@@ -377,20 +391,15 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Open techtree ↗",
              "Buy REGENT ↗",
              "Stake REGENT",
-             "Create Agent on Nous",
+             "Patchbay on GitHub ↗",
              "Explore the system"
            ]
 
-    assert texts(html, "button.rl-action") == [
-             "Open autolaunch ↗",
-             "Open patchbay ↗",
-             "Copy Instructions to My Hermes"
-           ]
+    assert texts(html, "button.rl-action") == ["Open autolaunch ↗", "Open patchbay ↗"]
 
-    # Two primary actions, one per beat that asks for something: create the agent, start again.
-    assert texts(html, "#regent .rl-action--strong") == ["Create Agent on Nous"]
+    # One primary action, on the only beat that asks for something: start again.
+    assert texts(html, ".rl-action--strong") == ["Explore the system"]
     assert texts(html, "#home-closing .rl-action--strong") == ["Explore the system"]
-    assert length(texts(html, ".rl-action--strong")) == 2
   end
 
   test "the landing is one document for everyone and declares the dark it paints", %{conn: conn} do
@@ -451,36 +460,22 @@ defmodule AshPlatformWeb.HomeLiveTest do
            )
   end
 
-  # The Regent chapter hands an operator to Nous and hands their agent its own instructions, so
-  # both controls have to keep their exact identity, destination, and payload.
-  test "the Regent chapter offers a safe Nous handoff beside a native copy control", %{conn: conn} do
+  # Patchbay's own site is not open to visitors yet, so the chapter offers its source and
+  # nothing else, and that one control has to keep its exact identity and destination.
+  test "the Patchbay chapter points at its source and nowhere else", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(
              view,
-             ~s(#regent a#regent-create-agent.rl-action--strong[href="https://portal.nousresearch.com/"][target="_blank"][rel="noopener noreferrer"]),
-             "Create Agent on Nous"
+             ~s(#patchbay a#patchbay-source.rl-action[href="https://github.com/regents-ai/patchbay"][target="_blank"][rel="noopener noreferrer"]),
+             "Patchbay on GitHub ↗"
            )
 
-    assert has_element?(
-             view,
-             ~s(#regent button#regent-copy-hermes-instructions.rl-action[type="button"]),
-             "Copy Instructions to My Hermes"
-           )
+    refute has_element?(view, "#patchbay-source.rl-action--strong")
 
-    refute has_element?(view, "#regent-copy-hermes-instructions.rl-action--strong")
-
-    assert attribute(html, "#regent-copy-hermes-instructions", "data-copy-hermes-instructions") ==
-             [
-               "Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools and skills are available, then guide me through the next step."
-             ]
-
-    assert has_element?(
-             view,
-             ~s(#regent p#regent-copy-status[role="status"][aria-live="polite"])
-           )
-
-    assert texts(html, "#regent-copy-status") == [""]
+    assert attribute(html, "#patchbay .rl-chapter-actions a", "href") == [
+             "https://github.com/regents-ai/patchbay"
+           ]
   end
 
   # The founder copy this page dropped lives in docs/copy-for-later-use.md and nowhere else: no

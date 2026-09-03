@@ -1,6 +1,7 @@
 # Copy for later use
 
-Founder copy removed from the public `/` homepage on 2026-08-26 (regent-ghs.33). Nothing here is
+Founder copy removed from the public `/` homepage — sections 1-6 on 2026-08-26
+(regent-ghs.33) and section 7 on 2026-09-03 (regent-gu2.15). Nothing here is
 rendered by the site any more. It is kept verbatim so any part of it can be restored, reused on
 another surface, or rewritten from the original wording rather than from memory.
 
@@ -283,3 +284,31 @@ replaced, and its supporting line was removed.
   benchmark or launch.
 - Supporting line: Humans get a guided path. Agents get a direct command path. Both connect to the
   same identity.
+
+---
+
+## 7. Removed Regent chapter
+
+Patchbay took this chapter's place as chapter `03`. It carried no proof cards, and its second
+action was the only button on the page that copied anything. Section 6 above holds the earlier
+wording of the same chapter.
+
+- Anchor: `regent`
+- Eyebrow: Regent — Operate
+- Title: Designed for use by Hermes agents.
+- Body: Nous Portal is the fastest way to create an always-on agent to be used with Techtree and
+  Autolaunch.
+
+### Actions (2 entries)
+
+#### Create Agent on Nous
+
+- Destination: <https://portal.nousresearch.com/>
+- Emphasis: primary
+
+#### Copy Instructions to My Hermes
+
+- Emphasis: secondary
+- Behaviour: put the instruction below on the clipboard
+- Instruction: Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools
+  and skills are available, then guide me through the next step.

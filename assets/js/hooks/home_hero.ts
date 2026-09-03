@@ -19,15 +19,12 @@ export type HomeHeroDriver = {
   animate(targets: HTMLElement[], options: Record<string, unknown>): HomeHeroAnimation
 }
 
-type WriteClipboard = (text: string) => Promise<void>
-
 type HomeHeroOptions = {
   cancelFrame?: CancelFrame
   driver?: HomeHeroDriver
   finePointer?: () => boolean
   reducedMotion?: () => boolean
   requestFrame?: RequestFrame
-  writeClipboard?: WriteClipboard
 }
 
 export type HomeHeroController = {
@@ -54,10 +51,6 @@ const browserReducedMotion = () =>
 const browserFinePointer = () =>
   typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches
 
-// Async so a browser that refuses clipboard access synchronously still lands in the failure branch.
-const browserWriteClipboard: WriteClipboard = async text => navigator.clipboard.writeText(text)
-
-const COPY_TRIGGER = "[data-copy-hermes-instructions]"
 const HERO = ".rl-hero"
 const CARD_COLUMN = "[data-home-hero-cards]"
 const CARD = "[data-home-hero-card]"
@@ -81,12 +74,10 @@ export const createHomeHeroController = (
   const finePointer = options.finePointer ?? browserFinePointer
   const reducedMotion = options.reducedMotion ?? browserReducedMotion
   const requestFrame = options.requestFrame ?? browserRequestFrame
-  const writeClipboard = options.writeClipboard ?? browserWriteClipboard
   let active: HomeHeroAnimation[] | null = null
   let frame: number | undefined
   let targets: HTMLElement[] = []
   let generation = 0
-  let clipboardAttached = false
   // The hero and its card column, held from the moment hover is wired up so that
   // colouring and releasing never have to go looking for them again.
   let wired: {cards: HTMLElement; hero: HTMLElement} | undefined
@@ -96,20 +87,6 @@ export const createHomeHeroController = (
   let pointed: HeroProduct | undefined
   let focused: HeroProduct | undefined
   let shown: HeroPaletteName = "rest"
-
-  const announce = (message: string) => {
-    root.querySelector<HTMLElement>("#regent-copy-status")!.textContent = message
-  }
-
-  const onClipboardClick = (event: Event) => {
-    const trigger = (event.target as Element).closest<HTMLElement>(COPY_TRIGGER)
-    if (!trigger) return
-
-    void writeClipboard(trigger.dataset.copyHermesInstructions!).then(
-      () => announce("Instructions copied."),
-      () => announce("Couldn’t copy. Try again."),
-    )
-  }
 
   // Reading a card colours the whole hero: the stylesheet reads the attribute, and
   // the two canvases take the same palette from the one signal that follows it.
@@ -177,12 +154,6 @@ export const createHomeHeroController = (
       return active
     },
     mount() {
-      // Copying is plain enhancement: it attaches ahead of, and independently of, any motion.
-      if (!clipboardAttached) {
-        root.addEventListener("click", onClipboardClick)
-        clipboardAttached = true
-      }
-
       // Two pairs of listeners on the column read every card, one for each way in.
       if (!wired && finePointer()) {
         wired = {
@@ -268,8 +239,6 @@ export const createHomeHeroController = (
     },
     destroy() {
       stopCurrentEnhancement()
-      root.removeEventListener("click", onClipboardClick)
-      clipboardAttached = false
       if (wired) {
         // The listeners go first: they are released against the column this hook
         // held, not against whatever the page looks like by now.

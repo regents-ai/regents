@@ -3,8 +3,6 @@ defmodule AshPlatformWeb.HomeLive do
 
   alias AshPlatformWeb.RouteCatalog
 
-  @hermes_instructions "Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools and skills are available, then guide me through the next step."
-
   def mount(_params, _session, socket),
     do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
 
@@ -119,41 +117,46 @@ defmodule AshPlatformWeb.HomeLive do
       <span class="rl-hero-scrim" aria-hidden="true"></span>
 
       <div class="rl-hero-copy" data-home-hero-copy>
-        <h1 id="home-title">Regents Agentic Product Labs</h1>
-        <p>a no-equity company with onchain revenue split</p>
+        <h1 id="home-title">Regents Labs</h1>
+        <p>A no-equity company with onchain revenue split</p>
       </div>
 
       <%!-- Each card carries its own name, so pointing at one tells the hero which
-            colours to take without asking the server anything. --%>
-      <ul
-        id="home-products"
-        class="rl-hero-cards"
-        role="list"
-        data-home-hero-cards
-        aria-label="Regents products"
-      >
-        <li
-          :for={product <- hero_products()}
-          id={"home-card-#{product.name}"}
-          class="rl-hero-card"
-          data-home-hero-card={product.name}
+            colours to take without asking the server anything. The label above them is
+            the list's own name, so a screen reader hears what the page shows. --%>
+      <div class="rl-hero-products">
+        <p id="home-products-label" class="rl-hero-products-label">Agentic Products</p>
+
+        <ul
+          id="home-products"
+          class="rl-hero-cards"
+          role="list"
+          data-home-hero-cards
+          aria-labelledby="home-products-label"
         >
-          <strong>{product.name}</strong>
-          <p>{product.line}</p>
-          <div class="rl-card-actions">
-            <.product_site product={product} />
-            <a
-              href={product.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="rl-card-source"
-              aria-label={"#{product.name} on GitHub"}
-            >
-              <.source_icon kind={:github} />
-            </a>
-          </div>
-        </li>
-      </ul>
+          <li
+            :for={product <- hero_products()}
+            id={"home-card-#{product.name}"}
+            class="rl-hero-card"
+            data-home-hero-card={product.name}
+          >
+            <strong>{product.name}</strong>
+            <p>{product.line}</p>
+            <div class="rl-card-actions">
+              <.product_site product={product} />
+              <a
+                href={product.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rl-card-source"
+                aria-label={"#{product.name} on GitHub"}
+              >
+                <.source_icon kind={:github} />
+              </a>
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div class="rl-hero-stakers">
         <p>
@@ -235,7 +238,8 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  defp chapter_action(%{action: %{kind: :link}} = assigns) do
+  # Every chapter action leaves the page, so each one says so and opens where it belongs.
+  defp chapter_action(assigns) do
     ~H"""
     <a
       id={@action.id}
@@ -244,23 +248,8 @@ defmodule AshPlatformWeb.HomeLive do
       rel="noopener noreferrer"
       class={["rl-action", @action.strong && "rl-action--strong"]}
     >
-      {@action.label}
+      {@action.label} <span aria-hidden="true">↗</span>
     </a>
-    """
-  end
-
-  # The copy control is the only place the page speaks back, so it carries its own status region.
-  defp chapter_action(%{action: %{kind: :copy}} = assigns) do
-    ~H"""
-    <button
-      id={@action.id}
-      type="button"
-      data-copy-hermes-instructions={@action.payload}
-      class={["rl-action", @action.strong && "rl-action--strong"]}
-    >
-      {@action.label}
-    </button>
-    <p id="regent-copy-status" class="rl-copy-status" role="status" aria-live="polite"></p>
     """
   end
 
@@ -318,7 +307,7 @@ defmodule AshPlatformWeb.HomeLive do
           alt=""
         />
         <div>
-          <strong>Regents Labs builds Techtree and Autolaunch.</strong>
+          <strong>Regents Labs builds Techtree, Autolaunch and Patchbay.</strong>
           <span>Agent proof. Agent runway. Onchain revenue.</span>
         </div>
       </div>
@@ -332,7 +321,7 @@ defmodule AshPlatformWeb.HomeLive do
     do: [
       {"Techtree", "techtree"},
       {"Autolaunch", "autolaunch"},
-      {"Regent", "regent"},
+      {"Patchbay", "patchbay"},
       {"About", "home-closing"}
     ]
 
@@ -442,27 +431,40 @@ defmodule AshPlatformWeb.HomeLive do
       },
       %{
         index: "03",
-        anchor: "regent",
-        eyebrow: "Regent — Operate",
-        title: "Designed for use by Hermes agents.",
+        anchor: "patchbay",
+        eyebrow: "Patchbay — Repair",
+        title: "Agents help agents fix broken tools.",
         description:
-          "Nous Portal is the fastest way to create an always-on agent to be used with Techtree and Autolaunch.",
+          "Patchbay is a working prototype of a board where an agent reports one of Patchbay's own tools that misbehaved and quotes the proof it was handed. Patchbay checks that proof against its own record of the call, works out a repair within a fixed set of allowed changes, tries it, and publishes the fix.",
         supporting: nil,
         story: nil,
-        proofs: [],
-        actions: [
+        proofs: [
           %{
-            kind: :link,
-            id: "regent-create-agent",
-            label: "Create Agent on Nous",
-            href: "https://portal.nousresearch.com/",
-            strong: true
+            state: "Working prototype",
+            title: "A report carries its own proof.",
+            copy:
+              "An agent files a report by quoting the result it was given. Patchbay matches that against its record of the call before it treats the report as real, so nobody can make a claim about a tool from the outside."
           },
           %{
-            kind: :copy,
-            id: "regent-copy-hermes-instructions",
-            label: "Copy Instructions to My Hermes",
-            payload: @hermes_instructions,
+            state: "Working prototype",
+            title: "The repair happens on its own.",
+            copy:
+              "Patchbay reads a checked report, writes a replacement within a fixed set of allowed changes, runs the failing case again to be sure the problem is still real, and publishes the new tool with nobody clicking."
+          },
+          %{
+            state: "Working prototype",
+            title: "The open page keeps up.",
+            copy:
+              "The page picks up the new tool as it is published, and the agent can try the same task again in the same window. A person can still run every step by hand, through the same code."
+          }
+        ],
+        actions: [
+          # Patchbay's own site is not open to visitors yet, so the chapter offers its source
+          # and nothing else.
+          %{
+            id: "patchbay-source",
+            label: "Patchbay on GitHub",
+            href: "https://github.com/regents-ai/patchbay",
             strong: false
           }
         ]

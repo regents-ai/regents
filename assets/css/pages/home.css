@@ -9,7 +9,9 @@
   --rl-nous: oklch(68% 0.16 45);
   --rl-autolaunch: oklch(78% 0.17 155);
   --rl-techtree: oklch(72% 0.11 250);
-  --rl-regent: oklch(82% 0.11 91);
+  --rl-patchbay: oklch(72% 0.18 300);
+  --rl-chapter-default: oklch(82% 0.11 91);
+  --rl-header-h: calc(4rem + 1px);
   --rl-max: 88rem;
   --rl-quiet: 0.88rem;
 
@@ -83,6 +85,9 @@
   height: 100%;
 }
 
+/* The header is the bar plus the line under it, and --rl-header-h is that whole height. The
+   hero and the crown measure the screenful left below it from the same number, so neither of
+   them can end up a pixel past the fold. */
 .rl-header {
   position: sticky;
   inset-block-start: 0;
@@ -97,7 +102,7 @@
   grid-template-columns: minmax(12rem, 1fr) auto minmax(8rem, 1fr);
   align-items: stretch;
   max-width: var(--rl-max);
-  min-height: 4rem;
+  min-height: calc(var(--rl-header-h) - 1px);
   margin-inline: auto;
   border-inline: 1px solid var(--rl-line);
 }
@@ -169,10 +174,9 @@
   }
 }
 
-/* The words and the cards hold the left column; the crown has the rest of the frame to
-   itself, and the stakers band closes the hero across both columns. At rest the hero's
-   colour is the page ink, so a card only takes a product's colour while it is being
-   pointed at. This is the hero's own token: the focus ring keeps the site's. */
+/* The words hold the left column and the crown has the rest of the frame to itself. At
+   rest the hero's colour is the page ink, so a card only takes a product's colour while it
+   is being pointed at. This is the hero's own token: the focus ring keeps the site's. */
 .rl-hero {
   --hero-accent: var(--rl-ink);
   /* The hero keeps the page band and the same inner gutter every chapter uses, so the
@@ -206,8 +210,24 @@
 }
 
 .rl-hero[data-hero-product="patchbay"] {
-  --hero-accent: oklch(72% 0.18 300);
+  --hero-accent: var(--rl-patchbay);
   --rl-bg: oklch(15% 0.035 300);
+}
+
+/* The home hero is one screenful: the words stand beside the crown for as much of it as the
+   products and the stakers band leave, and those two close the frame across its whole width.
+   The height is a floor rather than a fixed size, so nothing is ever cut off. */
+.rl-hero--home {
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  row-gap: 0;
+  min-height: calc(100svh - var(--rl-header-h));
+  padding-block: clamp(2rem, 3.5vw, 3.25rem);
+}
+
+/* The words stand at the foot of the crown's band, so the products label reads as the next
+   line of the same block and everything the screen has to spare goes to the crown. */
+.rl-hero--home .rl-hero-copy {
+  align-self: end;
 }
 
 .rl-hero-art,
@@ -229,11 +249,11 @@
 }
 
 /* The prism is inert — the hero reads hover for it, and every action stays clickable
-   through it. Its stage is the first screenful of the hero, so the crown is framed the
-   same way on every window and never reaches down behind the product cards. */
+   through it. Its stage is the first screenful, so the crown is framed the same way on
+   every window and stops where the page starts scrolling. */
 .rl-hero-prism {
   bottom: auto;
-  height: min(100%, calc(100svh - 4rem));
+  height: min(100%, calc(100svh - var(--rl-header-h)));
   z-index: -2;
   pointer-events: none;
   opacity: 0;
@@ -264,7 +284,7 @@
   max-width: calc(38rem - 2 * var(--hero-inset));
 }
 
-/* On the home page they are the first of the three rows: the cards come under them and
+/* On the home page they are the first of the three rows: the products come under them and
    the stakers band closes the hero. */
 .rl-hero-copy[data-home-hero-copy] {
   grid-row: 1;
@@ -295,6 +315,16 @@
   text-wrap: pretty;
 }
 
+/* The home tagline is shown in capitals, so it takes the spacing a line of capitals reads
+   better with, and a measure that keeps it on one line where there is room. The sentence
+   itself stays in ordinary case for anything that reads the page rather than looks at it. */
+.rl-hero-copy[data-home-hero-copy] > p:last-of-type {
+  max-width: 40rem;
+  font-size: clamp(0.95rem, 1.35vw, 1.1rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .rl-hero-actions,
 .rl-closing-actions {
   display: flex;
@@ -319,12 +349,27 @@
   color: var(--rl-bg) !important;
 }
 
-/* One column of products, separated by the same hairline the rest of the page draws. */
-.rl-hero-cards {
-  grid-column: 1;
+/* The products take the whole width of the hero under the words, with their own name above
+   them, so the heading, the label and the cards all read as one block. */
+.rl-hero-products {
+  grid-column: 1 / -1;
   grid-row: 2;
-  align-self: start;
   display: grid;
+  gap: clamp(0.75rem, 1.2vw, 1rem);
+  min-width: 0;
+  margin-block-start: 1.5rem;
+}
+
+.rl-hero-products-label {
+  font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+  letter-spacing: 0.06em;
+  font-family: var(--font-family-pixel);
+}
+
+/* Three products across, separated by the same hairline the rest of the page draws. */
+.rl-hero-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   margin: 0;
   padding: 0;
@@ -370,11 +415,14 @@
   font-size: var(--rl-quiet);
 }
 
+/* Side by side the cards hold different amounts of copy, so the controls are pushed to the
+   foot of every card and the row of them reads as one line across the three. */
 .rl-card-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-block-start: 0.25rem;
+  margin-block-start: auto;
+  padding-block-start: 0.25rem;
 }
 
 /* A product name inside a button is still the product's name, so it keeps its case. */
@@ -404,18 +452,19 @@
   height: 1.1rem;
 }
 
-/* The band that closes the hero: what staking pays, and the two ways to take part. */
+/* The band that closes the hero: what staking pays, and directly under it the two ways to
+   take part, together inside a container of the same make as a product card. */
 .rl-hero-stakers {
   grid-column: 1 / -1;
   grid-row: 3;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: clamp(1rem, 3vw, 2rem);
-  margin-block-start: clamp(2rem, 6vw, 5rem);
-  padding-block-start: clamp(1.5rem, 3vw, 2.25rem);
-  border-block-start: 1px solid var(--rl-line);
+  flex-direction: column;
+  align-items: start;
+  gap: clamp(0.9rem, 1.5vw, 1.25rem);
+  margin-block-start: clamp(1.5rem, 2.5vw, 2.25rem);
+  padding: clamp(1rem, 1.6vw, 1.4rem);
+  border: 1px solid var(--rl-line);
+  background: color-mix(in oklch, var(--rl-panel) 90%, transparent);
 }
 
 .rl-hero-stakers p {
@@ -431,6 +480,24 @@
   gap: 0.75rem;
 }
 
+/* A short laptop window still has to show everything down to the stakers band. The space
+   between the blocks closes up instead; every word the hero has stays the size it was. */
+@media (max-height: 44rem) {
+  .rl-hero--home {
+    padding-block: 1rem;
+  }
+
+  .rl-hero-products {
+    margin-block-start: 0.75rem;
+  }
+
+  .rl-hero-stakers {
+    gap: 0.75rem;
+    margin-block-start: 0.75rem;
+    padding: 0.85rem;
+  }
+}
+
 .rl-chapter,
 .rl-closing {
   max-width: var(--rl-max);
@@ -440,10 +507,11 @@
   border-block-end: 1px solid var(--rl-line);
 }
 
-.rl-chapter { --chapter-accent: var(--rl-regent); }
+.rl-chapter { --chapter-accent: var(--rl-chapter-default); }
 .rl-chapter--nous { --chapter-accent: var(--rl-nous); }
 .rl-chapter--autolaunch { --chapter-accent: var(--rl-autolaunch); }
 .rl-chapter--techtree { --chapter-accent: var(--rl-techtree); }
+.rl-chapter--patchbay { --chapter-accent: var(--rl-patchbay); }
 
 .rl-chapter-intro,
 .rl-closing,
@@ -563,7 +631,7 @@
   font-size: var(--rl-quiet);
 }
 
-/* One row closes the chapter: the handoff, the copy control, and what the copy control just did. */
+/* One row closes the chapter: where the product lives, and where its source lives. */
 .rl-chapter-actions {
   display: flex;
   flex-wrap: wrap;
@@ -572,18 +640,13 @@
   margin-block-start: clamp(2.5rem, 5vw, 4rem);
 }
 
-/* The copy control is a native button, so only the user-agent chrome needs answering for. */
+/* A site that is not open yet says so on a native button, so only the user-agent chrome
+   needs answering for. */
 .rl-root button.rl-action {
   background: none;
   color: inherit;
   cursor: pointer;
   line-height: inherit;
-}
-
-/* Copy feedback is a word beside the control: it appears at once and never moves. */
-.rl-copy-status {
-  color: var(--rl-muted);
-  font-size: var(--rl-quiet);
 }
 
 /* The supporting line names the systems behind the chapter, so it sits under its own hairline. */
@@ -729,9 +792,14 @@
     z-index: -2;
   }
 
-  .rl-hero-cards {
+  /* One readable column of products, each card the full width of the stack. */
+  .rl-hero-products {
     order: 5;
     align-self: stretch;
+  }
+
+  .rl-hero-cards {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .rl-hero-actions {

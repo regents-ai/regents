@@ -23,6 +23,9 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
   return home
 }
 
+// Above this width the three products stand side by side; below it they read as one column.
+const CARD_ROW_WIDTH = 960
+
 const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -34,8 +37,11 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Regents Agentic Product Labs"})).toBeVisible()
-  await expect(page.getByText("a no-equity company with onchain revenue split")).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
+  await expect(page.locator(".rl-hero-copy p")).toHaveText(
+    "A no-equity company with onchain revenue split",
+  )
+  await expect(page.locator("#home-products-label")).toHaveText("Agentic Products")
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
 
   const cards = page.locator("[data-home-hero-card]")
@@ -87,7 +93,7 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await expect(stake).toHaveAttribute("href", "/stake")
   await expect(stake).not.toHaveAttribute("target", /.+/)
 
-  await expect(page.locator("#techtree, #autolaunch, #regent")).toHaveCount(3)
+  await expect(page.locator("#techtree, #autolaunch, #patchbay")).toHaveCount(3)
   await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
   await context.close()
 })
@@ -109,6 +115,20 @@ test("[U1] a navigation tab lands its section clear of the sticky header", async
       }),
     )
     .toBeGreaterThanOrEqual(0)
+})
+
+// The founder asked for the tagline in capitals. The capitals are painted on by the
+// stylesheet, so the sentence anyone reads, copies or translates is the sentence as written.
+test("[U1][U2] the tagline is shouted by the stylesheet, not by the sentence", async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const tagline = page.locator(".rl-hero-copy p")
+  await expect(tagline).toHaveText("A no-equity company with onchain revenue split")
+  expect(await tagline.evaluate(element => getComputedStyle(element).textTransform)).toBe(
+    "uppercase",
+  )
 })
 
 test("[U2] homepage settles immediately for reduced motion", async ({browser}) => {
@@ -207,21 +227,26 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
 
       const hero = await boxOf(".rl-hero")
       const copy = await boxOf("[data-home-hero-copy]")
+      const label = await boxOf("#home-products-label")
       const cards = await boxOf("#home-products")
+      const stakers = await boxOf(".rl-hero-stakers")
       const crown = await boxOf("#home-prism")
 
       expect(copy.left).toBeGreaterThanOrEqual(hero.left)
       expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
         hero.left + hero.width / 2,
       )
-      expect(cards.left, "the products start on the same edge as the words").toBeCloseTo(
+      expect(label.left, "the products label starts on the same edge as the words").toBeCloseTo(
         copy.left,
         0,
       )
-      expect(cards.right, "the products stay in the left half").toBeLessThanOrEqual(
+      expect(cards.left, "the products start on that edge too").toBeCloseTo(copy.left, 0)
+      expect(cards.right, "the products take the whole frame").toBeGreaterThan(
         hero.left + hero.width / 2,
       )
-      expect(cards.top, "the products come under the words").toBeGreaterThanOrEqual(copy.bottom)
+      expect(label.top, "the label comes under the words").toBeGreaterThanOrEqual(copy.bottom)
+      expect(cards.top, "the products come under their label").toBeGreaterThanOrEqual(label.bottom)
+      expect(stakers.top, "the stakers band closes the hero").toBeGreaterThanOrEqual(cards.bottom)
       expect(crown.left).toBeLessThanOrEqual(hero.left)
       expect(crown.right).toBeGreaterThanOrEqual(hero.right)
     })
@@ -239,12 +264,14 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
       const title = await boxOf("#home-title")
       const tagline = await boxOf(".rl-hero-copy p")
       const crown = await boxOf("#home-prism")
+      const label = await boxOf("#home-products-label")
       const cards = await boxOf("#home-products")
       const stakers = await boxOf(".rl-hero-stakers")
 
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
       expect(tagline.bottom, "the tagline sits above the crown").toBeLessThanOrEqual(crown.top)
-      expect(crown.bottom, "the crown sits above the products").toBeLessThanOrEqual(cards.top)
+      expect(crown.bottom, "the crown sits above the products label").toBeLessThanOrEqual(label.top)
+      expect(label.bottom, "the label sits above the products").toBeLessThanOrEqual(cards.top)
       expect(cards.bottom, "the products sit above the stakers band").toBeLessThanOrEqual(
         stakers.top,
       )
@@ -274,8 +301,10 @@ for (const viewport of [
     )
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
-    // One column at every width: three cards, three distinct rows, none beside another.
-    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(3)
+    // Three across where the frame is wide enough, one column below that.
+    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(
+      viewport.width > CARD_ROW_WIDTH ? 1 : 3,
+    )
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -316,11 +345,17 @@ test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewpor
         "home-card-patchbay",
       ])
 
-      // One column: each card stands below the one before it, on the same left edge.
+      // Side by side the cards share one top and step to the right; stacked they share one
+      // left edge and step down. Either way they read in the founder's order.
       for (const [index, card] of cards.entries()) {
         if (index === 0) continue
-        expect(card.top).toBeGreaterThan(cards[index - 1].top)
-        expect(card.left).toBeCloseTo(cards[0].left, 0)
+        if (viewport.width > CARD_ROW_WIDTH) {
+          expect(card.top).toBeCloseTo(cards[0].top, 0)
+          expect(card.left).toBeGreaterThan(cards[index - 1].left)
+        } else {
+          expect(card.top).toBeGreaterThan(cards[index - 1].top)
+          expect(card.left).toBeCloseTo(cards[0].left, 0)
+        }
       }
     })
   }
@@ -365,6 +400,133 @@ test("[U2] pointing at a product colours the hero for it, and nothing else", asy
   await page.mouse.move(0, 0)
   await expect(hero).not.toHaveAttribute("data-hero-product", /.+/)
   expect((await colorOf("techtree")).color).toBe(resting.color)
+})
+
+// The founder reads the first screen without scrolling: the heading, the three products and
+// the stakers band with both of its buttons all have to end above the fold.
+test("[U1][U2] the hero ends above the fold on every desktop size", async ({page}) => {
+  for (const viewport of [
+    {name: "1280x640", width: 1280, height: 640},
+    {name: "1280x720", width: 1280, height: 720},
+    {name: "1440x900", width: 1440, height: 900},
+    {name: "1920x1080", width: 1920, height: 1080},
+  ]) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({width: viewport.width, height: viewport.height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const edges = await page.evaluate(() => {
+        const bottom = (selector: string) =>
+          document.querySelector(selector)!.getBoundingClientRect().bottom
+        return {
+          scrolled: window.scrollY,
+          heading: bottom("#home-title"),
+          tagline: bottom(".rl-hero-copy p"),
+          products: bottom("#home-products"),
+          stakers: bottom(".rl-hero-stakers"),
+          stakersActions: bottom(".rl-stakers-actions"),
+        }
+      })
+
+      expect(edges.scrolled, "nothing has scrolled away").toBe(0)
+      for (const [part, edge] of Object.entries(edges)) {
+        if (part === "scrolled") continue
+        expect(edge, `${part} ends above the fold`).toBeLessThanOrEqual(viewport.height)
+      }
+    })
+  }
+})
+
+// What staking pays and the two ways to take part are one thing, so they stand in one
+// container built like a product card, with the controls under the sentence.
+test("[U2] the stakers band is one container with its two ways in underneath", async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const framing = await page.locator(".rl-hero-stakers").evaluate(element => {
+    const style = getComputedStyle(element)
+    const card = getComputedStyle(document.querySelector(".rl-hero-card")!)
+    return {
+      background: style.backgroundColor,
+      cardBackground: card.backgroundColor,
+      sides: [
+        style.borderBlockStartStyle,
+        style.borderInlineEndStyle,
+        style.borderBlockEndStyle,
+        style.borderInlineStartStyle,
+      ],
+      width: Number.parseFloat(style.borderBlockStartWidth),
+    }
+  })
+
+  expect(framing.sides).toEqual(["solid", "solid", "solid", "solid"])
+  expect(framing.width).toBeGreaterThanOrEqual(1)
+  expect(framing.background, "the band is panelled like a card").toBe(framing.cardBackground)
+
+  const sentence = (await page.locator(".rl-hero-stakers > p").boundingBox())!
+  const actions = (await page.locator(".rl-stakers-actions").boundingBox())!
+  expect(actions.y, "the two ways in stand under the sentence").toBeGreaterThanOrEqual(
+    sentence.y + sentence.height,
+  )
+  expect(actions.x, "and start on the same edge").toBeCloseTo(sentence.x, 0)
+  await expect(page.locator(".rl-stakers-actions a")).toHaveCount(2)
+})
+
+// The picture behind the hero is a grey line drawing with no ground of its own, so it takes
+// whatever the page is painted and reads the same in a light theme as in a dark one. The file
+// itself has to be that, with nothing on the page correcting it after the fact.
+test("[U2] the picture behind the hero carries no colour and no ground of its own", async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const picture = await page.locator(".rl-hero-art").evaluate(element => {
+    const image = element as HTMLImageElement
+    const meanBrightnessOver = (ground: string | null) => {
+      const canvas = document.createElement("canvas")
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const context = canvas.getContext("2d", {willReadFrequently: true})!
+      if (ground) {
+        context.fillStyle = ground
+        context.fillRect(0, 0, canvas.width, canvas.height)
+      }
+      context.drawImage(image, 0, 0)
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+      let total = 0
+      let widestChannelSpread = 0
+      for (let index = 0; index < pixels.length; index += 4) {
+        const channels = [pixels[index], pixels[index + 1], pixels[index + 2]]
+        total += (channels[0] + channels[1] + channels[2]) / 3
+        if (pixels[index + 3] === 0) continue
+        widestChannelSpread = Math.max(
+          widestChannelSpread,
+          Math.max(...channels) - Math.min(...channels),
+        )
+      }
+      return {mean: total / (pixels.length / 4), widestChannelSpread}
+    }
+
+    const onWhite = meanBrightnessOver("#ffffff")
+    const onBlack = meanBrightnessOver("#000000")
+    return {
+      greyOnItsOwn: meanBrightnessOver(null).widestChannelSpread,
+      greyOnWhite: onWhite.widestChannelSpread,
+      groundShowsThrough: onWhite.mean - onBlack.mean,
+      correction: getComputedStyle(image).filter,
+    }
+  })
+
+  expect(picture.greyOnItsOwn, "every mark in the file is grey").toBe(0)
+  expect(picture.greyOnWhite, "and stays grey over a light page").toBe(0)
+  expect(
+    picture.groundShowsThrough,
+    "the page behind it is what fills the frame, not a slab of its own",
+  ).toBeGreaterThan(200)
+  expect(picture.correction, "with nothing on the page correcting it").toBe("none")
 })
 
 // The Techtree chapter reads as description then supporting line: both muted, both distinct from
@@ -444,44 +606,7 @@ test("[U1][U3] numberless sections share the chapter headline column", async ({p
   }
 })
 
-// The copy control is the only place the page writes to the machine, so it is proven through the
-// real button: pointer and keyboard both reach the clipboard and both are answered in the status
-// region. The payload itself is asserted in the injected hook unit check.
-test("[U3][U5] the Hermes copy control answers pointer and keyboard through the status region", async ({
-  browser,
-}) => {
-  const context = await browser.newContext({permissions: ["clipboard-read", "clipboard-write"]})
-  const page = await context.newPage()
-  await page.goto("/")
-  await waitForHomepage(page)
-
-  const status = page.locator("#regent-copy-status")
-  await expect(status).toHaveAttribute("role", "status")
-  await expect(status).toHaveAttribute("aria-live", "polite")
-  await expect(status).toHaveText("")
-
-  const button = page.locator("#regent-copy-hermes-instructions")
-  const declared = await button.getAttribute("data-copy-hermes-instructions")
-
-  await button.click()
-  await expect(status).toHaveText("Instructions copied.")
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(declared)
-
-  // Tabbing off the Nous link is how a keyboard reader arrives, and it is what makes the focus
-  // ring visible; native button activation then has to answer both Enter and Space.
-  for (const key of ["Enter", " "]) {
-    await page.evaluate(() => navigator.clipboard.writeText("cleared"))
-    await page.locator("#regent-create-agent").focus()
-    await page.keyboard.press("Tab")
-    await expect(page.locator("#regent-copy-hermes-instructions:focus-visible")).toBeVisible()
-    await page.keyboard.press(key)
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(declared)
-  }
-
-  await context.close()
-})
-
-test("[U5] the two Regent actions stay contained and reachable at every tested viewport", async ({page}) => {
+test("[U5] the Patchbay action stays contained and reachable at every tested viewport", async ({page}) => {
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -490,17 +615,17 @@ test("[U5] the two Regent actions stay contained and reachable at every tested v
       await assertNoOverflow(page)
 
       const boxes = await page
-        .locator("#regent-create-agent, #regent-copy-hermes-instructions, #regent-copy-status")
+        .locator("#patchbay .rl-chapter-actions a")
         .evaluateAll(elements =>
           elements.map(element => {
             const box = element.getBoundingClientRect()
-            return {height: box.height, left: box.left, right: box.right}
+            return {id: element.id, height: box.height, left: box.left, right: box.right}
           }),
         )
 
-      expect(boxes).toHaveLength(3)
+      expect(boxes.map(box => box.id)).toEqual(["patchbay-source"])
       expect(boxes.every(box => box.left >= 0 && box.right <= viewport.width)).toBe(true)
-      expect(boxes.slice(0, 2).every(box => box.height >= 44)).toBe(true)
+      expect(boxes.every(box => box.height >= 44)).toBe(true)
     })
   }
 })
@@ -570,28 +695,26 @@ test("[U2] the primary homepage action keeps its contrast on hover", async ({pag
   })).toEqual(before)
 })
 
-test("[U1] white primary actions have a square high-contrast keyboard focus ring", async ({page}, testInfo) => {
+test("[U1] the white primary action has a square high-contrast keyboard focus ring", async ({page}, testInfo) => {
   for (const viewport of focusViewports) {
     await page.setViewportSize({width: viewport.width, height: viewport.height})
     await page.goto("/")
     await waitForHomepage(page)
 
-    const primaryActions = page.locator(".rl-action--strong")
-    await expect(primaryActions).toHaveCount(2)
+    // Closing the page is the only beat that asks for something, so it is the page's one
+    // white action.
+    await expect(page.locator(".rl-action--strong")).toHaveCount(1)
+    await expect(page.locator(".rl-closing .rl-action--strong")).toHaveCount(1)
 
-    const reached = new Set<string>()
+    let reached = false
     const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
 
-    for (let tab = 0; tab <= focusableCount && reached.size < 2; tab += 1) {
+    for (let tab = 0; tab <= focusableCount && !reached; tab += 1) {
       await page.keyboard.press("Tab")
       const focused = page.locator(".rl-action--strong:focus-visible")
       if (await focused.count() === 0) continue
 
-      const identity = await focused.evaluate(element =>
-        element.closest(".rl-closing") ? "closing" : "regent",
-      )
-      if (reached.has(identity)) continue
-      reached.add(identity)
+      reached = true
       await expect(focused).toBeVisible()
 
       const geometry = await focused.evaluate(element => {
@@ -679,7 +802,7 @@ test("[U1] white primary actions have a square high-contrast keyboard focus ring
       expect(geometry.ringFitsClippingAncestors).toBe(true)
     }
 
-    expect([...reached].sort()).toEqual(["closing", "regent"])
+    expect(reached, "the primary action is reachable by keyboard").toBe(true)
 
     if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
       await page.screenshot({
