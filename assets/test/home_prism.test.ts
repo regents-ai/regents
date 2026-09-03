@@ -397,7 +397,9 @@ describe("presenting the homepage prism", () => {
     expect(harness.renderer.present).toHaveBeenCalledTimes(1)
   })
 
-  it("returns to the server hero when the device is lost", async () => {
+  // The server hero is what the visitor sees while the crown is between devices,
+  // and the island is already on its way to another one.
+  it("returns to the server hero and asks for another device when one is lost", async () => {
     const harness = mount()
     await settleFirstFrame(harness)
     harness.renderer.finishFrame()
@@ -408,7 +410,13 @@ describe("presenting the homepage prism", () => {
 
     expect(harness.root.dataset.prismReady).toBeUndefined()
     expect(harness.renderer.dispose).toHaveBeenCalledTimes(1)
-    expect(harness.frames.pending()).toBe(0)
+    expect(harness.frames.pending()).toBe(1)
+
+    harness.frames.flush()
+    harness.frames.flush()
+    await flushPromises()
+
+    expect(harness.loadRenderer).toHaveBeenCalledTimes(2)
   })
 
   it("returns to the server hero when the first frame never completes", async () => {

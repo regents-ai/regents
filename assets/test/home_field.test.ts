@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {DEVICE_RECOVERY_LIMIT} from "../js/canvas_island"
 import type {FieldRenderer} from "../js/home_field"
 import {HERO_PALETTE_EVENT, setHeroPalette} from "../js/home_field/palette"
 import {createHomeFieldController} from "../js/hooks/home_field"
@@ -160,6 +161,34 @@ const mount = (
 const enterViewport = () =>
   FakeObserver.intersection.at(-1)?.callback([{isIntersecting: true}])
 
+/**
+ * A fresh device for every load, and the handle the island was given to report that
+ * one was lost. Recovery is the island asking again, so the fakes cannot be one
+ * shared object.
+ */
+const deviceQueue = () => {
+  const made: FakeRenderer[] = []
+  let lost: () => void = () => {}
+  const loadRenderer = vi.fn(
+    async (_canvas: HTMLCanvasElement, _size: readonly [number, number], onLost: () => void) => {
+      const device = fakeRenderer()
+      made.push(device)
+      lost = onLost
+      return device as unknown as FieldRenderer
+    },
+  )
+  return {loadRenderer, newest: () => made.at(-1)!, lose: () => lost()}
+}
+
+/** Runs the startup frames and the first render frame of the device asked for next. */
+const settleNextDevice = async (harness: {frames: ReturnType<typeof frameQueue>}) => {
+  harness.frames.flush()
+  harness.frames.flush()
+  await flushPromises()
+  harness.frames.flush()
+  await flushPromises()
+}
+
 /** Runs both startup frames and the first render frame, leaving the field settled. */
 const settleFirstFrame = async (harness: ReturnType<typeof mount>) => {
   harness.controller.mount()
@@ -291,6 +320,82 @@ describe("showing the page field", () => {
 
     expect(harness.root.dataset.fieldReady).toBeUndefined()
     expect(harness.renderer.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  // A browser takes the device back for its own reasons and hands out another the
+  // moment it is asked. Somebody who left the tab open comes back to the picture,
+  // not to the plain ground.
+  it("asks for another device and draws again when one is lost", async () => {
+    const devices = deviceQueue()
+    const harness = mount({loadRenderer: devices.loadRenderer})
+    await settleFirstFrame(harness)
+    devices.newest().finishFrame()
+    await flushPromises()
+    expect(harness.root.dataset.fieldReady).toBe("true")
+
+    devices.lose()
+    expect(harness.root.dataset.fieldReady).toBeUndefined()
+
+    await settleNextDevice(harness)
+    devices.newest().finishFrame()
+    await flushPromises()
+
+    expect(harness.loadRenderer).toHaveBeenCalledTimes(2)
+    expect(harness.root.dataset.fieldReady).toBe("true")
+  })
+
+  // GPU work that never finishes is the same event reaching the island by another
+  // route, and is answered the same way.
+  it("asks for another device when the frame's work never finishes", async () => {
+    const devices = deviceQueue()
+    const harness = mount({loadRenderer: devices.loadRenderer})
+    await settleFirstFrame(harness)
+
+    devices.newest().failFrame()
+    await flushPromises()
+    await settleNextDevice(harness)
+    devices.newest().finishFrame()
+    await flushPromises()
+
+    expect(harness.loadRenderer).toHaveBeenCalledTimes(2)
+    expect(harness.root.dataset.fieldReady).toBe("true")
+  })
+
+  // A device that fails as fast as it is granted is not going to start, and the
+  // island stops asking rather than turning the page into a loop.
+  it("stops asking after devices fail without ever drawing", async () => {
+    const devices = deviceQueue()
+    const harness = mount({loadRenderer: devices.loadRenderer})
+    await settleFirstFrame(harness)
+
+    for (let attempt = 0; attempt <= DEVICE_RECOVERY_LIMIT; attempt += 1) {
+      devices.lose()
+      await settleNextDevice(harness)
+    }
+
+    expect(harness.loadRenderer).toHaveBeenCalledTimes(DEVICE_RECOVERY_LIMIT + 1)
+    expect(harness.root.dataset.fieldReady).toBeUndefined()
+  })
+
+  // The budget separates a device that never drew from one that drew for an hour,
+  // so a picture that came back is as entitled to come back again as the first was.
+  it("gives a device that drew a full budget of its own", async () => {
+    expect(DEVICE_RECOVERY_LIMIT).toBeGreaterThan(0)
+    const devices = deviceQueue()
+    const harness = mount({loadRenderer: devices.loadRenderer})
+    await settleFirstFrame(harness)
+
+    for (let round = 0; round < DEVICE_RECOVERY_LIMIT + 2; round += 1) {
+      devices.newest().finishFrame()
+      await flushPromises()
+      expect(harness.root.dataset.fieldReady, `round ${round}`).toBe("true")
+      devices.lose()
+      await settleNextDevice(harness)
+    }
+
+    devices.newest().finishFrame()
+    await flushPromises()
+    expect(harness.root.dataset.fieldReady).toBe("true")
   })
 
   // The picture never changes on its own, so a window that stops changing size stops

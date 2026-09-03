@@ -80,6 +80,17 @@ export const MAX_DRAWING_BUFFER_PIXELS = 1_500_000
 export const EASING_FRAME_LIMIT = 24
 
 /**
+ * Devices the island will ask for again after one it was drawing on is lost.
+ *
+ * A browser takes the GPU device back for its own reasons — a backgrounded tab,
+ * a GPU process restart, a driver reset, a machine saving power — and hands out
+ * a new one the moment it is asked. So a loss is answered by asking again. The
+ * budget is what separates that from a device that fails as fast as it is
+ * granted, and a frame that lands spends none of it.
+ */
+export const DEVICE_RECOVERY_LIMIT = 3
+
+/**
  * Backing-store size for a CSS box, capped on both device pixel ratio and total
  * pixels. Both axes take the same scale, so the picture never stretches.
  */
@@ -134,6 +145,7 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
   let pendingPresent = false
   let confirming = false
   let easingFrames = 0
+  let recoveries = 0
   let compose: (() => void) | undefined
 
   // Every reason the island may work is tracked apart from every other one, because
@@ -236,16 +248,39 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
     retreat()
   }
 
+  /**
+   * The device the island was drawing on is gone. Every one of these is answered
+   * the same way, whether it arrived as a lost device or as GPU work that never
+   * finished, because they are the same event reaching the island by two routes.
+   *
+   * The renderer is dropped and another device asked for, which is what the
+   * visitor means by the picture coming back. A device that keeps going before it
+   * has drawn anything is not going to start now, and the island stops asking.
+   */
+  const deviceLost = () => {
+    if (recoveries >= DEVICE_RECOVERY_LIMIT) {
+      retire()
+      return
+    }
+    recoveries += 1
+    retreat()
+    sync()
+  }
+
   /** The fallback stays until real GPU work for the first frame has finished. */
   const confirmFirstFrame = () => {
     confirming = true
     const drawn = generation
     void renderer!.settled().then(
       () => {
-        if (drawn === generation) root.dataset[kind.readyFlag] = "true"
+        if (drawn !== generation) return
+        root.dataset[kind.readyFlag] = "true"
+        // This device drew. Whatever it cost to reach is spent, and a loss an hour
+        // from now is answered with a full budget of its own.
+        recoveries = 0
       },
       () => {
-        if (drawn === generation) retire()
+        if (drawn === generation) deviceLost()
       },
     )
   }
@@ -310,7 +345,7 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   const start = async (started: number) => {
     const loaded = await loadRenderer(canvas(), measure(), () => {
-      if (started === generation) retire()
+      if (started === generation) deviceLost()
     }).catch(() => undefined)
     if (started !== generation) {
       loaded?.dispose()
@@ -337,6 +372,7 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
       if (release || !supportsWebGpu()) return
       mounted = true
       retired = false
+      recoveries = 0
       awake = true
       // The fresh observer, not the last lifetime, says where the island stands now.
       onscreen = false
