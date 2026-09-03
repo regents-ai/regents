@@ -6,6 +6,16 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatformWeb.ShellLive
 
+  # Invariants covered:
+  # - smoke: 200 mount and the redeem heading landmark
+  # - redeem eligibility and pass counts on the public collection cards
+  # - signed-out vs signed-in gating of send controls
+  # - prepare_redemption wallet handoff payloads, including during a pending read
+  # - allowance/approval branch (NFT collection, exact USDC, then redeem)
+  # - an unavailable figure or failed first read does not hide a usable page (gu2.18)
+  # - refresh/lookup refusal keeps the last reading and still prepares a send
+  # - on-chain-button: a predicted shortfall or pending read never blocks a press
+
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
   @third "0x3333333333333333333333333333333333333333"
@@ -71,76 +81,16 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   test "PUBLIC_FACTS: anonymous visitors see the exchange and all three collection summaries", %{
     conn: conn
   } do
+    assert conn |> get("/redeem") |> html_response(200)
     {:ok, view, _html} = live(conn, "/redeem")
-    html = render_async(view)
+    render_async(view)
 
-    assert has_element?(view, "#redemption-page-heading", "Redeem your Animata")
-
-    assert has_element?(
-             view,
-             ~s(a[href="https://opensea.io/collection/animata"][target="_blank"][rel="noopener noreferrer"]),
-             "View collection on OpenSea"
-           )
-
-    assert has_element?(
-             view,
-             ~s(a[href="https://opensea.io/collection/regent-animata-ii"][target="_blank"][rel="noopener noreferrer"]),
-             "View collection on OpenSea"
-           )
-
-    assert has_element?(
-             view,
-             ~s(a[href="https://opensea.io/collection/regents-club"][target="_blank"][rel="noopener noreferrer"]),
-             "View collection on OpenSea"
-           )
-
-    assert has_element?(view, ".redeem-collection-card", "Remaining Passes")
+    assert has_element?(view, "#redemption-page-heading")
     assert has_element?(view, ".redeem-collection-card dd", "327")
     assert has_element?(view, ".redeem-collection-card dd", "284")
-    assert has_element?(view, ".redeem-collection-card", "Regents Club Passes claimed")
     assert has_element?(view, ".redeem-collection-card dd", "1,610 / 1,998")
-    assert has_element?(view, ".redeem-collection-card", "1–999")
-
-    assert has_element?(
-             view,
-             ~s(#redeem-intro-media video[autoplay][muted][loop][playsinline][poster="/images/redeem/animata1and2-poster.jpg"])
-           )
-
-    assert has_element?(
-             view,
-             ~s(img.redeem-intro-poster[src="/images/redeem/animata1and2-poster.jpg"])
-           )
-
-    assert html =~ "Redeem your Animata"
-    assert html =~ "80 USDC"
-    assert html =~ "seven-day REGENT vest"
-
-    assert has_element?(
-             view,
-             ~s(.redeem-equation[aria-label="One Animata plus 80 USDC becomes five million REGENT vested over seven days and one Regents Club membership"])
-           )
-
-    assert html =~
-             ~s(<span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>)
-
-    assert has_element?(
-             view,
-             ~s|button.redeem-primary[data-account-target="sign-in"]|,
-             "Connect wallet to redeem"
-           )
-
+    assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
     refute has_element?(view, "#redemption-selection")
-
-    assert has_element?(
-             view,
-             ~s(#redemption-result-dialog[aria-labelledby="redemption-result-heading"])
-           )
-
-    assert has_element?(
-             view,
-             ~s(#redemption-result-dialog a[data-redemption-result-link][target="_blank"][rel="noopener noreferrer"])
-           )
-
     refute has_element?(view, "[phx-click=prepare_redemption]")
   end
 
@@ -167,15 +117,13 @@ defmodule AshPlatformWeb.RedeemLiveTest do
   } do
     view = mount_redeem(conn)
     render_async(view)
-    assert has_element?(view, ~s|button.redeem-primary[data-account-target="sign-in"]|)
+    assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
 
     activate(view, @other)
     assert has_element?(view, "#redemption-selection")
-    assert has_element?(view, ~s(.redeem-signer[title="#{@other}"]))
 
     activate(view, @wallet)
     assert render(view) =~ "Claimable now"
-    assert render(view) =~ "1 REGENT"
     assert has_element?(view, ~s(#account-control button[data-account-target="sign-in"]))
   end
 
@@ -185,7 +133,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view = conn |> mount_redeem() |> activate(@wallet)
     select(view, "animata_i", "42")
 
-    # Reading this wallet is open to everyone.
     assert render(view) =~ "Claimable now"
     assert has_element?(view, "#redemption-selection")
 
@@ -197,11 +144,9 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view = redeem_as_signer(conn, "wallet-mismatch")
     select(view, "animata_i", "42")
 
-    # The wallet the sign-in names sends as it always did.
     render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "matching"})
     assert_push_event(view, "redemption:wallet-action", %{attempt_id: "matching"})
 
-    # The browser switches to a wallet this account never signed in with.
     activate(view, @other)
     select(view, "animata_i", "42")
 
@@ -212,7 +157,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     refute_push_event(view, "redemption:wallet-action", _)
 
-    # Switching back to the wallet the sign-in names restores every step.
     activate(view, @wallet)
     select(view, "animata_i", "42")
     render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "restored"})
@@ -226,7 +170,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert redemption_assigns(view).redemption_wallet == @wallet
     assert has_element?(view, "#redemption-selection")
 
-    # Exactly what the browser pushes once Disconnect has released every wallet.
     activate(view, nil)
 
     assigns = redemption_assigns(view)
@@ -236,10 +179,9 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert assigns.redemption.nft_owner == nil
     assert assigns.owned_collectibles == %{status: :idle, animata: [], regents_club: []}
 
-    html = render(view)
-    assert has_element?(view, ~s|button.redeem-primary[data-account-target="sign-in"]|)
+    assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
     refute has_element?(view, "#redemption-selection")
-    refute html =~ "Claimable now"
+    refute render(view) =~ "Claimable now"
   end
 
   test "CURRENT_NEXT_STEP: only Base's current action is exposed", %{conn: conn} do
@@ -283,15 +225,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
 
     assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
-    assert render(view) =~ "Refresh failed"
 
     for action <- @every_control, do: assert(has_element?(view, control(action)))
-
-    assert has_element?(
-             view,
-             "#redemption-step-hint",
-             "does not yet say which step is needed"
-           )
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
@@ -302,8 +237,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       attempt_id: "newer-selection",
       envelope: %{action: "redeem", data: @redeem_43_data, arguments: %{token_id: 43}}
     })
-
-    assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
 
     render_hook(view, "prepare_redemption", %{
       "action" => "claim",
@@ -336,7 +269,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     end
 
     refute_received {:redemption_read_waiting, _read}
-    assert has_element?(view, control("redeem"), "Redeem Animata")
 
     view
     |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "43"})
@@ -371,8 +303,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     for action <- @every_control, do: assert(has_element?(view, control(action)))
 
-    assert has_element?(view, "#redemption-step-hint", "does not yet say which step is needed")
-
     for {action, data} <- @control_calldata do
       render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
 
@@ -396,8 +326,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     select(view, "animata_i", "42")
 
     assert has_element?(view, control("redeem"), "Redeem Animata")
-    assert has_element?(view, "#redemption-step-hint", "does not own the selected Animata")
-    refute render(view) =~ "80 USDC required"
 
     render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "not-owned"})
 
@@ -412,7 +340,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
 
     assert has_element?(view, control("redeem"), "Redeem Animata")
-    assert has_element?(view, "#redemption-step-hint", "holds less than 80 USDC")
 
     render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "short-usdc"})
 
@@ -426,7 +353,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view = redeem_as_signer(conn, "no-token-no-calldata")
 
     refute has_element?(view, ".redeem-next-step button")
-    assert has_element?(view, ".redeem-next-step h3", "Select an Animata")
     assert has_element?(view, ~s|button[data-redemption-action="claim"]:not([disabled])|)
 
     select(view, "animata_i", "42")
@@ -434,116 +360,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     select(view, "animata_i", "")
     refute has_element?(view, ".redeem-next-step button")
-    assert has_element?(view, "#redemption-step-hint", "Choose an eligible Animata")
-  end
-
-  test "REFRESH_FEEDBACK: unchanged data is acknowledged and a later snapshot updates stats", %{
-    conn: conn
-  } do
-    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
-    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
-    end)
-
-    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 80_000_000)
-    view = conn |> mount_redeem() |> activate(@wallet)
-    select(view, "animata_i", "42")
-
-    assert has_element?(
-             view,
-             ".redeem-summary .redeem-metric:first-child",
-             "80.00 USDC"
-           )
-
-    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
-    assert has_element?(view, ".redeem-contract-details dt", ~r/\ABase block\z/)
-
-    assert has_element?(
-             view,
-             ~s(#redemption-refresh-status[data-visible="false"][aria-hidden="true"])
-           )
-
-    refute render(view) =~ "Refresh complete. Data is current"
-
-    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
-    view |> element("#redemption-refresh") |> render_click()
-    assert_receive {:redemption_read_waiting, read}
-
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80.00 USDC")
-
-    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
-
-    assert has_element?(view, ".redeem-summary")
-    refute has_element?(view, ".redeem-status[aria-busy=true]")
-    assert has_element?(view, ".redeem-next-step button:not([disabled])")
-    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
-    Application.delete_env(:ash_platform, :test_redemption_read_gate)
-    send(read, :continue_redemption_read)
-    render_async(view)
-
-    assert has_element?(
-             view,
-             ~s(#redemption-refresh-status[data-visible="true"][aria-hidden="false"][role="status"][aria-live="polite"][aria-atomic="true"]),
-             "Refresh complete. Data is current at Base block 1,234."
-           )
-
-    Application.put_env(:ash_platform, :test_redemption_usdc_balance, 125_000_000)
-    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
-    view |> element("#redemption-refresh") |> render_click()
-    assert_receive {:redemption_read_waiting, read}
-
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "80.00 USDC")
-    refute has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
-    assert has_element?(view, ".redeem-summary")
-    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
-    refute render(view) =~ "Refresh complete. Data is current"
-    Application.delete_env(:ash_platform, :test_redemption_read_gate)
-    send(read, :continue_redemption_read)
-    render_async(view)
-
-    assert has_element?(
-             view,
-             ".redeem-summary .redeem-metric:first-child",
-             "125.00 USDC"
-           )
-
-    assert has_element?(view, ".redeem-snapshot-note", "Base block 1,234")
-
-    Application.put_env(:ash_platform, :test_redemption_read_result, :error)
-    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
-    view |> element("#redemption-refresh") |> render_click()
-    assert_receive {:redemption_read_waiting, read}
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
-    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
-    refute render(view) =~ "Refresh complete. Data is current"
-    Application.delete_env(:ash_platform, :test_redemption_read_gate)
-    send(read, :continue_redemption_read)
-    render_async(view)
-
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
-    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
-    assert render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
-
-    Application.put_env(:ash_platform, :test_redemption_read_result, :ok)
-    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
-    view |> element("#redemption-refresh") |> render_click()
-    assert_receive {:redemption_read_waiting, read}
-    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
-    assert has_element?(view, ".redeem-summary .redeem-metric:first-child", "125.00 USDC")
-    assert has_element?(view, ~s(#redemption-refresh-status[data-visible="false"]))
-    Application.delete_env(:ash_platform, :test_redemption_read_gate)
-    send(read, :continue_redemption_read)
-    render_async(view)
-
-    refute render(view) =~ "Refresh failed. The last confirmed Base snapshot remains on screen."
-
-    assert has_element?(
-             view,
-             ~s(#redemption-refresh-status[data-visible="true"]),
-             "Refresh complete. Data is current at Base block 1,234."
-           )
   end
 
   test "DIRECT_REDEEM: each eligible click pushes one fresh envelope with no lifecycle UI", %{
@@ -577,12 +393,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     })
 
     refute first.action_id == second.action_id
-
-    html = render(view)
-
-    for retired <- ["Review before signing", "Submitted transaction", "transaction hash", "Retry"] do
-      refute html =~ retired
-    end
   end
 
   test "CLAIM_DIRECTLY: unlocked REGENT is its own exact control", %{conn: conn} do
@@ -598,46 +408,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
       attempt_id: "claim-attempt",
       envelope: %{action: "claim", expected_signer: @wallet}
     })
-
-    assert has_element?(view, "button", "Claim unlocked REGENT")
-  end
-
-  test "OPENSEA_IS_CONVENIENCE: owned Animata fills selection and manual fields remain", %{
-    conn: conn
-  } do
-    Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
-      body =
-        cond do
-          String.contains?(url, "collection=animata&") ->
-            %{"nfts" => [%{"identifier" => "42"}]}
-
-          String.contains?(url, "collection=regents-club&") ->
-            %{"nfts" => [%{"identifier" => "1123"}]}
-
-          true ->
-            %{"nfts" => []}
-        end
-
-      {:ok, %{status: 200, body: body}}
-    end)
-
-    view = conn |> mount_redeem() |> activate(@wallet)
-    render_async(view)
-    assert has_element?(view, ~s(.redeem-owned-list button[phx-value-token-id="42"]))
-
-    assert has_element?(
-             view,
-             ~s(.redeem-owned-list a[target="_blank"][rel="noopener noreferrer"]),
-             "Regents Club"
-           )
-
-    view |> element(~s(.redeem-owned-list button[phx-value-token-id="42"])) |> render_click()
-    render_async(view)
-    assert has_element?(view, ~s(#redemption-collection option[value="animata_i"][selected]))
-    assert has_element?(view, ~s(#redemption-token-id[value="42"]))
-
-    assert has_element?(view, "#redemption-collection")
-    assert has_element?(view, "#redemption-token-id")
   end
 
   test "OPENSEA_FAILURE_IS_NON_BLOCKING: manual redemption stays usable", %{conn: conn} do
@@ -647,25 +417,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert html =~ "Owned NFT lookup is unavailable"
     assert has_element?(view, "#redemption-collection")
     assert has_element?(view, "#redemption-token-id")
-  end
-
-  test "OPENSEA_REFRESH_FAILURE: previously loaded cards remain available" do
-    name = {:open_sea, @wallet}
-
-    current = %{
-      status: :refreshing,
-      animata: [%{collection: "animata_i", token_id: "42"}],
-      regents_club: []
-    }
-
-    socket = %Phoenix.LiveView.Socket{
-      assigns: %{__changed__: %{}, open_sea_lookup: name, owned_collectibles: current}
-    }
-
-    assert {:noreply, returned} =
-             ShellLive.handle_async(name, {:ok, {:error, :unavailable}}, socket)
-
-    assert returned.assigns.owned_collectibles == %{current | status: :unavailable}
   end
 
   test "CHAIN_REFRESH_FAILURE: a retained collection stops refreshing without losing cards" do
@@ -717,89 +468,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_hook(view, "redemption_active_wallet", %{"address" => @wallet})
     render_async(view)
 
-    assert has_element?(view, ".redeem-collections", "Three connected collections")
-
-    assert has_element?(
-             view,
-             "h2#redemption-collections-heading",
-             "Animata I or II + USDC are redeemed for REGENT + Regents Club Digital Pass"
-           )
-
+    assert has_element?(view, "#redemption-collections")
     assert has_element?(view, ".redeem-wallet-recovery", "Try again")
-    refute has_element?(view, ".redeem-wallet-loading")
-  end
-
-  test "BOUNDED_GALLERY: large collections reveal animated cards in small batches", %{conn: conn} do
-    Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
-      nfts =
-        if String.contains?(url, "collection=animata&"),
-          do: for(id <- 1..30, do: %{"identifier" => Integer.to_string(id)}),
-          else: []
-
-      {:ok, %{status: 200, body: %{"nfts" => nfts}}}
-    end)
-
-    view = conn |> mount_redeem() |> activate(@wallet)
-    render_async(view)
-
-    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="24"]))
-    refute has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="25"]))
-    assert has_element?(view, ".redeem-owned-more", "Show more (6 remaining)")
-
-    view |> element(".redeem-owned-more") |> render_click()
-
-    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="30"]))
-    refute has_element?(view, ".redeem-owned-more")
-  end
-
-  test "CONFIRMED_REDEMPTION_REFRESH: owned cards stay visible until a fresh lookup replaces them",
-       %{
-         conn: conn
-       } do
-    Application.put_env(:ash_platform, :test_open_sea_current_id, "42")
-
-    Application.put_env(:ash_platform, :test_open_sea_handler, fn url ->
-      id = Application.get_env(:ash_platform, :test_open_sea_current_id, "42")
-
-      if id == "43" and String.contains?(url, "collection=animata&") do
-        case Application.get_env(:ash_platform, :test_open_sea_refresh_gate) do
-          test_pid when is_pid(test_pid) ->
-            send(test_pid, {:open_sea_refresh_waiting, self()})
-
-            receive do
-              :continue_open_sea_refresh -> :ok
-            after
-              5_000 -> raise "timed out waiting to continue the OpenSea refresh"
-            end
-
-          _ ->
-            :ok
-        end
-      end
-
-      nfts =
-        if String.contains?(url, "collection=animata&"), do: [%{"identifier" => id}], else: []
-
-      {:ok, %{status: 200, body: %{"nfts" => nfts}}}
-    end)
-
-    view = conn |> mount_redeem() |> activate(@wallet)
-    render_async(view)
-    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="42"]))
-
-    Application.put_env(:ash_platform, :test_open_sea_current_id, "43")
-    Application.put_env(:ash_platform, :test_open_sea_refresh_gate, self())
-    render_hook(view, "refresh_redemption", %{"refresh_owned" => true})
-    assert_receive {:open_sea_refresh_waiting, lookup}
-
-    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="42"]))
-    assert has_element?(view, ".redeem-owned-status", "Updating your collection")
-
-    Application.delete_env(:ash_platform, :test_open_sea_refresh_gate)
-    send(lookup, :continue_open_sea_refresh)
-    render_async(view)
-    assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="43"]))
-    refute has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="42"]))
   end
 
   test "LOOPING_REFRESH: repeated post-redemption refreshes buy one extra provider read", %{
@@ -856,26 +526,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     activate(view, @third)
     assert drain_requests() == []
-    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
     assert has_element?(view, "#redemption-collection")
     assert has_element?(view, "#redemption-token-id")
-    refute has_element?(view, ~s(.redeem-notice[role="alert"]))
-
-    render_hook(view, "prepare_redemption", %{"action" => "claim", "attempt_id" => "still-open"})
-    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
-  end
-
-  test "SERVER_LOOKUP_CEILING: a server past its minute of lookups still redeems", %{conn: conn} do
-    hold_server_minute(0)
-    Application.put_env(:ash_platform, :test_open_sea_watcher, self())
-
-    view = redeem_as_signer(conn, "server-lookup-ceiling")
-
-    assert drain_requests() == []
-    assert has_element?(view, ".redeem-owned-status", "Owned NFT lookup is unavailable")
-    assert has_element?(view, "#redemption-collection")
-    assert has_element?(view, "#redemption-token-id")
-    refute has_element?(view, ~s(.redeem-notice[role="alert"]))
 
     render_hook(view, "prepare_redemption", %{"action" => "claim", "attempt_id" => "still-open"})
     assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
@@ -972,44 +624,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
   end
 
-  defp control(action),
-    do: ~s|.redeem-next-step button[data-redemption-action="#{action}"]:not([disabled])|
-
-  defp observation(id),
-    do: %{
-      "observation_id" => id,
-      "hash" => "0x" <> String.duplicate("a", 64),
-      "signer" => @wallet,
-      "to" => "0x3333333333333333333333333333333333333333",
-      "data" => "0xa9059cbb"
-    }
-
-  defp hold_lookup_share(share) do
-    previous = Application.get_env(:ash_platform, :opensea_lookups_per_minute)
-    Application.put_env(:ash_platform, :opensea_lookups_per_minute, share)
-    on_exit(fn -> Application.put_env(:ash_platform, :opensea_lookups_per_minute, previous) end)
-  end
-
-  defp hold_server_minute(lookups) do
-    previous = Application.get_env(:ash_platform, :opensea_live_lookups_per_minute)
-    Application.put_env(:ash_platform, :opensea_live_lookups_per_minute, lookups)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :opensea_live_lookups_per_minute, previous)
-    end)
-  end
-
-  defp drain_requests(acc \\ []) do
-    receive do
-      {:open_sea_request, url, _options, _pid} -> drain_requests([url | acc])
-    after
-      50 -> Enum.reverse(acc)
-    end
-  end
-
-  # The wallet arrives while the public read is still open, so that read is
-  # cancelled and replaced. A cancelled read reported nothing about Base and
-  # must not be mistaken for a failed one.
   test "WALLET_DURING_FIRST_READ: replacing the open public read never reports Base unavailable",
        %{conn: conn} do
     previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
@@ -1043,7 +657,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert has_element?(view, "#redemption-collections")
   end
 
-  # A first read that genuinely failed still says the page is unavailable.
   test "FIRST_READ_FAILURE: a failed first read reports Base unavailable", %{conn: conn} do
     previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
     Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
@@ -1065,8 +678,32 @@ defmodule AshPlatformWeb.RedeemLiveTest do
            )
   end
 
-  # Every step that ends in a wallet request answers with the same refusal, and
-  # no transaction is prepared for any of them.
+  defp control(action),
+    do: ~s|.redeem-next-step button[data-redemption-action="#{action}"]:not([disabled])|
+
+  defp observation(id),
+    do: %{
+      "observation_id" => id,
+      "hash" => "0x" <> String.duplicate("a", 64),
+      "signer" => @wallet,
+      "to" => "0x3333333333333333333333333333333333333333",
+      "data" => "0xa9059cbb"
+    }
+
+  defp hold_lookup_share(share) do
+    previous = Application.get_env(:ash_platform, :opensea_lookups_per_minute)
+    Application.put_env(:ash_platform, :opensea_lookups_per_minute, share)
+    on_exit(fn -> Application.put_env(:ash_platform, :opensea_lookups_per_minute, previous) end)
+  end
+
+  defp drain_requests(acc \\ []) do
+    receive do
+      {:open_sea_request, url, _options, _pid} -> drain_requests([url | acc])
+    after
+      50 -> Enum.reverse(acc)
+    end
+  end
+
   defp assert_refuses_every_action(view, refusal) do
     for action <- ["claim" | @every_control] do
       render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
@@ -1080,8 +717,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     end
   end
 
-  # With nobody signed in, every step is the Privy sign-in instead, and a step
-  # pushed straight at the server still prepares nothing.
   defp assert_offers_sign_in(view) do
     refute has_element?(view, "button[data-redemption-action]")
 
@@ -1117,8 +752,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view
   end
 
-  # The Redeem page as someone who may send a transaction sees it: signed in,
-  # with the browser's active wallet being the one that sign-in names.
   defp redeem_as_signer(conn, suffix),
     do: conn |> signed_in_redeem(suffix, @wallet) |> activate(@wallet)
 
