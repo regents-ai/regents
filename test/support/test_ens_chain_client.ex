@@ -31,10 +31,37 @@ defmodule AshPlatform.TestEnsChainClient do
       avatar: "",
       owner: :itself
     },
-    named_with_unsupported_avatar: %{
+    named_with_ipfs_avatar: %{
       wallet: "0xaaaa000000000000000000000000000000000003",
       name: "ipfs-avatar.eth",
       avatar: "ipfs://bafyfakeavatarcid",
+      owner: :itself
+    },
+    named_with_nft_avatar: %{
+      wallet: "0xaaaa00000000000000000000000000000000000a",
+      name: "nft-avatar.eth",
+      avatar: "eip155:1/erc721:0xcccc000000000000000000000000000000000001/7",
+      owner: :itself
+    },
+    # Publishes a record the ENS service cannot turn into a picture.
+    named_with_unresolvable_avatar: %{
+      wallet: "0xaaaa00000000000000000000000000000000000b",
+      name: "unresolvable-avatar.eth",
+      avatar: "eip155:1/erc721:0xcccc000000000000000000000000000000000002/9",
+      owner: :itself
+    },
+    # Points at a picture that is no longer there.
+    named_with_missing_picture: %{
+      wallet: "0xaaaa00000000000000000000000000000000000c",
+      name: "gone.eth",
+      avatar: "https://avatars.regents.test/gone.png",
+      owner: :itself
+    },
+    # Points at a picture whose host will not answer.
+    named_with_refused_picture: %{
+      wallet: "0xaaaa00000000000000000000000000000000000d",
+      name: "refused.eth",
+      avatar: "https://avatars.regents.test/refused.png",
       owner: :itself
     },
     unnamed: %{

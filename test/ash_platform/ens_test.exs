@@ -23,10 +23,47 @@ defmodule AshPlatform.EnsTest do
     assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
   end
 
-  test "a picture this page cannot show is left out rather than shown broken" do
-    identity = :named_with_unsupported_avatar |> account() |> resolve()
+  test "a picture published on IPFS is drawn through the ENS service" do
+    identity = :named_with_ipfs_avatar |> account() |> resolve()
 
-    assert %{ens_name: "ipfs-avatar.eth", ens_avatar_url: nil} = identity
+    assert %{
+             ens_name: "ipfs-avatar.eth",
+             ens_avatar_url: "https://metadata.ens.domains/mainnet/avatar/ipfs-avatar.eth"
+           } = identity
+  end
+
+  test "a picture held by an NFT is drawn through the ENS service" do
+    identity = :named_with_nft_avatar |> account() |> resolve()
+
+    assert %{
+             ens_name: "nft-avatar.eth",
+             ens_avatar_url: "https://metadata.ens.domains/mainnet/avatar/nft-avatar.eth"
+           } = identity
+  end
+
+  # A name is drawn with its own picture or with the wallet's generated one, and
+  # never with a box the browser cannot fill.
+  test "a record the ENS service cannot resolve keeps the generated picture" do
+    identity = :named_with_unresolvable_avatar |> account() |> resolve()
+
+    assert %{ens_name: "unresolvable-avatar.eth", ens_avatar_url: nil} = identity
+    assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
+  end
+
+  test "a picture that is no longer there keeps the generated one" do
+    identity = :named_with_missing_picture |> account() |> resolve()
+
+    assert %{ens_name: "gone.eth", ens_avatar_url: nil} = identity
+    assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
+  end
+
+  # The name was read before the picture was asked about, so the picture's host
+  # cannot cost the name.
+  test "a picture whose host will not answer keeps the name and the generated picture" do
+    identity = :named_with_refused_picture |> account() |> resolve()
+
+    assert %{ens_name: "refused.eth", ens_avatar_url: nil} = identity
+    assert PublicIdentity.label(identity) == "refused.eth"
     assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
   end
 

@@ -48,6 +48,8 @@ config :ash_platform,
 config :ash_platform, :ethereum_read_rpc_url, "https://ethereum.test.invalid"
 config :ash_platform, :ethereum_rpc_module, AshPlatform.TestEnsChainClient
 config :ash_platform, :ens_lookup_deadline_ms, 200
+config :ash_platform, :ens_avatar_http_client, AshPlatform.TestEnsAvatarHttpClient
+config :ash_platform, :ens_avatar_deadline_ms, 200
 
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is

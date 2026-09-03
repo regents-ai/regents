@@ -11,6 +11,10 @@ defmodule AshPlatform.Ens do
   A wallet's reverse record only claims a name. The name is resolved forward
   again and kept only when it resolves back to the same wallet, so no one can
   wear a name they do not own.
+
+  A name's picture is kept only when its address really answers with one, so a
+  wallet is drawn with its own generated picture rather than with a box the
+  browser cannot fill.
   """
 
   alias AgentEns.Internal.Contract
@@ -22,6 +26,11 @@ defmodule AshPlatform.Ens do
   @ens_registry "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
   @avatar_record "avatar"
   @unnamed %{ens_name: nil, ens_avatar_url: nil}
+
+  # ENS publishes an address that resolves any name's avatar record — an image
+  # address, an `ipfs://` URI, or a reference to the NFT holding the picture —
+  # and answers with the image itself.
+  @avatar_service "https://metadata.ens.domains/mainnet/avatar/"
 
   @doc false
   def child_spec(_options),
@@ -53,9 +62,23 @@ defmodule AshPlatform.Ens do
   end
 
   defp store(account_id, {:ok, %{ens_name: name, ens_avatar_url: avatar}}),
-    do: Accounts.put_ens_identity(account_id, name, avatar, actor: %SystemActor{})
+    do: Accounts.put_ens_identity(account_id, name, served(avatar), actor: %SystemActor{})
 
   defp store(_account_id, :unavailable), do: :ok
+
+  # A picture is kept only when its address really answers with one, asked once
+  # on its own budget. So a record the ENS service cannot resolve, an image that
+  # has since gone, and a host that will not answer all leave the wallet's
+  # generated picture standing rather than a box the browser cannot fill — and
+  # none of them costs the name, which was read before this is asked.
+  defp served(nil), do: nil
+
+  defp served(url) do
+    case avatar_client().head(url, receive_timeout: avatar_deadline_ms(), retry: false) do
+      {:ok, %{status: 200}} -> url
+      _unserved -> nil
+    end
+  end
 
   # The chain calls run in their own task so the deadline is wall-clock, not the
   # sum of however many round trips a resolver happens to need.
@@ -96,21 +119,33 @@ defmodule AshPlatform.Ens do
   end
 
   defp owned(%{eth_address: wallet, normalized_name: name, text_records: records}, wallet),
-    do: %{ens_name: name, ens_avatar_url: image_url(records[@avatar_record])}
+    do: %{ens_name: name, ens_avatar_url: image_url(records[@avatar_record], name)}
 
   defp owned(_someone_elses_name, _wallet), do: @unnamed
 
-  # The avatar record is free text. An `https://` image goes straight into the
-  # page; an `ipfs://` URI would need a gateway this product has not chosen, and
-  # an `eip155:` NFT reference would need a second chain read and a metadata
-  # fetch. Neither is supported, and neither is shown as a broken image: the
-  # wallet's own generated picture stands for every wallet without an https one.
-  defp image_url("https://" <> _image = url), do: url
-  defp image_url(_unsupported), do: nil
+  # The avatar record is free text, and only an image address is something a
+  # browser can load. Every other kind the record may hold is read through the
+  # ENS service, which resolves the record itself, so a name is drawn with its
+  # own picture however that picture is published. A name that publishes nothing
+  # is drawn with the wallet's generated picture.
+  defp image_url(record, name) when is_binary(record) do
+    case String.trim(record) do
+      "" -> nil
+      "https://" <> _image = url -> url
+      _other_kind -> @avatar_service <> URI.encode(name, &URI.char_unreserved?/1)
+    end
+  end
+
+  defp image_url(_absent, _name), do: nil
 
   defp rpc, do: Application.fetch_env!(:ash_platform, :ethereum_rpc_module)
 
   defp deadline_ms, do: Application.fetch_env!(:ash_platform, :ens_lookup_deadline_ms)
+
+  defp avatar_client, do: Application.fetch_env!(:ash_platform, :ens_avatar_http_client)
+
+  defp avatar_deadline_ms,
+    do: Application.fetch_env!(:ash_platform, :ens_avatar_deadline_ms)
 
   defp announce(account_id),
     do:
