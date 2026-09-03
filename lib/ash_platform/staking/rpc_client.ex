@@ -4,6 +4,7 @@ defmodule AshPlatform.Staking.RpcClient do
 
   require Logger
 
+  alias AshPlatform.Staking.Supply
   alias AshPlatform.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
@@ -51,10 +52,12 @@ defmodule AshPlatform.Staking.RpcClient do
     end
   end
 
-  # One `latest` block owns every figure below it: one call returns all the
-  # contract's current answers, and the deposit window read afterwards ends at
-  # that same block, so nothing on the page can pair one block's total with
-  # another's history. A partial aggregate is unavailable rather than shown.
+  # One `latest` block owns every figure below it. The contract's current
+  # answers come back together, the one balance that could not be asked for
+  # until the treasury named itself is asked for at that same block, and the
+  # deposit window read afterwards ends there too, so nothing on the page can
+  # pair one block's total with another's history. A partial aggregate is
+  # unavailable rather than shown.
   defp read_protocol do
     with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          :ok <- identified_aggregator(block),
@@ -67,11 +70,19 @@ defmodule AshPlatform.Staking.RpcClient do
             emission_apr_bps,
             stake_token,
             usdc,
-            regent_total_supply
+            regent_total_supply,
+            treasury,
+            reward_inventory,
+            redeemer_held
           ]} <- Rpc.aggregate3(aggregator(), protocol_calls(), block, @rpc_opts),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
-         true <- usdc == Abi.normalize_address!(Abi.usdc_address()) do
+         true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
+         {:ok, [treasury_held]} <-
+           Rpc.aggregate3(aggregator(), treasury_calls(treasury), block, @rpc_opts) do
       capacity = max(denominator - total_staked, 0)
+
+      circulating =
+        Supply.circulating(regent_total_supply, treasury_held, redeemer_held, reward_inventory)
 
       {:ok,
        %{
@@ -91,6 +102,8 @@ defmodule AshPlatform.Staking.RpcClient do
          usdc_received_lifetime: Rpc.format_units(usdc_received, 6),
          regent_total_supply_raw: Integer.to_string(regent_total_supply),
          regent_total_supply: Rpc.format_units(regent_total_supply, 18),
+         regent_circulating_supply_raw: Integer.to_string(circulating),
+         regent_circulating_supply: Rpc.format_units(circulating, 18),
          emission_apr_bps: emission_apr_bps,
          emission_apr_percent: format_bps(emission_apr_bps)
        }}
@@ -236,10 +249,10 @@ defmodule AshPlatform.Staking.RpcClient do
   # about an account names that account in its own arguments and never relies on
   # who is calling.
   #
-  # The last sub-call reads the REGENT token rather than the staking contract.
-  # It names the pinned token address, and the `stake_token` read beside it
-  # proves the staking contract answers with that same address before any of
-  # this reading is believed.
+  # Some sub-calls read the REGENT token rather than the staking contract. They
+  # name the pinned token address, and the `stake_token` read beside them proves
+  # the staking contract answers with that same address before any of this
+  # reading is believed.
   defp protocol_calls do
     staking = Abi.staking_address()
 
@@ -251,9 +264,19 @@ defmodule AshPlatform.Staking.RpcClient do
       {staking, Abi.encode_emission_apr_bps(), :uint},
       {staking, Abi.encode_read("stake_token"), :address},
       {staking, Abi.encode_read("usdc"), :address},
-      {Abi.stake_token_address(), Abi.encode_erc20_total_supply(), :uint}
+      {Abi.stake_token_address(), Abi.encode_erc20_total_supply(), :uint},
+      {staking, Abi.encode_treasury_recipient(), :address},
+      {staking, Abi.encode_reward_inventory(), :uint},
+      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.animata_redeemer()]),
+       :uint}
     ]
   end
+
+  # The treasury names itself, so how much REGENT it holds can only be asked
+  # once it has. The question goes back to the same block the rest of the
+  # reading came from, so the supply this page works out is one block's.
+  defp treasury_calls(treasury),
+    do: [{Abi.stake_token_address(), Abi.encode_erc20("balance_of", [treasury]), :uint}]
 
   defp wallet_calls(wallet) do
     staking = Abi.staking_address()

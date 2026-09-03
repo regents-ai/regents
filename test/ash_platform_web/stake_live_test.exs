@@ -36,6 +36,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
       for key <- [
             :test_staking_allowance,
             :test_staking_balances,
+            :test_staking_circulating,
             :test_staking_denominator,
             :test_staking_protocol_error,
             :test_staking_wallet_error,
@@ -162,6 +163,58 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "#staking-amount")
     refute has_element?(view, "button[data-staking-action]")
     refute has_element?(view, "#regent-staking[data-staking-allowance]")
+  end
+
+  # The hero says how much REGENT exists and how much of it moves, both to the
+  # four digits a person reads and to the exact figure on hover.
+  test "HERO_SUPPLY: the hero carries circulating and total REGENT", %{conn: conn} do
+    view = mount_stake(conn)
+
+    assert has_element?(view, ".stake-benefit-supply dt", "Circulating REGENT")
+    assert has_element?(view, ".stake-benefit-supply dt", "Total REGENT")
+    assert has_element?(view, ".stake-benefit-supply", "35 billion")
+    assert has_element?(view, ".stake-benefit-supply", "100 billion")
+
+    # The circulating figure moves, so its exact form is two decimals rather
+    # than the eighteen the chain keeps it in. The supply is a whole number.
+    assert has_element?(view, ~s(.stake-benefit-supply [title="35,000,000,000.00"]))
+    assert has_element?(view, ~s(.stake-benefit-supply [title="100,000,000,000"]))
+  end
+
+  # Where the USDC comes from is read before what the contract currently holds,
+  # and every source is closed until somebody opens it.
+  test "REVENUE_SOURCES: the four products and their streams are listed above the position", %{
+    conn: conn
+  } do
+    view = mount_stake(conn)
+    html = render(view)
+
+    assert has_element?(view, "#staking-revenue-sources h2", "USDC Revenue Sources")
+
+    position = :binary.match(html, "staking-revenue-sources")
+    overview = :binary.match(html, "staking-contract-overview")
+    assert elem(position, 0) < elem(overview, 0)
+
+    for {product, streams} <- [
+          {"Regents Labs",
+           [
+             "REGENT/ETH Uniswap v4 Pool Fee (0.1-0.3% on volume)",
+             "Protocol x402 Services"
+           ]},
+          {"Autolaunch",
+           [
+             "All Tokens Uniswap v4 Hooks (1% on volume)",
+             "All Tokens USDC Revenue (2% on volume)"
+           ]},
+          {"Techtree", ["Paid Artifact Revenue (5% on volume)", "Protocol Environment Revenue"]},
+          {"Patchbay", ["Priority Question Revenue (10% on volume)"]}
+        ] do
+      assert has_element?(view, ".stake-revenue-source > summary", product)
+      for stream <- streams, do: assert(has_element?(view, ".stake-revenue-source li", stream))
+    end
+
+    assert view |> element("#staking-revenue-sources") |> render() =~ "<details"
+    refute view |> element("#staking-revenue-sources") |> render() =~ "open"
   end
 
   # The whole point of the shared reading: opening the page costs Base nothing.
@@ -1244,15 +1297,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
     on_exit(fn -> Application.put_env(:ash_platform, :staking_chain_client, previous) end)
   end
 
-  # The circulating supply is published rather than read from Base, so a test
-  # that wants a different one says so and puts the published figure back.
+  # A test that wants a different circulating supply sets what the stubbed chain
+  # reports and puts the previous figure back.
   defp put_circulating(atomic) do
-    previous = Application.fetch_env!(:ash_platform, :regent_circulating_supply_atomic)
-    Application.put_env(:ash_platform, :regent_circulating_supply_atomic, atomic)
-
-    on_exit(fn ->
-      Application.put_env(:ash_platform, :regent_circulating_supply_atomic, previous)
-    end)
+    Application.put_env(:ash_platform, :test_staking_circulating, atomic)
+    on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_circulating) end)
   end
 
   defp staking_assigns(view), do: :sys.get_state(view.pid).socket.assigns

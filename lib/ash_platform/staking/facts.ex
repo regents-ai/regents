@@ -38,6 +38,8 @@ defmodule AshPlatform.Staking.Facts do
     :usdc_received_lifetime,
     :regent_total_supply_raw,
     :regent_total_supply,
+    :regent_circulating_supply_raw,
+    :regent_circulating_supply,
     :emission_apr_bps,
     :emission_apr_percent
   ]

@@ -26,6 +26,11 @@ defmodule AshPlatform.TestStakingChainClient do
   @lifetime_usdc "5074870000"
   @regent_total_supply "100000000000000000000000000000"
 
+  # What the four holdings leave circulating. A test that wants a different
+  # share of the supply moving sets this rather than any of the balances behind
+  # it, which the real reader works out on chain.
+  @regent_circulating_supply "35000000000000000000000000000"
+
   # The two readings are taken at different blocks on purpose: a proof that
   # pairs one map's figure with the other's block fails here rather than in
   # production.
@@ -77,6 +82,7 @@ defmodule AshPlatform.TestStakingChainClient do
     denominator = String.to_integer(setting(:test_staking_denominator, @denominator))
     capacity = max(denominator - total, 0)
     block = setting(:test_staking_protocol_block, @protocol_block)
+    circulating = setting(:test_staking_circulating, @regent_circulating_supply)
 
     %{
       chain_id: 8453,
@@ -95,6 +101,8 @@ defmodule AshPlatform.TestStakingChainClient do
       usdc_received_lifetime: scaled(@lifetime_usdc, 6),
       regent_total_supply_raw: @regent_total_supply,
       regent_total_supply: scaled(@regent_total_supply, 18),
+      regent_circulating_supply_raw: circulating,
+      regent_circulating_supply: scaled(circulating, 18),
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }

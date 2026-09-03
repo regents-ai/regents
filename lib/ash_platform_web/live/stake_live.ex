@@ -24,12 +24,44 @@ defmodule AshPlatformWeb.StakeLive do
     {"claim_and_restake_regent", "Claim and restake"}
   ]
 
+  # Where the contract's USDC comes from, product by product. This is copy
+  # rather than a reading: no chain answers for it, so it is written once here
+  # and never assembled from figures the page happens to hold.
+  @revenue_sources [
+    %{
+      product: "Regents Labs",
+      streams: [
+        "REGENT/ETH Uniswap v4 Pool Fee (0.1-0.3% on volume)",
+        "Protocol x402 Services"
+      ]
+    },
+    %{
+      product: "Autolaunch",
+      streams: [
+        "All Tokens Uniswap v4 Hooks (1% on volume)",
+        "All Tokens USDC Revenue (2% on volume)"
+      ]
+    },
+    %{
+      product: "Techtree",
+      streams: [
+        "Paid Artifact Revenue (5% on volume)",
+        "Protocol Environment Revenue"
+      ]
+    },
+    %{
+      product: "Patchbay",
+      streams: ["Priority Question Revenue (10% on volume)"]
+    }
+  ]
+
   def page(assigns) do
     claims = claims(assigns.available_claims)
 
     assigns =
       assigns
       |> assign(:dashboard, staking_dashboard(assigns.staking))
+      |> assign(:revenue_sources, @revenue_sources)
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
       |> assign(:claims, claims)
@@ -80,6 +112,14 @@ defmodule AshPlatformWeb.StakeLive do
           <div class="stake-benefit-card">
             <dt>REGENT Staked</dt>
             <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
+          </div>
+          <div class="stake-benefit-card stake-benefit-supply">
+            <dt>Circulating REGENT</dt>
+            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /></dd>
+          </div>
+          <div class="stake-benefit-card stake-benefit-supply">
+            <dt>Total REGENT</dt>
+            <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
           </div>
         </dl>
         <a
@@ -294,73 +334,99 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
         </section>
 
-        <section
-          id="staking-contract-overview"
-          class="stake-overview"
-          aria-labelledby="staking-overview-heading"
-        >
-          <div class="stake-overview-heading">
-            <div>
-              <p
-                class="stake-contract-status"
-                data-state={if @staking.paused, do: "paused", else: "active"}
+        <div class="stake-column">
+          <section
+            id="staking-revenue-sources"
+            class="stake-overview stake-revenue"
+            aria-labelledby="staking-revenue-heading"
+          >
+            <div class="stake-overview-heading">
+              <div>
+                <p class="stake-section-kicker">Where the USDC comes from</p>
+                <h2 id="staking-revenue-heading">USDC Revenue Sources</h2>
+              </div>
+            </div>
+
+            <div class="stake-revenue-list">
+              <details :for={source <- @revenue_sources} class="stake-revenue-source">
+                <summary>
+                  {source.product}<span class="stake-revenue-caret" aria-hidden="true">▾</span>
+                </summary>
+                <ul>
+                  <li :for={stream <- source.streams}>{stream}</li>
+                </ul>
+              </details>
+            </div>
+          </section>
+
+          <section
+            id="staking-contract-overview"
+            class="stake-overview"
+            aria-labelledby="staking-overview-heading"
+          >
+            <div class="stake-overview-heading">
+              <div>
+                <p
+                  class="stake-contract-status"
+                  data-state={if @staking.paused, do: "paused", else: "active"}
+                >
+                  <span aria-hidden="true"></span>{if @staking.paused,
+                    do: "Staking paused",
+                    else: "Staking active"}
+                </p>
+                <h2 id="staking-overview-heading">Live contract position</h2>
+              </div>
+              <span class="stake-network">Base</span>
+            </div>
+
+            <div class="stake-supply">
+              <div class="stake-supply-heading">
+                <span>REGENT supply</span><strong>{@dashboard.supply.label}</strong>
+              </div>
+              <div
+                id="staking-supply-bar"
+                class="stake-supply-bar"
+                role="img"
+                aria-label={@dashboard.supply.description}
+                style={"--circulating-share: #{@dashboard.supply.circulating_share}%; --staked-share: #{@dashboard.supply.staked_share}%"}
               >
-                <span aria-hidden="true"></span>{if @staking.paused,
-                  do: "Staking paused",
-                  else: "Staking active"}
-              </p>
-              <h2 id="staking-overview-heading">Live contract position</h2>
+                <span class="stake-supply-circulating">
+                  <span class="stake-supply-staked"></span>
+                </span>
+              </div>
+              <dl class="stake-supply-facts">
+                <div>
+                  <dt>Total staked</dt><dd>
+                    <TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Circulating supply</dt><dd>
+                    <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Total supply</dt><dd>
+                    <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <span class="stake-network">Base</span>
-          </div>
 
-          <div class="stake-supply">
-            <div class="stake-supply-heading">
-              <span>REGENT supply</span><strong>{@dashboard.supply.label}</strong>
-            </div>
-            <div
-              id="staking-supply-bar"
-              class="stake-supply-bar"
-              role="img"
-              aria-label={@dashboard.supply.description}
-              style={"--circulating-share: #{@dashboard.supply.circulating_share}%; --staked-share: #{@dashboard.supply.staked_share}%"}
-            >
-              <span class="stake-supply-circulating">
-                <span class="stake-supply-staked"></span>
+            <p class="stake-snapshot-note">
+              <span>
+                Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {snapshot_age(
+                  @staking
+                )}.
               </span>
-            </div>
-            <dl class="stake-supply-facts">
-              <div>
-                <dt>Total staked</dt><dd>
-                  <TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" />
-                </dd>
-              </div>
-              <div>
-                <dt>Circulating supply</dt><dd>
-                  <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
-                </dd>
-              </div>
-              <div>
-                <dt>Total supply</dt><dd>
-                  <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
-                </dd>
-              </div>
-            </dl>
-          </div>
+              <span :if={@reading || @shared_reading} class="stake-inline-loading">
+                Updating from Base…
+              </span>
+            </p>
 
-          <p class="stake-snapshot-note">
-            <span>
-              Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {snapshot_age(
-                @staking
-              )}.
-            </span>
-            <span :if={@reading || @shared_reading} class="stake-inline-loading">
-              Updating from Base…
-            </span>
-          </p>
-
-          <.notice :if={!@wallet && @notice} notice={@notice} />
-        </section>
+            <.notice :if={!@wallet && @notice} notice={@notice} />
+          </section>
+        </div>
       </div>
 
       <section
@@ -465,20 +531,26 @@ defmodule AshPlatformWeb.StakeLive do
   defp staking_dashboard(nil), do: nil
 
   defp staking_dashboard(staking) do
-    circulating_raw = circulating_supply_raw()
+    circulating_raw = staking.regent_circulating_supply_raw
 
     %{
       basescan_url: "https://basescan.org/address/#{staking.contract_address}",
-      circulating_supply: token_amount(circulating_raw),
+      circulating_supply: to_cents(staking.regent_circulating_supply),
       emission_apr: "#{TokenDisplay.compact(staking.emission_apr_percent)}%",
       supply: supply(staking.total_staked_raw, circulating_raw, staking.regent_total_supply_raw)
     }
   end
 
-  # The circulating supply is a published figure rather than something the
-  # contract reports, so it comes from configuration and never from a reading.
-  defp circulating_supply_raw,
-    do: Application.fetch_env!(:ash_platform, :regent_circulating_supply_atomic)
+  # The circulating supply moves with every claim and unlock, so the page writes
+  # it to the two decimals a person can read out rather than to the eighteen the
+  # chain keeps it in. The third decimal is dropped rather than rounded up, as
+  # every other figure on this page is.
+  defp to_cents(amount) do
+    amount
+    |> Decimal.new()
+    |> Decimal.round(2, :down)
+    |> Decimal.to_string(:normal)
+  end
 
   # One bar carries both proportions: how much of the total supply is
   # circulating, and how much of that circulating supply is staked.

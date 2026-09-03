@@ -20,7 +20,7 @@ defmodule AshPlatform.WalletActions.Abi do
   @address_bound Integer.pow(2, 160)
   @word_bytes 32
 
-  # The evidence manifest stays byte-for-byte frozen, so the one read it does not
+  # The evidence manifest stays byte-for-byte frozen, so each read it does not
   # carry is encoded here against the pinned ABI's own declaration of it.
   @supply_denominator_signature "revenueShareSupplyDenominator()"
   @supply_denominator_selector "0xe3961f2a"
@@ -28,6 +28,10 @@ defmodule AshPlatform.WalletActions.Abi do
   @total_usdc_received_selector "0xcf51bfdd"
   @emission_apr_signature "emissionAprBps()"
   @emission_apr_selector "0x8ba7fda0"
+  @treasury_recipient_signature "treasuryRecipient()"
+  @treasury_recipient_selector "0xeb4eebc7"
+  @reward_inventory_signature "availableRegentRewardInventory()"
+  @reward_inventory_selector "0xe2cfe6b9"
 
   # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
   # not proved against the staking ABI below. The same selector is recorded for
@@ -75,7 +79,9 @@ defmodule AshPlatform.WalletActions.Abi do
   @declarations [
     {"function", @supply_denominator_signature},
     {"function", @total_usdc_received_signature},
-    {"function", @emission_apr_signature}
+    {"function", @emission_apr_signature},
+    {"function", @treasury_recipient_signature},
+    {"function", @reward_inventory_signature}
     | for({id, signature} <- @event_signatures, id != :approval, do: {"event", signature})
   ]
 
@@ -112,9 +118,13 @@ defmodule AshPlatform.WalletActions.Abi do
   def encode_supply_denominator, do: @supply_denominator_selector
   def encode_total_usdc_received, do: @total_usdc_received_selector
   def encode_emission_apr_bps, do: @emission_apr_selector
+  def encode_treasury_recipient, do: @treasury_recipient_selector
+  def encode_reward_inventory, do: @reward_inventory_selector
   def encode_erc20_total_supply, do: @erc20_total_supply_selector
   def supply_denominator_signature, do: @supply_denominator_signature
   def total_usdc_received_signature, do: @total_usdc_received_signature
+  def treasury_recipient_signature, do: @treasury_recipient_signature
+  def reward_inventory_signature, do: @reward_inventory_signature
   def erc20_total_supply_signature, do: @erc20_total_supply_signature
 
   def multicall3_address, do: @multicall3_address

@@ -181,6 +181,25 @@
   font-size: clamp(1.05rem, 2.4vw, 1.6rem);
 }
 
+/* The two supply lines are context for the figures above them rather than
+   headline figures of their own, so they read as one small line each. */
+.stake-benefit-supply {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+  padding-block: 0.6rem;
+}
+
+.stake-benefit-supply dt::after {
+  content: ":";
+}
+
+.stake-benefit-supply dd {
+  font-family: var(--font-family-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
 .stake-layout {
   display: grid;
   grid-template-columns: minmax(21rem, 1.05fr) minmax(0, 0.95fr);
@@ -193,6 +212,67 @@
 .stake-overview,
 .stake-how-it-works {
   padding: clamp(1rem, 3vw, 2rem);
+}
+
+/* The right-hand column stacks: where the USDC comes from, then what the
+   contract currently reports. */
+.stake-column {
+  display: grid;
+  gap: clamp(1rem, 2.4vw, 1.5rem);
+  align-content: start;
+  min-width: 0;
+}
+
+.stake-revenue {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+
+/* Hairline rows: the list draws its top edge and each source draws its own
+   bottom one, so open and closed sources keep the same rhythm. */
+.stake-revenue-list {
+  border-block-start: 1px solid var(--ash-line);
+}
+
+.stake-revenue-source {
+  border-block-end: 1px solid var(--ash-line);
+}
+
+.stake-revenue-source > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.8rem;
+  padding-block: 0.6rem;
+  color: var(--ash-ink);
+  font-family: var(--font-family-mono);
+  font-size: 0.9rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.stake-revenue-source > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stake-revenue-caret {
+  color: var(--ash-muted);
+  transition: transform 120ms ease;
+}
+
+.stake-revenue-source[open] .stake-revenue-caret {
+  transform: rotate(180deg);
+}
+
+.stake-revenue-source ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 0 0.9rem 1.1rem;
+  color: var(--ash-muted);
+  font-size: 0.85rem;
 }
 
 .stake-actions {
@@ -929,5 +1009,6 @@
   .stake-heading button,
   .stake-result-dialog button,
   .stake-shared-refresh,
-  .stake-contract-details summary > span:last-child { transition: none; }
+  .stake-contract-details summary > span:last-child,
+  .stake-revenue-caret { transition: none; }
 }

@@ -4,11 +4,21 @@ defmodule AshPlatform.Staking.RpcClientTest do
   import ExUnit.CaptureLog
 
   alias AshPlatform.BaseRpcStub, as: Stub
-  alias AshPlatform.Staking.{Facts, RpcClient}
+  alias AshPlatform.Staking.{Facts, RpcClient, Supply}
   alias AshPlatform.WalletActions.Abi
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @treasury "0x3333333333333333333333333333333333333333"
   @amount 1_500_000_000_000_000_000
+
+  # One REGENT, and the four holdings this stubbed chain keeps out of
+  # circulation: twenty billion in the treasury, two billion in the Animata
+  # redeemer, five billion of reward inventory, and the forty billion of vault
+  # the reader carries itself. A hundred billion less those leaves thirty-three.
+  @regent 1_000_000_000_000_000_000
+  @treasury_held 20_000_000_000 * @regent
+  @redeemer_held 2_000_000_000 * @regent
+  @reward_inventory 5_000_000_000 * @regent
 
   # Seven days of Base blocks, and the largest range a public endpoint answers
   # `eth_getLogs` over. Both are stated here rather than read from the reader, so
@@ -30,7 +40,7 @@ defmodule AshPlatform.Staking.RpcClientTest do
     :ok
   end
 
-  test "ONE_PROTOCOL_CALL: eight contract reads arrive as one aggregate on one block" do
+  test "ONE_PROTOCOL_CALL: the contract reads arrive on one block, the treasury's balance too" do
     assert {:ok, snapshot} = RpcClient.protocol_snapshot()
 
     assert snapshot.block_number == 0x20
@@ -43,12 +53,28 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert snapshot.usdc_received_lifetime == "125000"
     assert snapshot.regent_total_supply_raw == "100000000000000000000000000000"
     assert snapshot.regent_total_supply == "100000000000"
+    assert snapshot.regent_circulating_supply_raw == "33000000000000000000000000000"
+    assert snapshot.regent_circulating_supply == "33000000000"
     assert snapshot.emission_apr_percent == "12"
     assert snapshot.stake_token_address == Abi.normalize_address!(Abi.stake_token_address())
     assert snapshot.usdc_address == Abi.normalize_address!(Abi.usdc_address())
     assert Enum.sort(Map.keys(snapshot)) == Enum.sort(Facts.protocol_keys())
 
-    one_aggregate(Abi.encode_aggregate3(expected_protocol_calls()))
+    aggregates([
+      Abi.encode_aggregate3(expected_protocol_calls()),
+      Abi.encode_aggregate3(expected_treasury_calls())
+    ])
+  end
+
+  # Every holding is subtracted, so a reading that quietly dropped one would
+  # leave more REGENT circulating than there is.
+  test "CIRCULATING_SUPPLY: what circulates is the supply less all four holdings" do
+    Stub.put(%{treasury_held: 0, redeemer_held: 0, reward_inventory: 0})
+    assert {:ok, %{regent_circulating_supply: "60000000000"}} = RpcClient.protocol_snapshot()
+
+    # More held than there is supply is no supply at all, never a negative one.
+    Stub.put(%{treasury_held: 100_000_000_000 * @regent})
+    assert {:ok, %{regent_circulating_supply_raw: "0"}} = RpcClient.protocol_snapshot()
   end
 
   # A selector that named some other function would return some other number
@@ -58,8 +84,13 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert Abi.total_usdc_received_signature() == "totalUsdcReceived()"
     assert Abi.erc20_total_supply_signature() == "totalSupply()"
 
+    assert Abi.treasury_recipient_signature() == "treasuryRecipient()"
+    assert Abi.reward_inventory_signature() == "availableRegentRewardInventory()"
+
     assert selector(Abi.total_usdc_received_signature()) == Abi.encode_total_usdc_received()
     assert selector(Abi.erc20_total_supply_signature()) == Abi.encode_erc20_total_supply()
+    assert selector(Abi.treasury_recipient_signature()) == Abi.encode_treasury_recipient()
+    assert selector(Abi.reward_inventory_signature()) == Abi.encode_reward_inventory()
   end
 
   # The window is the chain's own: it ends at the block this reading was taken
@@ -181,7 +212,7 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert wallet.wallet_usdc_balance == "0.000012"
     assert Enum.sort(Map.keys(wallet)) == Enum.sort(Facts.wallet_keys())
 
-    one_aggregate(Abi.encode_aggregate3(expected_wallet_calls()))
+    aggregates([Abi.encode_aggregate3(expected_wallet_calls())])
   end
 
   # Under the aggregator every sub-call is made by Multicall3, so a read about
@@ -194,7 +225,8 @@ defmodule AshPlatform.Staking.RpcClientTest do
       assert String.contains?(data, wallet_word)
     end
 
-    assert one_aggregate(Abi.encode_aggregate3(expected_wallet_calls())) =~ wallet_word
+    assert [data] = aggregates([Abi.encode_aggregate3(expected_wallet_calls())])
+    assert data =~ wallet_word
   end
 
   test "NON_CANONICAL_BLOCK: a block that moved fails the read instead of answering it" do
@@ -285,9 +317,15 @@ defmodule AshPlatform.Staking.RpcClientTest do
       {staking, Abi.encode_emission_apr_bps()},
       {staking, Abi.encode_read("stake_token")},
       {staking, Abi.encode_read("usdc")},
-      {Abi.stake_token_address(), Abi.encode_erc20_total_supply()}
+      {Abi.stake_token_address(), Abi.encode_erc20_total_supply()},
+      {staking, Abi.encode_treasury_recipient()},
+      {staking, Abi.encode_reward_inventory()},
+      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.animata_redeemer()])}
     ]
   end
+
+  defp expected_treasury_calls,
+    do: [{Abi.stake_token_address(), Abi.encode_erc20("balance_of", [@treasury])}]
 
   defp head(number),
     do:
@@ -342,14 +380,17 @@ defmodule AshPlatform.Staking.RpcClientTest do
     ]
   end
 
-  # Exactly one block-pinned `eth_call` was made, pinned to the head this read
-  # took: a second one would fail here rather than pass unnoticed.
-  defp one_aggregate(expected) do
-    assert [{data, block}] = aggregate_calls()
-    assert block == %{blockHash: Stub.latest_hash(), requireCanonical: true}
-    assert data == expected
-    data
+  # Exactly these block-pinned `eth_call`s were made, in this order and every
+  # one of them pinned to the head this read took: another would fail here
+  # rather than pass unnoticed, and one taken at a second block likewise.
+  defp aggregates(expected) do
+    calls = Enum.reverse(aggregate_calls())
+    assert Enum.map(calls, &elem(&1, 1)) == List.duplicate(block_pin(), length(expected))
+    assert Enum.map(calls, &elem(&1, 0)) == expected
+    Enum.map(calls, &elem(&1, 0))
   end
+
+  defp block_pin, do: %{blockHash: Stub.latest_hash(), requireCanonical: true}
 
   defp aggregate_calls(calls \\ []) do
     receive do
@@ -364,9 +405,11 @@ defmodule AshPlatform.Staking.RpcClientTest do
   # calls the reader asked for and returning one word for each in order.
   defp call("0x82ad56cb" <> _rest = data, state) do
     Stub.aggregate3_result(
-      if data == Abi.encode_aggregate3(expected_protocol_calls()),
-        do: protocol_words(state),
-        else: wallet_words(state)
+      cond do
+        data == Abi.encode_aggregate3(expected_protocol_calls()) -> protocol_words(state)
+        data == Abi.encode_aggregate3(expected_treasury_calls()) -> treasury_words(state)
+        true -> wallet_words(state)
+      end
     )
   end
 
@@ -381,9 +424,14 @@ defmodule AshPlatform.Staking.RpcClientTest do
       Stub.uint(1_200),
       Stub.uint(Map.get(state, :stake_token) || word(Abi.stake_token_address())),
       Stub.uint(Map.get(state, :usdc) || word(Abi.usdc_address())),
-      Stub.uint(100_000_000_000_000_000_000_000_000_000)
+      Stub.uint(100_000_000_000_000_000_000_000_000_000),
+      Stub.uint(word(@treasury)),
+      Stub.uint(Map.get(state, :reward_inventory, @reward_inventory)),
+      Stub.uint(Map.get(state, :redeemer_held, @redeemer_held))
     ]
   end
+
+  defp treasury_words(state), do: [Stub.uint(Map.get(state, :treasury_held, @treasury_held))]
 
   defp wallet_words(_state), do: Enum.map(11..17, &Stub.uint/1)
 
