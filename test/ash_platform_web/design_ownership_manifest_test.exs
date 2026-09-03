@@ -33,7 +33,6 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
 
     assert manifest["shell_assigns"] == [
              "route_spec",
-             "app_targets",
              "account_control",
              "content_status",
              "presentation",

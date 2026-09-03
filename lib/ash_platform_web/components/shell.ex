@@ -22,7 +22,6 @@ defmodule AshPlatformWeb.Components.Shell do
   def short_wallet(wallet), do: wallet
 
   attr(:route_spec, :map, required: true)
-  attr(:app_targets, :list, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:content_status, :atom, required: true)
   attr(:presentation, :atom, required: true)
@@ -48,36 +47,21 @@ defmodule AshPlatformWeb.Components.Shell do
       <Background.background slot={@route_spec.background_slot} />
 
       <header id="shell-header">
-        <div id="app-selector" class="app-selector">
-          <details>
-            <summary aria-label={"Switch application. Current application: #{@route_spec.app_display_label}"}>
-              <span class="app-selector__mark" aria-hidden="true">
-                <img
-                  class="app-selector__mark-light"
-                  src="/images/brand/regents-crown-flat-light.svg"
-                  alt=""
-                />
-                <img
-                  class="app-selector__mark-dark"
-                  src="/images/brand/regents-crown-flat-dark.svg"
-                  alt=""
-                />
-              </span>
-              <strong>{@route_spec.app_display_label}</strong>
-              <span class="shell-chevron" aria-hidden="true">⌄</span>
-            </summary>
-
-            <nav class="app-switcher shell-popover" aria-label="Applications">
-              <.link
-                :for={target <- @app_targets}
-                :if={target.app_id != @route_spec.app_id}
-                patch={target.path}
-              >
-                {target.label}
-              </.link>
-            </nav>
-          </details>
-        </div>
+        <.link id="shell-brand" class="shell-brand" href="/">
+          <span class="shell-brand__mark" aria-hidden="true">
+            <img
+              class="shell-brand__mark-light"
+              src="/images/brand/regents-crown-flat-light.svg"
+              alt=""
+            />
+            <img
+              class="shell-brand__mark-dark"
+              src="/images/brand/regents-crown-flat-dark.svg"
+              alt=""
+            />
+          </span>
+          <span class="shell-brand__name">Regents Labs</span>
+        </.link>
 
         <button
           id="mobile-menu-button"

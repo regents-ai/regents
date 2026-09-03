@@ -4,7 +4,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   alias AshPlatformWeb.NotFoundError
 
   alias __MODULE__.{
-    AppTarget,
     Entry,
     RouteTarget,
     SidebarModel,
@@ -176,13 +175,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     }
   ]
 
-  @app_targets [
-    %AppTarget{app_id: :formation, label: "Nous Portal", path: "/formation"},
-    %AppTarget{app_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
-    %AppTarget{app_id: :techtree, label: "Techtree", path: "/techtree"},
-    %AppTarget{app_id: :regent_ops, label: "Regents Labs", path: "/app"}
-  ]
-
   @specs %{
     home: {:home, nil, nil, "Regent", "/", [], :none, :home, :landing, %{}},
     app:
@@ -256,7 +248,6 @@ defmodule AshPlatformWeb.RouteCatalog do
   def entries, do: @entries
 
   def tree_roots, do: @trees
-  def app_targets, do: @app_targets
 
   def fetch!(action, params \\ %{}) do
     entry = Enum.find(@entries, &(&1.live_action == action)) || raise(NotFoundError)

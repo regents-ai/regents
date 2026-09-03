@@ -129,16 +129,16 @@ function shellFixture() {
   navigationLink.closestSelectors.add("#shell-sidebar a")
   const scrim = new FakeElement()
   scrim.closestSelectors.add("[data-shell-menu-scrim]")
-  const appSelector = new FakeElement()
-  appSelector.parentElement = {id: "app-selector"}
-  const appSelectorLink = new FakeElement()
-  appSelectorLink.closestSelectors.add("#app-selector a")
-  appSelectorLink.closest = (selector: string) => {
-    if (selector === "details") return appSelector
+  const accountMenu = new FakeElement()
+  accountMenu.parentElement = {id: "account-control"}
+  const accountMenuLink = new FakeElement()
+  accountMenuLink.closestSelectors.add("#account-menu a")
+  accountMenuLink.closest = (selector: string) => {
+    if (selector === "details") return accountMenu
     return selector
       .split(",")
-      .some(candidate => appSelectorLink.closestSelectors.has(candidate.trim()))
-      ? appSelectorLink
+      .some(candidate => accountMenuLink.closestSelectors.has(candidate.trim()))
+      ? accountMenuLink
       : null
   }
   const scroller = Object.assign(new FakeElement(), {scrollTo: vi.fn()})
@@ -159,13 +159,12 @@ function shellFixture() {
       if (selector === "#shell-sidebar") return sidebar
       if (selector === "#app-shell-scroller") return scroller
       if (selector === "[data-shell-menu-scrim]") return scrim
-      if (selector === "#app-selector") return appSelector
-      if (selector === "#app-selector > details") return appSelector
+      if (selector === "#account-control > details") return accountMenu
       return null
     },
     querySelectorAll(selector: string) {
       if (selector === "[data-tree-presentation]") return [mapLink, listLink]
-      if (selector.includes("details[open]")) return appSelector.open ? [appSelector] : []
+      if (selector.includes("details[open]")) return accountMenu.open ? [accountMenu] : []
       return []
     },
     addEventListener(type: string, listener: Listener) {
@@ -186,8 +185,8 @@ function shellFixture() {
     menuButton,
     sidebar,
     scrim,
-    appSelector,
-    appSelectorLink,
+    accountMenu,
+    accountMenuLink,
     mapLink,
     listLink,
     scroller,
@@ -265,35 +264,35 @@ describe("mobile shell navigation", () => {
     },
   )
 
-  it("closes the app selector after a selection", () => {
+  it("closes the account menu after a selection", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
 
     hook.mounted?.call(context)
-    page.appSelector.open = true
-    page.appSelector.setAttribute("open", "")
-    page.click(page.appSelectorLink)
-    expect(page.appSelector.open).toBe(false)
-    expect(page.appSelector.getAttribute("open")).toBeNull()
+    page.accountMenu.open = true
+    page.accountMenu.setAttribute("open", "")
+    page.click(page.accountMenuLink)
+    expect(page.accountMenu.open).toBe(false)
+    expect(page.accountMenu.getAttribute("open")).toBeNull()
   })
 
-  it("preserves an open app selector across a same-destination route patch", () => {
+  it("preserves an open account menu across a same-destination route patch", () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
 
     hook.mounted?.call(context)
-    page.appSelector.setAttribute("open", "")
+    page.accountMenu.setAttribute("open", "")
     hook.beforeUpdate?.call(context)
-    page.appSelector.removeAttribute("open")
+    page.accountMenu.removeAttribute("open")
     hook.updated?.call(context)
 
-    expect(page.appSelector.open).toBe(true)
-    expect(page.appSelector.getAttribute("open")).toBe("")
+    expect(page.accountMenu.open).toBe(true)
+    expect(page.accountMenu.getAttribute("open")).toBe("")
   })
 
-  it("closes the drawer and app selector when the destination updates", async () => {
+  it("closes the drawer and account menu when the destination updates", async () => {
     const page = shellFixture()
     const hook = captured.hooks.ShellBehavior
     const context = {el: page.shell} as never
@@ -301,9 +300,9 @@ describe("mobile shell navigation", () => {
     hook.mounted?.call(context)
     page.click(page.menuButton)
     await Promise.resolve()
-    page.appSelector.setAttribute("open", "")
+    page.accountMenu.setAttribute("open", "")
     hook.beforeUpdate?.call(context)
-    page.appSelector.removeAttribute("open")
+    page.accountMenu.removeAttribute("open")
     page.shell.dataset.destination = "/formation"
     hook.updated?.call(context)
 
@@ -311,8 +310,8 @@ describe("mobile shell navigation", () => {
     expect(page.scroller.inert).toBe(false)
     expect(page.scrim.hidden).toBe(true)
     expect(page.menuButton.focusCount).toBeGreaterThan(0)
-    expect(page.appSelector.open).toBe(false)
-    expect(page.appSelector.getAttribute("open")).toBeNull()
+    expect(page.accountMenu.open).toBe(false)
+    expect(page.accountMenu.getAttribute("open")).toBeNull()
   })
 
   it("restores one selected Techtree presentation with aria-pressed", () => {

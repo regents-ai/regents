@@ -716,6 +716,13 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     render_async(view)
 
     assert has_element?(view, ".redeem-collections", "Three connected collections")
+
+    assert has_element?(
+             view,
+             "h2#redemption-collections-heading",
+             "Animata I or II + USDC are redeemed for REGENT + Regents Club Digital Pass"
+           )
+
     assert has_element?(view, ".redeem-wallet-recovery", "Try again")
     refute has_element?(view, ".redeem-wallet-loading")
   end

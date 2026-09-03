@@ -218,7 +218,7 @@ const shellBehavior: Hook = {
       }
 
       if (target?.closest("#shell-sidebar a")) closeMenu()
-      if (target?.closest("#app-selector a, #account-menu a")) {
+      if (target?.closest("#account-menu a")) {
         target.closest("details")?.removeAttribute("open")
       }
     }
@@ -291,9 +291,7 @@ const shellBehavior: Hook = {
   beforeUpdate(this: ShellHook) {
     this.destinationBeforeUpdate = this.el.dataset.destination ?? ""
     this.openPopoverIds = [
-      ...this.el.querySelectorAll<HTMLDetailsElement>(
-        "#app-selector details[open], #account-control details[open]",
-      ),
+      ...this.el.querySelectorAll<HTMLDetailsElement>("#account-control details[open]"),
     ]
       .map(details => details.parentElement?.id)
       .filter((id): id is string => Boolean(id))

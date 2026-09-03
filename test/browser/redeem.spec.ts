@@ -47,6 +47,9 @@ test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
   await expect(page.locator(".redeem-intro-video")).toBeHidden()
   await expect(page.locator(".redeem-intro-poster")).toBeVisible()
   await expect(page.getByAltText("Animata I and II artwork")).toBeVisible()
+  await expect(page.locator("#redemption-collections-heading")).toHaveText(
+    "Animata I or II + USDC are redeemed for REGENT + Regents Club Digital Pass",
+  )
   await expect(page.locator(".redeem-collection-card")).toHaveCount(3)
   await expect(page.locator(".redeem-collection-grid")).toContainText("327 held by redeemer")
   await expect(page.locator(".redeem-collection-grid")).toContainText("284 held by redeemer")

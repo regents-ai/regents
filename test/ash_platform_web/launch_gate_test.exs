@@ -214,19 +214,6 @@ defmodule AshPlatformWeb.LaunchGateTest do
     assert_redirect(view, "/app")
   end
 
-  test "[U4] a fresh page offers no Autolaunch application while it is closed", %{conn: conn} do
-    close_autolaunch()
-    {:ok, closed, _html} = live(conn, "/app")
-
-    refute has_element?(closed, ~s(nav[aria-label="Applications"] a[href="/autolaunch"]))
-    assert has_element?(closed, ~s(nav[aria-label="Applications"] a[href="/techtree"]))
-
-    open_autolaunch()
-    {:ok, open, _html} = live(conn, "/app")
-
-    assert has_element?(open, ~s(nav[aria-label="Applications"] a[href="/autolaunch"]))
-  end
-
   test "[U4] injected draft events from Stake record nothing while Autolaunch is closed", %{
     conn: conn
   } do

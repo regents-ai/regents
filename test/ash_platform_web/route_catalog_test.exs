@@ -190,14 +190,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     end
   end
 
-  test "app selector roots and header controls use the closed contract" do
-    assert Enum.map(RouteCatalog.app_targets(), & &1.path) == [
-             "/formation",
-             "/autolaunch",
-             "/techtree",
-             "/app"
-           ]
-
+  test "header controls use the closed contract" do
     allowed_controls =
       MapSet.new([
         :search,

@@ -21,9 +21,22 @@ const shellRoutes = [
   "/redeem",
 ]
 
-async function switchApp(page: Page, label: string) {
-  await page.locator("#app-selector summary").click()
-  await page.locator("#app-selector nav").getByRole("link", {name: label, exact: true}).click()
+// The shell holds one live session across every application, so a link to another
+// application patches the page it is already on. Content links do this in the product;
+// the test raises one so the patch can be exercised from any route.
+async function patchTo(page: Page, path: string) {
+  await page.evaluate(destination => {
+    document.querySelector("#patch-probe")?.remove()
+    const link = document.createElement("a")
+    link.id = "patch-probe"
+    link.href = destination
+    link.textContent = destination
+    link.dataset.phxLink = "patch"
+    link.dataset.phxLinkState = "push"
+    document.querySelector("#route-content")?.append(link)
+  }, path)
+
+  await page.locator("#patch-probe").click()
 }
 
 // The shell stands on one palette per theme, so the mat guide is the only
@@ -85,14 +98,14 @@ test("[U2] the shell keeps one ground per theme while the mat guide follows each
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-    await switchApp(page, "Techtree")
+    await patchTo(page, "/techtree")
     await expect(page).toHaveURL(/\/techtree$/)
     await expect.poll(() => readFamily(page), `switched Techtree ${choice}`).toEqual({
       ...palette[choice],
       guide: routeGuides["/techtree"],
     })
 
-    await switchApp(page, "Autolaunch")
+    await patchTo(page, "/autolaunch")
     await expect(page).toHaveURL(/\/autolaunch$/)
     await expect.poll(() => readFamily(page), `switched Autolaunch ${choice}`).toEqual({
       ...palette[choice],
@@ -273,21 +286,17 @@ test("the three homepage product cards remain full-width and ordered on mobile",
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
-test("anonymous Sign In stays separate from the app selector", async ({page}) => {
+test("anonymous Sign In stays separate from the brand link", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  const appSelector = page.getByRole("navigation", {name: "Applications"})
+  const brand = page.locator("#shell-brand")
   const accountControl = page.locator("#account-control")
 
-  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
-  await expect(appSelector).toBeHidden()
-  await page.locator("#app-selector summary").click()
-  await expect(appSelector).toBeVisible()
-  await expect(appSelector.getByRole("link")).toHaveCount(3)
-  await expect(appSelector.getByRole("link", {name: "Regents Labs"})).toHaveCount(0)
+  await expect(brand).toContainText("Regents Labs")
+  await expect(brand).toHaveAttribute("href", "/")
+  await expect(brand.getByRole("button")).toHaveCount(0)
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
-  await expect(appSelector.getByRole("button", {name: "Sign In"})).toHaveCount(0)
   await expect(accountControl.getByRole("link", {name: "Nous Portal"})).toHaveCount(0)
 
   await page.evaluate(() => {
@@ -396,7 +405,7 @@ test("the Account overview shows public chain truth, invents no wallet or profil
   await expect(overview).toContainText(
     "Sign in to see any wallet verified on your account and the balances available to it.",
   )
-  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
+  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
 
   const actions = overview.getByRole("navigation", {name: "Account actions"})
   await expect(actions.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute("href", "/stake")
@@ -424,7 +433,7 @@ test("an unknown public Regent profile is honest and keeps shell navigation avai
   await expect(page.locator("#public-regent-profile")).toBeVisible()
   await expect(page.getByRole("heading", {name: "Regent not found"})).toBeVisible()
   await expect(page.getByText("This public Regent profile does not exist.")).toBeVisible()
-  await expect(page.locator("#app-selector summary")).toContainText("Regents Labs")
+  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
   await expect(page.getByRole("link", {name: "Return to Account"})).toHaveAttribute("href", "/app")
 })
 
@@ -440,7 +449,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
 
-  await switchApp(page, "Techtree")
+  await patchTo(page, "/techtree")
   await expect(page).toHaveURL(/\/techtree$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "techtree")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
@@ -450,7 +459,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   ).toBe(true)
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
-  await switchApp(page, "Autolaunch")
+  await patchTo(page, "/autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
   await page.evaluate(() => {
@@ -483,9 +492,9 @@ test("rapid app switches settle only the latest scene and remove motion copies",
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  await switchApp(page, "Techtree")
+  await patchTo(page, "/techtree")
   await expect(page).toHaveURL(/\/techtree$/)
-  await switchApp(page, "Autolaunch")
+  await patchTo(page, "/autolaunch")
 
   await expect(page).toHaveURL(/\/autolaunch$/)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-motion-app", "autolaunch")

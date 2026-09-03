@@ -92,16 +92,14 @@
   outline-offset: -2px;
 }
 
-.app-selector,
 .account-control,
 .theme-control,
-.app-selector details,
 .account-control details {
   position: relative;
 }
 
 /* Every header control is a bordered cell, as the marketing header's tabs are. */
-.app-selector summary,
+.shell-brand,
 .account-control summary,
 .account-control > button,
 .mobile-menu-button,
@@ -122,7 +120,7 @@
   user-select: none;
 }
 
-.app-selector {
+.shell-brand {
   margin-inline-start: -1px;
 }
 
@@ -131,17 +129,12 @@
   display: flex;
 }
 
-.app-selector summary::-webkit-details-marker,
 .account-control summary::-webkit-details-marker {
   display: none;
 }
 
-.app-selector summary strong {
-  font-weight: 400;
-}
-
 @media (hover: hover) {
-  .app-selector summary:hover,
+  .shell-brand:hover,
   .account-control summary:hover,
   .account-control > button:hover,
   .mobile-menu-button:hover {
@@ -149,7 +142,6 @@
   }
 }
 
-.app-selector details[open] summary,
 .account-control details[open] summary {
   background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
 }
@@ -162,7 +154,7 @@
   image-rendering: pixelated;
 }
 
-.app-selector__mark {
+.shell-brand__mark {
   position: relative;
   display: block;
   width: 1.6rem;
@@ -171,7 +163,7 @@
   overflow: hidden;
 }
 
-.app-selector__mark img {
+.shell-brand__mark img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -179,15 +171,15 @@
   object-fit: cover;
 }
 
-.app-selector__mark-dark {
+.shell-brand__mark-dark {
   display: none;
 }
 
-:root[data-theme="dark"] .app-selector__mark-light {
+:root[data-theme="dark"] .shell-brand__mark-light {
   display: none;
 }
 
-:root[data-theme="dark"] .app-selector__mark-dark {
+:root[data-theme="dark"] .shell-brand__mark-dark {
   display: block;
 }
 
@@ -212,18 +204,12 @@ details[open] > summary .shell-chevron {
   background: var(--ash-panel);
 }
 
-.app-switcher {
-  left: 0;
-}
-
-.app-switcher a,
 .account-menu__content > a {
   min-height: 2.75rem;
   padding: 0.7rem 0.85rem;
 }
 
 @media (hover: hover) {
-  .app-switcher a:hover,
   .account-menu__content > a:hover {
     background: color-mix(in oklch, var(--ash-ink) 8%, transparent);
   }
@@ -550,19 +536,15 @@ details[open] > summary .shell-chevron {
     display: none;
   }
 
-  .app-selector {
+  .shell-brand {
     flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .app-selector summary {
     gap: 0.4rem;
     max-width: 100%;
     min-width: 0;
     padding-inline: 0.5rem;
   }
 
-  .app-selector summary strong {
+  .shell-brand__name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

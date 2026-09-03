@@ -131,7 +131,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <div class="redeem-section-heading">
             <div>
               <p class="redeem-kicker">Three connected collections</p><h2 id="redemption-collections-heading">
-                Animata I+II + USDC are redeemed for REGENT + RC NFT
+                Animata I or II + USDC are redeemed for REGENT + Regents Club Digital Pass
               </h2>
             </div>
             <p>Eligible source token IDs are 1–{@redemption.max_source_token_id}.</p>

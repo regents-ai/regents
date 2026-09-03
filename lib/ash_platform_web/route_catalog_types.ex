@@ -4,12 +4,6 @@ defmodule AshPlatformWeb.RouteCatalog.Entry do
   defstruct @enforce_keys
 end
 
-defmodule AshPlatformWeb.RouteCatalog.AppTarget do
-  @moduledoc false
-  @enforce_keys [:app_id, :label, :path]
-  defstruct @enforce_keys
-end
-
 defmodule AshPlatformWeb.RouteCatalog.SidebarModel do
   @moduledoc false
   @enforce_keys [:id, :targets]

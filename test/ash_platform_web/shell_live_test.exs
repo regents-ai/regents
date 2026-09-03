@@ -77,11 +77,12 @@ defmodule AshPlatformWeb.ShellLiveTest do
            )
   end
 
-  test "anonymous account control renders Sign In separately from the app selector", %{conn: conn} do
+  test "anonymous account control renders Sign In separately from the brand link", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/app")
 
-    assert has_element?(view, "#app-selector details")
-    assert has_element?(view, "#app-selector summary", "Regents Labs")
+    assert has_element?(view, ~s(#shell-brand[href="/"]), "Regents Labs")
+    assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-light")
+    assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-dark")
     assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
     assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
@@ -91,14 +92,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
              "#account-control #account-auth-status[role=status][aria-live=polite][aria-atomic=true][phx-update=ignore][hidden]"
            )
 
-    refute has_element?(view, ".app-switcher [data-account-target=sign-in]")
     refute has_element?(view, "#account-control a", "Nous Portal")
-
-    assert has_element?(view, "#app-selector nav a", "Nous Portal")
-    refute has_element?(view, "#app-selector nav a", "Formation")
-    assert has_element?(view, "#app-selector nav a", "Autolaunch")
-    assert has_element?(view, "#app-selector nav a", "Techtree")
-    refute has_element?(view, "#app-selector nav a", "Regents Labs")
   end
 
   test "signed-in account control renders its address avatar and requested menu", %{conn: conn} do
@@ -126,7 +120,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#account-control a[data-account-menu-item=settings]", "Settings")
     assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
-    refute has_element?(view, ".app-switcher [data-account-target]")
   end
 
   test "stale wallet evidence cannot retain protected human shell access", %{conn: conn} do
@@ -156,10 +149,10 @@ defmodule AshPlatformWeb.ShellLiveTest do
     [instance] = Regex.run(~r/data-shell-instance="(\d+)"/, html, capture: :all_but_first)
 
     view
-    |> element("#shell-header a", "Techtree")
+    |> element("#shell-sidebar a", "Stake")
     |> render_click()
 
-    assert_patch(view, "/techtree")
+    assert_patch(view, "/stake")
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222…2222")
@@ -258,13 +251,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
     [instance] = Regex.run(~r/data-shell-instance="(\d+)"/, html, capture: :all_but_first)
 
     view
-    |> element("#shell-header a", "Techtree")
+    |> element("#shell-sidebar a", "Stake")
     |> render_click()
 
-    assert_patch(view, "/techtree")
+    assert_patch(view, "/stake")
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
-    assert has_element?(view, "#route-content h1", "Techtree")
+    assert has_element?(view, "#route-content h1", "Put REGENT to work.")
   end
 
   test "same-tree Map and List controls are local buttons rather than navigation", %{conn: conn} do
@@ -322,13 +315,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
     monitor = Process.monitor(task_pid)
 
     view
-    |> element("#shell-header a", "Techtree")
+    |> element("#shell-sidebar a", "Stake")
     |> render_click()
 
-    assert_patch(view, "/techtree")
+    assert_patch(view, "/stake")
     assert_receive {:DOWN, ^monitor, :process, ^task_pid, _reason}
     html = render_async(view)
-    assert html =~ "Research with Techtree"
+    assert html =~ "Put REGENT to work."
     refute html =~ "Stale fixture"
   end
 
@@ -418,7 +411,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     render_component(&Shell.shell/1,
       route_spec: route_spec,
-      app_targets: RouteCatalog.app_targets(),
       account_control: account_control,
       content_status: :ready,
       presentation: :none,

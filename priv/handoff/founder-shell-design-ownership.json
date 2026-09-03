@@ -67,7 +67,6 @@
   ],
   "shell_assigns": [
     "route_spec",
-    "app_targets",
     "account_control",
     "content_status",
     "presentation",

@@ -140,7 +140,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
     assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on X"]))
     assert has_element?(view, ~s(.rl-header-links a[aria-label="Regents on GitHub"]))
-    assert has_element?(view, ~s(.rl-header-links a[href="/stake"]), "Stake REGENT")
+    assert has_element?(view, ~s(.rl-header-links a[href="/stake"]), "App")
     refute has_element?(view, "a.rl-action--disabled")
   end
 
@@ -373,7 +373,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert texts(html, "a.rl-action") == [
-             "Stake REGENT",
+             "App",
              "Open techtree ↗",
              "Buy REGENT ↗",
              "Stake REGENT",

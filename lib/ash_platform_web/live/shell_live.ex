@@ -68,7 +68,6 @@ defmodule AshPlatformWeb.ShellLive do
 
     {:ok,
      assign(socket,
-       app_targets: open_app_targets(),
        content: nil,
        content_error: nil,
        content_async_name: nil,
@@ -208,13 +207,6 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply, assign(socket, content_status: :ready)}
     end
   end
-
-  # The Autolaunch switch decides what this page offers; the route catalog it
-  # reads from is unchanged.
-  defp open_app_targets, do: Enum.filter(RouteCatalog.app_targets(), &app_target_open?/1)
-
-  defp app_target_open?(%{app_id: :autolaunch}), do: LaunchGate.autolaunch_surfaces_enabled?()
-  defp app_target_open?(_target), do: true
 
   defp authorize_route(socket, %{route_id: :regents_club_metadata}) do
     if RegentsClub.enabled?() and authenticated?(socket.assigns.access_context),
@@ -1240,7 +1232,6 @@ defmodule AshPlatformWeb.ShellLive do
     ~H"""
     <.shell
       route_spec={@route_spec}
-      app_targets={@app_targets}
       account_control={@account_control}
       content_status={@content_status}
       presentation={@presentation}
