@@ -87,8 +87,11 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   ])
 
   const buy = page.locator(".rl-stakers-actions a", {hasText: "Buy REGENT"})
-  await expect(buy).toHaveAttribute("href", /^https:\/\/dexscreener\.com\//)
+  await expect(buy).toHaveAttribute("href", /^https:\/\/app\.uniswap\.org\/explore\/tokens\/base\//)
   await expect(buy).toHaveAttribute("target", "_blank")
+  const chart = page.locator(".rl-stakers-actions a", {hasText: "View Chart"})
+  await expect(chart).toHaveAttribute("href", /^https:\/\/dexscreener\.com\//)
+  await expect(chart).toHaveAttribute("target", "_blank")
   const stake = page.locator(".rl-stakers-actions a", {hasText: "Stake REGENT"})
   await expect(stake).toHaveAttribute("href", "/stake")
   await expect(stake).not.toHaveAttribute("target", /.+/)
@@ -441,7 +444,7 @@ test("[U1][U2] the hero ends above the fold on every desktop size", async ({page
 
 // What staking pays and the two ways to take part are one thing, so they stand in one
 // container built like a product card, with the controls under the sentence.
-test("[U2] the stakers band is one container with its two ways in underneath", async ({page}) => {
+test("[U2] the stakers band is one container with its ways in underneath", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
   await waitForHomepage(page)
@@ -468,11 +471,11 @@ test("[U2] the stakers band is one container with its two ways in underneath", a
 
   const sentence = (await page.locator(".rl-hero-stakers > p").boundingBox())!
   const actions = (await page.locator(".rl-stakers-actions").boundingBox())!
-  expect(actions.y, "the two ways in stand under the sentence").toBeGreaterThanOrEqual(
+  expect(actions.y, "the ways in stand under the sentence").toBeGreaterThanOrEqual(
     sentence.y + sentence.height,
   )
   expect(actions.x, "and start on the same edge").toBeCloseTo(sentence.x, 0)
-  await expect(page.locator(".rl-stakers-actions a")).toHaveCount(2)
+  await expect(page.locator(".rl-stakers-actions a")).toHaveCount(3)
 })
 
 // The picture behind the hero is a grey line drawing with no ground of its own, so it takes
@@ -881,6 +884,7 @@ test("[U1] every hero control keeps the page's own focus ring, whatever colour t
     "techtree on GitHub",
     "patchbay on GitHub",
     "Buy REGENT ↗",
+    "View Chart ↗",
     "Stake REGENT",
   ])
 

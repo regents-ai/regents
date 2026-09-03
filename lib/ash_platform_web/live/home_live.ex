@@ -1,7 +1,7 @@
 defmodule AshPlatformWeb.HomeLive do
   use AshPlatformWeb, :live_view
 
-  alias AshPlatformWeb.RouteCatalog
+  alias AshPlatformWeb.{RouteCatalog, TokenLinks}
 
   def mount(_params, _session, socket),
     do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
@@ -164,13 +164,11 @@ defmodule AshPlatformWeb.HomeLive do
           USDC revenue
         </p>
         <div class="rl-stakers-actions">
-          <a
-            href="https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rl-action"
-          >
+          <a href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer" class="rl-action">
             Buy REGENT <span aria-hidden="true">↗</span>
+          </a>
+          <a href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer" class="rl-action">
+            View Chart <span aria-hidden="true">↗</span>
           </a>
           <a href={~p"/stake"} class="rl-action">Stake REGENT</a>
         </div>

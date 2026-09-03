@@ -203,10 +203,18 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "Regents Labs is unique in that REGENT token stakers receive a pro rata split of all USDC revenue"
            ]
 
+    # Buying happens on Uniswap and the chart lives on DexScreener, and both
+    # name the token this page reports on.
+    assert has_element?(
+             view,
+             ~s(.rl-stakers-actions a.rl-action[href="https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"][target="_blank"][rel="noopener noreferrer"]),
+             "Buy REGENT ↗"
+           )
+
     assert has_element?(
              view,
              ~s(.rl-stakers-actions a.rl-action[href^="https://dexscreener.com/"][target="_blank"][rel="noopener noreferrer"]),
-             "Buy REGENT ↗"
+             "View Chart ↗"
            )
 
     # Staking is ours, so it opens where the visitor already is.
@@ -390,6 +398,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
              "App",
              "Open techtree ↗",
              "Buy REGENT ↗",
+             "View Chart ↗",
              "Stake REGENT",
              "Patchbay on GitHub ↗",
              "Explore the system"

@@ -46,7 +46,7 @@ defmodule AshPlatformWeb.RedeemLive do
           <p class="redeem-kicker">Animata redemption · Base</p>
           <h1 id="redemption-page-heading" tabindex="-1">Redeem your Animata.</h1>
           <p class="redeem-lede">
-            Turn an eligible Animata I or II into Regents Club membership and a seven-day REGENT vest.
+            Turn an Animata I or II Pass into Regents Club membership and a seven-day REGENT vest.
           </p>
           <div
             class="redeem-equation"

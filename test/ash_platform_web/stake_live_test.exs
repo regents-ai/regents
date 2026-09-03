@@ -165,6 +165,24 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, "#regent-staking[data-staking-allowance]")
   end
 
+  # Somebody deciding whether to stake wants to buy and to look at the chart,
+  # and both sit with the copy that asks them to rather than off in a corner.
+  test "TOKEN_LINKS: buying and the chart sit under the lede", %{conn: conn} do
+    view = mount_stake(conn)
+
+    assert has_element?(
+             view,
+             ~s(.stake-heading-copy .stake-token-links a[href="https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"][target="_blank"][rel="noopener noreferrer"]),
+             "Buy REGENT"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.stake-heading-copy .stake-token-links a[href^="https://dexscreener.com/"][target="_blank"][rel="noopener noreferrer"]),
+             "View Chart"
+           )
+  end
+
   # The hero says how much REGENT exists and how much of it moves, both to the
   # four digits a person reads and to the exact figure on hover.
   test "HERO_SUPPLY: the hero carries circulating and total REGENT", %{conn: conn} do

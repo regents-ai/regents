@@ -2,7 +2,7 @@ defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
   alias AshPlatformWeb.Components.Shell
-  alias AshPlatformWeb.TokenDisplay
+  alias AshPlatformWeb.{TokenDisplay, TokenLinks}
 
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
@@ -84,6 +84,14 @@ defmodule AshPlatformWeb.StakeLive do
           <p class="stake-lede">
             Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
           </p>
+          <div class="stake-token-links">
+            <a class="stake-buy" href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
+              <span>Buy REGENT</span> <span aria-hidden="true">↗</span>
+            </a>
+            <a class="stake-buy" href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer">
+              <span>View Chart</span> <span aria-hidden="true">↗</span>
+            </a>
+          </div>
           <div :if={!@wallet} class="stake-heading-actions">
             <button type="button" class="stake-primary" data-account-target="sign-in">
               Connect wallet to stake
@@ -122,14 +130,6 @@ defmodule AshPlatformWeb.StakeLive do
             <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
           </div>
         </dl>
-        <a
-          class="stake-buy"
-          href="https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span>Buy REGENT</span> <span aria-hidden="true">↗</span>
-        </a>
       </header>
 
       <dialog
