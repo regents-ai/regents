@@ -160,8 +160,8 @@ defmodule AshPlatformWeb.HomeLive do
 
       <div class="rl-hero-stakers">
         <p>
-          Regents Labs is unique in that REGENT token stakers receive their share of all
-          product's USDC revenue
+          Regents Labs is unique in that REGENT token stakers receive a pro rata split of all
+          USDC revenue
         </p>
         <div class="rl-stakers-actions">
           <a

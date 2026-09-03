@@ -495,6 +495,64 @@
     opacity 180ms var(--ease-out);
 }
 
+/* The hero's one outward link: same square mono cell as every other control,
+   parked in the panel's bottom-right corner, with a light sweep on hover. */
+.stake-buy {
+  grid-column: 1 / -1;
+  justify-self: end;
+  align-self: end;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.8rem;
+  padding-inline: 1rem;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: 0;
+  color: var(--ash-ink);
+  font-family: var(--font-family-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    transform 140ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    color 180ms var(--ease-out);
+}
+
+.stake-buy > span {
+  position: relative;
+  z-index: 1;
+}
+
+.stake-buy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--ash-accent) 42%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 300% 100%;
+  background-position: 160% 0;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.stake-buy:active {
+  transform: scale(var(--active-scale));
+}
+
+@keyframes stake-buy-shimmer {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+
 .stake-actions button.stake-primary,
 .stake-heading button.stake-primary,
 .stake-result-dialog button.stake-primary {
@@ -811,6 +869,27 @@
 .stake-result-dialog a { margin-block-end: 1rem; }
 .stake-result-dialog a[hidden] { display: none; }
 .stake-result-dialog form { display: flex; justify-content: flex-end; }
+
+@media (hover: hover) and (pointer: fine) {
+  .stake-buy:hover,
+  .stake-buy:focus-visible {
+    border-color: var(--ash-accent);
+    color: var(--ash-accent);
+  }
+
+  .stake-buy:hover::after,
+  .stake-buy:focus-visible::after {
+    opacity: 1;
+    animation: stake-buy-shimmer 1.15s var(--ease-out) infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stake-buy:hover::after,
+  .stake-buy:focus-visible::after {
+    animation: none;
+  }
+}
 
 @media (hover: hover) and (pointer: fine) {
   .stake-actions button:not(:disabled):hover,

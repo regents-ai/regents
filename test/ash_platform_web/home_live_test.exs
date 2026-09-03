@@ -200,7 +200,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     {:ok, view, html} = live(conn, "/")
 
     assert sentences(html, ".rl-hero-stakers > p") == [
-             "Regents Labs is unique in that REGENT token stakers receive their share of all product's USDC revenue"
+             "Regents Labs is unique in that REGENT token stakers receive a pro rata split of all USDC revenue"
            ]
 
     assert has_element?(

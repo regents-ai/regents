@@ -82,6 +82,14 @@ defmodule AshPlatformWeb.StakeLive do
             <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
           </div>
         </dl>
+        <a
+          class="stake-buy"
+          href="https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>Buy REGENT</span> <span aria-hidden="true">↗</span>
+        </a>
       </header>
 
       <dialog
