@@ -8,6 +8,8 @@ const sendsKey = "regent:test:staking-wallet-sends"
 const disconnectedKey = "regent:wallet-disconnected:v1"
 // The sign-in this page's staking bearer names is the wallet above.
 const stakingBearer = "valid-staking"
+const approvalIncomplete =
+  "The wallet token approval step has not been completed yet, check popup windows or try again"
 const bridgePattern =
   /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
 const bridgeStub = `
@@ -385,11 +387,11 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
   }
 })
 
-// An approval is a wallet prerequisite, not a staking result. One that never
-// returns a usable hash buys nothing on Base, so the page must not hand out a
-// receipt for it, must not send the stake behind it, and must leave the amount
-// exactly where the customer typed it.
-test("Stake presents no receipt when an approval returns no usable hash", async ({page}) => {
+// An approval that never returns a usable hash buys nothing on Base, so the page
+// hands out no receipt for it and never sends the stake behind it. It does say
+// which step is unfinished, and leaves the amount exactly where the customer
+// typed it, so the same click can be made again.
+test("Stake names the unfinished approval step when an approval returns no usable hash", async ({page}) => {
   await installWallet(page)
   await signIn(page)
   await page.goto("/stake")
@@ -402,13 +404,47 @@ test("Stake presents no receipt when an approval returns no usable hash", async 
 
   await page.locator("button.stake-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
-  await expect(page.locator("#staking-result-dialog")).toBeHidden()
+  await expect(page.locator("#staking-result-dialog")).toContainText(approvalIncomplete)
+  await expect(page.locator("#staking-result-dialog a[data-staking-result-link]")).toBeHidden()
+  await page.locator("#staking-result-dialog").getByRole("button", {name: "Done"}).click()
   await expect(page.locator("button.stake-submit")).toBeEnabled()
   await expect(page.getByLabel("Amount", {exact: true})).toHaveValue("1")
 
   // The wallet is offered again only once the click is over, so the count here
   // is final: the approval was the one and only transaction the wallet saw.
   expect(await sendCount(page)).toBe(1)
+})
+
+// The approval prompt a customer dismisses, or never finds behind the browser
+// window, is the common way a stake stops before it starts.
+test("Stake names the unfinished approval step when the wallet rejects the approval", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.evaluate(() => {
+    ;(window as Window & {__ashStakingRejectedApproval?: boolean})
+      .__ashStakingRejectedApproval = true
+  })
+
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+
+  const dialog = page.locator("#staking-result-dialog")
+  await expect(dialog.getByRole("heading", {name: "Stake not completed"})).toBeVisible()
+  await expect(dialog.getByText(approvalIncomplete, {exact: true})).toBeVisible()
+
+  // Dismissing the notice retires it, and the next approval — the wallet takes
+  // this one — is confirmed on its own terms with no trace of it.
+  await dialog.getByRole("button", {name: "Done"}).click()
+  await expect(dialog).toBeHidden()
+
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(3)
+
+  await expect(dialog.getByText("REGENT spending was approved successfully.")).toBeVisible()
+  await expect(dialog.getByText(approvalIncomplete)).toHaveCount(0)
 })
 
 async function installWallet(page: Page): Promise<void> {
@@ -437,6 +473,11 @@ async function installWallet(page: Page): Promise<void> {
                   (window as Window & {__ashStakingMalformedApproval?: boolean})
                     .__ashStakingMalformedApproval
                 ) return "0x1"
+                if (
+                  next === 1 &&
+                  (window as Window & {__ashStakingRejectedApproval?: boolean})
+                    .__ashStakingRejectedApproval
+                ) throw {code: 4001}
                 const hash = `0x${next.toString(16).padStart(64, "0")}`
                 const transactions = ((window as Window & {
                   __ashStakingTransactions?: Record<string, unknown>

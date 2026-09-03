@@ -29,6 +29,8 @@ const approvalAbi = parseAbi(["function approve(address spender,uint256 amount)"
 const amount = 1_500_000_000_000_000_000n
 const hash = `0x${"ab".repeat(32)}` as const
 const secondHash = `0x${"de".repeat(32)}` as const
+const approvalIncomplete =
+  "The wallet token approval step has not been completed yet, check popup windows or try again"
 type ProviderRequest = {method: string; params?: unknown[]}
 
 afterEach(() => {
@@ -120,7 +122,7 @@ function selected(provider: EthereumProvider, address: Address = wallet): Select
 
 function stakingHookProvider(options: {
   chainResponses?: Array<string | Promise<string> | "hang">
-  sendResponses?: Array<`0x${string}` | Promise<`0x${string}`> | "hang" | "reject">
+  sendResponses?: Array<`0x${string}` | Promise<`0x${string}`> | "hang" | "reject" | "fail">
   observation?: "pending" | "unavailable" | "manual"
 } = {}): {
   provider: EthereumProvider
@@ -155,6 +157,7 @@ function stakingHookProvider(options: {
           const response = sendResponses.shift() ?? secondHash
           if (response === "hang") return new Promise<never>(() => undefined)
           if (response === "reject") throw {code: 4001}
+          if (response === "fail") throw new Error("wallet transport unavailable")
           const resolved = await response
           transactions.set(resolved, transaction)
           return resolved
@@ -473,6 +476,120 @@ describe("stake hook ownership and result ordering", () => {
     harness.dialog.close()
     expect(harness.dialog.showModal).toHaveBeenCalledTimes(2)
     expect(harness.text.textContent).toBe("Request canceled.")
+    harness.destroy()
+  })
+
+  // A stake whose approval never gets confirmed is the same dead end however the
+  // approval ended, and the customer is told so instead of being left with a
+  // page that did nothing.
+  it.each([
+    ["a rejected", "reject" as const],
+    ["a failed", "fail" as const],
+    ["an unusable", "0x1" as const],
+  ])("names the unfinished approval step after %s approval and clears it on the next attempt", async (_name, response) => {
+    const source = stakingHookProvider({sendResponses: [response, hash, secondHash]})
+    const harness = stakingHookHarness(source, "0")
+
+    harness.click("stake")
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledOnce())
+
+    expect(harness.dialogTitle.textContent).toBe("Stake not completed")
+    expect(harness.text.textContent).toBe(approvalIncomplete)
+    expect(harness.detail.textContent)
+      .toBe("No confirmed Base transaction changed your staking position.")
+    expect(harness.link.hidden).toBe(true)
+    // The stake behind the approval is still never sent.
+    expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1)
+
+    harness.dialog.close()
+    harness.click("stake")
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledTimes(2))
+
+    expect(harness.text.textContent).toBe("REGENT spending was approved successfully.")
+    harness.destroy()
+  })
+
+  // A wrong network or a wallet that no longer matches the signer is named, and
+  // sending never gets as far as a popup to go looking for.
+  it("keeps the instruction for an approval that never reached the wallet", async () => {
+    const source = stakingHookProvider({chainResponses: ["0x1", "0x1"]})
+    const harness = stakingHookHarness(source, "0")
+
+    harness.click("stake")
+    await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledOnce())
+
+    expect(harness.dialogTitle.textContent).toBe("Stake not completed")
+    expect(harness.text.textContent).toBe("Switch to Base before continuing.")
+    expect(harness.text.textContent).not.toBe(approvalIncomplete)
+    expect(harness.requests.map(request => request.method)).not.toContain("eth_sendTransaction")
+    harness.destroy()
+  })
+
+  // The wallet still holds the prompt when the wait runs out. The notice stands
+  // until the prompt is answered, and the transaction it produces takes the
+  // dialog over in place — no closing, and nothing left blank while Base is
+  // still being asked about it.
+  it("hands the unfinished approval step over to the transaction the wallet finally sends", async () => {
+    vi.useFakeTimers()
+    const heldApproval = deferred<`0x${string}`>()
+    const source = stakingHookProvider({
+      sendResponses: [heldApproval.promise],
+      observation: "manual",
+    })
+    const harness = stakingHookHarness(source, "0")
+
+    harness.click("stake")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    await vi.advanceTimersByTimeAsync(120_000)
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe(approvalIncomplete)
+
+    heldApproval.resolve(hash)
+    await flushStakeHookPromises()
+
+    expect(harness.dialog.open).toBe(true)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.dialogTitle.textContent).toBe("Transaction submitted")
+    expect(harness.text.textContent)
+      .toBe("Privy returned the transaction hash. Alchemy is checking its Base result.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+
+    harness.settleNext("success")
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe("REGENT spending was approved successfully.")
+    expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
+    harness.destroy()
+  })
+
+  // The customer put the notice away before the wallet answered. A rejection
+  // arriving afterwards says nothing they have not already been told, and a
+  // modal reopening minutes later would read as the attempt they made since.
+  it("retires a dismissed approval step notice instead of reopening it on a late rejection", async () => {
+    vi.useFakeTimers()
+    let rejectApproval!: (reason: unknown) => void
+    const heldApproval = new Promise<`0x${string}`>((_resolve, reject) => (rejectApproval = reject))
+    const source = stakingHookProvider({sendResponses: [heldApproval]})
+    const harness = stakingHookHarness(source, "0")
+
+    harness.click("stake")
+    await vi.waitFor(() =>
+      expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(1),
+    )
+    await vi.advanceTimersByTimeAsync(120_000)
+
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
+    expect(harness.text.textContent).toBe(approvalIncomplete)
+
+    harness.dialog.close()
+    rejectApproval({code: 4001})
+    await flushStakeHookPromises()
+
+    expect(harness.dialog.open).toBe(false)
+    expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     harness.destroy()
   })
 

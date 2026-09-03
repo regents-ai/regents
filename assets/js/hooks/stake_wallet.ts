@@ -64,6 +64,21 @@ const stakingActions = new Set<StakingAction>([
   "claim_and_restake_regent",
 ])
 
+const approvalIncomplete =
+  "The wallet token approval step has not been completed yet, check popup windows or try again"
+
+/**
+ * A stake needs its REGENT approval first. Every way that approval can end after
+ * the wallet has been asked leaves the customer in the same place, in front of a
+ * prompt they have to find again. A request that never reached the wallet — the
+ * wrong network, or a wallet that no longer matches the signer — keeps the
+ * instruction that names what to fix, the same one the stake itself shows.
+ */
+function approvalStepMessage(result: ImmediateStakingResult): string {
+  const asked = result.role === "approval" && result.kind !== "refused"
+  return asked ? approvalIncomplete : result.message
+}
+
 export const StakeWallet: Hook = {
   mounted(this: StakeHook) {
     const dialog = requiredElement<HTMLDialogElement>(this.el, "#staking-result-dialog")
@@ -129,19 +144,20 @@ export const StakeWallet: Hook = {
       },
       handoffTimedOut: (_actionId: string, role: StakingTransactionRole): void => {
         if (!liveSlot(state, slot)) return
-        if (role === "approval") return
-        settleImmediate(this.el, state, slot, "The submission outcome is unknown.")
+        const message = role === "approval" ? approvalIncomplete : "The submission outcome is unknown."
+        settleImmediate(this.el, state, slot, message)
       },
       immediate: (result: ImmediateStakingResult): void => {
         if (!liveSlot(state, slot)) return
         slot.handedOff = false
-        restoreDismissedSlot(state, slot)
-        // Approval is a wallet prerequisite, not a Regent result surface.
-        if (result.role === "approval") {
+        // A notice the customer has already put away says nothing new when the
+        // wallet finally answers the approval prompt it was about.
+        if (result.role === "approval" && state.dismissedOperations.has(slot)) {
           discard(slot)
           return
         }
-        settleImmediate(this.el, state, slot, result.message)
+        restoreDismissedSlot(state, slot)
+        settleImmediate(this.el, state, slot, approvalStepMessage(result))
       },
       submitted: (submitted: SubmittedStakingTransaction): void => {
         if (!liveSlot(state, slot)) return
@@ -158,6 +174,9 @@ export const StakeWallet: Hook = {
           const actionIndex = state.queue.indexOf(slot)
           state.queue.splice(actionIndex, 0, approval)
           state.observationSlots.set(approval.id, approval)
+          // The prompt was answered after all, so a notice about the wait for it
+          // gives the dialog straight to the transaction it produced.
+          handOverResult(this.el, state, slot, approval, submitted.hash)
           this.pushEvent("observe_staking_transaction", observation(approval.id, submitted))
           if (!runtime.alive()) discard(slot)
           return
@@ -427,15 +446,40 @@ function updateSubmittedResult(
   hash: string,
 ): void {
   if (!state.results.has(slot.id)) return
-  const display: ResultDisplay = Object.freeze({
+  const display = submittedDisplay(hash)
+  state.results.set(slot.id, display)
+  presentOrUpdate(root, state, slot, display)
+}
+
+/**
+ * Moves whatever the click's own slot is saying to the transaction that came out
+ * of it, so a wallet answering after the wait replaces the notice about that
+ * wait in place instead of leaving the customer an empty page. A slot saying
+ * nothing — the usual case, and a notice already put away — hands over nothing.
+ */
+function handOverResult(
+  root: HTMLElement,
+  state: StakeState,
+  from: ResultSlot,
+  to: ResultSlot,
+  hash: string,
+): void {
+  const displaced = state.results.delete(from.id)
+  if (!displaced) return
+  if (state.visible === from) state.visible = to
+  const display = submittedDisplay(hash)
+  state.results.set(to.id, display)
+  presentOrUpdate(root, state, to, display)
+}
+
+function submittedDisplay(hash: string): ResultDisplay {
+  return Object.freeze({
     title: "Transaction submitted",
     message: "Privy returned the transaction hash. Alchemy is checking its Base result.",
     detail: "You can keep using the page while confirmation completes.",
     href: `https://basescan.org/tx/${hash}`,
     tone: "pending",
   })
-  state.results.set(slot.id, display)
-  presentOrUpdate(root, state, slot, display)
 }
 
 function presentOrUpdate(
