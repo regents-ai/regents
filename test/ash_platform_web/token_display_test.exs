@@ -35,6 +35,25 @@ defmodule AshPlatformWeb.TokenDisplayTest do
     end
   end
 
+  # Three significant digits, letter suffixes, trailing zeros dropped. Under a
+  # thousand is a plain integer. Digits beyond the third are dropped.
+  test "SHORT_IS_THREE_SIGNIFICANT_DIGITS" do
+    for {value, expected} <- [
+          {0, "0"},
+          {510, "510"},
+          {999, "999"},
+          {510_000, "510k"},
+          {999_499, "999k"},
+          {1_000_000, "1m"},
+          {1_040_000, "1.04m"},
+          {1_400_000, "1.4m"},
+          {12_300_000, "12.3m"}
+        ] do
+      assert TokenDisplay.short(value) == expected,
+             "#{value} read #{TokenDisplay.short(value)}"
+    end
+  end
+
   # Display is allowed to say less than the position, never more: a customer
   # who types exactly the figure shown must never be refused for exceeding it.
   test "COMPACT_TRUNCATES_AND_NEVER_ROUNDS_A_BALANCE_UP" do

@@ -561,16 +561,16 @@
 /* The hero's one outward link: same square mono cell as every other control,
    parked in the panel's bottom-right corner, with a light sweep on hover. */
 /* The two token links sit under the lede, where somebody deciding whether to
-   stake is already reading. */
+   stake is already reading. The market-cap box shares their face and sits
+   beside them; it does not act, so it carries none of the link motion. */
 .stake-token-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
 }
 
-.stake-buy {
-  position: relative;
-  overflow: hidden;
+.stake-buy,
+.stake-market-cap {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -583,6 +583,12 @@
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stake-buy {
+  position: relative;
+  overflow: hidden;
   text-decoration: none;
   transition:
     transform 140ms var(--ease-out),

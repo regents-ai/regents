@@ -40,6 +40,7 @@ defmodule AshPlatform.Staking.Facts do
     :regent_total_supply,
     :regent_circulating_supply_raw,
     :regent_circulating_supply,
+    :regent_price_usd,
     :emission_apr_bps,
     :emission_apr_percent
   ]

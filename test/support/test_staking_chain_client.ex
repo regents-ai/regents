@@ -103,6 +103,7 @@ defmodule AshPlatform.TestStakingChainClient do
       regent_total_supply: scaled(@regent_total_supply, 18),
       regent_circulating_supply_raw: circulating,
       regent_circulating_supply: scaled(circulating, 18),
+      regent_price_usd: setting(:test_staking_price_usd, :unavailable),
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }

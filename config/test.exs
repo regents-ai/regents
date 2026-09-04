@@ -12,6 +12,7 @@ config :ash_platform, AshPlatformWeb.Endpoint,
 config :ash_platform, :content_provider, AshPlatform.TestContentProvider
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
+config :ash_platform, :staking_price_http_client, AshPlatform.TestStakingPriceHttpClient
 
 # No ExUnit run reads Base at startup. A case that wants a shared reading asks
 # for one, which is the same path a signed-in visitor takes. The browser server

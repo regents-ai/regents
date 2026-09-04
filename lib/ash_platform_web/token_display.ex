@@ -110,6 +110,38 @@ defmodule AshPlatformWeb.TokenDisplay do
     |> Kernel.<>(suffix)
   end
 
+  @short_scales [
+    {Decimal.new(1_000_000_000), "b"},
+    {Decimal.new(1_000_000), "m"},
+    {Decimal.new(1_000), "k"}
+  ]
+
+  @doc """
+  A figure to three significant digits with a letter suffix: 510k, 1.04m, 12.3b.
+  Values under a thousand are a plain integer. Trailing zeros after the point
+  are dropped. Digits beyond the third are dropped, never rounded up.
+  """
+  def short(amount) do
+    rounded = amount |> Decimal.new() |> significant(3)
+
+    if Decimal.lt?(Decimal.abs(rounded), Decimal.new(1_000)) do
+      rounded
+      |> Decimal.round(0, :down)
+      |> Decimal.to_string(:normal)
+    else
+      {scale, suffix} =
+        Enum.find(@short_scales, fn {scale, _suffix} ->
+          rounded |> Decimal.abs() |> Decimal.gte?(scale)
+        end)
+
+      rounded
+      |> Decimal.div(scale)
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+      |> Kernel.<>(suffix)
+    end
+  end
+
   defp significant(%Decimal{coef: 0} = zero, _digits), do: zero
 
   # The exponent of the leading digit decides how many decimal places keep

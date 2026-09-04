@@ -91,6 +91,7 @@ defmodule AshPlatformWeb.StakeLive do
             <a class="stake-buy" href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer">
               <span>View Chart</span> <span aria-hidden="true">↗</span>
             </a>
+            <span class="stake-market-cap">{market_cap_text(@dashboard)}</span>
           </div>
           <div :if={!@wallet} class="stake-heading-actions">
             <button type="button" class="stake-primary" data-account-target="sign-in">
@@ -537,9 +538,22 @@ defmodule AshPlatformWeb.StakeLive do
       basescan_url: "https://basescan.org/address/#{staking.contract_address}",
       circulating_supply: to_cents(staking.regent_circulating_supply),
       emission_apr: "#{TokenDisplay.compact(staking.emission_apr_percent)}%",
+      market_cap: market_cap(staking),
       supply: supply(staking.total_staked_raw, circulating_raw, staking.regent_total_supply_raw)
     }
   end
+
+  defp market_cap_text(%{market_cap: cap}) when is_binary(cap), do: "#{cap} market cap"
+  defp market_cap_text(_dashboard), do: "— market cap"
+
+  # Price × circulating, or nothing: a missing price is a dash, never a guessed
+  # figure.
+  defp market_cap(%{regent_price_usd: price, regent_circulating_supply: circulating})
+       when is_binary(price) and is_binary(circulating) do
+    price |> Decimal.new() |> Decimal.mult(Decimal.new(circulating)) |> TokenDisplay.short()
+  end
+
+  defp market_cap(_staking), do: nil
 
   # The circulating supply moves with every claim and unlock, so the page writes
   # it to the two decimals a person can read out rather than to the eighteen the
