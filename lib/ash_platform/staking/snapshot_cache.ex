@@ -13,14 +13,16 @@ defmodule AshPlatform.Staking.SnapshotCache do
 
   use GenServer
 
-  alias AshPlatform.Staking.ChainClient
+  alias AshPlatform.Staking.{ChainClient, PriceClient}
 
   @topic "staking:protocol_snapshot"
   @minimum_interval_ms 10_000
   @window_ms 60_000
+  @quote_stale_ms 120_000
   @default_refreshes_per_minute 6
   @boot_attempts 6
   @default_boot_backoff_ms 2_000
+  @quote_timeout_ms 10_000
 
   def start_link(_options), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
@@ -89,7 +91,7 @@ defmodule AshPlatform.Staking.SnapshotCache do
       {:reply, {:error, :refresh_too_soon}, %{state | starts: starts}}
     else
       {:reply, :ok,
-       %{state | in_flight: start_read([notify]), starts: [now | starts], last_start: now}}
+       %{state | in_flight: start_read(state, [notify]), starts: [now | starts], last_start: now}}
     end
   end
 
@@ -116,7 +118,7 @@ defmodule AshPlatform.Staking.SnapshotCache do
     cond do
       not boot_read_enabled?() -> state
       not is_nil(state.snapshot) -> state
-      is_nil(state.in_flight) -> %{state | in_flight: start_read([], attempt)}
+      is_nil(state.in_flight) -> %{state | in_flight: start_read(state, [], attempt)}
       true -> %{state | in_flight: %{state.in_flight | boot_attempt: attempt}}
     end
   end
@@ -141,7 +143,9 @@ defmodule AshPlatform.Staking.SnapshotCache do
     :ok
   end
 
-  defp settle(state, %{}, {:ok, snapshot}) do
+  defp settle(state, %{}, {:ok, snapshot, quote_result}) do
+    state = remember_quote(state, quote_result)
+    snapshot = Map.put(snapshot, :regent_price_usd, state.quote || :unavailable)
     Phoenix.PubSub.broadcast(AshPlatform.PubSub, @topic, {:staking_snapshot, snapshot})
     %{state | snapshot: snapshot}
   end
@@ -152,16 +156,51 @@ defmodule AshPlatform.Staking.SnapshotCache do
     state
   end
 
-  defp start_read(waiters, boot_attempt \\ nil) do
+  # A last good quote stays until a later fetch replaces it. A failed fetch
+  # never writes `:unavailable` over a figure that already landed.
+  defp remember_quote(state, {:ok, price}), do: %{state | quote: price, quote_fetched_at: now()}
+  defp remember_quote(state, _result), do: state
+
+  # Boot has no waiters and counts as needing a first quote, not as a user
+  # refresh. A signed-in refresh rereads the chain always and the quote only
+  # when none exists or the cached one is at least two minutes old.
+  defp start_read(state, waiters, boot_attempt \\ nil) do
+    fetch_quote? = quote_due?(state, waiters != [])
     server = self()
 
     {pid, monitor} =
-      spawn_monitor(fn -> send(server, {:read, self(), safely_read()}) end)
+      spawn_monitor(fn -> send(server, {:read, self(), safely_read(fetch_quote?)}) end)
 
     %{pid: pid, monitor: monitor, waiters: waiters, boot_attempt: boot_attempt}
   end
 
-  defp safely_read do
+  defp quote_due?(%{quote: nil}, _user_refresh?), do: true
+
+  defp quote_due?(%{quote_fetched_at: fetched_at}, true),
+    do: now() - fetched_at >= @quote_stale_ms
+
+  defp quote_due?(_state, false), do: false
+
+  defp safely_read(fetch_quote?) do
+    quote_task = if fetch_quote?, do: Task.async(&PriceClient.quote/0)
+
+    case {read_chain(), quote_task} do
+      {{:ok, snapshot}, nil} ->
+        {:ok, snapshot, :reuse}
+
+      {{:ok, snapshot}, task} ->
+        {:ok, snapshot, fetched_quote(task)}
+
+      {error, nil} ->
+        error
+
+      {error, task} ->
+        _ = Task.shutdown(task, :brutal_kill)
+        error
+    end
+  end
+
+  defp read_chain do
     ChainClient.module().protocol_snapshot()
   rescue
     _ -> {:error, :unavailable}
@@ -169,10 +208,26 @@ defmodule AshPlatform.Staking.SnapshotCache do
     _, _ -> {:error, :unavailable}
   end
 
+  # A refused or late listing leaves every chain figure where it is.
+  defp fetched_quote(task) do
+    case Task.yield(task, @quote_timeout_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, price}} when is_binary(price) and price != "" -> {:ok, price}
+      _ -> :unavailable
+    end
+  end
+
   defp too_soon?(nil, _now), do: false
   defp too_soon?(last_start, now), do: now - last_start < @minimum_interval_ms
 
-  defp empty, do: %{snapshot: nil, in_flight: nil, starts: [], last_start: nil}
+  defp empty,
+    do: %{
+      snapshot: nil,
+      in_flight: nil,
+      starts: [],
+      last_start: nil,
+      quote: nil,
+      quote_fetched_at: nil
+    }
 
   defp boot_read_enabled?,
     do: Application.get_env(:ash_platform, :staking_snapshot_boot_read, false)

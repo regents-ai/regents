@@ -2,21 +2,37 @@ defmodule AshPlatform.Staking.PriceClientTest do
   use ExUnit.Case, async: false
 
   alias AshPlatform.Staking.PriceClient
+  alias AshPlatform.TestStakingPriceHttpClient
 
   setup do
-    previous = Application.get_env(:ash_platform, :staking_price_http_client)
-    on_exit(fn -> restore(previous) end)
+    previous_client = Application.get_env(:ash_platform, :staking_price_http_client)
+    previous_handler = Application.get_env(:ash_platform, :test_staking_price_handler)
+
+    on_exit(fn ->
+      restore(:staking_price_http_client, previous_client)
+      restore(:test_staking_price_handler, previous_handler)
+    end)
+
     :ok
   end
 
   test "BASE_TOKEN_MISMATCH: a pair for some other token is unavailable" do
     Application.put_env(:ash_platform, :staking_price_http_client, MismatchClient)
-    assert PriceClient.regent_price_usd() == :unavailable
+    assert PriceClient.quote() == :unavailable
   end
 
   test "NON_200: a refused pair listing is unavailable" do
     Application.put_env(:ash_platform, :staking_price_http_client, RefusedClient)
-    assert PriceClient.regent_price_usd() == :unavailable
+    assert PriceClient.quote() == :unavailable
+  end
+
+  test "QUOTE: REGENT/ETH times ETH USD is the USD price" do
+    Application.put_env(:ash_platform, :test_staking_price_handler, fn url ->
+      {:ok,
+       %{status: 200, body: TestStakingPriceHttpClient.quote_body(url, "0.000000002", "3000")}}
+    end)
+
+    assert PriceClient.quote() == {:ok, "0.000006"}
   end
 
   defmodule MismatchClient do
@@ -36,9 +52,9 @@ defmodule AshPlatform.Staking.PriceClientTest do
     def get(_url, _options), do: {:ok, %{status: 500, body: %{}}}
   end
 
-  defp restore(previous) do
+  defp restore(key, previous) do
     if previous,
-      do: Application.put_env(:ash_platform, :staking_price_http_client, previous),
-      else: Application.delete_env(:ash_platform, :staking_price_http_client)
+      do: Application.put_env(:ash_platform, key, previous),
+      else: Application.delete_env(:ash_platform, key)
   end
 end

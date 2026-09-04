@@ -4,7 +4,7 @@ defmodule AshPlatform.Staking.RpcClient do
 
   require Logger
 
-  alias AshPlatform.Staking.{PriceClient, Supply}
+  alias AshPlatform.Staking.Supply
   alias AshPlatform.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
@@ -30,18 +30,8 @@ defmodule AshPlatform.Staking.RpcClient do
   # when it fails only that figure is marked unavailable.
   @impl true
   def protocol_snapshot do
-    price_task = Task.async(&PriceClient.regent_price_usd/0)
-
-    result =
-      with {:ok, protocol} <- bounded(fn -> read_protocol() end) do
-        {:ok, Map.merge(protocol, usdc_received_window(protocol.block_number))}
-      end
-
-    price = await_price(price_task)
-
-    case result do
-      {:ok, protocol} -> {:ok, Map.put(protocol, :regent_price_usd, price)}
-      error -> error
+    with {:ok, protocol} <- bounded(fn -> read_protocol() end) do
+      {:ok, Map.merge(protocol, usdc_received_window(protocol.block_number))}
     end
   end
 
@@ -322,14 +312,6 @@ defmodule AshPlatform.Staking.RpcClient do
     case Task.yield(task, @read_timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
       _timeout -> {:error, :chain_timeout}
-    end
-  end
-
-  # A refused or late price listing leaves every chain figure where it is.
-  defp await_price(task) do
-    case Task.yield(task, 5_000) || Task.shutdown(task, :brutal_kill) do
-      {:ok, price} when is_binary(price) -> price
-      _ -> :unavailable
     end
   end
 

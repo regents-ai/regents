@@ -48,7 +48,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
             :test_staking_read_gate,
             :test_staking_read_at,
             :test_staking_usdc_7d,
-            :test_staking_price_usd,
+            :test_staking_price_handler,
             :test_wallet_observation_watcher,
             :staking_snapshot_clock
           ] do
@@ -138,7 +138,14 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   test "MARKET_CAP: the token links carry the circulating market cap", %{conn: conn} do
-    Application.put_env(:ash_platform, :test_staking_price_usd, "0.00002")
+    Application.put_env(:ash_platform, :test_staking_price_handler, fn url ->
+      {:ok,
+       %{
+         status: 200,
+         body: AshPlatform.TestStakingPriceHttpClient.quote_body(url, "0.00000001", "2000")
+       }}
+    end)
+
     view = mount_stake(conn)
     assert has_element?(view, ".stake-market-cap", "700k market cap")
   end

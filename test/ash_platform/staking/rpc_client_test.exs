@@ -58,7 +58,9 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert snapshot.emission_apr_percent == "12"
     assert snapshot.stake_token_address == Abi.normalize_address!(Abi.stake_token_address())
     assert snapshot.usdc_address == Abi.normalize_address!(Abi.usdc_address())
-    assert Enum.sort(Map.keys(snapshot)) == Enum.sort(Facts.protocol_keys())
+
+    assert Enum.sort(Map.keys(snapshot)) ==
+             Enum.sort(Facts.protocol_keys() -- [:regent_price_usd])
 
     aggregates([
       Abi.encode_aggregate3(expected_protocol_calls()),
@@ -172,7 +174,9 @@ defmodule AshPlatform.Staking.RpcClientTest do
         assert snapshot.remaining_capacity_raw == "900"
         assert snapshot.usdc_received_lifetime_raw == "125000000000"
         assert snapshot.regent_total_supply == "100000000000"
-        assert Enum.sort(Map.keys(snapshot)) == Enum.sort(Facts.protocol_keys())
+
+        assert Enum.sort(Map.keys(snapshot)) ==
+                 Enum.sort(Facts.protocol_keys() -- [:regent_price_usd])
       end)
 
     # The log names the stretch of blocks that failed and why, and never the

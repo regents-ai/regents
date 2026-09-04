@@ -48,6 +48,7 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
             :test_staking_protocol_error,
             :test_staking_read_gate,
             :test_staking_read_watcher,
+            :test_staking_price_handler,
             :staking_shared_refreshes_per_minute,
             :staking_snapshot_boot_backoff_ms,
             :staking_snapshot_clock
@@ -228,6 +229,44 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     assert SnapshotCache.snapshot() == snapshot
   end
 
+  test "QUOTE_IS_CACHED: a user refresh inside 120s rereads the chain and keeps the quote" do
+    test = self()
+    stub_quote(fn url -> send(test, {:price_http, url}) end)
+    clock = fixed_clock(0)
+
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, first}
+    assert first.regent_price_usd == "0.000006"
+    assert_received {:price_http, pair_url}
+    assert_received {:price_http, token_url}
+    assert pair_url =~ "/pairs/"
+    assert token_url =~ "/tokens/"
+
+    clock.(10_000)
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, second}
+    assert second.regent_price_usd == first.regent_price_usd
+    refute_received {:price_http, _}
+  end
+
+  test "QUOTE_REFETCH: a user refresh after 120s fetches the quote again" do
+    test = self()
+    stub_quote(fn url -> send(test, {:price_http, url}) end)
+    clock = fixed_clock(0)
+
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, _first}
+    assert_received {:price_http, _}
+    assert_received {:price_http, _}
+
+    clock.(120_000)
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, second}
+    assert second.regent_price_usd == "0.000006"
+    assert_received {:price_http, _}
+    assert_received {:price_http, _}
+  end
+
   test "CRASHED_READING: a reading that died is reported and changes nothing" do
     assert :ok = SnapshotCache.refresh()
     assert_receive {:staking_snapshot, first}
@@ -256,6 +295,18 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     after
       50 -> :ok
     end
+  end
+
+  defp stub_quote(on_get) do
+    Application.put_env(:ash_platform, :test_staking_price_handler, fn url ->
+      on_get.(url)
+
+      {:ok,
+       %{
+         status: 200,
+         body: AshPlatform.TestStakingPriceHttpClient.quote_body(url, "0.000000002", "3000")
+       }}
+    end)
   end
 
   defp swap_client(module) do
