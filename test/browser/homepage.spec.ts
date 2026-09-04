@@ -41,7 +41,7 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await expect(page.locator(".rl-hero-copy p")).toHaveText(
     "The community-owned agentic product lab",
   )
-  await expect(page.locator("#home-products-label")).toHaveText("Agentic Products")
+  await expect(page.locator("#home-products-label")).toHaveText("Products for Agent Uplift")
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
 
   const cards = page.locator("[data-home-hero-card]")

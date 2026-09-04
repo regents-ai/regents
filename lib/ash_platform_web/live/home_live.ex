@@ -125,7 +125,7 @@ defmodule AshPlatformWeb.HomeLive do
             colours to take without asking the server anything. The label above them is
             the list's own name, so a screen reader hears what the page shows. --%>
       <div class="rl-hero-products">
-        <p id="home-products-label" class="rl-hero-products-label">Agentic Products</p>
+        <p id="home-products-label" class="rl-hero-products-label">Products for Agent Uplift</p>
 
         <ul
           id="home-products"
