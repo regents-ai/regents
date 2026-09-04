@@ -36,17 +36,26 @@ async function patchTo(page: Page, path: string) {
   await page.locator("#patch-probe").click()
 }
 
-// The shell stands on one palette per theme, so the mat guide is the only
-// colour that still changes with the application: Powder Blue for Regent routes
-// and Autolaunch, Tangerine for Formation.
-const tangerine = "rgb(255, 91, 25)"
-const powderBlue = "rgb(174, 202, 205)"
-
-const routeGuides = {
-  "/stake": powderBlue,
-  "/formation": tangerine,
-  "/autolaunch": powderBlue,
+// The mat guide is the slot's token, painted through `--shell-background-guide`:
+// `--color-accent` on Regent routes, `--product-formation` on Formation, and
+// `--brand-accent` on Autolaunch. Those tokens are read as computed colours so
+// the assertion follows the stylesheet rather than a frozen rgb() string.
+const routeGuideTokens = {
+  "/stake": "--color-accent",
+  "/formation": "--product-formation",
+  "/autolaunch": "--brand-accent",
 } as const
+
+function tokenColor(page: Page, token: string) {
+  return page.evaluate(name => {
+    const probe = document.createElement("span")
+    probe.style.backgroundColor = `var(${name})`
+    document.documentElement.append(probe)
+    const color = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return color
+  }, token)
+}
 
 // The guide is read where it is painted, so it proves the whole chain from the
 // shared token through `--shell-background-guide` onto the mat mask.
@@ -77,9 +86,10 @@ test("[U2] the shell keeps one ground per theme while the mat guide follows each
   for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
 
-    for (const [route, guide] of Object.entries(routeGuides)) {
+    for (const [route, token] of Object.entries(routeGuideTokens)) {
       await page.goto(route)
       await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
+      const guide = await tokenColor(page, token)
       await expect.poll(() => readFamily(page).then(read => read.guide), `${route} ${choice}`)
         .toBe(guide)
 
@@ -97,14 +107,14 @@ test("[U2] the shell keeps one ground per theme while the mat guide follows each
     await expect(page).toHaveURL(/\/formation$/)
     await expect.poll(() => readFamily(page), `switched Formation ${choice}`).toEqual({
       ...palette[choice],
-      guide: routeGuides["/formation"],
+      guide: await tokenColor(page, routeGuideTokens["/formation"]),
     })
 
     await patchTo(page, "/autolaunch")
     await expect(page).toHaveURL(/\/autolaunch$/)
     await expect.poll(() => readFamily(page), `switched Autolaunch ${choice}`).toEqual({
       ...palette[choice],
-      guide: routeGuides["/autolaunch"],
+      guide: await tokenColor(page, routeGuideTokens["/autolaunch"]),
     })
   }
 
@@ -292,24 +302,7 @@ test("anonymous Sign In stays separate from the brand link", async ({page}) => {
   await expect(brand.getByRole("button")).toHaveCount(0)
   await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
   await expect(accountControl.getByRole("link", {name: "Nous Portal"})).toHaveCount(0)
-
-  await page.evaluate(() => {
-    const link = document.createElement("a")
-    link.href = "/settings"
-    link.textContent = "Anonymous Settings patch"
-    link.dataset.phxLink = "patch"
-    link.dataset.phxLinkState = "push"
-    document.querySelector("#shell-header")?.append(link)
-  })
-  await page.getByRole("link", {name: "Anonymous Settings patch"}).click()
-  await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
-  await expect(page.getByRole("heading", {name: "Verified connections"})).toHaveCount(0)
-
-  await page.goto("/settings")
-  await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0)
-  await expect(page.getByRole("heading", {name: "Verified connections"})).toHaveCount(0)
+  await expect(accountControl.getByRole("link", {name: "Settings"})).toHaveCount(0)
 })
 
 test("a signed-in account without a Regent shows its available account menu", async ({page}) => {
@@ -365,15 +358,8 @@ test("a signed-in account without a Regent shows its available account menu", as
     .toBeGreaterThan(0)
   await account.locator("summary").first().click()
   await expect(account.getByRole("link", {name: "Profile"})).toHaveCount(0)
-  await expect(account.getByRole("link", {name: "Settings"})).toBeVisible()
+  await expect(account.getByRole("link", {name: "Settings"})).toHaveCount(0)
   await expect(account.getByRole("button", {name: "Disconnect"})).toBeVisible()
-
-  await account.getByRole("link", {name: "Settings"}).click()
-  await expect(page).toHaveURL(/\/settings$/)
-  await expect(page.getByRole("heading", {name: "Settings", level: 1})).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Verified connections", level: 2})).toBeVisible()
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 1, sessionChecks: 2, syncs: 1})
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await page.locator("#theme-control [data-theme-toggle]").click()
@@ -383,7 +369,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await page.reload()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
   await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 2, sessionChecks: 3, syncs: 2})
+  await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
 })
 
 test("the Account overview shows public chain truth, invents no wallet or profile, and reaches Formation", async ({page}) => {
@@ -395,6 +381,7 @@ test("the Account overview shows public chain truth, invents no wallet or profil
   await expect(overview).toContainText(
     "See your account, any verified wallet, balances, and rewards on Base.",
   )
+  await expect(overview.getByLabel("Account summary")).toBeVisible()
   await expect(overview).toContainText("100 REGENT")
   await expect(overview).toContainText(
     "Sign in to see any wallet verified on your account and the balances available to it.",
@@ -417,7 +404,7 @@ test("the Account overview shows public chain truth, invents no wallet or profil
   await actions.getByRole("link", {name: "Run your Regent"}).click()
   await expect(page).toHaveURL(/\/formation$/)
   await expect(
-    page.getByRole("heading", {level: 1, name: "Run your Regent in Nous Portal"}),
+    page.getByRole("heading", {level: 1, name: "Regent runs best on Hermes"}),
   ).toBeVisible()
 })
 
@@ -550,7 +537,7 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await draft.getByLabel("Description", {exact: true}).fill("Private preparation only.")
   await draft.getByLabel("Website", {exact: true}).fill("https://example.test/browser-draft")
   await draft.getByLabel("Image", {exact: true}).fill("https://example.test/browser-draft.png")
-  await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
+  await draft.getByLabel("Immutable treasury recipient", {exact: true}).fill(draftTreasury)
   await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await draft.getByRole("button", {name: "Save draft"}).click()
 
@@ -586,7 +573,7 @@ test("Create fits a 390px viewport and wraps long draft values instead of cuttin
     .fill("A description long enough to run past one line on a narrow phone screen.")
   await draft.getByLabel("Website", {exact: true}).fill("https://example.test/a-deliberately-long-draft-address")
   await draft.getByLabel("Image", {exact: true}).fill("https://example.test/a-deliberately-long-draft-image.png")
-  await draft.getByLabel("Treasury", {exact: true}).fill(draftTreasury)
+  await draft.getByLabel("Immutable treasury recipient", {exact: true}).fill(draftTreasury)
   await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
   await draft.getByRole("button", {name: "Save draft"}).click()
 
@@ -633,10 +620,10 @@ test("Formation keeps one in-shell heading and an exact inactive Nous handoff", 
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.getByRole("heading")).toHaveCount(1)
   await expect(
-    page.getByRole("heading", {level: 1, name: "Run your Regent in Nous Portal"}),
+    page.getByRole("heading", {level: 1, name: "Regent runs best on Hermes"}),
   ).toBeVisible()
   await expect(
-    page.getByText("Create and manage your Regent’s cloud runtime in Nous Portal."),
+    page.getByText("Create and manage your Regent as a Hermes agent in Nous Portal."),
   ).toBeVisible()
 
   const portal = page.getByRole("link", {name: "Open Nous Portal"})
@@ -644,7 +631,9 @@ test("Formation keeps one in-shell heading and an exact inactive Nous handoff", 
   await expect(portal).toHaveAttribute("target", "_blank")
   await expect(portal).toHaveAttribute("rel", "noopener noreferrer")
   await expect(
-    page.getByText("Nous Portal opens in a new tab. Your Regent session stays open here."),
+    page.getByText(
+      "Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch in their cloud runtime.",
+    ),
   ).toBeVisible()
 
   await expect(page.locator("#formation form")).toHaveCount(0)
