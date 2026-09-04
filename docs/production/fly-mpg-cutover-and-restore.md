@@ -12,7 +12,7 @@ The controlling sources remain:
 - current Ash resources and their generated snapshots for intended table mappings; and
 - current source-generated migrations for the exact proposed database change.
 
-Platform retains ownership of human identity, billing, Formation, and shared public Regent records. Techtree and Autolaunch retain ownership of their product workflow state. Ash maps deliberately onto those owned tables; it does not acquire ownership by recreating them. Existing production tables must not be recreated, destructively rewritten, or rebuilt by replaying old migrations.
+Platform retains ownership of human identity, Formation, and shared public Regent records. Autolaunch retains ownership of its product workflow state. Ash maps deliberately onto those owned tables; it does not acquire ownership by recreating them. Existing production tables must not be recreated, destructively rewritten, or rebuilt by replaying old migrations.
 
 ## Protected production invariants
 

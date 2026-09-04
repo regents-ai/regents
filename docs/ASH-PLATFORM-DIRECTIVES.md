@@ -299,7 +299,7 @@ features.
 
 The exact contextual navigation is:
 
-- Formation: Overview, Cloud, Hermes Skills, Billing.
+- Formation: Overview, Cloud, Hermes Skills.
 - Autolaunch: Auctions, Tokens, Create.
 - Techtree: the five named seed trees in the order recorded below. Each row
   exposes Map and List selectors.
@@ -454,14 +454,14 @@ complete hero remains readable and usable without JavaScript.
 
 ## Formation
 
-**AP-100 — One lifecycle.** Formation is one `/formation` lifecycle with four
-local panels: Overview, Cloud, Hermes Skills, and Billing. They are not
+**AP-100 — One lifecycle.** Formation is one `/formation` lifecycle with three
+local panels: Overview, Cloud, and Hermes Skills. They are not
 separate product route families.
 
 **AP-101 — Founder outcome.** A person forms and manages one Regent identity
 and its Hermes capabilities in one guided experience. When the customer
 enrolls in Regent-hosted Cloud, that Hermes agent runs on a Sprite with its
-runtime status and billing visible alongside its profiles and skills.
+runtime status visible alongside its profiles and skills.
 
 **AP-101A — Formation capability boundary.** Formation Core owns Regent
 identity and Hermes management for any supported Hermes runtime. Regent Cloud
