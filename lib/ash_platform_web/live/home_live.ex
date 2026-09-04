@@ -118,7 +118,7 @@ defmodule AshPlatformWeb.HomeLive do
 
       <div class="rl-hero-copy" data-home-hero-copy>
         <h1 id="home-title">Regents Labs</h1>
-        <p>A no-equity company with onchain revenue split</p>
+        <p>The community-owned agentic product lab</p>
       </div>
 
       <%!-- Each card carries its own name, so pointing at one tells the hero which
@@ -160,8 +160,8 @@ defmodule AshPlatformWeb.HomeLive do
 
       <div class="rl-hero-stakers">
         <p>
-          Regents Labs is unique in that REGENT token stakers receive a pro rata split of all
-          USDC revenue
+          Regents Labs is unique in having REGENT token stakers receive a pro rata split of all
+          USDC revenue from all current and future products
         </p>
         <div class="rl-stakers-actions">
           <a href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer" class="rl-action">

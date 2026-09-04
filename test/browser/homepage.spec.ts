@@ -39,7 +39,7 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
 
   await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
   await expect(page.locator(".rl-hero-copy p")).toHaveText(
-    "A no-equity company with onchain revenue split",
+    "The community-owned agentic product lab",
   )
   await expect(page.locator("#home-products-label")).toHaveText("Agentic Products")
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
@@ -128,7 +128,7 @@ test("[U1][U2] the tagline is shouted by the stylesheet, not by the sentence", a
   await waitForHomepage(page)
 
   const tagline = page.locator(".rl-hero-copy p")
-  await expect(tagline).toHaveText("A no-equity company with onchain revenue split")
+  await expect(tagline).toHaveText("The community-owned agentic product lab")
   expect(await tagline.evaluate(element => getComputedStyle(element).textTransform)).toBe(
     "uppercase",
   )
