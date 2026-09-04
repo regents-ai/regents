@@ -148,6 +148,8 @@ defmodule AshPlatformWeb.LaunchGateTest do
     assert get(build_conn(), "/healthz").status == 200
     assert get(build_conn(), "/healthz").resp_body == "ok"
     assert get(build_conn(), "/robots.txt").status == 200
+    assert get(build_conn(), "/privacy").status == 200
+    assert get(build_conn(), "/terms").status == 200
   end
 
   test "[U2] signing out stays available while every other session endpoint closes" do

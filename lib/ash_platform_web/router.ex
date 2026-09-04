@@ -58,6 +58,8 @@ defmodule AshPlatformWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive, :home
+    get "/privacy", LegalController, :privacy
+    get "/terms", LegalController, :terms
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure

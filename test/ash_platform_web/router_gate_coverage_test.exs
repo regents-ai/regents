@@ -27,6 +27,8 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
              {:get, "/healthz"},
              {:get, "/metrics"},
              {:get, "/"},
+             {:get, "/privacy"},
+             {:get, "/terms"},
              {:delete, "/auth/privy/session"}
            ]
   end

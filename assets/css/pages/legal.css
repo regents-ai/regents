@@ -1,0 +1,84 @@
+.legal-root {
+  min-height: 100vh;
+}
+
+.legal-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 0;
+}
+
+.legal-home,
+.legal-nav a {
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.legal-nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.legal-nav a[aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}
+
+.legal-page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.legal-page h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.legal-page h2 {
+  font-size: 1.1rem;
+  margin: 2rem 0 0.75rem;
+}
+
+.legal-page h3 {
+  font-size: 0.95rem;
+  margin: 1.35rem 0 0.55rem;
+}
+
+.legal-page code {
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+}
+
+.legal-page p,
+.legal-page li {
+  color: var(--rl-muted);
+}
+
+.legal-page p {
+  margin: 0 0 0.9rem;
+}
+
+.legal-page ul,
+.legal-page ol {
+  margin: 0 0 0.9rem;
+  padding-left: 1.25rem;
+}
+
+.legal-page a {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.legal-page strong {
+  color: var(--rl-ink);
+  font-weight: 600;
+}

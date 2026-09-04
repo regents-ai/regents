@@ -5,7 +5,7 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
 
   Both settings are read on each request, so a deploy opens or closes surfaces
   without rebuilding the release. The marketing page and signing out stay open
-  in either state.
+  in either state. The Privacy Policy and Terms of Use stay open with them.
   """
 
   import Phoenix.Controller, only: [get_format: 1, json: 2, put_secure_browser_headers: 1]
@@ -23,6 +23,10 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   def init(opts), do: opts
 
   def call(%Plug.Conn{method: "GET", path_info: []} = conn, _opts), do: conn
+
+  def call(%Plug.Conn{method: "GET", path_info: ["privacy"]} = conn, _opts), do: conn
+
+  def call(%Plug.Conn{method: "GET", path_info: ["terms"]} = conn, _opts), do: conn
 
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn

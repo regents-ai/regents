@@ -4,6 +4,7 @@
 @import "./components/shell.css";
 @import "./components/comment_ledger.css";
 @import "./pages/home.css";
+@import "./pages/legal.css";
 @import "./pages/formation.css";
 @import "./pages/autolaunch.css";
 @import "./pages/stake.css";
