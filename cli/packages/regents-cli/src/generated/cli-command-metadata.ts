@@ -8997,10 +8997,10 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       "pagination": "none",
       "async_behavior": "synchronous",
       "input_mode": "flags",
-      "next_step": "regents wallet status"
+      "next_step": "regents wallet setup"
     },
     "summary": "Show wallet import.",
-    "next_step": "regents wallet status"
+    "next_step": "regents wallet setup"
   },
   "wallet setup": {
     "command": "wallet setup",
@@ -9009,24 +9009,52 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "interface": "runtime",
     "auth_mode": "none",
     "output_envelope": "loose-object",
+    "flags": [
+      {
+        "name": "--provider",
+        "type": "enum",
+        "enum": [
+          "local-key",
+          "external",
+          "agentic-wallet",
+          "coinbase-cdp"
+        ],
+        "required": false,
+        "description": "Omit for discovery. Local-key, external and Agentic Wallet show guidance; coinbase-cdp explicitly runs existing Coinbase setup."
+      },
+      {
+        "name": "--wallet",
+        "type": "string",
+        "required": false,
+        "description": "Coinbase account name; requires --provider coinbase-cdp."
+      },
+      {
+        "name": "--json",
+        "type": "boolean",
+        "required": false,
+        "description": "Print discovery, unverified guidance, or the explicit Coinbase setup result."
+      }
+    ],
     "examples": [
-      "regents wallet status",
-      "regents wallet agentic status --json",
-      "regents wallet agentic fund --amount-usdc 10 --chain base"
+      "regents wallet setup --json",
+      "regents wallet setup --provider external",
+      "regents wallet setup --provider agentic-wallet",
+      "regents wallet setup --provider coinbase-cdp --wallet main"
     ],
     "agent_metadata": {
       "category": "wallet",
-      "prompt_behavior": "prompt_when_creating_wallet",
+      "prompt_behavior": "never_prompt",
       "json_support": "supported",
-      "mutation_class": "local-read-or-write",
+      "mutation_class": "read-or-explicit-provider-setup",
       "retry_behavior": "safe_for_status",
       "pagination": "none",
       "async_behavior": "synchronous",
       "input_mode": "flags",
-      "next_step": "regents identity ensure"
+      "summary": "Discover wallet choices without creating a wallet or signing in.",
+      "next_step": "Choose --provider local-key, external, agentic-wallet, or coinbase-cdp."
     },
-    "summary": "Set up the local wallet path.",
-    "next_step": "regents identity ensure"
+    "summary": "Discover wallet choices without creating a wallet or signing in.",
+    "next_step": "Choose --provider local-key, external, agentic-wallet, or coinbase-cdp."
   },
   "wallet status": {
     "command": "wallet status",
@@ -9049,9 +9077,10 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       "pagination": "none",
       "async_behavior": "synchronous",
       "input_mode": "flags",
+      "summary": "Inspect the existing Coinbase CDP wallet and identity state.",
       "next_step": "regents wallet setup"
     },
-    "summary": "Show wallet readiness.",
+    "summary": "Inspect the existing Coinbase CDP wallet and identity state.",
     "next_step": "regents wallet setup"
   },
   "whoami": {

@@ -33,6 +33,15 @@ describe("scoped CLI help", () => {
     expect(output.stdout).not.toContain("auth login");
   });
 
+  it("distinguishes provider discovery from Coinbase status and local signing", async () => {
+    const setup = await captureOutput(() => runCliEntrypoint(["wallet", "setup", "--help"]));
+    expect(setup.stdout).toContain("--provider");
+    expect(setup.stdout).toContain("without creating a wallet");
+    const status = await captureOutput(() => runCliEntrypoint(["wallet", "status", "--help"]));
+    expect(status.stdout).toContain("Coinbase CDP");
+    expect(status.stdout).toContain("not a local-key or external-wallet check");
+  });
+
   it("renders command-level help", async () => {
     const output = await captureOutput(() =>
       runCliEntrypoint(["autolaunch", "jobs", "watch", "--help"]),

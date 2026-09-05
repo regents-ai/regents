@@ -35,7 +35,7 @@ const printAwal = (args: ParsedCliArgs, payload: unknown, nextSteps: readonly st
 
   printText(
     renderKeyValuePanel("◆ AGENTIC WALLET", [
-      { label: "status", value: "ready" },
+      { label: "status", value: "provider response received; inspect --json for reported state" },
       { label: "details", value: "Use --json for the full Agentic Wallet response." },
       { label: "next", value: nextSteps[0] ?? "regents wallet agentic status --json" },
     ]),

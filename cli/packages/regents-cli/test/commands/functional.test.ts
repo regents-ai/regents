@@ -93,7 +93,7 @@ describe.sequential("wallet and identity functional flows", () => {
     })}:${originalPath ?? ""}`;
 
     const output = await captureOutput(async () =>
-      runCliEntrypoint(["wallet", "setup", "--json", "--config", configPath]),
+      runCliEntrypoint(["wallet", "setup", "--provider", "coinbase-cdp", "--json", "--config", configPath]),
     );
 
     expect(output.result).toBe(0);
@@ -115,7 +115,7 @@ describe.sequential("wallet and identity functional flows", () => {
 
   it("creates an identity receipt, reuses its cache, and refreshes on request", async () => {
     await captureOutput(async () =>
-      runCliEntrypoint(["wallet", "setup", "--json", "--config", configPath]),
+      runCliEntrypoint(["wallet", "setup", "--provider", "coinbase-cdp", "--json", "--config", configPath]),
     );
 
     const first = await captureOutput(async () =>
@@ -198,7 +198,7 @@ describe.sequential("wallet and identity functional flows", () => {
 
   it("reports the Coinbase wallet and identity status", async () => {
     await captureOutput(async () =>
-      runCliEntrypoint(["wallet", "setup", "--json", "--config", configPath]),
+      runCliEntrypoint(["wallet", "setup", "--provider", "coinbase-cdp", "--json", "--config", configPath]),
     );
     await captureOutput(async () =>
       runCliEntrypoint([

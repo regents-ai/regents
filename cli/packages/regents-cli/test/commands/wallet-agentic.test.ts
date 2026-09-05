@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   runWalletAgenticFund,
+  runWalletAgenticStatus,
   runWalletAgenticLogin,
   runWalletAgenticVerify,
 } from "../../src/commands/wallet-agentic.js";
@@ -21,6 +22,13 @@ describe("wallet agentic commands", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     runAwalJsonMock.mockResolvedValue({ ok: true, command: [], data: { ok: true } });
+  });
+
+  it("does not call an unauthenticated provider response ready", async () => {
+    runAwalJsonMock.mockResolvedValue({ authenticated: false });
+    const output = await captureOutput(() => runWalletAgenticStatus(parseCliArgs(["wallet", "agentic", "status"])));
+    expect(output.stdout).not.toContain("ready");
+    expect(output.stdout).toContain("provider response received");
   });
 
   it("starts login with an email flag", async () => {

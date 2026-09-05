@@ -551,6 +551,22 @@ command_groups:
     interface: runtime
     auth_mode: none
     output_envelope: loose-object
+    note: >-
+      wallet setup without a provider only discovers supported choices; it must not
+      load or write config, invoke a provider, inspect keys, sign in, or use the network.
+      --provider local-key, external and agentic-wallet return guidance only, with
+      setup_state guidance_only and verification_state not_checked. Choosing a
+      provider is not connected state, identity proof or spending authorization.
+      --provider coinbase-cdp explicitly runs the existing Coinbase setup action and
+      preserves its result. --wallet is admitted only with that explicit provider.
+      Discovery returns ok true, setup_state selection_required, verification_state
+      not_checked, provider null, choices and next_steps. No address is inferred.
+      wallet status reports Coinbase CDP, not the local key signer. Local signer
+      import is opt-in; external payment clients do not require Regent key import.
+      Local-key guidance points to x402 prepare help with configuration not checked;
+      it does not add a provider backend or select a new signer.
+      Use dedicated or delegated funds with owner/signer-enforced authority; mutable
+      local budgets are not an independent spending boundary.
     agent_metadata:
       category: wallet
       prompt_behavior: prompt_when_creating_wallet
@@ -566,11 +582,20 @@ command_groups:
         - regents wallet agentic fund --amount-usdc 10 --chain base
       commands:
         wallet status:
+          summary: Inspect the existing Coinbase CDP wallet and identity state.
           next_step: regents wallet setup
         wallet import:
-          next_step: regents wallet status
+          next_step: regents wallet setup
         wallet setup:
-          next_step: regents identity ensure
+          summary: Discover wallet choices without creating a wallet or signing in.
+          prompt_behavior: never_prompt
+          mutation_class: read-or-explicit-provider-setup
+          next_step: Choose --provider local-key, external, agentic-wallet, or coinbase-cdp.
+          examples:
+            - regents wallet setup --json
+            - regents wallet setup --provider external
+            - regents wallet setup --provider agentic-wallet
+            - regents wallet setup --provider coinbase-cdp --wallet main
         wallet agentic status:
           next_step: regents wallet agentic balance --chain base --json
         wallet agentic login:
@@ -591,6 +616,20 @@ command_groups:
       - wallet agentic balance
       - wallet agentic fund
     flags:
+      wallet setup:
+        - name: --provider
+          type: enum
+          enum: [local-key, external, agentic-wallet, coinbase-cdp]
+          required: false
+          description: Omit for discovery. Local-key, external and Agentic Wallet show guidance; coinbase-cdp explicitly runs existing Coinbase setup.
+        - name: --wallet
+          type: string
+          required: false
+          description: Coinbase account name; requires --provider coinbase-cdp.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print discovery, unverified guidance, or the explicit Coinbase setup result.
       wallet agentic login:
         - name: --email
           type: string

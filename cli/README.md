@@ -10,6 +10,10 @@ Regents CLI, built by Regents Labs, publishes the `regents` command. It is the a
 
 For Techtree, Regents CLI is the agent interface. Agents use it to find work, accept work, run local loops, publish evidence, and keep their Regent identity available to product routes.
 
+For existing wallets, delegated funds, and provider choices, start with the
+[agent wallet guide](docs/agent-wallets.md). `regents wallet setup` only shows
+choices until you explicitly select an action.
+
 ## Getting Started
 
 Use the installer on macOS or Linux:

@@ -1,9 +1,10 @@
 import type { ParsedCliArgs } from "../parse.js";
+import { CliUsageError } from "../cli-usage-error.js";
 
 import { coinbaseStatus, loadConfig, setupCoinbaseWallet } from "../internal-runtime/index.js";
 import { CommandExitError, RegentError } from "../internal-runtime/errors.js";
 import { exitCodeForError } from "../exit-codes.js";
-import { getBooleanFlag, getFlag } from "../parse.js";
+import { getBooleanFlag, getFlag, parseCliArgs } from "../parse.js";
 import { printJson, printText } from "../printer.js";
 import { writeEncryptedKeystore } from "../internal-runtime/agent/wallet-keystore.js";
 import { deriveWalletAddress } from "../internal-runtime/agent/wallet.js";
@@ -82,7 +83,8 @@ export async function runWalletImport(
       keystore_path: config.wallet.keystorePath,
       encrypted: true as const,
       dek_source: dekSource,
-      next_steps: ["regents wallet status"],
+      next_steps: ["regents wallet setup"],
+      note: "This is a local signer key. Coinbase wallet status does not verify it or establish product identity.",
     };
     if (json) {
       printJson(result);
@@ -93,7 +95,8 @@ export async function runWalletImport(
           `address: ${address}`,
           `keystore: ${config.wallet.keystorePath}`,
           `encryption key: ${dekSource === "env" ? "environment (REGENTS_WALLET_KEY)" : "OS keychain"}`,
-          "next: regents wallet status",
+          "This local signer is separate from Coinbase wallet status and product identity.",
+          "next: regents wallet setup",
         ].join("\n"),
       );
     }
@@ -147,7 +150,67 @@ export async function runWalletSetup(
   args: readonly string[] | ParsedCliArgs,
   configPath?: string,
 ): Promise<number> {
-  const json = getBooleanFlag(args, "json");
+  const parsed = Array.isArray(args) ? parseCliArgs(args) : args as ParsedCliArgs;
+  for (const [flag, value] of parsed.flags) {
+    if (!["provider", "wallet", "json", "config", "help"].includes(flag) ||
+        (["provider", "wallet"].includes(flag) && (typeof value !== "string" || value.trim() === ""))) {
+      throw new CliUsageError({ code: "invalid_flag_value", message: `Unsupported or missing value for --${flag}.` });
+    }
+  }
+  const provider = getFlag(parsed, "provider");
+  if (provider !== undefined && !["local-key", "external", "agentic-wallet", "coinbase-cdp"].includes(provider)) {
+    throw new CliUsageError({ code: "invalid_flag_value", message: "Choose a supported wallet provider.", validValues: ["local-key", "external", "agentic-wallet", "coinbase-cdp"] });
+  }
+  if (getFlag(parsed, "wallet") !== undefined && provider !== "coinbase-cdp") {
+    throw new CliUsageError({ code: "invalid_flag_value", message: "--wallet requires --provider coinbase-cdp. Default setup only shows choices." });
+  }
+  const json = getBooleanFlag(parsed, "json");
+  if (provider !== "coinbase-cdp") {
+    const choices = [
+      { provider: "local-key", command: "regents wallet setup --provider local-key", description: "Reuse your configured Regent local signer; no new provider setup or import is needed." },
+      { provider: "external", command: "regents wallet setup --provider external", description: "Use an existing wallet through its own payment client; no Regent key import." },
+      { provider: "agentic-wallet", command: "regents wallet setup --provider agentic-wallet", description: "Read Agentic Wallet CLI or MCP setup guidance; no automatic login." },
+      { provider: "coinbase-cdp", command: "regents wallet setup --provider coinbase-cdp", description: "Explicitly create or select the existing Coinbase CDP account." },
+    ];
+    const nextSteps = provider === "local-key" ? [
+      "Local signer configuration has not been checked. Reuse the intended configured environment key or encrypted keystore only with its owner's authority.",
+      "Read regents x402 prepare --help before preparing an operation; confirm the expected signer, network, asset, recipient and amount before approval or signing.",
+      "Import is optional and explicit. It does not establish Coinbase identity; wallet status checks Coinbase CDP, not this local signer.",
+    ] : provider === "external" ? [
+      "Use a dedicated or delegated wallet controlled by the intended owner or signer.",
+      "Inspect the paid operation with regents x402 details --url <url> --json; confirm the network, asset, recipient and amount.",
+      "Use an external x402 client with the complete payment_required_response and retain the operation result and receipt. Regent key import is not required.",
+    ] : provider === "agentic-wallet" ? [
+      "Choose the Agentic Wallet CLI or MCP in Coinbase's documentation; provider login and funding are explicit separate actions.",
+      "If using the Regents CLI integration, inspect regents wallet agentic status --json before explicitly starting login.",
+      "Confirm signer-enforced limits, the requested network and funding before paying; inspect the provider result rather than assuming connection.",
+    ] : choices.map(choice => choice.command);
+    const result = {
+      ok: true,
+      provider: provider ?? null,
+      setup_state: provider ? "guidance_only" : "selection_required",
+      verification_state: "not_checked",
+      ...(provider ? {} : { choices }),
+      next_steps: nextSteps,
+      authority: "Provider selection grants no spending authority. Owner or signer controls enforce delegation; mutable local budgets do not.",
+      ...(provider === "agentic-wallet" ? { documentation: [
+        "https://docs.cdp.coinbase.com/agentic-wallet/cli/welcome",
+        "https://docs.cdp.coinbase.com/agentic-wallet/mcp/welcome",
+      ] } : {}),
+    };
+    if (json) {
+      printJson(result);
+    } else {
+      printText([
+        provider ? `Wallet guidance: ${provider}` : "Choose how to use your wallet.",
+        "No wallet, provider login or signing authority has been checked or changed.",
+        ...(provider ? nextSteps.map(step => `next: ${step}`) : choices.map(choice => `${choice.description} Next: ${choice.command}`)),
+        ...(provider ? [result.authority] : []),
+        ...(provider === "agentic-wallet" ? ["docs: https://docs.cdp.coinbase.com/agentic-wallet/cli/welcome", "MCP: https://docs.cdp.coinbase.com/agentic-wallet/mcp/welcome"] : []),
+      ].join("\n"));
+    }
+    return 0;
+  }
 
   try {
     const config = loadConfig(configPath);

@@ -311,8 +311,8 @@ Total commands: 222.
 - `regents wallet agentic status` - Show Agent wallet readiness.
 - `regents wallet agentic verify` - Verify the Agent wallet sign-in.
 - `regents wallet import` - Show wallet import.
-- `regents wallet setup` - Set up the local wallet path.
-- `regents wallet status` - Show wallet readiness.
+- `regents wallet setup` - Discover wallet choices without creating a wallet or signing in.
+- `regents wallet status` - Inspect the existing Coinbase CDP wallet and identity state.
 
 ### Whoami
 
