@@ -1,0 +1,90 @@
+{
+  "runtime": {
+    "socketPath": "~/.regent/run/regent.sock",
+    "stateDir": "~/.regent/state",
+    "logLevel": "info"
+  },
+  "auth": {
+    "audience": "techtree",
+    "defaultChainId": 8453
+  },
+  "services": {
+    "siwa": {
+      "baseUrl": "http://127.0.0.1:4000",
+      "requestTimeoutMs": 10000
+    },
+    "platform": {
+      "baseUrl": "http://127.0.0.1:4000",
+      "requestTimeoutMs": 10000
+    },
+    "techtree": {
+      "baseUrl": "http://127.0.0.1:4000",
+      "requestTimeoutMs": 10000
+    },
+    "autolaunch": {
+      "baseUrl": "http://127.0.0.1:4000",
+      "requestTimeoutMs": 10000
+    }
+  },
+  "wallet": {
+    "privateKeyEnv": "REGENT_WALLET_PRIVATE_KEY",
+    "keystorePath": "~/.regent/keys/agent-wallet.json"
+  },
+  "gossipsub": {
+    "enabled": false,
+    "listenAddrs": [],
+    "bootstrap": [],
+    "peerIdPath": "~/.regent/p2p/peer-id.json"
+  },
+  "agents": {
+    "defaultHarness": "hermes",
+    "harnesses": {
+      "openclaw": {
+        "enabled": false,
+        "entrypoint": "openclaw",
+        "workspaceRoot": "~/.regent/workspaces/openclaw",
+        "profiles": ["owner", "public", "group", "bbh"]
+      },
+      "hermes": {
+        "enabled": true,
+        "entrypoint": "hermes",
+        "workspaceRoot": "~/.regent/workspaces/hermes",
+        "profiles": ["owner", "public", "group", "bbh"]
+      },
+      "claude_code": {
+        "enabled": false,
+        "entrypoint": "claude",
+        "workspaceRoot": "~/.regent/workspaces/claude-code",
+        "profiles": ["owner", "public", "group", "bbh"]
+      },
+      "codex": {
+        "enabled": false,
+        "entrypoint": "codex",
+        "workspaceRoot": "~/.regent/workspaces/codex",
+        "profiles": ["owner", "public", "group", "bbh", "science"]
+      },
+      "custom": {
+        "enabled": false,
+        "entrypoint": "custom-harness",
+        "workspaceRoot": "~/.regent/workspaces/custom",
+        "profiles": ["custom"]
+      }
+    }
+  },
+  "workloads": {
+    "bbh": {
+      "workspaceRoot": "~/.regent/workspaces/bbh",
+      "defaultHarness": "hermes",
+      "defaultProfile": "bbh"
+    },
+    "science": {
+      "workspaceRoot": "~/.regent/workspaces/science",
+      "taskRepoRoot": "~/.regent/workspaces/science/repos",
+      "defaultAgent": "codex",
+      "defaultModel": "openai/gpt-5.4",
+      "defaultEnvironment": "docker",
+      "defaultTaskRef": "main",
+      "publishVisibility": "public"
+    }
+  }
+}

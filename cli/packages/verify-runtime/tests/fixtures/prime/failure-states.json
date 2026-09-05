@@ -1,0 +1,16 @@
+[
+  {"provider_state": "completed", "terminal_status": "completed"},
+  {"provider_state": "deadline_timeout", "terminal_status": "timeout"},
+  {"provider_state": "harness_timeout", "terminal_status": "timeout"},
+  {"provider_state": "task_invalid", "terminal_status": "invalid"},
+  {"provider_state": "operator_cancelled", "terminal_status": "invalid"},
+  {"provider_state": "harness_error", "terminal_status": "agent_failure"},
+  {"provider_state": "provider_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "sandbox_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "toolset_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "user_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "interception_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "tunnel_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "rollout_error", "terminal_status": "infrastructure_failure"},
+  {"provider_state": "infrastructure_error", "terminal_status": "infrastructure_failure"}
+]

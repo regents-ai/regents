@@ -1,0 +1,18 @@
+[project]
+name = "regents-verify-runtime"
+version = "0.1.0"
+description = "Minimal local runtime for deterministic Techtree verification contracts."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest==8.4.2",
+]
+adapters-prime = [
+  "verifiers==0.2.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

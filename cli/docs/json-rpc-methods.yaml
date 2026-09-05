@@ -1,0 +1,156 @@
+version: 1
+product: regents-cli
+transport: json-rpc-2.0-over-json-lines
+runtime_registry: packages/regents-cli/src/internal-runtime/jsonrpc/methods.ts
+generated_markdown: docs/json-rpc-methods.md
+method_groups:
+  - name: runtime
+    methods:
+      - runtime.ping
+      - runtime.status
+      - runtime.shutdown
+  - name: agent
+    methods:
+      - agent.init
+      - agent.status
+      - agent.profile.list
+      - agent.profile.show
+      - agent.harness.list
+  - name: doctor
+    methods:
+      - doctor.run
+      - doctor.runScoped
+      - doctor.runFull
+  - name: auth
+    methods:
+      - auth.siwa.login
+      - auth.siwa.logout
+      - auth.siwa.status
+  - name: techtree
+    methods:
+      - techtree.forge.family.show
+      - techtree.forge.family.validate
+      - techtree.verify.run
+      - techtree.verify.status
+      - techtree.verify.receipt.show
+      - techtree.uplift.report
+      - techtree.notebooks.init
+      - techtree.notebooks.pair
+  - name: x402
+    methods:
+      - x402.details
+      - x402.quote
+      - x402.prepare
+      - x402.fetch
+      - x402.refund
+      - x402.receipts.get
+  - name: transports
+    methods:
+      - gossipsub.status
+methods:
+  - name: runtime.ping
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: runtime.status
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: runtime.shutdown
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: agent.init
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: agent.status
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: agent.profile.list
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: agent.profile.show
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: agent.harness.list
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: doctor.run
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: doctor.runScoped
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: doctor.runFull
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: auth.siwa.login
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: auth.siwa.logout
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: auth.siwa.status
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: techtree.forge.family.show
+    owner: techtree
+    auth_mode: local-runtime
+  - name: techtree.forge.family.validate
+    owner: techtree
+    auth_mode: local-runtime
+  - name: techtree.verify.run
+    owner: techtree
+    auth_mode: local-runtime
+    params:
+      builtin:
+        type: boolean
+        const: true
+      executor:
+        type: string
+        enum: [fixture, hermes, prime]
+      hermes_command:
+        type: array-or-null
+        items: string
+    configuration:
+      prime: Set REGENT_VERIFY_PRIME_FACTORY=module:function in the local runtime process and install the optional adapters-prime group.
+  - name: techtree.verify.status
+    owner: techtree
+    auth_mode: local-runtime
+  - name: techtree.verify.receipt.show
+    owner: techtree
+    auth_mode: local-runtime
+  - name: techtree.uplift.report
+    owner: techtree
+    auth_mode: local-runtime
+    params:
+      receipt_digests:
+        type: array
+        items: string
+        min_items: 1
+      tolerance:
+        type: object-or-null
+  - name: techtree.notebooks.init
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: techtree.notebooks.pair
+    owner: regents-cli
+    auth_mode: local-runtime
+  - name: x402.details
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: x402.quote
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: x402.prepare
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: x402.fetch
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: x402.refund
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: x402.receipts.get
+    owner: shared-services
+    auth_mode: local-runtime
+  - name: gossipsub.status
+    owner: regents-cli
+    auth_mode: local-runtime

@@ -1,0 +1,35 @@
+{
+  "name": "regents-cli-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "build": "pnpm --filter @regentslabs/cli build",
+    "typecheck": "pnpm --filter @regentslabs/cli typecheck",
+    "lint": "pnpm --filter @regentslabs/cli lint",
+    "test": "pnpm --filter @regentslabs/cli test",
+    "generate:openapi": "node scripts/generate-openapi-types.mjs",
+    "generate:cli-command-metadata": "node scripts/generate-cli-command-metadata.mjs",
+    "check:workspace": "node scripts/check-workspace.mjs",
+    "check:shared-services-contract": "node scripts/check-shared-services-contract.mjs",
+    "check:contract-inputs": "node scripts/check-contract-inputs.mjs",
+    "check:openapi": "pnpm check:workspace && pnpm check:contract-inputs && pnpm check:shared-services-contract && node scripts/check-openapi-types.mjs",
+    "check:openapi:autolaunch": "node scripts/check-autolaunch-openapi-types.mjs",
+    "check:openapi:platform": "node scripts/check-platform-openapi-types.mjs",
+    "check:public-cli-docs": "node scripts/check-platform-public-cli-copy.mjs",
+    "check:mcp-tools": "node scripts/check-mcp-tools.mjs",
+    "check:cli-contract": "pnpm check:workspace && pnpm check:contract-inputs && node scripts/check-cli-contract.mjs && pnpm check:public-cli-docs && pnpm check:mcp-tools",
+    "check:pack-cli-contents": "node scripts/check-packed-cli-package.mjs",
+    "test:integration": "pnpm --filter @regentslabs/cli --if-present test:integration",
+    "pack:cli": "bash -lc 'mkdir -p .packed && cd packages/regents-cli && pnpm pack --pack-destination ../../.packed'",
+    "test:pack-smoke": "bash ./scripts/packed-install-smoke.sh",
+    "release:cli": "bash scripts/release-cli.sh",
+    "clean": "pnpm --filter @regentslabs/cli clean"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "yaml": "2.8.3"
+  }
+}

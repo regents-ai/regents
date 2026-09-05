@@ -1,0 +1,86 @@
+version: 1
+name: WalletAction
+type: object
+additionalProperties: false
+required:
+  - action_id
+  - owner_product
+  - resource
+  - resource_id
+  - action
+  - chain_id
+  - to
+  - value
+  - data
+  - expected_signer
+  - expires_at
+  - idempotency_key
+  - simulation
+  - risk_copy
+properties:
+  action_id:
+    type: string
+    minLength: 1
+  owner_product:
+    type: string
+    enum:
+      - platform
+      - autolaunch
+      - techtree
+      - shared-services
+      - ios
+      - regents-cli
+  resource:
+    type: string
+    minLength: 1
+  resource_id:
+    type: string
+    minLength: 1
+  action:
+    type: string
+    minLength: 1
+  chain_id:
+    type: integer
+    minimum: 1
+  to:
+    type: string
+    pattern: "^0x[a-fA-F0-9]{40}$"
+  value:
+    type: string
+    pattern: "^0x[a-fA-F0-9]+$"
+  data:
+    type: string
+    pattern: "^0x[a-fA-F0-9]*$"
+  expected_signer:
+    type: string
+    pattern: "^0x[a-fA-F0-9]{40}$"
+  expires_at:
+    type: string
+    format: date-time
+  idempotency_key:
+    type: string
+    minLength: 1
+  simulation:
+    type: object
+    additionalProperties: false
+    required:
+      - required
+      - status
+    properties:
+      required:
+        type: boolean
+      status:
+        type: string
+        enum:
+          - not_required
+          - pending
+          - passed
+          - failed
+      block_number:
+        anyOf:
+          - type: integer
+            minimum: 0
+          - type: "null"
+  risk_copy:
+    type: string
+    minLength: 1

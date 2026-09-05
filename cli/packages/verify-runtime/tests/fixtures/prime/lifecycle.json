@@ -1,0 +1,4 @@
+{
+  "run_id": "prime-recorded-run-1",
+  "monitor_states": ["pending", "boot", "setup", "running", "finalize", "scoring", "completed"]
+}

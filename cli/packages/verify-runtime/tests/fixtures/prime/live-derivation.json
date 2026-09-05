@@ -1,0 +1,19 @@
+[
+  {
+    "trace": {
+      "stop_condition": "harness_timeout",
+      "error": null
+    },
+    "provider_state": "harness_timeout"
+  },
+  {
+    "trace": {
+      "stop_condition": "harness_timeout",
+      "error": {
+        "type": "TaskError",
+        "message": "private scoring failure after timeout"
+      }
+    },
+    "provider_state": "task_invalid"
+  }
+]

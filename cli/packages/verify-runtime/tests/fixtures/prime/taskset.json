@@ -1,0 +1,25 @@
+{
+  "budget": {"max_spend_usd_cents": 1000},
+  "family_id": "techtree.contract-drift-repair.v1",
+  "format": "regent-forge-prime-v1",
+  "intervention": {
+    "artifact": "SKILL.md",
+    "content": "# Contract repair\n\nChange exactly the one declared SKILL.md and preserve every other file.\n",
+    "digest": "5f2746b100e3e6a6f955154ecc093e43e2654451be5e448cc3ebc7032d09981a"
+  },
+  "matched_selection": {"matched_order": 0, "partition": "validation", "side": "candidate", "task_id": "contract-drift-validation-1"},
+  "schema_version": 1,
+  "sdk": {"distribution": "verifiers", "version": "0.2.1"},
+  "task": {
+    "identity": {
+      "family_id": "techtree.contract-drift-repair.v1",
+      "input_digest": "30a5fd87b6ad790fdb79d9bff96726cd6dc95c676e3ab636f701e680acfa6aa2",
+      "partition": "validation",
+      "role_id": "repair-agent",
+      "schema_version": 1,
+      "slice_id": "techtree.contract-drift-repair.v1.validation",
+      "task_id": "contract-drift-validation-1"
+    },
+    "input": {"content": "validation-contract-drift\n", "digest": "30a5fd87b6ad790fdb79d9bff96726cd6dc95c676e3ab636f701e680acfa6aa2"}
+  }
+}

@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: regents-cli
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          path: regents-cli
+
+      - name: Check out Platform contract source
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/platform
+          path: platform
+          fetch-depth: 0
+
+      - name: Check out Techtree contract source
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/techtree
+          path: techtree
+          fetch-depth: 0
+
+      - name: Check out Autolaunch contract source
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/autolaunch
+          path: autolaunch
+          fetch-depth: 0
+
+      - name: Check out Regents Mobile contract source
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/ios
+          path: ios
+          fetch-depth: 0
+
+      - name: Check out SIWA contract source
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/siwa-server
+          path: siwa-server
+          fetch-depth: 0
+
+      - name: Check out Elixir utilities
+        uses: actions/checkout@v4
+        with:
+          repository: regents-ai/elixir-utils
+          path: elixir-utils
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: regents-cli/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check generated OpenAPI files
+        run: pnpm check:openapi
+
+      - name: Check CLI contract coverage
+        run: pnpm check:cli-contract
+
+      - name: Build workspace
+        run: pnpm build
+
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Check packed CLI contents
+        run: pnpm check:pack-cli-contents
+
+      - name: Run packed install smoke
+        run: pnpm test:pack-smoke

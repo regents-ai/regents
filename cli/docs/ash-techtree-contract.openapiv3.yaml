@@ -1,0 +1,310 @@
+openapi: 3.1.0
+info:
+  title: Regent API
+  version: 1.0.0
+paths:
+  /api/techtree/v1/tree/nodes:
+    get:
+      operationId: listTreeNodes
+      security: []
+      parameters: []
+      x-pagination: none
+      responses:
+        "200":
+          description: Public Techtree nodes, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: "#/components/schemas/NodeListItem"}
+        "400": {$ref: "#/components/responses/InvalidRequest"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /auth/csrf:
+    get:
+      operationId: getBrowserCsrf
+      responses:
+        "200":
+          description: CSRF token for browser session changes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [csrf_token]
+                properties:
+                  csrf_token: {type: string, minLength: 1}
+  /auth/privy/session:
+    post:
+      operationId: createPrivyBrowserSession
+      security: [{privyAccessToken: [], csrfToken: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object, maxProperties: 0, additionalProperties: false}
+      responses:
+        "200": {$ref: "#/components/responses/Session"}
+        "403": {$ref: "#/components/responses/CsrfForbidden"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+    delete:
+      operationId: deletePrivyBrowserSession
+      security: [{csrfToken: []}]
+      responses:
+        "200": {$ref: "#/components/responses/Logout"}
+        "403": {$ref: "#/components/responses/CsrfForbidden"}
+  /auth/session:
+    get:
+      operationId: getBrowserSession
+      responses:
+        "200": {$ref: "#/components/responses/Session"}
+components:
+  securitySchemes:
+    privyAccessToken:
+      type: http
+      scheme: bearer
+      bearerFormat: Privy access token
+    cookieSession: {type: apiKey, in: cookie, name: _ash_platform_key}
+    csrfToken: {type: apiKey, in: header, name: x-csrf-token}
+  responses:
+    Session:
+      description: Current browser session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Session"
+    Unauthorized:
+      description: Privy access token was absent or invalid
+      content:
+        application/json:
+            schema: {$ref: "#/components/schemas/Error"}
+    Logout:
+      description: Local browser session removed
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [ok]
+            properties: {ok: {type: boolean, const: true}}
+    CsrfForbidden:
+      description: CSRF token was absent or invalid
+    InvalidRequest:
+      description: Query parameters are not supported
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            unsupportedQuery:
+              value: {error: {code: invalid_request, message: Query parameters are not supported.}}
+    InternalError:
+      description: The request could not be completed
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            internalError:
+              value: {error: {code: internal_error, message: The request could not be completed.}}
+  schemas:
+    NodeListItem:
+      type: object
+      additionalProperties: false
+      required: [id, tree_id, title, summary, payload_hash, published_at]
+      properties:
+        id: {type: string, format: uuid}
+        tree_id: {type: string, format: uuid}
+        title: {type: string}
+        summary: {type: [string, "null"]}
+        payload_hash: {type: [string, "null"]}
+        published_at: {type: string, format: date-time}
+    Tree:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name, description]
+      properties:
+        id: {type: string, format: uuid}
+        slug:
+          type: string
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        name: {type: string}
+        description: {type: string}
+    Node:
+      type: object
+      additionalProperties: false
+      required: [id, tree_id, kind, title, contributor_id, lineage_node_ids, published_at]
+      properties:
+        id: {type: string, format: uuid}
+        tree_id: {type: string, format: uuid}
+        kind:
+          type: string
+          enum: [environment_family, benchmark_slice, uplift_report, reproduction, audit]
+        title: {type: string}
+        summary: {type: [string, "null"]}
+        contributor_id: {type: string, minLength: 1}
+        lineage_node_ids:
+          type: array
+          uniqueItems: true
+          items: {type: string, format: uuid}
+        capsule: {$ref: "#/components/schemas/Capsule"}
+        immutable_payloads:
+          type: array
+          items: {$ref: "#/components/schemas/ImmutablePayload"}
+        evidence_projection: {$ref: "#/components/schemas/EvidenceProjection"}
+        evidence_state: {$ref: "#/components/schemas/EvidenceState"}
+        base_mainnet_record: {$ref: "#/components/schemas/BaseMainnetRecordReference"}
+        published_at: {type: string, format: date-time}
+    Capsule:
+      type: object
+      additionalProperties: false
+      required: [declared_digest, resolved_digest, observed_digest, material_difference_summary]
+      properties:
+        declared_digest: {type: string, pattern: "^[0-9a-f]{64}$"}
+        resolved_digest: {type: string, pattern: "^[0-9a-f]{64}$"}
+        observed_digest: {type: string, pattern: "^[0-9a-f]{64}$"}
+        material_difference_summary: {type: string}
+    ImmutablePayload:
+      type: object
+      additionalProperties: false
+      required: [schema_version, media_type, sha256, visibility]
+      properties:
+        schema_version: {type: string, minLength: 1}
+        media_type: {type: string, minLength: 1}
+        sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        visibility: {type: string, enum: [public, commitment]}
+        content_uri: {type: string, format: uri}
+    EvidenceProjection:
+      type: object
+      additionalProperties: false
+      required:
+        - outcome
+        - final_capability_summary
+        - measured_change_summary
+        - uncertainty_summary
+        - regression_summary
+        - cost_summary
+        - latency_summary
+        - evidence_class
+        - assurance_dimensions
+        - limitations
+      properties:
+        outcome:
+          type: string
+          enum: [positive, "null", negative, inconclusive, invalid]
+        final_capability_summary: {type: string}
+        measured_change_summary: {type: string}
+        uncertainty_summary: {type: string}
+        regression_summary: {type: string}
+        cost_summary: {type: string}
+        latency_summary: {type: string}
+        evidence_class:
+          type: string
+          enum:
+            - demonstration
+            - development
+            - validation_selected
+            - untouched_generalization
+            - independently_reproduced
+            - production_supported
+            - contradicted
+        assurance_dimensions:
+          type: object
+          additionalProperties: false
+          required:
+            - artifact_integrity
+            - execution_evidence
+            - verifier_quality
+            - experimental_strength
+            - generalization_strength
+            - independent_reproduction
+            - production_support
+            - freshness
+          properties:
+            artifact_integrity: {type: string}
+            execution_evidence: {type: string}
+            verifier_quality: {type: string}
+            experimental_strength: {type: string}
+            generalization_strength: {type: string}
+            independent_reproduction: {type: string}
+            production_support: {type: string}
+            freshness: {type: string}
+        limitations:
+          type: array
+          minItems: 1
+          items: {type: string}
+        receipt_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
+        claim_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
+        report_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
+        decision_commitment: {$ref: "#/components/schemas/ImmutablePayload"}
+        base_mainnet_record: {$ref: "#/components/schemas/BaseMainnetRecordReference"}
+    EvidenceState:
+      type: object
+      additionalProperties: false
+      required: [status, updated_at]
+      properties:
+        status:
+          type: string
+          enum:
+            - draft
+            - issued
+            - reproduced
+            - production_supported
+            - disputed
+            - awaiting_revalidation
+            - superseded
+            - expired
+            - revoked
+            - invalidated
+        reason: {type: string}
+        evidence_reference_ids:
+          type: array
+          uniqueItems: true
+          items: {type: string, format: uuid}
+        updated_at: {type: string, format: date-time}
+    BaseMainnetRecordReference:
+      type: object
+      additionalProperties: false
+      required: [chain_id, record_id, identity_status, integrity_status]
+      properties:
+        chain_id: {type: integer, const: 8453}
+        record_id: {type: string, minLength: 1}
+        identity_status: {type: string, enum: [unverified, verified]}
+        integrity_status: {type: string, enum: [unverified, verified, mismatch]}
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, enum: [invalid_request, internal_error]}
+            message: {type: string}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [authenticated, account_control]
+      properties:
+        authenticated: {type: boolean}
+        account_control:
+          type: object
+          additionalProperties: false
+          required: [kind, label, profile_path, avatar_data_uri]
+          properties:
+            kind: {type: string, enum: [sign_in, signed_in]}
+            label: {type: string}
+            profile_path: {type: [string, "null"]}
+            avatar_data_uri:
+              type: [string, "null"]
+              pattern: "^data:image/svg\\+xml;base64,"
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: {type: string, enum: [unauthorized]}

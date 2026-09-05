@@ -1,0 +1,1342 @@
+version: 1
+product: shared-services
+x-regent-capability:
+  status: beta
+  owner: shared-services
+  money_path: true
+  cli_surface: true
+  mobile_surface: false
+help:
+  story: >
+    A Regent identity is a saved Agent account. An Agent account is a wallet plus
+    registry address plus token ID. Protected shared commands use
+    `regents auth login --audience regent-services`, then `regents identity ensure`,
+    then the command.
+  bare_invocation: >
+    Running `regents` with no arguments prints a short readiness summary
+    (local runtime, wallet, identity, and saved sign-ins) followed by one line
+    pointing to `regents --help`.
+  failure_next_step: >
+    When a command fails and its contract metadata carries a next_step, the
+    shared error output prints `Next: <step>` with the error. Errors that
+    already carry their own next steps keep them.
+  output_modes:
+    human: Panels, tables, status lines, examples, and next-step hints.
+    json: Raw JSON for scripts when `--json` is supported or stdout is not a terminal.
+  error_envelope:
+    shape: '{"error": {"code": "<stable_code>", "message": "<text>", ...}}'
+    code_guarantee: Every JSON error envelope carries a stable machine-readable `code` string.
+  exit_codes:
+    "0": Success.
+    "1": The command ran but the operation failed.
+    "2": Usage error - unknown command, missing argument, or invalid flag value.
+    "3": Sign-in or Agent identity is missing, expired, or rejected.
+    "4": The requested record was not found.
+    "5": The Regent service or local runtime could not be reached.
+  terminal_constraints:
+    - Honor NO_COLOR.
+    - Avoid rich formatting for non-TTY output and TERM=dumb.
+    - Keep command-level help scoped to the requested command group.
+x-regent-chat-room-contract:
+  owner: regents-cli
+  product_room_authority: Product room keys and membership rules stay in Platform and Autolaunch contracts.
+  thread_identifier_boundary:
+    chat_commands: "Chat scopes: system, topic:<slug>, node:<node-id>, dm:<walletA>:<walletB>"
+    dm_scope_rule: >-
+      DM scopes are dm:<walletA>:<walletB> with both wallet addresses lowercased,
+      lexicographically sorted, and unequal.
+  transport_boundary: >-
+    CLI chat commands use Autolaunch HTTP chat routes.
+    Direct messages are server-stored chat scopes on product HTTP chat routes,
+    participant-gated by the authenticated SIWA wallet.
+  agent_loop:
+    reactive: Use product `chat tail [scope...]` commands for live room activity.
+    catch_up: Use product `chat unread [scope...]` commands after disconnects; they poll forward with `after=<saved-message-id>`.
+    send: Provide a deterministic `--client-message-id` for retried sends.
+    rate_limit: On HTTP 429, wait for Retry-After when present, otherwise retry with exponential backoff and jitter.
+x-regent-voice-gateway:
+  owner: regents-cli
+  server: local
+  serve_command: regents voice serve
+  purpose: >-
+    Source of truth for the CLI-local Hermes voice gateway served by
+    `regents voice serve`. A local (self-hosted) Hermes runs this so the Regents
+    mobile app can do two-way OpenAI realtime voice, mirroring the hosted fly.io
+    sprite gateway. The gateway mints OpenAI realtime ephemeral client_secrets
+    with session.model = the configured model (default gpt-realtime-2) and
+    returns the same HermesVoiceSession envelope the iOS app expects, so the
+    app's WebRTC client is unchanged.
+  transport: http
+  default_port: 8787
+  provider: openai-realtime
+  default_model: gpt-realtime-2
+  key_source: >-
+    Env-indirection only. The gateway reads the OpenAI API key from the env var
+    named by config services.voice.openaiApiKeyEnv and injects it as
+    OPENAI_API_KEY when minting. The raw key is never written to config or logs.
+    If the named env var is missing, serve fails fast with no fallback source.
+  pairing:
+    affordance: >-
+      `regents voice serve` prints a scannable QR code to the terminal on
+      startup. Chosen over a separate `voice pair` command so the token shown is
+      always the one the running gateway actually accepts (no stale/mismatched
+      token). The Regents app scans it to learn the gateway URL and the pairing
+      token.
+    payload:
+      description: >-
+        The QR encodes a compact JSON pairing payload. The app stores it and
+        sends the token on every /hermes/voice/* request.
+      shape: '{ "baseUrl": "<gateway http base url>", "token": "<pairing token>" }'
+      fields:
+        baseUrl: The gateway base URL the app should call, e.g. http://192.168.1.20:8787
+        token: >-
+          Required pairing token that authenticates app->gateway requests. This
+          is NOT the OpenAI API key — it only gates access to the local gateway.
+  auth:
+    scheme: bearer
+    token_source: >-
+      The pairing token comes from env var HERMES_VOICE_GATEWAY_TOKEN when set;
+      otherwise `regents voice serve` generates a random token for the session.
+      The same token is embedded in the QR payload.
+    requirement: >-
+      Every /hermes/voice/* route except /hermes/voice/healthz requires the
+      pairing token as `Authorization: Bearer <token>`. Requests without a valid
+      token are rejected 401 before any OpenAI mint, so only the paired app can
+      spend the user's OpenAI key.
+  routes:
+    - method: POST
+      path: /hermes/voice/session
+      description: >-
+        Mint a short-lived OpenAI realtime client_secret and return the
+        HermesVoiceSession envelope (session_id, agent_id, expires_at, realtime,
+        tools).
+    - method: GET
+      path: /hermes/voice/status
+      description: Report whether local voice is enabled and healthy.
+    - method: POST
+      path: /hermes/voice/prewarm
+      description: "Optional warm-up; returns { ok: true }."
+    - method: POST
+      path: /hermes/voice/disconnect
+      description: "End a voice session; returns { ok: true }."
+    - method: POST
+      path: /hermes/voice/tool-result
+      description: "Record a device-owned voice tool result; returns { ok: true }."
+    - method: GET
+      path: /hermes/voice/healthz
+      description: Liveness probe for the gateway process. Unauthenticated (no token required).
+  tool_registry:
+    source: codex-regents-plugin/assets/voice-tools.json
+    note: >-
+      The advertised voice tools are byte-parity with the hosted sprite registry
+      and the plugin asset, so local and hosted agents expose identical tools.
+x-regent-mcp-tools:
+  owner: regents-cli
+  server: local
+  serve_command: regents mcp serve
+  transports: [stdio, streamable-http]
+  submit_tools_enabled: false
+  name_policy: >-
+    This list is the source of truth for the CLI-local MCP tool surface served by
+    `regents mcp serve`. No tool name here may collide with a tool name published
+    by the Platform remote MCP endpoint (POST /api/shared/mcp in the Platform API
+    contract). Enforced by scripts/check-mcp-tools.mjs.
+  dispatch_kinds:
+    runtime-rpc: The tool handler calls the named local runtime JSON-RPC method.
+    cli-helper: The tool handler reuses the same CLI command helper as the matching regents command.
+    policy-text: The tool handler returns static policy text and performs no action.
+  tools:
+    - name: regents.runtime.identity.status
+      title: Regents runtime identity status
+      description: Read the locally saved Regent identity and signed-agent session status from the local runtime.
+      risk_class: read
+      owner: regents-cli
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: auth.siwa.status
+    - name: regents.runtime.status
+      title: Regents runtime status
+      description: Read local Regent runtime and transport readiness.
+      risk_class: read
+      owner: regents-cli
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: runtime.status
+    - name: regents.agentbook.status
+      title: AgentBook status
+      description: Read the saved human-backed AgentBook trust summary for the current Regent agent.
+      risk_class: read
+      owner: platform
+      auth_mode: agent-siwa
+      dispatch: cli-helper
+    - name: regents.agentbook.register_prepare
+      title: Prepare AgentBook registration
+      description: Create a hosted AgentBook registration session for human approval.
+      risk_class: prepare
+      owner: platform
+      auth_mode: agent-siwa
+      dispatch: cli-helper
+    - name: regents.wallet.action.policy
+      title: Wallet-action preparation policy
+      description: Return the local policy for generic wallet-action preparation. Returns policy text only and never creates an intent.
+      risk_class: prepare
+      owner: regents-cli
+      auth_mode: local
+      dispatch: policy-text
+    - name: regents.wallet.action.simulate
+      title: Simulate wallet action
+      description: Return the current policy for wallet-action simulation.
+      risk_class: simulate
+      owner: regents-cli
+      auth_mode: local
+      dispatch: policy-text
+    - name: regents.x402.details
+      title: Read x402 payment details
+      description: Inspect a protected URL and return the x402 payment terms without paying.
+      risk_class: read
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.details
+    - name: regents.x402.quote
+      title: Quote x402 payment
+      description: Select the Regent-supported x402 payment option without paying.
+      risk_class: read
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.quote
+    - name: regents.x402.intent.prepare
+      title: Prepare x402 intent
+      description: Prepare an x402 payment intent. This does not approve or pay.
+      risk_class: prepare
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.prepare
+    - name: regents.x402.fetch
+      title: Fetch approved x402 resource
+      description: Fetch an x402 resource only after a matching Regent x402 intent has already been approved.
+      risk_class: write
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.fetch
+    - name: regents.x402.refund
+      title: Refund x402 channel
+      description: Return unused funds from a batch-settlement x402 channel.
+      risk_class: write
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.refund
+    - name: regents.x402.receipt.get
+      title: Read x402 receipt
+      description: Read one saved local x402 receipt.
+      risk_class: read
+      owner: shared-services
+      auth_mode: local
+      dispatch: runtime-rpc
+      rpc_method: x402.receipts.get
+    - name: regents.x402.header.prepare
+      title: Prepare x402 header
+      description: Return the current policy for AgentKit/x402 header preparation.
+      risk_class: prepare
+      owner: shared-services
+      auth_mode: agent-siwa
+      dispatch: policy-text
+command_groups:
+  - name: operator
+    interface: runtime
+    auth_mode: none
+    output_envelope: operator-status-envelopes
+    agent_metadata:
+      category: local-control
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read-or-write
+      retry_behavior: safe_for_reads
+      pagination: bounded
+      async_behavior: synchronous
+      input_mode: args-and-flags
+      examples:
+        - regents status
+        - regents init
+        - regents plugin install
+        - regents setup
+        - regents setup skills
+        - regents plugin status
+        - regents runtime status --json
+        - regents agent-context
+        - regents config get
+        - regents agent profile get
+      commands:
+        regents init:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-write
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: Set up Regent on this machine and report what is ready.
+          next_step: regents status
+          examples:
+            - regents init
+        settings:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: Show local Regent configuration. Alias for regents config get.
+          next_step: regents config write --input @config.json
+          examples:
+            - regents settings
+        version:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: Print the installed Regents CLI version. Also available as --version.
+          next_step: regents update
+          examples:
+            - regents version
+            - regents version --json
+        update:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-write
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: >
+            Update the Regents CLI in place via npm. Defaults to the latest
+            published release; --version installs a specific one. With --check
+            it only reports the installed and latest versions without changing
+            anything.
+          next_step: regents setup --quick
+          examples:
+            - regents update
+            - regents update --version 0.6.0
+            - regents update --check --json
+        setup:
+          category: local-setup
+          prompt_behavior: may_prompt
+          json_support: supported
+          mutation_class: local-write
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: >
+            Interactive setup wizard on a terminal: detects agent runtimes
+            (Hermes, OpenClaw, Claude Code, Codex) and registers the regents MCP
+            server. Use regents plugin install --runtime ... for Hermes and
+            OpenClaw tools. With --runtime, --json, or no terminal it prints the
+            read-only status report. --quick applies missing pieces without
+            prompting.
+          next_step: regents plugin status
+          examples:
+            - regents setup
+            - regents setup --quick
+            - regents setup --json
+            - regents setup --runtime hermes
+        setup skills:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-write
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          examples:
+            - regents setup skills
+            - regents setup skills --project
+        run:
+          category: local-control
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-process
+          retry_behavior: start_once_keep_running
+          pagination: none
+          async_behavior: long_running
+          input_mode: flags
+          next_step: regents status
+          examples:
+            - regents run
+            - regents run --json
+        plugin status:
+          category: local-setup
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          next_step: regents plugin install
+          examples:
+            - regents plugin status
+        plugin install:
+          category: local-setup
+          prompt_behavior: confirm_before_write
+          json_support: supported
+          mutation_class: local-write
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          next_step: regents plugin doctor
+          examples:
+            - regents plugin install
+            - regents plugin install --runtime hermes
+            - regents plugin install --runtime openclaw
+        plugin doctor:
+          category: diagnostics
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          next_step: regents run
+          examples:
+            - regents plugin doctor
+        agent-context:
+          category: local-control
+          prompt_behavior: never_prompt
+          json_support: required
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: none
+          async_behavior: synchronous
+          input_mode: flags
+          summary: Print the safe command and setup context for another agent.
+          next_step: regents status
+          examples:
+            - regents agent-context
+            - regents agent-context --area techtree
+            - regents agent-context --command "techtree notebooks init"
+        commands list:
+          category: local-control
+          prompt_behavior: never_prompt
+          json_support: supported
+          mutation_class: local-read
+          retry_behavior: safe
+          pagination: bounded
+          async_behavior: synchronous
+          input_mode: flags
+          summary: List every shipped Regents CLI command with its summary, flags, and args.
+          next_step: regents agent-context
+          examples:
+            - regents commands list
+            - regents commands list --json
+            - regents commands list --search chat --json
+    commands:
+      - init
+      - settings
+      - version
+      - update
+      - status
+      - whoami
+      - agent-context
+      - commands list
+      - setup
+      - setup skills
+      - plugin status
+      - plugin install
+      - plugin doctor
+      - run
+      - config get
+      - config write
+      - agent init
+      - agent status
+      - agent profile list
+      - agent profile get
+      - agent harness list
+      - gossipsub status
+    flags:
+      whoami:
+        - name: --full
+          type: boolean
+          required: false
+          description: Include the saved Platform account projection when a Platform session is present.
+      update:
+        - name: --check
+          type: boolean
+          required: false
+          description: Report the installed and latest published versions without changing anything.
+        - name: --version
+          type: string
+          required: false
+          description: Install this exact published version instead of the latest release.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the update or version-check result as JSON.
+      commands list:
+        - name: --search
+          type: string
+          required: false
+          description: Only include commands whose name or summary contains this text.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the command index as JSON.
+      agent-context:
+        - name: --area
+          type: string
+          required: false
+          description: Only include commands for one area, such as techtree, autolaunch, platform, wallet, x402, work, or mcp.
+        - name: --command
+          type: string
+          required: false
+          description: Only include the one exact command named, such as "techtree notebooks init".
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the agent context as JSON. The command always prints JSON; the flag is accepted for consistency.
+      setup skills:
+        - name: --project
+          type: boolean
+          required: false
+          description: Install skills into the current project instead of the global user skill set.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the installed skill summary as JSON.
+      setup:
+        - name: --runtime
+          type: enum
+          enum: [auto, hermes, openclaw]
+          required: false
+          description: Local agent runtime to inspect before starting. Defaults to auto, which inspects both Hermes and OpenClaw. This reports readiness only; it does not install the Hermes or OpenClaw Regent tools.
+      run:
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the local runtime summary as JSON.
+      plugin status:
+        - name: --runtime
+          type: enum
+          enum: [auto, hermes, openclaw]
+          required: false
+          description: Runtime to inspect. Defaults to auto, which inspects both Hermes and OpenClaw. Use hermes or openclaw when checking whether one specific agent app can see Regent.
+      plugin install:
+        - name: --runtime
+          type: enum
+          enum: [auto, hermes, openclaw]
+          required: false
+          description: Runtime that should receive the Regent tools. Defaults to auto, which installs both. Use hermes for a Hermes agent or openclaw for an OpenClaw agent. Hermes setup also selects xAI Grok OAuth with grok-4.3 and returns the Hermes sign-in command.
+      plugin doctor:
+        - name: --runtime
+          type: enum
+          enum: [auto, hermes, openclaw]
+          required: false
+          description: Runtime to diagnose. Defaults to auto, which diagnoses both runtimes. Use hermes or openclaw when the agent app says Regent tools are missing.
+  - name: wallet
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: wallet
+      prompt_behavior: prompt_when_creating_wallet
+      json_support: supported
+      mutation_class: local-read-or-write
+      retry_behavior: safe_for_status
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents wallet status
+        - regents wallet agentic status --json
+        - regents wallet agentic fund --amount-usdc 10 --chain base
+      commands:
+        wallet status:
+          next_step: regents wallet setup
+        wallet import:
+          next_step: regents wallet status
+        wallet setup:
+          next_step: regents identity ensure
+        wallet agentic status:
+          next_step: regents wallet agentic balance --chain base --json
+        wallet agentic login:
+          next_step: regents wallet agentic verify --flow-id <flow-id> --otp <code> --json
+        wallet agentic verify:
+          next_step: regents wallet agentic balance --chain base --json
+        wallet agentic balance:
+          next_step: regents budget grant --agent <agent-id> --amount-usdc 10 --max-payment-usdc 0.25 --mode techtree_research --rail agentic-wallet --expires 7d
+        wallet agentic fund:
+          next_step: regents wallet agentic balance --chain base --json
+    commands:
+      - wallet status
+      - wallet import
+      - wallet setup
+      - wallet agentic status
+      - wallet agentic login
+      - wallet agentic verify
+      - wallet agentic balance
+      - wallet agentic fund
+    flags:
+      wallet agentic login:
+        - name: --email
+          type: string
+          required: true
+          description: Email address to start Agentic Wallet login.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the Agentic Wallet login response as JSON.
+      wallet agentic verify:
+        - name: --flow-id
+          type: string
+          required: true
+          description: Agentic Wallet login flow id.
+        - name: --otp
+          type: string
+          required: true
+          description: One-time code from Agentic Wallet login.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the Agentic Wallet verification response as JSON.
+      wallet agentic balance:
+        - name: --chain
+          type: enum
+          enum: [base]
+          required: true
+          description: Chain to inspect for Agentic Wallet balance.
+      wallet agentic fund:
+        - name: --amount-usdc
+          type: decimal-usd
+          required: true
+          description: Funding amount to show in the guided onramp instructions.
+        - name: --chain
+          type: enum
+          enum: [base]
+          required: true
+          description: Chain to fund.
+      wallet import:
+        - name: --stdin
+          type: boolean
+          required: false
+          description: Read the private key from standard input (default). The key is never accepted as a flag value to avoid shell-history leakage.
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the import result as JSON. Never includes any key material.
+  - name: runtime-local
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: local-control
+      prompt_behavior: never_prompt
+      json_support: required
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents runtime status --json
+        - regents runtime tools --json
+        - regents runtime policy --json
+      commands:
+        runtime status:
+          next_step: regents runtime tools --json
+        runtime tools:
+          next_step: regents runtime policy --json
+        runtime policy:
+          next_step: regents status
+    commands:
+      - runtime status
+      - runtime tools
+      - runtime policy
+  - name: identity
+    interface: mixed
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: identity
+      prompt_behavior: prompt_when_signing
+      json_support: supported
+      mutation_class: local-read-or-write
+      retry_behavior: retry_after_user_action
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents identity status
+        - regents identity graph --json
+    commands:
+      - identity status
+      - identity ensure
+      - identity graph
+    path_templates:
+      - /api/shared/identity/status
+      - /api/shared/identity/registration-intents
+      - /api/shared/identity/registration-completions
+      - /api/shared/identity/siwa/nonce
+      - /api/shared/identity/siwa/verify
+    flags:
+      graph:
+        - name: --json
+          type: boolean
+          required: false
+          description: Print the current identity graph as JSON for automation.
+  - name: auth
+    interface: http
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: auth
+      prompt_behavior: prompt_when_signing
+      json_support: supported
+      mutation_class: session-write
+      retry_behavior: retry_after_user_action
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents auth status
+        - regents auth login --audience regent-services
+    commands:
+      - auth login
+      - auth status
+      - auth logout
+    path_templates:
+      - /api/shared/siwa/nonce
+      - /api/shared/siwa/verify
+  - name: mcp
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: integration
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: args
+      examples:
+        - regents mcp export codex
+        - regents mcp tools list --json
+        - regents mcp doctor --json
+        - regents mcp serve --transport stdio
+    commands:
+      - mcp export codex
+      - mcp tools list
+      - mcp doctor
+      - mcp serve
+    command_flags:
+      mcp serve:
+        - name: transport
+          required: true
+          description: MCP transport to start. Use stdio locally or streamable-http for a bearer-protected sidecar.
+        - name: host
+          required: false
+          description: Host for streamable-http MCP.
+        - name: port
+          required: false
+          description: Port for streamable-http MCP.
+  - name: voice
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: integration
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: args
+      examples:
+        - regents voice serve
+        - regents voice serve --host 127.0.0.1 --port 8787
+    commands:
+      - voice serve
+    command_flags:
+      voice serve:
+        - name: host
+          required: false
+          description: Host to bind the local Hermes voice gateway. Defaults to 127.0.0.1.
+        - name: port
+          required: false
+          description: Port for the local Hermes voice gateway. Defaults to the configured voice port (8787).
+  - name: techtree-forge-family
+    interface: local-runtime
+    auth_mode: none
+    output_envelope: strict-closed-json
+    note: These commands invoke only the bundled UV-managed Verify runtime. They do not read or write user configuration, contact a provider, or mutate product state.
+    agent_metadata:
+      category: techtree-forge
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents techtree forge family show --json
+        - 'regents techtree forge family validate --input-json ''{"family":{"schema_version":1,"family_id":"techtree.contract-drift-repair.v1","product_status":"planned","kind":"deterministic_contract_drift_repair","executor":"hermes","intervention":{"artifact":"SKILL.md","changed_file_count":1},"verifier":{"protocol":"deterministic_contract_drift","protocol_version":1}},"baseline":{"files":{"SKILL.md":"before"}},"candidate":{"files":{"SKILL.md":"after"}}}'' --json'
+      commands:
+        techtree forge family show:
+          summary: Show the one planned deterministic contract-drift repair family.
+        techtree forge family validate:
+          summary: Validate the closed family contract and a one-file SKILL.md change.
+    commands:
+      - techtree forge family show
+      - techtree forge family validate
+    command_flags:
+      techtree forge family validate:
+        - name: input-json
+          required: true
+          description: Inline closed validation input containing family, baseline, and candidate records.
+  - name: techtree-verify
+    interface: runtime
+    auth_mode: none
+    output_envelope: strict-closed-json
+    note: Verify state and receipts stay local. Receipts are operator-trusted evidence, and a local operator can fabricate local files. Receipt digests and store binding are tamper-evident within the runner emission path and checkable by the report verifier. Cryptographic attestation is the planned post-v0.1 proof layer. The fixture path is deterministic, requires no credentials, and makes no network calls. Hosted Hermes execution requires an explicit local command configuration. Prime execution requires the optional adapter group and REGENT_VERIFY_PRIME_FACTORY configuration. Both live executors remain subject to the locked policy limits.
+    agent_metadata:
+      category: techtree-verify
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents techtree verify run --builtin --fixture --json
+        - regents techtree verify run --builtin --prime --json
+        - regents techtree verify status --comparison-id <comparison-id> --json
+        - regents techtree verify receipt show --digest <sha256-digest> --json
+      commands:
+        techtree verify run:
+          summary: Run the built-in matched Verify comparison and emit local receipts.
+          mutation_class: local-write
+          retry_behavior: never_retry
+          next_step: regents techtree verify run --builtin --fixture --json
+        techtree verify status:
+          summary: Show a local Verify comparison without changing it.
+          next_step: regents techtree verify run --builtin --fixture --json
+        techtree verify receipt show:
+          summary: Show and verify an immutable local evaluation receipt.
+          next_step: regents techtree verify run --builtin --fixture --json
+    commands:
+      - techtree verify run
+      - techtree verify status
+      - techtree verify receipt show
+    command_flags:
+      techtree verify run:
+        - name: builtin
+          type: boolean
+          required: true
+          description: Use the built-in deterministic contract-drift family.
+        - name: fixture
+          type: boolean
+          required: false
+          description: Use the offline no-key fixture executor. It cannot be combined with Prime or Hermes configuration.
+        - name: prime
+          type: boolean
+          required: false
+          description: Select the config-gated Prime executor. The local runtime process must have the optional adapter group installed and REGENT_VERIFY_PRIME_FACTORY set to module:function.
+        - name: hermes-command-json
+          type: string
+          required: false
+          description: JSON string array for the explicitly configured local Hermes launcher. Hermes credentials must already be configured outside Regent files.
+      techtree verify status:
+        - name: comparison-id
+          type: string
+          required: true
+          description: Comparison identifier returned by verify run.
+      techtree verify receipt show:
+        - name: digest
+          type: string
+          required: true
+          description: SHA-256 receipt digest returned by verify run.
+  - name: techtree-uplift
+    interface: runtime
+    auth_mode: none
+    output_envelope: strict-closed-json
+    note: Uplift consumes a non-empty set of receipt-backed local receipt digests from their emitting store, archives a deterministic report and reproduction package, and never executes the package. Local receipts remain operator-trusted evidence; receipt-store binding and the post-freeze independent report verifier are the v0.1 checkable layer, while cryptographic attestation is the planned post-v0.1 proof layer. The optional reproduction tolerance is a nullable founder-supplied package field.
+    agent_metadata:
+      category: techtree-uplift
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-write
+      retry_behavior: never_retry
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents techtree uplift report --receipt-digest <receipt-1> --receipt-digest <receipt-2> --receipt-digest <receipt-n> --json
+        - regents techtree uplift report --receipt-digest <receipt-1> --receipt-digest <receipt-2> --receipt-digest <receipt-n> --reproduction-tolerance-json '{"score_millis":25}' --json
+      commands:
+        techtree uplift report:
+          summary: Compare a non-empty set of receipt-backed local receipts and archive the uplift report and never-executed reproduction package; human output leads with the measured result and evidence strength.
+          mutation_class: local-write
+          retry_behavior: never_retry
+          next_step: regents techtree verify run --builtin --fixture --json
+    commands:
+      - techtree uplift report
+    command_flags:
+      techtree uplift report:
+        - name: receipt-digest
+          type: string
+          required: true
+          repeatable: true
+          description: Supply at least one digest; all digests must come from the same locked comparison, exactly one per matched selection.
+        - name: reproduction-tolerance-json
+          type: string
+          required: false
+          description: Nullable JSON object supplied by the founder and archived in the reproduction package; the package is never executed by this command.
+  - name: notebooks
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: notebooks
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-write
+      retry_behavior: safe_for_local_files
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents techtree notebooks init --kind paper --title "Paper title" --source arxiv:2401.00001 --workspace-path ./paper-note --json
+        - regents techtree notebooks pair --workspace-path ./paper-note --json
+      commands:
+        techtree notebooks init:
+          next_step: regents techtree notebooks pair --workspace-path <workspace>
+    commands:
+      - techtree notebooks init
+      - techtree notebooks pair
+    command_flags:
+      techtree notebooks init:
+        - name: kind
+          type: enum
+          enum: [paper, freeform]
+          required: true
+          description: Notebook kind.
+        - name: workspace-path
+          type: path
+          required: true
+          description: Local workspace to create.
+        - name: title
+          type: string
+          required: true
+          description: Notebook title.
+        - name: source
+          type: string
+          required: false
+          description: Optional paper or source reference.
+      techtree notebooks pair:
+        - name: workspace-path
+          type: path
+          required: true
+          description: Existing local notebook workspace.
+  - name: x402
+    interface: runtime
+    auth_mode: local-wallet
+    output_envelope: loose-object
+    agent_metadata:
+      category: paid-api
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: payment-prepare-or-fetch
+      retry_behavior: never_retry_payments
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents x402 search "research data" --json
+        - regents x402 details --url https://api.example.com/paid --json
+        - regents x402 quote --url https://api.example.com/paid --json
+        - regents x402 prepare --url https://api.example.com/paid --approve --json
+        - regents x402 fetch --intent-id x402_intent_... --url https://api.example.com/paid --json
+        - regents x402 refund --url https://api.example.com/paid --json
+        - regents x402 pay https://api.example.com/paid --budget bud_... --max-usdc 0.25 --rail agentic-wallet --receipt --json
+        - regents x402 receipts get --id x402_receipt_... --json
+      commands:
+        x402 search:
+          next_step: regents x402 details --url <paid-url> --json
+        x402 details:
+          next_step: regents x402 quote --url <paid-url> --json
+        x402 quote:
+          next_step: regents x402 prepare --url <paid-url> --approve --json
+        x402 prepare:
+          next_step: regents x402 fetch --intent-id <intent-id> --url <paid-url> --json
+        x402 pay:
+          next_step: regents receipt share-draft --receipt <receipt-id>
+        x402 receipts get:
+          next_step: regents receipt create --from-x402-payment <payment-id> --json
+    commands:
+      - x402 search
+      - x402 details
+      - x402 quote
+      - x402 prepare
+      - x402 fetch
+      - x402 refund
+      - x402 pay
+      - x402 receipts get
+    flags:
+      x402 pay:
+        - name: --budget
+          type: string
+          required: true
+          description: Regent budget that approves this payment.
+        - name: --max-usdc
+          type: decimal-usd
+          required: true
+          description: Maximum USDC to spend on this x402 request.
+        - name: --max-deposit-amount
+          type: string
+          required: false
+          description: Maximum atomic token amount the operator allows the CLI to escrow for batch-settlement payments.
+        - name: --rail
+          type: enum
+          enum: [regent-wallet, agentic-wallet]
+          required: true
+          description: Payment rail to use for this request.
+        - name: --approve
+          type: boolean
+          required: false
+          description: Confirm a paid-service budget payment.
+        - name: --receipt
+          type: boolean
+          required: false
+          description: Create a local Regent receipt after a successful payment.
+    command_flags:
+      x402 details:
+        - name: url
+          required: true
+          description: Protected resource URL to inspect.
+        - name: method
+          required: false
+          description: HTTP method for the protected resource request.
+        - name: body
+          required: false
+          description: Request body used while inspecting the protected resource.
+        - name: header
+          required: false
+          description: Repeatable request header in Name/value form.
+      x402 quote:
+        - name: url
+          required: true
+          description: Protected resource URL to quote.
+        - name: method
+          required: false
+          description: HTTP method for the protected resource request.
+        - name: body
+          required: false
+          description: Request body used while quoting the protected resource.
+        - name: header
+          required: false
+          description: Repeatable request header in Name/value form.
+        - name: max-amount
+          required: false
+          description: Maximum accepted atomic token amount.
+        - name: max-deposit-amount
+          required: false
+          description: Maximum atomic token amount the operator allows the CLI to escrow for batch-settlement payments.
+      x402 prepare:
+        - name: url
+          required: true
+          description: Protected resource URL to prepare.
+        - name: method
+          required: false
+          description: HTTP method for the protected resource request.
+        - name: body
+          required: false
+          description: Request body used while preparing the protected resource.
+        - name: header
+          required: false
+          description: Repeatable request header in Name/value form.
+        - name: max-amount
+          required: false
+          description: Maximum accepted atomic token amount.
+        - name: max-deposit-amount
+          required: false
+          description: Maximum atomic token amount the operator allows the CLI to escrow for batch-settlement payments.
+        - name: approve
+          required: false
+          description: Record explicit local operator approval for the prepared x402 request.
+      x402 fetch:
+        - name: intent-id
+          required: true
+          description: Approved x402 intent to use.
+        - name: url
+          required: true
+          description: Protected resource URL to fetch.
+        - name: method
+          required: false
+          description: HTTP method for the protected resource request.
+        - name: body
+          required: false
+          description: Request body used while fetching the protected resource.
+        - name: header
+          required: false
+          description: Repeatable request header in Name/value form.
+      x402 refund:
+        - name: url
+          required: true
+          description: Protected resource URL for the channel to refund.
+        - name: header
+          required: false
+          description: Repeatable request header in Name/value form.
+        - name: amount
+          required: false
+          description: Token base-unit amount to return. Omit to return the full unused channel balance.
+      x402 receipts get:
+        - name: id
+          required: true
+          description: x402 receipt id to read from the local Regent receipt store.
+  - name: budget
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: budget
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-policy-write
+      retry_behavior: safe_for_reads
+      pagination: bounded
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents budget grant --agent <agent-id> --amount-usdc 10 --max-payment-usdc 0.25 --mode techtree_research --rail agentic-wallet --expires 7d
+        - regents budget status --json
+        - regents budget ledger --budget bud_...
+      commands:
+        budget grant:
+          next_step: regents x402 search "research data" --json
+        budget status:
+          next_step: regents budget ledger --budget <budget-id>
+        budget ledger:
+          next_step: regents x402 pay <url> --budget <budget-id> --max-usdc 0.25 --rail agentic-wallet --receipt --json
+        budget revoke:
+          next_step: regents budget status --json
+    commands:
+      - budget grant
+      - budget status
+      - budget ledger
+      - budget revoke
+    flags:
+      budget grant:
+        - name: --agent
+          type: string
+          required: true
+          description: Agent that may use this budget through Regent.
+        - name: --amount-usdc
+          type: decimal-usd
+          required: true
+          description: Total budget amount.
+        - name: --max-payment-usdc
+          type: decimal-usd
+          required: true
+          description: Maximum size for one payment.
+        - name: --mode
+          type: enum
+          enum: [techtree_research, paid_service]
+          required: true
+          description: Work mode this budget is allowed to support.
+        - name: --rail
+          type: enum
+          enum: [regent-wallet, agentic-wallet]
+          required: true
+          description: Payment rail this budget allows.
+        - name: --allow-host
+          type: string
+          required: false
+          description: Optional paid service hostname this budget may use. Repeat to allow more hosts.
+        - name: --expires
+          type: duration-or-time
+          required: true
+          description: Expiration such as 7d or an ISO timestamp.
+      budget status:
+        - name: --budget
+          type: string
+          required: false
+          description: Budget id to inspect.
+        - name: --agent
+          type: string
+          required: false
+          description: Agent id to filter by.
+      budget ledger:
+        - name: --budget
+          type: string
+          required: true
+          description: Budget id to inspect.
+      budget revoke:
+        - name: --budget
+          type: string
+          required: true
+          description: Budget id to revoke.
+  - name: receipt
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: receipts
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-write
+      retry_behavior: safe_for_reads
+      pagination: bounded
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents receipt create --from-x402-payment payment_... --json
+        - regents receipt list --json
+        - regents receipt share-draft --receipt rcpt_...
+      commands:
+        receipt create:
+          next_step: regents receipt share-draft --receipt <receipt-id>
+        receipt get:
+          next_step: regents receipt share-draft --receipt <receipt-id>
+        receipt list:
+          next_step: regents receipt get --receipt <receipt-id>
+        receipt share-draft:
+          next_step: regents receipt list --json
+    commands:
+      - receipt create
+      - receipt get
+      - receipt list
+      - receipt share-draft
+    flags:
+      receipt create:
+        - name: --from-x402-payment
+          type: string
+          required: false
+          description: x402 payment id to cite.
+        - name: --from-budget-entry
+          type: string
+          required: false
+          description: Local budget ledger entry to cite.
+      receipt get:
+        - name: --receipt
+          type: string
+          required: true
+          description: Receipt id to inspect.
+      receipt share-draft:
+        - name: --receipt
+          type: string
+          required: true
+          description: Receipt id to turn into draft share copy.
+  - name: feynman
+    interface: local-process
+    auth_mode: none
+    output_envelope: passthrough
+    note: Launches the installed Feynman research shell from Regents CLI. Feynman keeps its own setup and sessions under its normal local folder.
+    agent_metadata:
+      category: local-tool
+      prompt_behavior: may_prompt
+      json_support: not_supported
+      mutation_class: local-process
+      retry_behavior: manual
+      pagination: none
+      async_behavior: interactive
+      input_mode: interactive
+      examples:
+        - regents feynman
+    commands:
+      - feynman
+  - name: doctor
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: diagnostics
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: args
+      examples:
+        - regents doctor
+        - regents doctor --fix
+        - regents doctor transports
+    commands:
+      - doctor
+      - doctor runtime
+      - doctor auth
+      - doctor transports
+      - doctor contracts
+      - doctor workspace
+    flags:
+      doctor:
+        - name: --fix
+          type: boolean
+          required: false
+          description: Apply safe local repairs for blockers doctor can fix mechanically, such as creating the default config file, creating missing runtime folders, and removing a validated stale runtime socket. Everything else keeps its printed next step. No destructive repairs.
+  - name: ens
+    interface: http
+    auth_mode: agent-siwa
+    auth_audience: platform
+    output_envelope: loose-object
+    note: Ethereum mainnet only. The Regent ENS name must already be attached to the authenticated agent and already resolve to that wallet. This command prepares the reverse-name transaction by default and submits only with --submit.
+    agent_metadata:
+      category: identity
+      prompt_behavior: confirm_before_submit
+      json_support: supported
+      mutation_class: transaction_prepare_or_submit
+      retry_behavior: retry_prepare_only
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents ens set-primary --name example.eth
+    commands:
+      - ens set-primary
+    flags:
+      set-primary:
+        - name: --submit
+          type: boolean
+          required: false
+          description: Submit the prepared transaction with the local wallet.
+    path_templates:
+      - /api/platform/ens/prepare-primary
+  - name: chat-follows
+    interface: runtime
+    auth_mode: none
+    output_envelope: loose-object
+    agent_metadata:
+      category: messaging
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: local-write
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: args-and-flags
+      examples:
+        - regents chat follows add 0x1234abcd1234abcd1234abcd1234abcd1234abcd
+        - regents chat follows list
+    commands:
+      - chat follows add <wallet|label>
+      - chat follows remove <wallet|label>
+      - chat follows list

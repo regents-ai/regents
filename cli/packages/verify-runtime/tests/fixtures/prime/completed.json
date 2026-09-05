@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "run_id": "prime-recorded-run-1",
+  "state": "completed",
+  "identity": {
+    "provider": "prime",
+    "model": "hermes-fixture-model-v1",
+    "hermes_version": "hermes-fixture-v1",
+    "hermes_digest": "81d05e6cfde7bd33247f06f4e8b450f7fc9aaf431160594f4b688f3f9be6601b"
+  },
+  "task": {
+    "schema_version": 1,
+    "task_id": "contract-drift-validation-1",
+    "family_id": "techtree.contract-drift-repair.v1",
+    "slice_id": "techtree.contract-drift-repair.v1.validation",
+    "partition": "validation",
+    "role_id": "repair-agent",
+    "input_digest": "30a5fd87b6ad790fdb79d9bff96726cd6dc95c676e3ab636f701e680acfa6aa2",
+    "grader_digest": "7144d8b317e7a773a1880587847f87b9e1f8a8bc183de5497f03e89dec404dd1"
+  },
+  "taskset": {"format": "regent-forge-prime-v1", "digest": "82525ba7316d2c62e299654bcd7e7c2a2714f5aa4502074d8bbd07b9f0acb541"},
+  "trace": {
+    "agent": {
+      "harness": {"disabled_tools": null, "env": {}, "forward_env": [], "id": "hermes", "runtime": {"type": "subprocess"}},
+      "model": "hermes-fixture-model-v1",
+      "sampling": {"max_tokens": 256, "reasoning_effort": null, "temperature": 0.0, "top_p": null}
+    },
+    "calls": [
+      {
+        "endpoint": "/chat/completions", "error": null, "finish_reason": "tool_calls", "model": "hermes-fixture-model-v1", "node": 1,
+        "sampling": {"max_tokens": 256, "reasoning_effort": null, "temperature": 0.0, "top_p": null},
+        "time": {"end": 1000.6, "start": 1000.3},
+        "usage": {"cached_input_tokens": 10, "completion_tokens": 20, "cost": 0.05, "prompt_tokens": 80, "reasoning_tokens": 5}
+      },
+      {
+        "endpoint": "/chat/completions", "error": null, "finish_reason": "stop", "model": "hermes-fixture-model-v1", "node": 2,
+        "sampling": {"max_tokens": 256, "reasoning_effort": null, "temperature": 0.0, "top_p": null},
+        "time": {"end": 1001.0, "start": 1000.7},
+        "usage": {"cached_input_tokens": 10, "completion_tokens": 30, "cost": 0.07, "prompt_tokens": 100, "reasoning_tokens": 5}
+      }
+    ],
+    "errors": [],
+    "extra_usage": [],
+    "id": "trace-prime-recorded-completed",
+    "info": {
+      "evidence": {"environment_author": "fixture-author", "intervention_author": "fixture-author", "verifier_author": "independent-fixture-verifier"},
+      "reproduction": {"bundle_digest": "4f88f09d50823ddccd6510129af69a327fb10af140887810567f64e00600108e", "source_run_id": "eval-prime-recorded-1"}
+    },
+    "is_completed": true,
+    "metrics": {"contract_valid": 1.0, "files_changed": 1.0},
+    "nodes": [
+      {"is_content": [], "logprobs": [], "mask": [], "message": {"content": "validation-contract-drift", "role": "user"}, "parent": null, "sampled": false, "timestamp": 1000.2, "token_ids": []},
+      {"is_content": [], "logprobs": [], "mask": [], "message": {"content": "I will inspect SKILL.md.", "provider_state": null, "reasoning_content": null, "role": "assistant", "tool_calls": [{"arguments": "{\"path\":\"SKILL.md\"}", "id": "call-1", "name": "filesystem_read"}]}, "parent": 0, "sampled": true, "timestamp": 1000.6, "token_ids": []},
+      {"is_content": [], "logprobs": [], "mask": [], "message": {"content": "Changed only SKILL.md.", "provider_state": null, "reasoning_content": null, "role": "assistant", "tool_calls": null}, "parent": 1, "sampled": true, "timestamp": 1001.0, "token_ids": []}
+    ],
+    "rewards": {"deterministic_contract_drift": 1.0},
+    "run": {"id": "eval-prime-recorded-1", "step": null, "type": "eval"},
+    "runtime": null,
+    "stop_condition": "agent_completed",
+    "task": {
+      "data": {
+        "answer_key": "SEALED-PRIME-ANSWER-KEY",
+        "description": "Repair the declared contract drift.",
+        "idx": 1,
+        "image": null,
+        "name": "contract-drift-validation-1",
+        "prompt": "validation-contract-drift",
+        "resources": {"cpu": null, "disk": null, "gpu": null, "memory": null},
+        "system_prompt": null,
+        "timeout": {"finalize": null, "harness": null, "scoring": null, "setup": null},
+        "workdir": null
+      },
+      "type": "ContractDriftTask"
+    },
+    "timing": {
+      "boot": {"end": 1000.1, "start": 1000.0},
+      "finalize": {"end": 1001.1, "start": 1001.0},
+      "generation": {"end": 1001.0, "harness": {"duration": 0.2}, "model": {"duration": 0.6}, "start": 1000.2},
+      "scoring": {"end": 1001.25, "start": 1001.1},
+      "setup": {"end": 1000.2, "start": 1000.1},
+      "start": 1000.0
+    },
+    "tools": [{"description": "Read one workspace file", "name": "filesystem_read", "parameters": {"type": "object"}, "strict": true}],
+    "verifiers": {"commit": null, "version": "0.2.1"},
+    "version": 2
+  },
+  "artifacts": [{"name": "patch-result.json", "digest": "566ad11d9ba81abf9268843eeb5b2ecfbf8042afeaa3128bf8bd7addcbd6ac6a", "size_bytes": 44, "content_base64": "eyJjaGFuZ2VkX2ZpbGVzIjpbIlNLSUxMLm1kIl0sInZhbGlkIjp0cnVlfQo="}],
+  "cost": {"usd_cents": 12},
+  "retry_count": 0
+}

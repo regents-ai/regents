@@ -1,0 +1,44 @@
+version: 1
+repo: regents-cli
+owner: regents-cli
+path: regents-cli
+release_group: public_beta
+stack_contract: ../meta/stack.yaml
+owns:
+  - operator_control_surface
+  - generated_bindings
+  - local_runtime
+  - portfolio_release_checks
+source_of_truth:
+  repo_contract: repo.yaml
+  http_contracts:
+    - docs/regent-services-contract.openapiv3.yaml
+  cli_contracts:
+    - docs/shared-cli-contract.yaml
+  shared_contracts: []
+  runtime_contracts:
+    - docs/json-rpc-methods.yaml
+  chain_contracts: []
+code_map:
+  - path: packages/regents-cli/src/routes
+    owns: command_dispatch
+  - path: packages/regents-cli/src/internal-runtime
+    owns: local_runtime
+  - path: scripts
+    owns: contract_and_meta_checks
+local_path_dependencies: []
+acceptance_commands:
+  - cwd: regents-cli
+    command: pnpm check:workspace
+  - cwd: regents-cli
+    command: pnpm check:openapi
+  - cwd: regents-cli
+    command: pnpm check:cli-contract
+  - cwd: regents-cli
+    command: pnpm build
+  - cwd: regents-cli
+    command: pnpm typecheck
+  - cwd: regents-cli
+    command: pnpm test
+  - cwd: regents-cli
+    command: pnpm test:pack-smoke

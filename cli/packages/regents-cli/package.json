@@ -1,0 +1,67 @@
+{
+  "name": "@regentslabs/cli",
+  "version": "0.5.0",
+  "private": false,
+  "type": "module",
+  "description": "Regents CLI package for the published regents command.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "regents": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE",
+    "postinstall.cjs"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/regents-ai/regents-cli.git",
+    "directory": "packages/regents-cli"
+  },
+  "homepage": "https://github.com/regents-ai/regents-cli",
+  "bugs": {
+    "url": "https://github.com/regents-ai/regents-cli/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@safe-global/protocol-kit": "7.1.0",
+    "@worldcoin/idkit-core": "4.0.15",
+    "@x402/evm": "2.12.0",
+    "@x402/fetch": "2.12.0",
+    "qrcode-terminal": "0.12.0",
+    "viem": "2.47.1",
+    "yaml": "2.8.3",
+    "zod": "4.3.6"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "1.3.0"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.cjs",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p tsconfig.json && node ../../scripts/copy-verify-runtime.mjs",
+    "prepack": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests --fileParallelism=false --testTimeout=20000 --hookTimeout=20000",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@types/qrcode-terminal": "0.12.2"
+  }
+}
