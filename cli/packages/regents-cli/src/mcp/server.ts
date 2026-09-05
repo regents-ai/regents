@@ -4,7 +4,7 @@ import * as z from "zod/v4";
 import { lookupAgentbookTrust, prepareAgentbookRegistration } from "../commands/agentbook.js";
 import { regentsCliVersion } from "../internal-runtime/product-http-client.js";
 import { RegentKernel } from "../internal-runtime/runtime.js";
-import { redactRegentErrorMessage, redactRegentSecrets } from "./redact.js";
+import { redactRegentErrorMessage, redactRegentSecrets, redactX402Secrets } from "./redact.js";
 import { REGENTS_MCP_TOOL_DEFINITIONS, regentsMcpToolsList } from "./tool-registry.js";
 
 type ToolResult = {
@@ -13,8 +13,8 @@ type ToolResult = {
   isError?: boolean;
 };
 
-const textResult = (value: unknown): ToolResult => {
-  const safeValue = redactRegentSecrets(value);
+const textResult = (value: unknown, redact: (value: unknown) => unknown = redactRegentSecrets): ToolResult => {
+  const safeValue = redact(value);
 
   return {
     content: [
@@ -72,6 +72,9 @@ const toolAnnotations = (riskClass: string) => ({
   destructiveHint: false,
   idempotentHint: riskClass === "read",
 });
+
+// These tools send caller-selected HTTP methods and may execute a product mutation.
+const x402HttpAnnotations = {readOnlyHint: false, destructiveHint: true, idempotentHint: false};
 
 export type RegentsMcpServerMode = "local-stdio" | "platform-http";
 
@@ -206,9 +209,9 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
         headers: z.record(z.string(), z.string()).optional(),
         body: z.string().optional(),
       },
-      annotations: toolAnnotations(x402Details.riskClass),
+      annotations: x402HttpAnnotations,
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.details", input))),
+    safeTool(async (input) => textResult(await kernel.call("x402.details", input), redactX402Secrets)),
   );
 
   const x402Quote = toolDefinition("regents.x402.quote");
@@ -225,9 +228,9 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
         max_amount: z.string().regex(/^\d+$/).optional(),
         max_deposit_amount: z.string().regex(/^\d+$/).optional(),
       },
-      annotations: toolAnnotations(x402Quote.riskClass),
+      annotations: x402HttpAnnotations,
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.quote", input))),
+    safeTool(async (input) => textResult(await kernel.call("x402.quote", input), redactX402Secrets)),
   );
 
   const x402IntentPrepare = toolDefinition("regents.x402.intent.prepare");
@@ -244,9 +247,9 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
         max_amount: z.string().regex(/^\d+$/).optional(),
         max_deposit_amount: z.string().regex(/^\d+$/).optional(),
       },
-      annotations: toolAnnotations(x402IntentPrepare.riskClass),
+      annotations: x402HttpAnnotations,
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.prepare", { ...input, approve: false }))),
+    safeTool(async (input) => textResult(await kernel.call("x402.prepare", { ...input, approve: false }), redactX402Secrets)),
   );
 
   const x402Fetch = toolDefinition("regents.x402.fetch");
@@ -262,9 +265,9 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
         headers: z.record(z.string(), z.string()).optional(),
         body: z.string().optional(),
       },
-      annotations: toolAnnotations(x402Fetch.riskClass),
+      annotations: x402HttpAnnotations,
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.fetch", input))),
+    safeTool(async (input) => textResult(await kernel.call("x402.fetch", input), redactX402Secrets)),
   );
 
   const x402Refund = toolDefinition("regents.x402.refund");
@@ -278,9 +281,9 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
         headers: z.record(z.string(), z.string()).optional(),
         amount: z.string().regex(/^\d+$/).optional(),
       },
-      annotations: toolAnnotations(x402Refund.riskClass),
+      annotations: x402HttpAnnotations,
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.refund", input))),
+    safeTool(async (input) => textResult(await kernel.call("x402.refund", input), redactX402Secrets)),
   );
 
   const x402ReceiptGet = toolDefinition("regents.x402.receipt.get");
@@ -294,7 +297,7 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
       },
       annotations: toolAnnotations(x402ReceiptGet.riskClass),
     },
-    safeTool(async (input) => textResult(await kernel.call("x402.receipts.get", input))),
+    safeTool(async (input) => textResult(await kernel.call("x402.receipts.get", input), redactX402Secrets)),
   );
 
   const x402HeaderPrepare = toolDefinition("regents.x402.header.prepare");
@@ -312,10 +315,10 @@ export async function createRegentsMcpServer(options: CreateRegentsMcpServerOpti
     safeTool(async (input) =>
       textResult({
         ok: false,
-        code: "regent_x402_wrapper_required",
+        code: "x402_header_signer_not_implemented",
         submit_tools_enabled: false,
         message:
-          "AgentKit/x402 headers are only exposed through Regent wrappers. Codex should not hand-write signed payment headers.",
+          "This tool does not implement a raw payment-header signer. Read x402.details.payment_required_response and use your existing x402 SDK/client with the original authenticated request, or use a configured CLI signer.",
         requested: input,
       }),
     ),

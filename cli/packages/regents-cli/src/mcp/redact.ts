@@ -80,3 +80,22 @@ export function redactRegentErrorMessage(message: string): string {
   }
   return scrubbed;
 }
+
+/** Public x402 protocol evidence is not a SIWA session receipt or a signing credential. */
+export function redactX402Secrets(value: unknown, path: readonly string[] = []): unknown {
+  if (Array.isArray(value)) return value.map(entry => redactX402Secrets(entry, path));
+  if (!value || typeof value !== "object") return value;
+  const publicTerms = path.some(key => ["payment_required_response", "extra", "settlement"].includes(key));
+  const privateKeys = new Set([
+    "authorization", "proxyauthorization", "privatekey", "mnemonic", "seedphrase", "accesstoken", "refreshtoken", "idtoken",
+    "apikey", "xapikey", "secret", "clientsecret", "signedtx", "signedtransaction", "rawtransaction", "cookie", "setcookie",
+    "xsiwareceipt", "xkeyid", "bearertoken", "authheader", "sessionid", "paymentsignature", "paymentheader", "paymentheaders", "xpayment", "secretkey", "password", "seed",
+  ]);
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+    const normalized = key.replace(/[-_]/gu, "").toLowerCase();
+    const privateValue = privateKeys.has(normalized) ||
+      (!publicTerms && ["signature", "token"].includes(normalized)) ||
+      (!publicTerms && normalized === "receipt" && typeof entry === "string");
+    return [key, privateValue ? REDACTED : redactX402Secrets(entry, [...path, key])];
+  }));
+}

@@ -63,11 +63,16 @@ export interface X402RequestFingerprint {
   request_hash: string;
 }
 
+export type X402PaymentStatus = "settled" | "not_paid" | "not_required" | "unknown";
+
 export interface X402DetailsResponse {
-  ok: true;
+  ok: boolean;
   payment_required: boolean;
   status: number;
   request: X402RequestFingerprint;
+  body_text?: string;
+  content_type?: string | null;
+  payment_required_response?: Record<string, unknown>;
   x402_version?: number;
   resource?: Record<string, unknown>;
   accepts?: X402SelectedPaymentRequirement[];
@@ -128,11 +133,13 @@ export interface X402ReceiptRecord {
   payment_required_hash: string;
   requirement_hash: string;
   settlement: Record<string, unknown> | null;
+  payment_status?: X402PaymentStatus;
   created_at: string;
 }
 
 export interface X402FetchResponse {
   ok: boolean;
+  payment_status: X402PaymentStatus;
   status: number;
   content_type: string | null;
   body_text: string;

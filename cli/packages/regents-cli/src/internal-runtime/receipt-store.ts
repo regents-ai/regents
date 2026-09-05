@@ -60,7 +60,7 @@ const buildShareCopy = (input: {
   if (input.budget_entry) {
     return `My agent recorded budget activity with reference ${input.budget_entry}.`;
   }
-  return `My agent completed an x402 payment with reference ${input.x402_payment_id}.`;
+  return `My agent recorded an x402 payment reference ${input.x402_payment_id}.`;
 };
 
 export const createReceipt = (

@@ -139,6 +139,7 @@ const requestFingerprint = (input: X402RequestInput): X402RequestFingerprint => 
 const requestInit = (input: X402RequestInput, extraHeaders: Record<string, string> = {}): RequestInit => {
   const request = normalizeRequest(input);
   return {
+    redirect: "error",
     method: request.method,
     headers: {
       ...request.headers,
@@ -438,10 +439,6 @@ const settlementFromHeaders = (headers: Headers): Record<string, unknown> | null
 };
 
 const fetchWithInjectedHeaders = (fetchImpl: FetchLike, headers: Record<string, string>): FetchLike => {
-  if (Object.keys(headers).length === 0) {
-    return fetchImpl;
-  }
-
   return (input, init) => {
     const merged = new Headers(headers);
     new Headers(init?.headers).forEach((value, key) => {
@@ -450,6 +447,7 @@ const fetchWithInjectedHeaders = (fetchImpl: FetchLike, headers: Record<string, 
 
     return fetchImpl(input, {
       ...init,
+      redirect: "error",
       headers: merged,
     });
   };
@@ -491,20 +489,23 @@ export class RegentX402Client {
 
     if (!discovered.paymentRequired) {
       return {
-        ok: true,
+        ok: discovered.response.ok,
         payment_required: false,
+        body_text: await discovered.response.text(),
+        content_type: discovered.response.headers.get("content-type"),
         status: discovered.status,
         request: discovered.request,
       };
     }
 
-    const paymentRequired = requirePaymentRequiredV2(discovered.paymentRequired);
+    const paymentRequired = discovered.paymentRequired;
 
     return {
       ok: true,
       payment_required: true,
       status: discovered.status,
       request: discovered.request,
+      payment_required_response: paymentRequired as unknown as Record<string, unknown>,
       x402_version: paymentRequired.x402Version,
       resource: paymentRequired.resource as unknown as Record<string, unknown>,
       accepts: paymentRequired.accepts
@@ -518,6 +519,7 @@ export class RegentX402Client {
   async quote(input: X402QuoteParams): Promise<X402QuoteResponse> {
     const discovered = await this.discover(input);
     if (!discovered.paymentRequired) {
+      if (!discovered.response.ok) throw new RegentError("x402_http_error", `The resource returned HTTP ${discovered.status} without a payment challenge.`);
       throw new RegentError("x402_payment_not_required", "The x402 resource did not request payment.");
     }
 
@@ -572,11 +574,11 @@ export class RegentX402Client {
       next_action: input.approve
         ? {
             kind: "fetch",
-            command: `regents x402 fetch --intent-id ${intent.intent_id} --url ${quote.request.url}`,
+            command: `regents x402 fetch --intent-id ${intent.intent_id} --url <original-url> [original method, headers and body]`,
           }
         : {
             kind: "approve_locally",
-            command: `regents x402 prepare --url ${quote.request.url} --approve`,
+            command: "regents x402 prepare --url <original-url> [original method, headers and body] --approve",
           },
     };
   }
@@ -593,14 +595,15 @@ export class RegentX402Client {
       throw new RegentError("x402_intent_expired", "The x402 intent has expired.");
     }
 
-    const discovered = await this.discover(input);
-    compareApprovedRequest(intent, discovered.request);
+    compareApprovedRequest(intent, requestFingerprint(input));
     compareApprovedBinding(intent);
+    const discovered = await this.discover(input);
 
     if (!discovered.paymentRequired) {
       const bodyText = await discovered.response.text();
       return {
         ok: discovered.response.ok,
+        payment_status: "not_required",
         status: discovered.response.status,
         content_type: discovered.response.headers.get("content-type"),
         body_text: bodyText,
@@ -616,38 +619,42 @@ export class RegentX402Client {
       intent.selected.network,
       intent.max_deposit_amount,
     );
-    const paymentPayload = await httpClient.createPaymentPayload(discovered.paymentRequired);
-    const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
-    const paidResponse = await this.fetch(input.url, requestInit(input, paymentHeaders));
-    const bodyText = await paidResponse.text();
     const createdAt = nowIso();
-    const receipt = this.store.saveReceipt({
+    let receipt: X402ReceiptRecord = this.store.saveReceipt({
       receipt_id: `x402_receipt_${crypto.randomUUID()}`,
       intent_id: intent.intent_id,
       url: intent.request.url,
       method: intent.request.method,
-      status: paidResponse.status,
-      ok: paidResponse.ok,
+      status: 0,
+      ok: false,
+      payment_status: "unknown",
       payment_required_hash: intent.payment_required_hash,
       requirement_hash: intent.selected.requirement_hash,
-      settlement: settlementFromHeaders(paidResponse.headers),
+      settlement: null,
       created_at: createdAt,
     });
+    // Payload creation may fund a batch channel. Save recovery identity before
+    // any potentially consequential phase; this intent must not auto-retry.
+    this.store.saveIntent({...intent, approval_status: "used", used_at: createdAt, receipt_id: receipt.receipt_id});
 
-    this.store.saveIntent({
-      ...intent,
-      approval_status: "used",
-      used_at: createdAt,
-      receipt_id: receipt.receipt_id,
-    });
-
-    return {
-      ok: paidResponse.ok,
-      status: paidResponse.status,
-      content_type: paidResponse.headers.get("content-type"),
-      body_text: bodyText,
-      receipt,
-    };
+    try {
+      const paymentPayload = await httpClient.createPaymentPayload(discovered.paymentRequired);
+      const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
+      const paidResponse = await this.fetch(input.url, requestInit(input, paymentHeaders));
+      const settlement = settlementFromHeaders(paidResponse.headers);
+      const paymentStatus = settlement?.success === true &&
+        typeof settlement.transaction === "string" && settlement.transaction.length > 0 &&
+        settlement.network === intent.selected.network ? "settled"
+        : settlement?.success === false ? "not_paid" : "unknown";
+      receipt = this.store.saveReceipt({...receipt, status: paidResponse.status, ok: paidResponse.ok,
+        settlement, payment_status: paymentStatus});
+      const bodyText = await paidResponse.text();
+      return {ok: paidResponse.ok, payment_status: paymentStatus, status: paidResponse.status,
+        content_type: paidResponse.headers.get("content-type"), body_text: bodyText, receipt};
+    } catch {
+      return {ok: false, payment_status: receipt.payment_status ?? "unknown", status: receipt.status,
+        content_type: null, body_text: "The payment or response could not be completed. Check the saved receipt before another payment.", receipt};
+    }
   }
 
   receiptGet(input: { id: string }): X402ReceiptGetResponse {
@@ -710,6 +717,14 @@ export class RegentX402Client {
 
     try {
       const paymentRequired = parser.getPaymentRequiredResponse((name) => response.headers.get(name), body);
+      if (!isRecord(paymentRequired) || !Number.isInteger(paymentRequired.x402Version) ||
+        !isRecord(paymentRequired.resource) || !Array.isArray(paymentRequired.accepts) ||
+        !paymentRequired.accepts.every((offer) => isRecord(offer) &&
+          (["scheme", "network", "asset", "amount", "payTo"] as const).every((key) => typeof offer[key] === "string") &&
+          /^\d+$/.test(offer.amount) && typeof offer.maxTimeoutSeconds === "number" &&
+          Number.isFinite(offer.maxTimeoutSeconds) && offer.maxTimeoutSeconds > 0)) {
+        throw new Error("Malformed PaymentRequired");
+      }
       return {
         status: response.status,
         request,

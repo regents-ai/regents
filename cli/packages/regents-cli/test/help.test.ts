@@ -42,6 +42,21 @@ describe("scoped CLI help", () => {
     expect(status.stdout).toContain("not a local-key or external-wallet check");
   });
 
+  it("exposes both payment rails, original request flags and recovery guidance", async () => {
+    const output = await captureOutput(() => runCliEntrypoint(["x402", "pay", "--help"]));
+    expect(output.result).toBe(0);
+    for (const flag of ["agentic-wallet|regent-wallet", "--method", "--body", "--header", "--approve"]) {
+      expect(output.stdout).toContain(flag);
+    }
+    expect(output.stdout).toContain("payment_status");
+    expect(output.stdout).toContain("provider_correlation_id");
+    expect(output.stdout).toContain("do not automatically pay again");
+    const details = await captureOutput(() => runCliEntrypoint(["x402", "details", "--help"]));
+    expect(details.stdout).toContain("payment_required_response");
+    expect(details.stdout).toContain("may execute if no payment is required");
+    expect(details.stdout).not.toContain("wallet agentic status");
+  });
+
   it("renders command-level help", async () => {
     const output = await captureOutput(() =>
       runCliEntrypoint(["autolaunch", "jobs", "watch", "--help"]),

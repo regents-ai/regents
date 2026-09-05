@@ -513,3 +513,113 @@ describe("Regent x402 wrapper", () => {
   });
   });
 });
+
+describe("external x402 protocol and payment outcome fidelity", () => {
+  let stateDir: string;
+  beforeEach(() => { stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "regent-x402-interop-")); });
+  afterEach(() => { fs.rmSync(stateDir, {recursive: true, force: true}); });
+
+  it("exposes every offered protocol term and extension without a signer", async () => {
+    const requirement = {...createPaymentRequired("https://example.test/paid", "123456789012345678901234567890"),
+      accepts: [createExactRequirement("1000"), {scheme: "future-scheme", network: "solana:future", asset: "mint", amount: "123456789012345678901234567890", payTo: "recipient", maxTimeoutSeconds: 60, extra: {future: ["whole"]}}],
+      extensions: {"payment-identifier": {info: {id: "opaque/id+=value"}}, custom: {exact: "🔥"}},
+    };
+    const signer = {toViemAccount: () => { throw new Error("must not request signer"); }} as unknown as SignerBackend;
+    const client = new RegentX402Client({stateDir, signer, fetch: async () => new Response(null, {
+      status: 402, headers: {"payment-required": encodeHeader(requirement)},
+    })});
+    const details = await client.details({url: "https://example.test/paid"});
+    expect(details.payment_required_response).toEqual(requirement);
+    expect(details.accepts).toHaveLength(1);
+  });
+
+  for (const status of [200, 401, 403, 404, 500]) {
+    it(`keeps the product body and HTTP outcome without a 402 challenge: ${status}`, async () => {
+      const client = new RegentX402Client({stateDir, signer: createSigner(), fetch: async () => new Response("original result", {status, headers: {"content-type": "text/plain", "set-cookie": "secret"}})});
+      const details = await client.details({url: "https://example.test/paid"});
+      expect(details.ok).toBe(status === 200);
+      expect(details.status).toBe(status);
+      expect(details.body_text).toBe("original result");
+      expect(details.content_type).toBe("text/plain");
+      expect(JSON.stringify(details)).not.toContain("secret");
+    });
+  }
+
+  it("compares the approved operation before sending a changed authenticated request", async () => {
+    let requests = 0;
+    const client = new RegentX402Client({stateDir, signer: createSigner(), fetch: async () => {
+      requests++;
+      return new Response(null, {status: 402, headers: {"payment-required": encodeHeader(createPaymentRequired("https://example.test/paid", "1000"))}});
+    }});
+    const prepared = await client.prepare({url: "https://example.test/paid", method: "POST", headers: {authorization: "original-private-credential"}, body: '{"a":1}', approve: true});
+    await expect(client.fetchApproved({intent_id: prepared.intent.intent_id, url: "https://other.test/paid", method: "POST", headers: {authorization: "secret"}, body: '{"a":2}'})).rejects.toMatchObject({code: "x402_request_changed"});
+    expect(requests).toBe(1);
+    expect(prepared.next_action.command).not.toContain("original-private-credential");
+  });
+
+  for (const outcome of ["settled_error", "no_evidence", "lost", "body_lost", "refused"]) {
+    it(`saves stable recovery and separates settlement from product result: ${outcome}`, async () => {
+      let signedCalls = 0;
+      const url = "https://example.test/paid";
+      const fetch: typeof globalThis.fetch = async (_url, init) => {
+        expect(init?.redirect).toBe("error");
+        if (!new Headers(init?.headers).has("payment-signature")) {
+          return new Response(null, {status: 402, headers: {"payment-required": encodeHeader(createPaymentRequired(url, "1000"))}});
+        }
+        signedCalls++;
+        if (outcome === "lost") throw new Error("network response lost");
+        const headers = outcome === "no_evidence" ? {} : {"payment-response": encodeHeader({success: outcome !== "refused", transaction: "0xtransaction", network: "eip155:8453"})};
+        const response = new Response("product failed", {status: 500, headers});
+        if (outcome === "body_lost") response.text = async () => { throw new Error("body lost"); };
+        return response;
+      };
+      const client = new RegentX402Client({stateDir, signer: createSigner(), fetch});
+      const prepared = await client.prepare({url, approve: true});
+      const result = await client.fetchApproved({url, intent_id: prepared.intent.intent_id});
+      expect(result.ok).toBe(false);
+      expect(result.payment_status).toBe(["settled_error", "body_lost"].includes(outcome) ? "settled" : outcome === "refused" ? "not_paid" : "unknown");
+      expect(result.receipt?.receipt_id).toBeDefined();
+      expect(client.receiptGet({id: result.receipt!.receipt_id}).receipt).toEqual(result.receipt);
+      expect(client.store.getIntent(prepared.intent.intent_id)?.receipt_id).toBe(result.receipt?.receipt_id);
+      await expect(client.fetchApproved({url, intent_id: prepared.intent.intent_id})).rejects.toMatchObject({code: "x402_intent_not_approved"});
+      expect(signedCalls).toBe(1);
+    });
+  }
+});
+
+describeNetwork("redirect credential protection", () => {
+  it("does not follow discovery or signed-payment redirects to another origin", async () => {
+    const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "regent-x402-redirect-"));
+    let escaped = 0, mode = "discover", originalUrl = "", targetUrl = "";
+    const target = http.createServer((_request, response) => { escaped++; response.end("must not be reached"); });
+    const original = http.createServer((request, response) => {
+      if (mode === "discover" || request.headers["payment-signature"]) {
+        response.writeHead(302, {location: targetUrl}); response.end(); return;
+      }
+      response.writeHead(402, {"payment-required": encodeHeader(createPaymentRequired(originalUrl, "1000"))}); response.end();
+    });
+    const listen = async (server: http.Server) => {
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("fixture did not listen");
+      return `http://127.0.0.1:${address.port}/paid`;
+    };
+    const stop = (server: http.Server) => new Promise<void>(resolve => server.close(() => resolve()));
+    try {
+      targetUrl = await listen(target); originalUrl = await listen(original);
+      const client = new RegentX402Client({stateDir, signer: createSigner()});
+      const request = {url: originalUrl, headers: {authorization: "synthetic-secret", cookie: "synthetic-session"}};
+      await expect(client.details(request)).rejects.toThrow();
+      expect(escaped).toBe(0);
+      mode = "pay";
+      const prepared = await client.prepare({...request, approve: true});
+      const paid = await client.fetchApproved({...request, intent_id: prepared.intent.intent_id});
+      expect(paid.payment_status).toBe("unknown");
+      expect(paid.receipt?.receipt_id).toBeDefined();
+      expect(escaped).toBe(0);
+    } finally {
+      await Promise.all([stop(original), stop(target)]);
+      fs.rmSync(stateDir, {recursive: true, force: true});
+    }
+  });
+});

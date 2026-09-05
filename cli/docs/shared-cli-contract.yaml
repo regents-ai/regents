@@ -192,23 +192,23 @@ x-regent-mcp-tools:
       dispatch: policy-text
     - name: regents.x402.details
       title: Read x402 payment details
-      description: Inspect a protected URL and return the x402 payment terms without paying.
-      risk_class: read
+      description: Send the original HTTP request without signing. It may execute if the endpoint needs no payment. Return complete PaymentRequired offers and extensions for an external client.
+      risk_class: prepare
       owner: shared-services
       auth_mode: local
       dispatch: runtime-rpc
       rpc_method: x402.details
     - name: regents.x402.quote
       title: Quote x402 payment
-      description: Select the Regent-supported x402 payment option without paying.
-      risk_class: read
+      description: Send the original HTTP request and select a supported payment option without signing. It may execute if the endpoint needs no payment.
+      risk_class: prepare
       owner: shared-services
       auth_mode: local
       dispatch: runtime-rpc
       rpc_method: x402.quote
     - name: regents.x402.intent.prepare
       title: Prepare x402 intent
-      description: Prepare an x402 payment intent. This does not approve or pay.
+      description: Send the original HTTP request and prepare an x402 intent without approving or signing. The HTTP operation may execute if the endpoint needs no payment.
       risk_class: prepare
       owner: shared-services
       auth_mode: local
@@ -216,7 +216,7 @@ x-regent-mcp-tools:
       rpc_method: x402.prepare
     - name: regents.x402.fetch
       title: Fetch approved x402 resource
-      description: Fetch an x402 resource only after a matching Regent x402 intent has already been approved.
+      description: Fetch an approved matching request without following redirects. Report product HTTP status separately from payment settlement; unknown outcomes retain a receipt for recovery.
       risk_class: write
       owner: shared-services
       auth_mode: local
@@ -240,7 +240,7 @@ x-regent-mcp-tools:
       rpc_method: x402.receipts.get
     - name: regents.x402.header.prepare
       title: Prepare x402 header
-      description: Return the current policy for AgentKit/x402 header preparation.
+      description: Explain external x402 client support; this tool does not implement a raw payment-header signer.
       risk_class: prepare
       owner: shared-services
       auth_mode: agent-siwa
@@ -1041,10 +1041,22 @@ command_groups:
       - x402 receipts get
     flags:
       x402 pay:
+        - name: --method
+          type: string
+          required: false
+          description: Exact HTTP method. Unsupported request forms are rejected before payment dispatch.
+        - name: --body
+          type: string
+          required: false
+          description: Exact request body. Agentic Wallet accepts only canonical JSON objects or arrays.
+        - name: --header
+          type: string
+          required: false
+          description: Repeatable request header for the Regent rail. Agentic Wallet rejects caller headers because provider redirects cannot be disabled.
         - name: --budget
           type: string
           required: true
-          description: Regent budget that approves this payment.
+          description: Local Regent accounting budget for this payment; this is not signer-enforced spending authority.
         - name: --max-usdc
           type: decimal-usd
           required: true
@@ -1065,7 +1077,7 @@ command_groups:
         - name: --receipt
           type: boolean
           required: false
-          description: Create a local Regent receipt after a successful payment.
+          description: Create a local reference receipt; it is not independent proof of settlement.
     command_flags:
       x402 details:
         - name: url

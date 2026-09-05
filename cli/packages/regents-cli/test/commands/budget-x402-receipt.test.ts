@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { runBudgetGrant } from "../../src/commands/budget.js";
 import { runReceiptShareDraft } from "../../src/commands/receipt.js";
 import { runX402Pay, runX402Refund } from "../../src/commands/x402.js";
@@ -14,457 +12,163 @@ import { parseCliArgs } from "../../src/parse.js";
 import { captureOutput, parsePrintedJson } from "../helpers/output.js";
 
 const { runAwalJsonMock, kernelCallMock, kernelStopMock } = vi.hoisted(() => ({
-  runAwalJsonMock: vi.fn(),
-  kernelCallMock: vi.fn(),
-  kernelStopMock: vi.fn(),
+  runAwalJsonMock: vi.fn(), kernelCallMock: vi.fn(), kernelStopMock: vi.fn(),
 }));
-
-vi.mock("../../src/internal-runtime/agentic-wallet/awal.js", () => ({
-  AWAL_VERSION: "2.10.0",
-  runAwalJson: runAwalJsonMock,
+vi.mock("../../src/internal-runtime/agentic-wallet/awal.js", async importOriginal => ({
+  ...await importOriginal<typeof import("../../src/internal-runtime/agentic-wallet/awal.js")>(), runAwalJson: runAwalJsonMock,
 }));
-
 vi.mock("../../src/internal-runtime/runtime.js", () => ({
-  RegentKernel: vi.fn().mockImplementation(() => ({
-    call: kernelCallMock,
-    stop: kernelStopMock,
-  })),
+  RegentKernel: vi.fn().mockImplementation(() => ({call: kernelCallMock, stop: kernelStopMock})),
 }));
 
-const makeConfigPath = (): string => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "regents-budget-x402-"));
-  const configPath = path.join(tempDir, "regent.config.json");
+const grant = async (rail = "agentic-wallet", mode = "techtree_research") => {
+  const configPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "regents-budget-x402-")), "regent.config.json");
   writeInitialConfig(configPath);
-  return configPath;
+  const output = await captureOutput(() => runBudgetGrant(parseCliArgs([
+    "budget", "grant", "--agent", "agent_123", "--amount-usdc", "10", "--max-payment-usdc", "0.25",
+    "--mode", mode, "--rail", rail, "--expires", "7d", "--json",
+  ]), configPath));
+  return {configPath, id: parsePrintedJson(output.stdout).budget.budget_id as string, rail};
 };
+const pay = (budget: Awaited<ReturnType<typeof grant>>, extra: string[] = []) => captureOutput(() => runX402Pay(parseCliArgs([
+  "x402", "pay", "https://api.example.com/paid", "--budget", budget.id,
+  "--max-usdc", "0.25", "--rail", budget.rail, "--receipt", "--json", ...extra,
+]), budget.configPath));
+const current = (budget: Awaited<ReturnType<typeof grant>>) => readBudgetFile(loadConfig(budget.configPath)).budgets[0]!;
+const selected = {scheme: "exact", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", amount: "100000"};
 
-describe("budget, guarded x402, and local receipts", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    kernelStopMock.mockResolvedValue(undefined);
-    runAwalJsonMock.mockResolvedValue({
-      ok: true,
-      command: ["npx", "-y", "awal@2.10.0", "x402", "pay"],
-      data: { ok: true, payment_id: "awal_payment_1" },
-    });
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
+  kernelStopMock.mockResolvedValue(undefined);
+  runAwalJsonMock.mockResolvedValue({ok: true, command: [], data: {
+    status: 200, paymentMade: true, amountPaid: "100000", payment_id: "awal_payment_1", data: {answer: "synthetic"},
+  }});
+});
 
-  it("converts max USDC exactly and decrements budget only after payment succeeds", async () => {
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "10",
-          "--max-payment-usdc",
-          "0.25",
-          "--mode",
-          "techtree_research",
-          "--rail",
-          "agentic-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
-
-    const payOutput = await captureOutput(() =>
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.25",
-          "--rail",
-          "agentic-wallet",
-          "--receipt",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-
+describe("budget-backed x402 outcomes", () => {
+  it("preserves the POST body and records reported spend rather than the maximum", async () => {
+    const budget = await grant();
+    const output = await pay(budget, ["--method", "POST", "--body", '{"note":"synthetic"}']);
+    const result = parsePrintedJson(output.stdout);
     expect(runAwalJsonMock).toHaveBeenCalledWith([
-      "x402",
-      "pay",
-      "https://api.example.com/paid",
-      "--max-amount",
-      "250000",
-      "--json",
+      "x402", "pay", "https://api.example.com/paid", "--method", "POST", "--data", '{"note":"synthetic"}',
+      "--max-amount", "250000", "--json", "--correlation-id", result.reservation_id,
     ]);
-    const paid = parsePrintedJson<{
-      budget: { remaining_usdc: string; ledger: Array<{ entry_id: string; type: string; rail?: string; reference?: string; reservation_id?: string }> };
-      receipt: { receipt_id: string; recognized_revenue: boolean; x402: { payments: string[] } };
-    }>(payOutput.stdout);
-    expect(paid.budget.remaining_usdc).toBe("9.75");
-    expect(paid.budget.ledger.at(-2)).toEqual(expect.objectContaining({
-      type: "reserve",
-      rail: "agentic-wallet",
-      reference: "https://api.example.com/paid",
-    }));
-    expect(paid.budget.ledger.at(-1)).toEqual(expect.objectContaining({
-      type: "settle",
-      rail: "agentic-wallet",
-      reference: "awal_payment_1",
-      reservation_id: paid.budget.ledger.at(-2)!.entry_id,
-    }));
-    expect(paid.receipt.recognized_revenue).toBe(false);
-    expect(paid.receipt.x402.payments).toEqual(["awal_payment_1"]);
-
-    const shareOutput = await captureOutput(() =>
-      runReceiptShareDraft(parseCliArgs(["receipt", "share-draft", "--receipt", paid.receipt.receipt_id]), configPath),
-    );
-    expect(shareOutput.stdout).toContain("not a revenue claim");
+    expect(result.payment_status).toBe("settled");
+    expect(result.settlement_evidence).toBe("provider_reported");
+    expect(result.budget.remaining_usdc).toBe("9.9");
+    expect(result.budget.ledger.at(-1)).toMatchObject({type: "settle", amount_usdc: "0.1", reference: "awal_payment_1"});
+    const shared = await captureOutput(() => runReceiptShareDraft(parseCliArgs([
+      "receipt", "share-draft", "--receipt", result.receipt.receipt_id,
+    ]), budget.configPath));
+    expect(shared.stdout).toContain("recorded an x402 payment reference");
+    expect(shared.stdout).not.toContain("completed an x402 payment");
   });
 
-  it("uses the local budget ledger as the receipt source when Agentic Wallet does not return a payment id", async () => {
-    runAwalJsonMock.mockResolvedValueOnce({
-      ok: true,
-      command: ["npx", "-y", "awal@2.10.0", "x402", "pay"],
-      data: { ok: true },
+  for (const response of [{ok: true}, {status: 200, payment_id: "not-proof"}, {status: 200, paymentMade: true}]) {
+    it(`retains reservation without complete provider evidence ${JSON.stringify(response)}`, async () => {
+      runAwalJsonMock.mockResolvedValueOnce({ok: true, data: response});
+      const budget = await grant();
+      const result = parsePrintedJson((await pay(budget)).stdout);
+      expect(result.payment_status).toBe("unknown");
+      expect(result.ok).toBe(false);
+      expect(result.accounting_status).toBe("reserved");
+      expect(result.budget.remaining_usdc).toBe("9.75");
+      expect(result.provider_correlation_id).toBe(result.reservation_id);
+      expect(result.reported_spend_usdc).toBeUndefined();
+      expect(current(budget).ledger.at(-1)?.type).toBe("reserve");
     });
+  }
 
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "1",
-          "--max-payment-usdc",
-          "0.10",
-          "--mode",
-          "techtree_research",
-          "--rail",
-          "agentic-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
-
-    const payOutput = await captureOutput(() =>
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.10",
-          "--rail",
-          "agentic-wallet",
-          "--receipt",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-
-    const paid = parsePrintedJson<{
-      budget: { ledger: Array<{ entry_id: string; type: string; rail?: string; reference?: string }> };
-      receipt: { kind: string; budget: { ledger_entry: string } };
-    }>(payOutput.stdout);
-    const spendEntry = paid.budget.ledger.at(-1)!;
-    expect(spendEntry.type).toBe("settle");
-    expect(spendEntry.rail).toBe("agentic-wallet");
-    expect(spendEntry.reference).toBeUndefined();
-    expect(paid.receipt.kind).toBe("budget_entry");
-    expect(paid.receipt.budget.ledger_entry).toBe(spendEntry.entry_id);
+  it("retains the reservation and correlation identity after a possibly submitted provider error", async () => {
+    runAwalJsonMock.mockRejectedValueOnce(new Error("sensitive raw command/body must not appear"));
+    const budget = await grant();
+    const output = await pay(budget);
+    const result = parsePrintedJson(output.stdout);
+    expect(result.payment_status).toBe("unknown");
+    expect(result.accounting_status).toBe("reserved");
+    expect(result.provider_correlation_id).toBe(result.reservation_id);
+    expect(output.stdout).not.toContain("sensitive raw command");
+    expect(current(budget).remaining_usdc).toBe("9.75");
+    expect(runAwalJsonMock).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects over-budget x402 pay before calling Agentic Wallet", async () => {
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "1",
-          "--max-payment-usdc",
-          "0.10",
-          "--mode",
-          "techtree_research",
-          "--rail",
-          "agentic-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
+  it("records a settled payment even when the product HTTP operation failed", async () => {
+    runAwalJsonMock.mockResolvedValueOnce({ok: true, data: {status: 500, paymentMade: true, amountPaid: 100000, paymentId: "paid_500"}});
+    const result = parsePrintedJson((await pay(await grant())).stdout);
+    expect(result.ok).toBe(false);
+    expect(result.http_status).toBe(500);
+    expect(result.payment_status).toBe("settled");
+    expect(result.budget.remaining_usdc).toBe("9.9");
+  });
 
-    await expect(
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.25",
-          "--rail",
-          "agentic-wallet",
-          "--json",
-        ]),
-        configPath,
-      ),
-    ).rejects.toThrow("--max-usdc is larger than this budget allows.");
+  it("releases a reservation only for an explicit no-payment response", async () => {
+    runAwalJsonMock.mockResolvedValueOnce({ok: true, data: {status: 402, paymentMade: false}});
+    const result = parsePrintedJson((await pay(await grant())).stdout);
+    expect(result.payment_status).toBe("not_paid");
+    expect(result.budget.remaining_usdc).toBe("10");
+    expect(result.budget.ledger.at(-1).type).toBe("release");
+  });
+
+  for (const extra of [["--header", "authorization: private"], ["--method", "POST", "--body", '{ "n":1 }'],
+    ["--method", "POST", "--body", '{"n":9007199254740993}']]) {
+    it(`rejects unsupported request form before provider dispatch: ${extra[0]}`, async () => {
+      const budget = await grant();
+      await expect(pay(budget, extra)).rejects.toThrow(/Agentic Wallet/);
+      expect(runAwalJsonMock).not.toHaveBeenCalled();
+      expect(current(budget).ledger.at(-1)?.type).toBe("grant");
+    });
+  }
+
+  it("checks the local grant before calling the provider", async () => {
+    const budget = await grant();
+    await expect(captureOutput(() => runX402Pay(parseCliArgs(["x402", "pay", "https://api.example.com/paid", "--budget", budget.id, "--max-usdc", "0.5", "--rail", "agentic-wallet", "--json"]), budget.configPath))).rejects.toThrow(/larger than this budget/);
     expect(runAwalJsonMock).not.toHaveBeenCalled();
   });
 
-  it("releases a reserved budget when payment fails before completion", async () => {
-    runAwalJsonMock.mockRejectedValueOnce(new Error("wallet denied"));
-
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "1",
-          "--max-payment-usdc",
-          "0.10",
-          "--mode",
-          "techtree_research",
-          "--rail",
-          "agentic-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
-
-    await expect(
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.10",
-          "--rail",
-          "agentic-wallet",
-          "--json",
-        ]),
-        configPath,
-      ),
-    ).rejects.toThrow("wallet denied");
-
-    const budget = readBudgetFile(loadConfig(configPath)).budgets[0]!;
-    expect(budget.remaining_usdc).toBe("1");
-    expect(budget.ledger.at(-2)).toEqual(expect.objectContaining({
-      type: "reserve",
-      amount_usdc: "0.1",
-    }));
-    expect(budget.ledger.at(-1)).toEqual(expect.objectContaining({
-      type: "release",
-      amount_usdc: "0.1",
-      reservation_id: budget.ledger.at(-2)!.entry_id,
-    }));
-  });
-
-  it("uses the Regent wallet rail and records the actual x402 receipt amount", async () => {
-    kernelCallMock
-      .mockResolvedValueOnce({
-        ok: true,
-        intent: {
-          intent_id: "x402_intent_1",
-          selected: { amount: "100000" },
-        },
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        content_type: "application/json",
-        body_text: "{\"ok\":true}",
-        receipt: {
-          receipt_id: "x402_receipt_1",
-          intent_id: "x402_intent_1",
-          status: 200,
-          ok: true,
-        },
-      });
-
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "10",
-          "--max-payment-usdc",
-          "0.25",
-          "--mode",
-          "techtree_research",
-          "--rail",
-          "regent-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
-
-    const payOutput = await captureOutput(() =>
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.25",
-          "--rail",
-          "regent-wallet",
-          "--receipt",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-
-    expect(kernelCallMock).toHaveBeenNthCalledWith(1, "x402.prepare", expect.objectContaining({
-      approve: true,
-      max_amount: "250000",
-      url: "https://api.example.com/paid",
-    }));
-    expect(kernelCallMock).toHaveBeenNthCalledWith(2, "x402.fetch", expect.objectContaining({
-      intent_id: "x402_intent_1",
-      url: "https://api.example.com/paid",
-    }));
-    expect(runAwalJsonMock).not.toHaveBeenCalled();
-
-    const paid = parsePrintedJson<{
-      budget: { remaining_usdc: string; ledger: Array<{ entry_id?: string; type: string; rail?: string; reference?: string; reservation_id?: string }> };
-      receipt: { receipt_id: string };
-    }>(payOutput.stdout);
-    expect(paid.budget.remaining_usdc).toBe("9.9");
-    expect(paid.budget.ledger.at(-2)).toEqual(expect.objectContaining({
-      type: "reserve",
-      rail: "regent-wallet",
-      reference: "https://api.example.com/paid",
-    }));
-    expect(paid.budget.ledger.at(-1)).toEqual(expect.objectContaining({
-      type: "settle",
-      rail: "regent-wallet",
-      reference: "x402_receipt_1",
-      reservation_id: paid.budget.ledger.at(-2)!.entry_id,
-    }));
-    expect(paid.receipt.receipt_id).toMatch(/^rcpt_/u);
-  });
-
-  it("requires explicit approval for paid service budgets", async () => {
-    const configPath = makeConfigPath();
-    const grantOutput = await captureOutput(() =>
-      runBudgetGrant(
-        parseCliArgs([
-          "budget",
-          "grant",
-          "--agent",
-          "agent_123",
-          "--amount-usdc",
-          "1",
-          "--max-payment-usdc",
-          "0.10",
-          "--mode",
-          "paid_service",
-          "--rail",
-          "agentic-wallet",
-          "--expires",
-          "7d",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-    const grant = parsePrintedJson<{ budget: { budget_id: string } }>(grantOutput.stdout);
-
-    await expect(
-      runX402Pay(
-        parseCliArgs([
-          "x402",
-          "pay",
-          "https://api.example.com/paid",
-          "--budget",
-          grant.budget.budget_id,
-          "--max-usdc",
-          "0.10",
-          "--rail",
-          "agentic-wallet",
-          "--json",
-        ]),
-        configPath,
-      ),
-    ).rejects.toThrow("Paid service budgets require --approve before payment.");
+  it("preserves explicit approval for paid-service budgets", async () => {
+    await expect(pay(await grant("agentic-wallet", "paid_service"))).rejects.toThrow(/require --approve/);
     expect(runAwalJsonMock).not.toHaveBeenCalled();
   });
 
-  it("runs x402 refund through the local runtime", async () => {
-    kernelCallMock.mockResolvedValueOnce({
-      ok: true,
-      url: "https://api.example.com/paid",
-      amount: "1000",
-      settlement: { success: true },
+  for (const paymentStatus of ["settled", "unknown"]) {
+    it(`keeps Regent settlement separate from a failed product result: ${paymentStatus}`, async () => {
+      kernelCallMock.mockResolvedValueOnce({ok: true, intent: {intent_id: "intent_1", selected}})
+        .mockResolvedValueOnce({ok: false, status: 500, payment_status: paymentStatus, receipt: {receipt_id: "receipt_1"}});
+      const result = parsePrintedJson((await pay(await grant("regent-wallet"))).stdout);
+      expect(result.ok).toBe(false);
+      expect(result.payment_status).toBe(paymentStatus);
+      expect(result.budget.remaining_usdc).toBe(paymentStatus === "settled" ? "9.9" : "9.75");
+      expect(result.payment_reference).toBe("receipt_1");
+      expect(result.intent_id).toBe("intent_1");
     });
+  }
 
-    const configPath = makeConfigPath();
-    const refundOutput = await captureOutput(() =>
-      runX402Refund(
-        parseCliArgs([
-          "x402",
-          "refund",
-          "--url",
-          "https://api.example.com/paid",
-          "--amount",
-          "1000",
-          "--json",
-        ]),
-        configPath,
-      ),
-    );
-
-    expect(kernelCallMock).toHaveBeenCalledWith("x402.refund", {
-      url: "https://api.example.com/paid",
-      amount: "1000",
+  for (const changed of [{asset: "0x0000000000000000000000000000000000000000"}, {network: "eip155:1"}, {scheme: "batch-settlement"}]) {
+    it(`rejects an unsupported USDC-budget requirement before signing: ${JSON.stringify(changed)}`, async () => {
+      kernelCallMock.mockResolvedValueOnce({ok: true, intent: {intent_id: "intent_1", selected: {...selected, ...changed}}});
+      const budget = await grant("regent-wallet");
+      await expect(pay(budget)).rejects.toThrow(/USDC budgets support exact/);
+      expect(kernelCallMock).toHaveBeenCalledTimes(1);
+      expect(current(budget).remaining_usdc).toBe("10");
+      expect(current(budget).ledger.at(-1)?.type).toBe("release");
     });
-    expect(parsePrintedJson<{ ok: boolean }>(refundOutput.stdout).ok).toBe(true);
+  }
+
+  it("runs raw atomic refunds through the existing local runtime", async () => {
+    kernelCallMock.mockResolvedValueOnce({ok: true, settlement: {success: true}});
+    const budget = await grant();
+    await captureOutput(() => runX402Refund(parseCliArgs(["x402", "refund", "--url", "https://api.example.com/paid", "--amount", "1000", "--json"]), budget.configPath));
+    expect(kernelCallMock).toHaveBeenCalledWith("x402.refund", {url: "https://api.example.com/paid", amount: "1000"});
   });
 });
+
+for (const extra of [["--headers", "authorization: private"], ["--metho", "POST"], ["--approve=false"], ["--receipt=true"], ["--json=false"], ["--method"], ["--", "extra-url"]]) {
+  it(`rejects ambiguous paid CLI input before any dispatch or reservation: ${extra.join(" ")}`, async () => {
+    const budget = await grant();
+    await expect(pay(budget, extra)).rejects.toThrow();
+    expect(runAwalJsonMock).not.toHaveBeenCalled();
+    expect(kernelCallMock).not.toHaveBeenCalled();
+    expect(current(budget).ledger.at(-1)?.type).toBe("grant");
+  });
+}

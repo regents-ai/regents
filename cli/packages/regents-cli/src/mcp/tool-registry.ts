@@ -68,8 +68,8 @@ export const REGENTS_MCP_TOOL_DEFINITIONS: readonly RegentMcpToolDefinition[] = 
   {
     name: "regents.x402.details",
     title: "Read x402 payment details",
-    description: "Inspect a protected URL and return the x402 payment terms without paying.",
-    riskClass: "read",
+    description: "Send the original HTTP request without signing. It may execute if the endpoint needs no payment. Return complete PaymentRequired offers and extensions for an external client.",
+    riskClass: "prepare",
     owner: "shared-services",
     authMode: "local",
     rpcMethod: "x402.details",
@@ -77,8 +77,8 @@ export const REGENTS_MCP_TOOL_DEFINITIONS: readonly RegentMcpToolDefinition[] = 
   {
     name: "regents.x402.quote",
     title: "Quote x402 payment",
-    description: "Select the Regent-supported x402 payment option without paying.",
-    riskClass: "read",
+    description: "Send the original HTTP request and select a supported payment option without signing. It may execute if the endpoint needs no payment.",
+    riskClass: "prepare",
     owner: "shared-services",
     authMode: "local",
     rpcMethod: "x402.quote",
@@ -86,7 +86,7 @@ export const REGENTS_MCP_TOOL_DEFINITIONS: readonly RegentMcpToolDefinition[] = 
   {
     name: "regents.x402.intent.prepare",
     title: "Prepare x402 intent",
-    description: "Prepare an x402 payment intent. This does not approve or pay.",
+    description: "Send the original HTTP request and prepare an x402 intent without approving or signing. The HTTP operation may execute if the endpoint needs no payment.",
     riskClass: "prepare",
     owner: "shared-services",
     authMode: "local",
@@ -95,7 +95,7 @@ export const REGENTS_MCP_TOOL_DEFINITIONS: readonly RegentMcpToolDefinition[] = 
   {
     name: "regents.x402.fetch",
     title: "Fetch approved x402 resource",
-    description: "Fetch an x402 resource only after a matching Regent x402 intent has already been approved.",
+    description: "Fetch an approved matching request without following redirects. Report product HTTP status separately from payment settlement; unknown outcomes retain a receipt for recovery.",
     riskClass: "write",
     owner: "shared-services",
     authMode: "local",
@@ -122,7 +122,7 @@ export const REGENTS_MCP_TOOL_DEFINITIONS: readonly RegentMcpToolDefinition[] = 
   {
     name: "regents.x402.header.prepare",
     title: "Prepare x402 header",
-    description: "Return the current policy for AgentKit/x402 header preparation.",
+    description: "Explain external x402 client support; this tool does not implement a raw payment-header signer.",
     riskClass: "prepare",
     owner: "shared-services",
     authMode: "agent-siwa",

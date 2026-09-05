@@ -9808,10 +9808,28 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "output_envelope": "loose-object",
     "flags": [
       {
+        "name": "--method",
+        "type": "string",
+        "required": false,
+        "description": "Exact HTTP method. Unsupported request forms are rejected before payment dispatch."
+      },
+      {
+        "name": "--body",
+        "type": "string",
+        "required": false,
+        "description": "Exact request body. Agentic Wallet accepts only canonical JSON objects or arrays."
+      },
+      {
+        "name": "--header",
+        "type": "string",
+        "required": false,
+        "description": "Repeatable request header for the Regent rail. Agentic Wallet rejects caller headers because provider redirects cannot be disabled."
+      },
+      {
         "name": "--budget",
         "type": "string",
         "required": true,
-        "description": "Regent budget that approves this payment."
+        "description": "Local Regent accounting budget for this payment; this is not signer-enforced spending authority."
       },
       {
         "name": "--max-usdc",
@@ -9845,7 +9863,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
         "name": "--receipt",
         "type": "boolean",
         "required": false,
-        "description": "Create a local Regent receipt after a successful payment."
+        "description": "Create a local reference receipt; it is not independent proof of settlement."
       }
     ],
     "examples": [

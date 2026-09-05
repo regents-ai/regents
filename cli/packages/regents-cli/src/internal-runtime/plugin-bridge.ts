@@ -453,7 +453,7 @@ const regentSkills = (): Array<{ name: string; body: string }> => [
     name: "regent-runtime",
     body: `# Regent Runtime
 
-Use Regent plugin tools. Do not run raw shell, raw regents, raw awal, raw curl, or raw npx.
+Use Regent plugin tools where they cover the operation. Direct CLI or external x402 clients are also allowed under the same operator authority.
 Start with regent_setup_status, then regent_runtime_start.
 `,
   },
@@ -469,7 +469,7 @@ Keep paper notebooks tied to their arXiv or alphaXiv source when available.
     name: "regent-wallet-budget",
     body: `# Regent Wallet Budget
 
-Use Regent budget tools for spend checks. Do not call raw AWAL, raw wallet commands, or payment commands.
+Regent budgets are local accounting checks for budget-aware Regent calls, not signer-enforced delegation. Direct CLI and external x402 clients use their own signer policy under the same operator authority.
 Budgets are Regent policy for this runtime, not a place to keep funds.
 `,
   },
@@ -477,8 +477,8 @@ Budgets are Regent policy for this runtime, not a place to keep funds.
     name: "regent-x402",
     body: `# Regent x402
 
-Use regent_x402_pay_guarded for paid calls. Every payment needs a budget id and max USDC amount.
-Do not bypass Regent budgets with raw curl, raw npx, raw AWAL, or raw shell.
+Use regent_x402_pay_guarded with a local budget and maximum USDC when using Regent budget accounting.
+Alternatively use the direct CLI or an external x402 client under the same operator authority. Read complete payment_required_response from x402 details and retain the original authenticated request; the external client owns signing, payment and its receipt.
 `,
   },
   {

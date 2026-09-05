@@ -5,8 +5,9 @@ import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { RegentKernel } from "../../src/internal-runtime/runtime.js";
 import { runCliEntrypoint } from "../../src/index.js";
 import { writeInitialConfig } from "../../src/internal-runtime/index.js";
 import { startRegentsMcpHttpServer } from "../../src/mcp/http.js";
@@ -68,6 +69,11 @@ describe("Regents MCP server", () => {
       expect(toolNames).toContain("regents.runtime.status");
       expect(toolNames).toContain("regents.x402.fetch");
       expect(toolNames).toContain("regents.x402.refund");
+      for (const name of ["regents.x402.details", "regents.x402.quote", "regents.x402.intent.prepare", "regents.x402.fetch"]) {
+        expect(tools.tools.find(tool => tool.name === name)?.annotations).toMatchObject({
+          readOnlyHint: false, destructiveHint: true, idempotentHint: false,
+        });
+      }
       expect(toolNames).not.toContain("regents.wallet.action.submit");
       expect(toolNames.some((name) => name.startsWith("regents.techtree."))).toBe(false);
       expect(toolNames.some((name) => name.includes(".submit"))).toBe(false);
@@ -87,6 +93,43 @@ describe("Regents MCP server", () => {
     } finally {
       await client.close();
       await mcp.close();
+    }
+  });
+
+  it("preserves public x402 offers and receipts through actual MCP results while excluding credentials", async () => {
+    const raw = {x402Version: 2, accepts: [], extensions: {
+      signedOffer: {signature: "public-offer-signature", receipt: "public-offer-receipt", token: "public-protocol-token"},
+    }};
+    const receipt = {receipt_id: "x402_receipt_public", intent_id: "x402_intent_public",
+      payment_status: "settled", settlement: {success: true, transaction: `0x${"a".repeat(64)}`, network: "eip155:8453"}};
+    const call = vi.spyOn(RegentKernel.prototype, "call").mockResolvedValue({
+      ok: true, payment_required_response: raw, receipt,
+      privateKey: "private", access_token: "private", "payment-signature": "private",
+      headers: {authorization: "private", "x-siwa-receipt": "private"},
+    } as never);
+    const mcp = await createRegentsMcpServer({configPath, mode: "local-stdio"});
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({name: "x402-evidence-test", version: "0.0.0"});
+    await mcp.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    try {
+      for (const [name, args] of [
+        ["regents.x402.details", {url: "https://example.test/paid"}],
+        ["regents.x402.fetch", {url: "https://example.test/paid", intent_id: "x402_intent_public"}],
+        ["regents.x402.receipt.get", {id: "x402_receipt_public"}],
+      ] as const) {
+        const result = await client.callTool({name, arguments: args});
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent?.payment_required_response).toEqual(raw);
+        expect(result.structuredContent?.receipt).toEqual(receipt);
+        expect(result.structuredContent?.privateKey).toBe("[redacted]");
+        expect(result.structuredContent?.access_token).toBe("[redacted]");
+        expect(result.structuredContent?.["payment-signature"]).toBe("[redacted]");
+        expect(result.structuredContent?.headers).toEqual({authorization: "[redacted]", "x-siwa-receipt": "[redacted]"});
+        expect((result.content as Array<{text: string}>)[0].text).toContain("x402_receipt_public");
+      }
+    } finally {
+      call.mockRestore(); await client.close(); await mcp.close();
     }
   });
 

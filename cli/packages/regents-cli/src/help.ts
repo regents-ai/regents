@@ -103,8 +103,8 @@ const walletPrerequisites = [
 ];
 
 const paymentPrerequisites = [
-  "Run `regents wallet agentic status` before paid x402 work.",
-  "Run `regents budget status` and make sure the named budget has enough remaining allowance.",
+  "Use `regents wallet setup` to review existing wallet choices. Agentic Wallet is needed only for --rail agentic-wallet; --rail regent-wallet uses the configured local signer.",
+  "For budget-aware `x402 pay`, check the named local budget and the selected signer’s authority and funding separately.",
 ];
 
 const autolaunchFailureChecks = [
@@ -753,17 +753,18 @@ Object.assign(commandHelpOverlay, {
     ifItFails: ["If search has no results, broaden the query or inspect a known URL directly."],
   },
   "x402 pay": {
-    summary: "Make a capped paid x402 request through Regent budget policy.",
-    usage: "regents x402 pay <url> --budget <budget-id> --max-usdc <amount> --rail agentic-wallet [--receipt]",
-    flags: ["<url> - Protected endpoint URL.", "--budget <id>", "--max-usdc <amount>", "--rail agentic-wallet", "--receipt", "--json", "--config <path>"],
+    summary: "Make an x402 request with a selected signer and local budget accounting.",
+    usage: "regents x402 pay <url> --budget <budget-id> --max-usdc <amount> --rail <agentic-wallet|regent-wallet> [--method <method>] [--body <body>] [--header <name:value>] [--approve] [--receipt]",
+    flags: ["<url> - Original endpoint URL.", "--budget <id> - Local accounting; not signer-enforced authority.", "--max-usdc <amount>", "--rail <agentic-wallet|regent-wallet>", "--method <GET|POST|PUT|PATCH|DELETE>", "--body <body> - Agentic Wallet requires an exact canonical JSON object or array.", "--header <name:value> - Repeatable; Regent rail only.", "--approve - Required by paid_service budgets.", "--max-deposit-amount <atomic> - Does not enable batch deposits in the USDC-budget path.", "--receipt - Records a reference, not proof of settlement.", "--json", "--config <path>"],
     examples: ["regents x402 pay https://api.example.com/paid --budget bud_123 --max-usdc 0.25 --rail agentic-wallet --receipt --json"],
     prerequisites: paymentPrerequisites,
-    auth: "Uses local budget policy and the selected payment rail.",
-    output: "Shows payment result, receipt fields when requested, and safe next steps.",
-    nextStep: "Create or share a receipt when the paid call produced useful work.",
+    auth: "Uses the selected signer. Regent USDC budgets accept exact Base or Base Sepolia USDC. Agentic Wallet rejects caller headers and unsupported bodies before dispatch; its provider controls redirects.",
+    output: "Shows the product response, payment_status separately from HTTP status, reported spend, reservation_id and available receipt or provider_correlation_id. Unknown outcomes keep the reservation held.",
+    nextStep: "Inspect recovery references and the budget ledger after an unknown outcome; do not automatically pay again.",
     ifItFails: [
       "If the budget is missing or exhausted, run `regents budget status` or create a new budget.",
-      "If Agentic Wallet is missing, run `regents wallet agentic status` and finish login.",
+      "For Agentic Wallet, inspect `regents wallet agentic status`; for the Regent rail, use `regents wallet setup --provider local-key` for signer guidance.",
+      "Use the raw atomic flow or an existing external x402 client for unsupported assets or request forms, preserving the original URL, method, credentials and body.",
     ],
   },
   "receipt create": {
@@ -1417,7 +1418,9 @@ const generatedPrerequisites = (command: string, detail: CommandDetailMetadata |
   }
 
   if (command.startsWith("x402 ")) {
-    return command === "x402 search" || command === "x402 details" || command === "x402 quote" ? ["No payment is needed to inspect or quote a paid service."] : paymentPrerequisites;
+    if (command === "x402 search" || command === "x402 receipts get") return ["No payment signer is needed."];
+    if (command === "x402 details" || command === "x402 quote" || command === "x402 prepare") return ["No signing is needed for inspection or preparation. These commands send the original HTTP request, which may execute if no payment is required.", "Use details.payment_required_response with an existing external x402 client and the same original request."];
+    return paymentPrerequisites;
   }
 
   if (command.startsWith("wallet ")) {
@@ -1483,8 +1486,8 @@ const generatedFailureChecks = (
 
   if (command.startsWith("x402 ")) {
     return [
-      "If the command needs payment, check `regents wallet agentic status` and `regents budget status`.",
-      "If the endpoint is unavailable, run `regents x402 details --url <url>` before paying.",
+      "Check the selected signer with `regents wallet setup`; budget-aware payments also use `regents budget status`.",
+      "After an unknown payment outcome, inspect the saved receipt, intent or provider correlation ID before authorizing another attempt.",
     ];
   }
 

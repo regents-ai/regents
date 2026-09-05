@@ -134,6 +134,7 @@ methods:
     owner: regents-cli
     auth_mode: local-runtime
   - name: x402.details
+    description: Returns full PaymentRequired as payment_required_response, preserving all schemes, networks and extensions for caller-owned external clients.
     owner: shared-services
     auth_mode: local-runtime
   - name: x402.quote
@@ -143,6 +144,7 @@ methods:
     owner: shared-services
     auth_mode: local-runtime
   - name: x402.fetch
+    description: Validates the approved request before HTTP dispatch and reports payment_status independently of product HTTP ok; ambiguous attempts retain recovery receipts.
     owner: shared-services
     auth_mode: local-runtime
   - name: x402.refund
