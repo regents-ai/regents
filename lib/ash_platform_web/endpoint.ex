@@ -6,8 +6,8 @@ defmodule AshPlatformWeb.Endpoint do
   @session_options {Application, :fetch_env!, [:ash_platform, :session_options]}
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [:peer_data, :uri, session: @session_options]],
+    longpoll: [connect_info: [:peer_data, :uri, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #

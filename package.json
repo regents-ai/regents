@@ -7,7 +7,8 @@
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:browser": "npm run assets:build && playwright test",
-    "test:budgets": "vitest run --config vitest.budgets.config.ts"
+    "test:budgets": "vitest run --config vitest.budgets.config.ts",
+    "test:showcase": "playwright test --config playwright.showcase.config.ts"
   },
   "dependencies": {
     "@privy-io/react-auth": "3.34.0",
@@ -15,6 +16,7 @@
     "@solana-program/token": "0.14.0",
     "@solana/kit": "6.10.0",
     "animejs": "4.5.0",
+    "heerich": "0.16.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "vgpu": "0.3.1",
@@ -22,9 +24,9 @@
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
-    "@webgpu/types": "0.1.69",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
+    "@webgpu/types": "0.1.69",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   },

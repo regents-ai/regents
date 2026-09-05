@@ -1,0 +1,201 @@
+import {test, expect} from "@playwright/test"
+
+test.beforeEach(async ({page, baseURL}) => {
+  await page.route("**/*", (route) => {
+    const url = new URL(route.request().url())
+    if (url.origin === new URL(baseURL!).origin || url.protocol === "data:")
+      return route.continue()
+    return route.abort("blockedbyclient")
+  })
+  await page.goto("/showcase")
+  await expect(page.locator("[data-sc-value=accent]")).toHaveText("#A5CCE4")
+  await expect(page.locator("h3", {hasText: "Spatial surface"})).toContainText(
+    "Ready",
+  )
+})
+
+test("eight palettes, editable colors and live updates retain their state", async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on("pageerror", (error) => errors.push(error.message))
+  for (const brand of ["platform", "autolaunch", "patchbay", "techtree"]) {
+    for (const mode of ["light", "dark"]) {
+      await page.locator(`[data-sc-brand=${brand}]`).click()
+      await page.locator(`[data-sc-mode=${mode}]`).click()
+      await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
+      await expect(page.locator("html")).toHaveAttribute("data-theme", mode)
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true)
+      const colors = await page
+        .locator("[data-sc-color]")
+        .evaluateAll((inputs) =>
+          inputs.map((input) => (input as HTMLInputElement).value),
+        )
+      expect(new Set(colors).size).toBe(4)
+      const color = page.locator("[data-sc-color=accent]")
+      await color.fill("#cc8877")
+      await expect(page.locator("[data-sc-value=accent]")).toHaveText("#CC8877")
+      await page.getByRole("button", {name: "Primary", exact: true}).click()
+      await expect(
+        page
+          .getByRole("status", {name: ""})
+          .filter({hasText: "Action received."}),
+      ).toBeVisible()
+      await expect(color).toHaveValue("#cc8877")
+      await page.locator("[data-sc-reset]").click()
+    }
+  }
+  await page.locator("[data-sc-brand=patchbay]").click()
+  await page.locator("[data-sc-mode=light]").click()
+  await page.locator("[data-sc-color=accent]").fill("#123456")
+  await page.locator("[data-sc-brand=platform]").click()
+  await expect(page.locator("[data-sc-color=accent]")).not.toHaveValue(
+    "#123456",
+  )
+  await page.locator("[data-sc-brand=patchbay]").click()
+  await expect(page.locator("[data-sc-color=accent]")).toHaveValue("#123456")
+  await page.reload()
+  await page.locator("[data-sc-brand=patchbay]").click()
+  await page.locator("[data-sc-mode=light]").click()
+  await expect(page.locator("[data-sc-color=accent]")).toHaveValue("#123456")
+  expect(errors).toEqual([])
+})
+
+test("every wallet press reaches its isolated provider, including pending and failed requests", async ({
+  page,
+}) => {
+  await page.locator("[data-demo-connect]").click()
+  await page.locator("[data-demo-send]").click({clickCount: 2, delay: 40})
+  await expect(
+    page.locator("[data-demo-results] li", {hasText: "Wallet received"}),
+  ).toHaveCount(2)
+  await expect(
+    page.locator("[data-demo-results] li", {hasText: "confirmed"}),
+  ).toHaveCount(2)
+  for (const outcome of ["rejected", "reverted"]) {
+    await page.locator("[data-demo-outcome]").selectOption(outcome)
+    await page.locator("[data-demo-send]").click()
+    await expect(page.locator("[data-demo-results] li").first()).toContainText(
+      outcome,
+    )
+  }
+  await page.locator("[data-demo-disconnect]").click()
+  await expect(page.locator("[data-demo-wallet]")).toHaveText("Disconnected")
+  await page.locator("[data-demo-send]").click()
+  await expect(page.locator("[data-demo-results] li").first()).toContainText(
+    "Connect the fixture first",
+  )
+  expect(
+    await page.evaluate(() => window.__ashPlatformTestWallet),
+  ).toBeUndefined()
+})
+
+test("Ash validation, utility outcomes, local database and disclosure fixtures work", async ({
+  page,
+}) => {
+  await page.locator("#sample-title").fill("Test record")
+  await page.locator("#sample-quantity").fill("2")
+  await page.getByRole("button", {name: "Run create action"}).click()
+  await expect(page.locator("#sample-records")).toContainText("Test record × 2")
+  await page.locator("#sample-title").fill("x")
+  await page.getByRole("button", {name: "Run create action"}).click()
+  await expect(page.locator("#sample-title")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  )
+  for (const [kind, expected] of [
+    ["amount", '"formatted": "1"'],
+    ["calldata", "0x095ea7b3"],
+    ["privy_valid", "Verified fixture"],
+    ["privy_expired", "token_expired"],
+    ["privy_audience", "invalid_audience"],
+  ]) {
+    await page.locator("#utility-kind").selectOption(kind)
+    await page.getByRole("button", {name: "Run locally", exact: true}).click()
+    await expect(page.locator("#utility-result")).toContainText(expected)
+  }
+  await page.getByRole("button", {name: "Check isolated database"}).click()
+  await expect(page.locator("#utility-result")).toContainText("SELECT 1 passed")
+  await page.locator("#comments-detail > summary").click()
+  await page.locator("#comment-body").fill("A fixture comment")
+  await page.getByRole("button", {name: "Post comment", exact: true}).click()
+  await expect(page.locator(".comment-ledger__list")).toContainText(
+    "A fixture comment",
+  )
+  await expect(page.locator(".comment-ledger__list")).toBeVisible()
+  await page.locator("#connections-detail > summary").click()
+  await page.locator("#showcase-connections-github button").click()
+  await expect(page.locator("#showcase-connections-github button")).toHaveText(
+    "Disconnect",
+  )
+  await page.locator("#showcase-connections-github button").click()
+  await expect(page.locator("#showcase-connections-github button")).toHaveText(
+    "Connect",
+  )
+  const catalog = await (await page.request.get("/showcase/catalog")).json()
+  expect(
+    catalog.components.some(
+      (item: {function: string; attributes: string[]}) =>
+        item.function === "field" && item.attributes.includes("label"),
+    ),
+  ).toBe(true)
+  expect(
+    await page.locator("#utility-inventory").evaluate((el) => el.textContent),
+  ).toContain("RegentPrivy")
+  await expect(page.locator("#utility-inventory")).not.toHaveAttribute("open")
+})
+
+test("mobile, keyboard, reduced motion, complete backgrounds and isolated previews", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({width: 390, height: 844})
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await page.getByRole("button", {name: "Foundation", exact: true}).focus()
+  await page.keyboard.press("Enter")
+  await expect(page.locator("h3", {hasText: "Spatial surface"})).toContainText("Selected tower")
+  await page.locator("#disclosure-example > summary").focus()
+  await page.keyboard.press("Enter")
+  await expect(page.locator("#disclosure-example")).toHaveAttribute("open", "")
+  expect(
+    await page
+      .locator("#disclosure-example > summary")
+      .evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).not.toBe("none")
+  expect(
+    await page
+      .locator("#disclosure-example .rg-chevron")
+      .evaluate((el) => getComputedStyle(el).transitionDuration),
+  ).toBe("0s")
+  await page.locator("#backgrounds-detail > summary").click()
+  await expect(page.locator(".sc-backgrounds figure")).toHaveCount(6)
+  await page.locator("#shell-detail > summary").click()
+  const shell = page.frameLocator("#shell-preview")
+  await expect(shell.locator("#app-shell")).toBeVisible()
+  await expect(shell.locator("[data-account-target=sign-in]")).toHaveCount(0)
+  await shell.locator("[data-theme-toggle]").click()
+  for (let i = 0; i < 3; i++) {
+    await page.locator(`#product-preview-${i} > summary`).click()
+    await expect(page.locator(`#product-preview-${i} iframe`)).toHaveAttribute(
+      "sandbox",
+      "",
+    )
+    await expect(
+      page.frameLocator(`#product-preview-${i} iframe`).locator("[inert]"),
+    ).toBeVisible()
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  await page.locator("[data-sc-mode=light]").click()
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.screenshot({
+    path: testInfo.outputPath("mobile-light.png"),
+    fullPage: true,
+  })
+})

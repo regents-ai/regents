@@ -31,6 +31,31 @@ defmodule AshPlatformWeb.Router do
     AshPlatformWeb.PrivySessionController.enforce_authority(conn)
   end
 
+  if Application.compile_env(:ash_platform, :local_showcase, false) do
+    pipeline :local_showcase do
+      plug AshPlatformWeb.Showcase.LocalOnly
+      plug :accepts, ["html", "json"]
+      plug :fetch_session
+      plug :fetch_live_flash
+      plug AshPlatformWeb.Plugs.Theme
+      plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
+      plug :protect_from_forgery
+      plug :put_secure_browser_headers
+    end
+
+    scope "/showcase", AshPlatformWeb do
+      pipe_through :local_showcase
+      get "/catalog", Showcase.CatalogController, :show
+      get "/style.css", Showcase.CatalogController, :style
+      get "/sigils.svg", Showcase.CatalogController, :sigils
+
+      live_session :local_showcase, on_mount: [AshPlatformWeb.Showcase.LocalOnly] do
+        live "/", ShowcaseLive, :index
+        live "/preview", ShowcaseLive, :preview
+      end
+    end
+  end
+
   scope "/", AshPlatformWeb do
     get "/healthz", HealthController, :show
     get "/metrics", MetricsController, :show

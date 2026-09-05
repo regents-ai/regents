@@ -311,7 +311,10 @@ const shellBehavior: Hook = {
 
 // Design composes presentation behavior here; the Ash-owned behavior remains first.
 const designShellHook: Hook = composeHooks(ShellMotion, VoxelDelight)
+const showcaseHooks = location.pathname.startsWith("/showcase")
+  ? (await import("./showcase")).hooks : {}
 const hooks = {
+  ...showcaseHooks,
   ...colocatedHooks,
   AutolaunchBidWallet,
   AutolaunchLaunchDraft,

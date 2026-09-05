@@ -44,7 +44,25 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
     assert ungated == []
   end
 
-  defp routes, do: Phoenix.Router.routes(AshPlatformWeb.Router)
+  # The development workshop has an independent loopback gate, exercised by
+  # ShowcaseTest for both HTTP and connected mounts. It is absent in production.
+  defp routes do
+    AshPlatformWeb.Router
+    |> Phoenix.Router.routes()
+    |> Enum.reject(fn route ->
+      method = route.verb |> Atom.to_string() |> String.upcase()
+
+      info =
+        Phoenix.Router.route_info(
+          AshPlatformWeb.Router,
+          method,
+          concrete_path(route.path),
+          "localhost"
+        )
+
+      :local_showcase in info.pipe_through
+    end)
+  end
 
   defp request(route) do
     Phoenix.ConnTest.dispatch(build_conn(), @endpoint, route.verb, concrete_path(route.path), %{})

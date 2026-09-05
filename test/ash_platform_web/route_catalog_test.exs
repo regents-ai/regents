@@ -40,6 +40,10 @@ defmodule AshPlatformWeb.RouteCatalogTest do
       Router
       |> Phoenix.Router.routes()
       |> Enum.filter(&(&1.verb == :get and &1.plug == Phoenix.LiveView.Plug))
+      # Compile-disabled in production; the workshop has its own loopback gate.
+      |> Enum.reject(fn route ->
+        :local_showcase in Phoenix.Router.route_info(Router, "GET", route.path, "localhost").pipe_through
+      end)
       |> Enum.map(&{&1.path, &1.plug_opts})
 
     catalog_routes = Enum.map(RouteCatalog.entries(), &{&1.path_pattern, &1.live_action})

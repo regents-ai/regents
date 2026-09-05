@@ -1,4 +1,5 @@
 import Config
+config :ash_platform, :local_showcase, true
 port = String.to_integer(System.get_env("PORT", "4002"))
 
 # We don't run a server during test. If one is required,
