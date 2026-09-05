@@ -14,7 +14,6 @@ body:has(.sc) {
   --rg-panel-border: var(--color-border);
   --rg-text: var(--color-fg);
   --rg-muted: var(--color-fg-muted);
-  --rg-intent-color-scene-action: var(--color-accent);
   font-family: var(--font-family-sans);
   line-height: 1.5;
   font-size: 14px;
@@ -361,43 +360,6 @@ body:has(.sc) {
 }
 .sc-facts dt {
   color: var(--color-fg-muted);
-}
-.sc-sigil {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font: 11px var(--font-family-mono);
-  padding: 8px;
-}
-.sc-sigil .rg-icon {
-  height: 24px;
-  width: 24px;
-}
-.sc .rg-surface-body {
-  display: block;
-}
-.sc .rg-surface-scene {
-  height: 300px;
-  min-height: 300px;
-  padding: 0;
-  overflow: hidden;
-}
-.sc .rg-surface-chamber,
-.sc .rg-surface-ledger {
-  position: static;
-  transform: none;
-  margin: 8px 0 0;
-  width: 100%;
-  font-size: 12px;
-  color: var(--color-fg-muted);
-}
-.sc .rg-surface-header {
-  position: static;
-  min-height: 0;
-  padding: 8px 0;
-  background: none;
-  border: 0;
-  font-size: 12px;
 }
 .sc-backgrounds {
   display: grid;

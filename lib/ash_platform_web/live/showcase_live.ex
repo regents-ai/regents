@@ -5,26 +5,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
   alias Regent.Primitives, as: P
 
   def mount(_params, _session, socket) do
-    face =
-      Regent.SceneSpec.face(
-        "workshop",
-        "Workshop",
-        "gate",
-        [
-          Regent.SceneSpec.add_box("foundation", [0, 0, 0], [8, 2, 8]),
-          Regent.SceneSpec.add_box("tower", [2, 2, 2], [4, 6, 4])
-        ],
-        [
-          Regent.SceneSpec.marker("tower",
-            label: "Foundation",
-            command_id: "tower",
-            position: [4, 8, 4],
-            sigil: "gate",
-            intent: "scene_action"
-          )
-        ]
-      )
-
     {:ok,
      assign(socket,
        page_title: "Showcase",
@@ -38,8 +18,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
        comments: [],
        identities: [],
        connection_notice: nil,
-       scene: Regent.SceneSpec.scene("platform", "regent", "workshop", face),
-       scene_status: "Loading scene",
        route_spec: AshPlatformWeb.RouteCatalog.fetch!(:app),
        account: %AshPlatform.AccessContext.AccountControl{
          kind: :preview,
@@ -292,26 +270,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
                 </:actions><:footer>Application-owned records</:footer>
               </Regent.Panels.ledger>
             </div>
-            <article class="sc-card">
-              <h3>Spatial surface <small>{@scene_status}</small></h3><Regent.Components.surface
-                id="showcase-surface"
-                scene={@scene}
-                sigil_pack_url="/showcase/sigils.svg"
-              >
-                <:header_strip>Shared scene · select a marker</:header_strip><:chamber>
-                  <span>Chamber slot</span>
-                </:chamber><:ledger><span>Ledger slot</span></:ledger>
-              </Regent.Components.surface><.api module="Regent.Components" function="surface" />
-            </article>
-            <article class="sc-card">
-              <h3>Sigils</h3><div class="sc-row">
-                <span :for={name <- ~w(gate eye seed fuse seal wedge)} class="sc-sigil"><Regent.Panels.icon
-                  name={name}
-                  title={name}
-                  sprite_path="/showcase/sigils.svg"
-                />{name}</span>
-              </div><.api module="Regent.Panels" function="icon" />
-            </article>
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
               id="backgrounds-detail"
@@ -546,7 +504,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
               id="component-inventory"
-              summary="Every installed design component"
+              summary="Active design components"
             >
               <div :for={item <- @catalog.components} class="sc-inventory-row">
                 <code>{item.module}.{item.function}/1</code><small>Attributes: {Enum.join(
@@ -590,7 +548,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
               summary="Coverage boundary"
             >
               <p>
-                The visual inventory covers every canonical component in regent_ui and this application's components directory, with aliases identified. Product pages compose these pieces and retain their own behavior. Ash resources are inspected through installed metadata; this route never enumerates their records. Utilities list installed shared libraries and the Regents wallet, staking, redemption and database modules. This is not a claim that product-specific utilities are already shared across four apps.
+                The visual inventory covers the active components from regent_ui and this application's components directory, with aliases identified. Product pages compose these pieces and retain their own behavior. Ash resources are inspected through installed metadata; this route never enumerates their records. Utilities list installed shared libraries and the Regents wallet, staking, redemption and database modules. This is not a claim that product-specific utilities are already shared across four apps.
               </p>
             </P.disclosure>
           </section>
@@ -666,7 +624,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
     do: {:noreply, assign(socket, :result, %{example: "Action received."})}
 
   def handle_event("post_comment", %{"comment" => %{"body" => body}}, socket) do
-    if String.trim(body) != "" and String.length(body) <= 2_000 do
+    with {:ok, body} <- AshPlatform.Discussions.Markdown.normalize_and_validate(body) do
       comment = %{
         id: System.unique_integer([:positive]),
         author_id: 1,
@@ -677,7 +635,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
 
       {:noreply, assign(socket, :comments, [comment | socket.assigns.comments])}
     else
-      {:noreply, socket}
+      {:error, _reason} -> {:noreply, socket}
     end
   end
 
@@ -708,15 +666,4 @@ defmodule AshPlatformWeb.ShowcaseLive do
        connection_notice: %{tone: :info, message: "Fixture updated. No provider request."}
      )}
   end
-
-  def handle_event("regent:surface_ready", _, socket),
-    do: {:noreply, assign(socket, :scene_status, "Ready")}
-
-  def handle_event("regent:surface_error", _, socket),
-    do: {:noreply, assign(socket, :scene_status, "Scene unavailable")}
-
-  def handle_event("regent:node_select", %{"target_id" => id}, socket),
-    do: {:noreply, assign(socket, :scene_status, "Selected #{id}")}
-
-  def handle_event("regent:node_hover", _, socket), do: {:noreply, socket}
 end

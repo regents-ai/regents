@@ -7,6 +7,14 @@ defmodule AshPlatform.Discussions.Markdown do
                    MDEx.Text,
                    MDEx.SoftBreak,
                    MDEx.LineBreak,
+                   MDEx.Heading,
+                   MDEx.BlockQuote,
+                   MDEx.ThematicBreak,
+                   MDEx.Strikethrough,
+                   MDEx.Table,
+                   MDEx.TableRow,
+                   MDEx.TableCell,
+                   MDEx.Math,
                    MDEx.Emph,
                    MDEx.Strong,
                    MDEx.Code,
@@ -18,14 +26,23 @@ defmodule AshPlatform.Discussions.Markdown do
                  ])
 
   @sanitize [
-    tags: ~w(p a em strong code pre ul ol li br),
-    tag_attributes: %{"a" => ["href"], "code" => ["class"]},
+    tags:
+      ~w(p a em strong code pre ul ol li br h1 h2 h3 h4 h5 h6 blockquote hr del table thead tbody tr th td span),
+    tag_attributes: %{
+      "a" => ["href"],
+      "code" => ["class"],
+      "span" => ["data-math-style"],
+      "th" => ["align"],
+      "td" => ["align"]
+    },
     generic_attributes: [],
     url_schemes: ~w(http https),
     url_relative: :deny,
     link_rel: "noopener noreferrer"
   ]
-  @parse_options [extension: [table: true]]
+  @parse_options [
+    extension: [table: true, strikethrough: true, math_dollars: true, math_code: true]
+  ]
 
   def normalize_and_validate(body) when is_binary(body) do
     normalized =

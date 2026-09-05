@@ -1,3 +1,4 @@
+@import "../../node_modules/katex/dist/katex.min.css";
 @import "../vendor/regent_ui/primitives.css";
 @import "../vendor/regent_ui/regent.css";
 @import "./tokens/material.css";

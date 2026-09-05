@@ -9,9 +9,6 @@ test.beforeEach(async ({page, baseURL}) => {
   })
   await page.goto("/showcase")
   await expect(page.locator("[data-sc-value=accent]")).toHaveText("#A5CCE4")
-  await expect(page.locator("h3", {hasText: "Spatial surface"})).toContainText(
-    "Ready",
-  )
 })
 
 test("eight palettes, editable colors and live updates retain their state", async ({
@@ -154,9 +151,6 @@ test("mobile, keyboard, reduced motion, complete backgrounds and isolated previe
 }, testInfo) => {
   await page.setViewportSize({width: 390, height: 844})
   await page.emulateMedia({reducedMotion: "reduce"})
-  await page.getByRole("button", {name: "Foundation", exact: true}).focus()
-  await page.keyboard.press("Enter")
-  await expect(page.locator("h3", {hasText: "Spatial surface"})).toContainText("Selected tower")
   await page.locator("#disclosure-example > summary").focus()
   await page.keyboard.press("Enter")
   await expect(page.locator("#disclosure-example")).toHaveAttribute("open", "")
@@ -198,4 +192,76 @@ test("mobile, keyboard, reduced motion, complete backgrounds and isolated previe
     path: testInfo.outputPath("mobile-light.png"),
     fullPage: true,
   })
+})
+
+test("comments typeset Markdown and LaTeX on live updates without enabling HTML or unsafe math", async ({
+  page,
+}) => {
+  await page.locator("#comments-detail > summary").click()
+  await page.locator("#comment-body").fill(
+    String.raw`## Proof
+
+**Energy** is $E=mc^2$.
+
+$$\frac{1}{2} + \sqrt{x}$$
+
+> Formatted locally.
+
+| Input | Output |
+| --- | --- |
+| x | 2 |
+
+Code stays literal: ` + "`$not_math$`.",
+  )
+  await page.getByRole("button", {name: "Post comment", exact: true}).click()
+  const body = page.locator(".comment-ledger__body").first()
+  await expect(body.locator("h2")).toHaveText("Proof")
+  await expect(body.locator("strong")).toHaveText("Energy")
+  await expect(body.locator("table")).toBeVisible()
+  await expect(body.locator(".katex")).toHaveCount(2)
+  await expect(body.locator(".katex-display math")).toBeVisible()
+  await expect(body.locator("code")).toHaveText("$not_math$")
+  await expect(body.locator("annotation").last()).toContainText(
+    String.raw`\frac{1}{2}`,
+  )
+
+  // A later comment must not corrupt the already-rendered one.
+  await page
+    .locator("#comment-body")
+    .fill(
+      String.raw`$\href{javascript:alert(1)}{click}$ $\includegraphics{https://example.com/x.png}$ $\notACommand{x}$`,
+    )
+  await page.getByRole("button", {name: "Post comment", exact: true}).click()
+  await expect(page.locator(".comment-ledger__body")).toHaveCount(2)
+  const unsafe = page.locator(".comment-ledger__body").first()
+  await expect(unsafe.locator("[data-math-rendered]")).toHaveCount(3)
+  await expect(
+    unsafe.locator("a, img, script, [onclick], [onerror]"),
+  ).toHaveCount(0)
+  await expect(unsafe).toContainText("notACommand")
+  await expect(
+    page.locator(".comment-ledger__body").last().locator(".katex"),
+  ).toHaveCount(2)
+  await page.setViewportSize({width: 390, height: 844})
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+})
+
+
+test("math source remains readable when its optional renderer cannot load", async ({page}) => {
+  const errors: string[] = []
+  page.on("pageerror", error => errors.push(error.message))
+  await page.route("**/comment_math-*.js", route => route.abort("failed"))
+  await page.locator("#comments-detail > summary").click()
+  await page.locator("#comment-body").fill("A formula: $x^2$")
+  await Promise.all([
+    page.waitForEvent("requestfailed", request => request.url().includes("comment_math-")),
+    page.getByRole("button", {name: "Post comment", exact: true}).click(),
+  ])
+  await expect(page.locator(".comment-ledger__body")).toContainText("A formula: x^2")
+  await expect(page.locator(".comment-ledger__body .katex")).toHaveCount(0)
+  expect(errors).toEqual([])
 })

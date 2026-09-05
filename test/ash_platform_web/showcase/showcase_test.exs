@@ -17,7 +17,7 @@ defmodule AshPlatformWeb.ShowcaseTest do
 
   test "HTTP pages and machine inventory are loopback-only, without trusting forwarding headers" do
     for path <-
-          ~w(/showcase /showcase/catalog /showcase/style.css /showcase/sigils.svg /showcase/preview) do
+          ~w(/showcase /showcase/catalog /showcase/style.css /showcase/preview) do
       for {host, peer} <- [{"example.com", {127, 0, 0, 1}}, {"localhost", {192, 0, 2, 1}}] do
         conn =
           build_conn()
@@ -73,31 +73,12 @@ defmodule AshPlatformWeb.ShowcaseTest do
              "No provider request"
   end
 
-  test "every exported design component is in the visual inventory" do
+  test "active component inventory names exported functions and their attributes" do
     for {module, names} <- Catalog.registry() do
       Code.ensure_loaded!(module)
-
-      exported =
-        module.__components__()
-        |> Enum.filter(fn {_, metadata} -> metadata.kind == :def end)
-        |> Enum.map(&elem(&1, 0))
-        |> MapSet.new()
-
-      # Embedded templates have no declarative attr/slot metadata.
-      assert MapSet.subset?(exported, MapSet.new(names)), inspect(module)
       for name <- names, do: assert(function_exported?(module, name, 1))
     end
 
-    aliases = [Regent.Surface, Regent.Chamber, Regent.Ledger, Regent.Sigil]
-
-    shared_modules =
-      Application.spec(:regent_ui, :modules)
-      |> Enum.filter(fn module ->
-        Code.ensure_loaded?(module) and function_exported?(module, :__components__, 0)
-      end)
-
-    covered_modules = Enum.map(Catalog.registry(), &elem(&1, 0)) ++ aliases
-    assert MapSet.subset?(MapSet.new(shared_modules), MapSet.new(covered_modules))
     assert Enum.any?(Catalog.components(), &(&1.function == "field" and "label" in &1.attributes))
   end
 

@@ -19,7 +19,6 @@ Status: implementation evidence only. Browser acceptance remains with the Platfo
 - `git diff --check` for the three implementation files: passed.
 - `shasum -a 256 priv/static/images/home/hero-bg-dark.svg`: `5d04f865bb1b4611e6c9cf9d44e2377107202782b27064e864fd2c4509e0da8c`.
 - Chromium layout probe at 320, 390, and 1440 CSS pixels: page scroll width equalled viewport width; every tab, header action, hero action, and hero card was at least 44px tall; cards were 2×2 at 320/390 and four columns at 1440.
-- A 320px geometry probe compared each voxel cluster with its card's OPEN label, index, title, tagline, and arrow. All 20 comparisons were non-intersecting. Voxels occupy the unused top-center zone rather than the text baseline.
 
 ## Browser acceptance status
 
@@ -33,7 +32,7 @@ Chief's unrestricted convergence run on 2026-07-11 passed: HomeLive 4/4, full Mi
 
 - The thesis leads clearly, while the mat remains legible as a precision-work backdrop rather than competing with the copy.
 - The indexed header reads as one contiguous product map. At narrow widths it becomes a horizontally scrollable rail without widening the page.
-- The four OPEN cards form a compact desktop ribbon and a balanced 2×2 composition at 320 and 390 pixels. Their voxel clusters stay clear of every label and keep product identity restrained.
+- The four OPEN cards form a compact desktop ribbon and a balanced 2×2 composition at 320 and 390 pixels. Product identity stays restrained.
 - The body copy uses Geist UI Sans. The captured implementation still gives CTA actions the pixel face; independent review identified this as a remaining typography mismatch with the founder correction.
 - The four chapters keep proof inside its owning product. Three-card and four-card proof groups balance through an adaptive grid.
 - Independent screenshot review found that the horizontally scrolling product-tab rail does not make the off-canvas fourth tab sufficiently discoverable at 390px and effective 200%. The convergence suites pass, but these two presentation findings remain recorded rather than silently described as accepted.

@@ -29,7 +29,7 @@ import {ShellMotion} from "./hooks/motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
-import {VoxelDelight} from "./hooks/voxel"
+import {CommentMarkdown} from "./hooks/comment_markdown"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
@@ -310,10 +310,10 @@ const shellBehavior: Hook = {
 }
 
 // Design composes presentation behavior here; the Ash-owned behavior remains first.
-const designShellHook: Hook = composeHooks(ShellMotion, VoxelDelight)
-const showcaseHooks = location.pathname.startsWith("/showcase")
+const showcaseHooks = window.location.pathname.startsWith("/showcase")
   ? (await import("./showcase")).hooks : {}
 const hooks = {
+  CommentMarkdown,
   ...showcaseHooks,
   ...colocatedHooks,
   AutolaunchBidWallet,
@@ -323,7 +323,7 @@ const hooks = {
   HomeField,
   HomeHero,
   HomePrism,
-  ShellBehavior: composeHooks(shellBehavior, designShellHook),
+  ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   RegentsClubMetadataWallet,
   StakeWallet,

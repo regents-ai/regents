@@ -47,7 +47,6 @@ defmodule AshPlatformWeb.Router do
       pipe_through :local_showcase
       get "/catalog", Showcase.CatalogController, :show
       get "/style.css", Showcase.CatalogController, :style
-      get "/sigils.svg", Showcase.CatalogController, :sigils
 
       live_session :local_showcase, on_mount: [AshPlatformWeb.Showcase.LocalOnly] do
         live "/", ShowcaseLive, :index

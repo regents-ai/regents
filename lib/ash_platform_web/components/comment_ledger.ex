@@ -48,10 +48,22 @@ defmodule AshPlatformWeb.Components.CommentLedger do
         >{@draft}</textarea>
         <div class="comment-ledger__composer-actions">
           <p id="comment-body-guidance">
-            Up to 2,000 characters. Links, emphasis, code, and lists are supported.
+            Markdown and LaTeX · 2,000 characters.
           </p>
           <button type="submit">Post comment</button>
         </div>
+        <details
+          class="comment-ledger__format-help"
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes("open")}
+        >
+          <summary>Formatting</summary>
+          <p>
+            Use headings, **bold**, *italic*, ~~strikethrough~~, lists, quotes, links, tables and fenced code.
+          </p>
+          <p>
+            Inline math: <code>$x^2$</code>. Display math: <code>{"$$\\frac{a}{b}$$"}</code>. Dollar signs inside code stay literal.
+          </p>
+        </details>
       </form>
 
       <p :if={is_nil(@current_human_id)} class="comment-ledger__signed-out">
@@ -75,7 +87,13 @@ defmodule AshPlatformWeb.Components.CommentLedger do
                 {display_time(comment.inserted_at)}
               </time>
             </header>
-            <div class="comment-ledger__body">{Markdown.to_safe_html(comment.body)}</div>
+            <div
+              id={"comment-body-#{comment.id}"}
+              class="comment-ledger__body"
+              phx-hook="CommentMarkdown"
+            >
+              {Markdown.to_safe_html(comment.body)}
+            </div>
             <button
               :if={@admin || comment.author_id == @current_human_id}
               type="button"

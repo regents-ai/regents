@@ -34,7 +34,7 @@ Official Hex source for every row is the package page formed from the package na
 | @solana-program/system | `npm view @solana-program/system version` | 0.12.2 | 0.12.2 | Wallet dependency used by Privy’s supported Solana surface. |
 | @solana-program/token | `npm view @solana-program/token version` | 0.14.0 | 0.14.0 | Wallet dependency used by Privy’s supported Solana token surface. |
 | @solana/kit | `npm view @solana/kit version` | 7.0.0 | 6.10.0 | Latest stable compatible line; the current system/token packages require Kit 6. |
-| animejs | `npm view animejs version` | 4.5.0 | 4.5.0 | Cancellable shell and voxel motion. |
+| animejs | `npm view animejs version` | 4.5.0 | 4.5.0 | Cancellable shell motion. |
 | react | `npm view react version` | 19.2.7 | 19.2.7 | Privy bridge host. |
 | react-dom | `npm view react-dom version` | 19.2.7 | 19.2.7 | Privy bridge host. |
 | viem | `npm view viem version` | 2.55.0 | 2.55.0 | Typed Base wallet actions. |

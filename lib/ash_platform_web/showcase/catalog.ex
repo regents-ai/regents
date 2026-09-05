@@ -3,8 +3,7 @@ defmodule AshPlatformWeb.Showcase.Catalog do
 
   @components [
     {Regent.Primitives, [:button, :field, :status, :notice, :empty_state, :disclosure]},
-    {Regent.Panels, [:chamber, :ledger, :icon]},
-    {Regent.Components, [:surface]},
+    {Regent.Panels, [:chamber, :ledger]},
     {Regent.BackgroundGrid, [:background_grid]},
     {AshPlatformWeb.Components.Background, [:background]},
     {AshPlatformWeb.Components.Shell, [:shell, :theme_toggle]},
@@ -13,10 +12,8 @@ defmodule AshPlatformWeb.Showcase.Catalog do
     {AshPlatformWeb.Layouts, [:app, :root]}
   ]
   @aliases [
-    {Regent.Surface, :surface, Regent.Components},
     {Regent.Chamber, :chamber, Regent.Panels},
-    {Regent.Ledger, :ledger, Regent.Panels},
-    {Regent.Sigil, :icon, Regent.Panels}
+    {Regent.Ledger, :ledger, Regent.Panels}
   ]
   def registry, do: @components
 
@@ -67,7 +64,7 @@ defmodule AshPlatformWeb.Showcase.Catalog do
 
   def utilities do
     shared =
-      for app <- [:regent_privy, :regent_ui, :ens_elixir],
+      for app <- [:regent_privy, :ens_elixir],
           module <- Application.spec(app, :modules) || [],
           do: {module, "Shared library"}
 
@@ -123,15 +120,6 @@ defmodule AshPlatformWeb.Showcase.CatalogController do
       conn
       |> put_resp_content_type("text/css")
       |> send_file(200, Application.app_dir(:ash_platform, "priv/showcase.css"))
-
-  def sigils(conn, _params),
-    do:
-      conn
-      |> put_resp_content_type("image/svg+xml")
-      |> send_file(
-        200,
-        Application.app_dir(:regent_ui, "priv/static/regent/sigils/regent-sigils.svg")
-      )
 
   def show(conn, _params), do: json(conn, AshPlatformWeb.Showcase.Catalog.snapshot())
 end

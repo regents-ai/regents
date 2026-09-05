@@ -72,7 +72,7 @@ band, one call to action, brand block, and legal row.
 - homepage LiveView tests pin the founder section order, exact three
   destinations, mat asset, no chat, no unadmitted docs/CLI links, no
   application shell, and the HTML budget;
-- HomeHero tests pin same-time four-card entry, 400 ms voxel delight,
+- HomeHero tests pin same-time four-card entry,
   reduced-motion behavior, pending-frame cancellation, active-animation
   cancellation, and clean teardown;
 - browser tests pin the exact mat path, three card anchors, section order, real

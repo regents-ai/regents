@@ -1,4 +1,23 @@
-# Showcase candidate evidence
+# Showcase follow-up: regent-qht.8
+
+The retired spatial renderer, shell decoration hook, dedicated tests, old gallery
+section and obsolete references have been removed. The gallery now lists active
+components and panel aliases. Comments use the real product Markdown validator and
+support headings, quotes, tables, strikethrough, inline math and display math.
+
+Validation: 25 ExUnit tests, 26 shell/motion JavaScript tests, and six Chromium
+scenarios pass. These cover LiveView updates, literal code, unsafe math commands,
+malformed expressions, mobile layout and a failed optional renderer download.
+TypeScript, asset compilation and whitespace checks pass. The independent read-only
+review found no security blocker; its optional-download fallback finding is fixed
+and covered by a browser test. The rendered equations were visually inspected.
+
+No production data access, external writes, real authentication or wallet actions
+were used. The running preview remains on port 52363 after local integration.
+
+---
+
+## Initial gallery evidence (regent-qht.7)
 
 Ticket: `regent-qht.7` · base: `1bc9c1286312282da9bae17a89e621d0d848719b`.
 Shared UI: `0e3804ff60c96064e0efc2638c5056f3bd6b8ee2`.

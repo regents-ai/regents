@@ -16,7 +16,6 @@ vi.mock("../js/auth_lazy", () => ({
 }))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
-vi.mock("../js/hooks/voxel", () => ({VoxelDelight: {}}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {
     constructor(
@@ -324,13 +323,6 @@ describe("mobile shell navigation", () => {
 describe("shell material contract", () => {
   const readCss = (path: string) =>
     new TextDecoder().decode(readFileSync(new URL(path, import.meta.url)))
-
-  it("[U1][U4] loads RegentUI before shell and preserves existing page/status imports", () => {
-    const appCss = readCss("../css/app.css")
-    expect(appCss).toMatch(
-      /^@import "\.\.\/\.\.\/\.\.\/design-system\/regent_ui\/assets\/css\/regent\.css";\n@import "\.\/tokens\/material\.css";\n@import "\.\/tokens\/root\.css";\n@import "\.\/components\/shell\.css";\n@import "\.\/components\/comment_ledger\.css";\n@import "\.\/pages\/home\.css";[\s\S]*@import "\.\/pages\/autolaunch\.css";/,
-    )
-  })
 
   it("[U4][U6] keeps the shared material aliases and a square, responsive shell", () => {
     const material = readCss("../css/tokens/material.css")

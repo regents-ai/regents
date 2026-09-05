@@ -84,19 +84,12 @@ config :ash_platform, AshPlatformWeb.Endpoint,
   pubsub_server: AshPlatform.PubSub,
   live_view: [signing_salt: "RH19ZPg2"]
 
-shared_ui =
-  Path.join(
-    System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)),
-    "design-system/regent_ui"
-  )
-
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
   ash_platform: [
     args:
-      ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.) ++
-        ["--alias:@regent-ui=#{shared_ui}"],
+      ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff2=file --loader:.woff=file --loader:.ttf=file),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

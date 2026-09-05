@@ -51,7 +51,11 @@
   resize: vertical;
   border: 1px solid var(--hairline-strong);
   border-radius: 2px;
-  background: color-mix(in oklch, var(--color-surface-elevated) 94%, transparent);
+  background: color-mix(
+    in oklch,
+    var(--color-surface-elevated) 94%,
+    transparent
+  );
   color: var(--color-text);
   font: inherit;
   line-height: 1.5;
@@ -140,4 +144,47 @@
   .comment-ledger__composer-actions button {
     width: 100%;
   }
+}
+
+.comment-ledger__format-help {
+  font-size: 0.8rem;
+  color: var(--color-fg-muted);
+}
+.comment-ledger__format-help summary {
+  cursor: pointer;
+  min-height: 2rem;
+}
+.comment-ledger__format-help p {
+  margin-block: 0.5rem;
+}
+.comment-ledger__body :is(h1, h2, h3, h4, h5, h6) {
+  font-size: 1rem;
+  margin-block: 1rem 0.5rem;
+}
+.comment-ledger__body blockquote {
+  margin-inline: 0;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--color-border);
+}
+.comment-ledger__body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.comment-ledger__body :is(td, th) {
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.65rem;
+}
+.comment-ledger__body [data-math-style] {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  vertical-align: middle;
+}
+.comment-ledger__body [data-math-style="display"] {
+  display: block;
+}
+.comment-ledger__body .katex-display {
+  margin: 0.6rem 0;
 }

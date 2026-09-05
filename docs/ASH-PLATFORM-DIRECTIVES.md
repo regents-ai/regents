@@ -371,7 +371,7 @@ Anime.js is the approved motion library. Use the current stable release and
 the installed Regent Anime.js skill for lifecycle, interruption, cleanup, and
 LiveView-hook behavior.
 
-## Theme, material, and voxel language
+## Theme and material
 
 **AP-060 — Theme.** The Settings page offers exactly System, Light, and Dark.
 The persistent header and account menu do not duplicate those controls. The
@@ -402,18 +402,6 @@ hairlines. Avoid glass-on-glass nesting.
 rings are square. Circles are reserved for genuinely circular content such as
 avatars, token marks, status dots, radios, or spherical art. No pill-shaped or
 rounded-blob glass.
-
-**AP-063 — Voxels.** Routine component interactions use sparse 2D voxels as
-300–500 ms edge/corner responses to meaningful state. At most one
-low-frequency ambient cluster appears in the sidebar/menu utility area. No
-constant operational, wallet, or error motion. 3D voxels are reserved for the
-homepage, app switching, or one shared sidebar/footer layer—never a canvas per
-component. Every use has a static 2D fallback.
-
-Voxel palettes use the active app accent plus the shared product colors. The
-founder's 2026-08-26 product framing supersedes Techtree's biological green
-secondary; Techtree's biological accent is now Tangerine Tango. Do not use a
-cross-product rainbow or decorative status colors.
 
 **AP-064 — Background assets.** The founder will supply separate light/dark
 SVG cutting-mat backgrounds for each app. The founder's 2026-08-26 product

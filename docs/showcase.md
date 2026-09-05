@@ -5,8 +5,8 @@ The production configuration omits its routes. HTTP requests and connected
 LiveView mounts both require a loopback peer and a loopback hostname; forwarded
 headers do not grant access. Gallery styles and metadata use the same guard.
 
-The workshop renders the canonical components installed from `regent_ui` and
-`AshPlatformWeb.Components`, plus both layouts. It identifies the four legacy
+The workshop renders the active components installed from `regent_ui` and
+`AshPlatformWeb.Components`, plus both layouts. It identifies the two panel
 component aliases. Three Autolaunch LiveComponents have static signed-out previews
 inside scriptless sandboxed frames. The shell preview includes working navigation
 and theme behavior but omits sign-in controls. These product compositions are
@@ -39,6 +39,12 @@ Ash action with an in-memory data layer.
 - Postgres: a fixed read-only diagnostic accepts only the prepared loopback
   worktree test database naming convention. It refuses other database settings.
 - Comments and linked identities are synthetic LiveView state, lost on reload.
+  Comments use the real Markdown validator and renderer. Headings, lists, quotes,
+  tables, emphasis, strikethrough, code and HTTP(S) links are supported. Use `$...$`
+  for inline LaTeX and `$$...$$` for display LaTeX. Code stays literal. Raw HTML and
+  embedded images remain disallowed. KaTeX is loaded only when math is present;
+  malformed expressions retain their readable source, and unsafe HTML/link commands
+  are disabled. See [KaTeX options](https://katex.org/docs/options.html).
 
 ## Run in an isolated worktree
 

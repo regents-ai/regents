@@ -54,9 +54,9 @@ Theme persistence exposes System, Light, and Dark through a small local-storage 
 
 ## Design ownership handoff
 
-After the immutable scaffold commit, Design owns only the declared presentation paths: homepage template/page CSS/page hook/hero destination/test; shell component and presentation children/shell CSS/render tests; shared motion and voxel hooks/tests; theme menu and material tokens; eight background slot assets/manifest/component; and `docs/design/founder-shell/**` evidence. Ash retains router precedence, LiveView/session topology, route metadata, access and identity resolution, content lifecycle, capability state, and behavior hooks.
+After the immutable scaffold commit, Design owns only the declared presentation paths: homepage template/page CSS/page hook/hero destination/test; shell component and presentation children/shell CSS/render tests; shared motion hooks/tests; theme menu and material tokens; eight background slot assets/manifest/component; and `docs/design/founder-shell/**` evidence. Ash retains router precedence, LiveView/session topology, route metadata, access and identity resolution, content lifecycle, capability state, and behavior hooks.
 
-The shell presentation uses high-opacity gradient-fill/gradient-stroke glass with 0–4px geometry. General controls are square, never pills. Routine voxel delight is sparse 2D; 3D is limited to homepage, app-switch identity, and one shared ambient layer with static fallback. There is no shell footer.
+The shell presentation uses high-opacity gradient-fill/gradient-stroke glass with 0–4px geometry. General controls are square, never pills. There is no shell footer.
 
 The approved homepage hero source is external input only until Design receives ownership: `/Users/sean/Downloads/hero-bg-dark.svg`, SHA-256 `5d04f865bb1b4611e6c9cf9d44e2377107202782b27064e864fd2c4509e0da8c`.
 

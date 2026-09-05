@@ -16,6 +16,51 @@ defmodule AshPlatform.Discussions.MarkdownTest do
     assert html =~ "<code>code</code>"
   end
 
+  test "renders Markdown structures and preserves escaped LaTeX for the math renderer" do
+    body = ~S"""
+    ## Results
+
+    > A **useful** result with ~~old~~ text.
+
+    | Input | Result |
+    | --- | --- |
+    | `x` | 2 |
+
+    Inline $x^2$ and display $$\frac{1}{2}$$.
+    """
+
+    assert {:ok, _} = Markdown.normalize_and_validate(body)
+    html = body |> Markdown.to_safe_html() |> Phoenix.HTML.safe_to_string()
+
+    for tag <- [
+          "<h2>",
+          "<blockquote>",
+          "<del>",
+          "<table>",
+          ~s(data-math-style="inline"),
+          ~s(data-math-style="display")
+        ],
+        do: assert(html =~ tag)
+
+    assert html =~ ~S(\frac{1}{2})
+
+    escaped =
+      ~S|$\text{<img src=x onerror=alert(1)>}$|
+      |> Markdown.to_safe_html()
+      |> Phoenix.HTML.safe_to_string()
+
+    refute escaped =~ "<img"
+    assert escaped =~ "&lt;img"
+  end
+
+  test "math inside code and escaped dollar signs stay literal" do
+    for body <- [~S(`$x^2$`), "```elixir\n$x^2$\n```", ~S(Price \$5)] do
+      html = body |> Markdown.to_safe_html() |> Phoenix.HTML.safe_to_string()
+      refute html =~ "data-math-style"
+      assert html != ""
+    end
+  end
+
   test "counts normalized user-perceived graphemes" do
     family = "👨‍👩‍👧‍👦"
     assert {:ok, _body} = Markdown.normalize_and_validate(String.duplicate(family, 2_000))
@@ -24,10 +69,8 @@ defmodule AshPlatform.Discussions.MarkdownTest do
 
   test "rejects disallowed structures and unsafe links" do
     for body <- [
-          "# Heading",
           "![image](https://example.com/image.png)",
           "<b>raw html</b>",
-          "| table |\n| --- |\n| cell |",
           "[unsafe](javascript:alert(1))",
           "[relative](/private)"
         ] do

@@ -16,7 +16,7 @@
     "@solana-program/token": "0.14.0",
     "@solana/kit": "6.10.0",
     "animejs": "4.5.0",
-    "heerich": "0.16.0",
+    "katex": "0.18.5",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "vgpu": "0.3.1",

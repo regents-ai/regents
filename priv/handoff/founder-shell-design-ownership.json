@@ -15,8 +15,6 @@
     "test/ash_platform_web/components/shell_render_test.exs",
     "assets/js/hooks/motion.ts",
     "assets/test/motion.test.ts",
-    "assets/js/hooks/voxel.ts",
-    "assets/test/voxel.test.ts",
     "assets/css/tokens/material.css",
     "assets/backgrounds/manifest.ts",
     "lib/ash_platform_web/components/background.ex",

@@ -1,10 +1,5 @@
-import {Heerich} from "heerich"
-// The alias is resolved against the worktree's pinned regent_ui checkout by esbuild.
-// @ts-ignore -- Mix owns the dependency path; it is not an npm package.
-import {RegentScene} from "@regent-ui/assets/js/hooks/regent_scene"
 import {selectConnectedEthereumWallet} from "./wallet_actions/connected_wallet"
 
-Object.assign(window, {Heerich})
 
 type Palette = {bg: string; surface: string; fg: string; accent: string}
 const defaults: Record<string, Record<string, Palette>> = {
@@ -262,4 +257,4 @@ const ShowcaseWallet = {
     this.cleanup?.()
   },
 }
-export const hooks = {Showcase, ShowcaseWallet, RegentScene}
+export const hooks = {Showcase, ShowcaseWallet}
