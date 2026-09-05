@@ -23,6 +23,16 @@ describe("scoped CLI help", () => {
     expect(output.stdout).toContain("regents autolaunch agents list");
   });
 
+  it("shows public market flags and requires no sign-in for their help", async () => {
+    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "auctions", "list", "--help"]));
+    expect(output.result).toBe(0);
+    expect(output.stdout).toContain("--mode");
+    expect(output.stdout).toContain("--limit");
+    expect(output.stdout).toContain("No saved sign-in is needed.");
+    expect(output.stdout).not.toContain("--mine-only");
+    expect(output.stdout).not.toContain("auth login");
+  });
+
   it("renders command-level help", async () => {
     const output = await captureOutput(() =>
       runCliEntrypoint(["autolaunch", "jobs", "watch", "--help"]),

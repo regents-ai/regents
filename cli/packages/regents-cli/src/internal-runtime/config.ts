@@ -293,7 +293,7 @@ export function defaultConfig(configPath?: string): RegentConfig {
         requestTimeoutMs: 10_000,
       },
       autolaunch: {
-        baseUrl: "https://regents.sh",
+        baseUrl: "https://autolaunch.sh",
         requestTimeoutMs: 10_000,
       },
       voice: {

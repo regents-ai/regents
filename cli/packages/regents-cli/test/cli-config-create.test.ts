@@ -39,7 +39,7 @@ describe("CLI config flows", () => {
       expect(writtenConfig.wallet.keystorePath).toBe(path.join(harness.tempDir, "nested", "keys", "agent-wallet.json"));
       expect(writtenConfig.gossipsub.peerIdPath).toBe(path.join(harness.tempDir, "nested", "p2p", "peer-id.json"));
       expect(writtenConfig.services.platform.baseUrl).toBe("https://regents.sh");
-      expect(writtenConfig.services.autolaunch.baseUrl).toBe("https://regents.sh");
+      expect(writtenConfig.services.autolaunch.baseUrl).toBe("https://autolaunch.sh");
       expect(payload.directories.socket).toBe(path.dirname(writtenConfig.runtime.socketPath));
       expect(payload.directories.wallet).toBe(path.dirname(writtenConfig.wallet.keystorePath));
       expect(payload.directories.gossipsub).toBe(path.dirname(writtenConfig.gossipsub.peerIdPath));
@@ -108,7 +108,7 @@ describe("CLI config flows", () => {
       logLevel: "debug",
     });
     expect(config.services.platform.baseUrl).toBe("http://127.0.0.1:4100");
-    expect(config.services.autolaunch.baseUrl).toBe("https://regents.sh");
+    expect(config.services.autolaunch.baseUrl).toBe("https://autolaunch.sh");
     expect(config.agents.harnesses.codex.profiles).toEqual(["owner", "public", "group"]);
   });
 

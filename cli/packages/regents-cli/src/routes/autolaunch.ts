@@ -6,6 +6,8 @@ import {
   runAutolaunchAgentReadiness,
   runAutolaunchAgentShow,
   runAutolaunchAuctionsList,
+  runAutolaunchTokensList,
+  runAutolaunchTreasurySecurity,
   runAutolaunchAuctionReturnsList,
   runAutolaunchAuctionShow,
   runAutolaunchBidsQuote,
@@ -87,10 +89,14 @@ export const autolaunchHandlers: CliHandlerRegistry = {
   "autolaunch agent <id>": {
     run: ({ positionals, configPath }) => runAutolaunchAgentShow(positionals[2] as string, configPath),
   },
+  "autolaunch tokens list": { run: ({ parsedArgs, configPath }) => runAutolaunchTokensList(parsedArgs, configPath) },
+  "autolaunch treasury security <address>": {
+    run: ({ positionals, parsedArgs, configPath }) => runAutolaunchTreasurySecurity(requireArg(positionals[3], "address"), parsedArgs, configPath),
+  },
   "autolaunch auctions list": { run: ({ parsedArgs, configPath }) => runAutolaunchAuctionsList(parsedArgs, configPath) },
   "autolaunch auction-returns list": { run: ({ parsedArgs, configPath }) => runAutolaunchAuctionReturnsList(parsedArgs, configPath) },
   "autolaunch auction <id>": {
-    run: ({ positionals, configPath }) => runAutolaunchAuctionShow(positionals[2] as string, configPath),
+    run: ({ positionals, parsedArgs, configPath }) => runAutolaunchAuctionShow(positionals[2] as string, parsedArgs, configPath),
   },
   "autolaunch bids quote": { run: ({ parsedArgs, configPath }) => runAutolaunchBidsQuote(parsedArgs, configPath) },
   "autolaunch ens plan": { run: ({ parsedArgs, configPath }) => runAutolaunchEnsPlan(parsedArgs, configPath) },

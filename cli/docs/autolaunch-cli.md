@@ -2,11 +2,38 @@
 
 Autolaunch is a command group inside `regents-cli`.
 
-If you already have an agent, use `regents autolaunch ...`. If you do not have an agent yet, use [regents.sh](https://regents.sh) to make one.
+Auction listing/detail, bid quotes, token listing and treasury security reports are
+public reads. They need no Agent account, sign-in or wallet. Start with:
 
-The CLI consumes the reviewed Autolaunch API binding checked in at `packages/regents-cli/src/generated/autolaunch-openapi.ts`.
+```bash
+regents autolaunch auctions list --mode biddable --json
+```
 
-The `regent-staking` rail consumes the reviewed Platform API binding checked in at `packages/regents-cli/src/generated/platform-openapi.ts`.
+See [Public market reads](#public-market-reads) for all five commands and their
+limits. They use the generated `autolaunch-public-openapi.ts` binding. The older
+private commands retain `autolaunch-openapi.ts`; the separate `regent-staking`
+rail retains the Platform binding.
+
+Workspace guidance: [WebMCP and CLI standard](../../../../control/docs/programs/webmcp-cli-standard.md).
+This relative link targets the canonical Regent workspace checkout.
+
+## Environment
+
+- `AUTOLAUNCH_BASE_URL` overrides the configured Autolaunch origin. Without this
+  override, `services.autolaunch.baseUrl` is used; new configurations default to
+  `https://autolaunch.sh`. Existing saved origins are not rewritten. A loopback URL
+  is an explicit local-test override, not the default.
+- `AUTOLAUNCH_WALLET_ADDRESS` is used by legacy Safe setup commands. Public reads
+  do not use it.
+
+## Legacy private guidance — unverified
+
+Except for the explicitly labeled Public market reads and fixture comparison
+sections, the operator, sign-in, launch, wallet and staking guidance below is
+retained legacy documentation. Its private routes have not been verified against
+the current Autolaunch site. These requirements do not apply to the five public
+reads. The new default origin also applies to private commands, whose route
+implementations remain unchanged.
 
 Chain language for this command group:
 
@@ -14,7 +41,7 @@ Chain language for this command group:
 - production launches use Base mainnet
 - the `autolaunch` contract-linked path is Base only
 
-The supported CLI surface is:
+The legacy private sign-in sequence is:
 
 ```bash
 regents auth login --audience autolaunch
@@ -48,9 +75,9 @@ Use this framing when the question is strategic:
 - the sale builds operating runway, the treasury keeps funding room on hand, and the post-launch rewards path gives supporters a reason to stay
 - the short version is: turn agent edge into runway
 
-## Current product surface
+## Legacy product surface (unverified)
 
-The CLI pairs with the current Autolaunch site:
+The legacy documentation described these product capabilities:
 
 - command-first launch planning and monitoring
 - market search, position search, and shareable filtered views
@@ -59,16 +86,7 @@ The CLI pairs with the current Autolaunch site:
 - a unified action panel pattern for wallet actions and prepared operator actions
 - local Cachex hot reads for subject revenue and wallet position state
 
-## Environment
-
-- `AUTOLAUNCH_BASE_URL`
-  Default: `http://127.0.0.1:4000`
-- `AUTOLAUNCH_WALLET_ADDRESS`
-  Optional website wallet address used by Safe setup commands.
-
-Protected Autolaunch commands use the saved Autolaunch sign-in from `regents auth login --audience autolaunch` and the Agent account saved by `regents identity ensure`. An Agent account is a wallet, registry address, and token ID.
-
-## Agent quick start
+## Legacy agent quick start (unverified)
 
 If you are operating Autolaunch as an agent, use the guided lifecycle through `regents autolaunch ...`.
 
@@ -298,30 +316,55 @@ Autolaunch still does not route the launch fee lane automatically into REGENT re
 - It includes the warning that skipping those steps can leave the launch looking less trusted.
 - It carries the current instructions and, when available, direct links for the ENS and World follow-up pages.
 
-### Auctions
+### Public market reads
+
+New CLI configurations default `services.autolaunch.baseUrl` to
+`https://autolaunch.sh`. Saved configurations and `AUTOLAUNCH_BASE_URL` still take
+precedence. This shared default also applies to other Autolaunch commands; their
+legacy private routes are unchanged by this public-read update.
+
+These commands need no sign-in. They read stored public projections and send no
+SIWA headers, cookies, or credentials. They print the complete API JSON body,
+including warnings and exact amount strings. HTTP errors keep the existing CLI
+code, message and exit status, with the original API JSON in `error.details.body`
+and the HTTP status in `error.details.status`.
 
 ```bash
 regents autolaunch auctions list \
-  [--sort hottest|recently_launched|expired] \
-  [--status active|expired] \
-  [--chain <chain-id>] \
-  [--mine-only] \
-  [--json]
-
+  [--mode all|biddable|live|failed_minimum|graduated] \
+  [--sort newest|oldest] [--limit <integer>] [--json]
 regents autolaunch auction <auction-id> [--json]
-```
-
-### Bids
-
-```bash
+regents autolaunch tokens list [--limit <integer>] [--json]
+regents autolaunch treasury security <address> [--json]
 regents autolaunch bids quote \
-  --auction <auction-id> \
-  --amount <regent-amount> \
-  --max-price <regent-price> \
-  [--json]
+  --auction <auction-id> --amount <decimal-string> --max-price <decimal-string> [--json]
 ```
 
-Placing, exiting, and claiming bids happens in the Autolaunch web app.
+Auction defaults are mode `all`, sort `newest`, limit 50. Token limit defaults to
+100. The API clamps integer limits to 1–50 or 1–100 respectively. No pagination
+is exposed. Treasury addresses are checked by the API, including mixed-case EIP-55
+checksums. `supported_safe` still carries `awaiting_current_chain_confirmation`
+and `projector_refresh_not_integrated`; this is stored evidence, not a current
+chain verification.
+
+Bid quotes estimate from stored auction data. Quote decimal strings are sent
+unchanged. The API trims whitespace, accepts positive digits with an optional
+fraction, and enforces its 100-byte and Decimal parser bounds (currently 34
+significant digits). Quotes do not apply wallet-only 18-decimal or uint128 limits.
+A closed auction can return a quote with `auction_not_biddable`; preserve and read
+its warnings. Placing, exiting and claiming bids happens in the Autolaunch web app.
+
+`autolaunch-public-contract.openapiv3.yaml` is a byte-identical checked-in copy of
+Autolaunch's product-owned `platform/contracts/api-contract.openapiv3.yaml` from
+commit `dd6c0dbe8b1759faf5a6e6f200c020b845509cf0`, reviewed on 5 September 2026.
+Its SHA-256 is `8f8100c9583972f4ff663f3d8dcfb1800b89b3f26e01741e37fd689b3606519c`.
+The product contract remains the single HTTP authority; this copy is not edited
+independently. `pnpm check:openapi` verifies the copied file's reviewed hash and
+regenerates its binding for comparison. It does not query the product repository
+or establish freshness against later upstream changes. A reviewed synchronization
+must copy the product contract and update its provenance/hash together.
+Run `pnpm generate:openapi` and `pnpm generate:cli-command-metadata` after contract
+changes. Builds and checks require no Autolaunch checkout.
 
 ### Subjects
 
@@ -452,3 +495,17 @@ That backend must have:
   Without those, launch creation can queue but cannot actually execute.
 
 Trust follow-up commands use the current trust-network configuration. Core launch, auction, subject, and contract-console flows use their own configured inputs.
+
+### Optional public fixture comparison
+
+With a built CLI and an isolated loopback Autolaunch server seeded with its
+`test/browser/support/seed_public_tools.exs` synthetic records, run:
+
+```sh
+node scripts/test-autolaunch-public-fixture.mjs http://127.0.0.1:<fixture-port>
+```
+
+This compares full HTTP results with the actual CLI for all five reads, modes,
+server limit clamping, high-precision quotes, closed-auction warnings, verification
+labels and API failures. It writes disposable configuration and evidence beneath
+`output/`; it never seeds records, signs requests or calls a chain provider.

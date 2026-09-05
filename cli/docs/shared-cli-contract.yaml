@@ -1340,3 +1340,87 @@ command_groups:
       - chat follows add <wallet|label>
       - chat follows remove <wallet|label>
       - chat follows list
+  - name: autolaunch-public-markets
+    interface: http
+    auth_mode: none
+    output_envelope: data
+    note: >-
+      Public stored projections only. Default services.autolaunch.baseUrl is https://autolaunch.sh;
+      saved configuration and AUTOLAUNCH_BASE_URL retain authority. Send no sign-in headers, cookies, or credentials.
+      Successful output is the complete API JSON body. Existing CLI error codes,
+      messages and exit codes remain; public HTTP failures additionally expose
+      error.details with status and the complete API body.
+      Quote amounts remain original strings; the API validates decimals and IDs.
+      Quotes never prepare or submit transactions. Preserve warnings and the treasury
+      awaiting_current_chain_confirmation / projector_refresh_not_integrated labels.
+    agent_metadata:
+      category: market
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: read
+      retry_behavior: safe
+      pagination: none
+      async_behavior: synchronous
+      input_mode: args-and-flags
+      examples:
+        - regents autolaunch auctions list --mode biddable --sort newest --limit 10
+        - regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3
+      commands:
+        autolaunch auctions list:
+          next_step: Open an auction with `regents autolaunch auction <id>`.
+        autolaunch auction <id>:
+          next_step: Estimate a bid with `regents autolaunch bids quote --auction <id> --amount <decimal> --max-price <decimal>`.
+        autolaunch tokens list:
+          next_step: Read the token's treasury_security report and its verification limits.
+        autolaunch bids quote:
+          summary: Estimate a bid from stored auction data without submitting it.
+          next_step: Review the estimate and warnings. Use the Autolaunch web app to place a bid.
+        autolaunch treasury security <address>:
+          summary: Show a stored treasury security report and its verification limits.
+          next_step: Read verification_state and verification_reason alongside classification.
+    commands:
+      - autolaunch auctions list
+      - autolaunch auction <id>
+      - autolaunch bids quote
+      - autolaunch tokens list
+      - autolaunch treasury security <address>
+    flags:
+      autolaunch auctions list:
+        - name: --mode
+          type: enum
+          enum: [all, biddable, live, failed_minimum, graduated]
+          required: false
+          description: Public auction mode. Defaults to all.
+        - name: --sort
+          type: enum
+          enum: [newest, oldest]
+          required: false
+          description: Opening-time order. Defaults to newest.
+        - name: --limit
+          type: string
+          required: false
+          description: Integer limit; the API clamps to 1–50. Defaults to 50.
+      autolaunch tokens list:
+        - name: --limit
+          type: string
+          required: false
+          description: Integer limit; the API clamps to 1–100. Defaults to 100.
+      autolaunch bids quote:
+        - name: --auction
+          type: string
+          required: true
+          description: Auction UUID.
+        - name: --amount
+          type: string
+          required: true
+          description: Positive decimal bid amount, sent unchanged for API validation.
+        - name: --max-price
+          type: string
+          required: true
+          description: Positive decimal maximum price, sent unchanged for API validation.
+    path_templates:
+      - /api/v1/auctions
+      - /api/v1/auctions/{id}
+      - /api/v1/auctions/{id}/bid-quote
+      - /api/v1/tokens
+      - /api/v1/treasury-security/{address}

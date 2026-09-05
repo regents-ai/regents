@@ -29,6 +29,7 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
 export interface RequestOptions {
   readonly body?: unknown;
   readonly requireAgentAuth?: boolean;
+  readonly publicRead?: boolean;
   readonly authAudience?: SiwaAudience;
   readonly configPath?: string;
   readonly chainId?: number;
@@ -89,6 +90,7 @@ const requestRawJson = async <T>(
 ): Promise<T> => {
   const payload = await requestProductJson<unknown>(method, path, {
     body: options.body,
+    publicRead: options.publicRead,
     configPath: options.configPath,
     requireAgentAuth: options.requireAgentAuth,
     authAudience: options.authAudience ?? "autolaunch",

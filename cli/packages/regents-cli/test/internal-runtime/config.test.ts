@@ -25,7 +25,7 @@ describe("config loading", () => {
     expect(config.wallet.keystorePath).toBe(path.join(tempDir, "keys", "agent-wallet.json"));
     expect(config.gossipsub.peerIdPath).toBe(path.join(tempDir, "p2p", "peer-id.json"));
     expect(config.services.platform.baseUrl).toBe("https://regents.sh");
-    expect(config.services.autolaunch.baseUrl).toBe("https://regents.sh");
+    expect(config.services.autolaunch.baseUrl).toBe("https://autolaunch.sh");
   });
 
   it("merges partial config with defaults and normalizes paths", () => {

@@ -1,4 +1,5 @@
 import { CliUsageError } from "../cli-usage-error.js";
+import { ProductHttpError } from "../internal-runtime/product-http-client.js";
 import { codeForError } from "../exit-codes.js";
 import { JsonRpcError, RegentError } from "../internal-runtime/index.js";
 
@@ -95,7 +96,12 @@ export function printError(error: unknown, options?: { readonly nextStep?: strin
     return;
   }
 
-  const fallbackDetails = fallbackNextSteps ? { next_steps: fallbackNextSteps } : undefined;
+  const fallbackDetails = {
+    ...(fallbackNextSteps ? { next_steps: fallbackNextSteps } : {}),
+    ...(error instanceof ProductHttpError && error.responseBody !== undefined
+      ? { details: { status: error.status, body: error.responseBody } }
+      : {}),
+  };
 
   if (error instanceof RegentError) {
     if (isHumanTerminal()) {

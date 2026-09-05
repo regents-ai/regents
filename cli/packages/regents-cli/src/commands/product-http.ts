@@ -15,6 +15,7 @@ export { ProductHttpError, type ProductServiceName };
 export interface ProductJsonRequestOptions {
   readonly body?: unknown;
   readonly requireAgentAuth?: boolean;
+  readonly publicRead?: boolean;
   readonly authAudience?: SiwaAudience;
   readonly configPath?: string;
   readonly config?: RegentConfig;
@@ -68,6 +69,9 @@ export const requestProductJson = async <T>(
   path: string,
   options: ProductJsonRequestOptions = {},
 ): Promise<T> => {
+  if (options.publicRead && options.requireAgentAuth) {
+    throw new Error("A public read cannot require Agent authentication.");
+  }
   const audience = options.authAudience ?? "regent-services";
   const service =
     options.service ??
@@ -95,6 +99,7 @@ export const requestProductJson = async <T>(
 
   const { response, requestId } = await requestProductResponse({
     service,
+    publicRead: options.publicRead,
     method,
     path,
     configPath: options.configPath,
@@ -112,6 +117,7 @@ export const requestProductJson = async <T>(
     throw new ProductHttpError({
       service,
       status: response.status,
+      ...(options.publicRead ? { responseBody: payload } : {}),
       path,
       requestId,
       message: errorMessageFromPayload(payload, response.status, response.headers),

@@ -12,7 +12,10 @@ const loadGeneratedPathSet = (relativePath: string): Set<string> => {
 
 const pathsByOwner = {
   techtree: loadGeneratedPathSet("../src/generated/ash-techtree-openapi.ts"),
-  autolaunch: loadGeneratedPathSet("../src/generated/autolaunch-openapi.ts"),
+  autolaunch: new Set([
+    ...loadGeneratedPathSet("../src/generated/autolaunch-openapi.ts"),
+    ...loadGeneratedPathSet("../src/generated/autolaunch-public-openapi.ts"),
+  ]),
   platform: loadGeneratedPathSet("../src/generated/platform-openapi.ts"),
   "shared-services": new Set([
     ...loadGeneratedPathSet("../src/generated/regent-services-openapi.ts"),

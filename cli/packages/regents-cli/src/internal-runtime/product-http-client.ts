@@ -37,6 +37,7 @@ export interface ProductHttpRequestOptions {
   readonly headers?: ProductHttpHeaders;
   readonly body?: ProductHttpBody | null;
   readonly baseUrlOverride?: string;
+  readonly publicRead?: boolean;
   readonly signal?: AbortSignal | null;
 }
 
@@ -51,6 +52,7 @@ export class ProductHttpError extends Error {
   readonly path: string;
   readonly requestId: string;
   readonly timedOut: boolean;
+  readonly responseBody?: unknown;
 
   constructor(args: {
     service: ProductServiceName;
@@ -59,6 +61,7 @@ export class ProductHttpError extends Error {
     requestId: string;
     message: string;
     timedOut?: boolean;
+    responseBody?: unknown;
   }) {
     super(args.message);
     this.name = "ProductHttpError";
@@ -67,6 +70,7 @@ export class ProductHttpError extends Error {
     this.path = args.path;
     this.requestId = args.requestId;
     this.timedOut = args.timedOut === true;
+    this.responseBody = args.responseBody;
   }
 }
 
@@ -126,6 +130,7 @@ export const requestProductResponse = async (
       headers,
       body: options.body,
       signal: controller.signal,
+      ...(options.publicRead ? { credentials: "omit" as const, redirect: "error" as const } : {}),
     });
 
     appendStructuredLog(config, {

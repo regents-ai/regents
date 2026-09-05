@@ -14,6 +14,25 @@ describe("product HTTP client", () => {
     vi.unstubAllGlobals();
   });
 
+  it("rejects a public read requesting authentication before issuing a request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(requestProductJson("GET", "/api/v1/auctions", {
+      service: "autolaunch", publicRead: true, requireAgentAuth: true,
+    })).rejects.toThrow("A public read cannot require Agent authentication.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses a saved custom Autolaunch origin for public requests", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "regent-public-origin-"));
+    const config = defaultConfig(path.join(tempDir, "config.json"));
+    config.services.autolaunch.baseUrl = "https://autolaunch-fixture.example";
+    const fetchMock = vi.fn(async () => Response.json({ data: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    await requestProductJson("GET", "/api/v1/auctions", { service: "autolaunch", config, publicRead: true });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://autolaunch-fixture.example/api/v1/auctions");
+  });
+
   it("uses the current product error envelope message", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "regent-product-http-"));
     const config = defaultConfig(path.join(tempDir, "config.json"));
