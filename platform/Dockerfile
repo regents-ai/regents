@@ -6,18 +6,19 @@ FROM docker.io/library/debian@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613
 FROM native AS assets
 
 ENV npm_config_nodedir=/usr/local
-WORKDIR /workspace/ash-platform
+WORKDIR /workspace/platform
 COPY --from=node /usr/local /usr/local
 COPY npm-cache/_cacache /root/.npm/_cacache
-COPY ash-platform/package.json ash-platform/package-lock.json ./
+COPY platform/package.json platform/package-lock.json ./
 RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
 
 FROM native AS build
 
 ENV MIX_ENV=prod
+ENV REGENT_DEPS_ROOT=/workspace
 ENV HOME=/root
 ENV RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=/workspace/rustler-precompiled
-WORKDIR /workspace/ash-platform
+WORKDIR /workspace/platform
 
 COPY --from=elixir /usr/local /usr/local
 COPY --from=assets /usr/local/bin/node /usr/local/bin/node
@@ -29,19 +30,19 @@ COPY rustler-precompiled /workspace/rustler-precompiled
 # The context carries exactly one bundler executable, the one for the target
 # it was assembled for, and Mix looks it up by that architecture-specific name.
 COPY esbuild-linux-* _build/
-COPY ash-platform/deps deps
-COPY ash-platform/mix.exs ash-platform/mix.lock ./
+COPY platform/deps deps
+COPY platform/mix.exs platform/mix.lock ./
 COPY elixir-utils/privy /workspace/elixir-utils/privy
 COPY design-system/regent_ui /workspace/design-system/regent_ui
-COPY ash-platform/config config
+COPY platform/config config
 RUN mix deps.compile
 
-COPY ash-platform/lib lib
-COPY ash-platform/priv priv
-COPY ash-platform/rel rel
-COPY ash-platform/assets assets
-COPY ash-platform/contracts contracts
-COPY --from=assets /workspace/ash-platform/node_modules node_modules
+COPY platform/lib lib
+COPY platform/priv priv
+COPY platform/rel rel
+COPY platform/assets assets
+COPY platform/contracts contracts
+COPY --from=assets /workspace/platform/node_modules node_modules
 RUN mix compile && mix assets.deploy && mix release
 
 # The release carries its own ERTS, so the runtime image needs no Elixir and no
@@ -85,7 +86,7 @@ COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app
 
-COPY --from=build --chown=app:app /workspace/ash-platform/_build/prod/rel/ash_platform ./
+COPY --from=build --chown=app:app /workspace/platform/_build/prod/rel/ash_platform ./
 
 USER app
 

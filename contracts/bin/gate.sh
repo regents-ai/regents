@@ -2,6 +2,8 @@
 set -eu
 
 cd "$(dirname "$0")/.."
+monorepo_root=$(git rev-parse --show-toplevel)
+package_prefix=$(git rev-parse --show-prefix)
 
 root_submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-submodules.XXXXXX")
 nested_submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-nested-submodules.XXXXXX")
@@ -55,16 +57,25 @@ join_project_path() {
 
 project_has_gitmodules() {
     gitmodules_project=$1
-    [ -f "$gitmodules_project/.gitmodules" ]
+    if [ "$gitmodules_project" = "." ]; then
+        [ -f "$monorepo_root/.gitmodules" ]
+    else
+        [ -f "$gitmodules_project/.gitmodules" ]
+    fi
 }
 
 project_gitmodule_paths() {
     gitmodule_project=$1
     gitmodules_file="$gitmodule_project/.gitmodules"
+    gitmodules_prefix=
+    if [ "$gitmodule_project" = "." ]; then
+        gitmodules_file="$monorepo_root/.gitmodules"
+        gitmodules_prefix=$package_prefix
+    fi
 
     [ -f "$gitmodules_file" ] || return 0
     git config --file "$gitmodules_file" --get-regexp '\.path$' 2>/dev/null |
-        awk '{print $2}'
+        awk -v prefix="$gitmodules_prefix" 'index($2, prefix) == 1 || prefix == "" {print substr($2, length(prefix) + 1)}'
 }
 
 normalize_remappings() {
@@ -372,7 +383,7 @@ derive_project() {
 }
 
 check_root_paths() {
-    if [ ! -f .gitmodules ]; then
+    if [ ! -f "$monorepo_root/.gitmodules" ]; then
         echo "Missing .gitmodules; refusing to guess the required root submodule set." >&2
         return 1
     fi

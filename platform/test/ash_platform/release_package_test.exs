@@ -46,29 +46,29 @@ defmodule AshPlatform.ReleasePackageTest do
     # everything outside the declared allowlist. A real context carries one
     # bundler executable; the rules admit either architecture's name.
     write_files(context, [
-      {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"ash-platform/config/config.exs", "import Config\n"},
-      {"ash-platform/assets/js/app.ts", "export const app = 1\n"},
-      {"ash-platform/contracts/base-mainnet.json", "{}\n"},
-      {"ash-platform/rel/overlays/bin/migrate", "#!/bin/sh\n"},
-      {"ash-platform/priv/static/app.css", "body{}\n"},
-      {"ash-platform/mix.exs", "defmodule App.MixProject do\nend\n"},
-      {"ash-platform/mix.lock", "%{}\n"},
-      {"ash-platform/package.json", "{}\n"},
-      {"ash-platform/package-lock.json", "{}\n"},
-      {"ash-platform/deps/dependency/lib/dependency.ex", "defmodule Dependency do\nend\n"},
-      {"ash-platform/deps/dependency/priv/static/dependency.js", "export const dep = 1\n"},
-      {"ash-platform/deps/dependency/priv/templates/generator.eex", "<%= @thing %>\n"},
-      {"ash-platform/deps/dependency/priv/host_listener", "host build output\n"},
-      {"ash-platform/deps/dependency/priv/nif.so", "host build output\n"},
-      {"ash-platform/test/app_test.exs", "defmodule AppTest do\nend\n"},
-      {"ash-platform/docs/guide.md", "# guide\n"},
-      {"ash-platform/README.md", "# readme\n"},
-      {"ash-platform/.env", "SECRET=nope\n"},
-      {"ash-platform/.env.example", "SECRET=\n"},
-      {"ash-platform/.env.production", "SECRET=nope\n"},
-      {"ash-platform/.envrc", "export SECRET=nope\n"},
-      {"ash-platform/config/.env", "SECRET=nope\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/config/config.exs", "import Config\n"},
+      {"platform/assets/js/app.ts", "export const app = 1\n"},
+      {"platform/contracts/base-mainnet.json", "{}\n"},
+      {"platform/rel/overlays/bin/migrate", "#!/bin/sh\n"},
+      {"platform/priv/static/app.css", "body{}\n"},
+      {"platform/mix.exs", "defmodule App.MixProject do\nend\n"},
+      {"platform/mix.lock", "%{}\n"},
+      {"platform/package.json", "{}\n"},
+      {"platform/package-lock.json", "{}\n"},
+      {"platform/deps/dependency/lib/dependency.ex", "defmodule Dependency do\nend\n"},
+      {"platform/deps/dependency/priv/static/dependency.js", "export const dep = 1\n"},
+      {"platform/deps/dependency/priv/templates/generator.eex", "<%= @thing %>\n"},
+      {"platform/deps/dependency/priv/host_listener", "host build output\n"},
+      {"platform/deps/dependency/priv/nif.so", "host build output\n"},
+      {"platform/test/app_test.exs", "defmodule AppTest do\nend\n"},
+      {"platform/docs/guide.md", "# guide\n"},
+      {"platform/README.md", "# readme\n"},
+      {"platform/.env", "SECRET=nope\n"},
+      {"platform/.env.example", "SECRET=\n"},
+      {"platform/.env.production", "SECRET=nope\n"},
+      {"platform/.envrc", "export SECRET=nope\n"},
+      {"platform/config/.env", "SECRET=nope\n"},
       {"elixir-utils/privy/lib/privy.ex", "defmodule Privy do\nend\n"},
       {"elixir-utils/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
       {"design-system/regent_ui/mix.exs", "defmodule RegentUi.MixProject do\nend\n"},
@@ -114,19 +114,19 @@ defmodule AshPlatform.ReleasePackageTest do
     assert status == 0, out
 
     assert admitted_files(output) == [
-             "ash-platform/assets/js/app.ts",
-             "ash-platform/config/config.exs",
-             "ash-platform/contracts/base-mainnet.json",
-             "ash-platform/deps/dependency/lib/dependency.ex",
-             "ash-platform/deps/dependency/priv/static/dependency.js",
-             "ash-platform/deps/dependency/priv/templates/generator.eex",
-             "ash-platform/lib/app.ex",
-             "ash-platform/mix.exs",
-             "ash-platform/mix.lock",
-             "ash-platform/package-lock.json",
-             "ash-platform/package.json",
-             "ash-platform/priv/static/app.css",
-             "ash-platform/rel/overlays/bin/migrate",
+             "platform/assets/js/app.ts",
+             "platform/config/config.exs",
+             "platform/contracts/base-mainnet.json",
+             "platform/deps/dependency/lib/dependency.ex",
+             "platform/deps/dependency/priv/static/dependency.js",
+             "platform/deps/dependency/priv/templates/generator.eex",
+             "platform/lib/app.ex",
+             "platform/mix.exs",
+             "platform/mix.lock",
+             "platform/package-lock.json",
+             "platform/package.json",
+             "platform/priv/static/app.css",
+             "platform/rel/overlays/bin/migrate",
              "design-system/regent_ui/assets/css/regent.css",
              "design-system/regent_ui/lib/regent_ui.ex",
              "design-system/regent_ui/mix.exs",
@@ -220,7 +220,7 @@ defmodule AshPlatform.ReleasePackageTest do
     dirty = temporary_directory("context-guard-dirty")
 
     write_files(dirty, [
-      {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
       {"mix-cache/x/.envrc.local", "export SECRET=nope\n"}
     ])
 
@@ -235,8 +235,8 @@ defmodule AshPlatform.ReleasePackageTest do
     odd_case = temporary_directory("context-guard-odd-case")
 
     write_files(odd_case, [
-      {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"ash-platform/.ENV", "SECRET=nope\n"}
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/.ENV", "SECRET=nope\n"}
     ])
 
     {out, status} = run_guard(scan, refusal, odd_case)
@@ -247,8 +247,8 @@ defmodule AshPlatform.ReleasePackageTest do
     clean = temporary_directory("context-guard-clean")
 
     write_files(clean, [
-      {"ash-platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"ash-platform/environment.md", "# not a secrets file\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/environment.md", "# not a secrets file\n"},
       {"mix-cache/archives/hex", "hex archive\n"}
     ])
 
@@ -327,7 +327,7 @@ defmodule AshPlatform.ReleasePackageTest do
     path =
       Path.join(
         System.tmp_dir!(),
-        "ash-platform-#{prefix}-#{System.unique_integer([:positive])}"
+        "platform-#{prefix}-#{System.unique_integer([:positive])}"
       )
 
     on_exit(fn -> File.rm_rf!(path) end)

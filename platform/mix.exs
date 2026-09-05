@@ -39,7 +39,7 @@ defmodule AshPlatform.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
-    shared = System.get_env("REGENT_DEPS_ROOT", Path.expand("..", __DIR__))
+    shared = System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__))
 
     [
       {:phoenix, "~> 1.8.9"},

@@ -1,22 +1,23 @@
 *
-!ash-platform/assets/**
-!ash-platform/config/**
-!ash-platform/contracts/**
-!ash-platform/deps/**
-!ash-platform/lib/**
-!ash-platform/priv/**
-!ash-platform/rel/**
-!ash-platform/mix.exs
-!ash-platform/mix.lock
-!ash-platform/package.json
-!ash-platform/package-lock.json
+!platform/assets/**
+!platform/config/**
+!platform/contracts/**
+!platform/deps/**
+!platform/lib/**
+!platform/priv/**
+!platform/rel/**
+!platform/mix.exs
+!platform/mix.lock
+!platform/package.json
+!platform/package-lock.json
 # The RegentUI source enters as narrowly as the build uses it: the project file
-# and modules Mix compiles, and the stylesheets ash-platform/assets/css/app.css
+# and modules Mix compiles, and the stylesheets platform/assets/css/app.css
 # imports. Its own tests, lockfile, tooling files, digested priv/static output
 # and JavaScript are not build inputs and stay out.
 !design-system/regent_ui/mix.exs
 !design-system/regent_ui/lib/**
 !design-system/regent_ui/assets/css/**
+!design-system/regent_ui/assets/images/**
 !elixir-utils/privy/**
 !mix-cache/**
 !npm-cache/**
@@ -29,9 +30,9 @@
 # source rather than output: priv/static holds the JavaScript clients the
 # asset build resolves through package main entries, and priv/templates is
 # where Phoenix copies its generator templates during its own compile.
-ash-platform/deps/**/priv/**
-!ash-platform/deps/**/priv/static/**
-!ash-platform/deps/**/priv/templates/**
+platform/deps/**/priv/**
+!platform/deps/**/priv/static/**
+!platform/deps/**/priv/templates/**
 
 # The copied source trees must never carry runtime environment files.
 **/.env

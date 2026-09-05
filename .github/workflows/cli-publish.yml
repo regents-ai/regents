@@ -3,7 +3,7 @@ name: Publish CLI
 on:
   push:
     tags:
-      - "v*"
+      - "cli-v*"
 
 permissions:
   contents: write
@@ -14,54 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: regents-cli
+        working-directory: cli
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          path: regents-cli
-
-      - name: Check out Platform contract source
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/platform
-          path: platform
-          fetch-depth: 0
-
-      - name: Check out Techtree contract source
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/techtree
-          path: techtree
-          fetch-depth: 0
-
-      - name: Check out Autolaunch contract source
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/autolaunch
-          path: autolaunch
-          fetch-depth: 0
-
-      - name: Check out Regents Mobile contract source
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/ios
-          path: ios
-          fetch-depth: 0
-
-      - name: Check out SIWA contract source
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/siwa-server
-          path: siwa-server
-          fetch-depth: 0
-
-      - name: Check out Elixir utilities
-        uses: actions/checkout@v4
-        with:
-          repository: regents-ai/elixir-utils
-          path: elixir-utils
-          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -73,7 +29,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: regents-cli/pnpm-lock.yaml
+          cache-dependency-path: cli/pnpm-lock.yaml
           registry-url: https://registry.npmjs.org
 
       - name: Upgrade npm for trusted publishing
@@ -85,7 +41,7 @@ jobs:
       - name: Verify tag matches package version
         run: |
           PACKAGE_VERSION=$(node -p "require('./packages/regents-cli/package.json').version")
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${GITHUB_REF_NAME#cli-v}"
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
             echo "Tag version ${TAG_VERSION} does not match package version ${PACKAGE_VERSION}."
             exit 1
@@ -113,7 +69,7 @@ jobs:
         run: pnpm test:pack-smoke
 
       - name: Publish package
-        working-directory: regents-cli/packages/regents-cli
+        working-directory: cli/packages/regents-cli
         run: npm publish --access public --provenance
 
       - name: Create GitHub release

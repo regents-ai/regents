@@ -1,13 +1,10 @@
-<!-- BEGIN REGENT META GENERATED -->
-## Repo Contract
+# Regents platform
 
-Generated from `/Users/sean/Documents/regent/control/stack.yaml` and this repo's `repo.yaml`. Local notes may live outside this block.
+This is the Phoenix/Ash component of the Regents monorepo. Run Mix and npm here.
+`lib/ash_platform/` owns domains; `lib/ash_platform_web/` owns routes and LiveViews.
+`contracts/` here contains runtime API/ABI/manifests; Solidity lives in the monorepo's
+root `contracts/`. Keep internal OTP/release names stable during layout changes.
 
-- Repo contract: `ash-platform/repo.yaml`
-- Owner: `ash-platform`
-- Release group: `public_beta`
-- Owned areas: `regent_web_app`, `web_routes`, `ash_domain_interfaces`, `public_api_serving`, `human_identity`, `billing`, `formation`, `public_regent_records`, `techtree_product_area`, `autolaunch_product_area`.
-- Change API or CLI behavior in the owning YAML contract before changing code.
-- Use `bd` only for execution state: tickets, claims, blockers, dependencies, and closure evidence.
-<!-- END REGENT META GENERATED -->
-# ash-platform repo_agents
+Follow the root instructions and Control's `regent-workflow`. Use the ticket's
+acceptance and applicable focused checks. Browser fixtures belong to the prepared
+local database. Shared dependencies resolve through `REGENT_DEPS_ROOT`.

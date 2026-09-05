@@ -1,8 +1,8 @@
 version: 1
-repo: ash-platform
-owner: ash-platform
-path: ash-platform
-stack_contract: ../metaprogramming/stack.yaml
+repo: regents
+owner: regents
+path: regents/platform
+stack_contract: /Users/sean/Documents/regent/control/stack.yaml
 owns:
   - regent_web_app
   - web_routes
@@ -51,7 +51,7 @@ protected_datasets:
     - basenames_payment_credits
 local_path_dependencies:
   - id: regent_privy
-    path: ../elixir-utils/privy
+    path: ../../elixir-utils/privy
     reviewed_repo_commit: cbb09857065069590671e2cbabdd5ae0885a65c4
 planning_records:
   role: historical_evidence_only
@@ -62,9 +62,9 @@ planning_records:
     - priv/handoff
   admission_rule: Current founder and chief decisions plus the contracts and interfaces named above govern admission.
 acceptance_commands:
-  - cwd: ash-platform
+  - cwd: platform
     command: mix precommit
-  - cwd: ash-platform
+  - cwd: platform
     command: npm run typecheck
-  - cwd: ash-platform
+  - cwd: platform
     command: npm test
