@@ -1,0 +1,35 @@
+[profile.default]
+src = "src"
+out = "out"
+script = "script"
+libs = ["lib"]
+auto_detect_solc = true
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+verbosity = 2
+threads = 1
+fs_permissions = [{ access = "read", path = "./test/fixtures" }]
+
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@uniswap/v4-core/=lib/v4-core/",
+  "@uniswap/v4-periphery/=lib/v4-periphery/",
+  "@uniswap/uerc20-factory/=lib/uerc20-factory/",
+  "@solady/=lib/solady/",
+  "permit2/=lib/permit2/",
+  "solmate/=lib/solmate/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "@safe-global/safe-smart-account/=lib/safe-smart-account/contracts/",
+]
+
+[rpc_endpoints]
+base = "${BASE_MAINNET_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
+
+[fmt]
+line_length = 100
+tab_width = 4
+quote_style = "double"
+number_underscore = "thousands"

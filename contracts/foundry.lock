@@ -1,0 +1,32 @@
+{
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.9.7",
+      "rev": "77041d2ce690e692d6e03cc812b57d1ddaa4d505"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "9cfdccd35350f7bcc585cf2ede08cd04e7f0ec10"
+  },
+  "lib/permit2": {
+    "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+  },
+  "lib/safe-smart-account": {
+    "rev": "bf943f80fec5ac647159d26161446ac5d716a294"
+  },
+  "lib/solady": {
+    "rev": "90db92ce173856605d24a554969f2c67cadbc7e9"
+  },
+  "lib/solmate": {
+    "rev": "89365b880c4f3c786bdd453d4b8e8fe410344a69"
+  },
+  "lib/uerc20-factory": {
+    "rev": "09ae130f7a10f7c1b96e0dc7d9724d567080c4ef"
+  },
+  "lib/v4-core": {
+    "rev": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc"
+  },
+  "lib/v4-periphery": {
+    "rev": "686f621d9b675fc78bf02781f59ec1ad36921706"
+  }
+}

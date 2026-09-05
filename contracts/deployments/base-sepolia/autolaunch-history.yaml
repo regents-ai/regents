@@ -1,0 +1,653 @@
+version: 3
+status: historical_reconstruction
+network:
+  name: base-sepolia
+  chain_id: 84532
+source:
+  archive_commit: b760a45b7a9d97711d14ebe8d467dfcc168b5f1a
+warning: >-
+  This reconstructs archived broadcasts. Each entry binds the broadcast artifact,
+  constructor arguments, and source lineage separately. Historical testnet deployment
+  does not imply current-source deployment, public exposure, or prepared-action admission.
+  Constructor compatibility is not source binding.
+creation_bytecode_binding_method: >-
+  SHA-256 over creation bytecode bytes after removing the constructor-argument suffix and
+  the Solidity CBOR metadata trailer. A current source is deployed only when the compared
+  byte sequences and digests match exactly.
+current_comparison_build: {forge: 1.5.1, solc: 0.8.30, optimizer: true, optimizer_runs: 200, via_ir: true, bytecode_hash: none}
+admission_source:
+  manifest: ash-platform/contracts/chain-contracts.yaml
+  contract_id: base_mainnet_reviewed_evidence
+  admitted_prepared_action_ids:
+    - continuous_clearing_auction.submit_bid
+    - continuous_clearing_auction.exit_bid
+    - continuous_clearing_auction.return_quote_token
+    - continuous_clearing_auction.claim_bid
+    - quote_token_erc20.approve_exact
+    - regent_staking_revenue_router.settle_treasury_buyback
+    - payment_link_factory.create_payment_link
+    - payment_link_factory.create_canonical_payment_link
+    - payment_link_factory.set_payment_link_canonical
+    - payment_link_factory.set_payment_link_receiver_state
+    - revenue_ingress_account.sweep_usdc
+    - subject_token_erc20.approve_exact
+    - revenue_share_splitter_v2.stake
+    - revenue_share_splitter_v2.unstake
+    - revenue_share_splitter_v2.claim_usdc
+  standing_launch_note: >-
+    v0.1 LAUNCH admission is separately governed by the v0.1 money-action matrix;
+    subject-owner action classes become unavailable at launch regardless of current admission.
+common:
+  owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+  usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+
+infrastructure_runs:
+  - broadcast: broadcast/DeployAutolaunchInfra.s.sol/84532/run-1777584386238.json
+    broadcast_recorded_commit: unavailable_in_record
+    timestamp_ms: 1777584386238
+    contracts:
+      - broadcast_artifact_name: SubjectRegistry
+        address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
+        transaction_hash: "0xc8cd46f93bff80206d9ac1c7ff6511471a260c4353abb28e00ab92bde46f1c26"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/SubjectRegistry.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 7767
+          current_creation_bytes: 11026
+          broadcast_creation_sha256: c909c9f90ba9137239c1154367da12f7695c6dc12c4ba442a76b4da96b9304d0
+          current_creation_sha256: 66d75ce62708ecd4997a1b88f6fecb48d5a3257842efc337d5123495360c2611
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareSplitterDeployer
+        address: "0x1145b74ef34b45854f3f25db6ffd3418b31ea1e5"
+        transaction_hash: "0xf2a80d148f62549dcd10e244f249260f389122823e26c3da998794e58b8a2cbe"
+        constructor: {signature: "constructor()", arguments: []}
+        source_lineage: {status: legacy_reference_current_source_unverified, migrated_source: reference/revenue/RevenueShareSplitterDeployer.sol, active_v2_source: src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: inconclusive_current_source_compile_failed
+          broadcast_creation_bytes: 23363
+          current_creation_bytes: null
+          broadcast_creation_sha256: 236e10126a27c5f4ea977debddbcd22cdbb0c35b20fa0b928036a72c6de5ff5a
+          current_creation_sha256: null
+          current_source_deployed: false
+          reason: retained reference source no longer compiles against the current V2 interface structs
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        active_v2_source_deployed: false
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareFactory
+        address: "0x0f3d3039c7503c06d99c5a88f864c47357c87ef0"
+        transaction_hash: "0xeb187c37b69bbef988a5477dabdcc01705104e60bbba8ca283643b883d12bf6f"
+        constructor:
+          signature: "constructor(address,address,address,address)"
+          owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+          usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+          subject_registry: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+          legacy_splitter_deployer: "0x1145b74Ef34B45854f3F25DB6fFD3418b31EA1E5"
+        source_lineage: {status: legacy_unresolved_constructor_mismatch, migrated_source: src/autolaunch/revenue/RevenueShareFactory.sol, mismatch: current_source_has_five_arguments_including_staking_revenue_router}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 5279
+          current_creation_bytes: 5458
+          broadcast_creation_sha256: 1ece91ab0d5b3c67f16f52f3e9b3ee3badbe2ebbd90eed296d043d0f4fe0f0e9
+          current_creation_sha256: 9d2e329c4e01612ee5dbadd68a0a1353d87e7b9f1eb6da43980d9d06b5e306ae
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueIngressFactory
+        address: "0x74a0d5c6da6f377fe9a30c336a14ad915fa5742f"
+        transaction_hash: "0x8d16b9d45db6bc0bf823a9205eae20f2ec6c76c3461a7b46fb47a9a8d8128fb2"
+        constructor: {signature: "constructor(address,address,address)", usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", subject_registry: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/RevenueIngressFactory.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 11707
+          current_creation_bytes: 16808
+          broadcast_creation_sha256: 4913d0b36b106c9094192eafac002b34760ae468c65bd65821fb4bbeb6211583
+          current_creation_sha256: 8f6aa206803de6bd7f73eb57aaab7fdee4cd4859261a3d7b94e4abc06ecf204b
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RegentLBPStrategyFactory
+        address: "0x3d585c18810d28bdc82efad28303df59ef9e10f8"
+        transaction_hash: "0x9f2c8a7ba83a41549d26817b68ad6d04346b3a9e18c939d8ef6c46961e817f14"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/RegentLBPStrategyFactory.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 21853
+          current_creation_bytes: 24819
+          broadcast_creation_sha256: dc3716ca4127559491bd5c3ee350325cbceb51386f1cce4d8c3dc60db6eded6a
+          current_creation_sha256: b686f1ea06813c3e2d60d6394fc65259bbc0c301737275bc77fb158bda2d1ef8
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+
+  - broadcast: broadcast/DeployAutolaunchInfra.s.sol/84532/run-1777661112121.json
+    broadcast_recorded_commit: unavailable_in_record
+    timestamp_ms: 1777661112121
+    contracts:
+      - broadcast_artifact_name: SubjectRegistry
+        address: "0xfadacf4c145ccc1823584c6d8fd0af34d36e78dc"
+        transaction_hash: "0x40d012523b56574fb44346d6dd55d2bf7a83f4145b522c6e425277e5aec6ac7d"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/SubjectRegistry.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 7767
+          current_creation_bytes: 11026
+          broadcast_creation_sha256: c909c9f90ba9137239c1154367da12f7695c6dc12c4ba442a76b4da96b9304d0
+          current_creation_sha256: 66d75ce62708ecd4997a1b88f6fecb48d5a3257842efc337d5123495360c2611
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareSplitterDeployer
+        address: "0x1e22c068ecd9da6447430e373b6e485eed774773"
+        transaction_hash: "0xf3a12817bb5f89cd581a9efdd1212a40c68b305bffd9069d1533054e53f33e0a"
+        constructor: {signature: "constructor()", arguments: []}
+        source_lineage: {status: legacy_reference_current_source_unverified, migrated_source: reference/revenue/RevenueShareSplitterDeployer.sol, active_v2_source: src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: inconclusive_current_source_compile_failed
+          broadcast_creation_bytes: 23363
+          current_creation_bytes: null
+          broadcast_creation_sha256: 236e10126a27c5f4ea977debddbcd22cdbb0c35b20fa0b928036a72c6de5ff5a
+          current_creation_sha256: null
+          current_source_deployed: false
+          reason: retained reference source no longer compiles against the current V2 interface structs
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        active_v2_source_deployed: false
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareFactory
+        address: "0x1d2b3e31b1e481b5f39947603a482722860f9f32"
+        transaction_hash: "0x024e9849b25923211ae201f393059551855649029b24bc9a80cc278f0db7220e"
+        constructor:
+          signature: "constructor(address,address,address,address)"
+          owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+          usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+          subject_registry: "0xfADAcF4c145ccc1823584C6d8Fd0Af34d36e78dc"
+          legacy_splitter_deployer: "0x1e22c068eCd9DA6447430E373B6e485Eed774773"
+        source_lineage: {status: legacy_unresolved_constructor_mismatch, migrated_source: src/autolaunch/revenue/RevenueShareFactory.sol, mismatch: current_source_has_five_arguments_including_staking_revenue_router}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 5279
+          current_creation_bytes: 5458
+          broadcast_creation_sha256: 1ece91ab0d5b3c67f16f52f3e9b3ee3badbe2ebbd90eed296d043d0f4fe0f0e9
+          current_creation_sha256: 9d2e329c4e01612ee5dbadd68a0a1353d87e7b9f1eb6da43980d9d06b5e306ae
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueIngressFactory
+        address: "0x879968da987b423f4735cea1523eda9b5afa2daa"
+        transaction_hash: "0x3bdfdcf610fc385b0b9b31c0a42d3cb8a9c0e2416801c1f53cac7894bf32b638"
+        constructor: {signature: "constructor(address,address,address)", usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", subject_registry: "0xfADAcF4c145ccc1823584C6d8Fd0Af34d36e78dc", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/RevenueIngressFactory.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 11707
+          current_creation_bytes: 16808
+          broadcast_creation_sha256: 4913d0b36b106c9094192eafac002b34760ae468c65bd65821fb4bbeb6211583
+          current_creation_sha256: 8f6aa206803de6bd7f73eb57aaab7fdee4cd4859261a3d7b94e4abc06ecf204b
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RegentLBPStrategyFactory
+        address: "0x79ebbe484e58feef4a57db97fe50458fe917ae28"
+        transaction_hash: "0xb42f324dee92887dc3e712089703c8ccb1c1e33803f9f206d2454f072822a67e"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/RegentLBPStrategyFactory.sol}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 21853
+          current_creation_bytes: 24819
+          broadcast_creation_sha256: dc3716ca4127559491bd5c3ee350325cbceb51386f1cce4d8c3dc60db6eded6a
+          current_creation_sha256: b686f1ea06813c3e2d60d6394fc65259bbc0c301737275bc77fb158bda2d1ef8
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: AutolaunchTokenFactory
+        address: "0xaaa23b6a121f9583cb1a7e344ad5f4d18dc1d6b7"
+        transaction_hash: "0x54a96f24e343e486040fb1aabdc09c407b11c47e08a5fdfca1a512bcd988d988"
+        constructor: {signature: "constructor()", arguments: []}
+        source_lineage: {status: external_uerc20_factory_not_migrated, migrated_source: null}
+        current_source_binding:
+          method: not_applicable_external_artifact
+          result: external_not_migrated
+          broadcast_creation_bytes: 3675
+          current_creation_bytes: null
+          broadcast_creation_sha256: e1ee6a7cb5d251fb7cfe1d3429acf5a7473e96d86d6ba98c4b7fa738e31db0ab
+          current_creation_sha256: null
+          current_source_deployed: false
+        artifact_labels: {migrated: false, deployed: true, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+
+  - broadcast: broadcast/DeployAutolaunchInfra.s.sol/84532/run-1777955300139.json
+    broadcast_recorded_commit: 876207e
+    timestamp_ms: 1777955300139
+    contracts:
+      - broadcast_artifact_name: SubjectRegistry.0.8.30
+        address: "0x73c7b335dee960fffff1fc817e26144a94fff4b2"
+        transaction_hash: "0xc2cec5b8d627a22a535c4b8adda6b2c5c656979175b5246793eb547a0f60b5d6"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/SubjectRegistry.sol, broadcast_commit_object_available: false}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 7767
+          current_creation_bytes: 11026
+          broadcast_creation_sha256: 8166338cb997cf0b6f421beb04cdc6d280809a95fd4a2cea4a35916b72e740a2
+          current_creation_sha256: 66d75ce62708ecd4997a1b88f6fecb48d5a3257842efc337d5123495360c2611
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareSplitterDeployer.0.8.30
+        address: "0xde67f8d196dbb0f6bbd8c73027bdcf863bcf4d54"
+        transaction_hash: "0xe9b4111df951cd8b58cbcb8bd3af50fed911bbf98119e24a0d8683d0cc7e145b"
+        constructor: {signature: "constructor()", arguments: []}
+        source_lineage: {status: legacy_reference_current_source_unverified, migrated_source: reference/revenue/RevenueShareSplitterDeployer.sol, active_v2_source: src/autolaunch/revenue/RevenueShareSplitterV2Deployer.sol, broadcast_commit_object_available: false}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: inconclusive_current_source_compile_failed
+          broadcast_creation_bytes: 23580
+          current_creation_bytes: null
+          broadcast_creation_sha256: 14d9c08073c869563ffff540f13001617261f50cc210aaf28e212ae8a8ffc2d7
+          current_creation_sha256: null
+          current_source_deployed: false
+          reason: retained reference source no longer compiles against the current V2 interface structs
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        active_v2_source_deployed: false
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueShareFactory.0.8.30
+        address: "0x1fa9be69b8c543363378c999832a9409058566c9"
+        transaction_hash: "0xff80d609e6d9e2b59d52b5e965b0840fc5fe0467e71b8c26d8dc7969bc1b13d0"
+        constructor:
+          signature: "constructor(address,address,address,address)"
+          owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+          usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+          subject_registry: "0x73c7B335DeE960ffFFF1Fc817E26144A94fFf4b2"
+          legacy_splitter_deployer: "0xDE67f8d196dBb0F6bBD8C73027bdcf863bcf4D54"
+        source_lineage: {status: legacy_unresolved_constructor_mismatch, migrated_source: src/autolaunch/revenue/RevenueShareFactory.sol, mismatch: current_source_has_five_arguments_including_staking_revenue_router, broadcast_commit_object_available: false}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 5279
+          current_creation_bytes: 5458
+          broadcast_creation_sha256: a9f0a0dd2f357bc37e5064802e77bfb237584f82ea36795a0c8087a115ae6a7e
+          current_creation_sha256: 9d2e329c4e01612ee5dbadd68a0a1353d87e7b9f1eb6da43980d9d06b5e306ae
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RevenueIngressFactory.0.8.30
+        address: "0x5679d35783b50ca3855cc8d4b9715463a9b92a36"
+        transaction_hash: "0xae2924aef6ec5e102dea554b6c3656c950189e6a85b3a54200e4ced0ad6b3773"
+        constructor: {signature: "constructor(address,address,address)", usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", subject_registry: "0x73c7B335DeE960ffFFF1Fc817E26144A94fFf4b2", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/revenue/RevenueIngressFactory.sol, broadcast_commit_object_available: false}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 11707
+          current_creation_bytes: 16808
+          broadcast_creation_sha256: 1ab7b3d53fc4dcf969a0656e07e72a13ff2ab51bd70a9a17cc7fd12e3aeb3a4a
+          current_creation_sha256: 8f6aa206803de6bd7f73eb57aaab7fdee4cd4859261a3d7b94e4abc06ecf204b
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+      - broadcast_artifact_name: RegentLBPStrategyFactory.0.8.30
+        address: "0x9ceec9850f6fcdcc4939cc84792da6fe5daebf2a"
+        transaction_hash: "0xbf96856997bdbdb6b3b702485edf1f0145b033e27465593e56f6886fe1db6300"
+        constructor: {signature: "constructor(address)", owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"}
+        source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/RegentLBPStrategyFactory.sol, broadcast_commit_object_available: false}
+        current_source_binding:
+          method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+          result: mismatch
+          broadcast_creation_bytes: 21853
+          current_creation_bytes: 24819
+          broadcast_creation_sha256: 947fd6b26ec51ed52a4ab65b0f60458b1ca392dd06dc45a5f254fb63ad745ac7
+          current_creation_sha256: b686f1ea06813c3e2d60d6394fc65259bbc0c301737275bc77fb158bda2d1ef8
+          current_source_deployed: false
+        current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+        admitted_prepared_action_ids: []
+
+launch_run:
+  broadcast: broadcast/ExampleCCADeploymentScript.s.sol/84532/run-1777685262498.json
+  broadcast_recorded_commit: f6f1b0b
+  broadcast_commit_object_available: false
+  timestamp_ms: 1777685262498
+  launch_id: "0x6164099513c4b1ae5cc36dcb417a8ea7a0484d238db9d893f7a6fc7a974fc862"
+  direct_deployments:
+    - broadcast_artifact_name: LaunchFeeInfraDeployer
+      address: "0x36da892e81f53eaf7f0232989b5788953b4d4a2a"
+      transaction_hash: "0xd7f91c23eb7757da8318afe2df26c9a2ec792773d8eb7d31efa3dd5555947460"
+      constructor: {signature: "constructor()", arguments: []}
+      source_lineage: {status: current_source_unverified_creation_bytecode_mismatch, migrated_source: src/autolaunch/LaunchFeeInfraDeployer.sol}
+      current_source_binding:
+        method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+        result: mismatch
+        broadcast_creation_bytes: 17594
+        current_creation_bytes: 18795
+        broadcast_creation_sha256: db1205b195e7658a6a6c4b9435c8977822924abea124d23b804939bcf68e5170
+        current_creation_sha256: 6e3e52f8d86c51c57b0a91ef709f68c006fc9c92efd4317dd765ac4b86dc39f0
+        current_source_deployed: false
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: LaunchDeploymentController
+      address: "0xc0729092cf9877bf35ef7f1213f7e35c9acbd447"
+      transaction_hash: "0xf7b4eedbf9d0e51a10d235928ecff3676a8991e47daa0622c9e64e2c1e7b7238"
+      constructor: {signature: "constructor()", arguments: []}
+      source_lineage:
+        status: legacy_unresolved_public_abi_mismatch
+        migrated_source: src/autolaunch/LaunchDeploymentController.sol
+        mismatch: historical artifact uses tuple_config launch methods; current source uses four encoded byte arguments
+      current_source_binding:
+        method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+        result: mismatch
+        broadcast_creation_bytes: 23003
+        current_creation_bytes: 21848
+        broadcast_creation_sha256: e45df39c51b0269d7c8dcc4f31263a5a734961792ef302189ef1be72cb521ce2
+        current_creation_sha256: f70c9afe423f89a9db28f7c8a97511e0a2e4a4eef00450f96205e8afbc0cc333
+        current_source_deployed: false
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+  created_during_launch:
+    - broadcast_artifact_name: AutolaunchLaunchToken
+      address: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+      creation_transaction_hash: "0x080a441370f295c31c5d101eb328493e0e42955daab29d17b1e6076a49a74ca3"
+      constructor:
+        signature: "constructor(string,string,uint256,address)"
+        name: Regent Agent Token
+        symbol: RAGENT
+        total_supply: "100000000000000000000000000000"
+        initial_recipient: "0xc0729092cf9877bf35ef7f1213f7e35c9acbd447"
+      source_lineage: {status: external_launch_token_not_migrated, migrated_source: null}
+      current_source_binding:
+        method: unavailable_internal_create_and_external_artifact
+        result: external_not_migrated
+        broadcast_creation_bytes: null
+        current_creation_bytes: null
+        broadcast_creation_sha256: null
+        current_creation_sha256: null
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      artifact_labels: {migrated: false, deployed: true, publicly_exposed: false}
+      admitted_prepared_action_ids: [subject_token_erc20.approve_exact]
+    - broadcast_artifact_name: AgentTokenVestingWallet
+      address: "0x76a843c9bba932a31d4a90057ce455826366ead6"
+      creation_transaction_hash: "0x080a441370f295c31c5d101eb328493e0e42955daab29d17b1e6076a49a74ca3"
+      constructor:
+        signature: "constructor(address,uint64,uint64,address)"
+        beneficiary: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+        start_timestamp: 1777685234
+        duration_seconds: 31536000
+        launch_token: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+      source_lineage: {status: current_source_unverified_no_direct_creation_input, migrated_source: src/autolaunch/AgentTokenVestingWallet.sol}
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 5268
+        broadcast_creation_sha256: null
+        current_creation_sha256: 72e9020a626f08b61c8c378e7b484babc42189da93f9246432c068f5ce14a8e1
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: RevenueShareSplitter
+      address: "0x559c945cd9299e6cd23d7ff14739d48088ce36a1"
+      creation_transaction_hash: "0x080a441370f295c31c5d101eb328493e0e42955daab29d17b1e6076a49a74ca3"
+      constructor:
+        signature: "constructor(address,address,address,address,bytes32,address,address,uint256,string,address)"
+        stake_token: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+        usdc: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        ingress_factory: "0x879968da987b423f4735cea1523eda9b5afa2daa"
+        subject_registry: "0xfadacf4c145ccc1823584c6d8fd0af34d36e78dc"
+        subject_id: "0x6164099513c4b1ae5cc36dcb417a8ea7a0484d238db9d893f7a6fc7a974fc862"
+        treasury_recipient: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+        protocol_recipient: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+        revenue_share_supply_denominator: "100000000000000000000000000000"
+        label: Regent Agent Token
+        owner: "0x1d2b3e31b1e481b5f39947603a482722860f9f32"
+      source_lineage: {status: legacy_reference_current_source_unverified, migrated_source: reference/revenue/RevenueShareSplitter.sol, active_v2_source: src/autolaunch/revenue/RevenueShareSplitterV2.sol}
+      current_source_binding:
+        method: unavailable_internal_create_and_current_source_compile_failed
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: null
+        broadcast_creation_sha256: null
+        current_creation_sha256: null
+        current_source_deployed: false
+        reason: parent call omits child init code and retained reference source no longer compiles against current V2 interface structs
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      active_v2_source_deployed: false
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: RevenueIngressAccount
+      address: "0xa56d04a08746b05e52fdd7764c83f2ae25f0be74"
+      creation_transaction_hash: "0x080a441370f295c31c5d101eb328493e0e42955daab29d17b1e6076a49a74ca3"
+      constructor:
+        signature: "constructor(address,address,bytes32,string,address)"
+        usdc: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        legacy_splitter_argument: "0x559c945cd9299e6cd23d7ff14739d48088ce36a1"
+        subject_id: "0x6164099513c4b1ae5cc36dcb417a8ea7a0484d238db9d893f7a6fc7a974fc862"
+        label: default-usdc-ingress
+        owner: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+      source_lineage:
+        status: legacy_unresolved_constructor_semantics_mismatch
+        migrated_source: src/autolaunch/revenue/RevenueIngressAccount.sol
+        mismatch: historical second argument is splitter; current source requires subject_registry
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 9058
+        broadcast_creation_sha256: null
+        current_creation_sha256: 2057baa9d4151998c547f034dae84778b558fef847e927f126671be95ac6e4b2
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: [revenue_ingress_account.sweep_usdc]
+      admission_binding_note: current action-class admission is not proof for this legacy artifact
+    - broadcast_artifact_name: LaunchFeeRegistry
+      address: "0xc16f737c81ba4c6a5ec343176d31bed63eec42f6"
+      creation_transaction_hash: "0x2f9d5b2577c38aa6a0c18ec0ba78baf24b1aca29dc2713ad21144b49311d58c6"
+      constructor: {signature: "constructor(address,address)", owner: "0x36da892e81f53eaf7f0232989b5788953b4d4a2a", canonical_quote_token: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"}
+      source_lineage: {status: current_source_unverified_no_direct_creation_input, migrated_source: src/autolaunch/LaunchFeeRegistry.sol, historical_economics: USDC_quote_not_current_REGENT_preset}
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 5350
+        broadcast_creation_sha256: null
+        current_creation_sha256: 57f3a7afdbafb2dac9cc5750ce702843bd90a1ff333cc7d6cdbde7f15389787d
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: LaunchFeeVault
+      address: "0x86bec55ff4f0e6e4e7c973caaa18d33793bc0056"
+      creation_transaction_hash: "0x2f9d5b2577c38aa6a0c18ec0ba78baf24b1aca29dc2713ad21144b49311d58c6"
+      constructor: {signature: "constructor(address,address)", owner: "0x36da892e81f53eaf7f0232989b5788953b4d4a2a", launch_fee_registry: "0xc16f737c81ba4c6a5ec343176d31bed63eec42f6"}
+      source_lineage: {status: current_source_unverified_no_direct_creation_input, migrated_source: src/autolaunch/LaunchFeeVault.sol}
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 4944
+        broadcast_creation_sha256: null
+        current_creation_sha256: 8bb3d7c8b7e729a370151e49a26aa573a849e63e02538d6d413fb926d3c8112b
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: LaunchPoolFeeHook
+      address: "0xd4699679c2ca2155b3823c1236256503a98e40cc"
+      creation_transaction_hash: "0x2f9d5b2577c38aa6a0c18ec0ba78baf24b1aca29dc2713ad21144b49311d58c6"
+      constructor: {signature: "constructor(address,address,address,address)", owner: "0x36da892e81f53eaf7f0232989b5788953b4d4a2a", pool_manager: "0x05e73354cfdd6745c338b50bcfdfa3aa6fa03408", launch_fee_registry: "0xc16f737c81ba4c6a5ec343176d31bed63eec42f6", launch_fee_vault: "0x86bec55ff4f0e6e4e7c973caaa18d33793bc0056"}
+      source_lineage: {status: current_source_unverified_no_direct_creation_input, migrated_source: src/autolaunch/LaunchPoolFeeHook.sol}
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 7123
+        broadcast_creation_sha256: null
+        current_creation_sha256: 697a398b2aa975004f1c5119f3833f00c1de39b89ecd515e29551acb7f1a9f29
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: RegentLBPStrategy
+      address: "0x5bb1032a4c38be95800b9f03d86b45b2d17d77bf"
+      creation_transaction_hash: "0x8be8c347d95aebf47809bfb354511ad4117549199aadd19182d53f77759a528f"
+      constructor:
+        signature: "constructor(LegacyStrategyConfig)"
+        token: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+        quote_token: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        auction_initializer_factory: "0xcccccccae7503cac057829bf2811de42e16e0bd5"
+        auction_parameters:
+          currency: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+          tokens_recipient: "0x0000000000000000000000000000000000000000"
+          funds_recipient: "0x0000000000000000000000000000000000000000"
+          start_block: 40958773
+          end_block: 41045173
+          claim_block: 41045237
+          tick_spacing: "23768448754279300202496"
+          validation_hook: "0x0000000000000000000000000000000000000000"
+          floor_price: "7922816251426433400832"
+          required_currency_raised: "0"
+          auction_steps_data: "0x0000730000005780000074000000fa00"
+        official_pool_hook: "0xd4699679c2ca2155b3823c1236256503a98e40cc"
+        agent_safe: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+        vesting_wallet: "0x76a843c9bba932a31d4a90057ce455826366ead6"
+        operator: "0x1515eefa0d418ef1a8cd788b57eb36b6d7437b86"
+        position_recipient: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+        position_manager: "0x4b2c77d209d3405f41a037ec6c77f7f5b8e2ca80"
+        pool_manager: "0x05e73354cfdd6745c338b50bcfdfa3aa6fa03408"
+        official_pool_fee: 0
+        official_pool_tick_spacing: 60
+        auction_creator: "0xc0729092cf9877bf35ef7f1213f7e35c9acbd447"
+        migration_block: 41045301
+        sweep_block: 41045557
+        lp_currency_bps: 5000
+        token_split_to_auction_mps: 6666666
+        total_strategy_supply: "15000000000000000000000000000"
+        auction_token_amount: "10000000000000000000000000000"
+        reserve_token_amount: "5000000000000000000000000000"
+      source_lineage:
+        status: legacy_unresolved_constructor_tuple_mismatch
+        migrated_source: src/autolaunch/RegentLBPStrategy.sol
+        mismatch: historical tuple has position_recipient and configurable 5000 lp_currency_bps; current tuple has subject_registry and fixed 4000 LP currency bps
+      current_source_binding:
+        method: unavailable_internal_create
+        result: unverified
+        broadcast_creation_bytes: null
+        current_creation_bytes: 19670
+        broadcast_creation_sha256: null
+        current_creation_sha256: 275ed16a93af25cef78a2c9dd4a83ca991405fa5094dc00b7db7b77b4107356b
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      current_migrated_source_labels: {migrated: true, deployed: false, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+    - broadcast_artifact_name: null
+      reconstructed_artifact_name: ContinuousClearingAuction
+      address: "0x5bb13eac12a74f250fbf1d7d8f1f0013f2c796a6"
+      creation_transaction_hash: "0x8be8c347d95aebf47809bfb354511ad4117549199aadd19182d53f77759a528f"
+      constructor:
+        signature: "constructor(address,uint128,AuctionParameters)"
+        token: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+        token_amount: "10000000000000000000000000000"
+        auction_parameters:
+          currency: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+          tokens_recipient: "0x5bb1032a4c38be95800b9f03d86b45b2d17d77bf"
+          funds_recipient: "0x5bb1032a4c38be95800b9f03d86b45b2d17d77bf"
+          start_block: 40958773
+          end_block: 41045173
+          claim_block: 41045237
+          tick_spacing: "23768448754279300202496"
+          validation_hook: "0x0000000000000000000000000000000000000000"
+          floor_price: "7922816251426433400832"
+          required_currency_raised: "0"
+          auction_steps_data: "0x0000730000005780000074000000fa00"
+      source_lineage: {status: external_cca_instance_not_migrated, migrated_source: null, local_presence: interface_only}
+      current_source_binding:
+        method: unavailable_internal_create_and_external_artifact
+        result: external_not_migrated
+        broadcast_creation_bytes: null
+        current_creation_bytes: null
+        broadcast_creation_sha256: null
+        current_creation_sha256: null
+        current_source_deployed: false
+        reason: broadcast records the parent controller call rather than child init code
+      artifact_labels: {migrated: false, deployed: true, publicly_exposed: false}
+      admitted_prepared_action_ids:
+        - continuous_clearing_auction.submit_bid
+        - continuous_clearing_auction.exit_bid
+        - continuous_clearing_auction.return_quote_token
+        - continuous_clearing_auction.claim_bid
+    - broadcast_artifact_name: null
+      reconstructed_artifact_name: unresolved_archive_helper
+      address: "0x90aa6787dfa09601d48d65ca9149bd0b77d09a5a"
+      creation_transaction_hash: "0x8be8c347d95aebf47809bfb354511ad4117549199aadd19182d53f77759a528f"
+      constructor:
+        signature: unresolved_raw_init_code
+        raw_init_code: "0x61001180600a3d393df3000000730000005780000074000000fa00"
+        decoded_arguments: unresolved
+      source_lineage: {status: external_unresolved_not_migrated, migrated_source: null}
+      current_source_binding:
+        method: sha256_reconstructed_raw_init_code
+        result: external_not_migrated
+        broadcast_creation_bytes: 27
+        current_creation_bytes: null
+        broadcast_creation_sha256: 1a933b864ca5c264deefc0ca179ac11a7206fcecfa57a91b6d3494df64f752a3
+        current_creation_sha256: null
+        current_source_deployed: false
+      artifact_labels: {migrated: false, deployed: true, publicly_exposed: false}
+      admitted_prepared_action_ids: []
+  external_action_targets:
+    - contract_class: quote_token_erc20
+      address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+      artifact_status: external_not_migrated
+      admitted_prepared_action_ids: [quote_token_erc20.approve_exact]
+    - contract_class: subject_token_erc20
+      address: "0xafd9c91b2475d6e3a494057099b07dcd0ea04e05"
+      artifact_status: external_not_migrated
+      admitted_prepared_action_ids: [subject_token_erc20.approve_exact]
+  transactions:
+    prepare_launch: "0x080a441370f295c31c5d101eb328493e0e42955daab29d17b1e6076a49a74ca3"
+    deploy_fee_infra: "0x2f9d5b2577c38aa6a0c18ec0ba78baf24b1aca29dc2713ad21144b49311d58c6"
+    finalize_launch: "0x8be8c347d95aebf47809bfb354511ad4117549199aadd19182d53f77759a528f"
+
+test_token:
+  broadcast: broadcast/DeployTestnetMintableERC20.s.sol/84532/run-1778029544839.json
+  broadcast_recorded_commit: 876207e
+  timestamp_ms: 1778029544839
+  broadcast_artifact_name: TestnetMintableERC20
+  address: "0xb2c81fda99a325b5c7878ad257409cd59cf6d788"
+  transaction_hash: "0x421cde3a5bf99ad65d433c394afe9f2c4c4e7c3eeb4aa05d3ead204ac52c118f"
+  constructor:
+    signature: "constructor(string,string,uint8,address,address,uint256)"
+    name: Regent Test Token
+    symbol: REGENT
+    decimals: 18
+    owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+    initial_holder: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
+    initial_supply: "1000000000000000000000000000"
+  source_lineage: {status: current_source_verified_creation_bytecode_match, migrated_source: test/mocks/TestnetMintableERC20.sol}
+  current_source_binding:
+    method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
+    compiler: solc_0.8.30_forge_1.5.1
+    result: match
+    broadcast_creation_bytes: 3409
+    current_creation_bytes: 3409
+    broadcast_creation_sha256: 2d7622391472bc1ead6245068a0a87191f0a5584ffa1fa4e906f5153bac89c85
+    current_creation_sha256: 2d7622391472bc1ead6245068a0a87191f0a5584ffa1fa4e906f5153bac89c85
+    current_source_deployed: true
+  current_migrated_source_labels: {migrated: true, deployed: true, publicly_exposed: false}
+  admitted_prepared_action_ids: []

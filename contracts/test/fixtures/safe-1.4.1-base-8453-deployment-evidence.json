@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "chainId": 8453,
+  "variant": "canonical",
+  "source": {
+    "repository": "https://github.com/safe-fndn/safe-smart-account",
+    "tag": "v1.4.1",
+    "commit": "bf943f80fec5ac647159d26161446ac5d716a294",
+    "tree": "dbbe8faa94445342975303ff4da1471cac2052d6"
+  },
+  "deploymentRegistry": {
+    "repository": "https://github.com/safe-global/safe-deployments.git",
+    "release": "v1.37.62",
+    "commit": "3274616f3e5e2ab1f2cba6aec8e1abb9971e61cb",
+    "tree": "573a96fa5b7b6e5629d6a51d7bcd1705cd9d5faf",
+    "releasePackageSha256": "74c1899fc2d1475c0b5c5a9637b737339f9ba79e4775bec219fc047b6017a086"
+  },
+  "assets": {
+    "safe": {
+      "url": "https://raw.githubusercontent.com/safe-global/safe-deployments/3274616f3e5e2ab1f2cba6aec8e1abb9971e61cb/src/assets/v1.4.1/safe.json",
+      "sha256": "35bccf8ecb41832f195cf2417f65637cde02359cf45b671309895cffd0310eeb",
+      "address": "0x41675C099F32341bf84BFc5382aF534df5C7461a",
+      "runtimeCodeHash": "0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4"
+    },
+    "safeProxyFactory": {
+      "url": "https://raw.githubusercontent.com/safe-global/safe-deployments/3274616f3e5e2ab1f2cba6aec8e1abb9971e61cb/src/assets/v1.4.1/safe_proxy_factory.json",
+      "sha256": "a1f853f65ab3f9878915c4a12ef40c3e15fae3c38babfcf7d37d563f07aedf8f",
+      "address": "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67",
+      "runtimeCodeHash": "0x50c3cdc4074750a7a974204a716c999edd37482f907608d960b2b025ee0b3317"
+    },
+    "compatibilityFallbackHandler": {
+      "url": "https://raw.githubusercontent.com/safe-global/safe-deployments/3274616f3e5e2ab1f2cba6aec8e1abb9971e61cb/src/assets/v1.4.1/compatibility_fallback_handler.json",
+      "sha256": "36efb2ccaffc202fdd60f07e7f15813246e173e4b5c2cda306bc87c5d3547b54",
+      "address": "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99",
+      "runtimeCodeHash": "0x7c6007a5d711cea8dfd5d91f5940ec29c7f200fe511eb1fc1397b367af3c42f9"
+    }
+  },
+  "proxyConstruction": {
+    "factoryMethod": "createProxyWithNonce",
+    "initializer": "Safe.setup",
+    "fallbackHandler": "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99",
+    "chainSpecificSaltPath": "excluded",
+    "callbackPath": "excluded"
+  },
+  "compiler": {
+    "version": "0.7.6",
+    "optimizerEnabled": false,
+    "optimizerRuns": "not explicitly source-pinned",
+    "evmVersion": "not explicitly source-pinned",
+    "metadataBytecodeHash": "not explicitly source-pinned",
+    "metadataUseLiteralContent": "not explicitly source-pinned",
+    "viaIR": "not explicitly source-pinned"
+  },
+  "eip1271": {
+    "bytesMagicValue": "0x20c13b0b",
+    "bytes32MagicValue": "0x1626ba7e"
+  }
+}
