@@ -1,11 +1,12 @@
 import Config
+port = String.to_integer(System.get_env("PORT", "4002"))
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ash_platform, AshPlatformWeb.Endpoint,
-  url: [host: "127.0.0.1", port: 4002],
-  http: [ip: {127, 0, 0, 1}, port: 4002],
-  check_origin: ["http://127.0.0.1:4002"],
+  url: [host: "127.0.0.1", port: port],
+  http: [ip: {127, 0, 0, 1}, port: port],
+  check_origin: ["http://127.0.0.1:#{port}"],
   secret_key_base: "ylCJZnscmD6l7Ykq52GK0o6GrbPmb8374FAcei9yvkWU1ww5Nv+S2v/Z7ihcqZd2",
   server: System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
 

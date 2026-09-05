@@ -12,8 +12,12 @@ defmodule AshPlatformWeb.Layouts do
     ~H"""
     {@inner_content}
     <div id="flash-region" aria-live="polite">
-      <p :if={message = Phoenix.Flash.get(@flash, :info)} role="status">{message}</p>
-      <p :if={message = Phoenix.Flash.get(@flash, :error)} role="alert">{message}</p>
+      <Regent.Primitives.notice :if={message = Phoenix.Flash.get(@flash, :info)}>
+        {message}
+      </Regent.Primitives.notice>
+      <Regent.Primitives.notice :if={message = Phoenix.Flash.get(@flash, :error)} tone="error">
+        {message}
+      </Regent.Primitives.notice>
     </div>
     """
   end

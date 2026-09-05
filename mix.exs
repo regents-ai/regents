@@ -39,6 +39,8 @@ defmodule AshPlatform.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
+    shared = System.get_env("REGENT_DEPS_ROOT", Path.expand("..", __DIR__))
+
     [
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -48,8 +50,8 @@ defmodule AshPlatform.MixProject do
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:ens_elixir, "~> 0.1.1"},
-      {:regent_privy, path: "../elixir-utils/privy"},
-      {:regent_ui, path: "../design-system/regent_ui"},
+      {:regent_privy, path: Path.join(shared, "elixir-utils/privy")},
+      {:regent_ui, path: Path.join(shared, "design-system/regent_ui")},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -67,7 +69,8 @@ defmodule AshPlatform.MixProject do
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
-      {:credo_ash, path: "../elixir-utils/credo_ash", only: [:dev, :test], runtime: false},
+      {:credo_ash,
+       path: Path.join(shared, "elixir-utils/credo_ash"), only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
     ]
   end
@@ -82,11 +85,8 @@ defmodule AshPlatform.MixProject do
     [
       setup: ["deps.get", "cmd npm ci", "assets.setup", "assets.build"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "assets.build": ["compile", "esbuild ash_platform"],
-      "assets.deploy": [
-        "esbuild ash_platform --minify",
-        "phx.digest"
-      ],
+      "assets.build": ["compile", "regent_ui.assets", "esbuild ash_platform"],
+      "assets.deploy": ["regent_ui.assets", "esbuild ash_platform --minify", "phx.digest"],
       "test.external": ["test --only external"],
       precommit: [
         "compile --warnings-as-errors",
