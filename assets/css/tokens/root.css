@@ -27,16 +27,16 @@
 
 :root {
   /* Background, Surface, Text and Border, taken outright. */
-  --ash-ground: light-dark(#f6f4ea, #0b0b0b);
-  --ash-panel: light-dark(#ffffff, #141414);
-  --ash-ink: light-dark(#161616, #e5e3d2);
-  --ash-line: light-dark(#dad8c7, #2a2a2a);
+  --ash-ground: var(--color-bg);
+  --ash-panel: var(--color-surface);
+  --ash-ink: var(--color-fg);
+  --ash-line: var(--color-border);
 
   /* One step past the panel, for the row the visitor is standing on and for the
      cells that carry a figure: Border folded into Surface, away from the page. */
   --ash-panel-strong: light-dark(
-    color-mix(in oklab, #dad8c7 55%, #ffffff),
-    color-mix(in oklab, #2a2a2a 50%, #141414)
+    color-mix(in oklab, var(--color-border) 55%, var(--color-surface)),
+    color-mix(in oklab, var(--color-border) 50%, var(--color-surface))
   );
 
   --ash-muted: color-mix(in oklch, var(--ash-ink) 65%, transparent);
@@ -45,8 +45,8 @@
      is drawn at 3:1 against both the fill inside it and the page outside it:
      Text folded into Border, far enough to clear that on every surface. */
   --ash-line-strong: light-dark(
-    color-mix(in oklab, #161616 40%, #dad8c7),
-    color-mix(in oklab, #e5e3d2 40%, #2a2a2a)
+    color-mix(in oklab, var(--palette-charcoal) 40%, var(--color-border)),
+    color-mix(in oklab, var(--color-fg) 40%, var(--color-border))
   );
 
   /* The palette carries two accents and the shell reads them as two. Blue is what
@@ -55,17 +55,17 @@
      Dark takes both swatches raw. Light folds each into Primary only as far as
      4.5:1 on the deepest light panel needs — blue reads 4.7:1 there and orange
      4.6:1, and both clear 5:1 on Surface. */
-  --ash-accent: light-dark(color-mix(in oklab, #aecacd 50%, #161616), #aecacd);
-  --ash-accent-warm: light-dark(color-mix(in oklab, #ff5b19 68%, #161616), #ff5b19);
+  --ash-accent: light-dark(color-mix(in oklab, var(--palette-powder-blue) 50%, var(--palette-charcoal)), var(--palette-powder-blue));
+  --ash-accent-warm: light-dark(color-mix(in oklab, var(--palette-tangerine-tango) 68%, var(--palette-charcoal)), var(--palette-tangerine-tango));
 
   /* Collection art is a picture, not a surface: it keeps Primary as its ground in
      both themes so a single Surface-white monogram reads on every card. */
-  --ash-art: #161616;
-  --ash-art-ink: #ffffff;
+  --ash-art: var(--palette-charcoal);
+  --ash-art-ink: var(--color-surface);
 
   /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
      in front of it reads the same whichever ground it was opened from. */
-  --ash-scrim: color-mix(in oklab, #161616 72%, transparent);
+  --ash-scrim: color-mix(in oklab, var(--palette-charcoal) 72%, transparent);
 
   /* The theme switch's own cell: a dark wire cube on a pale stage in light, a
      pale one on a dark stage in dark. */

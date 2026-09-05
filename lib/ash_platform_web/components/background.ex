@@ -3,13 +3,7 @@ defmodule AshPlatformWeb.Components.Background do
 
   use Phoenix.Component
 
-  @sources %{
-    home: "/images/backgrounds/home.svg",
-    regents_labs: "/images/backgrounds/regents_labs.svg",
-    formation: "/images/backgrounds/formation.svg",
-    regent_record: "/images/backgrounds/regent_record.svg",
-    autolaunch: "/images/backgrounds/autolaunch.svg"
-  }
+  @sources %{home: "/images/backgrounds/home.svg"}
 
   attr(:slot, :any, required: true)
 

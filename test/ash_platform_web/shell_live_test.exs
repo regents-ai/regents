@@ -86,7 +86,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, ~s(#shell-brand[href="/"]), "Regents Labs")
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-light")
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-dark")
-    assert has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
+    refute has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
     assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
 
@@ -309,7 +309,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="app-shell-scroller")
-    assert has_element?(view, ~s(.shell-background[data-background-slot="formation"]))
+    refute has_element?(view, ~s(.shell-background[data-background-slot="formation"]))
     assert has_element?(view, "#formation")
 
     assert has_element?(

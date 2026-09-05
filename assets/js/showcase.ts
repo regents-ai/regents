@@ -1,45 +1,27 @@
 import {selectConnectedEthereumWallet} from "./wallet_actions/connected_wallet"
 
 
-type Palette = {bg: string; surface: string; fg: string; accent: string}
-const defaults: Record<string, Record<string, Palette>> = {
-  platform: {
-    dark: {bg: "#191918", surface: "#222220", fg: "#e5e3d2", accent: "#a5cce4"},
-    light: {
-      bg: "#f5f4ee",
-      surface: "#ffffff",
-      fg: "#242522",
-      accent: "#315c76",
-    },
-  },
-  autolaunch: {
-    dark: {bg: "#211b17", surface: "#2d241d", fg: "#f6e6d6", accent: "#ef9c61"},
-    light: {
-      bg: "#f9efe3",
-      surface: "#fff9f1",
-      fg: "#38251a",
-      accent: "#9a491f",
-    },
-  },
-  patchbay: {
-    dark: {bg: "#171a20", surface: "#202630", fg: "#e1e8f2", accent: "#93b5eb"},
-    light: {
-      bg: "#eef2f8",
-      surface: "#ffffff",
-      fg: "#202b3c",
-      accent: "#375f9b",
-    },
-  },
-  techtree: {
-    dark: {bg: "#15201c", surface: "#1f2c25", fg: "#e0e9df", accent: "#a0c3a6"},
-    light: {
-      bg: "#edf1e8",
-      surface: "#f9fcf6",
-      fg: "#253429",
-      accent: "#456c4c",
-    },
-  },
+import {selectors} from "../vendor/regent_ui/tokens.json"
+
+type Palette = {
+  bg: string; surface: string; fg: string; accent: string; border: string
+  primaryShade: string; orange: string; blue: string; muted?: string
 }
+const tokens = selectors as Record<string, Record<string, string>>
+const defaults: Record<string, Record<string, Palette>> = Object.fromEntries(
+  ["platform", "autolaunch", "patchbay", "techtree"].map(brand => [brand, Object.fromEntries(
+    ["light", "dark"].map(mode => {
+      const theme = tokens[`:root[data-brand="${brand}"][data-theme="${mode}"]`]
+      return [mode, {
+        bg: theme["--color-bg"], surface: theme["--color-surface"],
+        fg: theme["--color-fg"], accent: theme["--color-accent"],
+        border: theme["--color-border"], primaryShade: theme["--color-primary-shade"],
+        orange: tokens[":root"]["--palette-tangerine-tango"],
+        blue: tokens[":root"]["--palette-powder-blue"], muted: theme["--color-muted"],
+      }]
+    })
+  )])
+)
 const colorKeys = ["bg", "surface", "fg", "accent"] as const
 function luminance(hex: string): number {
   const c = [1, 3, 5]
@@ -60,12 +42,12 @@ const Showcase = {
     const oldTheme = root.dataset.theme
     let brand = "platform",
       mode = "dark"
-    const storageKey = () => `regent-showcase:${brand}:${mode}`
+    const storageKey = () => `regent-showcase:2026-09-palettes:${brand}:${mode}`
     const load = (): Palette => {
       try {
         const saved = JSON.parse(localStorage.getItem(storageKey()) || "null")
         if (saved && colorKeys.every((k) => /^#[0-9a-f]{6}$/i.test(saved[k])))
-          return saved
+          return {...defaults[brand][mode], ...Object.fromEntries(colorKeys.map((key) => [key, saved[key]]))}
       } catch {
         /* Storage may be unavailable; defaults still work. */
       }
@@ -86,13 +68,19 @@ const Showcase = {
           palette[key].toUpperCase()
       })
       const accentText =
-        contrast(palette.accent, "#111111") >
-        contrast(palette.accent, "#ffffff")
-          ? "#111111"
-          : "#ffffff"
+        contrast(palette.accent, "#161616") >
+        contrast(palette.accent, "#E5E3D2")
+          ? "#161616"
+          : "#E5E3D2"
       const derived: Record<string, string> = {
         "fg-muted": "color-mix(in srgb, var(--color-fg) 65%, var(--color-bg))",
-        border: "color-mix(in srgb, var(--color-fg) 18%, var(--color-bg))",
+        border: palette.border,
+        primary: palette.accent,
+        "primary-shade": palette.primaryShade,
+        orange: palette.orange,
+        blue: palette.blue,
+        muted: palette.muted || "color-mix(in srgb, var(--color-fg) 65%, var(--color-bg))",
+        focus: mode === "dark" ? palette.blue : palette.orange,
         "fg-on-accent": accentText,
         "accent-contrast": accentText,
       }
@@ -120,6 +108,27 @@ const Showcase = {
         .forEach((el) =>
           el.setAttribute("aria-pressed", String(el.dataset.scMode === mode)),
         )
+      this.el.querySelectorAll<HTMLButtonElement>("[data-sc-background]").forEach((button) => {
+        const selected = button.dataset.scBackground === `${brand}:${mode}`
+        button.setAttribute("aria-pressed", String(selected))
+        if (selected) {
+          const image = button.querySelector("img")!
+          root.style.setProperty("--sc-background", `url("${image.src}")`)
+          const preview = this.el.querySelector<HTMLImageElement>("[data-sc-background-preview]")!
+          preview.src = image.src
+          preview.alt = image.alt
+        }
+      })
+      const tokens = this.el.querySelector("[data-sc-tokens]")!
+      tokens.replaceChildren(...Object.entries(palette).map(([key, value]) => {
+        const row = document.createElement("div")
+        const label = document.createElement("dt")
+        label.textContent = ({bg: "Background", surface: "Surface", fg: "Text", accent: "Primary", primaryShade: "Primary shade", orange: "Tangerine", blue: "Powder blue", border: "Border", muted: "Muted"} as Record<string, string>)[key]
+        const color = document.createElement("dd")
+        color.textContent = value
+        row.append(label, color)
+        return row
+      }))
       const ratio = contrast(palette.fg, palette.bg)
       this.el.querySelector("[data-sc-contrast]")!.textContent =
         `${ratio.toFixed(1)}:1 text contrast${ratio < 4.5 ? " · below AA" : " · AA"}`
@@ -127,6 +136,15 @@ const Showcase = {
     const click = async (event: Event) => {
       const button = (event.target as Element).closest<HTMLElement>("button")
       if (!button) return
+      if (button.dataset.scBackground) {
+        const [nextBrand, nextMode] = button.dataset.scBackground.split(":")
+        if (defaults[nextBrand]?.[nextMode]) {
+          brand = nextBrand
+          mode = nextMode
+          palette = load()
+          apply()
+        }
+      }
       if (button.dataset.scBrand && defaults[button.dataset.scBrand]) {
         brand = button.dataset.scBrand
         palette = load()
@@ -160,7 +178,7 @@ const Showcase = {
     }
     const input = (event: Event) => {
       const el = event.target as HTMLInputElement
-      const key = el.dataset.scColor as keyof Palette
+      const key = el.dataset.scColor as (typeof colorKeys)[number]
       if (colorKeys.includes(key) && /^#[0-9a-f]{6}$/i.test(el.value)) {
         palette[key] = el.value
         try {

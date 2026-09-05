@@ -12,10 +12,18 @@ inside scriptless sandboxed frames. The shell preview includes working navigatio
 and theme behavior but omits sign-in controls. These product compositions are
 Regents-owned, rather than newly shared components.
 
-Four editable colors—background, surface, text and accent—are stored separately
-for every site and light/dark combination in this browser. These are workshop
-palettes, not edits to the sites' deployed themes. Reset affects only the selected
-palette. Text contrast is calculated from the chosen colors.
+Eight thumbnail selectors pair each site’s light/dark palette with its supplied SVG
+cutting mat. The defaults import the shared package’s generated token JSON, matching the hex labels in
+`design-system/site color palettes`; the exact SVGs are generated from
+`design-system/site svg backgrounds` into the shared package and copied by its asset task.
+Regents uses charcoal, Autolaunch tangerine, Patchbay platinum, and Techtree powder
+blue. All palette roles and the full background are available behind a disclosure.
+
+Four editable colors—background, surface, text and primary—are stored separately
+for each site/mode in a new browser storage namespace, so old experimental palettes
+cannot override these defaults. Reset affects only the selected palette. Text
+contrast is calculated from the chosen colors. The founder approved these defaults for all four sites. Production pages consume
+the matching packaged tokens and SVGs; Regents and Techtree home backgrounds stay intact.
 
 Expandable details remain in the document. `/showcase/catalog` exposes component
 attributes and slots, installed Ash domain/resource/action metadata, and exported
@@ -65,7 +73,7 @@ env ASH_PLATFORM_BROWSER_TEST=1 mix run --no-halt -e 'Ecto.Adapters.SQL.Sandbox.
 
 That command belongs only in the isolated test context. Use its printed URL and
 append `/showcase`. The current candidate's prepared context is ticket
-`regent-qht.7`, port `52363`.
+`regent-qht.9`, port `51454`.
 
 ## Focused verification
 
@@ -80,7 +88,7 @@ npm test -- assets/test/auth_lazy.test.ts assets/test/connected_wallet.test.ts a
 Against the already-running disposable server:
 
 ```sh
-PORT=52363 npx playwright test --config playwright.showcase.config.ts
+PORT=51454 npx playwright test --config playwright.showcase.config.ts
 ```
 
 The dedicated browser configuration avoids the product suite's seeding and global

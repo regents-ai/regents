@@ -8,7 +8,7 @@ test.beforeEach(async ({page, baseURL}) => {
     return route.abort("blockedbyclient")
   })
   await page.goto("/showcase")
-  await expect(page.locator("[data-sc-value=accent]")).toHaveText("#A5CCE4")
+  await expect(page.locator("[data-sc-value=accent]")).toHaveText("#161616")
 })
 
 test("eight palettes, editable colors and live updates retain their state", async ({
@@ -18,8 +18,13 @@ test("eight palettes, editable colors and live updates retain their state", asyn
   page.on("pageerror", (error) => errors.push(error.message))
   for (const brand of ["platform", "autolaunch", "patchbay", "techtree"]) {
     for (const mode of ["light", "dark"]) {
-      await page.locator(`[data-sc-brand=${brand}]`).click()
-      await page.locator(`[data-sc-mode=${mode}]`).click()
+      const background = page.locator(`[data-sc-background="${brand}:${mode}"]`)
+      await background.click()
+      await expect(background).toHaveAttribute("aria-pressed", "true")
+      await expect(page.locator("[data-sc-background][aria-pressed=true]")).toHaveCount(1)
+      expect(await background.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
+      const source = await background.locator("img").getAttribute("src")
+      expect(await page.locator(".sc").evaluate(el => getComputedStyle(el).backgroundImage)).toContain(source!)
       await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
       await expect(page.locator("html")).toHaveAttribute("data-theme", mode)
       expect(
@@ -32,7 +37,7 @@ test("eight palettes, editable colors and live updates retain their state", asyn
         .evaluateAll((inputs) =>
           inputs.map((input) => (input as HTMLInputElement).value),
         )
-      expect(new Set(colors).size).toBe(4)
+      expect(colors).toHaveLength(4)
       const color = page.locator("[data-sc-color=accent]")
       await color.fill("#cc8877")
       await expect(page.locator("[data-sc-value=accent]")).toHaveText("#CC8877")
@@ -165,7 +170,7 @@ test("mobile, keyboard, reduced motion, complete backgrounds and isolated previe
       .evaluate((el) => getComputedStyle(el).transitionDuration),
   ).toBe("0s")
   await page.locator("#backgrounds-detail > summary").click()
-  await expect(page.locator(".sc-backgrounds figure")).toHaveCount(6)
+  await expect(page.locator(".sc-backgrounds figure")).toHaveCount(2)
   await page.locator("#shell-detail > summary").click()
   const shell = page.frameLocator("#shell-preview")
   await expect(shell.locator("#app-shell")).toBeVisible()

@@ -4,17 +4,17 @@
    Blue, Autolaunch and the Revenue chapter share its Accent Orange, and Patchbay keeps
    its own warm grey. */
 .rl-root {
-  --rl-bg: #0b0b0b;
-  --rl-panel: #141414;
-  --rl-ink: #e5e3d2;
+  --rl-bg: var(--color-bg);
+  --rl-panel: var(--color-surface);
+  --rl-ink: var(--color-fg);
   --rl-muted: color-mix(in oklch, var(--rl-ink) 65%, transparent);
-  --rl-line: #2a2a2a;
+  --rl-line: var(--color-border);
   --rl-line-strong: color-mix(in oklab, #e5e3d2 40%, #2a2a2a);
-  --rl-nous: #aecacd;
-  --rl-autolaunch: #ff5b19;
-  --rl-techtree: #aecacd;
+  --rl-nous: var(--palette-powder-blue);
+  --rl-autolaunch: var(--palette-tangerine-tango);
+  --rl-techtree: var(--palette-powder-blue);
   --rl-patchbay: #b9b7a6;
-  --rl-chapter-default: #ff5b19;
+  --rl-chapter-default: var(--palette-tangerine-tango);
   --rl-header-h: calc(4rem + 1px);
   --rl-max: 88rem;
   --rl-quiet: 0.88rem;
@@ -210,12 +210,12 @@
    changing a colour here means changing it there. */
 .rl-hero[data-hero-product="autolaunch"] {
   --hero-accent: var(--rl-autolaunch);
-  --rl-bg: color-mix(in oklab, #ff5b19 8%, #0b0b0b);
+  --rl-bg: color-mix(in oklab, var(--palette-tangerine-tango) 8%, #0b0b0b);
 }
 
 .rl-hero[data-hero-product="techtree"] {
   --hero-accent: var(--rl-techtree);
-  --rl-bg: color-mix(in oklab, #aecacd 8%, #0b0b0b);
+  --rl-bg: color-mix(in oklab, var(--palette-powder-blue) 8%, #0b0b0b);
 }
 
 .rl-hero[data-hero-product="patchbay"] {

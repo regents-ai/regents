@@ -4,13 +4,7 @@ and reads the same for everyone. --%>
 <% theme = if @conn.request_path == "/", do: "dark", else: @theme %>
 <html
   lang="en"
-  data-brand={
-    case Path.split(@conn.request_path) do
-      ["/"] -> nil
-      ["/", "autolaunch" | _] -> "autolaunch"
-      _ -> "platform"
-    end
-  }
+  data-brand="platform"
   data-theme={theme}
 >
   <head>
@@ -35,6 +29,9 @@ and reads the same for everyone. --%>
     </script>
   </head>
   <body>
+    <Regent.SiteBackground.site_background :if={
+      @conn.request_path != "/" and not String.starts_with?(@conn.request_path, "/showcase")
+    } />
     {@inner_content}
   </body>
 </html>

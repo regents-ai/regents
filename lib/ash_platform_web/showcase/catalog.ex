@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.Showcase.Catalog do
   @components [
     {Regent.Primitives, [:button, :field, :status, :notice, :empty_state, :disclosure]},
     {Regent.Panels, [:chamber, :ledger]},
-    {Regent.BackgroundGrid, [:background_grid]},
+    {Regent.SiteBackground, [:site_background]},
     {AshPlatformWeb.Components.Background, [:background]},
     {AshPlatformWeb.Components.Shell, [:shell, :theme_toggle]},
     {AshPlatformWeb.Components.CommentLedger, [:comment_ledger]},

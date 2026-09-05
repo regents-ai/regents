@@ -663,3 +663,6 @@ details[open] > summary .shell-chevron {
     transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(28deg);
   }
 }
+
+/* The approved page mat remains visible behind shell regions. */
+#app-shell { background: transparent; }

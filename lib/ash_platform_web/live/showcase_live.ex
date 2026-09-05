@@ -110,13 +110,37 @@ defmodule AshPlatformWeb.ShowcaseLive do
                 >Dark</button>
               </div>
             </div>
+            <div class="sc-background-options" role="group" aria-label="Site backgrounds">
+              <button
+                :for={
+                  {key, label, file, mode} <-
+                    for {key, label, file} <- [
+                          {"platform", "Regents", "100x100-regents"},
+                          {"autolaunch", "Autolaunch", "100x100-autolaunch"},
+                          {"patchbay", "Patchbay", "100x100-patchbay"},
+                          {"techtree", "Techtree", "100x100-tech"}
+                        ],
+                        mode <- ["light", "dark"],
+                        do: {key, label, file, mode}
+                }
+                type="button"
+                data-sc-background={key <> ":" <> mode}
+                aria-pressed={to_string(key == "platform" and mode == "dark")}
+              >
+                <img
+                  src={"/images/regent-ui/cutting-mat-" <> file <> "-" <> mode <> ".svg"}
+                  alt={label <> " " <> mode <> " cutting mat"}
+                />
+                <span>{label} <small>{mode}</small></span>
+              </button>
+            </div>
             <div class="sc-swatches">
               <label :for={
                 {key, name} <- [
                   {"bg", "Background"},
                   {"surface", "Surface"},
                   {"fg", "Text"},
-                  {"accent", "Accent"}
+                  {"accent", "Primary"}
                 ]
               }>
                 <input type="color" data-sc-color={key} aria-label={name <> " color"} value="#202020" /><span>{name}</span><output data-sc-value={
@@ -134,11 +158,18 @@ defmodule AshPlatformWeb.ShowcaseLive do
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
               id="palette-notes"
-              summary="Preview scope"
+              summary="Palette & background details"
             >
               <p>
-                Edits stay in this browser, separately for each site and mode. These are workshop palettes; changing them does not change a deployed site. Keyboard focus and reduced motion remain available. Low-contrast choices are reported above.
+                Source: the shared design-system package. Regents uses charcoal, Autolaunch tangerine, Patchbay platinum, and Techtree powder blue. Preview edits stay in this browser; shared source changes reach each site through its asset build.
               </p>
+              <dl class="sc-token-list" data-sc-tokens></dl>
+              <img
+                class="sc-background-preview"
+                data-sc-background-preview
+                alt="Regents dark cutting mat"
+                src="/images/regent-ui/cutting-mat-100x100-regents-dark.svg"
+              />
             </P.disclosure>
           </section>
 
@@ -273,16 +304,16 @@ defmodule AshPlatformWeb.ShowcaseLive do
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
               id="backgrounds-detail"
-              summary="Backgrounds · all five product slots + shared grid"
+              summary="Homepage background + shared cutting mat"
             >
               <div class="sc-backgrounds">
-                <figure :for={slot <- [:home, :regents_labs, :formation, :regent_record, :autolaunch]}>
+                <figure :for={slot <- [:home]}>
                   <AshPlatformWeb.Components.Background.background slot={slot} /><figcaption>
                     {slot}
                   </figcaption>
                 </figure><figure>
-                  <Regent.BackgroundGrid.background_grid id="showcase-grid" /><figcaption>
-                    Shared grid
+                  <Regent.SiteBackground.site_background /><figcaption>
+                    Shared cutting mat
                   </figcaption>
                 </figure>
               </div>
