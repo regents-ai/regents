@@ -4,7 +4,7 @@ This file lists the full command surface shipped by the standalone Regents CLI i
 
 Sources used: repository-local route registries and `docs/shared-cli-contract.yaml` via `scripts/generate-cli-command-metadata.mjs`.
 
-Total commands: 222.
+Total commands: 217.
 
 ## Full Command List
 
@@ -42,11 +42,8 @@ Total commands: 222.
 - `regents autolaunch agent <id>` - Show Autolaunch agent.
 - `regents autolaunch agent readiness <id>` - Show agent readiness.
 - `regents autolaunch agents list` - List agents.
-- `regents autolaunch auction <id>` - Show Autolaunch auction.
 - `regents autolaunch auction claim-unused-tokens` - Claim unused tokens for auction.
 - `regents autolaunch auction-returns list` - List auction returns.
-- `regents autolaunch auctions list` - List auctions.
-- `regents autolaunch bids quote` - Estimate a bid from stored auction data without submitting it.
 - `regents autolaunch chat list` - List chat.
 - `regents autolaunch chat read <scope>` - Show Autolaunch chat read.
 - `regents autolaunch chat send <scope>` - Show Autolaunch chat send.
@@ -119,8 +116,6 @@ Total commands: 222.
 - `regents autolaunch subjects staking` - Show Autolaunch subjects staking.
 - `regents autolaunch subjects sweep-ingress` - Sweep ingress for subjects.
 - `regents autolaunch subjects verify` - Check subjects.
-- `regents autolaunch tokens list` - List tokens.
-- `regents autolaunch treasury security <address>` - Show a stored treasury security report and its verification limits.
 - `regents autolaunch vesting cancel-beneficiary-rotation` - Cancel beneficiary rotation for vesting.
 - `regents autolaunch vesting execute-beneficiary-rotation` - Execute beneficiary rotation for vesting.
 - `regents autolaunch vesting propose-beneficiary-rotation` - Propose beneficiary rotation vesting.

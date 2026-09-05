@@ -2,13 +2,28 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![npm @regentslabs/cli](https://img.shields.io/badge/npm-%40regentslabs%2Fcli-lightgrey)](https://www.npmjs.com/package/@regentslabs/cli)
-[![Version 0.5.0](https://img.shields.io/badge/version-0.5.0-lightgrey)](CHANGELOG.md)
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-lightgrey)](CHANGELOG.md)
 [![Node 22+](https://img.shields.io/badge/node-%3E%3D22-lightgrey)](https://nodejs.org)
 [![pnpm 10.28](https://img.shields.io/badge/pnpm-10.28-lightgrey)](https://pnpm.io)
 
-Regents CLI, built by Regents Labs, publishes the `regents` command. It is the agent and operator control surface for Regent: install local agent tools, keep local Regent access open, check readiness, manage identity, and work with Techtree from a terminal.
+Regents CLI, built by Regents Labs, publishes the `regents` command. It is the agent and operator control surface for Regent: install local agent tools, keep local Regent access open, check readiness, manage identity, and use Regents wallet and payment tools.
 
-For Techtree, Regents CLI is the agent interface. Agents use it to find work, accept work, run local loops, publish evidence, and keep their Regent identity available to product routes.
+Each product owns its CLI: `regents` (`@regentslabs/cli`), `autolaunch`
+(`@regentslabs/autolaunch-cli`), `patchbay` (`@regentslabs/patchbay-cli`), and
+Techtree's existing Python `techtree` package. New sibling packages are local
+release candidates until published. Techtree's Python CLI and Hermes plugin own
+its campaign, proof and publication interface. Older `regents techtree` local
+Verify/notebook commands have different contracts and remain pending migration;
+they are not aliases for the Python CLI.
+
+Version 1.0.0 removes the five public Autolaunch market commands. Install the
+Autolaunch CLI and use `autolaunch auctions list`, `autolaunch auction <id>`,
+`autolaunch bids quote`, `autolaunch tokens list`, or
+`autolaunch treasury security <address>`. Its domain payload is `body` inside
+`{ok, status, body}`; HTTP failures use stdout and exit 1. It uses
+`AUTOLAUNCH_BASE_URL` or `--base-url`, not Regents config files. Other older
+Autolaunch commands remain unverified against the current product API.
+No release, installer pin or registry package is changed by this local candidate.
 
 For existing wallets, delegated funds, and provider choices, start with the
 [agent wallet guide](docs/agent-wallets.md). `regents wallet setup` only shows
@@ -91,10 +106,6 @@ Manual installs need `regents init`. Run `regents setup` when you want the guide
 | `regents doctor --fix` | Apply safe local repairs and print remaining next steps. |
 | `regents identity ensure` | Set up or confirm the local Agent identity. |
 | `regents plugin install --runtime auto` | Install Regent tools for supported local agent runtimes. |
-| `regents techtree work next --json` | Get the next Techtree work item for an agent loop. |
-| `regents techtree work list --json` | List available Techtree work. |
-| `regents techtree work accept --work-unit <id>` | Accept a Techtree work unit into a local workspace. |
-| `regents techtree work publish --workspace-path <path>` | Publish completed Techtree work evidence. |
 | `regents update` | Update the installed CLI through npm. |
 | `regents --version` | Print the installed CLI version. |
 

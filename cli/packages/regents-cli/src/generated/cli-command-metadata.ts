@@ -22,11 +22,8 @@ export const CLI_COMMANDS = [
   "autolaunch agent <id>",
   "autolaunch agent readiness <id>",
   "autolaunch agents list",
-  "autolaunch auction <id>",
   "autolaunch auction claim-unused-tokens",
   "autolaunch auction-returns list",
-  "autolaunch auctions list",
-  "autolaunch bids quote",
   "autolaunch chat list",
   "autolaunch chat read <scope>",
   "autolaunch chat send <scope>",
@@ -99,8 +96,6 @@ export const CLI_COMMANDS = [
   "autolaunch subjects staking",
   "autolaunch subjects sweep-ingress",
   "autolaunch subjects verify",
-  "autolaunch tokens list",
-  "autolaunch treasury security <address>",
   "autolaunch vesting cancel-beneficiary-rotation",
   "autolaunch vesting execute-beneficiary-rotation",
   "autolaunch vesting propose-beneficiary-rotation",
@@ -256,11 +251,8 @@ export const CLI_COMMANDS_BY_TOP_LEVEL_GROUP = {
     "autolaunch agent <id>",
     "autolaunch agent readiness <id>",
     "autolaunch agents list",
-    "autolaunch auction <id>",
     "autolaunch auction claim-unused-tokens",
     "autolaunch auction-returns list",
-    "autolaunch auctions list",
-    "autolaunch bids quote",
     "autolaunch chat list",
     "autolaunch chat read <scope>",
     "autolaunch chat send <scope>",
@@ -333,8 +325,6 @@ export const CLI_COMMANDS_BY_TOP_LEVEL_GROUP = {
     "autolaunch subjects staking",
     "autolaunch subjects sweep-ingress",
     "autolaunch subjects verify",
-    "autolaunch tokens list",
-    "autolaunch treasury security <address>",
     "autolaunch vesting cancel-beneficiary-rotation",
     "autolaunch vesting execute-beneficiary-rotation",
     "autolaunch vesting propose-beneficiary-rotation",
@@ -1333,31 +1323,6 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "summary": "List agents.",
     "next_step": "Use `regents autolaunch agent readiness <id>`."
   },
-  "autolaunch auction <id>": {
-    "command": "autolaunch auction <id>",
-    "owner": "shared-services",
-    "group": "autolaunch-public-markets",
-    "interface": "http",
-    "auth_mode": "none",
-    "output_envelope": "data",
-    "examples": [
-      "regents autolaunch auctions list --mode biddable --sort newest --limit 10",
-      "regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3"
-    ],
-    "agent_metadata": {
-      "category": "market",
-      "prompt_behavior": "never_prompt",
-      "json_support": "supported",
-      "mutation_class": "read",
-      "retry_behavior": "safe",
-      "pagination": "none",
-      "async_behavior": "synchronous",
-      "input_mode": "args-and-flags",
-      "next_step": "Estimate a bid with `regents autolaunch bids quote --auction <id> --amount <decimal> --max-price <decimal>`."
-    },
-    "summary": "Show Autolaunch auction.",
-    "next_step": "Estimate a bid with `regents autolaunch bids quote --auction <id> --amount <decimal> --max-price <decimal>`."
-  },
   "autolaunch auction claim-unused-tokens": {
     "command": "autolaunch auction claim-unused-tokens",
     "owner": "autolaunch",
@@ -1415,9 +1380,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -1430,108 +1393,6 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       "input_mode": "args-and-flags"
     },
     "summary": "List auction returns."
-  },
-  "autolaunch auctions list": {
-    "command": "autolaunch auctions list",
-    "owner": "shared-services",
-    "group": "autolaunch-public-markets",
-    "interface": "http",
-    "auth_mode": "none",
-    "output_envelope": "data",
-    "flags": [
-      {
-        "name": "--mode",
-        "type": "enum",
-        "enum": [
-          "all",
-          "biddable",
-          "live",
-          "failed_minimum",
-          "graduated"
-        ],
-        "required": false,
-        "description": "Public auction mode. Defaults to all."
-      },
-      {
-        "name": "--sort",
-        "type": "enum",
-        "enum": [
-          "newest",
-          "oldest"
-        ],
-        "required": false,
-        "description": "Opening-time order. Defaults to newest."
-      },
-      {
-        "name": "--limit",
-        "type": "string",
-        "required": false,
-        "description": "Integer limit; the API clamps to 1–50. Defaults to 50."
-      }
-    ],
-    "examples": [
-      "regents autolaunch auctions list --mode biddable --sort newest --limit 10",
-      "regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3"
-    ],
-    "agent_metadata": {
-      "category": "market",
-      "prompt_behavior": "never_prompt",
-      "json_support": "supported",
-      "mutation_class": "read",
-      "retry_behavior": "safe",
-      "pagination": "none",
-      "async_behavior": "synchronous",
-      "input_mode": "args-and-flags",
-      "next_step": "Open an auction with `regents autolaunch auction <id>`."
-    },
-    "summary": "List auctions.",
-    "next_step": "Open an auction with `regents autolaunch auction <id>`."
-  },
-  "autolaunch bids quote": {
-    "command": "autolaunch bids quote",
-    "owner": "shared-services",
-    "group": "autolaunch-public-markets",
-    "interface": "http",
-    "auth_mode": "none",
-    "output_envelope": "data",
-    "flags": [
-      {
-        "name": "--auction",
-        "type": "string",
-        "required": true,
-        "description": "Auction UUID."
-      },
-      {
-        "name": "--amount",
-        "type": "string",
-        "required": true,
-        "description": "Positive decimal bid amount, sent unchanged for API validation."
-      },
-      {
-        "name": "--max-price",
-        "type": "string",
-        "required": true,
-        "description": "Positive decimal maximum price, sent unchanged for API validation."
-      }
-    ],
-    "examples": [
-      "regents autolaunch auctions list --mode biddable --sort newest --limit 10",
-      "regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3"
-    ],
-    "agent_metadata": {
-      "category": "market",
-      "prompt_behavior": "never_prompt",
-      "json_support": "supported",
-      "mutation_class": "read",
-      "retry_behavior": "safe",
-      "pagination": "none",
-      "async_behavior": "synchronous",
-      "input_mode": "args-and-flags",
-      "summary": "Estimate a bid from stored auction data without submitting it.",
-      "next_step": "Review the estimate and warnings. Use the Autolaunch web app to place a bid."
-    },
-    "summary": "Estimate a bid from stored auction data without submitting it.",
-    "next_step": "Review the estimate and warnings. Use the Autolaunch web app to place a bid."
   },
   "autolaunch chat list": {
     "command": "autolaunch chat list",
@@ -3156,9 +3017,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -3207,9 +3066,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -3264,9 +3121,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4335,9 +4190,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "auth_audience": "autolaunch",
     "output_envelope": "market-envelopes",
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4368,9 +4221,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4393,9 +4244,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "auth_audience": "autolaunch",
     "output_envelope": "market-envelopes",
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4418,9 +4267,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "auth_audience": "autolaunch",
     "output_envelope": "market-envelopes",
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4443,9 +4290,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "auth_audience": "autolaunch",
     "output_envelope": "market-envelopes",
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4468,9 +4313,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     "auth_audience": "autolaunch",
     "output_envelope": "market-envelopes",
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4507,9 +4350,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4554,9 +4395,7 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       }
     ],
     "examples": [
-      "regents autolaunch auctions list",
-      "regents autolaunch subjects get <subject_id>",
-      "regents autolaunch bids quote --auction <auction_id>"
+      "regents autolaunch subjects get <subject_id>"
     ],
     "agent_metadata": {
       "category": "market",
@@ -4569,65 +4408,6 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
       "input_mode": "args-and-flags"
     },
     "summary": "Check subjects."
-  },
-  "autolaunch tokens list": {
-    "command": "autolaunch tokens list",
-    "owner": "shared-services",
-    "group": "autolaunch-public-markets",
-    "interface": "http",
-    "auth_mode": "none",
-    "output_envelope": "data",
-    "flags": [
-      {
-        "name": "--limit",
-        "type": "string",
-        "required": false,
-        "description": "Integer limit; the API clamps to 1–100. Defaults to 100."
-      }
-    ],
-    "examples": [
-      "regents autolaunch auctions list --mode biddable --sort newest --limit 10",
-      "regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3"
-    ],
-    "agent_metadata": {
-      "category": "market",
-      "prompt_behavior": "never_prompt",
-      "json_support": "supported",
-      "mutation_class": "read",
-      "retry_behavior": "safe",
-      "pagination": "none",
-      "async_behavior": "synchronous",
-      "input_mode": "args-and-flags",
-      "next_step": "Read the token's treasury_security report and its verification limits."
-    },
-    "summary": "List tokens.",
-    "next_step": "Read the token's treasury_security report and its verification limits."
-  },
-  "autolaunch treasury security <address>": {
-    "command": "autolaunch treasury security <address>",
-    "owner": "shared-services",
-    "group": "autolaunch-public-markets",
-    "interface": "http",
-    "auth_mode": "none",
-    "output_envelope": "data",
-    "examples": [
-      "regents autolaunch auctions list --mode biddable --sort newest --limit 10",
-      "regents autolaunch bids quote --auction <auction-id> --amount 12.5 --max-price 3"
-    ],
-    "agent_metadata": {
-      "category": "market",
-      "prompt_behavior": "never_prompt",
-      "json_support": "supported",
-      "mutation_class": "read",
-      "retry_behavior": "safe",
-      "pagination": "none",
-      "async_behavior": "synchronous",
-      "input_mode": "args-and-flags",
-      "summary": "Show a stored treasury security report and its verification limits.",
-      "next_step": "Read verification_state and verification_reason alongside classification."
-    },
-    "summary": "Show a stored treasury security report and its verification limits.",
-    "next_step": "Read verification_state and verification_reason alongside classification."
   },
   "autolaunch vesting cancel-beneficiary-rotation": {
     "command": "autolaunch vesting cancel-beneficiary-rotation",

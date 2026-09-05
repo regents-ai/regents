@@ -615,11 +615,23 @@ export const buildCliCommandMetadata = () => {
     groups.flatMap((group) => group.commandDetails ?? []).map((detail) => [detail.command, detail]),
   );
   const previousDetails = existingCommandDetails();
-  const commandDetails = commands.map((command) => contractDetails.get(command) ?? previousDetails[command] ?? {
-    command,
-    owner: "regents-cli",
-    group: topLevelGroup(command),
-    summary: commandSummary(command),
+  const commandDetails = commands.map((command) => {
+    const detail = contractDetails.get(command) ?? previousDetails[command] ?? {
+      command,
+      owner: "regents-cli",
+      group: topLevelGroup(command),
+      summary: commandSummary(command),
+    };
+    // Retained product metadata can outlive its old routes. Do not keep showing
+    // removed Regent commands in examples after a product package cutover.
+    const examples = detail.examples?.filter((example) => {
+      if (!example.startsWith("regents ")) return true;
+      const words = example.slice("regents ".length).split(/\s+/u);
+      return commands.some((candidate) => candidate.split(" ").every((word, i) =>
+        word.startsWith("[") || (word.startsWith("<") ? Boolean(words[i]) : word === words[i]),
+      ));
+    });
+    return examples ? { ...detail, examples } : detail;
   });
   const commandDetailsByCommand = Object.fromEntries(
     commandDetails.map((detail) => [detail.command, detail]),

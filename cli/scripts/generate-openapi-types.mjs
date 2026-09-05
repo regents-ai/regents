@@ -5,11 +5,6 @@ import { spawnSync } from "node:child_process";
 const root = resolve(import.meta.dirname, "..");
 const contracts = [
   {
-    label: "Autolaunch public",
-    input: "docs/autolaunch-public-contract.openapiv3.yaml",
-    output: "packages/regents-cli/src/generated/autolaunch-public-openapi.ts",
-  },
-  {
     input: "docs/regent-services-contract.openapiv3.yaml",
     output: "packages/regents-cli/src/generated/regent-services-openapi.ts",
   },

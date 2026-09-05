@@ -2,7 +2,20 @@
 
 All notable changes to `@regentslabs/cli` should be recorded here.
 
-## Unreleased
+## Unreleased — 1.0.0 candidate
+
+### Breaking
+
+- Move the five public Autolaunch commands to the independently installed
+  `@regentslabs/autolaunch-cli` package (`autolaunch` binary). Drop the leading
+  `regents`, and read the former domain response at `body` in `{ok, status, body}`.
+  HTTP errors now use that same stdout envelope and exit 1. Configure the new
+  package with `AUTOLAUNCH_BASE_URL` or `--base-url`; it does not import Regents
+  config. Private/chain integrations remain pending individual disposition.
+- Clarify product ownership: Techtree's Python package is its native agent CLI;
+  the older Regents Verify/notebook operations are separate local contracts.
+
+This candidate does not update a published package or live installer pin.
 
 ### Added
 

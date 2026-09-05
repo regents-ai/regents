@@ -6,7 +6,6 @@ Regents CLI is validated as a standalone repository. Local checks never discover
 
 - `shared-cli-contract.yaml` owns repository-local public commands, flags, arguments, auth modes, and help metadata.
 - `regent-services-contract.openapiv3.yaml` owns the shared-services HTTP routes maintained here.
-- `autolaunch-public-contract.openapiv3.yaml` is a byte-identical reviewed copy of the product-owned Autolaunch contract; its provenance is in `autolaunch-cli.md`, its hash is checked, and its binding is regenerated locally. Never edit this copy independently of its product source.
 - `json-rpc-methods.yaml` owns local runtime JSON-RPC methods.
 - `schemas/wallet-action.schema.yaml` owns the prepared wallet-action envelope.
 - `../packages/regents-cli/src/contracts/api-ownership.ts` maps API-backed commands to product owners.

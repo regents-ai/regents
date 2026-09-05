@@ -621,74 +621,6 @@ describe("autolaunch CLI command group", () => {
     expect(text).toContain("Ask the human operator to open the URL");
   });
 
-  it("lists public auctions without using saved sign-in or wallet credentials", async () => {
-    const payload = { data: [{ id: "a12ee155-c71b-4107-87fd-dab8c7e00001", title: "Atlas", state: "active" }] };
-    fetchMock.mockResolvedValue(Response.json(payload));
-    process.env.AUTOLAUNCH_SESSION_COOKIE = "fixture-cookie";
-    process.env.AUTOLAUNCH_PRIVY_BEARER_TOKEN = "fixture-token";
-    const output = await captureOutput(() => runCliEntrypoint([
-      "autolaunch", "auctions", "list", "--mode", "biddable", "--sort", "oldest", "--limit", "75",
-    ]));
-    expect(output.result).toBe(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${expectedBaseUrl}/api/v1/auctions?mode=biddable&sort=oldest&limit=75`);
-    const request = fetchMock.mock.calls[0]?.[1];
-    expect(request).toMatchObject({ method: "GET", credentials: "omit", redirect: "error" });
-    const headers = new Headers(request?.headers);
-    for (const name of ["cookie", "authorization", "x-siwa-receipt", "signature", "x-agent-wallet-address"]) {
-      expect(headers.has(name)).toBe(false);
-    }
-    expect(buildAgentAuthHeadersMock).not.toHaveBeenCalled();
-    expect(sendTransactionMock).not.toHaveBeenCalled();
-    expect(callMock).not.toHaveBeenCalled();
-    expect(parsePrintedJson(output.stdout)).toEqual(payload);
-  });
-
-  it.each([
-    [["auctions", "list"], "/api/v1/auctions"],
-    [["auction", "a12ee155-c71b-4107-87fd-dab8c7e00001"], "/api/v1/auctions/a12ee155-c71b-4107-87fd-dab8c7e00001"],
-    [["tokens", "list", "--limit", "-2"], "/api/v1/tokens?limit=-2"],
-    [["treasury", "security", "0x9999999999999999999999999999999999999999"], "/api/v1/treasury-security/0x9999999999999999999999999999999999999999"],
-  ])("dispatches public read %j and preserves the full response", async (command, route) => {
-    const payload = { data: { classification: "supported_safe", verification_state: "awaiting_current_chain_confirmation", verification_reason: "projector_refresh_not_integrated", evidence: { observed: "123456789012345678901234567890" } } };
-    fetchMock.mockResolvedValue(Response.json(payload));
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", ...command]));
-    expect(output.result).toBe(0);
-    expect(parsePrintedJson(output.stdout)).toEqual(payload);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${expectedBaseUrl}${route}`);
-    expect(buildAgentAuthHeadersMock).not.toHaveBeenCalled();
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: "omit", redirect: "error" });
-  });
-
-  it("sends exact quote strings and retains closed-auction warnings without wallet actions", async () => {
-    const amount = "  12.12345678901234567890123456789  ";
-    const maxPrice = "0003.000";
-    const payload = { data: { amount: amount.trim(), max_price: "3", estimated_tokens_if_end_now: "4.849382715604938271560493827156", warnings: ["auction_not_biddable"] } };
-    fetchMock.mockResolvedValue(Response.json(payload));
-    const output = await captureOutput(() => runCliEntrypoint([
-      "autolaunch", "bids", "quote", "--auction", "a12ee155-c71b-4107-87fd-dab8c7e00002", "--amount", amount, "--max-price", maxPrice,
-    ]));
-    expect(output.result).toBe(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${expectedBaseUrl}/api/v1/auctions/a12ee155-c71b-4107-87fd-dab8c7e00002/bid-quote`);
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "POST", body: JSON.stringify({ amount, max_price: maxPrice }), credentials: "omit" });
-    expect(parsePrintedJson(output.stdout)).toEqual(payload);
-    expect(buildAgentAuthHeadersMock).not.toHaveBeenCalled();
-    expect(writeContractMock).not.toHaveBeenCalled();
-    expect(sendTransactionMock).not.toHaveBeenCalled();
-    expect(callMock).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    [400, "http_400", 1], [404, "not_found", 4], [500, "http_500", 1],
-  ])("retains the API error body with the existing CLI envelope for HTTP %i", async (status, code, exit) => {
-    const body = { error: { code: "invalid_request", message: "Invalid fixture request.", fields: ["amount"] } };
-    fetchMock.mockResolvedValue(Response.json(body, { status }));
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "tokens", "list", "--limit", "nope"]));
-    expect(output.result).toBe(exit);
-    expect(parsePrintedJson(output.stderr)).toMatchObject({ error: { code, message: body.error.message, details: { status, body } } });
-  });
-
   it("keeps private auction-return requests authenticated and their error envelope unchanged", async () => {
     fetchMock.mockResolvedValue(Response.json({ error: { code: "invalid_request", message: "Private fixture error." } }, { status: 400 }));
     const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "auction-returns", "list"]));
@@ -696,26 +628,6 @@ describe("autolaunch CLI command group", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${expectedBaseUrl}/api/autolaunch/v1/agent/auction-returns`);
     assertAgentAuthHeaders(fetchMock.mock.calls[0]?.[1]?.headers as Headers);
     expect(parsePrintedJson(output.stderr)).toEqual({ error: { code: "http_400", message: "Private fixture error." } });
-  });
-
-  it("keeps connection failures in the existing CLI error envelope", async () => {
-    fetchMock.mockRejectedValue(new TypeError("fixture connection refused"));
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "tokens", "list"]));
-    expect(output.result).toBe(5);
-    expect(parsePrintedJson(output.stderr)).toMatchObject({ error: { code: "backend_unreachable" } });
-  });
-
-  it.each([
-    ["auction", ".."], ["treasury", "security", "."],
-    ["bids", "quote", "--auction", "..", "--amount", "1", "--max-price", "2"],
-    ["bids", "quote", "--auction", "id", "--amount", "1"],
-    ["auctions", "list", "--mine-only"], ["auctions", "list", "--status", "active"],
-    ["auctions", "list", "--limit"], ["tokens", "list", "--limit="],
-  ])("rejects invalid public command input %j before fetching", async (...command) => {
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", ...command]));
-    expect(output.result).toBe(2);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(buildAgentAuthHeadersMock).not.toHaveBeenCalled();
   });
 
   it("supports non-numeric agent ids for autolaunch agent show/readiness routes", async () => {

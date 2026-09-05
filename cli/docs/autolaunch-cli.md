@@ -1,21 +1,16 @@
-# Autolaunch CLI
+# Retained Autolaunch commands in Regents
 
-Autolaunch is a command group inside `regents-cli`.
+Public auction listing/detail, quotes, token listing and treasury observations now
+belong to the independently installed `@regentslabs/autolaunch-cli` package in the
+Autolaunch monorepo. Use `autolaunch --help` or `autolaunch commands list --json`.
+The five old `regents autolaunch` public commands have been removed.
 
-Auction listing/detail, bid quotes, token listing and treasury security reports are
-public reads. They need no Agent account, sign-in or wallet. Start with:
-
-```bash
-regents autolaunch auctions list --mode biddable --json
-```
-
-See [Public market reads](#public-market-reads) for all five commands and their
-limits. They use the generated `autolaunch-public-openapi.ts` binding. The older
-private commands retain `autolaunch-openapi.ts`; the separate `regent-staking`
-rail retains the Platform binding.
-
-Workspace guidance: [WebMCP and CLI standard](../../../../control/docs/programs/webmcp-cli-standard.md).
-This relative link targets the canonical Regent workspace checkout.
+The remaining commands below are older local, private and chain integrations.
+Most `/api/autolaunch/v1` HTTP routes are absent from the current Autolaunch server;
+the retained contract binding is historical evidence, not proof of support.
+They remain pending individual migration or retirement. Do not substitute the new
+public CLI for a wallet or private operation. Regents staking, wallet and x402
+behavior remains owned by Regents.
 
 ## Environment
 
@@ -28,8 +23,7 @@ This relative link targets the canonical Regent workspace checkout.
 
 ## Legacy private guidance — unverified
 
-Except for the explicitly labeled Public market reads and fixture comparison
-sections, the operator, sign-in, launch, wallet and staking guidance below is
+The operator, sign-in, launch, wallet and staking guidance below is
 retained legacy documentation. Its private routes have not been verified against
 the current Autolaunch site. These requirements do not apply to the five public
 reads. The new default origin also applies to private commands, whose route
@@ -316,55 +310,14 @@ Autolaunch still does not route the launch fee lane automatically into REGENT re
 - It includes the warning that skipping those steps can leave the launch looking less trusted.
 - It carries the current instructions and, when available, direct links for the ENS and World follow-up pages.
 
-### Public market reads
+### Public market reads moved
 
-New CLI configurations default `services.autolaunch.baseUrl` to
-`https://autolaunch.sh`. Saved configurations and `AUTOLAUNCH_BASE_URL` still take
-precedence. This shared default also applies to other Autolaunch commands; their
-legacy private routes are unchanged by this public-read update.
-
-These commands need no sign-in. They read stored public projections and send no
-SIWA headers, cookies, or credentials. They print the complete API JSON body,
-including warnings and exact amount strings. HTTP errors keep the existing CLI
-code, message and exit status, with the original API JSON in `error.details.body`
-and the HTTP status in `error.details.status`.
-
-```bash
-regents autolaunch auctions list \
-  [--mode all|biddable|live|failed_minimum|graduated] \
-  [--sort newest|oldest] [--limit <integer>] [--json]
-regents autolaunch auction <auction-id> [--json]
-regents autolaunch tokens list [--limit <integer>] [--json]
-regents autolaunch treasury security <address> [--json]
-regents autolaunch bids quote \
-  --auction <auction-id> --amount <decimal-string> --max-price <decimal-string> [--json]
-```
-
-Auction defaults are mode `all`, sort `newest`, limit 50. Token limit defaults to
-100. The API clamps integer limits to 1–50 or 1–100 respectively. No pagination
-is exposed. Treasury addresses are checked by the API, including mixed-case EIP-55
-checksums. `supported_safe` still carries `awaiting_current_chain_confirmation`
-and `projector_refresh_not_integrated`; this is stored evidence, not a current
-chain verification.
-
-Bid quotes estimate from stored auction data. Quote decimal strings are sent
-unchanged. The API trims whitespace, accepts positive digits with an optional
-fraction, and enforces its 100-byte and Decimal parser bounds (currently 34
-significant digits). Quotes do not apply wallet-only 18-decimal or uint128 limits.
-A closed auction can return a quote with `auction_not_biddable`; preserve and read
-its warnings. Placing, exiting and claiming bids happens in the Autolaunch web app.
-
-`autolaunch-public-contract.openapiv3.yaml` is a byte-identical checked-in copy of
-Autolaunch's product-owned `platform/contracts/api-contract.openapiv3.yaml` from
-commit `dd6c0dbe8b1759faf5a6e6f200c020b845509cf0`, reviewed on 5 September 2026.
-Its SHA-256 is `8f8100c9583972f4ff663f3d8dcfb1800b89b3f26e01741e37fd689b3606519c`.
-The product contract remains the single HTTP authority; this copy is not edited
-independently. `pnpm check:openapi` verifies the copied file's reviewed hash and
-regenerates its binding for comparison. It does not query the product repository
-or establish freshness against later upstream changes. A reviewed synchronization
-must copy the product contract and update its provenance/hash together.
-Run `pnpm generate:openapi` and `pnpm generate:cli-command-metadata` after contract
-changes. Builds and checks require no Autolaunch checkout.
+Use the standalone `autolaunch` binary with `auctions list`, `auction <id>`,
+`bids quote`, `tokens list`, or `treasury security <address>`.
+Its JSON envelope is `{ok, status, body}`; the domain payload previously printed
+by Regents is now `body`. HTTP errors use the same envelope on stdout and exit 1.
+Configuration is product-owned: `AUTOLAUNCH_BASE_URL` or `--base-url`; Regents
+configuration files are not imported. This is an explicit command/package cutover.
 
 ### Subjects
 
@@ -496,16 +449,8 @@ That backend must have:
 
 Trust follow-up commands use the current trust-network configuration. Core launch, auction, subject, and contract-console flows use their own configured inputs.
 
-### Optional public fixture comparison
+### Public CLI verification
 
-With a built CLI and an isolated loopback Autolaunch server seeded with its
-`test/browser/support/seed_public_tools.exs` synthetic records, run:
-
-```sh
-node scripts/test-autolaunch-public-fixture.mjs http://127.0.0.1:<fixture-port>
-```
-
-This compares full HTTP results with the actual CLI for all five reads, modes,
-server limit clamping, high-precision quotes, closed-auction warnings, verification
-labels and API failures. It writes disposable configuration and evidence beneath
-`output/`; it never seeds records, signs requests or calls a chain provider.
+Run `npm run check`, `npm run test:parity` and `npm run check:contract` in the
+Autolaunch monorepo's `cli/`. Its standalone and packed-install fixtures compare
+exact payloads, cursor/decimal bytes, errors, credential omission and redirects.

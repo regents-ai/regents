@@ -1,4 +1,3 @@
-import type { paths as AutolaunchPublicPaths } from "../generated/autolaunch-public-openapi.js";
 import type { paths as AutolaunchPaths } from "../generated/autolaunch-openapi.js";
 import type { paths as PlatformPaths } from "../generated/platform-openapi.js";
 import type { paths as RegentServicePaths } from "../generated/regent-services-openapi.js";
@@ -15,7 +14,7 @@ export interface ApiCommandGroup {
 }
 
 const defineAutolaunchGroup = <
-  const TPaths extends readonly (keyof AutolaunchPaths | keyof AutolaunchPublicPaths)[],
+  const TPaths extends readonly (keyof AutolaunchPaths)[],
 >(
   group: Omit<ApiCommandGroup, "pathTemplates"> & {
     readonly pathTemplates: TPaths;
@@ -120,24 +119,6 @@ export const autolaunchApiCommandGroups = [
       "/api/autolaunch/v1/agent/lifecycle/jobs/{id}/finalize/register",
       "/api/autolaunch/v1/app/lifecycle/jobs/{id}/vesting",
       "/api/autolaunch/v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch auctions list",
-      "autolaunch auction <id>",
-      "autolaunch bids quote",
-      "autolaunch tokens list",
-      "autolaunch treasury security <address>",
-    ],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/v1/auctions",
-      "/api/v1/auctions/{id}",
-      "/api/v1/auctions/{id}/bid-quote",
-      "/api/v1/tokens",
-      "/api/v1/treasury-security/{address}",
     ],
   }),
   defineAutolaunchGroup({

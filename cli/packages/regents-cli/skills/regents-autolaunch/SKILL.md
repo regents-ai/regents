@@ -1,11 +1,18 @@
 ---
 name: regents-autolaunch
-description: Use Regents CLI for Autolaunch prelaunch setup, agent launch readiness, launch jobs, subject actions, auctions, and holdings.
+description: Inspect retained legacy Autolaunch commands in Regents.
 ---
 
 # Regents Autolaunch
 
-Use this skill when a person asks to prepare, validate, publish, launch, or operate an Autolaunch agent project.
+Public market operations belong to the standalone `autolaunch` command. Run
+`autolaunch commands list --json` for current public capabilities. No sign-in is
+needed for those reads or quotes.
+
+The older private and chain commands below remain in Regents pending individual
+migration or retirement. Their old HTTP routes are absent from the current
+Autolaunch server; inspect the intended backend before attempting them. These
+instructions do not establish availability or grant signing authority.
 
 ## Safety
 
@@ -58,7 +65,7 @@ regents autolaunch jobs watch <job-id> --watch
 ## Operations
 
 - Subject details: `regents autolaunch subjects get <subject-id>`
-- Auctions: `regents autolaunch auctions list`
+- Public auctions (separate package): `autolaunch auctions list`
 - Subject payment links: `regents autolaunch subjects payment-links <subject-id>`
 - Contracts: `regents autolaunch registry get --subject <subject-id>`
 

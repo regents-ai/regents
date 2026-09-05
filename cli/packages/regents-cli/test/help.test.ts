@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CLI_COMMANDS } from "../src/command-registry.js";
 import { renderScopedHelp } from "../src/help.js";
@@ -23,14 +23,25 @@ describe("scoped CLI help", () => {
     expect(output.stdout).toContain("regents autolaunch agents list");
   });
 
-  it("shows public market flags and requires no sign-in for their help", async () => {
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "auctions", "list", "--help"]));
-    expect(output.result).toBe(0);
-    expect(output.stdout).toContain("--mode");
-    expect(output.stdout).toContain("--limit");
-    expect(output.stdout).toContain("No saved sign-in is needed.");
-    expect(output.stdout).not.toContain("--mine-only");
-    expect(output.stdout).not.toContain("auth login");
+  it("does not dispatch or advertise the five public operations moved to Autolaunch", async () => {
+    const fetch = vi.fn(() => { throw new Error("A retired command must not reach the network."); });
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const moved = [
+        ["auctions", "list"], ["auction", "id"], ["bids", "quote"],
+        ["tokens", "list"], ["treasury", "security", "address"],
+      ];
+      for (const command of moved) {
+        const output = await captureOutput(() => runCliEntrypoint(["autolaunch", ...command]));
+        expect(output.result).toBe(2);
+      }
+      expect(fetch).not.toHaveBeenCalled();
+      for (const command of ["autolaunch auctions list", "autolaunch auction <id>", "autolaunch bids quote", "autolaunch tokens list", "autolaunch treasury security <address>"]) {
+        expect(CLI_COMMANDS).not.toContain(command);
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("distinguishes provider discovery from Coinbase status and local signing", async () => {

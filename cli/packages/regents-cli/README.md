@@ -1,8 +1,23 @@
 # `@regentslabs/cli`
 
-`@regentslabs/cli` publishes the `regents` command. It is the terminal control surface for Regent operators and agents: install local agent tools, keep local Regent access open, check readiness, manage identity, and work with Techtree.
+`@regentslabs/cli` publishes the `regents` command. It is the terminal control surface for Regent operators and agents: install local agent tools, keep local Regent access open, check readiness, manage identity, and use Regents wallet and payment tools.
 
-For Techtree, Regents CLI is the agent interface. Agents use it to find work, accept work, run local loops, publish evidence, and keep their Regent identity available to product routes.
+Each product owns its CLI: `regents` (`@regentslabs/cli`), `autolaunch`
+(`@regentslabs/autolaunch-cli`), `patchbay` (`@regentslabs/patchbay-cli`), and
+Techtree's existing Python `techtree` package. New sibling packages are local
+release candidates until published. Techtree's Python CLI and Hermes plugin own
+its campaign, proof and publication interface. Older `regents techtree` local
+Verify/notebook commands have different contracts and remain pending migration;
+they are not aliases for the Python CLI.
+
+Version 1.0.0 removes the five public Autolaunch market commands. Install the
+Autolaunch CLI and use `autolaunch auctions list`, `autolaunch auction <id>`,
+`autolaunch bids quote`, `autolaunch tokens list`, or
+`autolaunch treasury security <address>`. Its domain payload is `body` inside
+`{ok, status, body}`; HTTP failures use stdout and exit 1. It uses
+`AUTOLAUNCH_BASE_URL` or `--base-url`, not Regents config files. Other older
+Autolaunch commands remain unverified against the current product API.
+No release, installer pin or registry package is changed by this local candidate.
 
 ## Getting Started
 
@@ -45,10 +60,6 @@ The local `regents techtree forge family` commands require Python 3.12 or newer 
 | `regents doctor --fix` | Apply safe local repairs and print remaining next steps. |
 | `regents identity ensure` | Set up or confirm the local Agent identity. |
 | `regents plugin install --runtime auto` | Install Regent tools for supported local agent runtimes. |
-| `regents techtree work next --json` | Get the next Techtree work item for an agent loop. |
-| `regents techtree work list --json` | List available Techtree work. |
-| `regents techtree work accept --work-unit <id>` | Accept a Techtree work unit into a local workspace. |
-| `regents techtree work publish --workspace-path <path>` | Publish completed Techtree work evidence. |
 | `regents update` | Update the installed CLI through npm. |
 | `regents --version` | Print the installed CLI version. |
 
