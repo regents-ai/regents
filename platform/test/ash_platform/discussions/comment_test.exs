@@ -108,7 +108,7 @@ defmodule AshPlatform.Discussions.CommentTest do
              Discussions.post_comment(
                :autolaunch_auction,
                auction.id,
-               "# Not allowed",
+               "<script>alert(1)</script>",
                Ash.UUID.generate(),
                actor: human(owner)
              )

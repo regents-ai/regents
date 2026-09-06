@@ -1,3 +1,4 @@
+import {mountOwnedClaims, type ClaimsAction} from "./owned_claims"
 import {mountProfile} from "../vendor/regent_ui/profile.mjs"
 import {installProfileTools} from "../vendor/regent_identity/profile_tools.mjs"
 import type {ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
@@ -5,6 +6,7 @@ import type {AccountRequest, IdentityRequest} from "./auth_lazy"
 
 export function installSharedProfile(doc: Document, adapter: {
   profile: ProfileAction
+  claims: ClaimsAction
   request: (request: AccountRequest) => Promise<void>
   identity: (request: IdentityRequest) => Promise<void>
 }): () => void {
@@ -14,6 +16,8 @@ export function installSharedProfile(doc: Document, adapter: {
     try { return await adapter.profile(...args) }
     catch { return {ok: false, status: null, error: {code: "profile_unavailable", outcome_unknown: args[0] !== "get"}} }
   }
+  const claimsRoot = doc.querySelector<HTMLElement>("[data-owned-claims]")
+  const stopClaims = claimsRoot ? mountOwnedClaims(claimsRoot, adapter.claims) : () => {}
   const stopTools = installProfileTools(profile, win)
   const root = doc.querySelector<HTMLElement>("[data-regent-profile]")
   const stopPanel = root ? mountProfile(root, {
@@ -42,5 +46,5 @@ export function installSharedProfile(doc: Document, adapter: {
       }
     },
   }) : () => {}
-  return () => { stopPanel(); stopTools() }
+  return () => { stopClaims(); stopPanel(); stopTools() }
 }

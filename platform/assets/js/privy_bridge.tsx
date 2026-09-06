@@ -1,3 +1,4 @@
+import {createClaimsClient, type ClaimsAction} from "./owned_claims"
 import {createProfileClient, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {createXLinkIntent} from "../vendor/regent_identity/x_link_intent.mjs"
 import {
@@ -553,6 +554,7 @@ type AccountBridgeProps = {
     finishSignOutOnly: () => void,
     ready: boolean,
     profileHandler: ProfileAction,
+    claimsHandler: ClaimsAction,
   ) => void
 }
 
@@ -672,22 +674,24 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     [getAccessToken, providerState?.getIdentityToken],
   )
   acquireTokensRef.current = acquireTokens
+  const acquireProfileProof = React.useCallback(async ({signal}: {signal: AbortSignal}, expectedSubject?: string) => {
+    while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
+      signal.throwIfAborted()
+      await new Promise(resolve => setTimeout(resolve, 25))
+    }
+    const state = provider.current
+    if (!state.authenticated || !state.subject || (expectedSubject && expectedSubject !== state.subject) ||
+        (signOutOnly && signOutOnlyState.current !== "terminal")) return null
+    const generation = profileGeneration.current
+    const tokens = await acquireTokensRef.current()
+    return {...tokens, subject: state.subject, isCurrent: () =>
+      provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
+  }, [signOutOnly])
   const profileFor = React.useCallback((expectedSubject?: string) => createProfileClient({
-    async acquireProof({signal}) {
-      while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
-        signal.throwIfAborted()
-        await new Promise(resolve => setTimeout(resolve, 25))
-      }
-      const state = provider.current
-      if (!state.authenticated || !state.subject || (expectedSubject && expectedSubject !== state.subject) ||
-          (signOutOnly && signOutOnlyState.current !== "terminal")) return null
-      const generation = profileGeneration.current
-      const tokens = await acquireTokensRef.current()
-      return {...tokens, subject: state.subject, isCurrent: () =>
-        provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
-    },
-  }), [signOutOnly])
+    acquireProof: options => acquireProfileProof(options, expectedSubject),
+  }), [acquireProfileProof])
   const profileHandler = React.useMemo(() => profileFor(), [profileFor])
+  const claimsHandler = React.useMemo(() => createClaimsClient({acquireProof: acquireProfileProof}), [acquireProfileProof])
   const profileIntent = React.useCallback(() => {
     const appId = providerState?.appId ?? document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content ?? ""
     let storage: Storage | null = null
@@ -959,8 +963,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const finishSignOutOnly = signOutOnlyBridge.finish
 
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, profileHandler),
-    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, profileHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, profileHandler, claimsHandler),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, profileHandler, claimsHandler],
   )
 
   return null
@@ -983,8 +987,12 @@ export function startPrivyBridge(
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
     let currentProfileHandler: ProfileAction | null = null
+    let currentClaimsHandler: ClaimsAction | null = null
     let resolved = false
     const handle: PrivyBridgeHandle = {
+      claims(...args) {
+        return currentClaimsHandler ? currentClaimsHandler(...args) : Promise.reject(new Error("Claims are unavailable"))
+      },
       profile(...args) {
         return currentProfileHandler ? currentProfileHandler(...args) : Promise.reject(new Error("Profile is unavailable"))
       },
@@ -1008,7 +1016,9 @@ export function startPrivyBridge(
       finishSignOutOnly,
       ready,
       profileHandler,
+      claimsHandler,
     ) => {
+      currentClaimsHandler = claimsHandler
       currentProfileHandler = profileHandler
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler

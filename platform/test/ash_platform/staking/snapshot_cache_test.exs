@@ -40,7 +40,10 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
   end
 
   setup do
-    SnapshotCache.clear()
+    # Clearing values does not cancel already scheduled boot retries. Give each
+    # case its own cache process so a previous case's timer cannot spend its retries.
+    :ok = Supervisor.terminate_child(AshPlatform.Supervisor, SnapshotCache)
+    {:ok, _pid} = Supervisor.restart_child(AshPlatform.Supervisor, SnapshotCache)
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
 
     on_exit(fn ->

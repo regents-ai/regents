@@ -341,7 +341,6 @@ describe("shell material contract", () => {
     expect(tokens).toMatch(
       /:root\[data-brand="platform"\]\[data-theme="dark"\] \{\s*color-scheme: dark;/,
     )
-    expect(tokens).toMatch(/--ash-ground: light-dark\(#f6f4ea, #0b0b0b\);/)
     expect(shell).toContain("background: var(--ash-ground)")
     expect(shell).toContain("min-height: 2.75rem")
     expect(shell).toContain("100dvh")

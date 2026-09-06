@@ -62,6 +62,7 @@ defmodule AshPlatformWeb.Router do
 
   scope "/api/v1" do
     pipe_through :api
+    get "/claims", AshPlatformWeb.OwnedClaimsController, :index
     forward "/profile", RegentIdentity.HTTP, otp_app: :ash_platform
   end
 

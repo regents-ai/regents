@@ -1,4 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
+import {resolve} from "node:path"
+import {fileURLToPath, pathToFileURL} from "node:url"
+import {env} from "node:process"
 
 import {
   SessionLifecycleError,
@@ -372,7 +375,8 @@ describe("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER", () => {
 // long-poll timer and transport-error path each replace the transport and call
 // `transportConnect` directly, never returning through `connect`.
 const {Socket: PinnedPhoenixSocket} = (await import(
-  new URL("../../deps/phoenix/priv/static/phoenix.mjs", import.meta.url).href
+  pathToFileURL(resolve(env.MIX_DEPS_PATH ?? fileURLToPath(new URL("../../deps", import.meta.url)),
+    "phoenix/priv/static/phoenix.mjs")).href
 )) as {
   Socket: new (
     endPoint: string,
