@@ -6,6 +6,11 @@ import { spawnSync } from "node:child_process";
 const root = resolve(import.meta.dirname, "..");
 const contracts = [
   {
+    label: "Shared profile",
+    input: "docs/profile.openapi.json",
+    output: "packages/regents-cli/src/generated/profile-openapi.ts",
+  },
+  {
     label: "Shared services",
     input: "docs/regent-services-contract.openapiv3.yaml",
     output: "packages/regents-cli/src/generated/regent-services-openapi.ts",

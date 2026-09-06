@@ -1,4 +1,5 @@
 import type { paths as AutolaunchPaths } from "../generated/autolaunch-openapi.js";
+import type { paths as ProfilePaths } from "../generated/profile-openapi.js";
 import type { paths as PlatformPaths } from "../generated/platform-openapi.js";
 import type { paths as RegentServicePaths } from "../generated/regent-services-openapi.js";
 
@@ -22,7 +23,7 @@ const defineAutolaunchGroup = <
 ) => group;
 
 const definePlatformGroup = <
-  const TPaths extends readonly (keyof PlatformPaths)[],
+  const TPaths extends readonly ((keyof PlatformPaths) | (keyof ProfilePaths))[],
 >(
   group: Omit<ApiCommandGroup, "pathTemplates"> & {
     readonly pathTemplates: TPaths;
@@ -37,11 +38,11 @@ const defineSharedServicesGroup = <
   },
 ) => group;
 
-export const profileApiCommandGroups = [{
+export const profileApiCommandGroups = [definePlatformGroup({
   commands: ["profile get", "profile sync", "profile update"], owner: "platform", status: "current",
   note: "Regents-owned shared profile contract: docs/profile.openapi.json; paired Privy proof, independent of SIWA.",
   pathTemplates: ["/api/v1/profile", "/api/v1/profile/sync"],
-}] as const satisfies readonly ApiCommandGroup[];
+})] as const satisfies readonly ApiCommandGroup[];
 
 export const techtreeApiCommandGroups = [
   {
