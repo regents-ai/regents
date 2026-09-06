@@ -3,13 +3,16 @@ import {stripTypeScriptTypes} from "node:module"
 import {readFileSync} from "node:fs"
 
 let script: string
+let styles: string
 
 test.beforeAll(() => {
   script = stripTypeScriptTypes(readFileSync(new URL("../../assets/js/owned_claims.ts", import.meta.url), "utf8")) + "\nwindow.OwnedClaims = {mountOwnedClaims};"
+  styles = readFileSync(new URL("../../assets/vendor/regent_ui/primitives.css", import.meta.url), "utf8")
 })
 
 test.beforeEach(async ({page}) => {
-  await page.setContent(`<section id="names"><button data-claims-load>Load names</button><p role="status" data-claims-status></p><ul data-claims-list></ul><button data-claims-more hidden>More names</button></section>`)
+  await page.setContent(`<section id="names"><button class="rg-button" data-claims-load>Load names</button><p role="status" data-claims-status></p><ul data-claims-list></ul><button class="rg-button" data-claims-more hidden>More names</button></section>`)
+  await page.addStyleTag({content: styles})
   await page.addScriptTag({content: script, type: "module"})
   await page.evaluate(() => {
     const fixture = window as any
@@ -24,6 +27,7 @@ const deliver = async (page, index: number, name: string, next: string | null = 
 
 test("loads on demand, paginates, renders history as text, and clears on account change", async ({page}) => {
   expect(await page.evaluate(() => (window as any).requests.length)).toBe(0)
+  await expect(page.getByRole("button", {name: "More names"})).toBeHidden()
   await page.getByRole("button", {name: "Load names", exact: true}).click()
   await deliver(page, 0, "<img src=x onerror=alert(1)>", "cursor-one")
   await expect(page.locator("li strong")).toHaveText("<img src=x onerror=alert(1)>")
