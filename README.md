@@ -22,8 +22,11 @@ Autolaunch, investigate agent tools with Patchbay, and evaluate Skills with Tech
 | Phoenix/LiveView/Ash website and API | [platform/](platform/README.md) | `make check-platform` |
 | TypeScript CLI and agent integrations | [cli/](cli/README.md) | `make check-cli` |
 | Solidity, staking and contract history | [contracts/](contracts/README.md) | `make check-contracts` |
+| Shared identity domain used by every product | [identity/](identity/README.md) | `mix check` from `identity/`, see its README |
+| Agent runtime plugins | [plugins/](plugins/README.md) | None yet; runtime integrations ship inside the CLI |
 
-Run setup from the owning component. Shared libraries are independent repositories;
+Run setup from the owning component. `identity/` is the one shared package that
+lives in this repository; the other shared libraries are independent repositories, and
 [platform setup](platform/README.md#quickstart) explains their paths. The internal
 OTP application/release name remains `ash_platform` so a repository rename does not
 change production release identities.
