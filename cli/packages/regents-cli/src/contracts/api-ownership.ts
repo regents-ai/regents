@@ -37,6 +37,12 @@ const defineSharedServicesGroup = <
   },
 ) => group;
 
+export const profileApiCommandGroups = [{
+  commands: ["profile get", "profile sync", "profile update"], owner: "platform", status: "current",
+  note: "Regents-owned shared profile contract: docs/profile.openapi.json; paired Privy proof, independent of SIWA.",
+  pathTemplates: ["/api/v1/profile", "/api/v1/profile/sync"],
+}] as const satisfies readonly ApiCommandGroup[];
+
 export const techtreeApiCommandGroups = [
   {
     commands: ["techtree notebooks init", "techtree notebooks pair"],
@@ -425,6 +431,7 @@ export const sharedServicesApiCommandGroups = [
 ] as const;
 
 export const apiCommandOwnership = [
+  ...profileApiCommandGroups,
   ...techtreeApiCommandGroups,
   ...autolaunchApiCommandGroups,
   ...platformApiCommandGroups,

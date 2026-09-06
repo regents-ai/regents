@@ -60,6 +60,11 @@ defmodule AshPlatformWeb.Router do
     get "/metrics", MetricsController, :show
   end
 
+  scope "/api/v1" do
+    pipe_through :api
+    forward "/profile", RegentIdentity.HTTP, otp_app: :ash_platform
+  end
+
   scope "/api", AshPlatformWeb do
     pipe_through :api
 
@@ -81,6 +86,7 @@ defmodule AshPlatformWeb.Router do
   scope "/", AshPlatformWeb do
     pipe_through :browser
 
+    get "/profile", SharedProfileController, :show
     live "/", HomeLive, :home
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms

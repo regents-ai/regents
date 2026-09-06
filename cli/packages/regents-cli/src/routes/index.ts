@@ -1,3 +1,4 @@
+import {profileHandlers} from "./profile.js";
 import { CLI_COMMANDS } from "../command-registry.js";
 import { agentbookHandlers } from "./agentbook.js";
 import { autolaunchHandlers } from "./autolaunch.js";
@@ -26,6 +27,7 @@ export { dispatchRoute, type CliRouteContext } from "./shared.js";
 // every routable command is proven to have exactly one registered handler.
 export const cliHandlerRegistry: CliHandlerRegistry = {
   ...coreHandlers,
+  ...profileHandlers,
   ...feynmanHandlers,
   ...workHandlers,
   ...runtimeHandlers,

@@ -145,6 +145,9 @@ export const CLI_COMMANDS = [
   "plugin doctor",
   "plugin install",
   "plugin status",
+  "profile get",
+  "profile sync",
+  "profile update",
   "receipt create",
   "receipt get",
   "receipt list",
@@ -402,6 +405,11 @@ export const CLI_COMMANDS_BY_TOP_LEVEL_GROUP = {
     "plugin doctor",
     "plugin install",
     "plugin status"
+  ],
+  "profile": [
+    "profile get",
+    "profile sync",
+    "profile update"
   ],
   "receipt": [
     "receipt create",
@@ -6237,6 +6245,75 @@ export const CLI_COMMAND_DETAILS_BY_COMMAND = {
     },
     "summary": "Show installed Regent plugins.",
     "next_step": "regents plugin install"
+  },
+  "profile get": {
+    "command": "profile get",
+    "owner": "shared-services",
+    "group": "profile",
+    "interface": "http",
+    "auth_mode": "privy-proof-pair-stdin",
+    "output_envelope": "loose-object",
+    "examples": [
+      "regents profile get --json"
+    ],
+    "agent_metadata": {
+      "category": "profile",
+      "prompt_behavior": "never_prompt",
+      "json_support": "supported",
+      "mutation_class": "remote-write",
+      "retry_behavior": "never_automatic",
+      "pagination": "none",
+      "async_behavior": "synchronous",
+      "input_mode": "stdin",
+      "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
+    },
+    "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
+  },
+  "profile sync": {
+    "command": "profile sync",
+    "owner": "shared-services",
+    "group": "profile",
+    "interface": "http",
+    "auth_mode": "privy-proof-pair-stdin",
+    "output_envelope": "loose-object",
+    "examples": [
+      "regents profile get --json"
+    ],
+    "agent_metadata": {
+      "category": "profile",
+      "prompt_behavior": "never_prompt",
+      "json_support": "supported",
+      "mutation_class": "remote-write",
+      "retry_behavior": "never_automatic",
+      "pagination": "none",
+      "async_behavior": "synchronous",
+      "input_mode": "stdin",
+      "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
+    },
+    "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
+  },
+  "profile update": {
+    "command": "profile update",
+    "owner": "shared-services",
+    "group": "profile",
+    "interface": "http",
+    "auth_mode": "privy-proof-pair-stdin",
+    "output_envelope": "loose-object",
+    "examples": [
+      "regents profile get --json"
+    ],
+    "agent_metadata": {
+      "category": "profile",
+      "prompt_behavior": "never_prompt",
+      "json_support": "supported",
+      "mutation_class": "remote-write",
+      "retry_behavior": "never_automatic",
+      "pagination": "none",
+      "async_behavior": "synchronous",
+      "input_mode": "stdin",
+      "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
+    },
+    "summary": "Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys."
   },
   "receipt create": {
     "command": "receipt create",
