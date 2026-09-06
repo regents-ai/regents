@@ -29,63 +29,30 @@ For existing wallets, delegated funds, and provider choices, start with the
 [agent wallet guide](docs/agent-wallets.md). `regents wallet setup` only shows
 choices until you explicitly select an action.
 
-## Getting Started
+## Getting started from this checkout
 
-Use the installer on macOS or Linux:
+The checkout contains the 1.0.0 release candidate. Hosted installer availability and
+registry publication are separate release checks; do not infer either from this README.
+With Node 22+ and the package manager version declared in `package.json`:
 
-```bash
-curl -fsSL https://regents.sh/install.sh | bash
-regents init
-regents run
+```sh
+cd cli
+pnpm install --frozen-lockfile
+pnpm build
+node packages/regents-cli/dist/index.js --help
 ```
 
-> [!WARNING]
-> That first line pipes a script straight from the network into your shell, and `regents
-> setup` then writes into your local agent runtimes: it installs plugins for Hermes and
-> OpenClaw and registers an MCP server for Claude Code and Codex. Read
-> `https://regents.sh/install.sh` before running it if you would rather see what it does
-> first, or use the manual install below.
+Use `--help` and the [command contract](docs/shared-cli-contract.yaml) before choosing
+an operation. Initialization and runtime/plugin setup write local configuration;
+wallet and paid operations require their own signer and spending authority.
+The checked-in `scripts/install.sh` is a release artifact to review, not a promise
+that `regents.sh/install.sh` is currently served.
 
-The installer checks for Node.js 22 or newer, installs the pinned `@regentslabs/cli` release, and runs `regents setup`. The setup wizard detects Hermes, OpenClaw, Claude Code, and Codex. It installs the Regent plugins for Hermes and OpenClaw and registers the `regents` MCP server for Claude Code and Codex.
+## Product ownership
 
-`regents setup` wires agent runtimes, but `regents init` creates the local Regent config and folders. Run `regents init` after the installer the first time you set up a machine. Run `regents run` when local Regent access should stay open for agents and terminal commands.
-
-Manual install:
-
-```bash
-pnpm add -g @regentslabs/cli
-regents init
-regents run
-```
-
-Manual installs need `regents init`. Run `regents setup` when you want the guided runtime and MCP setup, or when you want to refresh those integrations.
-
-## Where this sits
-
-```text
-  client surfaces
-    ios                               mobile app, wallet, action signing
-    regents-cli                       operator control surface   ◀ this repository
-    regents-techtree-hermes-plugin    Hermes mission-control tab
-                    │
-                    ▼
-  platform
-    ash-platform                      Phoenix, LiveView, Ash: web, API, product domains
-                    │
-                    ▼
-  services and chain
-    siwa-server                       agent request signing, nonce and replay state
-    media-web                         hosted card images and video
-    fly-sentinel                      operator health checks
-    regent-contracts                  canonical Solidity, ABIs, deployment records
-    autolaunch-contracts              frozen Autolaunch V1 Solidity
-
-  shared libraries and standalone tools
-    elixir-utils                      SIWA, ENS, XMTP, cache, Credo checks
-    design-system                     tokens and regent_ui components
-    python-cli                        offline Techtree skill-tree inspection
-    videocontrol                      video project and timeline workflows
-```
+See the [Regents monorepo overview](../README.md) for current components and related products.
+Each product owns its API and authorization; retained cross-product commands are not
+a promise that their old server routes still exist.
 
 ## Local Verify evidence
 
@@ -117,7 +84,8 @@ Repo instructions live in [`AGENTS.md`](AGENTS.md). Agent skills ship under [`pa
 
 ## Checks
 
-Every one of these must pass before work is handed back:
+Choose the checks that exercise the changed behavior. Run the complete CLI gate for
+CLI releases and changes to its command contracts:
 
 | Command | What it does |
 | --- | --- |
@@ -128,22 +96,9 @@ Every one of these must pass before work is handed back:
 | `pnpm check:openapi` | Verifies the generated API bindings still match their contracts. |
 | `pnpm check:cli-contract` | Verifies the command surface still matches the published CLI contract. |
 
-## The other repositories
+## Related products
 
-| Repository | What it is | What it deliberately does not do |
-| --- | --- | --- |
-| `ash-platform` | The Phoenix, LiveView, and Ash application: public web pages, the HTTP API, product domains, human identity, billing, and the Techtree and Autolaunch product areas. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
-| `autolaunch-contracts` | A clean-room Solidity implementation of the founder-frozen Autolaunch V1 system, controlled by its own `SPEC.md`. | It authorises no deployment, signature, or value movement; the older Autolaunch code in `regent-contracts` is historical reference only. |
-| `design-system` | The shared Regent visual language: the style guide, design tokens, logos, fonts, and the `regent_ui` Phoenix component library. | Shared components never own product workflow state, authorisation decisions, money movement, or product database behaviour. |
-| `elixir-utils` | A collection of standalone Elixir libraries used across the family: SIWA, ENS, XMTP, a cache, agentbook helpers, and the in-house `credo_ash` lint checks. | Each package is a library only; none of them runs a service or holds product behaviour. |
-| `fly-sentinel` | A small Phoenix service that reports Fly.io observability and operator preview checks. | It observes and reports; it does not deploy, scale, or change any other application. |
-| `ios` | The Expo and React Native mobile app: the mobile wallet, action signing, and mobile Regent records. | It consumes the platform HTTP contracts and owns no server-side product logic. |
-| `media-web` | A standalone Phoenix service that serves hosted Regents card images and video files from `media.regents.sh`. | It only serves bytes over HTTP; it holds no identity, database, or product logic. |
-| `python-cli` | The installable `regents-techtree` Python package, whose shipped surface is a deterministic offline inspection of one champion/challenger skill-tree pair. | It does not evaluate or execute an agent, and it makes no network calls once its locked dependencies are installed. |
-| `regent-contracts` | The canonical home for Regent Solidity source, Foundry tests, deployment scripts, verified deployment records, ABIs, and the chain-contract manifest. | It holds no HTTP or CLI contracts, Ash resources, workflow logic, UI, or projection workers. |
-| `regents-techtree-hermes-plugin` | The Hermes plugin that presents Techtree mission control across Forge, Techtree Verify, and Uplift. | It is presentation only: no second task store, no private Verify database, no identity model, no payment system, and no Hermes runtime of its own. |
-| `siwa-server` | The shared Sign-In With Anything service for signed agent requests, nonce and replay state, and internal keyring endpoints. | It owns no product data or product authorization policy. |
-| `videocontrol` | A separate product: video project workflows, timeline editing, preview rendering, and Codex plugin media control. | It shares the house style but no runtime, database, or contract with the Regent platform. |
+Use the [current product directory](../README.md#related-products).
 
 ## License
 

@@ -71,6 +71,7 @@ defmodule AshPlatformWeb.Components.Shell do
         </button>
 
         <span class="shell-spacer" />
+        <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
 
         <div class="shell-local-controls" data-motion-header-controls>
           <label :if={@route_spec.search_kind != :none} class="shell-search">

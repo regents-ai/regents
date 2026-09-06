@@ -3,10 +3,10 @@ defmodule AshPlatformWeb.Layouts do
 
   use AshPlatformWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 
-  attr :flash, :map, required: true
-  attr :inner_content, :any, required: true
+  attr(:flash, :map, required: true)
+  attr(:inner_content, :any, required: true)
 
   def app(assigns) do
     ~H"""
@@ -19,6 +19,24 @@ defmodule AshPlatformWeb.Layouts do
         {message}
       </Regent.Primitives.notice>
     </div>
+    """
+  end
+
+  @doc "Product and source discovery without loading a browser integration."
+  def product_links(assigns) do
+    ~H"""
+    <footer aria-label="Project links" class="product-links">
+      <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
+      <a href="/llms.txt">For agents</a>
+      <details>
+        <summary>Regents Labs</summary>
+        <nav aria-label="Related products" class="product-links__related">
+          <a href="https://autolaunch.sh">Autolaunch</a>
+          <a href="https://patchbay.help">Patchbay</a>
+          <a href="https://techtree.sh">Techtree</a>
+        </nav>
+      </details>
+    </footer>
     """
   end
 end

@@ -1,14 +1,15 @@
-# Ash Platform
+# Regents platform
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](../LICENSE)
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
 [![Ash 3.32](https://img.shields.io/badge/ash-3.32-lightgrey)](https://ash-hq.org)
 [![PostgreSQL 14](https://img.shields.io/badge/postgres-14-lightgrey)](https://www.postgresql.org)
 
-Ash Platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
+The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
-it owns human identity, Formation, public Regent records, and Autolaunch.
+retains Accounts, Formation and older Autolaunch routes during product cutovers.
+New Autolaunch features belong to the Autolaunch monorepo.
 Techtree remains a named product on the public site; it no longer lives in this app.
 
 > [!IMPORTANT]
@@ -16,8 +17,26 @@ Techtree remains a named product on the public site; it no longer lives in this 
 > people in through Privy, and reads Base mainnet. Product surfaces are closed by default and
 > only open when a deployment says so explicitly.
 
+## Shared dependencies
+
+From a directory containing sibling product repositories, acquire the shared libraries:
+
+```sh
+git clone https://github.com/regents-ai/design-system.git
+git clone https://github.com/regents-ai/elixir-utils.git
+```
+
+The expected layout is `<workspace>/<product>/platform`,
+`<workspace>/design-system/regent_ui` and `<workspace>/elixir-utils/`.
+From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
+it is elsewhere. Record both shared repository commit IDs with check results;
+release builds and isolated agent worktrees must use their selected immutable
+revisions, rather than updating sibling checkouts during verification.
+Do not clone recursive Solidity submodules for a web-only change.
+
 ## Quickstart
 
+Run these commands from `platform/` after acquiring the shared dependencies.
 You need Erlang, Elixir, Node, and PostgreSQL at the versions pinned in `.tool-versions`.
 
 ```bash
@@ -41,32 +60,11 @@ only in the ignored `.env.local`, never in `.env.example`, and commit none of th
 > leave the machine: Privy for sign-in verification, the configured Base RPC endpoint for
 > Stake and Redeem reads, and the Sprites API when Formation runtimes are used.
 
-## Where this sits
+## Product ownership
 
-```text
-  client surfaces
-    ios                               mobile app, wallet, action signing
-    regents-cli                       operator control surface
-    regents-techtree-hermes-plugin    Hermes mission-control tab
-                    │
-                    ▼
-  platform
-    ash-platform                      Phoenix, LiveView, Ash: web, API, product domains   ◀ this repository
-                    │
-                    ▼
-  services and chain
-    siwa-server                       agent request signing, nonce and replay state
-    media-web                         hosted card images and video
-    fly-sentinel                      operator health checks
-    regent-contracts                  canonical Solidity, ABIs, deployment records
-    autolaunch-contracts              frozen Autolaunch V1 Solidity
-
-  shared libraries and standalone tools
-    elixir-utils                      SIWA, ENS, XMTP, cache, Credo checks
-    design-system                     tokens and regent_ui components
-    python-cli                        offline Techtree skill-tree inspection
-    videocontrol                      video project and timeline workflows
-```
+See the [Regents monorepo overview](../README.md) for current components and related products.
+Each product owns its API and authorization; retained cross-product commands are not
+a promise that their old server routes still exist.
 
 ## Configuration
 
@@ -108,7 +106,7 @@ is a map, not the contract.
 | `/api/autolaunch/v1/tokens` | GET | List launched tokens. |
 | `/api/formation/v1/regents/:regent_id/agent-links` | GET, POST | Read and claim agent links. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
-| `/` and `/app`, `/autolaunch`, `/stake`, `/redeem`, `/settings` | LiveView | The public home page and the signed-in product shell. |
+| `/` and `/app`, `/autolaunch`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 
 ## Repository layout
 
@@ -129,7 +127,8 @@ rel/                    Release overlays, including the migrate command
 
 ## Checks
 
-All three repository acceptance commands must pass before a change is proposed:
+The full platform gate is below. For focused changes, run the checks that exercise
+the changed behavior; retain the required broader checks for protected changes:
 
 ```bash
 mix precommit
@@ -176,26 +175,13 @@ a new value; the suite builds the schema itself on its first run.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
 
-## The other repositories
+## Related products
 
-| Repository | What it is | What it deliberately does not do |
-| --- | --- | --- |
-| `autolaunch-contracts` | A clean-room Solidity implementation of the founder-frozen Autolaunch V1 system, controlled by its own `SPEC.md`. | It authorises no deployment, signature, or value movement; the older Autolaunch code in `regent-contracts` is historical reference only. |
-| `design-system` | The shared Regent visual language: the style guide, design tokens, logos, fonts, and the `regent_ui` Phoenix component library. | Shared components never own product workflow state, authorisation decisions, money movement, or product database behaviour. |
-| `elixir-utils` | A collection of standalone Elixir libraries used across the family: SIWA, ENS, XMTP, a cache, agentbook helpers, and the in-house `credo_ash` lint checks. | Each package is a library only; none of them runs a service or holds product behaviour. |
-| `fly-sentinel` | A small Phoenix service that reports Fly.io observability and operator preview checks. | It observes and reports; it does not deploy, scale, or change any other application. |
-| `ios` | The Expo and React Native mobile app: the mobile wallet, action signing, and mobile Regent records. | It consumes the platform HTTP contracts and owns no server-side product logic. |
-| `media-web` | A standalone Phoenix service that serves hosted Regents card images and video files from `media.regents.sh`. | It only serves bytes over HTTP; it holds no identity, database, or product logic. |
-| `python-cli` | The installable `regents-techtree` Python package, whose shipped surface is a deterministic offline inspection of one champion/challenger skill-tree pair. | It does not evaluate or execute an agent, and it makes no network calls once its locked dependencies are installed. |
-| `regent-contracts` | The canonical home for Regent Solidity source, Foundry tests, deployment scripts, verified deployment records, ABIs, and the chain-contract manifest. | It holds no HTTP or CLI contracts, Ash resources, workflow logic, UI, or projection workers. |
-| `regents-cli` | The operator control surface: the `regents` command line tool, its generated bindings, and its local runtime. | It drives the platform over published contracts and owns no product database or on-chain authority. |
-| `regents-techtree-hermes-plugin` | The Hermes plugin that presents Techtree mission control across Forge, Techtree Verify, and Uplift. | It is presentation only: no second task store, no private Verify database, no identity model, no payment system, and no Hermes runtime of its own. |
-| `siwa-server` | The shared Sign-In With Anything service for signed agent requests, nonce and replay state, and internal keyring endpoints. | It owns no product data or product authorization policy. |
-| `videocontrol` | A separate product: video project workflows, timeline editing, preview rendering, and Codex plugin media control. | It shares the house style but no runtime, database, or contract with the Regent platform. |
+Use the [current product directory](../README.md#related-products).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](../LICENSE).
 
 ## Shared private profile
 
@@ -213,3 +199,9 @@ Regents owns the explicit identity migration; consumers do not run it on startup
 Do not repoint existing databases or replay migration histories: legacy identity
 mappings, schema collisions and a recovery copy require a separate verified cutover.
 See the identity package README and CLI private-profile contract for proof handling.
+
+Historical names on `/profile` read the preserved `regent_names` tables through Ash.
+`GET /api/v1/claims` requires fresh paired Privy proofs and returns only records owned
+by verified linked wallets. It is paginated and read-only; private payments and
+entitlements are preserved separately. Import these tables through the reviewed
+preservation workflow before enabling the display against production records.
