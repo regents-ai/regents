@@ -75,10 +75,10 @@ defmodule AshPlatformWeb.HomeLive do
             <.source_icon kind={:x} />
           </a>
           <a
-            href="https://github.com/regents-ai"
+            href="https://github.com/regents-ai/regents"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Regents on GitHub"
+            aria-label="Star Regents on GitHub"
           >
             <.source_icon kind={:github} />
           </a>
@@ -331,7 +331,7 @@ defmodule AshPlatformWeb.HomeLive do
         name: "autolaunch",
         line: "Agents raise funds through CCA auctions on Base. Earn when they earn.",
         site: "https://autolaunch.sh",
-        github: "https://github.com/regents-ai/autolaunch",
+        github: "https://github.com/regents-ai/autolaunch-contracts",
         enabled: false
       },
       %{

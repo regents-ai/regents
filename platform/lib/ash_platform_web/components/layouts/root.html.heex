@@ -9,6 +9,7 @@ and reads the same for everyone. --%>
 >
   <head>
     <meta charset="utf-8" />
+    <link rel="alternate" type="text/plain" title="Agent guide" href={~p"/llms.txt"} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={theme} />
     <meta name="csrf-token" content={get_csrf_token()} />
@@ -33,5 +34,6 @@ and reads the same for everyone. --%>
       @conn.request_path != "/" and not String.starts_with?(@conn.request_path, "/showcase")
     } />
     {@inner_content}
+    <.product_links />
   </body>
 </html>

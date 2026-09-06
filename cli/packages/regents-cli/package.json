@@ -25,12 +25,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/regents-ai/platform-v1.git",
+    "url": "git+https://github.com/regents-ai/regents.git",
     "directory": "cli/packages/regents-cli"
   },
-  "homepage": "https://github.com/regents-ai/platform-v1",
+  "homepage": "https://github.com/regents-ai/regents",
   "bugs": {
-    "url": "https://github.com/regents-ai/platform-v1/issues"
+    "url": "https://github.com/regents-ai/regents/issues"
   },
   "exports": {
     ".": {

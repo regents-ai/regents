@@ -1,26 +1,58 @@
 # Regents
 
-The regents.sh product monorepo.
+Agent identity and operations, with staking and redemption on Base.
+Regents is also the starting point for the Regents Labs family: launch with
+Autolaunch, investigate agent tools with Patchbay, and evaluate Skills with Techtree.
 
-| Component | Source | Local checks |
+[Website](https://regents.sh) · [CLI](cli/README.md) · [API](platform/contracts/api-contract.openapiv3.yaml) · [Star on GitHub](https://github.com/regents-ai/regents)
+
+## Start here
+
+- **Explore the product:** visit [regents.sh](https://regents.sh). Product routes
+  are enabled by deployment configuration; the homepage does not imply that every
+  signed-in feature is open.
+- **Use an agent or terminal:** start with the [CLI guide](cli/README.md) and
+  [agent wallet guide](cli/docs/agent-wallets.md). Older cross-product commands are
+  documented separately from the independently owned product CLIs.
+- **Contribute:** choose a component below. Web and CLI work do not require downloading
+  recursive Solidity dependencies. Use [AGENTS.md](AGENTS.md) for repository boundaries.
+
+| Component | Source | Verification |
 | --- | --- | --- |
-| Phoenix/Ash web platform and API | [platform/](platform/README.md) | `make check-platform` |
-| Regents CLI and its packages | [cli/](cli/README.md) | `make check-cli` |
-| Regents Solidity, staking and historical contract references | [contracts/](contracts/README.md) | `make check-contracts` |
+| Phoenix/LiveView/Ash website and API | [platform/](platform/README.md) | `make check-platform` |
+| TypeScript CLI and agent integrations | [cli/](cli/README.md) | `make check-cli` |
+| Solidity, staking and contract history | [contracts/](contracts/README.md) | `make check-contracts` |
 
-Run component commands from that component directory. Shared packages remain in
-sibling `design-system` and `elixir-utils` repositories; isolated worktrees supply
-`REGENT_DEPS_ROOT`. The internal OTP application/release name remains `ash_platform`.
+Run setup from the owning component. Shared libraries are independent repositories;
+[platform setup](platform/README.md#quickstart) explains their paths. The internal
+OTP application/release name remains `ash_platform` so a repository rename does not
+change production release identities.
 
-Techtree registry source now belongs to `techtree/contracts`. Authoritative frozen
-Autolaunch V1 belongs to `autolaunch`; historical Autolaunch-named interfaces here
-remain necessary for Regents staking/distribution and are not a second V1 owner.
+## Current boundaries
 
-CLI checks use their reviewed checked-in contracts and do not require other product
-checkouts. CLI releases use `cli-v<version>` tags. GitHub repository names and npm
-trusted-publisher configuration have not been changed by this local migration.
+The monorepo contains retained Formation and Autolaunch routes while those product
+cutovers are in progress. New Autolaunch work belongs to its own monorepo. Techtree
+registry source belongs to `techtree/contracts`; retained Autolaunch-named interfaces
+here support Regents staking/distribution and are not a second V1 owner.
 
-For container builds, stage a sealed context with
-`platform/scripts/build-release-context.sh`; that context contains `platform/`,
-`design-system/` and `elixir-utils/`. Build from the staged context, not this root.
-Deployment, signing and production data access require their existing authorization.
+Shared profile and historical-claim restoration work must pass its own migration and
+ownership checks before it is described as released. A CLI build, API schema or UI
+preview is not evidence of a deployed capability.
+
+## Related products
+
+| Product | Use it for | Website | Source |
+| --- | --- | --- | --- |
+| Regents | Agent identity, operations, staking and redemption | [regents.sh](https://regents.sh) | [Regents](https://github.com/regents-ai/regents) |
+| Autolaunch | Token auctions and launch operations | [autolaunch.sh](https://autolaunch.sh) | [Autolaunch](https://github.com/regents-ai/autolaunch-contracts) |
+| Patchbay | Agent tool reports and bounded WebMCP repair | [patchbay.help](https://patchbay.help) | [Patchbay](https://github.com/regents-ai/patchbay) |
+| Techtree | Controlled Skill evaluations and verifiable results | [techtree.sh](https://techtree.sh) | [Techtree](https://github.com/regents-ai/techtree) |
+
+Each product owns its API, CLI and authorization. A login, payment or published
+result on one product does not grant permissions on another. Shared presentation
+lives in [design-system](https://github.com/regents-ai/design-system); common Elixir
+libraries live in [elixir-utils](https://github.com/regents-ai/elixir-utils).
+
+## License
+
+See the license in each component. Vendored dependencies retain their own licenses.

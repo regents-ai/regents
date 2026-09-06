@@ -19,35 +19,13 @@ Autolaunch CLI and use `autolaunch auctions list`, `autolaunch auction <id>`,
 Autolaunch commands remain unverified against the current product API.
 No release, installer pin or registry package is changed by this local candidate.
 
-## Getting Started
+## Getting started
 
-Recommended install on macOS or Linux:
-
-```bash
-curl -fsSL https://regents.sh/install.sh | bash
-regents init
-regents run
-```
-
-The installer checks for Node.js 22 or newer, installs the pinned package release, and runs `regents setup`. The setup wizard detects Hermes, OpenClaw, Claude Code, and Codex. It installs Regent plugins for Hermes and OpenClaw and registers the `regents` MCP server for Claude Code and Codex.
-
-`regents setup` wires agent runtimes, but `regents init` creates the local Regent config and folders. Run `regents init` after the installer the first time you set up a machine. Run `regents run` when local Regent access should stay open.
-
-Manual npm install:
-
-```bash
-pnpm add -g @regentslabs/cli
-regents init
-regents run
-```
-
-Manual installs need `regents init`. Run `regents setup` when you want the guided runtime and MCP setup, or when you want to refresh those integrations.
-
-The local `regents techtree forge family` commands require Python 3.12 or newer available as `python3`. Their bundled runtime has no third-party runtime dependencies and does not use UV, create a virtual environment, download packages, or access the network when a command runs.
-
-### Local Verify evidence
-
-`regents techtree verify run` emits receipts only as part of runner execution. Each receipt is bound to its non-symlinked local receipt store, and Uplift rejects receipts copied into another initialized store. Local receipts remain operator-trusted evidence: an operator who controls local files can fabricate them. Receipt digests and store binding are tamper-evident within the runner emission path and checkable by the report verifier. Cryptographic attestation is the planned post-v0.1 proof layer; receipt-store binding and the queued post-freeze independent report verifier are the v0.1 checkable layer.
+This checkout contains a release candidate. Follow the
+[source checkout guide](https://github.com/regents-ai/regents/blob/main/cli/README.md#getting-started-from-this-checkout)
+for the current build and first `--help` command. Check the published package version
+before choosing a registry install; the version in this source tree does not establish
+that it has been released. Runtime setup and wallet actions are explicit later steps.
 
 ## Important Commands
 

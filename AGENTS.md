@@ -13,3 +13,7 @@ Own regents.sh, its API, CLI and Regents contracts in this monorepo.
   Every distinct wallet press reaches the wallet. No signing, production access,
   deployment or publishing without applicable founder authority. Never read `.env`,
   `.env.local` or `.envrc`.
+
+For product orientation and related Regent products, see [README.md](README.md).
+The public agent entry point is [platform/priv/static/llms.txt](platform/priv/static/llms.txt);
+keep its advertised commands consistent with the owning CLI and HTTP contracts.
