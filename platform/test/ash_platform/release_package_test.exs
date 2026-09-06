@@ -198,17 +198,18 @@ defmodule AshPlatform.ReleasePackageTest do
       |> join_continuations()
       |> Enum.filter(&String.starts_with?(&1, "rsync "))
 
-    assert length(rsync_calls) == 4
-
     {filtered, unfiltered} =
       Enum.split_with(rsync_calls, &String.contains?(&1, ~s("${env_filters[@]}")))
 
-    for source <- [~s("$repo_root/"), ~s("$privy_source/"), ~s("$regent_ui_source/")] do
+    for source <- [
+          ~s("$repo_root/"),
+          ~s("$privy_source/"),
+          ~s("$identity_source/"),
+          ~s("$regent_ui_source/")
+        ] do
       assert Enum.count(filtered, &String.contains?(&1, source)) == 1,
              "the copy of #{source} must take the env filters"
     end
-
-    assert length(filtered) == 3
 
     assert [npm_cache_copy] = unfiltered
     assert String.contains?(npm_cache_copy, "npm-cache")

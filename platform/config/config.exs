@@ -14,6 +14,7 @@ config :mime, :types, %{"application/yaml" => ["yaml"]}
 config :ash_platform,
   local_showcase: false,
   ash_domains: [
+    AshPlatform.Names,
     AshPlatform.Accounts,
     AshPlatform.Discussions,
     AshPlatform.Formation,

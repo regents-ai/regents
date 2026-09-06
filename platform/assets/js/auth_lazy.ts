@@ -1,3 +1,4 @@
+import type {ClaimsAction} from "./owned_claims"
 import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {installSharedProfile} from "./shared_profile"
 import {disconnectEveryEthereumWallet} from "./wallet_actions/connected_wallet"
@@ -36,6 +37,7 @@ export type IdentityRequest = {
 
 export type PrivyBridgeHandle = {
   profile?: ProfileAction
+  claims?: ClaimsAction
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
@@ -757,6 +759,16 @@ export function createLazyAuthLoader(
         if (!handle?.profile) throw new Error("Profile bridge is unavailable")
         return handle.profile
       }, ...args)
+    },
+    async claims(after?: string, options: {signal?: AbortSignal} = {}): ReturnType<ClaimsAction> {
+      if (state === "handoff-preterminal") {
+        return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
+      }
+      return loadProfileAction(async () => {
+        if (!handle) await (preparing ?? prepare(true))
+        if (!handle?.claims) throw new Error("Claims bridge is unavailable")
+        return async (_operation, _input, requestOptions) => handle!.claims!(after, requestOptions)
+      }, "get", {}, options)
     },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return

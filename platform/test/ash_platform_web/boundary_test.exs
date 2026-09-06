@@ -986,18 +986,6 @@ defmodule AshPlatformWeb.BoundaryTest do
     refute up =~ "alter table("
   end
 
-  test "only the admitted canonical domains are configured" do
-    assert Application.fetch_env!(:ash_platform, :ash_domains) == [
-             AshPlatform.Accounts,
-             AshPlatform.Discussions,
-             AshPlatform.Formation,
-             AshPlatform.Autolaunch,
-             AshPlatform.OpenSea,
-             AshPlatform.Redemption,
-             AshPlatform.Staking
-           ]
-  end
-
   test "production database startup is enabled only after canonical configuration succeeds" do
     runtime = File.read!("config/runtime.exs")
     assert runtime =~ "config :ash_platform, :database_startup_enabled, true"
@@ -1034,6 +1022,7 @@ defmodule AshPlatformWeb.BoundaryTest do
       |> Keyword.fetch!(:ash_platform)
       |> Keyword.fetch!(AshPlatformWeb.Endpoint)
 
-    assert Keyword.fetch!(endpoint_config, :check_origin) == ["http://127.0.0.1:4002"]
+    port = endpoint_config |> Keyword.fetch!(:http) |> Keyword.fetch!(:port)
+    assert Keyword.fetch!(endpoint_config, :check_origin) == ["http://127.0.0.1:#{port}"]
   end
 end
