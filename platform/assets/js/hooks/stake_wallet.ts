@@ -4,6 +4,7 @@ import {renderResult, type ResultDisplay} from "./transaction_feedback"
 import {
   executeStakingClick,
   prepareStakingClick,
+  stakingReceiverAddress,
   StakingLocalRefusal,
   type ImmediateStakingResult,
   type StakingAction,
@@ -21,6 +22,7 @@ type ResultSlot = {
   readonly initiator: HTMLElement
   readonly amount: string
   readonly signer: string
+  receiver?: string
   handedOff: boolean
   submitted: SubmittedStakingTransaction | null
 }
@@ -43,6 +45,9 @@ type StakeState = {
   detail: HTMLElement
   walletText: HTMLElement
   link: HTMLAnchorElement
+  recipientSignature: string
+  acknowledgedReceiver: string
+  recipientInput: (event: Event) => void
   click: (event: MouseEvent) => void
   close: () => void
   cancel: (event: Event) => void
@@ -100,12 +105,25 @@ export const StakeWallet: Hook = {
       detail: requiredElement(dialog, "[data-staking-result-detail]"),
       walletText: requiredElement(dialog, "[data-staking-result-wallet]"),
       link: requiredElement<HTMLAnchorElement>(dialog, "[data-staking-result-link]"),
+      recipientSignature: "",
+      acknowledgedReceiver: "",
+      recipientInput: () => undefined,
       click: () => undefined,
       close: () => undefined,
       cancel: () => undefined,
       publishActiveWallet: () => undefined,
     }
     this.stakeState = state
+
+    state.recipientInput = event => {
+      const target = event.target as HTMLElement | null
+      if (target?.id === "staking-recipient-acknowledged") {
+        const checkbox = target as HTMLInputElement
+        state.acknowledgedReceiver = checkbox.checked ? currentReceiver(this.el) : ""
+      }
+      syncRecipient(this.el, state)
+    }
+    syncRecipient(this.el, state)
 
     state.publishActiveWallet = () => {
       const wallet = activeEthereumWallet()
@@ -232,6 +250,10 @@ export const StakeWallet: Hook = {
             allowanceAtomic: this.el.dataset.stakingAllowance ?? "",
             chainId: this.el.dataset.stakingChainId ?? "",
             expectedSigner: this.el.dataset.stakingSigner ?? "",
+            stakeForOther: this.el.querySelector<HTMLInputElement>("#staking-for-other")?.checked ?? false,
+            receiver: this.el.querySelector<HTMLInputElement>("#staking-recipient")?.value ?? "",
+            acknowledgedReceiver: this.el.querySelector<HTMLInputElement>("#staking-recipient-acknowledged")?.checked
+              ? state.acknowledgedReceiver : "",
           },
           wallet,
           {actionId, traceId},
@@ -243,6 +265,7 @@ export const StakeWallet: Hook = {
           phase: "click_to_local_ready",
           milliseconds: elapsed(clickedAt),
         })
+        slot.receiver = click.receiver
         void executeStakingClick(click, callbacksFor(slot, runtime), runtime)
       } catch (error) {
         logTiming({
@@ -280,6 +303,8 @@ export const StakeWallet: Hook = {
     }
     state.cancel = () => undefined
 
+    this.el.addEventListener("input", state.recipientInput)
+    this.el.addEventListener("change", state.recipientInput)
     this.el.addEventListener("click", state.click)
     state.dialog.addEventListener("close", state.close)
     state.dialog.addEventListener("cancel", state.cancel)
@@ -298,6 +323,10 @@ export const StakeWallet: Hook = {
     })
   },
 
+  updated(this: StakeHook) {
+    if (this.stakeState) syncRecipient(this.el, this.stakeState)
+  },
+
   destroyed(this: StakeHook) {
     const state = this.stakeState
     if (!state) return
@@ -305,6 +334,8 @@ export const StakeWallet: Hook = {
     state.generation += 1
     for (const cancel of [...state.cancellations]) cancel()
     state.cancellations.clear()
+    this.el.removeEventListener("input", state.recipientInput)
+    this.el.removeEventListener("change", state.recipientInput)
     this.el.removeEventListener("click", state.click)
     state.dialog.removeEventListener("close", state.close)
     state.dialog.removeEventListener("cancel", state.cancel)
@@ -318,6 +349,42 @@ export const StakeWallet: Hook = {
     state.visible = null
     this.stakeState = undefined
   },
+}
+
+function currentReceiver(root: HTMLElement): string {
+  try {
+    return stakingReceiverAddress(root.querySelector<HTMLInputElement>("#staking-recipient")?.value ?? "")
+  } catch {
+    return ""
+  }
+}
+
+// Local consent is never restored by a server patch. Bind it to this exact input
+// and clear it on edits, mode changes and wallet changes, including edit-away/back.
+function syncRecipient(root: HTMLElement, state: StakeState): void {
+  const controls = root.querySelector<HTMLElement>("#staking-recipient-controls")
+  const toggle = root.querySelector<HTMLInputElement>("#staking-for-other")
+  const input = root.querySelector<HTMLInputElement>("#staking-recipient")
+  const acknowledgment = root.querySelector<HTMLInputElement>("#staking-recipient-acknowledged")
+  if (!controls || !toggle || !input || !acknowledgment) return
+  const enabled = root.dataset.stakingMode === "stake" && toggle.checked
+  const signature = `${root.dataset.stakingMode}:${toggle.checked}:${input.value}`
+  if (signature !== state.recipientSignature) state.acknowledgedReceiver = ""
+  state.recipientSignature = signature
+  const receiver = currentReceiver(root)
+  acknowledgment.checked = enabled && !!receiver && state.acknowledgedReceiver === receiver
+  acknowledgment.disabled = !receiver
+  controls.hidden = root.dataset.stakingMode !== "stake"
+  toggle.setAttribute("aria-expanded", String(enabled))
+  requiredElement<HTMLElement>(root, "#staking-recipient-fields").hidden = !enabled
+  requiredElement<HTMLElement>(root, "#staking-recipient-warning").hidden = !enabled || !receiver
+  requiredElement<HTMLElement>(root, "#staking-recipient-warning-text").textContent = receiver
+    ? `Warning: the wallet ${receiver} will accrue the USDC revenue and REGENT rewards. Only ${receiver} wallet may withdraw the tokens.`
+    : ""
+  const error = requiredElement<HTMLElement>(root, "#staking-recipient-error")
+  error.hidden = !enabled || !input.value || !!receiver
+  error.textContent = "Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted."
+  input.setAttribute("aria-invalid", String(enabled && !!input.value && !receiver))
 }
 
 function runtimeFor(state: StakeState, generation: number): StakingRuntime {
@@ -337,6 +404,8 @@ function runtimeFor(state: StakeState, generation: number): StakingRuntime {
 
 function resetForWallet(root: HTMLElement, state: StakeState, wallet: SelectedWallet | null): void {
   state.wallet = wallet
+  state.acknowledgedReceiver = ""
+  syncRecipient(root, state)
   invalidateGeneration(root, state)
 }
 
@@ -405,7 +474,9 @@ function settleObserved(
     ? {
         title: `${label} confirmed`,
         message: successMessage(slot),
-        detail: "Your position is refreshing in place from the latest Base block.",
+        detail: slot.role === "action" && slot.action === "stake" && slot.receiver?.toLowerCase() !== slot.signer.toLowerCase()
+          ? "The receiving address owns this stake. Your connected wallet’s balance is refreshing."
+          : "Your position is refreshing in place from the latest Base block.",
         href,
         tone: "success",
       }
@@ -488,7 +559,7 @@ function presentOrUpdate(
   slot: ResultSlot,
   display: ResultDisplay,
 ): void {
-  if (state.visible === slot) renderResult(state, display, slot.signer)
+  if (state.visible === slot) renderSlotResult(state, display, slot)
   else presentNext(root, state)
 }
 
@@ -505,16 +576,27 @@ function presentNext(root: HTMLElement, state: StakeState): void {
   const display = state.results.get(next.id)
   if (!display) return
 
-  renderResult(state, display, next.signer)
+  renderSlotResult(state, display, next)
   state.visible = next
   state.dialog.showModal()
+}
+
+function renderSlotResult(state: StakeState, display: ResultDisplay, slot: ResultSlot): void {
+  renderResult(state, display, slot.signer)
+  const row = state.dialog.querySelector<HTMLElement>("[data-staking-recipient-result]")
+  const address = state.dialog.querySelector<HTMLElement>("[data-staking-result-receiver]")
+  const receiver = slot.action === "stake" && slot.role === "action" ? slot.receiver : undefined
+  if (row) row.hidden = !receiver || receiver.toLowerCase() === slot.signer.toLowerCase()
+  if (address) address.textContent = receiver ?? ""
 }
 
 function successMessage(slot: ResultSlot): string {
   if (slot.role === "approval") return "REGENT spending was approved successfully."
   const amount = slot.amount.trim()
   switch (slot.action) {
-    case "stake": return `${amount} REGENT was staked successfully.`
+    case "stake": return slot.receiver && slot.receiver.toLowerCase() !== slot.signer.toLowerCase()
+      ? `${amount} REGENT was staked for ${slot.receiver}.`
+      : `${amount} REGENT was staked successfully.`
     case "unstake": return `${amount} REGENT was returned to your wallet.`
     case "claim_usdc": return "Your available USDC rewards were claimed."
     case "claim_regent": return "Your available REGENT rewards were claimed."

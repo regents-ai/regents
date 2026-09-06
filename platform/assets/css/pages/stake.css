@@ -1020,3 +1020,76 @@
   .stake-contract-details summary > span:last-child,
   .stake-revenue-caret { transition: none; }
 }
+
+/* The complete destination remains readable at mobile widths. */
+.stake-recipient {
+  margin-block: 0.75rem 1rem;
+}
+
+.stake-recipient [hidden],
+.stake-recipient .stake-check[hidden],
+.stake-recipient[hidden],
+.stake-page[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview,
+.stake-dialog-meta [hidden] {
+  display: none;
+}
+
+.stake-actions .stake-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding-block: 0.6rem;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.stake-check input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  accent-color: var(--ash-accent);
+}
+
+.stake-check span,
+[data-staking-result-receiver] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#staking-recipient-fields > label:first-child {
+  display: block;
+  margin-block: 0.5rem;
+}
+
+#staking-recipient {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 0;
+  background: var(--ash-panel);
+  color: inherit;
+  font: inherit;
+}
+
+.stake-recipient input:focus-visible {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 3px;
+}
+
+#staking-recipient-error {
+  font-size: 0.85rem;
+  margin-block: 0.5rem;
+}
+
+#staking-recipient-warning {
+  line-height: 1.5;
+}

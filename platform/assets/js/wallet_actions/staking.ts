@@ -4,6 +4,8 @@ import {
   getAddress,
   parseAbi,
   parseUnits,
+  isAddress,
+  zeroAddress,
   type Abi,
   type Address,
   type Hex,
@@ -89,6 +91,9 @@ export type RenderedStakingClick = {
   allowanceAtomic: string
   chainId: string
   expectedSigner: string
+  stakeForOther?: boolean
+  receiver?: string
+  acknowledgedReceiver?: string
 }
 
 export type StakingTransaction = Readonly<{
@@ -104,6 +109,7 @@ export type PreparedStakingClick = Readonly<{
   action: StakingAction
   provider: EthereumProvider
   signer: Address
+  receiver: Address
   approval: StakingTransaction | null
   transaction: StakingTransaction
 }>
@@ -174,7 +180,13 @@ export function prepareStakingClick(
   const signer = normalizedAddress(rendered.expectedSigner)
   assertSelectedWallet(selected, signer)
   const amount = action === "stake" || action === "unstake" ? exactAmount(rendered.amount) : null
-  const data = exactActionData(action, signer, amount)
+  const receiver = action === "stake" && rendered.stakeForOther
+    ? stakingReceiverAddress(rendered.receiver ?? "")
+    : signer
+  if (action === "stake" && rendered.stakeForOther && rendered.acknowledgedReceiver !== receiver) {
+    throw new StakingLocalRefusal("Acknowledge the warning for this receiving address before staking.")
+  }
+  const data = exactActionData(action, signer, amount, receiver)
   const transaction = exactTransaction(signer, STAKING, data)
   assertExactTransaction(transaction, STAKING, data)
 
@@ -198,6 +210,7 @@ export function prepareStakingClick(
     action,
     provider: selected!.provider,
     signer,
+    receiver,
     approval,
     transaction,
   })
@@ -380,10 +393,10 @@ function exactTransaction(signer: Address, to: Address, data: Hex): StakingTrans
   return Object.freeze({from: signer, to, data, value: "0x0"})
 }
 
-function exactActionData(action: StakingAction, signer: Address, amount: bigint | null): Hex {
+function exactActionData(action: StakingAction, signer: Address, amount: bigint | null, receiver: Address): Hex {
   switch (action) {
     case "stake":
-      return encodeFunctionData({abi: stakingAbi, functionName: "stake", args: [requiredAmount(amount), signer]})
+      return encodeFunctionData({abi: stakingAbi, functionName: "stake", args: [requiredAmount(amount), receiver]})
     case "unstake":
       return encodeFunctionData({abi: stakingAbi, functionName: "unstake", args: [requiredAmount(amount), signer]})
     case "claim_usdc":
@@ -442,6 +455,18 @@ function requiredAction(action: string): StakingAction {
 function requiredAmount(amount: bigint | null): bigint {
   if (amount === null) throw invalidAmount()
   return amount
+}
+
+// Plain EVM addresses only; reject the two recipients forbidden by the contract.
+export function stakingReceiverAddress(value: string): Address {
+  if (!isAddress(value)) {
+    throw new StakingLocalRefusal("Enter a valid Ethereum address (0x followed by 40 hexadecimal characters).")
+  }
+  const address = getAddress(value)
+  if (address === zeroAddress || address === STAKING) {
+    throw new StakingLocalRefusal("Use a receiving wallet address, not the zero address or staking contract.")
+  }
+  return address
 }
 
 function normalizedAddress(value: string): Address {

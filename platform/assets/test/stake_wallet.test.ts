@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {encodeFunctionData, getAddress, parseAbi, type Abi, type Address, type Hex} from "viem"
+import {decodeFunctionData, encodeFunctionData, getAddress, parseAbi, type Abi, type Address, type Hex} from "viem"
 
 import chainManifest from "../../contracts/base-mainnet.json"
 import stakingAbiJson from "../../contracts/abi/regent-revenue-staking.json"
@@ -65,6 +65,9 @@ function rendered(
     allowanceAtomic: string
     chainId: string
     expectedSigner: string
+    stakeForOther: boolean
+    receiver: string
+    acknowledgedReceiver: string
   }> = {},
 ) {
   return {
@@ -180,6 +183,8 @@ type StakeHookHarness = {
     location: {origin: string}
     __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
   }
+  chooseReceiver(address: string): void
+  recipientText: {textContent: string}
   click(action: StakingAction): void
   editAmountActionAndFill(): void
   setWallet(address: string, provider: EthereumProvider): void
@@ -220,6 +225,8 @@ function stakingHookHarness(
   const dialogTitle = {textContent: ""}
   const detail = {textContent: ""}
   const walletText = {textContent: ""}
+  const recipientText = {textContent: ""}
+  const recipientRow = {hidden: true}
   const link = {
     textContent: "",
     hidden: true,
@@ -238,7 +245,10 @@ function stakingHookHarness(
       if (selector === "[data-staking-result-text]") return text
       if (selector === "[data-staking-result-detail]") return detail
       if (selector === "[data-staking-result-wallet]") return walletText
-      return link
+      if (selector === "[data-staking-result-receiver]") return recipientText
+      if (selector === "[data-staking-recipient-result]") return recipientRow
+      if (selector === "[data-staking-result-link]") return link
+      return null
     },
     addEventListener: vi.fn((event: string, listener: () => void) => dialogListeners.set(event, listener)),
     removeEventListener: vi.fn((event: string) => dialogListeners.delete(event)),
@@ -251,19 +261,35 @@ function stakingHookHarness(
     }),
   }
   const input = {value: "1.5"}
+  const recipient = {value: "", setAttribute: vi.fn()}
+  const toggle = {checked: false, setAttribute: vi.fn()}
+  const acknowledgment = {id: "staking-recipient-acknowledged", checked: false, disabled: false}
+  const recipientNodes: Record<string, unknown> = {
+    "#staking-recipient-controls": {hidden: false},
+    "#staking-recipient": recipient,
+    "#staking-for-other": toggle,
+    "#staking-recipient-acknowledged": acknowledgment,
+    "#staking-recipient-fields": {hidden: true},
+    "#staking-recipient-warning": {hidden: true},
+    "#staking-recipient-warning-text": {textContent: ""},
+    "#staking-recipient-error": {hidden: true, textContent: ""},
+  }
   const heading = {focus: vi.fn(), isConnected: true, closest: () => null, hasAttribute: () => false}
   const rootListeners = new Map<string, (event: Event) => void>()
   const root = {
     isConnected: true,
     dataset: {
+      stakingMode: "stake",
       stakingAllowance: allowanceAtomic,
       stakingChainId: "8453",
       stakingSigner: wallet,
     },
     querySelector: (selector: string) => {
       if (selector === "#staking-result-dialog") return dialog
+      if (recipientNodes[selector]) return recipientNodes[selector]
       if (selector === "#staking-amount") return input
-      return heading
+      if (selector === "#staking-page-heading") return heading
+      return null
     },
     addEventListener: vi.fn((event: string, listener: (event: Event) => void) =>
       rootListeners.set(event, listener)),
@@ -336,6 +362,14 @@ function stakingHookHarness(
     windowListeners,
     fakeWindow,
     dispatched,
+    chooseReceiver: address => {
+      toggle.checked = true
+      recipient.value = address
+      rootListeners.get("input")!({target: {id: "staking-recipient"}} as unknown as Event)
+      acknowledgment.checked = true
+      rootListeners.get("change")!({target: acknowledgment} as unknown as Event)
+    },
+    recipientText,
     click,
     editAmountActionAndFill,
     setWallet,
@@ -1183,4 +1217,85 @@ describe("immediate wallet handoff", () => {
       expect(JSON.stringify(event)).not.toContain(hash)
     }
   })
+})
+
+
+describe("explicit staking recipient", () => {
+  const provider = fakeProvider(() => "0x2105").provider
+  const selection = selected(provider)
+  const alternate = {stakeForOther: true, receiver: otherWallet, acknowledgedReceiver: otherWallet}
+
+  it("credits the acknowledged receiver while the signer pays and approves exactly", () => {
+    const click = prepare("stake", selection, {...alternate, allowanceAtomic: "0"})
+    expect(click.transaction.from).toBe(wallet)
+    expect(click.receiver).toBe(otherWallet)
+    expect(decodeFunctionData({abi: stakingAbi, data: click.transaction.data})).toEqual({
+      functionName: "stake", args: [amount, otherWallet],
+    })
+    expect(click.approval?.from).toBe(wallet)
+    expect(click.approval?.to).toBe(token)
+    expect(decodeFunctionData({abi: approvalAbi, data: click.approval!.data})).toEqual({
+      functionName: "approve", args: [staking, amount],
+    })
+  })
+
+  it.each(["", "alice.eth", "0x1234", "0x" + "0".repeat(40), staking, otherWallet + " "])(
+    "refuses an invalid receiver %s before any wallet request", receiver => {
+      expect(() => prepare("stake", selection, {...alternate, receiver})).toThrow(StakingLocalRefusal)
+    },
+  )
+
+  it.each(["", wallet])("refuses missing or stale acknowledgment %s", acknowledgedReceiver => {
+    expect(() => prepare("stake", selection, {...alternate, acknowledgedReceiver})).toThrow(StakingLocalRefusal)
+  })
+
+  it("keeps unchecked stake and withdrawals bound to the signer", () => {
+    for (const action of ["stake", "unstake"] as const) {
+      const click = prepare(action, selection, {...alternate, stakeForOther: action === "unstake"})
+      expect(decodeFunctionData({abi: stakingAbi, data: click.transaction.data})).toEqual({
+        functionName: action, args: [amount, wallet],
+      })
+    }
+  })
+
+  it("captures each acknowledged receiver independently while another wallet request is pending", async () => {
+    const pending = deferred<Hex>()
+    const source = fakeProvider(request => request.method === "eth_chainId" ? "0x2105" : pending.promise)
+    const walletSelection = selected(source.provider)
+    const fields = {...alternate}
+    const first = prepare("stake", walletSelection, fields)
+    fields.receiver = wallet
+    fields.acknowledgedReceiver = wallet
+    const second = prepare("stake", walletSelection, fields)
+    const record = callbackRecorder()
+    const firstRun = executeStakingClick(first, record.callbacks, liveRuntime(), () => walletSelection)
+    const secondRun = executeStakingClick(second, record.callbacks, liveRuntime(), () => walletSelection)
+    await flushStakeHookPromises()
+    const sends = source.requests.filter(request => request.method === "eth_sendTransaction")
+    expect(sends).toHaveLength(2)
+    expect(sends.map(request => decodeFunctionData({abi: stakingAbi, data: (request.params![0] as {data: Hex}).data}).args![1])).toEqual([otherWallet, wallet])
+    pending.resolve(hash)
+    await Promise.all([firstRun, secondRun])
+  })
+})
+
+
+it("keeps different recipients attached to their own reverted and delayed results", async () => {
+  const harness = stakingHookHarness(stakingHookProvider({observation: "manual"}))
+  const thirdWallet = "0x3333333333333333333333333333333333333333"
+  harness.chooseReceiver(otherWallet)
+  harness.click("stake")
+  await flushStakeHookPromises()
+  harness.chooseReceiver(thirdWallet)
+  harness.click("stake")
+  await flushStakeHookPromises()
+  expect(harness.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(2)
+  harness.settleNext("reverted")
+  expect(harness.recipientText.textContent).toBe(otherWallet)
+  expect(harness.text.textContent).toContain("reverted")
+  harness.dialog.close()
+  harness.settleNext("delayed")
+  expect(harness.recipientText.textContent).toBe(thirdWallet)
+  expect(harness.text.textContent).toContain("has not confirmed")
+  harness.destroy()
 })

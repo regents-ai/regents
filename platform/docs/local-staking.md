@@ -5,7 +5,7 @@ or authorize a production deployment, database migration, or automated live tran
 
 ## Automated proof
 
-From `ash-platform/`:
+From `repos/regents/platform/` in an isolated prepared worktree:
 
 ```sh
 mix test test/ash_platform/staking test/ash_platform_web/stake_live_test.exs
@@ -40,14 +40,15 @@ read again.
 
 ## Supported actions
 
-- Stake REGENT to the connected wallet's own position.
+- Stake REGENT to the connected wallet or an explicitly acknowledged receiving address.
 - Unstake REGENT back to that same wallet.
 - Claim all available USDC rewards.
 - Claim all available REGENT rewards.
 - Manually claim and restake available REGENT rewards.
 
-There is no automatic restaking, stake-for-another flow, operator treasury action, or ENS recipient
-resolution in this capability.
+Selecting **Stake for a different address** reveals a plain Ethereum address input. The warning must be checked for that exact address. Editing the address, switching modes, or changing the connected wallet clears that acknowledgment. The payer supplies REGENT and signs the approval and stake; the receiving address owns the stake and future rewards. Only transactions from that receiving address can withdraw its stake or claim its rewards. A contract wallet must be able to call those functions.
+
+No automatic restaking, operator treasury action or ENS recipient resolution is included. This page flow does not change the separate CLI/server preparation interfaces.
 
 ## Dependency and audit note
 

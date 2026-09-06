@@ -1,3 +1,4 @@
+import {decodeFunctionData, parseAbi, type Hex} from "viem"
 import {expect, test, type Page} from "@playwright/test"
 
 import {identityTokenFor} from "./support/authenticated_privy"
@@ -445,6 +446,97 @@ test("Stake names the unfinished approval step when the wallet rejects the appro
 
   await expect(dialog.getByText("REGENT spending was approved successfully.")).toBeVisible()
   await expect(dialog.getByText(approvalIncomplete)).toHaveCount(0)
+})
+
+test("Alternate stake requires fresh address consent and credits that address", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  const toggle = page.getByLabel("Stake for a different address", {exact: true})
+  const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
+  const acknowledgment = page.locator("#staking-recipient-acknowledged")
+  const warning = page.locator("#staking-recipient-warning")
+  const dialog = page.locator("#staking-result-dialog")
+  const submit = page.locator("button.stake-submit")
+
+  await expect(receiver).toBeHidden()
+  await toggle.focus()
+  await page.keyboard.press("Space")
+  await expect(receiver).toBeVisible()
+  await expect(page.locator(".stake-preview")).toBeHidden()
+  for (const invalid of ["alice.eth", "0x1234", "0x" + "0".repeat(40)]) {
+    await receiver.fill(invalid)
+    await expect(receiver).toHaveAttribute("aria-invalid", "true")
+    await expect(warning).toBeHidden()
+    await submit.click()
+    await expect(dialog).toContainText(/Enter a valid Ethereum|Use a receiving wallet/)
+    expect(await sendCount(page)).toBe(0)
+    await dialog.getByRole("button", {name: "Done"}).click()
+  }
+
+  await receiver.fill(otherWallet)
+  await expect(warning).toContainText(`Only ${otherWallet} wallet may withdraw the tokens`)
+  await submit.click()
+  await expect(dialog).toContainText("Acknowledge the warning")
+  expect(await sendCount(page)).toBe(0)
+  await dialog.getByRole("button", {name: "Done"}).click()
+
+  await acknowledgment.check()
+  await receiver.fill(wallet)
+  await receiver.fill(otherWallet)
+  await expect(acknowledgment).not.toBeChecked()
+  await acknowledgment.check()
+  await toggle.uncheck()
+  await toggle.check()
+  await expect(acknowledgment).not.toBeChecked()
+  await acknowledgment.check()
+  await page.getByRole("button", {name: "Unstake", exact: true}).click()
+  await expect(toggle).toBeHidden()
+  await page.getByRole("button", {name: "Stake", exact: true}).click()
+  await expect(acknowledgment).not.toBeChecked()
+  await acknowledgment.check()
+  await selectWallet(page, otherWallet)
+  await selectWallet(page, wallet)
+  await expect(acknowledgment).not.toBeChecked()
+  await expect(page.locator("#regent-staking")).toHaveAttribute("data-staking-signer", wallet)
+  // Changing wallets can replace the form; choose the destination again.
+  await toggle.check()
+  await receiver.fill(otherWallet)
+  await acknowledgment.check()
+  // A normal LiveView amount update preserves the acknowledged destination.
+  await page.getByLabel("Amount", {exact: true}).fill("2")
+  await expect(page.locator(".stake-preview")).toBeHidden()
+  await expect(acknowledgment).toBeChecked()
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 900})
+    await expect(warning).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await acknowledgment.focus()
+  await expect(acknowledgment).toBeFocused()
+  await page.locator("#staking-amount-form").screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
+  await submit.click()
+  await expect.poll(() => sendCount(page)).toBe(2)
+  await expect(dialog).toContainText("REGENT spending was approved successfully.")
+  await dialog.getByRole("button", {name: "Done"}).click()
+  await expect(dialog).toContainText(`2 REGENT was staked for ${otherWallet}.`)
+  await expect(dialog.locator("[data-staking-result-receiver]")).toHaveText(otherWallet)
+  const transactions = await page.evaluate(() => (window as Window & {
+    __ashStakingTransactions?: Record<string, {from: string; data: Hex}>
+  }).__ashStakingTransactions!)
+  const stake = transactions[expectedHash(2)]!
+  expect(stake.from.toLowerCase()).toBe(wallet)
+  expect(decodeFunctionData({abi: parseAbi(["function stake(uint256 amount,address receiver)"]), data: stake.data})).toEqual({
+    functionName: "stake", args: [2n * 10n ** 18n, otherWallet],
+  })
+  await dialog.getByRole("button", {name: "Done"}).click()
+  await toggle.uncheck()
+  await expect(receiver).toBeHidden()
+  await expect(page.locator(".stake-preview")).toBeVisible()
 })
 
 async function installWallet(page: Page): Promise<void> {

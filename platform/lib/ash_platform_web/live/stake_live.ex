@@ -73,6 +73,7 @@ defmodule AshPlatformWeb.StakeLive do
       phx-hook="StakeWallet"
       class="stake-page"
       aria-busy={to_string(@reading)}
+      data-staking-mode={@action}
       data-staking-chain-id={@staking && @staking.chain_id}
       data-staking-signer={@signer}
       data-staking-allowance={@signer && stake_allowance(@staking)}
@@ -149,6 +150,9 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
           <div>
             <dt>Wallet</dt><dd data-staking-result-wallet>—</dd>
+          </div>
+          <div data-staking-recipient-result hidden>
+            <dt>Stake recipient</dt><dd data-staking-result-receiver></dd>
           </div>
         </dl>
         <a data-staking-result-link hidden target="_blank" rel="noopener noreferrer"></a>
@@ -282,6 +286,45 @@ defmodule AshPlatformWeb.StakeLive do
               >
                 {@amount_notice}
               </p>
+
+              <div
+                id="staking-recipient-controls"
+                phx-update="ignore"
+                class="stake-recipient"
+                hidden={@action != "stake"}
+              >
+                <label class="stake-check" for="staking-for-other">
+                  <input
+                    id="staking-for-other"
+                    type="checkbox"
+                    aria-controls="staking-recipient-fields"
+                    aria-expanded="false"
+                  />
+                  <span>Stake for a different address</span>
+                </label>
+                <div id="staking-recipient-fields" hidden>
+                  <label for="staking-recipient">Receiving Ethereum address</label>
+                  <input
+                    id="staking-recipient"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    autocapitalize="none"
+                    placeholder="0x…"
+                    aria-describedby="staking-recipient-error"
+                  />
+                  <p id="staking-recipient-error" role="status" hidden></p>
+                  <label
+                    id="staking-recipient-warning"
+                    class="stake-check"
+                    for="staking-recipient-acknowledged"
+                    hidden
+                  >
+                    <input id="staking-recipient-acknowledged" type="checkbox" />
+                    <span id="staking-recipient-warning-text"></span>
+                  </label>
+                </div>
+              </div>
 
               <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
                 <div>
