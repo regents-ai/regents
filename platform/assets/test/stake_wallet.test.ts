@@ -773,6 +773,32 @@ describe("stake hook ownership and result ordering", () => {
     expect(harness.dialogTitle.textContent).toBe(title)
     harness.destroy()
   })
+
+  // The wallet bridge announces the same wallet again after Privy refreshes
+  // its object for it, which happens in the middle of the Base chain switch a
+  // press makes. Same address and same provider is not a wallet change.
+  it("keeps the acknowledged receiver and a press in flight when the same wallet is announced again", async () => {
+    const chain = deferred<string>()
+    const harness = stakingHookHarness(stakingHookProvider({chainResponses: [chain.promise]}))
+    harness.chooseReceiver(otherWallet)
+    harness.click("stake")
+    await flushStakeHookPromises()
+    expect(harness.requests.map(request => request.method)).toEqual(["eth_chainId"])
+
+    harness.setWallet(wallet, harness.provider)
+    chain.resolve("0x2105")
+    const sends = () => harness.requests.filter(request => request.method === "eth_sendTransaction")
+    await vi.waitFor(() => expect(sends()).toHaveLength(1))
+
+    // The consent already given still stands for the next press.
+    harness.click("stake")
+    await vi.waitFor(() => expect(sends()).toHaveLength(2))
+    expect(
+      sends().map(request =>
+        decodeFunctionData({abi: stakingAbi, data: (request.params![0] as {data: Hex}).data}).args),
+    ).toEqual([[amount, otherWallet], [amount, otherWallet]])
+    harness.destroy()
+  })
 })
 
 const actionCases: Array<{action: StakingAction; expectedData: Hex}> = [

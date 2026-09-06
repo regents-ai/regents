@@ -59,6 +59,7 @@ import {
 import {
   activeEthereumWallet,
   connectedEthereumWallet,
+  disconnectEveryEthereumWallet,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   selectConnectedEthereumWallet,
@@ -1891,6 +1892,185 @@ describe("Privy session bridge", () => {
     await until(() => activeEthereumWallet()?.provider === second.provider)
 
     expect(activeEthereumWallet()?.address).toBe(address)
+  })
+
+  // Privy allocates a new ConnectedWallet object for the same wallet whenever
+  // its chain, link state or connection is refreshed, and its selection is found
+  // by address inside that fresh array. Stake itself asks the wallet to switch
+  // to Base, so this refresh lands in the middle of an ordinary stake press.
+  describe("SAME_WALLET_REFRESH", () => {
+    const lower = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+    const checksummed = "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD"
+
+    function heldWallet(
+      address: string,
+      provider: () => EthereumProvider,
+      options: {walletClientType?: string} = {},
+    ) {
+      let release: (() => void) | undefined
+      const wallet = {
+        ...ethereumWallet(address, options),
+        getEthereumProvider: () =>
+          new Promise<EthereumProvider>(resolve => {
+            release = () => resolve(provider())
+          }),
+      }
+      return {wallet, held: () => release !== undefined, release: () => release?.()}
+    }
+
+    async function mountedSelection(first: ReturnType<typeof ethereumWallet>) {
+      productionRootRender.mockReset()
+      replaceActiveEthereumWallet(null)
+      replaceConnectedEthereumWallets([])
+      const renderAccountBridge = installAccountBridgeRenderer()
+      const globals = stubBrowserGlobals()
+      const providerState = {
+        appId: "test-app",
+        authenticated: true,
+        getAccessToken: async () => "current-token",
+        logout: async () => undefined,
+        ready: true,
+        walletsReady: true,
+        wallets: [first] as unknown[],
+        activeWallet: first as unknown,
+      }
+
+      const startup = bridge.startPrivyBridge(
+        {},
+        providerState as unknown as bridge.PrivyBridgeProviderState,
+      )
+      const accountElement = renderedAccountBridge()
+      renderAccountBridge(accountElement)
+      await startup
+      await until(() => activeEthereumWallet()?.provider === first.provider)
+      expect(globals.dispatched).toEqual(["ash:wallet-state"])
+
+      return {...globals, providerState, rerender: () => renderAccountBridge(accountElement)}
+    }
+
+    it("keeps the selected wallet active through a refresh that only re-allocates it", async () => {
+      const first = ethereumWallet(lower)
+      const page = await mountedSelection(first)
+      const refresh = heldWallet(checksummed, () => first.provider)
+      page.providerState.wallets = [refresh.wallet]
+      page.providerState.activeWallet = refresh.wallet
+      page.rerender()
+
+      // Nothing is taken away before the await, so a press here still finds
+      // its wallet and Stake hears no change it would reset consent for.
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(page.dispatched).toEqual(["ash:wallet-state"])
+      await until(refresh.held)
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(page.dispatched).toEqual(["ash:wallet-state"])
+
+      refresh.release()
+      await until(() => page.dispatched.length === 2)
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+    })
+
+    it("lets only the latest refresh publish when an older one finishes late", async () => {
+      const first = ethereumWallet(lower)
+      const page = await mountedSelection(first)
+      const older = heldWallet(lower, () => first.provider)
+      page.providerState.wallets = [older.wallet]
+      page.providerState.activeWallet = older.wallet
+      page.rerender()
+      await until(older.held)
+      const newer = heldWallet(checksummed, () => first.provider)
+      page.providerState.wallets = [newer.wallet]
+      page.providerState.activeWallet = newer.wallet
+      page.rerender()
+      await until(newer.held)
+
+      older.release()
+      await settled()
+      expect(page.dispatched).toEqual(["ash:wallet-state"])
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+
+      newer.release()
+      await until(() => page.dispatched.length === 2)
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+    })
+
+    // Address and app identity say the wallet is the same; only the resolved
+    // provider says whether what stands behind it is. That is decided at
+    // publication, where Stake compares providers and resets for a new one.
+    it("replaces the provider at publication when the same wallet resolves a different one", async () => {
+      const first = ethereumWallet(lower)
+      const page = await mountedSelection(first)
+      const replacement: EthereumProvider = {request: vi.fn()}
+      const refresh = heldWallet(lower, () => replacement)
+      page.providerState.wallets = [refresh.wallet]
+      page.providerState.activeWallet = refresh.wallet
+      page.rerender()
+      await until(refresh.held)
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+
+      refresh.release()
+      await until(() => activeEthereumWallet()?.provider === replacement)
+      expect(page.dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+    })
+
+    it("treats the same address held by another wallet app as a change and withdraws it first", async () => {
+      const first = ethereumWallet(lower)
+      const page = await mountedSelection(first)
+      const otherApp = heldWallet(lower, () => ({request: vi.fn()}), {walletClientType: "rabby_wallet"})
+      page.providerState.wallets = [first, otherApp.wallet]
+      page.providerState.activeWallet = otherApp.wallet
+      page.rerender()
+
+      expect(activeEthereumWallet()).toBeNull()
+      expect(page.dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+      await until(otherApp.held)
+      expect(activeEthereumWallet()).toBeNull()
+
+      otherApp.release()
+      await until(() => page.dispatched.length === 3)
+      expect(activeEthereumWallet()?.address).toBe(lower)
+      expect(activeEthereumWallet()?.provider).not.toBe(first.provider)
+    })
+
+    // Two apps Privy cannot name are indistinguishable, so a new object from one
+    // of them is another app's until its own provider says otherwise.
+    it("withdraws a re-allocated wallet whose app Privy cannot name before its provider resolves", async () => {
+      const first = ethereumWallet(lower, {walletClientType: "unknown"})
+      const page = await mountedSelection(first)
+      const otherUnknown = heldWallet(lower, () => ({request: vi.fn()}), {walletClientType: "unknown"})
+      page.providerState.wallets = [otherUnknown.wallet]
+      page.providerState.activeWallet = otherUnknown.wallet
+      page.rerender()
+
+      expect(activeEthereumWallet()).toBeNull()
+      expect(page.dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+      await until(otherUnknown.held)
+      expect(activeEthereumWallet()).toBeNull()
+
+      otherUnknown.release()
+      await until(() => page.dispatched.length === 3)
+      expect(activeEthereumWallet()?.address).toBe(lower)
+      expect(activeEthereumWallet()?.provider).not.toBe(first.provider)
+    })
+
+    it("cannot resurrect a wallet that Disconnect released during the refresh", async () => {
+      const first = ethereumWallet(lower)
+      const page = await mountedSelection(first)
+      const refresh = heldWallet(lower, () => first.provider)
+      page.providerState.wallets = [refresh.wallet]
+      page.providerState.activeWallet = refresh.wallet
+      page.rerender()
+      await until(refresh.held)
+
+      await disconnectEveryEthereumWallet(window as unknown as EventTarget)
+      expect(activeEthereumWallet()).toBeNull()
+      expect(page.dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+
+      refresh.release()
+      await settled()
+      expect(activeEthereumWallet()).toBeNull()
+      expect(connectedEthereumWallet()).toBeNull()
+      expect(page.dispatched).toEqual(["ash:wallet-state", "ash:wallet-state"])
+    })
   })
 
   // The customer's new choice is known before any of the reconciliation it

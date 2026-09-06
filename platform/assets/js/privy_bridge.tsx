@@ -382,6 +382,30 @@ async function establishLocalSession(
   }
 }
 
+// Privy allocates a new ConnectedWallet object for the same wallet whenever its
+// chain, link state or connection is refreshed, and finds its selection by
+// address inside that fresh array, so object identity says nothing about whether
+// the customer changed wallets. Address and wallet app do: two apps holding one
+// address are still two wallets, and Privy names an injected app it does not
+// recognise "unknown", so a new object from such an app, or one with no app
+// identity at all, cannot be told from another app's and is treated as a change.
+// Whether the same provider stands behind a recognised object is only known once
+// it resolves, and is decided at publication.
+function sameConnectedWallet(
+  previous: ConnectedWallet | null,
+  next: ConnectedWallet | null,
+): boolean {
+  if (!previous || !next) return previous === next
+  if (previous === next) return true
+  const app = previous.walletClientType
+  if (!app || app === "unknown" || !previous.connectorType) return false
+  return (
+    previous.address.toLowerCase() === next.address.toLowerCase() &&
+    app === next.walletClientType &&
+    previous.connectorType === next.connectorType
+  )
+}
+
 // The one account the same wallet app now reports in place of the account the
 // customer had selected there. Anything else is not a switch: the selected
 // account still listed, that app gone entirely, several of its accounts to
@@ -777,7 +801,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     // The wallet the customer just left stops being Stake's wallet here, before
     // any of the work below can await, so nothing can be prepared or sent for it
     // while the newly selected provider is still resolving.
-    if (activeEthereumWallet() && selectedWalletRef.current !== selectedWallet) {
+    if (activeEthereumWallet() && !sameConnectedWallet(selectedWalletRef.current, selectedWallet)) {
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("ash:wallet-state"))
     }
