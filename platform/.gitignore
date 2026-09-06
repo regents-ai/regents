@@ -81,3 +81,5 @@ Thumbs.db
 
 # Generated from the pinned Regent UI package.
 /priv/static/images/regent-ui/
+
+/assets/vendor/regent_identity/

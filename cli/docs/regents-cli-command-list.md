@@ -4,7 +4,7 @@ This file lists the full command surface shipped by the standalone Regents CLI i
 
 Sources used: repository-local route registries and `docs/shared-cli-contract.yaml` via `scripts/generate-cli-command-metadata.mjs`.
 
-Total commands: 217.
+Total commands: 220.
 
 ## Full Command List
 
@@ -207,6 +207,12 @@ Total commands: 217.
 - `regents plugin doctor` - Check plugin setup.
 - `regents plugin install` - Install a Regent plugin for the selected runtime.
 - `regents plugin status` - Show installed Regent plugins.
+
+### Profile
+
+- `regents profile get` - Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys.
+- `regents profile sync` - Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys.
+- `regents profile update` - Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys.
 
 ### Receipt
 

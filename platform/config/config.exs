@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :regent_identity, repo: AshPlatform.Repo, ash_domains: [RegentIdentity]
+
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
 config :ash_platform,

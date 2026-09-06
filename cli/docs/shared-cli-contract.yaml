@@ -1391,3 +1391,27 @@ command_groups:
       - chat follows add <wallet|label>
       - chat follows remove <wallet|label>
       - chat follows list
+
+  - name: profile
+    interface: http
+    auth_mode: privy-proof-pair-stdin
+    output_envelope: loose-object
+    commands:
+      - profile get
+      - profile sync
+      - profile update
+    path_templates:
+      - /api/v1/profile
+      - /api/v1/profile/sync
+    agent_metadata:
+      category: profile
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: remote-write
+      retry_behavior: never_automatic
+      pagination: none
+      async_behavior: synchronous
+      input_mode: stdin
+      summary: Personal profile operations require paired Privy proof piped from an approved provider. Never use agent SIWA or publication keys.
+      examples:
+        - regents profile get --json
