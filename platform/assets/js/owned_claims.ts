@@ -79,18 +79,29 @@ export function mountOwnedClaims(root: HTMLElement, read: ClaimsAction): () => v
     const name = root.ownerDocument.createElement("strong")
     name.textContent = String(claim.name ?? "Recorded name")
     const details = root.ownerDocument.createElement("details")
+    details.className = "rg-disclosure"
     const summary = root.ownerDocument.createElement("summary")
-    summary.textContent = String(claim.status ?? "Recorded")
+    const state = root.ownerDocument.createElement("span")
+    state.textContent = String(claim.status ?? "Recorded")
+    const chevron = root.ownerDocument.createElement("span")
+    chevron.className = "rg-chevron"
+    chevron.textContent = "›"
+    chevron.setAttribute("aria-hidden", "true")
+    summary.append(state, chevron)
+    const facts = root.ownerDocument.createElement("dl")
+    facts.className = "rg-disclosure-body"
     details.append(summary)
     for (const [label, value] of [["ENS name", claim.ens_name], ["Owner", claim.owner_address],
       ["Claimed", claim.claimed_at], ["Transaction", claim.transaction],
       ["ENS transaction", claim.ens_transaction], ["ENS assigned", claim.ens_assigned_at]]) {
       if (value == null) continue
-      const line = root.ownerDocument.createElement("p")
-      line.textContent = `${label}: ${value}`
-      line.className = "break-all"
-      details.append(line)
+      const term = root.ownerDocument.createElement("dt")
+      const definition = root.ownerDocument.createElement("dd")
+      term.textContent = String(label)
+      definition.textContent = String(value)
+      facts.append(term, definition)
     }
+    details.append(facts)
     item.append(name, details)
     list.append(item)
   }

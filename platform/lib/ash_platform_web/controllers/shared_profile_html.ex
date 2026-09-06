@@ -19,7 +19,7 @@ defmodule AshPlatformWeb.SharedProfileHTML do
         </div>
       </nav>
       <Regent.Profile.panel />
-      <section data-owned-claims aria-labelledby="owned-claims-title">
+      <section class="rg-profile" data-owned-claims aria-labelledby="owned-claims-title">
         <h2 id="owned-claims-title">Historical names</h2>
         <Regent.Primitives.button data-claims-load>Load names</Regent.Primitives.button>
         <p data-claims-status role="status">Load names linked to your verified wallets.</p>

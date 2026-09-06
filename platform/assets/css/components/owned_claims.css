@@ -1,0 +1,2 @@
+[data-owned-claims] ul { list-style: none; margin: 1rem 0; padding: 0; display: grid; gap: 1rem; }
+[data-owned-claims] strong { display: block; overflow-wrap: anywhere; margin-bottom: .5rem; }
