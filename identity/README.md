@@ -91,3 +91,10 @@ All four deployments must use the same Privy application and verification key,
 with their origins registered and X enabled. Profile IDs are canonical; site
 cookies and local session revocation remain product-owned. A real four-origin
 sign-in/X-link canary is required before claiming provider integration complete.
+
+Profile WebMCP installation reports `unsupported`, `registering`, `ready`, `failed`
+or `stopped` in `document.documentElement.dataset.profileWebmcp` and the
+`regent:profile-webmcp` event. The returned cleanup function also exposes `status`,
+`ready` and explicit `retry()`. All registrations must succeed before tools execute;
+failure aborts only this installation. Page navigation retries normally. Native
+support remains experimental pending an actual host canary.

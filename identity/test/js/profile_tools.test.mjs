@@ -20,19 +20,70 @@ test("profile tools share client responses and reject actor/token parameters", a
   assert.deepEqual(calls[1].slice(0, 2), ["update", {wallet_address: null}]);
 });
 
-test("page lifecycle cancels late tool registration without touching a new page", async () => {
+function registryWindow() {
   const win = new EventTarget();
-  const registrations = [];
-  win.document = {modelContext: {registerTool: (_tool, options) => { registrations.push(options.signal); }}};
-  const stop = installProfileTools(async () => {}, win);
-  win.dispatchEvent(new Event("pagehide"));
-  win.dispatchEvent(new Event("pageshow"));
-  await Promise.resolve();
-  assert.equal(registrations.length, 6);
-  assert.ok(registrations.slice(0, 3).every(signal => signal.aborted));
-  assert.ok(registrations.slice(3).every(signal => !signal.aborted));
+  const registered = new Map();
+  win.document = {documentElement: {dataset: {}}, modelContext: {registerTool(tool, {signal}) {
+    if (registered.has(tool.name)) return Promise.reject(new Error("duplicate"));
+    if (signal.aborted) return Promise.reject(signal.reason);
+    registered.set(tool.name, tool);
+    signal.addEventListener("abort", () => registered.delete(tool.name), {once: true});
+    return Promise.resolve();
+  }}};
+  return {win, registered};
+}
+
+test("failure removes only owned registrations, reports failure and permits explicit retry", async () => {
+  const {win, registered} = registryWindow();
+  const other = {name: "profile_sync"};
+  registered.set(other.name, other);
+  const stop = installProfileTools(async () => ({ok: true}), win);
+  assert.equal(await stop.ready, "failed");
+  assert.equal(stop.status, "failed");
+  assert.equal(win.document.documentElement.dataset.profileWebmcp, "failed");
+  assert.deepEqual([...registered.values()], [other]);
+  registered.delete(other.name);
+  assert.equal(await stop.retry(), "ready");
+  assert.equal(registered.size, 3);
   stop();
-  assert.ok(registrations.every(signal => signal.aborted));
+  assert.equal(registered.size, 0);
+  assert.equal(await stop.retry(), "stopped");
+});
+
+test("pending batch cannot execute and late completion cannot revive a hidden page", async () => {
+  const {win, registered} = registryWindow();
+  const register = win.document.modelContext.registerTool;
+  const releases = [];
+  win.document.modelContext.registerTool = async (...args) => {
+    await register(...args);
+    await new Promise(resolve => releases.push(resolve));
+  };
+  let calls = 0;
+  const stop = installProfileTools(async () => { calls++; }, win);
+  await Promise.resolve();
+  const result = await registered.get("profile_get").execute({}, {signal: new AbortController().signal});
+  assert.equal(result.error.code, "profile_tools_unavailable");
+  assert.equal(calls, 0);
+  win.dispatchEvent(new Event("pagehide"));
+  releases.splice(0).forEach(resolve => resolve());
+  await stop.ready;
+  assert.equal(stop.status, "stopped");
+  assert.equal(registered.size, 0);
+  win.document.modelContext.registerTool = register;
+  win.dispatchEvent(new Event("pageshow"));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(stop.status, "ready");
+  assert.equal(registered.size, 3);
+  stop();
+});
+
+test("unsupported browser is reported without affecting the profile client", async () => {
+  const win = new EventTarget();
+  win.document = {documentElement: {dataset: {}}};
+  const stop = installProfileTools(async () => {}, win);
+  assert.equal(await stop.ready, "unsupported");
+  assert.equal(win.document.documentElement.dataset.profileWebmcp, "unsupported");
+  stop();
 });
 
 test("cancelling a stalled credential provider settles without sending proof", async () => {

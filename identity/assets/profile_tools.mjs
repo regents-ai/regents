@@ -27,19 +27,61 @@ export function profileTools(profile, lifetime) {
 
 export function installProfileTools(profile, win = window) {
   const context = win.document.modelContext;
-  if (!context?.registerTool) return () => {};
   let lifetime;
-  const start = () => {
-    if (lifetime) return;
+  let disposed = false;
+  let status = "unsupported";
+  const report = value => {
+    status = value;
+    if (win.document.documentElement) win.document.documentElement.dataset.profileWebmcp = value;
+    if (win.CustomEvent) win.dispatchEvent(new win.CustomEvent("regent:profile-webmcp", {detail: {status: value}}));
+  };
+  const stop = () => {
+    const current = lifetime;
+    lifetime = undefined;
+    current?.abort();
+    report("stopped");
+  };
+  const start = async () => {
+    if (disposed || lifetime) return status;
+    if (typeof context?.registerTool !== "function") { report("unsupported"); return status; }
     const current = new AbortController();
     lifetime = current;
-    for (const tool of profileTools(profile, current.signal)) {
-      Promise.resolve().then(() => context.registerTool(tool, {signal: current.signal})).catch(() => {});
+    report("registering");
+    try {
+      await Promise.all(profileTools(profile, current.signal).map(tool =>
+        Promise.resolve().then(() => {
+          if (current.signal.aborted) return;
+          const execute = tool.execute;
+          return context.registerTool({...tool, execute(...args) {
+            if (lifetime !== current || status !== "ready") {
+              return Promise.resolve({ok: false, status: null, error: {code: "profile_tools_unavailable", outcome_unknown: false}});
+            }
+            return execute(...args);
+          }}, {signal: current.signal});
+        })
+      ));
+      if (lifetime === current) report("ready");
+    } catch {
+      // The registration signal owns only this installation's tools. Do not
+      // unregister by name: a collision may belong to another installation.
+      if (lifetime === current) {
+        lifetime = undefined;
+        current.abort();
+        report("failed");
+      }
     }
+    return status;
   };
-  const stop = () => { lifetime?.abort(); lifetime = undefined; };
   win.addEventListener("pagehide", stop);
   win.addEventListener("pageshow", start);
-  start();
-  return () => { stop(); win.removeEventListener("pagehide", stop); win.removeEventListener("pageshow", start); };
+  const dispose = () => {
+    disposed = true;
+    stop();
+    win.removeEventListener("pagehide", stop);
+    win.removeEventListener("pageshow", start);
+  };
+  dispose.retry = start;
+  dispose.ready = start();
+  Object.defineProperty(dispose, "status", {get: () => status});
+  return dispose;
 }
