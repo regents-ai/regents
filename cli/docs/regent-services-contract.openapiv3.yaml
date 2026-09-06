@@ -294,6 +294,130 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "429":
           $ref: "#/components/responses/RateLimitError"
+  /api/shared/siwa/wallet/nonce:
+    post:
+      operationId: createSharedWalletSiwaNonce
+      tags: [auth]
+      description: Issue a single-use ERC-4361 EOA wallet challenge for an enabled audience. Contract-wallet signatures are unsupported. No private key is accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletSiwaNonceRequest"
+      responses:
+        "200":
+          description: Issue a single-use ERC-4361 EOA wallet challenge for an enabled audience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletSiwaNonceResponse"
+        "400":
+          description: Malformed wallet request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Invalid signature, canonical message or expired challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Wallet audience is not enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Challenge absent or already consumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "413":
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "415":
+          description: Unsupported content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Wallet verification unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
+  /api/shared/siwa/wallet/verify:
+    post:
+      operationId: verifySharedWalletSiwaSession
+      tags: [auth]
+      description: Verify wallet control without asserting human identity or agent registration. Contract-wallet signatures are unsupported. No private key is accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletSiwaVerifyRequest"
+      responses:
+        "200":
+          description: Verify wallet control without asserting human identity or agent registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletSiwaVerifyResponse"
+        "400":
+          description: Malformed wallet request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Invalid signature, canonical message or expired challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Wallet audience is not enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Challenge absent or already consumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "413":
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "415":
+          description: Unsupported content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Wallet verification unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /api/shared/siwa/nonce:
     post:
       operationId: createSharedAgentSiwaNonce
@@ -1010,6 +1134,168 @@ components:
         meta:
           $ref: "#/components/schemas/LooseObject"
       additionalProperties: false
+    WalletSiwaNonceRequest:
+      type: object
+      required: [wallet_address, chain_id, audience]
+      properties:
+        wallet_address:
+          $ref: "#/components/schemas/Address"
+        chain_id:
+          $ref: "#/components/schemas/BaseChainId"
+        audience:
+          type: string
+          minLength: 1
+          maxLength: 200
+      additionalProperties: false
+    WalletSiwaVerifyRequest:
+      type: object
+      required: [wallet_address, chain_id, audience, nonce, message, signature]
+      properties:
+        wallet_address:
+          $ref: "#/components/schemas/Address"
+        chain_id:
+          $ref: "#/components/schemas/BaseChainId"
+        audience:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nonce:
+          type: string
+          pattern: '^[a-f0-9]{32}$'
+        message:
+          type: string
+          maxLength: 2048
+          description: Exact server-issued ERC-4361 message; do not reconstruct it from caller fields.
+        signature:
+          type: string
+          pattern: '^0x[a-fA-F0-9]{130}$'
+          description: ERC-191 personal signature from the EOA address; never a private key.
+      additionalProperties: false
+    WalletSiwaNonceResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: string
+          enum: [nonce_issued]
+        data:
+          type: object
+          required: [principalType, walletAddress, chainId, audience, nonce, message, issuedAt, expiresAt]
+          properties:
+            principalType:
+              type: string
+              enum: [wallet]
+            walletAddress:
+              $ref: "#/components/schemas/Address"
+            chainId:
+              $ref: "#/components/schemas/BaseChainId"
+            audience:
+              type: string
+            nonce:
+              type: string
+            message:
+              type: string
+              description: Canonical server-issued ERC-4361 message to review and sign.
+            issuedAt:
+              type: string
+              format: date-time
+            expiresAt:
+              type: string
+              format: date-time
+          additionalProperties: false
+      additionalProperties: false
+    WalletSiwaVerifyResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: string
+          enum: [wallet_verified]
+        data:
+          type: object
+          required: [verified, principalType, walletAddress, chainId, audience, keyId, signatureScheme, proof, receipt, receiptExpiresAt]
+          properties:
+            verified:
+              type: boolean
+              enum: [true]
+            principalType:
+              type: string
+              enum: [wallet]
+            walletAddress:
+              $ref: "#/components/schemas/Address"
+            chainId:
+              $ref: "#/components/schemas/BaseChainId"
+            audience:
+              type: string
+            keyId:
+              type: string
+            signatureScheme:
+              type: string
+              enum: [evm_personal_sign]
+            proof:
+              type: string
+              enum: [wallet_signature]
+            receipt:
+              type: string
+              description: Short-lived siwa_wallet_receipt bound to address, chain and audience. It proves neither registry ownership nor human Privy identity.
+            receiptExpiresAt:
+              type: string
+              format: date-time
+          additionalProperties: false
+      additionalProperties: false
+    WalletPrincipal:
+      type: object
+      required: [kind, wallet_address, chain_id, audience]
+      properties:
+        kind:
+          type: string
+          enum: [wallet]
+        wallet_address:
+          $ref: "#/components/schemas/Address"
+        chain_id:
+          $ref: "#/components/schemas/BaseChainId"
+        audience:
+          type: string
+      additionalProperties: false
+    WalletSiwaHttpVerifyResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: string
+          enum: [http_envelope_valid]
+        data:
+          type: object
+          required: [verified, walletAddress, chainId, keyId, principal, receiptExpiresAt, requiredHeaders, requiredCoveredComponents, coveredComponents]
+          properties:
+            verified:
+              type: boolean
+              enum: [true]
+            walletAddress:
+              $ref: "#/components/schemas/Address"
+            chainId:
+              $ref: "#/components/schemas/BaseChainId"
+            keyId:
+              type: string
+            principal:
+              $ref: "#/components/schemas/WalletPrincipal"
+            receiptExpiresAt:
+              type: string
+              format: date-time
+            requiredHeaders:
+              type: array
+              items:
+                type: string
+            requiredCoveredComponents:
+              type: array
+              items:
+                type: string
+            coveredComponents:
+              type: array
+              items:
+                type: string
+          additionalProperties: false
+      additionalProperties: false
     IdentitySiwaNonceRequest:
       type: object
       required: [network, address, token_id, agent_registry]
@@ -1242,6 +1528,11 @@ components:
           type: string
       additionalProperties: false
     SiwaHttpVerifyResponse:
+      description: Legacy registered-agent result, or an explicit wallet principal only for server-enabled audiences. Missing registry claims never select wallet mode. Wallet signatures bind the exact method, path including query, receipt, chain, address, timestamp, nonce and body digest; callers must sign a fresh HTTP envelope when recovering an existing payment intent.
+      oneOf:
+        - $ref: "#/components/schemas/AgentSiwaHttpVerifyResponse"
+        - $ref: "#/components/schemas/WalletSiwaHttpVerifyResponse"
+    AgentSiwaHttpVerifyResponse:
       type: object
       required: [code, data]
       properties:
