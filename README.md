@@ -1,4 +1,4 @@
-# Ash Platform
+# regents.sh platform
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
@@ -6,10 +6,11 @@
 [![Ash 3.32](https://img.shields.io/badge/ash-3.32-lightgrey)](https://ash-hq.org)
 [![PostgreSQL 14](https://img.shields.io/badge/postgres-14-lightgrey)](https://www.postgresql.org)
 
-Ash Platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
+The main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
-it owns human identity, Formation, public Regent records, and Autolaunch.
-Techtree remains a named product on the public site; it no longer lives in this app.
+it owns $REGENT staking and yield, Animata pass redemption, human <> agent linking, and is a 
+general informational directory for the varied apps and products made by Regents Labs. 
+
 
 > [!IMPORTANT]
 > This is a live, in-development application, not a demo. It runs against PostgreSQL, signs
