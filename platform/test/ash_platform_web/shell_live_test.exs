@@ -368,26 +368,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert unchanged.assigns.content_status == :ready
   end
 
-  # $REGENT is public editorial content inside the same shell: the sidebar link
-  # patches to it, keeps the LiveView, marks it current and needs no reading.
-  test "the sidebar reaches $REGENT by patch and marks it current", %{conn: conn} do
-    SnapshotCache.clear()
-    on_exit(&SnapshotCache.clear/0)
-    {:ok, view, _html} = live(conn, "/app")
-    pid = view.pid
-
-    view
-    |> element("#shell-sidebar a", "$REGENT")
-    |> render_click()
-
-    assert_patch(view, "/regent")
-    assert view.pid == pid
-    assert has_element?(view, "#route-content #regent-token h1", "$REGENT")
-    assert has_element?(view, ~s(#shell-sidebar a[href="/regent"][aria-current="page"]))
-    refute has_element?(view, ~s(#shell-sidebar a[href="/app"][aria-current="page"]))
-    assert :sys.get_state(view.pid).socket.assigns.staking == nil
-  end
-
   # /app shows the same shared contract reading every other page does, and an
   # anonymous visitor there buys no chain read either.
   test "anonymous /app paints the shared contract reading without reading Base", %{conn: conn} do

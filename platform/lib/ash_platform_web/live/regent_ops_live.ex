@@ -37,7 +37,6 @@ defmodule AshPlatformWeb.RegentOpsLive do
             redemption on Base.
           </p>
           <nav class="regent-ops-product-links" aria-label="Regents pages">
-            <.link patch="/regent">$REGENT</.link>
             <.link patch="/stake">Stake</.link>
             <.link patch="/redeem">Redeem</.link>
           </nav>
@@ -85,10 +84,7 @@ defmodule AshPlatformWeb.RegentOpsLive do
           </p>
           <p>
             REGENT is the token behind Regents: it is what is staked here and what an eligible
-            Animata redemption pays out. The <.link patch="/regent">$REGENT</.link> page
-            explains the supply, the vault release and who holds it. How Regents Labs planned
-            to allocate its own share at launch is recorded there as historical policy, not as
-            a statement of spending.
+            Animata redemption pays out.
           </p>
           <p>
             Staking shares USDC as it is actually deposited into the staking contract, so

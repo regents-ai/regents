@@ -383,7 +383,6 @@ test("the Overview maps the four products, keeps account details secondary, and 
   for (const name of ["Regents", "Autolaunch", "Techtree", "Patchbay"]) {
     await expect(products.getByRole("heading", {level: 2, name})).toBeVisible()
   }
-  await expect(products.getByRole("link", {name: "$REGENT"})).toHaveAttribute("href", "/regent")
   await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(
     "href",
     "https://autolaunch.sh",
