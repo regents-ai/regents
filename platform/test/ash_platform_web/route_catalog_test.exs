@@ -26,6 +26,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/autolaunch/subjects/:id",
     "/autolaunch/holdings",
     "/autolaunch/create",
+    "/regent",
     "/stake",
     "/redeem",
     "/regents-club/metadata-cutover"
@@ -130,6 +131,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert RouteCatalog.fetch!(:app).sidebar_model.targets == [
              %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
+             %RouteTarget{route_id: :regent_token, label: "$REGENT", path: "/regent"},
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %ViewerProfileTarget{label: "Profile"}
@@ -190,7 +192,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
     # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-    assert length(decoded["routes"]) == 17
+    assert length(decoded["routes"]) == 18
     refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)

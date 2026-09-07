@@ -372,21 +372,35 @@ test("a signed-in account without a Regent shows its available account menu", as
   await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
 })
 
-test("the Account overview shows public chain truth, invents no wallet or profile, and reaches Formation", async ({page}) => {
+test("the Overview maps the four products, keeps account details secondary, and reaches Formation", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const overview = page.locator("#regent-ops-overview")
-  await expect(overview.getByRole("heading", {level: 1, name: "Account"})).toBeVisible()
-  await expect(overview).toContainText(
-    "See your account, any verified wallet, balances, and rewards on Base.",
+  await expect(overview.getByRole("heading", {level: 1})).toBeVisible()
+
+  const products = overview.getByRole("list", {name: "Products"})
+  for (const name of ["Regents", "Autolaunch", "Techtree", "Patchbay"]) {
+    await expect(products.getByRole("heading", {level: 2, name})).toBeVisible()
+  }
+  await expect(products.getByRole("link", {name: "$REGENT"})).toHaveAttribute("href", "/regent")
+  await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(
+    "href",
+    "https://autolaunch.sh",
   )
+  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
+
+  // Account details sit behind a closed disclosure for a visitor; opening it
+  // shows the shared reading and the sign-in prompt, never an invented wallet.
+  const account = page.locator("#regent-ops-account")
+  await expect(account).not.toHaveAttribute("open", "")
+  await account.locator("summary").click()
+  await expect(account).toHaveAttribute("open", "")
   await expect(overview.getByLabel("Account summary")).toBeVisible()
   await expect(overview).toContainText("100 REGENT")
   await expect(overview).toContainText(
     "Sign in to see any wallet verified on your account and the balances available to it.",
   )
-  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
 
   const actions = overview.getByRole("navigation", {name: "Account actions"})
   await expect(actions.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute("href", "/stake")
@@ -415,7 +429,7 @@ test("an unknown public Regent profile is honest and keeps shell navigation avai
   await expect(page.getByRole("heading", {name: "Regent not found"})).toBeVisible()
   await expect(page.getByText("This public Regent profile does not exist.")).toBeVisible()
   await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
-  await expect(page.getByRole("link", {name: "Return to Account"})).toHaveAttribute("href", "/app")
+  await expect(page.getByRole("link", {name: "Return to Overview"})).toHaveAttribute("href", "/app")
 })
 
 test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {

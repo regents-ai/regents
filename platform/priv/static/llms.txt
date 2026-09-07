@@ -6,6 +6,9 @@
 
 ## Start with the owning interface
 
+- [$REGENT](https://regents.sh/regent): the token's supply, allocation, vault release,
+  largest holders and contract addresses on Base, with dated public sources.
+
 - [CLI source and build](https://github.com/regents-ai/regents/blob/main/cli/README.md): the `regents` command, local runtime and agent integrations.
 - [CLI command contract](https://github.com/regents-ai/regents/blob/main/cli/docs/shared-cli-contract.yaml): command shapes and capability boundaries.
 - [HTTP contract](https://regents.sh/api-contract.openapiv3.yaml): deployment gates may close listed product surfaces.

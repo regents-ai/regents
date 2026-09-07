@@ -1,0 +1,507 @@
+/* The $REGENT page is an information page in the Stake and Redeem grammar:
+   hairline panels on one ground, display headings, mono kickers and figures.
+   Every address wraps inside its container; nothing may scroll sideways. */
+
+.regent-token-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.regent-token-heading,
+.regent-token-panel {
+  min-width: 0;
+  padding: 1.5rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+  background: var(--ash-panel);
+}
+
+.regent-token-page h1,
+.regent-token-page h2,
+.regent-token-page h3 {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  font-weight: 400;
+}
+
+.regent-token-page p {
+  margin: 0;
+}
+
+.regent-token-kicker,
+.regent-token-facts dt,
+.regent-token-list dt,
+.regent-token-table th[scope="col"],
+.regent-token-legend-label,
+.regent-token-timeline time {
+  color: var(--ash-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.regent-token-page code {
+  display: inline-block;
+  max-width: 100%;
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.regent-token-page a {
+  color: inherit;
+}
+
+/* Heading */
+
+.regent-token-heading {
+  display: grid;
+  gap: 1rem;
+}
+
+.regent-token-heading h1 {
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+}
+
+.regent-token-heading h1:focus {
+  outline: none;
+}
+
+.regent-token-lede {
+  max-width: 56ch;
+  color: var(--ash-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.regent-token-address {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+  background: var(--ash-panel-strong);
+}
+
+.regent-token-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.regent-token-links a,
+.regent-token-cards article > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: 24px;
+  font-family: var(--font-family-mono);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.regent-token-links a:hover,
+.regent-token-cards article > a:hover {
+  border-color: currentColor;
+}
+
+/* Key facts */
+
+.regent-token-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.regent-token-facts > div {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+  background: var(--ash-panel);
+}
+
+.regent-token-facts dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.regent-token-panel h2 {
+  margin-bottom: 1rem;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.regent-token-panel h3 {
+  font-size: 1.15rem;
+}
+
+.regent-token-note {
+  max-width: 64ch;
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.regent-token-panel > p,
+.regent-token-panel > .regent-token-address,
+.regent-token-panel > .regent-token-note,
+.regent-token-panel > .regent-token-bar,
+.regent-token-panel > .regent-token-legend,
+.regent-token-panel > .regent-token-timeline,
+.regent-token-panel > .regent-token-table,
+.regent-token-panel > .regent-token-cards {
+  margin-bottom: 1rem;
+}
+
+.regent-token-panel > p {
+  max-width: 64ch;
+  line-height: 1.55;
+}
+
+/* Allocation */
+
+.regent-token-bar {
+  display: flex;
+  height: 1.5rem;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.regent-token-bar > span {
+  flex: var(--share) 1 0;
+  border-right: 1px solid var(--ash-panel);
+}
+
+.regent-token-bar > span:last-child {
+  border-right: 0;
+}
+
+.regent-token-bar-liquidity,
+.regent-token-legend-liquidity::before {
+  background: var(--ash-accent);
+}
+
+.regent-token-bar-labs,
+.regent-token-legend-labs::before {
+  background: color-mix(in oklch, var(--ash-ink) 55%, transparent);
+}
+
+.regent-token-bar-vault,
+.regent-token-legend-vault::before {
+  background: var(--ash-accent-warm);
+}
+
+.regent-token-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.regent-token-legend li {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  column-gap: 1rem;
+  row-gap: 0.5rem;
+  min-width: 0;
+}
+
+.regent-token-legend li::before {
+  content: "";
+  grid-row: 1 / -1;
+  width: 0.75rem;
+}
+
+.regent-token-legend-figure {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.regent-token-legend-tokens,
+.regent-token-legend-note {
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.regent-token-policy {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.regent-token-policy > div {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.regent-token-policy ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+}
+
+/* Release timeline */
+
+.regent-token-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: regent-token-milestone;
+}
+
+.regent-token-timeline li {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  min-width: 0;
+  padding-top: 1rem;
+  border-top: 2px solid var(--ash-line-strong);
+}
+
+.regent-token-timeline li strong {
+  font-family: var(--font-family-sans);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.regent-token-timeline-figure {
+  font-variant-numeric: tabular-nums;
+}
+
+.regent-token-timeline-detail {
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* Holders */
+
+.regent-token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.regent-token-table th,
+.regent-token-table td {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--ash-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.regent-token-table th[scope="col"] {
+  border-top: 0;
+}
+
+.regent-token-table td {
+  padding-left: 1rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.regent-token-table th[scope="row"] {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  font-weight: 400;
+}
+
+.regent-token-holder-label {
+  font-size: 1.05rem;
+}
+
+.regent-token-holder-description {
+  max-width: 48ch;
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* Treasury signers, mechanics cards, detail lists */
+
+.regent-token-signers {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.regent-token-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.regent-token-cards article {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+}
+
+.regent-token-cards article > p {
+  line-height: 1.5;
+}
+
+.regent-token-cards article > a {
+  justify-self: start;
+}
+
+.regent-token-list {
+  display: grid;
+  margin: 0;
+}
+
+.regent-token-list > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.3fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 0.5rem;
+  border-top: 1px solid var(--ash-line);
+}
+
+.regent-token-list dd {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.regent-token-list dd a {
+  font-family: var(--font-family-mono);
+  font-size: 0.85rem;
+}
+
+.regent-token-mechanics-list {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 64ch;
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+}
+
+/* Disclosures */
+
+.regent-token-details {
+  border-top: 1px solid var(--ash-line);
+}
+
+.regent-token-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.regent-token-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.regent-token-chevron {
+  flex: none;
+  color: var(--ash-muted);
+  transition: transform 180ms var(--ease-out);
+}
+
+.regent-token-details[open] .regent-token-chevron {
+  transform: rotate(180deg);
+}
+
+.regent-token-details-body {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+
+.regent-token-details-body p {
+  max-width: 64ch;
+  line-height: 1.55;
+}
+
+@media (max-width: 48rem) {
+  .regent-token-heading,
+  .regent-token-panel {
+    padding: 1rem;
+  }
+
+  .regent-token-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .regent-token-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 1rem;
+    padding-block: 0.5rem;
+    border-top: 1px solid var(--ash-line);
+  }
+
+  .regent-token-table th[scope="row"] {
+    grid-column: 1 / -1;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .regent-token-table td {
+    padding: 0;
+    border-top: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .regent-token-table td:last-child {
+    text-align: right;
+  }
+
+  .regent-token-list > div {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .regent-token-chevron {
+    transition: none;
+  }
+}

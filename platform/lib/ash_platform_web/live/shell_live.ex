@@ -30,6 +30,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RegentsClubMetadataLive
+  alias AshPlatformWeb.RegentTokenLive
   alias AshPlatformWeb.RouteCatalog
   # Settings returns soon (founder, 2026-09-03): switched off, not removed.
   # alias AshPlatformWeb.SettingsLive
@@ -1246,6 +1247,8 @@ defmodule AshPlatformWeb.ShellLive do
           status={@regent_status}
         />
 
+        <RegentTokenLive.page :if={@route_spec.route_id == :regent_token} />
+
         <RegentOpsLive.page
           :if={@route_spec.route_id == :app}
           staking={@staking}
@@ -1311,6 +1314,7 @@ defmodule AshPlatformWeb.ShellLive do
               :app,
               :settings,
               :formation,
+              :regent_token,
               :stake,
               :redeem,
               :regents_club_metadata,
@@ -1342,6 +1346,7 @@ defmodule AshPlatformWeb.ShellLive do
               :app,
               :settings,
               :formation,
+              :regent_token,
               :stake,
               :redeem,
               :regents_club_metadata,
@@ -1372,6 +1377,7 @@ defmodule AshPlatformWeb.ShellLive do
             :app,
             :settings,
             :formation,
+            :regent_token,
             :stake,
             :redeem,
             :regents_club_metadata,

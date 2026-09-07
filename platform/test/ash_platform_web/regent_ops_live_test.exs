@@ -8,14 +8,30 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
 
-  test "U1_U2_U3_VALID_ACCOUNT_ENTRY: anonymous visitors meet an Account page that promises no wallet",
-       %{conn: conn} do
+  test "anonymous visitors meet a product Overview that promises no wallet", %{conn: conn} do
     seed_shared_reading()
     {:ok, view, html} = live(conn, "/app")
 
-    assert has_element?(view, "#regent-ops-overview .regent-ops-heading h1", "Account")
-    assert html =~ "See your account, any verified wallet, balances, and rewards on Base."
-    assert html =~ "Regents Labs · Base"
+    assert has_element?(view, "#regent-ops-overview .regent-ops-heading h1")
+
+    products = ~s(ul[aria-label="Products"])
+    assert has_element?(view, "#{products} h2", "Regents")
+    assert has_element?(view, "#{products} h2", "Autolaunch")
+    assert has_element?(view, "#{products} h2", "Techtree")
+    assert has_element?(view, "#{products} h2", "Patchbay")
+    assert has_element?(view, ~s(#{products} a[href="/regent"]), "$REGENT")
+    assert has_element?(view, ~s(#{products} a[href="/stake"]), "Stake")
+    assert has_element?(view, ~s(#{products} a[href="/redeem"]), "Redeem")
+
+    for site <- ["https://autolaunch.sh", "https://techtree.sh", "https://patchbay.help"] do
+      assert has_element?(view, ~s(#{products} a[href="#{site}"][rel="noopener noreferrer"]))
+    end
+
+    assert has_element?(view, "details.regent-ops-fit summary", "How the products fit together")
+
+    # Account details are a closed secondary disclosure for a visitor.
+    assert has_element?(view, "details#regent-ops-account")
+    refute has_element?(view, "details#regent-ops-account[open]")
     assert html =~ "100 REGENT"
 
     assert html =~
@@ -31,7 +47,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
 
   # Each metric is a term and its value inside a definition list, so the pairing
   # is exposed as a pairing rather than as loose terms in a generic container.
-  test "U2_VALID_METRIC_SEMANTICS: the overview summary is a definition list", %{conn: conn} do
+  test "the account summary is a definition list", %{conn: conn} do
     seed_shared_reading()
     {:ok, view, _html} = live(conn, "/app")
 
@@ -43,20 +59,16 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert has_element?(view, ~s(dl.regent-ops-summary > div > dd))
   end
 
-  # Stake, Redeem, and Run your Regent are things an account can do, not readings
-  # of the network summary, so a pending or failed Base read never withdraws them
-  # and the unavailable notice keeps its word.
-  test "U6_VALID_ACTIONS_WITHOUT_NETWORK_SUMMARY: account actions outlive the summary read", %{
-    conn: conn
-  } do
+  # The product map is public copy, so a pending or failed Base read never
+  # withdraws it or the account actions, and the unavailable notice keeps its word.
+  test "products and account actions outlive the network summary read", %{conn: conn} do
     SnapshotCache.clear()
     on_exit(&SnapshotCache.clear/0)
 
     {:ok, view, html} = live(conn, "/app")
 
-    assert html =~ "Stake REGENT"
-    assert html =~ "Redeem Animata"
-    assert html =~ "Run your Regent"
+    assert has_element?(view, ~s(ul[aria-label="Products"] h2), "Techtree")
+    assert has_element?(view, ~s(a[href="/regent"]), "$REGENT")
     assert html =~ "Network details are unavailable right now."
     refute has_element?(view, "dl.regent-ops-summary")
 
@@ -67,7 +79,9 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
   end
 
-  test "a signed-in account sees its wallet balances, position, and rewards", %{conn: conn} do
+  test "a signed-in account sees its wallet balances, position, and rewards open", %{
+    conn: conn
+  } do
     seed_shared_reading()
 
     {:ok, account} =
@@ -80,6 +94,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
 
     html = render_async(view)
 
+    assert has_element?(view, "details#regent-ops-account[open]")
     assert html =~ "0x1111…1111"
     assert html =~ "10 REGENT"
     assert html =~ "4.25 USDC"
@@ -95,9 +110,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   # left blank. Printing blanks and nothing else would tell the account holder
   # their balances are zero, so the page says the reading failed and keeps the
   # contract figures every visitor shares.
-  test "WALLET_READ_FAILURE_IS_SAID: a failed wallet reading is named, not shown as blanks", %{
-    conn: conn
-  } do
+  test "a failed wallet reading is named, not shown as blanks", %{conn: conn} do
     seed_shared_reading()
     Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
     on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_wallet_error) end)

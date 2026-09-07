@@ -13,6 +13,7 @@
 @import "./pages/stake.css";
 @import "./pages/redeem.css";
 @import "./pages/regent_ops.css";
+@import "./pages/regent_token.css";
 @import "./pages/regent_profile.css";
 @import "./pages/settings.css";
 @import "./components/account_auth_status.css";

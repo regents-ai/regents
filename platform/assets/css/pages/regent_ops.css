@@ -1,55 +1,186 @@
+/* Overview stands on the Stake and Redeem grammar: one ground, hairline panels,
+   display headings and a mono voice for kickers. Spacing runs on 8px steps and
+   panels use a 24px inset. Nothing here is a global token. */
+
 .regent-ops-page {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  min-width: 0;
 }
 
 .regent-ops-heading,
-.regent-ops-summary,
-.regent-ops-account {
-  border: 1px solid transparent;
-  border-radius: var(--material-radius, 4px);
-  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(var(--material-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+.regent-ops-product,
+.regent-ops-details {
+  min-width: 0;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+  background: var(--ash-panel);
 }
 
-.regent-ops-heading,
-.regent-ops-account {
-  padding: clamp(1rem, 3vw, 1.75rem);
+.regent-ops-details summary {
+  border-radius: 24px;
 }
 
-.regent-ops-heading > *,
-.regent-ops-account > * {
-  margin-block: 0;
+.regent-ops-details[open] summary {
+  border-radius: 24px 24px 0 0;
 }
+
+.regent-ops-page h1,
+.regent-ops-page h2,
+.regent-ops-page h3 {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  font-weight: 400;
+}
+
+.regent-ops-page p {
+  margin: 0;
+}
+
+.regent-ops-kicker,
+.regent-ops-metric dt {
+  color: var(--ash-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Heading */
 
 .regent-ops-heading {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.regent-ops-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.regent-ops-heading h1:focus {
+  outline: none;
+}
+
+.regent-ops-lede {
+  max-width: 56ch;
+  color: var(--ash-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+/* Products */
+
+.regent-ops-products {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.regent-ops-product {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  padding: 1.5rem;
+}
+
+.regent-ops-product h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.regent-ops-product > p:not(.regent-ops-kicker) {
+  color: var(--ash-muted);
+  line-height: 1.5;
+}
+
+.regent-ops-product-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.regent-ops-product-links a,
+.regent-ops-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: 24px;
+  color: inherit;
+  font-family: var(--font-family-mono);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.regent-ops-product-links a:hover,
+.regent-ops-actions a:hover {
+  border-color: currentColor;
+}
+
+/* Disclosures */
+
+.regent-ops-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.regent-ops-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.regent-ops-details summary > span:first-child {
+  display: grid;
   gap: 0.5rem;
 }
 
-.regent-ops-heading h1,
-.regent-ops-account h2 {
-  margin-block: 0.35rem 0.5rem;
+.regent-ops-chevron {
+  flex: none;
+  color: var(--ash-muted);
+  transition: transform 180ms var(--ease-out);
 }
 
-.regent-ops-kicker,
-.regent-ops-wallet,
-.regent-ops-metric dt {
-  font-family: var(--font-family-mono, monospace);
+.regent-ops-details[open] .regent-ops-chevron {
+  transform: rotate(180deg);
 }
 
-.regent-ops-kicker,
-.regent-ops-metric dt {
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.regent-ops-details-body {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
 }
+
+.regent-ops-fit .regent-ops-details-body p {
+  max-width: 64ch;
+  line-height: 1.55;
+}
+
+.regent-ops-summary-label {
+  font-size: 1.05rem;
+}
+
+/* Account */
 
 .regent-ops-layout {
   display: grid;
   grid-template-columns: minmax(13rem, 0.65fr) minmax(18rem, 1.35fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .regent-ops-summary,
@@ -61,20 +192,34 @@
 
 .regent-ops-summary {
   align-self: start;
-  padding: 1rem;
+  padding: 0 1rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
 }
 
-.regent-ops-account {
+.regent-ops-signin,
+.regent-ops-identity {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
+  align-content: start;
+}
+
+.regent-ops-signin h3,
+.regent-ops-identity h3 {
+  font-size: 1.4rem;
+}
+
+.regent-ops-wallet {
+  color: var(--ash-muted);
+  font-family: var(--font-family-mono);
 }
 
 .regent-ops-metric {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding-block: 0.8rem;
-  border-bottom: 1px solid var(--hairline);
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--ash-line);
 }
 
 .regent-ops-metric:last-child {
@@ -97,45 +242,35 @@
 
 .regent-ops-actions {
   display: flex;
-  grid-column: 1 / -1;
   flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.regent-ops-actions a {
-  min-height: 2.75rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid var(--hairline-strong);
-  background: var(--color-surface-elevated);
-  text-decoration: none;
-}
-
-.regent-ops-actions a:hover {
-  border-color: currentColor;
+  gap: 0.5rem;
 }
 
 .regent-ops-status {
-  padding: 1rem;
-  border-left: 3px solid currentColor;
-  background: var(--color-surface-elevated);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--ash-line);
+  border-radius: 24px;
+  background: var(--ash-panel-strong);
 }
 
 @media (max-width: 48rem) {
+  .regent-ops-heading,
+  .regent-ops-product,
+  .regent-ops-details summary {
+    padding: 1rem;
+  }
+
+  .regent-ops-details-body {
+    padding: 0 1rem 1rem;
+  }
+
   .regent-ops-layout {
     grid-template-columns: 1fr;
   }
-
-  .regent-ops-actions {
-    grid-column: auto;
-  }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .regent-ops-heading,
-  .regent-ops-summary,
-  .regent-ops-account {
-    background: var(--color-surface-elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+@media (prefers-reduced-motion: reduce) {
+  .regent-ops-chevron {
+    transition: none;
   }
 }

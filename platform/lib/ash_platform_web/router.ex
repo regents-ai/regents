@@ -117,6 +117,7 @@ defmodule AshPlatformWeb.Router do
       live "/autolaunch/subjects/:id", ShellLive, :autolaunch_subject
       live "/autolaunch/holdings", ShellLive, :autolaunch_holdings
       live "/autolaunch/create", ShellLive, :autolaunch_create
+      live "/regent", ShellLive, :regent_token
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/regents-club/metadata-cutover", ShellLive, :regents_club_metadata

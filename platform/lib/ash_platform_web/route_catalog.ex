@@ -128,6 +128,13 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :autolaunch_create
     },
     %Entry{
+      path_pattern: "/regent",
+      live_action: :regent_token,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :regent_token
+    },
+    %Entry{
       path_pattern: "/stake",
       live_action: :stake,
       parameter_schema: %{},
@@ -199,6 +206,9 @@ defmodule AshPlatformWeb.RouteCatalog do
     autolaunch_create:
       {:autolaunch_create, :autolaunch, "Autolaunch", "Create", "/autolaunch",
        [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :workflow, %{}},
+    regent_token:
+      {:regent_token, :regent_ops, "Regents Labs", "$REGENT", "/app", [:profile_actions], :none,
+       :regents_labs, :detail, %{}},
     stake:
       {:stake, :regent_ops, "Regents Labs", "Stake", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}},
@@ -317,6 +327,7 @@ defmodule AshPlatformWeb.RouteCatalog do
       id: :regent_ops,
       targets: [
         %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
+        %RouteTarget{route_id: :regent_token, label: "$REGENT", path: "/regent"},
         %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %ViewerProfileTarget{label: "Profile"}
