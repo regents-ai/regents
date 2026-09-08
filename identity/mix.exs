@@ -10,7 +10,7 @@ defmodule RegentIdentity.MixProject do
       elixir: "~> 1.19",
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
-        {:ash, "~> 3.32.3"},
+        {:ash, "~> 3.33.0"},
         {:ash_postgres, "~> 2.13"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},
