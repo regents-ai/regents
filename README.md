@@ -1,8 +1,13 @@
-# Regents
+# regents.sh platform
 
 Agent identity and operations, with staking and redemption on Base.
 Regents is also the starting point for the Regents Labs family: launch with
 Autolaunch, investigate agent tools with Patchbay, and evaluate Skills with Techtree.
+
+The main Regent web application, built by Regents Labs on Phoenix, LiveView,
+and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
+it owns $REGENT staking and yield, Animata pass redemption, human <> agent linking, and is a
+general informational directory for the varied apps and products made by Regents Labs.
 
 [Website](https://regents.sh) · [CLI](cli/README.md) · [API](platform/contracts/api-contract.openapiv3.yaml) · [Star on GitHub](https://github.com/regents-ai/regents)
 
