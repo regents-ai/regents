@@ -37,7 +37,6 @@ defmodule AshPlatformWeb.HomeLive do
             height="186"
             alt=""
           />
-          <span>Regents Labs</span>
         </.link>
 
         <nav class="rl-product-tabs" aria-label="Homepage sections">
