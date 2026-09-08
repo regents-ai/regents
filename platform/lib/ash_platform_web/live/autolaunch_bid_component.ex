@@ -59,7 +59,12 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <section id={@id} class="bid-panel" phx-hook="AutolaunchBidWallet" phx-target={@myself}>
+    <section
+      id={@id}
+      class="bid-panel rg-panel rg-panel--surface rg-panel__body"
+      phx-hook="AutolaunchBidWallet"
+      phx-target={@myself}
+    >
       <header class="bid-heading">
         <h2>Place a bid</h2>
         <p>Bid REGENT for this launch. Your wallet confirms every step.</p>
@@ -68,12 +73,12 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
       <.notice :if={@notice} notice={@notice} />
 
       <p :if={!@authenticated} class="bid-empty">
-        <button type="button" data-account-target="sign-in">Sign in to bid</button>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to bid</Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="bid-empty">
         <p>Choose the wallet you want to bid from.</p>
-        <button type="button" data-bid-connect>Connect or switch wallet</button>
+        <Regent.Primitives.button type="button" data-bid-connect>Connect or switch wallet</Regent.Primitives.button>
       </div>
 
       <div :if={@authenticated && @wallet} class="bid-body">
@@ -103,26 +108,36 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
               autocomplete="off"
               placeholder="0.0"
             />
-            <button type="button" phx-click="fill_bid_amount" phx-target={@myself}>Max</button>
+            <Regent.Primitives.button
+              variant="secondary"
+              type="button"
+              phx-click="fill_bid_amount"
+              phx-target={@myself}
+            >Max</Regent.Primitives.button>
           </div>
 
-          <label for={"#{@id}-max-price"}>Maximum price</label>
-          <input
-            id={"#{@id}-max-price"}
-            name="max_price"
-            value={@max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
+          <Regent.Primitives.field id={"#{@id}-max-price"} label="Maximum price">
+            <input
+              id={"#{@id}-max-price"}
+              name="max_price"
+              value={@max_price}
+              inputmode="decimal"
+              autocomplete="off"
+              placeholder="0.0"
+            />
+          </Regent.Primitives.field>
 
           <p :if={@estimate} class="bid-estimate">
             You would receive about {@estimate} tokens if the auction ended now.
           </p>
 
-          <button class="bid-primary" type="submit" disabled={@amount == "" or @max_price == ""}>
+          <Regent.Primitives.button
+            class="bid-primary"
+            type="submit"
+            disabled={@amount == "" or @max_price == ""}
+          >
             Review bid
-          </button>
+          </Regent.Primitives.button>
         </form>
 
         <section :if={@operation} id={"#{@id}-review"} class="bid-review" aria-label="Bid review">
@@ -154,18 +169,18 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             {settled_copy(@operation.state)}
           </p>
 
-          <button
+          <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-bid-send={@operation.action_id}
             data-bid-signer={@operation.signer}
           >
             Confirm in wallet
-          </button>
+          </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This bid belongs to another wallet. Switch back to it to finish.
           </p>
-          <button
+          <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
             phx-click="check_bid_step"
@@ -173,8 +188,8 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             phx-target={@myself}
           >
             Check again
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_bid_review"
@@ -182,8 +197,8 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             phx-target={@myself}
           >
             Cancel
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state in [:dispatched, :submitted]}
             type="button"
             phx-click="start_new_bid"
@@ -191,15 +206,15 @@ defmodule AshPlatformWeb.AutolaunchBidComponent do
             phx-target={@myself}
           >
             Start a new bid
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.terminal_at}
             type="button"
             phx-click="clear_bid"
             phx-target={@myself}
           >
             Place another bid
-          </button>
+          </Regent.Primitives.button>
         </section>
       </div>
     </section>

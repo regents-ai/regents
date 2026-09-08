@@ -16,7 +16,7 @@ const state = (overrides: Partial<ShellState> = {}): ShellState => ({
 
 describe("shell brand reconciliation", () => {
   it("[U2] maps shell applications to the canonical RegentUI brands", () => {
-    expect(brandForShellApp("autolaunch")).toBe("autolaunch")
+    expect(brandForShellApp("autolaunch")).toBe("platform")
     expect(brandForShellApp("formation")).toBe("platform")
     expect(brandForShellApp(undefined)).toBe("platform")
   })

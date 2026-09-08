@@ -1,50 +1,11 @@
-/* The mat guide is the active brand's accent, so it follows the brand the server
-   selected rather than the theme choice. Formation and Autolaunch name their own
-   product hue instead. */
-.shell-background {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  min-width: 0;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  opacity: 0.12;
-  --shell-background-guide: var(--color-accent);
-}
-
-.shell-background__asset {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--shell-background-guide);
-  mask: var(--shell-background-mask) center / cover no-repeat;
-  -webkit-mask: var(--shell-background-mask) center / cover no-repeat;
-}
-
-.shell-background[data-background-slot="formation"] {
-  --shell-background-guide: var(--product-formation);
-}
-
-.shell-background[data-background-slot="autolaunch"] {
-  --shell-background-guide: var(--brand-accent);
-}
-
-@media (max-width: 44rem) {
-  .shell-background__asset {
-    min-width: 100%;
-  }
-}
-
 #app-shell {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template: auto minmax(0, 1fr) / minmax(13rem, 17rem) minmax(0, 1fr);
-  width: 100%;
+  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr);
   min-width: 0;
   height: 100dvh;
-  overflow: hidden;
+  overflow: visible;
   background: var(--ash-ground);
   color: var(--ash-ink);
   font-family: var(--font-family-ui);
@@ -101,7 +62,6 @@
 /* Every header control is a bordered cell, as the marketing header's tabs are. */
 .shell-brand,
 .account-control summary,
-.account-control > button,
 .mobile-menu-button,
 .theme-toggle {
   display: flex;
@@ -136,7 +96,6 @@
 @media (hover: hover) {
   .shell-brand:hover,
   .account-control summary:hover,
-  .account-control > button:hover,
   .mobile-menu-button:hover {
     background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
   }
@@ -186,7 +145,7 @@
 .shell-chevron {
   margin-left: 0.25rem;
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
@@ -228,7 +187,7 @@ details[open] > summary .shell-chevron {
   align-items: center;
   gap: 0.5rem;
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -338,7 +297,7 @@ details[open] > summary .shell-chevron {
   left: calc(50% - 0.055rem);
   width: 0.11rem;
   background: var(--theme-toggle-laser);
-  box-shadow: 0 0 0.28rem var(--theme-toggle-laser-glow);
+
 }
 
 .theme-toggle__cube {
@@ -348,7 +307,7 @@ details[open] > summary .shell-chevron {
   width: 0.72rem;
   height: 0.72rem;
   transform-style: preserve-3d;
-  animation: theme-cube-spin 14s linear infinite;
+  transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(28deg);
 }
 
 .theme-toggle__face {
@@ -422,7 +381,7 @@ details[open] > summary .shell-chevron {
 }
 
 /* The left nav reads as the marketing page's bordered cells: one line under each
-   destination, the label tracked and set in the pixel voice. */
+   destination, the label tracked and set in the Sans UI voice. */
 #shell-sidebar li > a,
 #shell-sidebar li > button,
 #shell-sidebar [data-tree] > a {
@@ -436,7 +395,7 @@ details[open] > summary .shell-chevron {
   border-radius: 0;
   background: transparent;
   color: var(--ash-muted);
-  font-family: var(--font-family-pixel);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.07em;
   text-align: left;
@@ -468,7 +427,7 @@ details[open] > summary .shell-chevron {
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--ash-line);
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.66rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -488,10 +447,10 @@ details[open] > summary .shell-chevron {
 }
 
 #route-content {
-  width: min(74rem, 100%);
+  width: 100%;
   min-height: 100%;
   margin-inline: auto;
-  padding: clamp(1.25rem, 3vw, 2.5rem);
+  padding: var(--rg-panel-padding);
 }
 
 #shell-header button:active,
@@ -555,7 +514,7 @@ details[open] > summary .shell-chevron {
     flex: 0 0 auto;
     justify-content: center;
     padding-inline: 0.65rem;
-    font-family: var(--font-family-mono);
+    font-family: var(--font-family-ui);
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -574,8 +533,7 @@ details[open] > summary .shell-chevron {
     height: 2rem;
   }
 
-  .account-control > button,
-  .account-control summary {
+    .account-control summary {
     max-width: 6rem;
     padding-inline: 0.5rem;
     overflow: hidden;
@@ -606,7 +564,7 @@ details[open] > summary .shell-chevron {
     border-radius: 0;
     background: transparent;
     color: var(--ash-muted);
-    font-family: var(--font-family-mono);
+    font-family: var(--font-family-ui);
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -664,5 +622,21 @@ details[open] > summary .shell-chevron {
   }
 }
 
-/* The approved page mat remains visible behind shell regions. */
-#app-shell { background: transparent; }
+/* The frame itself owns the ruled edges; there is no decorative page mat. */
+#shell-sidebar ul { padding: var(--space-1); }
+#shell-sidebar [aria-current="page"] { border-inline-start: 3px solid currentColor; font-weight: 600; }
+.shell-brand__name { font-family: var(--font-family-title); font-weight: 400; }
+#shell-header { flex-wrap: wrap; }
+#shell-header > a:not(.shell-brand) { align-self: center; padding: var(--space-1); font-size: .75rem; }
+.account-control > .rg-button { margin: var(--space-1); height: auto; }
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+  #app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
+  #shell-sidebar { border-inline-end: 0; border-block-end: 1px solid var(--ash-line); }
+  #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 47.99rem) {
+  #shell-header > a:not(.shell-brand) { display: none; }
+  #shell-header .account-control { min-width: 0; }
+  #shell-header .account-control summary { overflow: visible; white-space: normal; }
+  .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: 1rem; }
+}

@@ -52,7 +52,7 @@ defmodule AshPlatformWeb.SharedProfileControllerTest do
     assert json_response(updated, 200)["profile"]["display_name"] == "Shared name"
   end
 
-  test "profile first render honors the saved theme while home retains its dark presentation" do
+  test "profile and home first renders honor the saved theme" do
     for theme <- ["light", "dark"], path <- ["/profile", "/"] do
       document =
         build_conn()
@@ -61,7 +61,7 @@ defmodule AshPlatformWeb.SharedProfileControllerTest do
         |> html_response(200)
         |> LazyHTML.from_document()
 
-      expected = if path == "/", do: "dark", else: theme
+      expected = theme
 
       assert document |> LazyHTML.query("html") |> LazyHTML.attribute("data-brand") == [
                "platform"

@@ -36,6 +36,7 @@ defmodule AshPlatformWeb.Router do
       plug AshPlatformWeb.Showcase.LocalOnly
       plug :accepts, ["html", "json"]
       plug :fetch_session
+      plug :enforce_session_authority
       plug :fetch_live_flash
       plug AshPlatformWeb.Plugs.Theme
       plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
@@ -48,9 +49,12 @@ defmodule AshPlatformWeb.Router do
       get "/catalog", Showcase.CatalogController, :show
       get "/style.css", Showcase.CatalogController, :style
 
-      live_session :local_showcase, on_mount: [AshPlatformWeb.Showcase.LocalOnly] do
+      live_session :local_showcase,
+        session: {AshPlatformWeb.Live.Session, :render_context, []},
+        on_mount: [AshPlatformWeb.Showcase.LocalOnly, {AshPlatformWeb.Live.Session, :load_human}] do
         live "/", ShowcaseLive, :index
         live "/preview", ShowcaseLive, :preview
+        live "/privy", PrivyShowcaseLive, :index
       end
     end
   end

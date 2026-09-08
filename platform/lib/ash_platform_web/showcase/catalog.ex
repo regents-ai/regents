@@ -4,9 +4,11 @@ defmodule AshPlatformWeb.Showcase.Catalog do
   @components [
     {Regent.Primitives, [:button, :field, :status, :notice, :empty_state, :disclosure]},
     {Regent.Panels, [:chamber, :ledger]},
+    {Regent.Structure,
+     [:frame, :row, :section_bar, :panel, :technical_figure, :capability_card, :ratio_card]},
     {Regent.SiteBackground, [:site_background]},
     {AshPlatformWeb.Components.Background, [:background]},
-    {AshPlatformWeb.Components.Shell, [:shell, :theme_toggle]},
+    {AshPlatformWeb.Components.Shell, [:shell, :account_control, :theme_toggle]},
     {AshPlatformWeb.Components.CommentLedger, [:comment_ledger]},
     {AshPlatformWeb.Components.VerifiedConnections, [:verified_connections]},
     {AshPlatformWeb.Layouts, [:app, :root]}
@@ -82,24 +84,21 @@ defmodule AshPlatformWeb.Showcase.Catalog do
     |> Enum.uniq()
     |> Enum.sort_by(fn {module, _} -> inspect(module) end)
     |> Enum.flat_map(fn {module, owner} ->
-      if Code.ensure_loaded?(module) and function_exported?(module, :__info__, 1) do
-        functions =
-          module.__info__(:functions)
-          |> Enum.reject(fn {name, _} -> String.starts_with?(Atom.to_string(name), "__") end)
-
-        if functions == [],
-          do: [],
-          else: [
-            %{
-              name: inspect(module),
-              owner: owner,
-              functions: Enum.map(functions, fn {name, arity} -> "#{name}/#{arity}" end)
-            }
-          ]
-      else
-        []
+      case exported_functions(module) do
+        [] -> []
+        functions -> [%{name: inspect(module), owner: owner, functions: functions}]
       end
     end)
+  end
+
+  defp exported_functions(module) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :__info__, 1) do
+      for {name, arity} <- module.__info__(:functions),
+          not String.starts_with?(Atom.to_string(name), "__"),
+          do: "#{name}/#{arity}"
+    else
+      []
+    end
   end
 
   def snapshot,
@@ -115,6 +114,8 @@ end
 defmodule AshPlatformWeb.Showcase.CatalogController do
   use AshPlatformWeb, :controller
 
+  # The path is the fixed priv stylesheet; no request value reaches send_file.
+  # sobelow_skip ["Traversal.SendFile"]
   def style(conn, _params),
     do:
       conn

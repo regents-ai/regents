@@ -9,10 +9,23 @@ end
 
 defmodule AshPlatformWeb.Showcase.Sample do
   @moduledoc "Local, data-layer-less resource. Its records never reach Postgres."
-  use Ash.Resource, domain: AshPlatformWeb.Showcase.Domain, data_layer: Ash.DataLayer.Simple
+  use Ash.Resource,
+    domain: AshPlatformWeb.Showcase.Domain,
+    data_layer: Ash.DataLayer.Simple,
+    authorizers: [Ash.Policy.Authorizer]
 
   resource do
     require_primary_key? false
+  end
+
+  policies do
+    # The workshop has no signed-in actor and this resource holds no data: each
+    # record lives only in the loopback-only LiveView that created it. Reaching
+    # the route is the boundary; the policy states that openly instead of
+    # skipping authorization at each call.
+    policy action(:create) do
+      authorize_if always()
+    end
   end
 
   attributes do

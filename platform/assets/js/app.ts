@@ -21,6 +21,7 @@ import {
 import {HomeField} from "./hooks/home_field"
 import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
+import {ProductArtwork} from "./hooks/product_artwork"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
@@ -75,35 +76,42 @@ function writeThemeCookie(theme: Theme) {
 
 let savedTheme = readThemeCookie()
 
-const pageTheme = (): Theme => savedTheme ?? "dark"
-
-// The marketing page is painted dark for everyone, so the saved theme never
-// reaches it.
-const marketingLanding = () => window.location.pathname === "/"
+// The public crown is a dark-only composition, not a change to visitor preference.
+const homeThemeLocked = () => window.location.pathname === "/"
+const pageTheme = (): Theme => homeThemeLocked() ? "dark" : savedTheme ?? "dark"
 
 function applyTheme(theme: Theme) {
   const selected = themes[theme]
   document.documentElement.dataset.theme = theme
+  document.documentElement.dataset.homeThemeLocked = String(homeThemeLocked())
+  if (homeThemeLocked()) document.documentElement.dataset.brand = "platform"
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#161616" : "#e5e3d2")
 
   document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach(toggle => {
+    toggle.hidden = homeThemeLocked()
     toggle.setAttribute("aria-pressed", String(theme === "light"))
     toggle.setAttribute(
       "aria-label",
-      `Color theme: ${selected.name}. Activate ${selected.nextName} theme.`,
+      homeThemeLocked() ? "Color theme: Dark. Fixed on the homepage." : `Color theme: ${selected.name}. Activate ${selected.nextName} theme.`,
     )
-    toggle.setAttribute("title", `Switch to ${selected.nextName}`)
+    toggle.setAttribute("title", homeThemeLocked() ? "Dark homepage" : `Switch to ${selected.nextName}`)
     const state = toggle.querySelector("[data-theme-toggle-state]")
     if (state) state.textContent = `${selected.name} theme active`
   })
 }
 
 function syncTheme() {
-  if (marketingLanding()) return
+  savedTheme = readThemeCookie()
   applyTheme(pageTheme())
 }
 
 document.addEventListener("click", event => {
   if (!(event.target instanceof Element) || !event.target.closest("[data-theme-toggle]")) return
+  if (homeThemeLocked()) {
+    event.preventDefault()
+    return
+  }
 
   const active = document.documentElement.dataset.theme
   const theme: Theme = (isTheme(active) ? active : pageTheme()) === "dark" ? "light" : "dark"
@@ -113,6 +121,8 @@ document.addEventListener("click", event => {
 })
 
 window.addEventListener("phx:page-loading-stop", syncTheme)
+window.addEventListener("popstate", syncTheme)
+window.addEventListener("pageshow", syncTheme)
 syncTheme()
 
 const shellBehavior: Hook = {
@@ -323,6 +333,7 @@ const hooks = {
   HomeField,
   HomeHero,
   HomePrism,
+  ProductArtwork,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   RegentsClubMetadataWallet,

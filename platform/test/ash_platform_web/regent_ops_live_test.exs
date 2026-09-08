@@ -15,10 +15,10 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert has_element?(view, "#regent-ops-overview .regent-ops-heading h1")
 
     products = ~s(ul[aria-label="Products"])
-    assert has_element?(view, "#{products} h2", "Regents")
-    assert has_element?(view, "#{products} h2", "Autolaunch")
-    assert has_element?(view, "#{products} h2", "Techtree")
-    assert has_element?(view, "#{products} h2", "Patchbay")
+    assert has_element?(view, "#{products} h3", "Regents")
+    assert has_element?(view, "#{products} h3", "Autolaunch")
+    assert has_element?(view, "#{products} h3", "Techtree")
+    assert has_element?(view, "#{products} h3", "Patchbay")
     assert has_element?(view, ~s(#{products} a[href="/stake"]), "Stake")
     assert has_element?(view, ~s(#{products} a[href="/redeem"]), "Redeem")
 
@@ -66,7 +66,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
 
     {:ok, view, html} = live(conn, "/app")
 
-    assert has_element?(view, ~s(ul[aria-label="Products"] h2), "Techtree")
+    assert has_element?(view, ~s(ul[aria-label="Products"] h3), "Techtree")
     assert html =~ "Network details are unavailable right now."
     refute has_element?(view, "dl.regent-ops-summary")
 

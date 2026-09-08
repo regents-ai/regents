@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.SettingsLive do
 
       <.verified_connections
         id="settings-verified-connections"
-        class="settings-section"
+        class="settings-section rg-panel rg-panel--surface rg-panel__body"
         identities={@verified_connections}
         notice={@verified_connections_notice}
       />

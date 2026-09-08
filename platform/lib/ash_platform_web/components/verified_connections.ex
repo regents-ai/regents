@@ -50,7 +50,7 @@ defmodule AshPlatformWeb.Components.VerifiedConnections do
             <.connection identity={@identities_by_provider[entry.provider]} />
           </div>
 
-          <button
+          <Regent.Primitives.button
             :if={@authenticated && is_nil(@identities_by_provider[entry.provider])}
             type="button"
             phx-click="request_verified_connection"
@@ -58,9 +58,9 @@ defmodule AshPlatformWeb.Components.VerifiedConnections do
             phx-value-provider={entry.provider}
           >
             Connect
-          </button>
+          </Regent.Primitives.button>
 
-          <button
+          <Regent.Primitives.button
             :if={@authenticated && @identities_by_provider[entry.provider]}
             type="button"
             phx-click="request_verified_connection"
@@ -68,15 +68,15 @@ defmodule AshPlatformWeb.Components.VerifiedConnections do
             phx-value-provider={entry.provider}
           >
             Disconnect
-          </button>
+          </Regent.Primitives.button>
 
-          <button
+          <Regent.Primitives.button
             :if={!@authenticated}
             type="button"
             data-account-target="sign-in"
           >
             Sign in to connect
-          </button>
+          </Regent.Primitives.button>
         </li>
       </ul>
     </section>

@@ -188,7 +188,10 @@ defmodule AshPlatformWeb.ShellLive do
          |> maybe_start_regents_club_metadata(route_spec, generation)}
 
       true ->
-        {:noreply, assign(socket, content_status: :ready)}
+        {:noreply,
+         socket
+         |> assign(content_status: :ready)
+         |> paint_initial_staking(route_spec)}
     end
   end
 
@@ -1248,6 +1251,7 @@ defmodule AshPlatformWeb.ShellLive do
 
         <RegentOpsLive.page
           :if={@route_spec.route_id == :app}
+          reading={not is_nil(@staking_read)}
           staking={@staking}
           status={@staking_status}
           notice={@staking_notice}
@@ -1298,6 +1302,7 @@ defmodule AshPlatformWeb.ShellLive do
           token_id={@redemption_token_id}
           notice={@redemption_notice}
           reading={redemption_reading?(assigns)}
+          signed_in={authenticated?(@access_context)}
           refresh_block={@redemption_refresh_block}
           step={redemption_step(assigns)}
           owned_collectibles={@owned_collectibles}
@@ -1333,7 +1338,10 @@ defmodule AshPlatformWeb.ShellLive do
           aria-busy="true"
         >
           <h1>{@route_spec.page_display_label}</h1>
-          <p>Loading this view</p>
+          <AshPlatformWeb.Components.Loading.panel
+            id="shell-content-skeleton"
+            label={@route_spec.page_display_label}
+          />
         </section>
 
         <section
@@ -1558,10 +1566,18 @@ defmodule AshPlatformWeb.ShellLive do
   # With no successful shared reading yet, there is nothing honest to show and
   # nothing this visitor can do about it alone; the page says so and a signed-in
   # visitor is offered the control that takes one.
-  defp paint_shared_snapshot(socket) do
+  # The disconnected HTTP render can use the server cache immediately. Never
+  # start a chain or per-wallet request here; those remain asynchronous after
+  # connection, and no private wallet facts enter this shared projection.
+  defp paint_initial_staking(socket, %{route_id: route_id}) when route_id in [:app, :stake],
+    do: paint_shared_snapshot(socket, :loading)
+
+  defp paint_initial_staking(socket, _route), do: socket
+
+  defp paint_shared_snapshot(socket, empty_status \\ :error) do
     case SnapshotCache.snapshot() do
       nil ->
-        assign(socket, staking: nil, staking_status: :error)
+        assign(socket, staking: nil, staking_status: empty_status)
 
       protocol ->
         assign(socket,

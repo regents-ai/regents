@@ -107,7 +107,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view = mount_stake(conn)
     html = render(view)
 
-    assert conn |> get("/stake") |> html_response(200)
+    first_render = conn |> get("/stake") |> html_response(200)
+    assert first_render =~ ~s(id="staking-supply-bar")
+    refute first_render =~ "Loading staking contract data"
     assert has_element?(view, "#staking-supply-bar")
     assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
 
@@ -206,14 +208,18 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, ".figure-unavailable")
   end
 
-  test "CORE_READING_FAILS: only a failed contract reading empties the page", %{conn: conn} do
+  test "CORE_READING_FAILS: the page keeps its layout without inventing contract facts", %{
+    conn: conn
+  } do
     Application.put_env(:ash_platform, :test_staking_protocol_error, :provider_failure)
 
     view = signed_in_stake(conn, "core-reading-fails")
 
     assert staking_assigns(view).staking_status == :error
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
-    refute has_element?(view, ".stake-layout")
+    assert has_element?(view, ".stake-layout")
+    assert has_element?(view, "#staking-contract-skeleton[aria-busy=false]")
+    refute has_element?(view, "#staking-supply-bar")
     refute has_element?(view, "button[data-staking-action]")
 
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
@@ -229,13 +235,13 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do
     view = mount_stake(conn)
 
-    assert render(view) =~ "--circulating-share: 35%; --staked-share: 0%"
+    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="0"]))
 
     put_circulating("500000000000000000000")
     view = mount_stake(conn)
 
-    assert has_element?(view, ".stake-supply-heading", "20% of circulating supply staked")
-    assert render(view) =~ "--staked-share: 20%"
+    assert has_element?(view, "#staking-supply-bar", "Circulating supply staked")
+    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="20"]))
   end
 
   test "SUPPLY_SHARE_TRUNCATES: a share landing halfway is cut rather than rounded up", %{
@@ -246,8 +252,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view = mount_stake(conn)
     html = render(view)
 
-    assert has_element?(view, ".stake-supply-heading", "3.12% of circulating supply staked")
-    assert html =~ "--staked-share: 3.12%"
+    assert has_element?(view, "#staking-supply-bar", "3.12%")
+    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="3.12"]))
     refute html =~ "3.13"
   end
 
@@ -606,6 +612,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
   test "COLD_START_WALLET: connecting a wallet with no contract reading buys no chain read", %{
     conn: conn
   } do
+    first_render = conn |> get("/stake") |> html_response(200)
+    assert first_render =~ ~s(id="staking-benefits-skeleton")
+    assert first_render =~ ~s(id="staking-contract-skeleton")
+    assert first_render =~ ~s(id="staking-revenue-sources")
+    refute first_render =~ "Loading staking contract data"
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
     Application.put_env(:ash_platform, :test_staking_read_watcher, self())
     on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_read_watcher) end)

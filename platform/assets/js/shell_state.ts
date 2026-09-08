@@ -6,8 +6,8 @@ export type ShellState = {
 
 export type ShellBrand = "platform" | "autolaunch"
 
-export function brandForShellApp(app: string | undefined): ShellBrand {
-  if (app === "autolaunch") return app
+// Nested product routes retain the Regents platform palette.
+export function brandForShellApp(_app: string | undefined): ShellBrand {
   return "platform"
 }
 

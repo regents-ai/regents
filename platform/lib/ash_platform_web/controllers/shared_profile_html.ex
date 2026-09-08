@@ -3,7 +3,7 @@ defmodule AshPlatformWeb.SharedProfileHTML do
 
   def show(assigns) do
     ~H"""
-    <main class="regents-profile-page" style="max-width: 42rem; margin: 2rem auto; padding: 1rem;">
+    <main class="regents-profile-page rg-sheet rg-frame">
       <nav aria-label="Account" class="rg-profile-actions">
         <a href="/app">Regents</a>
         <div id="account-control">
@@ -19,7 +19,11 @@ defmodule AshPlatformWeb.SharedProfileHTML do
         </div>
       </nav>
       <Regent.Profile.panel />
-      <section class="rg-profile" data-owned-claims aria-labelledby="owned-claims-title">
+      <section
+        class="rg-profile rg-panel rg-panel--surface"
+        data-owned-claims
+        aria-labelledby="owned-claims-title"
+      >
         <h2 id="owned-claims-title">Historical names</h2>
         <Regent.Primitives.button data-claims-load>Load names</Regent.Primitives.button>
         <p data-claims-status role="status">Load names linked to your verified wallets.</p>

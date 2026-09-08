@@ -1,6 +1,6 @@
 defmodule AshPlatformWeb.Showcase.Utilities do
   @moduledoc false
-  alias AshPlatform.WalletActions.{Address, Abi, Rpc}
+  alias AshPlatform.WalletActions.{Abi, Address, Rpc}
 
   def address(value) do
     case Address.decode(value) do

@@ -1,4 +1,5 @@
 import {selectConnectedEthereumWallet} from "./wallet_actions/connected_wallet"
+import {PrivyShowcase} from "./hooks/privy_showcase"
 
 
 import {selectors} from "../vendor/regent_ui/tokens.json"
@@ -32,7 +33,7 @@ function luminance(hex: string): number {
 const contrast = (a: string, b: string) =>
   (Math.max(luminance(a), luminance(b)) + 0.05) /
   (Math.min(luminance(a), luminance(b)) + 0.05)
-type HookContext = {el: HTMLElement; cleanup?: () => void}
+type HookContext = {el: HTMLElement; cleanup?: () => void; refresh?: () => void}
 
 const Showcase = {
   mounted(this: HookContext) {
@@ -42,24 +43,32 @@ const Showcase = {
     const oldTheme = root.dataset.theme
     let brand = "platform",
       mode = "dark"
-    const storageKey = () => `regent-showcase:2026-09-palettes:${brand}:${mode}`
-    const load = (): Palette => {
+    const storageKey = (site = brand, theme = mode) => `regent-showcase:2026-09-palettes:${site}:${theme}`
+    const loadPalette = (site: string, theme: string): Palette => {
       try {
-        const saved = JSON.parse(localStorage.getItem(storageKey()) || "null")
+        const saved = JSON.parse(localStorage.getItem(storageKey(site, theme)) || "null")
         if (saved && colorKeys.every((k) => /^#[0-9a-f]{6}$/i.test(saved[k])))
-          return {...defaults[brand][mode], ...Object.fromEntries(colorKeys.map((key) => [key, saved[key]]))}
+          return {...defaults[site][theme], ...Object.fromEntries(colorKeys.map((key) => [key, saved[key]]))}
       } catch {
         /* Storage may be unavailable; defaults still work. */
       }
-      return {...defaults[brand][mode]}
+      return {...defaults[site][theme]}
     }
+    const load = () => loadPalette(brand, mode)
     let palette = load()
+    let shimmerColor: string | null = null
     const apply = () => {
       root.dataset.brand = brand
       root.dataset.theme = mode
       root.style.colorScheme = mode
+      this.el.removeAttribute("style")
+      const themeTokens = tokens[`:root[data-brand="${brand}"][data-theme="${mode}"]`]
+      Object.entries({...tokens[":root"], ...themeTokens}).forEach(([key, value]) =>
+        !key.startsWith("--rg-") && this.el.style.setProperty(key, value),
+      )
       colorKeys.forEach((key) => {
         root.style.setProperty(`--color-${key}`, palette[key])
+        this.el.style.setProperty(`--color-${key}`, palette[key])
         const input = this.el.querySelector<HTMLInputElement>(
           `[data-sc-color="${key}"]`,
         )!
@@ -72,6 +81,10 @@ const Showcase = {
         contrast(palette.accent, "#E5E3D2")
           ? "#161616"
           : "#E5E3D2"
+      if (shimmerColor) this.el.style.setProperty("--rg-shimmer-color", shimmerColor)
+      const shimmerInput = this.el.querySelector<HTMLInputElement>("[data-sc-shimmer-color]")!
+      shimmerInput.value = shimmerColor || palette.orange
+      this.el.querySelector("[data-sc-shimmer-value]")!.textContent = shimmerColor?.toUpperCase() || "Automatic"
       const derived: Record<string, string> = {
         "fg-muted": "color-mix(in srgb, var(--color-fg) 65%, var(--color-bg))",
         border: palette.border,
@@ -84,9 +97,10 @@ const Showcase = {
         "fg-on-accent": accentText,
         "accent-contrast": accentText,
       }
-      Object.entries(derived).forEach(([key, value]) =>
-        root.style.setProperty(`--color-${key}`, value),
-      )
+      Object.entries(derived).forEach(([key, value]) => {
+        root.style.setProperty(`--color-${key}`, value)
+        this.el.style.setProperty(`--color-${key}`, value)
+      })
       for (const [key, value] of Object.entries({
         bg: palette.bg,
         surface: palette.surface,
@@ -95,8 +109,13 @@ const Showcase = {
         "accent-ink": accentText,
         line: "var(--color-border)",
       })) {
-        if (brand === "patchbay") root.style.setProperty(`--pb-${key}`, value)
-        else root.style.removeProperty(`--pb-${key}`)
+        if (brand === "patchbay") {
+          root.style.setProperty(`--pb-${key}`, value)
+          this.el.style.setProperty(`--pb-${key}`, value)
+        } else {
+          root.style.removeProperty(`--pb-${key}`)
+          this.el.style.removeProperty(`--pb-${key}`)
+        }
       }
       this.el
         .querySelectorAll<HTMLElement>("[data-sc-brand]")
@@ -108,19 +127,16 @@ const Showcase = {
         .forEach((el) =>
           el.setAttribute("aria-pressed", String(el.dataset.scMode === mode)),
         )
-      this.el.querySelectorAll<HTMLButtonElement>("[data-sc-background]").forEach((button) => {
-        const selected = button.dataset.scBackground === `${brand}:${mode}`
+      this.el.querySelectorAll<HTMLButtonElement>("[data-sc-theme]").forEach((button) => {
+        const selected = button.dataset.scTheme === `${brand}:${mode}`
         button.setAttribute("aria-pressed", String(selected))
-        if (selected) {
-          const image = button.querySelector("img")!
-          root.style.setProperty("--sc-background", `url("${image.src}")`)
-          const preview = this.el.querySelector<HTMLImageElement>("[data-sc-background-preview]")!
-          preview.src = image.src
-          preview.alt = image.alt
-        }
+        const [cardBrand, cardMode] = button.dataset.scTheme!.split(":")
+        // Cards retain their own identity; the selected card reflects live edits.
+        const card = selected ? palette : loadPalette(cardBrand, cardMode)
+        for (const key of colorKeys) button.style.setProperty(`--sc-card-${key}`, card[key])
       })
-      const tokens = this.el.querySelector("[data-sc-tokens]")!
-      tokens.replaceChildren(...Object.entries(palette).map(([key, value]) => {
+      const tokenList = this.el.querySelector("[data-sc-tokens]")!
+      tokenList.replaceChildren(...Object.entries(palette).map(([key, value]) => {
         const row = document.createElement("div")
         const label = document.createElement("dt")
         label.textContent = ({bg: "Background", surface: "Surface", fg: "Text", accent: "Primary", primaryShade: "Primary shade", orange: "Tangerine", blue: "Powder blue", border: "Border", muted: "Muted"} as Record<string, string>)[key]
@@ -136,8 +152,8 @@ const Showcase = {
     const click = async (event: Event) => {
       const button = (event.target as Element).closest<HTMLElement>("button")
       if (!button) return
-      if (button.dataset.scBackground) {
-        const [nextBrand, nextMode] = button.dataset.scBackground.split(":")
+      if (button.dataset.scTheme) {
+        const [nextBrand, nextMode] = button.dataset.scTheme.split(":")
         if (defaults[nextBrand]?.[nextMode]) {
           brand = nextBrand
           mode = nextMode
@@ -165,9 +181,17 @@ const Showcase = {
         } catch {}
         apply()
       }
+      if (button.hasAttribute("data-sc-shimmer-reset")) {
+        shimmerColor = null
+        apply()
+      }
       if (button.dataset.scCopy) {
-        const value =
-          document.getElementById(button.dataset.scCopy)?.textContent || ""
+        const source = document.getElementById(button.dataset.scCopy)
+        const value = source?.matches("dl")
+          ? Array.from(source.querySelectorAll("dt"), term =>
+              `${term.textContent?.trim()}: ${term.nextElementSibling?.textContent?.trim() || ""}`,
+            ).join("\n")
+          : source?.textContent || ""
         try {
           await navigator.clipboard.writeText(value)
           button.textContent = "Copied"
@@ -178,6 +202,10 @@ const Showcase = {
     }
     const input = (event: Event) => {
       const el = event.target as HTMLInputElement
+      if (el.hasAttribute("data-sc-shimmer-color") && /^#[0-9a-f]{6}$/i.test(el.value)) {
+        shimmerColor = el.value
+        apply()
+      }
       const key = el.dataset.scColor as (typeof colorKeys)[number]
       if (colorKeys.includes(key) && /^#[0-9a-f]{6}$/i.test(el.value)) {
         palette[key] = el.value
@@ -189,6 +217,7 @@ const Showcase = {
     }
     this.el.addEventListener("click", click)
     this.el.addEventListener("input", input)
+    this.refresh = apply
     apply()
     this.cleanup = () => {
       this.el.removeEventListener("click", click)
@@ -200,6 +229,9 @@ const Showcase = {
       if (oldTheme === undefined) delete root.dataset.theme
       else root.dataset.theme = oldTheme
     }
+  },
+  updated(this: HookContext) {
+    this.refresh?.()
   },
   destroyed(this: HookContext) {
     this.cleanup?.()
@@ -275,4 +307,4 @@ const ShowcaseWallet = {
     this.cleanup?.()
   },
 }
-export const hooks = {Showcase, ShowcaseWallet}
+export const hooks = {Showcase, ShowcaseWallet, PrivyShowcase}

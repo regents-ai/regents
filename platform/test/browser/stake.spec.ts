@@ -38,9 +38,28 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   await expect(page.locator(".stake-signer")).toHaveAttribute("title", otherWallet)
 
   await signIn(page)
+  await page.evaluate(key => localStorage.setItem(key, "true"), disconnectedKey)
+  await page.route(bridgePattern, route => route.fulfill({
+    contentType: "application/javascript",
+    body: `export async function startPrivyBridge() {
+      return {async request(kind) {
+        if (kind !== "connect-wallet") return;
+        localStorage.removeItem("${disconnectedKey}");
+        window.dispatchEvent(new CustomEvent("ash:wallet-state"));
+      }};
+    }`,
+  }))
   await page.goto("/stake")
-  await selectWallet(page, wallet)
+  const documentStarted = await page.evaluate(() => performance.timeOrigin)
+  const connect = page.locator(".stake-connect-flow button")
+  await expect(connect).toHaveAttribute("data-account-target", "connect-wallet")
+  await connect.click()
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
+  await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "stake-wallet-enter")
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "none")
+  await page.emulateMedia({reducedMotion: "no-preference"})
 
   // The wallet position carries its own block, which is not the block the
   // shared contract reading was taken at.
@@ -190,10 +209,20 @@ test("Disconnect leaves Stake unconnected, and a reload keeps it that way", asyn
   await selectWallet(page, wallet)
   await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
 
+  const sibling = await page.context().newPage()
+  await installWallet(sibling)
+  await sibling.route(bridgePattern, route => route.fulfill({body: bridgeStub, contentType: "application/javascript"}))
+  await sibling.goto("/redeem")
+  await expect(sibling.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+
   await page.locator("#account-menu summary").click()
   await page.getByRole("button", {name: "Disconnect"}).click()
 
   await expectDisconnected(page)
+  await expect(sibling.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  await expect(sibling.locator(".redeem-wallet-flow")).toHaveCount(0)
+  await expect(sibling.locator("[data-redemption-action]")).toHaveCount(0)
+  await sibling.close()
   expect(await page.evaluate(key => localStorage.getItem(key), disconnectedKey)).toBe("true")
 
   // The wallet app still reports the same account to this page, and it is still
@@ -274,8 +303,8 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(supply).toContainText("35 billion REGENT")
     await expect(supply).toContainText("Total supply")
     await expect(supply).toContainText("100 billion REGENT")
-    await expect(page.locator(".stake-supply-heading")).toContainText(
-      "0% of circulating supply staked",
+    await expect(page.locator("#staking-supply-bar")).toContainText(
+      "Circulating supply staked",
     )
 
     await page.locator(".stake-contract-details summary").click()
@@ -283,13 +312,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.getByText(regent, {exact: true})).toBeVisible()
     await expect(page.getByText(usdc, {exact: true})).toBeVisible()
 
-    const bar = page.getByRole("img", {
-      name: "0% of circulating supply staked, and 35% of total supply circulating",
-    })
-    await expect(bar).toHaveAttribute(
-      "style",
-      "--circulating-share: 35%; --staked-share: 0%",
-    )
+    const bar = page.locator("#staking-supply-bar").getByRole("meter")
+    await expect(bar).toHaveAttribute("aria-valuenow", "0")
+    await expect(bar).toHaveAttribute("aria-valuetext", "Circulating supply staked: 0%; Circulating supply unstaked: 100%")
 
     const contractLink = page.getByRole("link", {
       name: "View verified staking contract on BaseScan",

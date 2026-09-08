@@ -19,7 +19,7 @@ defmodule AshPlatformWeb.LegalHTML do
 
   def show(assigns) do
     ~H"""
-    <div class="rl-root legal-root">
+    <div class="rl-root legal-root rg-sheet rg-frame">
       <header class="legal-header">
         <a href={~p"/"} class="legal-home">Regents Labs</a>
         <nav class="legal-nav" aria-label="Legal">

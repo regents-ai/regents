@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-<%!-- The marketing page is painted dark whatever the visitor saved, so it says so
-and reads the same for everyone. --%>
-<% theme = if @conn.request_path == "/", do: "dark", else: @theme %>
+<!DOCTYPE html> <% home? = @conn.request_path == "/" %>
+<% theme = if home?, do: "dark", else: @theme %>
 <html
   lang="en"
   data-brand="platform"
   data-theme={theme}
+  data-home-theme-locked={if home?, do: "true", else: "false"}
 >
   <head>
     <meta charset="utf-8" />
@@ -24,16 +23,13 @@ and reads the same for everyone. --%>
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
-    <meta name="theme-color" content="#e5e3d2" />
+    <meta name="theme-color" content={if theme == "dark", do: "#161616", else: "#e5e3d2"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
   </head>
   <body>
-    <Regent.SiteBackground.site_background :if={
-      @conn.request_path != "/" and not String.starts_with?(@conn.request_path, "/showcase")
-    } />
     {@inner_content}
-    <.product_links />
+    <.product_links :if={!home?} theme={theme} />
   </body>
 </html>

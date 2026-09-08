@@ -5,13 +5,8 @@ defmodule AshPlatformWeb.Components.ShellRenderTest do
 
   alias AshPlatformWeb.Components.Background
 
-  test "the retained home background is decorative and hidden from assistive technology" do
-    html = render_component(&Background.background/1, slot: :home)
-    assert html =~ ~s(data-background-slot="home")
-    assert html =~ "/images/backgrounds/home.svg"
-    assert html =~ ~s(aria-hidden="true")
-    refute html =~ "<img"
-    refute html =~ "role="
+  test "the home page background is retired" do
+    assert render_component(&Background.background/1, slot: :home) == ""
   end
 
   test "omits retired and invalid background slots without reflecting them into markup" do

@@ -36,10 +36,11 @@ defmodule AshPlatform.Names.Snapshot do
               captured_at != "" and is_list(tables) and tables != [] do
     Enum.reduce_while(tables, {:ok, %{}}, fn table, {:ok, indexed} ->
       case validate_table(table) do
+        {:ok, name, _data} when is_map_key(indexed, name) ->
+          {:halt, error("duplicate_table", side, name)}
+
         {:ok, name, data} ->
-          if Map.has_key?(indexed, name),
-            do: {:halt, error("duplicate_table", side, name)},
-            else: {:cont, {:ok, Map.put(indexed, name, data)}}
+          {:cont, {:ok, Map.put(indexed, name, data)}}
 
         {:error, category} ->
           {:halt, error(category, side)}
@@ -55,20 +56,16 @@ defmodule AshPlatform.Names.Snapshot do
            "table" => table,
            "columns" => columns,
            "primary_key" => primary_key,
-           "constraints" => constraints,
-           "indexes" => indexes,
-           "sequences" => sequences,
            "rows" => rows
          } = data
        )
-       when is_binary(schema) and schema != "" and is_binary(table) and table != "" and
-              is_list(columns) and columns != [] and is_list(primary_key) and primary_key != [] and
-              is_list(constraints) and is_list(indexes) and is_list(sequences) and is_list(rows) do
-    with true <- Enum.all?(columns, &valid_column?/1),
+       when is_binary(schema) and is_binary(table) and is_list(columns) and
+              is_list(primary_key) and is_list(rows) do
+    with true <- table_shape?(schema, table, columns, primary_key, data),
+         true <- Enum.all?(columns, &valid_column?/1),
          names = Enum.map(columns, & &1["name"]),
-         true <- length(names) == length(Enum.uniq(names)),
+         true <- unique?(names) and unique?(primary_key),
          true <- Enum.all?(primary_key, &(&1 in names)),
-         true <- length(primary_key) == length(Enum.uniq(primary_key)),
          {:ok, indexed_rows} <- index_rows(rows, names, primary_key) do
       {:ok, {schema, table}, {Map.delete(data, "rows"), indexed_rows}}
     else
@@ -78,6 +75,13 @@ defmodule AshPlatform.Names.Snapshot do
   end
 
   defp validate_table(_), do: {:error, "invalid_table_metadata"}
+
+  defp table_shape?(schema, table, columns, primary_key, data) do
+    schema != "" and table != "" and columns != [] and primary_key != [] and
+      Enum.all?(~w(constraints indexes sequences), &is_list(data[&1]))
+  end
+
+  defp unique?(list), do: length(list) == length(Enum.uniq(list))
 
   defp valid_column?(%{
          "name" => name,
@@ -93,24 +97,21 @@ defmodule AshPlatform.Names.Snapshot do
 
   defp index_rows(rows, names, primary_key) do
     Enum.reduce_while(rows, {:ok, %{}}, fn row, {:ok, indexed} ->
-      cond do
-        not is_map(row) or MapSet.new(Map.keys(row)) != MapSet.new(names) ->
-          {:halt, {:error, "incomplete_row"}}
-
-        not Enum.all?(Map.values(row), &(is_binary(&1) or is_nil(&1))) ->
-          {:halt, {:error, "inexact_row_value"}}
-
-        Enum.any?(primary_key, &is_nil(row[&1])) ->
-          {:halt, {:error, "null_primary_key"}}
-
-        true ->
-          key = Enum.map(primary_key, &row[&1])
-
-          if Map.has_key?(indexed, key),
-            do: {:halt, {:error, "duplicate_primary_key"}},
-            else: {:cont, {:ok, Map.put(indexed, key, row)}}
+      case row_problem(row, names, primary_key, indexed) do
+        nil -> {:cont, {:ok, Map.put(indexed, Enum.map(primary_key, &row[&1]), row)}}
+        category -> {:halt, {:error, category}}
       end
     end)
+  end
+
+  defp row_problem(row, names, primary_key, indexed) do
+    cond do
+      not is_map(row) or MapSet.new(Map.keys(row)) != MapSet.new(names) -> "incomplete_row"
+      not Enum.all?(Map.values(row), &(is_binary(&1) or is_nil(&1))) -> "inexact_row_value"
+      Enum.any?(primary_key, &is_nil(row[&1])) -> "null_primary_key"
+      Map.has_key?(indexed, Enum.map(primary_key, &row[&1])) -> "duplicate_primary_key"
+      true -> nil
+    end
   end
 
   defp compare_tables(source, candidate) do
@@ -118,6 +119,8 @@ defmodule AshPlatform.Names.Snapshot do
     |> Enum.uniq()
     |> Enum.sort()
     |> Enum.flat_map(fn name ->
+      # A repeated variable in a pattern matches by strict equality, so 1 and 1.0
+      # metadata still conflict exactly as `===` compares them.
       case {Map.fetch(source, name), Map.fetch(candidate, name)} do
         {{:ok, _}, :error} ->
           [problem("missing_table", name)]
@@ -125,10 +128,11 @@ defmodule AshPlatform.Names.Snapshot do
         {:error, {:ok, _}} ->
           [problem("extra_table", name)]
 
-        {{:ok, {metadata, rows}}, {:ok, {other_metadata, other_rows}}} ->
-          if metadata === other_metadata,
-            do: compare_rows(name, rows, other_rows),
-            else: [problem("schema_conflict", name)]
+        {{:ok, {metadata, rows}}, {:ok, {metadata, other_rows}}} ->
+          compare_rows(name, rows, other_rows)
+
+        {{:ok, _}, {:ok, _}} ->
+          [problem("schema_conflict", name)]
       end
     end)
   end

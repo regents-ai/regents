@@ -1,9 +1,9 @@
-/* Ash-owned structural material aliases backed by RegentUI. */
+/* Compatibility aliases for retained application cells; no glass surfaces. */
 :root {
-  --material-radius: 4px;
-  --material-blur: var(--glass-blur);
-  --material-fill: var(--glass-panel-bg);
-  --material-stroke: var(--glass-panel-border);
-  --material-shadow: var(--glass-panel-shadow);
+  --material-radius: 0px;
+  --material-blur: 0px;
+  --material-fill: var(--color-surface);
+  --material-stroke: var(--color-border);
+  --material-shadow: none;
   --shell-background-ground: var(--color-bg);
 }

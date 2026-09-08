@@ -1,3 +1,4 @@
+@layer regents-product {
 .formation-page {
   display: grid;
   width: 100%;
@@ -12,13 +13,10 @@
   display: grid;
   min-width: 0;
   gap: 1rem;
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: var(--rg-panel-padding);
   border: 1px solid transparent;
-  border-radius: var(--material-radius, 4px);
-  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(var(--material-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+  border-radius: 0;
+  background: var(--color-surface);
 }
 
 .formation-heading > *,
@@ -40,7 +38,7 @@
 
 .formation-kicker {
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -82,7 +80,7 @@
   .formation-heading,
   .formation-handoff {
     background: var(--color-surface-elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
+      }
+}
+
 }

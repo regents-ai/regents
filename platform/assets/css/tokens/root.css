@@ -1,8 +1,7 @@
 /* The one palette the shell, Stake and Redeem stand on: the founder's Regents light and
    Regents dark sheets, swatch for swatch. Every colour on those surfaces is one of the
    eight swatches or a mix of exactly two of them, and nothing else states a colour.
-   The marketing page keeps its own values in home.css, because it stays dark whichever
-   theme is saved and so cannot ask which one is showing. */
+   The marketing page uses the same saved light/dark choice and shared semantic roles. */
 
 /* RegentUI states one colour scheme per product, at a weight that would
    otherwise decide the document's for it, so the shell's own statement is made

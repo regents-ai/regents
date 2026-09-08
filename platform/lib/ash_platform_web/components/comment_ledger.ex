@@ -15,7 +15,11 @@ defmodule AshPlatformWeb.Components.CommentLedger do
 
   def comment_ledger(assigns) do
     ~H"""
-    <section id="comment-ledger" class="comment-ledger" aria-labelledby="comment-ledger-title">
+    <section
+      id="comment-ledger"
+      class="comment-ledger rg-panel rg-panel--surface rg-panel__body"
+      aria-labelledby="comment-ledger-title"
+    >
       <header class="comment-ledger__heading">
         <div>
           <p class="comment-ledger__kicker">Discussion</p>
@@ -37,33 +41,35 @@ defmodule AshPlatformWeb.Components.CommentLedger do
 
       <form :if={@current_human_id} id="comment-form" phx-submit="post_comment">
         <input type="hidden" name="comment[client_request_id]" value={@request_id} />
-        <label for="comment-body">Add a comment</label>
-        <textarea
-          id="comment-body"
-          name="comment[body]"
-          rows="4"
-          required
-          autocomplete="off"
-          aria-describedby="comment-body-guidance"
-        >{@draft}</textarea>
+        <Regent.Primitives.field id="comment-body" label="Add a comment">
+          <textarea
+            id="comment-body"
+            name="comment[body]"
+            rows="4"
+            required
+            autocomplete="off"
+            aria-describedby="comment-body-guidance"
+          >{@draft}</textarea>
+        </Regent.Primitives.field>
         <div class="comment-ledger__composer-actions">
           <p id="comment-body-guidance">
             Markdown and LaTeX · 2,000 characters.
           </p>
-          <button type="submit">Post comment</button>
+          <Regent.Primitives.button type="submit">Post comment</Regent.Primitives.button>
         </div>
-        <details
+        <Regent.Primitives.disclosure
+          summary="Formatting"
           class="comment-ledger__format-help"
           phx-mounted={Phoenix.LiveView.JS.ignore_attributes("open")}
+          id="comment-ledger-details-0"
         >
-          <summary>Formatting</summary>
           <p>
             Use headings, **bold**, *italic*, ~~strikethrough~~, lists, quotes, links, tables and fenced code.
           </p>
           <p>
             Inline math: <code>$x^2$</code>. Display math: <code>{"$$\\frac{a}{b}$$"}</code>. Dollar signs inside code stay literal.
           </p>
-        </details>
+        </Regent.Primitives.disclosure>
       </form>
 
       <p :if={is_nil(@current_human_id)} class="comment-ledger__signed-out">
@@ -94,15 +100,16 @@ defmodule AshPlatformWeb.Components.CommentLedger do
             >
               {Markdown.to_safe_html(comment.body)}
             </div>
-            <button
+            <Regent.Primitives.button
               :if={@admin || comment.author_id == @current_human_id}
+              variant="quiet"
               type="button"
               phx-click="delete_comment"
               phx-value-id={comment.id}
               data-confirm="Delete this comment?"
             >
               Delete
-            </button>
+            </Regent.Primitives.button>
           </article>
         </li>
       </ol>

@@ -3,7 +3,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
   # Invariants covered:
   # - smoke: 200 mount and the public-home landmark, outside the signed-in shell
-  # - launch-gate: in-app links stay on /stake or in-page anchors the document owns
+  # - launch-gate: in-app links stay on /stake, the public agent guide, or in-page
+  #   anchors the document owns
 
   test "SMOKE: the homepage mounts and keeps its landmark", %{conn: conn} do
     assert conn |> get("/") |> html_response(200)
@@ -20,7 +21,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     for href <- attribute(html, "a", "href"),
         href != "/",
         not String.starts_with?(href, "https://") do
-      assert href == "/stake" or String.starts_with?(href, "#")
+      assert href in ["/stake", "/llms.txt"] or String.starts_with?(href, "#")
       if String.starts_with?(href, "#"), do: assert(String.trim_leading(href, "#") in anchors)
     end
   end

@@ -11,7 +11,11 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
 
   def page(assigns) do
     ~H"""
-    <section id="regents-club-metadata-cutover" phx-hook="RegentsClubMetadataWallet">
+    <section
+      id="regents-club-metadata-cutover"
+      class="metadata-page"
+      phx-hook="RegentsClubMetadataWallet"
+    >
       <p>Protected one-time action</p>
       <h1>Regents Club metadata cutover</h1>
       <p>
@@ -25,17 +29,27 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         {@notice.message}
       </p>
 
-      <section :if={@status == :checking} class="shell-status" aria-busy="true">
-        <h2>Checking deployment readiness</h2>
-        <p>Verifying Privy and trusted Base RPC without exposing configuration values.</p>
-      </section>
+      <AshPlatformWeb.Components.Loading.panel
+        :if={@status == :checking}
+        id="metadata-readiness-skeleton"
+        label="Checking deployment readiness"
+        labels={["Privy verification", "Trusted Base RPC"]}
+      />
 
-      <section :if={@status == :unavailable} class="shell-status" role="alert">
+      <section
+        :if={@status == :unavailable}
+        class="shell-status rg-panel rg-panel--surface rg-panel__body"
+        role="alert"
+      >
         <h2>Cutover unavailable</h2>
         <p>The protected readiness checks did not pass. Nothing can be prepared or sent.</p>
       </section>
 
-      <section :if={@status in [:ready, :observing]} aria-label="Reviewed cutover">
+      <section
+        :if={@status in [:ready, :observing]}
+        class="rg-panel rg-panel--surface rg-panel__body"
+        aria-label="Reviewed cutover"
+      >
         <dl>
           <div>
             <dt>Network</dt><dd>Base (8453)</dd>
@@ -61,25 +75,29 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
           contract revert.
         </p>
 
-        <button :if={@wallet} type="button" data-regents-club-metadata-submit>
+        <Regent.Primitives.button :if={@wallet} type="button" data-regents-club-metadata-submit>
           {if @status == :observing,
             do: "Review another independent attempt",
             else: "Review with selected wallet"}
-        </button>
-        <button
+        </Regent.Primitives.button>
+        <Regent.Primitives.button
           :if={@status == :ready && !@wallet}
           type="button"
           data-regents-club-metadata-connect
         >
           Connect or switch wallet
-        </button>
+        </Regent.Primitives.button>
         <p :if={@status == :observing} role="status">
           Existing attempts continue independently while the server checks their finalized Base
           receipt and post-state.
         </p>
       </section>
 
-      <section :if={@status == :review && @review} aria-label="Founder transaction review">
+      <section
+        :if={@status == :review && @review}
+        class="rg-panel rg-panel--surface rg-panel__body"
+        aria-label="Founder transaction review"
+      >
         <h2>Confirm the exact reviewed transaction</h2>
         <dl>
           <div>
@@ -115,16 +133,20 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         <p role="alert">
           {@review.risk_copy} Confirm only after reviewing every value above.
         </p>
-        <button
+        <Regent.Primitives.button
           type="button"
           data-regents-club-metadata-confirm
           data-attempt-id={@review.arguments.attempt_id}
         >
           Confirm and open selected wallet
-        </button>
+        </Regent.Primitives.button>
       </section>
 
-      <section :if={@status == :unknown} role="alert">
+      <section
+        :if={@status == :unknown}
+        class="rg-panel rg-panel--surface rg-panel__body"
+        role="alert"
+      >
         <h2>Submission outcome unknown</h2>
         <p>
           The attempt was consumed and will not be retried. The bounded trusted-RPC scan did not
@@ -132,7 +154,11 @@ defmodule AshPlatformWeb.RegentsClubMetadataLive do
         </p>
       </section>
 
-      <section :if={@status == :closed} role="status">
+      <section
+        :if={@status == :closed}
+        class="rg-panel rg-panel--surface rg-panel__body"
+        role="status"
+      >
         <h2>Cutover finalized and this route is closed</h2>
         <p>
           Trusted Base RPC verified the exact transaction, canonical receipt,

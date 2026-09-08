@@ -106,7 +106,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
     ~H"""
     <section
       id={@id}
-      class="subject-wallet"
+      class="subject-wallet rg-panel rg-panel--surface rg-panel__body"
       phx-hook="AutolaunchSubjectWallet"
       phx-target={@myself}
     >
@@ -120,12 +120,12 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
       <.notice :if={@notice} notice={@notice} />
 
       <p :if={!@authenticated} class="subject-wallet-empty">
-        <button type="button" data-account-target="sign-in">Sign in to continue</button>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to continue</Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="subject-wallet-empty">
         <p>Choose the wallet you want to use here.</p>
-        <button type="button" data-subject-wallet-connect>Connect or switch wallet</button>
+        <Regent.Primitives.button type="button" data-subject-wallet-connect>Connect or switch wallet</Regent.Primitives.button>
       </div>
 
       <div :if={@authenticated && @wallet && @state} class="subject-wallet-body">
@@ -147,8 +147,9 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
         <div :if={!@operation} class="subject-wallet-choose">
           <%!-- A small selector, not a tab widget: each button switches the one form below. --%>
           <div class="subject-wallet-actions" role="group" aria-label="Choose an action">
-            <button
+            <Regent.Primitives.button
               :for={action <- @action_list}
+              variant="secondary"
               type="button"
               id={"#{@id}-action-#{action.kind}"}
               class="subject-wallet-action"
@@ -158,7 +159,7 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
               phx-target={@myself}
             >
               {action.label}
-            </button>
+            </Regent.Primitives.button>
           </div>
 
           <form
@@ -168,12 +169,13 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             phx-target={@myself}
           >
             <div :if={asset_kind?(@kind)} class="subject-wallet-field">
-              <label for={"#{@id}-asset"}>Asset</label>
-              <select id={"#{@id}-asset"} name="asset">
-                <option :for={asset <- @assets} value={asset.id} selected={asset.id == @asset}>
-                  {asset.label}
-                </option>
-              </select>
+              <Regent.Primitives.field id={"#{@id}-asset"} label="Asset">
+                <select id={"#{@id}-asset"} name="asset">
+                  <option :for={asset <- @assets} value={asset.id} selected={asset.id == @asset}>
+                    {asset.label}
+                  </option>
+                </select>
+              </Regent.Primitives.field>
             </div>
 
             <div :if={amount_kind?(@kind)} class="subject-wallet-field">
@@ -187,22 +189,28 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
                   autocomplete="off"
                   placeholder="0.0"
                 />
-                <button type="button" phx-click="fill_subject_amount" phx-target={@myself}>
+                <Regent.Primitives.button
+                  variant="secondary"
+                  type="button"
+                  phx-click="fill_subject_amount"
+                  phx-target={@myself}
+                >
                   Max
-                </button>
+                </Regent.Primitives.button>
               </div>
             </div>
 
             <div :if={@kind == :set_note} class="subject-wallet-field">
-              <label for={"#{@id}-note"}>Label</label>
-              <input
-                id={"#{@id}-note"}
-                name="note"
-                value={@note}
-                maxlength="32"
-                autocomplete="off"
-                placeholder="Front desk"
-              />
+              <Regent.Primitives.field id={"#{@id}-note"} label="Label">
+                <input
+                  id={"#{@id}-note"}
+                  name="note"
+                  value={@note}
+                  maxlength="32"
+                  autocomplete="off"
+                  placeholder="Front desk"
+                />
+              </Regent.Primitives.field>
               <p class="subject-wallet-hint">
                 Up to 32 bytes of ordinary text. Leave it empty to clear the label.
               </p>
@@ -225,9 +233,13 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
               )}
             </p>
 
-            <button class="subject-wallet-primary" type="submit" disabled={!ready?(assigns)}>
+            <Regent.Primitives.button
+              class="subject-wallet-primary"
+              type="submit"
+              disabled={!ready?(assigns)}
+            >
               Review {String.downcase(verb(@kind))}
-            </button>
+            </Regent.Primitives.button>
           </form>
         </div>
 
@@ -304,18 +316,18 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             {settled_copy(@operation.state)}
           </p>
 
-          <button
+          <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-subject-wallet-send={@operation.action_id}
             data-subject-wallet-signer={@operation.signer}
           >
             Confirm in wallet
-          </button>
+          </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This action belongs to another wallet. Switch back to it to finish.
           </p>
-          <button
+          <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
             phx-click="check_subject_wallet_step"
@@ -323,8 +335,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             phx-target={@myself}
           >
             Check again
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_subject_wallet_review"
@@ -332,8 +344,8 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             phx-target={@myself}
           >
             Cancel
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state in [:dispatched, :submitted]}
             type="button"
             phx-click="start_new_subject_wallet_action"
@@ -341,15 +353,15 @@ defmodule AshPlatformWeb.AutolaunchSubjectWalletComponent do
             phx-target={@myself}
           >
             Start something else
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.terminal_at}
             type="button"
             phx-click="clear_subject_wallet_action"
             phx-target={@myself}
           >
             Do something else
-          </button>
+          </Regent.Primitives.button>
         </section>
       </div>
     </section>

@@ -1,3 +1,4 @@
+@layer regents-product {
 .autolaunch-page {
   display: grid;
   gap: 1.25rem;
@@ -9,11 +10,8 @@
 .autolaunch-draft-workspace,
 .autolaunch-empty {
   border: 1px solid transparent;
-  border-radius: var(--material-radius, 4px);
-  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(var(--material-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+  border-radius: 0;
+  background: var(--color-surface);
 }
 
 .autolaunch-heading,
@@ -21,7 +19,7 @@
 .autolaunch-detail-section,
 .autolaunch-draft-workspace,
 .autolaunch-empty {
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: var(--rg-panel-padding);
 }
 
 .autolaunch-heading > *,
@@ -40,7 +38,7 @@
 }
 
 .autolaunch-kicker {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -117,7 +115,7 @@
 
 .autolaunch-draft-field label,
 .autolaunch-draft-review dt {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -248,21 +246,16 @@
   .autolaunch-draft-workspace,
   .autolaunch-empty {
     background: var(--color-surface-elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
+      }
 }
 
 .bid-panel {
   display: grid;
   gap: 1rem;
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: var(--rg-panel-padding);
   border: 1px solid transparent;
-  border-radius: var(--material-radius, 4px);
-  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(var(--material-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+  border-radius: 0;
+  background: var(--color-surface);
 }
 
 .bid-panel > *,
@@ -376,21 +369,16 @@
 @media (prefers-reduced-transparency: reduce) {
   .bid-panel {
     background: var(--color-surface-elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
+      }
 }
 
 .subject-wallet {
   display: grid;
   gap: 1rem;
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: var(--rg-panel-padding);
   border: 1px solid transparent;
-  border-radius: var(--material-radius, 4px);
-  background: var(--material-fill) padding-box, var(--material-stroke) border-box;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(var(--material-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--material-blur, 12px));
+  border-radius: 0;
+  background: var(--color-surface);
 }
 
 .subject-wallet > *,
@@ -584,9 +572,7 @@
 @media (prefers-reduced-transparency: reduce) {
   .subject-wallet {
     background: var(--color-surface-elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
+      }
 }
 
 /* The launch card sits inside a draft card that already carries the surface, so
@@ -644,7 +630,7 @@
 .launch-wallet-review dt,
 .launch-wallet-details dt {
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -769,8 +755,8 @@
 .treasury-verification,
 .treasury-security {
   border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 0.75rem;
-  padding: 1rem;
+  border-radius: 0;
+  padding: var(--rg-panel-padding);
 }
 
 .autolaunch-custody-path {
@@ -808,4 +794,6 @@
 
 .treasury-security {
   margin-block: 0.75rem;
+}
+
 }

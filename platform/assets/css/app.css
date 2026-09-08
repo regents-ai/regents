@@ -1,9 +1,11 @@
 @import "../../node_modules/katex/dist/katex.min.css";
+@import "../vendor/regent_ui/regent.css" layer(regent-legacy);
+@import "../vendor/regent_ui/design_system_tokens.css";
 @import "../vendor/regent_ui/primitives.css";
-@import "../vendor/regent_ui/regent.css";
 @import "./tokens/material.css";
 @import "./tokens/root.css";
 @import "./components/shell.css";
+@import "./components/loading.css";
 @import "./components/comment_ledger.css";
 @import "./components/owned_claims.css";
 @import "./pages/home.css";
@@ -17,55 +19,14 @@
 @import "./pages/settings.css";
 @import "./components/account_auth_status.css";
 
-@font-face {
-  font-family: "GeistPixel Circle";
-  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GeistPixel Square";
-  src: url("/fonts/GeistPixel-Square.woff2") format("woff2");
-  font-display: swap;
-}
-
-/* App-local face names. The imported RegentUI faces of the same name list an
-   obsolete `*-Variable.woff2` source first, so naming these apart is what keeps
-   the browser off those 404s and on the binaries this repository tracks. */
-@font-face {
-  font-family: "Ash Geist UI Sans";
-  src: url("/fonts/geist/Geist[wght].woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Ash Geist Mono";
-  src: url("/fonts/geist/GeistMono[wght].woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 :root {
   color-scheme: light dark;
-  --font-family-sans: "Ash Geist UI Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-family-ui: var(--font-family-sans);
-  --font-family-mono: "Ash Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-family-display: "GeistPixel Circle", "GeistPixel Square", sans-serif;
-  --font-family-title: var(--font-family-display);
-  --font-family-pixel: "GeistPixel Square", sans-serif;
-  --duration-fast: 160ms;
-  --duration-base: 240ms;
-  --duration-slow: 500ms;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --active-scale: 0.97;
-  --tracking-microlabel: 0.16em;
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-full: 999px;
-  --radius-button: 3px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-button: 0px;
   font-family: var(--font-family-ui);
+  font-synthesis: none;
 }
 
 * {
@@ -78,34 +39,47 @@ body {
   margin: 0;
 }
 
-body:has(#app-shell) {
-  overflow: hidden;
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  line-height: 1.5;
 }
 
 button,
 a,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+button, input, select, textarea {
+  font-family: var(--font-family-ui);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-family-mono);
 }
 
 a {
   color: currentColor;
 }
 
-/* RegentUI sets every heading in the display face; Ash headings stay on the surrounding
-   face unless a page opts in. */
+/* Every title consumes the canonical upright Pixel Square face. */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: inherit;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
 }
 
-/* The unbranded public page defines no RegentUI tokens, so the operating-system
-   colors stand only there. */
-button,
+/* Native fallback controls; actual application actions use Regent.Primitives. */
+button:not(.rg-button),
 input {
   border: 1px solid currentColor;
   border-radius: 0;
@@ -113,7 +87,7 @@ input {
   color: var(--color-fg, CanvasText);
 }
 
-button {
+button:not(.rg-button) {
   min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
   cursor: pointer;
@@ -123,7 +97,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--color-accent, AccentColor);
+  outline: 2px solid var(--color-focus-ring, Highlight);
   outline-offset: 2px;
 }
 
@@ -169,9 +143,11 @@ input:focus-visible,
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.75rem 1.5rem;
-  padding: 1.25rem;
-  margin: 1rem auto;
-  max-width: 72rem;
+  padding: var(--rg-panel-padding);
+  margin: 0 auto;
+  width: min(calc(100% - 2 * var(--rg-page-gutter)), var(--rg-frame-max));
+  border-inline: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
   font-size: 0.875rem;
 }
 .product-links__related {
@@ -180,3 +156,14 @@ input:focus-visible,
   gap: 0.75rem;
   padding-top: 0.75rem;
 }
+
+.regents-profile-page { padding: var(--rg-panel-padding); display: grid; gap: var(--space-4); }
+.regents-profile-page > .rg-profile { padding: var(--rg-panel-padding); }
+.metadata-page { display: grid; gap: var(--space-3); }
+.metadata-page dl { display: grid; gap: var(--space-2); }
+.metadata-page dd { margin: 0; overflow-wrap: anywhere; }
+.metadata-page pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.metadata-page header { border-bottom: 1px solid var(--hairline); padding-bottom: var(--space-3); }
+.rg-panel.rg-support-panel { --ash-ink: var(--support-panel-ink); --ash-muted: color-mix(in srgb, var(--support-panel-ink) 72%, var(--support-panel-surface)); --ash-panel: var(--support-panel-surface); --ash-line: color-mix(in srgb, var(--support-panel-ink) 22%, var(--support-panel-surface)); }
+@media (max-width: 74.99rem) { .product-links { --rg-page-gutter: var(--space-3); } }
+@media (max-width: 47.99rem) { .product-links { --rg-page-gutter: var(--space-2); } }

@@ -1,3 +1,4 @@
+@layer regents-product {
 /* Overview stands on the Stake and Redeem grammar: one ground, hairline panels,
    display headings and a mono voice for kickers. Spacing runs on 8px steps and
    panels use a 24px inset. Nothing here is a global token. */
@@ -13,23 +14,23 @@
 .regent-ops-details {
   min-width: 0;
   border: 1px solid var(--ash-line);
-  border-radius: 24px;
+  border-radius: 0;
   background: var(--ash-panel);
 }
 
 .regent-ops-details summary {
-  border-radius: 24px;
+  border-radius: 0;
 }
 
 .regent-ops-details[open] summary {
-  border-radius: 24px 24px 0 0;
+  border-radius: 0;
 }
 
 .regent-ops-page h1,
 .regent-ops-page h2,
 .regent-ops-page h3 {
   margin: 0;
-  font-family: var(--font-family-sans);
+  font-family: var(--font-family-title);
   font-weight: 400;
 }
 
@@ -40,7 +41,7 @@
 .regent-ops-kicker,
 .regent-ops-metric dt {
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
   letter-spacing: 0.14em;
@@ -52,7 +53,7 @@
 .regent-ops-heading {
   display: grid;
   gap: 1rem;
-  padding: 1.5rem;
+  padding: var(--rg-panel-padding);
 }
 
 .regent-ops-heading h1 {
@@ -75,21 +76,42 @@
 }
 
 /* Products */
+}
 
-.regent-ops-products {
+/* Page composition sits alongside the shared grid's unlayered defaults. */
+.regent-ops-products.rg-feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1ch;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.regent-ops-product .rg-panel__heading { flex-direction: column; align-items: flex-start; }
+.regent-ops-product .rg-panel__heading h3 { font-size: clamp(1.25rem, 2.2vw, 2rem); }
+.regent-ops-product .rg-feature__caption { display: flex; flex-direction: column; }
+.regent-ops-product .rg-feature__actions { margin-block-start: auto; padding-block-start: .5rem; }
+.regent-ops-product .rl-card-diagram { pointer-events: none; }
+
+@media (max-width: 63.999rem) {
+  .regent-ops-products.rg-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 39.999rem) {
+  .regent-ops-products.rg-feature-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@layer regents-product {
 .regent-ops-product {
   display: grid;
-  gap: 1rem;
-  align-content: start;
-  padding: 1.5rem;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  --rg-panel-padding: 1rem;
 }
 
 .regent-ops-product h2 {
@@ -117,9 +139,9 @@
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
   border: 1px solid var(--ash-line-strong);
-  border-radius: 24px;
+  border-radius: 0;
   color: inherit;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.85rem;
   text-decoration: none;
 }
@@ -194,7 +216,7 @@
   align-self: start;
   padding: 0 1rem;
   border: 1px solid var(--ash-line);
-  border-radius: 24px;
+  border-radius: 0;
 }
 
 .regent-ops-signin,
@@ -249,13 +271,12 @@
 .regent-ops-status {
   padding: 1rem 1.5rem;
   border: 1px solid var(--ash-line);
-  border-radius: 24px;
+  border-radius: 0;
   background: var(--ash-panel-strong);
 }
 
 @media (max-width: 48rem) {
   .regent-ops-heading,
-  .regent-ops-product,
   .regent-ops-details summary {
     padding: 1rem;
   }
@@ -273,4 +294,6 @@
   .regent-ops-chevron {
     transition: none;
   }
+}
+
 }

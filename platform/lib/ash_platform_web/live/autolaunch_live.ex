@@ -179,13 +179,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp holdings(assigns) do
     ~H"""
     <section id="autolaunch-holdings" class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch · Holdings</p>
         <h1>Your holdings</h1>
         <p>Review bid positions and launch tokens connected to your verified wallets.</p>
       </header>
 
-      <p :if={@status == :error} class="autolaunch-empty" role="alert">
+      <p
+        :if={@status == :error}
+        class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+        role="alert"
+      >
         Your holdings are unavailable right now.
       </p>
 
@@ -204,7 +208,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
         <section id="autolaunch-bid-positions" aria-labelledby="autolaunch-bid-positions-title">
           <h2 id="autolaunch-bid-positions-title">Bid positions</h2>
-          <p :if={@positions == []} class="autolaunch-empty">
+          <p :if={@positions == []} class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body">
             Bids from your verified wallets will appear here.
           </p>
           <ol :if={@positions != []} class="autolaunch-record-list">
@@ -252,7 +256,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
           aria-labelledby="autolaunch-returnable-positions-title"
         >
           <h2 id="autolaunch-returnable-positions-title">Ready to return</h2>
-          <p :if={@returnable_positions == []} class="autolaunch-empty">
+          <p
+            :if={@returnable_positions == []}
+            class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+          >
             No positions are returnable.
           </p>
           <ul :if={@returnable_positions != []}>
@@ -270,7 +277,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
           aria-labelledby="autolaunch-held-tokens-title"
         >
           <h2 id="autolaunch-held-tokens-title">Held launch tokens</h2>
-          <p :if={@claimed_token_positions == []} class="autolaunch-empty">
+          <p
+            :if={@claimed_token_positions == []}
+            class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+          >
             Claimed launch tokens will appear here.
           </p>
           <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
@@ -293,7 +303,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp launch_collection(assigns) do
     ~H"""
     <section id="autolaunch-launches" class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch</p>
         <h1>Launches</h1>
         <p>Follow public launch progress from preparation through completion.</p>
@@ -332,7 +342,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       id="autolaunch-launch-detail"
       class="autolaunch-page"
     >
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch · Launch</p>
         <h1>{launch_label(@record)}</h1>
         <p>Review this launch's recorded progress, identities, and published addresses.</p>
@@ -381,7 +391,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
       <section aria-labelledby="launch-auction-title">
         <h2 id="launch-auction-title">Linked auction</h2>
-        <p :if={is_nil(@record.auction_id)} class="autolaunch-empty">
+        <p
+          :if={is_nil(@record.auction_id)}
+          class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+        >
           No auction is linked yet.
         </p>
         <.link
@@ -433,7 +446,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     <section
       :if={@status == :empty}
       id="autolaunch-launch-detail"
-      class="autolaunch-page autolaunch-empty"
+      class="autolaunch-page autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
     >
       <h1>Launch not found</h1>
       <p>No public launch exists at {@record_id}.</p>
@@ -443,7 +456,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     <section
       :if={@status == :error}
       id="autolaunch-launch-detail"
-      class="autolaunch-page autolaunch-empty"
+      class="autolaunch-page autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
       role="alert"
     >
       <h1>Launch unavailable</h1>
@@ -459,7 +472,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp subject_collection(assigns) do
     ~H"""
     <section id="autolaunch-subjects" class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch</p>
         <h1>Subjects</h1>
         <p>Browse the people and projects that share launch revenue.</p>
@@ -504,7 +517,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       id="autolaunch-subject-detail"
       class="autolaunch-page"
     >
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch · Subject</p>
         <h1>{subject_label(@record)}</h1>
         <p>
@@ -588,7 +601,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
       <section id="subject-related-tokens" aria-labelledby="subject-related-tokens-title">
         <h2 id="subject-related-tokens-title">Related tokens</h2>
-        <p :if={@tokens == []} class="autolaunch-empty">No related tokens yet.</p>
+        <p :if={@tokens == []} class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body">
+          No related tokens yet.
+        </p>
         <ol :if={@tokens != []} class="autolaunch-record-list">
           <li :for={token <- @tokens}>
             <.link patch={"/autolaunch/tokens/#{token.id}"}>
@@ -628,7 +643,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     <section
       :if={@status == :empty}
       id="autolaunch-subject-detail"
-      class="autolaunch-page autolaunch-empty"
+      class="autolaunch-page autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
     >
       <h1>Subject not found</h1>
       <p>No public subject exists at {@record_id}.</p>
@@ -638,7 +653,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     <section
       :if={@status == :error}
       id="autolaunch-subject-detail"
-      class="autolaunch-page autolaunch-empty"
+      class="autolaunch-page autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
       role="alert"
     >
       <h1>Subject unavailable</h1>
@@ -654,7 +669,9 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp subject_action_list(assigns) do
     ~H"""
-    <p :if={@actions == []} class="autolaunch-empty">{@empty_copy}</p>
+    <p :if={@actions == []} class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body">
+      {@empty_copy}
+    </p>
     <ol :if={@actions != []} class="autolaunch-record-list">
       <li :for={action <- @actions} id={"#{@id_prefix}-#{action.id}"}>
         <article>
@@ -697,7 +714,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp overview(assigns) do
     ~H"""
     <section id="autolaunch-overview" class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch</p>
         <h1>Launch with public proof</h1>
         <p>
@@ -719,7 +736,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <.market_section title="Top tokens" kind={:token} records={@top_tokens} />
         <.market_section title="Recently graduated" kind={:token} records={@graduated_tokens} />
       </div>
-      <p :if={@status == :error} class="autolaunch-empty" role="alert">
+      <p
+        :if={@status == :error}
+        class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+        role="alert"
+      >
         Public launch records are unavailable right now.
       </p>
     </section>
@@ -732,7 +753,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp market_section(assigns) do
     ~H"""
-    <section class="autolaunch-market-section">
+    <section class="autolaunch-market-section rg-panel rg-panel--surface rg-panel__body">
       <h2>{@title}</h2>
       <p :if={@records == []}>No public records yet.</p>
       <ol :if={@records != []} class="autolaunch-record-list">
@@ -769,7 +790,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
     ~H"""
     <section id={"autolaunch-#{@kind}"} class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch</p>
         <h1>{@title}</h1>
         <p>{@copy}</p>
@@ -812,7 +833,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       id={"autolaunch-#{@kind}-detail"}
       class="autolaunch-page"
     >
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch · {@title}</p>
         <h1>{record_label(@kind, @record)}</h1>
         <p>{@record.summary || record_fallback(@kind)}</p>
@@ -841,7 +862,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     <section
       :if={@status in [:empty, :error]}
       id={"autolaunch-#{@kind}-detail"}
-      class="autolaunch-page autolaunch-empty"
+      class="autolaunch-page autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
       role={if(@status == :error, do: "alert", else: nil)}
     >
       <h1>{@title} not found</h1>
@@ -899,7 +920,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
   defp create(assigns) do
     ~H"""
     <section id="autolaunch-create" class="autolaunch-page">
-      <header class="autolaunch-heading">
+      <header class="autolaunch-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="autolaunch-kicker">Autolaunch · Create</p>
         <h1>Create a launch</h1>
         <p>
@@ -913,14 +934,17 @@ defmodule AshPlatformWeb.AutolaunchLive do
         copy="Sign in to prepare your launch."
       />
 
-      <div :if={@account_control.kind == :signed_in && is_nil(@regent)} class="autolaunch-empty">
+      <div
+        :if={@account_control.kind == :signed_in && is_nil(@regent)}
+        class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body"
+      >
         <p>Form your Regent before creating a launch draft.</p>
         <.link patch="/formation">Open Formation</.link>
       </div>
 
       <section
         :if={@account_control.kind == :signed_in && @regent}
-        class="autolaunch-draft-workspace"
+        class="autolaunch-draft-workspace rg-panel rg-panel--surface rg-panel__body"
         aria-labelledby="launch-draft-title"
       >
         <div>
@@ -952,7 +976,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
             value={@draft_values[field.param]}
             error={@draft_errors[field.param]}
           />
-          <button type="submit">Save draft</button>
+          <Regent.Primitives.button type="submit">Save draft</Regent.Primitives.button>
         </form>
 
         <p
@@ -994,7 +1018,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
                 value={revision_value(@draft_revision, draft, field)}
                 error={revision_error(@draft_revision, draft, field)}
               />
-              <button type="submit">Save changes</button>
+              <Regent.Primitives.button type="submit">Save changes</Regent.Primitives.button>
             </form>
 
             <%!-- Mounted on the draft it launches, so a card that is not saved
@@ -1044,8 +1068,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
         />
         <span>Use existing Safe</span>
       </label>
-      <details>
-        <summary>Advanced, high-risk treasury choices</summary>
+      <Regent.Primitives.disclosure
+        summary="Advanced, high-risk treasury choices"
+        id={"#{@form_id}-custody-details"}
+      >
         <label>
           <input
             type="radio"
@@ -1071,7 +1097,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
           name="launch_draft[eoa_acknowledgement]"
           autocomplete="off"
         >{@acknowledgement}</textarea>
-      </details>
+      </Regent.Primitives.disclosure>
     </fieldset>
     """
   end
@@ -1089,11 +1115,14 @@ defmodule AshPlatformWeb.AutolaunchLive do
       assign(assigns, id: id, described_by: described_by(id, assigns.hint, assigns.error))
 
     ~H"""
-    <div class={[
-      "autolaunch-draft-field",
-      @field.kind == :long_text && "autolaunch-draft-field--wide"
-    ]}>
-      <label for={@id}>{@field.label}</label>
+    <Regent.Primitives.field
+      id={@id}
+      label={@field.label}
+      class={[
+        "autolaunch-draft-field",
+        @field.kind == :long_text && "autolaunch-draft-field--wide"
+      ]}
+    >
       <textarea
         :if={@field.kind == :long_text}
         id={@id}
@@ -1114,7 +1143,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
       />
       <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
-    </div>
+    </Regent.Primitives.field>
     """
   end
 
@@ -1122,7 +1151,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
 
   defp empty_state(assigns) do
     ~H"""
-    <div class="autolaunch-empty">
+    <div class="autolaunch-empty rg-panel rg-panel--surface rg-panel__body">
       <p>{@copy}</p>
     </div>
     """

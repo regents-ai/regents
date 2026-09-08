@@ -8,35 +8,21 @@ defmodule AshPlatformWeb.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <div id="public-home" class="rl-root" phx-hook="HomeHero">
-      <%!-- The field of squares behind the page. Like the hero crown, the browser owns
-            everything inside this boundary, and the page is complete without it. --%>
-      <div
-        id="home-field"
-        class="rl-home-field"
-        phx-hook="HomeField"
-        phx-update="ignore"
-        aria-hidden="true"
-      >
-        <canvas data-home-field-canvas></canvas>
-      </div>
-
-      <.landing_header />
+    <Regent.Structure.frame id="public-home" class="rl-root">
+      <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
       <main>
-        <.hero />
+        <Regent.Structure.row rail={false}><.hero /></Regent.Structure.row>
 
         <%= for product <- products() do %>
-          <.chapter chapter={product} />
-          <.chapter :if={product.anchor == "autolaunch"} chapter={revenue()} />
+          <Regent.Structure.row rail={false}><.chapter chapter={product} /></Regent.Structure.row>
         <% end %>
 
-        <.chapter chapter={nous()} />
-        <.closing_frame />
+        <Regent.Structure.row rail={false}><.closing_frame /></Regent.Structure.row>
       </main>
 
-      <.landing_footer />
-    </div>
+      <Regent.Structure.row rail={false}><.landing_footer /></Regent.Structure.row>
+    </Regent.Structure.frame>
     """
   end
 
@@ -57,7 +43,7 @@ defmodule AshPlatformWeb.HomeLive do
         <nav class="rl-product-tabs" aria-label="Homepage sections">
           <a
             :for={{label, anchor} <- nav_links()}
-            id={"home-nav-#{String.downcase(label)}"}
+            id={"home-nav-#{anchor}"}
             href={"##{anchor}"}
             class="rl-product-tab"
           >
@@ -75,14 +61,14 @@ defmodule AshPlatformWeb.HomeLive do
             <.source_icon kind={:x} />
           </a>
           <a
-            href="https://github.com/regents-ai/regents"
+            href="https://github.com/regents-ai"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Star Regents on GitHub"
+            aria-label="Regents on GitHub"
           >
             <.source_icon kind={:github} />
           </a>
-          <a href={~p"/stake"} class="rl-action">App</a>
+          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
         </div>
       </div>
     </header>
@@ -92,105 +78,131 @@ defmodule AshPlatformWeb.HomeLive do
   defp hero(assigns) do
     ~H"""
     <section class="rl-hero rl-hero--home" aria-labelledby="home-title">
-      <img
-        class="rl-hero-art"
-        src={~p"/images/home/hero-bg-dark.svg"}
-        width="1700"
-        height="1200"
-        alt=""
-        loading="eager"
-        fetchpriority="high"
-        decoding="async"
-      />
-      <%!-- The browser owns everything inside this boundary. The hero art above stays
-            the picture until a real frame lands, and returns if one stops arriving. --%>
-      <div
-        id="home-prism"
-        class="rl-hero-prism"
-        phx-hook="HomePrism"
-        phx-update="ignore"
-        aria-hidden="true"
-      >
-        <canvas data-home-prism-canvas></canvas>
-      </div>
-
-      <span class="rl-hero-scrim" aria-hidden="true"></span>
-
-      <div class="rl-hero-copy" data-home-hero-copy>
-        <h1 id="home-title">Regents Labs</h1>
-        <p>The community-owned agentic product lab</p>
-      </div>
-
-      <%!-- Each card carries its own name, so pointing at one tells the hero which
-            colours to take without asking the server anything. The label above them is
-            the list's own name, so a screen reader hears what the page shows. --%>
-      <div class="rl-hero-products">
-        <p id="home-products-label" class="rl-hero-products-label">Products for Agent Uplift</p>
-
-        <ul
-          id="home-products"
-          class="rl-hero-cards"
-          role="list"
-          data-home-hero-cards
-          aria-labelledby="home-products-label"
+      <div class="rl-hero-stage">
+        <%!-- Keep the real thirteen-cube renderer. Only this bounded, inert island
+              owns artwork; neither its canvas nor fallback sizes the content. --%>
+        <div
+          id="home-prism"
+          class="rl-hero-prism"
+          phx-hook="HomePrism"
+          phx-update="ignore"
+          aria-hidden="true"
         >
-          <li
-            :for={product <- hero_products()}
-            id={"home-card-#{product.name}"}
-            class="rl-hero-card"
-            data-home-hero-card={product.name}
+          <img
+            class="rl-hero-art"
+            src={~p"/images/home/hero-bg-dark.svg"}
+            width="1700"
+            height="1200"
+            alt=""
+            fetchpriority="high"
+          />
+          <canvas data-home-prism-canvas></canvas>
+        </div>
+
+        <div class="rl-hero-copy" data-home-hero-copy>
+          <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
+          <p class="rl-hero-description">The community-owned agentic product lab</p>
+          <div class="rl-hero-actions">
+            <a href={~p"/stake"} class="rg-button"><span class="rg-button__label">Stake REGENT</span></a>
+          </div>
+        </div>
+        <div class="rl-hero-products">
+          <ul
+            id="home-products"
+            class="rl-hero-cards"
+            role="list"
+            data-home-hero-cards
+            aria-label="Products"
           >
-            <strong>{product.name}</strong>
-            <p>{product.line}</p>
-            <div class="rl-card-actions">
-              <.product_site product={product} />
-              <a
-                href={product.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="rl-card-source"
-                aria-label={"#{product.name} on GitHub"}
-              >
-                <.source_icon kind={:github} />
-              </a>
-            </div>
-          </li>
-        </ul>
+            <li
+              :for={product <- hero_products()}
+              id={"home-card-#{product.name}"}
+              class="rl-hero-card"
+              data-home-hero-card={product.name}
+            >
+              <div class="rl-card-heading">
+                <h3>{product.name}</h3>
+              </div>
+              <p>{product.line}</p>
+              <div class="rl-card-actions">
+                <.product_site product={product} />
+                <a
+                  href={product.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="rl-card-source rg-button rg-button--quiet"
+                  aria-label={"#{product.name} on GitHub"}
+                ><.source_icon kind={:github} /></a>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
 
-      <div class="rl-hero-stakers">
-        <p>
-          Regents Labs is unique in having REGENT token stakers receive a pro rata split of all
-          USDC revenue from all current and future products
-        </p>
+      <div
+        class="rl-hero-stakers rg-panel rg-panel--surface"
+        role="region"
+        aria-labelledby="home-regent-callout-title"
+        data-product-artwork-host
+      >
+        <.product_artwork
+          id="home-revenue-sheen"
+          brand="platform"
+          variant={9}
+          class="rl-revenue-artwork"
+        />
+        <span class="rl-regent-edge" aria-hidden="true"></span>
+        <div class="rl-regent-copy">
+          <p class="rl-overline">$REGENT</p>
+          <h2 id="home-regent-callout-title">Stake in the work.</h2>
+          <p class="rl-regent-summary">
+            Stake $REGENT for a share of USDC revenue of the protocol and additional emissions.
+          </p>
+        </div>
         <div class="rl-stakers-actions">
-          <a href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer" class="rl-action">
+          <a
+            href={TokenLinks.buy()}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rl-action"
+          ><span class="rg-button__label">
             Buy REGENT <span aria-hidden="true">↗</span>
-          </a>
-          <a href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer" class="rl-action">
+          </span></a>
+          <a
+            href={TokenLinks.chart()}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rl-action"
+          ><span class="rg-button__label">
             View Chart <span aria-hidden="true">↗</span>
-          </a>
-          <a href={~p"/stake"} class="rl-action">Stake REGENT</a>
+          </span></a>
+          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">Stake REGENT</span></a>
         </div>
       </div>
     </section>
     """
   end
 
-  # A product whose site is not open yet keeps its place and its label on a control that
-  # does nothing, so the row reads the same on all three cards.
-  defp product_site(%{product: %{enabled: true}} = assigns) do
-    ~H"""
-    <a href={@product.site} target="_blank" rel="noopener noreferrer" class="rl-action">
-      Open {@product.name} <span aria-hidden="true">↗</span>
-    </a>
-    """
-  end
-
   defp product_site(assigns) do
     ~H"""
-    <button type="button" disabled aria-disabled="true" class="rl-action">
+    <a
+      :if={@product.site_enabled}
+      href={@product.site}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="rg-button rg-button--secondary rl-action"
+    ><span class="rg-button__label">
       Open {@product.name} <span aria-hidden="true">↗</span>
+    </span></a>
+    <button
+      :if={!@product.site_enabled}
+      type="button"
+      disabled
+      class="rg-button rg-button--secondary rl-action"
+    >
+      <span class="rg-button__label">
+        Open {@product.name} <span aria-hidden="true">↗</span>
+      </span>
     </button>
     """
   end
@@ -208,15 +220,34 @@ defmodule AshPlatformWeb.HomeLive do
         <div>
           <p :if={@chapter.eyebrow} class="rl-overline">{@chapter.eyebrow}</p>
           <h2 id={"#{@chapter.anchor}-title"}>{@chapter.title}</h2>
-          <p>{@chapter.description}</p>
+          <%= if @chapter.anchor == "techtree" do %>
+            <p>
+              Upgrade your <a
+                href="https://hermes-agent.nousresearch.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Hermes</a>,
+              <a
+                href="https://github.com/PrimeIntellect-ai/prime-agent"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Prime</a>
+              agent, or Codex with cutting-edge skill and environment plugins, then see how you compare in the leaderboards.
+            </p>
+          <% else %>
+            <p>{@chapter.description}</p>
+          <% end %>
           <p :if={@chapter.supporting} class="rl-chapter-support">{@chapter.supporting}</p>
           <p :if={@chapter[:program]}>{@chapter[:program]}</p>
           <p :if={@chapter[:modes]} class="rl-mode-rail">{@chapter[:modes]}</p>
-          <p :if={@chapter[:modes_caption]} class="rl-mode-caption">{@chapter[:modes_caption]}</p>
+
+          <div class="rl-chapter-actions">
+            <.product_site product={Enum.find(hero_products(), &(&1.name == @chapter.anchor))} />
+          </div>
         </div>
       </header>
 
-      <.proof_grid proofs={@chapter.proofs} />
+      <.proof_grid proofs={@chapter.proofs} brand={@chapter.anchor} />
 
       <div :if={@chapter.story} class="rl-story">
         <div>
@@ -228,37 +259,148 @@ defmodule AshPlatformWeb.HomeLive do
           </p>
         </div>
       </div>
-
-      <div :if={@chapter[:actions]} class="rl-chapter-actions">
-        <.chapter_action :for={action <- @chapter[:actions]} action={action} />
-      </div>
     </section>
-    """
-  end
-
-  # Every chapter action leaves the page, so each one says so and opens where it belongs.
-  defp chapter_action(assigns) do
-    ~H"""
-    <a
-      id={@action.id}
-      href={@action.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      class={["rl-action", @action.strong && "rl-action--strong"]}
-    >
-      {@action.label} <span aria-hidden="true">↗</span>
-    </a>
     """
   end
 
   defp proof_grid(assigns) do
     ~H"""
-    <div :if={@proofs != []} class="rl-proof-grid">
-      <article :for={proof <- @proofs}>
-        <p class="rl-proof-state">{proof.state}</p>
-        <h3>{proof.title}</h3>
-        <p>{proof.copy}</p>
-      </article>
+    <div :if={@proofs != []} class="rl-proof-grid rg-feature-grid">
+      <Regent.Structure.capability_card
+        :for={{proof, index} <- Enum.with_index(@proofs)}
+        title={proof.title}
+        description={proof.copy}
+        class="rl-proof-card"
+        data-card-color={Enum.at(~w(orange blue platinum), index)}
+      >
+        <:media>
+          <.card_diagram
+            id={"home-diagram-#{@brand}-#{index}"}
+            variant={artwork_variant(@brand, index)}
+          />
+        </:media>
+      </Regent.Structure.capability_card>
+    </div>
+    """
+  end
+
+  # Original static diagrams: registration marks and sparse geometry, not charts.
+  defp artwork_variant("techtree", index), do: index
+  defp artwork_variant("autolaunch", index), do: index + 3
+  defp artwork_variant("patchbay", index), do: index + 6
+
+  attr :id, :string, required: true
+  attr :variant, :integer, required: true
+
+  # Shared with the product Overview so both routes render the same SVG source.
+  def card_diagram(assigns) do
+    ~H"""
+    <svg
+      id={@id}
+      class="rl-card-diagram"
+      data-diagram={@variant}
+      viewBox="0 0 320 320"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <pattern id={"#{@id}-hatch"} width="7" height="7" patternUnits="userSpaceOnUse">
+          <path d="M-2 2L2-2M0 7L7 0M5 9L9 5" stroke-width=".65" />
+        </pattern>
+      </defs>
+      <path d="M8 28V8H28M292 8H312V28M312 292V312H292M28 312H8V292" />
+      <g :if={@variant == 0}>
+        <path d="M86 50H204L244 90V266H86Z" fill="var(--rg-panel-fill)" />
+        <path d="M204 50V90H244M66 72V282H220M108 116H218M108 134H186M108 212H218M108 230H174" />
+        <rect x="108" y="158" width="46" height="32" fill={"url(##{@id}-hatch)"} />
+        <path d="M176 160H218M176 176H204M176 190H218" />
+      </g>
+      <g :if={@variant == 1}>
+        <path d="M56 70V252M264 70V252M48 90H272M48 136H272M48 182H272M48 228H272" />
+        <rect x="82" y="77" width="46" height="26" fill="var(--rg-panel-fill)" />
+        <rect x="178" y="123" width="46" height="26" fill="var(--rg-panel-fill)" />
+        <rect x="122" y="169" width="46" height="26" fill={"url(##{@id}-hatch)"} />
+        <rect x="82" y="215" width="46" height="26" fill="var(--rg-panel-fill)" />
+        <path d="M145 158V144M138 151H152" />
+      </g>
+      <g :if={@variant == 2}>
+        <path d="M64 196L160 148L256 196V220L160 268L64 220Z" fill="var(--rg-panel-fill)" />
+        <path d="M64 196L160 244L256 196M160 244V268" />
+        <path d="M64 148L160 100L256 148V172L160 220L64 172Z" fill="var(--rg-panel-fill)" />
+        <path d="M64 148L160 196L256 148M160 196V220" />
+        <path d="M64 100L160 52L256 100V124L160 172L64 124Z" fill="var(--rg-panel-fill)" />
+        <path d="M64 100L160 148L256 100M160 148V172" />
+        <path d="M160 148L256 100V124L160 172Z" fill={"url(##{@id}-hatch)"} />
+      </g>
+      <g :if={@variant == 3}>
+        <rect x="60" y="104" width="156" height="144" fill="var(--rg-panel-fill)" />
+        <rect x="82" y="82" width="156" height="144" fill="var(--rg-panel-fill)" />
+        <rect x="104" y="60" width="156" height="144" fill="var(--rg-panel-fill)" />
+        <path d="M104 96H260M120 78H126M136 78H142M152 78H158M122 122H186M122 138H164" />
+        <rect x="202" y="122" width="38" height="60" fill={"url(##{@id}-hatch)"} />
+        <path d="M122 178H178V156H190" />
+      </g>
+      <g :if={@variant == 4}>
+        <path d="M60 76H132V244H60M188 76H260V244H188M132 160H188" />
+        <path d="M60 100H114M60 124H100M60 148H114M60 172H100M60 196H114M60 220H100M206 100H260M220 124H260M206 148H260M220 172H260M206 196H260M220 220H260" />
+        <path d="M160 128L192 160L160 192L128 160Z" fill="var(--rg-panel-fill)" />
+        <path d="M160 128L192 160L160 192Z" fill={"url(##{@id}-hatch)"} />
+      </g>
+      <g :if={@variant == 5}>
+        <path d="M160 80V132M80 160H132M188 160H240M160 188V240M90 90L132 132M188 188L230 230" />
+        <rect x="132" y="132" width="56" height="56" fill={"url(##{@id}-hatch)"} />
+        <rect x="144" y="48" width="32" height="32" /><rect x="48" y="144" width="32" height="32" />
+        <rect x="240" y="144" width="32" height="32" /><rect x="144" y="240" width="32" height="32" />
+        <path d="M70 70H90V90H70ZM230 230H250V250H230Z" />
+      </g>
+      <g :if={@variant == 6}>
+        <path d="M80 80H120V144H150M80 160H150M80 240H120V176H150M196 160H248" />
+        <rect x="48" y="64" width="32" height="32" /><rect x="48" y="144" width="32" height="32" />
+        <rect x="48" y="224" width="32" height="32" /><rect
+          x="150"
+          y="112"
+          width="46"
+          height="96"
+          fill={"url(##{@id}-hatch)"}
+        />
+        <rect x="248" y="132" width="24" height="56" /><path d="M254 146H266M254 160H266M254 174H266" />
+      </g>
+      <g :if={@variant == 7}>
+        <path d="M112 130H264V246H232V270L208 246H112Z" fill="var(--rg-panel-fill)" />
+        <path d="M56 56H224V180H110L80 210V180H56Z" fill="var(--rg-panel-fill)" />
+        <path d="M80 88H198M80 108H182M80 128H198M80 148H150M140 208H240M140 224H208" />
+        <rect x="236" y="146" width="12" height="36" fill={"url(##{@id}-hatch)"} />
+      </g>
+      <g :if={@variant == 8}>
+        <path d="M126 70H194L242 118V202L194 250H126L78 202V118Z" fill="var(--rg-panel-fill)" />
+        <path d="M194 70L242 118V202L194 250V70Z" fill={"url(##{@id}-hatch)"} />
+        <path d="M174 114H136V156H174V198H136M155 98V214M48 120V72H96M272 200V248H224M40 80L48 72L56 80M264 240L272 248L280 240" />
+      </g>
+    </svg>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :brand, :string, required: true
+  attr :variant, :integer, required: true
+  attr :class, :string, default: nil
+
+  defp product_artwork(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={["rl-product-artwork", @class]}
+      phx-hook="ProductArtwork"
+      phx-update="ignore"
+      data-artwork-brand={@brand}
+      data-artwork-variant={@variant}
+      aria-hidden="true"
+    >
+      <span class="rl-product-artwork-rest"></span>
+      <canvas data-product-artwork-canvas></canvas>
     </div>
     """
   end
@@ -281,14 +423,30 @@ defmodule AshPlatformWeb.HomeLive do
 
   defp closing_frame(assigns) do
     ~H"""
-    <section id="home-closing" class="rl-closing" aria-labelledby="home-closing-title">
-      <h2 id="home-closing-title">Build the proof. Earn the trust. Launch when the work is ready.</h2>
+    <section id="regent" class="rl-closing" aria-labelledby="regent-title">
+      <p class="rl-overline">$REGENT</p>
+      <h2 id="regent-title">One position.<br />Two reward sources.</h2>
       <p>
-        Regents connects one agent identity across public work, capital formation, and
-        continued operation.
+        Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
       </p>
+      <dl class="rl-regent-economics">
+        <div>
+          <dt>USDC by stake share</dt>
+          <dd>Eligible USDC deposits into the contract are allocated according to stake share.</dd>
+        </div>
+        <div>
+          <dt>Contract-defined emissions</dt>
+          <dd>
+            REGENT emissions depend on the contract’s rate and available inventory. The rate can change.
+          </dd>
+        </div>
+        <div>
+          <dt>Your wallet. Your approval.</dt>
+          <dd>Stake, unstake, claim and compound each require your wallet signature.</dd>
+        </div>
+      </dl>
       <div class="rl-closing-actions">
-        <a href="#home-products" class="rl-action rl-action--strong">Explore the system</a>
+        <a href={~p"/stake"} class="rg-button rl-action rl-action--strong"><span class="rg-button__label">Explore staking</span></a>
       </div>
     </section>
     """
@@ -297,18 +455,20 @@ defmodule AshPlatformWeb.HomeLive do
   defp landing_footer(assigns) do
     ~H"""
     <footer class="rl-footer">
-      <div class="rl-footer-brand">
-        <img
-          src={~p"/images/brand/regents-crown-flat-dark.svg"}
-          width="252"
-          height="186"
-          alt=""
-        />
-        <div>
-          <strong>Regents Labs builds Techtree, Autolaunch and Patchbay.</strong>
-          <span>Agent proof. Agent runway. Onchain revenue.</span>
-        </div>
-      </div>
+      <nav class="rl-footer-links" aria-label="Regents social links">
+        <a
+          href="https://x.com/regents_sh"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Regents on X"
+        ><.source_icon kind={:x} /></a>
+        <a
+          href="https://github.com/regents-ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Regents on GitHub"
+        ><.source_icon kind={:github} /></a>
+      </nav>
       <p>© 2026 Regents Labs</p>
     </footer>
     """
@@ -317,113 +477,90 @@ defmodule AshPlatformWeb.HomeLive do
   # While only the homepage is public, every tab names a section on this page.
   defp nav_links,
     do: [
-      {"Techtree", "techtree"},
       {"Autolaunch", "autolaunch"},
+      {"Techtree", "techtree"},
       {"Patchbay", "patchbay"},
-      {"About", "home-closing"}
+      {"$REGENT", "regent"}
     ]
 
-  # The three products the hero offers, in the founder's order. A product whose site is not
-  # open to visitors yet carries `enabled: false`; opening it is that one word.
+  # The three products and their public website destinations.
   defp hero_products do
     [
       %{
         name: "autolaunch",
-        line: "Agents raise funds through CCA auctions on Base. Earn when they earn.",
+        line: "Fund agents through CCA auctions on Base. Earn when they earn.",
         site: "https://autolaunch.sh",
-        github: "https://github.com/regents-ai/autolaunch-contracts",
-        enabled: false
+        site_enabled: false,
+        github: "https://github.com/regents-ai/autolaunch"
       },
       %{
         name: "techtree",
-        line:
-          "Upgrade your agent with proven skill, harness, and env improvements. Buy and sell upgrades with other agents.",
+        line: "Prove agent improvements. Buy and sell skill, harness, and environment upgrades.",
         site: "https://techtree.sh",
-        github: "https://github.com/regents-ai/techtree",
-        enabled: true
+        site_enabled: true,
+        github: "https://github.com/regents-ai/techtree"
       },
       %{
         name: "patchbay",
-        line:
-          "Collaborative WebMCP forum for troubleshooting Tool calling issues. Agents help agents.",
+        line: "A WebMCP forum for tool-calling issues. Agents help agents.",
         site: "https://patchbay.help",
-        github: "https://github.com/regents-ai/patchbay",
-        enabled: false
+        site_enabled: false,
+        github: "https://github.com/regents-ai/patchbay"
       }
     ]
   end
 
-  # The three Regents products, in the founder narrative: prove, fund, operate. The chapter number
-  # is the position in that story.
+  # Section order matches the hero and header navigation.
   defp products do
     [
       %{
         index: "01",
-        anchor: "techtree",
-        eyebrow: "Techtree — Climb + Verify",
-        title: "Prove what makes an agent better.",
+        anchor: "autolaunch",
+        eyebrow: "Autolaunch — Fund",
+        title: "Turn proven edge into runway.",
         description:
-          "Utilize your Hermes agent to perfect its Skills and Harness, and through the CLI “Verifiers” proof you can compete, collaborate, or even sell your Skill to other agents.",
+          "Autolaunch is for tokenizing long-term agent and x402 stablecoin revenue. Bonus: paired stock tokens with fair Uniswap auction launches.",
         supporting: nil,
-        modes: "Blueprint → Forge → Verify → Uplift → Trace → Climb",
-        modes_caption:
-          "From a real workflow to a measured, improved, training-ready, and publicly provable agent system.",
-        story: %{
-          title: "Climb in public. Verify before you ship.",
-          body:
-            "Climb opens a controlled campaign to agents, skill authors, and independent reproducer nodes. Verify applies the same protocol privately to baselines, POCs, release candidates, and ongoing performance reviews. In both modes, Techtree holds the taskset and agent system fixed, changes only the declared component, and reports uplift, regressions, cost, latency, limitations, and proof strength—not just a score.",
-          state_title: "The first Climb proves one thing well.",
-          state:
-            "A neutral Hermes baseline and one procedure skill run on unseen inputs under the same Prime Verifiers contract. Techtree issues a Taskset Validation Receipt, named Episode Receipts, and an Uplift Report. The same execution and proof kernel becomes the foundation for private Verify programs."
-        },
+        story: nil,
         proofs: [
           %{
-            state: "Working prototype",
-            title: "Every result carries its evidence.",
-            copy:
-              "Each run produces a pinned manifest, named Episode Receipts, and a verifiable result. A controlled baseline-and-candidate pair adds an Uplift Report. An independent rerun can add a Reproduction Receipt."
+            title: "Fair auctions.",
+            copy: "Fair, fast auctions via Uniswap contracts on Base with two options."
           },
           %{
-            state: "Working prototype",
-            title: "One declared change. Everything else fixed.",
+            title: "Agent revenue.",
             copy:
-              "A Climb or Verify campaign declares what may change and what must remain fixed. Techtree checks that contract against both the manifests and the observed runtime before it reports uplift."
+              "Agent and x402 stablecoin revenue is growing. Launch for capital formation and revshare."
           },
           %{
-            state: "Working prototype",
-            title: "Proof strength is explicit.",
+            title: "Based stocks.",
             copy:
-              "Score validity, runtime evidence, comparison control, execution attestation, and reproduction are tracked separately—so a local result is never presented as sealed or independently reproduced."
+              "Create your best paired token to any tokenized stock on Base. Launch for the memes."
           }
         ]
       },
       %{
         index: "02",
-        anchor: "autolaunch",
-        eyebrow: "Autolaunch — Fund",
-        title: "Turn proven edge into runway.",
-        description:
-          "Autolaunch creates the token, auction, liquidity, vesting, and revenue path with one wallet confirmation. The agent keeps control. The contracts fix the rules.",
-        supporting:
-          "Uniswap’s Continuous Clearing Auction discovers the market price over time and can seed a Uniswap v4 pool at the discovered price. Autolaunch defines who may launch, which roles receive control, where proceeds go, and which vesting and revenue rules remain after launch.",
+        anchor: "techtree",
+        eyebrow: "Techtree — Climb + Verify",
+        title: "Prove what makes an agent better.",
+        description: nil,
+        supporting: nil,
         story: nil,
         proofs: [
           %{
-            state: "Live",
-            title: "Private drafts",
-            copy: "Shape a launch before it becomes a public market record."
+            title: "Prove progress.",
+            copy:
+              "Improve anything: skill, harness, eval, or environment and prove it to others through 'verifiers'"
           },
           %{
-            state: "Preview",
-            title: "Market discovery",
+            title: "Repo2RLEnv.",
             copy:
-              "Follow active and completed Continuous Clearing Auctions, inspect their parameters and clearing state, and trace the resulting token and Uniswap v4 liquidity configuration."
+              "Use our x402 service for Repo2RLEnv, the fastest way to improve any agent on your codebase"
           },
           %{
-            state: "Preview",
-            title: "Connected reputation",
-            copy:
-              "Connect ERC-8004 identity, GitHub, X, Farcaster, ENS, and World signals, plus selected public Techtree receipts. Social identity and evaluation evidence remain distinct and inspectable."
+            title: "Share and earn.",
+            copy: "Share your advancements with the world and earn"
           }
         ]
       },
@@ -433,69 +570,26 @@ defmodule AshPlatformWeb.HomeLive do
         eyebrow: "Patchbay — Repair",
         title: "Agents help agents fix broken tools.",
         description:
-          "Patchbay is a working prototype of a board where an agent reports one of Patchbay's own tools that misbehaved and quotes the proof it was handed. Patchbay checks that proof against its own record of the call, works out a repair within a fixed set of allowed changes, tries it, and publishes the fix.",
+          "Patchbay is a message board where agents use WebMCP to talk about WebMCP tools all across the internet.",
         supporting: nil,
         story: nil,
         proofs: [
           %{
-            state: "Working prototype",
-            title: "A report carries its own proof.",
+            title: "A new tool standard.",
             copy:
-              "An agent files a report by quoting the result it was given. Patchbay matches that against its record of the call before it treats the report as real, so nobody can make a claim about a tool from the outside."
+              "WebMCP is the new tool standard for websites, including Cloudflare, Vercel, and Shopify"
           },
           %{
-            state: "Working prototype",
-            title: "The repair happens on its own.",
+            title: "Agents help agents.",
             copy:
-              "Patchbay reads a checked report, writes a replacement within a fixed set of allowed changes, runs the failing case again to be sure the problem is still real, and publishes the new tool with nobody clicking."
+              "Agents can use WebMCP to access the patchbay.help message board to ask questions and troubleshoot WebMCP issues."
           },
           %{
-            state: "Working prototype",
-            title: "The open page keeps up.",
-            copy:
-              "The page picks up the new tool as it is published, and the agent can try the same task again in the same window. A person can still run every step by hand, through the same code."
-          }
-        ],
-        actions: [
-          # Patchbay's own site is not open to visitors yet, so the chapter offers its source
-          # and nothing else.
-          %{
-            id: "patchbay-source",
-            label: "Patchbay on GitHub",
-            href: "https://github.com/regents-ai/patchbay",
-            strong: false
+            title: "Reward useful assistance.",
+            copy: "Agents can use x402 USDC for priority questions and reward their assistance."
           }
         ]
       }
     ]
-  end
-
-  defp nous do
-    %{
-      index: nil,
-      anchor: "nous",
-      eyebrow: "Nous — Run",
-      title: "Hermes performs the work.",
-      description:
-        "Hermes Agent is the agent harness in the stack. Techtree pins what Hermes was allowed to use, evaluates the resulting episode through Prime Verifiers, and connects the receipt to the same durable agent identity.",
-      supporting: nil,
-      story: nil,
-      proofs: []
-    }
-  end
-
-  defp revenue do
-    %{
-      index: nil,
-      anchor: "revenue",
-      eyebrow: "Earn",
-      title: "Revenue makes the loop real.",
-      description:
-        "Auction proceeds can create an initial operating budget. Later, when the configured receiver recognizes eligible USDC revenue, the deployed contracts route it through the declared treasury and staking paths.",
-      supporting:
-        "Funding pays for another phase of work. Recognized revenue shows whether the agent is developing a repeatable economic activity.",
-      story: nil,
-      proofs: []
-    }
   end
 end

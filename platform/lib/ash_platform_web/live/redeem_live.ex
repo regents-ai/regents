@@ -1,7 +1,7 @@
 defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
-  alias AshPlatformWeb.Components.Shell
+  alias AshPlatformWeb.Components.{Loading, Shell}
   alias AshPlatformWeb.TokenDisplay
 
   @control_labels %{
@@ -18,6 +18,7 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :token_id, :string, required: true
   attr :notice, :map, default: nil
   attr :reading, :boolean, default: false
+  attr :signed_in, :boolean, default: false
   attr :refresh_block, :any, default: nil
   attr :step, :atom, default: nil
   attr :owned_collectibles, :map, default: %{status: :idle, animata: [], regents_club: []}
@@ -41,7 +42,11 @@ defmodule AshPlatformWeb.RedeemLive do
       class="redeem-page"
       aria-busy={to_string(@reading)}
     >
-      <section id="redeem-intro" class="redeem-intro" aria-labelledby="redemption-page-heading">
+      <section
+        id="redeem-intro"
+        class="redeem-intro rg-panel rg-panel--surface rg-panel__body"
+        aria-labelledby="redemption-page-heading"
+      >
         <div class="redeem-intro-copy">
           <p class="redeem-kicker">Animata redemption · Base</p>
           <h1 id="redemption-page-heading" tabindex="-1">Redeem your Animata.</h1>
@@ -55,13 +60,20 @@ defmodule AshPlatformWeb.RedeemLive do
             <span class="redeem-pill">1 Animata</span><b>+</b><span class="redeem-pill">80 USDC</span><b>→</b><span class="redeem-equation-result"><span class="redeem-pill">5 million REGENT</span><b>+</b><span class="redeem-pill">Regents Club</span></span>
           </div>
           <div :if={!@wallet} class="redeem-intro-actions">
-            <button type="button" class="redeem-primary" data-account-target="sign-in">
+            <Regent.Primitives.button
+              type="button"
+              class="redeem-primary"
+              data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
+            >
               Connect wallet to redeem
-            </button>
+            </Regent.Primitives.button>
           </div>
         </div>
 
-        <figure id="redeem-intro-media" class="redeem-intro-media">
+        <Regent.Structure.technical_figure
+          id="redeem-intro-media"
+          class="redeem-intro-media rg-support-figure"
+        >
           <video
             class="redeem-intro-video"
             autoplay
@@ -84,7 +96,8 @@ defmodule AshPlatformWeb.RedeemLive do
             src="/images/redeem/animata1and2-poster.jpg"
             alt="Animata I and II artwork"
           />
-        </figure>
+          <:caption>FIG. 02 — Animata I and II artwork</:caption>
+        </Regent.Structure.technical_figure>
       </section>
 
       <dialog
@@ -106,26 +119,52 @@ defmodule AshPlatformWeb.RedeemLive do
           </div>
         </dl>
         <a data-redemption-result-link hidden target="_blank" rel="noopener noreferrer"></a>
-        <form method="dialog"><button type="submit" value="close">Done</button></form>
+        <form method="dialog">
+          <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
+        </form>
       </dialog>
 
-      <div :if={@status == :loading} class="redeem-status" aria-busy="true">
-        Loading redemption contract data…
+      <div :if={@status == :loading} class="redeem-content" aria-busy="true">
+        <section class="redeem-collections rg-panel rg-panel--surface rg-panel__body">
+          <h2>Animata collections</h2>
+          <div class="redeem-collection-grid rg-feature-grid">
+            <Loading.panel
+              :for={name <- ["Animata I", "Animata II", "Regents Club"]}
+              id={"redemption-skeleton-#{String.replace(name, " ", "-")}"}
+              label={name}
+              labels={["Collection supply"]}
+              class="redeem-collection-card"
+            />
+          </div>
+        </section>
+        <div class="redeem-layout">
+          <Loading.panel
+            id="redemption-actions-skeleton"
+            label="Redemption flow"
+            class="redeem-actions rg-panel rg-panel--surface rg-panel__body"
+          />
+          <Loading.panel
+            id="redemption-contract-skeleton"
+            label="Contract details"
+            class="redeem-overview"
+          />
+        </div>
       </div>
       <div :if={@status == :error} class="redeem-status">
         <p role="alert">Redemption details are unavailable right now.</p>
-        <button
+        <Regent.Primitives.button
+          variant="secondary"
           id="redemption-refresh"
           type="button"
           phx-click="refresh_redemption"
           disabled={@reading}
-        >Refresh Data</button>
+        >Refresh Data</Regent.Primitives.button>
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-content">
         <section
           id="redemption-collections"
-          class="redeem-collections"
+          class="redeem-collections rg-panel rg-panel--surface rg-panel__body"
           aria-labelledby="redemption-collections-heading"
         >
           <div class="redeem-section-heading">
@@ -136,7 +175,7 @@ defmodule AshPlatformWeb.RedeemLive do
             </div>
             <p>Eligible source token IDs are 1–{@redemption.max_source_token_id}.</p>
           </div>
-          <div class="redeem-collection-grid">
+          <div class="redeem-collection-grid rg-feature-grid">
             <.collection_card
               kind="source"
               index="I"
@@ -179,7 +218,10 @@ defmodule AshPlatformWeb.RedeemLive do
         </p>
 
         <div class="redeem-layout">
-          <section class="redeem-actions" aria-labelledby="redemption-actions-heading">
+          <section
+            class="redeem-actions rg-panel rg-panel--surface rg-panel__body"
+            aria-labelledby="redemption-actions-heading"
+          >
             <div class="redeem-section-heading">
               <div>
                 <p class="redeem-kicker">Redemption flow</p><h2 id="redemption-actions-heading">
@@ -195,9 +237,13 @@ defmodule AshPlatformWeb.RedeemLive do
               <p>
                 Sign in with Privy and connect the wallet that owns your Animata.
               </p>
-              <button type="button" class="redeem-primary" data-account-target="sign-in">
+              <Regent.Primitives.button
+                type="button"
+                class="redeem-primary"
+                data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
+              >
                 Connect wallet
-              </button>
+              </Regent.Primitives.button>
               <ul>
                 <li>The page checks ownership and allowances on Base.</li>
                 <li>Approvals are requested only when the contract needs them.</li>
@@ -207,23 +253,23 @@ defmodule AshPlatformWeb.RedeemLive do
 
             <.notice :if={@wallet && @notice} notice={@notice} />
 
-            <div
+            <Loading.panel
               :if={@wallet && !@wallet_ready && @reading}
-              class="redeem-wallet-loading"
-              role="status"
-            >
-              <span class="redeem-progress-mark" aria-hidden="true"></span>
-              <p>
-                Loading this wallet’s collection and vest while public collection data stays visible…
-              </p>
-            </div>
+              id="redemption-wallet-skeleton"
+              label="Your collection and vest"
+              labels={["Owned Animata", "USDC balance", "Claimable REGENT"]}
+            />
 
             <div :if={@wallet && !@wallet_ready && !@reading} class="redeem-wallet-recovery">
               <p>
                 Your wallet is connected, but its latest Base redemption data could not be loaded.
               </p>
               <div>
-                <button type="button" phx-click="refresh_redemption">Try again</button>
+                <Regent.Primitives.button
+                  variant="secondary"
+                  type="button"
+                  phx-click="refresh_redemption"
+                >Try again</Regent.Primitives.button>
               </div>
             </div>
 
@@ -237,25 +283,29 @@ defmodule AshPlatformWeb.RedeemLive do
 
               <form id="redemption-selection" phx-change="redemption_selection_changed">
                 <div>
-                  <label for="redemption-collection">Collection</label>
-                  <select id="redemption-collection" name="collection">
-                    <option value="animata_i" selected={@collection == "animata_i"}>Animata I</option>
-                    <option value="animata_ii" selected={@collection == "animata_ii"}>
-                      Animata II
-                    </option>
-                  </select>
+                  <Regent.Primitives.field id="redemption-collection" label="Collection">
+                    <select id="redemption-collection" name="collection">
+                      <option value="animata_i" selected={@collection == "animata_i"}>
+                        Animata I
+                      </option>
+                      <option value="animata_ii" selected={@collection == "animata_ii"}>
+                        Animata II
+                      </option>
+                    </select>
+                  </Regent.Primitives.field>
                 </div>
                 <div>
-                  <label for="redemption-token-id">Token ID</label>
-                  <input
-                    id="redemption-token-id"
-                    name="token_id"
-                    value={@token_id}
-                    phx-debounce="300"
-                    inputmode="numeric"
-                    autocomplete="off"
-                    placeholder="1–999"
-                  />
+                  <Regent.Primitives.field id="redemption-token-id" label="Token ID">
+                    <input
+                      id="redemption-token-id"
+                      name="token_id"
+                      value={@token_id}
+                      phx-debounce="300"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      placeholder="1–999"
+                    />
+                  </Regent.Primitives.field>
                 </div>
               </form>
 
@@ -269,19 +319,20 @@ defmodule AshPlatformWeb.RedeemLive do
                   </h3><p id="redemption-step-hint">{step_label(@step, @token_selected)}</p>
                 </div>
                 <div :if={@controls != []}>
-                  <button
+                  <Regent.Primitives.button
                     :for={control <- @controls}
                     type="button"
                     class="redeem-primary"
                     data-redemption-action={@actions != :sign_in && control.action}
                     data-account-target={@actions == :sign_in && "sign-in"}
                     aria-describedby="redemption-step-hint"
-                  >{control.label}</button>
+                  >{control.label}</Regent.Primitives.button>
                 </div>
               </section>
 
               <div class="redeem-wallet-footer">
-                <button
+                <Regent.Primitives.button
+                  variant="secondary"
                   id="redemption-refresh"
                   type="button"
                   phx-click="refresh_redemption"
@@ -289,14 +340,14 @@ defmodule AshPlatformWeb.RedeemLive do
                   aria-describedby={if(@refresh_block, do: "redemption-refresh-status")}
                 >
                   {if @reading, do: "Updating…", else: "Refresh Data"}
-                </button>
+                </Regent.Primitives.button>
               </div>
             </div>
           </section>
 
           <section
             :if={@wallet_ready}
-            class="redeem-position"
+            class="redeem-position rg-panel rg-panel--surface rg-panel__body"
             aria-labelledby="redemption-position-heading"
           >
             <div class="redeem-section-heading">
@@ -341,14 +392,14 @@ defmodule AshPlatformWeb.RedeemLive do
               </dl>
             </div>
 
-            <button
+            <Regent.Primitives.button
               type="button"
               class="redeem-claim"
               data-redemption-action={@actions != :sign_in && "claim"}
               data-account-target={@actions == :sign_in && "sign-in"}
             >
               Claim unlocked REGENT
-            </button>
+            </Regent.Primitives.button>
             <p class="redeem-snapshot-note">
               <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={
                 @reading
@@ -357,7 +408,11 @@ defmodule AshPlatformWeb.RedeemLive do
           </section>
         </div>
 
-        <section :if={@wallet} class="redeem-owned" aria-labelledby="redemption-owned-heading">
+        <section
+          :if={@wallet}
+          class="redeem-owned rg-panel rg-panel--surface rg-panel__body"
+          aria-labelledby="redemption-owned-heading"
+        >
           <div class="redeem-section-heading">
             <div>
               <p class="redeem-kicker">Connected collection</p><h2 id="redemption-owned-heading">
@@ -379,6 +434,7 @@ defmodule AshPlatformWeb.RedeemLive do
             No supported NFTs were found. Manual selection remains available.
           </p>
           <div class="redeem-owned-list">
+            <%!-- Selection cards are compound grid controls, not primary action buttons. --%>
             <button
               :for={{item, index} <- Enum.with_index(@visible_animata)}
               type="button"
@@ -407,18 +463,19 @@ defmodule AshPlatformWeb.RedeemLive do
               <span class="redeem-nft-art" aria-hidden="true"></span><span class="redeem-nft-type">Regents Club</span><strong>#{item.token_id}</strong><span class="redeem-nft-action">View on OpenSea ↗</span>
             </a>
           </div>
-          <button
+          <Regent.Primitives.button
             :if={@owned_collectibles_limit < @owned_collectibles_total}
             type="button"
             class="redeem-owned-more"
             phx-click="show_more_collectibles"
-          >Show more ({@owned_collectibles_total - @owned_collectibles_limit} remaining)</button>
+          >Show more ({@owned_collectibles_total - @owned_collectibles_limit} remaining)</Regent.Primitives.button>
         </section>
 
-        <details class="redeem-contract-details">
-          <summary>
-            <span><span class="redeem-kicker">Verification</span> Redemption contract details</span><span aria-hidden="true">+</span>
-          </summary>
+        <Regent.Primitives.disclosure
+          id="redeem-contract-details"
+          summary="Verification · Redemption contract details"
+          class="redeem-contract-details"
+        >
           <dl>
             <div>
               <dt>Redeemer</dt><dd><code>{@redemption.redeemer_address}</code></dd>
@@ -438,7 +495,7 @@ defmodule AshPlatformWeb.RedeemLive do
               </dd>
             </div>
           </dl>
-        </details>
+        </Regent.Primitives.disclosure>
       </div>
     </section>
     """
@@ -576,23 +633,37 @@ defmodule AshPlatformWeb.RedeemLive do
 
   defp collection_card(assigns) do
     ~H"""
-    <article class="redeem-collection-card" data-kind={@kind}>
-      <div class="redeem-collection-art" aria-hidden="true"><span>{@index}</span></div>
-      <div class="redeem-collection-copy">
-        <p>{if @kind == "source", do: "Redemption source", else: "Membership result"}</p>
-        <h3>{@title}</h3>
-        <dl>
+    <Regent.Structure.capability_card
+      class="redeem-collection-card"
+      data-kind={@kind}
+      title={@title}
+      index={@index}
+      description={
+        if @kind == "source",
+          do: "Redemption source · Eligible IDs 1–999",
+          else: "Membership result · 1 membership NFT received on redeem"
+      }
+      image_src={
+        if @kind == "source",
+          do: "/images/redeem/animata1and2-poster.jpg",
+          else: "/images/brand/regents-crown-flat-light.svg"
+      }
+      image_alt=""
+    >
+      <:actions>
+        <dl class="redeem-collection-copy">
           <div>
             <dt>{@count_label}</dt><dd>{@count}</dd>
-          </div><div>
-            <dt>{if @kind == "source", do: "Eligible IDs", else: "Received on redeem"}</dt><dd>
-              {if @kind == "source", do: "1–999", else: "1 membership NFT"}
-            </dd>
           </div>
         </dl>
-        <a href={@href} target="_blank" rel="noopener noreferrer">View collection on OpenSea ↗</a>
-      </div>
-    </article>
+        <a
+          class="rg-button rg-button--secondary"
+          href={@href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >View collection on OpenSea ↗</a>
+      </:actions>
+    </Regent.Structure.capability_card>
     """
   end
 

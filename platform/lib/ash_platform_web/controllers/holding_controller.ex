@@ -13,21 +13,21 @@ defmodule AshPlatformWeb.HoldingHTML do
 
   def show(assigns) do
     ~H"""
-    <div class="rl-root">
-      <main class="rl-hero">
+    <Regent.Structure.frame class="rl-root">
+      <main class="rl-hero rg-inset">
         <div class="rl-hero-copy">
           <p class="rl-overline">Regents Labs</p>
-          <h1>Not open yet</h1>
+          <h1 class="rg-hero-title">Not open yet</h1>
           <p>
             This part of Regent isn't open to visitors yet. Everything we have shown so far
             is on the homepage.
           </p>
           <div class="rl-hero-actions">
-            <a href={~p"/"} class="rl-action rl-action--strong">Go to the homepage</a>
+            <a href={~p"/"} class="rg-button"><span class="rg-button__label">Go to the homepage</span></a>
           </div>
         </div>
       </main>
-    </div>
+    </Regent.Structure.frame>
     """
   end
 end

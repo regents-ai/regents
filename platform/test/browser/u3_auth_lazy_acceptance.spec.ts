@@ -289,7 +289,7 @@ for (const viewport of retryViewports) {
     await page.getByRole("button", {name: "Sign In"}).click()
     await expect.poll(() => bridgeRequests.length).toBe(1)
     await expect(status).toBeVisible()
-    await expect(status).toHaveText(
+    await expect(status).toContainText(
       "Sign-in is unavailable on this page. Reload it or contact support.",
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
@@ -302,7 +302,7 @@ for (const viewport of retryViewports) {
     await page.waitForTimeout(50)
     expect(bridgeRequests).toHaveLength(1)
     await expect(status).toBeVisible()
-    await expect(status).toHaveText(
+    await expect(status).toContainText(
       "Sign-in is unavailable on this page. Reload it or contact support.",
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
@@ -313,6 +313,16 @@ for (const viewport of retryViewports) {
         () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
       ),
     ).toEqual([])
+    const documentStarted = await page.evaluate(() => performance.timeOrigin)
+    await page.getByRole("button", {name: "Retry sign-in", exact: true}).click()
+    await expect.poll(() => bridgeRequests.length).toBe(2)
+    await expect(page.getByRole("button", {name: "Retry sign-in", exact: true})).toBeVisible()
+    await page.getByRole("button", {name: "Retry sign-in", exact: true}).click()
+    await expect.poll(() => bridgeRequests.length).toBe(3)
+    await expect.poll(() => page.evaluate(() =>
+      (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
+    )).toEqual(["sign-in"])
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
   })
 }
 
@@ -332,7 +342,7 @@ test("the bounded failure report survives the recommended immediate reload exact
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await page.getByRole("button", {name: "Sign In"}).click()
-  await expect(page.locator("#account-auth-status")).toHaveText(
+  await expect(page.locator("#account-auth-status")).toContainText(
     "Sign-in is unavailable on this page. Reload it or contact support.",
   )
 
@@ -429,12 +439,16 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()
   await page.locator("#account-menu summary").click()
   await expect(page.getByRole("button", {name: "Disconnect"})).toBeVisible()
-  await page.getByRole("link", {name: "Settings"}).click()
-  await expect(page.locator("#settings-verified-connections")).toBeVisible()
+  await page.locator("#account-menu summary").click()
+  // Settings is intentionally disabled. Exercise the same live session on the
+  // supported wallet page instead of depending on that retired menu entry.
+  await page.locator("#shell-sidebar a[href='/stake']").click()
+  await expect(page.locator("#regent-staking")).toBeVisible()
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent("ash:identity-state", {detail: {error: null}}))
   })
-  await expect(page.getByText("Verified connections updated.")).toBeVisible()
+  expect(sessionPosts).toBe(0)
+  expect(sessionDeletes).toBe(0)
   expect(documentRequests).toEqual([pageUrl(page, "/app")])
   expect((await page.request.get("/auth/session")).status()).toBe(200)
 })

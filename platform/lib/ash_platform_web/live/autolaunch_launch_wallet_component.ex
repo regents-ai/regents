@@ -78,7 +78,12 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <section id={@id} class="launch-wallet" phx-hook="AutolaunchLaunchWallet" phx-target={@myself}>
+    <section
+      id={@id}
+      class="launch-wallet rg-panel rg-panel--surface rg-panel__body"
+      phx-hook="AutolaunchLaunchWallet"
+      phx-target={@myself}
+    >
       <.notice :if={@notice} notice={@notice} />
 
       <section class="treasury-verification" aria-label="Treasury verification">
@@ -106,17 +111,17 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
           <label>REGENT receipt transaction <input name="regent" autocomplete="off" /></label>
           <label>Outbound Safe execution transaction <input name="outbound" autocomplete="off" /></label>
-          <button type="submit">Verify deployed address on Base</button>
+          <Regent.Primitives.button type="submit">Verify deployed address on Base</Regent.Primitives.button>
         </form>
       </section>
 
       <p :if={!@authenticated} class="launch-wallet-empty">
-        <button type="button" data-account-target="sign-in">Sign in to launch</button>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="launch-wallet-empty">
         <p>Choose the wallet you want to launch from.</p>
-        <button type="button" data-launch-wallet-connect>Connect or switch wallet</button>
+        <Regent.Primitives.button type="button" data-launch-wallet-connect>Connect or switch wallet</Regent.Primitives.button>
       </div>
 
       <p :if={@authenticated && @wallet && @elsewhere?} class="launch-wallet-empty">
@@ -127,14 +132,14 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
         <p class="launch-wallet-hint">
           Launching from {short(@wallet)}. Your wallet confirms every step.
         </p>
-        <button
+        <Regent.Primitives.button
           class="launch-wallet-primary"
           type="button"
           phx-click="review_launch"
           phx-target={@myself}
         >
           Review launch
-        </button>
+        </Regent.Primitives.button>
       </div>
 
       <section
@@ -211,29 +216,32 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
           {settled_copy(@operation)}
         </p>
 
-        <details class="launch-wallet-details">
-          <summary>Exact values</summary>
+        <Regent.Primitives.disclosure
+          summary="Exact values"
+          class="launch-wallet-details"
+          id={"#{@id}-details"}
+        >
           <dl>
             <div :for={{label, value} <- exact_values(@operation)}>
               <dt>{label}</dt>
               <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
-        </details>
+        </Regent.Primitives.disclosure>
 
         <div class="launch-wallet-controls">
-          <button
+          <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-launch-wallet-send={@operation.action_id}
             data-launch-wallet-signer={@operation.signer}
           >
             Confirm in wallet
-          </button>
+          </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This launch belongs to another wallet. Switch back to it to finish.
           </p>
-          <button
+          <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
             phx-click="check_launch_step"
@@ -241,8 +249,8 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
             phx-target={@myself}
           >
             Check again
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_launch_review"
@@ -250,8 +258,8 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
             phx-target={@myself}
           >
             Cancel
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state in [:dispatched, :submitted]}
             type="button"
             phx-click="start_new_launch"
@@ -259,15 +267,16 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
             phx-target={@myself}
           >
             Start something else
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.terminal_at}
+            variant="secondary"
             type="button"
             phx-click="clear_launch"
             phx-target={@myself}
           >
             Done
-          </button>
+          </Regent.Primitives.button>
         </div>
       </section>
     </section>

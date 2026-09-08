@@ -1,3 +1,4 @@
+@layer regents-product {
 /* Stake stands on the marketing page's grammar: one ground, hairline panels,
    square corners, the display face for headings and a mono voice for kickers. */
 
@@ -22,7 +23,7 @@
   grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
   gap: clamp(1.5rem, 5vw, 4.5rem);
   align-items: end;
-  padding: clamp(1.25rem, 4vw, 3.5rem);
+  padding: var(--rg-panel-padding);
 }
 
 .stake-heading-copy {
@@ -44,7 +45,7 @@
 .stake-page h2,
 .stake-page h3,
 .stake-result-dialog h2 {
-  font-family: var(--font-family-display);
+  font-family: var(--font-family-title);
   font-weight: 400;
 }
 
@@ -75,7 +76,7 @@
 .stake-dialog-meta dt,
 .stake-preview dt {
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
   letter-spacing: 0.14em;
@@ -152,7 +153,7 @@
 .stake-benefit-card dd {
   margin: 0;
   color: var(--ash-accent-warm);
-  font-family: var(--font-family-display);
+  font-family: var(--font-family-title);
   font-size: clamp(1.2rem, 3vw, 2rem);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
@@ -211,7 +212,7 @@
 .stake-actions,
 .stake-overview,
 .stake-how-it-works {
-  padding: clamp(1rem, 3vw, 2rem);
+  padding: var(--rg-panel-padding);
 }
 
 /* The right-hand column stacks: where the USDC comes from, then what the
@@ -247,7 +248,8 @@
   min-height: 2.8rem;
   padding-block: 0.6rem;
   color: var(--ash-ink);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-title);
+  font-weight: 400;
   font-size: 0.9rem;
   list-style: none;
   cursor: pointer;
@@ -282,12 +284,6 @@
 
 .stake-section-heading,
 .stake-overview-heading,
-.stake-supply-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
 
 .stake-section-heading h2,
 .stake-overview-heading h2 {
@@ -305,11 +301,13 @@
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--ash-line-strong);
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.stake-signer { font-family: var(--font-family-mono); }
 
 .stake-signer > span {
   width: 0.45rem;
@@ -321,6 +319,17 @@
 .stake-wallet-controls {
   display: grid;
   gap: 1rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stake-wallet-controls {
+    animation: stake-wallet-enter 180ms ease-out;
+  }
+}
+
+@keyframes stake-wallet-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .stake-connect-flow ol {
@@ -441,7 +450,7 @@
 
 .stake-actions label {
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -477,7 +486,7 @@
 .stake-amount > span {
   padding-inline: 0.9rem;
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
 }
@@ -534,7 +543,7 @@
   font-size: 0.82rem;
 }
 
-/* Every control is a square cell in the mono voice; only the primary action
+/* Every control is a square cell in the Sans UI voice; only the primary action
    fills, as the marketing page's strong action does. */
 .stake-actions button,
 .stake-heading button,
@@ -546,7 +555,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--ash-ink);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -579,53 +588,14 @@
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
   color: var(--ash-ink);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.stake-buy {
-  position: relative;
-  overflow: hidden;
-  text-decoration: none;
-  transition:
-    transform 140ms var(--ease-out),
-    border-color 180ms var(--ease-out),
-    color 180ms var(--ease-out);
-}
-
-.stake-buy > span {
-  position: relative;
-  z-index: 1;
-}
-
-.stake-buy::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  background-image: linear-gradient(
-    100deg,
-    transparent 30%,
-    color-mix(in srgb, var(--ash-accent) 42%, transparent) 50%,
-    transparent 70%
-  );
-  background-size: 300% 100%;
-  background-position: 160% 0;
-  transition: opacity 180ms var(--ease-out);
-}
-
-.stake-buy:active {
-  transform: scale(var(--active-scale));
-}
-
-@keyframes stake-buy-shimmer {
-  from { background-position: 160% 0; }
-  to { background-position: -60% 0; }
-}
+.stake-buy { text-decoration: none; }
 
 .stake-actions button.stake-primary,
 .stake-heading button.stake-primary,
@@ -694,15 +664,12 @@
    palette's Accent Blue for the revenue share, the page ink for REGENT, and its Accent
    Orange where the reward goes straight back to work. */
 .stake-button-row button.stake-claim-ready[data-staking-action="claim_usdc"] {
-  box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-accent) 40%, transparent);
 }
 
 .stake-button-row button.stake-claim-ready[data-staking-action="claim_regent"] {
-  box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-ink) 32%, transparent);
 }
 
 .stake-button-row button.stake-claim-ready[data-staking-action="claim_and_restake_regent"] {
-  box-shadow: 0 0 6px 1px color-mix(in oklch, var(--ash-accent-warm) 40%, transparent);
 }
 
 .stake-footer {
@@ -721,7 +688,7 @@
   gap: 0.45rem;
   margin: 0;
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -737,13 +704,9 @@
   background: var(--ash-muted);
 }
 
-.stake-supply {
-  display: grid;
-  gap: 0.75rem;
-}
 
 .stake-supply-heading strong {
-  font-family: var(--font-family-display);
+  font-family: var(--font-family-title);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -751,26 +714,8 @@
 /* One track holds both proportions: its full width is the total supply, the
    band inside it is the circulating supply, and the fill inside that band is
    what is staked. */
-.stake-supply-bar {
-  width: 100%;
-  height: 0.75rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel-strong);
-}
 
-.stake-supply-circulating {
-  display: block;
-  width: var(--circulating-share);
-  height: 100%;
-  background: color-mix(in oklch, var(--ash-accent) 28%, transparent);
-}
 
-.stake-supply-staked {
-  display: block;
-  width: var(--staked-share);
-  height: 100%;
-  background: var(--ash-accent);
-}
 
 .stake-supply-facts {
   display: grid;
@@ -831,7 +776,7 @@
 
 .stake-how-it-works article > span {
   color: var(--ash-accent-warm);
-  font-family: var(--font-family-pixel);
+  font-family: var(--font-family-title);
   font-size: 0.9rem;
 }
 
@@ -861,7 +806,7 @@
 
 .stake-contract-details summary > span:last-child {
   color: var(--ash-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   transition: transform 180ms var(--ease-out);
 }
 
@@ -941,27 +886,6 @@
 .stake-result-dialog a { margin-block-end: 1rem; }
 .stake-result-dialog a[hidden] { display: none; }
 .stake-result-dialog form { display: flex; justify-content: flex-end; }
-
-@media (hover: hover) and (pointer: fine) {
-  .stake-buy:hover,
-  .stake-buy:focus-visible {
-    border-color: var(--ash-accent);
-    color: var(--ash-accent);
-  }
-
-  .stake-buy:hover::after,
-  .stake-buy:focus-visible::after {
-    opacity: 1;
-    animation: stake-buy-shimmer 1.15s var(--ease-out) infinite;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stake-buy:hover::after,
-  .stake-buy:focus-visible::after {
-    animation: none;
-  }
-}
 
 @media (hover: hover) and (pointer: fine) {
   .stake-actions button:not(:disabled):hover,
@@ -1092,4 +1016,6 @@
 
 #staking-recipient-warning {
   line-height: 1.5;
+}
+
 }

@@ -3,8 +3,6 @@ defmodule AshPlatformWeb.Components.Shell do
 
   use Phoenix.Component
 
-  alias AshPlatformWeb.Components.Background
-
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
     ViewerProfileTarget
@@ -31,6 +29,7 @@ defmodule AshPlatformWeb.Components.Shell do
     ~H"""
     <div
       id="app-shell"
+      class="rg-sheet rg-frame"
       phx-hook="ShellBehavior"
       data-app={@route_spec.app_id}
       data-motion-app={@route_spec.app_id}
@@ -41,8 +40,6 @@ defmodule AshPlatformWeb.Components.Shell do
       data-destination={@route_spec.destination}
       data-shell-instance={@shell_instance}
     >
-      <Background.background slot={@route_spec.background_slot} />
-
       <header id="shell-header">
         <.link id="shell-brand" class="shell-brand" href="/">
           <span class="shell-brand__mark" aria-hidden="true">
@@ -60,7 +57,8 @@ defmodule AshPlatformWeb.Components.Shell do
           <span class="shell-brand__name">Regents Labs</span>
         </.link>
 
-        <button
+        <Regent.Primitives.button
+          variant="quiet"
           id="mobile-menu-button"
           class="mobile-menu-button"
           type="button"
@@ -68,87 +66,23 @@ defmodule AshPlatformWeb.Components.Shell do
           aria-expanded="false"
         >
           Menu
-        </button>
+        </Regent.Primitives.button>
 
         <span class="shell-spacer" />
         <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
 
         <div class="shell-local-controls" data-motion-header-controls>
-          <label :if={@route_spec.search_kind != :none} class="shell-search">
-            <span>Search</span>
-            <input type="search" name="search" autocomplete="off" />
-          </label>
+          <Regent.Primitives.field
+            :if={@route_spec.search_kind != :none}
+            id="shell-search"
+            label="Search"
+            class="shell-search"
+          >
+            <input id="shell-search" type="search" name="search" autocomplete="off" />
+          </Regent.Primitives.field>
         </div>
 
-        <div id="account-control" class="account-control">
-          <button
-            :if={@account_control.kind == :sign_in}
-            type="button"
-            data-account-target="sign-in"
-          >
-            {@account_control.label}
-          </button>
-
-          <details :if={@account_control.kind == :signed_in} id="account-menu">
-            <summary>
-              <%!-- A name's own picture is served by whoever the name points at,
-              and that host has no business learning which page the person is on. --%>
-              <img
-                :if={@account_control.avatar_src}
-                class="account-avatar"
-                src={@account_control.avatar_src}
-                referrerpolicy="no-referrer"
-                width="36"
-                height="36"
-                alt=""
-              />
-              <span data-account-target="profile">{@account_control.label}</span>
-              <span class="shell-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="account-menu__content shell-popover">
-              <.link href="/profile" class="account-menu__row">Account profile</.link>
-              <.link
-                :if={@account_control.profile_path}
-                patch={@account_control.profile_path}
-                class="account-menu__row"
-                data-account-menu-item="profile"
-              >
-                <.account_menu_icon name={:profile} />
-                <span>Profile</span>
-              </.link>
-              <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
-              <.link
-                patch={@account_control.settings_path}
-                class="account-menu__row"
-                data-account-menu-item="settings"
-              >
-                <.account_menu_icon name={:settings} />
-                <span>Settings</span>
-              </.link>
-              --%>
-              <button
-                type="button"
-                class="account-menu__row account-menu__row--danger"
-                data-account-menu-item="disconnect"
-                data-account-target="sign-out"
-              >
-                <.account_menu_icon name={:logout} />
-                <span>Disconnect</span>
-              </button>
-            </div>
-          </details>
-
-          <p
-            id="account-auth-status"
-            class="account-auth-status"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            phx-update="ignore"
-            hidden
-          >
-          </p>
-        </div>
+        <.account_control account_control={@account_control} />
 
         <.theme_toggle id="theme-control" theme={@theme} />
       </header>
@@ -159,13 +93,22 @@ defmodule AshPlatformWeb.Components.Shell do
         aria-label="Context navigation"
         tabindex="-1"
       >
-        <button type="button" class="shell-menu-close" data-shell-menu-close>
+        <Regent.Primitives.button
+          variant="quiet"
+          type="button"
+          class="shell-menu-close"
+          data-shell-menu-close
+        >
           Close navigation
-        </button>
-        <label :if={@route_spec.search_kind != :none} class="shell-mobile-search">
-          <span>Search</span>
-          <input type="search" name="mobile-search" autocomplete="off" />
-        </label>
+        </Regent.Primitives.button>
+        <Regent.Primitives.field
+          :if={@route_spec.search_kind != :none}
+          id="shell-mobile-search"
+          label="Search"
+          class="shell-mobile-search"
+        >
+          <input id="shell-mobile-search" type="search" name="mobile-search" autocomplete="off" />
+        </Regent.Primitives.field>
         <ul>
           <li
             :for={target <- @route_spec.sidebar_model.targets}
@@ -180,13 +123,14 @@ defmodule AshPlatformWeb.Components.Shell do
         </ul>
       </nav>
 
-      <button
+      <Regent.Primitives.button
+        variant="quiet"
         type="button"
         class="shell-menu-scrim"
         data-shell-menu-scrim
         aria-label="Close navigation"
         hidden
-      ></button>
+      ></Regent.Primitives.button>
 
       <div id="app-shell-scroller" tabindex="-1">
         <main
@@ -197,6 +141,82 @@ defmodule AshPlatformWeb.Components.Shell do
           {render_slot(@content)}
         </main>
       </div>
+    </div>
+    """
+  end
+
+  attr :account_control, AshPlatform.AccessContext.AccountControl, required: true
+  attr :enabled, :boolean, default: true
+  attr :profile_links, :boolean, default: true
+
+  @doc """
+  The real Regents account control, also rendered by the local Privy reference.
+  These markers are consumed by auth_lazy.ts; this component never authenticates
+  a user itself. The caller supplies the server-verified account presentation.
+  """
+  def account_control(assigns) do
+    ~H"""
+    <div id="account-control" class="account-control">
+      <Regent.Primitives.button
+        :if={@account_control.kind == :sign_in}
+        type="button"
+        data-account-target="sign-in"
+        disabled={!@enabled}
+      >
+        {@account_control.label}
+      </Regent.Primitives.button>
+      <details :if={@account_control.kind == :signed_in} id="account-menu">
+        <summary>
+          <%!-- ENS avatar hosts must not learn which page the visitor is on. --%>
+          <img
+            :if={@account_control.avatar_src}
+            class="account-avatar"
+            src={@account_control.avatar_src}
+            referrerpolicy="no-referrer"
+            width="36"
+            height="36"
+            alt=""
+          />
+          <span data-account-target="profile">{@account_control.label}</span>
+          <span class="shell-chevron" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="account-menu__content shell-popover">
+          <.link href="/profile" class="account-menu__row">Account profile</.link>
+          <.link
+            :if={@profile_links && @account_control.profile_path}
+            patch={@account_control.profile_path}
+            class="account-menu__row"
+            data-account-menu-item="profile"
+          >
+            <.account_menu_icon name={:profile} /><span>Profile</span>
+          </.link>
+          <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
+          <.link patch={@account_control.settings_path} class="account-menu__row" data-account-menu-item="settings">
+            <.account_menu_icon name={:settings} /><span>Settings</span>
+          </.link>
+          --%>
+          <Regent.Primitives.button
+            variant="quiet"
+            type="button"
+            disabled={!@enabled}
+            class="account-menu__row account-menu__row--danger"
+            data-account-menu-item="disconnect"
+            data-account-target="sign-out"
+          >
+            <.account_menu_icon name={:logout} /><span>Disconnect</span>
+          </Regent.Primitives.button>
+        </div>
+      </details>
+      <p
+        id="account-auth-status"
+        class="account-auth-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        phx-update="ignore"
+        hidden
+      >
+      </p>
     </div>
     """
   end
@@ -216,7 +236,8 @@ defmodule AshPlatformWeb.Components.Shell do
   def theme_toggle(assigns) do
     ~H"""
     <div id={@id} class="theme-control" phx-update="ignore">
-      <button
+      <Regent.Primitives.button
+        variant="quiet"
         class="theme-toggle"
         type="button"
         aria-label={"Color theme: #{theme_name(@theme)}. Activate #{next_theme_name(@theme)} theme."}
@@ -236,7 +257,7 @@ defmodule AshPlatformWeb.Components.Shell do
           </span>
         </span>
         <span class="visually-hidden" data-theme-toggle-state>{theme_name(@theme)} theme active</span>
-      </button>
+      </Regent.Primitives.button>
     </div>
     """
   end

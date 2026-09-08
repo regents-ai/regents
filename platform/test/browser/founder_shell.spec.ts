@@ -36,37 +36,13 @@ async function patchTo(page: Page, path: string) {
   await page.locator("#patch-probe").click()
 }
 
-// The mat guide is the slot's token, painted through `--shell-background-guide`:
-// `--color-accent` on Regent routes, `--product-formation` on Formation, and
-// `--brand-accent` on Autolaunch. Those tokens are read as computed colours so
-// the assertion follows the stylesheet rather than a frozen rgb() string.
-const routeGuideTokens = {
-  "/stake": "--color-accent",
-  "/formation": "--product-formation",
-  "/autolaunch": "--brand-accent",
-} as const
-
-function tokenColor(page: Page, token: string) {
-  return page.evaluate(name => {
-    const probe = document.createElement("span")
-    probe.style.backgroundColor = `var(${name})`
-    document.documentElement.append(probe)
-    const color = getComputedStyle(probe).backgroundColor
-    probe.remove()
-    return color
-  }, token)
-}
-
-// The guide is read where it is painted, so it proves the whole chain from the
-// shared token through `--shell-background-guide` onto the mat mask.
+// Actual ruled-frame surfaces replace all page-background masks.
 function readFamily(page: Page) {
   return page.evaluate(() => {
     const shell = document.querySelector("#app-shell")
-    const asset = document.querySelector(".shell-background__asset")
     return {
       ground: shell && getComputedStyle(shell).backgroundColor,
       text: shell && getComputedStyle(shell).color,
-      guide: asset && getComputedStyle(asset).backgroundColor,
     }
   })
 }
@@ -80,45 +56,28 @@ async function chooseTheme(page: Page, choice: "light" | "dark") {
   await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
 }
 
-test("[U2] the shell keeps one ground per theme while the mat guide follows each application", async ({page}) => {
+test("[U2] the ruled shell keeps the Regents palette across applications", async ({page}) => {
   const palette: Record<string, {ground: string | null; text: string | null}> = {}
-
   for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
-
-    for (const [route, token] of Object.entries(routeGuideTokens)) {
+    for (const route of ["/stake", "/formation", "/autolaunch"]) {
       await page.goto(route)
       await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
-      const guide = await tokenColor(page, token)
-      await expect.poll(() => readFamily(page).then(read => read.guide), `${route} ${choice}`)
-        .toBe(guide)
-
-      const {ground, text} = await readFamily(page)
-      palette[choice] ??= {ground, text}
-      expect({ground, text}, `${route} ${choice}`).toEqual(palette[choice])
+      await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
+      await expect(page.locator(".shell-background, .shell-background__asset")).toHaveCount(0)
+      await expect(page.locator("#app-shell")).toHaveClass(/rg-frame/)
+      const colors = await readFamily(page)
+      palette[choice] ??= colors
+      expect(colors).toEqual(palette[choice])
     }
-
-    // Switching inside the persistent shell must land the same guide a direct
-    // load does, on the same ground.
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-
-    await patchTo(page, "/formation")
-    await expect(page).toHaveURL(/\/formation$/)
-    await expect.poll(() => readFamily(page), `switched Formation ${choice}`).toEqual({
-      ...palette[choice],
-      guide: await tokenColor(page, routeGuideTokens["/formation"]),
-    })
-
-    await patchTo(page, "/autolaunch")
-    await expect(page).toHaveURL(/\/autolaunch$/)
-    await expect.poll(() => readFamily(page), `switched Autolaunch ${choice}`).toEqual({
-      ...palette[choice],
-      guide: await tokenColor(page, routeGuideTokens["/autolaunch"]),
-    })
+    for (const destination of ["/formation", "/autolaunch"]) {
+      await patchTo(page, destination)
+      await expect(page).toHaveURL(new RegExp(`${destination}$`))
+      await expect.poll(() => readFamily(page)).toEqual(palette[choice])
+    }
   }
-
-  // Two themes, two grounds: the switch is not decorative.
   expect(palette.light).not.toEqual(palette.dark)
 })
 
@@ -128,7 +87,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 }) => {
   for (const [route, brand] of [
     ["/formation", "platform"],
-    ["/autolaunch", "autolaunch"],
+    ["/autolaunch", "platform"],
   ] as const) {
     const served = await (await request.get(route)).text()
     expect(served).toContain(`data-brand="${brand}"`)
@@ -140,7 +99,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
   }
 })
 
-test("product headings keep the interface face RegentUI would otherwise reface", async ({page}) => {
+test("product headings use canonical Pixel Square", async ({page}) => {
   await page.goto("/formation")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
@@ -148,7 +107,7 @@ test("product headings keep the interface face RegentUI would otherwise reface",
     await page
       .locator(".formation-heading h1")
       .evaluate(element => getComputedStyle(element).fontFamily),
-  ).toContain("Geist UI Sans")
+  ).toContain("Geist Pixel Square")
 })
 
 test("all approved routes render within their page budget", async ({page, request}) => {
@@ -171,7 +130,7 @@ test("the public homepage presents the product hero and marketing chapters", asy
 
   const home = page.locator("#public-home")
   await expect(home).toHaveAttribute("data-hero-enhanced", "true")
-  await expect(page.locator(".rl-hero-art")).toHaveAttribute(
+  await expect(page.locator(".rl-hero-figure img")).toHaveAttribute(
     "src",
     "/images/home/hero-bg-dark.svg",
   )
@@ -190,7 +149,7 @@ test("the public homepage presents the product hero and marketing chapters", asy
     .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
   expect(sectionTops).toHaveLength(3)
   expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))
-  expect(await page.evaluate(() => document.fonts.check('16px "GeistPixel Square"'))).toBe(true)
+  expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
@@ -198,58 +157,20 @@ test("the public homepage presents the product hero and marketing chapters", asy
 // Headless Chromium has no GPU, which is the interesting case: the hero decoration
 // must stay invisible and inert while the server's art, copy, and action carry the
 // page on their own. Nothing here pretends a GPU is present.
-test("the hero fallback and simulated-ready crown never block the action", async ({page}) => {
-  for (const viewport of [
-    {width: 1280, height: 800},
-    {width: 390, height: 844},
-  ]) {
+test("the bounded technical crown never blocks the action", async ({page}) => {
+  for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-
-    const prism = page.locator("#home-prism")
-    await expect(prism).toHaveAttribute("aria-hidden", "true")
-    await expect(prism).not.toHaveAttribute("data-prism-ready", "true")
-    await expect(prism).toHaveCSS("opacity", "0")
-    await expect(prism).toHaveCSS("transform", "none")
-    await expect(prism).toHaveCSS("transition-property", "opacity")
-    await expect(prism).toHaveCSS("pointer-events", "none")
-    const canvas = page.locator("#home-prism canvas")
-    await expect(canvas).toHaveCount(1)
-    await expect(canvas).toHaveCSS("pointer-events", "none")
-    await expect(page.locator(".rl-hero-art")).toBeVisible()
+    await expect(page.locator("#home-field, #home-prism, #public-home canvas")).toHaveCount(0)
+    await expect(page.locator(".rl-hero-figure img")).toBeVisible()
     await expect(page.locator("#home-title")).toBeVisible()
-
-    // The full-hero canvas lies over the hero's own controls, so they must still
-    // be reachable: a trial click runs every actionability check and presses nothing.
-    const staking = page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"})
-    await staking.click({trial: true})
-    await page.locator("#home-card-techtree").getByRole("link", {name: "Open techtree"}).click({
-      trial: true,
-    })
-    await expect(page.locator("#home-products")).toBeVisible()
-
-    // Simulate the state reached only after the real GPU's first frame settles.
-    // This is deliberately a presentation-state check, not a fake WebGPU adapter.
-    // Reduced motion keeps the renderer dormant so its asynchronous adapter probe
-    // cannot race this deliberately synthetic presentation state.
+    await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})
+    await page.locator("#home-card-techtree").getByRole("link", {name: "Open techtree"}).click({trial: true})
     await page.emulateMedia({reducedMotion: "reduce"})
-    await page.goto("/")
-    await prism.evaluate(element => (element as HTMLElement).dataset.prismReady = "true")
-    await expect(prism).toHaveAttribute("data-prism-ready", "true")
-    await expect(prism).toHaveCSS("opacity", "1")
-    await expect(prism).toHaveCSS("transform", "none")
-    await expect(prism).toHaveCSS("transition-property", "opacity")
-    await expect(prism).toHaveCSS("pointer-events", "none")
-    await expect(canvas).toHaveCSS("pointer-events", "none")
-    await staking.click({trial: true})
-    await expect(page.locator("#home-products")).toBeVisible()
-    await prism.evaluate(element => delete (element as HTMLElement).dataset.prismReady)
-    await expect(prism).toHaveCSS("opacity", "0")
-    await expect(prism).toHaveCSS("transform", "none")
+    await expect(page.locator(".rl-hero-figure img")).toBeVisible()
     await page.emulateMedia({reducedMotion: "no-preference"})
   }
 })
-
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
@@ -381,7 +302,7 @@ test("the Overview maps the four products, keeps account details secondary, and 
 
   const products = overview.getByRole("list", {name: "Products"})
   for (const name of ["Regents", "Autolaunch", "Techtree", "Patchbay"]) {
-    await expect(products.getByRole("heading", {level: 2, name})).toBeVisible()
+    await expect(products.getByRole("heading", {level: 3, name})).toBeVisible()
   }
   await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(
     "href",
@@ -455,7 +376,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
 
   await patchTo(page, "/autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
-  await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await page.evaluate(() => {
     document
       .querySelector("#route-content")
@@ -477,7 +398,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   })
   await page.goForward()
   await expect(page).toHaveURL(/\/autolaunch$/)
-  await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
+  await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 })

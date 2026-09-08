@@ -12,7 +12,7 @@ defmodule AshPlatform.Legal do
     link_rel: "noopener noreferrer"
   ]
 
-  @priv Path.expand("../../priv/legal", __DIR__)
+  @priv Application.app_dir(:ash_platform, "priv/legal")
   @privacy_path Path.join(@priv, "privacy.md")
   @terms_path Path.join(@priv, "terms.md")
   @external_resource @privacy_path

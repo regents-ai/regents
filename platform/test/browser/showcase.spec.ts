@@ -18,13 +18,13 @@ test("eight palettes, editable colors and live updates retain their state", asyn
   page.on("pageerror", (error) => errors.push(error.message))
   for (const brand of ["platform", "autolaunch", "patchbay", "techtree"]) {
     for (const mode of ["light", "dark"]) {
-      const background = page.locator(`[data-sc-background="${brand}:${mode}"]`)
-      await background.click()
-      await expect(background).toHaveAttribute("aria-pressed", "true")
-      await expect(page.locator("[data-sc-background][aria-pressed=true]")).toHaveCount(1)
-      expect(await background.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
-      const source = await background.locator("img").getAttribute("src")
-      expect(await page.locator(".sc").evaluate(el => getComputedStyle(el).backgroundImage)).toContain(source!)
+      const theme = page.locator(`[data-sc-theme="${brand}:${mode}"]`)
+      await theme.click()
+      await expect(theme).toHaveAttribute("aria-pressed", "true")
+      await expect(page.locator("[data-sc-theme][aria-pressed=true]")).toHaveCount(1)
+      await expect(theme.locator(".sc-theme-sample")).toBeVisible()
+      await expect(page.locator("[data-sc-theme] img")).toHaveCount(0)
+      expect(await page.locator(".sc").evaluate(el => getComputedStyle(el).backgroundImage)).toBe("none")
       await expect(page.locator("html")).toHaveAttribute("data-brand", brand)
       await expect(page.locator("html")).toHaveAttribute("data-theme", mode)
       expect(
@@ -98,7 +98,42 @@ test("every wallet press reaches its isolated provider, including pending and fa
 
 test("Ash validation, utility outcomes, local database and disclosure fixtures work", async ({
   page,
+  context,
 }) => {
+  const errors: string[] = []
+  page.on("pageerror", error => errors.push(error.message))
+  await page.getByRole("button", {name: "Create item", exact: true}).click()
+  await expect(page.locator("#empty-state-items")).toContainText("Workshop item 1")
+  await page.getByRole("button", {name: "Add item", exact: true}).click()
+  await expect(page.locator("#empty-state-items li")).toHaveCount(2)
+  await page.getByRole("button", {name: "Reset items", exact: true}).click()
+  await expect(page.locator("#empty-state-demo")).toContainText("Nothing here yet.")
+
+  await page.locator("#showcase-chamber").getByRole("button", {name: "Edit", exact: true}).click()
+  await expect(page.locator("#chamber-title")).toBeFocused()
+  await page.locator("#chamber-title").fill("x")
+  await page.getByRole("button", {name: "Save title", exact: true}).click()
+  await expect(page.locator("#chamber-title")).toHaveAttribute("aria-invalid", "true")
+  await expect(page.locator("#chamber-title")).toHaveValue("x")
+  await page.locator("#chamber-title").fill("Updated local step")
+  await page.getByRole("button", {name: "Save title", exact: true}).click()
+  await expect(page.locator("#showcase-chamber")).toContainText("Updated local step")
+  await page.locator("#showcase-chamber").getByRole("button", {name: "Edit", exact: true}).click()
+  await page.locator("#chamber-title").fill("Discard this edit")
+  await page.getByRole("button", {name: "Cancel", exact: true}).click()
+  await expect(page.locator("#showcase-chamber")).not.toContainText("Discard this edit")
+
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.locator("#showcase-ledger [data-sc-copy]").click()
+  await expect(page.locator("#showcase-ledger [data-sc-copy]")).toHaveText("Copied")
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Network: Base\nState: Confirmed")
+
+  const realAuth = page.locator("[data-sc-privy-mode]")
+  await expect(realAuth).toHaveAttribute("data-sc-privy-mode", "fixture")
+  await expect(realAuth).toContainText("Real sign-in is unavailable")
+  await expect(realAuth.getByRole("button", {name: "Connect Privy"})).toBeDisabled()
+  await expect(page.locator("#account-control [data-account-target]")).toHaveCount(0)
+
   await page.locator("#sample-title").fill("Test record")
   await page.locator("#sample-quantity").fill("2")
   await page.getByRole("button", {name: "Run create action"}).click()
@@ -123,6 +158,10 @@ test("Ash validation, utility outcomes, local database and disclosure fixtures w
   await page.getByRole("button", {name: "Check isolated database"}).click()
   await expect(page.locator("#utility-result")).toContainText("SELECT 1 passed")
   await page.locator("#comments-detail > summary").click()
+  await page.locator("#comment-body").fill("   ")
+  await page.getByRole("button", {name: "Post comment", exact: true}).click()
+  await expect(page.locator("#comment-ledger-status")).toContainText("could not be posted")
+  await expect(page.locator("#comment-body")).toHaveValue("   ")
   await page.locator("#comment-body").fill("A fixture comment")
   await page.getByRole("button", {name: "Post comment", exact: true}).click()
   await expect(page.locator(".comment-ledger__list")).toContainText(
@@ -130,14 +169,16 @@ test("Ash validation, utility outcomes, local database and disclosure fixtures w
   )
   await expect(page.locator(".comment-ledger__list")).toBeVisible()
   await page.locator("#connections-detail > summary").click()
-  await page.locator("#showcase-connections-github button").click()
-  await expect(page.locator("#showcase-connections-github button")).toHaveText(
-    "Disconnect",
-  )
-  await page.locator("#showcase-connections-github button").click()
-  await expect(page.locator("#showcase-connections-github button")).toHaveText(
-    "Connect",
-  )
+  for (const provider of ["github", "x", "farcaster"]) {
+    const control = page.locator(`#showcase-connections-${provider} button`)
+    await control.click()
+    await expect(control).toHaveText("Disconnect")
+    await control.click()
+    await expect(control).toHaveText("Connect")
+  }
+  page.once("dialog", dialog => dialog.accept())
+  await page.locator(".comment-ledger__list").getByRole("button", {name: "Delete"}).click()
+  await expect(page.locator(".comment-ledger__list")).toHaveCount(0)
   const catalog = await (await page.request.get("/showcase/catalog")).json()
   expect(
     catalog.components.some(
@@ -149,9 +190,10 @@ test("Ash validation, utility outcomes, local database and disclosure fixtures w
     await page.locator("#utility-inventory").evaluate((el) => el.textContent),
   ).toContain("RegentPrivy")
   await expect(page.locator("#utility-inventory")).not.toHaveAttribute("open")
+  expect(errors).toEqual([])
 })
 
-test("mobile, keyboard, reduced motion, complete backgrounds and isolated previews", async ({
+test("mobile, keyboard, reduced motion, retired backgrounds and isolated previews", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({width: 390, height: 844})

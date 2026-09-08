@@ -1,3 +1,4 @@
+@layer regents-product {
 .settings-page {
   display: grid;
   gap: clamp(1.5rem, 4vw, 3rem);
@@ -72,4 +73,6 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
 }

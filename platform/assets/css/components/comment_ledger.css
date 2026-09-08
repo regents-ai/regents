@@ -1,3 +1,4 @@
+@layer regents-product {
 .comment-ledger {
   display: grid;
   gap: 1rem;
@@ -27,7 +28,7 @@
 .comment-ledger article time,
 .comment-ledger__composer-actions p {
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
 }
 
@@ -50,7 +51,7 @@
   width: 100%;
   resize: vertical;
   border: 1px solid var(--hairline-strong);
-  border-radius: 2px;
+  border-radius: 0;
   background: color-mix(
     in oklch,
     var(--color-surface-elevated) 94%,
@@ -187,4 +188,6 @@
 }
 .comment-ledger__body .katex-display {
   margin: 0.6rem 0;
+}
+
 }

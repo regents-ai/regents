@@ -22,20 +22,22 @@ defmodule AshPlatformWeb.Layouts do
     """
   end
 
+  attr(:theme, :string, default: "dark")
+
   @doc "Product and source discovery without loading a browser integration."
   def product_links(assigns) do
     ~H"""
     <footer aria-label="Project links" class="product-links">
+      <AshPlatformWeb.Components.Shell.theme_toggle id="footer-theme-control" theme={@theme} />
       <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
       <a href="/llms.txt">For agents</a>
-      <details>
-        <summary>Regents Labs</summary>
+      <Regent.Primitives.disclosure summary="Regents Labs" id="layouts-details-0">
         <nav aria-label="Related products" class="product-links__related">
           <a href="https://autolaunch.sh">Autolaunch</a>
           <a href="https://patchbay.help">Patchbay</a>
           <a href="https://techtree.sh">Techtree</a>
         </nav>
-      </details>
+      </Regent.Primitives.disclosure>
     </footer>
     """
   end
