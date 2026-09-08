@@ -1,3 +1,5 @@
+local-only-*
+
 out/
 cache/
 broadcast/**/dry-run/

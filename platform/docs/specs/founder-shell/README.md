@@ -1,6 +1,6 @@
 # ash-platform founder shell and first protected capabilities
 
-Status is owned by Beads. This document records founder-approved product and architecture truth for the independent `ash-platform` application.
+Status belongs to the current Hermes assignment. This document records founder-approved product and architecture truth for the independent `ash-platform` application.
 
 ## Outcome
 

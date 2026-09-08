@@ -1,3 +1,5 @@
+local-only-*
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 
@@ -83,3 +85,6 @@ Thumbs.db
 /priv/static/images/regent-ui/
 
 /assets/vendor/regent_identity/
+
+# Fonts staged by mix regent_ui.assets, served through the existing fonts allowlist.
+/priv/static/fonts/regent-ui/

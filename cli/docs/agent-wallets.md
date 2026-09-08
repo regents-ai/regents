@@ -1,6 +1,6 @@
 # Agent wallets
 
-Workspace policy: [WebMCP and CLI standard](../../../../control/docs/programs/webmcp-cli-standard.md)
+Workspace policy: [WebMCP and CLI standard](../../../../agent-docs/webmcp-cli-standard.md)
 (canonical Regent checkout).
 
 Start with an existing wallet and explicit authority to use its funds. This works

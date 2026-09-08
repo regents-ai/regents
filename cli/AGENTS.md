@@ -1,13 +1,13 @@
-# Regents CLI control bridge
+# Regents CLI
 
 This component owns the standalone `regents` command and must remain independently buildable and testable. Product-owned API bindings arrive as reviewed, checked-in copies; builds and tests must not require another product checkout or upstream synchronization.
 
-## Private control
+## Workspace workflow
 
-- Before Regent work, load `/Users/sean/Documents/regent/control/.agents/skills/regent-workflow/SKILL.md`. Load a role skill only when a dispatch work order explicitly assigns that role.
-- `/Users/sean/Documents/regent/control/repos/regents.yaml` is the authority for repository mechanics and proof.
-- Do ticket work only in its assigned isolated worktree. The original checkout is sterile and integration-only: never install, build, generate, serve, or run acceptance there.
-- Workers never read or mutate Beads.
+Follow `/Users/sean/Documents/regent/.agents/skills/regent-workflow/SKILL.md`.
+Hermes/Astra coordinates Claude/Fable assignments. Use isolated worktrees for
+concurrent writers and preserve unrelated work. Repository checks and contracts
+below define verification; no central coordinator service is required.
 
 ## Repository contracts
 

@@ -11,7 +11,7 @@ Own regents.sh, its API, CLI and Regents contracts in this monorepo.
   OpenClaw, MCP and bundled-skill integrations are CLI code under `cli/` and stay there.
 - Shared UI and Elixir libraries other than `identity/` remain separate siblings. Use `REGENT_DEPS_ROOT`
   for isolated builds. Run checks from the owning component or use root Make targets.
-- Follow Control's `regent-workflow`; use one integrating owner for this repository.
+- Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.
 - Preserve uncommitted work, public command/API shapes and protected source evidence.
   Every distinct wallet press reaches the wallet. No signing, production access,

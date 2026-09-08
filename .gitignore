@@ -1,3 +1,5 @@
+local-only-*
+
 .DS_Store
 .env
 .env.*

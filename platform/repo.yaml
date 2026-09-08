@@ -2,7 +2,6 @@ version: 1
 repo: regents
 owner: regents
 path: regents/platform
-stack_contract: /Users/sean/Documents/regent/control/stack.yaml
 owns:
   - regent_web_app
   - web_routes

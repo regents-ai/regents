@@ -5,7 +5,7 @@ be. It consolidates the founder directives and the decisions made during the
 greenfield and interface grilling sessions through 2026-07-10.
 
 It describes product intent and acceptance principles, not implementation
-status. Beads owns execution state only. Current shipping status belongs in
+status. The current Hermes assignment owns execution state. Current shipping status belongs in
 the machine-readable stack/repo contracts and owning interface contracts.
 Source contracts own exact public interfaces. The implementation may improve
 as we learn, but it must not quietly change a founder directive.
@@ -120,7 +120,7 @@ success; the expected-chain receipt and an onchain reread decide completion.
 
 **Status honesty.** Every major capability is labelled `live`, `beta`,
 `preview`, or `planned` in the owning machine/interface contract. Product
-intent and current shipping state are kept distinct. Beads never supplies
+intent and current shipping state are kept distinct. Historical tracking records never supply
 shipping status. A polished placeholder does not count as a working
 capability.
 

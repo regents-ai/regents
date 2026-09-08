@@ -3,7 +3,6 @@ repo: regents
 owner: regents
 path: regents/cli
 release_group: public_beta
-stack_contract: /Users/sean/Documents/regent/control/stack.yaml
 owns:
   - operator_control_surface
   - generated_bindings

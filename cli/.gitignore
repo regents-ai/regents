@@ -1,3 +1,5 @@
+local-only-*
+
 node_modules/
 .pnpm-store/
 .packed/

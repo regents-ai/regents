@@ -30,17 +30,14 @@ Base (chain 8453) for every on-chain figure.
 
 ## 2. Environment
 
-- Repo root: `/Users/sean/Documents/regent/repos/ash-platform`
-- Sibling **path** dependencies — the build breaks without them:
-  `../elixir-utils/privy`, `../design-system/regent_ui`, `../elixir-utils/credo_ash`
-- Work happens in git worktrees under `/Users/sean/Documents/regent/worktrees/ash-platform/<ticket>`,
-  created by `control/scripts/regentctl worktree-create ash-platform <ticket> regent/<ticket>-<slug> <full-40-char-sha>`.
-  Short SHAs are rejected. The branch name must begin `regent/<ticket>-`.
-- Task tracking is the `beads` CLI with `BEADS_DIR=/Users/sean/Documents/regent/control/.beads`.
-
-**Do not touch:** ports 4030 and 4177, the Anvil node on 51759, or the worktree
-`worktrees/ash-platform/regent-490.5.8`. Never use bare `git stash` / `git stash pop` —
-the stash stack is shared with every other worktree and other agents pop it.
+- Application root: `/Users/sean/Documents/regent/repos/regents/platform`.
+- Set `REGENT_DEPS_ROOT` to the selected shared repository root; package paths and
+  component checks are documented in the current README and `mix.exs`.
+- Follow the workspace `regent-workflow`. Use ordinary Git worktrees for concurrent
+  writers, unique ports and disposable test databases. Historical ticket paths and
+  reserved-port lists are no longer current assignments.
+- Preserve unrelated working changes. Never use bare `git stash` / `git stash pop`
+  across concurrent writers; a repository's stash stack is shared.
 
 **A fresh worktree needs both** `mix deps.get` **and** `npm ci` before anything runs,
 and `mix assets.build` before any browser test.
