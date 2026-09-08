@@ -20,13 +20,19 @@ import {
   createProviderSessionReconciler,
 } from "../js/privy_bridge"
 import {
+  activeEthereumWallet,
   connectedEthereumWallet,
+  forgetWalletDisconnected,
+  replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   walletDisconnected,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  forgetWalletDisconnected()
+  vi.unstubAllGlobals()
+})
 
 class AccountElement {
   disabled = false
@@ -115,17 +121,67 @@ function accountDocument({
       signInControls = Array.from({length: count}, () => new AccountElement("sign-in"))
       return signInControls
     },
-    click(accountTarget: "sign-in" | "sign-out") {
-      const target = accountTarget === "sign-in" ? signInControls[0] : new AccountElement("sign-out")
+    click(accountTarget: "sign-in" | "sign-out" | "connect-wallet" | "retry-sign-in") {
+      const target = accountTarget === "sign-in" ? signInControls[0] : new AccountElement(accountTarget)
       listeners.get("click")?.({target, preventDefault: vi.fn()} as unknown as Event)
     },
-    dispatch(type: string) {
-      listeners.get(type)?.({type} as Event)
+    dispatch(type: string, detail: Record<string, unknown> = {}) {
+      listeners.get(type)?.({type, ...detail} as Event)
     },
   }
 }
 
 describe("lazy browser authentication", () => {
+  it("an explicit retry replaces failed startup without reloading or stacking a bridge", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument()
+    const request = vi.fn(async () => undefined)
+    const startPrivyBridge = vi.fn(async () => ({request}))
+    const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({startPrivyBridge})
+    const reload = vi.fn()
+    const stop = installAccountAuthLazyLoader(page.documentRoot, importer, {reload})
+    page.click("sign-in")
+    await vi.waitFor(() => expect(page.status.hidden).toBe(false))
+    page.click("retry-sign-in")
+    await vi.waitFor(() => expect(request).toHaveBeenCalledWith("sign-in"))
+    expect(importer).toHaveBeenCalledTimes(2)
+    expect(startPrivyBridge).toHaveBeenCalledOnce()
+    expect(reload).not.toHaveBeenCalled()
+    stop()
+  })
+  it("disposal prevents a delayed module from starting an obsolete Privy root", async () => {
+    let release: ((module: PrivyBridgeModule) => void) | undefined
+    const startPrivyBridge = vi.fn(async () => ({request: async () => undefined}))
+    const loader = createLazyAuthLoader(() => new Promise(resolve => { release = resolve }))
+    const attempt = loader.request("sign-in")
+    loader.dispose()
+    const refused = expect(attempt).rejects.toMatchObject({name: "AbortError"})
+    release!({startPrivyBridge})
+    await refused
+    expect(startPrivyBridge).not.toHaveBeenCalled()
+  })
+  it("another tab's logout clears wallet state and verifies anonymous truth without another DELETE", async () => {
+    const page = accountDocument({signedIn: true})
+    vi.stubGlobal("document", page.documentRoot)
+    vi.stubGlobal("window", {location: {origin: "https://regents.sh"}, localStorage: memoryStorage()})
+    const selected = {address: "0x1111111111111111111111111111111111111111", provider: {request: vi.fn()}}
+    replaceActiveEthereumWallet(selected)
+    const fetcher = vi.fn(async (_url: RequestInfo | URL) => new Response(JSON.stringify({authenticated: false}), {status: 200}))
+    vi.stubGlobal("fetch", fetcher)
+    const clearSession = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    const stop = installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: async () => ({request: async () => undefined}),
+    }), {clearSession, reload, sessionMutations: createSessionMutationCoordinator()})
+    page.dispatch("storage", {key: "regent:wallet-disconnected:v1", newValue: "true"})
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    expect(activeEthereumWallet()).toBeNull()
+    expect(clearSession).not.toHaveBeenCalled()
+    expect(fetcher.mock.calls.every(([url]) => url === "/auth/session")).toBe(true)
+    stop()
+  })
   it("reports only the fixed Privy failure category to the same-origin server", async () => {
     vi.stubGlobal("document", {
       querySelector: (selector: string) =>
@@ -295,7 +351,7 @@ describe("lazy browser authentication", () => {
     resolveHandle?.({request: handleRequest})
     await Promise.all([sync, signOut])
 
-    expect(startPrivyBridge).toHaveBeenCalledWith()
+    expect(startPrivyBridge).toHaveBeenCalledWith({signal: expect.any(AbortSignal)})
     expect(handleRequest).toHaveBeenCalledOnce()
     expect(handleRequest).toHaveBeenCalledWith("sign-out")
     expect(order).toEqual(["provider"])
@@ -399,7 +455,7 @@ describe("lazy browser authentication", () => {
       "http://127.0.0.1:4002/assets/js/privy_bridge.js?regent_retry=2",
     )
     expect(startPrivyBridge).toHaveBeenCalledOnce()
-    expect(startPrivyBridge).toHaveBeenCalledWith()
+    expect(startPrivyBridge).toHaveBeenCalledWith({signal: expect.any(AbortSignal)})
     expect(handleRequest).toHaveBeenCalledOnce()
     expect(handleRequest).toHaveBeenCalledWith("sign-in")
   })
@@ -446,7 +502,7 @@ describe("lazy browser authentication", () => {
         ? "http://127.0.0.1:4002/assets/js/privy_bridge-0123456789abcdef0123456789abcdef.js?vsn=d&regent_retry=0"
         : "http://127.0.0.1:4002/assets/js/privy_bridge.js?regent_retry=0",
     )
-    expect(startPrivyBridge).toHaveBeenCalledWith()
+    expect(startPrivyBridge).toHaveBeenCalledWith({signal: expect.any(AbortSignal)})
     expect(handleRequest).toHaveBeenCalledWith("sync")
   })
 
@@ -591,6 +647,20 @@ describe("lazy browser authentication", () => {
     expect(importer).toHaveBeenCalledOnce()
     expect(startPrivyBridge).toHaveBeenCalledOnce()
     expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+  })
+
+  it("routes a signed-in wallet button to connection without sign-in or document reload", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument({signedIn: true})
+    const handleRequest = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: async () => ({request: handleRequest}),
+    }), {reload})
+    page.click("connect-wallet")
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("connect-wallet"))
+    expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("synchronizes Privy's wallets when a wallet page mounts, without starting sign in", async () => {
@@ -859,7 +929,7 @@ describe("lazy browser authentication", () => {
   })
 
   it.each(["succeeds", "fails"] as const)(
-    "keeps a failed handoff visible when an already-started passive deletion $outcome",
+    "shares an already-started passive deletion when storage fails and deletion $outcome",
     async outcome => {
       vi.stubGlobal("Element", AccountElement)
       const page = accountDocument({signedIn: true})
@@ -903,9 +973,8 @@ describe("lazy browser authentication", () => {
       await vi.waitFor(() => expect(clearSession).toHaveBeenCalledOnce())
 
       page.click("sign-out")
-      await vi.waitFor(() => expect(page.status.hidden).toBe(false))
-      expect(page.status.textContent).toBe("Sign out couldn’t finish. Try again.")
-      expect(coordinatedSignOut).toHaveBeenCalledOnce()
+      await vi.waitFor(() => expect(coordinatedSignOut).toHaveBeenCalledTimes(2))
+      expect(page.status.hidden).toBe(true)
 
       const passiveRequest = handleRequest.mock.results[0]?.value
       settleDeletion?.()
@@ -915,11 +984,16 @@ describe("lazy browser authentication", () => {
         await expect(passiveRequest).rejects.toThrow("passive deletion failed")
       }
       expect(passiveSettled).toHaveBeenCalledOnce()
-      await Promise.resolve()
-      expect(reload).toHaveBeenCalledTimes(outcome === "succeeds" ? 1 : 0)
-      expect(page.status.hidden).toBe(false)
-      expect(page.status.textContent).toBe("Sign out couldn’t finish. Try again.")
-      expect(handleRequest.mock.calls.map(([request]) => request)).toEqual(["sync"])
+      if (outcome === "succeeds") {
+        await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("sign-out"))
+        expect(reload).toHaveBeenCalledOnce()
+        expect(page.status.hidden).toBe(true)
+      } else {
+        await vi.waitFor(() => expect(page.status.hidden).toBe(false))
+        expect(page.status.textContent).toBe("Sign out couldn’t finish. Try again.")
+        expect(reload).not.toHaveBeenCalled()
+        expect(handleRequest.mock.calls.map(([request]) => request)).toEqual(["sync"])
+      }
 
       const cleanupImporter = vi.fn<() => Promise<PrivyBridgeModule>>()
       installAccountAuthLazyLoader(accountDocument().documentRoot, cleanupImporter, {
@@ -931,7 +1005,7 @@ describe("lazy browser authentication", () => {
   )
 
   it.each(["unavailable", "throwing", "unconfirmed"] as const)(
-    "does not delete or reload when handoff storage is %s",
+    "revokes and finishes bounded provider cleanup even when handoff storage is %s",
     async failure => {
       vi.stubGlobal("Element", AccountElement)
       const page = accountDocument()
@@ -946,7 +1020,8 @@ describe("lazy browser authentication", () => {
       }
       const clearSession = vi.fn(async () => undefined)
       const reload = vi.fn()
-      const importer = vi.fn<() => Promise<PrivyBridgeModule>>()
+      const providerRequest = vi.fn(async () => { expect(clearSession).toHaveBeenCalledOnce() })
+      const importer = vi.fn(async () => ({startPrivyBridge: async () => ({request: providerRequest})}))
 
       installAccountAuthLazyLoader(page.documentRoot, importer, {
         clearSession,
@@ -956,11 +1031,10 @@ describe("lazy browser authentication", () => {
       })
       page.click("sign-out")
 
-      await vi.waitFor(() => expect(page.status.hidden).toBe(false))
-      expect(page.status.textContent).toBe("Sign out couldn’t finish. Try again.")
-      expect(clearSession).not.toHaveBeenCalled()
-      expect(reload).not.toHaveBeenCalled()
-      expect(importer).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+      expect(page.status.hidden).toBe(true)
+      expect(clearSession).toHaveBeenCalledOnce()
+      expect(providerRequest).toHaveBeenCalledWith("sign-out")
     },
   )
 
@@ -1344,7 +1418,7 @@ describe("lazy browser authentication", () => {
       "still in progress",
     )
     await Promise.all([loader.request("sign-out"), loader.request("sign-out")])
-    expect(startPrivyBridge).toHaveBeenCalledWith({mode: "sign-out-only"})
+    expect(startPrivyBridge).toHaveBeenCalledWith({mode: "sign-out-only", signal: expect.any(AbortSignal)})
     expect(request).toHaveBeenCalledOnce()
     expect(request).toHaveBeenCalledWith("sign-out")
 
@@ -1391,7 +1465,7 @@ it("a private profile read uses passive startup and leaves explicit account acti
   const startPrivyBridge = vi.fn(async () => ({request, profile}))
   const loader = createLazyAuthLoader(async () => ({startPrivyBridge}))
   await loader.profile("get")
-  expect(startPrivyBridge).toHaveBeenCalledWith({mode: "profile-only"})
+  expect(startPrivyBridge).toHaveBeenCalledWith({mode: "profile-only", signal: expect.any(AbortSignal)})
   expect(request).not.toHaveBeenCalled()
   await loader.request("sign-in")
   expect(request).toHaveBeenCalledWith("sign-in")

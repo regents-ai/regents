@@ -13,6 +13,49 @@ export type SelectedWallet = {address: string; provider: EthereumProvider}
 // A visitor who chose Disconnect stays disconnected across reloads, whatever
 // the wallet app still reports to Privy afterwards.
 const disconnectedKey = "regent:wallet-disconnected:v1"
+export const walletDisconnectedStorageKey = disconnectedKey
+const pendingSelectionKey = "regent:wallet-selection-pending:v1"
+// This module already lives for one document, just like the provider maps below.
+let disconnectedInDocument = false
+let workEpoch = 0
+export function walletWorkEpoch(): number { return workEpoch }
+export function invalidateWalletWork(): void { workEpoch += 1 }
+
+type WalletSelection = {address: string; walletClientType: string; expiresAt: number}
+
+// Login can replace the document before connected-wallet hooks hydrate. Carry
+// only that tab's explicit choice across the transition, never a provider or proof.
+// The bridge must still match it to one real connected wallet; this grants no
+// server authority. Privy owns persistence after setActiveWallet accepts it.
+export function rememberEthereumWalletSelection(wallet: {address: string; walletClientType?: string}): void {
+  if (!/^0x[0-9a-f]{40}$/i.test(wallet.address) || !wallet.walletClientType) return
+  try {
+    window.sessionStorage.setItem(pendingSelectionKey, JSON.stringify({
+      address: wallet.address.toLowerCase(), walletClientType: wallet.walletClientType,
+      expiresAt: Date.now() + 120_000,
+    }))
+  } catch {
+    // Refused browser storage never authorizes a substitute wallet.
+  }
+}
+
+export function pendingEthereumWalletSelection(): WalletSelection | null {
+  try {
+    const raw = window.sessionStorage.getItem(pendingSelectionKey)
+    if (!raw || raw.length > 1024) return null
+    const value = JSON.parse(raw) as Partial<WalletSelection> | null
+    return value && typeof value.address === "string" && /^0x[0-9a-f]{40}$/i.test(value.address) &&
+      typeof value.walletClientType === "string" && typeof value.expiresAt === "number" &&
+      value.expiresAt > Date.now() && value.expiresAt <= Date.now() + 120_000
+      ? value as WalletSelection : null
+  } catch {
+    return null
+  }
+}
+
+export function forgetEthereumWalletSelection(): void {
+  try { window.sessionStorage.removeItem(pendingSelectionKey) } catch {}
+}
 
 let connectedWallets = new Map<string, ConnectedEthereumWallet>()
 let activeWallet: SelectedWallet | null = null
@@ -30,6 +73,7 @@ export function replaceConnectedEthereumWallets(
 }
 
 export function connectedEthereumWallet(expectedSigner?: string): SelectedWallet | null {
+  if (walletDisconnected()) return null
   const testWallet = testEthereumWallet()
   if (testWallet) {
     if (!expectedSigner || testWallet.address.toLowerCase() === expectedSigner.toLowerCase()) {
@@ -67,6 +111,7 @@ export function replaceActiveEthereumWallet(wallet: SelectedWallet | null): void
 }
 
 export function activeEthereumWallet(): SelectedWallet | null {
+  if (walletDisconnected()) return null
   return testEthereumWallet() ?? activeWallet
 }
 
@@ -98,6 +143,7 @@ export async function disconnectEveryEthereumWallet(walletEvents: EventTarget): 
 
   replaceConnectedEthereumWallets([])
   replaceActiveEthereumWallet(null)
+  forgetEthereumWalletSelection()
   rememberWalletDisconnected()
   walletEvents.dispatchEvent(new CustomEvent("ash:wallet-state"))
 
@@ -112,6 +158,7 @@ function revokeSitePermissions(provider: EthereumProvider): Promise<unknown> {
 }
 
 export function walletDisconnected(): boolean {
+  if (disconnectedInDocument) return true
   try {
     return disconnectedStorage()?.getItem(disconnectedKey) === "true"
   } catch {
@@ -120,6 +167,8 @@ export function walletDisconnected(): boolean {
 }
 
 export function rememberWalletDisconnected(): void {
+  disconnectedInDocument = true
+  invalidateWalletWork()
   try {
     disconnectedStorage()?.setItem(disconnectedKey, "true")
   } catch {
@@ -128,6 +177,7 @@ export function rememberWalletDisconnected(): void {
 }
 
 export function forgetWalletDisconnected(): void {
+  disconnectedInDocument = false
   try {
     disconnectedStorage()?.removeItem(disconnectedKey)
   } catch {

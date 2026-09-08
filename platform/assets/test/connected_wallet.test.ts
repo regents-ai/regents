@@ -40,6 +40,7 @@ function stubWindow(origin = "https://regents.sh") {
     localStorage: memoryStorage(),
     dispatchEvent: (event: Event) => void dispatched.push(event.type),
   })
+  forgetWalletDisconnected()
   return dispatched
 }
 
@@ -177,7 +178,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
     expect(activeEthereumWallet()).toEqual(testWallet)
   })
 
-  it("stays connected for a browser that refuses storage", async () => {
+  it("stays disconnected in memory when storage is unavailable, even if the SDK republishes", async () => {
     vi.stubGlobal("window", {
       location: {origin: "https://regents.sh"},
       get localStorage(): Storage {
@@ -187,6 +188,13 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
 
     expect(walletDisconnected()).toBe(false)
     await expect(disconnectEveryEthereumWallet(new EventTarget())).resolves.toBeUndefined()
+    expect(walletDisconnected()).toBe(true)
+    const returning = connected()
+    replaceConnectedEthereumWallets([[first, returning]])
+    replaceActiveEthereumWallet({address: first, provider: returning.provider})
+    expect(activeEthereumWallet()).toBeNull()
+    expect(connectedEthereumWallet(first)).toBeNull()
+    forgetWalletDisconnected()
     expect(walletDisconnected()).toBe(false)
   })
 })

@@ -1,9 +1,13 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import React from "react"
+import type {PrivyEvents} from "@privy-io/react-auth"
 
 const productionRootRender = vi.hoisted(() => vi.fn())
+const productionRootUnmount = vi.hoisted(() => vi.fn())
 const productionPrivyHooks = vi.hoisted(() => ({
   login: vi.fn(),
+  loginCallbacks: undefined as PrivyEvents["login"] | undefined,
+  tokenCallbacks: undefined as PrivyEvents["accessToken"] | undefined,
   linkTwitter: vi.fn(),
   linkGithub: vi.fn(),
   linkFarcaster: vi.fn(),
@@ -17,7 +21,7 @@ const productionPrivyHooks = vi.hoisted(() => ({
 }))
 
 vi.mock("react-dom/client", () => ({
-  createRoot: () => ({render: productionRootRender}),
+  createRoot: () => ({render: productionRootRender, unmount: productionRootUnmount}),
 }))
 
 vi.mock("@privy-io/react-auth", () => ({
@@ -32,9 +36,15 @@ vi.mock("@privy-io/react-auth", () => ({
     wallet: undefined,
     connect: productionPrivyHooks.connectActiveWallet,
   }),
-  useToken: () => ({getAccessToken: vi.fn(async () => null)}),
+  useToken: (callbacks?: PrivyEvents["accessToken"]) => {
+    productionPrivyHooks.tokenCallbacks = callbacks
+    return {getAccessToken: vi.fn(async () => null)}
+  },
   getIdentityToken: vi.fn(async () => null),
-  useLogin: () => ({login: productionPrivyHooks.login}),
+  useLogin: (callbacks?: PrivyEvents["login"]) => {
+    productionPrivyHooks.loginCallbacks = callbacks
+    return {login: productionPrivyHooks.login}
+  },
   useLinkAccount: () => ({
     linkTwitter: productionPrivyHooks.linkTwitter,
     linkGithub: productionPrivyHooks.linkGithub,
@@ -51,6 +61,7 @@ afterEach(() => {
 
 import * as bridge from "../js/privy_bridge"
 import {
+  browserSessionMutations,
   clearLocalSession,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
@@ -60,6 +71,8 @@ import {
   activeEthereumWallet,
   connectedEthereumWallet,
   disconnectEveryEthereumWallet,
+  forgetWalletDisconnected,
+  invalidateWalletWork,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   selectConnectedEthereumWallet,
@@ -150,10 +163,16 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null)
     setItem: (key: string, value: string) => void stored.set(key, value),
     removeItem: (key: string) => void stored.delete(key),
   }
+  const sessionValues = new Map<string, string>()
+  const sessionStorage = {
+    getItem: (key: string) => sessionValues.get(key) ?? null,
+    setItem: (key: string, value: string) => void sessionValues.set(key, value),
+    removeItem: (key: string) => void sessionValues.delete(key),
+  }
 
   vi.stubGlobal("document", {
     body: {append: vi.fn()},
-    createElement: () => ({hidden: false}),
+    createElement: () => ({hidden: false, remove: vi.fn()}),
     querySelector: (selector: string) =>
       accountMarker && selector === `#account-control [data-account-target='${accountMarker}']`
         ? {}
@@ -164,6 +183,7 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null)
     removeEventListener: (event: string) => void listeners.delete(event),
     dispatchEvent: (event: {type: string}) => dispatched.push(event.type),
     localStorage,
+    sessionStorage,
     location: {origin: "https://regents.sh", reload},
   })
   vi.stubGlobal(
@@ -173,7 +193,9 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null)
     },
   )
 
-  return {dispatched, listeners, localStorage, reload}
+  invalidateWalletWork()
+  forgetWalletDisconnected()
+  return {dispatched, listeners, localStorage, sessionStorage, reload}
 }
 
 function stubSessionRequests(): Array<{url: string; method: string}> {
@@ -335,6 +357,163 @@ function signInScenario({
 }
 
 describe("Privy session bridge", () => {
+  it("the readiness deadline disposes its root instead of leaving an immortal startup", async () => {
+    productionRootRender.mockReset()
+    productionRootUnmount.mockClear()
+    stubBrowserGlobals("sign-in")
+    await expect(bridge.startPrivyBridge({readyTimeoutMs: 1}, {
+      appId: "test-app", authenticated: false, ready: false, walletsReady: false, wallets: [],
+      getAccessToken: async () => null, logout: async () => undefined,
+    })).rejects.toMatchObject({kind: "startup", diagnostic: "request_timeout"})
+    expect(productionRootUnmount).toHaveBeenCalledOnce()
+  })
+
+  it("a connect result arriving after Disconnect cannot republish the wallet", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    replaceConnectedEthereumWallets([])
+    const render = installAccountBridgeRenderer()
+    const {localStorage} = stubBrowserGlobals("sign-out")
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    let release: ((value: {wallet: typeof wallet}) => void) | undefined
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app", authenticated: true, ready: true, walletsReady: true, wallets: [wallet], activeWallet: wallet,
+      getAccessToken: async () => "verified", logout: async () => undefined,
+      connectActiveWallet: () => new Promise(resolve => { release = resolve }),
+    } as unknown as bridge.PrivyBridgeProviderState)
+    render(renderedAccountBridge())
+    const handle = await startup
+    await until(() => activeEthereumWallet() !== null)
+    const connecting = handle.request("connect-wallet")
+    await until(() => release !== undefined)
+    await disconnectEveryEthereumWallet(window)
+    const refused = expect(connecting).rejects.toMatchObject({name: "AbortError"})
+    release!({wallet})
+    await refused
+    expect(activeEthereumWallet()).toBeNull()
+    expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBe("true")
+    handle.dispose?.()
+  })
+  it("saved SDK login callbacks cannot clear Disconnect after bridge disposal", async () => {
+    productionRootRender.mockReset()
+    productionRootUnmount.mockClear()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {localStorage} = stubBrowserGlobals("sign-in")
+    localStorage.setItem("regent:wallet-disconnected:v1", "true")
+    const requests = stubSessionRequests()
+    const owner = new AbortController()
+    const startup = bridge.startPrivyBridge({signal: owner.signal}, {
+      appId: "test-app", authenticated: false, ready: true, walletsReady: true, wallets: [],
+      getAccessToken: async () => "verified", getIdentityToken: async () => "verified-identity",
+      logout: async () => undefined,
+    })
+    renderAccountBridge(renderedAccountBridge())
+    const handle = await startup
+    await handle.request("sign-in")
+    const saved = productionPrivyHooks.loginCallbacks!
+    owner.abort()
+    saved.onComplete?.({loginAccount: null} as never)
+    await settled()
+    expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBe("true")
+    expect(requests).toEqual([])
+    expect(productionRootUnmount).toHaveBeenCalledOnce()
+  })
+
+  it("a passive access-token callback cannot establish a session while Privy is not ready", async () => {
+    productionRootRender.mockReset()
+    const renderAccountBridge = installAccountBridgeRenderer()
+    stubBrowserGlobals("sign-in")
+    const requests = stubSessionRequests()
+    const state = {
+      appId: "test-app", authenticated: true, ready: false, walletsReady: false, wallets: [],
+      getAccessToken: async () => "verified", getIdentityToken: async () => "verified-identity",
+      logout: async () => undefined,
+    }
+    const startup = bridge.startPrivyBridge({}, state)
+    const element = renderedAccountBridge()
+    renderAccountBridge(element)
+    await productionPrivyHooks.tokenCallbacks?.onAccessTokenGranted?.({} as never)
+    expect(requests).toEqual([])
+    state.ready = true
+    state.authenticated = false
+    renderAccountBridge(element)
+    const handle = await startup
+    handle.dispose?.()
+  })
+  it("does not start a session POST when its provider lifetime changes during CSRF acquisition", async () => {
+    stubBrowserGlobals("sign-in")
+    let current = true
+    let release: ((response: Response) => void) | undefined
+    let firstCsrf = true
+    const fetcher = vi.fn((url: RequestInfo | URL) => {
+      if (String(url) === "/auth/csrf" && firstCsrf) {
+        firstCsrf = false
+        return new Promise<Response>(resolve => { release = resolve })
+      }
+      return Promise.resolve(String(url) === "/auth/csrf"
+        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+        : new Response("{}", {status: 200, headers: {"x-ash-session-changed": "true"}}))
+    })
+    const attempt = createLocalSession(verifiedPair, fetcher as typeof fetch, createSessionMutationCoordinator(), () => current)
+    await until(() => release !== undefined)
+    current = false
+    const rejected = expect(attempt).rejects.toThrow("superseded")
+    release!(new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200}))
+    await rejected
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it("adopts a committed response across readiness loss without a second POST, but never across subjects", async () => {
+    stubBrowserGlobals("sign-in")
+    vi.spyOn(browserSessionMutations, "establish").mockImplementation(createSessionMutationCoordinator().establish)
+    let ready = true
+    let subject = "subject-a"
+    let posts = 0
+    const fetcher = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url) === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
+      posts += 1
+      if (posts === 1) ready = false
+      return new Response("{}", {status: 200, headers: {"x-ash-session-changed": "true"}})
+    })
+    const reload = vi.fn()
+    const complete = createPrivySessionCompletion({
+      acquireTokens: acquireVerifiedPair, fetcher: fetcher as typeof fetch,
+      localSessionNeeded: () => true, reload,
+      capture: () => { const captured = subject; return {identity: captured, current: () => ready && subject === captured} },
+    })
+    await complete()
+    expect(reload).not.toHaveBeenCalled()
+    ready = true
+    await complete()
+    expect(posts).toBe(1)
+    expect(reload).toHaveBeenCalledOnce()
+    subject = "subject-b"
+    await complete()
+    expect(posts).toBe(2)
+  })
+  it("provider logout revokes first, clears wallet state, then replaces the document", async () => {
+    const order: string[] = []
+    const reconcile = createProviderSessionReconciler({
+      providerAuthenticated: () => false, signedIn: () => true,
+      clearSession: async () => { order.push("revoke") },
+      disconnectWallets: async () => { order.push("wallets") },
+      reload: () => { order.push("reload") },
+    })
+    expect(await reconcile()).toBe(false)
+    expect(order).toEqual(["revoke", "wallets", "reload"])
+  })
+
+  it("provider logout does not clear wallets or reload when revocation fails", async () => {
+    const disconnectWallets = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    const reconcile = createProviderSessionReconciler({
+      providerAuthenticated: () => false, signedIn: () => true,
+      clearSession: async () => { throw new Error("offline") }, disconnectWallets, reload,
+    })
+    await expect(reconcile()).rejects.toThrow("offline")
+    expect(disconnectWallets).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
   it("synchronizes wallets without changing the local or provider session", async () => {
     const signIn = vi.fn(async () => undefined)
     const providerLogout = vi.fn(async () => undefined)
@@ -1588,16 +1767,89 @@ describe("Privy session bridge", () => {
     expect(connectWallet).toHaveBeenCalledOnce()
     expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBe("true")
 
-    // Privy says the visitor finished the connect, and only then does this page
-    // publish the wallet again.
-    productionPrivyHooks.connectWalletCallbacks?.onSuccess?.({wallet})
-    expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBeNull()
-
+    // Wallet hooks may hydrate before the success callback. The callback must
+    // publish the wallet even when no subsequent React render occurs.
     providerState.wallets = [wallet]
     providerState.activeWallet = wallet
     renderAccountBridge(accountElement)
+    await settled()
+    expect(activeEthereumWallet()).toBeNull()
+
+    productionPrivyHooks.connectWalletCallbacks?.onSuccess?.({wallet})
+    expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBeNull()
     await until(() => activeEthereumWallet()?.provider === wallet.provider)
     expect(connectedEthereumWallet()?.provider).toBe(wallet.provider)
+  })
+
+  it("clears Disconnect before the authenticated sign-in fast path replaces the document", async () => {
+    // The replacement document has a new coordinator; prior sign-out tests
+    // deliberately close the module singleton for the document they model.
+    vi.spyOn(browserSessionMutations, "establish").mockImplementation(createSessionMutationCoordinator().establish)
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    replaceConnectedEthereumWallets([])
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {localStorage, reload} = stubBrowserGlobals("sign-in")
+    localStorage.setItem("regent:wallet-disconnected:v1", "true")
+    const seenAtReload: Array<string | null> = []
+    reload.mockImplementation(() => seenAtReload.push(localStorage.getItem("regent:wallet-disconnected:v1")))
+    stubSessionRequests()
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const startup = bridge.startPrivyBridge({}, {
+      appId: "test-app", authenticated: true, ready: true, walletsReady: true,
+      getAccessToken: async () => "current-token", getIdentityToken: async () => "current-identity",
+      logout: async () => undefined, wallets: [wallet], activeWallet: wallet,
+    } as unknown as bridge.PrivyBridgeProviderState)
+    renderAccountBridge(renderedAccountBridge())
+    const handle = await startup
+    await handle.request("sign-in")
+    expect(seenAtReload).toEqual([null])
+    expect(localStorage.getItem("regent:wallet-disconnected:v1")).toBeNull()
+  })
+
+  it("selects the wallet used to sign in when wallet hydration finishes later", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    replaceConnectedEthereumWallets([])
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const {localStorage, reload} = stubBrowserGlobals("sign-out")
+    localStorage.setItem("regent:wallet-disconnected:v1", "true")
+    const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
+    const setActiveWallet = vi.fn()
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: false,
+      wallets: [] as Array<typeof wallet>,
+      activeWallet: undefined as typeof wallet | undefined,
+      setActiveWallet,
+    }
+    const startup = bridge.startPrivyBridge({}, providerState as unknown as bridge.PrivyBridgeProviderState)
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    const handle = await startup
+    // A real user explicitly resumes the connection; an unsolicited bootstrap
+    // callback must no longer undo a remembered Disconnect.
+    await handle.request("sign-in")
+
+    productionPrivyHooks.loginCallbacks?.onComplete?.({
+      loginAccount: {type: "wallet", chainType: "ethereum", address: wallet.address, walletClientType: "metamask"},
+    } as never)
+    await settled()
+    expect(setActiveWallet).not.toHaveBeenCalled()
+
+    providerState.wallets = [wallet]
+    providerState.walletsReady = true
+    renderAccountBridge(accountElement)
+    await until(() => setActiveWallet.mock.calls.length === 1)
+    expect(setActiveWallet).toHaveBeenCalledWith(wallet)
+    providerState.activeWallet = wallet
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet()?.provider === wallet.provider)
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it("DISCONNECT_SURVIVES_AN_ABANDONED_WINDOW: an abandoned sign-in window leaves it standing", async () => {

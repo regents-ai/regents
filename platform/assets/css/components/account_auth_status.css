@@ -1,3 +1,4 @@
+@layer regents-product {
 #account-control {
   position: relative;
 }
@@ -10,14 +11,13 @@
   box-sizing: border-box;
   width: min(20rem, calc(100vw - 1.5rem));
   margin: 0;
-  padding: 0.5rem 0.625rem;
+  padding: var(--space-2);
   border: 1px solid var(--ash-line-strong);
-  border-radius: 2px;
-  background: linear-gradient(145deg, var(--ash-panel), var(--ash-panel-strong));
+  border-radius: 0;
+  background: var(--ash-panel);
   color: var(--ash-ink);
-  box-shadow:
-    0 1px 0 color-mix(in oklch, var(--ash-ink) 8%, transparent),
-    0 12px 30px color-mix(in oklch, var(--ash-ink) 18%, transparent);
+  box-shadow: none;
+  font-family: var(--font-family-ui);
   font-size: 0.8125rem;
   line-height: 1.35;
   text-align: start;
@@ -27,4 +27,31 @@
 
 .account-auth-status[hidden] {
   display: none;
+}
+
+.account-auth-status .account-auth-retry {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--ash-ink) 65%, var(--ash-panel));
+  border-radius: 0;
+  background: var(--ash-panel);
+  color: var(--ash-ink);
+  font: inherit;
+  pointer-events: auto;
+}
+
+.account-auth-status .account-auth-retry:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+#account-control [aria-busy="true"],
+[data-account-target="connect-wallet"][aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 }

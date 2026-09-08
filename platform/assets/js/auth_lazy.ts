@@ -1,7 +1,8 @@
 import type {ClaimsAction} from "./owned_claims"
 import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {installSharedProfile} from "./shared_profile"
-import {disconnectEveryEthereumWallet} from "./wallet_actions/connected_wallet"
+import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
+  walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 
 export type AccountRequest = "connect-wallet" | "sign-in" | "sign-out" | "sync"
 
@@ -36,6 +37,7 @@ export type IdentityRequest = {
 }
 
 export type PrivyBridgeHandle = {
+  dispose?: () => void
   profile?: ProfileAction
   claims?: ClaimsAction
   request: (request: AccountRequest) => Promise<void>
@@ -45,6 +47,8 @@ export type PrivyBridgeHandle = {
 
 export type PrivyBridgeStartupOptions = {
   mode?: "ordinary" | "sign-out-only" | "profile-only"
+  signal?: AbortSignal
+  readyTimeoutMs?: number
 }
 
 export type PrivyBridgeModule = {
@@ -76,6 +80,22 @@ const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
 const terminalSignInFailures = new WeakMap<Document, TerminalSignInFailureKind>()
+const walletSignOuts = new WeakMap<Document, Promise<void>>()
+
+// Called only after server revocation/anonymous truth. Cleanup is shared by
+// explicit and provider logout; no extension can keep the page signed in.
+export function finishWalletSignOut(
+  documentRoot: Document = document,
+  walletEvents: EventTarget = documentRoot.defaultView ?? documentRoot,
+  timeoutMs = defaultProviderSignOutTimeoutMs,
+): Promise<void> {
+  const existing = walletSignOuts.get(documentRoot)
+  if (existing) return existing
+  const attempt = withinWindow(disconnectEveryEthereumWallet(walletEvents), timeoutMs,
+    "Wallet disconnection did not settle.").catch(() => undefined)
+  walletSignOuts.set(documentRoot, attempt)
+  return attempt
+}
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
@@ -455,6 +475,25 @@ export function showAccountAuthFailure(
           sync: "Account connection couldn’t refresh. Try again.",
         }[request]
   status.hidden = false
+  if (request === "sign-in" && signInFailure !== "closed" &&
+      typeof documentRoot.createElement === "function" && typeof status.append === "function") {
+    const retry = documentRoot.createElement("button")
+    retry.type = "button"
+    retry.dataset.accountTarget = "retry-sign-in"
+    retry.textContent = "Retry sign-in"
+    retry.className = "account-auth-retry"
+    status.append(retry)
+  }
+  positionAccountStatus(documentRoot, status)
+}
+
+function positionAccountStatus(documentRoot: Document, status: HTMLElement): void {
+  const width = documentRoot.documentElement?.clientWidth
+  if (!width || typeof status.getBoundingClientRect !== "function") return
+  status.style.translate = ""
+  const box = status.getBoundingClientRect()
+  const shift = box.left < 12 ? 12 - box.left : Math.min(0, width - 12 - box.right)
+  status.style.translate = `${shift}px 0`
 }
 
 function disableSignInControls(documentRoot: Document): void {
@@ -578,19 +617,31 @@ function withinWindow<T>(
   attempt: Promise<T>,
   timeoutMs: number,
   timeoutMessage: string,
+  signal?: AbortSignal,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      globalThis.clearTimeout(timeout)
+      reject(signal?.reason ?? new DOMException("Authentication view disposed.", "AbortError"))
+    }
     const timeout = globalThis.setTimeout(
-      () => reject(new Error(timeoutMessage)),
+      () => {
+        signal?.removeEventListener("abort", onAbort)
+        reject(new Error(timeoutMessage))
+      },
       timeoutMs,
     )
+    signal?.addEventListener("abort", onAbort, {once: true})
+    if (signal?.aborted) onAbort()
     void attempt.then(
       value => {
         globalThis.clearTimeout(timeout)
+        signal?.removeEventListener("abort", onAbort)
         resolve(value)
       },
       error => {
         globalThis.clearTimeout(timeout)
+        signal?.removeEventListener("abort", onAbort)
         reject(error)
       },
     )
@@ -641,6 +692,9 @@ export function createLazyAuthLoader(
   let state: "ordinary" | "handoff-preterminal" | "handoff-terminal" =
     startupOptions.mode === "sign-out-only" ? "handoff-preterminal" : "ordinary"
   let handle: PrivyBridgeHandle | null = null
+  let disposed = false
+  let startupController: AbortController | null = null
+  const assertActive = () => { if (disposed) throw new DOMException("Authentication view disposed.", "AbortError") }
   let preparing: Promise<void> | null = null
   let pending: AccountRequest | IdentityRequest | null = null
   let delivering: {
@@ -659,6 +713,7 @@ export function createLazyAuthLoader(
         first.subject === second.subject
 
   const deliverPending = (): Promise<void> => {
+    if (disposed) return Promise.reject(new DOMException("Authentication view disposed.", "AbortError"))
     if (!handle) return Promise.resolve()
     if (delivering) {
       return pending === null || sameRequest(delivering.request, pending)
@@ -685,22 +740,34 @@ export function createLazyAuthLoader(
   }
 
   const prepare = (profileOnly = false): Promise<void> => {
-    const attempt = importer()
+    const controller = new AbortController()
+    let started = false
+    startupController = controller
+    const imported = new Promise<PrivyBridgeModule>(resolve => resolve(importer()))
+    const attempt = withinWindow(imported, startupOptions.readyTimeoutMs ?? 15_000,
+      "Privy bridge loading timed out.", controller.signal)
       .then(module => {
-        if (typeof module.startPrivyBridge !== "function") {
+        assertActive()
+        controller.signal.throwIfAborted()
+        if (!module || typeof module.startPrivyBridge !== "function") {
           throw new Error("Privy bridge module is invalid")
         }
-        return profileOnly && !startupOptions.mode
-          ? module.startPrivyBridge({mode: "profile-only"})
-          : startupOptions.mode
-          ? module.startPrivyBridge(startupOptions)
-          : module.startPrivyBridge()
+        return module.startPrivyBridge({
+          ...startupOptions,
+          ...(profileOnly && !startupOptions.mode ? {mode: "profile-only" as const} : {}),
+          signal: controller.signal,
+        })
       })
       .then(readyHandle => {
+        if (disposed || controller.signal.aborted) {
+          readyHandle?.dispose?.()
+          throw new DOMException("Authentication view disposed.", "AbortError")
+        }
         if (!readyHandle || typeof readyHandle.request !== "function") {
           throw new Error("Privy bridge handle is invalid")
         }
         handle = readyHandle
+        started = true
         preparing = null
         if (state === "handoff-terminal") handle.finishSignOutOnly?.()
         return deliverPending()
@@ -709,12 +776,21 @@ export function createLazyAuthLoader(
     preparing = attempt
     void attempt.catch(() => {
       if (preparing === attempt) preparing = null
+      if (!started) controller.abort()
     })
     return attempt
   }
 
   return {
+    dispose(): void {
+      disposed = true
+      pending = null
+      startupController?.abort()
+      handle?.dispose?.()
+      handle = null
+    },
     request(request: AccountRequest): Promise<void> {
+      if (disposed) return Promise.reject(new DOMException("Authentication view disposed.", "AbortError"))
       if (state === "handoff-preterminal" && request !== "sign-out") {
         return Promise.reject(new Error("Provider sign out is still in progress."))
       }
@@ -736,6 +812,7 @@ export function createLazyAuthLoader(
       return preparing ?? prepare()
     },
     identity(request: IdentityRequest): Promise<void> {
+      if (disposed) return Promise.reject(new DOMException("Authentication view disposed.", "AbortError"))
       if (state === "handoff-preterminal") {
         return Promise.reject(new Error("Provider sign out is still in progress."))
       }
@@ -751,6 +828,7 @@ export function createLazyAuthLoader(
       return preparing ?? prepare()
     },
     async profile(...args: Parameters<ProfileAction>): ReturnType<ProfileAction> {
+      assertActive()
       if (state === "handoff-preterminal") {
         return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
       }
@@ -761,6 +839,7 @@ export function createLazyAuthLoader(
       }, ...args)
     },
     async claims(after?: string, options: {signal?: AbortSignal} = {}): ReturnType<ClaimsAction> {
+      assertActive()
       if (state === "handoff-preterminal") {
         return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
       }
@@ -797,11 +876,12 @@ export function installAccountAuthLazyLoader(
   const bridgeSource = documentRoot.querySelector<HTMLMetaElement>(
     "meta[name='privy-bridge-src']",
   )?.content
-  const loader = createLazyAuthLoader(
-    importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null}),
+  const importBridge = importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null})
+  let loader = createLazyAuthLoader(
+    importBridge,
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
-  const stopProfile = installSharedProfile(documentRoot, loader)
+  let stopProfile = installSharedProfile(documentRoot, loader)
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -822,6 +902,44 @@ export function installAccountAuthLazyLoader(
     showAccountAuthFailure(request, documentRoot, classified?.kind ?? "startup")
   }
   const walletEvents: EventTarget = documentRoot.defaultView ?? documentRoot
+  let installed = true
+  let peerLogout: Promise<void> | null = null
+  const observePeerLogout = () => {
+    if (!installed || peerLogout) return
+    // A notice is not authority. Withdraw stale wallet presentation immediately,
+    // then ask the server before replacing a signed-in document.
+    rememberWalletDisconnected()
+    walletEvents.dispatchEvent(new Event("ash:wallet-state"))
+    const attempt = (async () => {
+      if (!await proveAnonymousSession() || !installed) return
+      await sessionMutations.signOut(async () => {
+        // Any local committed cookie response must finish before this check.
+        if (!await proveAnonymousSession()) throw new Error("Session changed again.")
+      })
+      if (!installed) return
+      await finishWalletSignOut(documentRoot, walletEvents, providerSignOutTimeoutMs)
+      if (installed) reloadDocumentOnce(documentRoot, reload)
+    })().catch(() => undefined)
+    peerLogout = attempt
+    void attempt.then(() => { if (peerLogout === attempt) peerLogout = null })
+  }
+  const onWalletStorage = (event: Event) => {
+    const changed = event as StorageEvent
+    if (changed.key === walletDisconnectedStorageKey && changed.newValue === "true") observePeerLogout()
+  }
+  const onWalletFocus = () => {
+    if (documentRoot.visibilityState !== "hidden" && walletDisconnected() &&
+        documentRoot.querySelector("#account-control [data-account-target='sign-out']")) observePeerLogout()
+  }
+  const onStatusResize = () => {
+    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
+    if (status && !status.hidden) positionAccountStatus(documentRoot, status)
+  }
+
+  walletEvents.addEventListener("storage", onWalletStorage)
+  walletEvents.addEventListener("focus", onWalletFocus)
+  walletEvents.addEventListener("resize", onStatusResize)
+  documentRoot.addEventListener("visibilitychange", onWalletFocus)
   // The leading clear owns this click's startup. Nothing clears afterwards: a
   // login callback that failed while the request was settling has already
   // written the failure this click must leave visible.
@@ -832,7 +950,16 @@ export function installAccountAuthLazyLoader(
       return
     }
     clearStatus()
-    void loader.request(accountRequest).catch(error => {
+    const requestedLoader = loader
+    const controls = documentRoot.querySelectorAll<HTMLElement>(`[data-account-target='${accountRequest}']`)
+    controls.forEach(control => control.setAttribute("aria-busy", "true"))
+    const attempt = requestedLoader.request(accountRequest)
+    const settled = () => {
+      if (installed && loader === requestedLoader) controls.forEach(control => control.setAttribute("aria-busy", "false"))
+    }
+    void attempt.then(settled, settled)
+    void attempt.catch(error => {
+      if (!installed || loader !== requestedLoader || (error instanceof Error && error.name === "AbortError")) return
       showLoadFailure(accountRequest, error)
       if (accountRequest === "connect-wallet") {
         walletEvents.dispatchEvent(new Event("ash:wallet-connect-failed"))
@@ -843,11 +970,11 @@ export function installAccountAuthLazyLoader(
   const signOut = () => {
     if (signOutInFlight) return
     clearStatus()
+    const controls = documentRoot.querySelectorAll<HTMLElement>("[data-account-target='sign-out']")
+    controls.forEach(control => control.setAttribute("aria-busy", "true"))
 
-    if (!writeSignOutHandoff(storage, now())) {
-      showLoadFailure("sign-out", undefined)
-      return
-    }
+    invalidateWalletWork()
+    const handedOff = writeSignOutHandoff(storage, now())
 
     const attempt = (async () => {
       try {
@@ -862,11 +989,13 @@ export function installAccountAuthLazyLoader(
       // wallet apps are asked while the page that asked them still exists. They
       // get the same window the provider sign out gets, and the page goes
       // anonymous whether or not they use it.
-      await withinWindow(
-        disconnectEveryEthereumWallet(walletEvents),
-        providerSignOutTimeoutMs,
-        "Wallet disconnection did not settle.",
-      ).catch(() => undefined)
+      await finishWalletSignOut(documentRoot, walletEvents, providerSignOutTimeoutMs)
+      if (!handedOff) {
+        // Restricted storage must not make logout impossible. Once the local
+        // session is revoked, provider cleanup can run here with a strict bound.
+        await withinWindow(loader.request("sign-out"), providerSignOutTimeoutMs,
+          "Provider sign out did not settle.").catch(() => undefined)
+      }
       clearStatus()
       reloadDocumentOnce(documentRoot, reload)
     })()
@@ -874,6 +1003,7 @@ export function installAccountAuthLazyLoader(
     signOutInFlight = attempt
     void attempt.finally(() => {
       if (signOutInFlight === attempt) signOutInFlight = null
+      if (installed) controls.forEach(control => control.setAttribute("aria-busy", "false"))
     })
   }
   const onClick = (event: Event) => {
@@ -883,6 +1013,20 @@ export function installAccountAuthLazyLoader(
 
     if (accountTarget === "sign-in") {
       if (signInIsTerminal(documentRoot)) event.preventDefault()
+      request("sign-in")
+    }
+    if (accountTarget === "connect-wallet") request("connect-wallet")
+    if (accountTarget === "retry-sign-in" && terminalSignInFailures.has(documentRoot)) {
+      event.preventDefault()
+      terminalSignInFailures.delete(documentRoot)
+      documentRoot.querySelectorAll<HTMLElement>("[data-account-target='sign-in']").forEach(control => {
+        control.setAttribute("aria-disabled", "false")
+        if ("disabled" in control) (control as HTMLButtonElement).disabled = false
+      })
+      stopProfile()
+      loader.dispose()
+      loader = createLazyAuthLoader(importBridge)
+      stopProfile = installSharedProfile(documentRoot, loader)
       request("sign-in")
     }
     if (accountTarget === "sign-out") signOut()
@@ -943,6 +1087,13 @@ export function installAccountAuthLazyLoader(
     reconcileSignedInStartup()
   }
   return () => {
+    installed = false
+    loader.dispose()
+
+    walletEvents.removeEventListener("storage", onWalletStorage)
+    walletEvents.removeEventListener("focus", onWalletFocus)
+    walletEvents.removeEventListener("resize", onStatusResize)
+    documentRoot.removeEventListener("visibilitychange", onWalletFocus)
     stopProfile()
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
