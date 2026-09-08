@@ -4,7 +4,7 @@ defmodule RegentIdentity.MigrationRepo do
 
   @impl true
   def init(_context, config),
-    do: {:ok, Keyword.put(config, :migration_source, "regent_identity_schema_migrations")}
+    do: {:ok, Keyword.put(config, :migration_source, "schema_migrations")}
 end
 
 defmodule RegentIdentity.Migrator do
@@ -19,7 +19,7 @@ defmodule RegentIdentity.Migrator do
       repo.config()
       |> Keyword.drop([:name, :telemetry_prefix, :default_prefix, :migration_default_prefix])
       |> Keyword.merge(
-        migration_source: "regent_identity_schema_migrations",
+        migration_source: "schema_migrations",
         pool: DBConnection.ConnectionPool,
         pool_size: 2
       )
@@ -27,11 +27,18 @@ defmodule RegentIdentity.Migrator do
     case RegentIdentity.MigrationRepo.start_link(options) do
       {:ok, pid} ->
         try do
+          Ecto.Adapters.SQL.query!(
+            RegentIdentity.MigrationRepo,
+            "CREATE SCHEMA IF NOT EXISTS regent_identity",
+            []
+          )
+
           Ecto.Migrator.run(
             RegentIdentity.MigrationRepo,
             Application.app_dir(:regent_identity, "priv/repo/migrations"),
             :up,
-            all: true
+            all: true,
+            prefix: "regent_identity"
           )
         after
           Supervisor.stop(pid)

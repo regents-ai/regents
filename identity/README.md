@@ -69,7 +69,7 @@ snapshots. Set `REGENT_IDENTITY_REVISION` and `REGENT_PRIVY_REVISION` to their f
 candidate commits; altered snapshot files are refused. It never runs migrations.
 Regents is the single migration owner: explicitly run
 `RegentIdentity.Migrator.up(Product.Repo)` only against the identified destination.
-It uses `regent_identity_schema_migrations`, separate from product histories.
+It uses `regent_identity.schema_migrations`, separate from product histories.
 
 ## One-database cutover boundary
 

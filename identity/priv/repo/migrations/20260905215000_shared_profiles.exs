@@ -2,7 +2,7 @@ defmodule RegentIdentity.Migrations.SharedProfiles do
   use Ecto.Migration
 
   def up do
-    execute("CREATE SCHEMA regent_identity")
+    execute("CREATE SCHEMA IF NOT EXISTS regent_identity")
 
     create table(:profiles, prefix: "regent_identity", primary_key: false) do
       add(:id, :uuid, primary_key: true)
