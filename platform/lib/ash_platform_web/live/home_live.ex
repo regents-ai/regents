@@ -45,7 +45,7 @@ defmodule AshPlatformWeb.HomeLive do
             :for={{label, anchor} <- nav_links()}
             id={"home-nav-#{anchor}"}
             href={"##{anchor}"}
-            class="rl-product-tab"
+            class="rg-button rl-product-tab"
           >
             {label}
           </a>
@@ -60,6 +60,32 @@ defmodule AshPlatformWeb.HomeLive do
           >
             <.source_icon kind={:x} />
           </a>
+          <details id="home-token-menu" class="rl-token-menu" phx-hook="HomeTokenMenu">
+            <summary aria-label="$REGENT links">
+              <.source_icon kind={:regent} />
+            </summary>
+            <div class="rl-token-menu-panel">
+              <nav class="rl-token-menu-content" aria-label="$REGENT">
+                <p>$REGENT</p>
+                <a
+                  class="rg-button rl-token-link"
+                  href={TokenLinks.buy()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buy on Uniswap
+                </a>
+                <a
+                  class="rg-button rl-token-link"
+                  href={TokenLinks.chart()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View Chart
+                </a>
+              </nav>
+            </div>
+          </details>
           <a
             href="https://github.com/regents-ai"
             target="_blank"
@@ -405,6 +431,16 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
+  defp source_icon(%{kind: :regent} = assigns) do
+    ~H"""
+    <svg viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
+      <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />
+      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="82" width="34" height="34" />
+      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="118" width="34" height="34" />
+    </svg>
+    """
+  end
+
   defp source_icon(%{kind: :x} = assigns) do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -480,7 +516,7 @@ defmodule AshPlatformWeb.HomeLive do
       {"Autolaunch", "autolaunch"},
       {"Techtree", "techtree"},
       {"Patchbay", "patchbay"},
-      {"$REGENT", "regent"}
+      {"Protocol", "regent"}
     ]
 
   # The three products and their public website destinations.
