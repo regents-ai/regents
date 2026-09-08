@@ -24,6 +24,9 @@ config :ash_platform,
        :staking_snapshot_boot_read,
        System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
 
+# Cache tests drive their own timer messages against the fixture provider.
+config :ash_platform, :staking_snapshot_refresh_interval_ms, 0
+
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
 config :ash_platform, :wallet_transaction_observer, AshPlatform.TestWalletTransactionObserver
 config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient

@@ -3,8 +3,9 @@ defmodule AshPlatform.Staking.SnapshotCache do
   The one contract reading every visitor to the staking pages is shown.
 
   A page paints this reading the moment it opens and asks Base for nothing.
-  Only a signed-in visitor may ask for a new one, and when they do, the reading
-  everyone sees is replaced at once rather than each page buying its own.
+  The server refreshes it periodically; signed-in visitors may also ask for a
+  new one. Both use one reading slot and the same refresh allowance, and every
+  subscribed page receives the result without buying its own reading.
 
   A refusal here is never a failure: too soon after the last reading, or past
   the reading allowance for the minute, the last good reading simply stays. A
@@ -66,7 +67,8 @@ defmodule AshPlatform.Staking.SnapshotCache do
   # These attempts are the server's own work and never spend the allowance that
   # bounds what visitors may ask for.
   @impl true
-  def handle_continue(:boot_read, state), do: {:noreply, boot_read(state, 1)}
+  def handle_continue(:boot_read, state),
+    do: {:noreply, state |> schedule_refresh() |> boot_read(1)}
 
   @impl true
   def handle_call(:snapshot, _from, state), do: {:reply, state.snapshot, state}
@@ -77,22 +79,16 @@ defmodule AshPlatform.Staking.SnapshotCache do
       nil -> :ok
     end
 
-    {:reply, :ok, empty()}
+    cancel_refresh(state.refresh_timer)
+    {:reply, :ok, schedule_refresh(empty())}
   end
 
   def handle_call({:refresh, notify}, _from, %{in_flight: %{waiters: waiters} = read} = state),
     do: {:reply, :ok, %{state | in_flight: %{read | waiters: [notify | waiters]}}}
 
   def handle_call({:refresh, notify}, _from, state) do
-    now = now()
-    starts = Enum.filter(state.starts, &(&1 > now - @window_ms))
-
-    if too_soon?(state.last_start, now) or length(starts) >= refreshes_per_minute() do
-      {:reply, {:error, :refresh_too_soon}, %{state | starts: starts}}
-    else
-      {:reply, :ok,
-       %{state | in_flight: start_read(state, [notify]), starts: [now | starts], last_start: now}}
-    end
+    {result, state} = request_refresh(state, [notify])
+    {:reply, result, state}
   end
 
   @impl true
@@ -112,7 +108,51 @@ defmodule AshPlatform.Staking.SnapshotCache do
 
   def handle_info({:boot_read, attempt}, state), do: {:noreply, boot_read(state, attempt)}
 
+  def handle_info({:scheduled_refresh, token}, %{refresh_timer: {_timer, token}} = state) do
+    state = schedule_refresh(state)
+    # An existing read already serves this tick. Failures keep the old reading
+    # and the newly armed timer, so even an exhausted boot retry can recover.
+    {_, state} = if state.in_flight, do: {:ok, state}, else: request_refresh(state, [])
+    {:noreply, state}
+  end
+
   def handle_info(_message, state), do: {:noreply, state}
+
+  defp request_refresh(state, waiters) do
+    now = now()
+    starts = Enum.filter(state.starts, &(&1 > now - @window_ms))
+
+    if too_soon?(state.last_start, now) or length(starts) >= refreshes_per_minute() do
+      {{:error, :refresh_too_soon}, %{state | starts: starts}}
+    else
+      {:ok,
+       %{state | in_flight: start_read(state, waiters), starts: [now | starts], last_start: now}}
+    end
+  end
+
+  defp schedule_refresh(state) do
+    cancel_refresh(state.refresh_timer)
+
+    case Application.get_env(:ash_platform, :staking_snapshot_refresh_interval_ms, 60_000) do
+      interval when is_integer(interval) and interval > 0 ->
+        token = make_ref()
+
+        timer =
+          Process.send_after(
+            self(),
+            {:scheduled_refresh, token},
+            max(interval, @minimum_interval_ms)
+          )
+
+        %{state | refresh_timer: {timer, token}}
+
+      _disabled ->
+        %{state | refresh_timer: nil}
+    end
+  end
+
+  defp cancel_refresh(nil), do: :ok
+  defp cancel_refresh({timer, _token}), do: Process.cancel_timer(timer)
 
   defp boot_read(state, attempt) do
     cond do
@@ -161,11 +201,10 @@ defmodule AshPlatform.Staking.SnapshotCache do
   defp remember_quote(state, {:ok, price}), do: %{state | quote: price, quote_fetched_at: now()}
   defp remember_quote(state, _result), do: state
 
-  # Boot has no waiters and counts as needing a first quote, not as a user
-  # refresh. A signed-in refresh rereads the chain always and the quote only
-  # when none exists or the cached one is at least two minutes old.
+  # All refreshes reread the chain; a quote is fetched only when none exists or
+  # the cached one is at least two minutes old, including background refreshes.
   defp start_read(state, waiters, boot_attempt \\ nil) do
-    fetch_quote? = quote_due?(state, waiters != [])
+    fetch_quote? = quote_due?(state)
     server = self()
 
     {pid, monitor} =
@@ -174,12 +213,10 @@ defmodule AshPlatform.Staking.SnapshotCache do
     %{pid: pid, monitor: monitor, waiters: waiters, boot_attempt: boot_attempt}
   end
 
-  defp quote_due?(%{quote: nil}, _user_refresh?), do: true
+  defp quote_due?(%{quote: nil}), do: true
 
-  defp quote_due?(%{quote_fetched_at: fetched_at}, true),
+  defp quote_due?(%{quote_fetched_at: fetched_at}),
     do: now() - fetched_at >= @quote_stale_ms
-
-  defp quote_due?(_state, false), do: false
 
   defp safely_read(fetch_quote?) do
     quote_task = if fetch_quote?, do: Task.async(&PriceClient.quote/0)
@@ -225,6 +262,7 @@ defmodule AshPlatform.Staking.SnapshotCache do
       in_flight: nil,
       starts: [],
       last_start: nil,
+      refresh_timer: nil,
       quote: nil,
       quote_fetched_at: nil
     }

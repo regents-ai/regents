@@ -70,6 +70,90 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     refute_received {:staking_snapshot, _snapshot}
   end
 
+  test "PERIODIC_READING: refreshes without a visitor and rearms after a provider failure" do
+    test = self()
+    stub_quote(fn url -> send(test, {:price_http, url}) end)
+    previous = Application.get_env(:ash_platform, :staking_snapshot_refresh_interval_ms)
+    Application.put_env(:ash_platform, :staking_snapshot_refresh_interval_ms, 60_000)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :staking_snapshot_refresh_interval_ms, previous)
+      SnapshotCache.clear()
+    end)
+
+    clock = fixed_clock(0)
+    SnapshotCache.clear()
+
+    assert {timer, token} = Map.get(:sys.get_state(SnapshotCache), :refresh_timer)
+    assert is_integer(Process.read_timer(timer))
+    send(SnapshotCache, {:scheduled_refresh, token})
+    assert_receive {:staking_snapshot, first}
+    assert_received {:price_http, _}
+    assert_received {:price_http, _}
+
+    clock.(60_000)
+    swap_client(GatedChainClient)
+    Application.put_env(:ash_platform, :test_staking_read_gate, self())
+    Application.put_env(:ash_platform, :test_staking_protocol_error, :provider_failure)
+    {_timer, next} = :sys.get_state(SnapshotCache).refresh_timer
+    send(SnapshotCache, {:scheduled_refresh, next})
+    assert_receive {:reading, failing_reader}
+    # A joined caller observes the same failure without starting another read.
+    assert :ok = SnapshotCache.refresh()
+    send(failing_reader, :continue)
+    assert_receive {:staking_snapshot_unavailable, :provider_failure}
+    assert SnapshotCache.snapshot() == first
+    refute_received {:price_http, _}
+
+    clock.(120_000)
+    Application.delete_env(:ash_platform, :test_staking_protocol_error)
+    {_timer, retried} = :sys.get_state(SnapshotCache).refresh_timer
+    send(SnapshotCache, {:scheduled_refresh, retried})
+    assert_receive {:reading, recovered_reader}
+    send(recovered_reader, :continue)
+    assert_receive {:staking_snapshot, recovered}
+    assert SnapshotCache.snapshot() == recovered
+    assert_received {:price_http, _}
+    assert_received {:price_http, _}
+  end
+
+  test "PERIODIC_BOUNDS: ticks share the allowance, never duplicate a read, and ignore stale timers" do
+    previous = Application.get_env(:ash_platform, :staking_snapshot_refresh_interval_ms)
+    Application.put_env(:ash_platform, :staking_snapshot_refresh_interval_ms, 60_000)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :staking_snapshot_refresh_interval_ms, previous)
+      SnapshotCache.clear()
+    end)
+
+    Application.put_env(:ash_platform, :staking_shared_refreshes_per_minute, 1)
+    clock = fixed_clock(0)
+    SnapshotCache.clear()
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, first}
+
+    {_timer, token} = :sys.get_state(SnapshotCache).refresh_timer
+    clock.(10_000)
+    send(SnapshotCache, {:scheduled_refresh, token})
+    assert SnapshotCache.snapshot() == first
+    assert :sys.get_state(SnapshotCache).in_flight == nil
+    timer = :sys.get_state(SnapshotCache).refresh_timer
+    send(SnapshotCache, {:scheduled_refresh, token})
+    assert :sys.get_state(SnapshotCache).refresh_timer == timer
+
+    clock.(61_000)
+    swap_client(GatedChainClient)
+    Application.put_env(:ash_platform, :test_staking_read_gate, self())
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:reading, reader}
+    {_timer, current} = timer
+    send(SnapshotCache, {:scheduled_refresh, current})
+    assert :sys.get_state(SnapshotCache).in_flight.pid == reader
+    refute_received {:reading, _another}
+    send(reader, :continue)
+    assert_receive {:staking_snapshot, _updated}
+  end
+
   test "SHARED_READING: one reading is remembered and announced to every page" do
     assert :ok = SnapshotCache.refresh()
     assert_receive {:staking_snapshot, snapshot}
