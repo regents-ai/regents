@@ -21,6 +21,12 @@ defmodule AshPlatformWeb do
     do:
       ~w(assets fonts images api-contract.openapiv3.yaml apple-touch-icon.png favicon-32.png favicon-192.png favicon.svg mark.png robots.txt llms.txt)
 
+  # phx.digest inserts a hash before the extension of root-level files.
+  # Keep the prefix allowlist derived from the same declared public assets.
+  def digested_static_prefixes do
+    for path <- static_paths(), Path.extname(path) != "", do: Path.rootname(path) <> "-"
+  end
+
   def router do
     quote do
       use Phoenix.Router, helpers: false

@@ -19,6 +19,7 @@ defmodule AshPlatformWeb.Endpoint do
     from: :ash_platform,
     gzip: not code_reloading?,
     only: AshPlatformWeb.static_paths(),
+    only_matching: AshPlatformWeb.digested_static_prefixes(),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the
