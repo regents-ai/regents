@@ -1,6 +1,6 @@
 # regents.sh platform
 
-Agent identity and operations, with staking and redemption on Base.
+Agent improvement, revenue, and independence. Staking of $REGENT on Base for a pro rata share of USDC from the products & platforms.
 Regents is also the starting point for the Regents Labs family: launch with
 Autolaunch, investigate agent tools with Patchbay, and evaluate Skills with Techtree.
 
