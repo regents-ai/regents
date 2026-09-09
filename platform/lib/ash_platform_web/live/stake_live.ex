@@ -310,11 +310,20 @@ defmodule AshPlatformWeb.StakeLive do
                 </div>
               </Regent.Primitives.field>
               <div class="stake-amount-tools">
-                <p id="staking-available">
-                  Available
-                  <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
-                </p>
-                <div>
+                <div class="stake-amount-action">
+                  <Regent.Primitives.button
+                    class="stake-primary stake-submit"
+                    type="button"
+                    data-staking-action={@actions == :ready && @action}
+                    data-account-target={@actions == :sign_in && "sign-in"}
+                    phx-click={@actions == :mismatch && "refuse_staking_action"}
+                  >{mode_label(@action)} REGENT</Regent.Primitives.button>
+                  <p id="staking-available">
+                    Available
+                    <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
+                  </p>
+                </div>
+                <div class="stake-amount-shortcuts">
                   <Regent.Primitives.button
                     variant="secondary"
                     type="button"
@@ -394,13 +403,6 @@ defmodule AshPlatformWeb.StakeLive do
               <p :if={approval_needed?(@staking, @action, @amount)} class="stake-approval-note">
                 Your wallet will first request an exact REGENT approval, then the stake transaction.
               </p>
-              <Regent.Primitives.button
-                class="stake-primary stake-submit"
-                type="button"
-                data-staking-action={@actions == :ready && @action}
-                data-account-target={@actions == :sign_in && "sign-in"}
-                phx-click={@actions == :mismatch && "refuse_staking_action"}
-              >{mode_label(@action)} REGENT</Regent.Primitives.button>
             </form>
 
             <section class="stake-rewards" aria-labelledby="staking-rewards-heading">

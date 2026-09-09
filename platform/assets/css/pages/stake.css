@@ -93,7 +93,7 @@
 .stake-footer,
 .stake-mode,
 .stake-amount-tools,
-.stake-amount-tools > div {
+.stake-amount-shortcuts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -493,6 +493,19 @@
 
 .stake-amount-tools {
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+.stake-amount-action {
+  display: grid;
+  gap: 0.5rem;
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.stake-amount-shortcuts {
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
 }
 
 .stake-amount-tools p {
@@ -502,7 +515,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stake-amount-tools button {
+.stake-amount-shortcuts button {
   min-height: 2rem;
   padding-inline: 0.65rem;
 }
