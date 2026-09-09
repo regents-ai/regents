@@ -287,7 +287,16 @@ defmodule AshPlatformWeb.StakeLive do
                 :for={mode <- ~w(stake unstake)}
                 variant="secondary"
                 type="button"
-                phx-click="select_staking_action"
+                phx-click={
+                  if @action == mode,
+                    do:
+                      Phoenix.LiveView.JS.transition("is-mode-hinted",
+                        to: "#staking-amount-form .stake-submit",
+                        time: 650,
+                        blocking: false
+                      ),
+                    else: "select_staking_action"
+                }
                 phx-value-mode={mode}
                 aria-pressed={to_string(@action == mode)}
               >{mode_label(mode)}</Regent.Primitives.button>

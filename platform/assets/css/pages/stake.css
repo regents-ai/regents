@@ -1032,3 +1032,34 @@
 }
 
 }
+
+/* A repeated mode selection points to the action; it never activates it.
+ * Match the unlayered button skin. LiveView removes this transient class,
+ * restoring the normal 150ms edges without changing focus or wallet state. */
+@media (forced-colors: none) {
+  .stake-actions button.stake-submit.is-mode-hinted::after {
+    --rg-button-edge-ink: var(--rg-button-active-border);
+    --rg-button-cut-ink: var(--rg-button-active-border);
+    --rg-button-cut-gap: 0px;
+    background-size:
+      var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+  .stake-actions button.stake-submit.is-mode-hinted::before {
+    background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, color-mix(in srgb, var(--rg-shimmer-color, var(--palette-tangerine-tango, #ff5b19)) 75%, var(--palette-platinum, #e5e3d2)) 24%, transparent) 50%, transparent 70%);
+    background-size: 300% 100%;
+    background-repeat: no-repeat;
+    animation: rg-shimmer 650ms var(--ease-out) 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .stake-actions button.stake-submit.is-mode-hinted {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+}

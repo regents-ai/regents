@@ -860,6 +860,14 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("refuse_staking_action", _params, socket), do: {:noreply, socket}
 
+  def handle_event(
+        "select_staking_action",
+        %{"mode" => mode},
+        %{assigns: %{staking_action: mode}} = socket
+      )
+      when mode in ["stake", "unstake"],
+      do: {:noreply, socket}
+
   def handle_event("select_staking_action", %{"mode" => mode}, socket)
       when mode in ["stake", "unstake"],
       do:
