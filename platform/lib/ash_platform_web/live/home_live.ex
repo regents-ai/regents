@@ -58,7 +58,6 @@ defmodule AshPlatformWeb.HomeLive do
         </nav>
 
         <div class="rl-header-links">
-          <a href={~p"/blog"} aria-current={if @blog?, do: "page"}>Blog</a>
           <AshPlatformWeb.Components.Shell.theme_toggle
             :if={@blog?}
             id="blog-theme-control"
@@ -202,14 +201,7 @@ defmodule AshPlatformWeb.HomeLive do
         class="rl-hero-stakers rg-panel rg-panel--surface"
         role="region"
         aria-labelledby="home-regent-callout-title"
-        data-product-artwork-host
       >
-        <.product_artwork
-          id="home-revenue-sheen"
-          brand="platform"
-          variant={9}
-          class="rl-revenue-artwork"
-        />
         <span class="rl-regent-edge" aria-hidden="true"></span>
         <div class="rl-regent-copy">
           <p class="rl-overline">$REGENT</p>
@@ -439,28 +431,6 @@ defmodule AshPlatformWeb.HomeLive do
         <path d="M174 114H136V156H174V198H136M155 98V214M48 120V72H96M272 200V248H224M40 80L48 72L56 80M264 240L272 248L280 240" />
       </g>
     </svg>
-    """
-  end
-
-  attr :id, :string, required: true
-  attr :brand, :string, required: true
-  attr :variant, :integer, required: true
-  attr :class, :string, default: nil
-
-  defp product_artwork(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      class={["rl-product-artwork", @class]}
-      phx-hook="ProductArtwork"
-      phx-update="ignore"
-      data-artwork-brand={@brand}
-      data-artwork-variant={@variant}
-      aria-hidden="true"
-    >
-      <span class="rl-product-artwork-rest"></span>
-      <canvas data-product-artwork-canvas></canvas>
-    </div>
     """
   end
 

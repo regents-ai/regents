@@ -23,7 +23,6 @@ import {HomeField} from "./hooks/home_field"
 import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
-import {ProductArtwork} from "./hooks/product_artwork"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
@@ -336,7 +335,6 @@ const hooks = {
   HomeHero,
   HomePrism,
   HomeTokenMenu,
-  ProductArtwork,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   RegentsClubMetadataWallet,

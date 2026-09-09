@@ -56,8 +56,8 @@
   .rl-hero-prism canvas { opacity: 0; }
   .rl-hero-prism[data-prism-ready="true"] canvas { opacity: 1; }
   .rl-hero-prism[data-prism-ready="true"] .rl-hero-art { visibility: hidden; }
-  /* Opaque copy and cards stay legible even where the laser field passes behind. */
-  .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; background: var(--rl-bg); padding: var(--space-1) var(--space-2) var(--space-2) 0; }
+  /* Copy sits over the field; the cards below stay opaque where lasers pass behind. */
+  .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; padding: var(--space-1) var(--space-2) var(--space-2) 0; }
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; margin-block-start: var(--space-3); }
@@ -79,10 +79,10 @@
   .rl-hero-card > p { font-size: .875rem; line-height: 1.45; }
   .rl-card-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
   .rl-hero-stakers { margin: 0 var(--rg-panel-padding) var(--rg-panel-padding); padding: var(--rg-panel-padding); display: grid; gap: var(--space-3); }
-  .rl-regent-copy { position: relative; z-index: 1; width: fit-content; max-width: min(100%, 52ch); background: var(--palette-charcoal); }
+  .rl-regent-copy { width: fit-content; max-width: min(100%, 52ch); }
   .rl-regent-copy h2 { margin-block: var(--space-1) var(--space-2); font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.1; font-weight: 400; }
   .rl-regent-summary { max-width: 50ch; font-family: var(--font-family-sans); font-size: 1rem; line-height: 1.6; }
-  .rl-hero-stakers .rl-stakers-actions { position: relative; z-index: 1; width: fit-content; max-width: 100%; background: var(--palette-charcoal); }
+  .rl-hero-stakers .rl-stakers-actions { width: fit-content; max-width: 100%; }
   .rl-regent-edge { position: absolute; inset-block: var(--rg-cut-panel); inset-inline-start: 0; width: 3px; background: var(--palette-tangerine-tango); pointer-events: none; }
   .rl-stakers-actions, .rl-chapter-actions, .rl-closing-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .rl-chapter, .rl-closing { padding: var(--rg-panel-padding); }
@@ -105,19 +105,6 @@
 
   /* The only clipped host here is the entirely decorative media island.
      Card headings, captions, actions and focus rings remain outside it. */
-  .rl-product-artwork { position: relative; display: block; width: 100%; aspect-ratio: 1; overflow: hidden; contain: strict; pointer-events: none; background: var(--palette-charcoal); --artwork-color: var(--palette-powder-blue); }
-  .rl-product-artwork[data-artwork-brand="autolaunch"], .rl-product-artwork[data-artwork-brand="platform"] { --artwork-color: var(--palette-tangerine-tango); }
-  .rl-product-artwork[data-artwork-brand="patchbay"] { --artwork-color: var(--palette-platinum); }
-  .rl-product-artwork canvas, .rl-product-artwork-rest { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
-  .rl-product-artwork-rest { background: linear-gradient(135deg, var(--palette-charcoal) 10%, color-mix(in srgb, var(--artwork-color) 48%, var(--palette-charcoal)) 52%, var(--palette-charcoal) 92%); }
-  .rl-product-artwork[data-artwork-variant="1"] .rl-product-artwork-rest,
-  .rl-product-artwork[data-artwork-variant="4"] .rl-product-artwork-rest,
-  .rl-product-artwork[data-artwork-variant="7"] .rl-product-artwork-rest { background: radial-gradient(ellipse at 65% 35%, var(--palette-charcoal) 15%, color-mix(in srgb, var(--artwork-color) 55%, var(--palette-charcoal)) 42%, var(--palette-charcoal) 72%); }
-  .rl-product-artwork canvas { opacity: 0; }
-  .rl-product-artwork[data-artwork-ready="true"] canvas { opacity: 1; }
-  .rl-product-artwork[data-artwork-ready="true"] .rl-product-artwork-rest { visibility: hidden; }
-  .rl-product-artwork.rl-revenue-artwork { position: absolute; inset-block: var(--space-2); inset-inline: 64% var(--space-2); width: auto; aspect-ratio: auto; z-index: 0; }
-  .rl-revenue-artwork .rl-product-artwork-rest { background: linear-gradient(115deg, var(--palette-charcoal) 20%, color-mix(in srgb, var(--palette-tangerine-tango) 6%, var(--palette-charcoal)) 75%, var(--palette-charcoal)); }
   .rl-story { margin-block-start: var(--space-4); padding-block-start: var(--space-4); border-block-start: 1px solid var(--rl-line); }
   .rl-story h3 { font-size: 1.5rem; margin-block-end: var(--space-3); }
   .rl-story p { max-width: 72ch; }
@@ -152,7 +139,6 @@
     .rl-hero-art { object-fit: contain; }
     .rl-closing { padding-inline-start: var(--rg-panel-padding); }
     .rl-regent-economics { grid-template-columns: minmax(0, 1fr); }
-    .rl-product-artwork.rl-revenue-artwork { inset-inline: auto 0; width: var(--space-2); }
     .rl-chapter-intro { grid-template-columns: minmax(0, 1fr); }
     .rl-chapter-intro > div:only-child { grid-column: 1; }
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
