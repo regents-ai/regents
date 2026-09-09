@@ -3,27 +3,16 @@ defmodule AshPlatformWeb.Showcase.Catalog do
 
   @components [
     {Regent.Primitives, [:button, :field, :status, :notice, :empty_state, :disclosure]},
-    {Regent.Panels, [:chamber, :ledger]},
     {Regent.Structure,
      [:frame, :row, :section_bar, :panel, :technical_figure, :capability_card, :ratio_card]},
-    {Regent.SiteBackground, [:site_background]},
-    {AshPlatformWeb.Components.Background, [:background]},
+    {Regent.Blog, [:gallery, :article, :contents, :not_found]},
+    {Regent.ThemeToggle, [:button]},
     {AshPlatformWeb.Components.Shell, [:shell, :account_control, :theme_toggle]},
     {AshPlatformWeb.Components.CommentLedger, [:comment_ledger]},
     {AshPlatformWeb.Components.VerifiedConnections, [:verified_connections]},
     {AshPlatformWeb.Layouts, [:app, :root]}
   ]
-  @aliases [
-    {Regent.Chamber, :chamber, Regent.Panels},
-    {Regent.Ledger, :ledger, Regent.Panels}
-  ]
   def registry, do: @components
-
-  def aliases,
-    do:
-      Enum.map(@aliases, fn {module, name, target} ->
-        %{name: "#{inspect(module)}.#{name}/1", target: "#{inspect(target)}.#{name}/1"}
-      end)
 
   def components do
     for {module, names} <- @components, name <- names do
@@ -104,7 +93,6 @@ defmodule AshPlatformWeb.Showcase.Catalog do
   def snapshot,
     do: %{
       components: components(),
-      aliases: aliases(),
       domains: domains(),
       utilities: utilities(),
       ash_phoenix_installed: Code.ensure_loaded?(AshPhoenix.Form)

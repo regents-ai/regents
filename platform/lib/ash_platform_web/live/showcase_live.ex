@@ -21,10 +21,10 @@ defmodule AshPlatformWeb.ShowcaseLive do
        records: [],
        empty_items: [],
        empty_error: nil,
-       chamber_title: "Current step",
-       chamber_editing: false,
-       chamber_form: to_form(%{"title" => "Current step"}, as: :chamber),
-       chamber_errors: [],
+       step_title: "Current step",
+       step_editing: false,
+       step_form: to_form(%{"title" => "Current step"}, as: :step),
+       step_errors: [],
        result: nil,
        comments: [],
        comment_notice: nil,
@@ -372,24 +372,17 @@ defmodule AshPlatformWeb.ShowcaseLive do
           <section id="composition" class="sc-section">
             <.heading number="04" title="Composition" detail="Pieces working together." />
             <div class="sc-grid">
-              <Regent.Panels.chamber
-                id="showcase-chamber"
-                class="rg-panel--accent"
-                title={@chamber_title}
-                subtitle="Chamber"
-                summary="Slot-based content"
-              >
-                <.form
-                  :if={@chamber_editing}
-                  for={@chamber_form}
-                  id="chamber-form"
-                  phx-submit="save_chamber"
-                >
-                  <P.field :let={field} id="chamber-title" label="Step title" errors={@chamber_errors}>
+              <S.panel id="showcase-step" tone="accent">
+                <div class="rg-panel__heading">
+                  <h3>{@step_title}</h3>
+                  <span class="rg-panel__index">Step</span>
+                </div>
+                <.form :if={@step_editing} for={@step_form} id="step-form" phx-submit="save_step">
+                  <P.field :let={field} id="step-title" label="Step title" errors={@step_errors}>
                     <input
                       id={field.id}
-                      name="chamber[title]"
-                      value={@chamber_form[:title].value}
+                      name="step[title]"
+                      value={@step_form[:title].value}
                       aria-invalid={field.aria_invalid}
                       aria-describedby={field.described_by}
                       phx-mounted={JS.focus()}
@@ -399,44 +392,29 @@ defmodule AshPlatformWeb.ShowcaseLive do
                   </P.field>
                   <div class="sc-row">
                     <P.button type="submit">Save title</P.button>
-                    <P.button variant="quiet" phx-click="cancel_chamber">Cancel</P.button>
+                    <P.button variant="quiet" phx-click="cancel_step">Cancel</P.button>
                   </div>
                 </.form>
-                <P.status :if={!@chamber_editing} tone="success">Ready</P.status><:actions>
-                  <P.button :if={!@chamber_editing} variant="quiet" phx-click="edit_chamber">Edit</P.button>
-                </:actions><:footer>Edits stay in this local workshop.</:footer>
-              </Regent.Panels.chamber><Regent.Panels.ledger
-                id="showcase-ledger"
-                title="Activity"
-                subtitle="Ledger"
-              >
-                <dl id="showcase-ledger-content" class="sc-facts">
+                <div :if={!@step_editing} class="sc-row">
+                  <P.status tone="success">Ready</P.status>
+                  <P.button variant="quiet" phx-click="edit_step">Edit</P.button>
+                </div>
+                <p>Edits stay in this local workshop.</p>
+              </S.panel>
+              <S.panel id="showcase-facts">
+                <div class="rg-panel__heading">
+                  <h3>Activity</h3>
+                  <span class="rg-panel__index">Facts</span>
+                </div>
+                <dl id="showcase-facts-content" class="sc-facts">
                   <dt>Network</dt><dd>Base</dd><dt>State</dt><dd>Confirmed</dd>
-                </dl><:actions>
-                  <P.button variant="quiet" data-sc-copy="showcase-ledger-content">Copy</P.button>
-                </:actions><:footer>Application-owned records</:footer>
-              </Regent.Panels.ledger>
+                </dl>
+                <div class="sc-row">
+                  <P.button variant="quiet" data-sc-copy="showcase-facts-content">Copy</P.button>
+                </div>
+                <p>Application-owned records</p>
+              </S.panel>
             </div>
-            <P.disclosure
-              phx-mounted={JS.ignore_attributes("open")}
-              id="backgrounds-detail"
-              summary="Background compatibility components · retired"
-            >
-              <div class="sc-backgrounds">
-                <figure :for={slot <- [:home]}>
-                  <AshPlatformWeb.Components.Background.background slot={slot} /><figcaption>
-                    {slot}
-                  </figcaption>
-                </figure><figure>
-                  <Regent.SiteBackground.site_background /><figcaption>
-                    Retired shared background (intentionally empty)
-                  </figcaption>
-                </figure>
-              </div>
-              <p>
-                Page SVG backgrounds are disabled in the shared structural theme. These compatibility components remain mounted for inventory coverage; the workshop does not install a page background.
-              </p>
-            </P.disclosure>
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
               id="shell-detail"
@@ -743,9 +721,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
               detail="Inspect without expanding the page."
             />
             <p class="sc-note">
-              {length(@catalog.components)} component entries · {length(@catalog.aliases)} aliases · {length(
-                @catalog.domains
-              )} Ash domains
+              {length(@catalog.components)} component entries · {length(@catalog.domains)} Ash domains
             </p>
             <P.disclosure
               phx-mounted={JS.ignore_attributes("open")}
@@ -757,8 +733,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
                   item.attributes,
                   ", "
                 )} · Slots: {Enum.join(item.slots, ", ")}</small>
-              </div><div :for={item <- @catalog.aliases} class="sc-inventory-row">
-                <code>{item.name}</code><small>Alias of {item.target}</small>
               </div>
             </P.disclosure>
             <P.disclosure
@@ -794,7 +768,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
               summary="Coverage boundary"
             >
               <p>
-                The visual inventory covers the active components from regent_ui and this application's components directory, with aliases identified. Product pages compose these pieces and retain their own behavior. Ash resources are inspected through installed metadata; this route never enumerates their records. Utilities list installed shared libraries and the Regents wallet, staking, redemption and database modules. This is not a claim that product-specific utilities are already shared across four apps.
+                The visual inventory covers the active components from regent_ui and this application's components directory. Product pages compose these pieces and retain their own behavior. Ash resources are inspected through installed metadata; this route never enumerates their records. Utilities list installed shared libraries and the Regents wallet, staking, redemption and database modules. This is not a claim that product-specific utilities are already shared across four apps.
               </p>
             </P.disclosure>
           </section>
@@ -874,32 +848,31 @@ defmodule AshPlatformWeb.ShowcaseLive do
   def handle_event("reset_items", _, socket),
     do: {:noreply, assign(socket, empty_items: [], empty_error: nil)}
 
-  def handle_event("edit_chamber", _, socket),
+  def handle_event("edit_step", _, socket),
     do:
       {:noreply,
        assign(socket,
-         chamber_editing: true,
-         chamber_errors: [],
-         chamber_form: to_form(%{"title" => socket.assigns.chamber_title}, as: :chamber)
+         step_editing: true,
+         step_errors: [],
+         step_form: to_form(%{"title" => socket.assigns.step_title}, as: :step)
        )}
 
-  def handle_event("cancel_chamber", _, socket),
-    do: {:noreply, assign(socket, chamber_editing: false, chamber_errors: [])}
+  def handle_event("cancel_step", _, socket),
+    do: {:noreply, assign(socket, step_editing: false, step_errors: [])}
 
-  def handle_event("save_chamber", %{"chamber" => params}, socket) do
+  def handle_event("save_step", %{"step" => params}, socket) do
     # Reuse the local sample action's title validation, never a product resource.
     case Sample
          |> Ash.Changeset.for_create(:create, Map.take(params, ["title"]))
          |> Ash.create() do
       {:ok, item} ->
-        {:noreply,
-         assign(socket, chamber_title: item.title, chamber_editing: false, chamber_errors: [])}
+        {:noreply, assign(socket, step_title: item.title, step_editing: false, step_errors: [])}
 
       {:error, error} ->
         {:noreply,
          assign(socket,
-           chamber_errors: [Exception.message(error)],
-           chamber_form: to_form(params, as: :chamber)
+           step_errors: [Exception.message(error)],
+           step_form: to_form(params, as: :step)
          )}
     end
   end

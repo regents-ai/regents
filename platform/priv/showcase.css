@@ -79,8 +79,6 @@ body:has(.sc) { margin: 0; background: var(--color-bg); color: var(--color-fg); 
 .sc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-bottom: 24px; }
 .sc-example.rg-feature { display: block; grid-row: auto; min-width: 0; }
 .sc-card { padding: var(--rg-panel-padding); height: 100%; }
-/* Legacy chamber/ledger text aliases follow the structural panel's local pair. */
-.sc .rg-panel { --rg-text: var(--rg-panel-ink); --rg-muted: var(--rg-panel-ink); --rg-panel-border: var(--rg-local-rule); }
 .sc-card > .rg-notice { margin-top: 12px; }
 .sc-card h3:not(:first-child) { margin-top: 24px; }
 .sc .rg-panel__heading h3 { margin: 0; }

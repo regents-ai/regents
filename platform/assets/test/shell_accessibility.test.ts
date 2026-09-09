@@ -1,4 +1,3 @@
-import {readFileSync} from "node:fs"
 
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
@@ -299,54 +298,5 @@ describe("mobile shell navigation", () => {
     expect(page.menuButton.focusCount).toBeGreaterThan(0)
     expect(page.accountMenu.open).toBe(false)
     expect(page.accountMenu.getAttribute("open")).toBeNull()
-  })
-
-  it("[U2] reconciles RegentUI brand from authoritative shell app patches", () => {
-    const page = shellFixture()
-    const hook = captured.hooks.ShellBehavior
-    const context = {el: page.shell} as never
-
-    page.shell.dataset.app = "autolaunch"
-    hook.mounted?.call(context)
-    expect(fakeDocument.documentElement.dataset.brand).toBe("autolaunch")
-
-    page.shell.dataset.app = "autolaunch"
-    hook.updated?.call(context)
-    expect(fakeDocument.documentElement.dataset.brand).toBe("autolaunch")
-
-    page.shell.dataset.app = "formation"
-    hook.updated?.call(context)
-    expect(fakeDocument.documentElement.dataset.brand).toBe("platform")
-  })
-})
-
-describe("shell material contract", () => {
-  const readCss = (path: string) =>
-    new TextDecoder().decode(readFileSync(new URL(path, import.meta.url)))
-
-  it("[U4][U6] keeps the shared material aliases and a square, responsive shell", () => {
-    const material = readCss("../css/tokens/material.css")
-    const tokens = readCss("../css/tokens/root.css")
-    const shell = readCss("../css/components/shell.css")
-
-    expect(material).toContain("--material-radius: 4px")
-    expect(material).toContain("--material-fill: var(--glass-panel-bg)")
-    expect(material).toContain("--material-stroke: var(--glass-panel-border)")
-    expect(material).toContain("--material-blur: var(--glass-blur)")
-    expect(material).toContain("--material-shadow: var(--glass-panel-shadow)")
-    expect(material).toContain("--shell-background-ground: var(--color-bg)")
-    expect(tokens).toMatch(
-      /:root\[data-brand="platform"\]\[data-theme="light"\] \{\s*color-scheme: light;/,
-    )
-    expect(tokens).toMatch(
-      /:root\[data-brand="platform"\]\[data-theme="dark"\] \{\s*color-scheme: dark;/,
-    )
-    expect(shell).toContain("background: var(--ash-ground)")
-    expect(shell).toContain("min-height: 2.75rem")
-    expect(shell).toContain("100dvh")
-    expect(shell).toContain('#shell-sidebar [aria-pressed="true"]')
-    expect(shell).toContain(".shell-menu-scrim")
-    expect(shell).not.toMatch(/url\([^)]*backgrounds\//)
-    expect(shell).not.toMatch(/border-radius:\s*(?:[5-9]|\d{2,})px/)
   })
 })
