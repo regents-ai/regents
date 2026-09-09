@@ -65,12 +65,4 @@
   /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
      in front of it reads the same whichever ground it was opened from. */
   --ash-scrim: color-mix(in oklab, var(--palette-charcoal) 72%, transparent);
-
-  /* The theme switch's own cell: a dark wire cube on a pale stage in light, a
-     pale one on a dark stage in dark. */
-  --theme-toggle-stage: var(--ash-panel-strong);
-  --theme-toggle-laser: var(--ash-accent);
-  --theme-toggle-laser-glow: color-mix(in oklch, var(--ash-accent) 55%, transparent);
-  --theme-toggle-cube-face: color-mix(in oklch, var(--ash-ink) 15%, transparent);
-  --theme-toggle-cube-edge: color-mix(in oklch, var(--ash-ink) 80%, transparent);
 }

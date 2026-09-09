@@ -236,37 +236,10 @@ defmodule AshPlatformWeb.Components.Shell do
   def theme_toggle(assigns) do
     ~H"""
     <div id={@id} class="theme-control" phx-update="ignore">
-      <Regent.Primitives.button
-        variant="quiet"
-        class="theme-toggle"
-        type="button"
-        aria-label={"Color theme: #{theme_name(@theme)}. Activate #{next_theme_name(@theme)} theme."}
-        aria-pressed={to_string(@theme == "light")}
-        title={"Switch to #{next_theme_name(@theme)}"}
-        data-theme-toggle
-      >
-        <span class="theme-toggle__stage" aria-hidden="true">
-          <span class="theme-toggle__laser"></span>
-          <span class="theme-toggle__cube">
-            <span class="theme-toggle__face theme-toggle__face--front"></span>
-            <span class="theme-toggle__face theme-toggle__face--back"></span>
-            <span class="theme-toggle__face theme-toggle__face--left"></span>
-            <span class="theme-toggle__face theme-toggle__face--right"></span>
-            <span class="theme-toggle__face theme-toggle__face--top"></span>
-            <span class="theme-toggle__face theme-toggle__face--bottom"></span>
-          </span>
-        </span>
-        <span class="visually-hidden" data-theme-toggle-state>{theme_name(@theme)} theme active</span>
-      </Regent.Primitives.button>
+      <Regent.ThemeToggle.button id={"#{@id}-button"} theme={@theme} data-theme-toggle />
     </div>
     """
   end
-
-  defp theme_name("light"), do: "Light"
-  defp theme_name("dark"), do: "Dark"
-
-  defp next_theme_name("light"), do: "Dark"
-  defp next_theme_name("dark"), do: "Light"
 
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)

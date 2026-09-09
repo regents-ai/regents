@@ -260,95 +260,16 @@ details[open] > summary .shell-chevron {
   color: var(--ash-accent-warm);
 }
 
-/* The theme switch, as Techtree draws it: a spinning wire cube behind a laser,
-   inside the same bordered cell every other header control uses. */
-.theme-toggle {
-  justify-content: center;
-  width: 2.75rem;
-  padding: 0;
-  perspective: 5rem;
-  transition: transform 140ms var(--ease-out), border-color 140ms ease;
+/* The shared prism control sits in the same bordered header cell as every other
+   control; the cube, laser and motion come from regent_ui. */
+#shell-header .rg-theme-toggle.rg-button {
+  height: 100%;
+  transition: border-color 140ms ease;
 }
 
 @media (hover: hover) {
   .theme-toggle:hover {
     border-color: var(--ash-accent);
-  }
-}
-
-.theme-toggle:active {
-  transform: scale(var(--active-scale));
-}
-
-.theme-toggle__stage {
-  position: relative;
-  display: block;
-  width: 2.25rem;
-  height: 2.25rem;
-  overflow: hidden;
-  background: var(--theme-toggle-stage);
-  transform-style: preserve-3d;
-}
-
-.theme-toggle__laser {
-  position: absolute;
-  top: 0.12rem;
-  bottom: 0.12rem;
-  left: calc(50% - 0.055rem);
-  width: 0.11rem;
-  background: var(--theme-toggle-laser);
-
-}
-
-.theme-toggle__cube {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.72rem;
-  height: 0.72rem;
-  transform-style: preserve-3d;
-  transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(28deg);
-}
-
-.theme-toggle__face {
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--theme-toggle-cube-edge);
-  background: var(--theme-toggle-cube-face);
-  backface-visibility: visible;
-}
-
-.theme-toggle__face--front {
-  transform: translateZ(0.36rem);
-}
-
-.theme-toggle__face--back {
-  transform: rotateY(180deg) translateZ(0.36rem);
-}
-
-.theme-toggle__face--left {
-  transform: rotateY(-90deg) translateZ(0.36rem);
-}
-
-.theme-toggle__face--right {
-  transform: rotateY(90deg) translateZ(0.36rem);
-}
-
-.theme-toggle__face--top {
-  transform: rotateX(90deg) translateZ(0.36rem);
-}
-
-.theme-toggle__face--bottom {
-  transform: rotateX(-90deg) translateZ(0.36rem);
-}
-
-@keyframes theme-cube-spin {
-  from {
-    transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(0deg);
-  }
-
-  to {
-    transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(360deg);
   }
 }
 
@@ -524,15 +445,6 @@ details[open] > summary .shell-chevron {
     display: none;
   }
 
-  .theme-toggle {
-    width: 2.5rem;
-  }
-
-  .theme-toggle__stage {
-    width: 2rem;
-    height: 2rem;
-  }
-
     .account-control summary {
     max-width: 6rem;
     padding-inline: 0.5rem;
@@ -614,11 +526,6 @@ details[open] > summary .shell-chevron {
   .shell-chevron,
   .theme-toggle {
     transition: none;
-  }
-
-  .theme-toggle__cube {
-    animation: none;
-    transform: translate3d(-50%, -50%, 0) rotateX(-19deg) rotateY(28deg);
   }
 }
 
