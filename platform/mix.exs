@@ -56,6 +56,8 @@ defmodule AshPlatform.MixProject do
        path: System.get_env("REGENT_IDENTITY_PATH", Path.join(shared, "regents/identity"))},
       {:regent_ui,
        path: System.get_env("REGENT_UI_PATH", Path.join(shared, "design-system/regent_ui"))},
+      {:regent_blog,
+       path: System.get_env("REGENT_BLOG_PATH", Path.join(shared, "elixir-utils/blog"))},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -92,11 +94,13 @@ defmodule AshPlatform.MixProject do
       "assets.build": [
         "compile",
         "regent_ui.assets",
+        "regent_blog.assets",
         "regent_identity.assets",
         "esbuild ash_platform"
       ],
       "assets.deploy": [
         "regent_ui.assets",
+        "regent_blog.assets",
         "regent_identity.assets",
         "esbuild ash_platform --minify",
         "phx.digest"

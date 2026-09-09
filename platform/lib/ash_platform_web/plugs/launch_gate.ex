@@ -28,6 +28,9 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
 
   def call(%Plug.Conn{method: "GET", path_info: ["terms"]} = conn, _opts), do: conn
 
+  def call(%Plug.Conn{method: "GET", path_info: ["blog"]} = conn, _opts), do: conn
+  def call(%Plug.Conn{method: "GET", path_info: ["blog", _slug]} = conn, _opts), do: conn
+
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn
 

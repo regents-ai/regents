@@ -95,6 +95,8 @@ defmodule AshPlatformWeb.Router do
     live "/", HomeLive, :home
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure

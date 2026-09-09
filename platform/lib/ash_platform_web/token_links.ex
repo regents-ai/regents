@@ -11,6 +11,9 @@ defmodule AshPlatformWeb.TokenLinks do
   alias AshPlatform.Staking.PriceClient
   alias AshPlatform.WalletActions.Abi
 
+  @doc "The REGENT contract address a visitor copies. Same token the buy link names."
+  def address, do: Abi.stake_token_address()
+
   @doc "Where REGENT is bought."
   def buy, do: "https://app.uniswap.org/explore/tokens/base/#{Abi.stake_token_address()}"
 
