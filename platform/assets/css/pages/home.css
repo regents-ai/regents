@@ -27,7 +27,7 @@
   .rl-token-menu > summary::-webkit-details-marker { display: none; }
 
   .rl-token-menu-panel { position: absolute; inset-block-start: 100%; inset-inline-end: 0; width: 12rem; padding-block-start: .75rem; }
-  .rl-token-menu-content { display: grid; padding: .5rem; background: var(--rl-panel); color: var(--rl-ink); border: 1px solid var(--rl-line); box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .25); }
+  .rl-token-menu-content { display: grid; padding: .5rem; background: var(--rl-panel, var(--color-surface)); color: var(--rl-ink, var(--color-fg)); border: 1px solid var(--rl-line, var(--hairline)); box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .25); }
   .rl-token-menu-content p { padding: .5rem .625rem; font-family: var(--font-family-title); }
 
   .rl-token-menu :is(summary, a, button):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
@@ -152,7 +152,7 @@
 
 .rg-button.rl-token-link {
   --rg-cut-control: 0px;
-  --rg-p-accent: var(--rl-panel);
+  --rg-p-accent: var(--rl-panel, var(--color-surface));
   --rg-p-on-accent: var(--palette-tangerine-tango);
   --rg-button-border-color: transparent;
   --rg-shimmer-color: color-mix(in srgb, var(--palette-tangerine-tango) 40%, transparent);

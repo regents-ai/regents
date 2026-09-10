@@ -3,6 +3,8 @@ defmodule AshPlatformWeb.Components.Shell do
 
   use Phoenix.Component
 
+  alias AshPlatformWeb.Components.RegentLinks
+
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
     ViewerProfileTarget
@@ -69,7 +71,9 @@ defmodule AshPlatformWeb.Components.Shell do
         </Regent.Primitives.button>
 
         <span class="shell-spacer" />
-        <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
+        <div class="rl-header-links">
+          <RegentLinks.header_links id="shell-token-menu" />
+        </div>
 
         <div class="shell-local-controls" data-motion-header-controls>
           <Regent.Primitives.field
