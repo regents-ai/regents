@@ -29,7 +29,9 @@ defmodule AshPlatformWeb.Layouts do
     ~H"""
     <footer aria-label="Project links" class="product-links">
       <AshPlatformWeb.Components.Shell.theme_toggle id="footer-theme-control" theme={@theme} />
-      <a href="https://github.com/regents-ai/regents" rel="noopener noreferrer">Star on GitHub</a>
+      <div class="rl-header-links">
+        <AshPlatformWeb.Components.RegentLinks.header_links id="footer-token-menu" />
+      </div>
       <a href="/llms.txt">For agents</a>
       <Regent.Primitives.disclosure summary="Regents Labs" id="layouts-details-0">
         <nav aria-label="Related products" class="product-links__related">
