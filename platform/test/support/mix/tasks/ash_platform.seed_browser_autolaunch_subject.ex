@@ -47,14 +47,14 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchSubject do
   def remove! do
     # The operation table keys a subject by its public identity; the action table
     # keys it by the subject row's own id, so that one is removed through it.
-    delete!("DELETE FROM autolaunch.subject_wallet_operations WHERE subject_id = $1")
+    delete!("DELETE FROM autolaunch_app.subject_wallet_operations WHERE subject_id = $1")
 
     delete!("""
-    DELETE FROM autolaunch.subject_actions
-     WHERE subject_id IN (SELECT id FROM autolaunch.subjects WHERE subject_id = $1)
+    DELETE FROM autolaunch_app.subject_actions
+     WHERE subject_id IN (SELECT id FROM autolaunch_app.subjects WHERE subject_id = $1)
     """)
 
-    delete!("DELETE FROM autolaunch.subjects WHERE subject_id = $1")
+    delete!("DELETE FROM autolaunch_app.subjects WHERE subject_id = $1")
     :ok
   end
 

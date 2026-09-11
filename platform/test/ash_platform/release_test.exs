@@ -11,7 +11,7 @@ defmodule AshPlatform.ReleaseTest do
 
   @moduletag timeout: 300_000
 
-  @direct "postgresql://direct_user:direct-secret@direct.nvwq9ozp9ye03kl1.flympg.net:5432/ash_platform"
+  @direct "postgresql://direct_user:direct-secret@direct.dzx6qo6xqzvojpv5.flympg.net:5432/ash_platform"
   @role "ASH_PLATFORM_DEPLOYMENT_ROLE"
   @role_error "bootstrap-staging requires ASH_PLATFORM_DEPLOYMENT_ROLE to be exactly staging"
   @missing_table_error "no schema_migrations table: run bootstrap-staging first"
@@ -44,9 +44,9 @@ defmodule AshPlatform.ReleaseTest do
     getenv = fn
       "DATABASE_DIRECT_URL" -> @direct
       "ASH_PLATFORM_DEPLOYMENT_ROLE" -> "production"
-      "ASH_PLATFORM_DATABASE_TARGET_MODE" -> "rehearsal"
-      "ASH_PLATFORM_DATABASE_CLUSTER_ID" -> "nvwq9ozp9ye03kl1"
-      "ASH_PLATFORM_DATABASE_CLUSTER_NAME" -> "regents-pg-test"
+      "ASH_PLATFORM_DATABASE_TARGET_MODE" -> "production"
+      "ASH_PLATFORM_DATABASE_CLUSTER_ID" -> "dzx6qo6xqzvojpv5"
+      "ASH_PLATFORM_DATABASE_CLUSTER_NAME" -> "regents-platform-prod"
       "DATABASE_POOLED_URL" -> flunk("migration configuration read pooled access")
       _name -> nil
     end
@@ -55,7 +55,7 @@ defmodule AshPlatform.ReleaseTest do
              ssl: [
                verify: :verify_peer,
                cacerts: :public_key.cacerts_get(),
-               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
@@ -66,9 +66,9 @@ defmodule AshPlatform.ReleaseTest do
            ]
   end
 
-  test "migration configuration fails closed without an explicit rehearsal target" do
+  test "migration configuration fails closed without an explicit production target" do
     assert_raise RuntimeError,
-                 "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test",
+                 "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod",
                  fn ->
                    Release.migration_config!(fn
                      @role -> "production"
@@ -145,12 +145,12 @@ defmodule AshPlatform.ReleaseTest do
                  end
   end
 
-  test "bootstrap refuses a database that already has the platform schema, and changes nothing" do
+  test "bootstrap refuses a database that already has the regent_names schema, and changes nothing" do
     config = disposable_database()
-    query!(config, "CREATE SCHEMA platform")
+    query!(config, "CREATE SCHEMA regent_names")
 
     assert_raise RuntimeError,
-                 "platform schema already exists: destroy and recreate the staging database",
+                 "regent_names schema already exists: destroy and recreate the staging database",
                  fn ->
                    Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
                  end
@@ -164,7 +164,7 @@ defmodule AshPlatform.ReleaseTest do
     assert {:ok, _result, _started} =
              Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
 
-    assert column_names(config, "platform", "platform_human_users") == [
+    assert column_names(config, "regent_names", "platform_human_users") == [
              "avatar",
              "created_at",
              "display_name",

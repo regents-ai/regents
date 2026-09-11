@@ -156,7 +156,8 @@ defmodule AshPlatform.Autolaunch.Bid do
 
   postgres do
     table "bids"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     custom_indexes do

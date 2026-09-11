@@ -43,7 +43,8 @@ defmodule AshPlatform.Autolaunch.BidOperation do
 
   postgres do
     table "bid_operations"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     references do

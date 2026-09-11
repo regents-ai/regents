@@ -448,7 +448,7 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityTest do
       # The resource has no destroy action, so cleanup bypasses Ash deliberately.
       Repo.delete_all(
         from(report in TreasurySecurityReport,
-          prefix: "autolaunch",
+          prefix: "autolaunch_app",
           where: report.address == ^@concurrent_safe
         )
       )

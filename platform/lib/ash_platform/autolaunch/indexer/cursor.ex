@@ -19,7 +19,8 @@ defmodule AshPlatform.Autolaunch.Indexer.Cursor do
 
   postgres do
     table "indexer_cursors"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     check_constraints do

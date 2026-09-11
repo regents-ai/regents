@@ -82,7 +82,8 @@ defmodule AshPlatform.Autolaunch.PaymentLink do
 
   postgres do
     table "payment_links"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     custom_indexes do

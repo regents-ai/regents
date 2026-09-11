@@ -1,10 +1,12 @@
 defmodule AshPlatform.DatabaseConfig do
   @moduledoc false
 
-  @cluster_id "nvwq9ozp9ye03kl1"
-  @cluster_name "regents-pg-test"
-  @production_database_host "direct.nvwq9ozp9ye03kl1.flympg.net"
-  @production_identities ["regents-platform-prod", "platform-phx"]
+  @cluster_id "dzx6qo6xqzvojpv5"
+  @cluster_name "regents-platform-prod"
+  @production_database_host "direct.dzx6qo6xqzvojpv5.flympg.net"
+  # Superseded identities refused in production configuration: the legacy
+  # platform application and the retired rehearsal cluster.
+  @production_identities ["platform-phx", "regents-pg-test", "nvwq9ozp9ye03kl1"]
   @production_hosts [@production_database_host]
   @staging_hosts ["regents-staging-db.flycast", "regents-staging-db.internal"]
   # The staging role can never reach production, so its refusals name production's
@@ -20,8 +22,7 @@ defmodule AshPlatform.DatabaseConfig do
   ]
   @deployment_role_variable "ASH_PLATFORM_DEPLOYMENT_ROLE"
   @deployment_role_error ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging")
-  @rehearsal_target_error "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test"
-  @production_migration_error "production migration requires separate Chief-authorized production migration configuration"
+  @production_target_error "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
 
   def runtime_config!(environment, getenv \\ &System.get_env/1)
 
@@ -49,7 +50,7 @@ defmodule AshPlatform.DatabaseConfig do
   def release_config!(getenv \\ &System.get_env/1) do
     case deployment_role!(getenv) do
       :production ->
-        require_rehearsal_target!(getenv)
+        require_production_target!(getenv)
         database_url!(getenv, "DATABASE_DIRECT_URL", @production_hosts, @production_identities)
 
       :staging ->
@@ -198,21 +199,14 @@ defmodule AshPlatform.DatabaseConfig do
     end
   end
 
-  defp require_rehearsal_target!(getenv) do
-    mode = getenv.("ASH_PLATFORM_DATABASE_TARGET_MODE")
-
-    cond do
-      mode == "production" ->
-        raise @production_migration_error
-
-      mode == "rehearsal" and
-        getenv.("ASH_PLATFORM_DATABASE_CLUSTER_ID") == @cluster_id and
-        getenv.("ASH_PLATFORM_DATABASE_CLUSTER_NAME") == @cluster_name and
-          not production_identity?(getenv.("FLY_APP_NAME")) ->
-        :ok
-
-      true ->
-        raise @rehearsal_target_error
+  defp require_production_target!(getenv) do
+    if getenv.("ASH_PLATFORM_DATABASE_TARGET_MODE") == "production" and
+         getenv.("ASH_PLATFORM_DATABASE_CLUSTER_ID") == @cluster_id and
+         getenv.("ASH_PLATFORM_DATABASE_CLUSTER_NAME") == @cluster_name and
+         not production_identity?(getenv.("FLY_APP_NAME")) do
+      :ok
+    else
+      raise @production_target_error
     end
   end
 
@@ -259,6 +253,6 @@ defmodule AshPlatform.DatabaseConfig do
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
   defp remote_target_error do
-    "remote database access requires cluster nvwq9ozp9ye03kl1 named regents-pg-test"
+    "remote database access requires cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
   end
 end

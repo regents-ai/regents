@@ -108,7 +108,8 @@ defmodule AshPlatform.Autolaunch.LaunchDraft do
 
   postgres do
     table "launch_drafts"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     custom_indexes do

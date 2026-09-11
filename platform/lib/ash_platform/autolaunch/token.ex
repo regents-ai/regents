@@ -180,7 +180,8 @@ defmodule AshPlatform.Autolaunch.Token do
 
   postgres do
     table "tokens"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
   end
 end

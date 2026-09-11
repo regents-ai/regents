@@ -165,7 +165,7 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserIdentity do
 
     def identity_rows(privy_user_id) do
       query!(
-        "SELECT id, wallet_address, wallet_addresses FROM platform.platform_human_users WHERE privy_user_id = $1 FOR UPDATE",
+        "SELECT id, wallet_address, wallet_addresses FROM regent_names.platform_human_users WHERE privy_user_id = $1 FOR UPDATE",
         [privy_user_id]
       ).rows
     end
@@ -176,7 +176,7 @@ defmodule Mix.Tasks.AshPlatform.ResetBrowserIdentity do
 
     def delete_identity(account_id, privy_user_id) do
       query!(
-        "DELETE FROM platform.platform_human_users WHERE id = $1 AND privy_user_id = $2",
+        "DELETE FROM regent_names.platform_human_users WHERE id = $1 AND privy_user_id = $2",
         [account_id, privy_user_id]
       ).num_rows
     end

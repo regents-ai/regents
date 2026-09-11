@@ -15,7 +15,8 @@ defmodule AshPlatform.Autolaunch.Indexer.Source do
 
   postgres do
     table "indexer_sources"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     check_constraints do

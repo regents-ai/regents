@@ -6,7 +6,7 @@ defmodule AshPlatform.Accounts.HumanAccount do
 
   postgres do
     table "platform_human_users"
-    schema("platform")
+    schema("regent_names")
     repo(AshPlatform.Repo)
     migrate?(false)
   end

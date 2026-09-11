@@ -179,6 +179,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
   defp setup_human_account_fixture! do
     create_local_human_accounts_table!()
     migrate_application_schema!()
+    adopt_shared_schema_layout!()
   end
 
   defp fixture_setup!(opts, env) do
@@ -318,25 +319,76 @@ defmodule AshPlatform.LocalDatabaseFixture do
     Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
   end
 
+  # A replayed migration history still writes the Autolaunch-owned tables to
+  # their former `autolaunch` schema and the account table to `platform`; on the
+  # shared database those live at `autolaunch_app` and `regent_names`, so the
+  # replayed database adopts the same layout. Foreign keys follow the moved
+  # account table because they reference it by identity, not by schema name.
   @doc false
-  def create_local_human_accounts_table! do
-    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "CREATE SCHEMA IF NOT EXISTS platform", [])
+  def adopt_shared_schema_layout! do
+    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "CREATE SCHEMA IF NOT EXISTS regent_names", [])
 
     Ecto.Adapters.SQL.query!(
       AshPlatform.Repo,
       """
-      CREATE TABLE IF NOT EXISTS platform.platform_human_users (
-        id bigserial PRIMARY KEY,
-        privy_user_id varchar(255) NOT NULL UNIQUE,
-        wallet_address varchar(255),
-        wallet_addresses varchar(255)[] NOT NULL DEFAULT '{}',
-        world_human_id varchar(255) UNIQUE,
-        world_verified_at timestamp(0) without time zone,
-        display_name varchar(80),
-        avatar jsonb,
-        created_at timestamp(0) without time zone NOT NULL,
-        updated_at timestamp(0) without time zone NOT NULL
-      )
+      DO $$
+      BEGIN
+        IF to_regclass('platform.platform_human_users') IS NOT NULL
+           AND to_regclass('regent_names.platform_human_users') IS NULL THEN
+          ALTER TABLE platform.platform_human_users SET SCHEMA regent_names;
+        END IF;
+      END
+      $$;
+      """,
+      []
+    )
+
+    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "DROP SCHEMA IF EXISTS platform", [])
+
+    Ecto.Adapters.SQL.query!(
+      AshPlatform.Repo,
+      """
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'autolaunch')
+           AND NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'autolaunch_app') THEN
+          ALTER SCHEMA autolaunch RENAME TO autolaunch_app;
+        END IF;
+      END
+      $$;
+      """,
+      []
+    )
+  end
+
+  # The migration history still references the account table at
+  # `platform.platform_human_users`, so a database that has not yet adopted the
+  # shared layout gets the table there for the replay to resolve against. A
+  # database that already has the canonical `regent_names` copy needs nothing.
+  @doc false
+  def create_local_human_accounts_table! do
+    Ecto.Adapters.SQL.query!(
+      AshPlatform.Repo,
+      """
+      DO $$
+      BEGIN
+        IF to_regclass('regent_names.platform_human_users') IS NULL THEN
+          CREATE SCHEMA IF NOT EXISTS platform;
+          CREATE TABLE IF NOT EXISTS platform.platform_human_users (
+            id bigserial PRIMARY KEY,
+            privy_user_id varchar(255) NOT NULL UNIQUE,
+            wallet_address varchar(255),
+            wallet_addresses varchar(255)[] NOT NULL DEFAULT '{}',
+            world_human_id varchar(255) UNIQUE,
+            world_verified_at timestamp(0) without time zone,
+            display_name varchar(80),
+            avatar jsonb,
+            created_at timestamp(0) without time zone NOT NULL,
+            updated_at timestamp(0) without time zone NOT NULL
+          );
+        END IF;
+      END
+      $$;
       """,
       []
     )

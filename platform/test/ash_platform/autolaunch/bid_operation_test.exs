@@ -489,7 +489,7 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
       account_ids =
         Repo.all(
           from(account in Accounts.HumanAccount,
-            prefix: "platform",
+            prefix: "regent_names",
             where: like(account.privy_user_id, "did:privy:bid-barrier-%"),
             select: account.id
           )
@@ -497,7 +497,7 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
 
       Repo.delete_all(
         from(row in BidOperation,
-          prefix: "autolaunch",
+          prefix: "autolaunch_app",
           where: row.human_account_id in ^account_ids
         )
       )
@@ -506,21 +506,21 @@ defmodule AshPlatform.Autolaunch.BidOperationTest do
 
       Repo.delete_all(
         from(auction in Auction,
-          prefix: "autolaunch",
+          prefix: "autolaunch_app",
           where: like(auction.title, "Barrier bid %")
         )
       )
 
       Repo.delete_all(
         from(report in TreasurySecurityReport,
-          prefix: "autolaunch",
+          prefix: "autolaunch_app",
           where: report.address == ^@barrier_treasury
         )
       )
 
       Repo.delete_all(
         from(account in Accounts.HumanAccount,
-          prefix: "platform",
+          prefix: "regent_names",
           where: like(account.privy_user_id, "did:privy:bid-barrier-%")
         )
       )

@@ -235,7 +235,8 @@ defmodule AshPlatform.Autolaunch.Auction do
 
   postgres do
     table "auctions"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
   end
 end

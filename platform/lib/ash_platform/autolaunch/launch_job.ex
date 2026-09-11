@@ -170,7 +170,8 @@ defmodule AshPlatform.Autolaunch.LaunchJob do
 
   postgres do
     table "launch_jobs"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
   end
 end

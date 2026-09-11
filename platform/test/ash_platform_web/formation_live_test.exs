@@ -364,7 +364,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
   defp account_rows(privy_user_id) do
     sql!(
-      "SELECT id, privy_user_id, wallet_address, wallet_addresses FROM platform.platform_human_users WHERE privy_user_id = $1 ORDER BY id",
+      "SELECT id, privy_user_id, wallet_address, wallet_addresses FROM regent_names.platform_human_users WHERE privy_user_id = $1 ORDER BY id",
       [privy_user_id]
     ).rows
   end
@@ -378,7 +378,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
   defp autolaunch_snapshot do
     Enum.map(@autolaunch_tables, fn table ->
-      {table, sql!("SELECT count(*) FROM autolaunch.#{table}").rows}
+      {table, sql!("SELECT count(*) FROM autolaunch_app.#{table}").rows}
     end)
   end
 

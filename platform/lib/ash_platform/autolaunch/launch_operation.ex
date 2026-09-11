@@ -52,7 +52,8 @@ defmodule AshPlatform.Autolaunch.LaunchOperation do
 
   postgres do
     table "launch_operations"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     references do

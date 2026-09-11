@@ -4,7 +4,7 @@ defmodule AshPlatform.Release do
   @app :ash_platform
   @deployment_role_variable "ASH_PLATFORM_DEPLOYMENT_ROLE"
   @staging_role "staging"
-  @platform_schema "platform"
+  @platform_schema "regent_names"
   @bootstrap_role_error "bootstrap-staging requires #{@deployment_role_variable} to be exactly staging"
   @missing_migration_table_error "no schema_migrations table: run bootstrap-staging first"
 
@@ -25,14 +25,14 @@ defmodule AshPlatform.Release do
   Prepares an empty staging database for the first deployment.
 
   Staging owns a disposable database, so it has no copy of
-  `platform.platform_human_users`, the account table this repository reads but
+  `regent_names.platform_human_users`, the account table this repository reads but
   does not own. This command creates a staging-only approximation of that table
   with the shape the local fixture already proves sufficient, then runs every
-  migration.
+  migration and adopts the shared database's product schema names.
 
-  It refuses any database that already carries migration state or the platform
-  schema, and it repairs nothing: recovery from a half-finished bootstrap is to
-  destroy and recreate the staging database.
+  It refuses any database that already carries migration state or the
+  regent_names schema, and it repairs nothing: recovery from a half-finished
+  bootstrap is to destroy and recreate the staging database.
   """
   def bootstrap_staging, do: bootstrap_staging_for_test([])
 
@@ -62,6 +62,8 @@ defmodule AshPlatform.Release do
       AshPlatform.LocalDatabaseFixture.create_local_human_accounts_table!()
 
       Ecto.Migrator.run(repo, path, :up, all: true)
+
+      AshPlatform.LocalDatabaseFixture.adopt_shared_schema_layout!()
     end)
   end
 

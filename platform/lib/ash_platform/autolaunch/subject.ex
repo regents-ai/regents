@@ -193,7 +193,8 @@ defmodule AshPlatform.Autolaunch.Subject do
 
   postgres do
     table "subjects"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
   end
 end

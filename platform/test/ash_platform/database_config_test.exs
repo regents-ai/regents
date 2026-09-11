@@ -5,8 +5,8 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   @pooled "postgresql://pooled_user:pooled-secret@pool.example.test:5432/ash_platform"
   @direct "postgresql://direct_user:direct-secret@direct.example.test:5432/ash_platform"
-  @mpg_pooled "postgresql://pooled_user:pooled-secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net:5432/ash_platform"
-  @mpg_direct "postgresql://direct_user:direct-secret@direct.nvwq9ozp9ye03kl1.flympg.net:5432/ash_platform"
+  @mpg_pooled "postgresql://pooled_user:pooled-secret@pgbouncer.dzx6qo6xqzvojpv5.flympg.net:5432/ash_platform"
+  @mpg_direct "postgresql://direct_user:direct-secret@direct.dzx6qo6xqzvojpv5.flympg.net:5432/ash_platform"
   @socket_options [:inet6]
   @role "ASH_PLATFORM_DEPLOYMENT_ROLE"
   @staging_flycast "postgresql://staging_user:staging-secret@regents-staging-db.flycast:5432/ash_platform"
@@ -39,10 +39,10 @@ defmodule AshPlatform.DatabaseConfigTest do
       )
 
     effective = effective_repo_config(config)
-    assert effective[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
+    assert effective[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
     assert effective[:socket_options] == @socket_options
     refute Keyword.has_key?(effective, :prepare)
-    assert_verified_tls(effective[:ssl], "direct.nvwq9ozp9ye03kl1.flympg.net")
+    assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
   end
 
   test "production runtime fails closed when pooled URL is missing" do
@@ -57,78 +57,69 @@ defmodule AshPlatform.DatabaseConfigTest do
     end
   end
 
-  test "release selects the exact direct MPG host only for the exact rehearsal target" do
+  test "release selects the exact direct MPG host only for the exact production target" do
     config =
       DatabaseConfig.release_config!(
         env(%{
-          "ASH_PLATFORM_DATABASE_TARGET_MODE" => "rehearsal",
-          "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1",
-          "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-pg-test",
+          "ASH_PLATFORM_DATABASE_TARGET_MODE" => "production",
+          "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5",
+          "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-platform-prod",
           "DATABASE_POOLED_URL" => @pooled,
           "DATABASE_DIRECT_URL" => @mpg_direct
         })
       )
 
     effective = effective_repo_config(config)
-    assert effective[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
+    assert effective[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
     refute Keyword.has_key?(effective, :prepare)
-    assert_verified_tls(effective[:ssl], "direct.nvwq9ozp9ye03kl1.flympg.net")
+    assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
   end
 
   test "release fails closed when direct URL is missing" do
     assert_raise RuntimeError, "DATABASE_DIRECT_URL is required", fn ->
-      DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_POOLED_URL" => @pooled})))
+      DatabaseConfig.release_config!(env(production_env(%{"DATABASE_POOLED_URL" => @pooled})))
     end
   end
 
-  test "release rejects missing, incomplete, wrong, and deployed rehearsal targets" do
+  test "release rejects missing, incomplete, wrong, and retired production targets" do
     invalid_targets = [
       %{"DATABASE_DIRECT_URL" => @direct},
       %{
-        "ASH_PLATFORM_DATABASE_TARGET_MODE" => "rehearsal",
-        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1",
+        "ASH_PLATFORM_DATABASE_TARGET_MODE" => "production",
+        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5",
         "DATABASE_DIRECT_URL" => @direct
       },
-      rehearsal_env(%{
+      production_env(%{
         "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "wrong",
         "DATABASE_DIRECT_URL" => @direct
       }),
-      rehearsal_env(%{"FLY_APP_NAME" => "platform-phx", "DATABASE_DIRECT_URL" => @direct}),
-      rehearsal_env(%{
-        "FLY_APP_NAME" => "regents-platform-prod",
+      production_env(%{"FLY_APP_NAME" => "platform-phx", "DATABASE_DIRECT_URL" => @direct}),
+      production_env(%{
+        "FLY_APP_NAME" => "regents-pg-test",
+        "DATABASE_DIRECT_URL" => @direct
+      }),
+      production_env(%{
+        "ASH_PLATFORM_DATABASE_TARGET_MODE" => "rehearsal",
         "DATABASE_DIRECT_URL" => @direct
       })
     ]
 
     for values <- invalid_targets do
       assert_raise RuntimeError,
-                   "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test",
+                   "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod",
                    fn -> DatabaseConfig.release_config!(env(values)) end
     end
-  end
-
-  test "production migration mode requires separate Chief authorization" do
-    assert_raise RuntimeError,
-                 "production migration requires separate Chief-authorized production migration configuration",
-                 fn ->
-                   DatabaseConfig.release_config!(
-                     env(%{
-                       "ASH_PLATFORM_DATABASE_TARGET_MODE" => "production",
-                       "DATABASE_DIRECT_URL" => @direct
-                     })
-                   )
-                 end
   end
 
   test "release rejects production identity embedded or encoded in direct URLs" do
     for url <- [
           "postgresql://user:secret@platform-phx.example.test/db",
-          "postgresql://user:secret@safe.example.test/regents-platform-prod",
-          "postgresql://regents%2Dplatform%2Dprod:secret@safe.example.test/db"
+          "postgresql://user:secret@safe.example.test/regents-pg-test",
+          "postgresql://nvwq9ozp9ye03kl1:secret@safe.example.test/db"
         ] do
       error =
         assert_raise RuntimeError, fn ->
-          DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_DIRECT_URL" => url})))
+          DatabaseConfig.release_config!(env(production_env(%{"DATABASE_DIRECT_URL" => url})))
         end
 
       assert Exception.message(error) ==
@@ -150,12 +141,12 @@ defmodule AshPlatform.DatabaseConfigTest do
            ]
   end
 
-  test "development accepts the exact rehearsal target and selects pooled access" do
+  test "development accepts the exact production target and selects pooled access" do
     assert DatabaseConfig.runtime_config!(
              :dev,
              env(%{
-               "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1",
-               "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-pg-test",
+               "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5",
+               "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-platform-prod",
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
@@ -164,29 +155,29 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   test "development rejects incomplete, wrong, production, and deployed-app targets" do
     invalid_targets = [
-      %{"ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1"},
+      %{"ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5"},
       %{
         "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "wrong",
-        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-pg-test"
+        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-platform-prod"
       },
       %{
-        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1",
-        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-platform-prod"
+        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5",
+        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-pg-test"
       },
       %{"FLY_APP_NAME" => "platform-phx"}
     ]
 
     for values <- invalid_targets do
       assert_raise RuntimeError,
-                   "remote database access requires cluster nvwq9ozp9ye03kl1 named regents-pg-test",
+                   "remote database access requires cluster dzx6qo6xqzvojpv5 named regents-platform-prod",
                    fn -> DatabaseConfig.runtime_config!(:dev, env(values)) end
     end
   end
 
   test "canonical URLs reject production identity in hostname, database, or username" do
     malicious_urls = [
-      "postgresql://user:secret@regents-platform-prod.example.test/db",
-      "postgresql://user:secret@safe.example.test/regents-platform-prod",
+      "postgresql://user:secret@regents-pg-test.example.test/db",
+      "postgresql://user:secret@safe.example.test/regents-pg-test",
       "postgresql://platform-phx:secret@safe.example.test/db"
     ]
 
@@ -215,7 +206,7 @@ defmodule AshPlatform.DatabaseConfigTest do
   test "malformed pooled and direct URLs fail closed with canonical variable names" do
     for {selector, variable} <- [
           {&DatabaseConfig.runtime_config!(:prod, &1), "DATABASE_POOLED_URL"},
-          {fn getenv -> DatabaseConfig.release_config!(env(rehearsal_env_from(getenv))) end,
+          {fn getenv -> DatabaseConfig.release_config!(env(production_env_from(getenv))) end,
            "DATABASE_DIRECT_URL"}
         ] do
       error =
@@ -232,7 +223,7 @@ defmodule AshPlatform.DatabaseConfigTest do
   end
 
   test "development non-MPG remote and local configurations remain unchanged" do
-    remote = env(rehearsal_env(%{"DATABASE_POOLED_URL" => @pooled}))
+    remote = env(production_env(%{"DATABASE_POOLED_URL" => @pooled}))
     config = DatabaseConfig.runtime_config!(:dev, remote)
     assert config == [url: @pooled, socket_options: @socket_options]
     refute Keyword.has_key?(config, :ssl)
@@ -247,29 +238,29 @@ defmodule AshPlatform.DatabaseConfigTest do
     config =
       DatabaseConfig.runtime_config!(
         :dev,
-        env(rehearsal_env(%{"DATABASE_POOLED_URL" => @mpg_pooled}))
+        env(production_env(%{"DATABASE_POOLED_URL" => @mpg_pooled}))
       )
 
     effective = effective_repo_config(config)
 
     assert effective[:url] == nil
-    assert effective[:hostname] == "pgbouncer.nvwq9ozp9ye03kl1.flympg.net"
+    assert effective[:hostname] == "pgbouncer.dzx6qo6xqzvojpv5.flympg.net"
     assert effective[:socket_options] == @socket_options
     assert effective[:prepare] == :unnamed
-    assert_verified_tls(effective[:ssl], "pgbouncer.nvwq9ozp9ye03kl1.flympg.net")
+    assert_verified_tls(effective[:ssl], "pgbouncer.dzx6qo6xqzvojpv5.flympg.net")
   end
 
   test "Fly MPG direct access uses verified TLS without pooled prepare mode" do
     config =
-      DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_DIRECT_URL" => @mpg_direct})))
+      DatabaseConfig.release_config!(env(production_env(%{"DATABASE_DIRECT_URL" => @mpg_direct})))
 
     effective = effective_repo_config(config)
 
     assert effective[:url] == nil
-    assert effective[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
+    assert effective[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
     assert effective[:socket_options] == @socket_options
     refute Keyword.has_key?(effective, :prepare)
-    assert_verified_tls(effective[:ssl], "direct.nvwq9ozp9ye03kl1.flympg.net")
+    assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
   end
 
   test "Fly MPG runtime options override the compiled sentinel port when URLs omit it" do
@@ -281,15 +272,15 @@ defmodule AshPlatform.DatabaseConfigTest do
         :prod,
         env(%{
           "DATABASE_POOLED_URL" =>
-            "postgresql://user:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+            "postgresql://user:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
         })
       ),
       DatabaseConfig.runtime_config!(
         :dev,
         env(
-          rehearsal_env(%{
+          production_env(%{
             "DATABASE_POOLED_URL" =>
-              "postgresql://user:secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+              "postgresql://user:secret@pgbouncer.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
           })
         )
       )
@@ -314,14 +305,14 @@ defmodule AshPlatform.DatabaseConfigTest do
       {fn url ->
          DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url}))
        end,
-       "postgresql://direct-user:sentinel-secret@direct.nvwq9ozp9ye03kl1.flympg.net:6543/ash_platform"},
+       "postgresql://direct-user:sentinel-secret@direct.dzx6qo6xqzvojpv5.flympg.net:6543/ash_platform"},
       {fn url ->
          DatabaseConfig.runtime_config!(
            :dev,
-           env(rehearsal_env(%{"DATABASE_POOLED_URL" => url}))
+           env(production_env(%{"DATABASE_POOLED_URL" => url}))
          )
        end,
-       "postgresql://pooled-user:sentinel-secret@pgbouncer.nvwq9ozp9ye03kl1.flympg.net:6543/ash_platform"}
+       "postgresql://pooled-user:sentinel-secret@pgbouncer.dzx6qo6xqzvojpv5.flympg.net:6543/ash_platform"}
     ]
 
     for {configure, url} <- cases do
@@ -352,7 +343,7 @@ defmodule AshPlatform.DatabaseConfigTest do
         assert_raise RuntimeError, fn ->
           DatabaseConfig.runtime_config!(
             :dev,
-            env(rehearsal_env(%{"DATABASE_POOLED_URL" => url}))
+            env(production_env(%{"DATABASE_POOLED_URL" => url}))
           )
         end
 
@@ -370,7 +361,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     mpg =
       DatabaseConfig.runtime_config!(
         :dev,
-        env(rehearsal_env(%{"DATABASE_POOLED_URL" => mpg_url}))
+        env(production_env(%{"DATABASE_POOLED_URL" => mpg_url}))
       )
 
     assert_verified_tls(mpg[:ssl], "custom.cluster.flympg.net")
@@ -382,18 +373,18 @@ defmodule AshPlatform.DatabaseConfigTest do
         ] do
       assert DatabaseConfig.runtime_config!(
                :dev,
-               env(rehearsal_env(%{"DATABASE_POOLED_URL" => url}))
+               env(production_env(%{"DATABASE_POOLED_URL" => url}))
              ) == [url: url, socket_options: @socket_options]
     end
   end
 
   test "production and release reject every host except the exact direct cluster hostname" do
     invalid_hosts = [
-      "pgbouncer.nvwq9ozp9ye03kl1.flympg.net",
+      "pgbouncer.dzx6qo6xqzvojpv5.flympg.net",
       "direct.another-cluster.flympg.net",
       "flympg.net",
-      "direct.nvwq9ozp9ye03kl1.flympg.net.attacker.example",
-      "direct.nvwq9ozp9ye03kl1.evilflympg.net"
+      "direct.dzx6qo6xqzvojpv5.flympg.net.attacker.example",
+      "direct.dzx6qo6xqzvojpv5.evilflympg.net"
     ]
 
     for host <- invalid_hosts,
@@ -402,7 +393,7 @@ defmodule AshPlatform.DatabaseConfigTest do
              DatabaseConfig.runtime_config!(:prod, env(%{"DATABASE_POOLED_URL" => url}))
            end, "DATABASE_POOLED_URL"},
           {fn url ->
-             DatabaseConfig.release_config!(env(rehearsal_env(%{"DATABASE_DIRECT_URL" => url})))
+             DatabaseConfig.release_config!(env(production_env(%{"DATABASE_DIRECT_URL" => url})))
            end, "DATABASE_DIRECT_URL"}
         ] do
       url = "postgresql://sentinel-user:sentinel-secret@#{host}:5432/ash_platform"
@@ -420,15 +411,15 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   test "the admitted production host is case-normalized before Repo parsing" do
     uppercase =
-      "postgresql://user:secret@DIRECT.NVWQ9OZP9YE03KL1.FLYMPG.NET:5432/ash_platform"
+      "postgresql://user:secret@DIRECT.DZX6QO6XQZVOJPV5.FLYMPG.NET:5432/ash_platform"
 
     effective =
       :prod
       |> DatabaseConfig.runtime_config!(env(%{"DATABASE_POOLED_URL" => uppercase}))
       |> effective_repo_config()
 
-    assert effective[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
-    assert_verified_tls(effective[:ssl], "direct.nvwq9ozp9ye03kl1.flympg.net")
+    assert effective[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
+    assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
     refute Keyword.has_key?(effective, :prepare)
   end
 
@@ -460,7 +451,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     assert DatabaseConfig.runtime_config!(:dev, getenv)[:database] == "ash_platform_dev"
   end
 
-  test "the staging role admits exactly the two staging hosts, with no rehearsal ceremony" do
+  test "the staging role admits exactly the two staging hosts, with no production ceremony" do
     for url <- [@staging_flycast, @staging_internal] do
       runtime =
         DatabaseConfig.runtime_config!(:prod, staging_env(%{"DATABASE_POOLED_URL" => url}))
@@ -494,13 +485,13 @@ defmodule AshPlatform.DatabaseConfigTest do
       "postgresql://user:secret@flympg.net:5432/ash_platform",
       "postgresql://user:secret@regents-staging-db.flycast:5432/nvwq9ozp9ye03kl1",
       "postgresql://nvwq9ozp9ye03kl1:secret@regents-staging-db.flycast:5432/ash_platform",
-      "postgresql://user:secret@regents-staging-db.flycast:5432/regents-platform-prod",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/regents-pg-test",
       "postgresql://user:secret@regents-staging-db.flycast:5432/platform-phx",
       "postgresql://user:secret@regents-staging-db.flycast:5432/regents-sh-web",
       "postgresql://regents-sh-web:secret@regents-staging-db.flycast:5432/ash_platform",
       "postgresql://user:secret@regents-sh-web:5432/ash_platform",
-      "postgresql://user:secret@regents-staging-db.flycast:5432/direct.nvwq9ozp9ye03kl1.flympg.net",
-      "postgresql://direct.nvwq9ozp9ye03kl1.flympg.net:secret@regents-staging-db.flycast:5432/ash_platform",
+      "postgresql://user:secret@regents-staging-db.flycast:5432/direct.dzx6qo6xqzvojpv5.flympg.net",
+      "postgresql://direct.dzx6qo6xqzvojpv5.flympg.net:secret@regents-staging-db.flycast:5432/ash_platform",
       "postgresql://user:secret@regents-staging-db.flycast.attacker.example:5432/ash_platform",
       "postgresql://user:secret@other-regents-staging-db.flycast:5432/ash_platform",
       "postgresql://user:secret@regents-staging-db.example.test:5432/ash_platform"
@@ -569,7 +560,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                    "DATABASE_DIRECT_URL must be a valid PostgreSQL URL for the approved target",
                    fn ->
                      DatabaseConfig.release_config!(
-                       env(rehearsal_env(%{"DATABASE_DIRECT_URL" => url}))
+                       env(production_env(%{"DATABASE_DIRECT_URL" => url}))
                      )
                    end
     end
@@ -580,18 +571,18 @@ defmodule AshPlatform.DatabaseConfigTest do
   # this deployment -- the real one -- would stop on its own name.
   test "the production role reads regents-sh-web exactly as it did before staging existed" do
     named_url =
-      "postgresql://user:secret@direct.nvwq9ozp9ye03kl1.flympg.net:5432/regents-sh-web"
+      "postgresql://user:secret@direct.dzx6qo6xqzvojpv5.flympg.net:5432/regents-sh-web"
 
     assert DatabaseConfig.release_config!(
              env(
-               rehearsal_env(%{
+               production_env(%{
                  "FLY_APP_NAME" => "regents-sh-web",
                  "DATABASE_DIRECT_URL" => @mpg_direct
                })
              )
            ) ==
              DatabaseConfig.release_config!(
-               env(rehearsal_env(%{"DATABASE_DIRECT_URL" => @mpg_direct}))
+               env(production_env(%{"DATABASE_DIRECT_URL" => @mpg_direct}))
              )
 
     assert DatabaseConfig.runtime_config!(
@@ -604,9 +595,9 @@ defmodule AshPlatform.DatabaseConfigTest do
           {&DatabaseConfig.runtime_config!(:prod, &1), "DATABASE_POOLED_URL"},
           {&DatabaseConfig.release_config!/1, "DATABASE_DIRECT_URL"}
         ] do
-      config = selector.(env(rehearsal_env(%{variable => named_url})))
+      config = selector.(env(production_env(%{variable => named_url})))
 
-      assert effective_repo_config(config)[:hostname] == "direct.nvwq9ozp9ye03kl1.flympg.net"
+      assert effective_repo_config(config)[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
     end
 
     assert DatabaseConfig.runtime_config!(:dev, env(%{"FLY_APP_NAME" => "regents-sh-web"})) == [
@@ -626,19 +617,19 @@ defmodule AshPlatform.DatabaseConfigTest do
 
   defp staging_env(values), do: env(Map.put(values, @role, "staging"))
 
-  defp rehearsal_env(overrides) do
+  defp production_env(overrides) do
     Map.merge(
       %{
-        "ASH_PLATFORM_DATABASE_TARGET_MODE" => "rehearsal",
-        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "nvwq9ozp9ye03kl1",
-        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-pg-test"
+        "ASH_PLATFORM_DATABASE_TARGET_MODE" => "production",
+        "ASH_PLATFORM_DATABASE_CLUSTER_ID" => "dzx6qo6xqzvojpv5",
+        "ASH_PLATFORM_DATABASE_CLUSTER_NAME" => "regents-platform-prod"
       },
       overrides
     )
   end
 
-  defp rehearsal_env_from(getenv) do
-    rehearsal_env(%{"DATABASE_DIRECT_URL" => getenv.("DATABASE_DIRECT_URL")})
+  defp production_env_from(getenv) do
+    production_env(%{"DATABASE_DIRECT_URL" => getenv.("DATABASE_DIRECT_URL")})
   end
 
   defp assert_verified_tls(ssl, hostname) do

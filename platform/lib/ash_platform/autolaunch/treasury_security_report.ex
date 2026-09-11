@@ -182,7 +182,8 @@ defmodule AshPlatform.Autolaunch.TreasurySecurityReport do
 
   postgres do
     table "treasury_security_reports"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     custom_indexes do

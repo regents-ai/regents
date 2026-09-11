@@ -124,7 +124,7 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
       query!(
         """
         SELECT id, privy_user_id, wallet_address, wallet_addresses
-        FROM platform.platform_human_users
+        FROM regent_names.platform_human_users
         WHERE privy_user_id = $1
         FOR UPDATE
         """,
@@ -135,7 +135,7 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
     def insert_account(privy_user_id, wallet_address) do
       query!(
         """
-        INSERT INTO platform.platform_human_users
+        INSERT INTO regent_names.platform_human_users
           (privy_user_id, wallet_address, wallet_addresses, created_at, updated_at)
         VALUES ($1, $2, ARRAY[$2]::varchar[], now(), now())
         RETURNING id

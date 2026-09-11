@@ -111,13 +111,13 @@ defmodule AshPlatform.RuntimeConfigTest do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     pooled =
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
 
     System.put_env("DATABASE_POOLED_URL", pooled)
 
     System.put_env(
       "DATABASE_DIRECT_URL",
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
     )
 
     System.put_env("PHX_HOST", "shadow.example.test")
@@ -131,7 +131,7 @@ defmodule AshPlatform.RuntimeConfigTest do
              ssl: [
                verify: :verify_peer,
                cacerts: :public_key.cacerts_get(),
-               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
@@ -157,7 +157,7 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env(
       "DATABASE_POOLED_URL",
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
     )
 
     System.put_env("PHX_HOST", "  shadow.example.test\n")
@@ -209,24 +209,24 @@ defmodule AshPlatform.RuntimeConfigTest do
     end
   end
 
-  test "migration runtime selects direct access only for the exact rehearsal target" do
+  test "migration runtime selects direct access only for the exact production target" do
     put_production_role()
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     direct =
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
 
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
-    System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
-    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "nvwq9ozp9ye03kl1")
-    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-pg-test")
+    System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "production")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "dzx6qo6xqzvojpv5")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-platform-prod")
     System.put_env("DATABASE_DIRECT_URL", direct)
 
     assert runtime_repo_config(:prod) == [
              ssl: [
                verify: :verify_peer,
                cacerts: :public_key.cacerts_get(),
-               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
@@ -237,23 +237,23 @@ defmodule AshPlatform.RuntimeConfigTest do
            ]
   end
 
-  test "migration runtime rejects an arbitrary direct URL without rehearsal identity" do
+  test "migration runtime rejects an arbitrary direct URL without production identity" do
     put_production_role()
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("DATABASE_DIRECT_URL", "postgresql://direct:secret@direct.example.test/db")
 
     assert_raise RuntimeError,
-                 "database migration requires rehearsal mode for cluster nvwq9ozp9ye03kl1 named regents-pg-test",
+                 "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod",
                  fn -> runtime_repo_config(:prod) end
   end
 
-  test "migration runtime refuses production mode before reading direct access" do
+  test "migration runtime refuses production mode without the cluster identity" do
     put_production_role()
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
     System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "production")
 
     assert_raise RuntimeError,
-                 "production migration requires separate Chief-authorized production migration configuration",
+                 "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod",
                  fn -> runtime_repo_config(:prod) end
   end
 
@@ -299,12 +299,12 @@ defmodule AshPlatform.RuntimeConfigTest do
     System.put_env("BASE_READ_RPC_URL", "https://base.example.test")
 
     direct =
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
 
     System.put_env("ASH_PLATFORM_RELEASE_COMMAND", "migrate")
-    System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "rehearsal")
-    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "nvwq9ozp9ye03kl1")
-    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-pg-test")
+    System.put_env("ASH_PLATFORM_DATABASE_TARGET_MODE", "production")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_ID", "dzx6qo6xqzvojpv5")
+    System.put_env("ASH_PLATFORM_DATABASE_CLUSTER_NAME", "regents-platform-prod")
     System.put_env("DATABASE_DIRECT_URL", direct)
 
     config = read_runtime_config(:prod)
@@ -313,7 +313,7 @@ defmodule AshPlatform.RuntimeConfigTest do
              ssl: [
                verify: :verify_peer,
                cacerts: :public_key.cacerts_get(),
-               server_name_indication: ~c"direct.nvwq9ozp9ye03kl1.flympg.net",
+               server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
@@ -451,7 +451,7 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     System.put_env(
       "DATABASE_POOLED_URL",
-      "postgresql://direct:secret@direct.nvwq9ozp9ye03kl1.flympg.net/ash_platform"
+      "postgresql://direct:secret@direct.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
     )
   end
 

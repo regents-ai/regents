@@ -53,7 +53,8 @@ defmodule AshPlatform.Autolaunch.SubjectWalletOperation do
 
   postgres do
     table "subject_wallet_operations"
-    schema("autolaunch")
+    schema("autolaunch_app")
+    migrate?(false)
     repo(AshPlatform.Repo)
 
     references do
