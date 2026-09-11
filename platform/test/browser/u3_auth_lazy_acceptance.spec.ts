@@ -182,7 +182,7 @@ test("anonymous Stake connect loads Privy and opens its sign-in", async ({page})
 
   await page.goto("/stake")
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
-  await page.getByRole("button", {name: "Connect wallet to stake"}).click()
+  await page.getByRole("button", {name: "Connect wallet", exact: true}).click()
 
   const bridgeCalls = () =>
     page.evaluate(() => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [])

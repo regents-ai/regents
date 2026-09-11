@@ -188,15 +188,19 @@ test("Stake refuses every action while the sign-in and the active wallet differ"
   await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
 
   await page.locator("button.stake-submit").click()
-  await expect(page.locator(".stake-notice")).toHaveText(
-    "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222.",
+  const reconnect = page.locator("#wallet-reconnect-dialog")
+  await expect(reconnect).toBeVisible()
+  await expect(reconnect).toContainText(
+    "Please reconnect to the active wallet '0x1111…1111' to interact onchain.",
   )
   expect(await sendCount(page)).toBe(0)
+  await reconnect.getByRole("button", {name: "OK"}).click()
+  await expect(reconnect).toHaveCount(0)
 
   // Connecting again with the wallet the sign-in names restores every action.
   await selectWallet(page, wallet)
   await expect(page.locator("button[data-staking-action='stake']")).toBeVisible()
-  await expect(page.locator(".stake-notice")).toHaveCount(0)
+  await expect(reconnect).toHaveCount(0)
 })
 
 // Disconnect ends the wallet connection, and it stays ended across reloads
@@ -241,7 +245,7 @@ test("Disconnect leaves Stake unconnected, and a reload keeps it that way", asyn
 
 async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
-  await expect(page.getByRole("button", {name: "Connect wallet to stake"})).toBeVisible()
+  await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
   await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
   await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
   await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
@@ -326,7 +330,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(contractLink).toHaveAttribute("target", "_blank")
     await expect(contractLink).toHaveAttribute("rel", "noopener noreferrer")
 
-    const connect = page.getByRole("button", {name: "Connect wallet to stake"})
+    const connect = page.getByRole("button", {name: "Connect wallet", exact: true})
     await expect(connect).toBeVisible()
     // Connecting a wallet here is the Privy sign-in, the same one the header runs.
     await expect(connect).toHaveAttribute("data-account-target", "sign-in")

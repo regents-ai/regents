@@ -244,6 +244,31 @@ defmodule AshPlatformWeb.Components.Shell do
     """
   end
 
+  attr(:request, :string, required: true)
+
+  @doc """
+  The answer to an on-chain click made while the browser's active wallet is not
+  the one the sign-in names. It opens as a modal the moment it renders and closes
+  by the visitor's hand or by the named wallet becoming active again.
+  """
+  def wallet_reconnect_dialog(assigns) do
+    ~H"""
+    <dialog
+      id="wallet-reconnect-dialog"
+      class="shell-reconnect-dialog"
+      aria-labelledby="wallet-reconnect-heading"
+      phx-hook="ModalDialog"
+      data-dismiss-event="dismiss_wallet_reconnect"
+    >
+      <h2 id="wallet-reconnect-heading">Reconnect your wallet</h2>
+      <p class="shell-reconnect-request">{@request}</p>
+      <form method="dialog">
+        <Regent.Primitives.button variant="secondary" type="submit" value="close">OK</Regent.Primitives.button>
+      </form>
+    </dialog>
+    """
+  end
+
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)

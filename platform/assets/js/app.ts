@@ -28,6 +28,7 @@ import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {ShellMotion} from "./hooks/motion"
+import {ModalDialog} from "./hooks/modal_dialog"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
@@ -335,6 +336,7 @@ const hooks = {
   HomeHero,
   HomePrism,
   HomeTokenMenu,
+  ModalDialog,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   RegentsClubMetadataWallet,

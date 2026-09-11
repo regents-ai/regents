@@ -124,6 +124,7 @@ defmodule AshPlatformWeb.ShellLive do
        staking_read: nil,
        staking_shared_reading: false,
        staking_status: :loading,
+       wallet_reconnect: nil,
        regents_club_metadata_status: :checking,
        regents_club_metadata_wallet: nil,
        regents_club_metadata_notice: nil,
@@ -845,20 +846,23 @@ defmodule AshPlatformWeb.ShellLive do
 
   # While the sign-in and the active wallet disagree, the Stake page sends its
   # action clicks here instead of to a wallet: the page carries no transaction
-  # parameters, so nothing can be built, and the visitor is told which wallet to
-  # come back with.
+  # parameters, so nothing can be built, and the visitor is asked to come back
+  # with the wallet their sign-in names.
   def handle_event(
         "refuse_staking_action",
         _params,
         %{assigns: %{route_spec: %{route_id: :stake}} = assigns} = socket
       ) do
     case transaction_gate(assigns.access_context, assigns.staking_wallet) do
-      {:mismatch, notice} -> {:noreply, assign(socket, staking_notice: notice)}
+      {:mismatch, request} -> {:noreply, assign(socket, wallet_reconnect: request)}
       _gate -> {:noreply, socket}
     end
   end
 
   def handle_event("refuse_staking_action", _params, socket), do: {:noreply, socket}
+
+  def handle_event("dismiss_wallet_reconnect", _params, socket),
+    do: {:noreply, assign(socket, wallet_reconnect: nil)}
 
   def handle_event(
         "select_staking_action",
@@ -1129,7 +1133,7 @@ defmodule AshPlatformWeb.ShellLive do
       {:refused, notice} ->
         {:noreply,
          socket
-         |> assign(redemption_notice: notice)
+         |> assign(redemption_notice: notice, wallet_reconnect: reconnect_request(gate))
          |> push_event("redemption:wallet-refusal", %{
            attempt_id: attempt_id,
            sign_in: gate == :sign_in
@@ -1188,7 +1192,7 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  defp redemption_attempt(gate, _action, _socket), do: {:refused, refusal_notice(gate)}
+  defp redemption_attempt(_gate, _action, _socket), do: {:refused, nil}
 
   @impl true
   def render(assigns) do
@@ -1317,6 +1321,8 @@ defmodule AshPlatformWeb.ShellLive do
           owned_collectibles_limit={@owned_collectibles_limit}
           actions={gate_state(transaction_gate(@access_context, @redemption_wallet))}
         />
+
+        <.wallet_reconnect_dialog :if={@wallet_reconnect} request={@wallet_reconnect} />
 
         <section
           :if={
@@ -1730,25 +1736,22 @@ defmodule AshPlatformWeb.ShellLive do
 
   # A sign-in stays fixed to the account it was made with, while these pages
   # follow whichever wallet the browser has active. Two different addresses mean
-  # nothing signed here would come from the account the header names.
+  # nothing signed here would come from the account the header names, so an
+  # action click asks for that wallet back instead of reaching the other one.
   defp wallet_gate(account_wallet, active_wallet)
        when is_binary(account_wallet) and is_binary(active_wallet) and
               account_wallet != active_wallet,
        do:
          {:mismatch,
-          %{
-            tone: :error,
-            message:
-              "You must disconnect #{short_wallet(account_wallet)} and connect again with wallet address #{short_wallet(active_wallet)}."
-          }}
+          "Please reconnect to the active wallet '#{short_wallet(account_wallet)}' to interact onchain."}
 
   defp wallet_gate(_account_wallet, _active_wallet), do: :ready
 
-  defp gate_state({:mismatch, _notice}), do: :mismatch
+  defp gate_state({:mismatch, _request}), do: :mismatch
   defp gate_state(gate), do: gate
 
-  defp refusal_notice({:mismatch, notice}), do: notice
-  defp refusal_notice(_gate), do: nil
+  defp reconnect_request({:mismatch, request}), do: request
+  defp reconnect_request(_gate), do: nil
 
   defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
@@ -2127,6 +2130,7 @@ defmodule AshPlatformWeb.ShellLive do
         redemption_status: if(socket.assigns.redemption, do: :ready, else: :loading),
         redemption_refresh_block: nil,
         redemption_notice: nil,
+        wallet_reconnect: nil,
         redemption_snapshot_selection: nil,
         owned_collectibles: %{status: :idle, animata: [], regents_club: []},
         owned_collectibles_limit: 24
@@ -2371,7 +2375,8 @@ defmodule AshPlatformWeb.ShellLive do
         staking: forget_wallet_facts(socket.assigns.staking),
         staking_wallet: wallet,
         staking_amount: "",
-        staking_notice: nil
+        staking_notice: nil,
+        wallet_reconnect: nil
       )
       |> start_staking_read(socket.assigns.content_generation)
 

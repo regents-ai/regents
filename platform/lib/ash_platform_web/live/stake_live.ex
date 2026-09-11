@@ -104,15 +104,6 @@ defmodule AshPlatformWeb.StakeLive do
             </span></a>
             <span class="stake-market-cap">{market_cap_text(@dashboard)}</span>
           </div>
-          <div :if={!@wallet} class="stake-heading-actions">
-            <Regent.Primitives.button
-              type="button"
-              class="stake-primary"
-              data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
-            >
-              Connect wallet to stake
-            </Regent.Primitives.button>
-          </div>
         </div>
 
         <dl :if={@dashboard} class="stake-benefit-grid" aria-label="Current staking benefits">
@@ -669,8 +660,10 @@ defmodule AshPlatformWeb.StakeLive do
     }
   end
 
-  defp market_cap_text(%{market_cap: cap}) when is_binary(cap), do: "#{cap} market cap"
-  defp market_cap_text(_dashboard), do: "— market cap"
+  defp market_cap_text(%{market_cap: cap}) when is_binary(cap),
+    do: "#{cap} circulating market cap"
+
+  defp market_cap_text(_dashboard), do: "— circulating market cap"
 
   # Price × circulating, or nothing: a missing price is a dash, never a guessed
   # figure.

@@ -35,6 +35,18 @@
   flex: 1;
 }
 
+.shell-reconnect-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: clamp(1.1rem, 4vw, 1.75rem);
+  border: 1px solid var(--ash-line-strong);
+  background: var(--ash-panel);
+  color: var(--ash-ink);
+}
+
+.shell-reconnect-dialog::backdrop { background: var(--ash-scrim); }
+.shell-reconnect-dialog h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.shell-reconnect-request { margin: 0 0 1.25rem; overflow-wrap: anywhere; }
+
 #shell-header a,
 #shell-sidebar a {
   color: inherit;

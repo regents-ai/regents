@@ -18,6 +18,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
+  @reconnect_request "Please reconnect to the active wallet '0x1111…1111' to interact onchain."
   @third "0x3333333333333333333333333333333333333333"
   @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
   @redeem_42_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002a"
@@ -150,14 +151,17 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     activate(view, @other)
     select(view, "animata_i", "42")
 
-    assert_refuses_every_action(
-      view,
-      "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222."
-    )
+    assert_refuses_every_action(view, @reconnect_request)
 
     refute_push_event(view, "redemption:wallet-action", _)
+    render_hook(view, "dismiss_wallet_reconnect", %{})
+    refute has_element?(view, "#wallet-reconnect-dialog")
+
+    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "again"})
+    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
 
     activate(view, @wallet)
+    refute has_element?(view, "#wallet-reconnect-dialog")
     select(view, "animata_i", "42")
     render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "restored"})
     assert_push_event(view, "redemption:wallet-action", %{attempt_id: "restored"})
@@ -704,8 +708,9 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     end
   end
 
-  defp assert_refuses_every_action(view, refusal) do
+  defp assert_refuses_every_action(view, request) do
     for action <- ["claim" | @every_control] do
+      render_hook(view, "dismiss_wallet_reconnect", %{})
       render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
 
       assert_push_event(view, "redemption:wallet-refusal", %{
@@ -713,7 +718,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
         sign_in: false
       })
 
-      assert has_element?(view, ~s(.redeem-notice[role="alert"]), refusal)
+      refute has_element?(view, ".redeem-notice")
+      assert has_element?(view, "#wallet-reconnect-dialog", request)
     end
   end
 

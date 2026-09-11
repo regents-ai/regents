@@ -279,10 +279,14 @@ test("Redeem refuses every step while the sign-in and the active wallet differ",
 
   await page.getByLabel("Token ID").fill("42")
   await page.locator(".redeem-next-step button").click()
-  await expect(page.locator(".redeem-notice")).toHaveText(
-    "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222.",
+  const reconnect = page.locator("#wallet-reconnect-dialog")
+  await expect(reconnect).toBeVisible()
+  await expect(reconnect).toContainText(
+    "Please reconnect to the active wallet '0x1111…1111' to interact onchain.",
   )
   expect(await sendCount(page)).toBe(0)
+  await reconnect.getByRole("button", {name: "OK"}).click()
+  await expect(reconnect).toHaveCount(0)
 
   // Connecting again with the wallet the sign-in names restores every step.
   await selectWallet(page, wallet)

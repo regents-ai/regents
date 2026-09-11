@@ -20,6 +20,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
+  @reconnect_request "Please reconnect to the active wallet '0x1111…1111' to interact onchain."
   @hash "0x" <> String.duplicate("a", 64)
   @receipt_block 1_249
   @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
@@ -149,12 +150,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end)
 
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-market-cap", "700k market cap")
+    assert has_element?(view, ".stake-market-cap", "700k circulating market cap")
   end
 
   test "MARKET_CAP_UNAVAILABLE: a missing price is a dash rather than a figure", %{conn: conn} do
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-market-cap", "— market cap")
+    assert has_element?(view, ".stake-market-cap", "— circulating market cap")
   end
 
   test "NO_READ_FOR_A_VISITOR: an anonymous visit with no wallet reads Base not at all", %{
@@ -413,15 +414,20 @@ defmodule AshPlatformWeb.StakeLiveTest do
     activate(view, @other)
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")
 
-    assert_refuses_every_action(
-      view,
-      "You must disconnect 0x1111…1111 and connect again with wallet address 0x2222…2222."
-    )
+    assert_refuses_every_action(view, @reconnect_request)
+
+    view |> element("#regent-staking button", "Stake REGENT") |> render_click()
+    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
+    render_hook(view, "dismiss_wallet_reconnect", %{})
+    refute has_element?(view, "#wallet-reconnect-dialog")
+
+    view |> element("#regent-staking button", "Stake REGENT") |> render_click()
+    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
 
     activate(view, @wallet)
     assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@wallet}"]))
     assert has_element?(view, ~s|button[data-staking-action="stake"]|)
-    refute render(view) =~ "You must disconnect"
+    refute has_element?(view, "#wallet-reconnect-dialog")
   end
 
   test "REFUSAL_IS_ONLY_A_REFUSAL: the event changes nothing when there is nothing to refuse", %{
@@ -437,7 +443,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
       render_hook(view, "refuse_staking_action", %{})
 
       assert render(view) =~ @refresh_failure
-      refute render(view) =~ "You must disconnect"
+      refute has_element?(view, "#wallet-reconnect-dialog")
     end
   end
 
@@ -824,19 +830,21 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp sign_in_control,
     do: ~s|#regent-staking button[data-account-target="sign-in"]:not([data-staking-action])|
 
-  defp assert_refuses_every_action(view, refusal) do
+  defp assert_refuses_every_action(view, request) do
     refute has_element?(view, "#regent-staking[data-staking-signer]")
     refute has_element?(view, "#regent-staking[data-staking-allowance]")
     refute has_element?(view, "button[data-staking-action]")
 
     for label <- ["Stake REGENT" | @claim_controls] do
+      render_hook(view, "dismiss_wallet_reconnect", %{})
       view |> element("#regent-staking button", label) |> render_click()
-      assert render(view) =~ refusal
+      assert has_element?(view, "#wallet-reconnect-dialog", request)
     end
 
+    render_hook(view, "dismiss_wallet_reconnect", %{})
     view |> element(~s|.stake-mode button[phx-value-mode="unstake"]|) |> render_click()
     view |> element("#regent-staking button", "Unstake REGENT") |> render_click()
-    assert render(view) =~ refusal
+    assert has_element?(view, "#wallet-reconnect-dialog", request)
 
     view |> element(~s|.stake-mode button[phx-value-mode="stake"]|) |> render_click()
   end
