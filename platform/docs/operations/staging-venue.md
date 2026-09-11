@@ -17,7 +17,7 @@ reads `ASH_PLATFORM_DEPLOYMENT_ROLE` and accepts exactly two values:
 
 | Role | Database hosts it will accept |
 | --- | --- |
-| `production` | `direct.nvwq9ozp9ye03kl1.flympg.net` |
+| `production` | `direct.dzx6qo6xqzvojpv5.flympg.net` |
 | `staging` | `regents-staging-db.flycast` or `regents-staging-db.internal` |
 
 There is no default and no fallback between the two. A missing or unrecognized
@@ -26,7 +26,7 @@ to name itself fails closed instead of guessing.
 
 Under the staging role the configuration refuses, on both the serving path and the
 release path, any `flympg.net` host, the production database host, the production
-cluster id `nvwq9ozp9ye03kl1`, and every production application identity, wherever
+cluster id `dzx6qo6xqzvojpv5`, and every production application identity, wherever
 they appear in the URL — host, database name, or credentials. The rehearsal-mode
 ceremony that guards production migrations does not apply to staging, because the
 staging role can only ever reach the staging database.
@@ -256,9 +256,8 @@ does not carry the command at all, and on later ones it is the old image rather
 than the candidate.
 
 The database it reads is production's exact target,
-`direct.nvwq9ozp9ye03kl1.flympg.net`, cluster `nvwq9ozp9ye03kl1`, which is named
-`regents-pg-test` despite serving production. That name is not reconciled here;
-`docs/production/fly-mpg-cutover-and-restore.md` owns the cluster's replacement.
+`direct.dzx6qo6xqzvojpv5.flympg.net`, the shared cluster `regents-platform-prod`,
+database `regents_prod`, schema `regents_app`.
 
 With both preconditions recorded, promote from the repository root, where
 `fly.toml` is. `--image` builds nothing, so the assembled context plays no part.
@@ -273,9 +272,10 @@ fly deploy -a regents-sh-web -c fly.toml \
 Evidence that production received the reviewed artifact:
 `fly image show -a regents-sh-web` reports the same `sha256:` as staging.
 
-A candidate that adds a migration is not promotable through staging. It goes
-through `docs/production/fly-mpg-cutover-and-restore.md` as its own founder-gated
-action, and that document's hard NO-GO on production DDL still stands.
+A candidate that adds a migration is not promotable through staging. It is its
+own founder-gated production action: the release step runs the migration against
+`regents_app` on the shared cluster, so the founder approves that deploy knowing
+the schema moves with it.
 
 Standing rule: never destroy or rename `regents-staging` while production
 references its registry repository. Production's running image lives at
@@ -293,7 +293,7 @@ fly deploy -a regents-sh-web -c fly.toml --image <full previous reference>
 ```
 
 This is code only. It does not undo a migration; a database that has moved forward
-needs `docs/production/fly-mpg-cutover-and-restore.md`, not a rollback deploy.
+needs its own founder-approved reversal, not a rollback deploy.
 
 One case needs a step first. Rolling back to an image that predates this venue's
 own production deploy means running a release that requires the deployment role
