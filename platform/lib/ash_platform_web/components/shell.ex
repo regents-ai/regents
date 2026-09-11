@@ -71,6 +71,7 @@ defmodule AshPlatformWeb.Components.Shell do
         </Regent.Primitives.button>
 
         <span class="shell-spacer" />
+        <.theme_toggle id="theme-control" theme={@theme} />
         <div class="rl-header-links">
           <RegentLinks.header_links id="shell-token-menu" />
         </div>
@@ -87,8 +88,6 @@ defmodule AshPlatformWeb.Components.Shell do
         </div>
 
         <.account_control account_control={@account_control} />
-
-        <.theme_toggle id="theme-control" theme={@theme} />
       </header>
 
       <nav

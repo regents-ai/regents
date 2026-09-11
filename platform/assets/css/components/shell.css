@@ -211,14 +211,6 @@ details[open] > summary .shell-chevron {
   display: none;
 }
 
-.theme-control {
-  order: 4;
-}
-
-.account-control {
-  order: 5;
-}
-
 .theme-control .shell-popover,
 .account-menu__content {
   right: 0;
