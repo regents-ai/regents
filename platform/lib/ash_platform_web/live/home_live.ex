@@ -1,8 +1,8 @@
 defmodule AshPlatformWeb.HomeLive do
   use AshPlatformWeb, :live_view
 
-  alias AshPlatformWeb.{RouteCatalog, TokenLinks}
   alias AshPlatformWeb.Components.RegentLinks
+  alias AshPlatformWeb.{RouteCatalog, TokenLinks}
 
   def mount(_params, _session, socket),
     do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
