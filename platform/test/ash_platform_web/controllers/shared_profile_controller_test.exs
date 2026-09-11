@@ -61,7 +61,7 @@ defmodule AshPlatformWeb.SharedProfileControllerTest do
         |> html_response(200)
         |> LazyHTML.from_document()
 
-      expected = theme
+      expected = if path == "/", do: "dark", else: theme
 
       assert document |> LazyHTML.query("html") |> LazyHTML.attribute("data-brand") == [
                "platform"

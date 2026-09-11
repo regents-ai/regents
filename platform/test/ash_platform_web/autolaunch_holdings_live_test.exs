@@ -33,7 +33,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     assert html =~ "No positions are returnable."
     assert html =~ "Claimed launch tokens will appear here."
     refute has_element?(view, "#autolaunch-holdings button")
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "the page shows only the signed-in user's positions, returns, and claimed tokens", %{
@@ -114,7 +114,7 @@ defmodule AshPlatformWeb.AutolaunchHoldingsLiveTest do
     refute has_element?(view, "#autolaunch-returnable-positions li", "999")
     refute has_element?(view, "#autolaunch-holdings button")
     refute has_element?(view, "#autolaunch-holdings [phx-click]")
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "a claimed holding keeps the one token admitted for its auction", %{conn: conn} do

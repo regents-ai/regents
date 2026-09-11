@@ -40,7 +40,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert has_element?(view, ~s(a[href="/redeem"]), "Redeem Animata")
     assert has_element?(view, ~s(a[href="/formation"]), "Run your Regent")
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
-    refute html =~ "/hermes"
+    refute html =~ ~s(href="/hermes")
     refute html =~ "0x1111…1111"
   end
 

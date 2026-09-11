@@ -29,6 +29,8 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
              {:get, "/"},
              {:get, "/privacy"},
              {:get, "/terms"},
+             {:get, "/blog"},
+             {:get, "/blog/:slug"},
              {:delete, "/auth/privy/session"}
            ]
   end

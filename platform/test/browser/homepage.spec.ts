@@ -52,29 +52,21 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
     "home-card-patchbay",
   ])
 
-  // techtree is the one site that is open, so it is the one live site link.
-  const open = page.locator("#home-card-techtree a.rl-action")
-  await expect(open).toHaveText("Open techtree ↗")
-  await expect(open).toHaveAttribute("href", "https://techtree.sh")
-  await expect(open).toHaveAttribute("target", "_blank")
-  await expect(open).toHaveAttribute("rel", "noopener noreferrer")
-
-  const unopened = page.locator("[data-home-hero-card] button.rl-action")
-  await expect(unopened).toHaveCount(2)
-  await expect(unopened).toHaveText(["Open autolaunch ↗", "Open patchbay ↗"])
-  for (const name of ["autolaunch", "patchbay"]) {
-    const button = page.locator(`#home-card-${name} button.rl-action`)
-    await expect(button).toBeDisabled()
-    await expect(button).toHaveAttribute("aria-disabled", "true")
-    // The label is there to read; the tab stop is not there to reach.
-    expect(
-      await button.evaluate(element => {
-        element.focus()
-        return document.activeElement === element
-      }),
-    ).toBe(false)
+  // Every product site is open, so every card carries a live new-tab link.
+  const open = page.locator("[data-home-hero-card] a.rl-action")
+  await expect(open).toHaveCount(3)
+  await expect(open).toHaveText(["Open autolaunch ↗", "Open techtree ↗", "Open patchbay ↗"])
+  for (const [name, site] of [
+    ["autolaunch", "https://autolaunch.sh"],
+    ["techtree", "https://techtree.sh"],
+    ["patchbay", "https://patchbay.help"],
+  ]) {
+    const link = page.locator(`#home-card-${name} a.rl-action`)
+    await expect(link).toHaveText(`Open ${name} ↗`)
+    await expect(link).toHaveAttribute("href", site)
+    await expect(link).toHaveAttribute("target", "_blank")
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer")
   }
-  await expect(page.locator("[data-home-hero-card] a.rl-action")).toHaveCount(1)
 
   const sources = page.locator("[data-home-hero-card] a.rl-card-source")
   await expect(sources).toHaveCount(3)

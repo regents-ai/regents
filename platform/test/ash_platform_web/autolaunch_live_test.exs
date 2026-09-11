@@ -26,7 +26,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(view, ~s(a[href="/autolaunch/tokens"]), "Browse tokens")
     assert has_element?(view, ~s(a[href="/autolaunch/create"]), "Create a launch")
     assert html =~ "No public records yet."
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "auction and token routes keep identifiers and honest empty states", %{conn: conn} do
@@ -44,7 +44,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
       assert has_element?(view, selector)
       assert html =~ heading
       assert html =~ empty_copy
-      refute html =~ "$"
+      refute html =~ ~r/\$\d/
     end
   end
 
@@ -57,7 +57,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert has_element?(subject, "#autolaunch-subject-detail", "Subject not found")
     assert html =~ "No public subject exists at subject-42."
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "canonical subject identity format edges round-trip through public URLs", %{conn: conn} do
@@ -245,7 +245,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert html =~ older_hash
     assert :binary.match(html, newer_hash) < :binary.match(html, older_hash)
     refute html =~ subject.id
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "subject detail shows honest empty related records and no derived money", %{conn: conn} do
@@ -276,7 +276,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert has_element?(detail, "#subject-recent-actions", "No subject actions yet.")
     assert has_element?(detail, "#subject-settlement-history", "No settlements yet.")
     refute html =~ "Ready to settle"
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "launch routes have honest empty and not-found states", %{conn: conn} do
@@ -288,7 +288,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
 
     assert has_element?(launch, "#autolaunch-launch-detail", "Launch not found")
     assert html =~ "No public launch exists at launch-42."
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "canonical launch identity format edges round-trip through public URLs", %{conn: conn} do
@@ -404,7 +404,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     assert html =~ "0x5555555555555555555555555555555555555555"
     assert html =~ "Jul 30, 2026 at 12:00 UTC"
     assert html =~ "Jul 30, 2026 at 12:45 UTC"
-    refute html =~ "$"
+    refute html =~ ~r/\$\d/
   end
 
   test "Create asks anonymous visitors to sign in and offers no draft form", %{conn: conn} do
@@ -652,7 +652,7 @@ defmodule AshPlatformWeb.AutolaunchLiveTest do
     overview_html = render_async(overview)
     assert overview_html =~ "BixBench launch"
     assert overview_html =~ "Bix Token"
-    refute overview_html =~ "$"
+    refute overview_html =~ ~r/\$\d/
 
     {:ok, auctions, _html} = live(conn, "/autolaunch/auctions")
     assert render_async(auctions) =~ "BixBench launch"

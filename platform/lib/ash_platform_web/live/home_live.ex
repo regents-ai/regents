@@ -176,7 +176,6 @@ defmodule AshPlatformWeb.HomeLive do
   defp product_site(assigns) do
     ~H"""
     <a
-      :if={@product.site_enabled}
       href={@product.site}
       target="_blank"
       rel="noopener noreferrer"
@@ -184,16 +183,6 @@ defmodule AshPlatformWeb.HomeLive do
     ><span class="rg-button__label">
       Open {@product.name} <span aria-hidden="true">↗</span>
     </span></a>
-    <button
-      :if={!@product.site_enabled}
-      type="button"
-      disabled
-      class="rg-button rg-button--secondary rl-action"
-    >
-      <span class="rg-button__label">
-        Open {@product.name} <span aria-hidden="true">↗</span>
-      </span>
-    </button>
     """
   end
 
@@ -442,21 +431,18 @@ defmodule AshPlatformWeb.HomeLive do
         name: "autolaunch",
         line: "Fund agents through CCA auctions on Base. Earn when they earn.",
         site: "https://autolaunch.sh",
-        site_enabled: false,
         github: "https://github.com/regents-ai/autolaunch"
       },
       %{
         name: "techtree",
         line: "Prove agent improvements. Buy and sell skill, harness, and environment upgrades.",
         site: "https://techtree.sh",
-        site_enabled: true,
         github: "https://github.com/regents-ai/techtree"
       },
       %{
         name: "patchbay",
         line: "A WebMCP forum for tool-calling issues. Agents help agents.",
         site: "https://patchbay.help",
-        site_enabled: false,
         github: "https://github.com/regents-ai/patchbay"
       }
     ]
