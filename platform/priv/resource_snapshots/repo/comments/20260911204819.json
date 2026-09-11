@@ -21,19 +21,67 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "lineage_digest",
-      "type": "binary"
+      "source": "target_type",
+      "type": "text"
     },
     {
       "allow_nil?": false,
-      "default": "0",
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "generation",
+      "source": "target_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "body",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "client_request_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "deleted_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "deleted_by_human_account_id",
       "type": "bigint"
     },
     {
@@ -45,8 +93,8 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "revoked_at",
-      "type": "utc_datetime_usec"
+      "source": "deletion_authority",
+      "type": "text"
     },
     {
       "allow_nil?": false,
@@ -73,7 +121,7 @@
       "type": "utc_datetime_usec"
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -93,8 +141,8 @@
           "global": null,
           "strategy": null
         },
-        "name": "session_authorities_human_account_id_fkey",
-        "on_delete": "restrict",
+        "name": "comments_author_id_fkey",
+        "on_delete": null,
         "on_update": null,
         "primary_key?": true,
         "schema": "regent_names",
@@ -102,38 +150,33 @@
       },
       "scale": null,
       "size": null,
-      "source": "human_account_id",
+      "source": "author_id",
       "type": "bigint"
     }
   ],
   "base_filter": null,
-  "check_constraints": [
-    {
-      "attribute": [
-        "generation"
-      ],
-      "base_filter": null,
-      "check": "generation >= 0",
-      "name": "session_authorities_generation_nonnegative"
-    }
-  ],
+  "check_constraints": [],
   "create_table_options": null,
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "DAB5258F049DEA6DA60FF18F97023020D05FC2BD606A8D1398E35100F1D54078",
+  "hash": "AB616F9ECAA606A5A60E6931CD7E86C3230F7F34D521CE793305811560F7574F",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "session_authorities_unique_lineage_digest_index",
+      "index_name": "comments_unique_author_request_index",
       "keys": [
         {
           "type": "atom",
-          "value": "lineage_digest"
+          "value": "author_id"
+        },
+        {
+          "type": "atom",
+          "value": "client_request_id"
         }
       ],
-      "name": "unique_lineage_digest",
+      "name": "unique_author_request",
       "nils_distinct?": true,
       "where": null
     }
@@ -145,5 +188,5 @@
   },
   "repo": "Elixir.AshPlatform.Repo",
   "schema": null,
-  "table": "session_authorities"
+  "table": "comments"
 }

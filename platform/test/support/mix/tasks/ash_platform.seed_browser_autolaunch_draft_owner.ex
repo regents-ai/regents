@@ -148,7 +148,7 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
       query!(
         """
         SELECT id, slug, display_name, human_account_id
-        FROM regents
+        FROM regents_app.regents
         WHERE human_account_id = $1 OR slug = $2
         FOR UPDATE
         """,
@@ -159,7 +159,7 @@ defmodule Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner do
     def insert_regent(slug, display_name, account_id) do
       query!(
         """
-        INSERT INTO regents (slug, display_name, human_account_id, inserted_at, updated_at)
+        INSERT INTO regents_app.regents (slug, display_name, human_account_id, inserted_at, updated_at)
         VALUES ($1, $2, $3, now(), now())
         RETURNING id
         """,

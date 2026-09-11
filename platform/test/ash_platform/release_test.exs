@@ -139,7 +139,7 @@ defmodule AshPlatform.ReleaseTest do
              )
 
     assert_raise RuntimeError,
-                 "public.schema_migrations already exists: destroy and recreate the staging database",
+                 "regents_app.schema_migrations already exists: destroy and recreate the staging database",
                  fn ->
                    Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
                  end
@@ -178,6 +178,20 @@ defmodule AshPlatform.ReleaseTest do
            ]
 
     assert applied_versions(config) == release_versions()
+
+    assert table_names(config, "regents_app") == [
+             "account_ens_identities",
+             "agent_links",
+             "agent_pairing_codes",
+             "cloud_runtimes",
+             "comments",
+             "linked_identities",
+             "regents",
+             "schema_migrations",
+             "session_authorities"
+           ]
+
+    assert "launch_drafts" in table_names(config, "autolaunch_app")
   end
 
   test "the listing prints none on a database the release agrees with" do
@@ -208,7 +222,7 @@ defmodule AshPlatform.ReleaseTest do
 
     query!(
       config,
-      "INSERT INTO public.schema_migrations (version, inserted_at) VALUES ($1, NOW()::timestamp)",
+      "INSERT INTO regents_app.schema_migrations (version, inserted_at) VALUES ($1, NOW()::timestamp)",
       [20_990_101_000_000]
     )
 
@@ -315,7 +329,7 @@ defmodule AshPlatform.ReleaseTest do
 
   defp applied_versions(config) do
     config
-    |> query!("SELECT version FROM public.schema_migrations ORDER BY version")
+    |> query!("SELECT version FROM regents_app.schema_migrations ORDER BY version")
     |> Map.fetch!(:rows)
     |> List.flatten()
   end
@@ -330,8 +344,20 @@ defmodule AshPlatform.ReleaseTest do
     |> List.flatten()
   end
 
+  defp table_names(config, schema) do
+    config
+    |> query!(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name",
+      [schema]
+    )
+    |> Map.fetch!(:rows)
+    |> List.flatten()
+  end
+
   defp migration_table?(config) do
-    query!(config, "SELECT to_regclass('public.schema_migrations') IS NOT NULL").rows == [[true]]
+    query!(config, "SELECT to_regclass('regents_app.schema_migrations') IS NOT NULL").rows == [
+      [true]
+    ]
   end
 
   # A bounded lock timeout is what makes the comparison observable rather than a
@@ -357,7 +383,7 @@ defmodule AshPlatform.ReleaseTest do
           fn transaction ->
             Postgrex.query!(
               transaction,
-              "LOCK TABLE public.schema_migrations IN SHARE UPDATE EXCLUSIVE MODE",
+              "LOCK TABLE regents_app.schema_migrations IN SHARE UPDATE EXCLUSIVE MODE",
               []
             )
 
@@ -396,7 +422,10 @@ defmodule AshPlatform.ReleaseTest do
     with_config(config, fn ->
       {:ok, migrations, _started} =
         Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo ->
-          Ecto.Migrator.migrations(repo, [release_migrations_path()], skip_table_creation: true)
+          Ecto.Migrator.migrations(repo, [release_migrations_path()],
+            prefix: repo.default_prefix(),
+            skip_table_creation: true
+          )
         end)
 
       migrations

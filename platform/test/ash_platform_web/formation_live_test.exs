@@ -371,7 +371,7 @@ defmodule AshPlatformWeb.FormationLiveTest do
 
   defp regent_rows_for_slug(slug) do
     sql!(
-      "SELECT id, slug, display_name, human_account_id FROM regents WHERE slug = $1 ORDER BY id",
+      "SELECT id, slug, display_name, human_account_id FROM regents_app.regents WHERE slug = $1 ORDER BY id",
       [slug]
     ).rows
   end

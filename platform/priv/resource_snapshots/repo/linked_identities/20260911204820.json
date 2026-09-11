@@ -21,7 +21,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "code_hash",
+      "source": "provider",
       "type": "text"
     },
     {
@@ -33,20 +33,8 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "issued_at",
-      "type": "utc_datetime_usec"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "expires_at",
-      "type": "utc_datetime_usec"
+      "source": "subject",
+      "type": "text"
     },
     {
       "allow_nil?": true,
@@ -57,8 +45,44 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "used_at",
+      "source": "username",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "display_name",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "verified_at",
       "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "%{}",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "metadata",
+      "type": "map"
     },
     {
       "allow_nil?": false,
@@ -96,6 +120,8 @@
         "destination_attribute_default": null,
         "destination_attribute_generated": null,
         "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
         "match_type": null,
         "match_with": null,
         "multitenancy": {
@@ -103,106 +129,60 @@
           "global": null,
           "strategy": null
         },
-        "name": "agent_pairing_codes_human_account_id_fkey",
+        "name": "linked_identities_human_account_id_fkey",
         "on_delete": null,
         "on_update": null,
         "primary_key?": true,
-        "schema": "platform",
+        "schema": "regent_names",
         "table": "platform_human_users"
       },
       "scale": null,
       "size": null,
       "source": "human_account_id",
       "type": "bigint"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": {
-        "deferrable": false,
-        "destination_attribute": "id",
-        "destination_attribute_default": null,
-        "destination_attribute_generated": null,
-        "index?": false,
-        "match_type": null,
-        "match_with": null,
-        "multitenancy": {
-          "attribute": null,
-          "global": null,
-          "strategy": null
-        },
-        "name": "agent_pairing_codes_regent_id_fkey",
-        "on_delete": null,
-        "on_update": null,
-        "primary_key?": true,
-        "schema": "public",
-        "table": "regents"
-      },
-      "scale": null,
-      "size": null,
-      "source": "regent_id",
-      "type": "uuid"
     }
   ],
   "base_filter": null,
   "check_constraints": [],
   "create_table_options": null,
-  "custom_indexes": [
-    {
-      "all_tenants?": false,
-      "concurrently": false,
-      "error_fields": [
-        "regent_id"
-      ],
-      "fields": [
-        {
-          "type": "atom",
-          "value": "regent_id"
-        }
-      ],
-      "include": null,
-      "message": null,
-      "name": null,
-      "nulls_distinct": true,
-      "prefix": null,
-      "table": null,
-      "unique": false,
-      "using": null,
-      "where": null
-    }
-  ],
+  "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "A1D5A33DACCC605376744968E2AA93EE4D98BDBC014D8A2B87F1254F2F56F19D",
+  "hash": "A2554D38888B75D63E19F0A042D4CDF75A29206992E8C4D686F18E087701562A",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "agent_pairing_codes_unique_code_hash_index",
+      "index_name": "linked_identities_unique_provider_per_account_index",
       "keys": [
         {
           "type": "atom",
-          "value": "code_hash"
+          "value": "provider"
+        },
+        {
+          "type": "atom",
+          "value": "human_account_id"
         }
       ],
-      "name": "unique_code_hash",
+      "name": "unique_provider_per_account",
       "nils_distinct?": true,
       "where": null
     },
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "agent_pairing_codes_unique_human_account_index",
+      "index_name": "linked_identities_unique_subject_per_provider_index",
       "keys": [
         {
           "type": "atom",
-          "value": "human_account_id"
+          "value": "provider"
+        },
+        {
+          "type": "atom",
+          "value": "subject"
         }
       ],
-      "name": "unique_human_account",
+      "name": "unique_subject_per_provider",
       "nils_distinct?": true,
       "where": null
     }
@@ -214,5 +194,5 @@
   },
   "repo": "Elixir.AshPlatform.Repo",
   "schema": null,
-  "table": "agent_pairing_codes"
+  "table": "linked_identities"
 }

@@ -21,7 +21,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "provider",
+      "source": "provider_sprite_id",
       "type": "text"
     },
     {
@@ -33,31 +33,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "subject",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "username",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "display_name",
+      "source": "sprite_name",
       "type": "text"
     },
     {
@@ -69,20 +45,32 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "verified_at",
+      "source": "url",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "provider_status",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "observed_at",
       "type": "utc_datetime_usec"
-    },
-    {
-      "allow_nil?": false,
-      "default": "%{}",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "metadata",
-      "type": "map"
     },
     {
       "allow_nil?": false,
@@ -129,7 +117,7 @@
           "global": null,
           "strategy": null
         },
-        "name": "linked_identities_human_account_id_fkey",
+        "name": "cloud_runtimes_human_account_id_fkey",
         "on_delete": null,
         "on_update": null,
         "primary_key?": true,
@@ -140,49 +128,112 @@
       "size": null,
       "source": "human_account_id",
       "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "cloud_runtimes_regent_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "regents_app",
+        "table": "regents"
+      },
+      "scale": null,
+      "size": null,
+      "source": "regent_id",
+      "type": "uuid"
     }
   ],
   "base_filter": null,
   "check_constraints": [],
   "create_table_options": null,
-  "custom_indexes": [],
-  "custom_statements": [],
-  "has_create_action": true,
-  "hash": "76509E01CAE985FC1AE0C58CB09A5D238D2BB2F2B90BB1851B346DCCAD512A7E",
-  "identities": [
+  "custom_indexes": [
     {
       "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "linked_identities_unique_provider_per_account_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "provider"
-        },
+      "concurrently": false,
+      "error_fields": [
+        "human_account_id"
+      ],
+      "fields": [
         {
           "type": "atom",
           "value": "human_account_id"
         }
       ],
-      "name": "unique_provider_per_account",
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "D436E8F429885EFCA686509E1D2432313E7DF32CD67832071F82B172F3C38264",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "cloud_runtimes_unique_provider_sprite_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "provider_sprite_id"
+        }
+      ],
+      "name": "unique_provider_sprite",
       "nils_distinct?": true,
       "where": null
     },
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "linked_identities_unique_subject_per_provider_index",
+      "index_name": "cloud_runtimes_unique_regent_index",
       "keys": [
         {
           "type": "atom",
-          "value": "provider"
-        },
-        {
-          "type": "atom",
-          "value": "subject"
+          "value": "regent_id"
         }
       ],
-      "name": "unique_subject_per_provider",
+      "name": "unique_regent",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "cloud_runtimes_unique_sprite_name_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "sprite_name"
+        }
+      ],
+      "name": "unique_sprite_name",
       "nils_distinct?": true,
       "where": null
     }
@@ -194,5 +245,5 @@
   },
   "repo": "Elixir.AshPlatform.Repo",
   "schema": null,
-  "table": "linked_identities"
+  "table": "cloud_runtimes"
 }

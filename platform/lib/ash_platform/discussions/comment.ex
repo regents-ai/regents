@@ -128,7 +128,6 @@ defmodule AshPlatform.Discussions.Comment do
 
   postgres do
     table "comments"
-    schema("discussions")
     repo(AshPlatform.Repo)
   end
 end

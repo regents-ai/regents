@@ -1,7 +1,8 @@
 # Regents web: move to the shared Fly Postgres
 
-Status: PLAN, awaiting founder decision. Nothing in production has been changed.
-Written 2026-09-11 from read-only inspection of both databases.
+Status: Step 1 (code) is on `main`; Step 2 (production) is authorised by the founder
+("go right after") and runs from this document. Written 2026-09-11 from read-only
+inspection of both databases.
 
 ## Where things stand
 
@@ -77,20 +78,28 @@ Consequences to accept, stated plainly:
 
 ### Step 1: code (local, tested, then committed and pushed)
 
-- Add a `REGENTS_DB_SCHEMA` setting the same way Techtree uses `TECHTREE_DB_SCHEMA`:
-  the Repo's default prefix and migration prefix become `regents_app` in
-  production; local development and tests keep using their own databases.
+- `regents_app` is the one schema for Regents' own tables everywhere: production,
+  staging, development and test. It is fixed in the Repo module rather than read
+  from an environment variable, because the generated migration names that schema
+  in its foreign keys, so one layout has to hold in every environment.
 - Regents' own resources (`session_authorities`, `account_ens_identities`,
   `linked_identities`, `regents`, `agent_links`, `agent_pairing_codes`,
-  `cloud_runtimes`, `stake_redeem_operations`, `comments`) live in `regents_app`.
-  The `comments` table drops its separate `discussions` schema.
-- Replace the 43 legacy migrations, which hard-code the retired `platform`,
-  `autolaunch` and `discussions` schemas, with one baseline migration generated
-  from the current Ash resource snapshots. The ledger for Regents becomes
-  `regents_app.schema_migrations`, like the other three products.
-- The release migrator runs with that prefix; the staging bootstrap and the local
-  fixture are updated to the same layout; `mix ash.codegen --check`, the full
-  ExUnit suite and the browser specs pass.
+  `cloud_runtimes`, `comments`) live in `regents_app`. The `comments` table drops
+  its separate `discussions` schema. (`stake_redeem_operations` has no resource any
+  more and is not recreated.)
+- The 43 legacy migrations, which hard-coded the retired `platform`, `autolaunch`
+  and `discussions` schemas, are replaced by two generated files: the Ash helper
+  functions install and one baseline that creates the eight tables. The ledger for
+  Regents is `regents_app.schema_migrations`, like the other three products.
+- The release migrator creates the schema if needed and runs with that prefix.
+  The staging bootstrap and the local fixture load `priv/repo/shared_tables.sql`,
+  an idempotent copy of the tables Regents reads but does not own
+  (`regent_names.platform_human_users` and the `autolaunch_app` tables), then run
+  the same migrator. `mix ash.codegen --check`, the full ExUnit suite and the
+  browser specs pass.
+- Local databases created under the old layout (`ash_platform_dev` and every
+  `ash_platform*_test`) must be dropped and recreated; the suite rebuilds a fresh
+  one on its first run.
 
 ### Step 2: production (each command written out; no values printed)
 
@@ -111,11 +120,10 @@ fly mpg attach dzx6qo6xqzvojpv5 --app regents-sh-web --database regents_prod --v
 fly mpg attach dzx6qo6xqzvojpv5 --app regents-sh-web --database regents_prod --variable-name DATABASE_DIRECT_URL
 ```
 
-Set the non-secret target identifiers the release migrator checks, plus the
-schema:
+Set the non-secret target identifiers the release migrator checks:
 
 ```bash
-fly secrets set --stage ASH_PLATFORM_DATABASE_TARGET_MODE=production ASH_PLATFORM_DATABASE_CLUSTER_ID=dzx6qo6xqzvojpv5 ASH_PLATFORM_DATABASE_CLUSTER_NAME=regents-platform-prod REGENTS_DB_SCHEMA=regents_app -a regents-sh-web
+fly secrets set --stage ASH_PLATFORM_DATABASE_TARGET_MODE=production ASH_PLATFORM_DATABASE_CLUSTER_ID=dzx6qo6xqzvojpv5 ASH_PLATFORM_DATABASE_CLUSTER_NAME=regents-platform-prod -a regents-sh-web
 ```
 
 Deploy `main` (the release step creates the `regents_app` tables, then the
@@ -134,7 +142,7 @@ fly ssh console -a regents-sh-web -C "/app/bin/ash_platform rpc 'IO.inspect(AshP
 
 Then a real sign-in on regents.sh, a Stake page read, and a Redeem page read.
 
-Rollback: `fly secrets unset --stage` the four new values, re-attach the old
+Rollback: `fly secrets unset --stage` the three new values, re-attach the old
 cluster's database, and redeploy image `main-f897756`. The old database is not
 modified by any step above.
 
@@ -144,6 +152,27 @@ modified by any step above.
   `regent-shadow-web`).
 - Remove the untrue 43 Regents versions from the shared `public.schema_migrations`
   ledger only on your explicit word; they are harmless but misleading.
+
+## Autolaunch tables: Regents' copy has drifted from Autolaunch's
+
+Regents' Autolaunch pages are switched off in production
+(`ASH_PLATFORM_AUTOLAUNCH_SURFACES` is not `on`), so nothing below is reachable
+there today. It matters before they are ever switched on, because those pages
+read and write `autolaunch_app` tables that Autolaunch owns:
+
+- Production `autolaunch_app.launch_drafts` has no `regent_id` and no `title`
+  column; Regents' launch-draft resource requires both (the "launch a token for
+  my regent" flow).
+- Production `autolaunch_app.auctions` requires `creator_human_account_id`, which
+  Regents' auction resource does not know about.
+- Production `autolaunch_app` also has tables Regents never reads
+  (`human_accounts`, `session_authorities`, `linked_identities`, `x_connections`,
+  `wallet_attempts`, `launch_draft_images`).
+
+`priv/repo/shared_tables.sql` deliberately carries the shape Regents' code expects,
+not production's, so the suite proves Regents against its own contract. Deciding
+whether Regents keeps Autolaunch pages at all, and if so realigning its resources
+to Autolaunch's schema, is a separate product decision.
 
 ## Alternative: carry the three accounts and the display names over
 
@@ -155,8 +184,9 @@ shared row has none. Sessions and the ENS cache would still be rebuilt by use.
 This touches personal identifiers in production, so it needs your separate
 approval and a named window.
 
-## Decisions needed
+## Decisions
 
-1. Approve the recommended plan (hard cutover, no data copy) or the alternative.
-2. Approve me to build Step 1 now (local code, tested, committed, pushed).
-3. Name the production window for Step 2, or say "go" for immediately after Step 1.
+1. Recommended plan approved 2026-09-11 (hard cutover, no data copy; the 208 name
+   claims were already in the shared database).
+2. Step 1 approved and built 2026-09-11.
+3. Step 2 approved for immediately after Step 1 ("go right after").

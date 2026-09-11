@@ -16,19 +16,17 @@ defmodule AshPlatform.Release do
     load_app()
     Application.put_env(@app, AshPlatform.Repo, migration_config!())
 
-    Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo ->
-      Ecto.Migrator.run(repo, migrations_path(), :up, all: true)
-    end)
+    Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo -> repo.migrate!(migrations_path()) end)
   end
 
   @doc """
   Prepares an empty staging database for the first deployment.
 
-  Staging owns a disposable database, so it has no copy of
-  `regent_names.platform_human_users`, the account table this repository reads but
-  does not own. This command creates a staging-only approximation of that table
-  with the shape the local fixture already proves sufficient, then runs every
-  migration and adopts the shared database's product schema names.
+  Staging owns a disposable database, so it has no copy of the tables this
+  repository reads but does not own: `regent_names.platform_human_users` and the
+  `autolaunch_app` tables. This command creates staging-only approximations of
+  them with the shape the local fixture already proves sufficient, then runs
+  every migration into `regents_app`.
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished
@@ -56,14 +54,12 @@ defmodule AshPlatform.Release do
     Ecto.Migrator.with_repo(AshPlatform.Repo, fn repo ->
       refuse_existing_state!(repo)
 
-      # The fixture is the only definition of this table's shape in the
+      # The fixture is the only definition of these tables' shape in the
       # repository, and the whole test suite runs on it. Calling it keeps
       # staging identical to that proven shape instead of copying it.
-      AshPlatform.LocalDatabaseFixture.create_local_human_accounts_table!()
+      AshPlatform.LocalDatabaseFixture.create_shared_tables!()
 
-      Ecto.Migrator.run(repo, path, :up, all: true)
-
-      AshPlatform.LocalDatabaseFixture.adopt_shared_schema_layout!()
+      repo.migrate!(path)
     end)
   end
 
@@ -111,7 +107,11 @@ defmodule AshPlatform.Release do
 
   defp read_migration_status(repo, path) do
     {:ok,
-     Ecto.Migrator.migrations(repo, [path], skip_table_creation: true, migration_lock: false)}
+     Ecto.Migrator.migrations(repo, [path],
+       prefix: repo.default_prefix(),
+       skip_table_creation: true,
+       migration_lock: false
+     )}
   rescue
     error in Postgrex.Error ->
       if undefined_migration_table?(error, migration_source(repo)) do
@@ -156,7 +156,7 @@ defmodule AshPlatform.Release do
   end
 
   defp refuse_existing_state!(repo) do
-    prefix = migration_prefix(repo)
+    prefix = repo.default_prefix()
     source = migration_source(repo)
 
     if table_exists?(repo, prefix, source) do
@@ -198,7 +198,6 @@ defmodule AshPlatform.Release do
   end
 
   defp migration_source(repo), do: repo.config()[:migration_source] || "schema_migrations"
-  defp migration_prefix(repo), do: repo.config()[:migration_default_prefix] || "public"
 
   defp configuration!(opts, getenv) do
     Keyword.get_lazy(opts, :config, fn -> migration_config!(getenv) end)

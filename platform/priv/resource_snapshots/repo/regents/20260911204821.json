@@ -21,20 +21,20 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "lineage_digest",
-      "type": "binary"
+      "source": "slug",
+      "type": "text"
     },
     {
       "allow_nil?": false,
-      "default": "0",
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "generation",
-      "type": "bigint"
+      "source": "display_name",
+      "type": "text"
     },
     {
       "allow_nil?": true,
@@ -45,8 +45,20 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "revoked_at",
-      "type": "utc_datetime_usec"
+      "source": "summary",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "avatar_url",
+      "type": "text"
     },
     {
       "allow_nil?": false,
@@ -73,7 +85,7 @@
       "type": "utc_datetime_usec"
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -84,6 +96,8 @@
         "destination_attribute_default": null,
         "destination_attribute_generated": null,
         "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
         "match_type": null,
         "match_with": null,
         "multitenancy": {
@@ -91,11 +105,11 @@
           "global": null,
           "strategy": null
         },
-        "name": "session_authorities_human_account_id_fkey",
-        "on_delete": "restrict",
+        "name": "regents_human_account_id_fkey",
+        "on_delete": null,
         "on_update": null,
         "primary_key?": true,
-        "schema": "platform",
+        "schema": "regent_names",
         "table": "platform_human_users"
       },
       "scale": null,
@@ -105,33 +119,38 @@
     }
   ],
   "base_filter": null,
-  "check_constraints": [
-    {
-      "attribute": [
-        "generation"
-      ],
-      "base_filter": null,
-      "check": "generation >= 0",
-      "name": "session_authorities_generation_nonnegative"
-    }
-  ],
+  "check_constraints": [],
   "create_table_options": null,
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "388A5605111C431205FFB443A9A1F20317D951544F26A6C96DE944650903A4AC",
+  "hash": "DE9D9CC8FDF5456CDD51973721F6250C115C4A7185517D41B5F7F67D09A990BA",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "session_authorities_unique_lineage_digest_index",
+      "index_name": "regents_unique_human_account_index",
       "keys": [
         {
           "type": "atom",
-          "value": "lineage_digest"
+          "value": "human_account_id"
         }
       ],
-      "name": "unique_lineage_digest",
+      "name": "unique_human_account",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "regents_unique_slug_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "slug"
+        }
+      ],
+      "name": "unique_slug",
       "nils_distinct?": true,
       "where": null
     }
@@ -143,5 +162,5 @@
   },
   "repo": "Elixir.AshPlatform.Repo",
   "schema": null,
-  "table": "session_authorities"
+  "table": "regents"
 }

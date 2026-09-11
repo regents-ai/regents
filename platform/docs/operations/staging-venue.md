@@ -35,9 +35,10 @@ The development and test environments never read the role.
 
 ## Bootstrap
 
-The platform reads `platform.platform_human_users` but does not own it: no
-migration in this repository creates it. Staging has no upstream copy, so the
-first staging database needs that table created before migrations can run.
+Regents reads `regent_names.platform_human_users` and the `autolaunch_app` tables
+but does not own them: no migration in this repository creates them. Staging has
+no upstream copy, so the first staging database needs those tables created before
+migrations can run.
 
 `bin/bootstrap-staging` does that once, on an empty database:
 
@@ -46,13 +47,14 @@ first staging database needs that table created before migrations can run.
 2. It resolves its target through the same release configuration the migrate
    command uses, which under the staging role can only be a staging host.
 3. It refuses, and changes nothing, if the database already has a
-   `schema_migrations` table or a `platform` schema.
-4. Otherwise it creates the `platform` schema and `platform.platform_human_users`
-   with the same shape the local fixture uses, then runs every migration.
+   `regents_app.schema_migrations` table or a `regent_names` schema.
+4. Otherwise it creates the shared tables from `priv/repo/shared_tables.sql`,
+   with the same shape the local fixture uses, then runs every migration into the
+   `regents_app` schema.
 
-The table it creates is a staging-only approximation of a table owned outside this
-repository. It is deliberately the shape the whole local test suite already runs
-on, and nothing else.
+The tables it creates are staging-only approximations of tables owned outside this
+repository. They are deliberately the shape the whole local test suite already
+runs on, and nothing else.
 
 The command never repairs. If it fails partway, recover by destroying and
 recreating the staging database (see [Recovery](#recovery)).
@@ -357,7 +359,7 @@ whole recovery story:
 - **A bootstrap failed partway.** Destroy and recreate the staging database, then
   run `bin/bootstrap-staging` again. Do not try to finish a partial bootstrap by
   hand; the command refuses a database that already carries migration state or the
-  `platform` schema precisely so a half-finished state cannot be papered over.
+  `regent_names` schema precisely so a half-finished state cannot be papered over.
 - **A migration failed on staging.** Read `bin/pending-migrations` to see exactly
   where the database stopped, fix the migration in the repository, and deploy a new
   image. If the database is too far out of shape to reason about, destroy and

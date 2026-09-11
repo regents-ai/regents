@@ -177,9 +177,8 @@ defmodule AshPlatform.LocalDatabaseFixture do
   end
 
   defp setup_human_account_fixture! do
-    create_local_human_accounts_table!()
-    migrate_application_schema!()
-    adopt_shared_schema_layout!()
+    create_shared_tables!()
+    AshPlatform.Repo.migrate!(migrations_path())
   end
 
   defp fixture_setup!(opts, env) do
@@ -314,85 +313,24 @@ defmodule AshPlatform.LocalDatabaseFixture do
     end
   end
 
-  defp migrate_application_schema! do
-    migrations_path = Application.app_dir(:ash_platform, "priv/repo/migrations")
-    Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
-  end
-
-  # A replayed migration history still writes the Autolaunch-owned tables to
-  # their former `autolaunch` schema and the account table to `platform`; on the
-  # shared database those live at `autolaunch_app` and `regent_names`, so the
-  # replayed database adopts the same layout. Foreign keys follow the moved
-  # account table because they reference it by identity, not by schema name.
   @doc false
-  def adopt_shared_schema_layout! do
-    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "CREATE SCHEMA IF NOT EXISTS regent_names", [])
-
-    Ecto.Adapters.SQL.query!(
-      AshPlatform.Repo,
-      """
-      DO $$
-      BEGIN
-        IF to_regclass('platform.platform_human_users') IS NOT NULL
-           AND to_regclass('regent_names.platform_human_users') IS NULL THEN
-          ALTER TABLE platform.platform_human_users SET SCHEMA regent_names;
-        END IF;
-      END
-      $$;
-      """,
-      []
-    )
-
-    Ecto.Adapters.SQL.query!(AshPlatform.Repo, "DROP SCHEMA IF EXISTS platform", [])
-
-    Ecto.Adapters.SQL.query!(
-      AshPlatform.Repo,
-      """
-      DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'autolaunch')
-           AND NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'autolaunch_app') THEN
-          ALTER SCHEMA autolaunch RENAME TO autolaunch_app;
-        END IF;
-      END
-      $$;
-      """,
-      []
-    )
+  # The tables this repository reads but does not own, in the shape the test
+  # suite and the staging bootstrap run on. Every statement in the file is
+  # idempotent, so an already prepared database is left as it is. The file is
+  # shipped inside this application's priv directory and holds only DDL written
+  # in this repository, so neither the path nor the statements come from input.
+  # sobelow_skip ["SQL.Query", "Traversal.FileModule"]
+  def create_shared_tables! do
+    :ash_platform
+    |> Application.app_dir("priv/repo/shared_tables.sql")
+    |> File.read!()
+    |> String.split(";\n", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.each(&Ecto.Adapters.SQL.query!(AshPlatform.Repo, &1, []))
   end
 
-  # The migration history still references the account table at
-  # `platform.platform_human_users`, so a database that has not yet adopted the
-  # shared layout gets the table there for the replay to resolve against. A
-  # database that already has the canonical `regent_names` copy needs nothing.
-  @doc false
-  def create_local_human_accounts_table! do
-    Ecto.Adapters.SQL.query!(
-      AshPlatform.Repo,
-      """
-      DO $$
-      BEGIN
-        IF to_regclass('regent_names.platform_human_users') IS NULL THEN
-          CREATE SCHEMA IF NOT EXISTS platform;
-          CREATE TABLE IF NOT EXISTS platform.platform_human_users (
-            id bigserial PRIMARY KEY,
-            privy_user_id varchar(255) NOT NULL UNIQUE,
-            wallet_address varchar(255),
-            wallet_addresses varchar(255)[] NOT NULL DEFAULT '{}',
-            world_human_id varchar(255) UNIQUE,
-            world_verified_at timestamp(0) without time zone,
-            display_name varchar(80),
-            avatar jsonb,
-            created_at timestamp(0) without time zone NOT NULL,
-            updated_at timestamp(0) without time zone NOT NULL
-          );
-        END IF;
-      END
-      $$;
-      """,
-      []
-    )
-  end
+  defp migrations_path, do: Application.app_dir(:ash_platform, "priv/repo/migrations")
 
   defmodule PostgresAdapter do
     @moduledoc false
@@ -411,9 +349,8 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
     def prepare(config, run_id) do
       with_repo(config, fn ->
-        AshPlatform.LocalDatabaseFixture.create_local_human_accounts_table!()
-        migrations_path = Application.app_dir(:ash_platform, "priv/repo/migrations")
-        Ecto.Migrator.run(AshPlatform.Repo, migrations_path, :up, all: true)
+        AshPlatform.LocalDatabaseFixture.create_shared_tables!()
+        AshPlatform.Repo.migrate!(Application.app_dir(:ash_platform, "priv/repo/migrations"))
 
         Ecto.Adapters.SQL.query!(AshPlatform.Repo, "CREATE SCHEMA acceptance_harness", [])
 
@@ -490,7 +427,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
       versions =
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "SELECT version::text FROM schema_migrations ORDER BY version",
+          "SELECT version::text FROM regents_app.schema_migrations ORDER BY version",
           []
         ).rows
         |> List.flatten()
@@ -498,7 +435,7 @@ defmodule AshPlatform.LocalDatabaseFixture do
       counts =
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "SELECT (SELECT count(*) FROM discussions.comments)",
+          "SELECT (SELECT count(*) FROM regents_app.comments)",
           []
         ).rows
         |> List.first()

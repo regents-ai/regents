@@ -1,4 +1,4 @@
-defmodule AshPlatform.Repo.Migrations.InstallAshFunctionsForBillingExtensions1 do
+defmodule AshPlatform.Repo.Migrations.InitialRegentsAppExtensions1 do
   @moduledoc """
   Installs any extensions that are mentioned in the repo's `installed_extensions/0` callback
 

@@ -37,7 +37,8 @@ config :ash_platform, AshPlatform.Repo,
   database: "ash_platform_disabled",
   hostname: "127.0.0.1",
   port: 1,
-  pool_size: 1
+  pool_size: 1,
+  migration_default_prefix: "regents_app"
 
 config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvider
 config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
