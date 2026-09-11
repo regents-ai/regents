@@ -607,6 +607,15 @@
   white-space: nowrap;
 }
 
+/* The market-cap figure is a label, not a control: on a narrow phone it wraps
+   inside the card instead of pushing past its edge. */
+.stake-market-cap {
+  max-width: 100%;
+  padding-block: 0.5rem;
+  text-align: center;
+  white-space: normal;
+}
+
 .stake-buy { text-decoration: none; }
 
 .stake-actions button.stake-primary,

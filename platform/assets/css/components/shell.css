@@ -546,8 +546,12 @@ details[open] > summary .shell-chevron {
   #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 47.99rem) {
+  /* One row on a phone: brand, Menu, theme, account. The X, $REGENT and GitHub
+     links stay reachable in the footer, so the header never wraps over content. */
+  #shell-header { flex-wrap: nowrap; }
+  #shell-header .rl-header-links { display: none; }
   #shell-header > a:not(.shell-brand) { display: none; }
   #shell-header .account-control { min-width: 0; }
   #shell-header .account-control summary { overflow: visible; white-space: normal; }
-  .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: 1rem; }
+  .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
