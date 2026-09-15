@@ -172,16 +172,6 @@
   gap: 0.5rem;
 }
 
-.regent-ops-chevron {
-  flex: none;
-  color: var(--ash-muted);
-  transition: transform 180ms var(--ease-out);
-}
-
-.regent-ops-details[open] .regent-ops-chevron {
-  transform: rotate(180deg);
-}
-
 .regent-ops-details-body {
   display: grid;
   gap: 1rem;
@@ -287,12 +277,6 @@
 
   .regent-ops-layout {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .regent-ops-chevron {
-    transition: none;
   }
 }
 

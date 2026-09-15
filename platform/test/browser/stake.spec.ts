@@ -405,15 +405,17 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
       .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)
     expect(columns, `/redeem at ${width}`).toBe(width > 800 ? 3 : 1)
 
-    const presentation = await page.locator(".redeem-collection-card").first().evaluate(element => {
-      const cardStyle = getComputedStyle(element)
-      return {
-        background: cardStyle.backgroundColor,
-        border: cardStyle.borderTopWidth,
-      }
-    })
-    expect(presentation.background).not.toBe("rgba(0, 0, 0, 0)")
-    expect(presentation.border).toBe("1px")
+    // The shared panel paints its fill and its 1px edge in pseudo-elements, so the
+    // card's own box stays transparent and borderless by design.
+    const presentation = await page.locator(".redeem-collection-card .rg-panel").first().evaluate(element => ({
+      edge: getComputedStyle(element, "::before").backgroundColor,
+      fill: getComputedStyle(element, "::after").backgroundColor,
+      host: getComputedStyle(element).backgroundColor,
+    }))
+    expect(presentation.fill).not.toBe("rgba(0, 0, 0, 0)")
+    expect(presentation.edge).not.toBe("rgba(0, 0, 0, 0)")
+    expect(presentation.edge).not.toBe(presentation.fill)
+    expect(presentation.host).toBe("rgba(0, 0, 0, 0)")
   }
 })
 

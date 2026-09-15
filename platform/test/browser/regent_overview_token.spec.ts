@@ -43,7 +43,7 @@ test("Overview disclosures open and close from the keyboard and show a turned ch
   await page.keyboard.press("Enter")
   await expect(fit).toHaveAttribute("open", "")
   await expect(fit.locator(".regent-ops-details-body")).toBeVisible()
-  const turned = await fit.locator(".regent-ops-chevron").evaluate(el => getComputedStyle(el).transform)
+  const turned = await fit.locator(".rg-chevron").evaluate(el => getComputedStyle(el).transform)
   expect(turned).not.toBe("none")
 
   await page.keyboard.press("Space")

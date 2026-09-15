@@ -552,6 +552,10 @@ details[open] > summary .shell-chevron {
   #shell-header .rl-header-links { display: none; }
   #shell-header > a:not(.shell-brand) { display: none; }
   #shell-header .account-control { min-width: 0; }
-  #shell-header .account-control summary { overflow: visible; white-space: normal; }
+  /* The account button keeps its 6rem cap; the name shrinks to an ellipsis so
+     the avatar and chevron stay inside the cap instead of spilling past the
+     screen edge. */
+  #shell-header .account-control summary [data-account-target="profile"] { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #shell-header .account-control summary .shell-chevron { flex: 0 0 auto; }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }

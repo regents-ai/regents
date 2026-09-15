@@ -587,6 +587,7 @@
 /* Grid items default to min-width:auto, which lets a long address or a wide
    value push the whole draft card past a narrow viewport. Every box in this
    card is allowed to shrink to its container instead. */
+.autolaunch-drafts article,
 .launch-wallet,
 .launch-wallet-open,
 .launch-wallet-empty,
@@ -771,6 +772,14 @@
   display: grid;
   gap: 0.35rem;
   min-width: 0;
+}
+
+/* A text field's built-in width would otherwise hold the treasury form, and the
+   draft card around it, wider than a phone. */
+.treasury-verification input {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
 }
 
 .autolaunch-custody-path details,

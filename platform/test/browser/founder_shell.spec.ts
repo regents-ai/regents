@@ -128,9 +128,8 @@ test("all approved routes render within their page budget", async ({page, reques
 test("the public homepage presents the product hero and marketing chapters", async ({page}) => {
   await page.goto("/")
 
-  const home = page.locator("#public-home")
-  await expect(home).toHaveAttribute("data-hero-enhanced", "true")
-  await expect(page.locator(".rl-hero-figure img")).toHaveAttribute(
+  await expect(page.locator("#public-home")).toBeVisible()
+  await expect(page.locator("#home-prism .rl-hero-art")).toHaveAttribute(
     "src",
     "/images/home/hero-bg-dark.svg",
   )
@@ -154,27 +153,39 @@ test("the public homepage presents the product hero and marketing chapters", asy
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
-// Headless Chromium has no GPU, which is the interesting case: the hero decoration
-// must stay invisible and inert while the server's art, copy, and action carry the
-// page on their own. Nothing here pretends a GPU is present.
+// The crown is decoration the server renders inside the hero: hidden from assistive
+// technology, taking no pointer events, and showing exactly one layer at a time —
+// the still art until the drawn crown is ready, then the drawn crown alone. Whether
+// headless Chromium brings a GPU decides which layer shows, never whether the copy
+// and actions stay reachable.
 test("the bounded technical crown never blocks the action", async ({page}) => {
+  const expectOneHeroLayer = async () => {
+    const layers = await page.locator("#home-prism").evaluate(element => ({
+      art: getComputedStyle(element.querySelector(".rl-hero-art")!).visibility,
+      crownReady: element.getAttribute("data-prism-ready") === "true",
+    }))
+    expect(layers.art).toBe(layers.crownReady ? "hidden" : "visible")
+  }
+
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-    await expect(page.locator("#home-field, #home-prism, #public-home canvas")).toHaveCount(0)
-    await expect(page.locator(".rl-hero-figure img")).toBeVisible()
+    const prism = page.locator("#home-prism")
+    await expect(prism).toHaveAttribute("aria-hidden", "true")
+    expect(await prism.evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none")
+    await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
     await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})
     await page.locator("#home-card-techtree").getByRole("link", {name: "Open techtree"}).click({trial: true})
     await page.emulateMedia({reducedMotion: "reduce"})
-    await expect(page.locator(".rl-hero-figure img")).toBeVisible()
+    await expectOneHeroLayer()
     await page.emulateMedia({reducedMotion: "no-preference"})
   }
 })
 test("the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
 
-  const action = page.getByRole("link", {name: "Explore the system"})
+  const action = page.locator(".rl-closing").getByRole("link", {name: "Explore staking"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}
@@ -278,8 +289,11 @@ test("a signed-in account without a Regent shows its available account menu", as
     .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
     .toBeGreaterThan(0)
   await account.locator("summary").first().click()
-  await expect(account.getByRole("link", {name: "Profile"})).toHaveCount(0)
-  await expect(account.getByRole("link", {name: "Settings"})).toHaveCount(0)
+  await expect(account.locator(".account-menu__row")).toHaveText(["Account profile", "Disconnect"])
+  await expect(account.getByRole("link", {name: "Account profile"})).toHaveAttribute(
+    "href",
+    "/profile",
+  )
   await expect(account.getByRole("button", {name: "Disconnect"})).toBeVisible()
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
@@ -332,7 +346,10 @@ test("the Overview maps the four products, keeps account details secondary, and 
     "href",
     "/formation",
   )
-  await expect(overview.locator('a[href*="/hermes"]')).toHaveCount(0)
+  await expect(overview.getByRole("link", {name: "Hermes"})).toHaveAttribute(
+    "href",
+    "https://hermes-agent.nousresearch.com/",
+  )
   await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
 
   await actions.getByRole("link", {name: "Run your Regent"}).click()
