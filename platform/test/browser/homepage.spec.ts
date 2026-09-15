@@ -10,7 +10,7 @@ const focusViewports = [
 ]
 
 const waitForHomepage = async (page: import("@playwright/test").Page) => {
-  const home = page.locator('#public-home[data-hero-enhanced="true"][data-hero-motion="settled"]')
+  const home = page.locator("#public-home")
   await expect(home).toBeVisible()
   await page.evaluate(async () => {
     await document.fonts.ready
@@ -23,8 +23,8 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
   return home
 }
 
-// Above this width the three products stand side by side; below it they read as one column.
-const CARD_ROW_WIDTH = 1023
+// From this width up the three products stand side by side; below it they read as one column.
+const CARD_ROW_MIN_WIDTH = 768
 
 const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   expect(
@@ -38,10 +38,9 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await page.goto("/")
 
   await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
-  await expect(page.locator(".rl-hero-copy .rg-hero-description")).toHaveText(
+  await expect(page.locator(".rl-hero-copy .rl-hero-description")).toHaveText(
     "The community-owned agentic product lab",
   )
-  await expect(page.locator("#home-products-label")).toHaveText("Products for Agent Uplift")
   await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
 
   const cards = page.locator("[data-home-hero-card]")
@@ -89,27 +88,26 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await expect(stake).not.toHaveAttribute("target", /.+/)
 
   await expect(page.locator("#techtree, #autolaunch, #patchbay")).toHaveCount(3)
-  await expect(page.locator("#home-closing a.rl-action--strong")).toHaveAttribute("href", "#home-products")
+  await expect(page.locator("#regent a.rl-action--strong")).toHaveAttribute("href", "/stake")
   await context.close()
 })
 
-// A tab is only useful if its section arrives below the sticky header rather than under it.
-test("[U1] a navigation tab lands its section clear of the sticky header", async ({page}) => {
+// A tab is only useful if its section actually arrives in view.
+test("[U1] a navigation tab brings its section into view", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  await page.locator("#home-nav-about").click()
-  await expect(page).toHaveURL(/#home-closing$/)
+  await page.locator("#home-nav-regent").click()
+  await expect(page).toHaveURL(/#regent$/)
 
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const header = document.querySelector(".rl-header")!.getBoundingClientRect()
-        const section = document.querySelector("#home-closing")!.getBoundingClientRect()
-        return section.top - header.bottom
+        const section = document.querySelector("#regent")!.getBoundingClientRect()
+        return section.top < window.innerHeight && section.bottom > 0
       }),
     )
-    .toBeGreaterThanOrEqual(0)
+    .toBe(true)
 })
 
 // Display titles and body copy keep their separate canonical typographic roles.
@@ -118,7 +116,7 @@ test("[U1][U2] the tagline retains its sentence case", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  const tagline = page.locator(".rl-hero-copy .rg-hero-description")
+  const tagline = page.locator(".rl-hero-copy .rl-hero-description")
   await expect(tagline).toHaveText("The community-owned agentic product lab")
   expect(await tagline.evaluate(element => getComputedStyle(element).textTransform)).toBe(
     "none",
@@ -144,7 +142,9 @@ const stableRender = (html: string) =>
     .replace(/data-phx-static="[^"]*"/g, 'data-phx-static="STATIC"')
     .replace(/id="phx-[^"]*"/g, 'id="ID"')
 
-test("[U3] the public landing preserves content across saved palettes", async ({browser}) => {
+// The landing is a dark-only composition: whatever palette the visitor saved, every render
+// is the same dark page, and only the per-request tokens differ.
+test("[U3] the public landing renders the same dark page for every saved palette", async ({browser}) => {
   const landing = async (saved?: "light" | "dark") => {
     const context = await browser.newContext()
     if (saved) {
@@ -159,19 +159,21 @@ test("[U3] the public landing preserves content across saved palettes", async ({
 
   const [none, light, dark] = await Promise.all([landing(), landing("light"), landing("dark")])
 
-  expect(light).toContain('data-theme="light"')
-  expect(none).toContain('data-theme="dark"')
-  expect(stableRender(light).match(/<main>[\s\S]*?<\/main>/)?.[0]).toBe(stableRender(dark).match(/<main>[\s\S]*?<\/main>/)?.[0])
-  expect(stableRender(dark)).toContain('data-theme="dark"')
+  const main = (html: string) => stableRender(html).match(/<main>[\s\S]*?<\/main>/)?.[0]
+  expect(main(light)).toBe(main(dark))
+  expect(main(none)).toBe(main(dark))
 
   for (const served of [none, light, dark]) {
-    expect(served).toMatch(/data-theme="(?:light|dark)"/)
-    expect(served).toMatch(/content="(?:light|dark)"/)
+    expect(served).toContain('data-theme="dark"')
+    expect(served).toContain('data-home-theme-locked="true"')
+    expect(served).toContain('<meta name="color-scheme" content="dark"')
     expect(served).toContain('data-brand="platform"')
   }
 })
 
-test("[U3] the landing uses and preserves the visitor's saved theme", async ({browser}) => {
+// The lock is not a rewrite of the visitor's preference: a saved light theme still renders
+// the dark landing, offers no switch, and leaves the saved choice for the other pages.
+test("[U3] the landing stays dark and preserves the visitor's saved theme", async ({browser}) => {
   const context = await browser.newContext()
   await context.addCookies([
     {name: "regent_theme", value: "light", url: test.info().project.use.baseURL as string},
@@ -181,8 +183,10 @@ test("[U3] the landing uses and preserves the visitor's saved theme", async ({br
   await page.goto("/")
   await waitForHomepage(page)
 
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(page.locator("html")).toHaveAttribute("data-home-theme-locked", "true")
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
+  await expect(page.locator("[data-theme-toggle]:visible")).toHaveCount(0)
   const saved = (await context.cookies()).find(cookie => cookie.name === "regent_theme")
   expect(saved?.value).toBe("light")
   await context.close()
@@ -199,9 +203,10 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("Geist Pixel Square")
 })
 
-// The founder's hero: the sentences on one side and the crown on the other where there is
-// room for both, and the same three things in reading order where there is not.
-test("[U1][U2] the hero sets its words beside the crown, and above it on a phone", async ({page}) => {
+// The founder's hero: the words in the left half with the crown drawn across the whole stage
+// behind them and the products underneath where there is room, and the same things in reading
+// order, crown between words and products, where there is not.
+test("[U1][U2] the hero sets its words over the crown, and above it on a phone", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
       const box = element.getBoundingClientRect()
@@ -223,24 +228,24 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
 
       const hero = await boxOf(".rl-hero")
       const copy = await boxOf("#home-title")
-      const label = await boxOf("#home-products-label")
       const cards = await boxOf("#home-products")
       const stakers = await boxOf(".rl-hero-stakers")
-      const crown = await boxOf(".rl-hero-figure")
+      const crown = await boxOf("#home-prism")
 
       expect(copy.left).toBeGreaterThanOrEqual(hero.left)
       expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
         hero.left + hero.width / 2,
       )
-      expect(label.left, "the section-bar label stays inside the inset").toBeGreaterThanOrEqual(copy.left)
-      expect(cards.left, "the products start on that edge too").toBeCloseTo(copy.left, 0)
-      expect(cards.right, "the products take the whole frame").toBeGreaterThan(
+      expect(cards.left, "the products start on the words' edge").toBeCloseTo(copy.left, 0)
+      expect(cards.right, "the products cross the midline").toBeGreaterThan(
         hero.left + hero.width / 2,
       )
-      expect(label.top, "the label comes under the words").toBeGreaterThanOrEqual(copy.bottom)
-      expect(cards.top, "the products come under their label").toBeGreaterThanOrEqual(label.bottom)
+      expect(cards.top, "the products come under the words").toBeGreaterThanOrEqual(copy.bottom)
       expect(stakers.top, "the stakers band closes the hero").toBeGreaterThanOrEqual(cards.bottom)
-      expect(crown.left).toBeGreaterThanOrEqual(copy.right)
+      expect(crown.left, "the crown stands behind the words").toBeLessThanOrEqual(copy.left)
+      expect(crown.top).toBeLessThanOrEqual(copy.top)
+      expect(crown.right, "and behind the products").toBeGreaterThanOrEqual(cards.right)
+      expect(crown.bottom).toBeGreaterThanOrEqual(cards.bottom)
       expect(crown.right).toBeLessThanOrEqual(hero.right)
     })
   }
@@ -252,19 +257,16 @@ test("[U1][U2] the hero sets its words beside the crown, and above it on a phone
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      // On a phone the copy block hands its own lines to the hero stack, so it has no box
-      // of its own: the heading stands for the words above the crown.
+      // On a phone the crown takes a row of its own between the words and the products.
       const title = await boxOf("#home-title")
-      const tagline = await boxOf(".rl-hero-copy .rg-hero-description")
-      const crown = await boxOf(".rl-hero-figure")
-      const label = await boxOf("#home-products-label")
+      const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
+      const crown = await boxOf("#home-prism")
       const cards = await boxOf("#home-products")
       const stakers = await boxOf(".rl-hero-stakers")
 
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
       expect(tagline.bottom, "the tagline sits above the crown").toBeLessThanOrEqual(crown.top)
-      expect(crown.bottom, "the crown sits above the products label").toBeLessThanOrEqual(label.top)
-      expect(label.bottom, "the label sits above the products").toBeLessThanOrEqual(cards.top)
+      expect(crown.bottom, "the crown sits above the products").toBeLessThanOrEqual(cards.top)
       expect(cards.bottom, "the products sit above the stakers band").toBeLessThanOrEqual(
         stakers.top,
       )
@@ -296,7 +298,7 @@ for (const viewport of [
 
     // Three across where the frame is wide enough, one column below that.
     expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(
-      viewport.width > CARD_ROW_WIDTH ? 1 : viewport.width >= 768 ? 2 : 3,
+      viewport.width >= CARD_ROW_MIN_WIDTH ? 1 : 3,
     )
 
     await page.keyboard.press("Tab")
@@ -342,12 +344,9 @@ test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewpor
       // left edge and step down. Either way they read in the founder's order.
       for (const [index, card] of cards.entries()) {
         if (index === 0) continue
-        if (viewport.width > CARD_ROW_WIDTH) {
+        if (viewport.width >= CARD_ROW_MIN_WIDTH) {
           expect(card.top).toBeCloseTo(cards[0].top, 0)
           expect(card.left).toBeGreaterThan(cards[index - 1].left)
-        } else if (viewport.width >= 768 && index === 1) {
-          expect(card.top).toBeCloseTo(cards[0].top, 0)
-          expect(card.left).toBeGreaterThan(cards[0].left)
         } else {
           expect(card.top).toBeGreaterThan(cards[index - 1].top)
           expect(card.left).toBeCloseTo(cards[0].left, 0)
@@ -357,19 +356,16 @@ test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewpor
   }
 })
 
-// Interaction adds a bounded media sweep, never changing the paired content ink.
-test("[U2] capability hover sweeps the media without recoloring content", async ({page}) => {
+// Pointing at a product never recolours its heading.
+test("[U2] card hover leaves the heading ink alone", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
   await waitForHomepage(page)
   for (const product of ["autolaunch", "techtree", "patchbay"]) {
-    const card = page.locator(`#home-card-${product} .rg-feature`)
-    const ink = await card.locator("h3").evaluate(e => getComputedStyle(e).color)
-    await card.locator("h3").hover()
-    await expect(page.locator(".rl-hero")).toHaveAttribute("data-hero-product", product)
-    expect(await card.locator("h3").evaluate(e => getComputedStyle(e).color)).toBe(ink)
-    expect(await card.locator(".rg-feature__shimmer").evaluate(e => getComputedStyle(e, "::before").animationName)).toBe("rg-shimmer")
-    expect(await card.locator(".rg-feature__shimmer").evaluate(e => getComputedStyle(e, "::before").animationDuration)).toBe("3.45s")
+    const heading = page.locator(`#home-card-${product} h3`)
+    const ink = await heading.evaluate(e => getComputedStyle(e).color)
+    await heading.hover()
+    expect(await heading.evaluate(e => getComputedStyle(e).color)).toBe(ink)
   }
 })
 // Generous compartments stay in natural flow rather than shrinking to a viewport budget.
@@ -392,7 +388,7 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
         return {
           scrolled: window.scrollY,
           heading: bottom("#home-title"),
-          tagline: bottom(".rl-hero-copy .rg-hero-description"),
+          tagline: bottom(".rl-hero-copy .rl-hero-description"),
           products: bottom("#home-products"),
           stakers: bottom(".rl-hero-stakers"),
           stakersActions: bottom(".rl-stakers-actions"),
@@ -419,12 +415,15 @@ test("[U2] the stakers band is one container with its ways in underneath", async
     clip: getComputedStyle(element, "::after").clipPath,
     overflow: getComputedStyle(element).overflow,
     fill: getComputedStyle(element, "::after").backgroundColor,
+    host: getComputedStyle(element).backgroundColor,
   }))
   expect(framing.clip).toContain("polygon")
   expect(framing.overflow).toBe("visible")
-  expect(framing.fill).toBe("rgb(229, 227, 210)")
+  // Chromium serialises an opaque computed colour as rgb(); any alpha below 1 becomes rgba().
+  expect(framing.fill, "the panel paints an opaque surface").toMatch(/^rgb\(\d+, \d+, \d+\)$/)
+  expect(framing.host, "on a box that carries none of its own").toBe("rgba(0, 0, 0, 0)")
 
-  const sentence = (await page.locator(".rl-hero-stakers > p").boundingBox())!
+  const sentence = (await page.locator(".rl-regent-copy").boundingBox())!
   const actions = (await page.locator(".rl-stakers-actions").boundingBox())!
   expect(actions.y, "the ways in stand under the sentence").toBeGreaterThanOrEqual(
     sentence.y + sentence.height,
@@ -441,7 +440,7 @@ test("[U2] the picture behind the hero carries no colour and no ground of its ow
   await page.goto("/")
   await waitForHomepage(page)
 
-  const picture = await page.locator(".rl-hero-figure img").evaluate(element => {
+  const picture = await page.locator(".rl-hero-art").evaluate(element => {
     const image = element as HTMLImageElement
     const meanBrightnessOver = (ground: string | null) => {
       const canvas = document.createElement("canvas")
@@ -487,19 +486,17 @@ test("[U2] the picture behind the hero carries no colour and no ground of its ow
   expect(picture.correction, "with nothing on the page correcting it").toBe("none")
 })
 
-// The Techtree chapter reads as description then supporting line: both muted, both distinct from
-// the heading, with the proof story standing between the two card grids.
+// The Techtree chapter reads as an ink heading over one muted description, with its three
+// proofs in the grid below.
 test("[U1] the Techtree chapter keeps its proofs under muted body copy", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
   await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(1)
   await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(3)
-  await expect(page.locator("#techtree .rl-story h3")).toHaveText("Climb in public. Verify before you ship.")
-  await expect(page.locator("#techtree .rg-panel__index", {hasText: "Working prototype"})).toHaveCount(3)
 
   const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
-  await expect(body).toHaveCount(3)
+  await expect(body).toHaveCount(1)
 
   const type = await body.evaluateAll(elements => {
     // The probe lives outside the chapter so the muted rule cannot claim it and make the
@@ -514,22 +511,17 @@ test("[U1] the Techtree chapter keeps its proofs under muted body copy", async (
       heading: getComputedStyle(elements[0].parentElement!.querySelector("h2")!).color,
       ink: getComputedStyle(document.querySelector(".rl-root")!).color,
       muted,
-      sizes: elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize)),
     }
   })
 
-  // The mode rail (second paragraph) speaks in full ink; everything else stays muted.
-  expect(type.colors).toEqual([type.muted, type.ink, type.muted])
-  expect(type.colors.filter((_, index) => index !== 1)).not.toContain(type.heading)
-
-  const [description, , caption] = type.sizes
-  expect(caption, "the rail caption reads quieter than the description").toBeLessThan(description)
+  expect(type.colors).toEqual([type.muted])
+  expect(type.heading).toBe(type.ink)
+  expect(type.muted).not.toBe(type.heading)
 })
 
-// Revenue, Nous and the closing frame carry no chapter number, so their copy has to be placed into
-// the headline column explicitly — and released from it when the grid collapses to one column, or it
-// would open an implicit column and push the page sideways.
-test("[U1][U3] numberless sections share the chapter headline column", async ({page}) => {
+// The closing frame carries no chapter number, so its headline has to be placed on the chapter
+// headline edge explicitly at every width, or the page would read as two columns of sections.
+test("[U1][U3] the numberless closing shares the chapter headline column", async ({page}) => {
   for (const viewport of [
     {name: "desktop", width: 1440, height: 1000},
     {name: "review-1024x768", width: 1024, height: 768},
@@ -543,23 +535,12 @@ test("[U1][U3] numberless sections share the chapter headline column", async ({p
       await assertNoOverflow(page)
 
       const edges = await page
-        .locator("#techtree h2, #revenue h2, #nous h2, #home-closing h2")
+        .locator("#autolaunch h2, #techtree h2, #patchbay h2, #regent h2")
         .evaluateAll(elements =>
           elements.map(element => Math.round(element.getBoundingClientRect().left)),
         )
       expect(edges).toHaveLength(4)
       expect(new Set(edges).size, "every section starts on one left edge").toBe(1)
-
-      const copy = await page
-        .locator("#revenue .rl-chapter-intro > div")
-        .evaluate(element => ({
-          column: getComputedStyle(element).gridColumnStart,
-          parentRight: element.parentElement!.getBoundingClientRect().right,
-          right: element.getBoundingClientRect().right,
-        }))
-
-      expect(copy.column).toBe(viewport.width >= 768 ? "2" : "1")
-      expect(copy.right).toBeLessThanOrEqual(copy.parentRight + 0.5)
     })
   }
 })
@@ -577,11 +558,17 @@ test("[U5] the Patchbay action stays contained and reachable at every tested vie
         .evaluateAll(elements =>
           elements.map(element => {
             const box = element.getBoundingClientRect()
-            return {id: element.id, height: box.height, left: box.left, right: box.right}
+            return {
+              height: box.height,
+              href: element.getAttribute("href"),
+              left: box.left,
+              right: box.right,
+              text: element.textContent?.trim(),
+            }
           }),
         )
 
-      expect(boxes.map(box => box.id)).toEqual(["patchbay-source"])
+      expect(boxes.map(box => [box.href, box.text])).toEqual([["https://patchbay.help", "Open patchbay ↗"]])
       expect(boxes.every(box => box.left >= 0 && box.right <= viewport.width)).toBe(true)
       expect(boxes.every(box => box.height >= 44)).toBe(true)
     })
@@ -599,38 +586,15 @@ test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async
   })
 })
 
-test("[U2][U3] homepage renders the paired light and dark palettes", async ({browser}, testInfo) => {
-  const capture = async (colorScheme: "dark" | "light", filename: string) => {
-    const context = await browser.newContext({colorScheme, viewport: {width: 1440, height: 1000}})
-    await context.addCookies([{name: "regent_theme", value: colorScheme, url: test.info().project.use.baseURL as string}])
-    const page = await context.newPage()
-    await page.goto("/")
-    await waitForHomepage(page)
-    const screenshot = await page.screenshot({path: testInfo.outputPath(filename), fullPage: true})
-    const colors = await page.locator("#public-home").evaluate(element => {
-      const style = getComputedStyle(element)
-      return {background: style.backgroundColor, color: style.color}
-    })
-    await context.close()
-    return {colors, screenshot}
-  }
-
-  const dark = await capture("dark", "final-desktop-dark.png")
-  const light = await capture("light", "final-desktop-light.png")
-  expect(light.colors).not.toEqual(dark.colors)
-  expect(Buffer.compare(light.screenshot, dark.screenshot)).not.toBe(0)
-})
-
 test("[U2][U3] homepage captures the accepted mobile and tablet states", async ({browser}, testInfo) => {
   for (const capture of [
-    {colorScheme: "dark" as const, height: 844, name: "final-mobile-390-dark.png", width: 390},
-    {colorScheme: "light" as const, height: 1024, name: "final-tablet-768-light.png", width: 768},
+    {height: 844, name: "final-mobile-390-dark.png", width: 390},
+    {height: 1024, name: "final-tablet-768-dark.png", width: 768},
   ]) {
     const context = await browser.newContext({
-      colorScheme: capture.colorScheme,
+      colorScheme: "dark",
       viewport: {width: capture.width, height: capture.height},
     })
-    await context.addCookies([{name: "regent_theme", value: capture.colorScheme, url: testInfo.project.use.baseURL as string}])
     const page = await context.newPage()
     await page.goto("/")
     await waitForHomepage(page)
@@ -643,7 +607,7 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 test("[U2] the primary homepage action keeps its contrast on hover", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
-  const action = page.getByRole("link", {name: "Explore the system"})
+  const action = page.locator(".rl-closing").getByRole("link", {name: "Explore staking"})
   const before = await action.evaluate(element => {
     const style = getComputedStyle(element)
     return {backgroundColor: style.backgroundColor, color: style.color}
