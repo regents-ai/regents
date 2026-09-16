@@ -80,7 +80,7 @@ defmodule AshPlatformWeb.AutolaunchLaunchWalletComponent do
     ~H"""
     <section
       id={@id}
-      class="launch-wallet rg-panel rg-panel--surface rg-panel__body"
+      class="launch-wallet"
       phx-hook="AutolaunchLaunchWallet"
       phx-target={@myself}
     >
