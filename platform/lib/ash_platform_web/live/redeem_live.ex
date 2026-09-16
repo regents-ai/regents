@@ -127,7 +127,7 @@ defmodule AshPlatformWeb.RedeemLive do
       <div :if={@status == :loading} class="redeem-content" aria-busy="true">
         <section class="redeem-collections rg-panel rg-panel--surface rg-panel__body">
           <h2>Animata collections</h2>
-          <div class="redeem-collection-grid rg-feature-grid">
+          <div class="redeem-collection-grid">
             <Loading.panel
               :for={name <- ["Animata I", "Animata II", "Regents Club"]}
               id={"redemption-skeleton-#{String.replace(name, " ", "-")}"}
@@ -175,7 +175,7 @@ defmodule AshPlatformWeb.RedeemLive do
             </div>
             <p>Eligible source token IDs are 1–{@redemption.max_source_token_id}.</p>
           </div>
-          <div class="redeem-collection-grid rg-feature-grid">
+          <div class="redeem-collection-grid">
             <.collection_card
               kind="source"
               index="I"
