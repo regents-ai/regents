@@ -1,8 +1,35 @@
+import {execFileSync} from "node:child_process"
+import {randomUUID} from "node:crypto"
 import {expect, test, type Page} from "@playwright/test"
 import {
   installAuthenticatedPrivy,
   matchesAuthenticatedPrivyBridgeUrl,
 } from "./support/authenticated_privy"
+
+const browserDraftNames = new WeakMap<Page, string>()
+
+function registerBrowserDraft(page: Page, prefix: string): string {
+  const name = `${prefix} ${randomUUID()}`
+  browserDraftNames.set(page, name)
+  return name
+}
+
+test.afterEach(({page}, testInfo) => {
+  const name = browserDraftNames.get(page)
+  if (!name) return
+
+  // A hook gets its own budget after a timed-out body; body-local finally does not.
+  testInfo.setTimeout(60_000)
+  browserDraftNames.delete(page)
+  const env = {...process.env}
+  env.MIX_ENV = "test"
+  delete env.ASH_PLATFORM_BROWSER_TEST
+  execFileSync("mix", ["ash_platform.cleanup_browser_autolaunch_drafts", "--name", name], {
+    env,
+    stdio: "inherit",
+    timeout: 45_000,
+  })
+})
 
 const shellRoutes = [
   "/app",
@@ -481,7 +508,7 @@ test("a signed-in Regent owner saves a private launch draft without creating an 
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
 
-  const uniqueName = `Browser launch draft ${Date.now()}`
+  const uniqueName = registerBrowserDraft(page, "Browser launch draft")
   const draft = page.locator("#create-launch-draft")
   await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
   await draft.getByLabel("Symbol", {exact: true}).fill("bdraft")
@@ -515,7 +542,7 @@ test("Create fits a 390px viewport and wraps long draft values instead of cuttin
   await page.goto("/autolaunch/create")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  const uniqueName = `Narrow viewport draft ${Date.now()}`
+  const uniqueName = registerBrowserDraft(page, "Narrow viewport draft")
   const draft = page.locator("#create-launch-draft")
   await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
   await draft.getByLabel("Symbol", {exact: true}).fill("narrow")
