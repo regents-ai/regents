@@ -5,7 +5,10 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runCliEntrypoint } from "../../src/index.js";
-import { EXPECTED_PLATFORM_CONTRACT_DIGEST } from "../../src/generated/platform-contract-digest.js";
+import {
+  EXPECTED_PLATFORM_CONTRACT_DIGEST,
+  SUPPORTED_PLATFORM_CONTRACT_MAJOR,
+} from "../../src/generated/platform-contract-digest.js";
 import { writeInitialConfig } from "../../src/internal-runtime/config.js";
 import { parseCliArgs } from "../../src/parse.js";
 import { writeFakeCdp } from "../support/fake-cdp.js";
@@ -40,7 +43,7 @@ describe("agentbook CLI command group", () => {
       status: 200,
       headers: {
         "content-type": "application/yaml",
-        "x-regents-contract-major": "0",
+        "x-regents-contract-major": SUPPORTED_PLATFORM_CONTRACT_MAJOR,
         "x-regents-contract-version": "0.1.0",
         "x-regents-contract-digest": EXPECTED_PLATFORM_CONTRACT_DIGEST,
       },

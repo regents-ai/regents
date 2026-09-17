@@ -5,7 +5,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { requestProductJson } from "../src/commands/product-http.js";
-import { EXPECTED_PLATFORM_CONTRACT_DIGEST } from "../src/generated/platform-contract-digest.js";
+import {
+  EXPECTED_PLATFORM_CONTRACT_DIGEST,
+  SUPPORTED_PLATFORM_CONTRACT_MAJOR,
+} from "../src/generated/platform-contract-digest.js";
 import { defaultConfig } from "../src/internal-runtime/config.js";
 import { regentsCliVersion, requestProductResponse } from "../src/internal-runtime/product-http-client.js";
 
@@ -117,7 +120,7 @@ describe("product HTTP client", () => {
         new Response("openapi: 3.1.0\n", {
           status: 200,
           headers: {
-            "x-regents-contract-major": "0",
+            "x-regents-contract-major": SUPPORTED_PLATFORM_CONTRACT_MAJOR,
             "x-regents-contract-digest": EXPECTED_PLATFORM_CONTRACT_DIGEST,
           },
         }),
@@ -146,7 +149,7 @@ describe("product HTTP client", () => {
       new Response("openapi: 3.1.0\n", {
         status: 200,
         headers: {
-          "x-regents-contract-major": "0",
+          "x-regents-contract-major": SUPPORTED_PLATFORM_CONTRACT_MAJOR,
           "x-regents-contract-digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         },
       }),

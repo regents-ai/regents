@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CLI_COMMANDS } from "../../src/command-registry.js";
 import { runCliEntrypoint } from "../../src/index.js";
-import { EXPECTED_PLATFORM_CONTRACT_DIGEST } from "../../src/generated/platform-contract-digest.js";
+import {
+  EXPECTED_PLATFORM_CONTRACT_DIGEST,
+  SUPPORTED_PLATFORM_CONTRACT_MAJOR,
+} from "../../src/generated/platform-contract-digest.js";
 import { writeInitialConfig } from "../../src/internal-runtime/config.js";
 import { captureOutput, parsePrintedJson } from "../helpers/output.js";
 
@@ -19,7 +22,7 @@ describe("platform CLI command group", () => {
   let homeDir = "";
   let sessionFile = "";
 
-  const platformContractResponse = (major = "0") =>
+  const platformContractResponse = (major = SUPPORTED_PLATFORM_CONTRACT_MAJOR) =>
     new Response("openapi: 3.1.0\ninfo:\n  version: 0.1.0\n", {
       status: 200,
       headers: {

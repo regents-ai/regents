@@ -1,6 +1,7 @@
-// Generated from platform/contracts/platform/api-contract.openapiv3.yaml.
-// Keep this in sync with Platform when the contract changes.
+// Generated from platform/contracts/api-contract.openapiv3.yaml by
+// cli/scripts/sync-platform-contract-digest.mjs. Platform serves the same
+// two values as response headers on GET /api-contract.openapiv3.yaml.
 
-export const SUPPORTED_PLATFORM_CONTRACT_MAJOR = "0";
+export const SUPPORTED_PLATFORM_CONTRACT_MAJOR = "1";
 export const EXPECTED_PLATFORM_CONTRACT_DIGEST =
-  "sha256:46608497f9614f8fd220ec3b4e878a0e66a9f70486d075cbc56b20c233ff4dba";
+  "sha256:27012709f485b0ddc80402b3f4734a96d0877746ce30e1f203a8b803c48b5e13";
