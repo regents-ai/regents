@@ -42,5 +42,6 @@ defmodule AshPlatformWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug AshPlatformWeb.Plugs.RuntimeSession
+  plug AshPlatformWeb.Plugs.AgentAccess
   plug AshPlatformWeb.Router
 end

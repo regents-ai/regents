@@ -2,7 +2,55 @@ defmodule AshPlatformWeb.HomeLive do
   use AshPlatformWeb, :live_view
 
   alias AshPlatformWeb.Components.RegentLinks
-  alias AshPlatformWeb.{RouteCatalog, TokenLinks}
+  alias AshPlatformWeb.{PublicDocuments, RouteCatalog, TokenLinks}
+
+  @staking_summary "Stake $REGENT for a share of USDC revenue of the protocol and additional emissions."
+
+  @doc "A public text representation using the same product descriptions as the page."
+  def agent_markdown do
+    directory =
+      Enum.map_join(hero_products(), "\n", fn product ->
+        "- [#{product.name}](#{product.site}): #{product.line}"
+      end)
+
+    chapters =
+      Enum.map_join(products(), "\n\n", fn product ->
+        proofs = Enum.map_join(product.proofs, "\n", &"- **#{&1.title}** #{&1.copy}")
+
+        ["## #{product.title}", product.description, proofs]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join("\n\n")
+      end)
+
+    """
+    # Regents Labs
+
+    The community-owned agentic product lab.
+
+    ## Products
+
+    #{directory}
+
+    #{chapters}
+
+    ## REGENT staking
+
+    #{@staking_summary}
+
+    Eligible USDC deposits are allocated by stake share. REGENT emissions depend on the
+    contract's rate and available inventory; the rate can change. Stake, unstake, claim
+    and compound require your wallet signature. No return is guaranteed.
+
+    [Staking](#{PublicDocuments.url("/stake")}) · [Redemption](#{PublicDocuments.url("/redeem")})
+
+    ## Get started
+
+    [Developer documentation](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/llms.txt")})
+    [About](#{PublicDocuments.url("/about")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy](#{PublicDocuments.url("/privacy")})
+    """
+  end
+
+  defp staking_summary, do: @staking_summary
 
   def mount(_params, _session, socket),
     do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
@@ -146,7 +194,7 @@ defmodule AshPlatformWeb.HomeLive do
           <p class="rl-overline">$REGENT</p>
           <h2 id="home-regent-callout-title">Stake in the work.</h2>
           <p class="rl-regent-summary">
-            Stake $REGENT for a share of USDC revenue of the protocol and additional emissions.
+            {staking_summary()}
           </p>
         </div>
         <div class="rl-stakers-actions">

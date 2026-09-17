@@ -89,7 +89,11 @@ config :ash_platform, AshPlatformWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: AshPlatformWeb.ErrorHTML, json: AshPlatformWeb.ErrorJSON],
+    formats: [
+      html: AshPlatformWeb.ErrorHTML,
+      json: AshPlatformWeb.ErrorJSON,
+      md: AshPlatformWeb.ErrorMD
+    ],
     layout: false
   ],
   pubsub_server: AshPlatform.PubSub,
