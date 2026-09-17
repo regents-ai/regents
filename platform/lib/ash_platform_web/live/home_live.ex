@@ -166,7 +166,7 @@ defmodule AshPlatformWeb.HomeLive do
               data-home-hero-card={product.name}
             >
               <div class="rl-card-heading">
-                <h3>{product.name}</h3>
+                <h2>{product.name}</h2>
               </div>
               <p>{product.line}</p>
               <div class="rl-card-actions">
@@ -444,6 +444,13 @@ defmodule AshPlatformWeb.HomeLive do
   defp landing_footer(assigns) do
     ~H"""
     <footer class="rl-footer">
+      <nav class="rl-document-links" aria-label="Regents information">
+        <a href={~p"/docs"}>Docs</a>
+        <a href={~p"/about"}>About</a>
+        <a href={~p"/contact"}>Contact</a>
+        <a href={~p"/privacy"}>Privacy</a>
+        <a href={~p"/terms"}>Terms</a>
+      </nav>
       <nav class="rl-footer-links" aria-label="Regents social links">
         <a
           href="https://x.com/regents_sh"

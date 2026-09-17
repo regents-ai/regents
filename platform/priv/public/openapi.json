@@ -1,0 +1,94 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Regents public read API",
+    "version": "1.0.0",
+    "description": "Public service health and owner-authorized historical name reads. Does not describe wallet transactions, session changes, or separate product APIs.",
+    "contact": {"name": "Regents Labs"}
+  },
+  "security": [],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "getServiceHealth",
+        "summary": "Read web-service health",
+        "description": "Returns ok when the web service is responding. Does not establish readiness of every external service or wallet flow.",
+        "responses": {
+          "200": {
+            "description": "Web service is responding",
+            "content": {"text/plain": {"schema": {"type": "string", "const": "ok"}}}
+          }
+        }
+      }
+    },
+    "/api/v1/claims": {
+      "get": {
+        "operationId": "listMyHistoricalNameClaims",
+        "summary": "Read historical name claims for the verified account",
+        "description": "Read-only recorded name and transaction evidence. Both Privy credentials are required. Never accepts a chosen owner as authority. Responses use Cache-Control: no-store. Does not mint, transfer, or grant entitlements.",
+        "security": [{"PrivyAccessToken": [], "PrivyIdentityToken": []}],
+        "parameters": [
+          {
+            "name": "after", "in": "query", "required": false,
+            "description": "The exact next cursor from the previous response, at most 2048 UTF-8 bytes. This is the only supported query parameter.",
+            "schema": {"type": "string", "minLength": 1, "maxLength": 2048}
+          },
+          {
+            "name": "X-Privy-User-Id", "in": "header", "required": false,
+            "description": "If supplied, must exactly match the verified account subject. It does not select another owner.",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized historical records; next is null at the end",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsPage"}}}
+          },
+          "400": {"description": "Invalid query or cursor", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
+          "401": {"description": "Missing or invalid credentials", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
+          "403": {"description": "Account is not authorized for this read", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
+          "503": {"description": "Claims service unavailable or unconfigured", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
+          "default": {"description": "Other HTTP error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPError"}}}}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "PrivyAccessToken": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Privy access token for the requesting account."},
+      "PrivyIdentityToken": {"type": "apiKey", "in": "header", "name": "Privy-Id-Token", "description": "Privy identity JWT, required alongside the access token. Not a Regents API key."}
+    },
+    "schemas": {
+      "ClaimsPage": {
+        "type": "object", "required": ["claims", "next"],
+        "properties": {
+          "claims": {"type": "array", "items": {"$ref": "#/components/schemas/Claim"}},
+          "next": {"type": ["string", "null"], "description": "Opaque continuation cursor; null means there are no more records."}
+        }
+      },
+      "Claim": {
+        "type": "object",
+        "required": ["id", "name", "ens_name", "owner_address", "status", "transaction", "ens_transaction", "claimed_at", "ens_assigned_at"],
+        "properties": {
+          "id": {"type": "string", "description": "Recorded numeric identifier represented as a string."},
+          "name": {"type": ["string", "null"], "description": "Recorded fully qualified name."},
+          "ens_name": {"type": ["string", "null"], "description": "Recorded ENS name, when present."},
+          "owner_address": {"type": ["string", "null"], "description": "Historical wallet ownership evidence, not an entitlement grant."},
+          "status": {"type": ["string", "null"]},
+          "transaction": {"type": ["string", "null"]},
+          "ens_transaction": {"type": ["string", "null"]},
+          "claimed_at": {"type": ["string", "null"], "format": "date-time"},
+          "ens_assigned_at": {"type": ["string", "null"], "format": "date-time"}
+        }
+      },
+      "ClaimsError": {
+        "type": "object", "required": ["error"],
+        "properties": {"error": {"type": "object", "required": ["code"], "properties": {"code": {"type": "string", "enum": ["authentication_required", "invalid_claims_query", "invalid_cursor", "claims_forbidden", "claims_unconfigured", "claims_unavailable"]}}}}
+      },
+      "HTTPError": {
+        "type": "object", "required": ["errors"],
+        "properties": {"errors": {"type": "object", "required": ["detail", "code", "hint"], "properties": {"detail": {"type": "string"}, "code": {"type": "string"}, "hint": {"type": "string"}}}}
+      }
+    }
+  }
+}

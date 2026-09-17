@@ -1,5 +1,6 @@
 <!DOCTYPE html> <% home? = @conn.request_path == "/" %>
 <% theme = if home?, do: "dark", else: @theme %>
+<% metadata = AshPlatformWeb.PublicDocuments.metadata(@conn.request_path) %>
 <html
   lang="en"
   data-brand="platform"
@@ -9,6 +10,32 @@
   <head>
     <meta charset="utf-8" />
     <link rel="alternate" type="text/plain" title="Agent guide" href={~p"/llms.txt"} />
+    <link :if={metadata.markdown?} rel="alternate" type="text/markdown" href={metadata.canonical} />
+    <link rel="canonical" href={metadata.canonical} />
+    <link rel="sitemap" type="application/xml" href={~p"/sitemap.xml"} />
+    <link rel="service-desc" type="application/vnd.oai.openapi+json" href={~p"/openapi.json"} />
+    <meta name="description" content={metadata.description} />
+    <meta name="is-agentic-site-type" content="business" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Regents Labs" />
+    <meta property="og:title" content={metadata.title} />
+    <meta property="og:description" content={metadata.description} />
+    <meta property="og:url" content={metadata.canonical} />
+    <meta property="og:image" content={metadata.image} />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="512" />
+    <meta
+      property="og:image:alt"
+      content="Regents' orange thirteen-square crown on a platinum background"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@regents_sh" />
+    <meta name="twitter:title" content={metadata.title} />
+    <meta name="twitter:description" content={metadata.description} />
+    <meta name="twitter:image" content={metadata.image} />
+    <script type="application/ld+json">
+      <%= Phoenix.HTML.raw(AshPlatformWeb.PublicDocuments.json_ld()) %>
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={theme} />
     <meta name="csrf-token" content={get_csrf_token()} />
@@ -17,7 +44,7 @@
       name="privy-bridge-src"
       content={AshPlatformWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
     />
-    <.live_title default="Regent" suffix=" · Regents Labs">
+    <.live_title default={metadata.title} suffix={if home?, do: "", else: " · Regents Labs"}>
       {assigns[:page_title]}
     </.live_title>
     <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href={~p"/favicon.ico"} />
