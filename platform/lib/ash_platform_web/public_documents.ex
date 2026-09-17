@@ -81,7 +81,7 @@ defmodule AshPlatformWeb.PublicDocuments do
     """
   end
 
-  def json_ld do
+  def structured_data do
     %{
       "@context" => "https://schema.org",
       "@graph" => [
@@ -112,8 +112,6 @@ defmodule AshPlatformWeb.PublicDocuments do
         }
       ]
     }
-    |> Jason.encode!()
-    |> String.replace("<", "\\u003c")
   end
 
   defp source(name), do: String.replace(@sources[name], "{{origin}}", url(""))
