@@ -241,3 +241,17 @@ revision remains the one recorded above.
   cookie. The person stays on the page they asked for, as a guest, and can sign
   in again normally. Ordinary page loads still never rewrite the sign-in cookie.
 - No database, wallet or public address changes.
+
+## 2026-09-18 — Lockout fix release contents
+
+- Includes the two entries above: the app shell cleanup and the fix for a worn-out
+  sign-in locking a browser out of the app. After the worn-out sign-in is cleared
+  the page refreshes itself once and stays where the person asked to be.
+- New browser test: a browser still holding a signed-out or replaced sign-in opens
+  Stake and Redeem normally. The test fails without the fix.
+- The live site now logs requests and outcomes only. Database queries and debug
+  detail no longer appear in the live logs.
+
+Shared library and shared UI revisions are unchanged. This release targets Regents
+only. It adds no database migrations, changes no claim ownership or Privy mappings,
+and does not deploy the other product sites.

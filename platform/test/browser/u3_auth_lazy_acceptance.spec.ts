@@ -1208,3 +1208,51 @@ test("a rejected bearer leaves the browser anonymous without a duplicate delete 
   const session = await page.request.get("/auth/session")
   expect((await session.json()).authenticated).toBe(false)
 })
+
+// A browser can end up holding a cookie the server refuses: one it signed out
+// of, or one a later sign-in replaced without the newer cookie ever arriving.
+// No page response replaces a cookie, so the page has to retire it itself.
+for (const refused of ["signed out", "replaced"] as const) {
+  test(`a browser still holding a ${refused} cookie stays on the page it asked for`, async ({
+    page,
+    context,
+  }) => {
+    await stubBridge(page)
+    let held: Awaited<ReturnType<typeof context.cookies>>
+
+    if (refused === "signed out") {
+      await establishLocalSession(page)
+      held = await context.cookies()
+      const {csrf_token: csrfToken} = await (await page.request.get("/auth/csrf")).json()
+      const signedOut = await page.request.delete("/auth/privy/session", {
+        headers: {"x-csrf-token": csrfToken},
+      })
+      expect(signedOut.status()).toBe(200)
+    } else {
+      await page.request.get("/auth/csrf")
+      held = await context.cookies()
+      await establishLocalSession(page)
+    }
+
+    await context.clearCookies()
+    await context.addCookies(held)
+    const refusedCookie = held.find(cookie => cookie.name === "_ash_platform_key")?.value
+    const documents = trackDocuments(page)
+
+    await page.goto("/stake")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+    await page.waitForLoadState("networkidle")
+
+    // The socket connects once the cookie is retired, and the single reload that
+    // follows renders the page for the browser's new state. Nothing loops.
+    expect(documents.map(url => new URL(url).pathname)).toEqual(["/stake", "/stake"])
+    const kept = (await context.cookies()).find(cookie => cookie.name === "_ash_platform_key")
+    expect(kept?.value).not.toBe(refusedCookie)
+
+    await page.goto("/redeem")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    await page.waitForLoadState("networkidle")
+    expect(new URL(page.url()).pathname).toBe("/redeem")
+  })
+}
