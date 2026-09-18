@@ -33,3 +33,22 @@ Release contents and verified deployment records are recorded separately.
 
 This release targets Regents only. It adds no database migrations, changes no
 claim ownership or Privy mappings, and does not deploy the other product sites.
+
+
+## 2026-09-18 — Production deployment verified
+
+- Deployed application revision: `58237fe091a8643529ee83cdf7e7c08b7aaddc6d`.
+- Image digest: `sha256:b6ef5320accef09f57e9cc0c3b6b12d8d7b689133624afa6eb61728597ef36a1`.
+- Shared UI revision: `36eb9d18d1e59df019fae0944183f8d6827bd7fe`.
+- Verified the running production image and single healthy web instance.
+- Verified public pages, Markdown negotiation, discovery metadata, styles and icons;
+  Stake, Redeem and Overview connect successfully on desktop and mobile.
+- Confirmed the Circulating MCAP row is below Circulating REGENT with no old left-hand box.
+- Before/after claim, account, ownership/Privy mapping, allowance and credit fingerprints
+  are identical. No new database migrations were included.
+- Existing dependency advisory remains: Ash 3.33.0, medium-severity CVE-2026-86338
+  (field-policy calculation/aggregate information disclosure). Dependencies were not
+  changed by this release; remediation remains a separate follow-up.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
