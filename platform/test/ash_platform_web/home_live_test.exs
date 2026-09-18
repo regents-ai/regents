@@ -13,6 +13,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
     refute has_element?(view, "#app-shell")
   end
 
+  # Stake is the one product page the homepage sends visitors to; every other
+  # internal link is a public page that stays open while the gate is closed.
+  @open_paths ~w(/stake /llms.txt /docs /about /contact /privacy /terms)
+
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
@@ -21,7 +25,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
     for href <- attribute(html, "a", "href"),
         href != "/",
         not String.starts_with?(href, "https://") do
-      assert href in ["/stake", "/llms.txt"] or String.starts_with?(href, "#")
+      assert href in @open_paths or String.starts_with?(href, "#")
       if String.starts_with?(href, "#"), do: assert(String.trim_leading(href, "#") in anchors)
     end
   end

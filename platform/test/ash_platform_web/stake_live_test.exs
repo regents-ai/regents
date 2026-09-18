@@ -140,7 +140,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(.stake-benefit-supply [title="100,000,000,000"]))
   end
 
-  test "MARKET_CAP: the token links carry the circulating market cap", %{conn: conn} do
+  test "MARKET_CAP: the supply figures carry the circulating market cap", %{conn: conn} do
     Application.put_env(:ash_platform, :test_staking_price_handler, fn url ->
       {:ok,
        %{
@@ -150,12 +150,13 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end)
 
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-market-cap", "700k circulating market cap")
+    assert has_element?(view, ".stake-benefit-supply", "Circulating MCAP")
+    assert has_element?(view, ".stake-benefit-supply dd", "700k")
   end
 
   test "MARKET_CAP_UNAVAILABLE: a missing price is a dash rather than a figure", %{conn: conn} do
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-market-cap", "— circulating market cap")
+    assert has_element?(view, ".stake-benefit-supply dd", "—")
   end
 
   test "NO_READ_FOR_A_VISITOR: an anonymous visit with no wallet reads Base not at all", %{
