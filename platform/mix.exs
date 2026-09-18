@@ -47,7 +47,7 @@ defmodule AshPlatform.MixProject do
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.33.0"},
       {:ash_postgres, "~> 2.13.0"},
-      {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
+      {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:ens_elixir, "~> 0.1.1"},
       {:regent_privy,
