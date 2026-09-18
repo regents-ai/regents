@@ -133,3 +133,25 @@ revision remains the one recorded above.
 Shared library and shared UI revisions are unchanged from the maintenance release.
 This release targets Regents only. It adds no database migrations, changes no
 claim ownership or Privy mappings, and does not deploy the other product sites.
+
+
+## 2026-09-18 — Polish release deployment verified
+
+- Deployed application revision: `8c8b77f58d1f2a73e50937178fc817db1f6ed638`.
+- Image digest: `sha256:0edfb052b3b481b392ac3d4226b94f3616d392a6717cc022e77737a304ba6c98`.
+- Shared UI revision: `0818c4af559947ebbe6bd5f1d92264941efa6342`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels and the single
+  healthy web instance.
+- The 95 live request cases match the previous release on status, content type and
+  `Vary`, and every non-page body is byte-identical.
+- On the live site the $REGENT copy row shows no check before a copy, shows the
+  check and "CA copied" inside the row after one, and clears. Stake, Redeem and
+  the homepage connect on desktop and phone width with no sideways scrolling and
+  no browser errors. The Account row and the lit stake button appear only when
+  signed in and were checked by style, not in a signed-in session.
+- Before/after claim, account, ownership/Privy mapping, allowance and credit
+  fingerprints are identical. No database migrations were included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
