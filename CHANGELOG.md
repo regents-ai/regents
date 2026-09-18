@@ -185,3 +185,23 @@ data: the Autolaunch tables belong to the Autolaunch site and were never managed
 from here, and the empty Regents comments table is left in place. It changes no
 claim ownership or Privy mappings and does not deploy the other product sites.
 Shared library and shared UI revisions are unchanged.
+
+## 2026-09-18 — Autolaunch leaves Regents: deployment verified
+
+- Deployed application revision: `64ed153e369cd10fe107c3951eacaa41c4e76400`.
+- Image digest: `sha256:b3136df92999172082fc66236ebf9a3d92776920a1e88963e2605bcdd1048ada`.
+- Shared UI revision: `0818c4af559947ebbe6bd5f1d92264941efa6342`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image and the single healthy web instance.
+- The 95 live request cases match the previous release on status, content type and
+  `Vary`, except the five `/api/autolaunch/v1/auctions` cases, which now answer
+  "not found" as intended. `/autolaunch` answers "not found"; the public API
+  description, the sitemap and the agent guide carry no Autolaunch addresses.
+- On the live site the app side navigation shows Overview, Stake and Redeem, the
+  links to autolaunch.sh, techtree.sh and patchbay.help remain, and Stake loads at
+  desktop and phone width with no sideways scrolling and no browser errors.
+- Before/after claim, account, ownership/Privy mapping, allowance and credit
+  fingerprints are identical. No database migrations were included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
