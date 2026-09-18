@@ -33,7 +33,6 @@ defmodule AshPlatformWeb.RouteCatalog.Spec do
     :canonical_root,
     :sidebar_model,
     :header_controls,
-    :search_kind,
     :background_slot,
     :content_transition_kind,
     :scroll_policy,

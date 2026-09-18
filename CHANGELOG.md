@@ -205,3 +205,14 @@ Shared library and shared UI revisions are unchanged.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-18 — App shell cleanup after the Autolaunch removal
+
+- Removed the header search box and its phone-menu twin. Only Autolaunch pages ever
+  showed it, so no page could reach it any more.
+- Removed the placeholder page loader that stood in for unbuilt pages. Every page in
+  the app now has its own real content, and the Regent profile page no longer waits
+  on a placeholder before showing.
+- The route handoff for design no longer carries a search setting or a page loading
+  state. Header spacing is unchanged.
+- No database, sign-in, wallet or public address changes.

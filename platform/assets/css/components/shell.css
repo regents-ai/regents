@@ -35,6 +35,10 @@
   flex: 1;
 }
 
+#shell-header .rl-header-links {
+  margin-inline-end: 1.7rem;
+}
+
 .shell-reconnect-dialog {
   width: min(28rem, calc(100vw - 2rem));
   padding: clamp(1.1rem, 4vw, 1.75rem);
@@ -184,43 +188,6 @@ details[open] > summary .shell-chevron {
   .account-menu__content > a:hover {
     background: color-mix(in oklch, var(--ash-ink) 8%, transparent);
   }
-}
-
-.shell-local-controls {
-  display: flex;
-  align-items: center;
-  padding-inline: 0.85rem;
-}
-
-.shell-search,
-.shell-mobile-search {
-  display: grid;
-  grid-template-columns: auto minmax(7rem, 15rem);
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--ash-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.shell-search input,
-.shell-mobile-search input {
-  min-height: 2.5rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--ash-line-strong);
-  border-radius: 0;
-  background: var(--ash-panel);
-  color: var(--ash-ink);
-  font-family: var(--font-family-ui);
-  font-size: 0.85rem;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
-.shell-mobile-search {
-  display: none;
 }
 
 .theme-control .shell-popover,
@@ -392,20 +359,6 @@ details[open] > summary .shell-chevron {
   transform: none;
 }
 
-@media (max-width: 56rem) {
-  .shell-search {
-    grid-template-columns: minmax(6rem, 10rem);
-  }
-
-  .shell-search span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-}
-
 @media (max-width: 48rem) {
   #app-shell {
     grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
@@ -447,10 +400,6 @@ details[open] > summary .shell-chevron {
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-  }
-
-  .shell-local-controls {
-    display: none;
   }
 
     .account-control summary {
@@ -505,14 +454,6 @@ details[open] > summary .shell-chevron {
 
   .shell-menu-scrim[hidden] {
     display: none;
-  }
-
-  .shell-mobile-search {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
-    padding: 0.75rem 0.85rem;
-    border-block-end: 1px solid var(--ash-line);
   }
 
   #route-content {

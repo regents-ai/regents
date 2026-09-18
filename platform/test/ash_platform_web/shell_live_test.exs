@@ -7,7 +7,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
   alias AshPlatform.Staking.SnapshotCache
   alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.RouteCatalog
-  alias AshPlatformWeb.ShellLive
 
   # Settings returns soon (founder, 2026-09-03): switched off, not removed.
   # test "anonymous settings access redirects home without private content", %{conn: conn} do
@@ -324,50 +323,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, "#formation [phx-submit]")
   end
 
-  test "a newer destination cancels blocked scaffold work and becomes the only content", %{
-    conn: conn
-  } do
-    Process.register(self(), AshPlatform.ContentFixtureObserver)
-
-    {:ok, view, html} = live(conn, "/regents/fixture-blocked")
-    assert html =~ "Regent not found"
-    assert_receive {:fixture_content_started, task_pid}
-    monitor = Process.monitor(task_pid)
-
-    view
-    |> element("#shell-sidebar a", "Stake")
-    |> render_click()
-
-    assert_patch(view, "/stake")
-    assert_receive {:DOWN, ^monitor, :process, ^task_pid, _reason}
-    html = render_async(view)
-    assert html =~ "Put REGENT to work."
-    refute html =~ "Stale fixture"
-  end
-
-  test "stale async successes and exits cannot replace the active destination" do
-    socket = %Phoenix.LiveView.Socket{
-      assigns: %{
-        __changed__: %{},
-        content_generation: 2,
-        content_status: :ready,
-        content: :current
-      }
-    }
-
-    assert {:noreply, unchanged} =
-             ShellLive.handle_async({:content, 1}, {:ok, {1, {:ok, :stale}}}, socket)
-
-    assert unchanged.assigns.content == :current
-    assert unchanged.assigns.content_status == :ready
-
-    assert {:noreply, unchanged} =
-             ShellLive.handle_async({:content, 1}, {:exit, :stale_crash}, socket)
-
-    assert unchanged.assigns.content == :current
-    assert unchanged.assigns.content_status == :ready
-  end
-
   # /app shows the same shared contract reading every other page does, and an
   # anonymous visitor there buys no chain read either.
   test "anonymous /app paints the shared contract reading without reading Base", %{conn: conn} do
@@ -434,7 +389,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
     render_component(&Shell.shell/1,
       route_spec: route_spec,
       account_control: account_control,
-      content_status: :ready,
       shell_instance: 1,
       theme: "dark",
       content: [%{inner_block: fn _, _ -> "Fixture content" end}]

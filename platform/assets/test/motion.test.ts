@@ -262,7 +262,7 @@ describe("shell motion", () => {
 
   it("drives mount, patch classification, rapid cancellation, copy cleanup, and teardown by hook composition", () => {
     const removed: HTMLElement[] = []
-    const node = (kind: "region" | "background" | "header", left = 0): HTMLElement => {
+    const node = (kind: "region" | "background", left = 0): HTMLElement => {
       const target = element(left) as HTMLElement & {kind: string}
       target.kind = kind
       target.cloneNode = () => {
@@ -275,7 +275,7 @@ describe("shell motion", () => {
       }
       return target
     }
-    let current = [node("region", 10), node("background"), node("header")]
+    let current = [node("region", 10), node("background")]
     const appended: HTMLElement[] = []
     const root = element() as HTMLElement & {current: HTMLElement[]}
     root.current = current
@@ -283,7 +283,7 @@ describe("shell motion", () => {
     root.dataset.destination = "/formation"
     root.querySelectorAll = ((selector: string) => {
       if (selector.includes("surface")) return []
-      const kind = selector.includes("background") ? "background" : selector.includes("header") ? "header" : "region"
+      const kind = selector.includes("background") ? "background" : "region"
       return root.current.filter((target) => (target as HTMLElement & {kind: string}).kind === kind)
     }) as unknown as typeof root.querySelectorAll
     root.querySelector = ((selector: string) => root.querySelectorAll(selector)[0] ?? null) as typeof root.querySelector
@@ -298,33 +298,33 @@ describe("shell motion", () => {
     ShellMotion.mounted.call(state)
     expect(animations).toHaveLength(0)
     ShellMotion.beforeUpdate.call(state)
-    current = [node("region", 80), node("background"), node("header")]
+    current = [node("region", 80), node("background")]
     root.current = current
     root.dataset.motionApp = "regent_ops"
     root.dataset.destination = "/app"
     ShellMotion.updated.call(state)
     const firstCount = animations.length
     expect(firstCount).toBeGreaterThan(0)
-    expect(appended.length).toBe(3)
+    expect(appended.length).toBe(2)
     expect(appended.every((copy) => copy.inert && copy.dataset.motionCopy === "true")).toBe(true)
     expect(appended.every((copy) => vi.mocked(copy.setAttribute).mock.calls[0][0] === "aria-hidden")).toBe(true)
 
     ShellMotion.beforeUpdate.call(state)
-    root.current = [node("region", 20), node("background"), node("header")]
+    root.current = [node("region", 20), node("background")]
     root.dataset.motionApp = "formation"
     root.dataset.destination = "/formation"
     ShellMotion.updated.call(state)
     expect(animations.slice(0, firstCount).every((animation) => vi.mocked(animation.cancel).mock.calls.length === 1)).toBe(true)
-    expect(removed.length).toBe(3)
+    expect(removed.length).toBe(2)
 
     ShellMotion.destroyed.call(state)
-    expect(removed.length).toBe(6)
+    expect(removed.length).toBe(4)
     expect(scope.revert).toHaveBeenCalledOnce()
   })
 
   it("settles same-app hook updates and removes every outgoing copy", () => {
     const removed: HTMLElement[] = []
-    const node = (kind: "region" | "background" | "header"): HTMLElement => {
+    const node = (kind: "region" | "background"): HTMLElement => {
       const target = element() as HTMLElement & {kind: string}
       target.kind = kind
       target.cloneNode = () => {
@@ -338,12 +338,12 @@ describe("shell motion", () => {
       return target
     }
     const root = element() as HTMLElement & {current: HTMLElement[]}
-    root.current = [node("region"), node("background"), node("header")]
+    root.current = [node("region"), node("background")]
     root.dataset.motionApp = "formation"
     root.dataset.destination = "/formation"
     root.querySelectorAll = ((selector: string) => {
       if (selector.includes("surface")) return []
-      const kind = selector.includes("background") ? "background" : selector.includes("header") ? "header" : "region"
+      const kind = selector.includes("background") ? "background" : "region"
       return root.current.filter((target) => (target as HTMLElement & {kind: string}).kind === kind)
     }) as unknown as typeof root.querySelectorAll
     root.querySelector = ((selector: string) => root.querySelectorAll(selector)[0] ?? null) as typeof root.querySelector
@@ -357,7 +357,7 @@ describe("shell motion", () => {
 
     ShellMotion.mounted.call(state)
     ShellMotion.beforeUpdate.call(state)
-    root.current = [node("region"), node("background"), node("header")]
+    root.current = [node("region"), node("background")]
     ShellMotion.updated.call(state)
     expect(animations).toHaveLength(0)
     expect(root.append).not.toHaveBeenCalled()

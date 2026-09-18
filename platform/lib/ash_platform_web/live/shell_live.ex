@@ -7,7 +7,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.{
     Accounts,
-    ContentCoordinator,
     Formation,
     OpenSea,
     Redemption,
@@ -62,11 +61,7 @@ defmodule AshPlatformWeb.ShellLive do
 
     {:ok,
      assign(socket,
-       content: nil,
-       content_error: nil,
-       content_async_name: nil,
        content_generation: 0,
-       content_status: :loading,
        verified_connections: [],
        verified_connections_notice: nil,
        route_params: params,
@@ -120,47 +115,25 @@ defmodule AshPlatformWeb.ShellLive do
   defp handle_authorized_params(params, route_spec, socket) do
     generation = socket.assigns.content_generation + 1
 
-    socket = cancel_content(socket)
-
-    socket =
-      assign(socket,
-        content: nil,
-        content_async_name: nil,
-        content_error: nil,
-        content_generation: generation,
-        content_status: :loading,
-        route_spec: route_spec,
-        route_params: params
-      )
-
     socket =
       socket
+      |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
       |> load_verified_connections(route_spec)
 
     cond do
       route_spec.route_id == :settings ->
-        {:noreply, assign(socket, content_status: :ready)}
-
-      content_route?(route_spec) and connected?(socket) ->
-        start_content(socket, route_spec, params, generation)
-
-      content_route?(route_spec) ->
         {:noreply, socket}
 
       connected?(socket) ->
         {:noreply,
          socket
-         |> assign(content_status: :ready)
          |> maybe_start_staking(route_spec, generation)
          |> maybe_start_redemption(route_spec, generation)
          |> maybe_start_regents_club_metadata(route_spec, generation)}
 
       true ->
-        {:noreply,
-         socket
-         |> assign(content_status: :ready)
-         |> paint_initial_staking(route_spec)}
+        {:noreply, paint_initial_staking(socket, route_spec)}
     end
   end
 
@@ -179,57 +152,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp authorize_route(socket, _route_spec), do: {:ok, socket}
 
-  defp start_content(socket, route_spec, params, generation) do
-    name = {:content, generation}
-
-    socket =
-      socket
-      |> assign(content_async_name: name)
-      |> start_async(name, fn ->
-        ContentCoordinator.load(generation, route_spec, params)
-      end)
-
-    {:noreply,
-     socket
-     |> maybe_start_staking(route_spec, generation)
-     |> maybe_start_redemption(route_spec, generation)}
-  end
-
-  defp content_route?(%{route_id: :regent_profile}), do: true
-  defp content_route?(_route_spec), do: false
-
   @impl true
-  def handle_async(
-        {:content, generation},
-        {:ok, {generation, result}},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    case result do
-      {:ok, content} ->
-        {:noreply,
-         assign(socket,
-           content: content,
-           content_status: :ready,
-           content_async_name: nil
-         )}
-
-      {:error, reason} ->
-        {:noreply, content_failed(socket, reason)}
-    end
-  end
-
-  def handle_async({:content, _generation}, {:ok, _result}, socket), do: {:noreply, socket}
-
-  def handle_async(
-        {:content, generation},
-        {:exit, reason},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply, content_failed(socket, reason)}
-  end
-
-  def handle_async({:content, _generation}, {:exit, _reason}, socket), do: {:noreply, socket}
-
   def handle_async(
         {:regents_club_metadata_status, generation},
         {:ok, {generation, :ok, {:ok, %{state: :ready}}}},
@@ -1006,7 +929,6 @@ defmodule AshPlatformWeb.ShellLive do
     <.shell
       route_spec={@route_spec}
       account_control={@account_control}
-      content_status={@content_status}
       shell_instance={@shell_instance}
       theme={@theme}
     >
@@ -1081,91 +1003,9 @@ defmodule AshPlatformWeb.ShellLive do
         />
 
         <.wallet_reconnect_dialog :if={@wallet_reconnect} request={@wallet_reconnect} />
-
-        <section
-          :if={
-            @route_spec.route_id not in [
-              :app,
-              :settings,
-              :formation,
-              :stake,
-              :redeem,
-              :regents_club_metadata,
-              :regent_profile
-            ] &&
-              @content_status == :loading
-          }
-          class="shell-status"
-          aria-busy="true"
-        >
-          <h1>{@route_spec.page_display_label}</h1>
-          <AshPlatformWeb.Components.Loading.panel
-            id="shell-content-skeleton"
-            label={@route_spec.page_display_label}
-          />
-        </section>
-
-        <section
-          :if={
-            @route_spec.route_id not in [
-              :app,
-              :settings,
-              :formation,
-              :stake,
-              :redeem,
-              :regents_club_metadata,
-              :regent_profile
-            ] &&
-              @content_status == :error
-          }
-          class="shell-status"
-          role="alert"
-        >
-          <h1>{@route_spec.page_display_label}</h1>
-          <p>This view could not be loaded. Navigation remains available.</p>
-        </section>
-
-        <article :if={
-          @route_spec.route_id not in [
-            :app,
-            :settings,
-            :formation,
-            :stake,
-            :redeem,
-            :regents_club_metadata,
-            :regent_profile
-          ] &&
-            @content_status == :ready
-        }>
-          <p>{@content.eyebrow}</p>
-          <p><span aria-label="Capability status">{@content.status}</span></p>
-          <h1>{@content.title}</h1>
-          <p>{@content.summary}</p>
-          <dl :if={@content.details != []}>
-            <div :for={{label, value} <- @content.details}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          </dl>
-        </article>
       </:content>
     </.shell>
     """
-  end
-
-  defp content_failed(socket, reason) do
-    assign(socket,
-      content: nil,
-      content_error: inspect(reason),
-      content_status: :error,
-      content_async_name: nil
-    )
-  end
-
-  defp cancel_content(%{assigns: %{content_async_name: nil}} = socket), do: socket
-
-  defp cancel_content(%{assigns: %{content_async_name: name}} = socket) do
-    cancel_async(socket, name)
   end
 
   defp maybe_start_regents_club_metadata(

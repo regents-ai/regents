@@ -62,7 +62,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   #   assert settings.page_display_label == "Settings"
   #   assert settings.canonical_root == "/app"
   #   assert settings.header_controls == [:profile_actions]
-  #   assert settings.search_kind == :none
   #   assert settings.background_slot == :regents_labs
   #   assert settings.content_transition_kind == :detail
   #   assert settings.local_state == %{}

@@ -22,7 +22,6 @@ defmodule AshPlatformWeb.Components.Shell do
 
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
-  attr(:content_status, :atom, required: true)
   attr(:shell_instance, :integer, required: true)
   attr(:theme, :string, required: true)
   slot(:content, required: true)
@@ -76,17 +75,6 @@ defmodule AshPlatformWeb.Components.Shell do
           <RegentLinks.header_links id="shell-token-menu" />
         </div>
 
-        <div class="shell-local-controls" data-motion-header-controls>
-          <Regent.Primitives.field
-            :if={@route_spec.search_kind != :none}
-            id="shell-search"
-            label="Search"
-            class="shell-search"
-          >
-            <input id="shell-search" type="search" name="search" autocomplete="off" />
-          </Regent.Primitives.field>
-        </div>
-
         <.account_control account_control={@account_control} />
       </header>
 
@@ -104,14 +92,6 @@ defmodule AshPlatformWeb.Components.Shell do
         >
           Close navigation
         </Regent.Primitives.button>
-        <Regent.Primitives.field
-          :if={@route_spec.search_kind != :none}
-          id="shell-mobile-search"
-          label="Search"
-          class="shell-mobile-search"
-        >
-          <input id="shell-mobile-search" type="search" name="mobile-search" autocomplete="off" />
-        </Regent.Primitives.field>
         <ul>
           <li
             :for={target <- @route_spec.sidebar_model.targets}
@@ -136,11 +116,7 @@ defmodule AshPlatformWeb.Components.Shell do
       ></Regent.Primitives.button>
 
       <div id="app-shell-scroller" tabindex="-1">
-        <main
-          id="route-content"
-          data-motion-region
-          aria-busy={@content_status == :loading}
-        >
+        <main id="route-content" data-motion-region>
           {render_slot(@content)}
         </main>
       </div>

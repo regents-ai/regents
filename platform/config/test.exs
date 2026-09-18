@@ -11,7 +11,6 @@ config :ash_platform, AshPlatformWeb.Endpoint,
   secret_key_base: "ylCJZnscmD6l7Ykq52GK0o6GrbPmb8374FAcei9yvkWU1ww5Nv+S2v/Z7ihcqZd2",
   server: System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
 
-config :ash_platform, :content_provider, AshPlatform.TestContentProvider
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
 config :ash_platform, :staking_price_http_client, AshPlatform.TestStakingPriceHttpClient

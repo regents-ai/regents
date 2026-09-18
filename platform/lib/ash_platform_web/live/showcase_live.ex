@@ -46,7 +46,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
     <AshPlatformWeb.Components.Shell.shell
       route_spec={@route_spec}
       account_control={@account}
-      content_status={:ready}
       shell_instance={0}
       theme={@theme}
     >

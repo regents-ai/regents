@@ -24,7 +24,6 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
              "canonical_root",
              "sidebar_model",
              "header_controls",
-             "search_kind",
              "background_slot",
              "content_transition_kind",
              "scroll_policy",
@@ -34,7 +33,6 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
     assert manifest["shell_assigns"] == [
              "route_spec",
              "account_control",
-             "content_status",
              "shell_instance"
            ]
 

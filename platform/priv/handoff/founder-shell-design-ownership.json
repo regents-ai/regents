@@ -53,7 +53,6 @@
     "canonical_root",
     "sidebar_model",
     "header_controls",
-    "search_kind",
     "background_slot",
     "content_transition_kind",
     "scroll_policy",
@@ -62,7 +61,6 @@
   "shell_assigns": [
     "route_spec",
     "account_control",
-    "content_status",
     "shell_instance"
   ],
   "shell_slots": ["content"],

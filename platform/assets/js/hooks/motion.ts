@@ -10,7 +10,6 @@ export const SURFACE_STAGGER_DELAY = 24
 export const MOTION_SELECTORS = {
   region: "[data-motion-region]",
   background: "[data-motion-background]",
-  headerControls: "[data-motion-header-controls]",
   surface: "[data-motion-surface]",
 } as const
 
@@ -39,8 +38,6 @@ export type MotionIntent = {
   incomingSurfaces?: HTMLElement[]
   outgoingBackground?: HTMLElement
   incomingBackground?: HTMLElement
-  outgoingHeaderControls?: HTMLElement
-  incomingHeaderControls?: HTMLElement
   onSettled?: () => void
 }
 
@@ -75,8 +72,6 @@ const renderLatest = (intent: MotionIntent) => {
   intent.incomingSurfaces?.forEach(show)
   hide(intent.outgoingBackground)
   show(intent.incomingBackground)
-  hide(intent.outgoingHeaderControls)
-  show(intent.incomingHeaderControls)
   intent.onSettled?.()
 }
 
@@ -146,10 +141,7 @@ export const createMotionController = (
         (intent.outgoingSurfaces?.length ?? 0) +
         (intent.incomingSurfaces?.length ?? 0) +
         (intent.kind === "app"
-          ? Number(Boolean(intent.outgoingBackground)) +
-            Number(Boolean(intent.incomingBackground)) +
-            Number(Boolean(intent.outgoingHeaderControls)) +
-            Number(Boolean(intent.incomingHeaderControls))
+          ? Number(Boolean(intent.outgoingBackground)) + Number(Boolean(intent.incomingBackground))
           : 0)
       if (remaining === 0) {
         renderLatest(intent)
@@ -229,8 +221,6 @@ export const createMotionController = (
         }
         crossfade(intent.outgoingBackground, 0, APP_EXIT_DURATION, "inQuart")
         crossfade(intent.incomingBackground, 1, APP_ENTRY_DURATION, "outQuart")
-        crossfade(intent.outgoingHeaderControls, 0, APP_EXIT_DURATION, "inQuart")
-        crossfade(intent.incomingHeaderControls, 1, APP_ENTRY_DURATION, "outQuart")
       }
 
       intent.outgoingSurfaces?.forEach((target) =>
@@ -291,7 +281,6 @@ type MotionSnapshot = {
   regions: HTMLElement[]
   surfaces: HTMLElement[]
   background?: HTMLElement
-  headerControls?: HTMLElement
 }
 
 const cloneForMotion = (target: HTMLElement) => {
@@ -323,7 +312,6 @@ const capture = (root: HTMLElement): MotionSnapshot => {
     [...region.querySelectorAll<HTMLElement>(MOTION_SELECTORS.surface)],
   )
   const background = current<HTMLElement>(root, MOTION_SELECTORS.background)[0]
-  const headerControls = current<HTMLElement>(root, MOTION_SELECTORS.headerControls)[0]
 
   return {
     app: root.dataset.motionApp,
@@ -331,7 +319,6 @@ const capture = (root: HTMLElement): MotionSnapshot => {
     regions,
     surfaces,
     background: background ? cloneForMotion(background) : undefined,
-    headerControls: headerControls ? cloneForMotion(headerControls) : undefined,
   }
 }
 
@@ -369,7 +356,6 @@ export const ShellMotion = {
     const incoming = current<HTMLElement>(this.el, MOTION_SELECTORS.region)
     const incomingSurfaces = current<HTMLElement>(this.el, MOTION_SELECTORS.surface)
     const incomingBackground = current<HTMLElement>(this.el, MOTION_SELECTORS.background)[0]
-    const incomingHeaderControls = current<HTMLElement>(this.el, MOTION_SELECTORS.headerControls)[0]
 
     if (!snapshot.destination || !nextDestination || snapshot.destination === nextDestination) {
       this.motion.transition({
@@ -377,13 +363,12 @@ export const ShellMotion = {
         incoming,
         incomingSurfaces,
         incomingBackground,
-        incomingHeaderControls,
       })
       this.motionSnapshot = undefined
       return
     }
 
-    const copies = [snapshot.background, ...snapshot.regions, snapshot.headerControls].filter(
+    const copies = [snapshot.background, ...snapshot.regions].filter(
       (target): target is HTMLElement => Boolean(target),
     )
     this.motionCopies = copies
@@ -402,8 +387,6 @@ export const ShellMotion = {
       incomingSurfaces,
       outgoingBackground: snapshot.background,
       incomingBackground,
-      outgoingHeaderControls: snapshot.headerControls,
-      incomingHeaderControls,
       onSettled: () => clearCopies(this),
     })
     this.motionApp = nextApp
