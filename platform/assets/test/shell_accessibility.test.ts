@@ -12,6 +12,7 @@ vi.mock("../js/auth_lazy", () => ({
   holdSocketDuringCookieRotation: vi.fn(),
   installAccountAuthLazyLoader: vi.fn(),
   installCrossTabCsrf: vi.fn(),
+  retireRefusedSession: vi.fn(),
 }))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))

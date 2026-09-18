@@ -227,3 +227,17 @@ revision remains the one recorded above.
 - The homepage card hover test now looks at the card heading the page really uses.
 - New browser test: after signing out on Stake, the stake button asks for the
   sign-in again and nothing is sent to the wallet.
+
+## 2026-09-18 — Fix: a worn-out sign-in no longer locks a browser out of the app
+
+- Problem: a browser still holding a sign-in the site no longer accepts (signed
+  out elsewhere, replaced by a newer sign-in that never reached that browser, or
+  saved in a shape the site no longer reads) was sent from Stake, Redeem, Overview
+  and every other app page back to the homepage, every time. Only deleting the
+  site cookie by hand let that person back in. This was present before today's
+  releases; none of them changed it.
+- Fix: the page now notices it was opened with a worn-out sign-in and clears it
+  in the background, through the same sign-in checks that already guard the
+  cookie. The person stays on the page they asked for, as a guest, and can sign
+  in again normally. Ordinary page loads still never rewrite the sign-in cookie.
+- No database, wallet or public address changes.

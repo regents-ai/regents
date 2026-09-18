@@ -81,11 +81,19 @@ defmodule AshPlatformWeb.PrivySessionController do
   after the claim is exactly current. Anything else — missing, malformed,
   superseded, revoked or absent authority, or an account whose verified evidence
   has lapsed — leaves the request anonymous.
+
+  A request whose cookie states a claim that is not current is also told so. No
+  ordinary response may replace that cookie, so the page names the refusal and
+  the browser retires the cookie through the session endpoints, which can.
   """
   def enforce_authority(conn) do
-    {lineage, account} = conn |> claim() |> SessionAuthority.resolve()
+    session = get_session(conn)
+    {lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
 
-    conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
+    conn
+    |> assign(:current_lineage, lineage)
+    |> assign(:current_human_account, account)
+    |> assign(:session_refused, is_nil(lineage) and SessionAuthority.claim_shaped?(session))
   end
 
   defp admit_bootstrap(conn, nil) do

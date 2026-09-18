@@ -341,6 +341,39 @@ async function deleteLocalSession(fetcher: typeof fetch, csrf: string): Promise<
   throw new Error("Sign out could not be completed.")
 }
 
+// A page rendered for a cookie the server refuses says so, because no ordinary
+// response may replace that cookie and every product page would keep landing on
+// the public root under it. `/auth/csrf` retires a revoked or unrecoverable
+// claim and replaces a malformed one. A superseded claim is left alone there in
+// case the winning cookie is still on its way, so it gets a second look; one
+// that is still superseded never received that cookie, and only sign out
+// accepts it. The socket is held throughout, so it connects under the result.
+export function retireRefusedSession(
+  documentRoot: Document = document,
+  fetcher: typeof fetch = fetch,
+  sessionMutations: SessionMutationCoordinator = browserSessionMutations,
+): Promise<void> {
+  if (!documentRoot.querySelector("meta[name='session-refused']")) return Promise.resolve()
+
+  const stillSuperseded = async (signal: AbortSignal, renewed: () => void) => {
+    try {
+      await csrfToken(fetcher, signal, renewed)
+      return false
+    } catch (refusal) {
+      if (!(refusal instanceof SessionLifecycleError)) throw refusal
+      return refusal.lifecycle === "session_superseded"
+    }
+  }
+
+  return acrossCookieRotation(renewed =>
+    sessionMutations.establish(async signal => {
+      if (!await stillSuperseded(signal, renewed)) return
+      if (!await stillSuperseded(signal, renewed)) return
+      await clearLocalSession(fetcher)
+    }),
+  ).catch(() => undefined)
+}
+
 type SignOutHandoff = {version: 1; issuedAtMs: number}
 
 function handoffStorageOrNull(

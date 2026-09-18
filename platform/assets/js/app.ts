@@ -11,6 +11,7 @@ import {
   holdSocketDuringCookieRotation,
   installAccountAuthLazyLoader,
   installCrossTabCsrf,
+  retireRefusedSession,
   type PinnedSocket,
 } from "./auth_lazy"
 import {
@@ -347,6 +348,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // subject to the barrier. `types.d.ts` describes only the LiveSocket surface
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
+// Started before the first connect, so a page rendered for a refused cookie
+// holds its socket until that cookie is retired.
+void retireRefusedSession()
 liveSocket.connect()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
