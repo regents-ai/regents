@@ -99,3 +99,14 @@ claim ownership or Privy mappings, and does not deploy the other product sites.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+
+## 2026-09-18 — Correction to the maintenance release verification
+
+- The line above saying `mix hex.audit` reports no advisories is wrong. The Ash
+  advisory CVE-2026-86338 is closed, but the audit lists one other advisory:
+  Igniter 0.8.2, low-severity CVE-2026-82584 (the `mix igniter.install`
+  confirmation prompt can be fed terminal control characters by package metadata).
+- Igniter is a development and test tool only. It is not part of the production
+  image, so the deployed site is not affected. The fix is in Igniter 0.8.4 and
+  remains a separate follow-up.
