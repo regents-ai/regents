@@ -52,3 +52,29 @@ claim ownership or Privy mappings, and does not deploy the other product sites.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+
+## 2026-09-18 — Maintenance release contents (prepared, not yet deployed)
+
+### Security
+
+- Update Ash from 3.33.0 to 3.33.6, which includes the 3.33.4 fix for
+  medium-severity CVE-2026-86338. Regents declares no field policies, so this
+  closes the advisory rather than a live exposure. Spark, Reactor, Multigraph,
+  Sourceror and Spitfire move with it. No application code changed for this update.
+
+### Shared libraries
+
+- Accept negotiation, `Vary` merging, public-document Markdown and the Markdown and
+  JSON error bodies now come from the shared `regent_agent_access` package, pinned to
+  elixir-utils revision `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`. The public
+  document list, routes and the HTML error page stay in Regents. Responses were
+  compared with the previous build across 95 request cases and are unchanged.
+- Shared UI moves to design-system main `0818c4af559947ebbe6bd5f1d92264941efa6342`,
+  which contains the deployed agent-metadata revision
+  `36eb9d18d1e59df019fae0944183f8d6827bd7fe` and adds the inert gray fill for
+  disabled primary buttons.
+- Release packaging lists the new shared package.
+
+This release targets Regents only. It adds no database migrations, changes no
+claim ownership or Privy mappings, and does not deploy the other product sites.
