@@ -172,6 +172,33 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await expect(page.locator(".stake-notice")).toHaveCount(0)
 })
 
+// Signing out ends what the page may send. The same control that sent a
+// transaction a moment ago asks for the sign-in again, and nothing reaches the
+// wallet until the visitor has signed back in.
+test("After sign-out Stake asks for the sign-in again and sends nothing", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeRecorder, contentType: "application/javascript"}),
+  )
+
+  await page.goto("/stake")
+  await expect(page.locator("#account-menu")).toBeVisible()
+  await expect(page.locator("button[data-staking-action='claim_usdc']")).toBeEnabled()
+
+  await signOut(page)
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  await expect(page).toHaveURL(/\/stake$/)
+  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
+
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.locator("button.stake-submit").click()
+
+  await expect.poll(() => privyRequests(page)).toContain("sign-in")
+  expect(await sendCount(page)).toBe(0)
+})
+
 // A sign-in stays fixed to the account it was made with. Nothing this page
 // sends can come from a different wallet than the one the header names.
 test("Stake refuses every action while the sign-in and the active wallet differ", async ({page}) => {
@@ -570,6 +597,15 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(page.locator(".stake-preview")).toBeVisible()
 })
 
+async function signOut(page: Page): Promise<void> {
+  const csrfResponse = await page.request.get("/auth/csrf")
+  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
+  const response = await page.request.delete("/auth/privy/session", {
+    headers: {"x-csrf-token": csrfToken},
+  })
+
+  expect(response.status()).toBe(200)
+}
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {

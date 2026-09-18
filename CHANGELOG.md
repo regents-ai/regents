@@ -216,3 +216,14 @@ revision remains the one recorded above.
 - The route handoff for design no longer carries a search setting or a page loading
   state. Header spacing is unchanged.
 - No database, sign-in, wallet or public address changes.
+
+## 2026-09-18 — Browser test upkeep and a correction
+
+- Correction to the Autolaunch removal notes: the Stake, Redeem and Regents Club
+  browser tests were never out of date. They failed only because they were run on a
+  different local port than the one the test wallet is tied to. On the intended port
+  the whole browser suite passes except one showcase database check, which needs a
+  specially named per-run local database.
+- The homepage card hover test now looks at the card heading the page really uses.
+- New browser test: after signing out on Stake, the stake button asks for the
+  sign-in again and nothing is sent to the wallet.

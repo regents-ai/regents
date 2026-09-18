@@ -362,7 +362,7 @@ test("[U2] card hover leaves the heading ink alone", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
   for (const product of ["autolaunch", "techtree", "patchbay"]) {
-    const heading = page.locator(`#home-card-${product} h3`)
+    const heading = page.locator(`#home-card-${product} h2`)
     const ink = await heading.evaluate(e => getComputedStyle(e).color)
     await heading.hover()
     expect(await heading.evaluate(e => getComputedStyle(e).color)).toBe(ink)
