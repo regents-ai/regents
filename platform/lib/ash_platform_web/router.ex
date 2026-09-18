@@ -18,6 +18,15 @@ defmodule AshPlatformWeb.Router do
     plug AshPlatformWeb.Plugs.LaunchGate
   end
 
+  pipeline :public_documents do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug AshPlatformWeb.Plugs.Theme
+    plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+  end
+
   pipeline :session_api do
     plug :accepts, ["json"]
     plug AshPlatformWeb.Plugs.LaunchGate
@@ -62,6 +71,18 @@ defmodule AshPlatformWeb.Router do
   scope "/", AshPlatformWeb do
     get "/healthz", HealthController, :show
     get "/metrics", MetricsController, :show
+    get "/developers", PublicPagesController, :developers
+    get "/openapi.json", PublicPagesController, :openapi
+    get "/sitemap.xml", PublicPagesController, :sitemap
+    get "/robots.txt", PublicPagesController, :robots
+    get "/llms.txt", PublicPagesController, :llms
+  end
+
+  scope "/", AshPlatformWeb do
+    pipe_through :public_documents
+    get "/docs", PublicPagesController, :show
+    get "/about", PublicPagesController, :show
+    get "/contact", PublicPagesController, :show
   end
 
   scope "/api/v1" do

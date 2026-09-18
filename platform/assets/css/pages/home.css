@@ -74,7 +74,7 @@
   .rl-hero-card[data-home-hero-card="autolaunch"] { --rl-card-fill: var(--palette-tangerine-tango); }
   .rl-hero-card[data-home-hero-card="techtree"] { --rl-card-fill: var(--palette-powder-blue); }
   .rl-card-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-1); }
-  .rl-card-heading h3 { font-size: 1.375rem; line-height: 1.15; }
+  .rl-card-heading h2 { font-size: 1.375rem; line-height: 1.15; }
 
   .rl-hero-card > p { font-size: .875rem; line-height: 1.45; }
   .rl-card-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
@@ -119,6 +119,8 @@
   .rl-regent-economics dd { margin: 0; color: var(--rl-muted); line-height: 1.6; }
   .rl-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); font-size: .8125rem; }
   .rl-footer-brand { display: flex; gap: var(--space-2); align-items: center; }
+  .rl-document-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
+  .rl-document-links a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-family-ui); }
   .rl-footer-brand div { display: grid; gap: var(--space-1); }
   .rl-footer-brand strong { font-family: var(--font-family-title); font-weight: 400; }
   @media (max-width: 63.99rem) {

@@ -102,7 +102,6 @@ defmodule AshPlatformWeb.StakeLive do
             ><span class="rg-button__label">
               <span>View Chart</span> <span aria-hidden="true">↗</span>
             </span></a>
-            <span class="stake-market-cap">{market_cap_text(@dashboard)}</span>
           </div>
         </div>
 
@@ -133,6 +132,10 @@ defmodule AshPlatformWeb.StakeLive do
             <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /></dd>
           </div>
           <div class="stake-benefit-card stake-benefit-supply">
+            <dt>Circulating MCAP</dt>
+            <dd>{@dashboard.market_cap || "—"}</dd>
+          </div>
+          <div class="stake-benefit-card stake-benefit-supply">
             <dt>Total REGENT</dt>
             <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
           </div>
@@ -158,7 +161,7 @@ defmodule AshPlatformWeb.StakeLive do
             <dd><Loading.skeleton kind="metric" /></dd>
           </div>
           <div
-            :for={label <- ["Circulating REGENT", "Total REGENT"]}
+            :for={label <- ["Circulating REGENT", "Circulating MCAP", "Total REGENT"]}
             class="stake-benefit-card stake-benefit-supply"
           >
             <dt>{label}</dt>
@@ -659,11 +662,6 @@ defmodule AshPlatformWeb.StakeLive do
       supply_bps: supply_basis_points(staking)
     }
   end
-
-  defp market_cap_text(%{market_cap: cap}) when is_binary(cap),
-    do: "#{cap} circulating market cap"
-
-  defp market_cap_text(_dashboard), do: "— circulating market cap"
 
   # Price × circulating, or nothing: a missing price is a dash, never a guessed
   # figure.

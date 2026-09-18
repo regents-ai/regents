@@ -1,5 +1,6 @@
 <!DOCTYPE html> <% home? = @conn.request_path == "/" %>
 <% theme = if home?, do: "dark", else: @theme %>
+<% metadata = AshPlatformWeb.PublicDocuments.metadata(@conn.request_path) %>
 <html
   lang="en"
   data-brand="platform"
@@ -8,7 +9,23 @@
 >
   <head>
     <meta charset="utf-8" />
-    <link rel="alternate" type="text/plain" title="Agent guide" href={~p"/llms.txt"} />
+    <Regent.AgentMetadata.head
+      title={metadata.title}
+      description={metadata.description}
+      canonical={metadata.canonical}
+      site_name="Regents Labs"
+      site_type="business"
+      image={metadata.image}
+      image_width={1024}
+      image_height={512}
+      image_alt="Regents' orange thirteen-square crown on a platinum background"
+      twitter_site="@regents_sh"
+      markdown={metadata.markdown?}
+      agent_guide={~p"/llms.txt"}
+      sitemap={~p"/sitemap.xml"}
+      service_description={~p"/openapi.json"}
+      structured_data={AshPlatformWeb.PublicDocuments.structured_data()}
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={theme} />
     <meta name="csrf-token" content={get_csrf_token()} />
@@ -17,7 +34,7 @@
       name="privy-bridge-src"
       content={AshPlatformWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
     />
-    <.live_title default="Regent" suffix=" · Regents Labs">
+    <.live_title default={metadata.title} suffix={if home?, do: "", else: " · Regents Labs"}>
       {assigns[:page_title]}
     </.live_title>
     <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href={~p"/favicon.ico"} />

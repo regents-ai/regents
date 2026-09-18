@@ -39,6 +39,13 @@ defmodule AshPlatformWeb.ErrorHTML do
               <p>Regents Labs</p>
               <h1 class="rg-hero-title">{@title}</h1>
               <p><a class="rg-button rg-button--secondary" href="/">Go to the homepage</a></p>
+              <nav aria-label="Recovery links">
+                <ul>
+                  <li :for={{label, path} <- AshPlatformWeb.PublicDocuments.recovery_links()}>
+                    <a href={path}>{label}</a>
+                  </li>
+                </ul>
+              </nav>
             </main>
           </Regent.Structure.row>
         </Regent.Structure.frame>

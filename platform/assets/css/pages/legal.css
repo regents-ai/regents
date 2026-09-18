@@ -3,6 +3,29 @@
   min-height: 100vh;
 }
 
+.public-document .legal-header,
+.public-document .legal-nav {
+  flex-wrap: wrap;
+}
+
+.public-document .legal-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.public-document .legal-page {
+  overflow-wrap: anywhere;
+}
+
+.public-document pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 1rem;
+  margin-block: 1rem;
+  border: 1px solid var(--rl-line);
+}
+
 .legal-header {
   display: flex;
   align-items: baseline;

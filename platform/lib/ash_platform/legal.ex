@@ -23,6 +23,8 @@ defmodule AshPlatform.Legal do
     terms: %{title: "Terms of Use", markdown: File.read!(@terms_path)}
   }
 
+  def markdown(id) when is_map_key(@sources, id), do: @sources[id].markdown
+
   def document(id) when is_map_key(@sources, id) do
     spec = @sources[id]
     %{id: id, title: spec.title, html: to_safe_html(spec.markdown)}

@@ -9,7 +9,10 @@ import type { SignerBackend } from "../src/internal-runtime/agent/signer-backend
 import { RegentX402Client } from "../src/internal-runtime/x402/client.js";
 import { hashValue } from "../src/internal-runtime/x402/hash.js";
 import type { PaymentBindingV1 } from "../src/internal-types/index.js";
-import { EXPECTED_PLATFORM_CONTRACT_DIGEST } from "../src/generated/platform-contract-digest.js";
+import {
+  EXPECTED_PLATFORM_CONTRACT_DIGEST,
+  SUPPORTED_PLATFORM_CONTRACT_MAJOR,
+} from "../src/generated/platform-contract-digest.js";
 import { captureOutput } from "./helpers/output.js";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -129,7 +132,7 @@ describe("local security release smoke", () => {
           status: 200,
           headers: {
             "content-type": "application/yaml",
-            "x-regents-contract-major": "0",
+            "x-regents-contract-major": SUPPORTED_PLATFORM_CONTRACT_MAJOR,
             "x-regents-contract-version": "0.1.0",
             "x-regents-contract-digest": EXPECTED_PLATFORM_CONTRACT_DIGEST,
           },
