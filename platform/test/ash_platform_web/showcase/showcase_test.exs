@@ -106,15 +106,6 @@ defmodule AshPlatformWeb.ShowcaseTest do
            |> form("#utility-form", kind: "amount", amount: "1000000000000000000", decimals: "18")
            |> render_submit() =~ "formatted"
 
-    view |> form("#comment-form", comment: %{body: "   "}) |> render_submit()
-    assert has_element?(view, "#comment-ledger-status[role=alert]", "could not be posted")
-    refute has_element?(view, ".comment-ledger__list")
-
-    assert view |> form("#comment-form", comment: %{body: "Fixture comment"}) |> render_submit() =~
-             "Fixture comment"
-
-    assert has_element?(view, "#comment-ledger-status[role=status]", "Comment posted")
-
     assert view |> element("#showcase-connections-github button") |> render_click() =~
              "No provider request"
   end

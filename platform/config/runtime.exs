@@ -22,15 +22,6 @@ config :ash_platform, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: privy_verification_key
 
-admin_wallet_addresses =
-  "REGENT_ADMIN_WALLET_ADDRESSES"
-  |> System.get_env("")
-  |> String.split(",", trim: true)
-  |> Enum.map(&String.trim/1)
-  |> Enum.reject(&(&1 == ""))
-
-config :ash_platform, :admin_wallet_addresses, admin_wallet_addresses
-
 # This one-time protected route is closed unless a deployment explicitly says
 # "on". No public identifier or verifier secret is logged.
 regents_club_metadata_cutover? =
@@ -103,25 +94,6 @@ app_surfaces? = app_surfaces_setting == "on"
 config :ash_platform, :app_surfaces, app_surfaces?
 
 Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
-
-# Autolaunch is switched separately and stays closed unless a deployment says
-# "on". Only the test environment opens it without being asked.
-autolaunch_surfaces? =
-  case {config_env(), System.get_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES")} do
-    {:test, nil} -> true
-    {_env, setting} -> setting == "on"
-  end
-
-config :ash_platform, :autolaunch_surfaces, autolaunch_surfaces?
-
-# The Base log ledger reads its own dedicated endpoint, separate from the
-# simple-read RPC. The test environment owns this setting outright so a shell
-# that exports one cannot start an indexer under a test run.
-if config_env() != :test do
-  config :ash_platform,
-         :autolaunch_indexer_rpc_url,
-         System.get_env("AUTOLAUNCH_INDEXER_RPC_URL")
-end
 
 # The signed wallet's ENS name and picture are read from Ethereum mainnet. The
 # test environment owns this setting outright, and only the host is logged

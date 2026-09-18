@@ -81,9 +81,9 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
     end
 
     backgrounds = manifest["background_slots"]
-    assert length(backgrounds) == 5
-    assert backgrounds |> Enum.map(& &1["slot"]) |> Enum.uniq() |> length() == 5
-    assert backgrounds |> Enum.map(& &1["path"]) |> Enum.uniq() |> length() == 5
+    assert length(backgrounds) == 4
+    assert backgrounds |> Enum.map(& &1["slot"]) |> Enum.uniq() |> length() == 4
+    assert backgrounds |> Enum.map(& &1["path"]) |> Enum.uniq() |> length() == 4
 
     for %{"path" => path} <- backgrounds do
       assert path in manifest["design_owned_paths"]

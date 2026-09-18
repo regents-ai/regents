@@ -19,9 +19,8 @@ Four public surfaces are open today:
 | `/redeem` | Animata I / II → Regents Club membership + REGENT vest |
 | `/app` | The signed-in Regent shell |
 
-Autolaunch routes still exist in this app and are **not the product's future**:
-that work is moving to `autolaunch-web` → autolaunch.sh. See §9. Techtree has
-already left this app; its product copy on `/` and `/stake` stays.
+Autolaunch and Techtree have left this app (see §9); their product copy on `/`
+and `/stake` stays, linking out to autolaunch.sh and techtree.sh.
 
 Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.32 · AshPostgres · Privy for sign-in ·
 Base (chain 8453) for every on-chain figure.
@@ -64,9 +63,8 @@ components; the home page is its own LiveView.
 ### The launch gate
 
 `AshPlatformWeb.Plugs.LaunchGate` closes every non-marketing surface when
-`app_surfaces` is off, and closes Autolaunch separately via `autolaunch_surfaces`.
-Both are read per request from config set in `config/runtime.exs`, so a Fly secret
-flips them without a rebuild. The marketing page and signing out stay open either way.
+`app_surfaces` is off. It is read per request from config set in `config/runtime.exs`,
+so a Fly secret flips it without a rebuild. The marketing page and signing out stay open either way.
 
 ### Reading the chain — the part to understand before editing
 
@@ -105,9 +103,7 @@ lib/ash_platform/
   redemption/     rpc_client, actions, snapshot
   regents_club/   membership metadata cutover
   wallet_actions/ abi.ex, redemption_abi.ex, rpc.ex, envelope, observer
-  discussions/    comments (used by Autolaunch)
   formation/      regents, agent links, cloud runtimes
-  autolaunch/     auctions, bids, tokens, indexer   (moving out — see §9)
 lib/ash_platform_web/
   route_catalog.ex   the route allowlist and its behaviour metadata
   live/shell_live.ex the one shell LiveView (large; read the region you need)
@@ -257,11 +253,13 @@ These come from the founder and override normal instincts:
 paths, comment reactions, and the `techtree` schema tables are gone. Product copy
 on `/` and `/stake` stays — Techtree is still a business and still a revenue source.
 
-**Autolaunch stays in this app for now.** The `autolaunch-web` repo holds roughly
-5,500 lines against 12,300 here and two page types against eight routes: the port is
-about half done and its lane is paused. Deleting Autolaunch from this repo now would
-delete the source that lane is copying from, on a money-handling surface. Founder
-decision, 2026-09-03: leave it.
+**Autolaunch has left this app.** Founder decision, 2026-09-18: remove it. The in-app
+pages, the `/api/autolaunch/v1/*` endpoints, the Base log indexer, comments and the
+retained Autolaunch contract interfaces are gone; autolaunch.sh is the product. The
+`autolaunch_app` tables belong to the Autolaunch site and were never migrated from
+here. The `regents_app.comments` table still exists, empty and unused. Read-only
+`/autolaunch`, `/techtree` and `/patchbay` information pages are briefed in the
+workspace `docs/backlogs/regents.md` and not started.
 
 **Other open tickets:** `regent-556` (reseal the release supply), `regent-gu2.20`
 (common-sense audit of every interaction — the scout for it died and was never

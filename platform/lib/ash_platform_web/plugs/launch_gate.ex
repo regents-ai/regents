@@ -1,9 +1,8 @@
 defmodule AshPlatformWeb.Plugs.LaunchGate do
   @moduledoc """
-  Closes every non-marketing surface while the launch gate is closed, and closes
-  the Autolaunch pages and endpoints while their own separate switch is closed.
+  Closes every non-marketing surface while the launch gate is closed.
 
-  Both settings are read on each request, so a deploy opens or closes surfaces
+  The setting is read on each request, so a deploy opens or closes surfaces
   without rebuilding the release. The marketing page and signing out stay open
   in either state. The Privacy Policy and Terms of Use stay open with them.
   """
@@ -15,10 +14,6 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
 
   @doc "True while the product surfaces are open."
   def app_surfaces_enabled?, do: Application.get_env(:ash_platform, :app_surfaces, true)
-
-  @doc "True while the Autolaunch surfaces are open."
-  def autolaunch_surfaces_enabled?,
-    do: Application.get_env(:ash_platform, :autolaunch_surfaces, false)
 
   def init(opts), do: opts
 
@@ -34,15 +29,10 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn
 
-  def call(conn, _opts),
-    do: gate(app_surfaces_enabled?() and autolaunch_open?(conn.path_info), conn)
+  def call(conn, _opts), do: gate(app_surfaces_enabled?(), conn)
 
   defp gate(true, conn), do: conn
   defp gate(false, conn), do: conn |> closed(response_format(conn)) |> halt()
-
-  defp autolaunch_open?(["autolaunch" | _rest]), do: autolaunch_surfaces_enabled?()
-  defp autolaunch_open?(["api", "autolaunch" | _rest]), do: autolaunch_surfaces_enabled?()
-  defp autolaunch_open?(_path_info), do: true
 
   # The session endpoints ride the browser pipeline but answer JSON callers.
   defp response_format(%Plug.Conn{path_info: ["auth" | _]}), do: "json"

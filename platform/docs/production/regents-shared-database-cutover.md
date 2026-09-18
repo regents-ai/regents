@@ -174,6 +174,11 @@ not production's, so the suite proves Regents against its own contract. Deciding
 whether Regents keeps Autolaunch pages at all, and if so realigning its resources
 to Autolaunch's schema, is a separate product decision.
 
+Resolved 2026-09-18 (founder): Regents no longer keeps Autolaunch pages. Its Autolaunch
+resources, pages and endpoints were removed, `priv/repo/shared_tables.sql` now carries
+only `regent_names.platform_human_users`, and Regents neither reads nor writes
+`autolaunch_app`.
+
 ## Alternative: carry the three accounts and the display names over
 
 If you want the 3 new accounts and the 24 accounts' Regents-side display names

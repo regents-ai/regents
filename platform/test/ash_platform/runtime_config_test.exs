@@ -10,7 +10,6 @@ defmodule AshPlatform.RuntimeConfigTest do
     names = [
       "PRIVY_APP_ID",
       "PRIVY_VERIFICATION_KEY",
-      "REGENT_ADMIN_WALLET_ADDRESSES",
       "DATABASE_POOLED_URL",
       "DATABASE_DIRECT_URL",
       "DATABASE_URL",
@@ -24,7 +23,6 @@ defmodule AshPlatform.RuntimeConfigTest do
       "PORT",
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
-      "ASH_PLATFORM_AUTOLAUNCH_SURFACES",
       "ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER",
       "ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY",
       "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
@@ -65,18 +63,6 @@ defmodule AshPlatform.RuntimeConfigTest do
     System.put_env("PRIVY_VERIFICATION_KEY", pem)
 
     assert privy_config() == [app_id: "local-privy-app", verification_key: pem]
-  end
-
-  test "comment moderation accepts a comma-separated admin wallet allowlist" do
-    System.put_env(
-      "REGENT_ADMIN_WALLET_ADDRESSES",
-      " 0x1111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222 "
-    )
-
-    assert runtime_config(:admin_wallet_addresses) == [
-             "0x1111111111111111111111111111111111111111",
-             "0x2222222222222222222222222222222222222222"
-           ]
   end
 
   test "OpenSea key is server-only runtime config and does not replace the test client key" do
@@ -368,25 +354,6 @@ defmodule AshPlatform.RuntimeConfigTest do
     refute File.read!("config/test.exs") =~ "BASE_READ_RPC_URL"
   end
 
-  test "Autolaunch surfaces open by default only under test, and otherwise only on an exact on" do
-    put_production_role()
-    put_pooled_url()
-    System.put_env("PHX_HOST", "shadow.example.test")
-    System.put_env("SECRET_KEY_BASE", String.duplicate("s", 64))
-
-    assert autolaunch_surfaces?(:test)
-    refute autolaunch_surfaces?(:dev)
-    refute autolaunch_surfaces?(:prod)
-
-    System.put_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES", "on")
-    assert Enum.all?([:test, :dev, :prod], &autolaunch_surfaces?/1)
-
-    for setting <- ["off", "ON", "true", ""] do
-      System.put_env("ASH_PLATFORM_AUTOLAUNCH_SURFACES", setting)
-      refute Enum.any?([:test, :dev, :prod], &autolaunch_surfaces?/1)
-    end
-  end
-
   test "Regents Club metadata cutover is disabled unless runtime config is exactly on" do
     refute runtime_config(:regents_club_metadata_cutover)
 
@@ -438,9 +405,6 @@ defmodule AshPlatform.RuntimeConfigTest do
 
     rest |> String.split(~r/\n\[/, parts: 2) |> hd()
   end
-
-  defp autolaunch_surfaces?(environment),
-    do: get_in(read_runtime_config(environment), [:ash_platform, :autolaunch_surfaces])
 
   defp put_production_role do
     System.put_env("ASH_PLATFORM_DEPLOYMENT_ROLE", "production")

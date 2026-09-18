@@ -114,8 +114,9 @@ defmodule AshPlatform.MixProject do
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # Baseline moved from 33 to 80 with Ash 3.32.1's retained policy-check compile dependencies (ash #2886),
-        # then to 82 for the account's ENS identity resource and its policy check.
-        "xref graph --label compile-connected --fail-above 82",
+        # then to 82 for the account's ENS identity resource and its policy check,
+        # then down to 28 when the in-app Autolaunch and comments were removed.
+        "xref graph --label compile-connected --fail-above 28",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "ash_platform.route_handoff --check"

@@ -13,7 +13,6 @@ defmodule AshPlatform.Application do
         {AshPlatform.AgentAuth.ClaimRateLimiter, []},
         {AshPlatform.OpenSea.HoldingsCache, []},
         database_child(),
-        autolaunch_indexer_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
@@ -37,21 +36,6 @@ defmodule AshPlatform.Application do
   defp database_child do
     if Application.get_env(:ash_platform, :database_startup_enabled, false),
       do: AshPlatform.Repo
-  end
-
-  # The Base log ledger is optional and starts after the repository it writes
-  # to. A dedicated nonempty endpoint is the only thing that turns it on.
-  defp autolaunch_indexer_child do
-    with true <- Application.get_env(:ash_platform, :database_startup_enabled, false),
-         endpoint when is_binary(endpoint) and endpoint != "" <-
-           Application.get_env(:ash_platform, :autolaunch_indexer_rpc_url) do
-      {AshPlatform.DurableWork.Runner,
-       handler: Module.concat(AshPlatform.Autolaunch.Indexer, "Handler"),
-       poll_interval_ms: 2_000,
-       max_in_flight: 1}
-    else
-      _disabled -> nil
-    end
   end
 
   # Tell Phoenix to update the endpoint configuration

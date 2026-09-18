@@ -300,8 +300,8 @@ describe("shell motion", () => {
     ShellMotion.beforeUpdate.call(state)
     current = [node("region", 80), node("background"), node("header")]
     root.current = current
-    root.dataset.motionApp = "autolaunch"
-    root.dataset.destination = "/autolaunch"
+    root.dataset.motionApp = "regent_ops"
+    root.dataset.destination = "/app"
     ShellMotion.updated.call(state)
     const firstCount = animations.length
     expect(firstCount).toBeGreaterThan(0)

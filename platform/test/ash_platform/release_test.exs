@@ -190,8 +190,6 @@ defmodule AshPlatform.ReleaseTest do
              "schema_migrations",
              "session_authorities"
            ]
-
-    assert "launch_drafts" in table_names(config, "autolaunch_app")
   end
 
   test "the listing prints none on a database the release agrees with" do

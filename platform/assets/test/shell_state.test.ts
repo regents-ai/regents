@@ -16,7 +16,7 @@ const state = (overrides: Partial<ShellState> = {}): ShellState => ({
 
 describe("shell brand reconciliation", () => {
   it("[U2] maps shell applications to the canonical RegentUI brands", () => {
-    expect(brandForShellApp("autolaunch")).toBe("platform")
+    expect(brandForShellApp("regent_ops")).toBe("platform")
     expect(brandForShellApp("formation")).toBe("platform")
     expect(brandForShellApp(undefined)).toBe("platform")
   })
@@ -25,8 +25,8 @@ describe("shell brand reconciliation", () => {
 describe("shell state restoration", () => {
   it("closes the menu and resets local state outside its contexts", () => {
     const current = state({
-      routeId: "autolaunch_auction",
-      destination: "/autolaunch/auctions/one",
+      routeId: "regent_profile",
+      destination: "/regents/one",
       menuOpen: true,
     })
 

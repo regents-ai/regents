@@ -82,7 +82,7 @@ describe("P1_ACTIVE_WALLET_ONLY: Privy's selection is the Stake wallet", () => {
     expect(eligibleActiveWallet({address: second, type: "ethereum"}, [])).toBeNull()
   })
 
-  // Redeem and Autolaunch keep reading the connected set by expected signer.
+  // Redeem keeps reading the connected set by expected signer.
   // Publishing an active wallet changes neither answer.
   it("leaves the shared connected-wallet lookup untouched", () => {
     const one = provider()

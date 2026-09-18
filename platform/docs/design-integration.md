@@ -8,7 +8,7 @@ Regents consumes the current `design-system/STYLE.md` and top-level contract in
 - `assets/css/app.css` imports generated canonical tokens and primitives (including
   Structure and Ratio). Legacy `regent.css` is isolated in a lower cascade layer;
   product page styles own composition, not a replacement primitive skin.
-- All Regents routes, including the nested Autolaunch area and homepage, retain
+- All Regents routes, including the homepage, retain
   `data-brand="platform"`. The existing `regent_theme` cookie selects light/dark.
   Root HTML and the existing `app.ts` synchronizer agree; `/` is no longer skipped.
   The shared footer exposes the existing theme control without introducing an

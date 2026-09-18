@@ -35,10 +35,9 @@ The development and test environments never read the role.
 
 ## Bootstrap
 
-Regents reads `regent_names.platform_human_users` and the `autolaunch_app` tables
-but does not own them: no migration in this repository creates them. Staging has
-no upstream copy, so the first staging database needs those tables created before
-migrations can run.
+Regents reads `regent_names.platform_human_users` but does not own it: no migration
+in this repository creates it. Staging has no upstream copy, so the first staging
+database needs that table created before migrations can run.
 
 `bin/bootstrap-staging` does that once, on an empty database:
 
@@ -48,7 +47,7 @@ migrations can run.
    command uses, which under the staging role can only be a staging host.
 3. It refuses, and changes nothing, if the database already has a
    `regents_app.schema_migrations` table or a `regent_names` schema.
-4. Otherwise it creates the shared tables from `priv/repo/shared_tables.sql`,
+4. Otherwise it creates the shared table from `priv/repo/shared_tables.sql`,
    with the same shape the local fixture uses, then runs every migration into the
    `regents_app` schema.
 
@@ -171,7 +170,7 @@ and anything that touches production. Each step below says which.
    production's Privy app, so this is an edit to production's Privy configuration
    (see [What staging shares with production](#what-staging-shares-with-production)).
 6. **Manager.** The first deploy, per [First deploy](#first-deploy), then open a
-   database-backed page — `/app` signed out, then `/autolaunch` — in addition to
+   database-backed page — `/app` signed out — in addition to
    `/healthz`. `/healthz` is static and never touches the database, so it alone
    does not prove the venue works.
 7. **Founder.** At this venue's own production deploy, which is the first promote
@@ -189,7 +188,7 @@ before the `[env]` line ships, and step 7 retires it.
 
 Staging carries every production runtime flag at its production value. The manager
 sets the surface flags — `ASH_PLATFORM_APP_SURFACES`,
-`ASH_PLATFORM_AUTOLAUNCH_SURFACES`, `ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER`.
+`ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER`.
 The founder sets the ones whose values only he holds: `PRIVY_APP_ID`,
 `PRIVY_VERIFICATION_KEY`, `BASE_READ_RPC_URL`, and the Regents Club attestations
 `ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY` and
@@ -314,7 +313,7 @@ fly secrets set ASH_PLATFORM_DEPLOYMENT_ROLE=production -a regents-sh-web --stag
   host-only, so `staging.regents.sh` and `regents.sh` cannot exchange one.
 - **The chain.** `contracts/base-mainnet.json`, chain 8453, is baked into the
   image and `BASE_READ_RPC_URL` points at Base mainnet. Staging is therefore
-  chain-identical to production: any Stake, Redeem, or Autolaunch action performed
+  chain-identical to production: any Stake or Redeem action performed
   on staging is a real mainnet transaction, spending real value, under the
   founder's ordinary per-action signing authority. There is no testnet here and
   nothing on staging makes a transaction a rehearsal.

@@ -37,10 +37,8 @@ that coordination into a cross-product template or change the other sites.
 
 The workshop renders the active components installed from `regent_ui` and
 `AshPlatformWeb.Components`, plus both layouts. It identifies the two panel
-component aliases. Three Autolaunch LiveComponents have static signed-out previews
-inside scriptless sandboxed frames. The shell preview includes working navigation
-and theme behavior but omits sign-in controls. These product compositions are
-Regents-owned, rather than newly shared components.
+component aliases. The shell preview includes working navigation and theme behavior
+but omits sign-in controls. It is Regents-owned, rather than a newly shared component.
 
 Eight structural palette cards pair each site’s light/dark colors with a real
 surface/text/primary preview, not SVG thumbnails. Defaults import the shared
@@ -66,7 +64,7 @@ panels and controls pair edited primary colors with contrast-selected ink.
 Page SVG backgrounds are disabled: the hook no longer chooses a background image.
 The retired shared background and product homepage background compatibility demos
 remain mounted and catalogued behind a labeled disclosure, without page art.
-Existing shell and sandboxed product previews remain independent compositions.
+The shell preview remains an independent composition.
 
 `Regent.Structure.capability_card/1` is the shared card, not workshop-specific HTML.
 Supply `title`, `description`, optional `index`, `tone`, `image_src` and `image_alt`.
@@ -107,8 +105,7 @@ Ash action with an in-memory data layer.
   A real app, verification key and Privy-allowed origin are required for that canary.
 - Create/add/reset items and chamber edits use the local Ash sample action. Copy
   writes the displayed ledger or utility result through the browser clipboard API.
-  These examples never write product records. Comment validation failures remain
-  visible beside the preserved draft rather than silently ignoring the submission.
+  These examples never write product records.
 - Privy verification: signs an ephemeral fixture token and calls `RegentPrivy`
   for valid, expired and incorrect-audience outcomes. No fixture token enters an
   authentication endpoint; no key or token is displayed or retained.
@@ -116,13 +113,7 @@ Ash action with an in-memory data layer.
   Encoded calldata is never submitted.
 - Postgres: a fixed read-only diagnostic accepts only the prepared loopback
   worktree test database naming convention. It refuses other database settings.
-- Comments and linked identities are synthetic LiveView state, lost on reload.
-  Comments use the real Markdown validator and renderer. Headings, lists, quotes,
-  tables, emphasis, strikethrough, code and HTTP(S) links are supported. Use `$...$`
-  for inline LaTeX and `$$...$$` for display LaTeX. Code stays literal. Raw HTML and
-  embedded images remain disallowed. KaTeX is loaded only when math is present;
-  malformed expressions retain their readable source, and unsafe HTML/link commands
-  are disabled. See [KaTeX options](https://katex.org/docs/options.html).
+- Linked identities are synthetic LiveView state, lost on reload.
 
 ## Run in an isolated worktree
 

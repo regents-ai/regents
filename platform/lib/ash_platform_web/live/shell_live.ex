@@ -7,9 +7,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.{
     Accounts,
-    Autolaunch,
     ContentCoordinator,
-    Discussions,
     Formation,
     OpenSea,
     Redemption,
@@ -24,9 +22,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.Staking.SnapshotCache
   alias AshPlatform.WalletActions.Address
   alias AshPlatform.WalletActions.TransactionObserver
-  alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
-  alias AshPlatformWeb.Plugs.LaunchGate
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RegentsClubMetadataLive
@@ -71,35 +67,9 @@ defmodule AshPlatformWeb.ShellLive do
        content_async_name: nil,
        content_generation: 0,
        content_status: :loading,
-       comments: [],
-       comments_status: :ready,
-       comment_target: nil,
-       comment_topic: nil,
-       comment_request_id: Ash.UUID.generate(),
-       comment_draft: "",
-       comment_notice: nil,
        verified_connections: [],
        verified_connections_notice: nil,
-       comment_admin?: Discussions.admin_actor?(human_actor(socket)),
        route_params: params,
-       autolaunch_featured_auctions: [],
-       autolaunch_recent_auctions: [],
-       autolaunch_top_tokens: [],
-       autolaunch_graduated_tokens: [],
-       autolaunch_records: [],
-       autolaunch_record: nil,
-       autolaunch_subject_tokens: [],
-       autolaunch_subject_actions: [],
-       autolaunch_subject_settlements: [],
-       autolaunch_bid_positions: [],
-       autolaunch_returnable_positions: [],
-       autolaunch_claimed_token_positions: [],
-       autolaunch_launch_drafts: [],
-       autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
-       autolaunch_draft_errors: %{},
-       autolaunch_draft_revision: nil,
-       autolaunch_draft_notice: nil,
-       autolaunch_status: :loading,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
        redemption: nil,
@@ -166,9 +136,7 @@ defmodule AshPlatformWeb.ShellLive do
     socket =
       socket
       |> load_regent_route(route_spec, params)
-      |> load_autolaunch_route(route_spec, params)
       |> load_verified_connections(route_spec)
-      |> load_comments_route(route_spec)
 
     cond do
       route_spec.route_id == :settings ->
@@ -204,9 +172,8 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp authorize_route(
          %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
-         %{route_id: route_id}
-       )
-       when route_id in [:settings, :autolaunch_holdings] do
+         %{route_id: :settings}
+       ) do
     {:redirect, redirect(socket, to: "/")}
   end
 
@@ -540,75 +507,6 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   @impl true
-  def handle_event(
-        "post_comment",
-        %{"comment" => %{"body" => body, "client_request_id" => client_request_id}},
-        socket
-      ) do
-    with %Human{} = actor <- human_actor(socket),
-         %{type: target_type, id: target_id} <- socket.assigns.comment_target,
-         {:ok, _comment} <-
-           Discussions.post_comment(
-             target_type,
-             target_id,
-             body,
-             client_request_id,
-             actor: actor
-           ) do
-      {:noreply,
-       socket
-       |> assign(
-         comment_draft: "",
-         comment_request_id: Ash.UUID.generate(),
-         comment_notice: %{tone: :success, message: "Comment posted."}
-       )
-       |> reload_comments()}
-    else
-      _ ->
-        {:noreply,
-         assign(socket,
-           comment_draft: body,
-           comment_notice: %{
-             tone: :error,
-             message: "That comment could not be posted. Check its length and formatting."
-           }
-         )}
-    end
-  end
-
-  # A draft event that arrives while Autolaunch is closed is answered before any
-  # actor is built or any record is read or written.
-  def handle_event(event, params, socket)
-      when event in ["create_launch_draft", "revise_launch_draft"] do
-    if LaunchGate.autolaunch_surfaces_enabled?(),
-      do: handle_draft_event(event, params, socket),
-      else:
-        {:noreply,
-         assign(socket,
-           autolaunch_draft_notice: %{
-             tone: :error,
-             message: "This part of Regent isn't open yet."
-           }
-         )}
-  end
-
-  def handle_event("delete_comment", %{"id" => id}, socket) do
-    with %Human{} = actor <- human_actor(socket),
-         comment when not is_nil(comment) <- Enum.find(socket.assigns.comments, &(&1.id == id)),
-         {:ok, _deleted} <- Discussions.delete_comment(comment, actor: actor) do
-      {:noreply,
-       socket
-       |> assign(comment_notice: %{tone: :success, message: "Comment deleted."})
-       |> reload_comments()}
-    else
-      _ ->
-        {:noreply,
-         assign(socket,
-           comment_notice: %{tone: :error, message: "That comment could not be deleted."}
-         )}
-    end
-  end
-
   def handle_event(
         "request_verified_connection",
         %{"action" => action, "provider" => provider},
@@ -959,16 +857,6 @@ defmodule AshPlatformWeb.ShellLive do
      |> shared_read_failed()}
   end
 
-  def handle_info(
-        {:comments_changed, target_type, target_id},
-        %{assigns: %{comment_target: %{type: target_type, id: target_id}}} = socket
-      ) do
-    notice = socket.assigns.comment_notice || %{tone: :info, message: "Comments updated."}
-    {:noreply, socket |> assign(comment_notice: notice) |> reload_comments()}
-  end
-
-  def handle_info({:comments_changed, _target_type, _target_id}, socket), do: {:noreply, socket}
-
   def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
     case socket.assigns.regents_club_metadata_attempts[attempt_id] do
       %{envelope: envelope} = attempt ->
@@ -987,88 +875,6 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply, socket}
     end
   end
-
-  defp handle_draft_event("create_launch_draft", %{"launch_draft" => submitted}, socket) do
-    values = Map.take(submitted, AutolaunchLive.draft_field_params())
-
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, _draft} <- Autolaunch.create_launch_draft(values, actor: actor),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:noreply,
-       assign(socket,
-         autolaunch_launch_drafts: drafts,
-         autolaunch_draft_values: AutolaunchLive.blank_draft_fields(),
-         autolaunch_draft_errors: %{},
-         autolaunch_draft_notice: %{
-           tone: :success,
-           message: "Draft saved. Nothing has been published and no money has moved."
-         }
-       )}
-    else
-      error ->
-        {:noreply,
-         assign(socket,
-           autolaunch_draft_values: values,
-           autolaunch_draft_errors: draft_field_errors(error),
-           autolaunch_draft_notice: %{
-             tone: :error,
-             message: "That draft could not be saved. Check the details marked below."
-           }
-         )}
-    end
-  end
-
-  defp handle_draft_event(
-         "revise_launch_draft",
-         %{"draft_id" => draft_id, "launch_draft" => submitted},
-         socket
-       ) do
-    values = Map.take(submitted, AutolaunchLive.draft_field_params())
-
-    with %Human{} = actor <- human_actor(socket),
-         draft when not is_nil(draft) <-
-           Enum.find(socket.assigns.autolaunch_launch_drafts, &(&1.id == draft_id)),
-         {:ok, _draft} <- Autolaunch.revise_launch_draft(draft, values, actor: actor),
-         {:ok, drafts} <- Autolaunch.list_my_launch_drafts(actor: actor) do
-      {:noreply,
-       assign(socket,
-         autolaunch_launch_drafts: drafts,
-         autolaunch_draft_revision: nil,
-         autolaunch_draft_notice: %{
-           tone: :success,
-           message: "Draft updated. Nothing has been published and no money has moved."
-         }
-       )}
-    else
-      error ->
-        {:noreply,
-         assign(socket,
-           autolaunch_draft_revision: %{
-             id: draft_id,
-             values: values,
-             errors: draft_field_errors(error)
-           },
-           autolaunch_draft_notice: %{
-             tone: :error,
-             message: "That draft could not be updated. Check the details marked below."
-           }
-         )}
-    end
-  end
-
-  defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
-    params = AutolaunchLive.draft_field_params()
-
-    for %{field: field} = error <- errors,
-        to_string(field) in params,
-        into: %{},
-        do: {to_string(field), draft_field_message(error)}
-  end
-
-  defp draft_field_errors(_error), do: %{}
-
-  defp draft_field_message(%Ash.Error.Changes.Required{}), do: "is required"
-  defp draft_field_message(%{message: message}), do: message
 
   defp handle_redemption_event(
          _event,
@@ -1205,54 +1011,6 @@ defmodule AshPlatformWeb.ShellLive do
       theme={@theme}
     >
       <:content>
-        <AutolaunchLive.page
-          :if={
-            @route_spec.route_id in [
-              :autolaunch,
-              :autolaunch_auctions,
-              :autolaunch_auction,
-              :autolaunch_tokens,
-              :autolaunch_token,
-              :autolaunch_launches,
-              :autolaunch_launch,
-              :autolaunch_subjects,
-              :autolaunch_subject,
-              :autolaunch_holdings,
-              :autolaunch_create
-            ]
-          }
-          route_spec={@route_spec}
-          params={@route_params}
-          account_control={@account_control}
-          featured_auctions={@autolaunch_featured_auctions}
-          recent_auctions={@autolaunch_recent_auctions}
-          top_tokens={@autolaunch_top_tokens}
-          graduated_tokens={@autolaunch_graduated_tokens}
-          records={@autolaunch_records}
-          record={@autolaunch_record}
-          subject_tokens={@autolaunch_subject_tokens}
-          subject_actions={@autolaunch_subject_actions}
-          subject_settlements={@autolaunch_subject_settlements}
-          bid_positions={@autolaunch_bid_positions}
-          returnable_positions={@autolaunch_returnable_positions}
-          claimed_token_positions={@autolaunch_claimed_token_positions}
-          session_lease={@session_lease}
-          launch_drafts={@autolaunch_launch_drafts}
-          draft_values={@autolaunch_draft_values}
-          draft_errors={@autolaunch_draft_errors}
-          draft_revision={@autolaunch_draft_revision}
-          draft_notice={@autolaunch_draft_notice}
-          regent={@regent}
-          status={@autolaunch_status}
-          comments={@comments}
-          comments_status={@comments_status}
-          comment_notice={@comment_notice}
-          comment_request_id={@comment_request_id}
-          comment_draft={@comment_draft}
-          current_human_id={current_human_id(@access_context)}
-          comment_admin={@comment_admin?}
-        />
-
         <FormationLive.page :if={@route_spec.route_id == :formation} />
 
         <RegentProfileLive.page
@@ -1333,17 +1091,6 @@ defmodule AshPlatformWeb.ShellLive do
               :stake,
               :redeem,
               :regents_club_metadata,
-              :autolaunch,
-              :autolaunch_auctions,
-              :autolaunch_auction,
-              :autolaunch_tokens,
-              :autolaunch_token,
-              :autolaunch_launches,
-              :autolaunch_launch,
-              :autolaunch_subjects,
-              :autolaunch_subject,
-              :autolaunch_holdings,
-              :autolaunch_create,
               :regent_profile
             ] &&
               @content_status == :loading
@@ -1367,17 +1114,6 @@ defmodule AshPlatformWeb.ShellLive do
               :stake,
               :redeem,
               :regents_club_metadata,
-              :autolaunch,
-              :autolaunch_auctions,
-              :autolaunch_auction,
-              :autolaunch_tokens,
-              :autolaunch_token,
-              :autolaunch_launches,
-              :autolaunch_launch,
-              :autolaunch_subjects,
-              :autolaunch_subject,
-              :autolaunch_holdings,
-              :autolaunch_create,
               :regent_profile
             ] &&
               @content_status == :error
@@ -1397,17 +1133,6 @@ defmodule AshPlatformWeb.ShellLive do
             :stake,
             :redeem,
             :regents_club_metadata,
-            :autolaunch,
-            :autolaunch_auctions,
-            :autolaunch_auction,
-            :autolaunch_tokens,
-            :autolaunch_token,
-            :autolaunch_launches,
-            :autolaunch_launch,
-            :autolaunch_subjects,
-            :autolaunch_subject,
-            :autolaunch_holdings,
-            :autolaunch_create,
             :regent_profile
           ] &&
             @content_status == :ready
@@ -1755,9 +1480,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
-  defp current_human_id(%{principal: {:human, account}}), do: account.id
-  defp current_human_id(_access_context), do: nil
-
   defp load_verified_connections(socket, %{route_id: :settings}) do
     reload_verified_connections(socket)
   end
@@ -1811,240 +1533,6 @@ defmodule AshPlatformWeb.ShellLive do
     regent = socket.assigns.current_regent
     assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
   end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch}, _params) do
-    with {:ok, featured} <- Autolaunch.list_featured_auctions(),
-         {:ok, recent} <- Autolaunch.list_recent_auctions(),
-         {:ok, top} <- Autolaunch.list_top_tokens(),
-         {:ok, graduated} <- Autolaunch.list_recently_graduated_tokens() do
-      assign(socket,
-        autolaunch_featured_auctions: featured,
-        autolaunch_recent_auctions: recent,
-        autolaunch_top_tokens: top,
-        autolaunch_graduated_tokens: graduated,
-        autolaunch_status: :ready
-      )
-    else
-      {:error, _error} -> assign(socket, autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_auctions}, _params) do
-    case Autolaunch.list_auctions() do
-      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_tokens}, _params) do
-    case Autolaunch.list_tokens() do
-      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_launches}, _params) do
-    case Autolaunch.list_launches() do
-      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_subjects}, _params) do
-    case Autolaunch.list_subjects() do
-      {:ok, records} -> assign(socket, autolaunch_records: records, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_records: [], autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(
-         socket,
-         %{route_id: :autolaunch_auction},
-         %{"auction_id" => id}
-       ) do
-    case Autolaunch.get_public_auction(id) do
-      {:ok, nil} ->
-        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-
-      {:ok, record} ->
-        assign(socket, autolaunch_record: record, autolaunch_status: :ready)
-
-      {:error, _error} ->
-        assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_token}, %{"token_id" => id}) do
-    case Autolaunch.get_public_token(id) do
-      {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-      {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_launch}, %{"id" => id}) do
-    case Autolaunch.get_public_launch(id) do
-      {:ok, nil} -> assign(socket, autolaunch_record: nil, autolaunch_status: :empty)
-      {:ok, record} -> assign(socket, autolaunch_record: record, autolaunch_status: :ready)
-      {:error, _error} -> assign(socket, autolaunch_record: nil, autolaunch_status: :error)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_subject}, %{"id" => id}) do
-    case Autolaunch.get_public_subject(id) do
-      {:ok, nil} ->
-        assign(socket,
-          autolaunch_record: nil,
-          autolaunch_subject_tokens: [],
-          autolaunch_subject_actions: [],
-          autolaunch_subject_settlements: [],
-          autolaunch_status: :empty
-        )
-
-      {:ok, subject} ->
-        load_autolaunch_subject_details(socket, subject)
-
-      {:error, _error} ->
-        subject_load_error(socket)
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_create}, _params) do
-    case human_actor(socket) do
-      %Human{} = actor ->
-        case Autolaunch.list_my_launch_drafts(actor: actor) do
-          {:ok, drafts} ->
-            assign(socket,
-              autolaunch_launch_drafts: drafts,
-              autolaunch_status: :ready
-            )
-
-          {:error, _error} ->
-            assign(socket,
-              autolaunch_launch_drafts: [],
-              autolaunch_status: :error
-            )
-        end
-
-      nil ->
-        assign(socket,
-          autolaunch_launch_drafts: [],
-          autolaunch_status: :ready
-        )
-    end
-  end
-
-  defp load_autolaunch_route(socket, %{route_id: :autolaunch_holdings}, _params) do
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
-         {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
-         {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
-      assign(socket,
-        autolaunch_bid_positions: positions,
-        autolaunch_returnable_positions: returnable,
-        autolaunch_claimed_token_positions: Enum.filter(claimed, & &1.token),
-        autolaunch_status: :ready
-      )
-    else
-      _error ->
-        assign(socket,
-          autolaunch_bid_positions: [],
-          autolaunch_returnable_positions: [],
-          autolaunch_claimed_token_positions: [],
-          autolaunch_status: :error
-        )
-    end
-  end
-
-  defp load_autolaunch_route(socket, _route_spec, _params), do: socket
-
-  defp load_autolaunch_subject_details(socket, subject) do
-    with {:ok, tokens} <- Autolaunch.list_subject_tokens(subject.subject_id),
-         {:ok, actions} <- Autolaunch.list_subject_actions(subject.subject_id),
-         {:ok, settlements} <- Autolaunch.list_subject_settlements(subject.subject_id) do
-      assign(socket,
-        autolaunch_record: subject,
-        autolaunch_subject_tokens: tokens,
-        autolaunch_subject_actions: actions,
-        autolaunch_subject_settlements: settlements,
-        autolaunch_status: :ready
-      )
-    else
-      {:error, _error} -> subject_load_error(socket)
-    end
-  end
-
-  defp subject_load_error(socket) do
-    assign(socket,
-      autolaunch_record: nil,
-      autolaunch_subject_tokens: [],
-      autolaunch_subject_actions: [],
-      autolaunch_subject_settlements: [],
-      autolaunch_status: :error
-    )
-  end
-
-  defp load_comments_route(socket, %{route_id: :autolaunch_auction}) do
-    set_comment_target(socket, :autolaunch_auction, socket.assigns.autolaunch_record)
-  end
-
-  defp load_comments_route(socket, %{route_id: :autolaunch_token}) do
-    set_comment_target(socket, :autolaunch_token, socket.assigns.autolaunch_record)
-  end
-
-  defp load_comments_route(socket, _route_spec), do: clear_comment_target(socket)
-
-  defp set_comment_target(socket, _target_type, nil), do: clear_comment_target(socket)
-
-  defp set_comment_target(socket, target_type, %{id: target_id}) do
-    topic = Discussions.comment_topic(target_type, target_id)
-
-    socket
-    |> update_comment_subscription(topic)
-    |> assign(
-      comment_target: %{type: target_type, id: target_id},
-      comment_request_id: Ash.UUID.generate(),
-      comment_draft: "",
-      comment_notice: nil
-    )
-    |> reload_comments()
-  end
-
-  defp clear_comment_target(socket) do
-    socket
-    |> update_comment_subscription(nil)
-    |> assign(
-      comments: [],
-      comments_status: :ready,
-      comment_target: nil,
-      comment_request_id: Ash.UUID.generate(),
-      comment_draft: "",
-      comment_notice: nil
-    )
-  end
-
-  defp update_comment_subscription(socket, next_topic) do
-    current_topic = socket.assigns.comment_topic
-
-    if connected?(socket) and current_topic != next_topic do
-      if current_topic, do: Phoenix.PubSub.unsubscribe(AshPlatform.PubSub, current_topic)
-      if next_topic, do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, next_topic)
-    end
-
-    assign(socket, comment_topic: next_topic)
-  end
-
-  defp reload_comments(%{assigns: %{comment_target: %{type: type, id: id}}} = socket) do
-    case Discussions.list_comments(type, id) do
-      {:ok, comments} ->
-        assign(socket, comments: comments, comments_status: :ready)
-
-      {:error, _error} ->
-        assign(socket, comments: [], comments_status: :error)
-    end
-  end
-
-  defp reload_comments(socket), do: socket
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id}

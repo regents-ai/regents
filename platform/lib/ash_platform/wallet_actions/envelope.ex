@@ -8,10 +8,6 @@ defmodule AshPlatform.WalletActions.Envelope do
   @confirmable_after_expiry_resources ~w(
     regent_staking
     animata_redemption
-    autolaunch_auction
-    autolaunch_bid
-    autolaunch_subject_wallet
-    autolaunch_launch
     regents_club_metadata
   )
 

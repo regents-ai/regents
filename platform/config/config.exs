@@ -22,9 +22,7 @@ config :ash_platform,
   ash_domains: [
     AshPlatform.Names,
     AshPlatform.Accounts,
-    AshPlatform.Discussions,
     AshPlatform.Formation,
-    AshPlatform.Autolaunch,
     AshPlatform.OpenSea,
     AshPlatform.Redemption,
     AshPlatform.Staking
@@ -55,7 +53,6 @@ config :ash_platform, :ethereum_rpc_module, AgentEns.Internal.RPC
 config :ash_platform, :ens_lookup_deadline_ms, 4_000
 config :ash_platform, :ens_avatar_http_client, AshPlatform.Ens.AvatarHttpClient
 config :ash_platform, :ens_avatar_deadline_ms, 2_000
-config :ash_platform, :autolaunch_indexer_rpc_url, nil
 config :ash_platform, :app_surfaces, true
 config :ash_platform, :regents_club_metadata_cutover, false
 config :ash_platform, :regents_club_privy_origin_canary, false

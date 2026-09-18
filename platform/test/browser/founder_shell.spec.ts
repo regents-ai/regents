@@ -1,46 +1,13 @@
-import {execFileSync} from "node:child_process"
-import {randomUUID} from "node:crypto"
 import {expect, test, type Page} from "@playwright/test"
 import {
   installAuthenticatedPrivy,
   matchesAuthenticatedPrivyBridgeUrl,
 } from "./support/authenticated_privy"
 
-const browserDraftNames = new WeakMap<Page, string>()
-
-function registerBrowserDraft(page: Page, prefix: string): string {
-  const name = `${prefix} ${randomUUID()}`
-  browserDraftNames.set(page, name)
-  return name
-}
-
-test.afterEach(({page}, testInfo) => {
-  const name = browserDraftNames.get(page)
-  if (!name) return
-
-  // A hook gets its own budget after a timed-out body; body-local finally does not.
-  testInfo.setTimeout(60_000)
-  browserDraftNames.delete(page)
-  const env = {...process.env}
-  env.MIX_ENV = "test"
-  delete env.ASH_PLATFORM_BROWSER_TEST
-  execFileSync("mix", ["ash_platform.cleanup_browser_autolaunch_drafts", "--name", name], {
-    env,
-    stdio: "inherit",
-    timeout: 45_000,
-  })
-})
-
 const shellRoutes = [
   "/app",
   "/formation",
   "/regents/regent",
-  "/autolaunch",
-  "/autolaunch/auctions",
-  "/autolaunch/auctions/auction-1",
-  "/autolaunch/tokens",
-  "/autolaunch/tokens/token-1",
-  "/autolaunch/create",
   "/stake",
   "/redeem",
 ]
@@ -87,7 +54,7 @@ test("[U2] the ruled shell keeps the Regents palette across applications", async
   const palette: Record<string, {ground: string | null; text: string | null}> = {}
   for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
-    for (const route of ["/stake", "/formation", "/autolaunch"]) {
+    for (const route of ["/stake", "/formation"]) {
       await page.goto(route)
       await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
       await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
@@ -99,7 +66,7 @@ test("[U2] the ruled shell keeps the Regents palette across applications", async
     }
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    for (const destination of ["/formation", "/autolaunch"]) {
+    for (const destination of ["/formation", "/stake"]) {
       await patchTo(page, destination)
       await expect(page).toHaveURL(new RegExp(`${destination}$`))
       await expect.poll(() => readFamily(page)).toEqual(palette[choice])
@@ -114,7 +81,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 }) => {
   for (const [route, brand] of [
     ["/formation", "platform"],
-    ["/autolaunch", "platform"],
+    ["/stake", "platform"],
   ] as const) {
     const served = await (await request.get(route)).text()
     expect(served).toContain(`data-brand="${brand}"`)
@@ -418,8 +385,8 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   ).toBe(true)
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
-  await patchTo(page, "/autolaunch")
-  await expect(page).toHaveURL(/\/autolaunch$/)
+  await patchTo(page, "/stake")
+  await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await page.evaluate(() => {
     document
@@ -441,7 +408,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
   await page.goForward()
-  await expect(page).toHaveURL(/\/autolaunch$/)
+  await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
@@ -453,142 +420,14 @@ test("rapid app switches settle only the latest scene and remove motion copies",
 
   await patchTo(page, "/formation")
   await expect(page).toHaveURL(/\/formation$/)
-  await patchTo(page, "/autolaunch")
+  await patchTo(page, "/stake")
 
-  await expect(page).toHaveURL(/\/autolaunch$/)
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-motion-app", "autolaunch")
-  await expect(page.getByRole("heading", {name: "Launch with public proof"})).toBeVisible()
+  await expect(page).toHaveURL(/\/stake$/)
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-motion-app", "regent_ops")
+  await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
   await expect(page.locator("[data-motion-copy]"), "outgoing copies are disposable").toHaveCount(0)
   await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
 })
-
-
-
-
-
-test("Autolaunch overview, detail, and Create stay useful without fake market data", async ({page}) => {
-  await page.goto("/autolaunch")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  const overview = page.locator("#autolaunch-overview")
-  await expect(overview.getByRole("heading", {name: "Launch with public proof"})).toBeVisible()
-  await expect(overview.locator(".autolaunch-market-section h2")).toHaveText([
-    "Featured auctions",
-    "Recently created",
-    "Top tokens",
-    "Recently graduated",
-  ])
-  await expect(overview).not.toContainText("$")
-
-  await overview.getByRole("link", {name: "Create a launch"}).click()
-  await expect(page).toHaveURL(/\/autolaunch\/create$/)
-  await expect(page.locator("#autolaunch-create")).toContainText(
-    "Sign in to prepare your launch.",
-  )
-  await expect(page.locator("#autolaunch-create form")).toHaveCount(0)
-
-  await page.goto("/autolaunch/auctions/auction-42")
-  await expect(page.getByRole("heading", {name: "Auction not found"})).toBeVisible()
-  await expect(page.locator("#autolaunch-auction-detail")).toContainText(
-    "No public auction exists",
-  )
-})
-
-const draftTreasury = "0xAbCdeF0000000000000000000000000000000001"
-
-test("a signed-in Regent owner saves a private launch draft without creating an auction", async ({page}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
-  await auth.establishLocalSession()
-
-  await page.goto("/formation")
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
-
-  await page.goto("/autolaunch/create")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
-
-  const uniqueName = registerBrowserDraft(page, "Browser launch draft")
-  const draft = page.locator("#create-launch-draft")
-  await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
-  await draft.getByLabel("Symbol", {exact: true}).fill("bdraft")
-  await draft.getByLabel("Description", {exact: true}).fill("Private preparation only.")
-  await draft.getByLabel("Website", {exact: true}).fill("https://example.test/browser-draft")
-  await draft.getByLabel("Image", {exact: true}).fill("https://example.test/browser-draft.png")
-  await draft.getByLabel("Immutable treasury recipient", {exact: true}).fill(draftTreasury)
-  await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
-  await draft.getByRole("button", {name: "Save draft"}).click()
-
-  await expect(page.getByText("Draft saved.")).toBeVisible()
-  const card = page.locator("#launch-drafts article").filter({hasText: uniqueName})
-  await expect(card).toBeVisible()
-  await expect(card.locator(".autolaunch-draft-review")).toContainText(draftTreasury)
-  await expect(card.locator(".autolaunch-draft-review")).toContainText("1000.5")
-
-  await page.goto("/autolaunch/auctions")
-  await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 3, sessionChecks: 3, syncs: 3})
-  await expect(page.getByText(uniqueName)).toHaveCount(0)
-})
-
-test("Create fits a 390px viewport and wraps long draft values instead of cutting them", async ({page}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid-autolaunch-draft")
-  await auth.establishLocalSession()
-
-  await page.setViewportSize({width: 390, height: 844})
-  await page.goto("/formation")
-  await auth.expectAuthenticatedSession()
-
-  await page.goto("/autolaunch/create")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-
-  const uniqueName = registerBrowserDraft(page, "Narrow viewport draft")
-  const draft = page.locator("#create-launch-draft")
-  await draft.getByLabel("Name", {exact: true}).fill(uniqueName)
-  await draft.getByLabel("Symbol", {exact: true}).fill("narrow")
-  await draft
-    .getByLabel("Description", {exact: true})
-    .fill("A description long enough to run past one line on a narrow phone screen.")
-  await draft.getByLabel("Website", {exact: true}).fill("https://example.test/a-deliberately-long-draft-address")
-  await draft.getByLabel("Image", {exact: true}).fill("https://example.test/a-deliberately-long-draft-image.png")
-  await draft.getByLabel("Immutable treasury recipient", {exact: true}).fill(draftTreasury)
-  await draft.getByLabel("Required raise in REGENT", {exact: true}).fill("1000.5")
-  await draft.getByRole("button", {name: "Save draft"}).click()
-
-  const card = page.locator("#launch-drafts article").filter({hasText: uniqueName})
-  await expect(card).toBeVisible()
-
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(
-    await page.evaluate(() => {
-      const scroller = document.querySelector("#app-shell-scroller")!
-      return scroller.scrollWidth - scroller.clientWidth
-    }),
-  ).toBeLessThanOrEqual(0)
-
-  const escapes = await page.locator("#autolaunch-create *").evaluateAll(nodes =>
-    nodes
-      .map(node => node.getBoundingClientRect())
-      .filter(box => box.width > 0 && (box.left < -0.5 || box.right > 390.5))
-      .length,
-  )
-  expect(escapes).toBe(0)
-
-  // The full address stays on screen across more than one line rather than being
-  // clipped or shortened.
-  const treasury = card.locator(".autolaunch-draft-review dd").filter({hasText: draftTreasury})
-  await expect(treasury).toHaveText(draftTreasury)
-
-  const wrapping = await treasury.evaluate(element => {
-    const range = document.createRange()
-    range.selectNodeContents(element)
-    return {lines: range.getClientRects().length, clipped: element.scrollWidth - element.clientWidth}
-  })
-
-  expect(wrapping.lines).toBeGreaterThan(1)
-  expect(wrapping.clipped).toBeLessThanOrEqual(0)
-})
-
 
 test("Formation keeps one in-shell heading and an exact inactive Nous handoff", async ({page}) => {
   const requests: string[] = []

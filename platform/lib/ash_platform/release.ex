@@ -23,10 +23,9 @@ defmodule AshPlatform.Release do
   Prepares an empty staging database for the first deployment.
 
   Staging owns a disposable database, so it has no copy of the tables this
-  repository reads but does not own: `regent_names.platform_human_users` and the
-  `autolaunch_app` tables. This command creates staging-only approximations of
-  them with the shape the local fixture already proves sufficient, then runs
-  every migration into `regents_app`.
+  repository reads but does not own, `regent_names.platform_human_users`. This
+  command creates a staging-only approximation of it with the shape the local
+  fixture already proves sufficient, then runs every migration into `regents_app`.
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished

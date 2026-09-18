@@ -40,14 +40,6 @@ config :ash_platform,
 config :ash_platform, :siwa, base_url: "https://siwa.test", audience: "ash-platform-test"
 config :ash_platform, :database_startup_enabled, true
 
-# The Base log ledger never runs under test: the tests drive its handler
-# directly against a fake endpoint, and nothing in the shell can turn it on.
-config :ash_platform, :autolaunch_indexer_rpc_url, nil
-
-config :ash_platform,
-       :autolaunch_indexer_http_client,
-       AshPlatform.TestAutolaunchIndexerChainClient
-
 # ENS lookups answer from a stubbed mainnet whose replies are chosen by the
 # wallet asking, so no test reaches a real endpoint.
 config :ash_platform, :ethereum_read_rpc_url, "https://ethereum.test.invalid"
@@ -62,18 +54,7 @@ config :ash_platform, :ens_avatar_deadline_ms, 200
 # controller tests restore the release 30/300 themselves.
 config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
-# The subject wallet browser proof needs a Base answer without a provider, a
-# wallet or a chain call. Ordinary ExUnit cases install and restore this client
-# themselves, so only the Playwright server process selects it here.
 if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
-  config :ash_platform,
-         :autolaunch_subject_wallet_chain_client,
-         AshPlatform.TestAutolaunchSubjectWalletChainClient
-
-  config :ash_platform,
-         :autolaunch_launch_chain_client,
-         AshPlatform.TestAutolaunchLaunchChainClient
-
   config :ash_platform,
          :wallet_transaction_observer,
          AshPlatform.TestBrowserWalletTransactionObserver

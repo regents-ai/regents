@@ -38,10 +38,9 @@ change production release identities.
 
 ## Current boundaries
 
-The monorepo contains retained Formation and Autolaunch routes while those product
-cutovers are in progress. New Autolaunch work belongs to its own monorepo. Techtree
-registry source belongs to `techtree/contracts`; retained Autolaunch-named interfaces
-here support Regents staking/distribution and are not a second V1 owner.
+The monorepo contains retained Formation routes while that product cutover is in
+progress. Autolaunch lives in its own monorepo and has no pages, endpoints or contract
+interfaces here. Techtree registry source belongs to `techtree/contracts`.
 
 Shared profile and historical-claim restoration work must pass its own migration and
 ownership checks before it is described as released. A CLI build, API schema or UI

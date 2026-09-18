@@ -4,7 +4,7 @@ export type ShellState = {
   menuOpen: boolean
 }
 
-export type ShellBrand = "platform" | "autolaunch"
+export type ShellBrand = "platform"
 
 // Nested product routes retain the Regents platform palette.
 export function brandForShellApp(_app: string | undefined): ShellBrand {

@@ -15,7 +15,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
        capabilities: capability_samples(),
        ratio_bps: 5620,
        ratio_state: "sample",
-       product_previews: AshPlatformWeb.Showcase.ProductPreviews.all(),
        form: to_form(%{"title" => "First launch", "quantity" => "1"}, as: :sample),
        errors: [],
        records: [],
@@ -26,9 +25,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
        step_form: to_form(%{"title" => "Current step"}, as: :step),
        step_errors: [],
        result: nil,
-       comments: [],
-       comment_notice: nil,
-       comment_draft: "",
        identities: [],
        connection_notice: nil,
        route_spec: AshPlatformWeb.RouteCatalog.fetch!(:app),
@@ -429,20 +425,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
                 The root layout renders this document. The preview renders the app layout, navigation, account control and theme toggle.
               </p>
             </P.disclosure>
-            <P.disclosure
-              phx-mounted={JS.ignore_attributes("open")}
-              id="comments-detail"
-              summary="Comment ledger · local fixture"
-            >
-              <AshPlatformWeb.Components.CommentLedger.comment_ledger
-                comments={@comments}
-                status={:ready}
-                notice={@comment_notice}
-                draft={@comment_draft}
-                current_human_id={1}
-                request_id="showcase"
-              />
-            </P.disclosure>
           </section>
 
           <section id="staking-summary" class="sc-section">
@@ -577,7 +559,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
                       verified with a real account. Wallet fixture state is separate.
                     </p>
                   </P.disclosure><h3>Product actions</h3><div class="sc-row">
-                    <a href="/stake">Stake ↗</a><a href="/redeem">Redeem ↗</a><a href="/autolaunch/create">Launch ↗</a>
+                    <a href="/stake">Stake ↗</a><a href="/redeem">Redeem ↗</a>
                   </div><P.disclosure
                     phx-mounted={JS.ignore_attributes("open")}
                     id="real-actions"
@@ -602,16 +584,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
                 notice={@connection_notice}
                 description="Local presentation fixture"
               />
-            </P.disclosure>
-            <P.disclosure
-              :for={{preview, index} <- Enum.with_index(@product_previews)}
-              phx-mounted={JS.ignore_attributes("open")}
-              id={"product-preview-#{index}"}
-              summary={preview.name <> " · signed-out preview"}
-            >
-              <iframe title={preview.name} srcdoc={preview.document} sandbox="" loading="lazy"></iframe><p>
-                Static, inert product composition. No hooks, sign-in or transaction handlers run inside this preview.
-              </p>
             </P.disclosure>
           </section>
 
@@ -885,41 +857,6 @@ defmodule AshPlatformWeb.ShowcaseLive do
 
   def handle_event("example_action", _, socket),
     do: {:noreply, assign(socket, :result, %{example: "Action received."})}
-
-  def handle_event("post_comment", %{"comment" => %{"body" => body}}, socket) do
-    case AshPlatform.Discussions.Markdown.normalize_and_validate(body) do
-      {:ok, body} ->
-        comment = %{
-          id: System.unique_integer([:positive]),
-          author_id: 1,
-          author: %{display_name: "Workshop visitor"},
-          body: body,
-          inserted_at: DateTime.utc_now()
-        }
-
-        {:noreply,
-         assign(socket,
-           comments: [comment | socket.assigns.comments],
-           comment_draft: "",
-           comment_notice: %{tone: :success, message: "Comment posted locally."}
-         )}
-
-      {:error, _reason} ->
-        {:noreply,
-         assign(socket,
-           comment_draft: body,
-           comment_notice: %{
-             tone: :error,
-             message: "That comment could not be posted. Check its length and formatting."
-           }
-         )}
-    end
-  end
-
-  def handle_event("delete_comment", %{"id" => id}, socket),
-    do:
-      {:noreply,
-       assign(socket, :comments, Enum.reject(socket.assigns.comments, &(to_string(&1.id) == id)))}
 
   def handle_event(
         "request_verified_connection",

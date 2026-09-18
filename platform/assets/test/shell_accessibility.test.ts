@@ -164,8 +164,8 @@ function shellFixture() {
     },
   })
 
-  shell.dataset.routeId = "autolaunch"
-  shell.dataset.destination = "/autolaunch"
+  shell.dataset.routeId = "stake"
+  shell.dataset.destination = "/stake"
   shell.dataset.menuOpen = "false"
 
   return {

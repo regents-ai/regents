@@ -481,8 +481,8 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
     await route.fulfill({response})
   })
 
-  await page.goto("/autolaunch/create")
-  await expect(page.locator("#autolaunch-create")).toContainText("Sign in to prepare your launch.")
+  await page.goto("/stake")
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   const csrfToken = await page.evaluate(async () => {
     const response = await fetch("/auth/csrf", {credentials: "same-origin"})
     return ((await response.json()) as {csrf_token: string}).csrf_token
@@ -603,8 +603,8 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   expect((await roundTrip())?.privilegedPushes).toBe(0)
   const sessionAfterProtectedAction = await page.request.get("/auth/session")
   expect((await sessionAfterProtectedAction.json()).authenticated).toBe(false)
-  await expect(page.locator("#autolaunch-create")).toContainText("Sign in to prepare your launch.")
-  expect(documentRequests).toEqual([pageUrl(page, "/autolaunch/create")])
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  expect(documentRequests).toEqual([pageUrl(page, "/stake")])
 })
 
 test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {

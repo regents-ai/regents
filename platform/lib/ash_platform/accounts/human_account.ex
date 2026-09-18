@@ -25,8 +25,6 @@ defmodule AshPlatform.Accounts.HumanAccount do
       prepare build(load: [:ens_name, :ens_avatar_url])
     end
 
-    read :public_comment_author
-
     read :public_profile_source do
       public? false
       get? true
@@ -67,10 +65,6 @@ defmodule AshPlatform.Accounts.HumanAccount do
   policies do
     policy action([:by_privy_did, :register_verified, :refresh_verified, :public_profile_source]) do
       authorize_if AshPlatform.Checks.SystemActor
-    end
-
-    policy action(:public_comment_author) do
-      authorize_if always()
     end
 
     policy action([:read_self, :set_display_name, :set_avatar]) do

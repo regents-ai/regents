@@ -407,10 +407,8 @@ defmodule AshPlatformWeb.ShellLiveTest do
   end
 
   test "malformed route parameters return not found", %{conn: conn} do
-    auction_id = String.duplicate("a", 129)
-
     assert_error_sent 404, fn ->
-      get(conn, "/autolaunch/auctions/#{auction_id}")
+      get(conn, "/regents/not%20valid")
     end
   end
 

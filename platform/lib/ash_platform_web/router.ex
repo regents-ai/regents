@@ -94,12 +94,6 @@ defmodule AshPlatformWeb.Router do
   scope "/api", AshPlatformWeb do
     pipe_through :api
 
-    get "/autolaunch/v1/auctions", AutolaunchAuctionController, :index
-    get "/autolaunch/v1/auctions/:id", AutolaunchAuctionController, :show
-    post "/autolaunch/v1/auctions/:id/bid-quote", AutolaunchAuctionController, :bid_quote
-    get "/autolaunch/v1/tokens", AutolaunchTokenController, :index
-    get "/autolaunch/v1/treasury-security/:address", AutolaunchTreasuryController, :show
-
     post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
   end
 
@@ -133,17 +127,6 @@ defmodule AshPlatformWeb.Router do
       # live "/settings", ShellLive, :settings
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
-      live "/autolaunch", ShellLive, :autolaunch
-      live "/autolaunch/auctions", ShellLive, :autolaunch_auctions
-      live "/autolaunch/auctions/:auction_id", ShellLive, :autolaunch_auction
-      live "/autolaunch/tokens", ShellLive, :autolaunch_tokens
-      live "/autolaunch/tokens/:token_id", ShellLive, :autolaunch_token
-      live "/autolaunch/launches", ShellLive, :autolaunch_launches
-      live "/autolaunch/launches/:id", ShellLive, :autolaunch_launch
-      live "/autolaunch/subjects", ShellLive, :autolaunch_subjects
-      live "/autolaunch/subjects/:id", ShellLive, :autolaunch_subject
-      live "/autolaunch/holdings", ShellLive, :autolaunch_holdings
-      live "/autolaunch/create", ShellLive, :autolaunch_create
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/regents-club/metadata-cutover", ShellLive, :regents_club_metadata

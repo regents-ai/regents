@@ -100,16 +100,6 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
-  def verify_access_token("valid-autolaunch-draft") do
-    {:ok,
-     %AshPlatform.VerifiedPrivyIdentity{
-       session_id: "autolaunch-draft-browser-session",
-       privy_user_id: "did:privy:autolaunch-draft-browser",
-       wallet_address: "0x3333333333333333333333333333333333333333",
-       wallet_addresses: ["0x3333333333333333333333333333333333333333"]
-     }}
-  end
-
   def verify_access_token("valid-formation-cloud") do
     {:ok,
      %AshPlatform.VerifiedPrivyIdentity{

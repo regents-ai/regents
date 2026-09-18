@@ -11,7 +11,6 @@ defmodule AshPlatformWeb.Components.VerifiedConnections do
   attr :authenticated, :boolean, default: true
   attr :title, :string, default: "Verified connections"
   attr :description, :string, default: "Connect accounts that help people recognize your work."
-  attr :kicker, :string, default: nil
   attr :class, :string, default: nil
 
   def verified_connections(assigns) do
@@ -28,7 +27,6 @@ defmodule AshPlatformWeb.Components.VerifiedConnections do
       phx-hook="VerifiedConnections"
     >
       <div>
-        <p :if={@kicker} class="autolaunch-kicker">{@kicker}</p>
         <h2 id={"#{@id}-title"}>{@title}</h2>
         <p>{@description}</p>
         <p

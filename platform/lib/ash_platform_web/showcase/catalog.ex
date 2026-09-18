@@ -8,7 +8,6 @@ defmodule AshPlatformWeb.Showcase.Catalog do
     {Regent.Blog, [:gallery, :article, :contents, :not_found]},
     {Regent.ThemeToggle, [:button]},
     {AshPlatformWeb.Components.Shell, [:shell, :account_control, :theme_toggle]},
-    {AshPlatformWeb.Components.CommentLedger, [:comment_ledger]},
     {AshPlatformWeb.Components.VerifiedConnections, [:verified_connections]},
     {AshPlatformWeb.Layouts, [:app, :root]}
   ]

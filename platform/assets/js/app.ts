@@ -23,16 +23,11 @@ import {HomeField} from "./hooks/home_field"
 import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
-import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
-import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
-import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
-import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {ShellMotion} from "./hooks/motion"
 import {ModalDialog} from "./hooks/modal_dialog"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
-import {CommentMarkdown} from "./hooks/comment_markdown"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
@@ -325,13 +320,8 @@ const shellBehavior: Hook = {
 const showcaseHooks = window.location.pathname.startsWith("/showcase")
   ? (await import("./showcase")).hooks : {}
 const hooks = {
-  CommentMarkdown,
   ...showcaseHooks,
   ...colocatedHooks,
-  AutolaunchBidWallet,
-  AutolaunchLaunchDraft,
-  AutolaunchLaunchWallet,
-  AutolaunchSubjectWallet,
   HomeField,
   HomeHero,
   HomePrism,

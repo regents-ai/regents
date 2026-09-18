@@ -22,7 +22,6 @@
     "priv/static/images/backgrounds/regents_labs.svg",
     "priv/static/images/backgrounds/formation.svg",
     "priv/static/images/backgrounds/regent_record.svg",
-    "priv/static/images/backgrounds/autolaunch.svg",
     "docs/design/founder-shell/**"
   ],
   "ash_owned_exclusions": [
@@ -87,8 +86,7 @@
     {"slot": "home", "path": "priv/static/images/backgrounds/home.svg"},
     {"slot": "regents_labs", "path": "priv/static/images/backgrounds/regents_labs.svg"},
     {"slot": "formation", "path": "priv/static/images/backgrounds/formation.svg"},
-    {"slot": "regent_record", "path": "priv/static/images/backgrounds/regent_record.svg"},
-    {"slot": "autolaunch", "path": "priv/static/images/backgrounds/autolaunch.svg"}
+    {"slot": "regent_record", "path": "priv/static/images/backgrounds/regent_record.svg"}
   ],
   "acceptance_commands": [
     "mix compile --warnings-as-errors",

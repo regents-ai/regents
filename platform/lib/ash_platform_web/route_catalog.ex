@@ -11,7 +11,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     ViewerProfileTarget
   }
 
-  @identifier ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
   @slug ~r/\A[a-z0-9][a-z0-9-]{0,62}\z/
 
   @entries [
@@ -51,83 +50,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :regent_profile
     },
     %Entry{
-      path_pattern: "/autolaunch",
-      live_action: :autolaunch,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch
-    },
-    %Entry{
-      path_pattern: "/autolaunch/auctions",
-      live_action: :autolaunch_auctions,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_auctions
-    },
-    %Entry{
-      path_pattern: "/autolaunch/auctions/:auction_id",
-      live_action: :autolaunch_auction,
-      parameter_schema: %{auction_id: :identifier},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_auction
-    },
-    %Entry{
-      path_pattern: "/autolaunch/tokens",
-      live_action: :autolaunch_tokens,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_tokens
-    },
-    %Entry{
-      path_pattern: "/autolaunch/tokens/:token_id",
-      live_action: :autolaunch_token,
-      parameter_schema: %{token_id: :identifier},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_token
-    },
-    %Entry{
-      path_pattern: "/autolaunch/launches",
-      live_action: :autolaunch_launches,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_launches
-    },
-    %Entry{
-      path_pattern: "/autolaunch/launches/:id",
-      live_action: :autolaunch_launch,
-      parameter_schema: %{id: :identifier},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_launch
-    },
-    %Entry{
-      path_pattern: "/autolaunch/subjects",
-      live_action: :autolaunch_subjects,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_subjects
-    },
-    %Entry{
-      path_pattern: "/autolaunch/subjects/:id",
-      live_action: :autolaunch_subject,
-      parameter_schema: %{id: :identifier},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_subject
-    },
-    %Entry{
-      path_pattern: "/autolaunch/holdings",
-      live_action: :autolaunch_holdings,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_holdings
-    },
-    %Entry{
-      path_pattern: "/autolaunch/create",
-      live_action: :autolaunch_create,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch_create
-    },
-    %Entry{
       path_pattern: "/stake",
       live_action: :stake,
       parameter_schema: %{},
@@ -164,41 +86,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regent_record, :detail, %{}},
-    autolaunch:
-      {:autolaunch, :autolaunch, "Autolaunch", "Autolaunch", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :overview, %{}},
-    autolaunch_auctions:
-      {:autolaunch_auctions, :autolaunch, "Autolaunch", "Auctions", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
-    autolaunch_auction:
-      {:autolaunch_auction, :autolaunch, "Autolaunch", "Auction", "/autolaunch",
-       [:search, :filters, :wallet_status, :network_status, :profile_actions], :autolaunch,
-       :autolaunch, :detail, %{}},
-    autolaunch_tokens:
-      {:autolaunch_tokens, :autolaunch, "Autolaunch", "Tokens", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
-    autolaunch_token:
-      {:autolaunch_token, :autolaunch, "Autolaunch", "Token", "/autolaunch",
-       [:search, :filters, :wallet_status, :network_status, :profile_actions], :autolaunch,
-       :autolaunch, :detail, %{}},
-    autolaunch_launches:
-      {:autolaunch_launches, :autolaunch, "Autolaunch", "Launches", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
-    autolaunch_launch:
-      {:autolaunch_launch, :autolaunch, "Autolaunch", "Launch", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :detail, %{}},
-    autolaunch_subjects:
-      {:autolaunch_subjects, :autolaunch, "Autolaunch", "Subjects", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
-    autolaunch_subject:
-      {:autolaunch_subject, :autolaunch, "Autolaunch", "Subject", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :detail, %{}},
-    autolaunch_holdings:
-      {:autolaunch_holdings, :autolaunch, "Autolaunch", "Holdings", "/autolaunch",
-       [:wallet_status, :profile_actions], :autolaunch, :autolaunch, :collection, %{}},
-    autolaunch_create:
-      {:autolaunch_create, :autolaunch, "Autolaunch", "Create", "/autolaunch",
-       [:search, :filters, :profile_actions], :autolaunch, :autolaunch, :workflow, %{}},
     stake:
       {:stake, :regent_ops, "Regents Labs", "Stake", "/app",
        [:wallet_status, :network_status, :profile_actions], :none, :regents_labs, :workflow, %{}},
@@ -241,9 +128,6 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   defp valid_parameter?(:slug, value), do: is_binary(value) and Regex.match?(@slug, value)
 
-  defp valid_parameter?(:identifier, value),
-    do: is_binary(value) and Regex.match?(@identifier, value)
-
   defp build_spec(action, params) do
     {route_id, app_id, app_label, page_label, root, controls, search, background, transition,
      local_state} = Map.fetch!(@specs, action)
@@ -271,44 +155,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     %SidebarModel{
       id: :formation,
       targets: []
-    }
-  end
-
-  defp sidebar_model(:autolaunch) do
-    %SidebarModel{
-      id: :autolaunch,
-      targets: [
-        %RouteTarget{
-          route_id: :autolaunch_auctions,
-          label: "Auctions",
-          path: "/autolaunch/auctions"
-        },
-        %RouteTarget{
-          route_id: :autolaunch_tokens,
-          label: "Tokens",
-          path: "/autolaunch/tokens"
-        },
-        %RouteTarget{
-          route_id: :autolaunch_launches,
-          label: "Launches",
-          path: "/autolaunch/launches"
-        },
-        %RouteTarget{
-          route_id: :autolaunch_subjects,
-          label: "Subjects",
-          path: "/autolaunch/subjects"
-        },
-        %RouteTarget{
-          route_id: :autolaunch_holdings,
-          label: "Holdings",
-          path: "/autolaunch/holdings"
-        },
-        %RouteTarget{
-          route_id: :autolaunch_create,
-          label: "Create",
-          path: "/autolaunch/create"
-        }
-      ]
     }
   end
 
@@ -370,25 +216,9 @@ defmodule AshPlatformWeb.RouteCatalog do
   end
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
-  defp handoff_params(:autolaunch_auction), do: %{"auction_id" => "auction"}
-  defp handoff_params(:autolaunch_token), do: %{"token_id" => "token"}
-  defp handoff_params(:autolaunch_launch), do: %{"id" => "launch"}
-  defp handoff_params(:autolaunch_subject), do: %{"id" => "subject"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
-
-  defp destination(:autolaunch_auction, %{"auction_id" => auction_id}),
-    do: "/autolaunch/auctions/#{auction_id}"
-
-  defp destination(:autolaunch_token, %{"token_id" => token_id}),
-    do: "/autolaunch/tokens/#{token_id}"
-
-  defp destination(:autolaunch_launch, %{"id" => id}),
-    do: "/autolaunch/launches/#{id}"
-
-  defp destination(:autolaunch_subject, %{"id" => id}),
-    do: "/autolaunch/subjects/#{id}"
 
   defp destination(action, _params) do
     @entries
