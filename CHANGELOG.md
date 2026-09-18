@@ -155,3 +155,33 @@ claim ownership or Privy mappings, and does not deploy the other product sites.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+
+## 2026-09-18 — Autolaunch leaves Regents: release contents
+
+Founder decision: autolaunch.sh is the product, so Regents no longer carries its
+own copy of it.
+
+### Removed
+
+- The in-app Autolaunch pages (`/autolaunch` and everything under it) and the
+  `/api/autolaunch/v1/*` endpoints. They were closed in production; they now
+  answer "not found". The homepage, Overview and Stake still name Autolaunch and
+  link to autolaunch.sh.
+- The background reader of Autolaunch events on Base, the Autolaunch contract
+  interfaces kept for those pages, and the separate Autolaunch on/off setting.
+- Comments, which only Autolaunch records used: the comment panel, its moderation
+  setting, formula typesetting and the library behind it.
+- The published API description and route list no longer mention any of the above.
+
+### Maintenance
+
+- Six tests that still described older pages now match what is released: the
+  error body for API callers, the homepage's public links, the pages that stay
+  open while the app is closed, and the market cap position on Stake.
+
+This release targets Regents only. It adds no database migrations and changes no
+data: the Autolaunch tables belong to the Autolaunch site and were never managed
+from here, and the empty Regents comments table is left in place. It changes no
+claim ownership or Privy mappings and does not deploy the other product sites.
+Shared library and shared UI revisions are unchanged.
