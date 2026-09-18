@@ -34,6 +34,7 @@ COPY platform/deps deps
 COPY platform/mix.exs platform/mix.lock ./
 COPY elixir-utils/privy /workspace/elixir-utils/privy
 COPY elixir-utils/blog /workspace/elixir-utils/blog
+COPY elixir-utils/agent_access /workspace/elixir-utils/agent_access
 COPY regents/identity /workspace/regents/identity
 COPY design-system/regent_ui /workspace/design-system/regent_ui
 COPY platform/config config

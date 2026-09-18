@@ -1,10 +1,15 @@
 defmodule AshPlatformWeb.ErrorMD do
   @moduledoc "Public recovery instructions without private request or exception details."
 
-  def render(template, _assigns) do
-    title = Phoenix.Controller.status_message_from_template(template)
+  alias AshPlatformWeb.PublicDocuments
 
-    "# #{title}\n\nThis request could not be completed. Use these public entry points to continue:\n\n" <>
-      AshPlatformWeb.PublicDocuments.recovery_markdown() <> "\n"
+  def render(template, _assigns) do
+    links =
+      for {label, path} <- PublicDocuments.recovery_links(),
+          do: {label, PublicDocuments.url(path)}
+
+    template
+    |> Phoenix.Controller.status_message_from_template()
+    |> RegentAgentAccess.Recovery.markdown(links)
   end
 end

@@ -5,6 +5,8 @@ defmodule AshPlatformWeb.ErrorJSON do
   See config/config.exs.
   """
 
+  alias AshPlatformWeb.PublicDocuments
+
   # If you want to customize a particular status code,
   # you may add your own clauses, such as:
   #
@@ -16,15 +18,10 @@ defmodule AshPlatformWeb.ErrorJSON do
   # the template name. For example, "404.json" becomes
   # "Not Found".
   def render(template, _assigns) do
-    detail = Phoenix.Controller.status_message_from_template(template)
-
-    %{
-      errors: %{
-        detail: detail,
-        code: detail |> String.downcase() |> String.replace(" ", "_"),
-        hint:
-          "See #{AshPlatformWeb.PublicDocuments.url("/docs")} and #{AshPlatformWeb.PublicDocuments.url("/openapi.json")} for supported requests."
-      }
-    }
+    template
+    |> Phoenix.Controller.status_message_from_template()
+    |> RegentAgentAccess.Recovery.json(
+      "See #{PublicDocuments.url("/docs")} and #{PublicDocuments.url("/openapi.json")} for supported requests."
+    )
   end
 end

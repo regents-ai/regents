@@ -44,6 +44,10 @@ defmodule AshPlatformWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug AshPlatformWeb.Plugs.RuntimeSession
-  plug AshPlatformWeb.Plugs.AgentAccess
+
+  plug RegentAgentAccess.Plug,
+    documents: &AshPlatformWeb.PublicDocuments.document/1,
+    guide: "/llms.txt"
+
   plug AshPlatformWeb.Router
 end

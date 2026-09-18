@@ -125,10 +125,4 @@ defmodule AshPlatformWeb.PublicDocuments do
       {"Sitemap", "/sitemap.xml"}
     ]
   end
-
-  def recovery_markdown do
-    Enum.map_join(recovery_links(), "\n", fn {label, path} ->
-      "- [#{label}](#{url(path)})"
-    end)
-  end
 end

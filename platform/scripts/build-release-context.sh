@@ -57,6 +57,7 @@ privy_source="${REGENT_PRIVY_PATH:-$siblings/elixir-utils/privy}"
 identity_source="${REGENT_IDENTITY_PATH:-$siblings/regents/identity}"
 regent_ui_source="${REGENT_UI_PATH:-$siblings/design-system/regent_ui}"
 blog_source="${REGENT_BLOG_PATH:-$siblings/elixir-utils/blog}"
+agent_access_source="$siblings/elixir-utils/agent_access"
 
 # The arm64 native artifact is part of the base supply; the amd64 one arrived
 # in its own sealed directory. Both declare it under the same manifest keys.
@@ -92,7 +93,8 @@ esbuild_addendum="$esbuild_supply/SUPPLY-ADDENDUM.txt"
 native_manifest="$native_supply/$native_manifest_name"
 
 for required in "$manifest" "$mix_addendum" "$esbuild_addendum" "$native_manifest" \
-  "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$repo_root/../blog"; do
+  "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$agent_access_source" \
+  "$repo_root/../blog"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
 
@@ -192,6 +194,10 @@ mkdir -p "$staging/elixir-utils/blog" "$staging/blog"
 rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
   "$blog_source/" "$staging/elixir-utils/blog/"
 rsync -a --no-links "${env_filters[@]}" "$repo_root/../blog/" "$staging/blog/"
+
+mkdir -p "$staging/elixir-utils/agent_access"
+rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
+  "$agent_access_source/" "$staging/elixir-utils/agent_access/"
 
 # The sealed npm directory is the cache payload itself, so it lands one level
 # down: npm resolves its content under <cache>/_cacache.
