@@ -110,3 +110,26 @@ revision remains the one recorded above.
 - Igniter is a development and test tool only. It is not part of the production
   image, so the deployed site is not affected. The fix is in Igniter 0.8.4 and
   remains a separate follow-up.
+
+
+## 2026-09-18 — Polish release contents
+
+### Interface
+
+- The $REGENT copy row shows its green check only after a copy. The "CA copied"
+  note sits inside the row beside the check and clears after a moment.
+- The signed-in menu's first row reads **Account**, in the accent colour, with an
+  icon, on one line.
+- On Stake, the Stake or Unstake button takes its lit look while a valid amount
+  stands in the field. This is appearance only; every press reaches the wallet.
+
+### Maintenance
+
+- Update Igniter, a development-only tool, from 0.8.2 to 0.8.4, closing
+  low-severity CVE-2026-82584. The dependency audit reports no advisories.
+- The CLI plugin install tests match the current behaviour: automatic install
+  covers only the runtimes found on the machine.
+
+Shared library and shared UI revisions are unchanged from the maintenance release.
+This release targets Regents only. It adds no database migrations, changes no
+claim ownership or Privy mappings, and does not deploy the other product sites.
