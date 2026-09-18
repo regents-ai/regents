@@ -255,3 +255,21 @@ revision remains the one recorded above.
 Shared library and shared UI revisions are unchanged. This release targets Regents
 only. It adds no database migrations, changes no claim ownership or Privy mappings,
 and does not deploy the other product sites.
+
+## 2026-09-18 — Lockout fix deployment verified
+
+- Deployed application revision: `eb741cf2412b8c83515d5e6d610419ae33c5a8b5`.
+- Image digest: `sha256:6e82a7eb1935cad0bbedc0c2d75bec7a906b789fd858ec0acd38359350931b9e`.
+- Shared UI revision: `0818c4af559947ebbe6bd5f1d92264941efa6342`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels and the single
+  healthy web instance.
+- The 95 live request cases match the previous release on status, content type and
+  `Vary`, and every non-page body is byte-identical.
+- Stake and Redeem connect on desktop and phone width with no sideways scrolling
+  and no browser errors. The live logs no longer carry database queries.
+- Before/after claim, account, ownership/Privy mapping, allowance and credit
+  fingerprints are identical. No database migrations were included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
