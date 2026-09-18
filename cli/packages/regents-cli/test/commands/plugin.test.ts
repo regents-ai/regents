@@ -29,7 +29,15 @@ describe("plugin setup commands", () => {
     }
   });
 
+  // "auto" installs only for runtimes present on the machine; a home folder is
+  // the evidence the CLI looks for first.
+  const presentRuntimes = () => {
+    fs.mkdirSync(path.join(tempHome, ".hermes"));
+    fs.mkdirSync(path.join(tempHome, ".openclaw"));
+  };
+
   it("defaults to the auto runtime when --runtime is omitted", async () => {
+    presentRuntimes();
     const output = await captureOutput(() => runPluginInstall(parseCliArgs([])));
     const payload = parsePrintedJson(output.stdout) as {
       selectedRuntime: string;
@@ -54,6 +62,7 @@ describe("plugin setup commands", () => {
   });
 
   it("installs both runtime plugins when auto is selected", async () => {
+    presentRuntimes();
     const output = await captureOutput(() => runPluginInstall(parseCliArgs(["--runtime", "auto"])));
     const payload = parsePrintedJson(output.stdout) as {
       selectedRuntime: string;
@@ -69,6 +78,26 @@ describe("plugin setup commands", () => {
     expect(fs.existsSync(path.join(tempHome, ".hermes", "plugins", "regent", "plugin.yaml"))).toBe(true);
     expect(fs.readFileSync(path.join(tempHome, ".hermes", "config.yaml"), "utf8")).toContain("provider: xai-oauth");
     expect(fs.existsSync(path.join(tempHome, ".openclaw", "plugins", "regent", "openclaw.plugin.json"))).toBe(true);
+  });
+
+  it("installs nothing under auto when no runtime is present", async () => {
+    const originalPath = process.env.PATH;
+    process.env.PATH = "";
+    try {
+      const output = await captureOutput(() => runPluginInstall(parseCliArgs(["--runtime", "auto"])));
+      const payload = parsePrintedJson(output.stdout) as {
+        installed_plugins: unknown[];
+        skipped_runtimes: string[];
+        next_steps: string[];
+      };
+
+      expect(payload.installed_plugins).toEqual([]);
+      expect(payload.skipped_runtimes).toEqual(["hermes", "openclaw"]);
+      expect(payload.next_steps[0]).toBe("Install Hermes or OpenClaw, then re-run: regents plugin install");
+      expect(fs.existsSync(path.join(tempHome, ".hermes"))).toBe(false);
+    } finally {
+      process.env.PATH = originalPath;
+    }
   });
 
   it("keeps setup as a readiness report instead of an installer", async () => {
