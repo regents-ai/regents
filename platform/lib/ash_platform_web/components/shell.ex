@@ -184,7 +184,9 @@ defmodule AshPlatformWeb.Components.Shell do
           <span class="shell-chevron" aria-hidden="true">⌄</span>
         </summary>
         <div class="account-menu__content shell-popover">
-          <.link href="/profile" class="account-menu__row">Account profile</.link>
+          <.link href="/profile" class="account-menu__row account-menu__row--account">
+            <.account_menu_icon name={:settings} /><span>Account</span>
+          </.link>
           <.link
             :if={@profile_links && @account_control.profile_path}
             patch={@account_control.profile_path}

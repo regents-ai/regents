@@ -315,7 +315,7 @@ defmodule AshPlatformWeb.StakeLive do
               <div class="stake-amount-tools">
                 <div class="stake-amount-action">
                   <Regent.Primitives.button
-                    class="stake-primary stake-submit"
+                    class={"stake-primary stake-submit" <> armed_class(@amount)}
                     type="button"
                     data-staking-action={@actions == :ready && @action}
                     data-account-target={@actions == :sign_in && "sign-in"}
@@ -734,6 +734,15 @@ defmodule AshPlatformWeb.StakeLive do
   # so these two are the only controls on this page a reading ever quiets.
   defp spendable_figure(:unavailable), do: :unavailable
   defp spendable_figure(spendable), do: token_amount(spendable)
+
+  # An entered amount lights the action the way a pointer resting on it would.
+  # It is appearance only; the press reaches the wallet either way.
+  defp armed_class(amount) do
+    case AshPlatform.Staking.parse_amount(amount) do
+      {:ok, _requested} -> " is-armed"
+      _invalid -> ""
+    end
+  end
 
   defp fillable?(:unavailable, _portion), do: false
   defp fillable?(spendable, "half"), do: div(spendable, 2) > 0

@@ -316,8 +316,8 @@ test("a signed-in account without a Regent shows its available account menu", as
     .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
     .toBeGreaterThan(0)
   await account.locator("summary").first().click()
-  await expect(account.locator(".account-menu__row")).toHaveText(["Account profile", "Disconnect"])
-  await expect(account.getByRole("link", {name: "Account profile"})).toHaveAttribute(
+  await expect(account.locator(".account-menu__row")).toHaveText(["Account", "Disconnect"])
+  await expect(account.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
     "href",
     "/profile",
   )

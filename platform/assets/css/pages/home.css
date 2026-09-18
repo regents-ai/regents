@@ -38,9 +38,10 @@
   .rl-token-copy:hover .rl-token-copy__icon, .rl-token-copy.is-copied .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
   .rl-token-copy__glyph { display: inline-flex; }
+  .rl-token-copy__glyph[hidden] { display: none; }
   .rl-token-copy__glyph--check { color: var(--color-success); }
-  .rl-token-copy__toast { position: absolute; inset-block-end: calc(100% - .35rem); inset-inline-start: .625rem; padding: .1rem .4rem; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; transform: translateY(.25rem); transition: opacity .2s ease, transform .2s ease; pointer-events: none; white-space: nowrap; }
-  .rl-token-copy.is-copied .rl-token-copy__toast { opacity: 1; transform: translateY(0); }
+  .rl-token-copy__toast { margin-inline-start: auto; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; transition: opacity .2s ease; pointer-events: none; white-space: nowrap; }
+  .rl-token-copy.is-copied .rl-token-copy__toast { opacity: 1; }
   .rl-hero { min-width: 0; }
   .rl-hero-stage {
     position: relative; isolation: isolate; min-width: 0;

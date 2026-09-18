@@ -48,7 +48,7 @@ export const HomeTokenMenu: Hook = {
 }
 
 // Copying the contract address off the $REGENT heading: green check and a
-// fading "CA copied" toast for three seconds, then back to the copy glyph.
+// "CA copied" note beside it for a moment, then back to the copy glyph.
 function installTokenCopy(root: ParentNode): () => void {
   const button = root.querySelector<HTMLButtonElement>("[data-token-copy]")
   if (!button) return () => {}
@@ -77,7 +77,7 @@ function installTokenCopy(root: ParentNode): () => void {
     if (toast) toast.textContent = "CA copied"
     button.classList.add("is-copied")
     window.clearTimeout(timer)
-    timer = window.setTimeout(restore, 3000)
+    timer = window.setTimeout(restore, 1500)
   }
 
   button.addEventListener("click", click)

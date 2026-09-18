@@ -259,6 +259,10 @@ details[open] > summary .shell-chevron {
   height: 1.4rem;
 }
 
+#account-menu .account-menu__row--account {
+  color: var(--ash-accent-warm);
+}
+
 .account-menu__row--danger {
   border-block-end: 0;
   color: var(--ash-accent-warm);
