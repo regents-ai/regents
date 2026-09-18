@@ -78,3 +78,24 @@ revision remains the one recorded above.
 
 This release targets Regents only. It adds no database migrations, changes no
 claim ownership or Privy mappings, and does not deploy the other product sites.
+
+
+## 2026-09-18 — Maintenance release deployment verified
+
+- Deployed application revision: `14e32733821c9fdea0c142753d030463f8f5982c`.
+- Image digest: `sha256:528a67f84ff12f0804260d817904202c5160a85168678fd2e1a0165cf193465a`.
+- Shared UI revision: `0818c4af559947ebbe6bd5f1d92264941efa6342`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels and the single
+  healthy web instance.
+- Verified 95 request cases against the live site: status, content type and `Vary`
+  match the prepared build in every case, including Markdown negotiation, refusals
+  and the Markdown and JSON not-found bodies.
+- Stake, Redeem and Overview connect on desktop and phone width with no sideways
+  scrolling and no browser errors; the seven-day USDC figure reads 0.00 USDC.
+- Before/after claim, account, ownership/Privy mapping, allowance and credit
+  fingerprints are identical. No database migrations were included.
+- `mix hex.audit` reports no advisories; CVE-2026-86338 is closed.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
