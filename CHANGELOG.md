@@ -483,3 +483,39 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Free name claims from the account page, and foil on the cards
+
+- On the account page, "Claim name" claims a free Regent Name: the site records
+  the name as reserved for your wallet and uses one of your free claims (your
+  main wallet's first, then linked wallets in order). Nothing is written on
+  chain. A taken name, a name against the rules, or no free claims left is
+  refused with the reason. Paying for a name from the page is not open yet.
+- Production structure change before this release (no rows changed): a claim's
+  transaction hash is optional, and the site may number new claims.
+- The Overview product cards and the home page's stake banner are foil faces
+  that lean toward the pointer, with half the account card's movement and a
+  quarter less shine; the banner's crown appears only where it stands clear of
+  the words, and its buttons keep their corner animation. The home page's
+  coloured cards print their line drawings in foil ink. The crown's thirteen
+  squares are plain blocks. Visitors without hover, without graphics support
+  or asking for reduced motion see the still cards as before.
+
+## 2026-09-19 — Free claims and foil release deployment verified
+
+- Deployed application revision: `00f966b5854cc430e7399d0dd7d59c9cd412cdc0`.
+- Image digest: `sha256:4eb39a7421348f61add73567da1bd487e1dda1fe52b6fb8c21cdaded1db83f70`.
+- Shared UI revision: `a3a5e03374c9f7fa66678cf4cc2fccf7603bfb0e`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check (one failed check while the
+  new instance was starting, passing since).
+- Every probed request matches the previous release on status, content type
+  and `Vary`; only page fingerprints changed with the new script and stylesheet.
+- Live logs carry no application errors.
+- Before/after fingerprints of claims, allowances, credits and accounts are
+  identical. No database migrations were included; the structure change above
+  was applied by the founder before the deploy.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
