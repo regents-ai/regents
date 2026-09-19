@@ -215,11 +215,11 @@
   list-style: none;
 }
 
+/* A row is the name above its record, never side by side: a long name and a
+   long date must not fight over one line. */
 .account-names__list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  gap: 0.5rem;
   padding: 0.75rem;
   border: 1px solid var(--ash-line);
 }
@@ -231,7 +231,9 @@
 }
 
 .account-names__list li > div:last-child {
-  text-align: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
 }
 
 .account-names__list span {
@@ -331,14 +333,9 @@
 }
 
 @media (max-width: 30rem) {
-  .account-names__list li,
   .verified-connections__list li {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .account-names__list li > div:last-child {
-    text-align: start;
   }
 }
 

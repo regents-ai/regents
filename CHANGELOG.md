@@ -426,3 +426,9 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Claimed names no longer break mid-word
+
+- Each claimed name row now shows the name above its record (status and
+  claim date) instead of beside it, so on wide screens with three columns a
+  long name and a long date no longer split across lines.
