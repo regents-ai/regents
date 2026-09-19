@@ -1,6 +1,3 @@
-import {createClaimsClient, type ClaimsAction} from "./owned_claims"
-import {createProfileClient, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
-import {createXLinkIntent} from "../vendor/regent_identity/x_link_intent.mjs"
 import {
   PrivyProvider,
   type ConnectedWallet,
@@ -567,7 +564,6 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
 }
 
 type PrivyLoginCallbackOptions = {
-  allowAutomatic?: boolean
   completeLogin: () => Promise<void>
   isCurrent?: () => boolean
   acceptsSubject?: (subject: string | undefined) => boolean
@@ -596,7 +592,6 @@ export function privyLoginFailureDiagnostic(error: unknown): SignInFailureDiagno
 // settled — says so rather than rejecting into nothing. Both outcomes close
 // the modal, so both release the guard for the next click.
 export function createPrivyLoginCallbacks({
-  allowAutomatic = true,
   completeLogin,
   loginOpen,
   showFailure,
@@ -609,7 +604,7 @@ export function createPrivyLoginCallbacks({
       if (!isCurrent() || !acceptsSubject(user?.id)) return
       const opened = loginOpen.current
       loginOpen.current = false
-      if (!opened && (!allowAutomatic || walletDisconnected())) return
+      if (!opened && walletDisconnected()) return
       forgetEthereumWalletSelection()
       if (loginAccount?.type === "wallet" && loginAccount.chainType === "ethereum") {
         rememberEthereumWalletSelection(loginAccount)
@@ -640,7 +635,7 @@ export function createPrivyLoginCallbacks({
 }
 
 type AccountBridgeProps = {
-  mode: "ordinary" | "sign-out-only" | "profile-only"
+  mode: "ordinary" | "sign-out-only"
   lifetime: AbortSignal
   providerState?: PrivyBridgeProviderState
   publishRequestHandler: (
@@ -648,8 +643,6 @@ type AccountBridgeProps = {
     identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
     finishSignOutOnly: () => void,
     ready: boolean,
-    profileHandler: ProfileAction,
-    claimsHandler: ClaimsAction,
   ) => void
 }
 
@@ -722,13 +715,13 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
       createPrivySessionCompletion({
         acquireTokens: () => acquireTokensRef.current(),
         capture: () => {
-          const generation = profileGeneration.current
+          const generation = identityGeneration.current
           const subject = provider.current.subject
           const epoch = walletWorkEpoch()
           return {
             identity: JSON.stringify([subject, epoch, generation]),
             current: () => !lifetime.aborted && provider.current.ready && provider.current.authenticated &&
-              profileGeneration.current === generation && provider.current.subject === subject && walletWorkEpoch() === epoch,
+              identityGeneration.current === generation && provider.current.subject === subject && walletWorkEpoch() === epoch,
           }
         },
         localSessionNeeded: () =>
@@ -765,11 +758,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
         completeLogin: completeWalletLogin,
         isCurrent: () => !lifetime.aborted && loginEpoch.current === walletWorkEpoch(),
         acceptsSubject: subject => !subject || !provider.current.authenticated || !provider.current.subject || provider.current.subject === subject,
-        allowAutomatic: mode !== "profile-only",
         loginOpen,
         showFailure: failure => showAccountAuthFailure("sign-in", document, failure),
       }),
-    [completeWalletLogin, mode, lifetime],
+    [completeWalletLogin, lifetime],
   )
   const {login} = useLogin(loginCallbacks)
   // The published handler outlives every render, so the click it answers reads
@@ -778,14 +770,13 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
   // effect that publishes the handler.
   const subject = providerState?.userId ?? privy.user?.id ?? null
   const provider = React.useRef({authenticated, login, logout, ready, subject})
-  const profileGeneration = React.useRef(0)
+  // Counts the times the signed-in person changed, so work started for one
+  // never finishes on behalf of the next.
+  const identityGeneration = React.useRef(0)
   React.useEffect(() => {
     const changed = provider.current.authenticated !== authenticated || provider.current.subject !== subject
     provider.current = {authenticated, login, logout, ready, subject}
-    if (changed) {
-      profileGeneration.current += 1
-      window.dispatchEvent(new Event("regent:profile-identity"))
-    }
+    if (changed) identityGeneration.current += 1
   }, [authenticated, login, logout, ready, subject])
   const signInRequest = React.useMemo(
     () =>
@@ -805,9 +796,9 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
   const completeAutomaticLogin = React.useCallback(
     () =>
       lifetime.aborted || !provider.current.ready || !provider.current.authenticated ||
-        (walletDisconnected() && !explicitWalletLogin.current) || signOutOnly || mode === "profile-only" || signInRequest.recovering()
+        (walletDisconnected() && !explicitWalletLogin.current) || signOutOnly || signInRequest.recovering()
         ? Promise.resolve() : completeExplicitLogin(),
-    [completeExplicitLogin, signInRequest, signOutOnly, mode, lifetime],
+    [completeExplicitLogin, signInRequest, signOutOnly, lifetime],
   )
   const tokenCallbacks = React.useMemo(
     () => createPrivyTokenCallbacks(completeAutomaticLogin),
@@ -821,48 +812,15 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
         getIdentityToken: providerState?.getIdentityToken ?? getIdentityToken,
         getAccessToken,
         capture: () => {
-          const generation = profileGeneration.current
+          const generation = identityGeneration.current
           const epoch = walletWorkEpoch()
           return () => !lifetime.aborted && provider.current.ready && provider.current.authenticated &&
-            profileGeneration.current === generation && walletWorkEpoch() === epoch
+            identityGeneration.current === generation && walletWorkEpoch() === epoch
         },
       }),
     [getAccessToken, providerState?.getIdentityToken, lifetime],
   )
   React.useEffect(() => { acquireTokensRef.current = acquireTokens }, [acquireTokens])
-  const acquireProfileProof = React.useCallback(async ({signal}: {signal: AbortSignal}, expectedSubject?: string) => {
-    const epoch = walletWorkEpoch()
-    while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
-      requireCurrent(() => !lifetime.aborted && walletWorkEpoch() === epoch)
-      signal.throwIfAborted()
-      await new Promise(resolve => setTimeout(resolve, 25))
-    }
-    const state = provider.current
-    if (!state.authenticated || !state.subject || (expectedSubject && expectedSubject !== state.subject) ||
-        (signOutOnly && signOutOnlyState.current !== "terminal")) return null
-    const generation = profileGeneration.current
-    const tokens = await acquireTokensRef.current()
-    requireCurrent(() => !lifetime.aborted && walletWorkEpoch() === epoch && profileGeneration.current === generation)
-    return {...tokens, subject: state.subject, isCurrent: () =>
-      !lifetime.aborted && provider.current.ready && walletWorkEpoch() === epoch &&
-      provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
-  }, [signOutOnly, lifetime])
-  const profileFor = React.useCallback((expectedSubject?: string) => createProfileClient({
-    acquireProof: options => acquireProfileProof(options, expectedSubject),
-  }), [acquireProfileProof])
-  const profileHandler = React.useMemo(() => profileFor(), [profileFor])
-  const claimsHandler = React.useMemo(() => createClaimsClient({acquireProof: acquireProfileProof}), [acquireProfileProof])
-  const profileIntent = React.useCallback(() => {
-    const appId = providerState?.appId ?? document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content ?? ""
-    let storage: Storage | null = null
-    try { storage = window.sessionStorage } catch {}
-    return createXLinkIntent(storage, appId)
-  }, [providerState?.appId])
-  const profileLinkNonce = React.useRef<string | null>(null)
-  const notifyProfileLink = React.useCallback((ok: boolean) => {
-    if (lifetime.aborted) return
-    window.dispatchEvent(new CustomEvent("regent:profile-link", {detail: {ok}}))
-  }, [lifetime])
   const notifyIdentityState = React.useCallback((error: string | null) => {
     if (lifetime.aborted) return
     window.dispatchEvent(
@@ -870,10 +828,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
     )
   }, [lifetime])
   const refreshIdentitySession = React.useCallback(async () => {
-    const generation = profileGeneration.current
+    const generation = identityGeneration.current
     const epoch = walletWorkEpoch()
     const current = () => !lifetime.aborted && provider.current.ready && provider.current.authenticated &&
-      profileGeneration.current === generation && walletWorkEpoch() === epoch
+      identityGeneration.current === generation && walletWorkEpoch() === epoch
     requireCurrent(current)
     const tokens = await acquireTokensRef.current()
     requireCurrent(current)
@@ -882,22 +840,14 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
   }, [lifetime, notifyIdentityState])
   const linkCallbacks = React.useMemo(
     () => ({
-      onSuccess: (payload: Parameters<NonNullable<PrivyEvents["linkAccount"]["onSuccess"]>>[0]) => {
-        const expected = profileIntent().claim(payload)
-        if (expected) {
-          void profileFor(expected)("sync").then(result => notifyProfileLink(result.ok))
-        }
+      onSuccess: () => {
         void refreshIdentitySession().catch(error => {
           if (!(error instanceof StalePrivyOperation)) notifyIdentityState("failed")
         })
       },
-      onError: () => {
-        profileIntent().cancel(profileLinkNonce.current)
-        notifyProfileLink(false)
-        notifyIdentityState("failed")
-      },
+      onError: () => notifyIdentityState("failed"),
     }),
-    [notifyIdentityState, refreshIdentitySession, profileIntent, profileFor, notifyProfileLink],
+    [notifyIdentityState, refreshIdentitySession],
   )
   const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
@@ -1116,16 +1066,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
   const ordinaryIdentityHandler = React.useMemo(
     () =>
       createIdentityRequestHandler({
-        linkX: () => {
-          const currentSubject = provider.current.subject
-          if (!currentSubject || !provider.current.authenticated) throw new Error("authentication_required")
-          const nonce = profileIntent().begin(currentSubject)
-          profileLinkNonce.current = nonce
-          Promise.resolve(linkTwitter()).catch(() => {
-            profileIntent().cancel(nonce)
-            notifyProfileLink(false)
-          })
-        },
+        linkX: linkTwitter,
         linkGithub,
         linkFarcaster,
         unlinkOAuth: async (provider, subject) => {
@@ -1140,8 +1081,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
       linkFarcaster,
       linkGithub,
       linkTwitter,
-      profileIntent,
-      notifyProfileLink,
       refreshIdentitySession,
       unlinkFarcasterAccount,
       unlinkOAuth,
@@ -1173,8 +1112,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
   const finishSignOutOnly = signOutOnlyBridge.finish
 
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, profileHandler, claimsHandler),
-    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, profileHandler, claimsHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler],
   )
 
   return null
@@ -1197,8 +1136,6 @@ export function startPrivyBridge(
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
-    let currentProfileHandler: ProfileAction | null = null
-    let currentClaimsHandler: ClaimsAction | null = null
     let resolved = false
     let currentReady = false
     const controller = new AbortController()
@@ -1212,8 +1149,6 @@ export function startPrivyBridge(
       signal?.removeEventListener("abort", onAbort)
       currentRequestHandler = null
       currentIdentityHandler = null
-      currentProfileHandler = null
-      currentClaimsHandler = null
       root.unmount()
       host.remove()
       if (!resolved) reject(reason)
@@ -1222,12 +1157,6 @@ export function startPrivyBridge(
     timeout = setTimeout(() => dispose(new AccountAuthFailure("startup", "request_timeout")), readyTimeoutMs)
     const handle: PrivyBridgeHandle = {
       dispose,
-      claims(...args) {
-        return currentClaimsHandler ? currentClaimsHandler(...args) : Promise.reject(new Error("Claims are unavailable"))
-      },
-      profile(...args) {
-        return currentProfileHandler ? currentProfileHandler(...args) : Promise.reject(new Error("Profile is unavailable"))
-      },
       request(request) {
         if (controller.signal.aborted) return Promise.reject(new StalePrivyOperation())
         if (!currentReady && request !== "sync" && request !== "sign-out") {
@@ -1251,13 +1180,9 @@ export function startPrivyBridge(
       identityHandler,
       finishSignOutOnly,
       ready,
-      profileHandler,
-      claimsHandler,
     ) => {
       if (controller.signal.aborted) return
       currentReady = ready
-      currentClaimsHandler = claimsHandler
-      currentProfileHandler = profileHandler
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly

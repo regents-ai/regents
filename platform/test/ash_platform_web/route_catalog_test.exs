@@ -11,8 +11,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
   @paths [
     "/",
     "/app",
-    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-    # "/settings",
+    "/account",
     "/formation",
     "/regents/:slug",
     "/stake",
@@ -51,21 +50,20 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert RouteCatalog.fetch!(:app).route_id == :app
   end
 
-  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-  # test "settings is the canonical Regents Labs detail route" do
-  #   settings = RouteCatalog.fetch!(:settings)
+  test "account is the canonical Regents Labs detail route" do
+    account = RouteCatalog.fetch!(:account)
 
-  #   assert settings.route_id == :settings
-  #   assert settings.destination == "/settings"
-  #   assert settings.app_id == :regent_ops
-  #   assert settings.app_display_label == "Regents Labs"
-  #   assert settings.page_display_label == "Settings"
-  #   assert settings.canonical_root == "/app"
-  #   assert settings.header_controls == [:profile_actions]
-  #   assert settings.background_slot == :regents_labs
-  #   assert settings.content_transition_kind == :detail
-  #   assert settings.local_state == %{}
-  # end
+    assert account.route_id == :account
+    assert account.destination == "/account"
+    assert account.app_id == :regent_ops
+    assert account.app_display_label == "Regents Labs"
+    assert account.page_display_label == "Account"
+    assert account.canonical_root == "/app"
+    assert account.header_controls == [:profile_actions]
+    assert account.background_slot == :regents_labs
+    assert account.content_transition_kind == :detail
+    assert account.local_state == %{}
+  end
 
   test "Formation keeps its route truth without local panel targets or state" do
     formation = RouteCatalog.fetch!(:formation)
@@ -130,8 +128,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-    assert length(decoded["routes"]) == 6
+    assert length(decoded["routes"]) == 7
     refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)

@@ -1,6 +1,3 @@
-import type {ClaimsAction} from "./owned_claims"
-import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
-import {installSharedProfile} from "./shared_profile"
 import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
   walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 
@@ -38,15 +35,13 @@ export type IdentityRequest = {
 
 export type PrivyBridgeHandle = {
   dispose?: () => void
-  profile?: ProfileAction
-  claims?: ClaimsAction
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
 }
 
 export type PrivyBridgeStartupOptions = {
-  mode?: "ordinary" | "sign-out-only" | "profile-only"
+  mode?: "ordinary" | "sign-out-only"
   signal?: AbortSignal
   readyTimeoutMs?: number
 }
@@ -772,7 +767,7 @@ export function createLazyAuthLoader(
     return attempt
   }
 
-  const prepare = (profileOnly = false): Promise<void> => {
+  const prepare = (): Promise<void> => {
     const controller = new AbortController()
     let started = false
     startupController = controller
@@ -787,7 +782,6 @@ export function createLazyAuthLoader(
         }
         return module.startPrivyBridge({
           ...startupOptions,
-          ...(profileOnly && !startupOptions.mode ? {mode: "profile-only" as const} : {}),
           signal: controller.signal,
         })
       })
@@ -860,28 +854,6 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
-    async profile(...args: Parameters<ProfileAction>): ReturnType<ProfileAction> {
-      assertActive()
-      if (state === "handoff-preterminal") {
-        return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
-      }
-      return loadProfileAction(async () => {
-        if (!handle) await (preparing ?? prepare(true))
-        if (!handle?.profile) throw new Error("Profile bridge is unavailable")
-        return handle.profile
-      }, ...args)
-    },
-    async claims(after?: string, options: {signal?: AbortSignal} = {}): ReturnType<ClaimsAction> {
-      assertActive()
-      if (state === "handoff-preterminal") {
-        return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
-      }
-      return loadProfileAction(async () => {
-        if (!handle) await (preparing ?? prepare(true))
-        if (!handle?.claims) throw new Error("Claims bridge is unavailable")
-        return async (_operation, _input, requestOptions) => handle!.claims!(after, requestOptions)
-      }, "get", {}, options)
-    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -914,7 +886,6 @@ export function installAccountAuthLazyLoader(
     importBridge,
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
-  let stopProfile = installSharedProfile(documentRoot, loader)
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -1056,10 +1027,8 @@ export function installAccountAuthLazyLoader(
         control.setAttribute("aria-disabled", "false")
         if ("disabled" in control) (control as HTMLButtonElement).disabled = false
       })
-      stopProfile()
       loader.dispose()
       loader = createLazyAuthLoader(importBridge)
-      stopProfile = installSharedProfile(documentRoot, loader)
       request("sign-in")
     }
     if (accountTarget === "sign-out") signOut()
@@ -1127,7 +1096,6 @@ export function installAccountAuthLazyLoader(
     walletEvents.removeEventListener("focus", onWalletFocus)
     walletEvents.removeEventListener("resize", onStatusResize)
     documentRoot.removeEventListener("visibilitychange", onWalletFocus)
-    stopProfile()
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
     walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)

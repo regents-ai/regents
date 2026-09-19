@@ -273,3 +273,35 @@ and does not deploy the other product sites.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Account page and shared holographic card
+
+### Account page
+
+- `/account` replaces the old `/profile` page. It lives inside the app shell
+  (side navigation, header, theme) and is drawn from the sign-in the site already
+  holds, so a signed-in person is never asked to sign in again to see it.
+- Shows: the picture and name the header uses, on a pointer-lit identity card;
+  the signed-in wallet with a Copy button; other linked wallets; ENS name;
+  display name; World ID verification; the names those wallets hold (read
+  directly, first 50, with an honest "couldn't be read right now" when the
+  record is unavailable); verified connections (X, GitHub, Farcaster); and a
+  Sign out button. A guest sees a sign-in panel on the same page instead of
+  being bounced home.
+- The account menu's Account row now opens `/account`. The dormant Settings route
+  and its page are retired; the old profile page's browser client and its
+  Connect X / historical-names loader are removed.
+- `/api/v1/profile` (the shared profile API the other sites use) and
+  `/api/v1/claims` (the published agent API) are unchanged.
+- Signed-in people may read their own historical names with the wallets their
+  sign-in verified; fresh Privy proof still works for the API.
+
+### Shared holographic card
+
+- New design-system component `Regent.HolographicCard.card`: a graphite foil card
+  that tilts and lights under the pointer, drawn with the same graphics library
+  as the homepage crown. Still and flat for reduced motion, forced colours and
+  browsers without WebGPU. Recorded as the founder-approved exception to the
+  flat-panel rule.
+- Design-system revision to be pinned at release; the foil material's attribution
+  is recorded in the design system's third-party notices and referenced here.

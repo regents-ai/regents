@@ -31,8 +31,7 @@ defmodule AshPlatformWeb.ShowcaseLive do
        account: %AshPlatform.AccessContext.AccountControl{
          kind: :preview,
          label: "Fixture",
-         profile_path: nil,
-         settings_path: nil
+         profile_path: nil
        }
      ), layout: false}
   end

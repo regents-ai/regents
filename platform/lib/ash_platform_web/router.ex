@@ -106,7 +106,6 @@ defmodule AshPlatformWeb.Router do
   scope "/", AshPlatformWeb do
     pipe_through :browser
 
-    get "/profile", SharedProfileController, :show
     live "/", HomeLive, :home
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
@@ -123,8 +122,7 @@ defmodule AshPlatformWeb.Router do
       session: {AshPlatformWeb.Live.Session, :render_context, []},
       on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
-      # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-      # live "/settings", ShellLive, :settings
+      live "/account", ShellLive, :account
       live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake

@@ -55,13 +55,13 @@ defmodule AshPlatform.PublicIdentity do
 
   defp present(_value), do: nil
 
-  defp short_wallet(<<"0x", hex::binary-size(40)>> = wallet) do
+  def short_wallet(<<"0x", hex::binary-size(40)>> = wallet) do
     if String.match?(hex, ~r/\A[0-9a-fA-F]{40}\z/),
       do: "#{String.slice(wallet, 0, 6)}…#{String.slice(wallet, -4, 4)}",
       else: "Account"
   end
 
-  defp short_wallet(_wallet), do: "Account"
+  def short_wallet(_wallet), do: "Account"
 
   defp normalize_wallet(wallet) when is_binary(wallet) do
     wallet = String.trim(wallet)

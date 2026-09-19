@@ -160,7 +160,11 @@ defmodule AshPlatformWeb.Components.Shell do
           <span class="shell-chevron" aria-hidden="true">⌄</span>
         </summary>
         <div class="account-menu__content shell-popover">
-          <.link href="/profile" class="account-menu__row account-menu__row--account">
+          <.link
+            patch="/account"
+            class="account-menu__row account-menu__row--account"
+            data-account-menu-item="account"
+          >
             <.account_menu_icon name={:settings} /><span>Account</span>
           </.link>
           <.link
@@ -171,11 +175,6 @@ defmodule AshPlatformWeb.Components.Shell do
           >
             <.account_menu_icon name={:profile} /><span>Profile</span>
           </.link>
-          <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
-          <.link patch={@account_control.settings_path} class="account-menu__row" data-account-menu-item="settings">
-            <.account_menu_icon name={:settings} /><span>Settings</span>
-          </.link>
-          --%>
           <Regent.Primitives.button
             variant="quiet"
             type="button"

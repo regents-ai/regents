@@ -28,13 +28,13 @@ defmodule AshPlatformWeb.RouteCatalog do
       reserved_values: %{},
       route_spec_id: :app
     },
-    #     %Entry{
-    #       path_pattern: "/settings",
-    #       live_action: :settings,
-    #       parameter_schema: %{},
-    #       reserved_values: %{},
-    #       route_spec_id: :settings
-    #     },
+    %Entry{
+      path_pattern: "/account",
+      live_action: :account,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :account
+    },
     %Entry{
       path_pattern: "/formation",
       live_action: :formation,
@@ -77,9 +77,9 @@ defmodule AshPlatformWeb.RouteCatalog do
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, :overview, %{}},
-    #     settings:
-    #       {:settings, :regent_ops, "Regents Labs", "Settings", "/app", [:profile_actions],
-    #        :regents_labs, :detail, %{}},
+    account:
+      {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
+       :regents_labs, :detail, %{}},
     formation:
       {:formation, :formation, "Nous Portal", "Formation", "/formation", [:profile_actions],
        :formation, :lifecycle, %{}},

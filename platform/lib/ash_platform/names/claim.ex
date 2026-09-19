@@ -2,7 +2,9 @@ defmodule AshPlatform.Names.Claim do
   @moduledoc """
   All 23 columns of the retained claim table. Storage is imported independently
   into regent_names; this resource never generates or replays legacy migrations.
-  Ownership is filtered in Ash from fresh verified wallet evidence, not account IDs.
+  Ownership is filtered in Ash from verified wallet evidence, never account IDs:
+  the wallets a fresh Privy pair carries, or the wallets the site's own sign-in
+  verified for the signed-in person.
   """
   use Ash.Resource,
     # The sole read intentionally orders historical evidence for cursor pagination.
@@ -61,6 +63,7 @@ defmodule AshPlatform.Names.Claim do
   policies do
     policy action(:mine) do
       authorize_if AshPlatform.Names.VerifiedOwner
+      authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
 
     policy action(:mine) do

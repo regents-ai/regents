@@ -8,25 +8,23 @@ defmodule AshPlatformWeb.ShellLiveTest do
   alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.RouteCatalog
 
-  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-  # test "anonymous settings access redirects home without private content", %{conn: conn} do
-  #   assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/settings")
+  import AshPlatform.NamesFixtures
 
-  #   conn = get(conn, "/settings")
-  #   assert redirected_to(conn) == "/"
-  #   refute conn.resp_body =~ ~s(class="settings-page")
-  # end
+  setup_all do
+    ensure_claims_table!()
+  end
 
-  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-  # test "an anonymous shell cannot patch into settings", %{conn: conn} do
-  #   {:ok, view, _html} = live(conn, "/app")
-  #   refute has_element?(view, "#route-content h1", "Settings")
-  #   refute has_element?(view, "#route-content .verified-connections")
+  test "an anonymous visitor to /account is asked to sign in, without private content", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/account")
 
-  #   render_patch(view, "/settings")
-
-  #   assert_redirect(view, "/")
-  # end
+    assert html =~ ~s(id="app-shell")
+    assert has_element?(view, "#route-content h1", "Account")
+    assert has_element?(view, "#account-page button[data-account-target=sign-in]", "Sign in")
+    refute has_element?(view, "#account-identity")
+    refute has_element?(view, "#route-content .verified-connections")
+  end
 
   test "an anonymous socket rejects a forged verified connection request", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/app")
@@ -119,8 +117,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
            )
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
-    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-    # assert has_element?(view, "#account-control a[data-account-menu-item=settings]", "Settings")
+    assert has_element?(view, "#account-control a[data-account-menu-item=account]", "Account")
     assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
   end
@@ -168,7 +165,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
         kind: :signed_in,
         label: "Ada.regent.eth",
         profile_path: "/regents/ada",
-        settings_path: "/settings",
         avatar_src: "data:image/svg+xml;base64,PHN2Zy8+"
       })
 
@@ -177,10 +173,8 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert html =~ ~r/>\s*Profile\s*<\/a>/
     assert html =~ ~s(class="account-avatar")
     assert html =~ ~s(src="data:image/svg+xml;base64,PHN2Zy8+")
-    # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-    # assert html =~ ~s(href="/settings")
-    # assert html =~ ~s(data-account-menu-item="settings")
-    # assert html =~ ~r/>\s*Settings\s*<\/span>/
+    assert html =~ ~s(href="/account")
+    assert html =~ ~s(data-account-menu-item="account")
     assert html =~ "Disconnect"
     refute html =~ "Sign Out"
   end
@@ -213,7 +207,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
         kind: :signed_in,
         label: "atlas.eth",
         profile_path: nil,
-        settings_path: "/settings",
         avatar_src: "https://avatars.regents.test/atlas.png"
       })
 
@@ -221,70 +214,95 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert html =~ ~r/data-account-target="profile">\s*atlas.eth\s*</
   end
 
-  test "Settings owns its own page rather than relabeling the whole shell" do
-    assert Code.ensure_loaded?(AshPlatformWeb.SettingsLive)
-    assert function_exported?(AshPlatformWeb.SettingsLive, :page, 1)
+  test "Account owns its own page rather than relabeling the whole shell" do
+    html =
+      render_component(&AshPlatformWeb.AccountLive.page/1, %{
+        account_control: %AccountControl{kind: :sign_in, label: "Sign In", profile_path: nil}
+      })
 
-    html = render_component(&AshPlatformWeb.SettingsLive.page/1, %{})
-
-    assert html =~ ">Settings<"
-    assert html =~ ~s(id="settings-verified-connections")
-    assert html =~ ">Verified connections<"
+    assert html =~ ~s(id="account-page")
+    assert html =~ ">Account<"
+    assert html =~ "Sign in to see your account"
+    refute html =~ "Verified connections"
   end
 
-  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-  # test "Settings shows live connected, disconnected, and conflict states", %{conn: conn} do
-  #   account =
-  #     register_account(
-  #       "settings-connections",
-  #       "0x6666666666666666666666666666666666666666"
-  #     )
+  test "Account shows the signed-in person, their wallets, names and connections", %{
+    conn: conn
+  } do
+    wallet = "0x6666666666666666666666666666666666666666"
+    other = "0x7777777777777777777777777777777777777777"
+    stranger = "0x8888888888888888888888888888888888888888"
 
-  #   Accounts.upsert_linked_identity!(
-  #     :x,
-  #     "settings-x-subject",
-  #     "settings_user",
-  #     "Settings User",
-  #     DateTime.utc_now(),
-  #     %{},
-  #     account.id,
-  #     actor: %System{}
-  #   )
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:account-page", wallet, [wallet, other],
+               actor: %System{}
+             )
 
-  #   {:ok, view, _html} =
-  #     conn
-  #     |> init_test_session(%{human_account_id: account.id})
-  #     |> live("/settings")
+    insert_claim(1, String.upcase(wallet), %{ens_fqdn: "first.regent.eth"})
+    insert_claim(2, other)
+    insert_claim(3, stranger)
 
-  #   assert has_element?(
-  #            view,
-  #            ~s(#settings-verified-connections-x a[href="https://x.com/settings_user"]),
-  #            "@settings_user"
-  #          )
+    Accounts.upsert_linked_identity!(
+      :x,
+      "account-x-subject",
+      "account_user",
+      "Account User",
+      DateTime.utc_now(),
+      %{},
+      account.id,
+      actor: %System{}
+    )
 
-  #   assert has_element?(view, "#settings-verified-connections-x button", "Disconnect")
-  #   assert has_element?(view, "#settings-verified-connections-github", "Not connected")
-  #   assert has_element?(view, "#settings-verified-connections-github button", "Connect")
-  #   refute render(view) =~ "settings-x-subject"
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
 
-  #   view
-  #   |> element("#settings-verified-connections-x button", "Disconnect")
-  #   |> render_click()
+    refute html =~ "Sign in to see your account"
+    assert has_element?(view, "#account-identity h2", "0x6666…6666")
+    assert has_element?(view, "#account-identity canvas[data-holo-canvas]")
+    assert has_element?(view, ".account-details code", wallet)
+    assert has_element?(view, "#account-wallet-copy[data-copy-text='#{wallet}']", "Copy")
+    assert has_element?(view, ".account-wallet-list code", other)
+    assert has_element?(view, ".account-details dd", "None found for this wallet")
+    assert has_element?(view, ".account-details dd", "Not set")
+    assert has_element?(view, ".account-details dd", "Not verified")
+    assert has_element?(view, ".account-names__list strong", "name-1.regent.eth")
+    assert has_element?(view, ".account-names__list span", "first.regent.eth")
+    assert has_element?(view, ".account-names__list strong", "name-2.regent.eth")
+    refute has_element?(view, ".account-names__list strong", "name-3.regent.eth")
+    refute render(view) =~ "Showing the first 50 names"
 
-  #   assert_push_event(view, "verified-connections:request", %{
-  #     action: :unlink,
-  #     provider: :x,
-  #     subject: "settings-x-subject"
-  #   })
+    assert has_element?(
+             view,
+             ~s(#account-verified-connections-x a[href="https://x.com/account_user"]),
+             "@account_user"
+           )
 
-  #   render_hook(view, "refresh_verified_connections", %{"error" => "already-connected"})
+    assert has_element?(view, "#account-verified-connections-x button", "Disconnect")
+    assert has_element?(view, "#account-verified-connections-github", "Not connected")
+    assert has_element?(view, "#account-verified-connections-github button", "Connect")
+    refute render(view) =~ "account-x-subject"
+    assert has_element?(view, "#account-page button[data-account-target=sign-out]", "Sign out")
 
-  #   assert has_element?(
-  #            view,
-  #            "#settings-verified-connections [role=alert]",
-  #            "already connected to another Regent account"
-  #          )
-  # end
+    view
+    |> element("#account-verified-connections-x button", "Disconnect")
+    |> render_click()
+
+    assert_push_event(view, "verified-connections:request", %{
+      action: :unlink,
+      provider: :x,
+      subject: "account-x-subject"
+    })
+
+    render_hook(view, "refresh_verified_connections", %{"error" => "already-connected"})
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=alert]",
+             "already connected to another Regent account"
+           )
+  end
 
   test "in-shell navigation keeps the LiveView and shell identity", %{conn: conn} do
     {:ok, view, html} = live(conn, "/app")

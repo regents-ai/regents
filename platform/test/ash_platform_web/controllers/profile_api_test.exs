@@ -1,4 +1,4 @@
-defmodule AshPlatformWeb.SharedProfileControllerTest do
+defmodule AshPlatformWeb.ProfileApiTest do
   use AshPlatformWeb.ConnCase, async: false
 
   setup_all do
@@ -26,11 +26,7 @@ defmodule AshPlatformWeb.SharedProfileControllerTest do
     %{key: key}
   end
 
-  test "profile page and private API use shared components and signed ownership", %{key: key} do
-    html = build_conn() |> get("/profile") |> html_response(200)
-    assert html =~ "data-regent-profile"
-    assert html =~ "Connect X"
-    assert html =~ "data-owned-claims"
+  test "the shared profile API answers only signed ownership", %{key: key} do
     assert build_conn() |> get("/api/v1/profile") |> response(401)
 
     assert build_conn()
@@ -50,29 +46,6 @@ defmodule AshPlatformWeb.SharedProfileControllerTest do
     updated = api(:patch, "/api/v1/profile", pair, %{display_name: "Shared name"})
     assert json_response(updated, 200)["profile"]["profile_id"] == profile["profile_id"]
     assert json_response(updated, 200)["profile"]["display_name"] == "Shared name"
-  end
-
-  test "profile and home first renders honor the saved theme" do
-    for theme <- ["light", "dark"], path <- ["/profile", "/"] do
-      document =
-        build_conn()
-        |> put_req_cookie("regent_theme", theme)
-        |> get(path)
-        |> html_response(200)
-        |> LazyHTML.from_document()
-
-      expected = if path == "/", do: "dark", else: theme
-
-      assert document |> LazyHTML.query("html") |> LazyHTML.attribute("data-brand") == [
-               "platform"
-             ]
-
-      assert document |> LazyHTML.query("html") |> LazyHTML.attribute("data-theme") == [expected]
-
-      assert document
-             |> LazyHTML.query("meta[name=color-scheme]")
-             |> LazyHTML.attribute("content") == [expected]
-    end
   end
 
   defp api(method, path, pair, body \\ nil) do

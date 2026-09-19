@@ -4,7 +4,6 @@
 @import "./tokens/root.css";
 @import "./components/shell.css";
 @import "./components/loading.css";
-@import "./components/owned_claims.css";
 @import "./pages/home.css";
 @import "./pages/legal.css";
 @import "./pages/formation.css";
@@ -12,7 +11,7 @@
 @import "./pages/redeem.css";
 @import "./pages/regent_ops.css";
 @import "./pages/regent_profile.css";
-@import "./pages/settings.css";
+@import "./pages/account.css";
 @import "./components/account_auth_status.css";
 
 :root {
@@ -153,8 +152,6 @@ input:focus-visible,
   padding-top: 0.75rem;
 }
 
-.regents-profile-page { padding: var(--rg-panel-padding); display: grid; gap: var(--space-4); }
-.regents-profile-page > .rg-profile { padding: var(--rg-panel-padding); }
 .metadata-page { display: grid; gap: var(--space-3); }
 .metadata-page dl { display: grid; gap: var(--space-2); }
 .metadata-page dd { margin: 0; overflow-wrap: anywhere; }

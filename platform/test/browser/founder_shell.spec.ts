@@ -286,7 +286,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await expect(account.locator(".account-menu__row")).toHaveText(["Account", "Disconnect"])
   await expect(account.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
     "href",
-    "/profile",
+    "/account",
   )
   await expect(account.getByRole("button", {name: "Disconnect"})).toBeVisible()
 

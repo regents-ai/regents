@@ -8,6 +8,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.{
     Accounts,
     Formation,
+    Names,
     OpenSea,
     Redemption,
     RegentsClub,
@@ -21,13 +22,12 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.Staking.SnapshotCache
   alias AshPlatform.WalletActions.Address
   alias AshPlatform.WalletActions.TransactionObserver
+  alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RegentsClubMetadataLive
   alias AshPlatformWeb.RouteCatalog
-  # Settings returns soon (founder, 2026-09-03): switched off, not removed.
-  # alias AshPlatformWeb.SettingsLive
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @staking_refresh_failure_notice "Refresh failed. The last confirmed Base snapshot remains on screen."
@@ -62,6 +62,7 @@ defmodule AshPlatformWeb.ShellLive do
     {:ok,
      assign(socket,
        content_generation: 0,
+       account_names: nil,
        verified_connections: [],
        verified_connections_notice: nil,
        route_params: params,
@@ -120,9 +121,10 @@ defmodule AshPlatformWeb.ShellLive do
       |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
       |> load_verified_connections(route_spec)
+      |> load_account_names(route_spec)
 
     cond do
-      route_spec.route_id == :settings ->
+      route_spec.route_id == :account ->
         {:noreply, socket}
 
       connected?(socket) ->
@@ -141,13 +143,6 @@ defmodule AshPlatformWeb.ShellLive do
     if RegentsClub.enabled?() and authenticated?(socket.assigns.access_context),
       do: {:ok, socket},
       else: {:redirect, redirect(socket, to: "/")}
-  end
-
-  defp authorize_route(
-         %{assigns: %{access_context: %{principal: :anonymous}}} = socket,
-         %{route_id: :settings}
-       ) do
-    {:redirect, redirect(socket, to: "/")}
   end
 
   defp authorize_route(socket, _route_spec), do: {:ok, socket}
@@ -951,13 +946,14 @@ defmodule AshPlatformWeb.ShellLive do
           account={current_account(@access_context)}
         />
 
-        <%!-- Settings returns soon (founder, 2026-09-03): switched off, not removed.
-        <SettingsLive.page
-          :if={@route_spec.route_id == :settings}
+        <AccountLive.page
+          :if={@route_spec.route_id == :account}
+          account={current_account(@access_context)}
+          account_control={@account_control}
+          names={@account_names}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
         />
-        --%>
 
         <RegentsClubMetadataLive.page
           :if={@route_spec.route_id == :regents_club_metadata}
@@ -1320,7 +1316,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
-  defp load_verified_connections(socket, %{route_id: :settings}) do
+  defp load_verified_connections(socket, %{route_id: :account}) do
     reload_verified_connections(socket)
   end
 
@@ -1374,10 +1370,38 @@ defmodule AshPlatformWeb.ShellLive do
     assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
   end
 
+  # The account page lists the names the signed-in wallets hold. That read is
+  # the account's own, made with the wallets its sign-in verified, so nothing
+  # the browser sends can widen it.
+  defp load_account_names(socket, %{route_id: :account}) do
+    case human_actor(socket) do
+      %Human{wallet_addresses: []} ->
+        assign(socket, account_names: %{names: [], more?: false})
+
+      %Human{} = actor ->
+        case Names.list_my_claims(actor: actor, page: [limit: 50]) do
+          {:ok, page} -> assign(socket, account_names: %{names: page.results, more?: page.more?})
+          {:error, _error} -> assign(socket, account_names: :unavailable)
+        end
+
+      nil ->
+        assign(socket, account_names: nil)
+    end
+  end
+
+  defp load_account_names(socket, _route_spec), do: assign(socket, account_names: nil)
+
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
-    do: %Human{human_account_id: account.id}
+    do: %Human{human_account_id: account.id, wallet_addresses: account_wallets(account)}
 
   defp human_actor(_socket), do: nil
+
+  defp account_wallets(account) do
+    [account.wallet_address | List.wrap(account.wallet_addresses)]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.downcase/1)
+    |> Enum.uniq()
+  end
 
   defp maybe_start_redemption(socket, %{route_id: :redeem}, _),
     do: start_redemption_read(socket, lookup_owned: true)

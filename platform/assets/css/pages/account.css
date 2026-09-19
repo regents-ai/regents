@@ -1,0 +1,276 @@
+@layer regents-product {
+/* Account stands on the Overview grammar: one ground, hairline panels, the
+   display face for headings and a mono voice for kickers. The identity card
+   is the shared holographic card and brings its own graphite ground. */
+
+.account-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.account-heading,
+.account-panel {
+  min-width: 0;
+  border: 1px solid var(--ash-line);
+  background: var(--ash-panel);
+}
+
+.account-page h1,
+.account-page h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.account-page p {
+  margin: 0;
+}
+
+.account-kicker,
+.account-details dt {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.account-identity .account-kicker {
+  color: color-mix(in srgb, var(--rg-holo-ink) 70%, transparent);
+}
+
+/* Heading */
+
+.account-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.account-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.account-heading h1:focus {
+  outline: none;
+}
+
+.account-lede {
+  max-width: 56ch;
+  color: var(--ash-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+/* Panels */
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.account-identity {
+  grid-column: 1 / -1;
+}
+
+.account-panel,
+.account-identity .rg-holo__content {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.account-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.account-signed-out {
+  justify-items: start;
+}
+
+/* Identity card */
+
+.account-identity .rg-holo__content {
+  min-height: 12rem;
+  align-content: end;
+}
+
+.account-identity__who {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.account-identity__avatar {
+  flex: none;
+  width: 4rem;
+  height: 4rem;
+  border: 1px solid var(--rg-holo-edge);
+  object-fit: cover;
+}
+
+.account-identity__name {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.account-identity__name h2 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.account-identity__name code {
+  color: color-mix(in srgb, var(--rg-holo-ink) 70%, transparent);
+}
+
+/* Details */
+
+.account-details dl {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.account-details dl > div {
+  display: grid;
+  gap: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--ash-line);
+}
+
+.account-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-wallet code {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.account-wallet-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Historical names */
+
+.account-names__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-names__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ash-line);
+}
+
+.account-names__list li > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.account-names__list li > div:last-child {
+  text-align: end;
+}
+
+.account-names__list span {
+  color: var(--ash-muted);
+}
+
+.account-names__list strong {
+  overflow-wrap: anywhere;
+}
+
+/* Verified connections */
+
+.verified-connections > div:first-child {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.verified-connections__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verified-connections__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ash-line);
+}
+
+.verified-connections__list li > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Only the text cell is muted; the row's button keeps the shared button's ink. */
+.verified-connections__list li > div span {
+  color: var(--ash-muted);
+}
+
+.verified-connections__notice {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+}
+
+.verified-connections__notice--error {
+  border-inline-start-color: var(--ash-accent-warm);
+}
+
+/* Session */
+
+.account-session {
+  justify-items: start;
+}
+
+@media (max-width: 30rem) {
+  .account-names__list li,
+  .verified-connections__list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-names__list li > div:last-child {
+    text-align: start;
+  }
+}
+
+}
