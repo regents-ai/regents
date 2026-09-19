@@ -43,6 +43,7 @@ defmodule AshPlatformWeb.ShellLive do
   @open_sea_lookup_window 60_000
   @default_open_sea_lookups_per_minute 6
   @names_page_size 50
+  @blank_claim_name %{value: "", problems: [], availability: nil}
 
   @impl true
   def mount(params, session, socket) do
@@ -70,6 +71,8 @@ defmodule AshPlatformWeb.ShellLive do
        account_ens: nil,
        account_names: nil,
        account_names_view: :ens,
+       account_claims: nil,
+       account_claim_name: @blank_claim_name,
        verified_connections: [],
        verified_connections_notice: nil,
        route_params: params,
@@ -130,6 +133,7 @@ defmodule AshPlatformWeb.ShellLive do
       |> load_account_ens(route_spec)
       |> load_verified_connections(route_spec)
       |> load_account_names(route_spec)
+      |> load_account_claims(route_spec)
 
     cond do
       route_spec.route_id == :account ->
@@ -474,6 +478,16 @@ defmodule AshPlatformWeb.ShellLive do
       view -> {:noreply, assign(socket, account_names_view: view)}
     end
   end
+
+  def handle_event(
+        "check_claim_name",
+        %{"name" => name},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      )
+      when is_binary(name),
+      do: {:noreply, assign(socket, account_claim_name: check_claim_name(socket, name))}
+
+  def handle_event("check_claim_name", _params, socket), do: {:noreply, socket}
 
   # The browser only reports how its side ended. Whether the connection really
   # landed is read from the account's own record, so the page never says
@@ -985,6 +999,8 @@ defmodule AshPlatformWeb.ShellLive do
           names={@account_names}
           names_stream={@streams.account_names}
           names_view={@account_names_view}
+          claims={@account_claims}
+          claim_name={@account_claim_name}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
         />
@@ -1543,6 +1559,48 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp names_cursor([]), do: nil
   defp names_cursor(claims), do: List.last(claims).__metadata__.keyset
+
+  # The claims the signed-in wallets may still make, read the same way as the
+  # names they hold. A read that fails is shown as unanswered, never as none.
+  defp load_account_claims(socket, %{route_id: :account}) do
+    claims =
+      case human_actor(socket) do
+        %Human{wallet_addresses: []} -> %{free: 0, paid: 0}
+        %Human{} = actor -> claims_available(actor)
+        nil -> nil
+      end
+
+    assign(socket, account_claims: claims, account_claim_name: @blank_claim_name)
+  end
+
+  defp load_account_claims(socket, _route_spec),
+    do: assign(socket, account_claims: nil, account_claim_name: @blank_claim_name)
+
+  defp claims_available(actor) do
+    case Names.claims_available(actor: actor) do
+      {:ok, claims} -> claims
+      {:error, _error} -> :unavailable
+    end
+  end
+
+  # A name is judged as it is typed: the rules first, then whether a recorded
+  # claim already holds it. The claim itself is not made here.
+  defp check_claim_name(_socket, ""), do: @blank_claim_name
+
+  defp check_claim_name(socket, name) do
+    case Names.label_problems(name) do
+      [] -> %{value: name, problems: [], availability: label_availability(socket, name)}
+      problems -> %{value: name, problems: problems, availability: nil}
+    end
+  end
+
+  defp label_availability(socket, name) do
+    case Names.label_claimed?(name, actor: human_actor(socket)) do
+      {:ok, true} -> :claimed
+      {:ok, false} -> :available
+      {:error, _error} -> :unavailable
+    end
+  end
 
   defp names_view("ens"), do: :ens
   defp names_view("basename"), do: :basename

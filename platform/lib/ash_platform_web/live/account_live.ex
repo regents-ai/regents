@@ -20,6 +20,8 @@ defmodule AshPlatformWeb.AccountLive do
   attr :names, :any, default: nil
   attr :names_stream, :any, required: true
   attr :names_view, :atom, default: :ens
+  attr :claims, :any, default: nil
+  attr :claim_name, :map, required: true
   attr :verified_connections, :list, default: []
   attr :verified_connections_notice, :map, default: nil
 
@@ -119,6 +121,48 @@ defmodule AshPlatformWeb.AccountLive do
             <p>The names your wallets have claimed, oldest first.</p>
           </div>
           <.names names={@names} stream={@names_stream} view={@names_view} />
+        </section>
+
+        <section class="account-panel account-claim" aria-labelledby="account-claim-title">
+          <div class="account-names__heading">
+            <h2 id="account-claim-title">Claim a Regent Name</h2>
+            <.claims_available claims={@claims} />
+          </div>
+          <form
+            id="account-claim-form"
+            phx-change="check_claim_name"
+            phx-submit="check_claim_name"
+          >
+            <Regent.Primitives.field
+              :let={field}
+              id="account-claim-name"
+              label="Name"
+              errors={@claim_name.problems}
+            >
+              <div class="account-claim__name">
+                <input
+                  id={field.id}
+                  name="name"
+                  value={@claim_name.value}
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  placeholder="yourname"
+                  phx-debounce="300"
+                  aria-invalid={field.aria_invalid}
+                  aria-describedby={field.described_by}
+                />
+                <span>.regent.eth</span>
+              </div>
+              <:hint>
+                3 to 14 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.
+              </:hint>
+            </Regent.Primitives.field>
+          </form>
+          <.claim_name_availability name={@claim_name} />
+          <p class="account-claim__later">
+            Claiming from this page isn’t open yet. Your free claims are yours to use when it is.
+          </p>
         </section>
 
         <.verified_connections
@@ -243,6 +287,75 @@ defmodule AshPlatformWeb.AccountLive do
     </p>
     """
   end
+
+  # How many claims the wallets may still make. A count that could not be read
+  # is never shown as none.
+  attr :claims, :any, required: true
+
+  defp claims_available(%{claims: :unavailable} = assigns) do
+    ~H"""
+    <p id="account-claims-available" role="status">
+      Your free claims couldn’t be read right now. Refresh to try again.
+    </p>
+    """
+  end
+
+  # The price is the one every paid claim on record was bought at.
+  defp claims_available(%{claims: %{free: 0, paid: 0}} = assigns) do
+    ~H"""
+    <p id="account-claims-available">
+      No free claims on your wallets. Names cost 0.0025 ETH each.
+    </p>
+    """
+  end
+
+  defp claims_available(assigns) do
+    ~H"""
+    <p id="account-claims-available">
+      <span :if={@claims.free > 0}>
+        You can claim {count(@claims.free, "more name", "more names")} free.
+      </span>
+      <span :if={@claims.paid > 0}>
+        You have {count(@claims.paid, "paid claim", "paid claims")} ready to use.
+      </span>
+    </p>
+    """
+  end
+
+  attr :name, :map, required: true
+
+  defp claim_name_availability(%{name: %{availability: :available}} = assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status" class="account-claim__available">
+      {@name.value}.regent.eth and {@name.value}.agent.base.eth are available.
+    </p>
+    """
+  end
+
+  defp claim_name_availability(%{name: %{availability: :claimed}} = assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status" class="account-claim__claimed">
+      {@name.value} is already claimed.
+    </p>
+    """
+  end
+
+  defp claim_name_availability(%{name: %{availability: :unavailable}} = assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status">
+      Couldn’t check whether {@name.value} is claimed right now. Try again in a moment.
+    </p>
+    """
+  end
+
+  defp claim_name_availability(assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status" hidden></p>
+    """
+  end
+
+  defp count(1, singular, _plural), do: "1 #{singular}"
+  defp count(n, _singular, plural), do: "#{n} #{plural}"
 
   defp other_wallets(%{wallet_address: primary, wallet_addresses: wallets}) do
     primary = primary && String.downcase(primary)

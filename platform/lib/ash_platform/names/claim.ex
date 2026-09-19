@@ -58,6 +58,13 @@ defmodule AshPlatform.Names.Claim do
         max_page_size 50
       end
     end
+
+    # Whether a label is taken is answered yes or no; the row itself, whoever
+    # holds it, never leaves this action.
+    read :holding_label do
+      argument :label, :string, allow_nil?: false
+      filter expr(label == ^arg(:label))
+    end
   end
 
   policies do
@@ -68,6 +75,10 @@ defmodule AshPlatform.Names.Claim do
 
     policy action(:mine) do
       authorize_if expr(fragment("lower(?)", owner_address) in ^actor(:wallet_addresses))
+    end
+
+    policy action(:holding_label) do
+      authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
   end
 end

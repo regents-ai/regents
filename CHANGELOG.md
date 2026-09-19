@@ -386,3 +386,22 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Claim a Regent Name: what you can claim, and whether a name is free
+
+- The Account page gains a "Claim a Regent Name" panel beneath the claimed
+  names. It states how many names the signed-in wallets may still claim free,
+  how many paid claims they hold ready, or — when neither — that names cost
+  0.0025 ETH each. A count that cannot be read says so rather than showing none.
+- A name field judges a name as it is typed: 3 to 14 characters, lowercase
+  letters, numbers and hyphens, never starting or ending with a hyphen; a name
+  that passes is checked against every recorded claim and reported as available
+  in both forms (`.regent.eth` and `.agent.base.eth`) or as already claimed.
+  Pressing Enter re-checks; nothing is claimed from this page yet, and the panel
+  says so.
+- The free-claim allowances and paid claims tables are read through their own
+  resources, filtered to the sign-in's wallets, with no write actions and no
+  migrations; whether a label is taken is answered yes or no without exposing
+  anyone else's claim.
+- The test fixture now builds the allowance and paid-claim tables alongside
+  claims.

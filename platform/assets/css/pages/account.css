@@ -256,6 +256,31 @@
   color: var(--ash-muted);
 }
 
+/* Claim a Regent Name */
+.account-claim__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-claim__name input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-claim__name span,
+.account-claim__later {
+  color: var(--ash-muted);
+}
+
+.account-claim__available {
+  color: var(--color-success);
+}
+
+.account-claim__claimed {
+  color: var(--color-error);
+}
+
 /* Verified connections */
 
 .verified-connections > div:first-child {

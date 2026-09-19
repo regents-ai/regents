@@ -601,6 +601,89 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, ".regent-ops-balances")
   end
 
+  test "Account counts the claims the signed-in wallets may still make, and no one else's",
+       %{conn: conn} do
+    wallet = "0x9999999999999999999999999999999999999999"
+    other = "0x9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a"
+    stranger = "0x9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b"
+
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:account-claims", wallet, [wallet, other],
+               actor: %System{}
+             )
+
+    insert_allowance(String.upcase(wallet), 5, 3)
+    insert_allowance(other, 2, 2)
+    insert_allowance(stranger, 9, 0)
+    insert_payment_credit(1, other)
+    insert_payment_credit(2, wallet, %{consumed_at: DateTime.utc_now()})
+    insert_payment_credit(3, stranger)
+
+    {view, _html} = open_account(conn, account)
+
+    assert has_element?(view, "#account-claim-title", "Claim a Regent Name")
+    assert has_element?(view, "#account-claims-available", "You can claim 2 more names free.")
+    assert has_element?(view, "#account-claims-available", "You have 1 paid claim ready to use.")
+    refute render(view) =~ "9 more"
+    assert has_element?(view, "#account-claim-form input[name=name][value='']")
+    assert has_element?(view, "#account-claim-availability[hidden]")
+    assert has_element?(view, ".account-claim__later", "isn’t open yet")
+  end
+
+  test "Account tells a wallet with no free claims the price", %{conn: conn} do
+    wallet = "0x9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c"
+    account = register_account("account-no-claims", wallet)
+    insert_allowance(wallet, 1, 1)
+
+    {view, _html} = open_account(conn, account)
+
+    assert has_element?(
+             view,
+             "#account-claims-available",
+             "No free claims on your wallets. Names cost 0.0025 ETH each."
+           )
+  end
+
+  test "Account judges a typed name by the rules and by the names already claimed", %{
+    conn: conn
+  } do
+    wallet = "0x9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d"
+    stranger = "0x9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e"
+    account = register_account("account-claim-name", wallet)
+    insert_claim(1, stranger, %{label: "taken", fqdn: "taken.agent.base.eth"})
+
+    {view, _html} = open_account(conn, account)
+
+    render_change(element(view, "#account-claim-form"), %{"name" => "ab"})
+    assert has_element?(view, "#account-claim-name-errors li", "Use at least 3 characters.")
+    assert has_element?(view, "#account-claim-form input[aria-invalid=true][value=ab]")
+    assert has_element?(view, "#account-claim-availability[hidden]")
+
+    render_change(element(view, "#account-claim-form"), %{"name" => "-Bad.Name-too-long-"})
+    html = render(view)
+    assert html =~ "Use at most 14 characters."
+    assert html =~ "Use only lowercase letters, numbers and hyphens."
+    assert html =~ "A name can’t start or end with a hyphen."
+    refute html =~ "Use at least 3 characters."
+
+    render_change(element(view, "#account-claim-form"), %{"name" => "taken"})
+    refute has_element?(view, "#account-claim-name-errors")
+    assert has_element?(view, "#account-claim-availability", "taken is already claimed.")
+
+    render_submit(element(view, "#account-claim-form"), %{"name" => "fresh-name-1"})
+
+    assert has_element?(
+             view,
+             "#account-claim-availability",
+             "fresh-name-1.regent.eth and fresh-name-1.agent.base.eth are available."
+           )
+
+    render_change(element(view, "#account-claim-form"), %{"name" => ""})
+    assert has_element?(view, "#account-claim-availability[hidden]")
+    refute has_element?(view, "#account-claim-name-errors")
+    refute render(view) =~ "0x9e9e"
+  end
+
   test "signed-in /app reads the account wallet at its own fresh block", %{conn: conn} do
     seed_shared_snapshot()
     account = register_account("app-wallet-read", "0x1111111111111111111111111111111111111111")
