@@ -305,3 +305,22 @@ revision remains the one recorded above.
   flat-panel rule.
 - Design-system revision to be pinned at release; the foil material's attribution
   is recorded in the design system's third-party notices and referenced here.
+
+## 2026-09-19 — Account page deployment verified
+
+- Deployed application revision: `e518f16609799c6053764893c2c8c49bf93d71ae`.
+- Image digest: `sha256:5dec0af084fd9880841fe910bfa3dfa9ac70ac642ee073510ff6d5c96d66a22e`.
+- Shared UI revision: `6dde98f219fac4fa8972ca67710b57a5c4e27a3f` (holographic card).
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels and the single
+  healthy web instance.
+- `/account` answers inside the app shell with the sign-in panel for guests;
+  `/profile` is gone. The card styles and the card renderer are served from the
+  live bundle. Every other probed request matches the previous release on status,
+  content type and `Vary`; only page fingerprints changed with the new assets.
+- Live logs carry no errors. Before/after claim, account, ownership/Privy mapping,
+  allowance and credit fingerprints are identical. No database migrations were
+  included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
