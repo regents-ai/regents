@@ -5,6 +5,9 @@ defmodule AshPlatform.Names.Claim do
   Ownership is filtered in Ash from verified wallet evidence, never account IDs:
   the wallets a fresh Privy pair carries, or the wallets the site's own sign-in
   verified for the signed-in person.
+
+  A new claim is a record on this site and nothing else: it names no
+  transaction because none is sent.
   """
   use Ash.Resource,
     # The sole read intentionally orders historical evidence for cursor pagination.
@@ -18,10 +21,11 @@ defmodule AshPlatform.Names.Claim do
     schema("regent_names")
     table "basenames_mints"
     migrate?(false)
+    identity_index_names(node: "basenames_mints_node_key")
   end
 
   attributes do
-    attribute :id, :integer, primary_key?: true, allow_nil?: false
+    attribute :id, :integer, primary_key?: true, allow_nil?: false, generated?: true
     attribute :parent_node, :string, allow_nil?: false
     attribute :parent_name, :string, allow_nil?: false
     attribute :label, :string, allow_nil?: false
@@ -30,7 +34,7 @@ defmodule AshPlatform.Names.Claim do
     attribute :ens_fqdn, :string
     attribute :ens_node, :string
     attribute :owner_address, :string, allow_nil?: false, sensitive?: true
-    attribute :tx_hash, :string, allow_nil?: false
+    attribute :tx_hash, :string
     attribute :ens_tx_hash, :string
     attribute :ens_assigned_at, :utc_datetime_usec
     attribute :payment_tx_hash, :string, sensitive?: true
@@ -46,7 +50,20 @@ defmodule AshPlatform.Names.Claim do
     attribute :attached_agent_slug, :string, sensitive?: true
   end
 
+  identities do
+    identity :node, [:node], message: "is already claimed"
+  end
+
   actions do
+    # One free claim: the name is recorded for the wallet whose free claim pays
+    # for it, and that free claim is spent, together or not at all.
+    create :claim_free do
+      accept []
+      argument :label, :string, allow_nil?: false
+      validate AshPlatform.Names.Validations.LabelRules
+      change AshPlatform.Names.Changes.ClaimFree
+    end
+
     read :mine do
       primary? true
       prepare build(sort: [id: :asc])
@@ -77,7 +94,7 @@ defmodule AshPlatform.Names.Claim do
       authorize_if expr(fragment("lower(?)", owner_address) in ^actor(:wallet_addresses))
     end
 
-    policy action(:holding_label) do
+    policy action([:holding_label, :claim_free]) do
       authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
   end

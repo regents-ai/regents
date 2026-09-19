@@ -589,7 +589,8 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute render(view) =~ "9 more"
     assert has_element?(view, "#account-claim-form input[name=name][value='']")
     assert has_element?(view, "#account-claim-availability[hidden]")
-    assert has_element?(view, ".account-claim__later", "isn’t open yet")
+    assert has_element?(view, "#account-claim-submit[disabled]", "Claim name")
+    refute has_element?(view, ".account-claim__later")
   end
 
   test "Account tells a wallet with no free claims the price", %{conn: conn} do
@@ -604,6 +605,8 @@ defmodule AshPlatformWeb.ShellLiveTest do
              "#account-claims-available",
              "No free claims on your wallets. Names cost 0.0025 ETH each."
            )
+
+    assert has_element?(view, ".account-claim__later", "isn’t open yet")
   end
 
   test "Account judges a typed name by the rules and by the names already claimed", %{
@@ -632,7 +635,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute has_element?(view, "#account-claim-name-errors")
     assert has_element?(view, "#account-claim-availability", "taken is already claimed.")
 
-    render_submit(element(view, "#account-claim-form"), %{"name" => "fresh-name-1"})
+    render_change(element(view, "#account-claim-form"), %{"name" => "fresh-name-1"})
 
     assert has_element?(
              view,

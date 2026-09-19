@@ -481,6 +481,16 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("check_claim_name", _params, socket), do: {:noreply, socket}
 
+  def handle_event(
+        "claim_name",
+        %{"name" => name},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      )
+      when is_binary(name),
+      do: {:noreply, claim_name(socket, name)}
+
+  def handle_event("claim_name", _params, socket), do: {:noreply, socket}
+
   # The browser only reports how its side ended. Whether the connection really
   # landed is read from the account's own record, so the page never says
   # "connected" on the browser's word alone.
@@ -1582,6 +1592,40 @@ defmodule AshPlatformWeb.ShellLive do
     case Names.label_problems(name) do
       [] -> %{value: name, problems: [], availability: label_availability(socket, name)}
       problems -> %{value: name, problems: problems, availability: nil}
+    end
+  end
+
+  # The claim is made by the account's own sign-in and judged again where it
+  # is recorded, whatever the page showed. Afterwards everything the claim
+  # could have changed is read again, so a refusal is explained by what is
+  # true now: the name taken, or no free claim left.
+  defp claim_name(socket, name) do
+    with %Human{} = actor <- human_actor(socket),
+         {:ok, claim} <- Names.claim_free_name(name, actor: actor) do
+      socket
+      |> load_account_names(socket.assigns.route_spec)
+      |> load_account_claims(socket.assigns.route_spec)
+      |> assign(
+        account_claim_name: %{@blank_claim_name | availability: {:claimed_now, claim.ens_fqdn}}
+      )
+    else
+      nil ->
+        socket
+
+      {:error, _error} ->
+        socket
+        |> load_account_claims(socket.assigns.route_spec)
+        |> then(&assign(&1, account_claim_name: refused_claim_name(&1, name)))
+    end
+  end
+
+  defp refused_claim_name(socket, name) do
+    case {check_claim_name(socket, name), socket.assigns.account_claims} do
+      {%{availability: :available} = claim_name, %{free: free}} when free > 0 ->
+        %{claim_name | availability: :not_claimed}
+
+      {claim_name, _claims} ->
+        claim_name
     end
   end
 

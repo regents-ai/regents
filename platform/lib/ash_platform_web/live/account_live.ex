@@ -130,7 +130,7 @@ defmodule AshPlatformWeb.AccountLive do
           <form
             id="account-claim-form"
             phx-change="check_claim_name"
-            phx-submit="check_claim_name"
+            phx-submit="claim_name"
           >
             <Regent.Primitives.field
               :let={field}
@@ -157,10 +157,18 @@ defmodule AshPlatformWeb.AccountLive do
                 3 to 14 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.
               </:hint>
             </Regent.Primitives.field>
+            <Regent.Primitives.button
+              id="account-claim-submit"
+              type="submit"
+              disabled={not claimable?(@claims, @claim_name)}
+              phx-disable-with="Claiming…"
+            >
+              Claim name
+            </Regent.Primitives.button>
           </form>
           <.claim_name_availability name={@claim_name} />
-          <p class="account-claim__later">
-            Claiming from this page isn’t open yet. Your free claims are yours to use when it is.
+          <p :if={match?(%{free: 0}, @claims)} class="account-claim__later">
+            Paying for a name from this page isn’t open yet.
           </p>
         </section>
 
@@ -315,6 +323,22 @@ defmodule AshPlatformWeb.AccountLive do
     """
   end
 
+  defp claim_name_availability(%{name: %{availability: {:claimed_now, _name}}} = assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status" class="account-claim__available">
+      {elem(@name.availability, 1)} is yours.
+    </p>
+    """
+  end
+
+  defp claim_name_availability(%{name: %{availability: :not_claimed}} = assigns) do
+    ~H"""
+    <p id="account-claim-availability" role="status" class="account-claim__claimed">
+      Couldn’t claim {@name.value}.regent.eth right now. Try again in a moment.
+    </p>
+    """
+  end
+
   defp claim_name_availability(%{name: %{availability: :unavailable}} = assigns) do
     ~H"""
     <p id="account-claim-availability" role="status">
@@ -328,6 +352,11 @@ defmodule AshPlatformWeb.AccountLive do
     <p id="account-claim-availability" role="status" hidden></p>
     """
   end
+
+  # The button waits for a name that passed every check and a free claim to
+  # spend on it; the lines beside it say which of the two is missing.
+  defp claimable?(%{free: free}, %{availability: :available}) when free > 0, do: true
+  defp claimable?(_claims, _claim_name), do: false
 
   defp count(1, singular, _plural), do: "1 #{singular}"
   defp count(n, _singular, plural), do: "#{n} #{plural}"

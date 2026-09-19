@@ -223,6 +223,16 @@
 }
 
 /* Claim a Regent Name */
+#account-claim-form {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+#account-claim-form > :first-child {
+  justify-self: stretch;
+}
+
 .account-claim__name {
   display: flex;
   align-items: center;

@@ -1,7 +1,7 @@
 defmodule AshPlatform.Names do
   @moduledoc """
-  Read-only access to preserved historical names and the claims a wallet may
-  still make. No minting or entitlement mutations.
+  Preserved historical names, the claims a wallet may still make, and the one
+  write: a free claim, recorded on this site and sent to no chain.
   """
   use Ash.Domain
 
@@ -12,10 +12,12 @@ defmodule AshPlatform.Names do
   resources do
     resource Claim do
       define :list_my_claims, action: :mine
+      define :claim_free_name, action: :claim_free, args: [:label]
     end
 
     resource Allowance do
       define :list_my_allowances, action: :mine
+      define :use_free_claim, action: :use_free_claim
     end
 
     resource PaymentCredit do

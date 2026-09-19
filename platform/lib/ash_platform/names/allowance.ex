@@ -2,9 +2,9 @@ defmodule AshPlatform.Names.Allowance do
   @moduledoc """
   The free claims a wallet was granted at the snapshot, and how many it has
   used. Storage is imported independently into regent_names; this resource
-  never generates or replays migrations and has no write actions. Ownership is
-  the site's own sign-in: a wallet that sign-in verified for the signed-in
-  person.
+  never generates or replays migrations. Its one write spends a single free
+  claim, and only while one is left. Ownership is the site's own sign-in: a
+  wallet that sign-in verified for the signed-in person.
   """
   use Ash.Resource,
     domain: AshPlatform.Names,
@@ -33,14 +33,23 @@ defmodule AshPlatform.Names.Allowance do
     read :mine do
       primary? true
     end
+
+    # Spends one free claim in a single statement, so two claims racing for a
+    # wallet's last one cannot both succeed: the loser matches no row.
+    update :use_free_claim do
+      accept []
+      change filter(expr(free_mints_used < snapshot_total))
+      change atomic_update(:free_mints_used, expr(free_mints_used + 1))
+      change atomic_update(:updated_at, expr(now()))
+    end
   end
 
   policies do
-    policy action(:mine) do
+    policy action([:mine, :use_free_claim]) do
       authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
 
-    policy action(:mine) do
+    policy action([:mine, :use_free_claim]) do
       authorize_if expr(fragment("lower(?)", address) in ^actor(:wallet_addresses))
     end
   end

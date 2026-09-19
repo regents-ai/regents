@@ -1,8 +1,8 @@
 defmodule AshPlatform.NamesFixtures do
   @moduledoc """
-  The imported historical-names tables for tests. The Ash resources deliberately
-  have no mutation actions and never migrate these tables, so tests that read
-  them create them here and insert their own synthetic rows.
+  The imported names tables for tests. The Ash resources never migrate these
+  tables, so tests that use them create them here and insert their own
+  synthetic rows.
   """
 
   alias AshPlatform.Repo
@@ -18,12 +18,17 @@ defmodule AshPlatform.NamesFixtures do
       # Complete captured column contracts; fixture data is synthetic, never copied customer rows.
       Ecto.Adapters.SQL.query!(Repo, "CREATE SCHEMA IF NOT EXISTS regent_names")
 
+      # Claims made on the site are numbered far above every synthetic row.
+      Ecto.Adapters.SQL.query!(Repo, """
+      CREATE SEQUENCE IF NOT EXISTS regent_names.basenames_mints_id_seq START WITH 1000000000
+      """)
+
       Ecto.Adapters.SQL.query!(Repo, """
       CREATE TABLE IF NOT EXISTS regent_names.basenames_mints (
-        id bigint PRIMARY KEY, parent_node varchar(66) NOT NULL, parent_name text NOT NULL,
+        id bigint PRIMARY KEY DEFAULT nextval('regent_names.basenames_mints_id_seq'), parent_node varchar(66) NOT NULL, parent_name text NOT NULL,
         label varchar(63) NOT NULL, fqdn text NOT NULL, node varchar(66) NOT NULL UNIQUE,
         ens_fqdn text, ens_node varchar(66), owner_address varchar(42) NOT NULL,
-        tx_hash varchar(66) NOT NULL, ens_tx_hash varchar(66), ens_assigned_at timestamptz,
+        tx_hash varchar(66), ens_tx_hash varchar(66), ens_assigned_at timestamptz,
         payment_tx_hash varchar(66), payment_chain_id integer, price_wei bigint,
         is_free boolean NOT NULL DEFAULT false, is_in_use boolean NOT NULL DEFAULT false,
         created_at timestamptz NOT NULL DEFAULT now(), claim_status varchar(255) NOT NULL DEFAULT 'reserved',
