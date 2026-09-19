@@ -519,3 +519,31 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Foil in the site's colours
+
+- The foil on the product cards, the stake banner and the coloured cards
+  shifts through the site's own colours (orange, light blue, titanium white)
+  instead of a rainbow. On each coloured card the line drawing lights in the
+  two site colours that stand out from that card, so the orange card's
+  drawing no longer disappears into orange.
+
+## 2026-09-19 — Foil palette release deployment verified
+
+- Deployed application revision: `7ead75a623a10bcdf57b27fa49de6404d21510f4`.
+- Image digest: `sha256:1338fa4ccd0d1bdc2da1bfcdc909758f4ac8d185f08021dcd735775ac40d5194`.
+- Shared UI revision: `354c860e655daf81f3304ad38fe704276a134368`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check (one failed check while the
+  new instance was starting, passing since).
+- Every probed request matches the previous release on status, content type
+  and `Vary`; only page fingerprints changed with the new script and stylesheet.
+- Live logs carry no application errors.
+- Before/after fingerprints of credits and accounts are identical; claims grew
+  from 208 to 210 and the allowances changed with them, both from names claimed
+  through the site since the previous release. No database migrations were
+  included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
