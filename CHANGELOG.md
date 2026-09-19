@@ -364,3 +364,25 @@ revision remains the one recorded above.
   (`.agent.base.eth` with the `.regent.eth` twin).
 - Claiming a new name is not in this release; the entitlement and rules panel
   follows separately.
+
+## 2026-09-19 — Account connections release deployment verified
+
+- Deployed application revision: `c213f40bbfdd3006313a972c1c0f7cdbc21d7ecb`.
+- Image digest: `sha256:39f981bf92dc796bdb499b99e403c25151fcadf793d285f4c253ad74a0a21b81`.
+- Shared UI revision: `6dde98f219fac4fa8972ca67710b57a5c4e27a3f`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check (one health-check line was
+  logged while the new instance was still starting; it passed once up).
+- The served app bundle carries the names switch and its remembered choice;
+  `/account` answers inside the app shell with the sign-in panel for guests.
+  Every other probed request matches the previous release on status, content
+  type and `Vary`; only page fingerprints changed with the new assets.
+- Live logs carry no errors. Before/after claim, allowance, credit, account and
+  ownership/Privy mapping fingerprints are identical. No database migrations
+  were included.
+- Not yet verified: a real X, GitHub or Farcaster connection on the live site,
+  which needs the founder's own accounts.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
