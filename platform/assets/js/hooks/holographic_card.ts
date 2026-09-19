@@ -1,4 +1,7 @@
-import type {HolographicCardRenderer} from "../../vendor/regent_ui/holographic_card.mjs"
+import type {
+  HolographicCardLook,
+  HolographicCardRenderer,
+} from "../../vendor/regent_ui/holographic_card.mjs"
 import {
   createCanvasIsland,
   type CanvasIslandController,
@@ -11,13 +14,42 @@ export type HolographicCardOptions = CanvasIslandOptions<HolographicCardRenderer
   pointerQuery?: () => MediaQuery
 }
 
-const browserLoadCard: LoadRenderer<HolographicCardRenderer> = (canvas, size, onDeviceLost) =>
-  import("../../vendor/regent_ui/holographic_card.mjs").then(({createHolographicCardRenderer}) =>
-    createHolographicCardRenderer(canvas, size, onDeviceLost),
-  )
+/** A computed `rgb(…)` colour as the three 0..1 channels the renderer takes. */
+const channels = (color: string): readonly [number, number, number] => {
+  const [red = 0, green = 0, blue = 0] = (color.match(/[\d.]+/g) ?? []).map(Number)
+  return [red / 255, green / 255, blue / 255]
+}
 
 /**
- * The shared holographic card, mounted the way the hero's crown is: the foil is
+ * What the markup asks of the foil. `data-holo-crown="false"` leaves the crown
+ * off a face and `"beside"` keeps it only where it stands clear of the content,
+ * `data-holo-tilt` and `data-holo-shine` scale the turn and the
+ * light against the account card's, and `data-holo-ink` makes the foil the ink
+ * of the line drawing beside the canvas.
+ */
+const browserLoadCard =
+  (root: HTMLElement): LoadRenderer<HolographicCardRenderer> =>
+  async (canvas, size, onDeviceLost) => {
+    const {createHolographicCardRenderer, holographicInkMask} = await import(
+      "../../vendor/regent_ui/holographic_card.mjs"
+    )
+    const {holoCrown, holoTilt, holoShine} = root.dataset
+    const look: HolographicCardLook = {
+      crown: holoCrown === "beside" ? "beside" : holoCrown !== "false",
+      tilt: holoTilt === undefined ? 1 : Number(holoTilt),
+      shine: holoShine === undefined ? 1 : Number(holoShine),
+    }
+    if ("holoInk" in root.dataset) {
+      const drawing = canvas.closest(".rg-technical-figure__art")?.querySelector("svg")
+      if (!drawing) throw new Error("foil ink needs the line drawing beside its canvas")
+      canvas.style.maskImage = holographicInkMask(drawing)
+      look.ink = channels(getComputedStyle(drawing).color)
+    }
+    return createHolographicCardRenderer(canvas, size, onDeviceLost, look)
+  }
+
+/**
+ * The shared holographic foil, mounted the way the hero's crown is: the foil is
  * drawn on the island's canvas and the card itself turns with the pointer.
  *
  * The turn is the renderer's eased tilt written back to the card as CSS custom
@@ -34,9 +66,9 @@ export const createHolographicCardController = (
   return createCanvasIsland(root, options, {
     canvasSelector: "[data-holo-canvas]",
     readyFlag: "holoReady",
-    browserLoad: browserLoadCard,
+    browserLoad: browserLoadCard(root),
     motionSensitive: true,
-    interact({root: card, renderer, nudge, onReady}) {
+    interact({root: card, canvas, renderer, nudge, onReady}) {
       // Every frame the island draws is followed by the tilt the renderer settled
       // on, so the card keeps turning for exactly as long as the foil eases.
       onReady(() => {
@@ -52,8 +84,16 @@ export const createHolographicCardController = (
       })
       const onPointerMove = (event: PointerEvent) => {
         if (event.isPrimary === false) return
-        const {left, top, width, height} = card.getBoundingClientRect()
-        renderer()?.point((event.clientX - left) / width, (event.clientY - top) / height)
+        // The card turns about its own box; the light falls where the pointer
+        // stands against the foil, which may be only part of the card.
+        const within = ({left, top, width, height}: DOMRect): [number, number] => [
+          (event.clientX - left) / width,
+          (event.clientY - top) / height,
+        ]
+        renderer()?.point(
+          within(card.getBoundingClientRect()),
+          within(canvas().getBoundingClientRect()),
+        )
         nudge()
       }
       const onPointerLeave = () => {

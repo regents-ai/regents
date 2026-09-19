@@ -185,10 +185,16 @@ defmodule AshPlatformWeb.HomeLive do
       </div>
 
       <div
-        class="rl-hero-stakers rg-panel rg-panel--surface"
+        id="home-regent-callout"
+        class="rl-hero-stakers rg-panel rg-panel--surface rg-holo-ground rg-holo-tilt"
         role="region"
         aria-labelledby="home-regent-callout-title"
+        phx-hook="HolographicCard"
+        data-holo-crown="beside"
+        data-holo-tilt="0.5"
+        data-holo-shine="0.75"
       >
+        <Regent.HolographicCard.foil id="home-regent-callout-foil" class="rg-holo-foil--face" />
         <span class="rl-regent-edge" aria-hidden="true"></span>
         <div class="rl-regent-copy">
           <p class="rl-overline">$REGENT</p>
@@ -297,10 +303,18 @@ defmodule AshPlatformWeb.HomeLive do
         :for={{proof, index} <- Enum.with_index(@proofs)}
         title={proof.title}
         description={proof.copy}
+        id={"home-proof-#{@brand}-#{index}"}
         class="rl-proof-card"
         data-card-color={Enum.at(~w(orange blue platinum), index)}
+        phx-hook="HolographicCard"
+        data-holo-ink
+        data-holo-tilt="0"
       >
         <:media>
+          <Regent.HolographicCard.foil
+            id={"home-proof-foil-#{@brand}-#{index}"}
+            class="rg-holo-foil--ink"
+          />
           <.card_diagram
             id={"home-diagram-#{@brand}-#{index}"}
             variant={artwork_variant(@brand, index)}

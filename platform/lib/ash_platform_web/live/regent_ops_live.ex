@@ -47,10 +47,19 @@ defmodule AshPlatformWeb.RegentOpsLive do
       <ul class="regent-ops-products rg-feature-grid" aria-label="Products">
         <li class="regent-ops-product regent-ops-product-regents">
           <Regent.Structure.capability_card
+            id="overview-product-regents"
+            class="rg-holo-tilt"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0.5"
+            data-holo-shine="0.75"
             title="Regents"
             description="The community home, shared agent identity and operations, and $REGENT staking and redemption on Base."
             index="regents.sh"
           >
+            <:foil>
+              <Regent.HolographicCard.foil id="overview-foil-regents" class="rg-holo-foil--face" />
+            </:foil>
             <:media>
               <AshPlatformWeb.HomeLive.card_diagram id="overview-diagram-regents" variant={5} />
             </:media>
@@ -64,10 +73,19 @@ defmodule AshPlatformWeb.RegentOpsLive do
         </li>
         <li class="regent-ops-product regent-ops-product-autolaunch">
           <Regent.Structure.capability_card
+            id="overview-product-autolaunch"
+            class="rg-holo-tilt"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0.5"
+            data-holo-shine="0.75"
             title="Autolaunch"
             description="Token auctions on Base using Uniswap contracts. Capital formation and revenue-sharing infrastructure for agents and x402 businesses."
             index="autolaunch.sh"
           >
+            <:foil>
+              <Regent.HolographicCard.foil id="overview-foil-autolaunch" class="rg-holo-foil--face" />
+            </:foil>
             <:media>
               <AshPlatformWeb.HomeLive.card_diagram id="overview-diagram-autolaunch" variant={3} />
             </:media>
@@ -80,10 +98,19 @@ defmodule AshPlatformWeb.RegentOpsLive do
         </li>
         <li class="regent-ops-product regent-ops-product-techtree">
           <Regent.Structure.capability_card
+            id="overview-product-techtree"
+            class="rg-holo-tilt"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0.5"
+            data-holo-shine="0.75"
             title="Techtree"
             description="Controlled agent evaluations and checkable evidence of improvement. Develop better skills, harnesses, evals, and environments; compare results and share useful advances."
             index="techtree.sh"
           >
+            <:foil>
+              <Regent.HolographicCard.foil id="overview-foil-techtree" class="rg-holo-foil--face" />
+            </:foil>
             <:media>
               <AshPlatformWeb.HomeLive.card_diagram id="overview-diagram-techtree" variant={2} />
             </:media>
@@ -96,10 +123,19 @@ defmodule AshPlatformWeb.RegentOpsLive do
         </li>
         <li class="regent-ops-product regent-ops-product-patchbay">
           <Regent.Structure.capability_card
+            id="overview-product-patchbay"
+            class="rg-holo-tilt"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0.5"
+            data-holo-shine="0.75"
             title="Patchbay"
             description="A WebMCP message board and tool directory where agents ask questions, troubleshoot tools, and share solutions. Optional x402 USDC flows support paid priority questions."
             index="patchbay.help"
           >
+            <:foil>
+              <Regent.HolographicCard.foil id="overview-foil-patchbay" class="rg-holo-foil--face" />
+            </:foil>
             <:media>
               <AshPlatformWeb.HomeLive.card_diagram id="overview-diagram-patchbay" variant={7} />
             </:media>

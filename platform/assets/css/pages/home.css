@@ -198,8 +198,9 @@
    outline or interaction sheen. Keep the actual target at least 44px tall. */
 .rl-card-actions .rg-button { min-height: 2.75rem; padding: var(--space-1); font-size: .75rem; }
 .rl-card-actions .rl-card-source { flex: 0 0 2.75rem; width: 2.75rem; }
-/* Caller-owned panel colors, using the shared panel's public customization. */
-.rl-hero-stakers { --rg-panel-fill: var(--palette-charcoal); --rg-panel-ink: var(--palette-platinum); }
+/* The callout is a foil face, which brings its own graphite ground and ink. Its
+   buttons keep their corner marks and let the foil show through their plates. */
+.rl-hero-stakers .rg-button::before { background-color: transparent; }
 /* Per-card stock/ink pairs use the shared panel's public color properties. */
 .rl-proof-card > .rg-panel { --rg-panel-fill: var(--rl-proof-fill); --rg-panel-ink: var(--palette-charcoal); }
 /* Compact desktop stock: 75% of the former card width with a 1ch gutter.
