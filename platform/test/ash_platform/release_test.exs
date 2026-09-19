@@ -184,7 +184,6 @@ defmodule AshPlatform.ReleaseTest do
              "agent_links",
              "agent_pairing_codes",
              "cloud_runtimes",
-             "comments",
              "linked_identities",
              "regents",
              "schema_migrations",

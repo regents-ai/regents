@@ -547,3 +547,10 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Empty comments table dropped
+
+- The unused `regents_app.comments` table, empty since the in-app comments were
+  removed, is gone from production and from the application's schema baseline.
+  The local acceptance fixture no longer counts it. The obsolete local
+  public-API document, whose commands no longer exist, is removed.

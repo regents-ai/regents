@@ -32,7 +32,6 @@ defmodule AshPlatformWeb.BoundaryTest do
         "create table(:agent_links",
         "create table(:agent_pairing_codes",
         "create table(:cloud_runtimes",
-        "create table(:comments",
         "create table(:linked_identities",
         "create table(:regents",
         "create table(:session_authorities",

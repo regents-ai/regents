@@ -229,42 +229,6 @@ defmodule AshPlatform.Repo.Migrations.InitialRegentsApp do
 
     create index(:cloud_runtimes, [:human_account_id])
 
-    create table(:comments, primary_key: false) do
-      add(:id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true)
-      add(:target_type, :text, null: false)
-      add(:target_id, :uuid, null: false)
-      add(:body, :text, null: false)
-      add(:client_request_id, :uuid, null: false)
-      add(:deleted_at, :utc_datetime_usec)
-      add(:deleted_by_human_account_id, :bigint)
-      add(:deletion_authority, :text)
-
-      add(:inserted_at, :utc_datetime_usec,
-        null: false,
-        default: fragment("(now() AT TIME ZONE 'utc')")
-      )
-
-      add(:updated_at, :utc_datetime_usec,
-        null: false,
-        default: fragment("(now() AT TIME ZONE 'utc')")
-      )
-
-      add(
-        :author_id,
-        references(:platform_human_users,
-          column: :id,
-          name: "comments_author_id_fkey",
-          type: :bigint,
-          prefix: "regent_names"
-        ),
-        null: false
-      )
-    end
-
-    create unique_index(:comments, [:author_id, :client_request_id],
-             name: "comments_unique_author_request_index"
-           )
-
     create table(:linked_identities, primary_key: false) do
       add(:id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true)
       add(:provider, :text, null: false)
@@ -371,16 +335,6 @@ defmodule AshPlatform.Repo.Migrations.InitialRegentsApp do
     )
 
     drop(table(:linked_identities))
-
-    drop(constraint(:comments, "comments_author_id_fkey"))
-
-    drop_if_exists(
-      unique_index(:comments, [:author_id, :client_request_id],
-        name: "comments_unique_author_request_index"
-      )
-    )
-
-    drop(table(:comments))
 
     drop_if_exists(index(:cloud_runtimes, [:human_account_id]))
 

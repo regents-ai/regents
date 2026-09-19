@@ -257,9 +257,9 @@ on `/` and `/stake` stays — Techtree is still a business and still a revenue s
 pages, the `/api/autolaunch/v1/*` endpoints, the Base log indexer, comments and the
 retained Autolaunch contract interfaces are gone; autolaunch.sh is the product. The
 `autolaunch_app` tables belong to the Autolaunch site and were never migrated from
-here. The `regents_app.comments` table still exists, empty and unused. Read-only
+here. The empty `regents_app.comments` table was dropped on 2026-09-19. Read-only
 `/autolaunch`, `/techtree` and `/patchbay` information pages are briefed in the
-workspace `docs/backlogs/regents.md` and not started.
+workspace `docs/backlogs/regents.md`.
 
 **Other open tickets:** `regent-556` (reseal the release supply), `regent-gu2.20`
 (common-sense audit of every interaction — the scout for it died and was never

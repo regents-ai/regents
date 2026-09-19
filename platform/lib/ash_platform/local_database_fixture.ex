@@ -356,16 +356,14 @@ defmodule AshPlatform.LocalDatabaseFixture do
 
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, database_name text NOT NULL, database_owner text NOT NULL, migration_versions text[] NOT NULL, empty_counts jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
+          "CREATE TABLE acceptance_harness.baseline (run_id text PRIMARY KEY, database_name text NOT NULL, database_owner text NOT NULL, migration_versions text[] NOT NULL, created_at timestamptz NOT NULL DEFAULT now())",
           []
         )
 
-        {versions, empty_counts} = capture_baseline!()
-
         Ecto.Adapters.SQL.query!(
           AshPlatform.Repo,
-          "INSERT INTO acceptance_harness.baseline (run_id, database_name, database_owner, migration_versions, empty_counts) VALUES ($1, current_database(), current_user, $2, $3::jsonb)",
-          [run_id, versions, empty_counts]
+          "INSERT INTO acceptance_harness.baseline (run_id, database_name, database_owner, migration_versions) VALUES ($1, current_database(), current_user, $2)",
+          [run_id, migration_versions!()]
         )
       end)
     end
@@ -423,28 +421,13 @@ defmodule AshPlatform.LocalDatabaseFixture do
       ~s("#{String.replace(identifier, "\"", "\"\"")}")
     end
 
-    defp capture_baseline! do
-      versions =
-        Ecto.Adapters.SQL.query!(
-          AshPlatform.Repo,
-          "SELECT version::text FROM regents_app.schema_migrations ORDER BY version",
-          []
-        ).rows
-        |> List.flatten()
-
-      counts =
-        Ecto.Adapters.SQL.query!(
-          AshPlatform.Repo,
-          "SELECT (SELECT count(*) FROM regents_app.comments)",
-          []
-        ).rows
-        |> List.first()
-
-      unless counts == [0] do
-        raise "local acceptance empty product baseline mismatch"
-      end
-
-      {versions, counts}
+    defp migration_versions! do
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        "SELECT version::text FROM regents_app.schema_migrations ORDER BY version",
+        []
+      ).rows
+      |> List.flatten()
     end
 
     defp with_repo(config, fun) do
