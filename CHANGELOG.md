@@ -464,3 +464,22 @@ revision remains the one recorded above.
   line in each row are gone.
 - The name check under "Claim a Regent Name" answers for the ENS name alone:
   "name.regent.eth is available."
+
+## 2026-09-19 — Crown and ENS-only names release deployment verified
+
+- Deployed application revision: `1c9dc3f7ecea553115f2eb6fb077acbe1ffbb524`.
+- Image digest: `sha256:04c0c3be20ecbc24950c3a268ac8fc283e7d3f69f8ea3f3f4d6aea17dd179061`.
+- Shared UI revision: `5916238d9b04524b5c56b396a06ef8c888a9e8d0`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check (one failed check while the
+  new instance was starting, passing since).
+- Every probed request matches the previous release on status, content type
+  and `Vary`; only page fingerprints changed with the new script and stylesheet.
+- Live logs carry no application errors (one proxy line during the rollover,
+  "connection closed before message completed").
+- Before/after fingerprints of claims, allowances, credits and accounts are
+  identical. No database migrations were included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
