@@ -266,37 +266,11 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, ".account-details dd", "Not verified")
     assert has_element?(view, "#account-names-title", "Claimed Regent Names")
 
-    assert has_element?(
-             view,
-             "#account-names[data-names-view=ens] [data-name-form=ens]",
-             "first.regent.eth"
-           )
-
-    assert has_element?(view, "#account-names [data-name-form=basename]", "name-1.agent.base.eth")
-    assert has_element?(view, "#account-names [data-name-form=ens]", "name-2.regent.eth")
+    assert has_element?(view, "#account-names strong", "first.regent.eth")
+    assert has_element?(view, "#account-names strong", "name-2.regent.eth")
+    refute render(view) =~ "agent.base.eth"
     refute render(view) =~ "name-3."
     refute has_element?(view, "#account-names-more")
-
-    assert has_element?(
-             view,
-             "#account-names-view button[aria-pressed=true]",
-             "View as ENS Subname"
-           )
-
-    view |> element("#account-names-view button", "View as Basename") |> render_click()
-
-    assert has_element?(view, "#account-names[data-names-view=basename]")
-    assert has_element?(view, "#account-names-view[data-view=basename]")
-    assert has_element?(view, "#account-names-view button[aria-pressed=true]", "View as Basename")
-
-    assert has_element?(
-             view,
-             "#account-names-view button[aria-pressed=false]",
-             "View as ENS Subname"
-           )
-
-    render_hook(view, "set_names_view", %{"view" => "sideways"})
-    assert has_element?(view, "#account-names[data-names-view=basename]")
 
     assert has_element?(
              view,
@@ -514,11 +488,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     {view, _html} = open_account(conn, account)
 
-    assert has_element?(
-             view,
-             "#account-names li:first-child [data-name-form=ens]",
-             "name-1.regent.eth"
-           )
+    assert has_element?(view, "#account-names li:first-child strong", "name-1.regent.eth")
 
     assert has_element?(view, "#account-names li:first-child span", "Claimed 2 January 2025")
     assert has_element?(view, "#account_names-50")
@@ -527,17 +497,9 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     render_hook(view, "load_more_names", %{})
 
-    assert has_element?(
-             view,
-             "#account-names li:first-child [data-name-form=ens]",
-             "name-1.regent.eth"
-           )
+    assert has_element?(view, "#account-names li:first-child strong", "name-1.regent.eth")
 
-    assert has_element?(
-             view,
-             "#account-names li:last-child [data-name-form=ens]",
-             "name-51.regent.eth"
-           )
+    assert has_element?(view, "#account-names li:last-child strong", "name-51.regent.eth")
 
     refute has_element?(view, "#account-names-more")
 

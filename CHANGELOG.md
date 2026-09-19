@@ -452,3 +452,13 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Crown on the account card, ENS names only
+
+- The account card's engraved mark is the thirteen-square Regents crown instead
+  of the shared card's fractal triangle; the change lives in the shared UI
+  (design-system `5916238d9b04524b5c56b396a06ef8c888a9e8d0`), whose revision
+  is pinned at release.
+- Claimed Regent Names lists each name as its ENS name only. The "View as ENS
+  Subname / View as Basename" switch, the remembered choice and the Basename
+  line in each row are gone.

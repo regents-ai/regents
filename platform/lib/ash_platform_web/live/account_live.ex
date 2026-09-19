@@ -19,7 +19,6 @@ defmodule AshPlatformWeb.AccountLive do
   attr :ens, :atom, default: nil
   attr :names, :any, default: nil
   attr :names_stream, :any, required: true
-  attr :names_view, :atom, default: :ens
   attr :claims, :any, default: nil
   attr :claim_name, :map, required: true
   attr :verified_connections, :list, default: []
@@ -120,7 +119,7 @@ defmodule AshPlatformWeb.AccountLive do
             <h2 id="account-names-title">Claimed Regent Names</h2>
             <p>The names your wallets have claimed, oldest first.</p>
           </div>
-          <.names names={@names} stream={@names_stream} view={@names_view} />
+          <.names names={@names} stream={@names_stream} />
         </section>
 
         <section class="account-panel account-claim" aria-labelledby="account-claim-title">
@@ -221,7 +220,6 @@ defmodule AshPlatformWeb.AccountLive do
 
   attr :names, :any, default: nil
   attr :stream, :any, required: true
-  attr :view, :atom, required: true
 
   defp names(%{names: :unavailable} = assigns) do
     ~H"""
@@ -235,36 +233,13 @@ defmodule AshPlatformWeb.AccountLive do
     """
   end
 
-  # Every claim carries both forms of its name. The rows come down once and
-  # stay in the browser; the chosen form is a mark on the list, so switching
-  # never re-sends a row. Rows are added as the reader reaches the end.
+  # Each claim is shown by its ENS name. The rows come down once and stay in
+  # the browser; more are added as the reader reaches the end.
   defp names(assigns) do
     ~H"""
-    <div
-      id="account-names-view"
-      class="account-names__view"
-      role="group"
-      aria-label="Name form"
-      phx-hook="NamesView"
-      data-view={@view}
-    >
-      <Regent.Primitives.button
-        :for={{form, label} <- [ens: "View as ENS Subname", basename: "View as Basename"]}
-        type="button"
-        variant="secondary"
-        phx-click="set_names_view"
-        phx-value-view={form}
-        aria-pressed={to_string(@view == form)}
-      >
-        {label}
-      </Regent.Primitives.button>
-    </div>
-    <ul id="account-names" class="account-names__list" phx-update="stream" data-names-view={@view}>
+    <ul id="account-names" class="account-names__list" phx-update="stream">
       <li :for={{id, claim} <- @stream} id={id}>
-        <div>
-          <strong data-name-form="ens">{claim.ens_fqdn}</strong>
-          <strong data-name-form="basename">{claim.fqdn}</strong>
-        </div>
+        <strong>{claim.ens_fqdn}</strong>
         <div>
           <span>{String.capitalize(claim.claim_status)}</span>
           <span>Claimed {date(claim.created_at)}</span>

@@ -29,7 +29,6 @@ import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {ShellMotion} from "./hooks/motion"
 import {ModalDialog} from "./hooks/modal_dialog"
-import {NamesView} from "./hooks/names_view"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
@@ -335,7 +334,6 @@ const hooks = {
   HomeTokenMenu,
   InfiniteScroll,
   ModalDialog,
-  NamesView,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   RegentsClubMetadataWallet,

@@ -70,7 +70,6 @@ defmodule AshPlatformWeb.ShellLive do
        content_generation: 0,
        account_ens: nil,
        account_names: nil,
-       account_names_view: :ens,
        account_claims: nil,
        account_claim_name: @blank_claim_name,
        verified_connections: [],
@@ -471,13 +470,6 @@ defmodule AshPlatformWeb.ShellLive do
       do: {:noreply, load_more_names(socket)}
 
   def handle_event("load_more_names", _params, socket), do: {:noreply, socket}
-
-  def handle_event("set_names_view", %{"view" => view}, socket) do
-    case names_view(view) do
-      nil -> {:noreply, socket}
-      view -> {:noreply, assign(socket, account_names_view: view)}
-    end
-  end
 
   def handle_event(
         "check_claim_name",
@@ -998,7 +990,6 @@ defmodule AshPlatformWeb.ShellLive do
           ens={@account_ens}
           names={@account_names}
           names_stream={@streams.account_names}
-          names_view={@account_names_view}
           claims={@account_claims}
           claim_name={@account_claim_name}
           verified_connections={@verified_connections}
@@ -1601,10 +1592,6 @@ defmodule AshPlatformWeb.ShellLive do
       {:error, _error} -> :unavailable
     end
   end
-
-  defp names_view("ens"), do: :ens
-  defp names_view("basename"), do: :basename
-  defp names_view(_view), do: nil
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id, wallet_addresses: account_wallets(account)}
