@@ -405,3 +405,24 @@ revision remains the one recorded above.
   anyone else's claim.
 - The test fixture now builds the allowance and paid-claim tables alongside
   claims.
+
+## 2026-09-19 — Claim a Regent Name release deployment verified
+
+- Deployed application revision: `870ff97d1641239840b13f1863ce65740b709eb6`.
+- Image digest: `sha256:fa71069d1210df8e35af7d60c7cac163062f733a7c8e904adfc9643ec03c8c1d`.
+- Shared UI revision: `6dde98f219fac4fa8972ca67710b57a5c4e27a3f`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check (one health-check line was
+  logged while the instance restarted; it passed once up).
+- `/account` answers inside the app shell with the sign-in panel for guests.
+  Every other probed request matches the previous release on status, content
+  type and `Vary`; only page fingerprints changed with the new assets.
+- Live logs carry no errors. Before/after claim, allowance, credit, account and
+  ownership/Privy mapping fingerprints are identical. No database migrations
+  were included; the allowance and paid-claim tables are read only.
+- Not yet verified: the panel as seen by a signed-in wallet on the live site,
+  which needs the founder's own sign-in.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
