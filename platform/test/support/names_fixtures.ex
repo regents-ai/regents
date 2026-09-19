@@ -26,7 +26,7 @@ defmodule AshPlatform.NamesFixtures do
       Ecto.Adapters.SQL.query!(Repo, """
       CREATE TABLE IF NOT EXISTS regent_names.basenames_mints (
         id bigint PRIMARY KEY DEFAULT nextval('regent_names.basenames_mints_id_seq'), parent_node varchar(66) NOT NULL, parent_name text NOT NULL,
-        label varchar(63) NOT NULL, fqdn text NOT NULL, node varchar(66) NOT NULL UNIQUE,
+        label varchar(63) NOT NULL, fqdn text NOT NULL, node varchar(66) NOT NULL,
         ens_fqdn text, ens_node varchar(66), owner_address varchar(42) NOT NULL,
         tx_hash varchar(66), ens_tx_hash varchar(66), ens_assigned_at timestamptz,
         payment_tx_hash varchar(66), payment_chain_id integer, price_wei bigint,
@@ -35,6 +35,11 @@ defmodule AshPlatform.NamesFixtures do
         upgrade_tx_hash varchar(255), upgraded_at timestamp,
         formation_agent_slug varchar(255), attached_agent_slug varchar(255)
       )
+      """)
+
+      Ecto.Adapters.SQL.query!(Repo, """
+      CREATE UNIQUE INDEX IF NOT EXISTS basenames_mints_node_unique
+        ON regent_names.basenames_mints (node)
       """)
 
       Ecto.Adapters.SQL.query!(Repo, """

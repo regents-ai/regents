@@ -21,7 +21,7 @@ defmodule AshPlatform.Names.Claim do
     schema("regent_names")
     table "basenames_mints"
     migrate?(false)
-    identity_index_names(node: "basenames_mints_node_key")
+    identity_index_names(node: "basenames_mints_node_unique")
   end
 
   attributes do
