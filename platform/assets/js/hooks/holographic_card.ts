@@ -44,6 +44,9 @@ const browserLoadCard =
       if (!drawing) throw new Error("foil ink needs the line drawing beside its canvas")
       canvas.style.maskImage = holographicInkMask(drawing)
       look.ink = channels(getComputedStyle(drawing).color)
+      const panel = canvas.closest(".rg-panel")
+      if (!panel) throw new Error("foil ink needs the panel its drawing sits on")
+      look.ground = channels(getComputedStyle(panel, "::after").backgroundColor)
     }
     return createHolographicCardRenderer(canvas, size, onDeviceLost, look)
   }
