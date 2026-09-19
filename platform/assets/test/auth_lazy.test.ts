@@ -151,6 +151,29 @@ describe("lazy browser authentication", () => {
     expect(reload).not.toHaveBeenCalled()
     stop()
   })
+  it("a connection request the bridge cannot start is answered as failed where the page listens", async () => {
+    const page = accountDocument({signedIn: true})
+    const identity = vi.fn(async () => {
+      throw new Error("Privy bridge is not ready")
+    })
+    const outcomes: unknown[] = []
+    page.documentRoot.addEventListener("ash:identity-state", event => {
+      outcomes.push((event as CustomEvent).detail)
+    })
+    const stop = installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: vi.fn(async () => ({request: async () => undefined, identity})),
+    }))
+
+    page.documentRoot.dispatchEvent(
+      new CustomEvent("ash:identity-request", {detail: {action: "link", provider: "github"}}),
+    )
+
+    await vi.waitFor(() => expect(outcomes).toHaveLength(1))
+    expect(identity).toHaveBeenCalledWith({action: "link", provider: "github"})
+    expect(outcomes).toEqual([{error: "failed", action: "link", provider: "github"}])
+    stop()
+  })
+
   it("disposal prevents a delayed module from starting an obsolete Privy root", async () => {
     let release: ((module: PrivyBridgeModule) => void) | undefined
     const startPrivyBridge = vi.fn(async () => ({request: async () => undefined}))

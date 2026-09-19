@@ -93,9 +93,10 @@ defmodule AshPlatformWeb.Live.Session do
     |> Phoenix.Component.assign(:session_lease, lease)
     # The wallet's ENS name and picture arrive from Ethereum after sign-in has
     # already finished, so the page that is already open takes them as they land.
+    # The view hears the same message afterwards, with the account re-read.
     |> attach_hook(:session_ens_identity, :handle_info, fn
       {:ens_lookup_finished, _account_id}, socket ->
-        {:halt, reidentify(socket, leased(lease))}
+        {:cont, reidentify(socket, leased(lease))}
 
       _message, socket ->
         {:cont, socket}

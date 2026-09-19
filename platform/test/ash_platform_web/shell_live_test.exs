@@ -194,7 +194,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#account-control [data-account-target=profile]", "0xaaaa…0001")
 
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
-    assert AshPlatform.Ens.refresh(account) == :ok
+    assert AshPlatform.Ens.refresh(account) == :started
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
 
     assert render(view) =~ ~s(src="https://avatars.regents.test/atlas.png")
@@ -253,10 +253,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
       actor: %System{}
     )
 
-    {:ok, view, html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/account")
+    {view, html} = open_account(conn, account)
 
     refute html =~ "Sign in to see your account"
     assert has_element?(view, "#account-identity h2", "0x6666…6666")
@@ -264,14 +261,42 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, ".account-details code", wallet)
     assert has_element?(view, "#account-wallet-copy[data-copy-text='#{wallet}']", "Copy")
     assert has_element?(view, ".account-wallet-list code", other)
-    assert has_element?(view, ".account-details dd", "None found for this wallet")
+    assert has_element?(view, ".account-details dd", "No primary name set for this wallet")
     assert has_element?(view, ".account-details dd", "Not set")
     assert has_element?(view, ".account-details dd", "Not verified")
-    assert has_element?(view, ".account-names__list strong", "name-1.regent.eth")
-    assert has_element?(view, ".account-names__list span", "first.regent.eth")
-    assert has_element?(view, ".account-names__list strong", "name-2.regent.eth")
-    refute has_element?(view, ".account-names__list strong", "name-3.regent.eth")
-    refute render(view) =~ "Showing the first 50 names"
+    assert has_element?(view, "#account-names-title", "Claimed Regent Names")
+
+    assert has_element?(
+             view,
+             "#account-names[data-names-view=ens] [data-name-form=ens]",
+             "first.regent.eth"
+           )
+
+    assert has_element?(view, "#account-names [data-name-form=basename]", "name-1.agent.base.eth")
+    assert has_element?(view, "#account-names [data-name-form=ens]", "name-2.regent.eth")
+    refute render(view) =~ "name-3."
+    refute has_element?(view, "#account-names-more")
+
+    assert has_element?(
+             view,
+             "#account-names-view button[aria-pressed=true]",
+             "View as ENS Subname"
+           )
+
+    view |> element("#account-names-view button", "View as Basename") |> render_click()
+
+    assert has_element?(view, "#account-names[data-names-view=basename]")
+    assert has_element?(view, "#account-names-view[data-view=basename]")
+    assert has_element?(view, "#account-names-view button[aria-pressed=true]", "View as Basename")
+
+    assert has_element?(
+             view,
+             "#account-names-view button[aria-pressed=false]",
+             "View as ENS Subname"
+           )
+
+    render_hook(view, "set_names_view", %{"view" => "sideways"})
+    assert has_element?(view, "#account-names[data-names-view=basename]")
 
     assert has_element?(
              view,
@@ -295,6 +320,8 @@ defmodule AshPlatformWeb.ShellLiveTest do
       subject: "account-x-subject"
     })
 
+    assert has_element?(view, "#account-verified-connections [role=status]", "Disconnecting X")
+
     render_hook(view, "refresh_verified_connections", %{"error" => "already-connected"})
 
     assert has_element?(
@@ -302,6 +329,222 @@ defmodule AshPlatformWeb.ShellLiveTest do
              "#account-verified-connections [role=alert]",
              "already connected to another Regent account"
            )
+  end
+
+  test "a connection is only called connected once the account's own record says so", %{
+    conn: conn
+  } do
+    wallet = "0x9999999999999999999999999999999999999999"
+    account = register_account("account-outcomes", wallet)
+
+    Accounts.upsert_linked_identity!(
+      :x,
+      "outcome-x-subject",
+      "outcome_user",
+      nil,
+      DateTime.utc_now(),
+      %{},
+      account.id,
+      actor: %System{}
+    )
+
+    {view, _html} = open_account(conn, account)
+
+    view |> element("#account-verified-connections-github button", "Connect") |> render_click()
+    assert_push_event(view, "verified-connections:request", %{action: :link, provider: :github})
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=status]",
+             "Taking you to GitHub to approve the connection."
+           )
+
+    view |> element("#account-verified-connections-farcaster button", "Connect") |> render_click()
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=status]",
+             "Scan the code with Farcaster to approve the connection."
+           )
+
+    # The browser says its side finished, but nothing was recorded for GitHub.
+    render_hook(view, "refresh_verified_connections", %{
+      "action" => "link",
+      "provider" => "github"
+    })
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=alert]",
+             "GitHub didn’t come back connected. Try again."
+           )
+
+    # A finished disconnect whose record is still there is not a disconnection.
+    render_hook(view, "refresh_verified_connections", %{"action" => "unlink", "provider" => "x"})
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=alert]",
+             "X is still connected. Try again."
+           )
+
+    {:ok, identity} =
+      Accounts.get_linked_identity_by_subject(:x, "outcome-x-subject", actor: %System{})
+
+    :ok = Accounts.remove_linked_identity(identity, actor: %System{})
+    render_hook(view, "refresh_verified_connections", %{"action" => "unlink", "provider" => "x"})
+
+    assert has_element?(view, "#account-verified-connections [role=status]", "X disconnected.")
+    assert has_element?(view, "#account-verified-connections-x button", "Connect")
+
+    # A refresh that names no request (a plain sign-in refresh) re-reads quietly.
+    render_hook(view, "refresh_verified_connections", %{"error" => nil})
+    refute has_element?(view, "#account-verified-connections [role=status]")
+    refute has_element?(view, "#account-verified-connections [role=alert]")
+
+    # A browser-side failure is reported as one, whatever the record says.
+    render_hook(view, "refresh_verified_connections", %{
+      "error" => "failed",
+      "action" => "link",
+      "provider" => "x"
+    })
+
+    assert has_element?(
+             view,
+             "#account-verified-connections [role=alert]",
+             "That connection couldn’t be verified. Try again."
+           )
+  end
+
+  test "Account asks Ethereum for a primary name it has never read and shows it as it lands",
+       %{conn: conn} do
+    account =
+      register_account(
+        "account-ens-fresh",
+        AshPlatform.TestEnsChainClient.wallet(:named_with_avatar)
+      )
+
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
+
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    assert html =~ "Checking Ethereum for a primary name…"
+    refute html =~ "No primary name set"
+
+    assert_receive {:ens_lookup_finished, _account_id}, 2_000
+    assert has_element?(view, ".account-details dd", "atlas.eth")
+    assert has_element?(view, "#account-identity h2", "atlas.eth")
+    refute render(view) =~ "Checking Ethereum"
+  end
+
+  test "Account says so when Ethereum could not be asked, never that there is no name", %{
+    conn: conn
+  } do
+    account =
+      register_account("account-ens-down", AshPlatform.TestEnsChainClient.wallet(:unreachable))
+
+    {view, _html} = open_account(conn, account)
+
+    assert has_element?(
+             view,
+             ".account-details dd[role=status]",
+             "Couldn’t check Ethereum right now. Refresh to try again."
+           )
+
+    refute render(view) =~ "No primary name set"
+  end
+
+  test "Account re-reads a primary name last read more than a day ago", %{conn: conn} do
+    account =
+      register_account(
+        "account-ens-stale",
+        AshPlatform.TestEnsChainClient.wallet(:named_with_avatar)
+      )
+
+    Accounts.put_ens_identity(account.id, "yesterday.eth", nil, actor: %System{})
+
+    AshPlatform.Repo.query!(
+      "update regents_app.account_ens_identities set updated_at = now() - interval '2 days' where human_account_id = $1",
+      [account.id]
+    )
+
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
+
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    assert html =~ "yesterday.eth"
+    assert_receive {:ens_lookup_finished, _account_id}, 2_000
+    assert has_element?(view, ".account-details dd", "atlas.eth")
+    refute render(view) =~ "yesterday.eth"
+  end
+
+  test "Account leaves a primary name read today alone", %{conn: conn} do
+    account =
+      register_account(
+        "account-ens-today",
+        AshPlatform.TestEnsChainClient.wallet(:named_with_avatar)
+      )
+
+    Accounts.put_ens_identity(account.id, "today.eth", nil, actor: %System{})
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    assert has_element?(view, ".account-details dd", "today.eth")
+    refute_receive {:ens_lookup_finished, _account_id}, 300
+  end
+
+  test "Account lists claimed names oldest first and adds the next page as the reader reaches the end",
+       %{conn: conn} do
+    wallet = "0x5555555555555555555555555555555555555555"
+    account = register_account("account-many-names", wallet)
+
+    for id <- 1..51 do
+      insert_claim(id, wallet, %{created_at: DateTime.add(~U[2025-01-01 00:00:00Z], id, :day)})
+    end
+
+    {view, _html} = open_account(conn, account)
+
+    assert has_element?(
+             view,
+             "#account-names li:first-child [data-name-form=ens]",
+             "name-1.regent.eth"
+           )
+
+    assert has_element?(view, "#account-names li:first-child span", "Claimed 2 January 2025")
+    assert has_element?(view, "#account_names-50")
+    refute has_element?(view, "#account_names-51")
+    assert has_element?(view, "#account-names-more[data-event=load_more_names][data-cursor]")
+
+    render_hook(view, "load_more_names", %{})
+
+    assert has_element?(
+             view,
+             "#account-names li:first-child [data-name-form=ens]",
+             "name-1.regent.eth"
+           )
+
+    assert has_element?(
+             view,
+             "#account-names li:last-child [data-name-form=ens]",
+             "name-51.regent.eth"
+           )
+
+    refute has_element?(view, "#account-names-more")
+
+    # Nothing more to ask for leaves the list as it is.
+    render_hook(view, "load_more_names", %{})
+    assert has_element?(view, "#account_names-51")
+    refute has_element?(view, "#account-names-more")
   end
 
   test "in-shell navigation keeps the LiveView and shell identity", %{conn: conn} do
@@ -392,6 +635,20 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert :ok = SnapshotCache.refresh(self())
     assert_receive {:staking_snapshot, snapshot}
     snapshot
+  end
+
+  # Opening Account asks Ethereum about a wallet it has not read; the page is
+  # only settled once that answer has landed.
+  defp open_account(conn, account) do
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
+
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    assert_receive {:ens_lookup_finished, _account_id}, 2_000
+    {view, html}
   end
 
   defp register_account(suffix, wallet) do

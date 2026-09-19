@@ -33,6 +33,20 @@ export type IdentityRequest = {
   subject?: string
 }
 
+/**
+ * How one connection request ended, told to the page that asked. `error` is
+ * null when Privy finished and the session was refreshed; the page then reads
+ * its own record to decide whether the connection really landed.
+ */
+export type IdentityState = {
+  error: string | null
+  action: IdentityRequest["action"]
+  provider: IdentityProvider
+}
+
+export const IDENTITY_STATE_EVENT = "ash:identity-state"
+export const IDENTITY_REQUEST_EVENT = "ash:identity-request"
+
 export type PrivyBridgeHandle = {
   dispose?: () => void
   request: (request: AccountRequest) => Promise<void>
@@ -1033,26 +1047,25 @@ export function installAccountAuthLazyLoader(
     }
     if (accountTarget === "sign-out") signOut()
   }
+  // A request the bridge cannot even start is answered the same way a failed
+  // one is, so the panel that asked never waits on silence.
   const onIdentityRequest = (event: Event) => {
     if (!(event instanceof CustomEvent) || !isIdentityRequest(event.detail)) return
+    const {action, provider} = event.detail
     clearStatus()
     void loader
       .identity(event.detail)
       .then(clearStatus)
-      .catch(() => showIdentityFailure())
+      .catch(() => {
+        const state: IdentityState = {error: "failed", action, provider}
+        walletEvents.dispatchEvent(new CustomEvent(IDENTITY_STATE_EVENT, {detail: state}))
+      })
   }
   const onWalletConnect = () => request("connect-wallet")
   // A wallet page asks for the wallets Privy already holds as soon as it
   // mounts, so a returning customer sees their wallet without a click. Nothing
   // is shown when that cannot happen: the page still offers the connection.
   const onWalletSync = () => void loader.request("sync").catch(() => undefined)
-  const showIdentityFailure = () => {
-    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
-    if (!status) return
-    status.textContent = "That connection couldn’t be updated. Try again."
-    status.hidden = false
-  }
-
   const reconcileSignedInStartup = () => {
     clearStatus()
     void withinWindow(
@@ -1063,7 +1076,7 @@ export function installAccountAuthLazyLoader(
   }
 
   documentRoot.addEventListener("click", onClick)
-  documentRoot.addEventListener("ash:identity-request", onIdentityRequest)
+  walletEvents.addEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
   walletEvents.addEventListener("ash:wallet-connect", onWalletConnect)
   walletEvents.addEventListener("ash:wallet-sync", onWalletSync)
   if (consumedHandoff) {
@@ -1097,7 +1110,7 @@ export function installAccountAuthLazyLoader(
     walletEvents.removeEventListener("resize", onStatusResize)
     documentRoot.removeEventListener("visibilitychange", onWalletFocus)
     documentRoot.removeEventListener("click", onClick)
-    documentRoot.removeEventListener("ash:identity-request", onIdentityRequest)
+    walletEvents.removeEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
     walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)
     walletEvents.removeEventListener("ash:wallet-sync", onWalletSync)
   }

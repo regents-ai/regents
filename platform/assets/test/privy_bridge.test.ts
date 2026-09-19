@@ -84,6 +84,7 @@ const {
   createLocalSession,
   createAccountRequestHandler,
   createIdentityRequestHandler,
+  identityProviderFor,
   createProviderSessionReconciler,
   createSignOutOnlyBridgeState,
   createPrivyLoginCallbacks,
@@ -667,7 +668,18 @@ describe("Privy session bridge", () => {
     expect(unlinkOAuth).toHaveBeenNthCalledWith(1, "twitter", "twitter-42")
     expect(unlinkOAuth).toHaveBeenNthCalledWith(2, "github", "github-7")
     expect(unlinkFarcaster).toHaveBeenCalledWith(12345)
-    expect(refreshSession).toHaveBeenCalledTimes(3)
+    expect(refreshSession.mock.calls).toEqual([
+      [{action: "unlink", provider: "x"}],
+      [{action: "unlink", provider: "github"}],
+      [{action: "unlink", provider: "farcaster"}],
+    ])
+  })
+
+  it("names the page's provider for the account kinds Privy links", () => {
+    expect(identityProviderFor("twitter")).toBe("x")
+    expect(identityProviderFor("github")).toBe("github")
+    expect(identityProviderFor("farcaster")).toBe("farcaster")
+    expect(identityProviderFor("google")).toBeNull()
   })
 
   it("rejects unlink commands without a verified provider subject", async () => {

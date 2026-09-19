@@ -43,9 +43,10 @@ defmodule AshPlatform.NamesFixtures do
         %{
           id: id,
           parent_node: "parent",
-          parent_name: "regent.eth",
+          parent_name: "agent.base.eth",
           label: "name-#{id}",
-          fqdn: "name-#{id}.regent.eth",
+          fqdn: "name-#{id}.agent.base.eth",
+          ens_fqdn: "name-#{id}.regent.eth",
           node: "node-#{id}",
           owner_address: owner,
           tx_hash: "tx-#{id}"

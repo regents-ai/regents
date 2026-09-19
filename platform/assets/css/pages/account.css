@@ -175,7 +175,37 @@
   list-style: none;
 }
 
-/* Historical names */
+/* Claimed Regent Names */
+
+.account-names__heading {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.account-names__heading p {
+  color: var(--ash-muted);
+}
+
+.account-names__view {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--ash-line-strong);
+}
+
+.account-names__view button {
+  border: 0;
+  background: transparent;
+  color: var(--ash-muted);
+}
+
+.account-names__view button + button {
+  border-inline-start: 1px solid var(--ash-line-strong);
+}
+
+.account-names__view button[aria-pressed="true"] {
+  background: var(--ash-panel-strong);
+  color: var(--ash-ink);
+}
 
 .account-names__list {
   display: grid;
@@ -210,6 +240,20 @@
 
 .account-names__list strong {
   overflow-wrap: anywhere;
+}
+
+/* Both forms of a name are in every row; the list's chosen form leads and the
+   other follows in the muted voice. */
+.account-names__list[data-names-view="ens"] [data-name-form="basename"],
+.account-names__list[data-names-view="basename"] [data-name-form="ens"] {
+  order: 1;
+  color: var(--ash-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.account-names__more {
+  color: var(--ash-muted);
 }
 
 /* Verified connections */

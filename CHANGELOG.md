@@ -324,3 +324,43 @@ revision remains the one recorded above.
 
 This appended verification record is documentation-only; the deployed application
 revision remains the one recorded above.
+
+## 2026-09-19 — Account connections, ENS check and Claimed Regent Names
+
+### Verified connections work
+
+- Pressing Connect for X, GitHub or Farcaster now reaches the sign-in
+  provider. The page had been asking on one part of the browser while the
+  account loader listened on another, so no press ever went anywhere.
+- Each press says what happens next: X and GitHub take the tab to their own
+  approval page and bring it back; Farcaster shows a code to scan.
+- The page reports the real outcome. After the provider answers, the account's
+  own record is read again: "GitHub connected." only when the connection is
+  recorded, "GitHub didn't come back connected. Try again." when it is not, and
+  the same honesty for disconnecting. An account already connected elsewhere is
+  still refused with its own message. The old blanket "Verified connections
+  updated." is gone.
+
+### ENS name without doing anything
+
+- The Account page checks Ethereum for the wallet's primary name when it opens
+  if the name has never been read or was last read more than a day ago, and
+  shows the answer as it lands. Sign-in still reads it too.
+- The row distinguishes "Checking Ethereum for a primary name…", "No primary
+  name set for this wallet" and "Couldn't check Ethereum right now. Refresh to
+  try again."; a wallet that has not been answered for is never shown as
+  having no name.
+
+### Claimed Regent Names
+
+- The "Historical names" panel is now "Claimed Regent Names", oldest claim
+  first.
+- A two-way switch, "View as ENS Subname" / "View as Basename", shows every
+  name as `<name>.regent.eth` or `<name>.agent.base.eth`; the other form is
+  shown small beneath. The choice is remembered in the browser.
+- The list loads fifty names at a time and brings the next fifty as the reader
+  reaches the end; the earlier "Showing the first 50 names." cap is gone.
+- The test fixture for claims now records names the way the live table does
+  (`.agent.base.eth` with the `.regent.eth` twin).
+- Claiming a new name is not in this release; the entitlement and rules panel
+  follows separately.

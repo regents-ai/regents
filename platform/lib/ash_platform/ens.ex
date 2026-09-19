@@ -43,14 +43,16 @@ defmodule AshPlatform.Ens do
   @doc """
   Starts the mainnet lookup for a signed-in account's wallet.
 
-  Returns as soon as the task is started, whatever the chain does next.
+  Returns as soon as the task is started, whatever the chain does next, or
+  `:unconfigured` when there is no Ethereum endpoint to ask, in which case
+  nothing is announced either.
   """
-  @spec refresh(map()) :: :ok
+  @spec refresh(map()) :: :started | :unconfigured
   def refresh(%{id: account_id, wallet_address: wallet})
       when is_integer(account_id) and is_binary(wallet),
       do: start(account_id, wallet, Application.get_env(:ash_platform, :ethereum_read_rpc_url))
 
-  defp start(_account_id, _wallet, nil), do: :ok
+  defp start(_account_id, _wallet, nil), do: :unconfigured
 
   defp start(account_id, wallet, endpoint) do
     Task.Supervisor.start_child(@supervisor, fn ->
@@ -58,7 +60,7 @@ defmodule AshPlatform.Ens do
       announce(account_id)
     end)
 
-    :ok
+    :started
   end
 
   defp store(account_id, {:ok, %{ens_name: name, ens_avatar_url: avatar}}),

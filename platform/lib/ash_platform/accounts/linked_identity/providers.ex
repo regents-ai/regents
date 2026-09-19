@@ -9,6 +9,8 @@ defmodule AshPlatform.Accounts.LinkedIdentity.Providers do
 
   def all, do: @providers
 
+  def label(provider), do: Enum.find_value(@providers, &(&1.provider == provider && &1.label))
+
   def profile_url(:x, username), do: build_profile_url("https://x.com/", username)
   def profile_url(:github, username), do: build_profile_url("https://github.com/", username)
 

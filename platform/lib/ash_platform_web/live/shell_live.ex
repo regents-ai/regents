@@ -7,6 +7,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.{
     Accounts,
+    Ens,
     Formation,
     Names,
     OpenSea,
@@ -15,6 +16,7 @@ defmodule AshPlatformWeb.ShellLive do
     Staking
   }
 
+  alias AshPlatform.Accounts.LinkedIdentity.Providers
   alias AshPlatform.Actors.Human
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.RegentsClub.Actions, as: RegentsClubActions
@@ -40,6 +42,7 @@ defmodule AshPlatformWeb.ShellLive do
   @max_wallet_observations 8
   @open_sea_lookup_window 60_000
   @default_open_sea_lookups_per_minute 6
+  @names_page_size 50
 
   @impl true
   def mount(params, session, socket) do
@@ -60,9 +63,13 @@ defmodule AshPlatformWeb.ShellLive do
       do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
 
     {:ok,
-     assign(socket,
+     socket
+     |> stream(:account_names, [])
+     |> assign(
        content_generation: 0,
+       account_ens: nil,
        account_names: nil,
+       account_names_view: :ens,
        verified_connections: [],
        verified_connections_notice: nil,
        route_params: params,
@@ -120,6 +127,7 @@ defmodule AshPlatformWeb.ShellLive do
       socket
       |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
+      |> load_account_ens(route_spec)
       |> load_verified_connections(route_spec)
       |> load_account_names(route_spec)
 
@@ -436,10 +444,7 @@ defmodule AshPlatformWeb.ShellLive do
       {:noreply,
        socket
        |> assign(
-         verified_connections_notice: %{
-           tone: :info,
-           message: "Complete the connection in the window that opens."
-         }
+         verified_connections_notice: %{tone: :info, message: connection_started(request)}
        )
        |> push_event("verified-connections:request", request)}
     else
@@ -454,26 +459,37 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  def handle_event(
+        "load_more_names",
+        _params,
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      ),
+      do: {:noreply, load_more_names(socket)}
+
+  def handle_event("load_more_names", _params, socket), do: {:noreply, socket}
+
+  def handle_event("set_names_view", %{"view" => view}, socket) do
+    case names_view(view) do
+      nil -> {:noreply, socket}
+      view -> {:noreply, assign(socket, account_names_view: view)}
+    end
+  end
+
+  # The browser only reports how its side ended. Whether the connection really
+  # landed is read from the account's own record, so the page never says
+  # "connected" on the browser's word alone.
   def handle_event("refresh_verified_connections", params, socket) do
+    socket = reload_verified_connections(socket)
+
     notice =
-      case params do
-        %{"error" => "already-connected"} ->
-          %{
-            tone: :error,
-            message: "That account is already connected to another Regent account."
-          }
-
-        %{"error" => error} when is_binary(error) and error != "" ->
-          %{tone: :error, message: "That connection couldn’t be verified. Try again."}
-
-        _params ->
-          %{tone: :success, message: "Verified connections updated."}
+      with {:ok, provider} <- linked_identity_provider(params["provider"]),
+           {:ok, action} <- identity_action(params["action"]) do
+        connection_outcome(params["error"], action, provider, socket.assigns.verified_connections)
+      else
+        _unknown_outcome -> connection_outcome(params["error"])
       end
 
-    {:noreply,
-     socket
-     |> reload_verified_connections()
-     |> assign(verified_connections_notice: notice)}
+    {:noreply, assign(socket, verified_connections_notice: notice)}
   end
 
   def handle_event(event, params, socket)
@@ -766,6 +782,21 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:staking_snapshot, _protocol}, socket), do: {:noreply, socket}
 
+  # The session has already re-read the account by the time this arrives, so
+  # what the chain answered is on the socket; only the Account page reports
+  # whether the check found anything to record.
+  def handle_info(
+        {:ens_lookup_finished, _account_id},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      ) do
+    case current_account(socket.assigns.access_context) do
+      %{ens_identity: %{}} -> {:noreply, assign(socket, account_ens: :ready)}
+      _unanswered -> {:noreply, assign(socket, account_ens: :unavailable)}
+    end
+  end
+
+  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
+
   # Only the pages that asked for the reading hear that it failed, and what they
   # were already showing stays on screen.
   def handle_info({:staking_snapshot_unavailable, _reason}, socket) do
@@ -950,7 +981,10 @@ defmodule AshPlatformWeb.ShellLive do
           :if={@route_spec.route_id == :account}
           account={current_account(@access_context)}
           account_control={@account_control}
+          ens={@account_ens}
           names={@account_names}
+          names_stream={@streams.account_names}
+          names_view={@account_names_view}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
         />
@@ -1316,6 +1350,44 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
+  # Sign-in read the wallet's primary name once. A wallet never answered for, or
+  # last answered for more than a day ago, is asked again when its own page
+  # opens, and the page takes the answer as it lands. Only the connected page
+  # asks, so the static render does not start a lookup the connected mount
+  # would start again a moment later.
+  defp load_account_ens(socket, %{route_id: :account}) do
+    case current_account(socket.assigns.access_context) do
+      %{wallet_address: nil} ->
+        assign(socket, account_ens: :ready)
+
+      %{ens_identity: nil} = account ->
+        assign(socket, account_ens: check_ens(socket, account))
+
+      %{ens_identity: identity} = account ->
+        if ens_stale?(identity), do: check_ens(socket, account)
+        assign(socket, account_ens: :ready)
+
+      nil ->
+        assign(socket, account_ens: nil)
+    end
+  end
+
+  defp load_account_ens(socket, _route_spec), do: assign(socket, account_ens: nil)
+
+  defp check_ens(socket, account) do
+    if connected?(socket) do
+      case Ens.refresh(account) do
+        :started -> :checking
+        :unconfigured -> :unavailable
+      end
+    else
+      :checking
+    end
+  end
+
+  defp ens_stale?(%{updated_at: read_at}),
+    do: DateTime.diff(DateTime.utc_now(), read_at, :hour) >= 24
+
   defp load_verified_connections(socket, %{route_id: :account}) do
     reload_verified_connections(socket)
   end
@@ -1357,6 +1429,51 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp identity_request(_action, _provider, _identities), do: {:error, :invalid_action}
 
+  defp identity_action("link"), do: {:ok, :link}
+  defp identity_action("unlink"), do: {:ok, :unlink}
+  defp identity_action(_action), do: {:error, :invalid_action}
+
+  # X and GitHub take the whole tab to their own approval page and bring it
+  # back; Farcaster asks for a scan here.
+  defp connection_started(%{action: :link, provider: :farcaster}),
+    do: "Scan the code with Farcaster to approve the connection."
+
+  defp connection_started(%{action: :link, provider: provider}),
+    do: "Taking you to #{Providers.label(provider)} to approve the connection."
+
+  defp connection_started(%{action: :unlink, provider: provider}),
+    do: "Disconnecting #{Providers.label(provider)}…"
+
+  defp connection_outcome("already-connected"),
+    do: %{tone: :error, message: "That account is already connected to another Regent account."}
+
+  defp connection_outcome(error) when is_binary(error) and error != "",
+    do: %{tone: :error, message: "That connection couldn’t be verified. Try again."}
+
+  defp connection_outcome(_none), do: nil
+
+  defp connection_outcome(error, _action, _provider, _identities)
+       when is_binary(error) and error != "",
+       do: connection_outcome(error)
+
+  defp connection_outcome(_none, action, provider, identities) do
+    label = Providers.label(provider)
+
+    case {action, Enum.any?(identities, &(&1.provider == provider))} do
+      {:link, true} ->
+        %{tone: :success, message: "#{label} connected."}
+
+      {:link, false} ->
+        %{tone: :error, message: "#{label} didn’t come back connected. Try again."}
+
+      {:unlink, false} ->
+        %{tone: :success, message: "#{label} disconnected."}
+
+      {:unlink, true} ->
+        %{tone: :error, message: "#{label} is still connected. Try again."}
+    end
+  end
+
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do
       {:ok, nil} -> assign(socket, regent: nil, regent_status: :empty)
@@ -1376,11 +1493,11 @@ defmodule AshPlatformWeb.ShellLive do
   defp load_account_names(socket, %{route_id: :account}) do
     case human_actor(socket) do
       %Human{wallet_addresses: []} ->
-        assign(socket, account_names: %{names: [], more?: false})
+        first_names_page(socket, %{results: [], more?: false})
 
       %Human{} = actor ->
-        case Names.list_my_claims(actor: actor, page: [limit: 50]) do
-          {:ok, page} -> assign(socket, account_names: %{names: page.results, more?: page.more?})
+        case Names.list_my_claims(actor: actor, page: [limit: @names_page_size]) do
+          {:ok, page} -> first_names_page(socket, page)
           {:error, _error} -> assign(socket, account_names: :unavailable)
         end
 
@@ -1390,6 +1507,46 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_account_names(socket, _route_spec), do: assign(socket, account_names: nil)
+
+  # The list is oldest first and grows a page at a time as the reader reaches
+  # its end. The rows go to the browser and only the place to continue from is
+  # kept here; a page that cannot be read leaves the rows already shown in place.
+  defp first_names_page(socket, page) do
+    socket
+    |> stream(:account_names, page.results, reset: true)
+    |> assign(
+      account_names: %{
+        empty?: page.results == [],
+        more?: page.more?,
+        cursor: names_cursor(page.results),
+        stalled?: false
+      }
+    )
+  end
+
+  defp load_more_names(%{assigns: %{account_names: %{more?: true} = names}} = socket) do
+    case Names.list_my_claims(
+           actor: human_actor(socket),
+           page: [limit: @names_page_size, after: names.cursor]
+         ) do
+      {:ok, page} ->
+        socket
+        |> stream(:account_names, page.results)
+        |> assign(account_names: %{names | more?: page.more?, cursor: names_cursor(page.results)})
+
+      {:error, _error} ->
+        assign(socket, account_names: %{names | more?: false, stalled?: true})
+    end
+  end
+
+  defp load_more_names(socket), do: socket
+
+  defp names_cursor([]), do: nil
+  defp names_cursor(claims), do: List.last(claims).__metadata__.keyset
+
+  defp names_view("ens"), do: :ens
+  defp names_view("basename"), do: :basename
+  defp names_view(_view), do: nil
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id, wallet_addresses: account_wallets(account)}

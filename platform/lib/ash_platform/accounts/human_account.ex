@@ -22,7 +22,7 @@ defmodule AshPlatform.Accounts.HumanAccount do
       get? true
       argument :id, :integer, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare build(load: [:ens_name, :ens_avatar_url])
+      prepare build(load: [:ens_name, :ens_avatar_url, :ens_identity])
     end
 
     read :public_profile_source do

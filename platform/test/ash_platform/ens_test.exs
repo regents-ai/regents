@@ -106,7 +106,7 @@ defmodule AshPlatform.EnsTest do
     on_exit(fn -> Application.put_env(:ash_platform, :ethereum_read_rpc_url, endpoint) end)
 
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, Ens.topic(account.id))
-    assert Ens.refresh(account) == :ok
+    assert Ens.refresh(account) == :unconfigured
     refute_receive {:ens_lookup_finished, _account_id}, 300
     assert %{ens_name: nil} = read(account)
   end
@@ -153,7 +153,7 @@ defmodule AshPlatform.EnsTest do
   defp resolve(account) do
     topic = Ens.topic(account.id)
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, topic)
-    assert Ens.refresh(account) == :ok
+    assert Ens.refresh(account) == :started
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
     Phoenix.PubSub.unsubscribe(AshPlatform.PubSub, topic)
     read(account)

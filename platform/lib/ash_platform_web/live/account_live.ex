@@ -16,7 +16,10 @@ defmodule AshPlatformWeb.AccountLive do
 
   attr :account, :map, default: nil
   attr :account_control, :map, required: true
+  attr :ens, :atom, default: nil
   attr :names, :any, default: nil
+  attr :names_stream, :any, required: true
+  attr :names_view, :atom, default: :ens
   attr :verified_connections, :list, default: []
   attr :verified_connections_notice, :map, default: nil
 
@@ -94,7 +97,7 @@ defmodule AshPlatformWeb.AccountLive do
             </div>
             <div>
               <dt>ENS name</dt>
-              <dd>{@account.ens_name || "None found for this wallet"}</dd>
+              <.ens_name account={@account} check={@ens} />
             </div>
             <div>
               <dt>Display name</dt>
@@ -111,8 +114,11 @@ defmodule AshPlatformWeb.AccountLive do
         </section>
 
         <section class="account-panel account-names" aria-labelledby="account-names-title">
-          <h2 id="account-names-title">Historical names</h2>
-          <.names names={@names} />
+          <div class="account-names__heading">
+            <h2 id="account-names-title">Claimed Regent Names</h2>
+            <p>The names your wallets have claimed, oldest first.</p>
+          </div>
+          <.names names={@names} stream={@names_stream} view={@names_view} />
         </section>
 
         <.verified_connections
@@ -134,27 +140,86 @@ defmodule AshPlatformWeb.AccountLive do
     """
   end
 
+  # The name Ethereum publishes for the wallet, read for them; a wallet that has
+  # not been answered for yet is never shown as having no name.
+  attr :account, :map, required: true
+  attr :check, :atom, required: true
+
+  defp ens_name(%{account: %{ens_name: name}} = assigns) when is_binary(name) do
+    ~H"""
+    <dd>{@account.ens_name}</dd>
+    """
+  end
+
+  defp ens_name(%{account: %{wallet_address: nil}} = assigns) do
+    ~H"""
+    <dd>No wallet linked</dd>
+    """
+  end
+
+  defp ens_name(%{check: :checking} = assigns) do
+    ~H"""
+    <dd role="status">Checking Ethereum for a primary name…</dd>
+    """
+  end
+
+  defp ens_name(%{check: :unavailable} = assigns) do
+    ~H"""
+    <dd role="status">Couldn’t check Ethereum right now. Refresh to try again.</dd>
+    """
+  end
+
+  defp ens_name(assigns) do
+    ~H"""
+    <dd>No primary name set for this wallet</dd>
+    """
+  end
+
   attr :names, :any, default: nil
+  attr :stream, :any, required: true
+  attr :view, :atom, required: true
 
   defp names(%{names: :unavailable} = assigns) do
     ~H"""
-    <p role="status">Historical names couldn’t be read right now. Refresh to try again.</p>
+    <p role="status">Your claimed names couldn’t be read right now. Refresh to try again.</p>
     """
   end
 
-  defp names(%{names: %{names: []}} = assigns) do
+  defp names(%{names: %{empty?: true}} = assigns) do
     ~H"""
-    <p>No names are recorded for your wallets.</p>
+    <p>No names are claimed by your wallets yet.</p>
     """
   end
 
+  # Every claim carries both forms of its name. The rows come down once and
+  # stay in the browser; the chosen form is a mark on the list, so switching
+  # never re-sends a row. Rows are added as the reader reaches the end.
   defp names(assigns) do
     ~H"""
-    <ul class="account-names__list">
-      <li :for={claim <- @names.names}>
+    <div
+      id="account-names-view"
+      class="account-names__view"
+      role="group"
+      aria-label="Name form"
+      phx-hook="NamesView"
+      data-view={@view}
+    >
+      <Regent.Primitives.button
+        :for={{form, label} <- [ens: "View as ENS Subname", basename: "View as Basename"]}
+        type="button"
+        variant="secondary"
+        phx-click="set_names_view"
+        phx-value-view={form}
+        aria-pressed={to_string(@view == form)}
+      >
+        {label}
+      </Regent.Primitives.button>
+    </div>
+    <ul id="account-names" class="account-names__list" phx-update="stream" data-names-view={@view}>
+      <li :for={{id, claim} <- @stream} id={id}>
         <div>
-          <strong>{claim.fqdn}</strong>
-          <span :if={claim.ens_fqdn}>{claim.ens_fqdn}</span>
+          <strong data-name-form="ens">{claim.ens_fqdn}</strong>
+          <strong data-name-form="basename">{claim.fqdn}</strong>
         </div>
         <div>
           <span>{String.capitalize(claim.claim_status)}</span>
@@ -162,7 +227,20 @@ defmodule AshPlatformWeb.AccountLive do
         </div>
       </li>
     </ul>
-    <p :if={@names.more?}>Showing the first 50 names.</p>
+    <p
+      :if={@names.more?}
+      id="account-names-more"
+      class="account-names__more"
+      role="status"
+      phx-hook="InfiniteScroll"
+      data-event="load_more_names"
+      data-cursor={@names.cursor}
+    >
+      Loading more names…
+    </p>
+    <p :if={@names.stalled?} role="status">
+      More names couldn’t be loaded right now. Refresh to try again.
+    </p>
     """
   end
 

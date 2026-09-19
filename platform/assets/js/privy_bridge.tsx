@@ -29,8 +29,11 @@ import {
   reloadDocumentOnce,
   sessionLifecycleError,
   showAccountAuthFailure,
+  IDENTITY_STATE_EVENT,
   type AccountRequest,
+  type IdentityProvider,
   type IdentityRequest,
+  type IdentityState,
   type PrivyBridgeHandle,
   type PrivyBridgeStartupOptions,
   type SessionMutationCoordinator,
@@ -188,13 +191,23 @@ export function createSignInRequest({
   }
 }
 
+type IdentityOutcome = Pick<IdentityState, "action" | "provider">
+
 type IdentityRequestHandlerOptions = {
   linkX: () => void
   linkGithub: () => void
   linkFarcaster: () => void
   unlinkOAuth: (provider: "twitter" | "github", subject: string) => Promise<void>
   unlinkFarcaster: (fid: number) => Promise<void>
-  refreshSession: () => Promise<void>
+  refreshSession: (outcome: IdentityOutcome) => Promise<void>
+}
+
+// Privy names the account kind it linked; only the three the page offers are
+// ours to report on.
+export function identityProviderFor(linkMethod: string): IdentityProvider | null {
+  if (linkMethod === "twitter") return "x"
+  if (linkMethod === "github" || linkMethod === "farcaster") return linkMethod
+  return null
 }
 
 export function createIdentityRequestHandler({
@@ -225,7 +238,7 @@ export function createIdentityRequestHandler({
       await unlinkOAuth(request.provider === "x" ? "twitter" : "github", request.subject)
     }
 
-    await refreshSession()
+    await refreshSession({action: "unlink", provider: request.provider})
   }
 }
 
@@ -821,13 +834,11 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
     [getAccessToken, providerState?.getIdentityToken, lifetime],
   )
   React.useEffect(() => { acquireTokensRef.current = acquireTokens }, [acquireTokens])
-  const notifyIdentityState = React.useCallback((error: string | null) => {
+  const notifyIdentityState = React.useCallback((state: IdentityState) => {
     if (lifetime.aborted) return
-    window.dispatchEvent(
-      new CustomEvent("ash:identity-state", {detail: {error}}),
-    )
+    window.dispatchEvent(new CustomEvent(IDENTITY_STATE_EVENT, {detail: state}))
   }, [lifetime])
-  const refreshIdentitySession = React.useCallback(async () => {
+  const refreshIdentitySession = React.useCallback(async (outcome: IdentityOutcome) => {
     const generation = identityGeneration.current
     const epoch = walletWorkEpoch()
     const current = () => !lifetime.aborted && provider.current.ready && provider.current.authenticated &&
@@ -836,16 +847,25 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
     const tokens = await acquireTokensRef.current()
     requireCurrent(current)
     const result = await createLocalSession(tokens, fetch, browserSessionMutations, current)
-    if (current()) notifyIdentityState(result.identityError ?? null)
+    if (current()) notifyIdentityState({...outcome, error: result.identityError ?? null})
   }, [lifetime, notifyIdentityState])
-  const linkCallbacks = React.useMemo(
+  // Privy answers a link on these after its own flow, including after X and
+  // GitHub bring the tab back, so the outcome names the account kind it was for.
+  const linkCallbacks = React.useMemo<PrivyEvents["linkAccount"]>(
     () => ({
-      onSuccess: () => {
-        void refreshIdentitySession().catch(error => {
-          if (!(error instanceof StalePrivyOperation)) notifyIdentityState("failed")
+      onSuccess: ({linkMethod}) => {
+        const provider = identityProviderFor(linkMethod)
+        if (!provider) return
+        void refreshIdentitySession({action: "link", provider}).catch(error => {
+          if (!(error instanceof StalePrivyOperation)) {
+            notifyIdentityState({error: "failed", action: "link", provider})
+          }
         })
       },
-      onError: () => notifyIdentityState("failed"),
+      onError: (_error, {linkMethod}) => {
+        const provider = identityProviderFor(linkMethod)
+        if (provider) notifyIdentityState({error: "failed", action: "link", provider})
+      },
     }),
     [notifyIdentityState, refreshIdentitySession],
   )
