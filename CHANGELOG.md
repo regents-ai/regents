@@ -432,3 +432,23 @@ revision remains the one recorded above.
 - Each claimed name row now shows the name above its record (status and
   claim date) instead of beside it, so on wide screens with three columns a
   long name and a long date no longer split across lines.
+
+## 2026-09-19 — Claimed names layout release deployment verified
+
+- Deployed application revision: `cfee74added0e828caffe59ec06660054b63267e`.
+- Image digest: `sha256:d6056ead449ea8da972d2cd588bc66e51969047e8ba6b684391c16e3d10dfed4`.
+- Shared UI revision: `6dde98f219fac4fa8972ca67710b57a5c4e27a3f`.
+- Shared library revision: `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Verified the running production image, its three revision labels, the single
+  healthy web instance and its passing health check.
+- Every probed request matches the previous release on status, content type
+  and `Vary`; only page fingerprints changed with the new stylesheet.
+- Live logs carry no application errors (one proxy line before the deploy,
+  "connection closed before message completed", from a single request).
+- Before/after claim, allowance and credit fingerprints are identical. The
+  account fingerprints moved because one more person signed in between the two
+  audits (109 → 110 accounts), not because of this release. No database
+  migrations were included.
+
+This appended verification record is documentation-only; the deployed application
+revision remains the one recorded above.
