@@ -302,7 +302,7 @@ defmodule AshPlatformWeb.AccountLive do
   defp claim_name_availability(%{name: %{availability: :available}} = assigns) do
     ~H"""
     <p id="account-claim-availability" role="status" class="account-claim__available">
-      {@name.value}.regent.eth and {@name.value}.agent.base.eth are available.
+      {@name.value}.regent.eth is available.
     </p>
     """
   end

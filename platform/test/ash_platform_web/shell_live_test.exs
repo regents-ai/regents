@@ -637,7 +637,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(
              view,
              "#account-claim-availability",
-             "fresh-name-1.regent.eth and fresh-name-1.agent.base.eth are available."
+             "fresh-name-1.regent.eth is available."
            )
 
     render_change(element(view, "#account-claim-form"), %{"name" => ""})

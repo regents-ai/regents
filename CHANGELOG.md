@@ -462,3 +462,5 @@ revision remains the one recorded above.
 - Claimed Regent Names lists each name as its ENS name only. The "View as ENS
   Subname / View as Basename" switch, the remembered choice and the Basename
   line in each row are gone.
+- The name check under "Claim a Regent Name" answers for the ENS name alone:
+  "name.regent.eth is available."
