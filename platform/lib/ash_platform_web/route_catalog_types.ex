@@ -22,6 +22,12 @@ defmodule AshPlatformWeb.RouteCatalog.ViewerProfileTarget do
   defstruct @enforce_keys
 end
 
+defmodule AshPlatformWeb.RouteCatalog.SidebarHeading do
+  @moduledoc false
+  @enforce_keys [:label]
+  defstruct @enforce_keys
+end
+
 defmodule AshPlatformWeb.RouteCatalog.Spec do
   @moduledoc false
   @enforce_keys [

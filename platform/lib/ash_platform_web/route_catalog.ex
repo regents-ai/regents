@@ -6,6 +6,7 @@ defmodule AshPlatformWeb.RouteCatalog do
   alias __MODULE__.{
     Entry,
     RouteTarget,
+    SidebarHeading,
     SidebarModel,
     Spec,
     ViewerProfileTarget
@@ -64,6 +65,27 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :redeem
     },
     %Entry{
+      path_pattern: "/autolaunch",
+      live_action: :autolaunch,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :autolaunch
+    },
+    %Entry{
+      path_pattern: "/techtree",
+      live_action: :techtree,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :techtree
+    },
+    %Entry{
+      path_pattern: "/patchbay",
+      live_action: :patchbay,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :patchbay
+    },
+    %Entry{
       path_pattern: "/regents-club/metadata-cutover",
       live_action: :regents_club_metadata,
       parameter_schema: %{},
@@ -92,6 +114,15 @@ defmodule AshPlatformWeb.RouteCatalog do
     redeem:
       {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}},
+    autolaunch:
+      {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
+       :regents_labs, :detail, %{}},
+    techtree:
+      {:techtree, :regent_ops, "Regents Labs", "Techtree", "/app", [:profile_actions],
+       :regents_labs, :detail, %{}},
+    patchbay:
+      {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
+       :regents_labs, :detail, %{}},
     regents_club_metadata:
       {:regents_club_metadata, :regent_ops, "Regents Labs", "Regents Club Metadata", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}}
@@ -164,7 +195,11 @@ defmodule AshPlatformWeb.RouteCatalog do
         %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
         %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
-        %ViewerProfileTarget{label: "Profile"}
+        %ViewerProfileTarget{label: "Profile"},
+        %SidebarHeading{label: "Products"},
+        %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
+        %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
+        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"}
       ]
     }
   end
@@ -211,6 +246,10 @@ defmodule AshPlatformWeb.RouteCatalog do
       "label" => target.label,
       "destination" => "/regents/:viewer_slug"
     }
+  end
+
+  defp sidebar_target_handoff(%SidebarHeading{} = heading) do
+    %{"type" => "heading", "label" => heading.label}
   end
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}

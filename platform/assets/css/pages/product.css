@@ -1,0 +1,189 @@
+@layer regents-product {
+/* The product pages stand on the Overview grammar: one ground, hairline panels,
+   display headings and a mono voice for kickers. Spacing runs on 8px steps and
+   panels use a 24px inset. Nothing here is a global token. */
+
+.product-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.product-page h1,
+.product-page h2,
+.product-page h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.product-page p {
+  margin: 0;
+}
+
+.product-kicker {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Heading */
+
+.product-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.product-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.product-heading h1:focus {
+  outline: none;
+}
+
+.product-lede {
+  max-width: 56ch;
+  color: var(--ash-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-block-start: 0.5rem;
+}
+
+/* Screenshot: one image per theme, the other stays out of the page. */
+
+.product-shot {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: var(--rg-panel-padding);
+}
+
+.product-shot img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ash-line);
+}
+
+.product-shot__light,
+:root[data-theme="dark"] .product-shot__dark {
+  display: block;
+}
+
+.product-shot__dark,
+:root[data-theme="dark"] .product-shot__light {
+  display: none;
+}
+
+.product-shot figcaption {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* Proofs and columns */
+
+.product-proofs,
+.product-audience {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-proofs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1ch;
+}
+
+.product-proof,
+.product-column,
+.product-family {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding: var(--rg-panel-padding);
+}
+
+.product-proof h3 {
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.02em;
+}
+
+.product-proof p,
+.product-column p,
+.product-audience li,
+.product-family p {
+  max-width: 56ch;
+  line-height: 1.5;
+}
+
+.product-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1ch;
+}
+
+.product-audience {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.product-audience li {
+  padding-inline-start: 1.25rem;
+  text-indent: -1.25rem;
+}
+
+.product-audience li::before {
+  content: "◇";
+  display: inline-block;
+  width: 1.25rem;
+  color: var(--ash-muted);
+  text-indent: 0;
+}
+
+.product-agent-line {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.product-agent-line code {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--ash-line);
+  background: var(--ash-ground);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.product-family__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding-block-start: 0.25rem;
+}
+
+@media (max-width: 63.999rem) {
+  .product-proofs { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 47.999rem) {
+  .product-columns { grid-template-columns: minmax(0, 1fr); }
+}
+}

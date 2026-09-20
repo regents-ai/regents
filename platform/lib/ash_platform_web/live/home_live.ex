@@ -493,8 +493,10 @@ defmodule AshPlatformWeb.HomeLive do
       {"Protocol", "regent"}
     ]
 
-  # The three products and their public website destinations.
-  defp hero_products do
+  # The three products and their public website destinations. The product pages
+  # in the app read the same list, so the copy lives once.
+  @doc false
+  def hero_products do
     [
       %{
         name: "autolaunch",
@@ -518,7 +520,8 @@ defmodule AshPlatformWeb.HomeLive do
   end
 
   # Section order matches the hero and header navigation.
-  defp products do
+  @doc false
+  def products do
     [
       %{
         index: "01",

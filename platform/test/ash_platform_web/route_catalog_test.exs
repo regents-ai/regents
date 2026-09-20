@@ -5,6 +5,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
+    SidebarHeading,
     ViewerProfileTarget
   }
 
@@ -16,6 +17,9 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/regents/:slug",
     "/stake",
     "/redeem",
+    "/autolaunch",
+    "/techtree",
+    "/patchbay",
     "/regents-club/metadata-cutover"
   ]
 
@@ -85,7 +89,11 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
-             %ViewerProfileTarget{label: "Profile"}
+             %ViewerProfileTarget{label: "Profile"},
+             %SidebarHeading{label: "Products"},
+             %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
+             %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
+             %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"}
            ]
   end
 
@@ -128,7 +136,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 7
+    assert length(decoded["routes"]) == 10
     refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
@@ -145,6 +153,9 @@ defmodule AshPlatformWeb.RouteCatalogTest do
                true
 
              %{"type" => "viewer_profile", "destination" => "/regents/:viewer_slug"} ->
+               true
+
+             %{"type" => "heading", "label" => label} when is_binary(label) ->
                true
 
              _target ->

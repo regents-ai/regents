@@ -313,6 +313,26 @@ details[open] > summary .shell-chevron {
   color: var(--ash-ink);
 }
 
+/* A heading opens a group of destinations; it is not a destination itself. */
+#shell-sidebar li > .shell-sidebar__heading {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.75rem;
+  padding: 1.1rem 0.85rem 0.4rem;
+  border-block-end: 1px solid var(--ash-line);
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+  #shell-sidebar li:has(> .shell-sidebar__heading) {
+    grid-column: 1 / -1;
+  }
+}
+
 #shell-sidebar [data-tree] > span {
   display: flex;
   padding: 0.35rem 0.85rem 0.55rem;

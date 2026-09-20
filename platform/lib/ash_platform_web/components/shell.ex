@@ -7,6 +7,7 @@ defmodule AshPlatformWeb.Components.Shell do
 
   alias AshPlatformWeb.RouteCatalog.{
     RouteTarget,
+    SidebarHeading,
     ViewerProfileTarget
   }
 
@@ -270,6 +271,14 @@ defmodule AshPlatformWeb.Components.Shell do
     <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
       {@target.label}
     </.link>
+    """
+  end
+
+  defp sidebar_target(%{target: %SidebarHeading{} = heading} = assigns) do
+    assigns = assign(assigns, :heading, heading)
+
+    ~H"""
+    <span class="shell-sidebar__heading">{@heading.label}</span>
     """
   end
 

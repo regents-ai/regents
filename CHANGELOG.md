@@ -555,6 +555,7 @@ revision remains the one recorded above.
   The local acceptance fixture no longer counts it. The obsolete local
   public-API document, whose commands no longer exist, is removed.
 
+<<<<<<< HEAD
 ## 2026-09-21 — Regents production release: 32×32 crown icon
 
 Deployed 2026-09-21 14:40Z with the founder's word.
@@ -576,3 +577,13 @@ Deployed 2026-09-21 14:40Z with the founder's word.
   from 110 to 112 through sign-ins since the previous audit; the product table
   count fell from 8 to 7, which is the comments-table drop applied on
   2026-09-19.
+
+## 2026-09-21 — Product information pages
+
+- Three read-only pages inside the app, `/autolaunch`, `/techtree` and
+  `/patchbay`, each with the product's title and line, a screenshot of its site
+  in light and dark, its three chapter points, an About and a Who-it-is-for
+  panel, its place in the Regents family and buttons to open the site and its
+  starting page. The side navigation gains a **Products** section below Redeem.
+- The pages carry no on-chain figures yet. Built 2026-09-19 on a branch; the
+  founder called the go-live push on 2026-09-21.

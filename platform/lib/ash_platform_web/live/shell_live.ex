@@ -26,6 +26,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.WalletActions.TransactionObserver
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.FormationLive
+  alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RegentsClubMetadataLive
@@ -1047,6 +1048,11 @@ defmodule AshPlatformWeb.ShellLive do
           owned_collectibles={@owned_collectibles}
           owned_collectibles_limit={@owned_collectibles_limit}
           actions={gate_state(transaction_gate(@access_context, @redemption_wallet))}
+        />
+
+        <ProductLive.page
+          :if={@route_spec.route_id in [:autolaunch, :techtree, :patchbay]}
+          product={@route_spec.route_id}
         />
 
         <.wallet_reconnect_dialog :if={@wallet_reconnect} request={@wallet_reconnect} />
