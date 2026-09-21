@@ -7,7 +7,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "pytest==8.4.2",
+  "pytest==9.1.1",
 ]
 adapters-prime = [
   "verifiers==0.2.1",

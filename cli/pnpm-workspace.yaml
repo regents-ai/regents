@@ -12,3 +12,15 @@ strictDepBuilds: true
 
 onlyBuiltDependencies:
   - esbuild
+
+# Floors for packages the MCP SDK and viem pull in; the CLI never loads the
+# HTTP-server paths, but the lockfile is what the advisories read.
+overrides:
+  hono: ">=4.13.5"
+  "@hono/node-server": ">=1.19.15 <2"
+  fast-uri: ">=3.1.6 <4"
+  ip-address: ">=10.3.1"
+  qs: ">=6.16.0"
+  body-parser: ">=2.3.0"
+  ws: ">=8.21.0"
+  esbuild: ">=0.28.1"

@@ -18,7 +18,9 @@ vi.mock("../../src/internal-runtime/agentic-wallet/awal.js", async importOrigina
   ...await importOriginal<typeof import("../../src/internal-runtime/agentic-wallet/awal.js")>(), runAwalJson: runAwalJsonMock,
 }));
 vi.mock("../../src/internal-runtime/runtime.js", () => ({
-  RegentKernel: vi.fn().mockImplementation(() => ({call: kernelCallMock, stop: kernelStopMock})),
+  RegentKernel: vi.fn(function () {
+    return {call: kernelCallMock, stop: kernelStopMock};
+  }),
 }));
 
 const grant = async (rail = "agentic-wallet", mode = "techtree_research") => {

@@ -587,3 +587,18 @@ Deployed 2026-09-21 14:40Z with the founder's word.
   starting page. The side navigation gains a **Products** section below Redeem.
 - The pages carry no on-chain figures yet. Built 2026-09-19 on a branch; the
   founder called the go-live push on 2026-09-21.
+
+## 2026-09-21 — Dependency refresh after the security triage
+
+- Site: the unit-test runner moves from 4.1.10 to 4.1.11 (closes the two
+  advisories against it; test tooling only, never in the shipped image).
+- CLI: the MCP SDK moves from 1.29.0 to 1.30.0; the test runner from 3.2.4 to
+  4.1.11 with its bundler pinned at 7.3.6; the workspace sets floors for the
+  HTTP-server packages the SDK pulls in (`hono`, `@hono/node-server`,
+  `fast-uri`, `ip-address`, `qs`, `body-parser`, `ws`, `esbuild`), which the
+  CLI never loads but the advisories read from the lockfile; the Python test
+  runner moves from 8.4.2 to 9.1.1. One test mock was rewritten as a plain
+  function because the new test runner refuses to construct arrow-function
+  mocks. `pnpm audit` reports no known vulnerabilities; CLI suite 540/540,
+  packed-install smoke and MCP tool check pass; Python tests 137 passed.
+  No package was published.

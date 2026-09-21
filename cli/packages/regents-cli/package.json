@@ -39,7 +39,7 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@safe-global/protocol-kit": "7.1.0",
     "@worldcoin/idkit-core": "4.0.15",
     "@x402/evm": "2.12.0",
