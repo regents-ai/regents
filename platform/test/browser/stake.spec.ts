@@ -339,9 +339,10 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     )
 
     await page.locator(".stake-contract-details summary").click()
-    await expect(page.getByText(contract, {exact: true})).toBeVisible()
-    await expect(page.getByText(regent, {exact: true})).toBeVisible()
-    await expect(page.getByText(usdc, {exact: true})).toBeVisible()
+    const details = page.locator("#stake-contract-details")
+    await expect(details.getByText(contract, {exact: true})).toBeVisible()
+    await expect(details.getByText(regent, {exact: true})).toBeVisible()
+    await expect(details.getByText(usdc, {exact: true})).toBeVisible()
 
     const bar = page.locator("#staking-supply-bar").getByRole("meter")
     await expect(bar).toHaveAttribute("aria-valuenow", "0")
@@ -535,7 +536,9 @@ test("Alternate stake requires fresh address consent and credits that address", 
   }
 
   await receiver.fill(otherWallet)
-  await expect(warning).toContainText(`Only ${otherWallet} wallet may withdraw the tokens`)
+  await expect(warning).toContainText(
+    `the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens`,
+  )
   await submit.click()
   await expect(dialog).toContainText("Acknowledge the warning")
   expect(await sendCount(page)).toBe(0)

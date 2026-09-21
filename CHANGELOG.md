@@ -624,3 +624,30 @@ Deployed 2026-09-21 18:15Z with the founder's word.
   fingerprints changed; live logs carry no application errors.
 - Before/after audit: claims, allowances, credits and tables identical;
   accounts grew from 112 to 113 through a sign-in since the previous audit.
+
+## 2026-09-21 — Stake page: live vault reading, what-is-not-circulating dialog and visual fixes
+
+- Circulating REGENT no longer relies on a written-in forty-billion vault
+  figure: the Clanker vault's balance at `0x8e845ead15737bf71904a30bddd3aee76d6adf6c`
+  is read with the other holdings at the same Base block, together with the
+  vault's own lock schedule. The reading now carries every holding's address
+  and amount.
+- A small info mark beside both circulating figures opens a dialog naming the
+  four holdings kept out of circulation, their amounts, how each is released
+  and, for the vault, the day its lock ends (6 Nov 2026) and the day its
+  release completes (5 Nov 2028). The dialog stays open while a fresh reading
+  replaces its figures.
+- Fixes: the supply tiles no longer break labels mid-word or spread a figure
+  over three lines; the Stake/Unstake choice is visibly filled; the wallet chip
+  keeps the address's own case; the "Why stake" panel moves under the actions so
+  the desktop layout has no empty column (on a phone it now precedes the supply
+  panel); the phone amount row keeps 50%/Max beside Available; the hero's
+  circulating figure gets its own line on a phone; the header badge duplicating
+  the staked share is hidden; claim buttons never break mid-label; the recipient
+  warning names the address once. Refresh Data keeps its lighter style on purpose.
+- Home and Autolaunch headline: "Revstake for AiFi, and Memestake for Onchain
+  Pairs" replaces "Turn proven edge into runway."
+- Verified: staking and stake-page suites 82/82, front-end unit tests 461/461,
+  stake and homepage browser suites 35/35; a live read of Base at block
+  51614295 returns 30.41 billion circulating with the vault at exactly
+  40 billion and the dates above.

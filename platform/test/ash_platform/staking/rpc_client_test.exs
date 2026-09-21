@@ -12,13 +12,20 @@ defmodule AshPlatform.Staking.RpcClientTest do
   @amount 1_500_000_000_000_000_000
 
   # One REGENT, and the four holdings this stubbed chain keeps out of
-  # circulation: twenty billion in the treasury, two billion in the Animata
-  # redeemer, five billion of reward inventory, and the forty billion of vault
-  # the reader carries itself. A hundred billion less those leaves thirty-three.
+  # circulation: forty billion in the Clanker vault, twenty billion in the
+  # treasury, two billion in the Animata redeemer and five billion of reward
+  # inventory. A hundred billion less those leaves thirty-three.
   @regent 1_000_000_000_000_000_000
+  @vault_held 40_000_000_000 * @regent
   @treasury_held 20_000_000_000 * @regent
   @redeemer_held 2_000_000_000 * @regent
   @reward_inventory 5_000_000_000 * @regent
+
+  # The vault's own account of the lock: nothing claimed yet, the lock ending
+  # one day and the release after it complete two years later.
+  @vault_locked_until 1_793_980_867
+  @vault_vested_by 1_857_052_867
+  @vault_admin "0x0cb27e883e207905ad2a94f9b6ef0c7a99223c37"
 
   # Seven days of Base blocks, and the largest range a public endpoint answers
   # `eth_getLogs` over. Both are stated here rather than read from the reader, so
@@ -55,6 +62,15 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert snapshot.regent_total_supply == "100000000000"
     assert snapshot.regent_circulating_supply_raw == "33000000000000000000000000000"
     assert snapshot.regent_circulating_supply == "33000000000"
+    assert snapshot.clanker_vault_address == Abi.normalize_address!(Supply.clanker_vault())
+    assert snapshot.clanker_vault_held == "40000000000"
+    assert snapshot.clanker_vault_locked_until == ~U[2026-11-06 16:01:07Z]
+    assert snapshot.clanker_vault_vested_by == ~U[2028-11-05 16:01:07Z]
+    assert snapshot.treasury_address == @treasury
+    assert snapshot.treasury_held == "20000000000"
+    assert snapshot.animata_redeemer_address == Abi.normalize_address!(Supply.animata_redeemer())
+    assert snapshot.animata_redeemer_held == "2000000000"
+    assert snapshot.reward_inventory == "5000000000"
     assert snapshot.emission_apr_percent == "12"
     assert snapshot.stake_token_address == Abi.normalize_address!(Abi.stake_token_address())
     assert snapshot.usdc_address == Abi.normalize_address!(Abi.usdc_address())
@@ -74,6 +90,9 @@ defmodule AshPlatform.Staking.RpcClientTest do
     Stub.put(%{treasury_held: 0, redeemer_held: 0, reward_inventory: 0})
     assert {:ok, %{regent_circulating_supply: "60000000000"}} = RpcClient.protocol_snapshot()
 
+    Stub.put(%{vault_held: 0})
+    assert {:ok, %{regent_circulating_supply: "100000000000"}} = RpcClient.protocol_snapshot()
+
     # More held than there is supply is no supply at all, never a negative one.
     Stub.put(%{treasury_held: 100_000_000_000 * @regent})
     assert {:ok, %{regent_circulating_supply_raw: "0"}} = RpcClient.protocol_snapshot()
@@ -88,11 +107,16 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
     assert Abi.treasury_recipient_signature() == "treasuryRecipient()"
     assert Abi.reward_inventory_signature() == "availableRegentRewardInventory()"
+    assert Abi.vault_allocation_signature() == "allocation(address)"
 
     assert selector(Abi.total_usdc_received_signature()) == Abi.encode_total_usdc_received()
     assert selector(Abi.erc20_total_supply_signature()) == Abi.encode_erc20_total_supply()
     assert selector(Abi.treasury_recipient_signature()) == Abi.encode_treasury_recipient()
     assert selector(Abi.reward_inventory_signature()) == Abi.encode_reward_inventory()
+
+    assert Abi.encode_vault_allocation(Abi.stake_token_address()) ==
+             selector(Abi.vault_allocation_signature()) <>
+               Stub.address_word(Abi.stake_token_address())
   end
 
   # The window is the chain's own: it ends at the block this reading was taken
@@ -324,7 +348,9 @@ defmodule AshPlatform.Staking.RpcClientTest do
       {Abi.stake_token_address(), Abi.encode_erc20_total_supply()},
       {staking, Abi.encode_treasury_recipient()},
       {staking, Abi.encode_reward_inventory()},
-      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.animata_redeemer()])}
+      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.animata_redeemer()])},
+      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.clanker_vault()])},
+      {Supply.clanker_vault(), Abi.encode_vault_allocation(Abi.stake_token_address())}
     ]
   end
 
@@ -431,8 +457,21 @@ defmodule AshPlatform.Staking.RpcClientTest do
       Stub.uint(100_000_000_000_000_000_000_000_000_000),
       Stub.uint(word(@treasury)),
       Stub.uint(Map.get(state, :reward_inventory, @reward_inventory)),
-      Stub.uint(Map.get(state, :redeemer_held, @redeemer_held))
+      Stub.uint(Map.get(state, :redeemer_held, @redeemer_held)),
+      Stub.uint(Map.get(state, :vault_held, @vault_held)),
+      vault_allocation_words()
     ]
+  end
+
+  # The six words of the vault's answer, in the order its struct lays them out.
+  defp vault_allocation_words do
+    "0x" <>
+      Stub.address_word(Abi.stake_token_address()) <>
+      Stub.hex_word(@vault_held) <>
+      Stub.hex_word(0) <>
+      Stub.hex_word(@vault_locked_until) <>
+      Stub.hex_word(@vault_vested_by) <>
+      Stub.address_word(@vault_admin)
   end
 
   defp treasury_words(state), do: [Stub.uint(Map.get(state, :treasury_held, @treasury_held))]

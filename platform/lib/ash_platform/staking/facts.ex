@@ -10,7 +10,9 @@ defmodule AshPlatform.Staking.Facts do
   The protocol reading also carries a stretch of history rather than a single
   moment: the seven days of recorded USDC end at the block it was read at and
   begin at `usdc_received_from_block`, so the window is always the chain's own
-  and never the clock's.
+  and never the clock's. Beside the circulating supply it carries the four
+  holdings that were taken out of it, each with its address and amount, and for
+  the Clanker vault the day its lock ends and the day its release completes.
 
   A figure the reading asked for and could not get holds the atom
   `:unavailable` in place of its value. Every figure has that one shape, whether
@@ -40,6 +42,19 @@ defmodule AshPlatform.Staking.Facts do
     :regent_total_supply,
     :regent_circulating_supply_raw,
     :regent_circulating_supply,
+    :clanker_vault_address,
+    :clanker_vault_held_raw,
+    :clanker_vault_held,
+    :clanker_vault_locked_until,
+    :clanker_vault_vested_by,
+    :treasury_address,
+    :treasury_held_raw,
+    :treasury_held,
+    :animata_redeemer_address,
+    :animata_redeemer_held_raw,
+    :animata_redeemer_held,
+    :reward_inventory_raw,
+    :reward_inventory,
     :regent_price_usd,
     :emission_apr_bps,
     :emission_apr_percent

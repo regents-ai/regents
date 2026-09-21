@@ -44,7 +44,8 @@
 .stake-page h1,
 .stake-page h2,
 .stake-page h3,
-.stake-result-dialog h2 {
+.stake-result-dialog h2,
+.stake-supply-dialog h2 {
   font-family: var(--font-family-title);
   font-weight: 400;
 }
@@ -214,8 +215,8 @@
   padding: var(--rg-panel-padding);
 }
 
-/* The right-hand column stacks: where the USDC comes from, then what the
-   contract currently reports. */
+/* Each column stacks its panels: the actions above why to stake on the left,
+   where the USDC comes from above what the contract reports on the right. */
 .stake-column {
   display: grid;
   gap: clamp(1rem, 2.4vw, 1.5rem);
@@ -303,10 +304,15 @@
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.stake-signer { font-family: var(--font-family-mono); }
+.stake-network { text-transform: uppercase; }
+
+/* A wallet address keeps its own case: it is an identifier, not a label. */
+.stake-signer {
+  font-family: var(--font-family-mono);
+  letter-spacing: 0;
+}
 
 .stake-signer > span {
   width: 0.45rem;
@@ -435,11 +441,6 @@
 
 .stake-mode button + button {
   border-inline-start: 1px solid var(--ash-line-strong);
-}
-
-.stake-mode button[aria-pressed="true"] {
-  background: var(--ash-panel-strong);
-  color: var(--ash-ink);
 }
 
 .stake-actions form {
@@ -652,22 +653,23 @@
   font-size: 1.15rem;
 }
 
-/* The three reward actions are one row of equal cells: same width from the grid,
-   same height from the tallest label, and the same padding around each. */
+/* The three reward actions share one row, each as wide as its own label so
+   none of them wraps; a row too narrow for all three drops one to the next line
+   whole rather than breaking its label. */
 .stake-button-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
 }
 
 .stake-button-row button {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
   min-height: 3.6rem;
   padding: 0.75rem;
-  text-align: center;
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
 /* A reward the last reading from Base actually found is lit in its own colour: the
@@ -727,22 +729,22 @@
 
 
 
+/* The list takes the card footer's whole width rather than its widest tile's. */
 .stake-supply-facts {
   display: grid;
+  flex: 1 1 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.stake-supply-facts div {
-  display: grid;
-  gap: 0.25rem;
-}
-
 .stake-supply-facts dd {
-  min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+}
+
+/* The card's header already shows the staked share as its headline figure. */
+.stake-overview .rg-ratio-card__header-badge {
+  display: none;
 }
 
 .stake-snapshot-note {
@@ -765,10 +767,13 @@
   to { opacity: 0.35; }
 }
 
+/* The three reasons stack under their heading inside the left column, each
+   drawing its own top rule; only a single-column page wide enough for it puts
+   them side by side. */
 .stake-how-it-works {
   display: grid;
-  grid-template-columns: minmax(13rem, 0.8fr) repeat(3, minmax(0, 1fr));
-  gap: clamp(1rem, 3vw, 2rem);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
 }
 
 .stake-how-it-works h2 {
@@ -780,8 +785,8 @@
   display: grid;
   gap: 0.55rem;
   align-content: start;
-  padding-left: 1rem;
-  border-left: 1px solid var(--ash-line);
+  padding-top: 1rem;
+  border-top: 1px solid var(--ash-line);
 }
 
 .stake-how-it-works article > span {
@@ -878,7 +883,8 @@
   margin: 0;
 }
 
-.stake-result-dialog {
+.stake-result-dialog,
+.stake-supply-dialog {
   width: min(34rem, calc(100vw - 2rem));
   padding: clamp(1.1rem, 4vw, 1.75rem);
   border: 1px solid var(--ash-line-strong);
@@ -886,8 +892,61 @@
   color: var(--ash-ink);
 }
 
-.stake-result-dialog::backdrop { background: var(--ash-scrim); }
-.stake-result-dialog h2 { margin: 0.25rem 0 0.75rem; }
+.stake-supply-dialog {
+  width: min(38rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.stake-result-dialog::backdrop,
+.stake-supply-dialog::backdrop { background: var(--ash-scrim); }
+.stake-result-dialog h2,
+.stake-supply-dialog h2 { margin: 0.25rem 0 0.75rem; }
+.stake-supply-dialog form { display: flex; justify-content: flex-end; }
+
+/* Each holding is one row: its name, the amount, how it comes back, and the
+   address that answers for it. */
+.stake-holdings {
+  display: grid;
+  margin: 0 0 1.25rem;
+  border-block-start: 1px solid var(--ash-line);
+}
+
+.stake-holdings > div {
+  display: grid;
+  gap: 0.3rem;
+  padding-block: 0.8rem;
+  border-block-end: 1px solid var(--ash-line);
+}
+
+.stake-holdings dt {
+  font-family: var(--font-family-title);
+  font-size: 1rem;
+}
+
+.stake-holdings dd {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+  color: var(--ash-muted);
+  font-size: 0.88rem;
+}
+
+.stake-holdings dd strong {
+  color: var(--ash-ink);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.stake-holdings a {
+  color: var(--ash-accent);
+  overflow-wrap: anywhere;
+}
+
+.stake-holdings code {
+  font-size: 0.78rem;
+}
 .stake-dialog-kicker,
 .stake-dialog-summary,
 .stake-dialog-detail { margin-block: 0 0.75rem; }
@@ -918,26 +977,32 @@
 @media (max-width: 64rem) {
   .stake-heading { grid-template-columns: minmax(0, 1fr); }
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
-  .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 46.01rem) and (max-width: 64rem) {
+  .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 3vw, 2rem); }
   .stake-how-it-works > div { grid-column: 1 / -1; }
 }
 
 @media (max-width: 46rem) {
-  .stake-how-it-works { grid-template-columns: minmax(0, 1fr); }
-  .stake-how-it-works > div { grid-column: 1; }
-  .stake-how-it-works article { padding: 1rem 0 0; border-top: 1px solid var(--ash-line); border-left: 0; }
   .stake-wallet-summary { grid-template-columns: minmax(0, 1fr); }
   .stake-section-heading { flex-direction: column; }
 }
 
 @media (max-width: 30rem) {
-  .stake-button-row { grid-template-columns: minmax(0, 1fr); }
+  .stake-button-row button { flex-basis: 100%; }
   .stake-heading,
   .stake-actions,
   .stake-overview,
   .stake-how-it-works { padding: 1rem; }
-  .stake-supply-facts,
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
+  .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+  /* Available, then the 50% and Max shortcuts beside it, then the submit
+     across the whole row. */
+  .stake-amount-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .stake-amount-action { display: contents; }
+  .stake-amount-action .stake-submit { grid-column: 1 / -1; }
+  .stake-amount-shortcuts { margin-inline-start: 0; }
   .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
   .stake-earned-part + .stake-earned-part { padding-left: 0; border-left: 0; }
   .stake-contract-facts > div,
@@ -957,7 +1022,7 @@
 
 /* The complete destination remains readable at mobile widths. */
 .stake-recipient {
-  margin-block: 0.75rem 1rem;
+  margin-block: 0.25rem 0.5rem;
 }
 
 .stake-recipient [hidden],
@@ -1028,6 +1093,69 @@
   line-height: 1.5;
 }
 
+}
+
+/* The vendored controls paint their own surface and edge, and the native
+   button keeps its own size, so the chosen mode, the supply tiles and the
+   info mark are skinned outside the page layer to beat them. */
+.stake-mode button[aria-pressed="true"] {
+  background: var(--ash-ink);
+  color: var(--ash-ground);
+}
+
+/* The small mark beside a circulating figure that opens the account of what
+   is held back. It sits in the figure's own line and takes its colour. */
+.stake-page .stake-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ash-muted);
+  font-family: var(--font-family-title);
+  font-size: 0.72rem;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.stake-page .stake-info:hover,
+.stake-page .stake-info:focus-visible {
+  color: var(--ash-ink);
+}
+
+.stake-page .stake-info:focus-visible {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 2px;
+}
+
+/* Each tile is one line: the label at the start, the figure at the end, and
+   neither of them broken mid-word. */
+.stake-supply-facts .rg-ratio-card__tile {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  text-align: start;
+  overflow-wrap: normal;
+}
+
+.stake-supply-facts .rg-ratio-card__tile dd {
+  white-space: nowrap;
+}
+
+/* Below the card's width for three side by side, the tiles stack. */
+@container rg-ratio (max-width: 40rem) {
+  .stake-supply-facts { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* A repeated mode selection points to the action; it never activates it.

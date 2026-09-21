@@ -28,6 +28,7 @@ import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {ShellMotion} from "./hooks/motion"
+import {InfoDialog} from "./hooks/info_dialog"
 import {ModalDialog} from "./hooks/modal_dialog"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
@@ -333,6 +334,7 @@ const hooks = {
   HomePrism,
   HomeTokenMenu,
   InfiniteScroll,
+  InfoDialog,
   ModalDialog,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,

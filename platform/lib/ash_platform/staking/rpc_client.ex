@@ -74,7 +74,16 @@ defmodule AshPlatform.Staking.RpcClient do
             regent_total_supply,
             treasury,
             reward_inventory,
-            redeemer_held
+            redeemer_held,
+            vault_held,
+            [
+              _vault_token,
+              _vault_amount,
+              _vault_claimed,
+              vault_locked_until,
+              vault_vested_by,
+              _admin
+            ]
           ]} <- Rpc.aggregate3(aggregator(), protocol_calls(), block, @rpc_opts),
          true <- stake_token == Abi.normalize_address!(Abi.stake_token_address()),
          true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
@@ -83,7 +92,13 @@ defmodule AshPlatform.Staking.RpcClient do
       capacity = max(denominator - total_staked, 0)
 
       circulating =
-        Supply.circulating(regent_total_supply, treasury_held, redeemer_held, reward_inventory)
+        Supply.circulating(
+          regent_total_supply,
+          vault_held,
+          treasury_held,
+          redeemer_held,
+          reward_inventory
+        )
 
       {:ok,
        %{
@@ -105,6 +120,19 @@ defmodule AshPlatform.Staking.RpcClient do
          regent_total_supply: Rpc.format_units(regent_total_supply, 18),
          regent_circulating_supply_raw: Integer.to_string(circulating),
          regent_circulating_supply: Rpc.format_units(circulating, 18),
+         clanker_vault_address: Abi.normalize_address!(Supply.clanker_vault()),
+         clanker_vault_held_raw: Integer.to_string(vault_held),
+         clanker_vault_held: Rpc.format_units(vault_held, 18),
+         clanker_vault_locked_until: DateTime.from_unix!(vault_locked_until),
+         clanker_vault_vested_by: DateTime.from_unix!(vault_vested_by),
+         treasury_address: treasury,
+         treasury_held_raw: Integer.to_string(treasury_held),
+         treasury_held: Rpc.format_units(treasury_held, 18),
+         animata_redeemer_address: Abi.normalize_address!(Supply.animata_redeemer()),
+         animata_redeemer_held_raw: Integer.to_string(redeemer_held),
+         animata_redeemer_held: Rpc.format_units(redeemer_held, 18),
+         reward_inventory_raw: Integer.to_string(reward_inventory),
+         reward_inventory: Rpc.format_units(reward_inventory, 18),
          emission_apr_bps: emission_apr_bps,
          emission_apr_percent: format_bps(emission_apr_bps)
        }}
@@ -269,7 +297,11 @@ defmodule AshPlatform.Staking.RpcClient do
       {staking, Abi.encode_treasury_recipient(), :address},
       {staking, Abi.encode_reward_inventory(), :uint},
       {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.animata_redeemer()]),
-       :uint}
+       :uint},
+      {Abi.stake_token_address(), Abi.encode_erc20("balance_of", [Supply.clanker_vault()]),
+       :uint},
+      {Supply.clanker_vault(), Abi.encode_vault_allocation(Abi.stake_token_address()),
+       {:words, 6}}
     ]
   end
 

@@ -26,9 +26,15 @@ defmodule AshPlatform.TestStakingChainClient do
   @lifetime_usdc "5074870000"
   @regent_total_supply "100000000000000000000000000000"
 
-  # What the four holdings leave circulating. A test that wants a different
-  # share of the supply moving sets this rather than any of the balances behind
-  # it, which the real reader works out on chain.
+  # The four holdings and what they leave circulating: forty billion in the
+  # vault, eighteen in the treasury, two in the redeemer and five of reward
+  # inventory leave thirty-five. A test that wants a different share of the
+  # supply moving sets the circulating figure rather than any of the balances
+  # behind it, which the real reader works out on chain.
+  @clanker_vault_held "40000000000000000000000000000"
+  @treasury_held "18000000000000000000000000000"
+  @animata_redeemer_held "2000000000000000000000000000"
+  @reward_inventory "5000000000000000000000000000"
   @regent_circulating_supply "35000000000000000000000000000"
 
   # The two readings are taken at different blocks on purpose: a proof that
@@ -103,6 +109,19 @@ defmodule AshPlatform.TestStakingChainClient do
       regent_total_supply: scaled(@regent_total_supply, 18),
       regent_circulating_supply_raw: circulating,
       regent_circulating_supply: scaled(circulating, 18),
+      clanker_vault_address: "0x8e845ead15737bf71904a30bddd3aee76d6adf6c",
+      clanker_vault_held_raw: @clanker_vault_held,
+      clanker_vault_held: scaled(@clanker_vault_held, 18),
+      clanker_vault_locked_until: ~U[2026-11-06 16:01:07Z],
+      clanker_vault_vested_by: ~U[2028-11-05 16:01:07Z],
+      treasury_address: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e",
+      treasury_held_raw: @treasury_held,
+      treasury_held: scaled(@treasury_held, 18),
+      animata_redeemer_address: "0x71065b775a590c43933f10c0055dc7d74afabb0e",
+      animata_redeemer_held_raw: @animata_redeemer_held,
+      animata_redeemer_held: scaled(@animata_redeemer_held, 18),
+      reward_inventory_raw: @reward_inventory,
+      reward_inventory: scaled(@reward_inventory, 18),
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }

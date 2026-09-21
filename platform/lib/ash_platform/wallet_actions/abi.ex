@@ -39,6 +39,13 @@ defmodule AshPlatform.WalletActions.Abi do
   @erc20_total_supply_signature "totalSupply()"
   @erc20_total_supply_selector "0x18160ddd"
 
+  # `allocation(address)` belongs to the Clanker vault: for one token it holds,
+  # the amount locked away, what of it has been claimed, when the lock ends and
+  # when the release after it is complete. It is not proved against the staking
+  # ABI below either.
+  @vault_allocation_signature "allocation(address)"
+  @vault_allocation_selector "0xb81b8630"
+
   # Multicall3 is the canonical read aggregator, deployed at the same address on
   # every chain it reaches, Base included. It is never a send target: the only
   # thing this codebase asks it for is one `eth_call` that returns several reads
@@ -121,11 +128,16 @@ defmodule AshPlatform.WalletActions.Abi do
   def encode_treasury_recipient, do: @treasury_recipient_selector
   def encode_reward_inventory, do: @reward_inventory_selector
   def encode_erc20_total_supply, do: @erc20_total_supply_selector
+
+  def encode_vault_allocation(token),
+    do: String.downcase(@vault_allocation_selector <> encode_static("address", token))
+
   def supply_denominator_signature, do: @supply_denominator_signature
   def total_usdc_received_signature, do: @total_usdc_received_signature
   def treasury_recipient_signature, do: @treasury_recipient_signature
   def reward_inventory_signature, do: @reward_inventory_signature
   def erc20_total_supply_signature, do: @erc20_total_supply_signature
+  def vault_allocation_signature, do: @vault_allocation_signature
 
   def multicall3_address, do: @multicall3_address
   def multicall3_runtime_keccak256, do: @multicall3_runtime_keccak256

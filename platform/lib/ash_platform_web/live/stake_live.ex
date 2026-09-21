@@ -129,7 +129,7 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
           <div class="stake-benefit-card stake-benefit-supply">
             <dt>Circulating REGENT</dt>
-            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /></dd>
+            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
           </div>
           <div class="stake-benefit-card stake-benefit-supply">
             <dt>Circulating MCAP</dt>
@@ -197,6 +197,41 @@ defmodule AshPlatformWeb.StakeLive do
         </form>
       </dialog>
 
+      <dialog
+        :if={@dashboard}
+        id="staking-supply-dialog"
+        class="stake-supply-dialog"
+        aria-labelledby="staking-supply-heading"
+        phx-hook="InfoDialog"
+      >
+        <p class="stake-dialog-kicker">Circulating REGENT</p>
+        <h2 id="staking-supply-heading">What is not circulating</h2>
+        <p class="stake-dialog-summary">
+          Of the <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
+          in existence, <TokenDisplay.amount amount={@dashboard.held_back} unit="REGENT" />
+          is held in the four places below and
+          <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
+          circulates. Every figure was read at Base block #{TokenDisplay.count(@staking.block_number)}.
+        </p>
+        <dl class="stake-holdings">
+          <div :for={holding <- @dashboard.holdings}>
+            <dt>{holding.name}</dt>
+            <dd>
+              <strong><TokenDisplay.amount amount={holding.amount} unit="REGENT" /></strong>
+              <span>{holding.release}</span>
+              <a
+                href={"https://basescan.org/address/#{holding.address}"}
+                target="_blank"
+                rel="noopener noreferrer"
+              ><code>{holding.address}</code> <span aria-hidden="true">↗</span></a>
+            </dd>
+          </div>
+        </dl>
+        <form method="dialog">
+          <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
+        </form>
+      </dialog>
+
       <div :if={@status == :error} class="stake-status">
         <p role="alert">Staking details are unavailable right now.</p>
         <.notice :if={@notice} notice={@notice} />
@@ -207,236 +242,276 @@ defmodule AshPlatformWeb.StakeLive do
       </div>
 
       <div class="stake-layout">
-        <section
-          class="stake-actions rg-panel rg-panel--surface rg-panel__body"
-          aria-labelledby="staking-actions-heading"
-        >
-          <div class="stake-section-heading">
-            <div>
-              <p class="stake-section-kicker">Your next move</p>
-              <h2 id="staking-actions-heading">
-                {if @wallet, do: "Manage your stake", else: "Stake in three steps"}
-              </h2>
+        <div class="stake-column">
+          <section
+            class="stake-actions rg-panel rg-panel--surface rg-panel__body"
+            aria-labelledby="staking-actions-heading"
+          >
+            <div class="stake-section-heading">
+              <div>
+                <p class="stake-section-kicker">Your next move</p>
+                <h2 id="staking-actions-heading">
+                  {if @wallet, do: "Manage your stake", else: "Stake in three steps"}
+                </h2>
+              </div>
+              <span :if={@wallet} class="stake-signer" title={@wallet}>
+                <span aria-hidden="true"></span>{Shell.short_wallet(@wallet)}
+              </span>
             </div>
-            <span :if={@wallet} class="stake-signer" title={@wallet}>
-              <span aria-hidden="true"></span>{Shell.short_wallet(@wallet)}
-            </span>
-          </div>
 
-          <div :if={!@wallet} class="stake-connect-flow">
-            <ol>
-              <li>
-                <span>1</span><p><strong>Connect</strong> an Ethereum wallet through Privy.</p>
-              </li>
-              <li>
-                <span>2</span><p><strong>Choose</strong> how much REGENT to stake.</p>
-              </li>
-              <li>
-                <span>3</span><p><strong>Confirm</strong> each Base transaction in your wallet.</p>
-              </li>
-            </ol>
-            <Regent.Primitives.button
-              type="button"
-              class="stake-primary"
-              data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
-            >
-              Connect wallet
-            </Regent.Primitives.button>
-            <p class="stake-fine-print">
-              Signing in with Privy connects your wallet. Nothing is sent without your wallet confirmation.
-            </p>
-          </div>
-
-          <.notice :if={@wallet && @notice} notice={@notice} />
-
-          <Loading.panel
-            :if={@wallet && !@wallet_ready && (@reading || !@staking)}
-            id="staking-wallet-skeleton"
-            label="Your wallet position"
-            labels={["Available REGENT", "Currently staked", "Claimable USDC", "Claimable REGENT"]}
-            loading={@reading || @status == :loading}
-          />
-
-          <div :if={@wallet_ready} id="staking-wallet-controls" class="stake-wallet-controls">
-            <p :if={is_integer(@staking.wallet_block_number)} class="stake-wallet-block">
-              Your position at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
-            </p>
-            <p :if={@staking.wallet_block_number == :unavailable} class="stake-wallet-block">
-              Your position could not be read just now. Everything else here is current, and every
-              action below still goes to your wallet.
-            </p>
-            <dl class="stake-wallet-summary">
-              <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
-              <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
-              <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
-              <.metric
-                label="Claimable REGENT"
-                amount={@staking.wallet_claimable_regent}
-                unit="REGENT"
-              />
-            </dl>
-
-            <div class="stake-mode" role="group" aria-label="Stake or unstake">
+            <div :if={!@wallet} class="stake-connect-flow">
+              <ol>
+                <li>
+                  <span>1</span><p><strong>Connect</strong> an Ethereum wallet through Privy.</p>
+                </li>
+                <li>
+                  <span>2</span><p><strong>Choose</strong> how much REGENT to stake.</p>
+                </li>
+                <li>
+                  <span>3</span><p><strong>Confirm</strong> each Base transaction in your wallet.</p>
+                </li>
+              </ol>
               <Regent.Primitives.button
-                :for={mode <- ~w(stake unstake)}
-                variant="secondary"
                 type="button"
-                phx-click={
-                  if @action == mode,
-                    do:
-                      Phoenix.LiveView.JS.transition("is-mode-hinted",
-                        to: "#staking-amount-form .stake-submit",
-                        time: 650,
-                        blocking: false
-                      ),
-                    else: "select_staking_action"
-                }
-                phx-value-mode={mode}
-                aria-pressed={to_string(@action == mode)}
-              >{mode_label(mode)}</Regent.Primitives.button>
+                class="stake-primary"
+                data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
+              >
+                Connect wallet
+              </Regent.Primitives.button>
+              <p class="stake-fine-print">
+                Signing in with Privy connects your wallet. Nothing is sent without your wallet confirmation.
+              </p>
             </div>
 
-            <form id="staking-amount-form" phx-change="staking_amount_changed">
-              <Regent.Primitives.field id="staking-amount" label="Amount">
-                <div class="stake-amount">
-                  <input
-                    id="staking-amount"
-                    name="amount"
-                    value={@amount}
-                    inputmode="decimal"
-                    autocomplete="off"
-                    placeholder="0.0"
-                    phx-debounce="200"
-                    aria-describedby="staking-available staking-amount-feedback"
-                  />
-                  <span>REGENT</span>
-                </div>
-              </Regent.Primitives.field>
-              <div class="stake-amount-tools">
-                <div class="stake-amount-action">
-                  <Regent.Primitives.button
-                    class={"stake-primary stake-submit" <> armed_class(@amount)}
-                    type="button"
-                    data-staking-action={@actions == :ready && @action}
-                    data-account-target={@actions == :sign_in && "sign-in"}
-                    phx-click={@actions == :mismatch && "refuse_staking_action"}
-                  >{mode_label(@action)} REGENT</Regent.Primitives.button>
-                  <p id="staking-available">
-                    Available
-                    <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
-                  </p>
-                </div>
-                <div class="stake-amount-shortcuts">
-                  <Regent.Primitives.button
-                    variant="secondary"
-                    type="button"
-                    phx-click="fill_staking_amount"
-                    phx-value-portion="half"
-                    disabled={not fillable?(@spendable, "half")}
-                  >50%</Regent.Primitives.button>
-                  <Regent.Primitives.button
-                    variant="secondary"
-                    type="button"
-                    phx-click="fill_staking_amount"
-                    phx-value-portion="max"
-                    disabled={not fillable?(@spendable, "max")}
-                  >Max</Regent.Primitives.button>
-                </div>
-              </div>
-              <p
-                id="staking-amount-feedback"
-                class="stake-amount-notice"
-                role="status"
-                data-visible={to_string(not is_nil(@amount_notice))}
-              >
-                {@amount_notice}
+            <.notice :if={@wallet && @notice} notice={@notice} />
+
+            <Loading.panel
+              :if={@wallet && !@wallet_ready && (@reading || !@staking)}
+              id="staking-wallet-skeleton"
+              label="Your wallet position"
+              labels={["Available REGENT", "Currently staked", "Claimable USDC", "Claimable REGENT"]}
+              loading={@reading || @status == :loading}
+            />
+
+            <div :if={@wallet_ready} id="staking-wallet-controls" class="stake-wallet-controls">
+              <p :if={is_integer(@staking.wallet_block_number)} class="stake-wallet-block">
+                Your position at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
               </p>
-
-              <div
-                id="staking-recipient-controls"
-                phx-update="ignore"
-                class="stake-recipient"
-                hidden={@action != "stake"}
-              >
-                <label class="stake-check" for="staking-for-other">
-                  <input
-                    id="staking-for-other"
-                    type="checkbox"
-                    aria-controls="staking-recipient-fields"
-                    aria-expanded="false"
-                  />
-                  <span>Stake for a different address</span>
-                </label>
-                <div id="staking-recipient-fields" hidden>
-                  <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
-                    <input
-                      id="staking-recipient"
-                      type="text"
-                      autocomplete="off"
-                      spellcheck="false"
-                      autocapitalize="none"
-                      placeholder="0x…"
-                      aria-describedby="staking-recipient-error"
-                    />
-                  </Regent.Primitives.field>
-                  <p id="staking-recipient-error" role="status" hidden></p>
-                  <label
-                    id="staking-recipient-warning"
-                    class="stake-check"
-                    for="staking-recipient-acknowledged"
-                    hidden
-                  >
-                    <input id="staking-recipient-acknowledged" type="checkbox" />
-                    <span id="staking-recipient-warning-text"></span>
-                  </label>
-                </div>
-              </div>
-
-              <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
-                <div>
-                  <dt>Position after</dt><dd>
-                    <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
-                  </dd>
-                </div>
-                <div>
-                  <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
-                </div>
+              <p :if={@staking.wallet_block_number == :unavailable} class="stake-wallet-block">
+                Your position could not be read just now. Everything else here is current, and every
+                action below still goes to your wallet.
+              </p>
+              <dl class="stake-wallet-summary">
+                <.metric
+                  label="Available REGENT"
+                  amount={@staking.wallet_token_balance}
+                  unit="REGENT"
+                />
+                <.metric
+                  label="Currently staked"
+                  amount={@staking.wallet_stake_balance}
+                  unit="REGENT"
+                />
+                <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
+                <.metric
+                  label="Claimable REGENT"
+                  amount={@staking.wallet_claimable_regent}
+                  unit="REGENT"
+                />
               </dl>
 
-              <p :if={approval_needed?(@staking, @action, @amount)} class="stake-approval-note">
-                Your wallet will first request an exact REGENT approval, then the stake transaction.
-              </p>
-            </form>
-
-            <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
-              <div>
-                <p class="stake-section-kicker">Available rewards</p>
-                <h3 id="staking-rewards-heading">Claim or compound</h3>
-              </div>
-              <div class="stake-button-row">
+              <div class="stake-mode" role="group" aria-label="Stake or unstake">
                 <Regent.Primitives.button
-                  :for={claim <- @claims}
+                  :for={mode <- ~w(stake unstake)}
+                  variant="secondary"
                   type="button"
-                  class={if claim.claimable, do: "stake-claim-ready"}
-                  data-staking-action={@actions == :ready && claim.action}
-                  data-account-target={@actions == :sign_in && "sign-in"}
-                  phx-click={@actions == :mismatch && "refuse_staking_action"}
-                >{claim.label}<span class="visually-hidden">{claim_state(claim.claimable)}</span></Regent.Primitives.button>
+                  phx-click={
+                    if @action == mode,
+                      do:
+                        Phoenix.LiveView.JS.transition("is-mode-hinted",
+                          to: "#staking-amount-form .stake-submit",
+                          time: 650,
+                          blocking: false
+                        ),
+                      else: "select_staking_action"
+                  }
+                  phx-value-mode={mode}
+                  aria-pressed={to_string(@action == mode)}
+                >{mode_label(mode)}</Regent.Primitives.button>
               </div>
-            </section>
 
-            <div class="stake-footer">
-              <Regent.Primitives.button
-                variant="secondary"
-                type="button"
-                phx-click="refresh_data"
-                disabled={@reading || @shared_reading}
-              >
-                {if @reading || @shared_reading, do: "Updating…", else: "Refresh Data"}
-              </Regent.Primitives.button>
+              <form id="staking-amount-form" phx-change="staking_amount_changed">
+                <Regent.Primitives.field id="staking-amount" label="Amount">
+                  <div class="stake-amount">
+                    <input
+                      id="staking-amount"
+                      name="amount"
+                      value={@amount}
+                      inputmode="decimal"
+                      autocomplete="off"
+                      placeholder="0.0"
+                      phx-debounce="200"
+                      aria-describedby="staking-available staking-amount-feedback"
+                    />
+                    <span>REGENT</span>
+                  </div>
+                </Regent.Primitives.field>
+                <div class="stake-amount-tools">
+                  <div class="stake-amount-action">
+                    <Regent.Primitives.button
+                      class={"stake-primary stake-submit" <> armed_class(@amount)}
+                      type="button"
+                      data-staking-action={@actions == :ready && @action}
+                      data-account-target={@actions == :sign_in && "sign-in"}
+                      phx-click={@actions == :mismatch && "refuse_staking_action"}
+                    >{mode_label(@action)} REGENT</Regent.Primitives.button>
+                    <p id="staking-available">
+                      Available
+                      <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
+                    </p>
+                  </div>
+                  <div class="stake-amount-shortcuts">
+                    <Regent.Primitives.button
+                      variant="secondary"
+                      type="button"
+                      phx-click="fill_staking_amount"
+                      phx-value-portion="half"
+                      disabled={not fillable?(@spendable, "half")}
+                    >50%</Regent.Primitives.button>
+                    <Regent.Primitives.button
+                      variant="secondary"
+                      type="button"
+                      phx-click="fill_staking_amount"
+                      phx-value-portion="max"
+                      disabled={not fillable?(@spendable, "max")}
+                    >Max</Regent.Primitives.button>
+                  </div>
+                </div>
+                <p
+                  id="staking-amount-feedback"
+                  class="stake-amount-notice"
+                  role="status"
+                  data-visible={to_string(not is_nil(@amount_notice))}
+                >
+                  {@amount_notice}
+                </p>
+
+                <div
+                  id="staking-recipient-controls"
+                  phx-update="ignore"
+                  class="stake-recipient"
+                  hidden={@action != "stake"}
+                >
+                  <label class="stake-check" for="staking-for-other">
+                    <input
+                      id="staking-for-other"
+                      type="checkbox"
+                      aria-controls="staking-recipient-fields"
+                      aria-expanded="false"
+                    />
+                    <span>Stake for a different address</span>
+                  </label>
+                  <div id="staking-recipient-fields" hidden>
+                    <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
+                      <input
+                        id="staking-recipient"
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        autocapitalize="none"
+                        placeholder="0x…"
+                        aria-describedby="staking-recipient-error"
+                      />
+                    </Regent.Primitives.field>
+                    <p id="staking-recipient-error" role="status" hidden></p>
+                    <label
+                      id="staking-recipient-warning"
+                      class="stake-check"
+                      for="staking-recipient-acknowledged"
+                      hidden
+                    >
+                      <input id="staking-recipient-acknowledged" type="checkbox" />
+                      <span id="staking-recipient-warning-text"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
+                  <div>
+                    <dt>Position after</dt><dd>
+                      <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
+                  </div>
+                </dl>
+
+                <p :if={approval_needed?(@staking, @action, @amount)} class="stake-approval-note">
+                  Your wallet will first request an exact REGENT approval, then the stake transaction.
+                </p>
+              </form>
+
+              <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
+                <div>
+                  <p class="stake-section-kicker">Available rewards</p>
+                  <h3 id="staking-rewards-heading">Claim or compound</h3>
+                </div>
+                <div class="stake-button-row">
+                  <Regent.Primitives.button
+                    :for={claim <- @claims}
+                    type="button"
+                    class={if claim.claimable, do: "stake-claim-ready"}
+                    data-staking-action={@actions == :ready && claim.action}
+                    data-account-target={@actions == :sign_in && "sign-in"}
+                    phx-click={@actions == :mismatch && "refuse_staking_action"}
+                  >{claim.label}<span class="visually-hidden">{claim_state(claim.claimable)}</span></Regent.Primitives.button>
+                </div>
+              </section>
+
+              <div class="stake-footer">
+                <Regent.Primitives.button
+                  variant="secondary"
+                  type="button"
+                  phx-click="refresh_data"
+                  disabled={@reading || @shared_reading}
+                >
+                  {if @reading || @shared_reading, do: "Updating…", else: "Refresh Data"}
+                </Regent.Primitives.button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section
+            class="stake-how-it-works rg-panel rg-panel--surface rg-panel__body"
+            aria-labelledby="staking-explainer-heading"
+          >
+            <div>
+              <p class="stake-section-kicker">Why stake</p>
+              <h2 id="staking-explainer-heading">One position, two reward sources</h2>
+            </div>
+            <article>
+              <span aria-hidden="true">01</span><h3>USDC revenue rewards</h3><p>
+                Eligible USDC deposited into the contract is accounted across stakers according to stake share.
+              </p>
+            </article>
+            <article>
+              <span aria-hidden="true">02</span><h3>REGENT emissions</h3><p>
+                The contract currently reports a
+                <span :if={@dashboard}>{@dashboard.emission_apr}</span><span
+                  :if={!@dashboard}
+                  aria-busy={to_string(@status == :loading)}
+                ><Loading.skeleton kind="inline" /></span>
+                emissions APR, subject to onchain changes and available inventory.
+              </p>
+            </article>
+            <article>
+              <span aria-hidden="true">03</span><h3>You stay in control</h3><p>
+                Stake, unstake, claim, or compound through the connected wallet. Every transaction requires your signature.
+              </p>
+            </article>
+          </section>
+        </div>
 
         <div class="stake-column">
           <Regent.Structure.section_bar class="rg-support-band">
@@ -508,6 +583,7 @@ defmodule AshPlatformWeb.StakeLive do
                   <div class="rg-ratio-card__tile">
                     <dt>Circulating supply</dt><dd>
                       <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
+                      <.supply_info />
                     </dd>
                   </div>
                   <div class="rg-ratio-card__tile">
@@ -519,7 +595,7 @@ defmodule AshPlatformWeb.StakeLive do
               </:footer>
             </Regent.Structure.ratio_card>
             <p class="stake-fine-print">
-              Share of circulating supply, not total supply or reward entitlement. Circulating supply excludes treasury, redeemer and reward inventory plus the existing 40 billion REGENT vault estimate.
+              Share of circulating supply, not total supply or reward entitlement. Circulating supply is the total less the Clanker vault, the treasury, the Animata redeemer and the staking reward inventory, all read at the same Base block.
             </p>
 
             <p class="stake-snapshot-note">
@@ -545,36 +621,6 @@ defmodule AshPlatformWeb.StakeLive do
           />
         </div>
       </div>
-
-      <section
-        class="stake-how-it-works rg-panel rg-panel--surface rg-panel__body"
-        aria-labelledby="staking-explainer-heading"
-      >
-        <div>
-          <p class="stake-section-kicker">Why stake</p>
-          <h2 id="staking-explainer-heading">One position, two reward sources</h2>
-        </div>
-        <article>
-          <span aria-hidden="true">01</span><h3>USDC revenue rewards</h3><p>
-            Eligible USDC deposited into the contract is accounted across stakers according to stake share.
-          </p>
-        </article>
-        <article>
-          <span aria-hidden="true">02</span><h3>REGENT emissions</h3><p>
-            The contract currently reports a
-            <span :if={@dashboard}>{@dashboard.emission_apr}</span><span
-              :if={!@dashboard}
-              aria-busy={to_string(@status == :loading)}
-            ><Loading.skeleton kind="inline" /></span>
-            emissions APR, subject to onchain changes and available inventory.
-          </p>
-        </article>
-        <article>
-          <span aria-hidden="true">03</span><h3>You stay in control</h3><p>
-            Stake, unstake, claim, or compound through the connected wallet. Every transaction requires your signature.
-          </p>
-        </article>
-      </section>
 
       <Regent.Primitives.disclosure
         :if={@status == :ready && @staking}
@@ -630,6 +676,19 @@ defmodule AshPlatformWeb.StakeLive do
     """
   end
 
+  # The small mark beside a circulating figure. It opens the account of what is
+  # held back, which every visitor may read; nothing about it touches a wallet.
+  defp supply_info(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="stake-info"
+      aria-label="What is not circulating"
+      phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#staking-supply-dialog")}
+    ><span aria-hidden="true">i</span></button>
+    """
+  end
+
   @doc "How long ago this contract reading was taken, in plain words."
   def snapshot_age(%{read_at: %DateTime{} = read_at}),
     do: read_at |> DateTime.diff(DateTime.utc_now()) |> abs() |> elapsed()
@@ -654,13 +713,64 @@ defmodule AshPlatformWeb.StakeLive do
   defp staking_dashboard(nil), do: nil
 
   defp staking_dashboard(staking) do
+    emission_apr = "#{TokenDisplay.compact(staking.emission_apr_percent)}%"
+
     %{
       basescan_url: "https://basescan.org/address/#{staking.contract_address}",
       circulating_supply: to_cents(staking.regent_circulating_supply),
-      emission_apr: "#{TokenDisplay.compact(staking.emission_apr_percent)}%",
+      held_back: held_back(staking),
+      holdings: holdings(staking, emission_apr),
+      emission_apr: emission_apr,
       market_cap: market_cap(staking),
       supply_bps: supply_basis_points(staking)
     }
+  end
+
+  # The four holdings the circulating supply leaves out, each with the words for
+  # how it comes back. Only the vault has dates; they are the chain's own.
+  defp holdings(staking, emission_apr) do
+    [
+      %{
+        name: "Clanker vault",
+        address: staking.clanker_vault_address,
+        amount: staking.clanker_vault_held,
+        release:
+          "Locked until #{day(staking.clanker_vault_locked_until)}, then released gradually until #{day(staking.clanker_vault_vested_by)}."
+      },
+      %{
+        name: "Regent treasury",
+        address: staking.treasury_address,
+        amount: staking.treasury_held,
+        release: "Held by the protocol. No release date."
+      },
+      %{
+        name: "Animata redeemer",
+        address: staking.animata_redeemer_address,
+        amount: staking.animata_redeemer_held,
+        release:
+          "Released as Animata I and II holders redeem: 5,000,000 REGENT per token, vesting over seven days. No fixed date."
+      },
+      %{
+        name: "Staking reward inventory",
+        address: staking.contract_address,
+        amount: staking.reward_inventory,
+        release:
+          "Paid out to stakers as REGENT emissions at the current #{emission_apr} APR. No fixed date."
+      }
+    ]
+  end
+
+  defp day(%DateTime{} = at), do: Calendar.strftime(at, "%-d %b %Y")
+
+  # Everything the supply holds that does not circulate, to the same two
+  # decimals as the circulating figure beside it.
+  defp held_back(%{regent_total_supply_raw: total, regent_circulating_supply_raw: circulating}) do
+    with {:ok, whole} <- atomic(total),
+         {:ok, moving} <- atomic(circulating) do
+      to_cents(token_amount(whole - moving))
+    else
+      _ -> nil
+    end
   end
 
   # Price × circulating, or nothing: a missing price is a dash, never a guessed

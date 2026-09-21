@@ -379,7 +379,7 @@ function syncRecipient(root: HTMLElement, state: StakeState): void {
   requiredElement<HTMLElement>(root, "#staking-recipient-fields").hidden = !enabled
   requiredElement<HTMLElement>(root, "#staking-recipient-warning").hidden = !enabled || !receiver
   requiredElement<HTMLElement>(root, "#staking-recipient-warning-text").textContent = receiver
-    ? `Warning: the wallet ${receiver} will accrue the USDC revenue and REGENT rewards. Only ${receiver} wallet may withdraw the tokens.`
+    ? `Warning: the wallet ${receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.`
     : ""
   const error = requiredElement<HTMLElement>(root, "#staking-recipient-error")
   error.hidden = !enabled || !input.value || !!receiver
