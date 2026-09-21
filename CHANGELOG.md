@@ -554,3 +554,25 @@ revision remains the one recorded above.
   removed, is gone from production and from the application's schema baseline.
   The local acceptance fixture no longer counts it. The obsolete local
   public-API document, whose commands no longer exist, is removed.
+
+## 2026-09-21 — Regents production release: 32×32 crown icon
+
+Deployed 2026-09-21 14:40Z with the founder's word.
+
+- Application: `regents-sh-web`, machine `83d1d90f6d0018`, image label
+  `main-0918-512216f84455`, digest `sha256:194cb7f7…9f38`.
+- Revisions: Regents `512216f844557132dc2c9067366630285d2293bb`, design-system
+  `354c860e655daf81f3304ad38fe704276a134368`, elixir-utils
+  `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Contents since the previous release (`main-0918-7ead75a623a1`): the 32×32
+  crown icon at `/images/brand/regents-crown-32.svg` (near-white blocks on
+  near-black, for token listings), and the code side of the comments-table
+  drop recorded above. No database migrations.
+- Verified: health check passing (one failed line while the new instance
+  started); the icon answers 200 as `image/svg+xml`; every probed request
+  matches the previous release on status, content type and `Vary`, only page
+  fingerprints changed; live logs carry no application errors.
+- Before/after audit: claims, allowances and credits identical; accounts grew
+  from 110 to 112 through sign-ins since the previous audit; the product table
+  count fell from 8 to 7, which is the comments-table drop applied on
+  2026-09-19.
