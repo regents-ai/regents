@@ -602,3 +602,25 @@ Deployed 2026-09-21 14:40Z with the founder's word.
   mocks. `pnpm audit` reports no known vulnerabilities; CLI suite 540/540,
   packed-install smoke and MCP tool check pass; Python tests 137 passed.
   No package was published.
+
+## 2026-09-21 — Regents production release: product pages and dependency refresh
+
+Deployed 2026-09-21 18:15Z with the founder's word.
+
+- Application: `regents-sh-web`, machine `83d1d90f6d0018`, image label
+  `main-0918-cacaddf84da6`, digest `sha256:d1926c4f…`.
+- Revisions: Regents `cacaddf84da6e2d8510b88f01fdb46ca3e08c95d`, design-system
+  `354c860e655daf81f3304ad38fe704276a134368`, elixir-utils
+  `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Contents since `main-0918-512216f84455`: the three product information pages
+  and the Products side-navigation section; the site's test-runner bump. The
+  CLI refresh in the same commit is repository-only and ships nothing to the
+  site. No database migrations.
+- Verified: health check passing; `/autolaunch`, `/techtree` and `/patchbay`
+  answer 200 and their screenshots serve as `image/webp`; in a headless browser
+  each page shows the Products heading, marks its own link current, shows one
+  theme-matched screenshot and raises no console errors; every probed request
+  matches the previous release on status, content type and `Vary`, only page
+  fingerprints changed; live logs carry no application errors.
+- Before/after audit: claims, allowances, credits and tables identical;
+  accounts grew from 112 to 113 through a sign-in since the previous audit.
