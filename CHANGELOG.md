@@ -651,3 +651,23 @@ Deployed 2026-09-21 18:15Z with the founder's word.
   stake and homepage browser suites 35/35; a live read of Base at block
   51614295 returns 30.41 billion circulating with the vault at exactly
   40 billion and the dates above.
+
+## 2026-09-21 — Regents production release: stake page vault reading and dialog
+
+Deployed 2026-09-21 19:21Z with the founder's word; recorded 2026-09-21 19:22Z.
+
+- Application: `regents-sh-web`, machine `83d1d90f6d0018`, image label
+  `main-0918-13c033f7b0c8`, digest `sha256:68527465…`.
+- Revisions: Regents `13c033f7b0c8272eef2f3d5047e7991794396a15`, design-system
+  `354c860e655daf81f3304ad38fe704276a134368`, elixir-utils
+  `6565ba2ffa49a27b6f2a063e9cf1c51b5e705fe3`.
+- Contents since `main-0918-cacaddf84da6`: the entry above. No database
+  migrations.
+- Verified: health check passing (one failed-check line while the machine
+  rolled over, passing 12 seconds later); the live stake page carries the
+  what-is-not-circulating dialog with the vault address and its lock dates;
+  `/` and `/autolaunch` carry the new headline; every probed request matches
+  the previous release on status, content type and `Vary`, only page
+  fingerprints changed; live logs carry no application errors.
+- Before/after audit: claims, allowances, credits and tables identical;
+  accounts grew from 113 to 114 through a sign-in since the previous audit.
