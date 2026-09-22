@@ -49,7 +49,7 @@ defmodule AshPlatform.MixProject do
       {:ash_postgres, "~> 2.13.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
-      {:ens_elixir, "~> 0.1.1"},
+      {:ens_elixir, path: Path.join(shared, "elixir-utils/ens")},
       {:regent_privy,
        path: System.get_env("REGENT_PRIVY_PATH", Path.join(shared, "elixir-utils/privy"))},
       {:regent_identity,

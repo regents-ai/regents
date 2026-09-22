@@ -5,7 +5,6 @@ defmodule AshPlatformWeb.PrivySessionController do
   alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.Human
   alias AshPlatform.AgentAuth.ClaimRateLimiter
-  alias AshPlatform.Privy
 
   require Logger
 
@@ -55,7 +54,8 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   def create(conn, _untrusted_params) do
     with {:ok, pair} <- session_pair(conn),
-         {:ok, verified} <- verifier().verify_session_pair(pair),
+         {:ok, verified} <-
+           verifier().verify(pair, Application.get_env(:ash_platform, :privy, [])),
          {:ok, account, identity_conflicts} <- establish(verified) do
       bind(conn, account, identity_conflicts)
     else
@@ -303,7 +303,7 @@ defmodule AshPlatformWeb.PrivySessionController do
 
   defp drop_session(conn), do: configure_session(conn, drop: true)
 
-  defp verifier, do: Application.get_env(:ash_platform, :privy_verifier, Privy)
+  defp verifier, do: Application.get_env(:ash_platform, :privy_verifier, RegentPrivy.Session)
 
   defp session_payload(nil),
     do: %{

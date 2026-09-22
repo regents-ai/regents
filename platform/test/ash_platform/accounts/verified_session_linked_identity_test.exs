@@ -1,7 +1,7 @@
 defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, VerifiedPrivyIdentity}
+  alias AshPlatform.Accounts
   alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.{Human, System}
 
@@ -149,7 +149,8 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
 
     wallet = "0x" <> String.pad_leading(wallet_suffix, 40, "0")
 
-    %VerifiedPrivyIdentity{
+    %RegentPrivy.Session{
+      app_id: "test-app",
       privy_user_id: "did:privy:linked-session:#{suffix}:#{wallet_suffix}",
       session_id: "session-#{suffix}",
       wallet_address: wallet,

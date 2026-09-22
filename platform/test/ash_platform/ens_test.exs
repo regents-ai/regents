@@ -1,7 +1,7 @@
 defmodule AshPlatform.EnsTest do
   use AshPlatformWeb.ConnCase, async: false
 
-  alias AshPlatform.{Accounts, Ens, PublicIdentity, TestEnsChainClient, VerifiedPrivyIdentity}
+  alias AshPlatform.{Accounts, Ens, PublicIdentity, TestEnsChainClient}
   alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.{Human, System}
 
@@ -167,7 +167,8 @@ defmodule AshPlatform.EnsTest do
   defp privy_identity(story) do
     wallet = TestEnsChainClient.wallet(story)
 
-    %VerifiedPrivyIdentity{
+    %RegentPrivy.Session{
+      app_id: "test-app",
       privy_user_id: "did:privy:ens:#{story}",
       session_id: "session-#{story}",
       wallet_address: wallet,

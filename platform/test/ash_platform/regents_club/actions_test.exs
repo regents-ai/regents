@@ -267,7 +267,7 @@ defmodule AshPlatform.RegentsClub.ActionsTest do
     assert Actions.deployment_readiness(current) == {:error, :media_probe_failed}
 
     Application.put_env(:ash_platform, :test_regents_club_chain_responses, %{})
-    Application.put_env(:ash_platform, :privy_verifier, __MODULE__.MissingVerifier)
+    Application.put_env(:ash_platform, :privy_verifier, RegentPrivy.Session)
 
     assert Actions.deployment_readiness(current) == {:error, :privy_verifier_unavailable}
   end

@@ -642,14 +642,12 @@ defmodule AshPlatform.RegentsClub.Actions do
   end
 
   defp server_verifier do
-    verifier = Application.get_env(:ash_platform, :privy_verifier, AshPlatform.Privy)
+    verifier = Application.get_env(:ash_platform, :privy_verifier, RegentPrivy.Session)
     config = Application.get_env(:ash_platform, :privy, [])
 
-    capable? =
-      Code.ensure_loaded?(verifier) and function_exported?(verifier, :verify_session_pair, 1)
-
-    configured? = verifier != AshPlatform.Privy or present?(config[:verification_key])
-    if capable? and configured?, do: :ok, else: {:error, :privy_verifier_unavailable}
+    if verifier != RegentPrivy.Session or present?(config[:verification_key]),
+      do: :ok,
+      else: {:error, :privy_verifier_unavailable}
   end
 
   defp media_attestation do

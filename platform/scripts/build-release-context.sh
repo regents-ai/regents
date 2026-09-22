@@ -4,8 +4,15 @@
 #
 #   <context>/
 #     platform/            this checkout
+#     blog/                    the blog content beside this checkout
+#     regents/identity/        the sibling source mix.exs resolves by path
 #     design-system/regent_ui/ the sibling source mix.exs resolves by path
 #     elixir-utils/privy/      the sibling source mix.exs resolves by path
+#     elixir-utils/blog/       the sibling source mix.exs resolves by path
+#     elixir-utils/agent_access/ the sibling source mix.exs resolves by path
+#     elixir-utils/ens/        the sibling source mix.exs resolves by path
+#     elixir-utils/siwa/siwa-elixir/apps/siwa/
+#                              the sibling source elixir-utils/ens resolves by path
 #     mix-cache/               Mix, Hex and rebar3, extracted from the sealed archive
 #     npm-cache/_cacache/      the npm content cache
 #     rustler-precompiled/     the precompiled native artifact for the target
@@ -58,6 +65,8 @@ identity_source="${REGENT_IDENTITY_PATH:-$siblings/regents/identity}"
 regent_ui_source="${REGENT_UI_PATH:-$siblings/design-system/regent_ui}"
 blog_source="${REGENT_BLOG_PATH:-$siblings/elixir-utils/blog}"
 agent_access_source="$siblings/elixir-utils/agent_access"
+ens_source="$siblings/elixir-utils/ens"
+siwa_source="$siblings/elixir-utils/siwa/siwa-elixir/apps/siwa"
 
 # The arm64 native artifact is part of the base supply; the amd64 one arrived
 # in its own sealed directory. Both declare it under the same manifest keys.
@@ -94,6 +103,7 @@ native_manifest="$native_supply/$native_manifest_name"
 
 for required in "$manifest" "$mix_addendum" "$esbuild_addendum" "$native_manifest" \
   "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$agent_access_source" \
+  "$ens_source" "$siwa_source" \
   "$repo_root/../blog"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
@@ -198,6 +208,14 @@ rsync -a --no-links "${env_filters[@]}" "$repo_root/../blog/" "$staging/blog/"
 mkdir -p "$staging/elixir-utils/agent_access"
 rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
   "$agent_access_source/" "$staging/elixir-utils/agent_access/"
+
+mkdir -p "$staging/elixir-utils/ens"
+rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
+  "$ens_source/" "$staging/elixir-utils/ens/"
+
+mkdir -p "$staging/elixir-utils/siwa/siwa-elixir/apps/siwa"
+rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
+  "$siwa_source/" "$staging/elixir-utils/siwa/siwa-elixir/apps/siwa/"
 
 # The sealed npm directory is the cache payload itself, so it lands one level
 # down: npm resolves its content under <cache>/_cacache.
