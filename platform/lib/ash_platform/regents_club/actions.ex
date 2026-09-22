@@ -488,7 +488,7 @@ defmodule AshPlatform.RegentsClub.Actions do
 
   def observation_open?(envelope) when is_map(envelope) do
     with {:ok, deadline, _offset} <-
-           DateTime.from_iso8601(field(field(envelope, :metadata), :observation_deadline)),
+           DateTime.from_iso8601(envelope.metadata.observation_deadline),
          :lt <- DateTime.compare(Envelope.current_time(), deadline) do
       true
     else
@@ -540,49 +540,49 @@ defmodule AshPlatform.RegentsClub.Actions do
 
   defp exact_envelope?(envelope) do
     exact_transaction?(envelope) and
-      exact_arguments?(field(envelope, :arguments)) and
-      exact_preflight?(field(envelope, :metadata)) and
+      exact_arguments?(envelope.arguments) and
+      exact_preflight?(envelope.metadata) and
       exact_observation_deadline?(envelope)
   end
 
   defp exact_transaction?(envelope) do
     checks = [
-      field(envelope, :resource) == @resource,
-      field(envelope, :action) == RegentsClub.action(),
-      field(envelope, :chain_id) == RegentsClub.chain_id(),
-      field(envelope, :to) == RegentsClub.contract_address(),
-      field(envelope, :value) == "0",
-      field(envelope, :data) == RegentsClub.calldata(),
-      valid_signer?(field(envelope, :expected_signer)),
-      field(envelope, :risk_copy) == @risk_copy
+      envelope.resource == @resource,
+      envelope.action == RegentsClub.action(),
+      envelope.chain_id == RegentsClub.chain_id(),
+      envelope.to == RegentsClub.contract_address(),
+      envelope.value == "0",
+      envelope.data == RegentsClub.calldata(),
+      valid_signer?(envelope.expected_signer),
+      envelope.risk_copy == @risk_copy
     ]
 
     Enum.all?(checks)
   end
 
   defp exact_arguments?(arguments) when is_map(arguments) do
-    field(arguments, :new_base_uri) == RegentsClub.new_base_uri() and
-      RegentsClub.valid_attempt_id?(field(arguments, :attempt_id))
+    arguments.new_base_uri == RegentsClub.new_base_uri() and
+      RegentsClub.valid_attempt_id?(arguments.attempt_id)
   end
 
   defp exact_arguments?(_arguments), do: false
 
   defp exact_preflight?(metadata) when is_map(metadata) do
-    anchor_number = field(metadata, :anchor_block_number)
-    gas_estimate = field(metadata, :gas_estimate)
+    anchor_number = metadata.anchor_block_number
+    gas_estimate = metadata.gas_estimate
 
     checks = [
       is_integer(anchor_number) and anchor_number >= 0,
-      valid_hash?(field(metadata, :anchor_block_hash)),
-      field(metadata, :current_base_uri) == RegentsClub.old_base_uri(),
-      field(metadata, :runtime_keccak256) == RegentsClub.runtime_keccak256(),
-      field(metadata, :total_supply) == 1998,
-      field(metadata, :erc4906_supported) == true,
-      field(metadata, :owner_simulation) == "success",
-      field(metadata, :non_owner_simulation) == "revert",
-      field(metadata, :calldata_keccak256) == RegentsClub.calldata_keccak256(),
+      valid_hash?(metadata.anchor_block_hash),
+      metadata.current_base_uri == RegentsClub.old_base_uri(),
+      metadata.runtime_keccak256 == RegentsClub.runtime_keccak256(),
+      metadata.total_supply == 1998,
+      metadata.erc4906_supported == true,
+      metadata.owner_simulation == "success",
+      metadata.non_owner_simulation == "revert",
+      metadata.calldata_keccak256 == RegentsClub.calldata_keccak256(),
       positive_integer_string?(gas_estimate),
-      boundary_uris?(field(metadata, :boundary_token_uris), RegentsClub.old_base_uri())
+      boundary_uris?(metadata.boundary_token_uris, RegentsClub.old_base_uri())
     ]
 
     Enum.all?(checks)
@@ -591,9 +591,9 @@ defmodule AshPlatform.RegentsClub.Actions do
   defp exact_preflight?(_metadata), do: false
 
   defp exact_observation_deadline?(envelope) do
-    with {:ok, prepared_at, _offset} <- DateTime.from_iso8601(field(envelope, :prepared_at)),
+    with {:ok, prepared_at, _offset} <- DateTime.from_iso8601(envelope.prepared_at),
          {:ok, deadline, _offset} <-
-           DateTime.from_iso8601(field(field(envelope, :metadata), :observation_deadline)) do
+           DateTime.from_iso8601(envelope.metadata.observation_deadline) do
       DateTime.diff(deadline, prepared_at, :second) == @observation_seconds
     else
       _ -> false
@@ -603,7 +603,7 @@ defmodule AshPlatform.RegentsClub.Actions do
   defp validation(envelope) do
     [
       to: RegentsClub.contract_address(),
-      signer: field(envelope, :expected_signer),
+      signer: envelope.expected_signer,
       resource: @resource,
       contract_name: @contract_name,
       action: RegentsClub.action()
@@ -897,8 +897,8 @@ defmodule AshPlatform.RegentsClub.Actions do
     do: :sha256 |> :crypto.hash(contents) |> Base.encode16(case: :lower)
 
   defp boundary_uris?(uris, base_uri) when is_map(uris) do
-    field(uris, :first) == base_uri <> Integer.to_string(RegentsClub.first_token_id()) and
-      field(uris, :last) == base_uri <> Integer.to_string(RegentsClub.last_token_id())
+    uris.first == base_uri <> Integer.to_string(RegentsClub.first_token_id()) and
+      uris.last == base_uri <> Integer.to_string(RegentsClub.last_token_id())
   end
 
   defp boundary_uris?(_uris, _base_uri), do: false
@@ -916,7 +916,6 @@ defmodule AshPlatform.RegentsClub.Actions do
     do: byte_size(hash) == 64 and String.match?(hash, ~r/\A[0-9a-fA-F]+\z/)
 
   defp valid_hash?(_hash), do: false
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
 
   defp chain_client,
     do:

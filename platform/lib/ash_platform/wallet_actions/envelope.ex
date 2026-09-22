@@ -90,7 +90,7 @@ defmodule AshPlatform.WalletActions.Envelope do
   def current_time, do: now()
 
   defp valid_envelope?(envelope, opts, max_age) do
-    with {:ok, signed} <- verify(field(envelope, :confirmation_token), max_age),
+    with {:ok, signed} <- verify(envelope.confirmation_token, max_age),
          true <- signed == canonical_payload(envelope),
          true <- envelope.chain_id == 8453,
          true <- envelope.value == "0",
@@ -122,7 +122,7 @@ defmodule AshPlatform.WalletActions.Envelope do
       action_matches?(opts, envelope.action) and
       address_option_matches?(opts, :to, envelope.to) and
       address_option_matches?(opts, :signer, envelope.expected_signer) and
-      option_matches?(opts, :contract_name, field(envelope.metadata, :contract_name))
+      option_matches?(opts, :contract_name, envelope.metadata.contract_name)
   end
 
   defp option_matches?(opts, key, actual) do
@@ -160,21 +160,15 @@ defmodule AshPlatform.WalletActions.Envelope do
         envelope.expected_signer,
         envelope.prepared_at
       ],
-      field(envelope, :preparation_nonce)
+      envelope.preparation_nonce
     )
   end
 
   defp action_id(fields, nonce) do
-    fields
-    |> maybe_append_nonce(nonce)
+    (fields ++ [nonce])
     |> Enum.map_join(":", &to_string/1)
     |> sha256()
   end
-
-  defp maybe_append_nonce(fields, nonce) when is_binary(nonce) and nonce != "",
-    do: fields ++ [nonce]
-
-  defp maybe_append_nonce(fields, _nonce), do: fields
 
   defp sha256(value), do: :crypto.hash(:sha256, value) |> Base.encode16(case: :lower)
 
@@ -215,8 +209,6 @@ defmodule AshPlatform.WalletActions.Envelope do
     |> Jason.encode!()
     |> Jason.decode!()
   end
-
-  defp field(map, key), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
 
   defp normalize_address!(value) do
     case Address.normalize(value) do

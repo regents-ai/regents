@@ -92,13 +92,6 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     assert Envelope.valid?(second, @validation)
   end
 
-  test "a nonce-less legacy envelope keeps its verification contract" do
-    legacy = Envelope.new("act", @signer, @data, @context) |> legacy_envelope()
-
-    assert Envelope.valid?(legacy, @validation)
-    assert Envelope.valid_for_confirmation?(legacy, @validation)
-  end
-
   test "rejects an intact signed envelope for another current signer or handler contract" do
     envelope = Envelope.new("act", @signer, @data, @context)
     other_signer = "0x3333333333333333333333333333333333333333"
@@ -168,29 +161,6 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
 
   defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
   defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
-
-  defp legacy_envelope(envelope) do
-    legacy_id =
-      [
-        envelope.resource,
-        envelope.action,
-        envelope.chain_id,
-        envelope.to,
-        envelope.value,
-        envelope.data,
-        envelope.expected_signer,
-        envelope.prepared_at
-      ]
-      |> Enum.map_join(":", &to_string/1)
-      |> then(&:crypto.hash(:sha256, &1))
-      |> Base.encode16(case: :lower)
-
-    envelope
-    |> Map.delete(:preparation_nonce)
-    |> Map.put(:action_id, legacy_id)
-    |> Map.put(:idempotency_key, legacy_id)
-    |> resign()
-  end
 
   defp resign(envelope) do
     payload =
