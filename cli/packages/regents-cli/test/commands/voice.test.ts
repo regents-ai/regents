@@ -26,8 +26,6 @@ const voiceConfig = (overrides: Partial<RegentVoiceConfig> = {}): RegentVoiceCon
   defaultVoice: "marin",
   reasoningEffort: "low",
   sessionTtlSeconds: 60,
-  // Point at a nonexistent file so the gateway uses the bundled byte-parity registry.
-  toolRegistryPath: "/nonexistent/voice-tools.json",
   ...overrides,
 });
 

@@ -1,9 +1,8 @@
-import type { paths as AutolaunchPaths } from "../generated/autolaunch-openapi.js";
 import type { paths as ProfilePaths } from "../generated/profile-openapi.js";
 import type { paths as PlatformPaths } from "../generated/platform-openapi.js";
 import type { paths as RegentServicePaths } from "../generated/regent-services-openapi.js";
 
-export type ApiContractOwner = "techtree" | "autolaunch" | "platform" | "shared-services";
+export type ApiContractOwner = "techtree" | "platform" | "shared-services";
 export type ApiCommandStatus = "current" | "current-local-and-api" | "local";
 
 export interface ApiCommandGroup {
@@ -13,14 +12,6 @@ export interface ApiCommandGroup {
   readonly note?: string;
   readonly pathTemplates: readonly string[];
 }
-
-const defineAutolaunchGroup = <
-  const TPaths extends readonly (keyof AutolaunchPaths)[],
->(
-  group: Omit<ApiCommandGroup, "pathTemplates"> & {
-    readonly pathTemplates: TPaths;
-  },
-) => group;
 
 const definePlatformGroup = <
   const TPaths extends readonly ((keyof PlatformPaths) | (keyof ProfilePaths))[],
@@ -53,198 +44,6 @@ export const techtreeApiCommandGroups = [
     pathTemplates: [],
   },
 ] as const satisfies readonly ApiCommandGroup[];
-
-export const autolaunchApiCommandGroups = [
-  defineAutolaunchGroup({
-    commands: ["autolaunch agents list", "autolaunch agent <id>", "autolaunch agent readiness <id>"],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/agents",
-      "/api/autolaunch/v1/agent/agents/{id}",
-      "/api/autolaunch/v1/agent/agents/{id}/readiness",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: ["autolaunch pair", "autolaunch connect start"],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/agent-connections",
-      "/api/autolaunch/v1/agent/agent-connections/{id}",
-      "/api/autolaunch/v1/app/agent-connections/{code}",
-      "/api/autolaunch/v1/app/agent-connections/{code}/confirm",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch prelaunch wizard",
-      "autolaunch prelaunch get",
-      "autolaunch prelaunch validate",
-      "autolaunch prelaunch publish",
-    ],
-    owner: "autolaunch",
-    status: "current-local-and-api",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/prelaunch/plans",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/validate",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/publish",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/launch",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/metadata",
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/metadata-preview",
-      "/api/autolaunch/v1/app/prelaunch/plans",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}/validate",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}/publish",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}/launch",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}/metadata",
-      "/api/autolaunch/v1/app/prelaunch/plans/{id}/metadata-preview",
-      "/api/autolaunch/v1/app/launch/preview",
-      "/api/autolaunch/v1/app/launch/jobs",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch launch run",
-      "autolaunch launch monitor",
-      "autolaunch launch finalize",
-      "autolaunch jobs watch",
-      "autolaunch vesting status",
-      "autolaunch vesting release",
-      "autolaunch vesting propose-beneficiary-rotation",
-      "autolaunch vesting cancel-beneficiary-rotation",
-      "autolaunch vesting execute-beneficiary-rotation",
-    ],
-    owner: "autolaunch",
-    status: "current-local-and-api",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/prelaunch/plans/{id}/launch",
-      "/api/autolaunch/v1/agent/launch/jobs/{id}",
-      "/api/autolaunch/v1/agent/lifecycle/jobs/{id}",
-      "/api/autolaunch/v1/agent/lifecycle/jobs/{id}/finalize/prepare",
-      "/api/autolaunch/v1/agent/lifecycle/jobs/{id}/finalize/register",
-      "/api/autolaunch/v1/app/lifecycle/jobs/{id}/vesting",
-      "/api/autolaunch/v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: ["autolaunch auction-returns list"],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: ["/api/autolaunch/v1/agent/auction-returns"],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch subjects by-token",
-      "autolaunch subjects get",
-      "autolaunch subjects ingress",
-      "autolaunch subjects staking",
-      "autolaunch subjects sweep-ingress",
-      "autolaunch subjects buybacks",
-      "autolaunch subjects payment-links",
-      "autolaunch subjects verify",
-      "autolaunch payment-links create",
-      "autolaunch payment-links set-canonical",
-      "autolaunch payment-links set-state",
-    ],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/subjects/{id}",
-      "/api/autolaunch/v1/agent/subjects/by-token/{token}",
-      "/api/autolaunch/v1/agent/subjects/{id}/ingress",
-      "/api/autolaunch/v1/agent/subjects/{id}/staking",
-      "/api/autolaunch/v1/agent/subjects/{id}/buybacks",
-      "/api/autolaunch/v1/agent/subjects/{id}/payment-links",
-      "/api/autolaunch/v1/agent/contracts/subjects/{id}/{resource}/{action}/prepare",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch chat list",
-      "autolaunch chat read <scope>",
-      "autolaunch chat tail [scope...]",
-      "autolaunch chat send <scope>",
-      "autolaunch chat unread [scope...]",
-      "autolaunch chat subscribe add <scope>",
-      "autolaunch chat subscribe remove <scope>",
-      "autolaunch chat subscribe list",
-      "autolaunch dm <subject-id|address>",
-      "autolaunch dm list",
-    ],
-    owner: "autolaunch",
-    status: "current-local-and-api",
-    note: "Autolaunch chat HTTP routes; DMs are server-stored dm scopes on the agent chat routes.",
-    pathTemplates: [
-      "/api/autolaunch/v1/chat/channels",
-      "/api/autolaunch/v1/chat/messages",
-      "/api/autolaunch/v1/chat/stream",
-      "/api/autolaunch/v1/agent/chat/messages",
-      "/api/autolaunch/v1/agent/chat/dms",
-      "/api/autolaunch/v1/app/subjects/{id}",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: ["autolaunch ens plan", "autolaunch ens prepare-ensip25", "autolaunch ens prepare-erc8004", "autolaunch ens prepare-bidirectional"],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/autolaunch/v1/agent/ens/link/plan",
-      "/api/autolaunch/v1/agent/ens/link/prepare-ensip25",
-      "/api/autolaunch/v1/agent/ens/link/prepare-erc8004",
-      "/api/autolaunch/v1/agent/ens/link/prepare-bidirectional",
-    ],
-  }),
-  defineAutolaunchGroup({
-    commands: [
-      "autolaunch contracts admin",
-      "autolaunch contracts job",
-      "autolaunch contracts subject",
-      "autolaunch contracts verify",
-      "autolaunch strategy migrate",
-      "autolaunch auction claim-unused-tokens",
-      "autolaunch strategy sweep-token",
-      "autolaunch strategy sweep-quote-token",
-      "autolaunch fee-registry get",
-      "autolaunch fee-vault get",
-      "autolaunch fee-vault withdraw-regent",
-      "autolaunch splitter get",
-      "autolaunch splitter accept-ownership",
-      "autolaunch splitter set-paused",
-      "autolaunch splitter set-label",
-      "autolaunch splitter propose-eligible-revenue-share",
-      "autolaunch splitter cancel-eligible-revenue-share",
-      "autolaunch splitter activate-eligible-revenue-share",
-      "autolaunch splitter propose-treasury-recipient-rotation",
-      "autolaunch splitter cancel-treasury-recipient-rotation",
-      "autolaunch splitter execute-treasury-recipient-rotation",
-      "autolaunch splitter sweep-treasury-residual",
-      "autolaunch splitter sweep-treasury-reserved",
-      "autolaunch splitter reassign-dust",
-      "autolaunch ingress create",
-      "autolaunch ingress set-default",
-      "autolaunch ingress set-label",
-      "autolaunch ingress rescue",
-      "autolaunch registry get",
-      "autolaunch registry set-subject-manager",
-      "autolaunch registry link-identity",
-      "autolaunch registry rotate-safe",
-      "autolaunch factory revenue-share set-authorized-creator",
-      "autolaunch factory revenue-ingress set-authorized-creator",
-    ],
-    owner: "autolaunch",
-    status: "current",
-    pathTemplates: [
-      "/api/autolaunch/v1/app/contracts/admin",
-      "/api/autolaunch/v1/agent/contracts/jobs/{id}",
-      "/api/autolaunch/v1/app/contracts/subjects/{id}",
-      "/api/autolaunch/v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare",
-      "/api/autolaunch/v1/agent/contracts/subjects/{id}/{resource}/{action}/prepare",
-      "/api/autolaunch/v1/app/contracts/admin/{resource}/{action}/prepare",
-    ],
-  }),
-] as const;
 
 export const platformApiCommandGroups = [
   definePlatformGroup({
@@ -434,7 +233,6 @@ export const sharedServicesApiCommandGroups = [
 export const apiCommandOwnership = [
   ...profileApiCommandGroups,
   ...techtreeApiCommandGroups,
-  ...autolaunchApiCommandGroups,
   ...platformApiCommandGroups,
   ...sharedServicesApiCommandGroups,
 ] as const;

@@ -56,7 +56,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert has_element?(
              dark,
-             ~s(#theme-control button.theme-toggle[aria-pressed=false][title="Switch to Light"]),
+             ~s(#theme-control button.rg-theme-toggle[aria-pressed=false][title="Switch to Light"]),
              "Dark theme active"
            )
 
@@ -67,13 +67,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert has_element?(
              light,
-             ~s(#theme-control button.theme-toggle[aria-pressed=true][title="Switch to Dark"]),
+             ~s(#theme-control button.rg-theme-toggle[aria-pressed=true][title="Switch to Dark"]),
              "Light theme active"
            )
 
     assert has_element?(
              light,
-             ~s(button.theme-toggle[aria-label="Color theme: Light. Activate Dark theme."])
+             ~s(button.rg-theme-toggle[aria-label="Color theme: Light. Activate Dark theme."])
            )
   end
 
@@ -84,7 +84,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-light")
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-dark")
     refute has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
-    assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
+    assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign In")
 
     assert has_element?(
@@ -118,7 +118,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
     assert has_element?(view, "#account-control a[data-account-menu-item=account]", "Account")
-    assert has_element?(view, "#theme-control button.theme-toggle[data-theme-toggle]")
+    assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
   end
 

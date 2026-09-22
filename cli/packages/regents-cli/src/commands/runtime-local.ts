@@ -43,7 +43,6 @@ export async function runRuntimeLocalPolicy(configPath?: string): Promise<number
     ok: true,
     budget_model: "Regent-mediated policy, not custody isolation.",
     wallet_model: "Regent identity wallet is separate from Agentic Wallet spend.",
-    autolaunch_model: "Operator approval is required.",
     active_budget_count: budgets.filter((budget) => budget.status === "active").length,
     next_steps: [],
   });

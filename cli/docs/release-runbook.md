@@ -16,7 +16,7 @@ This runbook covers four things:
 If you remember only one thing, remember this:
 
 - `regents-cli` is released like a package
-- `techtree` and `autolaunch` are operated like systems
+- `techtree` is operated like a system
 
 ## Current release gate
 
@@ -73,12 +73,11 @@ What it does not do by itself is replace hosted CI and npm trusted-publisher set
 Before treating a release candidate as publishable, confirm these conditions:
 
 1. The Techtree backend contract changes, if any, are already merged and stable.
-2. The Autolaunch backend contract changes, if any, are already merged and stable.
-3. `pnpm check:workspace` passes with every required release repo present.
-4. `pnpm check:openapi` passes with no generated-file drift.
-5. `pnpm check:pack-cli-contents` proves the tarball only contains the intended package files.
-6. `pnpm test:pack-smoke` passes from the package tarball, not just the workspace build.
-7. The release notes are clear about operator-facing changes.
+2. `pnpm check:workspace` passes with every required contract and generated file present.
+3. `pnpm check:openapi` passes with no generated-file drift.
+4. `pnpm check:pack-cli-contents` proves the tarball only contains the intended package files.
+5. `pnpm test:pack-smoke` passes from the package tarball, not just the workspace build.
+6. The release notes name every command, flag and JSON output shape the release changes or removes. Command shapes change only by a deliberate release; there is no compatibility window.
 
 If the CLI contract changed, do not publish until the owning backend contract and generated CLI types agree.
 
@@ -221,7 +220,6 @@ Those are the things an operator or downstream user actually feels.
 This runbook does not replace:
 
 - [`docs/manual-acceptance.md`](./manual-acceptance.md) for operator usage checks
-- [`docs/autolaunch-cli.md`](./autolaunch-cli.md) for the Autolaunch command lifecycle
 - [`docs/regent-doctor-spec.md`](./regent-doctor-spec.md) for doctor behavior
 
 Those docs explain how the CLI behaves.

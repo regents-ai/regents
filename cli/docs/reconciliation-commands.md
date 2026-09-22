@@ -1,6 +1,6 @@
 # Chain / API Reconciliation Commands
 
-Status: SHIPPED (2026-06-10). Four commands are live — `identity graph`, `autolaunch contracts verify`, `autolaunch subjects verify`, and `regent-staking verify`. The three verify commands gained their owning-contract entries (autolaunch/docs/cli-contract.yaml and platform/cli-contract.yaml) and full implementations + tests. Several checks render `UNVERIFIABLE` until the sibling-API gaps below are closed (untyped autolaunch contract overviews and subject→launch link). Autolaunch subject money rows now publish explicit current-state fields and read sources. The vendored read ABI is pinned to RegentRevenueStaking.sol; if that contract changes, update the ABI in the command file. The "Required sibling-repo entries" and API-gap lists below are retained as the record of what was added and what remains to file with owners.
+Status: SHIPPED (2026-06-10). Two commands are live — `identity graph` and `regent-staking verify`. `regent-staking verify` gained its owning-contract entry (platform/cli-contract.yaml) and a full implementation with tests. Several `identity graph` checks render `UNVERIFIABLE` until the sibling-API gaps below are closed. The vendored read ABI is pinned to RegentRevenueStaking.sol; if that contract changes, update the ABI in the command file. The "Required sibling-repo entries" and API-gap lists below are retained as the record of what was added and what remains to file with owners.
 
 The Regents CLI is the bridge that checks product workflow state against onchain truth.
 These commands read public product APIs and chain RPC, then report where the two views
@@ -19,7 +19,6 @@ agree, disagree, or cannot be compared.
 
 | Binding | Contract file | Reconciliation-relevant operations |
 | --- | --- | --- |
-| `autolaunch-openapi.ts` | `autolaunch/docs/api-contract.openapiv3.yaml` | `agentListAgents`, `agentGetAgent`, `getContractsAdminOverview`, `agentGetContractsJobOverview`, `agentGetContractsSubjectOverview`, `agentGetSubject`, `agentListSubjectsByToken`, `agentGetSubjectIngress`, `agentGetSubjectStaking`, `agentListSubjectBuybacks`, `agentGetAuction`, `agentGetLaunchJob`, `agentGetLifecycleJob`, `agentGetVestingStatus` |
 | `platform-openapi.ts` | `platform/api-contract.openapiv3.yaml` | `getAgentRegentStakingOverview`, `getAgentRegentStakingAccount` (both return `RegentStakingState` with `contract_address`, `chain_id`, totals, and per-wallet balances/claimables), `/api/platform/projection` (`AgentPlatformProjection` with companies, runtime, public profiles) |
 | `regent-services-openapi.ts` | `docs/regent-services-contract.openapiv3.yaml` | Shared identity and SIWA routes. No reconciliation data. |
 
@@ -32,7 +31,7 @@ agree, disagree, or cannot be compared.
   - Base mainnet: `BASE_MAINNET_RPC_URL` or `BASE_RPC_URL`
   - Base Sepolia: `BASE_SEPOLIA_RPC_URL`
   - Ethereum mainnet: `ETH_MAINNET_RPC_URL` or `ETHEREUM_RPC_URL`
-  - Some command families also accept `--rpc-url` (Autolaunch safe-create pattern).
+  - Some command families also accept `--rpc-url`.
 - Reconciliation reads use the same clients with `readContract` /
   `getTransactionReceipt` / `getBytecode`. When no RPC URL is configured, a chain check
   reports `UNVERIFIABLE` with the missing variable named; it never fails the command by
@@ -51,18 +50,17 @@ agree, disagree, or cannot be compared.
 ### Contract ownership (what `pnpm check:cli-contract` enforces)
 
 `scripts/check-cli-contract.mjs` requires the shipped command registry to equal the
-union of four CLI contracts, and the dispatcher routes to match that registry exactly:
+union of three CLI contracts, and the dispatcher routes to match that registry exactly:
 
 | Command family | Owning CLI contract | Editable from this repo |
 | --- | --- | --- |
-| `autolaunch ...` | `autolaunch/docs/cli-contract.yaml` | no |
 | `techtree ...` | `techtree/docs/cli-contract.yaml` | no |
 | `regent-staking ...` | `platform/cli-contract.yaml` (platform public command prefix) | no |
 | `identity ...` | `docs/shared-cli-contract.yaml` | yes |
 
 A route added without a matching contract entry fails
 `CLI dispatcher contains route missing from shipped contracts`. Because sibling repos
-must not be edited from this repo, the four verify commands below ship only after their
+must not be edited from this repo, the verify command below ships only after their
 owning contract gains the entries listed in "Required sibling-repo entries". No stub or
 degraded versions are shipped in the meantime.
 
@@ -95,63 +93,7 @@ a single JSON object:
 
 ---
 
-## 1. `regents autolaunch contracts verify` (design-only)
-
-Verifies that the contract addresses Autolaunch publishes are real deployed contracts
-that still point at each other.
-
-- Data sources (API): `appGetContractsAdminOverview`
-  (`GET /api/autolaunch/v1/app/contracts/admin`), `agentGetContractsJobOverview`
-  (`GET /api/autolaunch/v1/agent/contracts/jobs/{id}`, `--job`), `agentGetContractsSubjectOverview`
-  (`GET /api/autolaunch/v1/agent/contracts/subjects/{id}`, `--subject`).
-- Data sources (chain, Base): for every published address — `getBytecode` (deployed
-  code present); for splitter/fee-vault/registry — `readContract` sanity reads such as
-  `owner()`/`paused()` where the overview publishes expected values.
-- Checks per published contract: `deployed code`, `owner matches API`,
-  `paused state matches API`, `linked identity (registry) matches the subject's agent`.
-- Verdict logic: address with no bytecode → `MISMATCH`
-  (`Next: chain wins. The published address is not a deployed contract; report it to Autolaunch (incident class billing/launch_deployment).`).
-  API owner/paused differs from chain read → `MISMATCH`
-  (`Next: chain wins for ownership; refresh the Autolaunch record.`). Missing RPC URL →
-  every chain row `UNVERIFIABLE(set BASE_MAINNET_RPC_URL or pass --rpc-url)`.
-- Output: one table per scope (admin / job / subject) with the rows above; `--json`
-  adds the raw API overview under `api_view` and the chain reads under `chain_view`.
-- Missing from sibling APIs:
-  - The contracts overviews are `LooseObject` in the OpenAPI contract. To diff
-    field-by-field, `autolaunch/docs/api-contract.openapiv3.yaml` must type the admin,
-    job, and subject overview payloads (addresses plus expected `owner`, `paused`,
-    `skim_bps` values).
-  - The API does not publish ABI fragments or expected function selectors; the CLI
-    will carry the minimal read ABI (owner/paused) itself.
-
-## 2. `regents autolaunch subjects verify` (design-only)
-
-Verifies one subject's workflow state against onchain token/auction state.
-
-- Data sources (API): `agentGetSubject` (`GET /api/autolaunch/v1/agent/subjects/{id}` — `Subject`
-  schema: `token_address`, `splitter_address`, `ingress_address`, `treasury_address`,
-  `protocol_fee_usdc_total`, `pending_buyback_usdc`, `ingress_usdc_token_address`,
-  `current_unswept_usdc_raw`, `pending_buyback_usdc_raw`, `splitter_accounted_usdc_raw`,
-  and `money_read_sources`), `agentGetSubjectStaking`,
-  `agentGetSubjectIngress`, `agentListSubjectBuybacks`, and when the subject came from a
-  launch: `agentGetLaunchJob` + `agentGetAuction` for auction status.
-- Data sources (chain, Base): `getBytecode` for token/splitter/ingress; ERC-20 reads on
-  `token_address` (`symbol`, `totalSupply`); USDC `balanceOf(ingress_address)` vs the
-  API's unswept ingress amount; auction contract state for a live auction
-  (`auction_address` from the launch record).
-- Verdict logic: money rows (ingress balance, pending buybacks, splitter accounting) —
-  chain wins; a difference is `MISMATCH` with
-  `Next: chain wins for revenue. Sweep pending ingress with regents autolaunch subjects sweep-ingress, use the Autolaunch web app for buyback settlement, then refresh.`
-  Workflow rows (subject kind, label, team_shared_status) — product wins; a chain-side
-  surprise that does not touch money is reported as `MISMATCH` with
-  `Next: the product record wins for workflow state; update it in Autolaunch.`
-- Output: table keyed by `subject_id` with token, splitter, ingress, staking, buyback
-  rows; `--json` includes both views.
-- Missing from sibling APIs:
-  - Auction settlement records per subject (clearing price, raise totals) are not on the
-    agent surface; `/api/autolaunch/v1/agent/auctions/{id}` covers live auctions only.
-
-## 3. `regents regent-staking verify` (design-only)
+## 1. `regents regent-staking verify` (shipped)
 
 Verifies the staking position and claimables the Platform staking API reports for a
 wallet against the staking contract.
@@ -181,7 +123,7 @@ wallet against the staking contract.
     method names in `RegentStakingState`, or the CLI vendors the staking read ABI once
     the contract source is pinned.
 
-## 4. `regents identity graph` (shipped)
+## 2. `regents identity graph` (shipped)
 
 Renders the cross-product `agent_id` mapping anchored on
 `/Users/sean/Documents/regent/docs/schemas/agent-identity-graph.schema.yaml`:
@@ -228,20 +170,11 @@ Renders the cross-product `agent_id` mapping anchored on
 
 ## Required sibling-repo entries (do not implement from this repo)
 
-- `autolaunch/docs/cli-contract.yaml`: add `autolaunch contracts verify`
-  (flags: `--job`, `--subject`, `--rpc-url`, `--json`) bound to
-  `getContractsAdminOverview` / `agentGetContractsJobOverview` /
-  `agentGetContractsSubjectOverview`, and `autolaunch subjects verify`
-  (args: `<subject_id>`; flags: `--rpc-url`, `--json`) bound to `agentGetSubject`,
-  `agentGetSubjectStaking`, `agentGetSubjectIngress`, `agentListSubjectBuybacks`.
-  Mirror both in `packages/regents-cli/src/contracts/api-ownership.ts`
-  (`autolaunchApiCommandGroups`) when implementing.
 - `platform/cli-contract.yaml`: add `regents regent-staking verify`
   (positional `<address>` optional; flags: `--rpc-url`, `--json`) with
   `transport.operationIds: [getAgentRegentStakingOverview, getAgentRegentStakingAccount]`
   and availability `current` (it is a `regent-staking ` platform public command).
-- API gaps to file with owners: typed Autolaunch contracts overviews, subject ingress
-  expected-unswept amounts, staking read ABI (platform), agent activity summary
+- API gaps to file with owners: staking read ABI (platform), agent activity summary
   (techtree), agent card `launch_id` (autolaunch), and the
   `LooseListEnvelope` drift on `GET /api/autolaunch/v1/agent/agents` — contract declares `data`,
   server returns `items` (autolaunch).

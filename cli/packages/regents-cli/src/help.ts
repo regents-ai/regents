@@ -75,12 +75,6 @@ const agentIdentityPrerequisites = [
   "Run `regents identity ensure` so signed agent requests have wallet, chain, registry, and token details.",
 ];
 
-const autolaunchPrerequisites = [
-  "Run `regents run` in another terminal.",
-  "Run `regents auth login --audience autolaunch`.",
-  "Run `regents identity ensure`.",
-];
-
 const techtreePrerequisites = [
   "Run `regents run` in another terminal.",
   "Choose a local workspace path for the notebook.",
@@ -105,18 +99,6 @@ const walletPrerequisites = [
 const paymentPrerequisites = [
   "Use `regents wallet setup` to review existing wallet choices. Agentic Wallet is needed only for --rail agentic-wallet; --rail regent-wallet uses the configured local signer.",
   "For budget-aware `x402 pay`, check the named local budget and the selected signer’s authority and funding separately.",
-];
-
-const autolaunchFailureChecks = [
-  "If the command says auth is missing, run `regents auth login --audience autolaunch` and `regents identity ensure`.",
-  "If a wallet or signer is missing, run `regents wallet status` and use the exact missing flag named in the error.",
-  "If the result is not ready, run the read/status command shown in the output before trying the next write.",
-];
-
-const autolaunchWalletActionPrerequisites = [
-  ...autolaunchPrerequisites,
-  "Use a wallet that can review and sign the prepared action before any onchain submit step.",
-  "Check that the wallet has enough token balance and network fees before a bid, claim, release, or finalize command.",
 ];
 
 const techtreeFailureChecks = [
@@ -526,7 +508,7 @@ Object.assign(commandHelpOverlay, {
     summary: "Print the command map and local context that another agent can safely read.",
     usage: 'regents agent-context [--area <name>] [--command "<command>"] [--json]',
     flags: [
-      "--area <name> - Only include commands for one area, such as techtree, autolaunch, platform, wallet, x402, chat, work, or mcp.",
+      "--area <name> - Only include commands for one area, such as techtree, platform, wallet, x402, work, or mcp.",
       '--command "<command>" - Only include the one exact command named.',
       "--json",
       "--config <path>",
@@ -588,7 +570,6 @@ Object.assign(commandHelpOverlay, {
     flags: ["--audience <name>", "--wallet-address <address>", "--chain-id <id>", "--json", "--config <path>"],
     examples: [
       "regents auth login --audience techtree",
-      "regents auth login --audience autolaunch",
       "regents auth login --audience regent-services",
     ],
     prerequisites: ["Start `regents run` in another terminal when the command says local Regent is unavailable."],
@@ -789,244 +770,6 @@ Object.assign(commandHelpOverlay, {
     nextStep: "Review the draft before posting it publicly.",
     ifItFails: ["If the receipt id is missing, run `regents receipt list --json`."],
   },
-  "autolaunch agents list": {
-    summary: "List Autolaunch agents and find the ones that can launch.",
-    usage: "regents autolaunch agents list [--launchable] [--json]",
-    flags: ["--launchable - Show only agents that are close to launch-ready.", "--json", "--config <path>"],
-    examples: ["regents autolaunch agents list --launchable", "regents autolaunch agents list --json"],
-    prerequisites: autolaunchPrerequisites,
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows agent ids, launch readiness fields, and the next readiness command to run.",
-    nextStep: "Run `regents autolaunch agent readiness <id>` for the agent you plan to launch.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch agent readiness <id>": {
-    summary: "Check one agent before spending time on launch setup.",
-    usage: "regents autolaunch agent readiness <id> [--json]",
-    flags: ["<id> - Agent id from `regents autolaunch agents list`.", "--json", "--config <path>"],
-    examples: ["regents autolaunch agent readiness <id> --json"],
-    prerequisites: autolaunchPrerequisites,
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows what is ready, what is missing, and whether the agent can move into prelaunch planning.",
-    nextStep: "Fix waiting items, then run `regents autolaunch prelaunch wizard`.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch prelaunch wizard": {
-    summary: "Create or update the saved prelaunch plan for one agent.",
-    usage:
-      "regents autolaunch prelaunch wizard --agent <id> --name <token-name> --symbol <symbol> --minimum-raise-quote <amount> --agent-safe-address <safe> [--connect-profile]",
-    flags: [
-      "--agent <id> - Agent being launched.",
-      "--name <text> - Token name.",
-      "--symbol <text> - Token symbol.",
-      "--minimum-raise-quote <amount> - Minimum $REGENT raise target, up to 18 decimals.",
-      "--agent-safe-address <address> - Agent Safe that will control launch ownership.",
-      "--plan <id> - Update an existing plan.",
-      "--connect-profile - Start a profile connection link during the wizard.",
-      "--image-url <url>",
-      "--json",
-      "--config <path>",
-    ],
-    examples: [
-      "regents autolaunch prelaunch wizard --agent <id> --name RegentBot --symbol RGBOT --minimum-raise-quote 1000 --agent-safe-address 0x0000000000000000000000000000000000000001",
-    ],
-    prerequisites: [
-      ...autolaunchPrerequisites,
-      "Run `regents autolaunch safe wizard` first if you do not already have an Agent Safe address.",
-      "Know the token name, token symbol, minimum raise, and public launch copy before starting.",
-    ],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Saves a local plan, validates it remotely, and shows the plan id plus launchable status.",
-    nextStep: "Run `regents autolaunch prelaunch validate --plan <plan-id>`.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch connect start": {
-    summary: "Start a profile connection link from the terminal.",
-    usage: "regents autolaunch connect start [--plan <plan-id>] [--label <text>] [--watch] [--json]",
-    flags: [
-      "--plan <id> - Attach the connection to a saved prelaunch plan.",
-      "--label <text> - Human-friendly agent label to show on the connection page.",
-      "--watch - Keep polling until the connection is completed or expired.",
-      "--json",
-      "--config <path>",
-    ],
-    examples: [
-      "regents autolaunch connect start --plan plan_123",
-      "regents autolaunch connect start --label Atlas --watch",
-    ],
-    prerequisites: autolaunchPrerequisites,
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows the URL, code, expiry, and agent details for the human profile owner.",
-    nextStep: "Ask the human operator to open the URL and confirm the agent.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch prelaunch get": {
-    summary: "Open the latest or named prelaunch plan.",
-    usage: "regents autolaunch prelaunch get [--plan <plan-id>] [--json]",
-    flags: ["--plan <id> - Plan id. If omitted, the latest local plan is used.", "--json", "--config <path>"],
-    examples: ["regents autolaunch prelaunch get --plan plan_123"],
-    prerequisites: [...autolaunchPrerequisites, "Run `regents autolaunch prelaunch wizard` first so a plan exists."],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows the saved plan and refreshes the local copy.",
-    nextStep: "Run `regents autolaunch prelaunch validate --plan <plan-id>`.",
-    ifItFails: [
-      ...autolaunchFailureChecks,
-      "If no local plan exists, rerun with `--plan <id>` or create one with `regents autolaunch prelaunch wizard`.",
-    ],
-  },
-  "autolaunch prelaunch validate": {
-    summary: "Check whether a prelaunch plan is ready to publish or launch.",
-    usage: "regents autolaunch prelaunch validate [--plan <plan-id>] [--json]",
-    flags: ["--plan <id> - Plan id. If omitted, the latest local plan is used.", "--json", "--config <path>"],
-    examples: ["regents autolaunch prelaunch validate --plan plan_123"],
-    prerequisites: [...autolaunchPrerequisites, "Create or fetch the plan before validating it."],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows launchable status and the exact missing fields or approvals.",
-    nextStep: "Run `regents autolaunch prelaunch publish --plan <plan-id>` when validation is clean.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch prelaunch publish": {
-    summary: "Publish the launch page draft for a validated plan.",
-    usage: "regents autolaunch prelaunch publish [--plan <plan-id>] [--json]",
-    flags: ["--plan <id> - Plan id. If omitted, the latest local plan is used.", "--json", "--config <path>"],
-    examples: ["regents autolaunch prelaunch publish --plan plan_123"],
-    prerequisites: [
-      ...autolaunchPrerequisites,
-      "Run `regents autolaunch prelaunch validate --plan <plan-id>` and confirm it is clean.",
-      "Review public copy and images before publishing.",
-    ],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows the published page state and the next launch command.",
-    nextStep: "Run `regents autolaunch launch run --plan <plan-id>` when the operator is ready.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch safe wizard": {
-    summary: "Prepare the Agent Safe inputs needed for launch ownership.",
-    usage: "regents autolaunch safe wizard --backup-signer-address <wallet> [--website-wallet-address <wallet>]",
-    flags: [
-      "--backup-signer-address <address> - Backup signer wallet for the Safe.",
-      "--website-wallet-address <address> - Website wallet when available.",
-      "--agent-safe-address <address> - Existing Safe to reuse.",
-      "--wait-for-website-wallet",
-      "--json",
-      "--config <path>",
-    ],
-    examples: ["regents autolaunch safe wizard --backup-signer-address 0x0000000000000000000000000000000000000001"],
-    prerequisites: [
-      "Run `regents wallet status` and confirm the local wallet is the agent signer you intend to use.",
-      "Have a backup signer wallet ready before creating a new Safe.",
-    ],
-    auth: "No Autolaunch sign-in is needed for the local Safe planning step.",
-    output: "Explains the Safe setup and shows the values to use in the prelaunch plan.",
-    nextStep: "Use the Safe address with `regents autolaunch prelaunch wizard --agent-safe-address <safe>`.",
-    ifItFails: [
-      "If a signer is missing, run `regents wallet status` and pass the missing wallet flag named in the error.",
-      "If you already have a Safe, rerun with `--agent-safe-address <safe>`.",
-    ],
-  },
-  "autolaunch safe create": {
-    summary: "Create the Agent Safe used by an Autolaunch project.",
-    usage: "regents autolaunch safe create --backup-signer-address <wallet> [--website-wallet-address <wallet>]",
-    flags: [
-      "--backup-signer-address <address> - Required backup signer wallet.",
-      "--website-wallet-address <address> - Optional website wallet.",
-      "--json",
-      "--config <path>",
-    ],
-    examples: ["regents autolaunch safe create --backup-signer-address 0x0000000000000000000000000000000000000001"],
-    prerequisites: [
-      "Run `regents autolaunch safe wizard` first unless you already know the exact Safe signer layout.",
-      "Confirm the local wallet is allowed to create the Safe and has enough network fees.",
-    ],
-    auth: "No Autolaunch sign-in is needed for the local Safe creation step.",
-    output: "Shows the created Safe address and the launch command that needs it.",
-    nextStep: "Run `regents autolaunch prelaunch wizard --agent-safe-address <safe>`.",
-    ifItFails: [
-      "If the backup signer is missing, rerun with `--backup-signer-address <wallet>`.",
-      "If the local wallet cannot sign, run `regents wallet status` and correct the wallet source.",
-    ],
-  },
-  "autolaunch launch run": {
-    summary: "Run the launch flow for a validated prelaunch plan.",
-    usage: "regents autolaunch launch run [--plan <plan-id>] [--watch] [--interval <seconds>] [--json]",
-    flags: [
-      "--plan <id> - Plan id. If omitted, the latest local plan is used.",
-      "--wallet-address <address> - Wallet that signs the launch authorization when needed.",
-      "--watch - Keep polling until the launch reaches a final state.",
-      "--interval <seconds>",
-      "--json",
-      "--config <path>",
-    ],
-    examples: ["regents autolaunch launch run --plan plan_123 --watch"],
-    prerequisites: [
-      ...autolaunchWalletActionPrerequisites,
-      "Run `regents autolaunch prelaunch validate --plan <plan-id>` and confirm it is launchable.",
-      "Run `regents autolaunch prelaunch publish --plan <plan-id>` if the public page should be visible first.",
-    ],
-    auth: "Needs Autolaunch sign-in, saved Agent account, and a launch-authorizing wallet.",
-    output: "Shows the launch job id, current job status, and the command to keep watching it.",
-    nextStep: "Run `regents autolaunch jobs watch <job-id> --watch` until the job is ready, failed, or blocked.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch jobs watch": {
-    summary: "Watch an Autolaunch job until it reaches a final state.",
-    usage: "regents autolaunch jobs watch <job-id> [--watch] [--interval <seconds>] [--json]",
-    flags: ["<job-id> - Job id from launch run.", "--watch", "--interval <seconds>", "--json", "--config <path>"],
-    examples: ["regents autolaunch jobs watch job_123 --watch --interval 5"],
-    prerequisites: [...autolaunchPrerequisites, "Start this after a command prints a launch job id."],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows the latest job status and stops when the job is ready, failed, or blocked unless asked to keep watching.",
-    nextStep: "Run the next command shown in the job output, usually launch monitor or finalize.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch launch monitor": {
-    summary: "Watch the lifecycle job after the launch job starts.",
-    usage: "regents autolaunch launch monitor --job <job-id> [--watch] [--interval <seconds>] [--json]",
-    flags: ["--job <id>", "--watch", "--interval <seconds>", "--json", "--config <path>"],
-    examples: ["regents autolaunch launch monitor --job job_123 --watch --interval 5"],
-    prerequisites: [...autolaunchPrerequisites, "Run this only after launch output gives you a lifecycle job id."],
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows lifecycle status and the recommended next action.",
-    nextStep: "Run `regents autolaunch launch finalize --job <job-id>` when the monitor recommends finalizing.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch launch finalize": {
-    summary: "Prepare or submit the final launch action for a lifecycle job.",
-    usage: "regents autolaunch launch finalize --job <job-id> [--submit] [--json]",
-    flags: ["--job <id>", "--submit - Sign and submit the prepared action.", "--json", "--config <path>"],
-    examples: ["regents autolaunch launch finalize --job job_123", "regents autolaunch launch finalize --job job_123 --submit"],
-    prerequisites: [
-      ...autolaunchWalletActionPrerequisites,
-      "Run `regents autolaunch launch monitor --job <job-id>` and confirm finalize is the recommended action.",
-      "Run without `--submit` first when you want to inspect the prepared action.",
-    ],
-    auth: "Needs Autolaunch sign-in, saved Agent account, and a wallet able to sign the final action.",
-    output: "Without `--submit`, shows the prepared action. With `--submit`, shows the transaction result.",
-    nextStep: "Run `regents autolaunch vesting status --job <job-id>` after finalization.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch subjects get": {
-    summary: "Open one launched subject by subject id.",
-    usage: "regents autolaunch subjects get <subject-id> [--json]",
-    flags: ["<subject-id> - Subject id from an auction, launch, or claim record.", "--json", "--config <path>"],
-    examples: ["regents autolaunch subjects get subject_123 --json"],
-    prerequisites: autolaunchPrerequisites,
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows subject state, revenue lanes, staking status, and available prepared actions.",
-    nextStep: "Run staking, claim, or ingress commands only after checking the current subject state.",
-    ifItFails: autolaunchFailureChecks,
-  },
-  "autolaunch subjects staking": {
-    summary: "Show staking state for one Autolaunch subject.",
-    usage: "regents autolaunch subjects staking <subject-id> [--json]",
-    flags: ["<subject-id> - Subject id.", "--json", "--config <path>"],
-    examples: ["regents autolaunch subjects staking subject_123 --json"],
-    prerequisites: autolaunchPrerequisites,
-    auth: "Needs Autolaunch sign-in and a saved Agent account.",
-    output: "Shows staking balances, reward state, and whether stake or unstake actions are available.",
-    nextStep: "Review the subject page or available contract actions before changing subject state.",
-    ifItFails: autolaunchFailureChecks,
-  },
   "techtree notebooks init": {
     summary: "Create a local notebook workspace for paper or freeform work.",
     usage: "regents techtree notebooks init --kind <paper|freeform> --title <title> --workspace-path <path> [--source <source>]",
@@ -1058,19 +801,12 @@ const groupHelp: Record<string, HelpGroup> = {
     commands: (CLI_COMMANDS_BY_TOP_LEVEL_GROUP as Readonly<Record<string, readonly string[]>>).setup ?? [],
     nextStep: "Start with `regents setup skills`.",
   },
-  autolaunch: {
-    summary: "Launch and manage Agent account projects from the terminal.",
-    auth: "Most commands need `regents auth login --audience autolaunch` and `regents identity ensure`.",
-    output: "Human output uses panels and status lines. `--json` prints raw JSON.",
-    commands: CLI_COMMANDS_BY_TOP_LEVEL_GROUP.autolaunch,
-    nextStep: "Start with `regents autolaunch agents list --launchable` or `regents autolaunch prelaunch wizard`.",
-  },
   auth: {
     summary: "Manage saved Agent account sign-ins.",
     auth: "No saved sign-in is needed.",
     output: "Shows the saved session, account, and expiry.",
     commands: CLI_COMMANDS_BY_TOP_LEVEL_GROUP.auth,
-    nextStep: "For Autolaunch, run `regents auth login --audience autolaunch`.",
+    nextStep: "Run `regents auth login --audience <product>` for the product you are using.",
   },
   identity: {
     summary: "Create or refresh the local Agent account.",
@@ -1132,13 +868,11 @@ const groupHelp: Record<string, HelpGroup> = {
 
 const AREA_SUMMARIES: Readonly<Record<string, string>> = {
   techtree: "local research notebooks",
-  autolaunch: "launches, auctions, bids, subjects, holdings",
   platform: "hosted account, billing, pause and resume",
   work: "regent work runs and the local worker loop",
   wallet: "wallet setup and the agentic wallet",
   x402: "paid endpoints, quotes, payments, receipts",
   mcp: "the Regents MCP server and Codex setup",
-  chat: "saved chat follows for Autolaunch chat",
   commands: "the machine-readable index of every shipped command",
   budget: "capped local spending budgets for paid agent calls",
   receipt: "local receipts for completed paid or published work",
@@ -1171,10 +905,6 @@ const fallbackGroupHelp = (area: string): HelpGroup | undefined => {
 };
 
 const helpGroupForCommand = (command: string): HelpGroup | null => {
-  if (command.startsWith("autolaunch ")) {
-    return groupHelp.autolaunch;
-  }
-
   if (command.startsWith("auth ")) {
     return groupHelp.auth;
   }
@@ -1401,10 +1131,6 @@ const generatedPrerequisites = (command: string, detail: CommandDetailMetadata |
     return platformPrerequisites;
   }
 
-  if (command.startsWith("autolaunch ")) {
-    return autolaunchPrerequisites;
-  }
-
   if (command.startsWith("techtree ")) {
     return techtreePrerequisites;
   }
@@ -1467,10 +1193,6 @@ const generatedFailureChecks = (
       "If the command says no saved platform session exists, run `regents platform auth login`.",
       "If a regent, runtime, worker, or work id is not found, copy it again from the Regent website or the previous command output.",
     ];
-  }
-
-  if (command.startsWith("autolaunch ")) {
-    return autolaunchFailureChecks;
   }
 
   if (command.startsWith("techtree ")) {
@@ -1701,7 +1423,7 @@ const renderRootHelp = (configPath: string): string =>
       "◆ COMMAND AREAS",
       [
         ...columnLines(
-          ["techtree", "autolaunch", "platform", "work", "wallet", "x402", "mcp"].map(
+          ["techtree", "platform", "work", "wallet", "x402", "mcp"].map(
             (area) => [area, AREA_SUMMARIES[area] ?? ""] as const,
           ),
         ),

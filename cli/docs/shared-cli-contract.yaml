@@ -37,23 +37,6 @@ help:
     - Honor NO_COLOR.
     - Avoid rich formatting for non-TTY output and TERM=dumb.
     - Keep command-level help scoped to the requested command group.
-x-regent-chat-room-contract:
-  owner: regents-cli
-  product_room_authority: Product room keys and membership rules stay in Platform and Autolaunch contracts.
-  thread_identifier_boundary:
-    chat_commands: "Chat scopes: system, topic:<slug>, node:<node-id>, dm:<walletA>:<walletB>"
-    dm_scope_rule: >-
-      DM scopes are dm:<walletA>:<walletB> with both wallet addresses lowercased,
-      lexicographically sorted, and unequal.
-  transport_boundary: >-
-    CLI chat commands use Autolaunch HTTP chat routes.
-    Direct messages are server-stored chat scopes on product HTTP chat routes,
-    participant-gated by the authenticated SIWA wallet.
-  agent_loop:
-    reactive: Use product `chat tail [scope...]` commands for live room activity.
-    catch_up: Use product `chat unread [scope...]` commands after disconnects; they poll forward with `after=<saved-message-id>`.
-    send: Provide a deterministic `--client-message-id` for retried sends.
-    rate_limit: On HTTP 429, wait for Retry-After when present, otherwise retry with exponential backoff and jitter.
 x-regent-voice-gateway:
   owner: regents-cli
   server: local
@@ -444,7 +427,7 @@ command_groups:
           examples:
             - regents commands list
             - regents commands list --json
-            - regents commands list --search chat --json
+            - regents commands list --search wallet --json
     commands:
       - init
       - settings
@@ -500,7 +483,7 @@ command_groups:
         - name: --area
           type: string
           required: false
-          description: Only include commands for one area, such as techtree, autolaunch, platform, wallet, x402, work, or mcp.
+          description: Only include commands for one area, such as techtree, platform, wallet, x402, work, or mcp.
         - name: --command
           type: string
           required: false
@@ -1371,27 +1354,6 @@ command_groups:
           description: Submit the prepared transaction with the local wallet.
     path_templates:
       - /api/platform/ens/prepare-primary
-  - name: chat-follows
-    interface: runtime
-    auth_mode: none
-    output_envelope: loose-object
-    agent_metadata:
-      category: messaging
-      prompt_behavior: never_prompt
-      json_support: supported
-      mutation_class: local-write
-      retry_behavior: safe
-      pagination: none
-      async_behavior: synchronous
-      input_mode: args-and-flags
-      examples:
-        - regents chat follows add 0x1234abcd1234abcd1234abcd1234abcd1234abcd
-        - regents chat follows list
-    commands:
-      - chat follows add <wallet|label>
-      - chat follows remove <wallet|label>
-      - chat follows list
-
   - name: profile
     interface: http
     auth_mode: privy-proof-pair-stdin

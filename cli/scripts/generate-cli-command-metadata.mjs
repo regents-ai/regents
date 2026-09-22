@@ -29,7 +29,6 @@ const terminalLabel = (value) =>
     .replace(/\bmcp\b/giu, "MCP")
     .replace(/\bens\b/giu, "ENS")
     .replace(/\btechtree\b/giu, "Techtree")
-    .replace(/\bautolaunch\b/giu, "Autolaunch")
     .replace(/\bsiwa\b/giu, "SIWA")
     .replace(/\bbbh\b/giu, "BBH")
     .replace(/\btech\b/giu, "TECH")
@@ -90,10 +89,6 @@ const summaryOverrides = new Map([
   ["techtree chat subscribe add <scope>", "Add a scope to the saved Techtree chat subscriptions."],
   ["techtree chat subscribe remove <scope>", "Remove a scope from the saved Techtree chat subscriptions."],
   ["techtree chat subscribe list", "List the saved Techtree chat subscriptions."],
-  ["autolaunch chat unread [scope...]", "Show new chat messages since the saved cursors."],
-  ["autolaunch chat subscribe add <scope>", "Add a scope to the saved Autolaunch chat subscriptions."],
-  ["autolaunch chat subscribe remove <scope>", "Remove a scope from the saved Autolaunch chat subscriptions."],
-  ["autolaunch chat subscribe list", "List the saved Autolaunch chat subscriptions."],
   ["chat follows add <wallet|label>", "Add a wallet or label to the saved chat follow list."],
   ["chat follows remove <wallet|label>", "Remove a wallet or label from the saved chat follow list."],
   ["chat follows list", "List the saved chat follow list."],

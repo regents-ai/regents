@@ -149,7 +149,6 @@ const requiredFiles = [
   "dist/verify-runtime/verify_runtime/uplift/store.py",
   "skills/regents/SKILL.md",
   "skills/regents-platform/SKILL.md",
-  "skills/regents-autolaunch/SKILL.md",
   "skills/regents-techtree/SKILL.md",
 ];
 const unexpectedFiles = tarballFiles.filter(

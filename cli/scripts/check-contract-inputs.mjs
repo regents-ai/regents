@@ -10,7 +10,6 @@ const requiredInputs = [
   ["WalletAction schema", "docs/schemas/wallet-action.schema.yaml"],
   ["Platform copied API binding", "packages/regents-cli/src/generated/platform-openapi.ts"],
   ["Ash Techtree generated API binding", "packages/regents-cli/src/generated/ash-techtree-openapi.ts"],
-  ["Autolaunch copied API binding", "packages/regents-cli/src/generated/autolaunch-openapi.ts"],
   ["shared services generated binding", "packages/regents-cli/src/generated/regent-services-openapi.ts"],
 ];
 

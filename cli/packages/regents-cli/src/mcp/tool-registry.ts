@@ -7,7 +7,7 @@ export interface RegentMcpToolDefinition {
   title: string;
   description: string;
   riskClass: RegentMcpRiskClass;
-  owner: "regents-cli" | "platform" | "techtree" | "autolaunch" | "shared-services";
+  owner: "regents-cli" | "platform" | "techtree" | "shared-services";
   authMode: "none" | "agent-siwa" | "local";
   rpcMethod?: RegentRpcMethod;
 }

@@ -15,7 +15,7 @@
 ## Product contracts
 
 - repository-owned shared-services contract and binding
-- reviewed Platform and Autolaunch contract copies and bindings
+- reviewed Platform contract copy and binding
 - reviewed canonical Ash Techtree contract copy and binding
 
 ## Shipped Techtree surface

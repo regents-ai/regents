@@ -73,7 +73,7 @@ development and from the deployment's secret store in production.
 | Variable | Required | What it is for |
 | --- | --- | --- |
 | `PRIVY_APP_ID` | For sign-in | The Privy application that browser sign-in runs against. |
-| `PRIVY_VERIFICATION_KEY` | For sign-in | Privy's PEM-encoded ES256 verification **public** key — not the app secret. |
+| `PRIVY_VERIFICATION_KEY` | For sign-in | Privy's PEM-encoded ES256 verification **public** key — not the app secret. The value is the PEM with real line breaks, for example `fly secrets set PRIVY_VERIFICATION_KEY="$(cat privy-verification-key.pem)"`. |
 | `SIWA_SERVER_URL` | For signed agent requests | Base URL of the `siwa-server` verification service. |
 | `SIWA_AUDIENCE` | For signed agent requests | Audience value required for agent request verification. |
 | `SPRITES_TOKEN` | For Formation | Server-only token used to provision and inspect Formation runtimes. |
@@ -117,14 +117,14 @@ is a map, not the contract.
 lib/ash_platform/       Ash domains: accounts, formation, names, staking,
                         redemption, Regents Club
 lib/ash_platform_web/   Endpoint, router, LiveViews, controllers, components
-lib/mix/tasks/          Local setup, reset, contract sync, and route-handoff checks
+lib/mix/tasks/          Local setup, contract sync, and route-handoff checks
 contracts/              The OpenAPI contract, chain-contract manifest, and ABIs
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
 test/                   ExUnit suites, including browser and budget tests
 docs/                   Local setup guides, operations notes, plans, and specs
-bin/, scripts/          Local acceptance and release helpers
+scripts/                The release build-context helper
 rel/                    Release overlays, including the migrate command
 ```
 

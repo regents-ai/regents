@@ -6,7 +6,7 @@ import type {
   JsonRequestBodyFor,
   JsonSuccessResponseFor,
 } from "../contracts/openapi-helpers.js";
-import { submitPreparedTxRequest, txRequestFromWalletAction } from "./autolaunch/shared.js";
+import { submitPreparedTxRequest, txRequestFromWalletAction } from "./wallet-action.js";
 import { requestProductJson } from "./product-http.js";
 import { stakeBody, stakeReceiverFlag } from "./stake-receiver.js";
 

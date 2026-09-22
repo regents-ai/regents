@@ -70,8 +70,6 @@
                  "lib/ash_platform/redemption/**/*.ex",
                  # This LiveView owns protected wallet, stake, and redemption flows.
                  "lib/ash_platform_web/live/shell_live.ex",
-                 # The reset task crosses the protected authentication boundary.
-                 "lib/mix/tasks/ash_platform.reset_browser_identity.ex",
                  # Redemption tests are protected from semantic refactors and assertion changes.
                  "test/ash_platform/redemption/**/*_test.exs",
                  # The redemption chain stub models protected chain behavior.
@@ -102,9 +100,7 @@
              files: %{
                excluded: [
                  # This LiveView owns protected wallet, stake, and redemption flows.
-                 "lib/ash_platform_web/live/shell_live.ex",
-                 # The reset task crosses the protected authentication boundary.
-                 "lib/mix/tasks/ash_platform.reset_browser_identity.ex"
+                 "lib/ash_platform_web/live/shell_live.ex"
                ]
              }
            ]},

@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import os from "node:os";
 
@@ -64,8 +63,7 @@ const firstLanAddress = (): string | null => {
 
 // Byte-parity with codex-regents-plugin/assets/voice-tools.json and the hosted
 // sprite registry, so local and hosted agents advertise identical voice tools.
-// Used as the fallback registry when the configured tool-registry file is absent.
-const DEFAULT_VOICE_TOOLS: readonly VoiceTool[] = [
+const VOICE_TOOLS: readonly VoiceTool[] = [
   { name: "hermes_turn", owner: "hermes", description: "Start hosted Hermes work.", requires_approval: false },
   { name: "hermes_steer", owner: "hermes", description: "Send guidance to active Hermes work.", requires_approval: false },
   { name: "hermes_cancel", owner: "hermes", description: "Stop active Hermes work.", requires_approval: false },
@@ -94,21 +92,7 @@ interface SessionRecord {
 
 const nowIso = (): string => new Date().toISOString();
 
-const readTools = (voice: RegentVoiceConfig): VoiceTool[] => {
-  try {
-    const raw = fs.readFileSync(voice.toolRegistryPath, "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed as VoiceTool[];
-    }
-  } catch {
-    // Fall through to the bundled byte-parity registry.
-  }
-  return [...DEFAULT_VOICE_TOOLS];
-};
-
-const toolRegistryDigest = (voice: RegentVoiceConfig): string =>
-  crypto.createHash("sha256").update(JSON.stringify(readTools(voice))).digest("hex");
+const TOOL_REGISTRY_DIGEST = crypto.createHash("sha256").update(JSON.stringify(VOICE_TOOLS)).digest("hex");
 
 export const resolveOpenaiApiKey = (voice: RegentVoiceConfig): string => {
   const value = process.env[voice.openaiApiKeyEnv];
@@ -132,7 +116,7 @@ const buildSessionConfig = (
   voice: RegentVoiceConfig,
   input: { voice?: string; reasoning_effort?: string },
 ): Record<string, unknown> => {
-  const tools = readTools(voice).map((tool) => ({
+  const tools = VOICE_TOOLS.map((tool) => ({
     type: "function",
     name: tool.name,
     description: tool.description,
@@ -257,7 +241,7 @@ export function createVoiceGatewayServer(
       active_turn_id: active ? active.active_turn_id : null,
       queue_depth: 0,
       last_event_id: null,
-      tool_registry_digest: toolRegistryDigest(voice),
+      tool_registry_digest: TOOL_REGISTRY_DIGEST,
     };
   };
 
@@ -302,7 +286,7 @@ export function createVoiceGatewayServer(
         client_secret_expires_at: expiresAt,
         calls_url: OPENAI_CALLS_URL,
       },
-      tools: readTools(voice),
+      tools: VOICE_TOOLS,
     });
   };
 

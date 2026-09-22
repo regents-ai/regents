@@ -41,12 +41,11 @@ Put only the real local values in `.env.local`, using the same export format:
 
 ```dotenv
 export PRIVY_APP_ID='YOUR_PRIVY_APP_ID'
-export PRIVY_VERIFICATION_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
+export PRIVY_VERIFICATION_KEY="$(cat privy-verification-key.pem)"
 ```
 
 `PRIVY_VERIFICATION_KEY` is the PEM-encoded ES256 verification **public key** for the Privy app,
-not the Privy app secret. Both a native multiline PEM and a secret-manager-safe value containing
-literal `\n` escapes are accepted, matching the verified old-platform behavior.
+not the Privy app secret. The value is the PEM with its real line breaks.
 
 Allow direnv after reviewing the files:
 

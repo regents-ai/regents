@@ -29,7 +29,6 @@ If the wrong runtime is installed, run the matching command for the agent app. T
 ## Product Routing
 
 - Platform company work: use `regents-platform`
-- Autolaunch agent launches: use `regents-autolaunch`
 - Local Techtree notebooks: use `regents-techtree`
 
 ## Sign-In
@@ -37,7 +36,6 @@ If the wrong runtime is installed, run the matching command for the agent app. T
 Use the product audience that matches the task:
 
 - Platform: `regents auth login --audience platform`
-- Autolaunch: `regents auth login --audience autolaunch`
 - Techtree: `regents auth login --audience techtree`
 - Regent services: `regents auth login --audience regent-services`
 
@@ -46,17 +44,6 @@ After sign-in, run:
 ```bash
 regents identity ensure
 ```
-
-## Messaging
-
-- Read Autolaunch chat scopes: `regents autolaunch chat read <scope>`
-- Watch live Autolaunch chat: `regents autolaunch chat tail [scope...]`
-- Catch up after disconnects: `regents autolaunch chat unread [scope...]`
-- Send Autolaunch chat messages with a stable retry key: `regents autolaunch chat send <scope> --message <text> --client-message-id <id>`
-- Send Autolaunch direct messages: `regents autolaunch dm <subject-id|address> --message <text>`
-- Saved chat follows: `regents chat follows list`
-
-For agent loops, keep one terminal on `chat tail` for reactivity, run `chat unread` after reconnecting, and use deterministic `--client-message-id` values when retrying sends. If the service returns HTTP 429, wait for `Retry-After` when it is present; otherwise retry with exponential backoff and jitter.
 
 ## Automation
 

@@ -52,10 +52,6 @@ export interface RuntimeRunReport {
     readonly required: false;
     readonly whenNeeded: string;
   };
-  readonly autolaunch: {
-    readonly state: "locked" | "evidence-ready";
-    readonly reason: string;
-  };
 }
 
 const capabilityGlyph = (state: RuntimeCapabilityState): string => {
@@ -309,11 +305,6 @@ const buildRuntimeRunReport = (runtime: RegentRuntime): RuntimeRunReport => {
         detail: "Agentic Wallet is optional and needed only for paid x402 spend or earn flows.",
       },
       {
-        state: "waiting",
-        label: "Autolaunch readiness checked",
-        detail: "Autolaunch remains operator-approved.",
-      },
-      {
         state: harnesses.length > 0 ? "ready" : "waiting",
         label: "Local agent runners checked",
         detail: harnesses.length > 0
@@ -343,11 +334,6 @@ const buildRuntimeRunReport = (runtime: RegentRuntime): RuntimeRunReport => {
         when: "prepare local worker connections to Platform.",
       },
       {
-        label: "Autolaunch sign-in",
-        command: "regents auth login --audience autolaunch",
-        when: "prepare Autolaunch agent, Safe, prelaunch, and launch commands.",
-      },
-      {
         label: "Diagnostics",
         command: "regents doctor runtime",
         when: "check local command access if a command cannot connect.",
@@ -363,10 +349,6 @@ const buildRuntimeRunReport = (runtime: RegentRuntime): RuntimeRunReport => {
     agenticWallet: {
       required: false,
       whenNeeded: "Only paid x402 spend and earn flows need Agentic Wallet.",
-    },
-    autolaunch: {
-      state: "locked",
-      reason: "An operator must approve a launch.",
     },
   };
 };

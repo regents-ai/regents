@@ -4,7 +4,7 @@ import {
   txRequestFromWalletAction,
   submitPreparedTxRequest,
   type JsonObject,
-} from "./autolaunch/shared.js";
+} from "./wallet-action.js";
 import { requestProductJson } from "./product-http.js";
 
 const requestPlatformJson = async (

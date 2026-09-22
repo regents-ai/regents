@@ -7,20 +7,9 @@ config :sentry,
   release: System.get_env("SENTRY_RELEASE"),
   environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
 
-privy_verification_key =
-  case System.get_env("PRIVY_VERIFICATION_KEY") do
-    nil ->
-      nil
-
-    value ->
-      value
-      |> String.replace("\\r\\n", "\n")
-      |> String.replace("\\n", "\n")
-  end
-
 config :ash_platform, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
-  verification_key: privy_verification_key
+  verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
 
 # This one-time protected route is closed unless a deployment explicitly says
 # "on". No public identifier or verifier secret is logged.

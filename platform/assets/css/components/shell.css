@@ -79,7 +79,7 @@
 .shell-brand,
 .account-control summary,
 .mobile-menu-button,
-.theme-toggle {
+.rg-theme-toggle {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -243,7 +243,7 @@ details[open] > summary .shell-chevron {
 }
 
 @media (hover: hover) {
-  .theme-toggle:hover {
+  .rg-theme-toggle:hover {
     border-color: var(--ash-accent);
   }
 }
@@ -375,7 +375,7 @@ details[open] > summary .shell-chevron {
   transform: scale(var(--active-scale));
 }
 
-#shell-header .theme-toggle:active {
+#shell-header .rg-theme-toggle:active {
   transform: none;
 }
 
@@ -493,7 +493,7 @@ details[open] > summary .shell-chevron {
 
 @media (prefers-reduced-motion: reduce) {
   .shell-chevron,
-  .theme-toggle {
+  .rg-theme-toggle {
     transition: none;
   }
 }

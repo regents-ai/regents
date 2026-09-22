@@ -11,15 +11,13 @@
 !platform/package.json
 !platform/package-lock.json
 # The RegentUI source enters as narrowly as the build uses it: the project file
-# and modules Mix compiles, and the stylesheets platform/assets/css/app.css
-# imports. Its own tests, lockfile, tooling files, digested priv/static output
-# and JavaScript are not build inputs and stay out.
+# and modules Mix compiles, and the stylesheets, scripts and fonts that
+# mix regent_ui.assets copies. Its own tests, lockfile and tooling files are not
+# build inputs and stay out.
 !design-system/regent_ui/mix.exs
 !design-system/regent_ui/lib/**
 !design-system/regent_ui/assets/css/**
 !design-system/regent_ui/assets/js/**
-!design-system/regent_ui/assets/images/**
-!design-system/regent_ui/priv/static/images/**
 !design-system/regent_ui/priv/static/fonts/**
 !elixir-utils/privy/**
 !elixir-utils/blog/mix.exs

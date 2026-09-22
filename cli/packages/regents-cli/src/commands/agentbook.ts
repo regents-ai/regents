@@ -2,7 +2,7 @@ import {
   readIdentityReceipt,
   updateIdentityReceipt,
 } from "../internal-runtime/identity/cache.js";
-import { getBooleanFlag, requirePositional, type ParsedCliArgs } from "../parse.js";
+import { getBooleanFlag, getFlag, requirePositional, type ParsedCliArgs } from "../parse.js";
 import {
   CLI_PALETTE,
   isHumanTerminal,
@@ -13,7 +13,6 @@ import {
   renderPanel,
   tone,
 } from "../printer.js";
-import { parsePollingIntervalSeconds } from "./autolaunch/shared.js";
 import { requireAgentAuthState } from "./agent-auth.js";
 import { requestProductJson } from "./product-http.js";
 
@@ -237,13 +236,27 @@ export async function runAgentbookRegister(args: ParsedCliArgs, configPath?: str
   printJson(watched);
 }
 
+const pollingIntervalSeconds = (args: ParsedCliArgs): number => {
+  const rawValue = getFlag(args, "interval");
+  if (rawValue === undefined) {
+    return 2;
+  }
+
+  const parsedValue = Number.parseFloat(rawValue);
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    throw new Error("--interval must be a positive number");
+  }
+
+  return parsedValue;
+};
+
 const watchAgentbookSession = async (
   sessionId: string,
   args: ParsedCliArgs,
   configPath?: string,
   onPoll?: (payload: AgentbookSessionResponse) => void,
 ): Promise<AgentbookSessionResponse> => {
-  const intervalSeconds = parsePollingIntervalSeconds(args);
+  const intervalSeconds = pollingIntervalSeconds(args);
 
   for (;;) {
     const payload = await requestAgentbookJson<AgentbookSessionResponse>(

@@ -32,7 +32,6 @@ const requiredFiles = (root: string): readonly Omit<LocalWorkspaceFile, "loaded"
     { label: "CLI command metadata", path: path.join(root, "packages/regents-cli/src/generated/cli-command-metadata.ts") },
     { label: "Platform copied API binding", path: path.join(root, "packages/regents-cli/src/generated/platform-openapi.ts") },
     { label: "Ash Techtree copied API binding", path: path.join(root, "packages/regents-cli/src/generated/ash-techtree-openapi.ts") },
-    { label: "Autolaunch copied API binding", path: path.join(root, "packages/regents-cli/src/generated/autolaunch-openapi.ts") },
     { label: "shared services generated binding", path: path.join(root, "packages/regents-cli/src/generated/regent-services-openapi.ts") },
 ];
 

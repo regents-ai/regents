@@ -11,7 +11,7 @@ Regents CLI is validated as a standalone repository. Local checks never discover
 - `../packages/regents-cli/src/contracts/api-ownership.ts` maps API-backed commands to product owners.
 - `../packages/regents-cli/src/generated/` contains checked-in generated bindings and reviewed copies of product-owned API inputs.
 
-The Platform, Techtree, and Autolaunch generated bindings are copied inputs. Their upstream synchronization happens in separately authorized work and is not performed or discovered by this repository's checks.
+The Platform and Techtree generated bindings are copied inputs. Their upstream synchronization happens in separately authorized work and is not performed or discovered by this repository's checks.
 
 ## Change order
 

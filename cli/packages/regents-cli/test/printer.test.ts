@@ -56,7 +56,7 @@ describe("printer surface", () => {
     expect(output).toContain("COMMON NEXT STEPS");
     expect(output).toContain("direct control surface for Regent operators and agents");
     expect(output).toContain("Use regents.sh for guided browser setup.");
-    expect(output).toContain("Use this CLI for local identity, runtime, notebooks, and Autolaunch work.");
+    expect(output).toContain("Use this CLI for local identity, runtime, and notebook work.");
     expect(output).toContain("Run `regents help <product>` or `regents <command> --help`.");
     expect(output).toContain("regents init");
     expect(output).toContain("regents status");
@@ -66,9 +66,6 @@ describe("printer surface", () => {
     expect(output).toContain("regents platform auth login");
     expect(output).toContain("regents techtree notebooks init");
     expect(output).toContain("regents techtree notebooks pair");
-    expect(output).toContain("regents autolaunch prelaunch wizard");
-    expect(output).toContain("regents autolaunch launch run");
-    expect(output).toContain("regents autolaunch safe wizard");
     expect(output).toContain("regents bug --summary");
     expect(output).toContain("regents security-report --summary");
   });

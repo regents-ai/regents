@@ -47,13 +47,13 @@ describe("commands list", () => {
 
   it("filters with --search over command names and summaries", async () => {
     const output = captureStdout();
-    expect(await runCommandsList(parseCliArgs(["--json", "--search", "chat tail"]))).toBe(0);
+    expect(await runCommandsList(parseCliArgs(["--json", "--search", "work watch"]))).toBe(0);
     output.restore();
 
     const payload = JSON.parse(output.lines.join(""));
-    expect(payload.search).toBe("chat tail");
+    expect(payload.search).toBe("work watch");
     const names = payload.commands.map((entry: { command: string }) => entry.command);
-    expect(names).toContain("autolaunch chat tail [scope...]");
+    expect(names).toContain("work watch");
     expect(names).not.toContain("version");
     expect(payload.total).toBe(names.length);
   });

@@ -13,7 +13,6 @@
     "check:shared-services-contract": "node scripts/check-shared-services-contract.mjs",
     "check:contract-inputs": "node scripts/check-contract-inputs.mjs",
     "check:openapi": "pnpm check:workspace && pnpm check:contract-inputs && pnpm check:shared-services-contract && node scripts/check-openapi-types.mjs",
-    "check:openapi:autolaunch": "node scripts/check-autolaunch-openapi-types.mjs",
     "check:openapi:platform": "node scripts/check-platform-openapi-types.mjs",
     "check:public-cli-docs": "node scripts/check-platform-public-cli-copy.mjs",
     "check:mcp-tools": "node scripts/check-mcp-tools.mjs",

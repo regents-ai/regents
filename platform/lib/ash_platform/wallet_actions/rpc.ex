@@ -101,7 +101,7 @@ defmodule AshPlatform.WalletActions.Rpc do
     case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
            json: request,
            connect_options: [timeout: 3_000],
-           pool_timeout: 3_000,
+           finch: [pool_timeout: 3_000],
            receive_timeout: @timeout,
            retry: false
          ) do
@@ -271,7 +271,7 @@ defmodule AshPlatform.WalletActions.Rpc do
     case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
            json: request,
            connect_options: [timeout: 3_000],
-           pool_timeout: 3_000,
+           finch: [pool_timeout: 3_000],
            receive_timeout: @timeout,
            retry: false
          ) do

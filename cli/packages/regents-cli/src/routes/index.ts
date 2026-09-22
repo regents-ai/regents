@@ -1,8 +1,6 @@
 import {profileHandlers} from "./profile.js";
 import { CLI_COMMANDS } from "../command-registry.js";
 import { agentbookHandlers } from "./agentbook.js";
-import { autolaunchHandlers } from "./autolaunch.js";
-import { chatHandlers } from "./chat.js";
 import { coreHandlers } from "./core.js";
 import { feynmanHandlers } from "./feynman.js";
 import { platformAgentHandlers } from "./platform-agent.js";
@@ -38,8 +36,6 @@ export const cliHandlerRegistry: CliHandlerRegistry = {
   ...techtreeHandlers,
   ...regentStakingHandlers,
   ...agentbookHandlers,
-  ...chatHandlers,
-  ...autolaunchHandlers,
 };
 
 export const cliRoutes: readonly CliRoute[] = buildRoutesFromRegistry(CLI_COMMANDS, cliHandlerRegistry);

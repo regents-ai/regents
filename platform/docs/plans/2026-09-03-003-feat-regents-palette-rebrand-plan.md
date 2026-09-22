@@ -7,8 +7,8 @@ scene all stay exactly as they are. Only the colours behind them move.
 
 ## Source of truth
 
-`/Users/sean/Documents/regent/repos/design-system/regents-sites-palettes/regents-light.png`
-and `regents-dark.png`, read in place. The eight swatches printed on each sheet agree with
+`/Users/sean/Documents/regent/repos/design-system/site color palettes/regentslightscheme.png`
+and `regentsdarkscheme.png`, read in place. The eight swatches printed on each sheet agree with
 the ticket to the letter, so no value below is invented:
 
 | role | light | dark |

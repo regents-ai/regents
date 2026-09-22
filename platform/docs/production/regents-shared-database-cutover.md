@@ -153,31 +153,12 @@ modified by any step above.
 - Remove the untrue 43 Regents versions from the shared `public.schema_migrations`
   ledger only on your explicit word; they are harmless but misleading.
 
-## Autolaunch tables: Regents' copy has drifted from Autolaunch's
-
-Regents' Autolaunch pages are switched off in production
-(`ASH_PLATFORM_AUTOLAUNCH_SURFACES` is not `on`), so nothing below is reachable
-there today. It matters before they are ever switched on, because those pages
-read and write `autolaunch_app` tables that Autolaunch owns:
-
-- Production `autolaunch_app.launch_drafts` has no `regent_id` and no `title`
-  column; Regents' launch-draft resource requires both (the "launch a token for
-  my regent" flow).
-- Production `autolaunch_app.auctions` requires `creator_human_account_id`, which
-  Regents' auction resource does not know about.
-- Production `autolaunch_app` also has tables Regents never reads
-  (`human_accounts`, `session_authorities`, `linked_identities`, `x_connections`,
-  `wallet_attempts`, `launch_draft_images`).
-
-`priv/repo/shared_tables.sql` deliberately carries the shape Regents' code expects,
-not production's, so the suite proves Regents against its own contract. Deciding
-whether Regents keeps Autolaunch pages at all, and if so realigning its resources
-to Autolaunch's schema, is a separate product decision.
+## Autolaunch tables
 
 Resolved 2026-09-18 (founder): Regents no longer keeps Autolaunch pages. Its Autolaunch
 resources, pages and endpoints were removed, `priv/repo/shared_tables.sql` now carries
 only `regent_names.platform_human_users`, and Regents neither reads nor writes
-`autolaunch_app`.
+`autolaunch_app`, which belongs to Autolaunch alone.
 
 ## Alternative: carry the three accounts and the display names over
 

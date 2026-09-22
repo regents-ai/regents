@@ -29,8 +29,6 @@ export interface RegentVoiceConfig {
   reasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh";
   /** Ephemeral secret / session lifetime in seconds. */
   sessionTtlSeconds: number;
-  /** Path to the voice tool registry JSON (byte-parity with the hosted registry). */
-  toolRegistryPath: string;
 }
 
 export interface RegentServicesConfig {

@@ -34,29 +34,15 @@ slither .
 
 ## Where this sits
 
-```text
-  client surfaces
-    ios                               mobile app, wallet, action signing
-    regents-cli                       operator control surface
-    regents-techtree-hermes-plugin    Hermes mission-control tab
-                    │
-                    ▼
-  platform
-    ash-platform                      Phoenix, LiveView, Ash: web, API, product domains
-                    │
-                    ▼
-  services and chain
-    siwa-server                       agent request signing, nonce and replay state
-    media-web                         hosted card images and video
-    fly-sentinel                      operator health checks
-    regent-contracts                  canonical Solidity, ABIs, deployment records   ◀ this repository
-    autolaunch-contracts              frozen Autolaunch V1 Solidity
+This directory is one component of the Regents monorepo:
 
-  shared libraries and standalone tools
-    elixir-utils                      SIWA, ENS, XMTP, cache, Credo checks
-    design-system                     tokens and regent_ui components
-    python-cli                        offline Techtree skill-tree inspection
-    videocontrol                      video project and timeline workflows
+```text
+  platform/     regents.sh: Phoenix, LiveView and Ash web app and HTTP API
+  identity/     shared Ash identity domain consumed by every product
+  cli/          the regents command line tool and its local runtime
+  contracts/    Solidity, ABIs, deployment records and the chain manifest   ◀ this directory
+  blog/         the site's blog posts
+  plugins/      home for standalone runtime plugin packages (none yet)
 ```
 
 ## Stack
@@ -93,7 +79,7 @@ bin/gate.sh       The repository gate script
 This repository owns Solidity source, Foundry tests, deployment scripts, verified deployment
 records, canonical ABIs, the chain-contract manifest, and contract version history. It does
 not own HTTP or CLI contracts, Ash resources, workflow logic, UI, or projection workers —
-those live in the product repositories.
+those live in the other components of this monorepo and in the separate product repositories.
 
 Archived Autolaunch contracts are not promoted here automatically. A contract family moves in
 only through an explicit source-of-truth and deployment migration, decided by the founder.
@@ -127,22 +113,18 @@ These must pass before a change is proposed:
 
 `bin/gate.sh` runs the repository's own combined gate.
 
-## The other repositories
+## The rest of the monorepo
 
-| Repository | What it is | What it deliberately does not do |
+| Directory | What it is | What it deliberately does not do |
 | --- | --- | --- |
-| `ash-platform` | The Phoenix, LiveView, and Ash application: public web pages, the HTTP API, product domains, human identity, billing, and the Techtree and Autolaunch product areas. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
-| `autolaunch-contracts` | A clean-room Solidity implementation of the founder-frozen Autolaunch V1 system, controlled by its own `SPEC.md`. | It authorises no deployment, signature, or value movement; the older Autolaunch code in `regent-contracts` is historical reference only. |
-| `design-system` | The shared Regent visual language: the style guide, design tokens, logos, fonts, and the `regent_ui` Phoenix component library. | Shared components never own product workflow state, authorisation decisions, money movement, or product database behaviour. |
-| `elixir-utils` | A collection of standalone Elixir libraries used across the family: SIWA, ENS, XMTP, a cache, agentbook helpers, and the in-house `credo_ash` lint checks. | Each package is a library only; none of them runs a service or holds product behaviour. |
-| `fly-sentinel` | A small Phoenix service that reports Fly.io observability and operator preview checks. | It observes and reports; it does not deploy, scale, or change any other application. |
-| `ios` | The Expo and React Native mobile app: the mobile wallet, action signing, and mobile Regent records. | It consumes the platform HTTP contracts and owns no server-side product logic. |
-| `media-web` | A standalone Phoenix service that serves hosted Regents card images and video files from `media.regents.sh`. | It only serves bytes over HTTP; it holds no identity, database, or product logic. |
-| `python-cli` | The installable `regents-techtree` Python package, whose shipped surface is a deterministic offline inspection of one champion/challenger skill-tree pair. | It does not evaluate or execute an agent, and it makes no network calls once its locked dependencies are installed. |
-| `regents-cli` | The operator control surface: the `regents` command line tool, its generated bindings, and its local runtime. | It drives the platform over published contracts and owns no product database or on-chain authority. |
-| `regents-techtree-hermes-plugin` | The Hermes plugin that presents Techtree mission control across Forge, Techtree Verify, and Uplift. | It is presentation only: no second task store, no private Verify database, no identity model, no payment system, and no Hermes runtime of its own. |
-| `siwa-server` | The shared Sign-In With Anything service for signed agent requests, nonce and replay state, and internal keyring endpoints. | It owns no product data or product authorization policy. |
-| `videocontrol` | A separate product: video project workflows, timeline editing, preview rendering, and Codex plugin media control. | It shares the house style but no runtime, database, or contract with the Regent platform. |
+| `platform/` | The Phoenix, LiveView, and Ash application behind regents.sh: public pages, the signed-in shell, the HTTP API, $REGENT staking and Animata pass redemption. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
+| `identity/` | The shared Ash identity domain and `regent_identity` schema that every product reads. | It owns no product workflow, contract, or wallet action. |
+| `cli/` | The `regents` command line tool, its generated bindings, and its local runtime. | It drives the platform over published contracts and owns no product database or on-chain authority. |
+| `blog/` | The site's blog posts, rendered by `platform/`. | It holds content only. |
+| `plugins/` | The home for standalone runtime plugin packages; none exist yet. | Agent-runtime integrations live in `cli/` until a package moves here. |
+
+The shared design system and the other Elixir libraries stay separate sibling repositories,
+and Autolaunch keeps its own repository.
 
 ## License
 

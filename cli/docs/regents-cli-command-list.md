@@ -4,7 +4,7 @@ This file lists the full command surface shipped by the standalone Regents CLI i
 
 Sources used: repository-local route registries and `docs/shared-cli-contract.yaml` via `scripts/generate-cli-command-metadata.mjs`.
 
-Total commands: 220.
+Total commands: 135.
 
 ## Full Command List
 
@@ -37,91 +37,6 @@ Total commands: 220.
 - `regents auth logout` - Sign out on this machine.
 - `regents auth status` - Show the current saved sign-in.
 
-### Autolaunch
-
-- `regents autolaunch agent <id>` - Show Autolaunch agent.
-- `regents autolaunch agent readiness <id>` - Show agent readiness.
-- `regents autolaunch agents list` - List agents.
-- `regents autolaunch auction claim-unused-tokens` - Claim unused tokens for auction.
-- `regents autolaunch auction-returns list` - List auction returns.
-- `regents autolaunch chat list` - List chat.
-- `regents autolaunch chat read <scope>` - Show Autolaunch chat read.
-- `regents autolaunch chat send <scope>` - Show Autolaunch chat send.
-- `regents autolaunch chat subscribe add <scope>` - Add a scope to the saved Autolaunch chat subscriptions.
-- `regents autolaunch chat subscribe list` - List the saved Autolaunch chat subscriptions.
-- `regents autolaunch chat subscribe remove <scope>` - Remove a scope from the saved Autolaunch chat subscriptions.
-- `regents autolaunch chat tail [scope...]` - Watch chat [scope...].
-- `regents autolaunch chat unread [scope...]` - Show new chat messages since the saved cursors.
-- `regents autolaunch connect start` - Start connect.
-- `regents autolaunch contracts admin` - Show Autolaunch contracts admin.
-- `regents autolaunch contracts job` - Show Autolaunch contracts job.
-- `regents autolaunch contracts subject` - Show Autolaunch contracts subject.
-- `regents autolaunch contracts verify` - Check contracts.
-- `regents autolaunch dm <subject-id|address>` - Show Autolaunch dm.
-- `regents autolaunch dm list` - List dm.
-- `regents autolaunch ens plan` - Show Autolaunch ENS plan.
-- `regents autolaunch ens prepare-bidirectional` - Prepare bidirectional for ENS.
-- `regents autolaunch ens prepare-ensip25` - Prepare ensip25 for ENS.
-- `regents autolaunch ens prepare-erc8004` - Prepare erc8004 for ENS.
-- `regents autolaunch factory revenue-ingress set-authorized-creator` - Set authorized creator for factory revenue ingress.
-- `regents autolaunch factory revenue-share set-authorized-creator` - Set authorized creator for factory revenue share.
-- `regents autolaunch fee-registry get` - Show fee registry.
-- `regents autolaunch fee-vault get` - Show fee vault.
-- `regents autolaunch fee-vault withdraw-regent` - Withdraw fee vault.
-- `regents autolaunch identities list` - List identities.
-- `regents autolaunch identities mint` - Create identities.
-- `regents autolaunch ingress create` - Create ingress.
-- `regents autolaunch ingress rescue` - Rescue ingress.
-- `regents autolaunch ingress set-default` - Set default for ingress.
-- `regents autolaunch ingress set-label` - Set label for ingress.
-- `regents autolaunch jobs watch` - Watch jobs.
-- `regents autolaunch launch finalize` - Finalize launch.
-- `regents autolaunch launch monitor` - Watch launch.
-- `regents autolaunch launch run` - Run launch.
-- `regents autolaunch pair` - Pair Autolaunch.
-- `regents autolaunch payment-links create` - Create payment links.
-- `regents autolaunch payment-links set-canonical` - Set canonical for payment links.
-- `regents autolaunch payment-links set-state` - Set state for payment links.
-- `regents autolaunch prelaunch get` - Show prelaunch.
-- `regents autolaunch prelaunch publish` - Publish prelaunch.
-- `regents autolaunch prelaunch validate` - Check prelaunch.
-- `regents autolaunch prelaunch wizard` - Open prelaunch wizard.
-- `regents autolaunch registry get` - Show registry.
-- `regents autolaunch registry link-identity` - Link identity for registry.
-- `regents autolaunch registry rotate-safe` - Rotate safe for registry.
-- `regents autolaunch registry set-subject-manager` - Set subject manager for registry.
-- `regents autolaunch safe create` - Create safe.
-- `regents autolaunch safe wizard` - Open safe wizard.
-- `regents autolaunch splitter accept-ownership` - Accept ownership for splitter.
-- `regents autolaunch splitter activate-eligible-revenue-share` - Activate eligible revenue share for splitter.
-- `regents autolaunch splitter cancel-eligible-revenue-share` - Cancel eligible revenue share for splitter.
-- `regents autolaunch splitter cancel-treasury-recipient-rotation` - Cancel treasury recipient rotation for splitter.
-- `regents autolaunch splitter execute-treasury-recipient-rotation` - Execute treasury recipient rotation for splitter.
-- `regents autolaunch splitter get` - Show splitter.
-- `regents autolaunch splitter propose-eligible-revenue-share` - Propose eligible revenue share splitter.
-- `regents autolaunch splitter propose-treasury-recipient-rotation` - Propose treasury recipient rotation splitter.
-- `regents autolaunch splitter reassign-dust` - Show Autolaunch splitter reassign dust.
-- `regents autolaunch splitter set-label` - Set label for splitter.
-- `regents autolaunch splitter set-paused` - Set paused for splitter.
-- `regents autolaunch splitter sweep-treasury-reserved` - Sweep treasury reserved for splitter.
-- `regents autolaunch splitter sweep-treasury-residual` - Sweep treasury residual for splitter.
-- `regents autolaunch strategy migrate` - Migrate strategy.
-- `regents autolaunch strategy sweep-quote-token` - Sweep quote token for strategy.
-- `regents autolaunch strategy sweep-token` - Sweep token for strategy.
-- `regents autolaunch subjects buybacks` - Show Autolaunch subjects buybacks.
-- `regents autolaunch subjects by-token` - Show Autolaunch subjects by token.
-- `regents autolaunch subjects get` - Show subjects.
-- `regents autolaunch subjects ingress` - Show Autolaunch subjects ingress.
-- `regents autolaunch subjects payment-links` - Show Autolaunch subjects payment links.
-- `regents autolaunch subjects staking` - Show Autolaunch subjects staking.
-- `regents autolaunch subjects sweep-ingress` - Sweep ingress for subjects.
-- `regents autolaunch subjects verify` - Check subjects.
-- `regents autolaunch vesting cancel-beneficiary-rotation` - Cancel beneficiary rotation for vesting.
-- `regents autolaunch vesting execute-beneficiary-rotation` - Execute beneficiary rotation for vesting.
-- `regents autolaunch vesting propose-beneficiary-rotation` - Propose beneficiary rotation vesting.
-- `regents autolaunch vesting release` - Release vesting.
-- `regents autolaunch vesting status` - Show vesting status.
-
 ### Budget
 
 - `regents budget grant` - Give an agent a spending budget.
@@ -132,12 +47,6 @@ Total commands: 220.
 ### Bug
 
 - `regents bug` - Send a signed bug report to Platform.
-
-### Chat
-
-- `regents chat follows add <wallet|label>` - Add a wallet or label to the saved chat follow list.
-- `regents chat follows list` - List the saved chat follow list.
-- `regents chat follows remove <wallet|label>` - Remove a wallet or label from the saved chat follow list.
 
 ### Commands
 

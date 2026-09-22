@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { CLI_COMMANDS } from "../src/command-registry.js";
 import { renderScopedHelp } from "../src/help.js";
@@ -12,36 +12,6 @@ describe("scoped CLI help", () => {
     expect(output.result).toBe(0);
     expect(output.stdout).toContain("REGENT CLI HELP");
     expect(output.stdout).toContain("regents setup skills");
-  });
-
-  it("renders Autolaunch group help without running a command", async () => {
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "--help"]));
-
-    expect(output.result).toBe(0);
-    expect(output.stdout).toContain("AUTOLAUNCH HELP");
-    expect(output.stdout).toContain("regents auth login --audience autolaunch");
-    expect(output.stdout).toContain("regents autolaunch agents list");
-  });
-
-  it("does not dispatch or advertise the five public operations moved to Autolaunch", async () => {
-    const fetch = vi.fn(() => { throw new Error("A retired command must not reach the network."); });
-    vi.stubGlobal("fetch", fetch);
-    try {
-      const moved = [
-        ["auctions", "list"], ["auction", "id"], ["bids", "quote"],
-        ["tokens", "list"], ["treasury", "security", "address"],
-      ];
-      for (const command of moved) {
-        const output = await captureOutput(() => runCliEntrypoint(["autolaunch", ...command]));
-        expect(output.result).toBe(2);
-      }
-      expect(fetch).not.toHaveBeenCalled();
-      for (const command of ["autolaunch auctions list", "autolaunch auction <id>", "autolaunch bids quote", "autolaunch tokens list", "autolaunch treasury security <address>"]) {
-        expect(CLI_COMMANDS).not.toContain(command);
-      }
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it("distinguishes provider discovery from Coinbase status and local signing", async () => {
@@ -70,26 +40,26 @@ describe("scoped CLI help", () => {
 
   it("renders command-level help", async () => {
     const output = await captureOutput(() =>
-      runCliEntrypoint(["autolaunch", "jobs", "watch", "--help"]),
+      runCliEntrypoint(["work", "watch", "--help"]),
     );
 
     expect(output.result).toBe(0);
-    expect(output.stdout).toContain("AUTOLAUNCH JOBS WATCH HELP");
-    expect(output.stdout).toContain("regents autolaunch jobs watch <job-id>");
-    expect(output.stdout).toContain("--interval <seconds>");
+    expect(output.stdout).toContain("WORK WATCH HELP");
+    expect(output.stdout).toContain("regents work watch <run-id>");
+    expect(output.stdout).toContain("--regent-id <id>");
   });
 
-  it("renders prerequisite and failure guidance for common Autolaunch commands", async () => {
+  it("renders prerequisite and failure guidance for common work commands", async () => {
     const output = await captureOutput(() =>
-      runCliEntrypoint(["autolaunch", "launch", "run", "--help"]),
+      runCliEntrypoint(["work", "run", "--help"]),
     );
 
     expect(output.result).toBe(0);
-    expect(output.stdout).toContain("AUTOLAUNCH LAUNCH RUN HELP");
+    expect(output.stdout).toContain("WORK RUN HELP");
     expect(output.stdout).toContain("BEFORE YOU RUN THIS");
-    expect(output.stdout).toContain("regents auth login --audience autolaunch");
+    expect(output.stdout).toContain("regents platform auth login");
     expect(output.stdout).toContain("IF THIS FAILS");
-    expect(output.stdout).toContain("regents autolaunch prelaunch validate --plan <plan-id>");
+    expect(output.stdout).toContain("regents work watch <run-id> --regent-id <id>");
   });
 
   it("renders setup skills help", async () => {
@@ -113,22 +83,14 @@ describe("scoped CLI help", () => {
     expect(output.stdout).toContain("hermes auth add xai-oauth");
   });
 
-  it("renders command-level help when a required value is omitted", async () => {
-    const output = await captureOutput(() => runCliEntrypoint(["autolaunch", "agent", "--help"]));
-
-    expect(output.result).toBe(0);
-    expect(output.stdout).toContain("AUTOLAUNCH AGENT <ID> HELP");
-    expect(output.stdout).toContain("regents autolaunch agent <id>");
-  });
-
   it("prefers the more specific help entry when commands share a prefix", async () => {
     const output = await captureOutput(() =>
-      runCliEntrypoint(["autolaunch", "agent", "readiness", "--help"]),
+      runCliEntrypoint(["doctor", "workspace", "--help"]),
     );
 
     expect(output.result).toBe(0);
-    expect(output.stdout).toContain("AUTOLAUNCH AGENT READINESS <ID> HELP");
-    expect(output.stdout).toContain("regents autolaunch agent readiness <id>");
+    expect(output.stdout).toContain("DOCTOR WORKSPACE HELP");
+    expect(output.stdout).toContain("regents doctor workspace");
   });
 
   it("shows the required platform sign-in flags", async () => {
@@ -232,36 +194,30 @@ describe("scoped CLI help", () => {
   });
 
   it("keeps command help stable", () => {
-    expect(renderScopedHelp(["autolaunch", "jobs", "watch"], "/tmp/regent.json"))
-      .toMatchInlineSnapshot(`
-        "◆ AUTOLAUNCH JOBS WATCH HELP
-        Watch an Autolaunch job until it reaches a final state.
+    expect(renderScopedHelp(["work", "watch"], "/tmp/regent.json")).toMatchInlineSnapshot(`
+      "◆ WORK WATCH HELP
+      Show updates for one Regent work run.
 
-        usage regents autolaunch jobs watch <job-id> [--watch] [--interval <seconds>] [--json]
-        auth Needs Autolaunch sign-in and a saved Agent account.
-        output Shows the latest job status and stops when the job is ready, failed, or blocked unless asked to keep watching.
-        next Run the next command shown in the job output, usually launch monitor or finalize.
+      usage regents work watch <run-id> --regent-id <id>
+      auth Needs a saved Regent website session from \`regents platform auth login\`.
+      output Shows recent run updates with sequence, update name, actor, and time.
+      next Run the command again when you need the latest updates.
 
-        ◆ BEFORE YOU RUN THIS
-        Run \`regents run\` in another terminal.
-        Run \`regents auth login --audience autolaunch\`.
-        Run \`regents identity ensure\`.
-        Start this after a command prints a launch job id.
+      ◆ BEFORE YOU RUN THIS
+      Run \`regents platform auth login\` with a Regent website access token.
+      Use the correct regent id or slug from the Regent website.
 
-        ◆ FLAGS
-        <job-id>  Job id from launch run.
-        --watch
-        --interval <seconds>
-        --json
-        --config <path>
+      ◆ FLAGS
+      --regent-id <id>
+      --origin <url>
+      --session-file <path>
 
-        ◆ EXAMPLES
-        regents autolaunch jobs watch job_123 --watch --interval 5
+      ◆ EXAMPLES
+      regents work watch <run-id> --regent-id <id>
 
-        ◆ IF THIS FAILS
-        If the command says auth is missing, run \`regents auth login --audience autolaunch\` and \`regents identity ensure\`.
-        If a wallet or signer is missing, run \`regents wallet status\` and use the exact missing flag named in the error.
-        If the result is not ready, run the read/status command shown in the output before trying the next write."
-      `);
+      ◆ IF THIS FAILS
+      If the command says no saved platform session exists, run \`regents platform auth login\`.
+      If a regent, runtime, worker, or work id is not found, copy it again from the Regent website or the previous command output."
+    `);
   });
 });

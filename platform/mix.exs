@@ -72,7 +72,7 @@ defmodule AshPlatform.MixProject do
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
       {:decimal, "== 3.1.1"},
-      {:req, "== 0.6.2"},
+      {:req, "~> 0.7"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},

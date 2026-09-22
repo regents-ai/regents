@@ -179,10 +179,6 @@ describe("regents run presenter", () => {
           required: false,
           whenNeeded: "Only paid x402 spend and earn flows need Agentic Wallet.",
         },
-        autolaunch: {
-          state: "locked",
-          reason: "Launch readiness must be confirmed through Autolaunch.",
-        },
       }),
     );
 

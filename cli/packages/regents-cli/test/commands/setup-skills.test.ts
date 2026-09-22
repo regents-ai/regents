@@ -22,8 +22,8 @@ const makeSkillRoot = async (): Promise<string> => {
 
   await fs.mkdir(path.join(root, "regents"));
   await fs.writeFile(path.join(root, "regents", "SKILL.md"), "---\nname: regents\n---\n");
-  await fs.mkdir(path.join(root, "regents-autolaunch"));
-  await fs.writeFile(path.join(root, "regents-autolaunch", "SKILL.md"), "---\nname: regents-autolaunch\n---\n");
+  await fs.mkdir(path.join(root, "regents-platform"));
+  await fs.writeFile(path.join(root, "regents-platform", "SKILL.md"), "---\nname: regents-platform\n---\n");
   await fs.mkdir(path.join(root, "notes"));
   await fs.writeFile(path.join(root, "notes", "README.md"), "not a skill\n");
 
@@ -40,7 +40,7 @@ describe("setup skills command", () => {
 
     await expect(listBundledSkills(skillsRoot)).resolves.toEqual([
       "regents",
-      "regents-autolaunch",
+      "regents-platform",
     ]);
   });
 
@@ -102,7 +102,7 @@ describe("setup skills command", () => {
     };
     expect(payload.scope).toBe("global");
     expect(payload.source).toBe(skillsRoot);
-    expect(payload.skills).toEqual(["regents", "regents-autolaunch"]);
+    expect(payload.skills).toEqual(["regents", "regents-platform"]);
     expect(payload.next_steps[0]).toContain("Open your agent client");
   });
 

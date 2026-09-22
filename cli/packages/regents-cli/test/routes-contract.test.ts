@@ -40,10 +40,6 @@ describe("contract command route matching", () => {
     expect(variadicRoutes.map((route) => route.command).sort()).toEqual([
       "agent chat",
       "agentbook sessions watch",
-      "autolaunch chat tail [scope...]",
-      "autolaunch chat unread [scope...]",
-      "autolaunch jobs watch",
-      "autolaunch launch monitor",
       "doctor",
       "feynman",
       "regent-staking account",
@@ -69,10 +65,9 @@ describe("contract command route matching", () => {
   });
 
   it("does not let value slots consume known command words", () => {
-    const autolaunchAgentRoute = cliRoutes.find((route) => route.command === "autolaunch agent <id>");
+    const doctorTargetRoute = route("doctor <target>", async () => 0);
 
-    expect(autolaunchAgentRoute).toBeDefined();
-    expect(routeMatches(autolaunchAgentRoute!, ["autolaunch", "agent", "readiness"])).toBe(false);
+    expect(routeMatches(doctorTargetRoute, ["doctor", "contracts"])).toBe(false);
   });
 
   it("dispatches to the most specific matching command", async () => {

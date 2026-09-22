@@ -10,13 +10,8 @@ its campaign, proof and publication interface. Older `regents techtree` local
 Verify/notebook commands have different contracts and remain pending migration;
 they are not aliases for the Python CLI.
 
-Version 1.0.0 removes the five public Autolaunch market commands. Install the
-Autolaunch CLI and use `autolaunch auctions list`, `autolaunch auction <id>`,
-`autolaunch bids quote`, `autolaunch tokens list`, or
-`autolaunch treasury security <address>`. Its domain payload is `body` inside
-`{ok, status, body}`; HTTP failures use stdout and exit 1. It uses
-`AUTOLAUNCH_BASE_URL` or `--base-url`, not Regents config files. Other older
-Autolaunch commands remain unverified against the current product API.
+`regents` has no Autolaunch commands. Install the Autolaunch CLI for launches,
+auctions, bids and every other Autolaunch task.
 No release, installer pin or registry package is changed by this local candidate.
 
 ## Getting started

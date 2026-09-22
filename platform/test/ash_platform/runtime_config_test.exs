@@ -43,21 +43,7 @@ defmodule AshPlatform.RuntimeConfigTest do
     :ok
   end
 
-  test "Privy verification key accepts secret-manager-safe escaped PEM newlines" do
-    System.put_env("PRIVY_APP_ID", "local-privy-app")
-
-    System.put_env(
-      "PRIVY_VERIFICATION_KEY",
-      "-----BEGIN PUBLIC KEY-----\\r\\nabc123\\n-----END PUBLIC KEY-----"
-    )
-
-    assert privy_config() == [
-             app_id: "local-privy-app",
-             verification_key: "-----BEGIN PUBLIC KEY-----\nabc123\n-----END PUBLIC KEY-----"
-           ]
-  end
-
-  test "Privy verification key preserves a native multiline PEM" do
+  test "Privy verification key is the PEM exactly as given" do
     pem = "-----BEGIN PUBLIC KEY-----\nabc123\n-----END PUBLIC KEY-----"
     System.put_env("PRIVY_APP_ID", "local-privy-app")
     System.put_env("PRIVY_VERIFICATION_KEY", pem)

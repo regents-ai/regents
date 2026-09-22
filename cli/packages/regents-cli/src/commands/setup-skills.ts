@@ -207,7 +207,7 @@ export async function runSetupSkills(
     skills,
     installer,
     next_steps: [
-      "Open your agent client and use the Regents, Platform, Autolaunch, and Techtree skills.",
+      "Open your agent client and use the Regents, Platform, and Techtree skills.",
       "Run `regents agent-context` when an agent needs the current command surface.",
     ],
   };

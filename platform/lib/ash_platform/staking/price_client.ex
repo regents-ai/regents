@@ -113,7 +113,7 @@ defmodule AshPlatform.Staking.PriceClient do
     client().get(url,
       connect_options: [timeout: @timeout],
       receive_timeout: @timeout,
-      pool_timeout: @timeout,
+      finch: [pool_timeout: @timeout],
       retry: false,
       redirect: false
     )

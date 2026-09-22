@@ -5,8 +5,6 @@ defmodule AshPlatform.ReleaseTest do
 
   import ExUnit.CaptureIO
 
-  alias AshPlatform.LocalDatabaseFixture
-  alias AshPlatform.LocalDatabaseFixture.PostgresAdapter
   alias AshPlatform.Release
 
   @moduletag timeout: 300_000
@@ -266,15 +264,22 @@ defmodule AshPlatform.ReleaseTest do
   # every case that points the release commands somewhere else takes it down
   # first and puts it back exactly as it was.
   defp disposable_database do
-    run_id = "regent2e7_#{System.unique_integer([:positive])}"
-    config = LocalDatabaseFixture.local_acceptance_config!(run_id)
     previous = Application.get_env(:ash_platform, AshPlatform.Repo)
 
+    config = [
+      hostname: "127.0.0.1",
+      port: 5432,
+      database: "#{previous[:database]}_release_#{System.unique_integer([:positive])}",
+      username: previous[:username],
+      password: nil,
+      pool_size: 2
+    ]
+
     :ok = Supervisor.terminate_child(AshPlatform.Supervisor, AshPlatform.Repo)
-    :ok = PostgresAdapter.create(config)
+    :ok = Ecto.Adapters.Postgres.storage_up(config)
 
     on_exit(fn ->
-      PostgresAdapter.drop(config)
+      Ecto.Adapters.Postgres.storage_down(config)
       Application.put_env(:ash_platform, AshPlatform.Repo, previous)
       {:ok, _pid} = Supervisor.restart_child(AshPlatform.Supervisor, AshPlatform.Repo)
       Ecto.Adapters.SQL.Sandbox.mode(AshPlatform.Repo, :manual)

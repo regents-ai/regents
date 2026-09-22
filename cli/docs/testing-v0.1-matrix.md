@@ -29,7 +29,7 @@ pnpm test
 
 ## Product and safety coverage
 
-- Platform, Autolaunch, Agentbook, staking, wallet, and x402 command groups retain their focused suites
+- Platform, Agentbook, staking, wallet, and x402 command groups retain their focused suites
 - protected writes retain their existing signer and authority tests
 - deleted old-tree commands return `unknown_command`
 - generated command lists, help, MCP tools, and packaged skills expose no retired Techtree command
