@@ -11,16 +11,6 @@ defmodule AshPlatformWeb.Components.Shell do
     ViewerProfileTarget
   }
 
-  @doc """
-  The short form every wallet address is named by on screen: its first four hex
-  digits and its last four, as the header pill and the Stake and Redeem wallet
-  pills all show them.
-  """
-  def short_wallet("0x" <> address) when byte_size(address) == 40,
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  def short_wallet(wallet), do: wallet
-
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
   attr(:shell_instance, :integer, required: true)

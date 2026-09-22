@@ -1361,7 +1361,7 @@ defmodule AshPlatformWeb.ShellLive do
               account_wallet != active_wallet,
        do:
          {:mismatch,
-          "Please reconnect to the active wallet '#{short_wallet(account_wallet)}' to interact onchain."}
+          "Please reconnect to the active wallet '#{RegentFormat.short_wallet(account_wallet)}' to interact onchain."}
 
   defp wallet_gate(_account_wallet, _active_wallet), do: :ready
 

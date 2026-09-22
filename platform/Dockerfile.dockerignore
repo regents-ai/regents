@@ -27,6 +27,8 @@
 !elixir-utils/agent_access/lib/**
 !elixir-utils/ens/mix.exs
 !elixir-utils/ens/lib/**
+!elixir-utils/format/mix.exs
+!elixir-utils/format/lib/**
 !elixir-utils/siwa/siwa-elixir/apps/siwa/mix.exs
 !elixir-utils/siwa/siwa-elixir/apps/siwa/lib/**
 !blog/**

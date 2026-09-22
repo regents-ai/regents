@@ -11,6 +11,7 @@
 #     elixir-utils/blog/       the sibling source mix.exs resolves by path
 #     elixir-utils/agent_access/ the sibling source mix.exs resolves by path
 #     elixir-utils/ens/        the sibling source mix.exs resolves by path
+#     elixir-utils/format/     the sibling source mix.exs resolves by path
 #     elixir-utils/siwa/siwa-elixir/apps/siwa/
 #                              the sibling source elixir-utils/ens resolves by path
 #     mix-cache/               Mix, Hex and rebar3, extracted from the sealed archive
@@ -66,6 +67,7 @@ regent_ui_source="${REGENT_UI_PATH:-$siblings/design-system/regent_ui}"
 blog_source="${REGENT_BLOG_PATH:-$siblings/elixir-utils/blog}"
 agent_access_source="$siblings/elixir-utils/agent_access"
 ens_source="$siblings/elixir-utils/ens"
+format_source="$siblings/elixir-utils/format"
 siwa_source="$siblings/elixir-utils/siwa/siwa-elixir/apps/siwa"
 
 # The arm64 native artifact is part of the base supply; the amd64 one arrived
@@ -103,7 +105,7 @@ native_manifest="$native_supply/$native_manifest_name"
 
 for required in "$manifest" "$mix_addendum" "$esbuild_addendum" "$native_manifest" \
   "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$agent_access_source" \
-  "$ens_source" "$siwa_source" \
+  "$ens_source" "$format_source" "$siwa_source" \
   "$repo_root/../blog"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
@@ -212,6 +214,10 @@ rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --e
 mkdir -p "$staging/elixir-utils/ens"
 rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
   "$ens_source/" "$staging/elixir-utils/ens/"
+
+mkdir -p "$staging/elixir-utils/format"
+rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \
+  "$format_source/" "$staging/elixir-utils/format/"
 
 mkdir -p "$staging/elixir-utils/siwa/siwa-elixir/apps/siwa"
 rsync -a --no-links "${env_filters[@]}" --exclude '.git' --exclude '_build/' --exclude 'deps/' \

@@ -295,8 +295,5 @@ defmodule AshPlatformWeb.RegentOpsLive do
     """
   end
 
-  defp short_wallet("0x" <> address) when byte_size(address) == 40,
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_wallet(_wallet), do: "No verified wallet"
+  defp short_wallet(wallet), do: RegentFormat.short_wallet(wallet) || "No verified wallet"
 end

@@ -1,7 +1,7 @@
 defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
-  alias AshPlatformWeb.Components.{Loading, Shell}
+  alias AshPlatformWeb.Components.Loading
   alias AshPlatformWeb.TokenDisplay
 
   @control_labels %{
@@ -228,7 +228,7 @@ defmodule AshPlatformWeb.RedeemLive do
                   {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
                 </h2>
               </div>
-              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{Shell.short_wallet(
+              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_wallet(
                 @wallet
               )}</span>
             </div>

@@ -1,7 +1,7 @@
 defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
-  alias AshPlatformWeb.Components.{Loading, Shell}
+  alias AshPlatformWeb.Components.Loading
   alias AshPlatformWeb.{TokenDisplay, TokenLinks}
 
   attr :staking, :map, default: nil
@@ -255,7 +255,7 @@ defmodule AshPlatformWeb.StakeLive do
                 </h2>
               </div>
               <span :if={@wallet} class="stake-signer" title={@wallet}>
-                <span aria-hidden="true"></span>{Shell.short_wallet(@wallet)}
+                <span aria-hidden="true"></span>{RegentFormat.short_wallet(@wallet)}
               </span>
             </div>
 
