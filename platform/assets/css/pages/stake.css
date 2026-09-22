@@ -69,7 +69,6 @@
 .stake-section-kicker,
 .stake-benefit-card dt,
 .stake-earned-label,
-.stake-supply-heading > span,
 .stake-supply-facts dt,
 .stake-contract-facts dt,
 .stake-metric dt,
@@ -259,15 +258,6 @@
   display: none;
 }
 
-.stake-revenue-caret {
-  color: var(--ash-muted);
-  transition: transform 120ms ease;
-}
-
-.stake-revenue-source[open] .stake-revenue-caret {
-  transform: rotate(180deg);
-}
-
 .stake-revenue-source ul {
   display: grid;
   gap: 0.45rem;
@@ -365,32 +355,8 @@
   font-size: 0.74rem;
 }
 
-.stake-connect-flow li p,
-.stake-wallet-loading p {
+.stake-connect-flow li p {
   margin: 0;
-}
-
-.stake-wallet-loading {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel-strong);
-}
-
-.stake-progress-mark {
-  flex: 0 0 auto;
-  width: 0.7rem;
-  height: 0.7rem;
-  border: 2px solid color-mix(in oklch, var(--ash-accent) 35%, transparent);
-  border-top-color: var(--ash-accent);
-  animation: stake-spin 700ms linear infinite;
-}
-
-@keyframes stake-spin {
-  to { transform: rotate(1turn); }
 }
 
 .stake-wallet-summary,
@@ -716,13 +682,6 @@
   background: var(--ash-muted);
 }
 
-
-.stake-supply-heading strong {
-  font-family: var(--font-family-title);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
 /* One track holds both proportions: its full width is the total supply, the
    band inside it is the circulating supply, and the fill inside that band is
    what is staked. */
@@ -1010,14 +969,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stake-progress-mark,
   .stake-inline-loading::before { animation: none; }
   .stake-actions button,
   .stake-heading button,
   .stake-result-dialog button,
   .stake-shared-refresh,
-  .stake-contract-details summary > span:last-child,
-  .stake-revenue-caret { transition: none; }
+  .stake-contract-details summary > span:last-child { transition: none; }
 }
 
 /* The complete destination remains readable at mobile widths. */

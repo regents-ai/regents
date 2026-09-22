@@ -40,7 +40,7 @@ const defineSharedServicesGroup = <
 
 export const profileApiCommandGroups = [definePlatformGroup({
   commands: ["profile get", "profile sync", "profile update"], owner: "platform", status: "current",
-  note: "Regents-owned shared profile contract: docs/profile.openapi.json; paired Privy proof, independent of SIWA.",
+  note: "Regents-owned shared profile contract: identity/contracts/profile.openapi.json; paired Privy proof, independent of SIWA.",
   pathTemplates: ["/api/v1/profile", "/api/v1/profile/sync"],
 })] as const satisfies readonly ApiCommandGroup[];
 

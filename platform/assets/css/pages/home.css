@@ -14,7 +14,7 @@
   .rl-root [id] { scroll-margin-block-start: 2rem; }
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
   .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
-  .rl-brand img, .rl-footer-brand img { width: 2rem; height: 2rem; object-fit: contain; }
+  .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
   .rl-product-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; order: 3; width: 100%; max-width: 44rem; margin-inline: auto; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links, .rl-footer-links { display: flex; align-items: center; gap: var(--space-2); }
@@ -63,7 +63,6 @@
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; margin-block-start: var(--space-3); }
   .rl-hero-products { position: relative; z-index: 1; align-self: end; width: min(100%, 54rem); display: grid; gap: var(--space-2); }
-  .rl-hero-products-label { width: fit-content; background: var(--rl-bg); padding: var(--space-1) var(--space-2) var(--space-1) 0; font-size: .875rem; line-height: 1.4; }
   .rl-hero-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
   .rl-hero-card {
     --rl-card-fill: var(--palette-platinum);
@@ -96,7 +95,7 @@
   .rl-chapter-intro div > p:not(.rl-overline) { margin-block-start: var(--space-3); color: var(--rl-muted); }
   .rl-chapter-intro div > .rl-mode-rail { color: var(--rl-ink); }
   .rl-mode-rail { font-family: var(--font-family-ui); font-size: .8125rem; padding-block: var(--space-2); border-block: 1px solid var(--rl-line); }
-  .rl-mode-caption, .rl-chapter-support { font-size: .875rem; }
+  .rl-chapter-support { font-size: .875rem; }
   .rl-proof-grid { margin-block-start: var(--space-4); }
   .rl-proof-card { --rl-proof-fill: var(--palette-platinum); --color-accent: var(--palette-charcoal); --color-fg-on-accent: var(--palette-platinum); }
   .rl-proof-card[data-card-color="orange"] { --rl-proof-fill: var(--palette-tangerine-tango); }
@@ -119,11 +118,8 @@
   .rl-regent-economics dt { margin-block-end: var(--space-2); font-family: var(--font-family-title); font-size: 1.25rem; line-height: 1.2; }
   .rl-regent-economics dd { margin: 0; color: var(--rl-muted); line-height: 1.6; }
   .rl-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); font-size: .8125rem; }
-  .rl-footer-brand { display: flex; gap: var(--space-2); align-items: center; }
   .rl-document-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
   .rl-document-links a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-family-ui); }
-  .rl-footer-brand div { display: grid; gap: var(--space-1); }
-  .rl-footer-brand strong { font-family: var(--font-family-title); font-weight: 400; }
   @media (max-width: 63.99rem) {
     .rl-header-links { margin-inline-start: auto; }
   }

@@ -2,7 +2,6 @@
 title: Local Founder Acceptance - Plan
 type: feat
 date: 2026-07-13
-origin: docs/ASH-PLATFORM-DIRECTIVES.md
 artifact_contract: ce-unified-plan/v1
 artifact_readiness: implementation-ready
 product_contract_source: legacy-requirements
@@ -15,7 +14,7 @@ deepened: 2026-07-13
 ## Goal Capsule
 
 - **Objective:** Produce one clean, locally reproducible `ash-platform` beta that proves the founder-approved browser and agent journeys, with the plural `regents` CLI operating against the running application.
-- **Authority:** The current founder goal and `docs/ASH-PLATFORM-DIRECTIVES.md` define the intended product. Before capability implementation continues, U1 must reconcile `founder.md`, `metaprogramming/stack.yaml`, repo contracts, and interface ownership so those active machine and human sources name the same Ash Platform boundary. Old tickets, specs, handoffs, and implementation notes remain evidence only. Owning contracts override producers and consumers. Onchain state owns money and ownership. Product databases own workflow state.
+- **Authority:** The current founder goal defines the intended product. Before capability implementation continues, U1 must reconcile `founder.md`, `metaprogramming/stack.yaml`, repo contracts, and interface ownership so those active machine and human sources name the same Ash Platform boundary. Old tickets, specs, handoffs, and implementation notes remain evidence only. Owning contracts override producers and consumers. Onchain state owns money and ownership. Product databases own workflow state.
 - **Protected state:** Never drop, reset, rewrite, or rehearse against the live `platform_human_users`, `basenames_mints`, `basenames_mint_allowances`, or `basenames_payment_credits` datasets. Local acceptance uses guarded fixtures only.
 - **Execution profile:** Build capability-first vertical slices with Ash domains and intent-named interfaces. Use one integration custodian for shared shell, contract, configuration, dependency, migration, and generated-artifact files. Each implementation or review delegate loads Regent Workflow and Ash Framework, plus Regent UI for visible work and the relevant boundary skills.
 - **Stop conditions:** Stop before any production database contact, deploy, live provider mutation, live money movement, contract deployment, package publish, or destructive operation outside a guarded local fixture. Stop on a contract conflict, protected-data ambiguity, or product decision not resolved by the founder directives.

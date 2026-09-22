@@ -32,7 +32,7 @@ never resets any existing product database. No production/provider access occurs
 
 ## Cutover status
 
-Local adoption candidates exist for all four products, including `/profile`, the
+Local adoption candidates exist for all four products, including a private account page, the
 private API and matching CLI/WebMCP operations. Four real product Repo modules
 passed a shared local-database profile/read/edit/concurrent-sync check. No
 production account merge or provider configuration is implied.

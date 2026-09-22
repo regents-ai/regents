@@ -22,13 +22,6 @@ defmodule AshPlatform.WalletActions.Rpc do
     end
   end
 
-  def confirmed_transaction(hash, signer, to, data, opts \\ []) do
-    case confirmed_transaction_receipt(hash, signer, to, data, opts) do
-      {:ok, _receipt} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   def confirmed_transaction_receipt(hash, signer, to, data, opts \\ []) do
     with :ok <- verify_base_chain(opts),
          {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts) do

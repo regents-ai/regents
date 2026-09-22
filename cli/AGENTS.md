@@ -25,11 +25,4 @@ below define verification; no central coordinator service is required.
 
 ## Required validation
 
-```bash
-pnpm check:workspace
-pnpm check:openapi
-pnpm check:cli-contract
-pnpm build
-pnpm typecheck
-pnpm test
-```
+Run `make check-cli` from the repository root.

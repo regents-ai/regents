@@ -43,7 +43,6 @@ npm-debug.log
 !.env.example
 
 # Repo-local orchestration and agent state belongs to the umbrella workspace or workstation.
-/.beads/
 /metaprogramming/
 /.agents/
 /.codex/

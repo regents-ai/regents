@@ -4,8 +4,6 @@
   "design_owned_paths": [
     "lib/ash_platform_web/live/home_live.ex",
     "assets/css/pages/home.css",
-    "assets/js/hooks/home_hero.ts",
-    "assets/test/home_hero.test.ts",
     "priv/static/images/home/hero-bg-dark.svg",
     "test/ash_platform_web/home_live_test.exs",
     "lib/ash_platform_web/components/shell.ex",
@@ -16,12 +14,7 @@
     "assets/js/hooks/motion.ts",
     "assets/test/motion.test.ts",
     "assets/css/tokens/material.css",
-    "assets/backgrounds/manifest.ts",
     "lib/ash_platform_web/components/background.ex",
-    "priv/static/images/backgrounds/home.svg",
-    "priv/static/images/backgrounds/regents_labs.svg",
-    "priv/static/images/backgrounds/formation.svg",
-    "priv/static/images/backgrounds/regent_record.svg",
     "docs/design/founder-shell/**"
   ],
   "ash_owned_exclusions": [
@@ -80,12 +73,6 @@
     ],
     "design_responsibility": "presentation within the declared theme interface"
   },
-  "background_slots": [
-    {"slot": "home", "path": "priv/static/images/backgrounds/home.svg"},
-    {"slot": "regents_labs", "path": "priv/static/images/backgrounds/regents_labs.svg"},
-    {"slot": "formation", "path": "priv/static/images/backgrounds/formation.svg"},
-    {"slot": "regent_record", "path": "priv/static/images/backgrounds/regent_record.svg"}
-  ],
   "acceptance_commands": [
     "mix compile --warnings-as-errors",
     "mix format --check-formatted",

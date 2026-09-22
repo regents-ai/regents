@@ -10,7 +10,6 @@ owns:
   - human_identity
   - formation
   - public_regent_records
-  - autolaunch_product_area
 source_of_truth:
   repo_contract: repo.yaml
   http_contracts:
@@ -35,11 +34,6 @@ domain_interfaces:
   - id: accounts
     owner: ash-platform
     path: lib/ash_platform/accounts.ex
-capability_status_at_b1884bf:
-  human_identity: admitted
-  formation: not_admitted
-  public_regent_records: not_admitted
-  autolaunch: not_admitted
 protected_datasets:
   disposition: deliberate_later_ash_resources
   no_data_action_in_this_unit: true

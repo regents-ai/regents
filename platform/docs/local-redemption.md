@@ -23,7 +23,7 @@ refresh. No live transaction is sent.
 
 1. Complete the guarded local setup in [`local-privy-auth.md`](local-privy-auth.md).
 2. Install the locked dependencies with `mix deps.get` and `npm install`.
-3. Start the app with `ASH_PLATFORM_LOCAL_DB=1 mix phx.server`.
+3. Start the app with `mix phx.server`.
 4. Open `http://localhost:4000/redeem` and sign in with the Privy account whose embedded wallet
    holds the Animata token.
 5. Confirm the page shows Base, 80 USDC, 5,000,000 REGENT, seven-day vesting, your USDC balance and

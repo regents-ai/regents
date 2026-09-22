@@ -17,4 +17,4 @@ excluded:
 promotion_policy: >-
   Archived Autolaunch contracts are NOT auto-promoted. Each contract family
   moves here only through an explicit source-of-truth and deployment migration
-  (founder decision 2026-08-04, regent-839.4).
+  (founder decision 2026-08-04).

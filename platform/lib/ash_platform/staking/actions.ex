@@ -21,19 +21,19 @@ defmodule AshPlatform.Staking.Actions do
 
   def account(_input, %{actor: %Human{} = actor}) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
-         {:ok, wallet} <- normalize_address(account.wallet_address),
+         {:ok, wallet} <- Address.normalize_wallet(account.wallet_address),
          do: ChainClient.module().wallet_snapshot(wallet)
   end
 
   def account(_input, _context), do: {:error, :authentication_required}
 
   def account_for_wallet(input, _context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+    with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          do: ChainClient.module().wallet_snapshot(signer)
   end
 
   def prepare(action, input, _context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+    with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          {:ok, amount} <- requested_amount(action, input.arguments),
          {:ok, data, approval, arguments} <- calldata(action, amount, signer),
          envelope <-
@@ -224,13 +224,6 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   defp atomic(_value), do: :error
-
-  defp normalize_address(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> {:error, :invalid_wallet}
-    end
-  end
 
   defp refusal(reason),
     do:

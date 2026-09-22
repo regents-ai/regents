@@ -19,10 +19,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
   defp close_surfaces, do: Application.put_env(:ash_platform, :app_surfaces, false)
   defp open_surfaces, do: Application.put_env(:ash_platform, :app_surfaces, true)
 
-  test "[U1] one switch is open by default and reads both explicit states" do
-    Application.delete_env(:ash_platform, :app_surfaces)
-    assert LaunchGate.app_surfaces_enabled?()
-
+  test "[U1] one switch reads both explicit states" do
     open_surfaces()
     assert LaunchGate.app_surfaces_enabled?()
 

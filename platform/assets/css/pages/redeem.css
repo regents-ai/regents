@@ -274,7 +274,6 @@
 }
 
 .redeem-connect-panel,
-.redeem-wallet-loading,
 .redeem-wallet-recovery {
   display: grid;
   gap: 0.75rem;
@@ -284,8 +283,7 @@
 }
 
 .redeem-connect-panel p,
-.redeem-wallet-recovery p,
-.redeem-wallet-loading p {
+.redeem-wallet-recovery p {
   margin: 0;
 }
 
@@ -308,26 +306,6 @@
 .redeem-connect-panel button,
 .redeem-wallet-recovery > div {
   justify-self: start;
-}
-
-.redeem-wallet-loading {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  min-width: 0;
-}
-
-.redeem-progress-mark {
-  flex: 0 0 auto;
-  width: 0.7rem;
-  height: 0.7rem;
-  border: 2px solid color-mix(in oklch, var(--ash-accent) 35%, transparent);
-  border-top-color: var(--ash-accent);
-  animation: redeem-spin 700ms linear infinite;
-}
-
-@keyframes redeem-spin {
-  to { transform: rotate(1turn); }
 }
 
 .redeem-wallet-flow {
@@ -849,7 +827,6 @@
 @media (max-width: 50rem) {
   .redeem-collection-grid { grid-template-columns: minmax(0, 1fr); }
   .redeem-collection-card { grid-template-columns: minmax(8rem, 0.55fr) minmax(0, 1fr); grid-template-rows: auto; }
-  .redeem-collection-art { min-height: 13rem; }
   .redeem-collection-copy { border-top: 0; border-left: 1px solid var(--ash-line); }
   .redeem-section-heading { flex-direction: column; }
   .redeem-section-heading > p { text-align: left; }
@@ -862,7 +839,6 @@
   .redeem-position,
   .redeem-owned { padding: 1rem; }
   .redeem-collection-card { grid-template-columns: minmax(0, 1fr); grid-template-rows: 9rem auto; }
-  .redeem-collection-art { min-height: 0; }
   .redeem-collection-copy { border-top: 1px solid var(--ash-line); border-left: 0; }
   .redeem-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .redeem-stepper li:nth-child(odd) { border-left: 0; }
@@ -880,7 +856,6 @@
 @media (prefers-reduced-motion: reduce) {
   .redeem-intro-video { display: none; }
   .redeem-intro-poster { display: block; }
-  .redeem-progress-mark,
   .redeem-nft-card { animation: none; opacity: 1; transform: none; }
   .redeem-page button,
   .redeem-result-dialog button,

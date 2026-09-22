@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](../LICENSE)
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
-[![Ash 3.32](https://img.shields.io/badge/ash-3.32-lightgrey)](https://ash-hq.org)
+[![Ash 3.33](https://img.shields.io/badge/ash-3.33-lightgrey)](https://ash-hq.org)
 [![PostgreSQL 17](https://img.shields.io/badge/postgres-17-lightgrey)](https://www.postgresql.org)
 
 The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
@@ -85,10 +85,18 @@ development and from the deployment's secret store in production.
 | `ASH_PLATFORM_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
 | `DATABASE_POOLED_URL` | Yes in production | Pooled Postgres connection string. Rejected unless it is a well-formed PostgreSQL URL for an approved target. |
 | `DATABASE_DIRECT_URL` | Only when migrating | Direct Postgres connection string, used by the migration release command. |
-| `ASH_PLATFORM_DATABASE_TARGET_MODE` | Only when migrating | Must be `rehearsal`. `production` is refused outright. |
-| `ASH_PLATFORM_DATABASE_CLUSTER_ID` | For a remote target | Must match the approved cluster, in development and when migrating. |
+| `ASH_PLATFORM_DATABASE_TARGET_MODE` | When migrating under the `production` role | Must be `production`. Any other value refuses the migration. |
+| `ASH_PLATFORM_DATABASE_CLUSTER_ID` | For a remote target | Must match the approved cluster, in development and when migrating under the `production` role. |
 | `ASH_PLATFORM_DATABASE_CLUSTER_NAME` | For a remote target | Must match the approved cluster name. Set neither this nor the id to stay on the loopback database. |
 | `ASH_PLATFORM_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
+| `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
+| `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. |
+| `SENTRY_DSN` | No | Sentry project to report errors to. Unset, nothing is reported. |
+| `SENTRY_RELEASE` | No | Release name attached to Sentry reports. |
+| `SENTRY_ENVIRONMENT` | No | Environment name attached to Sentry reports. Defaults to the Mix environment. |
+| `ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER` | No | `on` opens the one-time Regents Club metadata cutover page. Anything else keeps it closed. |
+| `ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY` | For the cutover | `passed` records that the Privy origin canary passed; the cutover stays unready without it. |
+| `ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256` | For the cutover | Must equal the attested Regents Club media release manifest digest before the cutover is ready. |
 
 ## Public HTTP surface
 
@@ -98,7 +106,8 @@ is a map, not the contract.
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/healthz` | GET | Liveness check, used by the Fly health check. |
-| `/api/formation/v1/regents/:regent_id/agent-links` | GET, POST | Read and claim agent links. |
+| `/api/formation/v1/regents/:regent_id/agent-links` | GET | Read agent links. |
+| `/api/formation/v1/regents/:regent_id/agent-links/claim` | POST | Claim an agent link. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 
@@ -121,16 +130,12 @@ rel/                    Release overlays, including the migrate command
 
 ## Checks
 
-The full platform gate is below. For focused changes, run the checks that exercise
-the changed behavior; retain the required broader checks for protected changes:
+The full platform gate is `make check-platform`, run from the repository root with
+`REGENT_DEPS_ROOT` and `MIX_TEST_PARTITION` set. For focused changes, run the checks that
+exercise the changed behavior; retain the full gate for protected changes.
 
-```bash
-mix precommit
-npm run typecheck
-npm test
-```
-
-It compiles with warnings as errors, checks unused dependency locks and formatting, runs
+It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck and the Vitest unit suite. `mix precommit`
+compiles with warnings as errors, checks unused dependency locks and formatting, runs
 Credo in strict mode and Sobelow, holds the compile-connected `xref` graph under its limit,
 runs the test suite with warnings as errors, and verifies the Ash codegen and route handoff
 are up to date.
@@ -139,8 +144,6 @@ Other relevant checks are available for browser behavior, asset budgets, and ext
 
 | Command | What it does |
 | --- | --- |
-| `npm run typecheck` | Type-checks the TypeScript assets. |
-| `npm test` | Runs the Vitest unit suite. |
 | `npm run test:browser` | Builds assets and runs the Playwright browser suite. |
 | `npm run test:budgets` | Enforces the asset size budgets. |
 | `mix test.external` | Runs one Docker build-context test. Excluded from `mix precommit` because it requires tools outside the hermetic test suite. |
@@ -158,8 +161,9 @@ builds the schema itself on its first run.
 > Deploying runs `/app/bin/migrate` as its release command, so a deploy writes database
 > migrations. Every deployment must name its venue in `ASH_PLATFORM_DEPLOYMENT_ROLE`, and
 > each role admits only its own database hosts. Under the `production` role the migration
-> path refuses to run unless the target is the approved rehearsal cluster; a production
-> target is refused outright and needs separately authorised configuration. Production boot
+> path refuses to run unless `ASH_PLATFORM_DATABASE_TARGET_MODE` is `production`, both
+> cluster settings name the approved production cluster, and `FLY_APP_NAME` is not a
+> retired application. Production boot
 > also fails unless `ASH_PLATFORM_APP_SURFACES`, `BASE_READ_RPC_URL`, `PHX_HOST`, and a
 > 64-byte `SECRET_KEY_BASE` are all set. `/app/bin/pending-migrations` reports what a
 > deployed database and the release image disagree about, without applying anything.
@@ -177,8 +181,8 @@ MIT — see [LICENSE](../LICENSE).
 
 ## Shared private profile
 
-`/profile` uses the shared Regent UI and Regents-owned Ash identity domain.
-The private `/api/v1/profile` contract provides `GET`, `PATCH`, and `POST /sync`;
+`/account` is the signed-in person's own page. The private `/api/v1/profile` contract,
+served by the Regents-owned Ash identity domain, provides `GET`, `PATCH`, and `POST /sync`;
 the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
@@ -192,7 +196,7 @@ Do not repoint existing databases or replay migration histories: legacy identity
 mappings, schema collisions and a recovery copy require a separate verified cutover.
 See the identity package README and CLI private-profile contract for proof handling.
 
-Historical names on `/profile` read the preserved `regent_names` tables through Ash.
+Historical names on `/account` read the preserved `regent_names` tables through Ash.
 `GET /api/v1/claims` requires fresh paired Privy proofs and returns only records owned
 by verified linked wallets. It is paginated and read-only; private payments and
 entitlements are preserved separately. Import these tables through the reviewed

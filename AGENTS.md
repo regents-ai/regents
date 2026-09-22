@@ -9,8 +9,10 @@ Own regents.sh, its API, CLI and Regents contracts in this monorepo.
   product. Read its README before changing sync, actor or ownership rules.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
   OpenClaw, MCP and bundled-skill integrations are CLI code under `cli/` and stay there.
-- Shared UI and Elixir libraries other than `identity/` remain separate siblings. Use `REGENT_DEPS_ROOT`
-  for isolated builds. Run checks from the owning component or use root Make targets.
+- Shared UI and Elixir libraries other than `identity/` remain separate siblings.
+- `make check` runs every component gate; `make check-platform`, `check-identity`, `check-cli`
+  and `check-contracts` run one. `REGENT_DEPS_ROOT` (the shared library root) and
+  `MIX_TEST_PARTITION` (an underscore and a short id, unique to your working tree) are required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.
 - Preserve uncommitted work, public command/API shapes and protected source evidence.
@@ -19,5 +21,5 @@ Own regents.sh, its API, CLI and Regents contracts in this monorepo.
   `.env.local` or `.envrc`.
 
 For product orientation and related Regent products, see [README.md](README.md).
-The public agent entry point is [platform/priv/static/llms.txt](platform/priv/static/llms.txt);
+The public agent entry point is [platform/priv/public/llms.md](platform/priv/public/llms.md), served at `/llms.txt`;
 keep its advertised commands consistent with the owning CLI and HTTP contracts.

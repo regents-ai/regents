@@ -78,15 +78,6 @@ defmodule AshPlatformWeb.DesignOwnershipManifestTest do
       refute path in manifest["ash_owned_exclusions"]
     end
 
-    backgrounds = manifest["background_slots"]
-    assert length(backgrounds) == 4
-    assert backgrounds |> Enum.map(& &1["slot"]) |> Enum.uniq() |> length() == 4
-    assert backgrounds |> Enum.map(& &1["path"]) |> Enum.uniq() |> length() == 4
-
-    for %{"path" => path} <- backgrounds do
-      assert path in manifest["design_owned_paths"]
-    end
-
     for path <- [
           "lib/ash_platform_web/router.ex",
           "lib/ash_platform_web/live/shell_live.ex",

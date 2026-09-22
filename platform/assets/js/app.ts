@@ -22,8 +22,6 @@ import {
 } from "./shell_state"
 import {CopyText} from "./hooks/copy_text"
 import {HolographicCard} from "./hooks/holographic_card"
-import {HomeField} from "./hooks/home_field"
-import {HomeHero} from "./hooks/home_hero"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
@@ -329,8 +327,6 @@ const hooks = {
   ...colocatedHooks,
   CopyText,
   HolographicCard,
-  HomeField,
-  HomeHero,
   HomePrism,
   HomeTokenMenu,
   InfiniteScroll,

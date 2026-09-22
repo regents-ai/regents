@@ -1,6 +1,6 @@
-# Wallet key at rest (regent-cujc) — decision handoff
+# Wallet key at rest — decision handoff
 
-Short brief for Sean to dig into. Nothing implemented. bd: `regent-cujc` (held pending this decision).
+Short brief for Sean to dig into. Nothing implemented; held pending this decision.
 
 ## Purpose — what we're protecting and why
 
@@ -56,7 +56,7 @@ command. *Pros:* small; protects the file at rest; works identically on laptop, 
 
 **C. Rescope — env var + socket auth is the posture; document, don't encrypt the file.**
 Treat the plaintext file as unsupported. Standardize on `REGENT_WALLET_PRIVATE_KEY` (already the
-wizard's path) and lean on daemon socket auth (`regent-u5gs`) for the live process. *Pros:* smallest;
+wizard's path) and lean on daemon socket auth for the live process. *Pros:* smallest;
 matches how sprites/hermes already work; nothing new to maintain. *Cons:* if a dev *does* keep a key
 file, it stays plaintext; "at rest" for the key itself is only as strong as the env/secret store.
 

@@ -35,6 +35,15 @@ defmodule AshPlatform.WalletActions.Address do
     with {:ok, decoded} <- decode(value), do: {:ok, canonical(decoded)}
   end
 
+  @doc "`normalize/1` for a signing wallet, refused as `:invalid_wallet`."
+  @spec normalize_wallet(term()) :: {:ok, String.t()} | {:error, :invalid_wallet}
+  def normalize_wallet(value) do
+    case normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> {:error, :invalid_wallet}
+    end
+  end
+
   @doc "Whether two addresses name the same twenty bytes, whatever their casing."
   @spec equal?(term(), term()) :: boolean()
   def equal?(left, right), do: match?({{:ok, same}, {:ok, same}}, {decode(left), decode(right)})

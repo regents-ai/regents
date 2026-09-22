@@ -7,7 +7,7 @@
 
 The canonical home for Regent Solidity: contract source, Foundry tests, deployment scripts,
 verified deployment records, canonical ABIs, and the chain-contract manifest. It is maintained
-by Regents Labs and covers the shared, Techtree, staking, and Autolaunch contract families.
+by Regents Labs and covers the shared, staking, and Autolaunch contract families.
 
 > [!IMPORTANT]
 > No release is currently admitted by this repository's chain manifest. Some historical
@@ -77,7 +77,6 @@ exact commit of each; treat it as the source of truth over any version written i
 
 ```text
 src/shared/       Shared auth, libraries, and interfaces
-src/techtree/     TechtreeGraphRegistryV1
 src/staking/      RegentRevenueStaking
 src/autolaunch/   Autolaunch factory, CCA, launch fees, vesting, revenue split
 test/             Foundry unit, invariant, and proof-of-concept suites

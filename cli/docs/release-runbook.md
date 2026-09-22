@@ -134,7 +134,7 @@ Only push after you have reviewed the resulting version bump and staged files.
 
 This repo now has a checked-in CI workflow at:
 
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+- [`.github/workflows/cli-ci.yml`](../../.github/workflows/cli-ci.yml)
 
 It runs on:
 
@@ -158,7 +158,7 @@ If any of those fail, the branch should not be considered releasable.
 
 This repo now has a checked-in publish workflow at:
 
-- [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)
+- [`.github/workflows/cli-publish.yml`](../../.github/workflows/cli-publish.yml)
 
 The release model is tag based.
 

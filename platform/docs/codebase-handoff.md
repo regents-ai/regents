@@ -22,7 +22,7 @@ Four public surfaces are open today:
 Autolaunch and Techtree have left this app (see §9); their product copy on `/`
 and `/stake` stays, linking out to autolaunch.sh and techtree.sh.
 
-Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.32 · AshPostgres · Privy for sign-in ·
+Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.33 · AshPostgres · Privy for sign-in ·
 Base (chain 8453) for every on-chain figure.
 
 ---
@@ -112,7 +112,7 @@ lib/ash_platform_web/
   token_links.ex     the Uniswap and DexScreener links, built from the pinned
                      token address so a link can never name another token
 assets/css/pages/    one stylesheet per surface
-assets/js/hooks/     LiveView hooks; home_field / home_prism are the WebGPU islands
+assets/js/hooks/     LiveView hooks; home_prism is the WebGPU island
 contracts/           the pinned manifest, its digest, and the ABIs
 test/browser/        Playwright specs (real browser, port 4002)
 ```
@@ -121,32 +121,15 @@ test/browser/        Playwright specs (real browser, port 4002)
 
 ## 4. Gates — run all of these before claiming anything works
 
-```bash
-MIX_TEST_PARTITION=_<slug> mix precommit
-```
-
-That alias is compile-with-warnings-as-errors, unused-deps check, format check,
-Credo strict, Sobelow, an `xref` compile-connected ceiling, the full test suite with
-warnings as errors, `ash.codegen --check`, and the route handoff check.
-
-Then:
+Run `make check-platform` from the repository root; the README's "Checks" section says
+what it covers. For browser behaviour, also run:
 
 ```bash
-npm test              # vitest, ~504 tests
-npm run typecheck     # tsc over assets/
 mix assets.build && npx playwright test test/browser/<spec>.spec.ts
 ```
 
-**First run in a new worktree** needs its partition database created, or you get a
-confusing `invalid_catalog_name` / `schema "platform" does not exist`:
-
-```bash
-MIX_ENV=test MIX_TEST_PARTITION=_<slug> mix ash_platform.setup_local_auth
-MIX_ENV=test MIX_TEST_PARTITION=_<slug> mix ash.setup
-```
-
-The order matters: the human-accounts fixture creates the `platform` schema that the
-migrations reference.
+**First run in a new worktree** needs its partition database; follow the README's
+"Checks" section.
 
 For asset-budget checks, run `mix compile` in dev first — `mix esbuild --minify`
 fails on unresolved `phoenix-colocated/ash_platform` until the colocated hooks exist.
@@ -171,13 +154,9 @@ fly deploy -a regents-sh-web --image registry.fly.io/regents-sh-web:main-<sha>
 The release runs `/app/bin/migrate` before boot, so any migration you add ships and
 runs automatically.
 
-**Known debt (ticket regent-556):** the sealed offline supply is pinned to the
-lockfile from 2026-08-12 and has drifted; the sealed npm cache is missing at least
-`wgpu-matrix@3.4.2`. Until it is resealed, each release needs a manual top-up of the
-assembled context's `npm-cache` (`npm ci --cache <ctx>/npm-cache --omit=dev
---ignore-scripts` from a scratch dir holding the current package.json/lock), and the
-build uses `scripts/build-release-context.unsealed.sh`, an untracked local variant
-with the two lockfile assertions disabled. Fix the seal rather than extending that.
+**Known debt:** the sealed offline supply is pinned to the lockfile from 2026-08-12
+and has drifted, so the context script's lockfile checks refuse the current lockfiles
+until the supply is resealed. Reseal it rather than working around the checks.
 
 **Verify live in a real browser, not by trusting the deploy output.** The in-app
 browser pane reports `document.hidden === true`, so animation and WebGPU look dead in
@@ -189,31 +168,7 @@ the LiveView socket.
 
 ## 6. Rules that are not negotiable
 
-These come from the founder and override normal instincts:
-
-1. **Hard cutover, always.** No fallbacks, no compatibility branches, no shims,
-   adapters, coercions, aliases or dual-shape support. No guards whose job is to
-   detect old shapes, and no tests asserting old shapes are rejected. Delete old
-   handling rather than policing it. Update producers, consumers, fixtures and tests
-   to the one canonical shape in the same change.
-2. **On-chain buttons are never gated by page state.** Every press reaches the wallet.
-   Never add state that blocks, defers, dedupes or serialises a user's on-chain
-   action, including a repeat press while a transaction is pending. A reverted or
-   duplicate transaction is an accepted outcome.
-3. **No programmer language in user-facing copy.** No "fallback", "hard cutover",
-   "server-rendered", "LiveView", "hooks", "API wiring" in UI text, empty states,
-   onboarding or marketing copy.
-4. **Common sense in every interaction.** Reads are non-blocking; one failed call
-   never blocks a guest's data; every button and form does what a normal person
-   expects.
-5. **Never read `.env` contents** (`.env.example` is fine). **Never print an RPC URL** —
-   provider URLs carry the API key; name the host only. Secrets are recorded by name
-   and fingerprint, never value.
-6. **Signing, value movement, contract deployment, DNS and Privy-dashboard changes
-   are the founder's, per action.** Fly secrets and config on lane apps are not.
-7. **Leave no tech debt.** If you took a shortcut, go back and do it properly. This
-   is treated as a hard acceptance criterion, not a preference.
-8. Report in plain English, and verify by running the thing, not by reading the diff.
+Follow the founder rules in `/Users/sean/Documents/regent/AGENTS.md`.
 
 ---
 
@@ -249,7 +204,7 @@ These come from the founder and override normal instincts:
 
 ## 9. Open work
 
-**`regent-kzt` — Techtree has left this app.** The vertical, its routes, OpenAPI
+**Techtree has left this app.** The vertical, its routes, OpenAPI
 paths, comment reactions, and the `techtree` schema tables are gone. Product copy
 on `/` and `/stake` stays — Techtree is still a business and still a revenue source.
 
@@ -261,10 +216,9 @@ here. The empty `regents_app.comments` table was dropped on 2026-09-19. Read-onl
 `/autolaunch`, `/techtree` and `/patchbay` information pages are briefed in the
 workspace `docs/backlogs/regents.md`.
 
-**Other open tickets:** `regent-556` (reseal the release supply), `regent-gu2.20`
-(common-sense audit of every interaction — the scout for it died and was never
-redispatched), `regent-gu2.21` (a stray "Missed 1 notifications" warning from
-`SessionAuthority.bind/revoke`).
+**Other open work:** reseal the release supply; a common-sense audit of every
+interaction; a stray "Missed 1 notifications" warning from
+`SessionAuthority.bind/revoke`.
 
 **Unanswered by the founder:** whether the standing authority extends to production
 releases, and what to do about the machine's disk (Docker VM 131 GB, huggingface

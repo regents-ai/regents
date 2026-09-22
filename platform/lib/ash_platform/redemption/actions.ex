@@ -17,14 +17,14 @@ defmodule AshPlatform.Redemption.Actions do
   def overview(_input, _context), do: ChainClient.module().overview(nil, nil, nil)
 
   def account_for_wallet(input, _context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+    with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          {:ok, collection} <-
            optional_collection(input.arguments.collection, input.arguments.token_id),
          do: ChainClient.module().overview(signer, collection, input.arguments.token_id)
   end
 
   def prepare(action, input, _context) do
-    with {:ok, signer} <- normalize_address(input.arguments.expected_signer),
+    with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          {:ok, envelope} <- prepare_action(action, input.arguments, signer),
          {:ok, target, contract} <- RedemptionAbi.action_identity(envelope),
          true <-
@@ -152,13 +152,6 @@ defmodule AshPlatform.Redemption.Actions do
     case Integer.parse(value || "") do
       {amount, ""} -> {:ok, amount}
       _ -> :error
-    end
-  end
-
-  defp normalize_address(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> {:error, :invalid_wallet}
     end
   end
 

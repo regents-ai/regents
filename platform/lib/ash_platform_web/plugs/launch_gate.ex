@@ -13,7 +13,7 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   alias AshPlatformWeb.HoldingController
 
   @doc "True while the product surfaces are open."
-  def app_surfaces_enabled?, do: Application.get_env(:ash_platform, :app_surfaces, true)
+  def app_surfaces_enabled?, do: Application.fetch_env!(:ash_platform, :app_surfaces)
 
   def init(opts), do: opts
 
