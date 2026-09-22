@@ -35,12 +35,7 @@ defmodule AshPlatformWeb.Live.Session do
     |> Map.put("theme", conn.assigns.theme)
   end
 
-  # The lease starts absent on every mount and is only ever granted by a
-  # connected mount that proved its claim, so a disconnected render can read but
-  # can never reach a protected write.
   def on_mount(:load_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, :session_lease, nil)
-
     if connected?(socket) do
       connected(socket, session, get_connect_info(socket, :session))
     else
@@ -67,30 +62,29 @@ defmodule AshPlatformWeb.Live.Session do
 
   defp admit(socket, _rendered, _route, nil), do: {:halt, redirect(socket, to: @public_root)}
 
-  defp admit(socket, rendered, route, %{lineage: lineage, generation: generation} = claim) do
+  defp admit(socket, rendered, route, %{lineage: lineage} = claim) do
     with {^lineage, account} <- SessionAuthority.resolve(claim),
          ^rendered <- SessionAuthority.topic(lineage) do
-      {:cont, hold(socket, lineage, generation, account)}
+      {:cont, hold(socket, lineage, account)}
     else
       {nil, nil} -> {:halt, redirect(socket, to: @public_root)}
       _other_session -> {:halt, redirect(socket, to: route)}
     end
   end
 
-  defp hold(socket, _lineage, _generation, nil), do: assign_principal(socket, nil)
+  defp hold(socket, _lineage, nil), do: assign_principal(socket, nil)
 
-  # The lease records the generation the mount proved, which later revalidation
-  # deliberately does not re-require: a same-account refresh advances it beneath
-  # a live socket. Lineage, account binding, revocation and the account's own
-  # provider evidence are re-read every time, and the principal is rebuilt from
-  # that read rather than from the struct the mount captured.
-  defp hold(socket, lineage, generation, account) do
-    lease = %{lineage: lineage, account_id: account.id, generation_at_mount: generation}
+  # The lease holds no generation, because a same-account refresh advances it
+  # beneath a live socket. Lineage, account
+  # binding, revocation and the account's own provider evidence are re-read
+  # every time, and the principal is rebuilt from that read rather than from the
+  # struct the mount captured.
+  defp hold(socket, lineage, account) do
+    lease = %{lineage: lineage, account_id: account.id}
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, Ens.topic(account.id))
 
     socket
     |> assign_principal(account)
-    |> Phoenix.Component.assign(:session_lease, lease)
     # The wallet's ENS name and picture arrive from Ethereum after sign-in has
     # already finished, so the page that is already open takes them as they land.
     # The view hears the same message afterwards, with the account re-read.
@@ -121,10 +115,9 @@ defmodule AshPlatformWeb.Live.Session do
   defp reidentify(socket, nil), do: socket
   defp reidentify(socket, account), do: assign_principal(socket, account)
 
-  # A lapsed lease is withdrawn along with the principal, so nothing downstream
-  # can still present it as authority for a write.
-  defp lapsed(socket),
-    do: socket |> assign_principal(nil) |> Phoenix.Component.assign(:session_lease, nil)
+  # A lapsed lease withdraws the principal, so nothing downstream can still
+  # present it as authority.
+  defp lapsed(socket), do: assign_principal(socket, nil)
 
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)

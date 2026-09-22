@@ -40,7 +40,6 @@ defmodule AshPlatform.Accounts.SessionAuthority do
 
   @typedoc "Everything a browser carries. There is no account here by design."
   @type claim :: %{lineage: String.t(), generation: non_neg_integer()}
-  @type callback :: (Ash.Resource.record() -> {:ok, term()} | {:error, term()})
 
   postgres do
     table "session_authorities"
@@ -290,33 +289,6 @@ defmodule AshPlatform.Accounts.SessionAuthority do
 
   def leased_account(_lineage, _account_id), do: nil
 
-  @doc """
-  Runs `callback` against the account the exact claim locks.
-
-  The lock, the revalidation and the callback share one repository transaction
-  in one process, so a protected write cannot outlive a concurrent revocation,
-  account switch, generation advance or lapse of provider evidence, and cannot
-  survive its own failure.
-  """
-  @spec transact_exact(claim() | nil, callback()) :: {:ok, term()} | {:error, term()}
-  def transact_exact(%{lineage: lineage} = claim, callback) when is_binary(lineage),
-    do: guarded(lineage, &(state(&1, claim) == :exact), callback)
-
-  def transact_exact(_claim, _callback), do: {:error, :stale_authority}
-
-  @doc "The same primitive for a mounted lease, which tolerates same-account drift."
-  @spec transact_lease(String.t(), integer(), callback()) :: {:ok, term()} | {:error, term()}
-  def transact_lease(lineage, account_id, callback)
-      when is_binary(lineage) and is_integer(account_id),
-      do:
-        guarded(
-          lineage,
-          &match?(%{revoked_at: nil, human_account_id: ^account_id}, &1),
-          callback
-        )
-
-  def transact_lease(_lineage, _account_id, _callback), do: {:error, :stale_authority}
-
   @doc "The deterministic, lineage-stable topic every socket for a lineage mounts on."
   @spec topic(String.t()) :: String.t()
   def topic(lineage) when is_binary(lineage),
@@ -413,32 +385,12 @@ defmodule AshPlatform.Accounts.SessionAuthority do
     do:
       Ash.Query.for_read(__MODULE__, :by_lineage_digest, %{lineage_digest: digest}, actor: @actor)
 
-  # Every protected write locks the authority row and then the account row, in
-  # that one order, and reads the provider evidence only from behind the second
-  # lock. A concurrent lapse therefore either waits for the callback to commit or
-  # commits first and is seen, and two protected writes cannot deadlock.
-  defp guarded(lineage, current?, callback) do
-    Repo.transaction(fn ->
-      row = lineage |> digest() |> lock()
+  defp verified(nil), do: nil
 
-      with true <- current?.(row),
-           account when not is_nil(account) <- verified(row.human_account_id, :for_update) do
-        commit(callback.(account))
-      else
-        _lapsed -> Repo.rollback(:stale_authority)
-      end
-    end)
-  end
-
-  defp verified(account_id, lock \\ nil)
-
-  defp verified(nil, _lock), do: nil
-
-  defp verified(account_id, lock) do
+  defp verified(account_id) do
     with {:ok, account} when not is_nil(account) <-
            Accounts.get_human_account(account_id,
-             actor: %Human{human_account_id: account_id},
-             query: [lock: lock]
+             actor: %Human{human_account_id: account_id}
            ),
          true <- VerifiedSession.current?(account) do
       account
@@ -456,9 +408,6 @@ defmodule AshPlatform.Accounts.SessionAuthority do
         false
     end
   end
-
-  defp commit({:ok, value}), do: value
-  defp commit({:error, reason}), do: Repo.rollback(reason)
 
   defp absent_row_breach(generation) do
     :telemetry.execute([:ash_platform, :session_authority, :absent_row], %{count: 1}, %{

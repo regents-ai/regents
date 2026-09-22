@@ -19,8 +19,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/redeem",
     "/autolaunch",
     "/techtree",
-    "/patchbay",
-    "/regents-club/metadata-cutover"
+    "/patchbay"
   ]
 
   test "contains exactly the founder-approved pages" do
@@ -137,7 +136,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
     assert length(decoded["routes"]) == 10
-    refute Enum.any?(decoded["routes"], &(&1["route_id"] == "regents_club_metadata"))
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
@@ -164,8 +162,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert %{"sidebar_model" => %{"targets" => []}} =
              Enum.find(decoded["routes"], &(&1["route_id"] == "formation"))
-
-    refute Enum.any?(targets, &(&1["destination"] == "/regents-club/metadata-cutover"))
   end
 
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}

@@ -11,10 +11,6 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "animata_redeemer" => %{
       "path" => "abi/animata-redeemer.json",
       "sha256" => "c14a490d3feefbee76fd08e5f993d987e27388cb6c78f4643e2d8010c34766fd"
-    },
-    "regents_club" => %{
-      "path" => "abi/regents-club.json",
-      "sha256" => "05e58830ff8454bdd0b0130b96d2a59b350802ef79a1d540f743c44107ff1be2"
     }
   }
   @actions %{
@@ -30,9 +26,6 @@ defmodule AshPlatform.WalletActions.ManifestTest do
       "approve_exact_usdc" => {"approve(address,uint256)", "0x095ea7b3"},
       "redeem" => {"redeem(address,uint256)", "0x1e9a6950"},
       "claim" => {"claim()", "0x4e71d92d"}
-    },
-    "regents_club" => %{
-      "set_base_uri" => {"setBaseURI(string)", "0x55f804b3"}
     }
   }
   @admitted_actions [
@@ -44,8 +37,7 @@ defmodule AshPlatform.WalletActions.ManifestTest do
     "animata_redeemer.approve_nft_collection",
     "animata_redeemer.approve_exact_usdc",
     "animata_redeemer.redeem",
-    "animata_redeemer.claim",
-    "regents_club.set_base_uri"
+    "animata_redeemer.claim"
   ]
   # The reading aggregator is reviewed and digest-pinned like the rest, and
   # prepares nothing at all: it is only ever read through.

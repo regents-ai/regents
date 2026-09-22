@@ -11,44 +11,9 @@ config :ash_platform, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
 
-# This one-time protected route is closed unless a deployment explicitly says
-# "on". No public identifier or verifier secret is logged.
-regents_club_metadata_cutover? =
-  System.get_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER") == "on"
-
-config :ash_platform, :regents_club_metadata_cutover, regents_club_metadata_cutover?
-
-config :ash_platform,
-       :regents_club_privy_origin_canary,
-       System.get_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY") == "passed"
-
-config :ash_platform,
-       :regents_club_media_full_corpus_attestation,
-       System.get_env("ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256")
-
-Logger.info(
-  "Regents Club metadata cutover #{if regents_club_metadata_cutover?, do: "enabled", else: "disabled"}"
-)
-
-# The browser acceptance server uses the same protected flow with deterministic
-# test-only session, media and chain implementations. Production can never take
-# this branch.
+# The browser acceptance server names a test-only Privy app. Production can
+# never take this branch.
 if config_env() == :test and System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
-  config :ash_platform, :regents_club_metadata_cutover, true
-  config :ash_platform, :regents_club_privy_origin_canary, true
-
-  config :ash_platform,
-         :regents_club_media_full_corpus_attestation,
-         "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
-
-  config :ash_platform,
-         :regents_club_chain_client,
-         AshPlatform.TestRegentsClubChainClient
-
-  config :ash_platform,
-         :regents_club_media_probe_module,
-         AshPlatform.TestRegentsClubChainClient
-
   config :ash_platform, :privy, app_id: "browser-test-public-id", verification_key: nil
 end
 

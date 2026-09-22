@@ -12,14 +12,12 @@ defmodule AshPlatformWeb.ShellLive do
     Names,
     OpenSea,
     Redemption,
-    RegentsClub,
     Staking
   }
 
   alias AshPlatform.Accounts.LinkedIdentity.Providers
   alias AshPlatform.Actors.Human
   alias AshPlatform.OpenSea.HoldingsCache
-  alias AshPlatform.RegentsClub.Actions, as: RegentsClubActions
   alias AshPlatform.Staking.Facts, as: StakingFacts
   alias AshPlatform.Staking.SnapshotCache
   alias AshPlatform.WalletActions.Address
@@ -29,7 +27,6 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
-  alias AshPlatformWeb.RegentsClubMetadataLive
   alias AshPlatformWeb.RouteCatalog
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
@@ -39,7 +36,6 @@ defmodule AshPlatformWeb.ShellLive do
   # read as the same thing.
   @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
   @redemption_preparation_failure_notice "That action could not be prepared. Check the wallet and selection."
-  @regents_club_observation_interval 15_000
   @max_wallet_observations 8
   @open_sea_lookup_window 60_000
   @default_open_sea_lookups_per_minute 6
@@ -51,16 +47,6 @@ defmodule AshPlatformWeb.ShellLive do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
     socket = assign(socket, :theme, session["theme"])
 
-    case authorize_route(socket, route_spec) do
-      {:redirect, socket} ->
-        {:ok, socket}
-
-      {:ok, socket} ->
-        mount_authorized(params, route_spec, socket)
-    end
-  end
-
-  defp mount_authorized(params, route_spec, socket) do
     if connected?(socket),
       do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
 
@@ -101,12 +87,6 @@ defmodule AshPlatformWeb.ShellLive do
        staking_shared_reading: false,
        staking_status: :loading,
        wallet_reconnect: nil,
-       regents_club_metadata_status: :checking,
-       regents_club_metadata_wallet: nil,
-       regents_club_metadata_notice: nil,
-       regents_club_metadata_attempts: %{},
-       regents_club_metadata_review: nil,
-       regents_club_metadata_result: nil,
        route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic]),
        wallet_observations: MapSet.new()
@@ -116,14 +96,6 @@ defmodule AshPlatformWeb.ShellLive do
   @impl true
   def handle_params(params, _uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
-
-    case authorize_route(socket, route_spec) do
-      {:redirect, socket} -> {:noreply, socket}
-      {:ok, socket} -> handle_authorized_params(params, route_spec, socket)
-    end
-  end
-
-  defp handle_authorized_params(params, route_spec, socket) do
     generation = socket.assigns.content_generation + 1
 
     socket =
@@ -143,145 +115,18 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply,
          socket
          |> maybe_start_staking(route_spec, generation)
-         |> maybe_start_redemption(route_spec, generation)
-         |> maybe_start_regents_club_metadata(route_spec, generation)}
+         |> maybe_start_redemption(route_spec, generation)}
 
       true ->
         {:noreply, paint_initial_staking(socket, route_spec)}
     end
   end
 
-  defp authorize_route(socket, %{route_id: :regents_club_metadata}) do
-    if RegentsClub.enabled?() and authenticated?(socket.assigns.access_context),
-      do: {:ok, socket},
-      else: {:redirect, redirect(socket, to: "/")}
-  end
-
-  defp authorize_route(socket, _route_spec), do: {:ok, socket}
-
-  @impl true
-  def handle_async(
-        {:regents_club_metadata_status, generation},
-        {:ok, {generation, :ok, {:ok, %{state: :ready}}}},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply,
-     assign(socket,
-       regents_club_metadata_status: :ready,
-       regents_club_metadata_notice: nil
-     )}
-  end
-
-  def handle_async(
-        {:regents_club_metadata_status, generation},
-        {:ok, {generation, :ok, {:ok, %{state: :changed_unverified}}}},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply,
-     assign(socket,
-       regents_club_metadata_status: :unknown,
-       regents_club_metadata_notice: metadata_notice(:changed_unverified)
-     )}
-  end
-
-  def handle_async(
-        {:regents_club_metadata_status, generation},
-        _result,
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply,
-     assign(socket,
-       regents_club_metadata_status: :unavailable,
-       regents_club_metadata_notice: metadata_notice(:readiness_failed)
-     )}
-  end
-
-  def handle_async({:regents_club_metadata_status, _generation}, _result, socket),
-    do: {:noreply, socket}
-
-  def handle_async(
-        {:regents_club_metadata_observe, _attempt_id},
-        {:ok, {:ok, {:finalized, result}}},
-        socket
-      ) do
-    RegentsClub.disable!()
-
-    {:noreply,
-     assign(socket,
-       regents_club_metadata_status: :closed,
-       regents_club_metadata_attempts: %{},
-       regents_club_metadata_review: nil,
-       regents_club_metadata_result: result,
-       regents_club_metadata_notice: metadata_notice(:finalized)
-     )}
-  end
-
-  def handle_async(
-        {:regents_club_metadata_observe, attempt_id},
-        {:ok, {:ok, :pending}},
-        socket
-      ) do
-    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope} when is_map(envelope) ->
-        if RegentsClubActions.observation_open?(envelope) do
-          Process.send_after(
-            self(),
-            {:observe_regents_club_metadata, attempt_id},
-            @regents_club_observation_interval
-          )
-
-          {:noreply, socket}
-        else
-          {:noreply, metadata_observation_unknown(socket, attempt_id)}
-        end
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_async(
-        {:regents_club_metadata_observe, attempt_id},
-        {:ok, {:ok, :reverted}},
-        socket
-      ) do
-    {:noreply,
-     socket
-     |> drop_metadata_attempt(attempt_id)
-     |> assign(
-       regents_club_metadata_status: :ready,
-       regents_club_metadata_notice: metadata_notice(:reverted)
-     )}
-  end
-
-  def handle_async(
-        {:regents_club_metadata_observe, attempt_id},
-        {:ok, {:ok, {:unknown, _reason}}},
-        socket
-      ) do
-    {:noreply,
-     socket
-     |> drop_metadata_attempt(attempt_id)
-     |> assign(
-       regents_club_metadata_status: :unknown,
-       regents_club_metadata_notice: metadata_notice(:unknown)
-     )}
-  end
-
-  def handle_async({:regents_club_metadata_observe, attempt_id}, _result, socket) do
-    {:noreply,
-     socket
-     |> drop_metadata_attempt(attempt_id)
-     |> assign(
-       regents_club_metadata_status: :unknown,
-       regents_club_metadata_notice: metadata_notice(:unknown)
-     )}
-  end
-
   # A wallet reading answers for one account at its own block and says nothing
   # about the contract, so it is set beside the shared reading rather than over
   # it. With no shared reading on screen there is no dashboard to attach it to,
   # and the page keeps saying so.
+  @impl true
   def handle_async(
         {:staking, generation} = name,
         {:ok, {generation, {:ok, wallet_facts}}},
@@ -521,165 +366,6 @@ defmodule AshPlatformWeb.ShellLive do
       do: handle_redemption_event(event, params, socket)
 
   def handle_event(
-        "regents_club_metadata_active_wallet",
-        %{"address" => address},
-        %{assigns: %{route_spec: %{route_id: :regents_club_metadata}}} = socket
-      ) do
-    wallet = normalized_wallet(address)
-    {:noreply, assign(socket, regents_club_metadata_wallet: wallet)}
-  end
-
-  def handle_event(
-        "prepare_regents_club_metadata",
-        %{"address" => address, "attempt_id" => attempt_id},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :regents_club_metadata},
-            regents_club_metadata_status: status,
-            regents_club_metadata_attempts: attempts
-          }
-        } = socket
-      )
-      when status in [:ready, :observing] do
-    if Map.has_key?(attempts, attempt_id) do
-      {:noreply, socket}
-    else
-      case RegentsClubActions.prepare(address, attempt_id, socket.assigns.session_lease) do
-        {:ok, envelope} ->
-          {:noreply,
-           socket
-           |> assign(
-             regents_club_metadata_attempts:
-               Map.put(attempts, attempt_id, %{envelope: envelope, handed_off: false}),
-             regents_club_metadata_status: :review,
-             regents_club_metadata_review: envelope,
-             regents_club_metadata_notice: nil
-           )}
-
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(regents_club_metadata_notice: metadata_notice(reason))
-           |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
-      end
-    end
-  end
-
-  def handle_event("prepare_regents_club_metadata", _params, socket), do: {:noreply, socket}
-
-  def handle_event(
-        "confirm_regents_club_metadata",
-        %{"attempt_id" => attempt_id},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :regents_club_metadata},
-            regents_club_metadata_status: :review,
-            regents_club_metadata_attempts: attempts
-          }
-        } = socket
-      ) do
-    case attempts[attempt_id] do
-      %{handed_off: false} = attempt ->
-        wallet = socket.assigns.regents_club_metadata_wallet
-
-        if Address.equal?(wallet, attempt.envelope.expected_signer) do
-          case RegentsClubActions.prepare(wallet, attempt_id, socket.assigns.session_lease) do
-            {:ok, fresh_envelope} ->
-              fresh_attempt =
-                attempt
-                |> Map.put(:envelope, fresh_envelope)
-                |> Map.put(:handed_off, true)
-
-              {:noreply,
-               socket
-               |> assign(
-                 regents_club_metadata_attempts: Map.put(attempts, attempt_id, fresh_attempt),
-                 regents_club_metadata_status: :observing,
-                 regents_club_metadata_review: nil
-               )
-               |> push_event("regents-club-metadata:prepared", %{
-                 attempt_id: attempt_id,
-                 envelope: fresh_envelope
-               })}
-
-            {:error, reason} ->
-              status = if RegentsClub.enabled?(), do: :ready, else: :unavailable
-
-              {:noreply,
-               socket
-               |> drop_metadata_attempt(attempt_id)
-               |> assign(
-                 regents_club_metadata_status: status,
-                 regents_club_metadata_review: nil,
-                 regents_club_metadata_notice: metadata_notice(reason)
-               )
-               |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
-          end
-        else
-          {:noreply,
-           socket
-           |> drop_metadata_attempt(attempt_id)
-           |> assign(
-             regents_club_metadata_status: :ready,
-             regents_club_metadata_review: nil,
-             regents_club_metadata_notice: metadata_notice(:wallet_changed)
-           )
-           |> push_event("regents-club-metadata:refused", %{attempt_id: attempt_id})}
-        end
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("confirm_regents_club_metadata", _params, socket), do: {:noreply, socket}
-
-  def handle_event(
-        "regents_club_metadata_submitted",
-        %{"attempt_id" => attempt_id, "hash" => hash},
-        socket
-      ) do
-    observe_metadata_attempt(
-      socket,
-      attempt_id,
-      fn envelope ->
-        RegentsClubActions.observe_hash(envelope, hash)
-      end,
-      %{hash: hash}
-    )
-  end
-
-  def handle_event(
-        "regents_club_metadata_submission_unknown",
-        %{"attempt_id" => attempt_id},
-        socket
-      ) do
-    observe_metadata_attempt(
-      socket,
-      attempt_id,
-      &RegentsClubActions.recover_unknown/1,
-      %{recovery: true}
-    )
-  end
-
-  def handle_event(event, %{"attempt_id" => attempt_id}, socket)
-      when event in ["regents_club_metadata_cancelled", "regents_club_metadata_refused"] do
-    notice = if event == "regents_club_metadata_cancelled", do: :cancelled, else: :browser_refused
-
-    {:noreply,
-     socket
-     |> drop_metadata_attempt(attempt_id)
-     |> assign(
-       regents_club_metadata_status: :ready,
-       regents_club_metadata_notice: metadata_notice(notice)
-     )}
-  end
-
-  def handle_event("regents_club_metadata_browser_refused", _params, socket) do
-    {:noreply, assign(socket, regents_club_metadata_notice: metadata_notice(:browser_refused))}
-  end
-
-  def handle_event(
         "staking_active_wallet",
         params,
         %{assigns: %{route_spec: %{route_id: :stake}}} = socket
@@ -821,25 +507,6 @@ defmodule AshPlatformWeb.ShellLive do
      socket
      |> assign(staking_shared_reading: false)
      |> shared_read_failed()}
-  end
-
-  def handle_info({:observe_regents_club_metadata, attempt_id}, socket) do
-    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope} = attempt ->
-        if RegentsClubActions.observation_open?(envelope) do
-          {:noreply,
-           start_async(socket, {:regents_club_metadata_observe, attempt_id}, fn ->
-             if attempt[:recovery],
-               do: RegentsClubActions.recover_unknown(envelope),
-               else: RegentsClubActions.observe_hash(envelope, attempt[:hash])
-           end)}
-        else
-          {:noreply, metadata_observation_unknown(socket, attempt_id)}
-        end
-
-      nil ->
-        {:noreply, socket}
-    end
   end
 
   defp handle_redemption_event(
@@ -1007,15 +674,6 @@ defmodule AshPlatformWeb.ShellLive do
           verified_connections_notice={@verified_connections_notice}
         />
 
-        <RegentsClubMetadataLive.page
-          :if={@route_spec.route_id == :regents_club_metadata}
-          status={@regents_club_metadata_status}
-          wallet={@regents_club_metadata_wallet}
-          notice={@regents_club_metadata_notice}
-          result={@regents_club_metadata_result}
-          review={@regents_club_metadata_review}
-        />
-
         <.page
           :if={@route_spec.route_id == :stake}
           staking={@staking}
@@ -1060,118 +718,6 @@ defmodule AshPlatformWeb.ShellLive do
     </.shell>
     """
   end
-
-  defp maybe_start_regents_club_metadata(
-         socket,
-         %{route_id: :regents_club_metadata},
-         generation
-       ) do
-    lease = socket.assigns.session_lease
-
-    socket
-    |> assign(regents_club_metadata_status: :checking)
-    |> start_async({:regents_club_metadata_status, generation}, fn ->
-      {generation, RegentsClubActions.deployment_readiness(lease), RegentsClubActions.status()}
-    end)
-  end
-
-  defp maybe_start_regents_club_metadata(socket, _route_spec, _generation), do: socket
-
-  defp observe_metadata_attempt(socket, attempt_id, observer, extra) do
-    case socket.assigns.regents_club_metadata_attempts[attempt_id] do
-      %{envelope: envelope, handed_off: true} = attempt ->
-        if RegentsClubActions.observation_open?(envelope) do
-          attempts =
-            Map.put(
-              socket.assigns.regents_club_metadata_attempts,
-              attempt_id,
-              Map.merge(attempt, extra)
-            )
-
-          {:noreply,
-           socket
-           |> assign(
-             regents_club_metadata_attempts: attempts,
-             regents_club_metadata_status: :observing,
-             regents_club_metadata_notice: nil
-           )
-           |> start_async({:regents_club_metadata_observe, attempt_id}, fn ->
-             observer.(envelope)
-           end)}
-        else
-          {:noreply, metadata_observation_unknown(socket, attempt_id)}
-        end
-
-      nil ->
-        {:noreply, socket}
-
-      _not_handed_off ->
-        {:noreply, socket}
-    end
-  end
-
-  defp metadata_observation_unknown(socket, attempt_id) do
-    socket
-    |> drop_metadata_attempt(attempt_id)
-    |> assign(
-      regents_club_metadata_status: :unknown,
-      regents_club_metadata_notice: metadata_notice(:unknown)
-    )
-  end
-
-  defp drop_metadata_attempt(socket, attempt_id) do
-    assign(
-      socket,
-      regents_club_metadata_attempts:
-        Map.delete(socket.assigns.regents_club_metadata_attempts, attempt_id)
-    )
-  end
-
-  defp metadata_notice(:finalized),
-    do: %{tone: :success, message: "The exact cutover finalized and this route is now closed."}
-
-  defp metadata_notice(:reverted),
-    do: %{
-      tone: :error,
-      message: "The selected wallet transaction reverted onchain. No metadata change finalized."
-    }
-
-  defp metadata_notice(:cancelled),
-    do: %{tone: :info, message: "The wallet request was canceled. It will not be retried."}
-
-  defp metadata_notice(:unknown),
-    do: %{
-      tone: :error,
-      message: "The submission outcome is unknown. Manual founder review is required."
-    }
-
-  defp metadata_notice(:browser_refused),
-    do: %{
-      tone: :error,
-      message: "Keep one selected Ethereum wallet on Base through confirmation. Nothing was sent."
-    }
-
-  defp metadata_notice(:wallet_changed),
-    do: %{
-      tone: :error,
-      message: "The selected Privy wallet changed after review. Review again. Nothing was sent."
-    }
-
-  defp metadata_notice(:session_unavailable),
-    do: %{tone: :error, message: "The verified session changed. Reload before continuing."}
-
-  defp metadata_notice(:readiness_failed),
-    do: %{tone: :error, message: "Privy or trusted Base RPC readiness did not pass."}
-
-  defp metadata_notice(:changed_unverified),
-    do: %{
-      tone: :error,
-      message:
-        "The URI changed, but this node has no exact finalized transaction evidence. Manual founder review is required."
-    }
-
-  defp metadata_notice(_reason),
-    do: %{tone: :error, message: "The exact cutover could not be prepared. Nothing was sent."}
 
   # An anonymous visitor to either page buys no chain read at all: the shared
   # contract reading is already on the server and is painted as it is. Only a

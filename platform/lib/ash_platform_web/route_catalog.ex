@@ -84,13 +84,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :patchbay
-    },
-    %Entry{
-      path_pattern: "/regents-club/metadata-cutover",
-      live_action: :regents_club_metadata,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :regents_club_metadata
     }
   ]
 
@@ -122,10 +115,7 @@ defmodule AshPlatformWeb.RouteCatalog do
        :regents_labs, :detail, %{}},
     patchbay:
       {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
-       :regents_labs, :detail, %{}},
-    regents_club_metadata:
-      {:regents_club_metadata, :regent_ops, "Regents Labs", "Regents Club Metadata", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}}
+       :regents_labs, :detail, %{}}
   }
 
   def entries, do: @entries
@@ -137,10 +127,8 @@ defmodule AshPlatformWeb.RouteCatalog do
   end
 
   def design_handoff do
-    routes = Enum.reject(@entries, &(&1.route_spec_id == :regents_club_metadata))
-
     json =
-      %{"schema_version" => 1, "routes" => Enum.map(routes, &handoff_route/1)}
+      %{"schema_version" => 1, "routes" => Enum.map(@entries, &handoff_route/1)}
       |> ordered_json_value()
       |> Jason.encode!()
 

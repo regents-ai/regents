@@ -94,9 +94,6 @@ development and from the deployment's secret store in production.
 | `SENTRY_DSN` | No | Sentry project to report errors to. Unset, nothing is reported. |
 | `SENTRY_RELEASE` | No | Release name attached to Sentry reports. |
 | `SENTRY_ENVIRONMENT` | No | Environment name attached to Sentry reports. Defaults to the Mix environment. |
-| `ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER` | No | `on` opens the one-time Regents Club metadata cutover page. Anything else keeps it closed. |
-| `ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY` | For the cutover | `passed` records that the Privy origin canary passed; the cutover stays unready without it. |
-| `ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256` | For the cutover | Must equal the attested Regents Club media release manifest digest before the cutover is ready. |
 
 ## Public HTTP surface
 
@@ -115,7 +112,7 @@ is a map, not the contract.
 
 ```text
 lib/ash_platform/       Ash domains: accounts, formation, names, staking,
-                        redemption, Regents Club
+                        redemption
 lib/ash_platform_web/   Endpoint, router, LiveViews, controllers, components
 lib/mix/tasks/          Local setup, contract sync, and route-handoff checks
 contracts/              The OpenAPI contract, chain-contract manifest, and ABIs

@@ -153,11 +153,6 @@ input:focus-visible,
   padding-top: 0.75rem;
 }
 
-.metadata-page { display: grid; gap: var(--space-3); }
-.metadata-page dl { display: grid; gap: var(--space-2); }
-.metadata-page dd { margin: 0; overflow-wrap: anywhere; }
-.metadata-page pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-.metadata-page header { border-bottom: 1px solid var(--hairline); padding-bottom: var(--space-3); }
 .rg-panel.rg-support-panel { --ash-ink: var(--support-panel-ink); --ash-muted: color-mix(in srgb, var(--support-panel-ink) 72%, var(--support-panel-surface)); --ash-panel: var(--support-panel-surface); --ash-line: color-mix(in srgb, var(--support-panel-ink) 22%, var(--support-panel-surface)); }
 @media (max-width: 74.99rem) { .product-links { --rg-page-gutter: var(--space-3); } }
 @media (max-width: 47.99rem) { .product-links { --rg-page-gutter: var(--space-2); } }

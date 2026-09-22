@@ -101,7 +101,6 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 lib/ash_platform/
   staking/        snapshot cache, rpc_client, facts, supply arithmetic
   redemption/     rpc_client, actions, snapshot
-  regents_club/   membership metadata cutover
   wallet_actions/ abi.ex, redemption_abi.ex, rpc.ex, envelope, observer
   formation/      regents, agent links, cloud runtimes
 lib/ash_platform_web/

@@ -130,7 +130,6 @@ defmodule AshPlatformWeb.Router do
       live "/autolaunch", ShellLive, :autolaunch
       live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay
-      live "/regents-club/metadata-cutover", ShellLive, :regents_club_metadata
     end
   end
 end

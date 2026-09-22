@@ -5,11 +5,7 @@ defmodule AshPlatform.WalletActions.Envelope do
 
   @ttl_seconds 600
   @staking_actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
-  @confirmable_after_expiry_resources ~w(
-    regent_staking
-    animata_redemption
-    regents_club_metadata
-  )
+  @confirmable_after_expiry_resources ~w(regent_staking animata_redemption)
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
@@ -50,14 +46,10 @@ defmodule AshPlatform.WalletActions.Envelope do
       risk_copy: risk_copy,
       approval: Keyword.get(opts, :approval),
       arguments: Keyword.get(opts, :arguments, %{}),
-      metadata:
-        Map.merge(
-          Keyword.get(opts, :metadata, %{}),
-          %{
-            contract_name: contract_name,
-            calldata_sha256: sha256(String.downcase(data))
-          }
-        )
+      metadata: %{
+        contract_name: contract_name,
+        calldata_sha256: sha256(String.downcase(data))
+      }
     }
 
     Map.put(envelope, :confirmation_token, sign(envelope))

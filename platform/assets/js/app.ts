@@ -30,7 +30,6 @@ import {InfoDialog} from "./hooks/info_dialog"
 import {ModalDialog} from "./hooks/modal_dialog"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
-import {RegentsClubMetadataWallet} from "./hooks/regents_club_metadata_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
@@ -334,7 +333,6 @@ const hooks = {
   ModalDialog,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
-  RegentsClubMetadataWallet,
   StakeWallet,
   VerifiedConnections,
 }

@@ -51,77 +51,18 @@ defmodule AshPlatform.WalletActions.Rpc do
   end
 
   @doc """
-  One `safe` Base block, accepted only after the chain identity is proved.
-
-  Every read of a snapshot is then executed against this exact block hash, so a
-  page never mixes two histories and a moved block fails rather than answering.
-  """
-  @spec safe_block(keyword()) :: {:ok, block()} | {:error, atom()}
-  def safe_block(opts \\ []) do
-    with :ok <- verify_base_chain(opts),
-         {:ok, header} <- request("eth_getBlockByNumber", ["safe", false], opts),
-         do: block_identity(header)
-  end
-
-  @doc """
   One `latest` Base block, accepted only after the chain identity is proved.
 
-  Base's sequencer confirms `latest` in about two seconds, while `safe` trails it
-  by well over a minute, so this is the head a person waiting on their own
-  transaction is actually watching. It owns a read exactly as `safe_block/1`
-  does: every read pinned to it uses this block hash, and a moved block fails
-  rather than answering.
+  Base's sequencer confirms `latest` in about two seconds, so this is the head a
+  person waiting on their own transaction is actually watching. Every read pinned
+  to it uses this block hash, so a page never mixes two histories and a moved
+  block fails rather than answering.
   """
   @spec latest_block(keyword()) :: {:ok, block()} | {:error, atom()}
   def latest_block(opts \\ []) do
     with :ok <- verify_base_chain(opts),
          {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
          do: block_identity(header)
-  end
-
-  @doc "One canonical finalized Base block, after chain identity is proved."
-  @spec finalized_block(keyword()) :: {:ok, block()} | {:error, atom()}
-  def finalized_block(opts \\ []) do
-    with :ok <- verify_base_chain(opts),
-         {:ok, header} <- request("eth_getBlockByNumber", ["finalized", false], opts),
-         do: block_identity(header)
-  end
-
-  @doc false
-  def request_preserving_rpc_error(method, params, opts \\ []) do
-    request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
-
-    client =
-      Application.get_env(
-        :ash_platform,
-        Keyword.get(opts, :client_key, :wallet_http_client),
-        Req
-      )
-
-    case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
-           json: request,
-           connect_options: [timeout: 3_000],
-           finch: [pool_timeout: 3_000],
-           receive_timeout: @timeout,
-           retry: false
-         ) do
-      {:ok, %{status: 200, body: %{"result" => result}}} ->
-        {:ok, result}
-
-      {:ok, %{status: 200, body: %{"error" => error}}} when is_map(error) ->
-        {:rpc_error, error}
-
-      {:ok, _response} ->
-        {:error, :chain_unavailable}
-
-      {:error, reason} ->
-        log_failure(method, reason, opts)
-        {:error, :chain_unavailable}
-    end
-  rescue
-    error ->
-      log_failure(method, error, opts)
-      {:error, :chain_unavailable}
   end
 
   @doc """
@@ -224,9 +165,9 @@ defmodule AshPlatform.WalletActions.Rpc do
     do: "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)
 
   # The runtime this identifies is thousands of bytes of deployed code that no
-  # test can hold, so a test supplies the hash it wants observed instead, the
-  # same way the Regents Club reader does. Nothing of this survives into a
-  # release: outside the test build there is only the real hash.
+  # test can hold, so a test supplies the hash it wants observed instead.
+  # Nothing of this survives into a release: outside the test build there is
+  # only the real hash.
   if Mix.env() == :test do
     defp keccak256(bytes) do
       case Application.get_env(:ash_platform, :test_runtime_hasher) do

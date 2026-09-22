@@ -54,9 +54,6 @@ config :ash_platform, :ens_lookup_deadline_ms, 4_000
 config :ash_platform, :ens_avatar_http_client, AshPlatform.Ens.AvatarHttpClient
 config :ash_platform, :ens_avatar_deadline_ms, 2_000
 config :ash_platform, :app_surfaces, true
-config :ash_platform, :regents_club_metadata_cutover, false
-config :ash_platform, :regents_club_privy_origin_canary, false
-config :ash_platform, :regents_club_media_full_corpus_attestation, nil
 config :ash_platform, :opensea_api_key, nil
 config :ash_platform, :opensea_http_client, AshPlatform.OpenSea.HttpClient
 config :ash_platform, :opensea_live_lookups_per_minute, 60

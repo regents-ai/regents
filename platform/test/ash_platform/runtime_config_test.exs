@@ -2,7 +2,6 @@ defmodule AshPlatform.RuntimeConfigTest do
   use ExUnit.Case, async: false
 
   @runtime_config Path.expand("../../config/runtime.exs", __DIR__)
-  @dockerfile Path.expand("../../Dockerfile", __DIR__)
   @fly_production_config Path.expand("../../fly.toml", __DIR__)
   @fly_staging_config Path.expand("../../fly.staging.toml", __DIR__)
 
@@ -23,9 +22,6 @@ defmodule AshPlatform.RuntimeConfigTest do
       "PORT",
       "SECRET_KEY_BASE",
       "ASH_PLATFORM_APP_SURFACES",
-      "ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER",
-      "ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY",
-      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY"
     ]
@@ -338,50 +334,6 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert get_in(read_runtime_config(:test), [:ash_platform, :base_read_rpc_url]) == nil
 
     refute File.read!("config/test.exs") =~ "BASE_READ_RPC_URL"
-  end
-
-  test "Regents Club metadata cutover is disabled unless runtime config is exactly on" do
-    refute runtime_config(:regents_club_metadata_cutover)
-
-    System.put_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER", "on")
-    assert runtime_config(:regents_club_metadata_cutover)
-
-    for setting <- ["off", "ON", "true", ""] do
-      System.put_env("ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER", setting)
-      refute runtime_config(:regents_club_metadata_cutover)
-    end
-  end
-
-  test "Regents Club protected readiness attestations fail closed and require exact values" do
-    refute runtime_config(:regents_club_privy_origin_canary)
-    assert runtime_config(:regents_club_media_full_corpus_attestation) == nil
-
-    System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "passed")
-
-    System.put_env(
-      "ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256",
-      "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
-    )
-
-    assert runtime_config(:regents_club_privy_origin_canary)
-
-    assert runtime_config(:regents_club_media_full_corpus_attestation) ==
-             "356352b67b6338ec0b19595d1c0140bf8052756a793163a95a3071ef25a52789"
-
-    System.put_env("ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY", "true")
-    refute runtime_config(:regents_club_privy_origin_canary)
-  end
-
-  test "production image includes the fixed media decode tools before dropping privileges" do
-    dockerfile = File.read!(@dockerfile)
-    [_, app_stage] = String.split(dockerfile, "FROM slim AS app", parts: 2)
-
-    {install_offset, _length} =
-      :binary.match(app_stage, "apt-get install -y --no-install-recommends coreutils ffmpeg")
-
-    {user_offset, _length} = :binary.match(app_stage, "USER app")
-
-    assert install_offset < user_offset
   end
 
   # Fly applies a table until the next one begins, so a role line outside [env] --

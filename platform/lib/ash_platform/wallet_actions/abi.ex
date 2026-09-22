@@ -34,8 +34,7 @@ defmodule AshPlatform.WalletActions.Abi do
   @reward_inventory_selector "0xe2cfe6b9"
 
   # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
-  # not proved against the staking ABI below. The same selector is recorded for
-  # the Regents Club token in contracts/chain-contracts.yaml.
+  # not proved against the staking ABI below.
   @erc20_total_supply_signature "totalSupply()"
   @erc20_total_supply_selector "0x18160ddd"
 

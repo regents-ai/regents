@@ -120,19 +120,17 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     end
   end
 
-  test "an expired Regents Club envelope is observation-only and remains signature-verifiable" do
+  test "an expired staking envelope is observation-only and remains signature-verifiable" do
     old = DateTime.utc_now() |> DateTime.add(-601, :second)
     previous = Application.get_env(:ash_platform, :wallet_action_clock)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> old end)
 
     envelope =
-      Envelope.new("set_base_uri", @signer, @data,
+      Envelope.new("stake", @signer, @data,
         to: @target,
-        resource: "regents_club_metadata",
-        contract_name: "RegentsClub",
-        risk_copy: "Review",
-        arguments: %{attempt_id: "c56a4180-65aa-42ec-a945-5fd21dec0538"},
-        metadata: %{anchor_block_hash: "0x" <> String.duplicate("ab", 32)}
+        resource: "regent_staking",
+        contract_name: "RegentRevenueStaking",
+        risk_copy: "Review"
       )
 
     other = Envelope.new("act", @signer, @data, @context)
@@ -143,9 +141,9 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     validation = [
       to: @target,
       signer: @signer,
-      resource: "regents_club_metadata",
-      contract_name: "RegentsClub",
-      action: "set_base_uri"
+      resource: "regent_staking",
+      contract_name: "RegentRevenueStaking",
+      action: "stake"
     ]
 
     refute Envelope.valid?(envelope, validation)
@@ -155,7 +153,7 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     refute Envelope.valid_for_confirmation?(other, @validation)
 
     refute envelope
-           |> put_in([:metadata, :anchor_block_hash], "0xchanged")
+           |> put_in([:metadata, :calldata_sha256], "0xchanged")
            |> Envelope.valid_for_confirmation?(validation)
   end
 

@@ -187,12 +187,9 @@ before the `[env]` line ships, and step 7 retires it.
 ## Secrets
 
 Staging carries every production runtime flag at its production value. The manager
-sets the surface flags — `ASH_PLATFORM_APP_SURFACES`,
-`ASH_PLATFORM_REGENTS_CLUB_METADATA_CUTOVER`.
+sets the surface flag `ASH_PLATFORM_APP_SURFACES`.
 The founder sets the ones whose values only he holds: `PRIVY_APP_ID`,
-`PRIVY_VERIFICATION_KEY`, `BASE_READ_RPC_URL`, and the Regents Club attestations
-`ASH_PLATFORM_REGENTS_CLUB_PRIVY_ORIGIN_CANARY` and
-`ASH_PLATFORM_REGENTS_CLUB_MEDIA_FULL_CORPUS_SHA256`.
+`PRIVY_VERIFICATION_KEY` and `BASE_READ_RPC_URL`.
 
 Three are staging's own, and all three are the manager's:
 

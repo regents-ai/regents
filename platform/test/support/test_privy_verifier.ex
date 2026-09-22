@@ -93,16 +93,6 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
-  defp access_evidence("valid-regents-club") do
-    {:ok,
-     %{
-       session_id: "regents-club-browser-session",
-       privy_user_id: "did:privy:regents-club-owner",
-       wallet_address: "0x45C9a201e2937608905fEF17De9A67f25F9f98E0",
-       wallet_addresses: ["0x45C9a201e2937608905fEF17De9A67f25F9f98E0"]
-     }}
-  end
-
   defp access_evidence("valid-formation-cloud") do
     {:ok,
      %{
