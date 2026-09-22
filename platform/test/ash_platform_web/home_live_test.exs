@@ -30,6 +30,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
+  test "the protocol header control opens staking", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "#home-nav-regent", "href") == ["/stake"]
+    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
+  end
+
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
 end

@@ -99,7 +99,7 @@ defmodule AshPlatformWeb.HomeLive do
           <a
             :for={{label, anchor} <- nav_links()}
             id={"home-nav-#{anchor}"}
-            href={if @blog?, do: "/##{anchor}", else: "##{anchor}"}
+            href={nav_href(anchor, @blog?)}
             class="rg-button rl-product-tab"
           >
             {label}
@@ -492,6 +492,10 @@ defmodule AshPlatformWeb.HomeLive do
       {"Patchbay", "patchbay"},
       {"Protocol", "regent"}
     ]
+
+  defp nav_href("regent", false), do: ~p"/stake"
+  defp nav_href(anchor, true), do: "/##{anchor}"
+  defp nav_href(anchor, false), do: "##{anchor}"
 
   # The three products and their public website destinations. The product pages
   # in the app read the same list, so the copy lives once.
