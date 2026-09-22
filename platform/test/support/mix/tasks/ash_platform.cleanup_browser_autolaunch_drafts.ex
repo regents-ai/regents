@@ -14,24 +14,7 @@ defmodule Mix.Tasks.AshPlatform.CleanupBrowserAutolaunchDrafts do
     {privy_user_id, wallet_address} = fixture_identity!()
 
     case AshPlatform.Repo.transaction(fn ->
-           %{num_rows: count} =
-             Ecto.Adapters.SQL.query!(
-               AshPlatform.Repo,
-               """
-               DELETE FROM autolaunch_app.launch_drafts AS draft
-               USING regent_names.platform_human_users AS account
-               WHERE draft.token_name = $1
-                 AND draft.human_account_id = account.id
-                 AND account.privy_user_id = $2
-                 AND account.wallet_address = $3
-                 AND account.wallet_addresses = ARRAY[$3]::varchar[]
-               """,
-               [name, privy_user_id, wallet_address],
-               log: false
-             )
-
-           if count > 1, do: AshPlatform.Repo.rollback(:ambiguous_fixture_name)
-           count
+           delete_draft!(name, privy_user_id, wallet_address)
          end) do
       {:ok, count} -> Mix.shell().info("Browser drafts removed: #{count}")
       {:error, :ambiguous_fixture_name} -> Mix.raise("refused ambiguous fixture draft name")
@@ -40,6 +23,27 @@ defmodule Mix.Tasks.AshPlatform.CleanupBrowserAutolaunchDrafts do
 
   def run(_args),
     do: Mix.raise("usage: ash_platform.cleanup_browser_autolaunch_drafts --name NAME")
+
+  defp delete_draft!(name, privy_user_id, wallet_address) do
+    %{num_rows: count} =
+      Ecto.Adapters.SQL.query!(
+        AshPlatform.Repo,
+        """
+        DELETE FROM autolaunch_app.launch_drafts AS draft
+        USING regent_names.platform_human_users AS account
+        WHERE draft.token_name = $1
+          AND draft.human_account_id = account.id
+          AND account.privy_user_id = $2
+          AND account.wallet_address = $3
+          AND account.wallet_addresses = ARRAY[$3]::varchar[]
+        """,
+        [name, privy_user_id, wallet_address],
+        log: false
+      )
+
+    if count > 1, do: AshPlatform.Repo.rollback(:ambiguous_fixture_name)
+    count
+  end
 
   def validate_target!(env, repo_config) do
     Mix.Tasks.AshPlatform.SeedBrowserAutolaunchDraftOwner.validate_target!(env, repo_config)

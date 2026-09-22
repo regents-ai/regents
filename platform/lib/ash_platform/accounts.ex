@@ -22,9 +22,6 @@ defmodule AshPlatform.Accounts do
       define :refresh_verified,
         action: :refresh_verified,
         args: [:wallet_address, :wallet_addresses]
-
-      define :set_display_name, action: :set_display_name
-      define :set_avatar, action: :set_avatar
     end
 
     resource AshPlatform.Accounts.EnsIdentity do

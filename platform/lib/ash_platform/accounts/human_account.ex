@@ -54,14 +54,6 @@ defmodule AshPlatform.Accounts.HumanAccount do
       argument :wallet_addresses, {:array, :string}
       change AshPlatform.Accounts.Changes.RefreshWalletEvidence
     end
-
-    update :set_display_name do
-      accept [:display_name]
-    end
-
-    update :set_avatar do
-      accept [:avatar]
-    end
   end
 
   policies do
@@ -73,7 +65,7 @@ defmodule AshPlatform.Accounts.HumanAccount do
       authorize_if always()
     end
 
-    policy action([:read_self, :set_display_name, :set_avatar]) do
+    policy action(:read_self) do
       authorize_if expr(id == ^actor(:human_account_id))
     end
   end
