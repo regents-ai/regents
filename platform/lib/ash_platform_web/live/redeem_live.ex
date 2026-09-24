@@ -329,19 +329,6 @@ defmodule AshPlatformWeb.RedeemLive do
                   >{control.label}</Regent.Primitives.button>
                 </div>
               </section>
-
-              <div class="redeem-wallet-footer">
-                <Regent.Primitives.button
-                  variant="secondary"
-                  id="redemption-refresh"
-                  type="button"
-                  phx-click="refresh_redemption"
-                  disabled={@reading}
-                  aria-describedby={if(@refresh_block, do: "redemption-refresh-status")}
-                >
-                  {if @reading, do: "Updating…", else: "Refresh Data"}
-                </Regent.Primitives.button>
-              </div>
             </div>
           </section>
 
@@ -400,11 +387,23 @@ defmodule AshPlatformWeb.RedeemLive do
             >
               Claim unlocked REGENT
             </Regent.Primitives.button>
-            <p class="redeem-snapshot-note">
-              <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={
-                @reading
-              }> Updating from Base…</span>
-            </p>
+            <div class="redeem-position-footer">
+              <p class="redeem-snapshot-note">
+                <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={
+                  @reading
+                }> Updating from Base…</span>
+              </p>
+              <Regent.Primitives.button
+                variant="secondary"
+                id="redemption-refresh"
+                type="button"
+                phx-click="refresh_redemption"
+                disabled={@reading}
+                aria-describedby={if(@refresh_block, do: "redemption-refresh-status")}
+              >
+                {if @reading, do: "Updating…", else: "Refresh Data"}
+              </Regent.Primitives.button>
+            </div>
           </section>
         </div>
 
