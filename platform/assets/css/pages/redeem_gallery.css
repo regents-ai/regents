@@ -145,7 +145,7 @@
   color: inherit;
 }
 
-.gallery-grid[hidden],
+.gallery-grid[data-hidden="true"],
 .gallery-jump[hidden] {
   display: none;
 }

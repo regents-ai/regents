@@ -303,7 +303,7 @@ details[open] > summary .shell-chevron {
   #shell-sidebar li > button:hover,
   #shell-sidebar [data-tree] > a:hover {
     background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
-    color: var(--ash-ink);
+    color: var(--ash-accent-warm);
   }
 }
 
@@ -318,9 +318,9 @@ details[open] > summary .shell-chevron {
   display: flex;
   align-items: flex-end;
   min-height: 2.75rem;
-  padding: 1.1rem 0.85rem 0.4rem;
+  padding: 2.25rem 0.85rem 0.4rem;
   border-block-end: 1px solid var(--ash-line);
-  color: var(--ash-muted);
+  color: var(--ash-accent);
   font-family: var(--font-family-ui);
   font-size: 0.62rem;
   letter-spacing: 0.14em;

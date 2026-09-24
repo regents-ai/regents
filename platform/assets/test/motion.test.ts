@@ -265,7 +265,7 @@ describe("shell motion", () => {
     const node = (kind: "region" | "background", left = 0): HTMLElement => {
       const target = element(left) as HTMLElement & {kind: string}
       target.kind = kind
-      target.cloneNode = () => {
+      const copyOf = () => {
         const copy = node(kind, left)
         copy.removeAttribute = vi.fn()
         copy.querySelectorAll = vi.fn(() => []) as unknown as typeof copy.querySelectorAll
@@ -273,6 +273,9 @@ describe("shell motion", () => {
         copy.remove = () => removed.push(copy)
         return copy
       }
+      Object.defineProperty(target, "ownerDocument", {
+        value: {implementation: {createHTMLDocument: () => ({importNode: copyOf})}},
+      })
       return target
     }
     let current = [node("region", 10), node("background")]
@@ -327,7 +330,7 @@ describe("shell motion", () => {
     const node = (kind: "region" | "background"): HTMLElement => {
       const target = element() as HTMLElement & {kind: string}
       target.kind = kind
-      target.cloneNode = () => {
+      const copyOf = () => {
         const copy = node(kind)
         copy.removeAttribute = vi.fn()
         copy.querySelectorAll = vi.fn(() => []) as unknown as typeof copy.querySelectorAll
@@ -335,6 +338,9 @@ describe("shell motion", () => {
         copy.remove = () => removed.push(copy)
         return copy
       }
+      Object.defineProperty(target, "ownerDocument", {
+        value: {implementation: {createHTMLDocument: () => ({importNode: copyOf})}},
+      })
       return target
     }
     const root = element() as HTMLElement & {current: HTMLElement[]}
