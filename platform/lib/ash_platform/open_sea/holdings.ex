@@ -93,9 +93,11 @@ defmodule AshPlatform.OpenSea.Holdings do
 
     options = [
       headers: [{"accept", "application/json"}, {"x-api-key", key}],
-      connect_options: [timeout: @request_timeout],
       receive_timeout: @request_timeout,
-      finch: [pool_timeout: @request_timeout],
+      finch: [
+        pool_timeout: @request_timeout,
+        conn_opts: [transport_opts: [timeout: @request_timeout]]
+      ],
       retry: false,
       redirect: false
     ]

@@ -70,9 +70,13 @@ defmodule AshPlatform.OpenSea.HoldingsTest do
 
     Application.put_env(:ash_platform, :test_open_sea_handler, fn url, options ->
       id = if String.contains?(url, "regents-club"), do: "1123", else: "42"
-      assert options[:connect_options] == [timeout: 5_000]
       assert options[:receive_timeout] == 5_000
-      assert options[:finch] == [pool_timeout: 5_000]
+
+      assert options[:finch] == [
+               pool_timeout: 5_000,
+               conn_opts: [transport_opts: [timeout: 5_000]]
+             ]
+
       assert options[:retry] == false
       assert options[:redirect] == false
       assert {"x-api-key", "test-key"} in options[:headers]
