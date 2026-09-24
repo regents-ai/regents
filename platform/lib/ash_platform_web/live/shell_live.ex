@@ -94,6 +94,8 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles_limit: 24,
        open_sea_lookup: nil,
        open_sea_lookup_starts: [],
+       gallery_mine: false,
+       gallery_owned: %{status: :idle, ids: []},
        staking: nil,
        staking_action: "stake",
        staking_amount: "",
@@ -417,6 +419,12 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_async({:open_sea, _}, _result, socket), do: {:noreply, socket}
 
+  def handle_async(:gallery_owned, {:ok, {:ok, ids}}, socket),
+    do: {:noreply, assign(socket, gallery_owned: %{status: :ready, ids: ids})}
+
+  def handle_async(:gallery_owned, _result, socket),
+    do: {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
+
   def handle_async(
         {:wallet_transaction, scope, observation_id} = name,
         {:ok, result},
@@ -438,7 +446,24 @@ defmodule AshPlatformWeb.ShellLive do
      |> push_transaction_result(scope, observation_id, :unavailable)}
   end
 
+  # "My passes" reads the signed-in account's own wallets once; after that the
+  # toggle only shows or hides what is already on the page. A lookup that
+  # failed is tried again the next time the filter is switched on.
   @impl true
+  def handle_event(
+        "toggle_my_passes",
+        _params,
+        %{assigns: %{route_spec: %{route_id: :redeem_gallery}, gallery_mine: false}} = socket
+      ) do
+    case current_account(socket.assigns.access_context) do
+      nil -> {:noreply, socket}
+      account -> {:noreply, socket |> assign(gallery_mine: true) |> start_gallery_lookup(account)}
+    end
+  end
+
+  def handle_event("toggle_my_passes", _params, socket),
+    do: {:noreply, assign(socket, gallery_mine: false)}
+
   def handle_event(
         "request_verified_connection",
         %{"action" => action, "provider" => provider},
@@ -1052,7 +1077,12 @@ defmodule AshPlatformWeb.ShellLive do
           actions={gate_state(transaction_gate(@access_context, @redemption_wallet))}
         />
 
-        <RedeemGalleryLive.page :if={@route_spec.route_id == :redeem_gallery} />
+        <RedeemGalleryLive.page
+          :if={@route_spec.route_id == :redeem_gallery}
+          signed_in={authenticated?(@access_context)}
+          mine={@gallery_mine}
+          owned={@gallery_owned}
+        />
 
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
 
@@ -1869,30 +1899,69 @@ defmodule AshPlatformWeb.ShellLive do
          _generation
        )
        when is_binary(wallet) and status in [:idle, :unavailable, :refreshing] do
+    case claim_open_sea_lookup(socket) do
+      {:limited, socket} ->
+        assign(socket,
+          owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
+        )
+
+      {:ok, socket} ->
+        name = {:open_sea, wallet}
+
+        socket
+        |> assign(
+          open_sea_lookup: name,
+          owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
+        )
+        |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet) end)
+    end
+  end
+
+  defp start_open_sea_lookup(socket, _), do: socket
+
+  # The gallery's "My passes" draws on the same per-connection budget, one
+  # claim for all of the account's wallets.
+  defp start_gallery_lookup(%{assigns: %{gallery_owned: %{status: status}}} = socket, account)
+       when status in [:idle, :unavailable] do
+    case claim_open_sea_lookup(socket) do
+      {:limited, socket} ->
+        assign(socket, gallery_owned: %{status: :unavailable, ids: []})
+
+      {:ok, socket} ->
+        wallets = account_wallets(account)
+
+        socket
+        |> assign(gallery_owned: %{status: :loading, ids: []})
+        |> start_async(:gallery_owned, fn -> owned_pass_ids(wallets) end)
+    end
+  end
+
+  defp start_gallery_lookup(socket, _account), do: socket
+
+  defp owned_pass_ids(wallets) do
+    wallets
+    |> Enum.reduce_while({:ok, []}, fn wallet, {:ok, ids} ->
+      case OpenSea.fetch_owned_collectibles(wallet) do
+        {:ok, %{regents_club: club}} -> {:cont, {:ok, Enum.map(club, & &1.token_id) ++ ids}}
+        _unavailable -> {:halt, :unavailable}
+      end
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, ids |> Enum.uniq() |> Enum.sort()}
+      :unavailable -> :unavailable
+    end
+  end
+
+  defp claim_open_sea_lookup(socket) do
     now = System.monotonic_time(:millisecond)
 
     recent =
       Enum.filter(socket.assigns.open_sea_lookup_starts, &(&1 > now - @open_sea_lookup_window))
 
-    if length(recent) >= open_sea_lookups_per_minute() do
-      assign(socket,
-        open_sea_lookup_starts: recent,
-        owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
-      )
-    else
-      name = {:open_sea, wallet}
-
-      socket
-      |> assign(
-        open_sea_lookup: name,
-        open_sea_lookup_starts: [now | recent],
-        owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
-      )
-      |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet) end)
-    end
+    if length(recent) >= open_sea_lookups_per_minute(),
+      do: {:limited, assign(socket, open_sea_lookup_starts: recent)},
+      else: {:ok, assign(socket, open_sea_lookup_starts: [now | recent])}
   end
-
-  defp start_open_sea_lookup(socket, _), do: socket
 
   defp open_sea_lookups_per_minute,
     do:
