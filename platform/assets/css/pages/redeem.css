@@ -410,8 +410,8 @@
 }
 
 .redeem-next-step {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
   padding: 1rem;
@@ -421,6 +421,7 @@
 
 .redeem-next-step > div:first-child {
   display: grid;
+  flex: 1 1 18rem;
   gap: 0.35rem;
   min-width: 0;
 }
@@ -442,13 +443,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.redeem-wallet-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  justify-content: flex-end;
 }
 
 /* Position */
@@ -555,6 +549,14 @@
 
 .redeem-claim {
   justify-self: start;
+}
+
+.redeem-position-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .redeem-snapshot-note {
@@ -844,9 +846,10 @@
   .redeem-stepper li:nth-child(odd) { border-left: 0; }
   .redeem-stepper li:nth-child(n + 3) { border-top: 1px solid var(--ash-line); }
   #redemption-selection,
-  .redeem-next-step,
   .redeem-summary,
   .redeem-vest dl { grid-template-columns: minmax(0, 1fr); }
+  .redeem-next-step { flex-direction: column; align-items: stretch; }
+  .redeem-next-step > div:first-child { flex-basis: auto; }
   .redeem-next-step button { width: 100%; }
   .redeem-owned-list { grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); }
   .redeem-contract-details dl > div,

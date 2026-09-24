@@ -183,12 +183,15 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   expect(Math.abs(afterRefresh.anchor - before.anchor)).toBeLessThanOrEqual(2)
   expect(afterRefresh.height).toBe(before.height)
 
-  await page.getByLabel("Token ID").fill("42")
+  const tokenId = page.getByLabel("Token ID")
+  await tokenId.scrollIntoViewIfNeeded()
+  const beforeSelection = await scrollSnapshot(scroller, summary)
+  await tokenId.fill("42")
   await expect(page.locator(".redeem-next-step button")).toHaveCount(1)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   const afterSelection = await scrollSnapshot(scroller, summary)
-  expect(Math.abs(afterSelection.top - before.top)).toBeLessThanOrEqual(16)
+  expect(Math.abs(afterSelection.top - beforeSelection.top)).toBeLessThanOrEqual(16)
 
   const action = page.locator(".redeem-next-step button")
   await expect(action).toBeEnabled()
