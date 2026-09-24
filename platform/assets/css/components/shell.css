@@ -51,6 +51,15 @@
 .shell-reconnect-dialog h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
 .shell-reconnect-request { margin: 0 0 1.25rem; overflow-wrap: anywhere; }
 
+.shell-wallet-switch {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ash-accent-warm);
+  background: var(--ash-panel);
+  color: var(--ash-ink);
+  overflow-wrap: anywhere;
+}
+
 #shell-header a,
 #shell-sidebar a {
   color: inherit;
