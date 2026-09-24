@@ -1543,6 +1543,7 @@ defmodule AshPlatformWeb.ShellLive do
       selected_collection: nil,
       token_id: nil,
       nft_owner: nil,
+      nft_redeemed: false,
       nft_owner_unavailable: false,
       nft_approved: nil,
       usdc_balance_raw: nil,

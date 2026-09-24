@@ -97,6 +97,29 @@ defmodule AshPlatform.WalletActions.Rpc do
   def call_address(to, data, block, opts \\ []),
     do: call(to, data, block, &decode_address/1, opts)
 
+  @doc """
+  An `address` read that tells a contract's refusal apart from a read that did
+  not happen: `{:reverted, data}` carries the revert data the contract answered
+  with, and every other failure is the `{:error, reason}` `call_address/4` gives.
+  """
+  def call_address_or_revert(to, data, %{hash: hash}, opts \\ []) do
+    params = [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}]
+
+    case post("eth_call", params, opts) do
+      {:ok, %{status: 200, body: %{"error" => %{"data" => "0x" <> _ = revert}}}} ->
+        {:reverted, revert}
+
+      response ->
+        with {:ok, result} <- result(response, "eth_call", opts),
+             {:ok, address} <- decode_address(result) do
+          {:ok, address}
+        else
+          :error -> {:error, :invalid_chain_response}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
   def call_words(to, data, block, count, opts \\ []) when is_integer(count) and count > 0 do
     call(to, data, block, &decode_words(&1, count), opts)
   end
@@ -199,9 +222,10 @@ defmodule AshPlatform.WalletActions.Rpc do
   defp decode_kind(:address, value), do: decode_address(value)
   defp decode_kind({:words, count}, value), do: decode_words(value, count)
 
-  def request(method, params, opts \\ []) do
-    request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
+  def request(method, params, opts \\ []),
+    do: method |> post(params, opts) |> result(method, opts)
 
+  defp post(method, params, opts) do
     client =
       Application.get_env(
         :ash_platform,
@@ -209,30 +233,25 @@ defmodule AshPlatform.WalletActions.Rpc do
         Req
       )
 
-    case client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
-           json: request,
-           connect_options: [timeout: 3_000],
-           finch: [pool_timeout: 3_000],
-           receive_timeout: @timeout,
-           retry: false
-         ) do
-      {:ok, %{status: 200, body: %{"result" => result}}} ->
-        {:ok, result}
-
-      {:ok, %{body: %{"error" => _error}}} ->
-        {:error, :chain_unavailable}
-
-      {:ok, _response} ->
-        {:error, :chain_unavailable}
-
-      {:error, reason} ->
-        log_failure(method, reason, opts)
-        {:error, :chain_unavailable}
-    end
+    client.post(Application.fetch_env!(:ash_platform, :base_read_rpc_url),
+      json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
+      connect_options: [timeout: 3_000],
+      finch: [pool_timeout: 3_000],
+      receive_timeout: @timeout,
+      retry: false
+    )
   rescue
-    error ->
-      log_failure(method, error, opts)
-      {:error, :chain_unavailable}
+    error -> {:error, error}
+  end
+
+  defp result({:ok, %{status: 200, body: %{"result" => result}}}, _method, _opts),
+    do: {:ok, result}
+
+  defp result({:ok, _refused}, _method, _opts), do: {:error, :chain_unavailable}
+
+  defp result({:error, reason}, method, opts) do
+    log_failure(method, reason, opts)
+    {:error, :chain_unavailable}
   end
 
   def format_units(value, decimals) do

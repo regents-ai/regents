@@ -46,6 +46,7 @@ defmodule AshPlatform.RedemptionTest do
          selected_collection: collection,
          token_id: token_id,
          nft_owner: owner(wallet, token_id),
+         nft_redeemed: false,
          nft_owner_unavailable: token_id != nil and Process.get(:owner_unavailable, false),
          nft_approved: if(wallet, do: Process.get(:nft_approved, true), else: nil),
          usdc_balance_raw: if(wallet, do: Process.get(:usdc_balance_raw, "100000000")),
@@ -174,6 +175,7 @@ defmodule AshPlatform.RedemptionTest do
     %{
       token_id: 42,
       nft_owner: @wallet,
+      nft_redeemed: false,
       nft_owner_unavailable: false,
       nft_approved: true,
       usdc_balance_raw: "100000000",

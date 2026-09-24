@@ -7,6 +7,9 @@ defmodule AshPlatform.Redemption.RpcClient do
   @read_timeout 12_000
   @chain_id 8453
   @rpc_opts [client_key: :redemption_http_client, log_scope: "redemption"]
+  # ERC721A's `OwnerQueryForNonexistentToken()`, which both Animata
+  # collections answer `ownerOf` with for a token that does not exist.
+  @nonexistent_token "0xdf2d9b42"
 
   @impl true
   def overview(wallet, collection, token_id),
@@ -116,19 +119,27 @@ defmodule AshPlatform.Redemption.RpcClient do
   # `ownerOf` reverts for a token that does not exist, which under the
   # aggregate's `allowFailure: false` would take every other figure down with
   # it, so the one read that may legitimately fail is made on its own against
-  # the same block. A transport failure and a token that does not exist are
-  # indistinguishable here and neither is reported as the other.
-  defp owner(_collection, nil, _block), do: %{nft_owner: nil, nft_owner_unavailable: false}
+  # the same block. Every Animata I and II token was minted and a redemption
+  # burns the Animata, so the collections' "no such token" refusal means it was
+  # redeemed; any other failure is an owner that could not be read.
+  defp owner(_collection, nil, _block),
+    do: %{nft_owner: nil, nft_redeemed: false, nft_owner_unavailable: false}
 
   defp owner(collection, token_id, block) do
-    case Rpc.call_address(
+    case Rpc.call_address_or_revert(
            collection,
            RedemptionAbi.encode_erc721("owner_of", [token_id]),
            block,
            @rpc_opts
          ) do
-      {:ok, owner} -> %{nft_owner: owner, nft_owner_unavailable: false}
-      {:error, _unavailable} -> %{nft_owner: nil, nft_owner_unavailable: true}
+      {:ok, owner} ->
+        %{nft_owner: owner, nft_redeemed: false, nft_owner_unavailable: false}
+
+      {:reverted, @nonexistent_token} ->
+        %{nft_owner: nil, nft_redeemed: true, nft_owner_unavailable: false}
+
+      _unavailable ->
+        %{nft_owner: nil, nft_redeemed: false, nft_owner_unavailable: true}
     end
   end
 

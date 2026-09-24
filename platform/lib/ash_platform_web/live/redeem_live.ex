@@ -531,8 +531,9 @@ defmodule AshPlatformWeb.RedeemLive do
   defp step_controls(:nft_approval_required), do: ["approve_nft_collection"]
   defp step_controls(:exact_usdc_approval_required), do: ["approve_exact_usdc"]
 
-  defp step_controls(step) when step in [:ready, :nft_not_owned, :insufficient_usdc],
-    do: ["redeem"]
+  defp step_controls(step)
+       when step in [:ready, :nft_redeemed, :nft_not_owned, :insufficient_usdc],
+       do: ["redeem"]
 
   defp step_controls(_unknown), do: @every_control
 
@@ -554,6 +555,8 @@ defmodule AshPlatformWeb.RedeemLive do
     do: "Set the redeemer’s allowance to exactly 80 USDC."
 
   defp step_label(:ready, true), do: "Exchange the selected Animata and 80 USDC on Base."
+
+  defp step_label(:nft_redeemed, true), do: "This Animata has already been redeemed."
 
   defp step_label(:nft_not_owned, true),
     do: "This wallet does not own the selected Animata in the last reading from Base."
