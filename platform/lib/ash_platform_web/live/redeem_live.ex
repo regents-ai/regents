@@ -664,6 +664,13 @@ defmodule AshPlatformWeb.RedeemLive do
           target="_blank"
           rel="noopener noreferrer"
         >View collection on OpenSea ↗</a>
+        <.link
+          :if={@kind == "result"}
+          class="rg-button rg-button--secondary"
+          navigate="/redeem/gallery"
+        >
+          See all 1,998 passes
+        </.link>
       </:actions>
     </Regent.Structure.capability_card>
     """

@@ -127,6 +127,7 @@ defmodule AshPlatformWeb.Router do
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
+      live "/redeem/gallery", ShellLive, :redeem_gallery
       live "/autolaunch", ShellLive, :autolaunch
       live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay

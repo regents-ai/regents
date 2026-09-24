@@ -1,0 +1,114 @@
+@layer regents-product {
+/* The Regents Club gallery stands on the product-page grammar: one heading
+   panel, then every pass on the ground in a hairline grid. */
+
+.gallery-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.gallery-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.gallery-heading h1 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.gallery-heading h1:focus {
+  outline: none;
+}
+
+.gallery-kicker,
+.gallery-jump label,
+.gallery-pass span {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gallery-kicker,
+.gallery-lede {
+  margin: 0;
+}
+
+.gallery-lede {
+  max-width: 56ch;
+  color: var(--ash-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.gallery-actions,
+.gallery-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.gallery-jump input {
+  width: 9rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--ash-panel-strong);
+  color: inherit;
+  font: inherit;
+}
+
+.gallery-jump input:focus-visible {
+  border-color: var(--ash-accent);
+  outline: none;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery-pass a {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border: 1px solid var(--ash-line);
+  background: var(--ash-panel);
+  color: inherit;
+  text-decoration: none;
+}
+
+.gallery-pass a:hover,
+.gallery-pass a:focus-visible,
+.gallery-pass[data-found] a {
+  border-color: var(--ash-accent);
+  outline: none;
+}
+
+.gallery-pass img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  background: var(--ash-panel-strong);
+}
+
+@media (max-width: 36rem) {
+  .gallery-heading { padding: 1rem; }
+  .gallery-jump input { width: 6.5rem; }
+  .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+}
