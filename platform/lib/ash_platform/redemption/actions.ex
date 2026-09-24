@@ -117,6 +117,7 @@ defmodule AshPlatform.Redemption.Actions do
   and its hint copy. It never decides whether an action may be prepared.
   """
   def next_step(%{token_id: nil}, _), do: :token_selection_required
+  def next_step(%{nft_redeemed: true}, _), do: :nft_redeemed
   def next_step(%{nft_owner_unavailable: true}, _), do: :nft_owner_unavailable
 
   def next_step(facts, signer) do

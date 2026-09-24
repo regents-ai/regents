@@ -29,6 +29,7 @@ defmodule AshPlatform.TestRedemptionChainClient do
        selected_collection: collection,
        token_id: token_id,
        nft_owner: nft_owner(wallet, token_id),
+       nft_redeemed: false,
        nft_owner_unavailable: token_id != nil and owner_unavailable?(),
        nft_approved: if(wallet, do: nft_approved?(), else: nil),
        usdc_balance_raw: if(wallet, do: Integer.to_string(usdc_balance()), else: nil),
