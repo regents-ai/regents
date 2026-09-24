@@ -222,6 +222,17 @@ defmodule AshPlatformWeb.Components.Shell do
     """
   end
 
+  attr(:wallets, :map, default: nil)
+
+  def wallet_switch_notice(assigns) do
+    ~H"""
+    <p :if={@wallets} id="wallet-switch-notice" class="shell-wallet-switch" role="status">
+      Your wallet is now on {short_wallet(@wallets.active)}, and the figures below are for that address.
+      Buttons on this page act only from {short_wallet(@wallets.account)}, the wallet you signed in with. Switch back in your wallet to use them.
+    </p>
+    """
+  end
+
   attr(:request, :string, required: true)
 
   @doc """

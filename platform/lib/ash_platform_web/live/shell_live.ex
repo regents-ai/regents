@@ -730,8 +730,11 @@ defmodule AshPlatformWeb.ShellLive do
         %{assigns: %{route_spec: %{route_id: :stake}} = assigns} = socket
       ) do
     case transaction_gate(assigns.access_context, assigns.staking_wallet) do
-      {:mismatch, request} -> {:noreply, assign(socket, wallet_reconnect: request)}
-      _gate -> {:noreply, socket}
+      {:mismatch, _wallets} = gate ->
+        {:noreply, assign(socket, wallet_reconnect: reconnect_request(gate))}
+
+      _gate ->
+        {:noreply, socket}
     end
   end
 
@@ -1042,6 +1045,8 @@ defmodule AshPlatformWeb.ShellLive do
           result={@regents_club_metadata_result}
           review={@regents_club_metadata_review}
         />
+
+        <.wallet_switch_notice wallets={wallet_switch(assigns)} />
 
         <.page
           :if={@route_spec.route_id == :stake}
@@ -1395,17 +1400,31 @@ defmodule AshPlatformWeb.ShellLive do
   defp wallet_gate(account_wallet, active_wallet)
        when is_binary(account_wallet) and is_binary(active_wallet) and
               account_wallet != active_wallet,
-       do:
-         {:mismatch,
-          "Please reconnect to the active wallet '#{short_wallet(account_wallet)}' to interact onchain."}
+       do: {:mismatch, %{account: account_wallet, active: active_wallet}}
 
   defp wallet_gate(_account_wallet, _active_wallet), do: :ready
 
-  defp gate_state({:mismatch, _request}), do: :mismatch
+  defp gate_state({:mismatch, _wallets}), do: :mismatch
   defp gate_state(gate), do: gate
 
-  defp reconnect_request({:mismatch, request}), do: request
+  defp reconnect_request({:mismatch, %{account: account_wallet}}),
+    do:
+      "Please reconnect to the active wallet '#{short_wallet(account_wallet)}' to interact onchain."
+
   defp reconnect_request(_gate), do: nil
+
+  # The page says so the moment the browser's wallet moves away from the
+  # sign-in's, not only when a button is pressed.
+  defp wallet_switch(%{route_spec: %{route_id: :stake}} = assigns),
+    do: switched_wallets(transaction_gate(assigns.access_context, assigns.staking_wallet))
+
+  defp wallet_switch(%{route_spec: %{route_id: :redeem}} = assigns),
+    do: switched_wallets(transaction_gate(assigns.access_context, assigns.redemption_wallet))
+
+  defp wallet_switch(_assigns), do: nil
+
+  defp switched_wallets({:mismatch, wallets}), do: wallets
+  defp switched_wallets(_gate), do: nil
 
   defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
