@@ -231,6 +231,7 @@ export async function executePreparedRedemptionAction(
     })
   } catch (error) {
     if (isDeadGeneration(error) || isRedemptionWalletDrift(error)) throw error
+    if (error instanceof RedemptionExecutionFailure) throw error
     if (userRejected(error)) {
       throw new RedemptionExecutionFailure("canceled", "Request canceled.")
     }
@@ -256,7 +257,7 @@ async function currentAccount(
   assertActiveWallet(expectedSigner, provider, currentWallet)
 
   if (!account || getAddress(account) !== getAddress(expectedSigner)) {
-    throw new Error("Use the connected wallet shown on this account.")
+    throw new RedemptionExecutionFailure("refused", "Use the connected wallet shown on this account.")
   }
 
   return getAddress(account)
