@@ -298,7 +298,10 @@ describe("redemption drift fails before a wallet prompt", () => {
 
     await expect(
       executePreparedRedemptionAction(envelope(), provider, rpc, selected),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({
+      kind: "refused",
+      displayMessage: "Use the connected wallet shown on this account.",
+    })
     expect(rpc.send).not.toHaveBeenCalled()
   })
 
