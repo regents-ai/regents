@@ -65,6 +65,13 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :redeem
     },
     %Entry{
+      path_pattern: "/redeem/gallery",
+      live_action: :redeem_gallery,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :redeem_gallery
+    },
+    %Entry{
       path_pattern: "/autolaunch",
       live_action: :autolaunch,
       parameter_schema: %{},
@@ -107,6 +114,9 @@ defmodule AshPlatformWeb.RouteCatalog do
     redeem:
       {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}},
+    redeem_gallery:
+      {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/app",
+       [:profile_actions], :regents_labs, :detail, %{}},
     autolaunch:
       {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
        :regents_labs, :detail, %{}},

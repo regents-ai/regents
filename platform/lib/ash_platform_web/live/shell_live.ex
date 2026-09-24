@@ -25,6 +25,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.ProductLive
+  alias AshPlatformWeb.RedeemGalleryLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
@@ -707,6 +708,8 @@ defmodule AshPlatformWeb.ShellLive do
           owned_collectibles_limit={@owned_collectibles_limit}
           actions={gate_state(transaction_gate(@access_context, @redemption_wallet))}
         />
+
+        <RedeemGalleryLive.page :if={@route_spec.route_id == :redeem_gallery} />
 
         <ProductLive.page
           :if={@route_spec.route_id in [:autolaunch, :techtree, :patchbay]}
