@@ -6,10 +6,15 @@ defmodule AshPlatformWeb.RedeemGalleryLive do
   @media "https://media.regents.sh/images/regents-club-pass"
   @opensea "https://opensea.io/assets/base/0x2208aadbdecd47d3b4430b5b75a175f6d885d487"
 
+  attr :signed_in, :boolean, required: true
+  attr :mine, :boolean, required: true
+  attr :owned, :map, required: true
+
   # Every pass is drawn from the same media the collection's metadata names,
-  # and each one opens its own OpenSea page. Nothing here reads a chain.
+  # and each one opens its own OpenSea page. The full grid stays in the page
+  # while "My passes" is on, hidden, so switching back sends nothing again.
   def page(assigns) do
-    assigns = assign(assigns, passes: @passes, media: @media, opensea: @opensea)
+    assigns = assign(assigns, all: @passes, status: status(assigns))
 
     ~H"""
     <section class="gallery-page" aria-labelledby="gallery-heading">
@@ -33,7 +38,27 @@ defmodule AshPlatformWeb.RedeemGalleryLive do
             <span aria-hidden="true">↗</span></span>
           </a>
         </nav>
-        <form id="gallery-jump" class="gallery-jump" phx-hook=".PassJump">
+        <div class="gallery-filter">
+          <button
+            id="gallery-mine"
+            type="button"
+            class="gallery-toggle"
+            aria-pressed={to_string(@mine)}
+            aria-describedby="gallery-filter-status"
+            phx-click="toggle_my_passes"
+            disabled={not @signed_in}
+          >
+            <span class="gallery-toggle__switch" aria-hidden="true"></span>
+            <span>My passes</span>
+          </button>
+          <p id="gallery-filter-status" class="gallery-status" role="status">
+            {@status}
+            <.link :if={@mine and @owned.status == :ready and @owned.ids == []} navigate="/redeem">
+              Redeem an Animata
+            </.link>
+          </p>
+        </div>
+        <form id="gallery-jump" class="gallery-jump" phx-hook=".PassJump" hidden={@mine}>
           <label for="gallery-jump-number">Go to pass</label>
           <input
             id="gallery-jump-number"
@@ -66,22 +91,54 @@ defmodule AshPlatformWeb.RedeemGalleryLive do
         </script>
       </header>
 
-      <ul class="gallery-grid" aria-label="Regents Club passes">
-        <li :for={id <- @passes} id={"pass-#{id}"} class="gallery-pass">
-          <a href={"#{@opensea}/#{id}"} target="_blank" rel="noopener noreferrer">
-            <img
-              src={"#{@media}/#{id}.gif"}
-              alt={"Regents Club ##{id}"}
-              width="768"
-              height="1024"
-              loading="lazy"
-              decoding="async"
-            />
-            <span>#{id}</span>
-          </a>
-        </li>
+      <ul
+        :if={@mine and @owned.status == :ready and @owned.ids != []}
+        class="gallery-grid"
+        aria-label="Your Regents Club passes"
+      >
+        <.pass :for={id <- @owned.ids} id={id} dom_id={"my-pass-#{id}"} />
+      </ul>
+
+      <ul class="gallery-grid" aria-label="Regents Club passes" hidden={@mine}>
+        <.pass :for={id <- @all} id={id} dom_id={"pass-#{id}"} />
       </ul>
     </section>
     """
   end
+
+  attr :id, :integer, required: true
+  attr :dom_id, :string, required: true
+
+  defp pass(assigns) do
+    assigns = assign(assigns, media: @media, opensea: @opensea)
+
+    ~H"""
+    <li id={@dom_id} class="gallery-pass">
+      <a href={"#{@opensea}/#{@id}"} target="_blank" rel="noopener noreferrer">
+        <img
+          src={"#{@media}/#{@id}.gif"}
+          alt={"Regents Club ##{@id}"}
+          width="768"
+          height="1024"
+          loading="lazy"
+          decoding="async"
+        />
+        <span>#{@id}</span>
+      </a>
+    </li>
+    """
+  end
+
+  defp status(%{signed_in: false}), do: "Sign in to see the passes you own."
+  defp status(%{mine: false}), do: nil
+  defp status(%{owned: %{status: :loading}}), do: "Finding your passes…"
+
+  defp status(%{owned: %{status: :unavailable}}),
+    do: "Your passes could not be loaded. Turn My passes off and on to try again."
+
+  defp status(%{owned: %{status: :ready, ids: []}}),
+    do: "None of your wallets holds a Regents Club pass yet."
+
+  defp status(%{owned: %{status: :ready, ids: [_]}}), do: "You hold 1 pass."
+  defp status(%{owned: %{status: :ready, ids: ids}}), do: "You hold #{length(ids)} passes."
 end
