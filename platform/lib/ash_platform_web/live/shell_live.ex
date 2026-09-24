@@ -23,6 +23,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.WalletActions.Address
   alias AshPlatform.WalletActions.TransactionObserver
   alias AshPlatformWeb.AccountLive
+  alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.RedeemGalleryLive
@@ -711,8 +712,10 @@ defmodule AshPlatformWeb.ShellLive do
 
         <RedeemGalleryLive.page :if={@route_spec.route_id == :redeem_gallery} />
 
+        <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
+
         <ProductLive.page
-          :if={@route_spec.route_id in [:autolaunch, :techtree, :patchbay]}
+          :if={@route_spec.route_id in [:techtree, :patchbay]}
           product={@route_spec.route_id}
         />
 
