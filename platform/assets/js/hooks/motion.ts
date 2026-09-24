@@ -283,8 +283,10 @@ type MotionSnapshot = {
   background?: HTMLElement
 }
 
+// Copies are made in a document without a window, so their images start no
+// downloads unless a transition actually shows them.
 const cloneForMotion = (target: HTMLElement) => {
-  const copy = target.cloneNode(true) as HTMLElement
+  const copy = target.ownerDocument.implementation.createHTMLDocument("").importNode(target, true)
   const box = target.getBoundingClientRect()
   copy.dataset.motionCopy = "true"
   copy.removeAttribute("id")

@@ -13,6 +13,8 @@ defmodule AshPlatformWeb.RedeemGalleryLive do
   # Every pass is drawn from the same media the collection's metadata names,
   # and each one opens its own OpenSea page. The full grid stays in the page
   # while "My passes" is on, hidden, so switching back sends nothing again.
+  # Hiding it also stops every pass still downloading there, so only the
+  # visitor's own passes load; switching back resumes them.
   def page(assigns) do
     assigns = assign(assigns, all: @passes, status: status(assigns))
 
@@ -99,9 +101,40 @@ defmodule AshPlatformWeb.RedeemGalleryLive do
         <.pass :for={id <- @owned.ids} id={id} dom_id={"my-pass-#{id}"} />
       </ul>
 
-      <ul class="gallery-grid" aria-label="Regents Club passes" hidden={@mine}>
+      <ul
+        id="gallery-all"
+        class="gallery-grid"
+        aria-label="Regents Club passes"
+        data-hidden={to_string(@mine)}
+        phx-update="ignore"
+        phx-hook=".StopHiddenLoads"
+      >
         <.pass :for={id <- @all} id={id} dom_id={"pass-#{id}"} />
       </ul>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".StopHiddenLoads">
+        export default {
+          mounted() {
+            this.observer = new MutationObserver(() => this.sync())
+            this.observer.observe(this.el, {attributes: true, attributeFilter: ["data-hidden"]})
+          },
+          destroyed() {
+            this.observer.disconnect()
+          },
+          sync() {
+            const hidden = this.el.dataset.hidden === "true"
+
+            for (const img of this.el.querySelectorAll("img")) {
+              if (hidden && img.hasAttribute("src") && !img.complete) {
+                img.dataset.src = img.getAttribute("src")
+                img.removeAttribute("src")
+              } else if (!hidden && img.dataset.src) {
+                img.setAttribute("src", img.dataset.src)
+                delete img.dataset.src
+              }
+            }
+          }
+        }
+      </script>
     </section>
     """
   end
