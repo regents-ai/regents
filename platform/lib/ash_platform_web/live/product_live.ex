@@ -4,27 +4,10 @@ defmodule AshPlatformWeb.ProductLive do
 
   alias AshPlatformWeb.HomeLive
 
-  # Each product page adds to the home page's chapter copy: what the product
-  # does in a few sentences, who it is for, its place in the family and where
-  # to start. Nothing here reads a chain or asks for a sign-in.
+  # The Techtree and Patchbay pages add to the home page's chapter copy: what
+  # the product does in a few sentences, who it is for, its place in the family
+  # and where to start. Nothing here reads a chain or asks for a sign-in.
   @pages %{
-    autolaunch: %{
-      name: "Autolaunch",
-      domain: "autolaunch.sh",
-      about: [
-        "Autolaunch runs token auctions on Base through Uniswap contracts. A launch raises capital for an agent or an x402 business, and can share the revenue that follows with the people who backed it.",
-        "Paired stock tokens launch through the same fair auctions: choose a tokenized stock on Base and launch the token you would pair with it."
-      ],
-      audience: [
-        "Agents and x402 businesses raising capital against real revenue.",
-        "Builders launching a paired token for a tokenized stock on Base.",
-        "Backers who want a share of an agent's revenue."
-      ],
-      family:
-        "Regents holds the shared identity and the $REGENT stake; Autolaunch is the path from a proven edge to capital and configured revenue sharing.",
-      agent_line: nil,
-      start: %{label: "Explore auctions", href: "https://autolaunch.sh/auctions"}
-    },
     techtree: %{
       name: "Techtree",
       domain: "techtree.sh",
@@ -156,7 +139,7 @@ defmodule AshPlatformWeb.ProductLive do
   attr :class, :any, default: nil
   slot :inner_block, required: true
 
-  defp external(assigns) do
+  def external(assigns) do
     ~H"""
     <a href={@href} target="_blank" rel="noopener noreferrer" class={@class}>
       <span class="rg-button__label">

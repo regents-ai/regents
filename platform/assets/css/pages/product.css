@@ -172,6 +172,38 @@
   overflow-wrap: anywhere;
 }
 
+.product-launch-title {
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.02em;
+}
+
+/* A launch's figures: label above value, one hairline between rows. */
+
+.product-facts {
+  display: grid;
+  margin: 0;
+  padding-block-start: 0.25rem;
+}
+
+.product-facts div {
+  display: grid;
+  gap: 0.2rem;
+  padding-block: 0.6rem;
+  border-block-start: 1px solid var(--ash-line);
+}
+
+.product-facts dt {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.product-facts dd {
+  margin: 0;
+}
+
 .product-family__links {
   display: flex;
   flex-wrap: wrap;
