@@ -524,6 +524,19 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert has_element?(view, "#route-content h1", "Put REGENT to work.")
   end
 
+  # The shell fills the window, so links below it would let the window scroll
+  # the header out of view.
+  test "shell pages keep the project links inside their own scroll", %{conn: conn} do
+    html = conn |> get("/stake") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert document
+           |> LazyHTML.query("#app-shell-scroller > footer.product-links")
+           |> Enum.count() == 1
+
+    assert document |> LazyHTML.query("footer.product-links") |> Enum.count() == 1
+  end
+
   test "Formation remains owned by ShellLive with its background and only the handoff", %{
     conn: conn
   } do

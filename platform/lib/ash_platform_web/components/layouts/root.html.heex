@@ -1,6 +1,8 @@
 <!DOCTYPE html> <% home? = @conn.request_path == "/" %>
 <% theme = if home?, do: "dark", else: @theme %>
 <% metadata = AshPlatformWeb.PublicDocuments.metadata(@conn.request_path) %>
+<%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
+<% shell? = assigns[:live_module] in [AshPlatformWeb.ShellLive, AshPlatformWeb.ShowcaseLive] %>
 <html
   lang="en"
   data-brand="platform"
@@ -49,6 +51,6 @@
   </head>
   <body>
     {@inner_content}
-    <.product_links :if={!home?} theme={theme} />
+    <.product_links :if={!home? and !shell?} theme={theme} />
   </body>
 </html>

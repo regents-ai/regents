@@ -110,6 +110,7 @@ defmodule AshPlatformWeb.Components.Shell do
         <main id="route-content" data-motion-region>
           {render_slot(@content)}
         </main>
+        <AshPlatformWeb.Layouts.product_links theme={@theme} />
       </div>
     </div>
     """

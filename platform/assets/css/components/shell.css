@@ -378,6 +378,14 @@ details[open] > summary .shell-chevron {
   padding: var(--rg-panel-padding);
 }
 
+/* The project links end the page's own scroll, spanning the content column. */
+#app-shell-scroller > .product-links {
+  width: 100%;
+  border-inline: 0;
+  border-bottom: 0;
+  border-top: 1px solid var(--hairline);
+}
+
 #shell-header button:active,
 #shell-header summary:active,
 .shell-menu-close:active {
