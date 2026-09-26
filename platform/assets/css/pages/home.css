@@ -124,7 +124,9 @@
     .rl-header-links { margin-inline-start: auto; }
   }
   @media (max-width: 47.99rem) {
-    .rl-header-links { position: relative; }
+    .rl-header-links { position: relative; gap: .25rem; }
+    /* Phone tap targets are 44px square; the icons keep their size. */
+    .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-hero-stage { height: auto; min-height: 0; grid-template-rows: auto 15rem auto; gap: var(--space-2); }
     .rl-hero-copy { grid-row: 1; padding: 0; }
