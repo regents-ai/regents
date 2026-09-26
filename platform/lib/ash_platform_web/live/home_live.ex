@@ -53,7 +53,11 @@ defmodule AshPlatformWeb.HomeLive do
   defp staking_summary, do: @staking_summary
 
   def mount(_params, _session, socket),
-    do: {:ok, assign(socket, route_spec: RouteCatalog.fetch!(:home))}
+    do:
+      {:ok,
+       socket
+       |> assign(route_spec: RouteCatalog.fetch!(:home))
+       |> assign(AshPlatformWeb.PublicDocuments.page("/"))}
 
   def render(assigns) do
     ~H"""

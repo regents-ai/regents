@@ -26,6 +26,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.ProductLive
+  alias AshPlatformWeb.PublicDocuments
   alias AshPlatformWeb.RedeemGalleryLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
@@ -98,7 +99,7 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   @impl true
-  def handle_params(params, _uri, socket) do
+  def handle_params(params, uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
     generation = socket.assigns.content_generation + 1
 
@@ -106,6 +107,7 @@ defmodule AshPlatformWeb.ShellLive do
       socket
       |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
+      |> assign_page(route_spec, uri)
       |> load_account_ens(route_spec)
       |> load_verified_connections(route_spec)
       |> load_account_names(route_spec)
@@ -1110,6 +1112,16 @@ defmodule AshPlatformWeb.ShellLive do
     regent = socket.assigns.current_regent
     assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
   end
+
+  defp assign_page(socket, %{route_id: :regent_profile}, _uri) do
+    case socket.assigns.regent_status do
+      :ready -> assign(socket, PublicDocuments.page({:regent, socket.assigns.regent}))
+      :error -> assign(socket, PublicDocuments.page(:regent_unavailable))
+    end
+  end
+
+  defp assign_page(socket, _route_spec, uri),
+    do: assign(socket, PublicDocuments.page(URI.parse(uri).path))
 
   # The account page lists the names the signed-in wallets hold. That read is
   # the account's own, made with the wallets its sign-in verified, so nothing

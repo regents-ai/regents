@@ -7,8 +7,9 @@ defmodule AshPlatformWeb.ShowcaseLive do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket,
-       page_title: "Showcase",
+     socket
+     |> assign(AshPlatformWeb.PublicDocuments.page("/showcase"))
+     |> assign(
        privy_mode: privy_mode(),
        theme: "dark",
        catalog: Catalog.snapshot(),
