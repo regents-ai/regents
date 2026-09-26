@@ -76,8 +76,8 @@ const approvalIncomplete =
  * A stake needs its REGENT approval first. Every way that approval can end after
  * the wallet has been asked leaves the customer in the same place, in front of a
  * prompt they have to find again. A request that never reached the wallet — the
- * wrong network, or a wallet that no longer matches the signer — keeps the
- * instruction that names what to fix, the same one the stake itself shows.
+ * wrong network — keeps the instruction that names what to fix, the same one
+ * the stake itself shows.
  */
 function approvalStepMessage(result: ImmediateStakingResult): string {
   const asked = result.role === "approval" && result.kind !== "refused"
@@ -220,6 +220,11 @@ export const StakeWallet: Hook = {
       event.preventDefault()
 
       const wallet = activeEthereumWallet()
+      if (!wallet) {
+        // With no wallet open, the press opens the wallet connection itself.
+        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
+        return
+      }
       if (!sameWallet(state.wallet, wallet)) resetForWallet(this.el, state, wallet)
       const generation = state.generation
       const runtime = runtimeFor(state, generation)
@@ -231,7 +236,7 @@ export const StakeWallet: Hook = {
         role: "action",
         initiator,
         amount,
-        signer: wallet?.address ?? "",
+        signer: wallet.address,
         handedOff: false,
         submitted: null,
       }
@@ -249,7 +254,7 @@ export const StakeWallet: Hook = {
             amount,
             allowanceAtomic: this.el.dataset.stakingAllowance ?? "",
             chainId: this.el.dataset.stakingChainId ?? "",
-            expectedSigner: this.el.dataset.stakingSigner ?? "",
+            allowanceWallet: this.el.dataset.stakingWallet ?? "",
             stakeForOther: this.el.querySelector<HTMLInputElement>("#staking-for-other")?.checked ?? false,
             receiver: this.el.querySelector<HTMLInputElement>("#staking-recipient")?.value ?? "",
             acknowledgedReceiver: this.el.querySelector<HTMLInputElement>("#staking-recipient-acknowledged")?.checked
@@ -475,7 +480,7 @@ function settleObserved(
         title: `${label} confirmed`,
         message: successMessage(slot),
         detail: slot.role === "action" && slot.action === "stake" && slot.receiver?.toLowerCase() !== slot.signer.toLowerCase()
-          ? "The receiving address owns this stake. Your connected wallet’s balance is refreshing."
+          ? "The receiving address owns this stake. Your wallet’s balance is refreshing."
           : "Your position is refreshing in place from the latest Base block.",
         href,
         tone: "success",
@@ -498,15 +503,13 @@ function settleObserved(
           }
         : {
             title: "Confirmation unavailable",
-            message: "Alchemy has not returned a verifiable Base result.",
+            message: "Base has not confirmed a result for this transaction yet.",
             detail: "Check BaseScan or your wallet activity before trying the same action again.",
             href,
             tone: "pending",
           }
   state.results.set(slot.id, Object.freeze(display))
-  if (result === "success" && sameAddress(slot.signer, state.wallet?.address)) {
-    hook.pushEvent("refresh_staking", {})
-  }
+  if (result === "success") hook.pushEvent("refresh_staking", {})
   presentOrUpdate(hook.el, state, slot, display)
 }
 
@@ -546,7 +549,7 @@ function handOverResult(
 function submittedDisplay(hash: string): ResultDisplay {
   return Object.freeze({
     title: "Transaction submitted",
-    message: "Privy returned the transaction hash. Alchemy is checking its Base result.",
+    message: "Your wallet sent the transaction. Waiting for Base to confirm it.",
     detail: "You can keep using the page while confirmation completes.",
     href: `https://basescan.org/tx/${hash}`,
     tone: "pending",
@@ -639,10 +642,6 @@ function focusable(element: HTMLElement): boolean {
 function sameWallet(first: SelectedWallet | null, second: SelectedWallet | null): boolean {
   if (!first || !second) return first === second
   return first.provider === second.provider && first.address.toLowerCase() === second.address.toLowerCase()
-}
-
-function sameAddress(first: string, second?: string): boolean {
-  return typeof second === "string" && first.toLowerCase() === second.toLowerCase()
 }
 
 function requiredElement<T extends Element>(root: ParentNode, selector: string): T {

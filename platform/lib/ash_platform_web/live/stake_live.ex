@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
   alias AshPlatformWeb.Components.Loading
+  alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.{TokenDisplay, TokenLinks}
 
   attr :staking, :map, default: nil
@@ -16,7 +17,8 @@ defmodule AshPlatformWeb.StakeLive do
   attr :spendable, :any, default: :unavailable
   attr :amount_notice, :string, default: nil
   attr :available_claims, :map, default: %{}
-  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in, :mismatch]
+  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in]
+  attr :sender, :string, default: nil
 
   @claims [
     {"claim_usdc", "Claim USDC"},
@@ -65,7 +67,6 @@ defmodule AshPlatformWeb.StakeLive do
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
       |> assign(:claims, claims)
-      |> assign(:signer, if(assigns.actions == :ready, do: assigns.wallet))
 
     ~H"""
     <section
@@ -75,8 +76,8 @@ defmodule AshPlatformWeb.StakeLive do
       aria-busy={to_string(@reading)}
       data-staking-mode={@action}
       data-staking-chain-id={@staking && @staking.chain_id}
-      data-staking-signer={@signer}
-      data-staking-allowance={@signer && stake_allowance(@staking)}
+      data-staking-wallet={@wallet_ready && @wallet}
+      data-staking-allowance={@wallet_ready && stake_allowance(@staking)}
     >
       <header class="stake-heading rg-panel rg-panel--surface rg-panel__body">
         <div class="stake-heading-copy">
@@ -262,7 +263,7 @@ defmodule AshPlatformWeb.StakeLive do
             <div :if={!@wallet} class="stake-connect-flow">
               <ol>
                 <li>
-                  <span>1</span><p><strong>Connect</strong> an Ethereum wallet through Privy.</p>
+                  <span>1</span><p><strong>Connect</strong> an Ethereum wallet.</p>
                 </li>
                 <li>
                   <span>2</span><p><strong>Choose</strong> how much REGENT to stake.</p>
@@ -279,14 +280,14 @@ defmodule AshPlatformWeb.StakeLive do
                 Connect wallet
               </Regent.Primitives.button>
               <p class="stake-fine-print">
-                Signing in with Privy connects your wallet. Nothing is sent without your wallet confirmation.
+                Signing in connects your wallet. Nothing is sent until you confirm it in your wallet.
               </p>
             </div>
 
             <.notice :if={@wallet && @notice} notice={@notice} />
 
             <Loading.panel
-              :if={@wallet && !@wallet_ready && (@reading || !@staking)}
+              :if={@wallet && !@wallet_ready}
               id="staking-wallet-skeleton"
               label="Your wallet position"
               labels={["Available REGENT", "Currently staked", "Claimable USDC", "Claimable REGENT"]}
@@ -363,7 +364,6 @@ defmodule AshPlatformWeb.StakeLive do
                       type="button"
                       data-staking-action={@actions == :ready && @action}
                       data-account-target={@actions == :sign_in && "sign-in"}
-                      phx-click={@actions == :mismatch && "refuse_staking_action"}
                     >{mode_label(@action)} REGENT</Regent.Primitives.button>
                     <p id="staking-available">
                       Available
@@ -387,6 +387,7 @@ defmodule AshPlatformWeb.StakeLive do
                     >Max</Regent.Primitives.button>
                   </div>
                 </div>
+                <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
                 <p
                   id="staking-amount-feedback"
                   class="stake-amount-notice"
@@ -447,7 +448,10 @@ defmodule AshPlatformWeb.StakeLive do
                   </div>
                 </dl>
 
-                <p :if={approval_needed?(@staking, @action, @amount)} class="stake-approval-note">
+                <p
+                  :if={approval_needed?(@staking, @sender, @action, @amount)}
+                  class="stake-approval-note"
+                >
                   Your wallet will first request an exact REGENT approval, then the stake transaction.
                 </p>
               </form>
@@ -464,9 +468,9 @@ defmodule AshPlatformWeb.StakeLive do
                     class={if claim.claimable, do: "stake-claim-ready"}
                     data-staking-action={@actions == :ready && claim.action}
                     data-account-target={@actions == :sign_in && "sign-in"}
-                    phx-click={@actions == :mismatch && "refuse_staking_action"}
                   >{claim.label}<span class="visually-hidden">{claim_state(claim.claimable)}</span></Regent.Primitives.button>
                 </div>
+                <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
               </section>
 
               <div class="stake-footer">
@@ -865,11 +869,15 @@ defmodule AshPlatformWeb.StakeLive do
 
   # An allowance nobody could read is treated as none: the wallet is told to
   # expect the approval step, and the browser asks for one, rather than the
-  # press being held back over a figure this page does not have.
-  defp approval_needed?(%{wallet_stake_allowance_raw: :unavailable}, "stake", amount),
+  # press being held back over a figure this page does not have. A press sent
+  # from another wallet has no allowance on this page at all.
+  defp approval_needed?(_staking, sender, "stake", amount) when is_binary(sender),
     do: match?({:ok, _}, AshPlatform.Staking.parse_amount(amount))
 
-  defp approval_needed?(staking, "stake", amount) when is_map(staking) do
+  defp approval_needed?(%{wallet_stake_allowance_raw: :unavailable}, nil, "stake", amount),
+    do: match?({:ok, _}, AshPlatform.Staking.parse_amount(amount))
+
+  defp approval_needed?(staking, nil, "stake", amount) when is_map(staking) do
     with {:ok, requested} <- AshPlatform.Staking.parse_amount(amount),
          {:ok, allowance} <- atomic(Map.get(staking, :wallet_stake_allowance_raw)) do
       allowance < requested
@@ -878,7 +886,8 @@ defmodule AshPlatformWeb.StakeLive do
     end
   end
 
-  defp approval_needed?(_, _, _), do: false
+  defp approval_needed?(_, _, _, _), do: false
+
   # Revenue is accounted against the whole supply, so a staker's share of it is
   # their position over the total supply. Four decimals are always shown, the
   # fifth dropped rather than rounded up, as every other share on this page is.

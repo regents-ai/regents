@@ -117,6 +117,22 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     assert_received {:price_http, _}
   end
 
+  test "REFRESH_SOON: a confirmed transaction brings the next reading to the earliest allowed moment" do
+    clock = fixed_clock(0)
+    SnapshotCache.clear()
+    assert :ok = SnapshotCache.refresh()
+    assert_receive {:staking_snapshot, _first}
+
+    clock.(4_000)
+    SnapshotCache.refresh_soon()
+    {timer, token} = :sys.get_state(SnapshotCache).refresh_timer
+    assert Process.read_timer(timer) in 5_900..6_000
+
+    clock.(10_000)
+    send(SnapshotCache, {:scheduled_refresh, token})
+    assert_receive {:staking_snapshot, _second}
+  end
+
   test "PERIODIC_BOUNDS: ticks share the allowance, never duplicate a read, and ignore stale timers" do
     previous = Application.get_env(:ash_platform, :staking_snapshot_refresh_interval_ms)
     Application.put_env(:ash_platform, :staking_snapshot_refresh_interval_ms, 60_000)

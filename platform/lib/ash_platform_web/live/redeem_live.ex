@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.RedeemLive do
   @moduledoc false
   use Phoenix.Component
   alias AshPlatformWeb.Components.Loading
+  alias AshPlatformWeb.Components.Shell
   alias AshPlatformWeb.TokenDisplay
 
   @control_labels %{
@@ -23,7 +24,8 @@ defmodule AshPlatformWeb.RedeemLive do
   attr :step, :atom, default: nil
   attr :owned_collectibles, :map, default: %{status: :idle, animata: [], regents_club: []}
   attr :owned_collectibles_limit, :integer, default: 24
-  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in, :mismatch]
+  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in]
+  attr :sender, :string, default: nil
 
   def redemption_page(assigns) do
     assigns =
@@ -235,7 +237,7 @@ defmodule AshPlatformWeb.RedeemLive do
 
             <div :if={!@wallet} class="redeem-connect-panel">
               <p>
-                Sign in with Privy and connect the wallet that owns your Animata.
+                Sign in and connect the wallet that owns your Animata.
               </p>
               <Regent.Primitives.button
                 type="button"
@@ -329,6 +331,7 @@ defmodule AshPlatformWeb.RedeemLive do
                   >{control.label}</Regent.Primitives.button>
                 </div>
               </section>
+              <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
             </div>
           </section>
 
@@ -387,6 +390,7 @@ defmodule AshPlatformWeb.RedeemLive do
             >
               Claim unlocked REGENT
             </Regent.Primitives.button>
+            <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
             <div class="redeem-position-footer">
               <p class="redeem-snapshot-note">
                 <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={

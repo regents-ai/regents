@@ -43,6 +43,13 @@ defmodule AshPlatform.Staking.SnapshotCache do
   def refresh(notify \\ self()) when is_pid(notify),
     do: GenServer.call(__MODULE__, {:refresh, notify})
 
+  @doc """
+  Brings the next scheduled reading forward to the earliest moment the refresh
+  allowance permits. A confirmed staking transaction is the one moment the
+  totals on screen are known to be out of date.
+  """
+  def refresh_soon, do: GenServer.cast(__MODULE__, :refresh_soon)
+
   @doc false
   def clear, do: GenServer.call(__MODULE__, :clear)
 
@@ -92,6 +99,12 @@ defmodule AshPlatform.Staking.SnapshotCache do
   end
 
   @impl true
+  def handle_cast(:refresh_soon, state) do
+    cancel_refresh(state.refresh_timer)
+    {:noreply, arm_refresh(state, earliest_refresh_ms(state))}
+  end
+
+  @impl true
   def handle_info({:read, pid, result}, %{in_flight: %{pid: pid, monitor: monitor}} = state) do
     Process.demonitor(monitor, [:flush])
     {:noreply, settle(%{state | in_flight: nil}, state.in_flight, result)}
@@ -135,21 +148,23 @@ defmodule AshPlatform.Staking.SnapshotCache do
 
     case Application.get_env(:ash_platform, :staking_snapshot_refresh_interval_ms, 60_000) do
       interval when is_integer(interval) and interval > 0 ->
-        token = make_ref()
-
-        timer =
-          Process.send_after(
-            self(),
-            {:scheduled_refresh, token},
-            max(interval, @minimum_interval_ms)
-          )
-
-        %{state | refresh_timer: {timer, token}}
+        arm_refresh(state, max(interval, @minimum_interval_ms))
 
       _disabled ->
         %{state | refresh_timer: nil}
     end
   end
+
+  defp arm_refresh(state, delay_ms) do
+    token = make_ref()
+    timer = Process.send_after(self(), {:scheduled_refresh, token}, delay_ms)
+    %{state | refresh_timer: {timer, token}}
+  end
+
+  defp earliest_refresh_ms(%{last_start: nil}), do: 0
+
+  defp earliest_refresh_ms(%{last_start: last_start}),
+    do: max(last_start + @minimum_interval_ms - now(), 0)
 
   defp cancel_refresh(nil), do: :ok
   defp cancel_refresh({timer, _token}), do: Process.cancel_timer(timer)

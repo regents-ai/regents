@@ -108,6 +108,11 @@ defmodule AshPlatform.RedemptionTest do
     assert Redemption.next_step(%{base | usdc_allowance_raw: "0"}, @wallet) ==
              :exact_usdc_approval_required
 
+    assert Redemption.next_step(%{base | usdc_allowance_raw: "79999999"}, @wallet) ==
+             :exact_usdc_approval_required
+
+    assert Redemption.next_step(%{base | usdc_allowance_raw: "1000000000"}, @wallet) == :ready
+
     assert Redemption.next_step(%{base | usdc_balance_raw: "1"}, @wallet) == :insufficient_usdc
     assert Redemption.next_step(base, @wallet) == :ready
   end

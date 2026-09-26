@@ -6,7 +6,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
   alias AshPlatform.Staking.SnapshotCache
 
   @wallet "0x1111111111111111111111111111111111111111"
-  @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
+  @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
 
   test "anonymous visitors meet a product Overview that promises no wallet", %{conn: conn} do
     seed_shared_reading()

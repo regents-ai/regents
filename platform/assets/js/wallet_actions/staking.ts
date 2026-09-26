@@ -14,11 +14,7 @@ import {base} from "viem/chains"
 
 import chainManifest from "../../../contracts/base-mainnet.json"
 import stakingAbiJson from "../../../contracts/abi/regent-revenue-staking.json"
-import {
-  activeEthereumWallet,
-  type EthereumProvider,
-  type SelectedWallet,
-} from "./connected_wallet"
+import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
 type ManifestAction = {id: string; value: string}
 type Manifest = {
@@ -47,6 +43,9 @@ const maxUint256 = (1n << 256n) - 1n
 const chainTimeoutMs = 5_000
 const switchTimeoutMs = 15_000
 const walletTimeoutMs = 120_000
+// Before the transaction itself, the only request the wallet is sent is the
+// switch to Base.
+const switchToBase = "Switch your wallet to Base and try again."
 
 export type StakingAction =
   | "stake"
@@ -89,8 +88,8 @@ export type RenderedStakingClick = {
   action: string
   amount: string
   allowanceAtomic: string
+  allowanceWallet: string
   chainId: string
-  expectedSigner: string
   stakeForOther?: boolean
   receiver?: string
   acknowledgedReceiver?: string
@@ -171,15 +170,15 @@ export function prepareStakingClick(
 ): PreparedStakingClick {
   const action = requiredAction(rendered.action)
   if (manifest.chain.id !== base.id || rendered.chainId !== String(base.id)) {
-    throw new StakingLocalRefusal("This staking snapshot is not for Base. Refresh and try again.")
+    throw new StakingLocalRefusal("This page's staking figures are out of date. Refresh and try again.")
   }
   if (!zeroValueActions.has(action)) {
     throw new StakingLocalRefusal("That staking action is unavailable. Refresh and try again.")
   }
 
-  const signer = normalizedAddress(rendered.expectedSigner)
-  assertSelectedWallet(selected, signer)
-  const amount = action === "stake" || action === "unstake" ? exactAmount(rendered.amount) : null
+  if (!selected) throw new StakingLocalRefusal("Connect your wallet and try again.")
+  const signer = normalizedAddress(selected.address)
+  const amount = action === "stake" || action === "unstake" ? exactAmount(rendered.amount.trim()) : null
   const receiver = action === "stake" && rendered.stakeForOther
     ? stakingReceiverAddress(rendered.receiver ?? "")
     : signer
@@ -192,7 +191,9 @@ export function prepareStakingClick(
 
   let approval: StakingTransaction | null = null
   if (action === "stake") {
-    const allowance = readAllowance(rendered.allowanceAtomic)
+    // The page's allowance belongs to the wallet it was read for. A press from
+    // any other wallet asks for its approval first.
+    const allowance = sameAddress(rendered.allowanceWallet, signer) ? readAllowance(rendered.allowanceAtomic) : 0n
     if (allowance < requiredAmount(amount)) {
       const approvalData = encodeFunctionData({
         abi: approvalAbi,
@@ -208,7 +209,7 @@ export function prepareStakingClick(
     actionId: identity.actionId,
     traceId: identity.traceId,
     action,
-    provider: selected!.provider,
+    provider: selected.provider,
     signer,
     receiver,
     approval,
@@ -220,13 +221,12 @@ export async function executeStakingClick(
   click: PreparedStakingClick,
   callbacks: StakingExecutionCallbacks,
   runtime: StakingRuntime,
-  currentWallet: () => SelectedWallet | null = activeEthereumWallet,
 ): Promise<void> {
   if (click.approval) {
-    const approval = await sendRole(click, "approval", click.approval, callbacks, runtime, currentWallet)
+    const approval = await sendRole(click, "approval", click.approval, callbacks, runtime)
     if (!approval) return
   }
-  await sendRole(click, "action", click.transaction, callbacks, runtime, currentWallet)
+  await sendRole(click, "action", click.transaction, callbacks, runtime)
 }
 
 async function sendRole(
@@ -235,15 +235,12 @@ async function sendRole(
   transaction: StakingTransaction,
   callbacks: StakingExecutionCallbacks,
   runtime: StakingRuntime,
-  currentWallet: () => SelectedWallet | null,
 ): Promise<SubmittedStakingTransaction | null> {
   if (!callbacks.claimRole(click.actionId, role) || !runtime.alive()) return null
 
   let walletRequestStarted = false
   try {
-    assertSelectedWallet(currentWallet(), click.signer, click.provider)
     await ensureBase(click, role, callbacks, runtime)
-    assertSelectedWallet(currentWallet(), click.signer, click.provider)
 
     const requestStarted = performance.now()
     callbacks.walletRequestStarted(click.actionId, role)
@@ -436,11 +433,11 @@ function readAllowance(value: string): bigint {
 
 function exactUint(value: string): bigint {
   if (!/^\d+$/.test(value)) {
-    throw new StakingLocalRefusal("Refresh the staking snapshot and try again.")
+    throw new StakingLocalRefusal("Refresh the page and try again.")
   }
   const parsed = BigInt(value)
   if (parsed < 0n || parsed > maxUint256) {
-    throw new StakingLocalRefusal("Refresh the staking snapshot and try again.")
+    throw new StakingLocalRefusal("Refresh the page and try again.")
   }
   return parsed
 }
@@ -473,18 +470,12 @@ function normalizedAddress(value: string): Address {
   try {
     return getAddress(value)
   } catch {
-    throw new StakingLocalRefusal("Use the connected wallet shown on this account.")
+    throw new StakingLocalRefusal("That staking action is unavailable. Refresh and try again.")
   }
 }
 
-function assertSelectedWallet(
-  selected: SelectedWallet | null,
-  signer: Address,
-  provider?: EthereumProvider,
-): asserts selected is SelectedWallet {
-  if (!selected || (provider && selected.provider !== provider) || normalizedAddress(selected.address) !== signer) {
-    throw new StakingLocalRefusal("Use the connected wallet shown on this account.")
-  }
+function sameAddress(value: string, address: Address): boolean {
+  return value.toLowerCase() === address.toLowerCase()
 }
 
 function assertExactTransaction(transaction: StakingTransaction, destination: Address, data: Hex): void {
@@ -529,7 +520,7 @@ function immediate(
     kind === "canceled"
       ? "Request canceled."
       : kind === "refused"
-        ? refusedMessage ?? "Switch to Base before continuing."
+        ? refusedMessage ?? switchToBase
         : "The submission outcome is unknown."
   return Object.freeze({actionId: click.actionId, action: click.action, role, kind, message})
 }
@@ -537,7 +528,7 @@ function immediate(
 function preSendRefusal(error: unknown): string {
   return objectLike(error) && localRefusals.has(error)
     ? (error as StakingLocalRefusal).displayMessage
-    : "Switch to Base before continuing."
+    : switchToBase
 }
 
 function isDeadGeneration(error: unknown): boolean {

@@ -128,7 +128,7 @@ defmodule AshPlatform.Redemption.Actions do
       cond do
         not Address.equal?(facts.nft_owner, signer) -> :nft_not_owned
         facts.nft_approved != true -> :nft_approval_required
-        allowance != price -> :exact_usdc_approval_required
+        allowance < price -> :exact_usdc_approval_required
         balance < price -> :insufficient_usdc
         true -> :ready
       end

@@ -111,10 +111,8 @@ function envelope(action: RedemptionAction = "claim"): PreparedRedemptionAction 
 
 function clients(overrides: Partial<RedemptionClients> = {}): RedemptionClients {
   return {
-    addresses: vi.fn(async () => [wallet]),
     chainId: vi.fn(async () => 8453),
     switchToBase: vi.fn(async () => undefined),
-    simulate: vi.fn(async () => undefined),
     send: vi.fn(async () => hash),
     ...overrides,
   }
@@ -130,7 +128,7 @@ describe("all four direct redemption calldata shapes", () => {
   it.each(actionCases)("sends exact $action bytes with zero value", async shape => {
     const rpc = clients()
 
-    await executePreparedRedemptionAction(envelope(shape.action), provider, rpc, selected)
+    await executePreparedRedemptionAction(envelope(shape.action), provider, rpc)
 
     expect(rpc.send).toHaveBeenCalledOnce()
     expect(rpc.send).toHaveBeenCalledWith({
@@ -143,7 +141,7 @@ describe("all four direct redemption calldata shapes", () => {
 
   it("returns immutable evidence for the exact wallet submission", async () => {
     const prepared = envelope("redeem")
-    const submitted = await executePreparedRedemptionAction(prepared, provider, clients(), selected)
+    const submitted = await executePreparedRedemptionAction(prepared, provider, clients())
 
     expect(submitted).toEqual({
       actionId: prepared.action_id,
@@ -192,7 +190,7 @@ describe("all four direct redemption calldata shapes", () => {
   })
 })
 
-describe("redemption drift fails before a wallet prompt", () => {
+describe("a changed prepared action never reaches the wallet", () => {
   it.each([
     [
       "expired envelope",
@@ -205,11 +203,6 @@ describe("redemption drift fails before a wallet prompt", () => {
       (prepared: PreparedRedemptionAction): void => void (prepared.value = "1" as "0"),
     ],
     [
-      "signer",
-      (prepared: PreparedRedemptionAction): void =>
-        void (prepared.expected_signer = otherWallet),
-    ],
-    [
       "calldata",
       (prepared: PreparedRedemptionAction): void => void (prepared.data = "0xdeadbeef"),
     ],
@@ -219,7 +212,7 @@ describe("redemption drift fails before a wallet prompt", () => {
     const rpc = clients()
 
     await expect(
-      executePreparedRedemptionAction(prepared, provider, rpc, selected),
+      executePreparedRedemptionAction(prepared, provider, rpc),
     ).rejects.toThrow()
     expect(rpc.send).not.toHaveBeenCalled()
   })
@@ -261,63 +254,30 @@ describe("redemption drift fails before a wallet prompt", () => {
     const rpc = clients()
 
     await expect(
-      executePreparedRedemptionAction(prepared, provider, rpc, selected),
+      executePreparedRedemptionAction(prepared, provider, rpc),
     ).rejects.toThrow()
     expect(rpc.send).not.toHaveBeenCalled()
   })
 
-  it("switches once, then refuses a chain that drifts during simulation", async () => {
-    const chainId = vi
-      .fn<RedemptionClients["chainId"]>()
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(8453)
-      .mockResolvedValueOnce(1)
+  it("switches once, then refuses a wallet that is still not on Base", async () => {
+    const chainId = vi.fn<RedemptionClients["chainId"]>().mockResolvedValue(1)
     const rpc = clients({chainId})
 
     await expect(
-      executePreparedRedemptionAction(envelope(), provider, rpc, selected),
-    ).rejects.toThrow("Switch to Base")
+      executePreparedRedemptionAction(envelope(), provider, rpc),
+    ).rejects.toMatchObject({kind: "refused", displayMessage: "Switch your wallet to Base and try again."})
     expect(rpc.switchToBase).toHaveBeenCalledOnce()
     expect(rpc.send).not.toHaveBeenCalled()
   })
 
-  it("requires the current Privy selection to retain the exact provider", async () => {
-    const rpc = clients()
+  // Whether a redemption succeeds is for Base to decide. The page never
+  // test-runs it first, so a transaction that might fail still opens the wallet.
+  it("asks the wallet only for its network before sending", async () => {
+    const request = vi.fn(async ({method}: {method: string}) => method === "eth_chainId" ? "0x2105" : hash)
 
-    await expect(
-      executePreparedRedemptionAction(envelope(), provider, rpc, () => ({
-        address: wallet,
-        provider: otherProvider,
-      })),
-    ).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
+    await executePreparedRedemptionAction(envelope("redeem"), {request})
 
-  it("requires the selected provider's current account to remain the signer", async () => {
-    const rpc = clients({addresses: vi.fn(async () => [otherWallet])})
-
-    await expect(
-      executePreparedRedemptionAction(envelope(), provider, rpc, selected),
-    ).rejects.toMatchObject({
-      kind: "refused",
-      displayMessage: "Use the connected wallet shown on this account.",
-    })
-    expect(rpc.send).not.toHaveBeenCalled()
-  })
-
-  it("rechecks the Privy provider after a deferred simulation", async () => {
-    const simulation = deferred<void>()
-    const rpc = clients({simulate: vi.fn(async () => simulation.promise)})
-    let active = {address: wallet, provider}
-
-    const execution = executePreparedRedemptionAction(envelope(), provider, rpc, () => active)
-    await vi.waitFor(() => expect(rpc.simulate).toHaveBeenCalledOnce())
-
-    active = {address: wallet, provider: otherProvider}
-    simulation.resolve()
-
-    await expect(execution).rejects.toThrow()
-    expect(rpc.send).not.toHaveBeenCalled()
+    expect(request.mock.calls.map(([payload]) => payload.method)).toEqual(["eth_chainId", "eth_sendTransaction"])
   })
 })
 
@@ -332,15 +292,13 @@ describe("bounded redemption wallet phases", () => {
         switchToBase: vi.fn(() => new Promise<void>(() => undefined)),
       },
     ],
-    ["account", 5_000, {addresses: vi.fn(() => new Promise<Address[]>(() => undefined))}],
-    ["simulation", 15_000, {simulate: vi.fn(() => new Promise<void>(() => undefined))}],
   ] as const)("refuses a hung pre-send %s phase after its bound", async (_phase, timeout, overrides) => {
     vi.useFakeTimers()
     const rpc = clients(overrides)
-    const execution = executePreparedRedemptionAction(envelope(), provider, rpc, selected)
+    const execution = executePreparedRedemptionAction(envelope(), provider, rpc)
     const refusal = expect(execution).rejects.toMatchObject({
       kind: "refused",
-      displayMessage: "Switch to Base before continuing.",
+      displayMessage: "Switch your wallet to Base and try again.",
     })
 
     await vi.advanceTimersByTimeAsync(timeout)
@@ -357,7 +315,6 @@ describe("bounded redemption wallet phases", () => {
       envelope(),
       provider,
       rpc,
-      selected,
       undefined,
       undefined,
       submissionUnknown,
@@ -378,7 +335,7 @@ describe("bounded redemption wallet phases", () => {
     ["before send", clients({chainId: vi.fn(async () => { throw {code: 4001} })})],
     ["after handoff", clients({send: vi.fn(async () => { throw {code: 4001} })})],
   ] as const)("treats an exact 4001 as cancellation %s", async (_phase, rpc) => {
-    await expect(executePreparedRedemptionAction(envelope(), provider, rpc, selected)).rejects.toMatchObject({
+    await expect(executePreparedRedemptionAction(envelope(), provider, rpc)).rejects.toMatchObject({
       kind: "canceled",
       displayMessage: "Request canceled.",
     } satisfies Pick<RedemptionExecutionFailure, "kind" | "displayMessage">)
@@ -390,8 +347,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it("discards a prepared action that arrives after the wallet generation changed", () => {
-  const request = vi.fn(async () => undefined)
+it("sends a prepared action from the wallet it was pressed with after the wallet changes", async () => {
+  const request = vi.fn(async ({method}: {method: string}) => method === "eth_chainId" ? "0x2105" : hash)
   const listeners = new Map<string, () => void>()
   const fakeWindow = {
     location: {origin: "http://127.0.0.1:4002"},
@@ -474,8 +431,9 @@ it("discards a prepared action that arrives after the wallet generation changed"
   listeners.get("ash:wallet-state")!()
   walletAction({attempt_id: attemptId, envelope: envelope("claim")})
 
-  expect(request).not.toHaveBeenCalled()
-  expect(showModal).not.toHaveBeenCalled()
+  await vi.waitFor(() => expect(request).toHaveBeenCalledWith(
+    expect.objectContaining({method: "eth_sendTransaction", params: [expect.objectContaining({from: wallet})]}),
+  ))
 })
 
 type RedemptionHookHarness = {
@@ -773,6 +731,30 @@ describe("redemption hook ownership and result ordering", () => {
     harness.releaseWallet()
 
     expect(harness.pushEvent).toHaveBeenCalledWith("redemption_active_wallet", {address: null})
+    harness.destroy()
+  })
+
+  it("opens the wallet connection when a press finds no wallet open", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider())
+    harness.releaseWallet()
+    const initiator = {getAttribute: () => "claim", closest: () => initiator}
+
+    harness.rootListeners.get("click")!({
+      preventDefault: vi.fn(),
+      target: {closest: (selector: string) => selector === "[data-redemption-action]" ? initiator : null},
+    } as unknown as MouseEvent)
+
+    expect(harness.dispatched).toContain("ash:wallet-connect")
+    expect(harness.pushEvent).not.toHaveBeenCalledWith("prepare_redemption", expect.anything())
+    harness.destroy()
+  })
+
+  it("asks the server to prepare each press for the wallet that is open", () => {
+    const harness = redemptionHookHarness(redemptionHookProvider())
+
+    harness.click("claim")
+
+    expect(harness.pushEvent).toHaveBeenLastCalledWith("prepare_redemption", expect.objectContaining({signer: wallet}))
     harness.destroy()
   })
 

@@ -3,7 +3,6 @@ import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/conne
 import {renderResult, type ResultDisplay} from "./transaction_feedback"
 import {
   executePreparedRedemptionAction,
-  isRedemptionWalletDrift,
   RedemptionExecutionFailure,
   type PreparedRedemptionAction,
   type RedemptionAction,
@@ -25,7 +24,6 @@ type ResultSlot = {
 type PendingInitiator = {
   action: RedemptionAction
   element: HTMLElement
-  generation: number
   signer: string
   provider: SelectedWallet["provider"]
   order: number
@@ -121,25 +119,28 @@ export const RedemptionWallet: Hook = {
         return
       }
 
-      const wallet = activeEthereumWallet()
-      if (!sameWallet(state.wallet, wallet)) resetForWallet(this.el, state, wallet)
-
       const initiator = target?.closest<HTMLElement>("[data-redemption-action]")
       const action = initiator?.getAttribute("data-redemption-action") ?? null
-      if (initiator && redemptionAction(action) && wallet) {
-        event.preventDefault()
-        const attemptId = crypto.randomUUID()
-        state.initiators.set(attemptId, {
-          action,
-          element: initiator,
-          generation: state.generation,
-          signer: wallet.address,
-          provider: wallet.provider,
-          order: state.nextOrder++,
-        })
-        state.preparingAttemptId = attemptId
-        this.pushEvent("prepare_redemption", {action, attempt_id: attemptId})
+      if (!initiator || !redemptionAction(action)) return
+      event.preventDefault()
+
+      const wallet = activeEthereumWallet()
+      if (!wallet) {
+        // With no wallet open, the press opens the wallet connection itself.
+        window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
+        return
       }
+      if (!sameWallet(state.wallet, wallet)) resetForWallet(this.el, state, wallet)
+      const attemptId = crypto.randomUUID()
+      state.initiators.set(attemptId, {
+        action,
+        element: initiator,
+        signer: wallet.address,
+        provider: wallet.provider,
+        order: state.nextOrder++,
+      })
+      state.preparingAttemptId = attemptId
+      this.pushEvent("prepare_redemption", {action, attempt_id: attemptId, signer: wallet.address})
     }
 
     state.selectionChanged = event => {
@@ -181,8 +182,6 @@ export const RedemptionWallet: Hook = {
         envelope?: PreparedRedemptionAction
       }
       if (typeof attemptId !== "string" || !envelope) return
-      const wallet = activeEthereumWallet()
-      if (!sameWallet(state.wallet, wallet)) resetForWallet(this.el, state, wallet)
       const initiator = takeInitiator(state, attemptId, envelope.action, envelope.expected_signer)
       if (!initiator) return
       state.preparingAttemptId = null
@@ -200,17 +199,11 @@ export const RedemptionWallet: Hook = {
       }
       insertQueue(state, slot)
 
-      if (!wallet) {
-        settleImmediate(this.el, state, slot, "Connect or switch wallet and try again.")
-        return
-      }
-
       const runtime = runtimeFor(state, slot.generation)
       void executePreparedRedemptionAction(
         envelope,
         initiator.provider,
         undefined,
-        activeEthereumWallet,
         runtime,
         () => {
           slot.handedOff = true
@@ -230,13 +223,12 @@ export const RedemptionWallet: Hook = {
           if (!liveSlot(state, slot)) return
           slot.handedOff = false
           restoreDismissedSlot(state, slot)
-          if (isRedemptionWalletDrift(error)) return
           const message =
             error instanceof RedemptionExecutionFailure
               ? error.displayMessage
               : userRejected(error)
                 ? "Request canceled."
-                : "Switch to Base before continuing."
+                : "Your wallet didn't respond. Try again."
           settleImmediate(
             this.el,
             state,
@@ -365,13 +357,13 @@ function settleObserved(
           }
         : {
             title: "Confirmation unavailable",
-            message: "Alchemy has not returned a verifiable Base result.",
+            message: "Base has not confirmed a result for this transaction yet.",
             detail: "Check BaseScan or your wallet activity before trying the same action again.",
             href,
             tone: "pending",
           }
   state.results.set(slot.id, Object.freeze(display))
-  if (result === "success" && sameAddress(slot.signer, state.wallet?.address)) {
+  if (result === "success") {
     hook.pushEvent("refresh_redemption", {refresh_owned: slot.action === "redeem"})
   }
   presentOrUpdate(hook.el, state, slot, display)
@@ -386,7 +378,7 @@ function updateSubmittedResult(
   if (!state.results.has(slot.id)) return
   const display: ResultDisplay = Object.freeze({
     title: "Transaction submitted",
-    message: "Privy returned the transaction hash. Alchemy is checking its Base result.",
+    message: "Your wallet sent the transaction. Waiting for Base to confirm it.",
     detail: "You can keep using the page while confirmation completes.",
     href: `https://basescan.org/tx/${hash}`,
     tone: "pending",
@@ -441,9 +433,6 @@ function invalidateGeneration(root: HTMLElement, state: RedemptionState): void {
   retainOnly(state.results, retained)
   retainOnly(state.observations, retained)
   state.visible = visible
-  state.initiators.clear()
-  state.nextOrder = retainedSlots.reduce((next, slot) => Math.max(next, slot.order + 1), 0)
-  state.preparingAttemptId = null
   if (state.dialog.open && !visible) {
     state.ignoreNextClose = true
     state.dialog.close()
@@ -511,9 +500,7 @@ function takeInitiator(
   if (
     candidate &&
     candidate.action === action &&
-    candidate.generation === state.generation &&
-    candidate.signer.toLowerCase() === expectedSigner.toLowerCase() &&
-    candidate.provider === state.wallet?.provider
+    candidate.signer.toLowerCase() === expectedSigner.toLowerCase()
   ) return candidate
   return null
 }
@@ -539,10 +526,6 @@ function focusable(element: HTMLElement): boolean {
 function sameWallet(first: SelectedWallet | null, second: SelectedWallet | null): boolean {
   if (!first || !second) return first === second
   return first.provider === second.provider && first.address.toLowerCase() === second.address.toLowerCase()
-}
-
-function sameAddress(first: string, second?: string): boolean {
-  return typeof second === "string" && first.toLowerCase() === second.toLowerCase()
 }
 
 function redemptionAction(value: string | null): value is RedemptionAction {

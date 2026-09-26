@@ -27,7 +27,6 @@ import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {ShellMotion} from "./hooks/motion"
 import {InfoDialog} from "./hooks/info_dialog"
-import {ModalDialog} from "./hooks/modal_dialog"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
@@ -330,7 +329,6 @@ const hooks = {
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,
-  ModalDialog,
   ShellBehavior: composeHooks(shellBehavior, ShellMotion),
   RedemptionWallet,
   StakeWallet,

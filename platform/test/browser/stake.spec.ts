@@ -51,15 +51,23 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   }))
   await page.goto("/stake")
   const documentStarted = await page.evaluate(() => performance.timeOrigin)
-  const connect = page.locator(".stake-connect-flow button")
-  await expect(connect).toHaveAttribute("data-account-target", "connect-wallet")
-  await connect.click()
+
+  // A signed-in page opens on the account's own position, with no wallet open yet.
+  await expect(page.locator(".stake-connect-flow")).toHaveCount(0)
+  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
-  expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
   await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "stake-wallet-enter")
   await page.emulateMedia({reducedMotion: "reduce"})
   await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "none")
   await page.emulateMedia({reducedMotion: "no-preference"})
+
+  // A press with no wallet open asks the wallet app to connect, in place.
+  await page.locator("button.stake-primary").click()
+  await expect
+    .poll(() => page.evaluate(key => localStorage.getItem(key), disconnectedKey))
+    .toBeNull()
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
+  expect(await sendCount(page)).toBe(0)
 
   // The wallet position carries its own block, which is not the block the
   // shared contract reading was taken at.
@@ -152,10 +160,9 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await page.goto("/stake")
   await selectWallet(page, wallet)
 
-  // The position is read and shown; nothing a transaction could be built from is.
+  // The position is read and shown; every control asks for the sign-in instead.
   await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
   await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
-  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
   await expect(page.locator("button.stake-submit")).toHaveAttribute(
     "data-account-target",
     "sign-in",
@@ -190,7 +197,6 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
-  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-submit").click()
@@ -199,35 +205,34 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   expect(await sendCount(page)).toBe(0)
 })
 
-// A sign-in stays fixed to the account it was made with. Nothing this page
-// sends can come from a different wallet than the one the header names.
-test("Stake refuses every action while the sign-in and the active wallet differ", async ({page}) => {
+// The figures belong to the account that signed in. A press is always sent,
+// from the wallet open in the wallet app, and a note names both wallets.
+test("Stake sends from the open wallet while the figures stay the account's", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
   await page.goto("/stake")
-  await selectWallet(page, otherWallet)
-  await expect(page.locator(".stake-signer")).toHaveAttribute("title", otherWallet)
-
-  // Reading this wallet still works while nothing may be sent from it.
-  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
-  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
-  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
-
-  await page.locator("button.stake-submit").click()
-  const reconnect = page.locator("#wallet-reconnect-dialog")
-  await expect(reconnect).toBeVisible()
-  await expect(reconnect).toContainText(
-    "Please reconnect to the active wallet '0x1111…1111' to interact onchain.",
-  )
-  expect(await sendCount(page)).toBe(0)
-  await reconnect.getByRole("button", {name: "OK"}).click()
-  await expect(reconnect).toHaveCount(0)
-
-  // Connecting again with the wallet the sign-in names restores every action.
   await selectWallet(page, wallet)
-  await expect(page.locator("button[data-staking-action='stake']")).toBeVisible()
-  await expect(reconnect).toHaveCount(0)
+  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
+
+  await selectWallet(page, otherWallet)
+  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
+  const note = page.locator(".shell-sending-wallet").first()
+  await expect(note).toContainText("0x2222…2222")
+  await expect(note).toContainText("0x1111…1111")
+
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(2)
+
+  const transactions = await page.evaluate(() => (window as Window & {
+    __ashStakingTransactions?: Record<string, {from: string}>
+  }).__ashStakingTransactions!)
+  expect(transactions[expectedHash(1)]!.from.toLowerCase()).toBe(otherWallet)
+  expect(transactions[expectedHash(2)]!.from.toLowerCase()).toBe(otherWallet)
+
+  await selectWallet(page, wallet)
+  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
 })
 
 // Disconnect ends the wallet connection, and it stays ended across reloads
@@ -274,7 +279,7 @@ async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
   await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
-  await expect(page.locator("#regent-staking[data-staking-signer]")).toHaveCount(0)
+  await expect(page.locator("#regent-staking[data-staking-wallet]")).toHaveCount(0)
   await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
 }
 
@@ -558,14 +563,13 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await page.getByRole("button", {name: "Stake", exact: true}).click()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
+  // The signed-in position stays put while the open wallet changes, so the
+  // chosen destination and its acknowledgment stay too.
   await selectWallet(page, otherWallet)
   await selectWallet(page, wallet)
-  await expect(acknowledgment).not.toBeChecked()
-  await expect(page.locator("#regent-staking")).toHaveAttribute("data-staking-signer", wallet)
-  // Changing wallets can replace the form; choose the destination again.
-  await toggle.check()
-  await receiver.fill(otherWallet)
-  await acknowledgment.check()
+  await expect(page.locator("#regent-staking")).toHaveAttribute("data-staking-wallet", wallet)
+  await expect(receiver).toHaveValue(otherWallet)
+  await expect(acknowledgment).toBeChecked()
   // A normal LiveView amount update preserves the acknowledged destination.
   await page.getByLabel("Amount", {exact: true}).fill("2")
   await expect(page.locator(".stake-preview")).toBeHidden()

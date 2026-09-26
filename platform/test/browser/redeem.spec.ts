@@ -215,11 +215,9 @@ test("Redeem keeps submitted results when the active wallet changes", async ({pa
   await page.locator(".redeem-next-step button").click()
   await expect.poll(() => sendCount(page)).toBe(1)
 
-  await selectWallet(page, "0x2222222222222222222222222222222222222222")
-  await expect(page.locator(".redeem-signer")).toHaveAttribute(
-    "title",
-    "0x2222222222222222222222222222222222222222",
-  )
+  await selectWallet(page, otherWallet)
+  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator(".shell-sending-wallet").first()).toContainText("0x2222…2222")
   await expect(page.getByLabel("Token ID")).toBeVisible()
   const dialog = page.locator("#redemption-result-dialog")
   await expect(dialog.getByText("The selected NFT collection was approved successfully.")).toBeVisible()
@@ -232,7 +230,8 @@ test("Redeem keeps submitted results when the active wallet changes", async ({pa
   await page.locator(".redeem-next-step button").click()
   await expect.poll(() => sendCount(page)).toBe(2)
   await signOutWallet(page)
-  await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
+  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
   await expect(dialog.getByText("The selected NFT collection was approved successfully.")).toBeVisible()
   await expectResultLink(dialog, 2)
 })
@@ -267,35 +266,28 @@ test("Redeem distinguishes an unknown submission from a canonical revert", async
   )
 })
 
-// A sign-in stays fixed to the account it was made with. No step of a
-// redemption can be prepared for a wallet the header does not name.
-test("Redeem refuses every step while the sign-in and the active wallet differ", async ({page}) => {
+// The figures belong to the account that signed in. Each step is sent from the
+// wallet open in the wallet app, and a note names both wallets.
+test("Redeem sends from the open wallet while the figures stay the account's", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
   await page.goto("/redeem")
   await selectWallet(page, otherWallet)
-  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", otherWallet)
-
-  // Reading this wallet still works while nothing may be sent from it.
+  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
+  const note = page.locator(".shell-sending-wallet").first()
+  await expect(note).toContainText("0x2222…2222")
+  await expect(note).toContainText("0x1111…1111")
 
-  await page.getByLabel("Token ID").fill("42")
-  await page.locator(".redeem-next-step button").click()
-  const reconnect = page.locator("#wallet-reconnect-dialog")
-  await expect(reconnect).toBeVisible()
-  await expect(reconnect).toContainText(
-    "Please reconnect to the active wallet '0x1111…1111' to interact onchain.",
-  )
-  expect(await sendCount(page)).toBe(0)
-  await reconnect.getByRole("button", {name: "OK"}).click()
-  await expect(reconnect).toHaveCount(0)
-
-  // Connecting again with the wallet the sign-in names restores every step.
-  await selectWallet(page, wallet)
   await page.getByLabel("Token ID").fill("42")
   await page.locator(".redeem-next-step button").click()
   await expect.poll(() => sendCount(page)).toBe(1)
+
+  const transactions = await page.evaluate(() => (window as Window & {
+    __ashRedemptionTransactions?: Record<string, {from: string}>
+  }).__ashRedemptionTransactions!)
+  expect(transactions[expectedHash(1)]!.from.toLowerCase()).toBe(otherWallet)
 })
 
 // Disconnect ends the wallet connection, and it stays ended across reloads

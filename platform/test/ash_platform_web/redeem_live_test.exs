@@ -18,7 +18,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
-  @reconnect_request "Please reconnect to the active wallet '0x1111…1111' to interact onchain."
   @third "0x3333333333333333333333333333333333333333"
   @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
   @redeem_42_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002a"
@@ -102,7 +101,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     for {event, params} <- [
           {"redemption_active_wallet", %{"address" => @wallet}},
           {"redemption_selection_changed", %{"collection" => "animata_i", "token_id" => "42"}},
-          {"prepare_redemption", %{"action" => "claim", "attempt_id" => "outside-route"}},
+          {"prepare_redemption",
+           %{"action" => "claim", "attempt_id" => "outside-route", "signer" => @wallet}},
           {"refresh_redemption", %{}},
           {"select_owned_animata", %{"collection" => "animata_i", "token-id" => "42"}}
         ] do
@@ -141,30 +141,41 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     refute_push_event(view, "redemption:wallet-action", _)
   end
 
-  test "WALLET_MISMATCH: a sign-in on one wallet cannot send from another", %{conn: conn} do
+  test "WALLET_MISMATCH: presses send from the open wallet while the figures stay the account's",
+       %{conn: conn} do
     view = redeem_as_signer(conn, "wallet-mismatch")
     select(view, "animata_i", "42")
-
-    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "matching"})
-    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "matching"})
+    refute has_element?(view, ".shell-sending-wallet")
 
     activate(view, @other)
     select(view, "animata_i", "42")
 
-    assert_refuses_every_action(view, @reconnect_request)
+    assert redemption_assigns(view).redemption_wallet == @wallet
+    assert has_element?(view, ".shell-sending-wallet", "0x2222…2222")
+    assert has_element?(view, ".shell-sending-wallet", "0x1111…1111")
 
-    refute_push_event(view, "redemption:wallet-action", _)
-    render_hook(view, "dismiss_wallet_reconnect", %{})
-    refute has_element?(view, "#wallet-reconnect-dialog")
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "other",
+      "signer" => @other
+    })
 
-    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "again"})
-    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
+    assert_push_event(view, "redemption:wallet-action", %{
+      attempt_id: "other",
+      envelope: %{expected_signer: @other}
+    })
 
     activate(view, @wallet)
-    refute has_element?(view, "#wallet-reconnect-dialog")
-    select(view, "animata_i", "42")
-    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "restored"})
-    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "restored"})
+    refute has_element?(view, ".shell-sending-wallet")
+  end
+
+  test "ACCOUNT_POSITION: a signed-in page opens on the account's wallet before the browser reports one",
+       %{conn: conn} do
+    view = signed_in_redeem(conn, "account-position", @wallet)
+
+    assert redemption_assigns(view).redemption_wallet == @wallet
+    refute has_element?(view, ".redeem-connect-panel")
+    refute has_element?(view, ".shell-sending-wallet")
   end
 
   test "DISCONNECTED_WALLET: releasing every wallet clears the position and offers the connection again",
@@ -234,7 +245,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
-      "attempt_id" => "newer-selection"
+      "attempt_id" => "newer-selection",
+      "signer" => @wallet
     })
 
     assert_push_event(view, "redemption:wallet-action", %{
@@ -244,7 +256,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_hook(view, "prepare_redemption", %{
       "action" => "claim",
-      "attempt_id" => "account-wide-claim"
+      "attempt_id" => "account-wide-claim",
+      "signer" => @wallet
     })
 
     assert_push_event(view, "redemption:wallet-action", %{
@@ -308,7 +321,11 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     for action <- @every_control, do: assert(has_element?(view, control(action)))
 
     for {action, data} <- @control_calldata do
-      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
+      render_hook(view, "prepare_redemption", %{
+        "action" => action,
+        "attempt_id" => action,
+        "signer" => @wallet
+      })
 
       assert_push_event(view, "redemption:wallet-action", %{
         attempt_id: ^action,
@@ -331,7 +348,11 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert has_element?(view, control("redeem"), "Redeem Animata")
 
-    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "not-owned"})
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "not-owned",
+      "signer" => @wallet
+    })
 
     assert_push_event(view, "redemption:wallet-action", %{
       attempt_id: "not-owned",
@@ -345,7 +366,11 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     assert has_element?(view, control("redeem"), "Redeem Animata")
 
-    render_hook(view, "prepare_redemption", %{"action" => "redeem", "attempt_id" => "short-usdc"})
+    render_hook(view, "prepare_redemption", %{
+      "action" => "redeem",
+      "attempt_id" => "short-usdc",
+      "signer" => @wallet
+    })
 
     assert_push_event(view, "redemption:wallet-action", %{
       attempt_id: "short-usdc",
@@ -374,7 +399,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
-      "attempt_id" => "redeem-attempt-1"
+      "attempt_id" => "redeem-attempt-1",
+      "signer" => @wallet
     })
 
     assert_push_event(view, "redemption:wallet-action", %{
@@ -388,7 +414,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",
-      "attempt_id" => "redeem-attempt-2"
+      "attempt_id" => "redeem-attempt-2",
+      "signer" => @wallet
     })
 
     assert_push_event(view, "redemption:wallet-action", %{
@@ -405,7 +432,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
 
     render_hook(view, "prepare_redemption", %{
       "action" => "claim",
-      "attempt_id" => "claim-attempt"
+      "attempt_id" => "claim-attempt",
+      "signer" => @wallet
     })
 
     assert_push_event(view, "redemption:wallet-action", %{
@@ -524,7 +552,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     hold_lookup_share(2)
     Application.put_env(:ash_platform, :test_open_sea_watcher, self())
 
-    view = conn |> signed_in_redeem("lookup-budget", @third) |> activate(@wallet)
+    view = conn |> mount_redeem() |> activate(@wallet)
     activate(view, @other)
     assert length(drain_requests()) == 6
 
@@ -532,9 +560,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     assert drain_requests() == []
     assert has_element?(view, "#redemption-collection")
     assert has_element?(view, "#redemption-token-id")
-
-    render_hook(view, "prepare_redemption", %{"action" => "claim", "attempt_id" => "still-open"})
-    assert_push_event(view, "redemption:wallet-action", %{attempt_id: "still-open"})
+    assert has_element?(view, ~s|button.redeem-claim[data-account-target="sign-in"]|)
   end
 
   test "WALLET_SWITCH: owned lookup never carries across wallets", %{conn: conn} do
@@ -708,21 +734,6 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     end
   end
 
-  defp assert_refuses_every_action(view, request) do
-    for action <- ["claim" | @every_control] do
-      render_hook(view, "dismiss_wallet_reconnect", %{})
-      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
-
-      assert_push_event(view, "redemption:wallet-refusal", %{
-        attempt_id: ^action,
-        sign_in: false
-      })
-
-      refute has_element?(view, ".redeem-notice")
-      assert has_element?(view, "#wallet-reconnect-dialog", request)
-    end
-  end
-
   defp assert_offers_sign_in(view) do
     refute has_element?(view, "button[data-redemption-action]")
 
@@ -739,7 +750,12 @@ defmodule AshPlatformWeb.RedeemLiveTest do
            )
 
     for action <- ["claim" | @every_control] do
-      render_hook(view, "prepare_redemption", %{"action" => action, "attempt_id" => action})
+      render_hook(view, "prepare_redemption", %{
+        "action" => action,
+        "attempt_id" => action,
+        "signer" => @wallet
+      })
+
       assert_push_event(view, "redemption:wallet-refusal", %{attempt_id: ^action, sign_in: true})
     end
 

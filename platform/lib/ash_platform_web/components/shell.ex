@@ -213,39 +213,20 @@ defmodule AshPlatformWeb.Components.Shell do
     """
   end
 
-  attr(:wallets, :map, default: nil)
-
-  def wallet_switch_notice(assigns) do
-    ~H"""
-    <p :if={@wallets} id="wallet-switch-notice" class="shell-wallet-switch" role="status">
-      Your wallet is now on {RegentFormat.short_wallet(@wallets.active)}, and the figures below are for that address.
-      Buttons on this page act only from {RegentFormat.short_wallet(@wallets.account)}, the wallet you signed in with. Switch back in your wallet to use them.
-    </p>
-    """
-  end
-
-  attr(:request, :string, required: true)
+  attr(:sender, :string, default: nil)
+  attr(:shown, :string, required: true)
 
   @doc """
-  The answer to an on-chain click made while the browser's active wallet is not
-  the one the sign-in names. It opens as a modal the moment it renders and closes
-  by the visitor's hand or by the named wallet becoming active again.
+  Sits beside Stake and Redeem's on-chain buttons when the browser's wallet is
+  not the one the figures are for. Every press still goes to the browser's
+  wallet; this only says which one that is.
   """
-  def wallet_reconnect_dialog(assigns) do
+  def sending_wallet_note(assigns) do
     ~H"""
-    <dialog
-      id="wallet-reconnect-dialog"
-      class="shell-reconnect-dialog"
-      aria-labelledby="wallet-reconnect-heading"
-      phx-hook="ModalDialog"
-      data-dismiss-event="dismiss_wallet_reconnect"
-    >
-      <h2 id="wallet-reconnect-heading">Reconnect your wallet</h2>
-      <p class="shell-reconnect-request">{@request}</p>
-      <form method="dialog">
-        <Regent.Primitives.button variant="secondary" type="submit" value="close">OK</Regent.Primitives.button>
-      </form>
-    </dialog>
+    <p :if={@sender} class="shell-sending-wallet" role="note">
+      Buttons here send from <span>{RegentFormat.short_wallet(@sender)}</span>, the wallet open in your wallet app.
+      The figures are for <span>{RegentFormat.short_wallet(@shown)}</span>, the wallet you signed in with.
+    </p>
     """
   end
 

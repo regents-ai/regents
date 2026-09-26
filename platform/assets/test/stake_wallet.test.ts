@@ -64,7 +64,7 @@ function rendered(
     amount: string
     allowanceAtomic: string
     chainId: string
-    expectedSigner: string
+    allowanceWallet: string
     stakeForOther: boolean
     receiver: string
     acknowledgedReceiver: string
@@ -75,7 +75,7 @@ function rendered(
     amount: "1.5",
     allowanceAtomic: amount.toString(),
     chainId: "8453",
-    expectedSigner: wallet,
+    allowanceWallet: wallet,
     ...overrides,
   }
 }
@@ -282,7 +282,7 @@ function stakingHookHarness(
       stakingMode: "stake",
       stakingAllowance: allowanceAtomic,
       stakingChainId: "8453",
-      stakingSigner: wallet,
+      stakingWallet: wallet,
     },
     querySelector: (selector: string) => {
       if (selector === "#staking-result-dialog") return dialog
@@ -408,6 +408,17 @@ describe("stake hook ownership and result ordering", () => {
     harness.releaseWallet()
 
     expect(harness.pushEvent).toHaveBeenCalledWith("staking_active_wallet", {address: null})
+    harness.destroy()
+  })
+
+  it("opens the wallet connection when a press finds no wallet open", () => {
+    const harness = stakingHookHarness(stakingHookProvider())
+    harness.releaseWallet()
+
+    harness.click("claim_usdc")
+
+    expect(harness.dispatched).toContain("ash:wallet-connect")
+    expect(harness.requests).toEqual([])
     harness.destroy()
   })
 
@@ -553,7 +564,7 @@ describe("stake hook ownership and result ordering", () => {
     await vi.waitFor(() => expect(harness.dialog.showModal).toHaveBeenCalledOnce())
 
     expect(harness.dialogTitle.textContent).toBe("Stake not completed")
-    expect(harness.text.textContent).toBe("Switch to Base before continuing.")
+    expect(harness.text.textContent).toBe("Switch your wallet to Base and try again.")
     expect(harness.text.textContent).not.toBe(approvalIncomplete)
     expect(harness.requests.map(request => request.method)).not.toContain("eth_sendTransaction")
     harness.destroy()
@@ -588,7 +599,7 @@ describe("stake hook ownership and result ordering", () => {
     expect(harness.dialog.showModal).toHaveBeenCalledOnce()
     expect(harness.dialogTitle.textContent).toBe("Transaction submitted")
     expect(harness.text.textContent)
-      .toBe("Privy returned the transaction hash. Alchemy is checking its Base result.")
+      .toBe("Your wallet sent the transaction. Waiting for Base to confirm it.")
     expect(harness.link.href).toBe(`https://basescan.org/tx/${hash}`)
 
     harness.settleNext("success")
@@ -898,14 +909,35 @@ describe("local transaction construction", () => {
     expect(requests).toEqual([])
   })
 
-  it("refuses stale chain, signer, and malformed allowance data in memory", () => {
+  it("reads an amount with spaces around it as the amount itself", () => {
+    const {provider} = fakeProvider(() => undefined)
+
+    expect(prepare("stake", selected(provider), {amount: " 1.5 "}).transaction).toEqual(
+      prepare("stake", selected(provider)).transaction,
+    )
+  })
+
+  // The page's allowance was read for the wallet it shows. A press from any
+  // other wallet still goes to that wallet, and asks it to approve first.
+  it("sends from the wallet that is open and asks it to approve when the allowance is another wallet's", () => {
+    const {provider} = fakeProvider(() => undefined)
+    const click = prepare("stake", selected(provider, otherWallet))
+
+    expect(click.signer).toEqual(otherWallet)
+    expect(click.transaction.from).toEqual(otherWallet)
+    expect(click.approval).toEqual({
+      from: otherWallet,
+      to: token,
+      data: encodeFunctionData({abi: approvalAbi, functionName: "approve", args: [staking, amount]}),
+      value: "0x0",
+    })
+  })
+
+  it("refuses stale chain and malformed allowance data in memory", () => {
     const first = fakeProvider(() => undefined)
     const second = fakeProvider(() => undefined)
 
     expect(() => prepare("stake", selected(first.provider), {chainId: "1"})).toThrowError(
-      StakingLocalRefusal,
-    )
-    expect(() => prepare("stake", selected(first.provider, otherWallet))).toThrowError(
       StakingLocalRefusal,
     )
     expect(() => prepare("stake", selected(second.provider), {allowanceAtomic: "-1"})).toThrowError(
@@ -949,7 +981,7 @@ describe("immediate wallet handoff", () => {
     const click = prepare("unstake", selected(fake.provider))
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(fake.requests).toEqual([
       {method: "eth_chainId"},
@@ -970,7 +1002,7 @@ describe("immediate wallet handoff", () => {
     const click = prepare("claim_usdc", selected(fake.provider))
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(fake.requests.map(request => request.method)).toEqual([
       "eth_chainId",
@@ -989,7 +1021,7 @@ describe("immediate wallet handoff", () => {
     const click = prepare("claim_regent", selected(fake.provider))
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(fake.requests.map(request => request.method)).toEqual([
       "eth_chainId",
@@ -999,33 +1031,12 @@ describe("immediate wallet handoff", () => {
     expect(recorder.immediate).toMatchObject([{kind: "refused", role: "action"}])
   })
 
-  it("refuses an active provider change after the chain check", async () => {
-    const replacement = fakeProvider(() => hash)
-    let active: SelectedWallet
-    const original = fakeProvider(request => {
-      if (request.method === "eth_chainId") {
-        active = selected(replacement.provider)
-        return "0x2105"
-      }
-      return hash
-    })
-    active = selected(original.provider)
-    const click = prepare("claim_regent", active)
-    const recorder = callbackRecorder()
-
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => active)
-
-    expect(original.requests.map(request => request.method)).toEqual(["eth_chainId"])
-    expect(replacement.requests).toEqual([])
-    expect(recorder.immediate).toMatchObject([{kind: "refused"}])
-  })
-
   it("opens Stake immediately after a valid approval hash without receipt or allowance reads", async () => {
     const fake = fakeProvider(request => (request.method === "eth_chainId" ? "0x2105" : hash))
     const click = prepare("stake", selected(fake.provider), {allowanceAtomic: "0"})
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(fake.requests.map(request => request.method)).toEqual([
       "eth_chainId",
@@ -1041,7 +1052,7 @@ describe("immediate wallet handoff", () => {
     const click = prepare("stake", selected(fake.provider), {allowanceAtomic: "0"})
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(fake.requests.map(request => request.method)).toEqual([
       "eth_chainId",
@@ -1058,9 +1069,9 @@ describe("immediate wallet handoff", () => {
     const recorder = callbackRecorder()
 
     await Promise.all([
-      executeStakingClick(first, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
-      executeStakingClick(second, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
-      executeStakingClick(first, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+      executeStakingClick(first, recorder.callbacks, liveRuntime()),
+      executeStakingClick(second, recorder.callbacks, liveRuntime()),
+      executeStakingClick(first, recorder.callbacks, liveRuntime()),
     ])
 
     expect(fake.requests.filter(request => request.method === "eth_sendTransaction")).toHaveLength(2)
@@ -1078,7 +1089,6 @@ describe("immediate wallet handoff", () => {
       rejectedClick,
       rejectedRecorder.callbacks,
       liveRuntime(),
-      () => selected(rejected.provider),
     )
     expect(rejectedRecorder.immediate).toMatchObject([
       {kind: "canceled", message: "Request canceled."},
@@ -1096,7 +1106,6 @@ describe("immediate wallet handoff", () => {
       timedOutClick,
       timedOutRecorder.callbacks,
       liveRuntime(),
-      () => selected(timedOut.provider),
     )
     await vi.advanceTimersByTimeAsync(120_000)
     expect(timedOutRecorder.timedOut).toEqual([`${timedOutClick.actionId}:action`])
@@ -1123,7 +1132,6 @@ describe("immediate wallet handoff", () => {
       click,
       recorder.callbacks,
       liveRuntime(),
-      () => selected(synchronousProvider),
     )
 
     expect(requests.map(request => request.method)).toEqual([
@@ -1177,7 +1185,7 @@ describe("immediate wallet handoff", () => {
     const recorder = callbackRecorder()
 
     await expect(
-      executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+      executeStakingClick(click, recorder.callbacks, liveRuntime()),
     ).resolves.toBeUndefined()
 
     expect(recorder.immediate).toMatchObject([
@@ -1210,11 +1218,11 @@ describe("immediate wallet handoff", () => {
     const recorder = callbackRecorder()
 
     await expect(
-      executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider)),
+      executeStakingClick(click, recorder.callbacks, liveRuntime()),
     ).resolves.toBeUndefined()
 
     expect(recorder.immediate).toMatchObject([
-      {kind: "refused", message: "Switch to Base before continuing."},
+      {kind: "refused", message: "Switch your wallet to Base and try again."},
     ])
     expect(recorder.immediate).toHaveLength(1)
   })
@@ -1224,7 +1232,7 @@ describe("immediate wallet handoff", () => {
     const click = prepare("claim_and_restake_regent", selected(fake.provider))
     const recorder = callbackRecorder()
 
-    await executeStakingClick(click, recorder.callbacks, liveRuntime(), () => selected(fake.provider))
+    await executeStakingClick(click, recorder.callbacks, liveRuntime())
 
     expect(recorder.timing.map(event => event.phase)).toEqual([
       "chain_check",
@@ -1294,8 +1302,8 @@ describe("explicit staking recipient", () => {
     fields.acknowledgedReceiver = wallet
     const second = prepare("stake", walletSelection, fields)
     const record = callbackRecorder()
-    const firstRun = executeStakingClick(first, record.callbacks, liveRuntime(), () => walletSelection)
-    const secondRun = executeStakingClick(second, record.callbacks, liveRuntime(), () => walletSelection)
+    const firstRun = executeStakingClick(first, record.callbacks, liveRuntime())
+    const secondRun = executeStakingClick(second, record.callbacks, liveRuntime())
     await flushStakeHookPromises()
     const sends = source.requests.filter(request => request.method === "eth_sendTransaction")
     expect(sends).toHaveLength(2)

@@ -20,10 +20,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
-  @reconnect_request "Please reconnect to the active wallet '0x1111…1111' to interact onchain."
   @hash "0x" <> String.duplicate("a", 64)
   @receipt_block 1_249
-  @refresh_failure "Refresh failed. The last confirmed Base snapshot remains on screen."
+  @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
   @budget_refusal "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
   @claim_controls ["Claim USDC", "Claim REGENT", "Claim and restake"]
 
@@ -406,46 +405,31 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_offers_sign_in(view)
   end
 
-  test "WALLET_MISMATCH: a sign-in on one wallet cannot send from another", %{conn: conn} do
+  test "WALLET_MISMATCH: presses send from the open wallet while the figures stay the account's",
+       %{conn: conn} do
     view = stake_as_signer(conn, "wallet-mismatch")
-
-    assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@wallet}"]))
-    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
+    refute has_element?(view, ".shell-sending-wallet")
 
     activate(view, @other)
-    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
 
-    assert_refuses_every_action(view, @reconnect_request)
-
-    view |> element("#regent-staking button", "Stake REGENT") |> render_click()
-    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
-    render_hook(view, "dismiss_wallet_reconnect", %{})
-    refute has_element?(view, "#wallet-reconnect-dialog")
-
-    view |> element("#regent-staking button", "Stake REGENT") |> render_click()
-    assert has_element?(view, "#wallet-reconnect-dialog", @reconnect_request)
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert has_element?(view, ~s(#regent-staking[data-staking-wallet="#{@wallet}"]))
+    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
+    assert has_element?(view, ".shell-sending-wallet", "0x2222…2222")
+    assert has_element?(view, ".shell-sending-wallet", "0x1111…1111")
 
     activate(view, @wallet)
-    assert has_element?(view, ~s(#regent-staking[data-staking-signer="#{@wallet}"]))
-    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
-    refute has_element?(view, "#wallet-reconnect-dialog")
+    refute has_element?(view, ".shell-sending-wallet")
   end
 
-  test "REFUSAL_IS_ONLY_A_REFUSAL: the event changes nothing when there is nothing to refuse", %{
-    conn: conn
-  } do
-    for view <- [conn |> mount_stake() |> activate(@wallet), stake_as_signer(conn, "no-refusal")] do
-      Application.put_env(:ash_platform, :test_staking_wallet_error, :provider_failure)
-      view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
-      render_async(view)
-      Application.delete_env(:ash_platform, :test_staking_wallet_error)
-      assert render(view) =~ @refresh_failure
+  test "ACCOUNT_POSITION: a signed-in page opens on the account's wallet before the browser reports one",
+       %{conn: conn} do
+    seed_snapshot()
+    view = signed_in_stake(conn, "account-position")
 
-      render_hook(view, "refuse_staking_action", %{})
-
-      assert render(view) =~ @refresh_failure
-      refute has_element?(view, "#wallet-reconnect-dialog")
-    end
+    assert staking_assigns(view).staking_wallet == @wallet
+    refute has_element?(view, ".stake-connect-flow")
+    refute has_element?(view, ".shell-sending-wallet")
   end
 
   test "DISCONNECTED_WALLET: releasing every wallet clears the position and offers the connection again",
@@ -479,7 +463,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(
              view,
-             ~s(#regent-staking[data-staking-chain-id="8453"][data-staking-signer="#{@wallet}"][data-staking-allowance="0"])
+             ~s(#regent-staking[data-staking-chain-id="8453"][data-staking-wallet="#{@wallet}"][data-staking-allowance="0"])
            )
 
     assert has_element?(view, ~s(button[data-staking-action="stake"]))
@@ -662,6 +646,27 @@ defmodule AshPlatformWeb.StakeLiveTest do
     })
   end
 
+  test "CONFIRMED_STAKE_REFRESHES_TOTALS: a confirmed transaction brings the shared reading forward",
+       %{conn: conn} do
+    view = watched_stake(conn)
+    on_exit(fn -> SnapshotCache.clear() end)
+    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+
+    render_hook(view, "observe_staking_transaction", observation("obs-failed"))
+    assert_receive {:wallet_observation, :staking, _transaction, failed_observer}
+    send(failed_observer, {:wallet_observation_result, :reverted})
+    render_async(view)
+    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+
+    render_hook(view, "observe_staking_transaction", observation("obs-confirmed"))
+    assert_receive {:wallet_observation, :staking, _transaction, observer}
+    send(observer, {:wallet_observation_result, :success})
+    render_async(view)
+
+    assert {timer, _token} = :sys.get_state(SnapshotCache).refresh_timer
+    assert Process.read_timer(timer) <= 10_000
+  end
+
   test "OBSERVATION_IS_NOT_REPEATED: a duplicate observation id observes Base once", %{conn: conn} do
     view = watched_stake(conn)
 
@@ -815,8 +820,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   defp assert_offers_sign_in(view) do
-    refute has_element?(view, "#regent-staking[data-staking-signer]")
-    refute has_element?(view, "#regent-staking[data-staking-allowance]")
     refute has_element?(view, "button[data-staking-action]")
 
     for label <- ["Stake REGENT" | @claim_controls] do
@@ -830,25 +833,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   defp sign_in_control,
     do: ~s|#regent-staking button[data-account-target="sign-in"]:not([data-staking-action])|
-
-  defp assert_refuses_every_action(view, request) do
-    refute has_element?(view, "#regent-staking[data-staking-signer]")
-    refute has_element?(view, "#regent-staking[data-staking-allowance]")
-    refute has_element?(view, "button[data-staking-action]")
-
-    for label <- ["Stake REGENT" | @claim_controls] do
-      render_hook(view, "dismiss_wallet_reconnect", %{})
-      view |> element("#regent-staking button", label) |> render_click()
-      assert has_element?(view, "#wallet-reconnect-dialog", request)
-    end
-
-    render_hook(view, "dismiss_wallet_reconnect", %{})
-    view |> element(~s|.stake-mode button[phx-value-mode="unstake"]|) |> render_click()
-    view |> element("#regent-staking button", "Unstake REGENT") |> render_click()
-    assert has_element?(view, "#wallet-reconnect-dialog", request)
-
-    view |> element(~s|.stake-mode button[phx-value-mode="stake"]|) |> render_click()
-  end
 
   defp signed_in_stake(conn, suffix) do
     assert {:ok, account} =
