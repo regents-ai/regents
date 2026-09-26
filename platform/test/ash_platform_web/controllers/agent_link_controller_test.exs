@@ -154,7 +154,9 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     assert link["agent_id"] == "agent-listed"
   end
 
-  test "claim admission allows ten attempts per minute and isolates budgets by remote IP", %{
+  # Regression: behind Fly's proxy every caller shares the proxy's address, so
+  # the budget is keyed on the client address the proxy passes along.
+  test "claim admission allows ten attempts per minute per Fly client address", %{
     conn: conn
   } do
     {_account, _actor, regent} = account_and_regent!("rate-limit", @wallet)
@@ -164,6 +166,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     for _attempt <- 1..10 do
       assert conn
              |> recycle()
+             |> from_client("203.0.113.7")
              |> raw_claim(regent, "well-formed-code")
              |> json_response(401) == verification_failed()
 
@@ -172,6 +175,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
 
     assert conn
            |> recycle()
+           |> from_client("203.0.113.7")
            |> raw_claim(regent, "well-formed-code")
            |> json_response(429) == rate_limited()
 
@@ -179,7 +183,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
 
     assert conn
            |> recycle()
-           |> from_ip({10, 0, 0, 2})
+           |> from_client("203.0.113.8")
            |> raw_claim(regent, "well-formed-code")
            |> json_response(401) == verification_failed()
 
@@ -254,7 +258,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
   defp claim_path(regent_id),
     do: "/api/formation/v1/regents/#{regent_id}/agent-links/claim"
 
-  defp from_ip(conn, remote_ip), do: %{conn | remote_ip: remote_ip}
+  defp from_client(conn, address), do: put_req_header(conn, "fly-client-ip", address)
 
   defp account_and_regent!(suffix, wallet) do
     unique = Elixir.System.unique_integer([:positive])

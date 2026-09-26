@@ -22,7 +22,7 @@ defmodule AshPlatform.AgentAuth.ClaimRateLimiter do
   end
 
   @spec admit(term()) :: :ok | {:error, :rate_limited}
-  def admit(remote_ip), do: admit({:claim, remote_ip}, @limit, @window_seconds)
+  def admit(client), do: admit({:claim, client}, @limit, @window_seconds)
 
   @spec admit(term(), pos_integer(), pos_integer()) :: :ok | {:error, :rate_limited}
   def admit(key, limit, window_seconds) do
