@@ -22,6 +22,8 @@
 - [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
 - [Existing YAML contract]({{origin}}/api-contract.openapiv3.yaml): retained product interfaces; some listed operations may not be available yet. The JSON specification above is the integration entry point documented for this release.
 
+We change the API in place and update these docs the same day; no old versions are kept.
+
 The published [@regentslabs/cli](https://www.npmjs.com/package/@regentslabs/cli) version 0.5.0 was built against an earlier version of this service and is not supported for hosted operations in this release. Use the HTTP reads documented above instead.
 
 Regents does not advertise a hosted MCP endpoint or native WebMCP registry in this release. A page URL or CLI command does not prove browser-tool availability.

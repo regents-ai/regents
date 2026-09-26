@@ -1,7 +1,7 @@
 # Regents Labs Privacy Policy
 
-**Effective date:** September 3, 2026  
-**Version:** 1.0
+**Effective date:** September 26, 2026  
+**Version:** 1.1
 
 This Privacy Policy explains how **Regents Labs, Inc.** (“Regents Labs,” “we,” “us,” or “our”) collects, uses, discloses, and protects personal information when you use the websites, applications, command-line tools, browser tools, APIs, hosted services, smart-contract interfaces, documentation, and related services that we operate under the **Regents**, **Techtree**, **Patchbay**, and **Autolaunch** names (collectively, the “Services”).
 
@@ -299,6 +299,7 @@ Examples:
 - Support records are retained as needed to address the request and maintain an appropriate business record.
 - Public Patchbay reports, public Techtree proof records, and public Regents records may be retained as part of the integrity and history of the public system, subject to legal rights and moderation.
 - Private drafts may be deleted when no longer needed, subject to backups and legal obligations.
+- Our sign-in service keeps a 30-day record of each request an agent signs to a Regents site (the site, the time, the address called, and whether the agent looked something up or asked for a change) so the person the agent is paired with can see its recent actions; it never keeps what the request contained.
 - Blockchain records are retained by the blockchain and cannot be deleted by Regents Labs.
 - De-identified or aggregated data may be retained where it no longer reasonably identifies you.
 
