@@ -137,6 +137,11 @@ defmodule AshPlatformWeb.AgentLinkController do
   defp unauthorized(conn) do
     conn
     |> put_status(:unauthorized)
-    |> json(%{error: "unauthorized"})
+    |> json(%{
+      error: %{
+        code: "authentication_required",
+        message: "Sign in to see this Regent's agent links."
+      }
+    })
   end
 end

@@ -134,7 +134,12 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     Formation.claim_agent_link!(regent.id, issued.code, identity("listed"), actor: %System{})
     path = "/api/formation/v1/regents/#{regent.id}/agent-links"
 
-    assert conn |> get(path) |> json_response(401) == %{"error" => "unauthorized"}
+    assert conn |> get(path) |> json_response(401) == %{
+             "error" => %{
+               "code" => "authentication_required",
+               "message" => "Sign in to see this Regent's agent links."
+             }
+           }
 
     assert conn
            |> recycle()
