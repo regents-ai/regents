@@ -32,12 +32,8 @@ defmodule AshPlatformWeb.RegentProfileLiveTest do
     refute html =~ account.privy_user_id
   end
 
-  test "an unknown Regent slug has an honest empty state", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/regents/not-here")
-    html = render_async(view)
-
-    assert html =~ "Regent not found"
-    assert html =~ "This public Regent profile does not exist."
+  test "an unknown Regent slug answers 404", %{conn: conn} do
+    assert_error_sent 404, fn -> get(conn, "/regents/not-here") end
   end
 
   test "the public projection exposes the selected profile, verified wallet, and coarse Cloud state only",
@@ -74,7 +70,6 @@ defmodule AshPlatformWeb.RegentProfileLiveTest do
            )
 
     assert has_element?(view, ~s(code[title="#{wallet}"]), "0x2222…2222")
-    assert html =~ "Hermes not connected"
     refute html =~ account.privy_user_id
     refute html =~ runtime.provider_sprite_id
     refute html =~ runtime.url

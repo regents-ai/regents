@@ -37,18 +37,14 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute_push_event(view, "verified-connections:request", _payload)
   end
 
-  test "direct deep links render the persistent shell and honest missing-record state", %{
-    conn: conn
-  } do
-    {:ok, view, html} = live(conn, "/regents/not-here")
+  test "direct deep links render the persistent shell", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/formation")
 
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="shell-header")
     assert html =~ ~s(id="shell-sidebar")
     assert html =~ ~s(id="app-shell-scroller")
     assert byte_size(html) <= 100 * 1024
-    assert html =~ "Regent not found"
-    assert render_async(view) =~ "This public Regent profile does not exist."
   end
 
   test "the switch states the theme the server just served", %{conn: conn} do

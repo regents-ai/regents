@@ -1100,7 +1100,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do
-      {:ok, nil} -> assign(socket, regent: nil, regent_status: :empty)
+      {:ok, nil} -> raise AshPlatformWeb.NotFoundError
       {:ok, regent} -> assign(socket, regent: regent, regent_status: :ready)
       {:error, _error} -> assign(socket, regent: nil, regent_status: :error)
     end
