@@ -109,9 +109,13 @@ defmodule AshPlatformWeb.AgentControllerTest do
     issued = Agents.issue_pairing_code!(actor: actor)
     Agents.pair_agent!(issued.code, @agent_wallet, "Sol", :hermes, actor: %System{})
     Process.put(:agent_verification_result, {:ok, %{wallet: @agent_wallet}})
+    Process.put(:capture_agent_verification_calls, true)
 
     assert %{"data" => %{"name" => "Sol", "harness" => "hermes"}} =
              conn |> get("/api/agents/v1/me") |> json_response(200)
+
+    # A check-in is signed without a body, so none is sent to be checked.
+    assert_received {:agent_verification, %{method: "GET", body: nil}}
 
     Process.put(:agent_verification_result, {:ok, %{wallet: "0x" <> String.duplicate("4", 40)}})
 

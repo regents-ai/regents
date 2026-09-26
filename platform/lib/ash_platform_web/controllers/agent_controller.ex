@@ -50,9 +50,13 @@ defmodule AshPlatformWeb.AgentController do
       method: conn.method,
       path: signed_path(conn),
       headers: Map.new(conn.req_headers),
-      body: conn.assigns[:raw_body] || ""
+      body: signed_body(conn)
     })
   end
+
+  # A request without a body, like a check-in, is signed without one.
+  defp signed_body(%{assigns: %{raw_body: body}}) when body != "", do: body
+  defp signed_body(_conn), do: nil
 
   defp signed_path(%{request_path: path, query_string: ""}), do: path
   defp signed_path(%{request_path: path, query_string: query}), do: path <> "?" <> query
