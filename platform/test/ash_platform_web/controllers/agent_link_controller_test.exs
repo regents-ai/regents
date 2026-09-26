@@ -194,6 +194,20 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     refute_received {:agent_verification, _envelope}
   end
 
+  # Regression: the body parsers ran before the API error format was chosen, so
+  # a malformed JSON body got Phoenix's HTML 400 page.
+  test "a malformed JSON body on the API answers with the JSON error shape", %{conn: conn} do
+    {_status, headers, body} =
+      assert_error_sent 400, fn ->
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> post(claim_path(Ecto.UUID.generate()), "{not json")
+      end
+
+    assert {"content-type", "application/json; charset=utf-8"} in headers
+    assert %{"errors" => %{"code" => "bad_request"}} = Jason.decode!(body)
+  end
+
   test "uppercase Regent UUIDs work for both claim and owner read", %{conn: conn} do
     {account, actor, regent} = account_and_regent!("uppercase-uuid", @wallet)
     issued = Formation.issue_agent_pairing_code!(regent.id, actor: actor)

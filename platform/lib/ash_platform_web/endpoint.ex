@@ -36,7 +36,13 @@ defmodule AshPlatformWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  plug Plug.Parsers,
+  # Before the parsers, so a body they reject on an /api path is answered in
+  # JSON like every other API error.
+  plug RegentAgentAccess.Plug,
+    documents: &AshPlatformWeb.PublicDocuments.document/1,
+    guide: "/llms.txt"
+
+  plug AshPlatformWeb.Plugs.Parsers,
     body_reader: {RegentIdentity.BodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
@@ -45,10 +51,5 @@ defmodule AshPlatformWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug AshPlatformWeb.Plugs.RuntimeSession
-
-  plug RegentAgentAccess.Plug,
-    documents: &AshPlatformWeb.PublicDocuments.document/1,
-    guide: "/llms.txt"
-
   plug AshPlatformWeb.Router
 end
