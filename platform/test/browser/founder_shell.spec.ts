@@ -7,7 +7,6 @@ import {
 const shellRoutes = [
   "/app",
   "/formation",
-  "/regents/regent",
   "/stake",
   "/redeem",
 ]
@@ -114,6 +113,9 @@ test("all approved routes render within their page budget", async ({page, reques
     expect(response.status(), route).toBe(200)
     expect((await response.body()).byteLength, route).toBeLessThanOrEqual(100 * 1024)
   }
+
+  // No Regent profile exists here, so a profile address is an honest not-found.
+  expect((await request.get("/regents/not-here")).status()).toBe(404)
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toBeVisible()
