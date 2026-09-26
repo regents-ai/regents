@@ -42,7 +42,7 @@ config :ash_platform, AshPlatform.Repo,
 config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvider
 config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
 config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
-config :ash_platform, :siwa, base_url: nil, audience: nil
+config :ash_platform, :siwa, base_url: nil, audience: nil, activity_read_token: nil
 config :ash_platform, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0

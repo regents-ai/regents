@@ -1,7 +1,8 @@
 defmodule AshPlatformWeb.Components.PairedAgents do
   @moduledoc """
   The agents a person has paired with their account: a card for each, a way to
-  pair another, and a larger view of one agent with what it has been doing.
+  pair another, and a larger view of one agent with what it has been doing
+  across the Regents sites.
   """
 
   use AshPlatformWeb, :html
@@ -229,6 +230,12 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   end
 
   attr :activity, :any, required: true
+
+  defp activity(%{activity: :loading} = assigns) do
+    ~H"""
+    <p role="status">Reading this agent’s activity…</p>
+    """
+  end
 
   defp activity(%{activity: :unavailable} = assigns) do
     ~H"""

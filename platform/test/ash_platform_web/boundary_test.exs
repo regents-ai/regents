@@ -21,8 +21,25 @@ defmodule AshPlatformWeb.BoundaryTest do
     assert [baseline_migration] = Path.wildcard("priv/repo/migrations/*_initial_regents_app.exs")
     assert [agent_pairing_migration] = Path.wildcard("priv/repo/migrations/*_agent_pairing.exs")
 
+    assert [activity_drop_migration] =
+             Path.wildcard("priv/repo/migrations/*_drop_agent_activities.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
-             Enum.sort([extensions_migration, baseline_migration, agent_pairing_migration])
+             Enum.sort([
+               extensions_migration,
+               baseline_migration,
+               agent_pairing_migration,
+               activity_drop_migration
+             ])
+
+    # Agent activity is read from the sign-in service; the pairing release's
+    # copy of it is the only table this release removes.
+    drops =
+      for line <- String.split(File.read!(activity_drop_migration), "\n"),
+          line =~ ~r/^\s+drop/,
+          do: String.trim(line)
+
+    assert drops == ["drop table(:agent_activities)"]
 
     assert_extension_migration(extensions_migration)
 

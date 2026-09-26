@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.Accounts.LinkedIdentity.Providers
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Agents.{PairedAgent, PairingCode}
+  alias AshPlatform.Agents.{AgentActivity, PairedAgent, PairingCode}
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.Staking.Facts, as: StakingFacts
   alias AshPlatform.Staking.SnapshotCache
@@ -144,6 +144,22 @@ defmodule AshPlatformWeb.ShellLive do
   # it. With no shared reading on screen there is no dashboard to attach it to,
   # and the page keeps saying so.
   @impl true
+  def handle_async(
+        {:agent_activity, id},
+        result,
+        %{assigns: %{agent_detail: %{agent: %{id: id}} = detail}} = socket
+      ) do
+    activity =
+      case result do
+        {:ok, {:ok, entries}} -> entries
+        _failed -> :unavailable
+      end
+
+    {:noreply, assign(socket, agent_detail: %{detail | activity: activity})}
+  end
+
+  def handle_async({:agent_activity, _id}, _result, socket), do: {:noreply, socket}
+
   def handle_async(
         {:staking, generation} = name,
         {:ok, {generation, {:ok, wallet_facts}}},
@@ -392,7 +408,7 @@ defmodule AshPlatformWeb.ShellLive do
         %{assigns: %{route_spec: %{route_id: :account}}} = socket
       )
       when is_binary(id),
-      do: {:noreply, assign(socket, agent_detail: agent_detail(id, human_actor(socket)))}
+      do: {:noreply, show_agent(socket, id, human_actor(socket))}
 
   def handle_event("close_agent", _params, socket),
     do: {:noreply, assign(socket, agent_detail: nil)}
@@ -1202,26 +1218,31 @@ defmodule AshPlatformWeb.ShellLive do
         {:error, _error} -> :unavailable
       end
 
-    detail =
-      case socket.assigns.agent_detail do
-        %{agent: %{id: id}} -> agent_detail(id, actor)
-        nil -> nil
-      end
+    socket = assign(socket, paired_agents: agents, agents_now: DateTime.utc_now())
 
-    assign(socket, paired_agents: agents, agent_detail: detail, agents_now: DateTime.utc_now())
-  end
-
-  defp agent_detail(id, actor) do
-    case Agents.get_my_agent(id, actor: actor) do
-      {:ok, %PairedAgent{} = agent} -> %{agent: agent, activity: agent_activity(agent, actor)}
-      _missing -> nil
+    case socket.assigns.agent_detail do
+      %{agent: %{id: id}} -> show_agent(socket, id, actor)
+      nil -> socket
     end
   end
 
-  defp agent_activity(agent, actor) do
-    case Agents.recent_agent_activity(agent.id, actor: actor) do
-      {:ok, activity} -> activity
-      {:error, _error} -> :unavailable
+  # What the agent has done is read from the sign-in service in the background.
+  # Activity already on screen for this agent stays until the new reading lands.
+  defp show_agent(socket, id, actor) do
+    case Agents.get_my_agent(id, actor: actor) do
+      {:ok, %PairedAgent{} = agent} ->
+        activity =
+          case socket.assigns.agent_detail do
+            %{agent: %{id: ^id}, activity: shown} -> shown
+            _other -> :loading
+          end
+
+        socket
+        |> assign(agent_detail: %{agent: agent, activity: activity})
+        |> start_async({:agent_activity, id}, fn -> AgentActivity.recent(agent) end)
+
+      _missing ->
+        assign(socket, agent_detail: nil)
     end
   end
 

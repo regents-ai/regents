@@ -3,7 +3,7 @@ defmodule AshPlatform.Agents.PairedAgent.Actions.Pair do
   use Ash.Resource.Actions.Implementation
 
   alias AshPlatform.Actors.System
-  alias AshPlatform.Agents.{Activity, PairedAgent, PairingCode}
+  alias AshPlatform.Agents.{PairedAgent, PairingCode}
 
   @impl true
   def run(%{arguments: arguments}, _opts, %{actor: %System{} = actor}) do
@@ -14,7 +14,6 @@ defmodule AshPlatform.Agents.PairedAgent.Actions.Pair do
         with {:ok, pairing_code} <- pairing_code(arguments.code, actor),
              :ok <- admit_code(pairing_code, now),
              {:ok, agent} <- create_agent(pairing_code, arguments, now, actor),
-             {:ok, _activity} <- Activity.record(agent, "Paired with your account", now),
              {:ok, _pairing_code} <- consume(pairing_code, now, actor) do
           agent
         else
@@ -82,7 +81,7 @@ defmodule AshPlatform.Agents.PairedAgent.Actions.CheckIn do
   use Ash.Resource.Actions.Implementation
 
   alias AshPlatform.Actors.System
-  alias AshPlatform.Agents.{Activity, PairedAgent}
+  alias AshPlatform.Agents.PairedAgent
 
   @impl true
   def run(%{arguments: %{wallet: wallet}}, _opts, %{actor: %System{} = actor}) do
@@ -91,8 +90,7 @@ defmodule AshPlatform.Agents.PairedAgent.Actions.CheckIn do
     result =
       Ash.DataLayer.transaction(PairedAgent, fn ->
         with {:ok, agent} when not is_nil(agent) <- by_wallet(wallet, actor),
-             {:ok, agent} <- touch(agent, now, actor),
-             {:ok, _activity} <- Activity.record(agent, "Checked in", now) do
+             {:ok, agent} <- touch(agent, now, actor) do
           agent
         else
           {:ok, nil} -> Ash.DataLayer.rollback(PairedAgent, :not_paired)
@@ -162,8 +160,6 @@ defmodule AshPlatform.Agents.PairedAgent do
       allow_nil? false
       attribute_type :integer
     end
-
-    has_many :activities, AshPlatform.Agents.Activity
   end
 
   actions do

@@ -69,10 +69,6 @@ defmodule AshPlatform.Agents.AgentPairingTest do
 
     assert {:ok, [listed]} = Agents.list_my_agents(actor: actor)
     assert listed.id == agent.id
-
-    assert {:ok, [activity]} = Agents.recent_agent_activity(agent.id, actor: actor)
-    assert activity.site == "Regents Labs"
-    assert activity.action == "Paired with your account"
   end
 
   test "expired and unknown codes pair nothing", %{clock: clock} do
@@ -108,7 +104,7 @@ defmodule AshPlatform.Agents.AgentPairingTest do
     assert {:ok, []} = Agents.list_my_agents(actor: second_actor)
   end
 
-  test "checking in updates the last contact and adds to the agent's activity", %{clock: clock} do
+  test "checking in updates the last contact", %{clock: clock} do
     {_account, actor} = person!("check-in")
     issued = Agents.issue_pairing_code!(actor: actor)
     agent = Agents.pair_agent!(issued.code, @agent_wallet, "Muse", :muse, actor: %System{})
@@ -121,10 +117,6 @@ defmodule AshPlatform.Agents.AgentPairingTest do
     assert checked_in.last_contact_at == later
     assert checked_in.paired_at == @now
 
-    assert {:ok, [latest, first]} = Agents.recent_agent_activity(agent.id, actor: actor)
-    assert {latest.action, latest.occurred_at} == {"Checked in", later}
-    assert first.action == "Paired with your account"
-
     assert {:error, _error} = Agents.check_in_agent(@other_agent_wallet, actor: %System{})
   end
 
@@ -136,7 +128,6 @@ defmodule AshPlatform.Agents.AgentPairingTest do
 
     assert {:ok, []} = Agents.list_my_agents(actor: other)
     assert {:ok, nil} = Agents.get_my_agent(agent.id, actor: other)
-    assert {:ok, []} = Agents.recent_agent_activity(agent.id, actor: other)
 
     assert {:error, %Ash.Error.Forbidden{}} =
              Agents.change_agent_harness(agent, :pi, actor: other)

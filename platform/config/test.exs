@@ -36,7 +36,13 @@ config :ash_platform,
        :agent_verification_client,
        AshPlatform.AgentAuth.DeterministicVerificationClient
 
-config :ash_platform, :siwa, base_url: "https://siwa.test", audience: "ash-platform-test"
+config :ash_platform, :siwa,
+  base_url: "https://siwa.test",
+  audience: "ash-platform-test",
+  activity_read_token: "test-activity-read-token"
+
+# Reads from the sign-in service answer from stubs each test sets.
+config :ash_platform, :siwa_req_options, plug: {Req.Test, AshPlatform.Siwa}
 config :ash_platform, :database_startup_enabled, true
 
 # ENS lookups answer from a stubbed mainnet whose replies are chosen by the

@@ -17,9 +17,5 @@ defmodule AshPlatform.Agents do
       define :change_agent_harness, action: :change_harness, args: [:harness]
       define :unpair_agent, action: :unpair
     end
-
-    resource AshPlatform.Agents.Activity do
-      define :recent_agent_activity, action: :recent_for_agent, args: [:paired_agent_id]
-    end
   end
 end

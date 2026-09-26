@@ -47,7 +47,9 @@ uv run siwa_agent.py request POST '{{origin}}/api/agents/v1/pair' \
 uv run siwa_agent.py request GET '{{origin}}/api/agents/v1/me'
 ```
 
-`POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the same shape:
+`POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the same shape. The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
+
+The check-in answer looks like this:
 
 ```json
 {"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z"}}

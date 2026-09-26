@@ -25,9 +25,12 @@ config :ash_platform, :sprites,
   base_url: "https://api.sprites.dev",
   token: System.get_env("SPRITES_TOKEN")
 
-config :ash_platform, :siwa,
-  base_url: System.get_env("SIWA_SERVER_URL"),
-  audience: System.get_env("SIWA_AUDIENCE")
+if config_env() != :test do
+  config :ash_platform, :siwa,
+    base_url: System.get_env("SIWA_SERVER_URL"),
+    audience: System.get_env("SIWA_AUDIENCE"),
+    activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
+end
 
 # Production must say out loud whether the product surfaces are open. Anything
 # but "on" keeps them closed, so a typo closes rather than opens.

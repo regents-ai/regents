@@ -6,6 +6,12 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
 
   @agent_wallet "0x2222222222222222222222222222222222222222"
 
+  # The sign-in service knows of nothing the agent did unless a test says so.
+  setup do
+    Req.Test.stub(AshPlatform.Siwa, &Req.Test.json(&1, %{"data" => %{"activity" => []}}))
+    :ok
+  end
+
   test "a person makes a pairing code to send their agent, and a second press keeps it", %{
     conn: conn
   } do
@@ -36,20 +42,36 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     agent = pair!(account, "Muse helper", :muse)
     view = open_account(conn, account)
 
+    Req.Test.stub(AshPlatform.Siwa, fn conn ->
+      Req.Test.json(conn, %{
+        "data" => %{
+          "activity" => [
+            %{
+              "audience" => "patchbay",
+              "method" => "POST",
+              "path" => "/api/agent/reports",
+              "occurred_at" => DateTime.to_iso8601(DateTime.utc_now())
+            }
+          ]
+        }
+      })
+    end)
+
     view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
 
     assert has_element?(view, "#account-agent-dialog[data-open] h2", "Muse helper")
     assert has_element?(view, "#account-agent-dialog dd", @agent_wallet)
     assert has_element?(view, "#account-agent-dialog dt", "First paired")
 
-    assert has_element?(
-             view,
-             "#account-agent-dialog .account-agent-dialog__log li",
-             "Paired with your account"
-           )
+    render_async(view)
+    log = "#account-agent-dialog .account-agent-dialog__log li"
+    assert has_element?(view, log, "Asked to make a change")
+    assert has_element?(view, log, "Patchbay")
+    assert has_element?(view, log, "Paired with your account")
 
+    # A check-in reloads the open agent without blanking what is shown.
     assert {:ok, _agent} = Agents.check_in_agent(@agent_wallet, actor: %System{})
-    assert has_element?(view, "#account-agent-dialog .account-agent-dialog__log li", "Checked in")
+    assert has_element?(view, log, "Patchbay")
 
     view
     |> form("#account-agent-harness-form", %{"harness" => "pi"})
@@ -63,6 +85,25 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     refute has_element?(view, "#account-agent-dialog")
     refute has_element?(view, "#agent-#{agent.id}")
     assert {:ok, []} = Agents.list_my_agents(actor: %Human{human_account_id: account.id})
+  end
+
+  test "activity that can't be read says so", %{conn: conn} do
+    account = register_account("agents-unread")
+    agent = pair!(account, "Quiet", :hermes)
+    view = open_account(conn, account)
+
+    Req.Test.stub(AshPlatform.Siwa, fn conn ->
+      conn |> Plug.Conn.put_status(503) |> Req.Test.json(%{})
+    end)
+
+    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    render_async(view)
+
+    assert has_element?(
+             view,
+             "#account-agent-dialog [role=status]",
+             "This agent’s activity couldn’t be read right now."
+           )
   end
 
   test "closing the details leaves only the cards", %{conn: conn} do

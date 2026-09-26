@@ -246,6 +246,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shared/siwa/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read one wallet's recent verified requests across Regents sites
+         * @description Returns up to 50 of the most recent requests that /api/shared/siwa/http-verify verified for the wallet, newest first, over the last 30 days. Each entry names the audience, method, path without its query and the time of verification. Request bodies, headers, receipts and signatures are never kept.
+         */
+        post: operations["readSharedSiwaActivity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shared/keyring/health": {
         parameters: {
             query?: never;
@@ -769,6 +789,26 @@ export interface components {
             message: string;
         } & {
             [key: string]: unknown;
+        };
+        SiwaActivityRequest: {
+            wallet_address: components["schemas"]["Address"];
+            /**
+             * Format: date-time
+             * @description Only requests verified at or after this time are returned.
+             */
+            since: string;
+        };
+        SiwaActivityResponse: {
+            data: {
+                activity: components["schemas"]["SiwaActivityEntry"][];
+            };
+        };
+        SiwaActivityEntry: {
+            audience: string;
+            method: string;
+            path: string;
+            /** Format: date-time */
+            occurred_at: string;
         };
         ErrorEnvelope: {
             error: components["schemas"]["ServiceError"];
@@ -1591,6 +1631,67 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+        };
+    };
+    readSharedSiwaActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiwaActivityRequest"];
+            };
+        };
+        responses: {
+            /** @description The wallet's recent verified requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiwaActivityResponse"];
+                };
+            };
+            /** @description Invalid activity request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The activity read token was absent or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Activity request is too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Activity request content type is unsupported */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: components["responses"]["RateLimitError"];
         };
     };
     siwaKeyringHealth: {
