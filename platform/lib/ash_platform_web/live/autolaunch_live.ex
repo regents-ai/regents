@@ -53,7 +53,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     %{
       title: "Fees reach stakers.",
       copy:
-        "Each trade carries a 2% fee: 1% to the token's own stakers and 1% for REGENT stakers. Liquidity providers keep the standard 0.3%."
+        "Each trade pays 1% to the token's own stakers and 1% to REGENT stakers. The pool also charges the standard 0.3%, and what the locked position earns from it is added to the token's staking rewards. These rates are fixed in the contracts."
     }
   ]
 
@@ -69,7 +69,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
     ~H"""
     <section id="product-autolaunch" class="product-page" aria-labelledby="product-heading">
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="product-kicker">autolaunch.sh · Launch day 24 September 2026, 15:00 UTC</p>
+        <p class="product-kicker">autolaunch.sh · Auctions opened 24 September 2026</p>
         <h1 id="product-heading" tabindex="-1">
           Raise early funds for an agent. Share what it earns.
         </h1>
@@ -81,10 +81,10 @@ defmodule AshPlatformWeb.AutolaunchLive do
             Open Autolaunch
           </ProductLive.external>
           <ProductLive.external
-            href="https://autolaunch.sh/token-details"
+            href="https://autolaunch.sh/how-it-works"
             class="rg-button rg-button--secondary"
           >
-            Token details
+            How it works
           </ProductLive.external>
         </nav>
       </header>
