@@ -93,16 +93,6 @@ defmodule AshPlatform.TestPrivyVerifier do
      }}
   end
 
-  defp access_evidence("valid-formation-cloud") do
-    {:ok,
-     %{
-       session_id: "formation-cloud-browser-session",
-       privy_user_id: "did:privy:formation-cloud-browser",
-       wallet_address: "0x4444444444444444444444444444444444444444",
-       wallet_addresses: ["0x4444444444444444444444444444444444444444"]
-     }}
-  end
-
   defp access_evidence("conflicting-social") do
     {:ok,
      %{

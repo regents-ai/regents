@@ -293,7 +293,7 @@ describe("mobile shell navigation", () => {
     page.accountMenu.setAttribute("open", "")
     hook.beforeUpdate?.call(context)
     page.accountMenu.removeAttribute("open")
-    page.shell.dataset.destination = "/formation"
+    page.shell.dataset.destination = "/autolaunch"
     hook.updated?.call(context)
 
     expect(page.shell.dataset.menuOpen).toBe("false")

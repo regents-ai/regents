@@ -123,7 +123,6 @@ defmodule AshPlatformWeb.Router do
       on_mount: [AshPlatformWeb.Live.LaunchGateHook, {AshPlatformWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/account", ShellLive, :account
-      live "/formation", ShellLive, :formation
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

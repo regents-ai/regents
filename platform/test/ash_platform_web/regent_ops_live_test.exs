@@ -38,7 +38,6 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
 
     assert has_element?(view, ~s(a[href="/stake"]), "Stake REGENT")
     assert has_element?(view, ~s(a[href="/redeem"]), "Redeem Animata")
-    assert has_element?(view, ~s(a[href="/formation"]), "Run your Regent")
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
     refute html =~ ~s(href="/hermes")
     refute html =~ "0x1111…1111"
@@ -73,7 +72,6 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     actions = ~s(nav[aria-label="Account actions"])
     assert has_element?(view, ~s(#{actions} a[href="/stake"]), "Stake REGENT")
     assert has_element?(view, ~s(#{actions} a[href="/redeem"]), "Redeem Animata")
-    assert has_element?(view, ~s(#{actions} a[href="/formation"]), "Run your Regent")
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
   end
 
@@ -99,7 +97,6 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert html =~ "5 REGENT"
     assert html =~ "1.50 USDC"
     assert html =~ "2 REGENT"
-    assert has_element?(view, ~s(a[href="/formation"]), "Run your Regent")
     refute html =~ "Sign in to see any wallet verified on your account"
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
   end

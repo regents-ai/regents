@@ -24,8 +24,6 @@ defmodule AshPlatformWeb.PublicDocuments do
     "/account" =>
       {"Account",
        "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
-    "/formation" =>
-      {"Formation", "Create and manage your Regent as a Hermes agent in Nous Portal."},
     "/stake" =>
       {"Stake REGENT",
        "Stake REGENT on Base to share in USDC revenue rewards paid out by the staking contract and to earn REGENT emissions."},

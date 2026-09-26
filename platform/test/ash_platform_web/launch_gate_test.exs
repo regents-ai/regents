@@ -7,7 +7,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
   alias AshPlatformWeb.Plugs.LaunchGate
 
   # Settings returns soon (founder, 2026-09-03): switched off, not removed. (/settings left out of the gated paths)
-  @gated_shell_paths ~w(/app /formation /regents/example /stake /redeem)
+  @gated_shell_paths ~w(/app /regents/example /stake /redeem)
   @closed_message "This part of Regent isn't open yet."
 
   setup do
@@ -152,7 +152,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
     {:ok, view, _html} = live(conn, "/app")
 
     close_surfaces()
-    render_patch(view, "/formation")
+    render_patch(view, "/stake")
 
     assert_redirect(view, "/")
   end

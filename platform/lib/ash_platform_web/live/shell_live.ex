@@ -24,7 +24,6 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.WalletActions.TransactionObserver
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.AutolaunchLive
-  alias AshPlatformWeb.FormationLive
   alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.PublicDocuments
   alias AshPlatformWeb.RedeemGalleryLive
@@ -661,8 +660,6 @@ defmodule AshPlatformWeb.ShellLive do
       theme={@theme}
     >
       <:content>
-        <FormationLive.page :if={@route_spec.route_id == :formation} />
-
         <RegentProfileLive.page
           :if={@route_spec.route_id == :regent_profile}
           regent={@regent}

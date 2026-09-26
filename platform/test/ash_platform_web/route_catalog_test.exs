@@ -13,7 +13,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     "/",
     "/app",
     "/account",
-    "/formation",
     "/regents/:slug",
     "/stake",
     "/redeem",
@@ -69,22 +68,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert account.local_state == %{}
   end
 
-  test "Formation keeps its route truth without local panel targets or state" do
-    formation = RouteCatalog.fetch!(:formation)
-
-    assert formation.route_id == :formation
-    assert formation.destination == "/formation"
-    assert formation.app_id == :formation
-    assert formation.app_display_label == "Nous Portal"
-    assert formation.page_display_label == "Formation"
-    assert formation.canonical_root == "/formation"
-    assert formation.background_slot == :formation
-    assert formation.header_controls == [:profile_actions]
-    assert formation.content_transition_kind == :lifecycle
-    assert formation.scroll_policy == :top
-    assert formation.sidebar_model == RouteCatalog.fetch!(:app).sidebar_model
-    assert formation.local_state == %{}
-
+  test "every Regents page shares one navigation" do
     assert RouteCatalog.fetch!(:app).sidebar_model.targets == [
              %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
@@ -136,7 +120,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 11
+    assert length(decoded["routes"]) == 10
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

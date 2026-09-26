@@ -260,7 +260,6 @@ defmodule AshPlatformWeb.RegentOpsLive do
           <nav class="regent-ops-actions" aria-label="Account actions">
             <.link patch="/stake">Stake REGENT</.link>
             <.link patch="/redeem">Redeem Animata</.link>
-            <.link patch="/formation">Run your Regent</.link>
             <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
               View Regent profile
             </.link>

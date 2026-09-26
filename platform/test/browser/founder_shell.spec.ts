@@ -6,7 +6,6 @@ import {
 
 const shellRoutes = [
   "/app",
-  "/formation",
   "/stake",
   "/redeem",
 ]
@@ -49,11 +48,11 @@ async function chooseTheme(page: Page, choice: "light" | "dark") {
   await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
 }
 
-test("[U2] the ruled shell keeps the Regents palette across applications", async ({page}) => {
+test("[U2] the ruled shell keeps the Regents palette across pages", async ({page}) => {
   const palette: Record<string, {ground: string | null; text: string | null}> = {}
   for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
-    for (const route of ["/stake", "/formation"]) {
+    for (const route of ["/stake", "/app"]) {
       await page.goto(route)
       await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
       await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
@@ -65,7 +64,7 @@ test("[U2] the ruled shell keeps the Regents palette across applications", async
     }
     await page.goto("/app")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    for (const destination of ["/formation", "/stake"]) {
+    for (const destination of ["/autolaunch", "/stake"]) {
       await patchTo(page, destination)
       await expect(page).toHaveURL(new RegExp(`${destination}$`))
       await expect.poll(() => readFamily(page)).toEqual(palette[choice])
@@ -79,7 +78,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
   request,
 }) => {
   for (const [route, brand] of [
-    ["/formation", "platform"],
+    ["/redeem", "platform"],
     ["/stake", "platform"],
   ] as const) {
     const served = await (await request.get(route)).text()
@@ -93,12 +92,12 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 })
 
 test("product headings use canonical Pixel Square", async ({page}) => {
-  await page.goto("/formation")
+  await page.goto("/stake")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   expect(
     await page
-      .locator(".formation-heading h1")
+      .locator("#staking-page-heading")
       .evaluate(element => getComputedStyle(element).fontFamily),
   ).toContain("Geist Pixel Square")
 })
@@ -338,21 +337,11 @@ test("the Overview maps the four products, keeps account details secondary, and 
     "href",
     "/redeem",
   )
-  await expect(actions.getByRole("link", {name: "Run your Regent"})).toHaveAttribute(
-    "href",
-    "/formation",
-  )
   await expect(overview.getByRole("link", {name: "Hermes"})).toHaveAttribute(
     "href",
     "https://hermes-agent.nousresearch.com/",
   )
   await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
-
-  await actions.getByRole("link", {name: "Run your Regent"}).click()
-  await expect(page).toHaveURL(/\/formation$/)
-  await expect(
-    page.getByRole("heading", {level: 1, name: "Regent runs best on Hermes"}),
-  ).toBeVisible()
 })
 
 test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {
@@ -367,8 +356,8 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
 
-  await patchTo(page, "/formation")
-  await expect(page).toHaveURL(/\/formation$/)
+  await patchTo(page, "/autolaunch")
+  await expect(page).toHaveURL(/\/autolaunch$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
 
@@ -388,7 +377,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   })
 
   await page.goBack()
-  await expect(page).toHaveURL(/\/formation$/)
+  await expect(page).toHaveURL(/\/autolaunch$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
@@ -410,8 +399,8 @@ test("rapid app switches settle on the latest view with no motion left behind", 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-  await patchTo(page, "/formation")
-  await expect(page).toHaveURL(/\/formation$/)
+  await patchTo(page, "/autolaunch")
+  await expect(page).toHaveURL(/\/autolaunch$/)
   await patchTo(page, "/stake")
 
   await expect(page).toHaveURL(/\/stake$/)
@@ -419,69 +408,6 @@ test("rapid app switches settle on the latest view with no motion left behind", 
   await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
   await expect(page.locator("#route-content"), "the glide tidies up after itself").not.toHaveAttribute("style")
   await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
-})
-
-test("Formation keeps one in-shell heading and an exact inactive Nous handoff", async ({page}) => {
-  const requests: string[] = []
-  page.on("request", request => requests.push(request.url()))
-
-  await page.goto("/formation")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await expect(page.getByRole("heading")).toHaveCount(1)
-  await expect(
-    page.getByRole("heading", {level: 1, name: "Regent runs best on Hermes"}),
-  ).toBeVisible()
-  await expect(
-    page.getByText("Create and manage your Regent as a Hermes agent in Nous Portal."),
-  ).toBeVisible()
-
-  const portal = page.getByRole("link", {name: "Open Nous Portal"})
-  await expect(portal).toHaveAttribute("href", "https://portal.nousresearch.com/cloud")
-  await expect(portal).toHaveAttribute("target", "_blank")
-  await expect(portal).toHaveAttribute("rel", "noopener noreferrer")
-  await expect(
-    page.getByText(
-      "Nous Portal opens in a new tab. Your Hermes agent can complete Autolaunch in their cloud runtime.",
-    ),
-  ).toBeVisible()
-
-  await expect(page.locator("#formation form")).toHaveCount(0)
-  await expect(page.locator("#formation button")).toHaveCount(0)
-  await expect(
-    page.locator("#formation [phx-click], #formation [phx-submit]"),
-  ).toHaveCount(0)
-  await expect(page.getByText("Form your Regent", {exact: true})).toHaveCount(0)
-  await expect(page.getByText("Provision Sprite", {exact: true})).toHaveCount(0)
-  expect(requests.some(url => url.startsWith("https://portal.nousresearch.com/"))).toBe(false)
-})
-
-test("Formation handoff keeps focus visible and fits narrow, landscape, and zoom viewports", async ({page}) => {
-  for (const viewport of [
-    {width: 320, height: 720},
-    {width: 390, height: 844},
-    {width: 844, height: 390},
-    {width: 640, height: 900},
-  ]) {
-    await page.setViewportSize(viewport)
-    await page.goto("/formation")
-    await expect(page.locator("#formation-nous-portal-link")).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      viewport.width,
-    )
-
-    let reachedByTab = false
-
-    for (let press = 0; press < 30 && !reachedByTab; press += 1) {
-      await page.keyboard.press("Tab")
-      reachedByTab = await page.evaluate(
-        () => document.activeElement?.id === "formation-nous-portal-link",
-      )
-    }
-
-    expect(reachedByTab, `${viewport.width}x${viewport.height}`).toBe(true)
-    await expect(page.locator("#formation-nous-portal-link:focus-visible")).toBeVisible()
-    await expect(page.locator("#formation-nous-portal-link")).toHaveCSS("outline-style", "solid")
-  }
 })
 
 test("the theme preference applies immediately under reduced motion", async ({browser}) => {

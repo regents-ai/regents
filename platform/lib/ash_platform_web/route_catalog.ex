@@ -37,13 +37,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       route_spec_id: :account
     },
     %Entry{
-      path_pattern: "/formation",
-      live_action: :formation,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :formation
-    },
-    %Entry{
       path_pattern: "/regents/:slug",
       live_action: :regent_profile,
       parameter_schema: %{slug: :slug},
@@ -102,9 +95,6 @@ defmodule AshPlatformWeb.RouteCatalog do
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, :detail, %{}},
-    formation:
-      {:formation, :formation, "Nous Portal", "Formation", "/formation", [:profile_actions],
-       :formation, :lifecycle, %{}},
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :regent_record, :detail, %{}},
@@ -179,9 +169,7 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   defp sidebar_model(nil), do: %SidebarModel{id: :public, targets: []}
 
-  # Formation keeps its own page but shares the Regents navigation, so its
-  # sidebar and phone menu lead back to the rest of the site.
-  defp sidebar_model(app_id) when app_id in [:regent_ops, :formation] do
+  defp sidebar_model(:regent_ops) do
     %SidebarModel{
       id: :regent_ops,
       targets: [

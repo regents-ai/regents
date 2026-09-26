@@ -38,7 +38,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
   end
 
   test "direct deep links render the persistent shell", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/formation")
+    {:ok, _view, html} = live(conn, "/redeem")
 
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="shell-header")
@@ -531,28 +531,6 @@ defmodule AshPlatformWeb.ShellLiveTest do
            |> Enum.count() == 1
 
     assert document |> LazyHTML.query("footer.product-links") |> Enum.count() == 1
-  end
-
-  test "Formation remains owned by ShellLive with its background and only the handoff", %{
-    conn: conn
-  } do
-    {:ok, view, html} = live(conn, "/formation")
-
-    assert html =~ ~s(id="app-shell")
-    assert html =~ ~s(id="app-shell-scroller")
-    refute has_element?(view, ~s(.shell-background[data-background-slot="formation"]))
-    assert has_element?(view, "#formation")
-
-    assert has_element?(
-             view,
-             ~s(#formation-nous-portal-link[href="https://portal.nousresearch.com/cloud"][target="_blank"][rel="noopener noreferrer"]),
-             "Open Nous Portal"
-           )
-
-    refute has_element?(view, "#formation form")
-    refute has_element?(view, "#formation button")
-    refute has_element?(view, "#formation [phx-click]")
-    refute has_element?(view, "#formation [phx-submit]")
   end
 
   # /app shows the same shared contract reading every other page does, and an

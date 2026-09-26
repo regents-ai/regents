@@ -466,7 +466,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     AshPlatformWeb.Endpoint.subscribe(topic)
 
     {:ok, view, _html} =
-      build_conn() |> init_test_session(get_session(signed_in)) |> live("/formation")
+      build_conn() |> init_test_session(get_session(signed_in)) |> live("/autolaunch")
 
     assert Process.alive?(view.pid)
 
@@ -492,7 +492,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert Process.alive?(view.pid)
 
     assert render_click(view, "refresh_verified_connections", %{}) =~
-             "Regent runs best on Hermes"
+             "Raise early funds for an agent."
   end
 
   test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do
@@ -505,7 +505,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
 
-    {:ok, view, _html} = browser |> recycled() |> live("/formation")
+    {:ok, view, _html} = browser |> recycled() |> live("/autolaunch")
     assert Process.alive?(view.pid)
 
     # Remaining signed in is not a session event: the generation this browser
@@ -985,7 +985,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
     assert {:error, {:redirect, %{to: "/"}}} =
              build_conn()
              |> init_test_session(get_session(signed_in))
-             |> live("/formation")
+             |> live("/autolaunch")
   end
 
   test "STALE_LOGOUT_REVOKES: lapsed wallet evidence fails closed on the same rule" do
@@ -1117,7 +1117,7 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   defp assert_no_session_cookie(browser) do
-    for read <- [&get(&1, "/formation"), &get(&1, "/auth/session"), &get(&1, "/app")] do
+    for read <- [&get(&1, "/autolaunch"), &get(&1, "/auth/session"), &get(&1, "/app")] do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
   end
