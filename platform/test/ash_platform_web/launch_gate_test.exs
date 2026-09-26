@@ -85,8 +85,8 @@ defmodule AshPlatformWeb.LaunchGateTest do
     close_surfaces()
 
     for conn <- [
-          get(build_conn(), "/api/formation/v1/regents/1/agent-links"),
-          post(build_conn(), "/api/formation/v1/regents/1/agent-links/claim", %{}),
+          get(build_conn(), "/api/agents/v1/me"),
+          post(build_conn(), "/api/agents/v1/pair", %{}),
           get(build_conn(), "/auth/session")
         ] do
       assert json_response(conn, 503) == %{"error" => @closed_message}
@@ -96,7 +96,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
   end
 
   test "[U2] the gate answers agent writes before pairing runs" do
-    assert json_response(claim_as_signed_in_person(), 400) == %{
+    assert json_response(pair_request(), 400) == %{
              "error" => %{
                "code" => "pairing_failed",
                "message" => "The pairing code could not be used."
@@ -104,7 +104,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
            }
 
     close_surfaces()
-    assert json_response(claim_as_signed_in_person(), 503) == %{"error" => @closed_message}
+    assert json_response(pair_request(), 503) == %{"error" => @closed_message}
   end
 
   test "[U3] the marketing page, health check and static files are untouched by the gate" do
@@ -172,11 +172,7 @@ defmodule AshPlatformWeb.LaunchGateTest do
   defp restore_setting(nil), do: System.delete_env("ASH_PLATFORM_APP_SURFACES")
   defp restore_setting(setting), do: System.put_env("ASH_PLATFORM_APP_SURFACES", setting)
 
-  defp claim_as_signed_in_person do
-    build_conn()
-    |> put_req_header("authorization", "Bearer privy-token")
-    |> post("/api/formation/v1/regents/1/agent-links/claim", %{})
-  end
+  defp pair_request, do: post(build_conn(), "/api/agents/v1/pair", %{})
 
   defp secure_headers(conn) do
     conn.resp_headers

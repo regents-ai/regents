@@ -8,8 +8,8 @@ defmodule AshPlatformWeb.ApiContractTest do
     contract = YamlElixir.read_from_file!(@contract)
 
     assert Map.keys(contract["paths"]) |> Enum.sort() == [
-             "/api/formation/v1/regents/{regent_id}/agent-links",
-             "/api/formation/v1/regents/{regent_id}/agent-links/claim",
+             "/api/agents/v1/me",
+             "/api/agents/v1/pair",
              "/auth/csrf",
              "/auth/privy/failure",
              "/auth/privy/session",
@@ -163,11 +163,6 @@ defmodule AshPlatformWeb.ApiContractTest do
                "in" => "header",
                "name" => "privy-id-token"
              },
-             "cookieSession" => %{
-               "type" => "apiKey",
-               "in" => "cookie",
-               "name" => "_ash_platform_key"
-             },
              "csrfToken" => %{
                "type" => "apiKey",
                "in" => "header",
@@ -259,75 +254,43 @@ defmodule AshPlatformWeb.ApiContractTest do
            }
   end
 
-  test "the agent pairing contract has one owner read and one SIWA-authenticated claim" do
+  test "agents pair and check in with SIWA-signed requests" do
     contract = YamlElixir.read_from_file!(@contract)
     paths = contract["paths"]
 
-    index = paths["/api/formation/v1/regents/{regent_id}/agent-links"]["get"]
-    assert index["operationId"] == "listRegentAgentLinks"
-    assert index["security"] == [%{"cookieSession" => []}]
-    assert index["parameters"] == [%{"$ref" => "#/components/parameters/RegentId"}]
-    assert Map.keys(index["responses"]) |> Enum.sort() == ["200", "401", "404"]
+    signed_headers = [
+      "#/components/parameters/SiwaReceipt",
+      "#/components/parameters/SiwaKeyId",
+      "#/components/parameters/SiwaTimestamp",
+      "#/components/parameters/SiwaAgentWallet",
+      "#/components/parameters/SiwaAgentChainId",
+      "#/components/parameters/HttpSignatureInput",
+      "#/components/parameters/HttpSignature"
+    ]
 
-    claim = paths["/api/formation/v1/regents/{regent_id}/agent-links/claim"]["post"]
-    assert claim["operationId"] == "claimRegentAgentLink"
-    assert claim["security"] == []
+    pair = paths["/api/agents/v1/pair"]["post"]
+    assert pair["operationId"] == "pairAgent"
+    assert pair["security"] == []
 
-    assert Enum.map(claim["parameters"], & &1["$ref"]) == [
-             "#/components/parameters/RegentId",
-             "#/components/parameters/SiwaReceipt",
-             "#/components/parameters/SiwaKeyId",
-             "#/components/parameters/SiwaTimestamp",
-             "#/components/parameters/SiwaAgentWallet",
-             "#/components/parameters/SiwaAgentChainId",
-             "#/components/parameters/SiwaAgentRegistry",
-             "#/components/parameters/SiwaAgentTokenId",
-             "#/components/parameters/HttpSignatureInput",
-             "#/components/parameters/HttpSignature",
-             "#/components/parameters/ContentDigest"
-           ]
+    assert Enum.map(pair["parameters"], & &1["$ref"]) ==
+             signed_headers ++ ["#/components/parameters/ContentDigest"]
 
-    assert claim["requestBody"] == %{
-             "required" => true,
-             "content" => %{
-               "text/plain" => %{
-                 "schema" => %{"type" => "string", "minLength" => 1, "maxLength" => 128}
-               }
-             }
-           }
+    assert pair["requestBody"]["content"]["application/json"]["schema"]["required"] ==
+             ["code", "name", "harness"]
 
-    assert Map.keys(claim["responses"]) |> Enum.sort() == ["201", "400", "401", "429"]
+    assert Map.keys(pair["responses"]) |> Enum.sort() == ["201", "400", "401", "429"]
 
-    assert claim["responses"]["429"] == %{
-             "$ref" => "#/components/responses/AgentClaimRateLimited"
-           }
+    me = paths["/api/agents/v1/me"]["get"]
+    assert me["operationId"] == "checkInAgent"
+    assert me["security"] == []
+    assert Enum.map(me["parameters"], & &1["$ref"]) == signed_headers
+    assert Map.keys(me["responses"]) |> Enum.sort() == ["200", "401", "404"]
 
-    link = contract["components"]["schemas"]["AgentLink"]
-    assert link["additionalProperties"] == false
+    assert contract["components"]["schemas"]["AgentHarness"]["enum"] ==
+             Enum.map(AshPlatform.Agents.Harness.values(), &Atom.to_string/1)
 
-    assert link["required"] == [
-             "id",
-             "regent_id",
-             "agent_id",
-             "registry_address",
-             "token_id",
-             "wallet",
-             "paired_at"
-           ]
-
-    refute Map.has_key?(link["properties"], "human_account_id")
-    refute Map.has_key?(link["properties"], "code")
-    refute Map.has_key?(link["properties"], "signature")
-
-    assert contract["components"]["schemas"]["AgentPairingError"]["properties"]["error"][
-             "properties"
-           ]["code"]["enum"] == [
-             "authentication_required",
-             "not_found",
-             "pairing_failed",
-             "verification_failed",
-             "rate_limited"
-           ]
+    assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
+             ["name", "harness", "wallet", "paired_at", "last_contact_at"]
   end
 
   test "the served contract is byte-identical and available over HTTP", %{conn: conn} do

@@ -14,14 +14,15 @@ defmodule AshPlatformWeb.BoundaryTest do
     end
   end
 
-  test "the only application migrations are the extensions install and the regents_app baseline" do
+  test "the application migrations are the extensions install, the regents_app baseline and agent pairing" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
     assert [baseline_migration] = Path.wildcard("priv/repo/migrations/*_initial_regents_app.exs")
+    assert [agent_pairing_migration] = Path.wildcard("priv/repo/migrations/*_agent_pairing.exs")
 
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
-             Enum.sort([extensions_migration, baseline_migration])
+             Enum.sort([extensions_migration, baseline_migration, agent_pairing_migration])
 
     assert_extension_migration(extensions_migration)
 

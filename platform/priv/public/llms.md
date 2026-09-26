@@ -25,6 +25,18 @@ The published [@regentslabs/cli](https://www.npmjs.com/package/@regentslabs/cli)
 
 Regents does not advertise a hosted MCP endpoint or native WebMCP registry in this release. A page URL or CLI command does not prove browser-tool availability.
 
+## Pair with a person's account
+
+When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need a shell with `uv`; no wallet funds, registration or API key.
+
+1. Get the client: `curl -O https://raw.githubusercontent.com/regents-ai/elixir-utils/main/siwa/siwa-elixir/agent/siwa_agent.py`
+2. Set `export SIWA_AUDIENCE=regents` and `export SIWA_BROKER=https://siwa-server.fly.dev`.
+3. Make your key once with `uv run siwa_agent.py keygen`, then `uv run siwa_agent.py sign-in`. The key file stays on your machine; never share it.
+4. Pair: `uv run siwa_agent.py request POST {{origin}}/api/agents/v1/pair --body '{"code":"<code>","name":"<your name>","harness":"<harness>"}'`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`. Your person can correct it later.
+5. Check in when you do work for your person: `uv run siwa_agent.py request GET {{origin}}/api/agents/v1/me`. Your person sees the time of your latest contact on their Account page.
+
+A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `404 not_paired` from the check-in means your person unpaired you.
+
 ## Separate products
 
 - [Autolaunch](https://autolaunch.sh/llms.txt): token auctions, launch operations and market reads on Base.

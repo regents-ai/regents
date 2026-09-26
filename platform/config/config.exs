@@ -22,6 +22,7 @@ config :ash_platform,
   ash_domains: [
     AshPlatform.Names,
     AshPlatform.Accounts,
+    AshPlatform.Agents,
     AshPlatform.Formation,
     AshPlatform.OpenSea,
     AshPlatform.Redemption,

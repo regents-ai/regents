@@ -1,61 +1,45 @@
-defmodule AshPlatform.Formation.AgentPairingCode.Issued do
+defmodule AshPlatform.Agents.PairingCode.Issued do
   @moduledoc false
   @enforce_keys [:code, :expires_at]
   defstruct [:code, :expires_at]
 end
 
-defmodule AshPlatform.Formation.AgentPairingCode.Actions.Issue do
+defmodule AshPlatform.Agents.PairingCode.Actions.Issue do
   @moduledoc false
   use Ash.Resource.Actions.Implementation
 
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Formation.{AgentPairingCode, Regent}
+  alias AshPlatform.Agents.PairingCode
 
   @ttl_seconds 600
   @rate_limit_seconds 60
 
   @impl true
-  def run(%{arguments: %{regent_id: regent_id}}, _opts, %{actor: %Human{} = actor}) do
-    case owned_regent(actor) do
-      {:ok, %{id: ^regent_id}} -> issue(regent_id, actor)
-      _ -> {:error, "Regent was not found for this account"}
-    end
-  end
-
-  def run(_input, _opts, _context), do: {:error, "a signed-in human is required"}
-
-  defp issue(regent_id, actor) do
+  def run(_input, _opts, %{actor: %Human{} = actor}) do
     code = :crypto.strong_rand_bytes(18) |> Base.url_encode64(padding: false)
     now = clock().()
     expires_at = DateTime.add(now, @ttl_seconds, :second)
 
-    Ash.DataLayer.transaction(AgentPairingCode, fn ->
+    Ash.DataLayer.transaction(PairingCode, fn ->
       with {:ok, _result} <- lock_human(actor.human_account_id),
            {:ok, existing} <- pairing_code(actor),
            :ok <- admit_issue(existing, now),
-           {:ok, _record} <- store(existing, regent_id, code, now, expires_at, actor) do
-        %AshPlatform.Formation.AgentPairingCode.Issued{
-          code: code,
-          expires_at: expires_at
-        }
+           {:ok, _record} <- store(existing, code, now, expires_at, actor) do
+        %PairingCode.Issued{code: code, expires_at: expires_at}
       else
-        {:error, error} -> Ash.DataLayer.rollback(AgentPairingCode, error)
+        {:error, error} -> Ash.DataLayer.rollback(PairingCode, error)
       end
     end)
   end
 
-  defp owned_regent(actor) do
-    Regent
-    |> Ash.Query.for_read(:my_regent, %{}, actor: actor)
-    |> Ash.read_one()
-  end
+  def run(_input, _opts, _context), do: {:error, "a signed-in human is required"}
 
   defp lock_human(human_account_id) do
     AshPlatform.Repo.query("SELECT pg_advisory_xact_lock($1)", [human_account_id])
   end
 
   defp pairing_code(actor) do
-    AgentPairingCode
+    PairingCode
     |> Ash.Query.for_read(:for_human, %{}, actor: actor)
     |> Ash.Query.lock(:for_update)
     |> Ash.read_one()
@@ -66,17 +50,18 @@ defmodule AshPlatform.Formation.AgentPairingCode.Actions.Issue do
   defp admit_issue(%{issued_at: issued_at}, now) do
     if DateTime.diff(now, issued_at, :second) >= @rate_limit_seconds,
       do: :ok,
-      else: {:error, "a pairing code was created recently"}
+      else:
+        {:error,
+         Ash.Error.Invalid.Unavailable.exception(resource: PairingCode, reason: :issued_recently)}
   end
 
-  defp store(nil, regent_id, code, now, expires_at, actor) do
-    AgentPairingCode
+  defp store(nil, code, now, expires_at, actor) do
+    PairingCode
     |> Ash.Changeset.for_create(
       :store,
       %{
         human_account_id: actor.human_account_id,
-        regent_id: regent_id,
-        code_hash: code_hash(code),
+        code_hash: PairingCode.hash(code),
         issued_at: now,
         expires_at: expires_at
       },
@@ -85,32 +70,28 @@ defmodule AshPlatform.Formation.AgentPairingCode.Actions.Issue do
     |> Ash.create()
   end
 
-  defp store(existing, regent_id, code, now, expires_at, actor) do
+  defp store(existing, code, now, expires_at, actor) do
     existing
     |> Ash.Changeset.for_update(
       :replace,
-      %{
-        regent_id: regent_id,
-        code_hash: code_hash(code),
-        issued_at: now,
-        expires_at: expires_at,
-        used_at: nil
-      },
+      %{code_hash: PairingCode.hash(code), issued_at: now, expires_at: expires_at, used_at: nil},
       actor: actor
     )
     |> Ash.update()
   end
 
-  defp code_hash(code), do: :crypto.hash(:sha256, code) |> Base.encode16(case: :lower)
-
-  defp clock,
-    do: Application.get_env(:ash_platform, :agent_pairing_clock, &DateTime.utc_now/0)
+  defp clock, do: Application.fetch_env!(:ash_platform, :agent_pairing_clock)
 end
 
-defmodule AshPlatform.Formation.AgentPairingCode do
+defmodule AshPlatform.Agents.PairingCode do
+  @moduledoc """
+  The one short-lived code a signed-in person hands their agent. Only its hash
+  is kept; an agent that signs a request with it joins the person's account.
+  """
+
   use Ash.Resource,
     otp_app: :ash_platform,
-    domain: AshPlatform.Formation,
+    domain: AshPlatform.Agents,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
@@ -134,22 +115,17 @@ defmodule AshPlatform.Formation.AgentPairingCode do
       allow_nil? false
       attribute_type :integer
     end
-
-    belongs_to :regent, AshPlatform.Formation.Regent do
-      allow_nil? false
-    end
   end
 
   actions do
     action :issue, :struct do
-      constraints instance_of: AshPlatform.Formation.AgentPairingCode.Issued
-      argument :regent_id, :uuid, allow_nil?: false
-      run AshPlatform.Formation.AgentPairingCode.Actions.Issue
+      constraints instance_of: AshPlatform.Agents.PairingCode.Issued
+      run AshPlatform.Agents.PairingCode.Actions.Issue
     end
 
     create :store do
       public? false
-      accept [:human_account_id, :regent_id, :code_hash, :issued_at, :expires_at]
+      accept [:human_account_id, :code_hash, :issued_at, :expires_at]
     end
 
     read :for_human do
@@ -168,7 +144,7 @@ defmodule AshPlatform.Formation.AgentPairingCode do
     update :replace do
       public? false
       require_atomic? false
-      accept [:regent_id, :code_hash, :issued_at, :expires_at, :used_at]
+      accept [:code_hash, :issued_at, :expires_at, :used_at]
     end
 
     update :consume do
@@ -179,12 +155,8 @@ defmodule AshPlatform.Formation.AgentPairingCode do
   end
 
   policies do
-    policy action(:issue) do
-      authorize_if AshPlatform.Formation.Checks.HumanActor
-    end
-
-    policy action([:store, :for_human, :replace]) do
-      authorize_if AshPlatform.Formation.Checks.HumanActor
+    policy action([:issue, :store, :for_human, :replace]) do
+      authorize_if AshPlatform.Accounts.Checks.HumanActor
     end
 
     policy action([:store, :for_human, :replace]) do
@@ -204,9 +176,7 @@ defmodule AshPlatform.Formation.AgentPairingCode do
   postgres do
     table "agent_pairing_codes"
     repo(AshPlatform.Repo)
-
-    custom_indexes do
-      index([:regent_id])
-    end
   end
+
+  def hash(code), do: :crypto.hash(:sha256, code) |> Base.encode16(case: :lower)
 end

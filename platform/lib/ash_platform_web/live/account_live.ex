@@ -1,8 +1,8 @@
 defmodule AshPlatformWeb.AccountLive do
   @moduledoc """
   The signed-in person's own page: who the site knows them as, the wallets
-  their sign-in verified, the names those wallets hold and the accounts they
-  have connected.
+  their sign-in verified, the agents they have paired, the names those wallets
+  hold and the accounts they have connected.
 
   Everything here is read from the sign-in the shell already holds; nothing on
   the page asks the visitor to sign in again.
@@ -10,6 +10,7 @@ defmodule AshPlatformWeb.AccountLive do
 
   use AshPlatformWeb, :html
 
+  import AshPlatformWeb.Components.PairedAgents
   import AshPlatformWeb.Components.VerifiedConnections
 
   alias AshPlatform.PublicIdentity
@@ -23,6 +24,10 @@ defmodule AshPlatformWeb.AccountLive do
   attr :claim_name, :map, required: true
   attr :verified_connections, :list, default: []
   attr :verified_connections_notice, :map, default: nil
+  attr :agents, :any, default: nil
+  attr :agent_pairing, :any, default: nil
+  attr :agent_detail, :map, default: nil
+  attr :agents_now, DateTime, default: nil
 
   def page(assigns) do
     ~H"""
@@ -31,7 +36,7 @@ defmodule AshPlatformWeb.AccountLive do
         <p class="account-kicker">Regents Labs</p>
         <h1 tabindex="-1">Account</h1>
         <p class="account-lede">
-          The wallet you signed in with, the names it holds and the accounts you have connected.
+          The wallet you signed in with, your agents, the names it holds and the accounts you have connected.
         </p>
       </header>
 
@@ -113,6 +118,13 @@ defmodule AshPlatformWeb.AccountLive do
             </div>
           </dl>
         </section>
+
+        <.paired_agents
+          agents={@agents}
+          pairing={@agent_pairing}
+          detail={@agent_detail}
+          now={@agents_now}
+        />
 
         <section class="account-panel account-names" aria-labelledby="account-names-title">
           <div class="account-names__heading">

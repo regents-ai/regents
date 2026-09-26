@@ -3,7 +3,6 @@ defmodule AshPlatform.AgentAuth.VerificationClientTest do
 
   alias AshPlatform.AgentAuth.{SiwaHttpVerificationClient, VerificationClient}
 
-  @registry "0x1111111111111111111111111111111111111111"
   @wallet "0x2222222222222222222222222222222222222222"
 
   setup do
@@ -57,24 +56,25 @@ defmodule AshPlatform.AgentAuth.VerificationClientTest do
 
       assert Jason.decode!(body) == %{
                "method" => "POST",
-               "path" => "/api/formation/v1/regents/regent-id/agent-links/claim",
+               "path" => "/api/agents/v1/pair",
                "headers" => %{"signature" => "sig", "x-key-id" => "agent-key"},
-               "body" => "temporary-code"
+               "body" => ~s({"code":"temporary-code"})
              }
 
-      Req.Test.json(conn, verified_body(String.upcase(@registry), String.upcase(@wallet)))
+      Req.Test.json(conn, verified_body(String.upcase(@wallet)))
     end)
 
     assert {:ok, identity} = SiwaHttpVerificationClient.verify(envelope())
     assert identity == identity()
   end
 
-  test "rejections, malformed responses, and unexpected chain identity fail closed" do
+  test "rejections, malformed responses, and a wallet for another chain or site fail closed" do
     for {status, body, expected} <- [
           {401, %{"code" => "http_envelope_invalid"}, :verification_failed},
           {500, %{"error" => "unavailable"}, :verification_failed},
           {200, %{"data" => %{"verified" => true}}, :invalid_verification_response},
-          {200, verified_body(@registry, @wallet, 1), :invalid_verification_response}
+          {200, verified_body(@wallet, 1), :invalid_verification_response},
+          {200, verified_body(@wallet, 8453, "patchbay"), :invalid_verification_response}
         ] do
       Req.Test.expect(__MODULE__, fn conn ->
         conn |> Plug.Conn.put_status(status) |> Req.Test.json(body)
@@ -113,33 +113,24 @@ defmodule AshPlatform.AgentAuth.VerificationClientTest do
   defp envelope do
     %{
       method: "POST",
-      path: "/api/formation/v1/regents/regent-id/agent-links/claim",
+      path: "/api/agents/v1/pair",
       headers: %{"signature" => "sig", "x-key-id" => "agent-key"},
-      body: "temporary-code"
+      body: ~s({"code":"temporary-code"})
     }
   end
 
-  defp identity do
-    %{
-      agent_id: "eip155:8453:erc8004:#{@registry}:7",
-      registry_address: @registry,
-      token_id: "7",
-      wallet: @wallet
-    }
-  end
+  defp identity, do: %{wallet: @wallet}
 
-  defp verified_body(registry, wallet, chain_id \\ 8453) do
+  defp verified_body(wallet, chain_id \\ 8453, audience \\ "ash-platform-test") do
     %{
       "code" => "http_envelope_valid",
       "data" => %{
         "verified" => true,
-        "chainId" => chain_id,
-        "agent_claims" => %{
-          "agent_id" => "eip155:8453:erc8004:#{@registry}:7",
-          "registry_address" => registry,
-          "token_id" => "7",
+        "principal" => %{
+          "kind" => "wallet",
           "wallet_address" => wallet,
-          "chain_id" => chain_id
+          "chain_id" => chain_id,
+          "audience" => audience
         }
       }
     }

@@ -1,0 +1,129 @@
+defmodule AshPlatformWeb.AccountAgentsLiveTest do
+  use AshPlatformWeb.ConnCase, async: false
+
+  alias AshPlatform.{Accounts, Agents}
+  alias AshPlatform.Actors.{Human, System}
+
+  @agent_wallet "0x2222222222222222222222222222222222222222"
+
+  test "a person makes a pairing code to send their agent, and a second press keeps it", %{
+    conn: conn
+  } do
+    account = register_account("agents-code")
+    view = open_account(conn, account)
+
+    assert has_element?(view, "#account-agents p", "No agents are paired yet.")
+
+    view |> element("#account-agents-pair") |> render_click()
+    assert has_element?(view, "#account-agents-pairing pre", "Pair with my Regents account.")
+    assert has_element?(view, "#account-agents-pairing pre", "https://regents.sh/llms.txt")
+    code = pairing_code(view)
+
+    view |> element("#account-agents-pair") |> render_click()
+    assert pairing_code(view) == code
+
+    assert {:ok, agent} =
+             Agents.pair_agent(code, @agent_wallet, "Sol", :hermes, actor: %System{})
+
+    assert render(view) =~ "Sol"
+    assert has_element?(view, "#agent-#{agent.id} .account-agent__who span", "Hermes")
+    assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/hermes.png"]))
+    assert has_element?(view, "#agent-#{agent.id} .account-agent__contact", "just now")
+  end
+
+  test "an agent opens into its details, can be corrected and unpaired", %{conn: conn} do
+    account = register_account("agents-detail")
+    agent = pair!(account, "Muse helper", :muse)
+    view = open_account(conn, account)
+
+    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+
+    assert has_element?(view, "#account-agent-dialog[data-open] h2", "Muse helper")
+    assert has_element?(view, "#account-agent-dialog dd", @agent_wallet)
+    assert has_element?(view, "#account-agent-dialog dt", "First paired")
+
+    assert has_element?(
+             view,
+             "#account-agent-dialog .account-agent-dialog__log li",
+             "Paired with your account"
+           )
+
+    assert {:ok, _agent} = Agents.check_in_agent(@agent_wallet, actor: %System{})
+    assert has_element?(view, "#account-agent-dialog .account-agent-dialog__log li", "Checked in")
+
+    view
+    |> form("#account-agent-harness-form", %{"harness" => "pi"})
+    |> render_change(%{"agent" => agent.id})
+
+    assert has_element?(view, "#account-agent-dialog .account-kicker", "Pi")
+    assert has_element?(view, "#agent-#{agent.id} .account-agent__mark span", "P")
+
+    view |> element("#account-agent-dialog button", "Unpair") |> render_click()
+
+    refute has_element?(view, "#account-agent-dialog")
+    refute has_element?(view, "#agent-#{agent.id}")
+    assert {:ok, []} = Agents.list_my_agents(actor: %Human{human_account_id: account.id})
+  end
+
+  test "closing the details leaves only the cards", %{conn: conn} do
+    account = register_account("agents-close")
+    agent = pair!(account, "Grok", :grok_bot)
+    view = open_account(conn, account)
+
+    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    assert has_element?(view, "#account-agent-dialog")
+
+    render_hook(view, "close_agent", %{})
+    refute has_element?(view, "#account-agent-dialog")
+    assert has_element?(view, "#agent-#{agent.id}")
+  end
+
+  test "another person's agent can't be opened, corrected or unpaired", %{conn: conn} do
+    owner = register_account("agents-owner")
+    agent = pair!(owner, "Private", :hermes)
+    other = register_account("agents-other")
+    view = open_account(conn, other)
+
+    render_hook(view, "open_agent", %{"id" => agent.id})
+    refute has_element?(view, "#account-agent-dialog")
+
+    render_hook(view, "change_agent_harness", %{"agent" => agent.id, "harness" => "pi"})
+    render_hook(view, "unpair_agent", %{"id" => agent.id})
+
+    assert {:ok, [%{harness: :hermes}]} =
+             Agents.list_my_agents(actor: %Human{human_account_id: owner.id})
+  end
+
+  defp pair!(account, name, harness) do
+    issued = Agents.issue_pairing_code!(actor: %Human{human_account_id: account.id})
+    Agents.pair_agent!(issued.code, @agent_wallet, name, harness, actor: %System{})
+  end
+
+  defp pairing_code(view) do
+    [_, code] = Regex.run(~r/Pairing code: ([A-Za-z0-9_-]+)/, render(view))
+    code
+  end
+
+  # A primary name read today keeps the page from asking Ethereum again.
+  defp open_account(conn, account) do
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    view
+  end
+
+  defp register_account(suffix) do
+    unique = Elixir.System.unique_integer([:positive])
+    wallet = "0x" <> String.pad_leading(Integer.to_string(unique, 16), 40, "0")
+
+    account =
+      Accounts.register_verified!("did:privy:#{suffix}:#{unique}", wallet, [wallet],
+        actor: %System{}
+      )
+
+    Accounts.put_ens_identity(account.id, "#{suffix}.eth", nil, actor: %System{})
+    account
+  end
+end

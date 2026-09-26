@@ -7,6 +7,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.{
     Accounts,
+    Agents,
     Ens,
     Formation,
     Names,
@@ -17,6 +18,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.Accounts.LinkedIdentity.Providers
   alias AshPlatform.Actors.Human
+  alias AshPlatform.Agents.{PairedAgent, PairingCode}
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.Staking.Facts, as: StakingFacts
   alias AshPlatform.Staking.SnapshotCache
@@ -49,8 +51,12 @@ defmodule AshPlatformWeb.ShellLive do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
     socket = assign(socket, :theme, session["theme"])
 
-    if connected?(socket),
-      do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+
+      with %Human{human_account_id: id} <- human_actor(socket),
+           do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, PairedAgent.topic(id))
+    end
 
     {:ok,
      socket
@@ -63,6 +69,10 @@ defmodule AshPlatformWeb.ShellLive do
        account_claim_name: @blank_claim_name,
        verified_connections: [],
        verified_connections_notice: nil,
+       paired_agents: nil,
+       agent_pairing: nil,
+       agent_detail: nil,
+       agents_now: DateTime.utc_now(),
        route_params: params,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
@@ -111,6 +121,7 @@ defmodule AshPlatformWeb.ShellLive do
       |> load_verified_connections(route_spec)
       |> load_account_names(route_spec)
       |> load_account_claims(route_spec)
+      |> load_paired_agents(route_spec)
       |> assign_position_wallet(route_spec)
 
     cond do
@@ -368,6 +379,56 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event("claim_name", _params, socket), do: {:noreply, socket}
 
+  def handle_event(
+        "issue_pairing_code",
+        _params,
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      ),
+      do: {:noreply, assign(socket, agent_pairing: issue_pairing_code(socket))}
+
+  def handle_event(
+        "open_agent",
+        %{"id" => id},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      )
+      when is_binary(id),
+      do: {:noreply, assign(socket, agent_detail: agent_detail(id, human_actor(socket)))}
+
+  def handle_event("close_agent", _params, socket),
+    do: {:noreply, assign(socket, agent_detail: nil)}
+
+  def handle_event(
+        "change_agent_harness",
+        %{"agent" => id, "harness" => harness},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      )
+      when is_binary(id) and is_binary(harness) do
+    actor = human_actor(socket)
+
+    with {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor),
+         do: Agents.change_agent_harness(agent, harness, actor: actor)
+
+    {:noreply, reload_paired_agents(socket, actor)}
+  end
+
+  def handle_event(
+        "unpair_agent",
+        %{"id" => id},
+        %{assigns: %{route_spec: %{route_id: :account}}} = socket
+      )
+      when is_binary(id) do
+    actor = human_actor(socket)
+
+    with {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor),
+         do: Agents.unpair_agent(agent, actor: actor)
+
+    {:noreply, reload_paired_agents(socket, actor)}
+  end
+
+  def handle_event(event, _params, socket)
+      when event in ~w(issue_pairing_code open_agent change_agent_harness unpair_agent),
+      do: {:noreply, socket}
+
   # The browser only reports how its side ended. Whether the connection really
   # landed is read from the account's own record, so the page never says
   # "connected" on the browser's word alone.
@@ -511,6 +572,12 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
+
+  # An agent paired, checked in, or was changed from another tab.
+  def handle_info(:agents_changed, %{assigns: %{route_spec: %{route_id: :account}}} = socket),
+    do: {:noreply, reload_paired_agents(socket, human_actor(socket))}
+
+  def handle_info(:agents_changed, socket), do: {:noreply, socket}
 
   # Only the pages that asked for the reading hear that it failed, and what they
   # were already showing stays on screen.
@@ -687,6 +754,10 @@ defmodule AshPlatformWeb.ShellLive do
           claim_name={@account_claim_name}
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
+          agents={@paired_agents}
+          agent_pairing={@agent_pairing}
+          agent_detail={@agent_detail}
+          agents_now={@agents_now}
         />
 
         <.page
@@ -1111,6 +1182,66 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp load_account_names(socket, _route_spec), do: assign(socket, account_names: nil)
+
+  defp load_paired_agents(socket, %{route_id: :account}) do
+    case human_actor(socket) do
+      %Human{} = actor -> reload_paired_agents(socket, actor)
+      nil -> assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil)
+    end
+  end
+
+  defp load_paired_agents(socket, _route_spec),
+    do: assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil)
+
+  # The open agent is read again with the list, so its dialog closes on its own
+  # once the agent is unpaired.
+  defp reload_paired_agents(socket, actor) do
+    agents =
+      case Agents.list_my_agents(actor: actor) do
+        {:ok, agents} -> agents
+        {:error, _error} -> :unavailable
+      end
+
+    detail =
+      case socket.assigns.agent_detail do
+        %{agent: %{id: id}} -> agent_detail(id, actor)
+        nil -> nil
+      end
+
+    assign(socket, paired_agents: agents, agent_detail: detail, agents_now: DateTime.utc_now())
+  end
+
+  defp agent_detail(id, actor) do
+    case Agents.get_my_agent(id, actor: actor) do
+      {:ok, %PairedAgent{} = agent} -> %{agent: agent, activity: agent_activity(agent, actor)}
+      _missing -> nil
+    end
+  end
+
+  defp agent_activity(agent, actor) do
+    case Agents.recent_agent_activity(agent.id, actor: actor) do
+      {:ok, activity} -> activity
+      {:error, _error} -> :unavailable
+    end
+  end
+
+  # A code already on screen stays there while a new one can't be made yet.
+  defp issue_pairing_code(socket) do
+    case Agents.issue_pairing_code(actor: human_actor(socket)) do
+      {:ok, issued} ->
+        issued
+
+      {:error,
+       %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :issued_recently}]}} ->
+        case socket.assigns.agent_pairing do
+          %PairingCode.Issued{} = shown -> shown
+          _none -> :wait
+        end
+
+      {:error, _error} ->
+        :unavailable
+    end
+  end
 
   # The list is oldest first and grows a page at a time as the reader reaches
   # its end. The rows go to the browser and only the place to continue from is

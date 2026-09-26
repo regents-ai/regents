@@ -8,12 +8,7 @@ defmodule AshPlatform.AgentAuth.VerificationClient do
           required(:body) => String.t() | nil
         }
 
-  @type verified_identity :: %{
-          required(:agent_id) => String.t(),
-          required(:registry_address) => String.t(),
-          required(:token_id) => String.t(),
-          required(:wallet) => String.t()
-        }
+  @type verified_identity :: %{required(:wallet) => String.t()}
 
   @callback verify(envelope()) :: {:ok, verified_identity()} | {:error, atom()}
 

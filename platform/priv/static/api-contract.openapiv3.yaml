@@ -3,50 +3,60 @@ info:
   title: Regent API
   version: 1.0.0
 paths:
-  /api/formation/v1/regents/{regent_id}/agent-links:
-    get:
-      operationId: listRegentAgentLinks
-      security: [{cookieSession: []}]
-      parameters:
-        - {$ref: "#/components/parameters/RegentId"}
-      responses:
-        "200":
-          description: Agent identities paired with the signed-in human's Regent
-          content:
-            application/json:
-              schema: {$ref: "#/components/schemas/AgentLinkListEnvelope"}
-        "401": {$ref: "#/components/responses/AgentPairingUnauthorized"}
-        "404": {$ref: "#/components/responses/AgentPairingNotFound"}
-  /api/formation/v1/regents/{regent_id}/agent-links/claim:
+  /api/agents/v1/pair:
     post:
-      operationId: claimRegentAgentLink
+      operationId: pairAgent
       security: []
       parameters:
-        - {$ref: "#/components/parameters/RegentId"}
         - {$ref: "#/components/parameters/SiwaReceipt"}
         - {$ref: "#/components/parameters/SiwaKeyId"}
         - {$ref: "#/components/parameters/SiwaTimestamp"}
         - {$ref: "#/components/parameters/SiwaAgentWallet"}
         - {$ref: "#/components/parameters/SiwaAgentChainId"}
-        - {$ref: "#/components/parameters/SiwaAgentRegistry"}
-        - {$ref: "#/components/parameters/SiwaAgentTokenId"}
         - {$ref: "#/components/parameters/HttpSignatureInput"}
         - {$ref: "#/components/parameters/HttpSignature"}
         - {$ref: "#/components/parameters/ContentDigest"}
       requestBody:
         required: true
         content:
-          text/plain:
-            schema: {type: string, minLength: 1, maxLength: 128}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code, name, harness]
+              properties:
+                code: {type: string, minLength: 1, maxLength: 128}
+                name: {type: string, minLength: 1, maxLength: 80}
+                harness: {$ref: "#/components/schemas/AgentHarness"}
       responses:
         "201":
-          description: Agent identity paired with the Regent
+          description: The agent is paired with the account that issued the code
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/AgentLinkEnvelope"}
+              schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
         "400": {$ref: "#/components/responses/AgentPairingFailed"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
         "429": {$ref: "#/components/responses/AgentClaimRateLimited"}
+  /api/agents/v1/me:
+    get:
+      operationId: checkInAgent
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/SiwaReceipt"}
+        - {$ref: "#/components/parameters/SiwaKeyId"}
+        - {$ref: "#/components/parameters/SiwaTimestamp"}
+        - {$ref: "#/components/parameters/SiwaAgentWallet"}
+        - {$ref: "#/components/parameters/SiwaAgentChainId"}
+        - {$ref: "#/components/parameters/HttpSignatureInput"}
+        - {$ref: "#/components/parameters/HttpSignature"}
+      responses:
+        "200":
+          description: The paired agent, with this check-in recorded as its latest contact
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
+        "401": {$ref: "#/components/responses/AgentVerificationFailed"}
+        "404": {$ref: "#/components/responses/AgentNotPaired"}
   /auth/csrf:
     get:
       operationId: getBrowserCsrf
@@ -119,11 +129,6 @@ paths:
         "200": {$ref: "#/components/responses/Session"}
 components:
   parameters:
-    RegentId:
-      name: regent_id
-      in: path
-      required: true
-      schema: {type: string, format: uuid}
     SiwaReceipt:
       name: x-siwa-receipt
       in: header
@@ -149,16 +154,6 @@ components:
       in: header
       required: true
       schema: {type: string, const: "8453"}
-    SiwaAgentRegistry:
-      name: x-agent-registry-address
-      in: header
-      required: true
-      schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
-    SiwaAgentTokenId:
-      name: x-agent-token-id
-      in: header
-      required: true
-      schema: {type: string, minLength: 1}
     HttpSignatureInput:
       name: signature-input
       in: header
@@ -180,7 +175,6 @@ components:
       scheme: bearer
       bearerFormat: Privy access token
     privyIdentityToken: {type: apiKey, in: header, name: privy-id-token}
-    cookieSession: {type: apiKey, in: cookie, name: _ash_platform_key}
     csrfToken: {type: apiKey, in: header, name: x-csrf-token}
   responses:
     Session:
@@ -210,22 +204,14 @@ components:
             properties: {ok: {type: boolean, const: true}}
     CsrfForbidden:
       description: CSRF token was absent or invalid
-    AgentPairingUnauthorized:
-      description: No signed-in session accompanied the request
+    AgentNotPaired:
+      description: The signing agent is not paired with an account
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
-            authenticationRequired:
-              value: {error: {code: authentication_required, message: Sign in to see this Regent's agent links.}}
-    AgentPairingNotFound:
-      description: The Regent was not found for the signed-in human
-      content:
-        application/json:
-          schema: {$ref: "#/components/schemas/AgentPairingError"}
-          examples:
-            notFound:
-              value: {error: {code: not_found, message: The Regent was not found.}}
+            notPaired:
+              value: {error: {code: not_paired, message: This agent is not paired with an account. Ask your person for a pairing code.}}
     AgentPairingFailed:
       description: The pairing code could not be claimed
       content:
@@ -251,32 +237,25 @@ components:
             rateLimited:
               value: {error: {code: rate_limited, message: Too many pairing attempts. Please wait and try again.}}
   schemas:
-    AgentLinkListEnvelope:
+    PairedAgentEnvelope:
       type: object
       additionalProperties: false
       required: [data]
       properties:
-        data:
-          type: array
-          items: {$ref: "#/components/schemas/AgentLink"}
-    AgentLinkEnvelope:
+        data: {$ref: "#/components/schemas/PairedAgent"}
+    PairedAgent:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [name, harness, wallet, paired_at, last_contact_at]
       properties:
-        data: {$ref: "#/components/schemas/AgentLink"}
-    AgentLink:
-      type: object
-      additionalProperties: false
-      required: [id, regent_id, agent_id, registry_address, token_id, wallet, paired_at]
-      properties:
-        id: {type: string, format: uuid}
-        regent_id: {type: string, format: uuid}
-        agent_id: {type: string, minLength: 1}
-        registry_address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
-        token_id: {type: string, minLength: 1}
+        name: {type: string, minLength: 1, maxLength: 80}
+        harness: {$ref: "#/components/schemas/AgentHarness"}
         wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
         paired_at: {type: string, format: date-time}
+        last_contact_at: {type: string, format: date-time}
+    AgentHarness:
+      type: string
+      enum: [hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi]
     AgentPairingError:
       type: object
       additionalProperties: false
@@ -287,7 +266,7 @@ components:
           additionalProperties: false
           required: [code, message]
           properties:
-            code: {type: string, enum: [authentication_required, not_found, pairing_failed, verification_failed, rate_limited]}
+            code: {type: string, enum: [pairing_failed, verification_failed, rate_limited, not_paired]}
             message: {type: string}
     Session:
       type: object

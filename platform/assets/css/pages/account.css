@@ -175,6 +175,233 @@
   list-style: none;
 }
 
+/* Your agents: one card per agent, the whole card opens its details and the
+   unpair button sits beneath it. */
+
+.account-agents {
+  grid-column: 1 / -1;
+}
+
+.account-agents__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-agent {
+  display: grid;
+  align-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ash-line);
+}
+
+.account-agent > button:last-child {
+  justify-self: start;
+}
+
+.account-agent__open:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.account-agent__open:focus-visible {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 4px;
+}
+
+.account-agent__mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  border: 1px solid var(--ash-line);
+  background: var(--ash-ground);
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+}
+
+.account-agent__mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.account-agent__who {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.account-agent__who strong {
+  overflow-wrap: anywhere;
+}
+
+.account-agent__who span,
+.account-agent__contact {
+  color: var(--ash-muted);
+}
+
+.account-agent__contact {
+  grid-column: 1 / -1;
+  font-size: 0.9rem;
+}
+
+.account-agents__pair {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.account-agents__code {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  width: 100%;
+}
+
+.account-agents__code pre {
+  width: 100%;
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  border: 1px solid var(--ash-line);
+  background: var(--ash-ground);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The agent's own view: who it is, when it paired, and what it has done. */
+
+.account-agent-dialog {
+  width: min(52rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: clamp(1.1rem, 4vw, 2rem);
+  border: 1px solid var(--ash-line-strong);
+  background: var(--ash-panel);
+  color: var(--ash-ink);
+}
+
+.account-agent-dialog::backdrop {
+  background: var(--ash-scrim);
+}
+
+.account-agent-dialog h2,
+.account-agent-dialog h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.account-agent-dialog h2 {
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.account-agent-dialog h3 {
+  font-size: 1.15rem;
+}
+
+.account-agent-dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.account-agent-dialog__header .account-agent__mark {
+  flex: none;
+  width: 4rem;
+  height: 4rem;
+}
+
+.account-agent-dialog__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0 1.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.account-agent-dialog__facts > div {
+  display: grid;
+  gap: 0.35rem;
+  padding-block: 0.75rem;
+  border-block-start: 1px solid var(--ash-line);
+}
+
+.account-agent-dialog__facts dt {
+  color: var(--ash-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.account-agent-dialog__facts dd {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-agent-dialog__facts dd > span {
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+}
+
+.account-agent-dialog__facts select {
+  max-width: 100%;
+}
+
+.account-agent-dialog__activity {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1.5rem;
+}
+
+.account-agent-dialog__log {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--ash-line);
+  list-style: none;
+}
+
+.account-agent-dialog__log li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  padding-block: 0.65rem;
+  border-block-end: 1px solid var(--ash-line);
+}
+
+.account-agent-dialog__log li > span:nth-child(2),
+.account-agent-dialog__log time {
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+}
+
+.account-agent-dialog__log time {
+  grid-column: 1 / -1;
+}
+
+.account-agent-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.account-agent-dialog__actions form {
+  margin: 0;
+}
+
 /* Claimed Regent Names */
 
 .account-names__heading {
@@ -313,4 +540,22 @@
   }
 }
 
+}
+
+/* The native button keeps its own edge, size and surface, so the card opener
+   that fills each agent card is skinned outside the page layer to beat it. */
+.account-agent .account-agent__open {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.85rem;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
 }

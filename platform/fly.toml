@@ -9,6 +9,8 @@ primary_region = "iad"
 [env]
   PORT = "4000"
   ASH_PLATFORM_DEPLOYMENT_ROLE = "production"
+  SIWA_SERVER_URL = "https://siwa-server.fly.dev"
+  SIWA_AUDIENCE = "regents"
 
 [metrics]
   port = 4000

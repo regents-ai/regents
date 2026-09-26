@@ -16,7 +16,7 @@ defmodule AshPlatform.AgentAuth.SiwaHttpVerificationClient do
              )
            ) do
       case response.status do
-        200 -> normalize_verified_identity(response.body)
+        200 -> normalize_verified_identity(response.body, config.audience)
         _status -> {:error, :verification_failed}
       end
     else
@@ -53,37 +53,26 @@ defmodule AshPlatform.AgentAuth.SiwaHttpVerificationClient do
     }
   end
 
-  defp normalize_verified_identity(%{
-         "code" => "http_envelope_valid",
-         "data" => %{
-           "verified" => true,
-           "chainId" => @base_chain_id,
-           "agent_claims" => %{
-             "agent_id" => agent_id,
-             "registry_address" => registry_address,
-             "token_id" => token_id,
-             "wallet_address" => wallet,
-             "chain_id" => @base_chain_id
+  # An agent signs in with a key it made itself; the key's address is who it is.
+  defp normalize_verified_identity(
+         %{
+           "code" => "http_envelope_valid",
+           "data" => %{
+             "verified" => true,
+             "principal" => %{
+               "kind" => "wallet",
+               "wallet_address" => wallet,
+               "chain_id" => @base_chain_id,
+               "audience" => audience
+             }
            }
-         }
-       }) do
-    with true <- present?(agent_id),
-         true <- present?(token_id),
-         {:ok, registry_address} <- normalize_address(registry_address),
-         {:ok, wallet} <- normalize_address(wallet) do
-      {:ok,
-       %{
-         agent_id: agent_id,
-         registry_address: registry_address,
-         token_id: token_id,
-         wallet: wallet
-       }}
-    else
-      _ -> {:error, :invalid_verification_response}
-    end
+         },
+         audience
+       ) do
+    with {:ok, wallet} <- normalize_address(wallet), do: {:ok, %{wallet: wallet}}
   end
 
-  defp normalize_verified_identity(_body), do: {:error, :invalid_verification_response}
+  defp normalize_verified_identity(_body, _audience), do: {:error, :invalid_verification_response}
 
   defp normalize_address(value) when is_binary(value) do
     normalized = String.downcase(value)

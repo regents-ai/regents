@@ -43,7 +43,7 @@ defmodule AshPlatformWeb.Endpoint do
     guide: "/llms.txt"
 
   plug AshPlatformWeb.Plugs.Parsers,
-    body_reader: {RegentIdentity.BodyReader, :read_body, []},
+    body_reader: {AshPlatformWeb.Plugs.AgentBodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()

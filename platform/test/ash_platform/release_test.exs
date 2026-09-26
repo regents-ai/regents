@@ -179,10 +179,11 @@ defmodule AshPlatform.ReleaseTest do
 
     assert table_names(config, "regents_app") == [
              "account_ens_identities",
-             "agent_links",
+             "agent_activities",
              "agent_pairing_codes",
              "cloud_runtimes",
              "linked_identities",
+             "paired_agents",
              "regents",
              "schema_migrations",
              "session_authorities"

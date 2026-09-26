@@ -27,15 +27,6 @@ defmodule AshPlatformWeb.Router do
     plug :put_secure_browser_headers
   end
 
-  pipeline :session_api do
-    plug :accepts, ["json"]
-    plug AshPlatformWeb.Plugs.LaunchGate
-    plug :fetch_session
-    plug :enforce_session_authority
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
-  end
-
   def enforce_session_authority(conn, _opts) do
     AshPlatformWeb.PrivySessionController.enforce_authority(conn)
   end
@@ -91,16 +82,11 @@ defmodule AshPlatformWeb.Router do
     forward "/profile", RegentIdentity.HTTP, otp_app: :ash_platform
   end
 
-  scope "/api", AshPlatformWeb do
+  scope "/api/agents/v1", AshPlatformWeb do
     pipe_through :api
 
-    post "/formation/v1/regents/:regent_id/agent-links/claim", AgentLinkController, :claim
-  end
-
-  scope "/api", AshPlatformWeb do
-    pipe_through :session_api
-
-    get "/formation/v1/regents/:regent_id/agent-links", AgentLinkController, :index
+    post "/pair", AgentController, :pair
+    get "/me", AgentController, :me
   end
 
   scope "/", AshPlatformWeb do
