@@ -3,7 +3,6 @@ defmodule AshPlatformWeb.RegentProfileLive do
   use Phoenix.Component
 
   alias AshPlatform.PublicIdentity
-  alias AshPlatformWeb.Components.Loading
 
   attr :regent, :map, default: nil
   attr :status, :atom, required: true
@@ -11,13 +10,6 @@ defmodule AshPlatformWeb.RegentProfileLive do
   def page(assigns) do
     ~H"""
     <section id="public-regent-profile" class="regent-profile-page">
-      <Loading.panel
-        :if={@status == :loading}
-        id="regent-profile-skeleton"
-        label="Regent profile"
-        labels={["Verified wallet", "Formation", "Hermes"]}
-      />
-
       <div
         :if={@status == :error}
         class="regent-profile-status rg-panel rg-panel--surface rg-panel__body"
@@ -26,18 +18,8 @@ defmodule AshPlatformWeb.RegentProfileLive do
         This Regent profile is unavailable right now.
       </div>
 
-      <div
-        :if={@status == :empty}
-        class="regent-profile-status rg-panel rg-panel--surface rg-panel__body"
-      >
-        <p class="regent-profile-kicker">Regents Labs</p>
-        <h1>Regent not found</h1>
-        <p>This public Regent profile does not exist.</p>
-        <.link patch="/app">Return to Overview</.link>
-      </div>
-
       <article
-        :if={@status == :ready && @regent}
+        :if={@status == :ready}
         class="regent-profile-record rg-panel rg-panel--surface rg-panel__body"
       >
         <p class="regent-profile-kicker">Public Regent</p>
@@ -67,10 +49,6 @@ defmodule AshPlatformWeb.RegentProfileLive do
           <div>
             <dt>Formation</dt>
             <dd>Regent formed</dd>
-          </div>
-          <div>
-            <dt>Hermes</dt>
-            <dd>Hermes not connected</dd>
           </div>
         </dl>
       </article>

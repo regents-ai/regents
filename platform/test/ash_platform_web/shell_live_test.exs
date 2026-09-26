@@ -37,18 +37,14 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute_push_event(view, "verified-connections:request", _payload)
   end
 
-  test "direct deep links render the persistent shell and honest missing-record state", %{
-    conn: conn
-  } do
-    {:ok, view, html} = live(conn, "/regents/not-here")
+  test "direct deep links render the persistent shell", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/formation")
 
     assert html =~ ~s(id="app-shell")
     assert html =~ ~s(id="shell-header")
     assert html =~ ~s(id="shell-sidebar")
     assert html =~ ~s(id="app-shell-scroller")
     assert byte_size(html) <= 100 * 1024
-    assert html =~ "Regent not found"
-    assert render_async(view) =~ "This public Regent profile does not exist."
   end
 
   test "the switch states the theme the server just served", %{conn: conn} do
@@ -598,7 +594,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert has_element?(view, "#account-claim-title", "Claim a Regent Name")
     assert has_element?(view, "#account-claims-available", "You can claim 2 more names free.")
-    assert has_element?(view, "#account-claims-available", "You have 1 paid claim ready to use.")
+
+    assert has_element?(
+             view,
+             "#account-claims-available",
+             "You also have 1 paid claim, which this page can’t use yet."
+           )
+
     refute render(view) =~ "9 more"
     assert has_element?(view, "#account-claim-form input[name=name][value='']")
     assert has_element?(view, "#account-claim-availability[hidden]")
@@ -613,13 +615,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     {view, _html} = open_account(conn, account)
 
+    assert has_element?(view, "#account-claims-available", "No free claims on your wallets.")
+
     assert has_element?(
              view,
-             "#account-claims-available",
-             "No free claims on your wallets. Names cost 0.0025 ETH each."
+             ".account-claim__later",
+             "Names cost 0.0025 ETH each, and buying one from this page isn’t open yet."
            )
-
-    assert has_element?(view, ".account-claim__later", "isn’t open yet")
   end
 
   test "Account judges a typed name by the rules and by the names already claimed", %{

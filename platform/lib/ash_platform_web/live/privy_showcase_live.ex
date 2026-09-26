@@ -21,8 +21,9 @@ defmodule AshPlatformWeb.PrivyShowcaseLive do
     if connected?(socket), do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
 
     {:ok,
-     assign(socket,
-       page_title: "Privy integration",
+     socket
+     |> assign(AshPlatformWeb.PublicDocuments.page("/showcase/privy"))
+     |> assign(
        theme: session["theme"] || "dark",
        mode: ShowcaseLive.privy_mode(),
        protocol: SnapshotCache.snapshot(),

@@ -3,7 +3,8 @@ defmodule AshPlatformWeb.HoldingController do
 
   use AshPlatformWeb, :controller
 
-  def show(conn, _params), do: render(conn, :show, page_title: "Not open yet")
+  def show(conn, _params),
+    do: render(conn, :show, AshPlatformWeb.PublicDocuments.page(:holding))
 end
 
 defmodule AshPlatformWeb.HoldingHTML do

@@ -167,8 +167,9 @@ defmodule AshPlatformWeb.AccountLive do
             </Regent.Primitives.button>
           </form>
           <.claim_name_availability name={@claim_name} />
+          <%!-- The price is the one every paid claim on record was bought at. --%>
           <p :if={match?(%{free: 0}, @claims)} class="account-claim__later">
-            Paying for a name from this page isn’t open yet.
+            Names cost 0.0025 ETH each, and buying one from this page isn’t open yet.
           </p>
         </section>
 
@@ -283,23 +284,16 @@ defmodule AshPlatformWeb.AccountLive do
     """
   end
 
-  # The price is the one every paid claim on record was bought at.
-  defp claims_available(%{claims: %{free: 0, paid: 0}} = assigns) do
-    ~H"""
-    <p id="account-claims-available">
-      No free claims on your wallets. Names cost 0.0025 ETH each.
-    </p>
-    """
-  end
-
+  # Only free claims can be spent here; paid claims are counted but not usable.
   defp claims_available(assigns) do
     ~H"""
     <p id="account-claims-available">
       <span :if={@claims.free > 0}>
         You can claim {count(@claims.free, "more name", "more names")} free.
       </span>
+      <span :if={@claims.free == 0}>No free claims on your wallets.</span>
       <span :if={@claims.paid > 0}>
-        You have {count(@claims.paid, "paid claim", "paid claims")} ready to use.
+        You also have {count(@claims.paid, "paid claim", "paid claims")}, which this page can’t use yet.
       </span>
     </p>
     """

@@ -353,16 +353,6 @@ test("the Overview maps the four products, keeps account details secondary, and 
   ).toBeVisible()
 })
 
-test("an unknown public Regent profile is honest and keeps shell navigation available", async ({page}) => {
-  await page.goto("/regents/not-here")
-
-  await expect(page.locator("#public-regent-profile")).toBeVisible()
-  await expect(page.getByRole("heading", {name: "Regent not found"})).toBeVisible()
-  await expect(page.getByText("This public Regent profile does not exist.")).toBeVisible()
-  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
-  await expect(page.getByRole("link", {name: "Return to Overview"})).toHaveAttribute("href", "/app")
-})
-
 test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")

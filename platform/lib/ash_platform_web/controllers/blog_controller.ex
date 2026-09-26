@@ -1,13 +1,19 @@
 defmodule AshPlatformWeb.BlogController do
   use AshPlatformWeb, :controller
-  alias AshPlatformWeb.Blog
+  alias AshPlatformWeb.{Blog, PublicDocuments}
 
-  def index(conn, _params), do: render(conn, :index, page_title: "Blog", posts: Blog.all())
+  def index(conn, _params),
+    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/blog"))
 
   def show(conn, %{"slug" => slug}) do
     case Blog.get(slug) do
-      nil -> conn |> put_status(:not_found) |> render(:not_found, page_title: "Post not found")
-      post -> render(conn, :show, page_title: post.title, post: post)
+      nil ->
+        conn
+        |> put_status(:not_found)
+        |> render(:not_found, PublicDocuments.page(:blog_post_not_found))
+
+      post ->
+        render(conn, :show, [post: post] ++ PublicDocuments.page({:blog_post, post}))
     end
   end
 end

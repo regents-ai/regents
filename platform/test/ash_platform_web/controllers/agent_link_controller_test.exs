@@ -134,7 +134,12 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     Formation.claim_agent_link!(regent.id, issued.code, identity("listed"), actor: %System{})
     path = "/api/formation/v1/regents/#{regent.id}/agent-links"
 
-    assert conn |> get(path) |> json_response(401) == %{"error" => "unauthorized"}
+    assert conn |> get(path) |> json_response(401) == %{
+             "error" => %{
+               "code" => "authentication_required",
+               "message" => "Sign in to see this Regent's agent links."
+             }
+           }
 
     assert conn
            |> recycle()
@@ -154,7 +159,9 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     assert link["agent_id"] == "agent-listed"
   end
 
-  test "claim admission allows ten attempts per minute and isolates budgets by remote IP", %{
+  # Regression: behind Fly's proxy every caller shares the proxy's address, so
+  # the budget is keyed on the client address the proxy passes along.
+  test "claim admission allows ten attempts per minute per Fly client address", %{
     conn: conn
   } do
     {_account, _actor, regent} = account_and_regent!("rate-limit", @wallet)
@@ -164,6 +171,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
     for _attempt <- 1..10 do
       assert conn
              |> recycle()
+             |> from_client("203.0.113.7")
              |> raw_claim(regent, "well-formed-code")
              |> json_response(401) == verification_failed()
 
@@ -172,6 +180,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
 
     assert conn
            |> recycle()
+           |> from_client("203.0.113.7")
            |> raw_claim(regent, "well-formed-code")
            |> json_response(429) == rate_limited()
 
@@ -179,7 +188,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
 
     assert conn
            |> recycle()
-           |> from_ip({10, 0, 0, 2})
+           |> from_client("203.0.113.8")
            |> raw_claim(regent, "well-formed-code")
            |> json_response(401) == verification_failed()
 
@@ -192,6 +201,20 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
 
     assert conn |> raw_claim(regent, <<255>>) |> json_response(400) == pairing_failed()
     refute_received {:agent_verification, _envelope}
+  end
+
+  # Regression: the body parsers ran before the API error format was chosen, so
+  # a malformed JSON body got Phoenix's HTML 400 page.
+  test "a malformed JSON body on the API answers with the JSON error shape", %{conn: conn} do
+    {_status, headers, body} =
+      assert_error_sent 400, fn ->
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> post(claim_path(Ecto.UUID.generate()), "{not json")
+      end
+
+    assert {"content-type", "application/json; charset=utf-8"} in headers
+    assert %{"errors" => %{"code" => "bad_request"}} = Jason.decode!(body)
   end
 
   test "uppercase Regent UUIDs work for both claim and owner read", %{conn: conn} do
@@ -240,7 +263,7 @@ defmodule AshPlatformWeb.AgentLinkControllerTest do
   defp claim_path(regent_id),
     do: "/api/formation/v1/regents/#{regent_id}/agent-links/claim"
 
-  defp from_ip(conn, remote_ip), do: %{conn | remote_ip: remote_ip}
+  defp from_client(conn, address), do: put_req_header(conn, "fly-client-ip", address)
 
   defp account_and_regent!(suffix, wallet) do
     unique = Elixir.System.unique_integer([:positive])

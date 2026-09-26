@@ -5,6 +5,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.Human
   alias AshPlatform.AgentAuth.ClaimRateLimiter
+  alias AshPlatformWeb.ClientAddress
 
   require Logger
 
@@ -99,7 +100,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   defp admit_bootstrap(conn, nil) do
     budget = Application.fetch_env!(:ash_platform, :session_bootstrap_rate_limit)
     window = Keyword.fetch!(budget, :window_seconds)
-    {key, source} = client_key(conn)
+    {key, source} = ClientAddress.key(conn)
 
     case ClaimRateLimiter.admit({:session_bootstrap, key}, Keyword.fetch!(budget, :limit), window) do
       :ok -> renew(conn, nil)
@@ -163,7 +164,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   defp browser_failure_bucket(_actionable_reason), do: :actionable
 
   defp report_bounded_sign_in_failure(conn, reason) do
-    {key, _source} = client_key(conn)
+    {key, _source} = ClientAddress.key(conn)
 
     if ClaimRateLimiter.admit(
          {:privy_browser_failure, browser_failure_bucket(reason), key},
@@ -173,37 +174,6 @@ defmodule AshPlatformWeb.PrivySessionController do
       report_sign_in_failure(reason)
     end
   end
-
-  # Fly terminates the connection, so the peer is the proxy and the client
-  # address arrives in one header the proxy sets itself. Anything but exactly one
-  # parseable value keys the proxy-wide peer bucket rather than a second header a
-  # client could forge itself a private budget with.
-  defp client_key(conn) do
-    case get_req_header(conn, "fly-client-ip") do
-      [value] -> parsed(value, conn.remote_ip)
-      _absent_or_duplicated -> {normalized(conn.remote_ip), :peer_fallback}
-    end
-  end
-
-  defp parsed(value, remote_ip) do
-    case value |> :binary.bin_to_list() |> :inet.parse_strict_address() do
-      {:ok, address} -> {normalized(address), :client_header}
-      {:error, :einval} -> {normalized(remote_ip), :peer_fallback}
-    end
-  end
-
-  # The mapped and compatible IPv6 spellings of one IPv4 address share its
-  # bucket, and a genuine IPv6 client is keyed by its /64 so one host cannot
-  # spend the budget once per address in the block it was handed. The key is
-  # never persisted, rendered or logged; it lives only in the limiter.
-  defp normalized({_, _, _, _} = ipv4), do: ipv4
-
-  defp normalized({0, 0, 0, 0, 0, embedding, high, low}) when embedding in [0, 0xFFFF] do
-    <<a, b, c, d>> = <<high::16, low::16>>
-    {a, b, c, d}
-  end
-
-  defp normalized({a, b, c, d, _, _, _, _}), do: {a, b, c, d, 0, 0, 0, 0}
 
   # Privy is verified before the row lock, so only the transition itself is
   # serialized. A different account is a two-step cutover: this response revokes

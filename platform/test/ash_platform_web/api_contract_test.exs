@@ -211,7 +211,6 @@ defmodule AshPlatformWeb.ApiContractTest do
 
     assert Map.take(contract["components"]["responses"], [
              "Session",
-             "Unauthorized",
              "PrivySessionUnauthorized",
              "Logout",
              "CsrfForbidden"
@@ -221,15 +220,6 @@ defmodule AshPlatformWeb.ApiContractTest do
                "content" => %{
                  "application/json" => %{
                    "schema" => %{"$ref" => "#/components/schemas/Session"}
-                 }
-               }
-             },
-             "Unauthorized" => %{
-               "description" =>
-                 "The Privy access and identity tokens were not both present and valid for one signed-in session",
-               "content" => %{
-                 "application/json" => %{
-                   "schema" => %{"$ref" => "#/components/schemas/Error"}
                  }
                }
              },
@@ -332,6 +322,7 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert contract["components"]["schemas"]["AgentPairingError"]["properties"]["error"][
              "properties"
            ]["code"]["enum"] == [
+             "authentication_required",
              "not_found",
              "pairing_failed",
              "verification_failed",

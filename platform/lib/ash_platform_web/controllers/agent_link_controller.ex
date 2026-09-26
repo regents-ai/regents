@@ -4,6 +4,7 @@ defmodule AshPlatformWeb.AgentLinkController do
   alias AshPlatform.Actors.{Human, System}
   alias AshPlatform.AgentAuth.{ClaimRateLimiter, VerificationClient}
   alias AshPlatform.Formation
+  alias AshPlatformWeb.ClientAddress
 
   @maximum_code_bytes 128
 
@@ -26,7 +27,8 @@ defmodule AshPlatformWeb.AgentLinkController do
          true <- plain_text?(conn),
          {:ok, code, conn} <- read_code(conn),
          true <- valid_code?(code),
-         :ok <- ClaimRateLimiter.admit(conn.remote_ip) do
+         {client, _source} = ClientAddress.key(conn),
+         :ok <- ClaimRateLimiter.admit(client) do
       verify_and_claim(conn, normalized_regent_id, code)
     else
       {:error, :rate_limited} -> rate_limited(conn)
@@ -135,6 +137,11 @@ defmodule AshPlatformWeb.AgentLinkController do
   defp unauthorized(conn) do
     conn
     |> put_status(:unauthorized)
-    |> json(%{error: "unauthorized"})
+    |> json(%{
+      error: %{
+        code: "authentication_required",
+        message: "Sign in to see this Regent's agent links."
+      }
+    })
   end
 end

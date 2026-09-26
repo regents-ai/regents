@@ -8,12 +8,66 @@ defmodule AshPlatformWeb.PublicDocuments do
   @openapi_path Path.join(@directory, "openapi.json")
   @external_resource @openapi_path
   @openapi @openapi_path |> File.read!() |> Jason.decode!()
-  @titles %{
-    "/docs" => "Developer documentation",
-    "/about" => "About Regents Labs",
-    "/contact" => "Contact Regents Labs"
-  }
+  @documents ~w(/ /docs /about /contact /privacy /terms)
+  @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree and Patchbay. Explore REGENT staking, redemption and developer documentation."
+
+  # The browser-tab title and search description of every page, kept in one
+  # place. A title names the page alone; `metadata/3` adds the site name once.
+  @pages %{
+    "/" =>
+      {"Regents Labs — Agentic product lab",
+       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree and Patchbay, with REGENT staking and redemption on Base."},
+    "/app" =>
+      {"Overview",
+       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree and Patchbay."},
+    "/account" =>
+      {"Account",
+       "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
+    "/formation" =>
+      {"Formation", "Create and manage your Regent as a Hermes agent in Nous Portal."},
+    "/stake" =>
+      {"Stake REGENT",
+       "Stake REGENT on Base to share in USDC revenue rewards paid out by the staking contract and to earn REGENT emissions."},
+    "/redeem" =>
+      {"Redeem Animata",
+       "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
+    "/redeem/gallery" =>
+      {"Regents Club passes",
+       "All 1,998 Regents Club Digital Passes, animated as they appear on OpenSea."},
+    "/autolaunch" =>
+      {"Autolaunch",
+       "Autolaunch runs fair token auctions on Base that raise early funds for agents and share what they earn."},
+    "/techtree" =>
+      {"Techtree",
+       "Techtree runs controlled agent evaluations, so an agent can prove an improvement with evidence others can check."},
+    "/patchbay" =>
+      {"Patchbay",
+       "Patchbay is a message board where agents ask about, troubleshoot and document WebMCP tools across the web."},
+    "/docs" =>
+      {"Developer documentation",
+       "Start reading Regents Labs without an account: the agent guide, public reads, historical name claims and contract details."},
+    "/about" =>
+      {"About",
+       "Who Regents Labs is, what Autolaunch, Techtree and Patchbay do, and how REGENT and participation work."},
+    "/contact" =>
+      {"Contact",
+       "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
+    "/blog" =>
+      {"Blog", "Writing from Regents Labs about its products and the ideas behind them."},
+    "/privacy" =>
+      {"Privacy Policy",
+       "How Regents Labs collects, uses, shares and protects personal information across its services."},
+    "/terms" =>
+      {"Terms of Use",
+       "The terms that apply when you use the Regents Labs websites, tools and services."},
+    :holding => {"Not open yet", "This part of Regents Labs isn't open to visitors yet."},
+    :blog_post_not_found => {"Post not found", "This Regents Labs blog post does not exist."},
+    :regent_unavailable =>
+      {"Regent profile", "A public Regent profile on Regents Labs that can't be shown right now."},
+    "/showcase" => {"Showcase", "The Regents Labs component showcase."},
+    "/showcase/privy" => {"Privy integration", "The Regents Labs sign-in reference page."}
+  }
   @sanitize [
     tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br blockquote),
     tag_attributes: %{"a" => ["href"]},
@@ -25,19 +79,36 @@ defmodule AshPlatformWeb.PublicDocuments do
 
   def url(path), do: AshPlatformWeb.Endpoint.url() <> path
 
-  def document("/"),
-    do: %{title: "Regents Labs", markdown: AshPlatformWeb.HomeLive.agent_markdown()}
+  def document("/"), do: %{markdown: AshPlatformWeb.HomeLive.agent_markdown()}
+  def document("/privacy"), do: %{markdown: AshPlatform.Legal.markdown(:privacy)}
+  def document("/terms"), do: %{markdown: AshPlatform.Legal.markdown(:terms)}
 
-  def document("/privacy"),
-    do: %{title: "Privacy Policy", markdown: AshPlatform.Legal.markdown(:privacy)}
-
-  def document("/terms"),
-    do: %{title: "Terms of Use", markdown: AshPlatform.Legal.markdown(:terms)}
-
-  def document(path) when is_map_key(@titles, path),
-    do: %{title: @titles[path], markdown: source(String.trim_leading(path, "/"))}
+  def document(path) when path in ["/docs", "/about", "/contact"],
+    do: %{markdown: source(String.trim_leading(path, "/"))}
 
   def document(_path), do: nil
+
+  @doc """
+  The title and description a page is rendered with, as the `page_title` and
+  `page_description` assigns the root layout reads. Static pages are named by
+  their path; a Regent profile and a blog post by the record they show.
+  """
+  def page({:regent, regent}),
+    do: [
+      page_title: regent.display_name,
+      page_description: "#{regent.display_name}'s public Regent profile on #{@site_name}."
+    ]
+
+  def page({:blog_post, post}),
+    do: [
+      page_title: post.title,
+      page_description: "#{post.title}, by #{post.author}, on the #{@site_name} blog."
+    ]
+
+  def page(key) do
+    {title, description} = Map.fetch!(@pages, key)
+    [page_title: title, page_description: description]
+  end
 
   def llms, do: source("llms")
 
@@ -47,13 +118,16 @@ defmodule AshPlatformWeb.PublicDocuments do
     markdown |> MDEx.to_html!(sanitize: @sanitize) |> Phoenix.HTML.raw()
   end
 
-  def metadata(path) do
+  def metadata(path, title, description) do
+    suffix = if path == "/", do: "", else: " · #{@site_name}"
+
     %{
-      title: Map.get(@titles, path, "Regents Labs — Agentic product lab"),
-      description: @description,
+      title: title <> suffix,
+      suffix: suffix,
+      description: description,
       canonical: url(path),
       image: url("/mark.png"),
-      markdown?: path in ["/", "/privacy", "/terms"] or is_map_key(@titles, path)
+      markdown?: path in @documents
     }
   end
 
@@ -90,7 +164,7 @@ defmodule AshPlatformWeb.PublicDocuments do
         %{
           "@type" => "Organization",
           "@id" => url("/#organization"),
-          "name" => "Regents Labs",
+          "name" => @site_name,
           "legalName" => "Regents Labs, Inc.",
           "url" => url("/"),
           "logo" => url("/mark.png"),

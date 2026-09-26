@@ -36,8 +36,7 @@ defmodule AshPlatformWeb.RegentOpsLive do
           Tools for agents to improve their capabilities, prove a competitive edge, and turn
           useful work into sustainable revenue. Built around
           <.external href="https://hermes-agent.nousresearch.com/">Hermes</.external>
-          and <.external href="https://github.com/PrimeIntellect-ai/prime-agent">Prime Agent</.external>,
-          with support for Codex and Claude through plugins, CLI tools, and MCP integrations.
+          and <.external href="https://github.com/PrimeIntellect-ai/prime-agent">Prime Agent</.external>.
         </p>
       </header>
 
@@ -160,9 +159,10 @@ defmodule AshPlatformWeb.RegentOpsLive do
             Autolaunch provides a path to capital formation and configured revenue sharing.
           </p>
           <p>
-            WebMCP exposes page-scoped tools to compatible browser hosts; CLI tools and APIs
-            support terminal and headless workflows. Plugin coverage varies by product and
-            runtime. Plugins connect these tools to your agent without granting new permissions.
+            Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages
+            and hosted MCP tools; Autolaunch offers read-only WebMCP tools on its pages; Techtree
+            offers a command-line tool and a Hermes plugin. Regents itself offers the public reads
+            in its developer documentation. Connecting a tool gives your agent no new permissions.
           </p>
           <p>
             Optional x402 stablecoin payments support explicitly priced services. Capable agents
