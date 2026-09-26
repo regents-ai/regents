@@ -30,10 +30,10 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "the protocol header control opens staking", %{conn: conn} do
+  test "Protocol jumps to its home section and the header action opens staking", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert attribute(html, "#home-nav-regent", "href") == ["/stake"]
+    assert attribute(html, "#home-nav-regent", "href") == ["#regent"]
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
   end
 

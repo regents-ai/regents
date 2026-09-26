@@ -497,7 +497,6 @@ defmodule AshPlatformWeb.HomeLive do
       {"Protocol", "regent"}
     ]
 
-  defp nav_href("regent", false), do: ~p"/stake"
   defp nav_href(anchor, true), do: "/##{anchor}"
   defp nav_href(anchor, false), do: "##{anchor}"
 
