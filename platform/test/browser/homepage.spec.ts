@@ -97,13 +97,13 @@ test("[U1] a navigation tab brings its section into view", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  await page.locator("#home-nav-regent").click()
-  await expect(page).toHaveURL(/#regent$/)
+  await page.locator("#home-nav-techtree").click()
+  await expect(page).toHaveURL(/#techtree$/)
 
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const section = document.querySelector("#regent")!.getBoundingClientRect()
+        const section = document.querySelector("#techtree")!.getBoundingClientRect()
         return section.top < window.innerHeight && section.bottom > 0
       }),
     )

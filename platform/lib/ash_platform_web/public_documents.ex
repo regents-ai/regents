@@ -99,11 +99,14 @@ defmodule AshPlatformWeb.PublicDocuments do
       page_description: "#{regent.display_name}'s public Regent profile on #{@site_name}."
     ]
 
-  def page({:blog_post, post}),
+  def page({:blog_post, %{description: ""} = post}),
     do: [
       page_title: post.title,
       page_description: "#{post.title}, by #{post.author}, on the #{@site_name} blog."
     ]
+
+  def page({:blog_post, post}),
+    do: [page_title: post.title, page_description: post.description]
 
   def page(key) do
     {title, description} = Map.fetch!(@pages, key)
