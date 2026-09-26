@@ -10,15 +10,13 @@ import {
   spring,
   splitText,
   stagger,
-  utils,
   type AnimationParams,
   type AutoLayout,
-  type JSAnimation,
   type LayoutAnimationParams,
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, SLOW, still} from "./shared"
+import {BASE, SLOW, play, still} from "./shared"
 import type {Hook} from "../../hook_composition"
 
 // How a list moves when the server adds, reorders or drops its items. Each is
@@ -138,29 +136,16 @@ function join(hook: CountHook, split: TextSplitter) {
   split.revert()
 }
 
-const tidy = (animation: JSAnimation) => utils.cleanInlineStyles(animation)
-
 /**
  * A note that pops in when something has just happened, and back out. The
  * note's stylesheet decides whether it shows; `done` puts it away once it
  * has popped out.
  */
 export const pop = (el: Element) =>
-  animate(el, {
-    scale: {from: 0.6},
-    opacity: {from: 0},
-    ease: spring({bounce: 0.45, duration: 360}),
-    onComplete: tidy,
-  })
+  play(el, {scale: {from: 0.6}, opacity: {from: 0}, ease: spring({bounce: 0.45, duration: 360})})
 
-export const unpop = (el: Element, done: () => void) =>
-  animate(el, {
-    scale: 0.8,
-    opacity: 0,
-    ease: "in(3)",
-    duration: BASE,
-    onComplete: animation => {
-      done()
-      tidy(animation)
-    },
-  })
+export function unpop(el: Element, done: () => void) {
+  const animation = play(el, {scale: 0.8, opacity: 0, ease: "in(3)", duration: BASE})
+  animation.then(done)
+  return animation
+}

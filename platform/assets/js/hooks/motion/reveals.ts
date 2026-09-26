@@ -3,20 +3,9 @@
  * gliding in when another is chosen, a headline that rises in word by word
  * and a grid of cards that settles into place.
  */
-import {
-  animate,
-  createScope,
-  stagger,
-  utils,
-  type AnimationParams,
-  type JSAnimation,
-  type Scope,
-  type TextSplitter,
-} from "animejs"
-import {EASE_OUT, SLOW, byPointer, lastInputByPointer, still} from "./shared"
+import {createScope, stagger, type AnimationParams, type Scope, type TextSplitter} from "animejs"
+import {EASE_OUT, SLOW, byPointer, lastInputByPointer, play, still} from "./shared"
 import type {Hook} from "../../hook_composition"
-
-const tidy = (animation: JSAnimation) => utils.cleanInlineStyles(animation)
 
 // How the new view arrives. `step` is 1 when the chosen view comes after the
 // last one in the navigation and -1 when it comes before.
@@ -52,7 +41,7 @@ export const ShellViews: Hook = {
       scope.add("glide", (from: string, to: string) => {
         const view = this.el.querySelector("#route-content")
         const step = place(to) < place(from) ? -1 : 1
-        if (view) animate(view, {...TABS[this.el.dataset.variant ?? ""](step), onComplete: tidy})
+        if (view) play(view, TABS[this.el.dataset.variant ?? ""](step))
       })
 
       const onClick = (event: MouseEvent) => {
@@ -96,7 +85,7 @@ export const MotionTabs: Hook = {
 
     this.scope = scope.add(() => {
       scope.add("glide", (step: number) => {
-        animate(this.el, {...TABS[this.el.dataset.variant ?? ""](step), onComplete: tidy})
+        play(this.el, TABS[this.el.dataset.variant ?? ""](step))
       })
     })
   },
@@ -120,14 +109,7 @@ export const MotionTabs: Hook = {
 // Moves in percent name both ends, so they stay a share of each word's own
 // height instead of being converted to pixels from its width.
 export const riseHeadline = (split: TextSplitter) =>
-  animate(split.words, {y: ["100%", "0%"], delay: stagger(50), duration: SLOW, ease: EASE_OUT})
+  play(split.words, {y: ["100%", "0%"], delay: stagger(50), duration: SLOW, ease: EASE_OUT})
 
 export const cascadeCards = (cards: Element[]) =>
-  animate(cards, {
-    y: {from: 16},
-    opacity: {from: 0},
-    delay: stagger(45),
-    duration: SLOW,
-    ease: EASE_OUT,
-    onComplete: tidy,
-  })
+  play(cards, {y: {from: 16}, opacity: {from: 0}, delay: stagger(45), duration: SLOW, ease: EASE_OUT})

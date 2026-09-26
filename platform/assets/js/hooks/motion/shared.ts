@@ -1,8 +1,8 @@
 /**
  * What all of Regents' motion shares: the design system's timings and curves,
- * and the two questions asked before anything moves.
+ * the two questions asked before anything moves, and how every move starts.
  */
-import {cubicBezier} from "animejs"
+import {animate, cubicBezier, utils, type AnimationParams, type JSAnimation} from "animejs"
 
 export const BASE = 200
 export const SLOW = 280
@@ -28,4 +28,26 @@ export function watchInput(doc: Document) {
   doc.addEventListener("pointerdown", byHand, true)
   doc.addEventListener("pointermove", byHand, true)
   doc.addEventListener("keydown", () => { pointer = false }, true)
+}
+
+// Anime.js hands an element back to its stylesheet by restoring the inline
+// style it found when the animation began. One begun over another's
+// half-way frame would end on that frame, so each run first puts its
+// elements back as they were before the last run on them began. Every run
+// then starts from rest, and ends there with no inline style left behind.
+// A finished run is forgotten, so nothing later puts back its old snapshot.
+const playing = new WeakMap<Element, JSAnimation>()
+
+export function play(targets: Element | Element[], params: AnimationParams) {
+  const els = [targets].flat()
+  for (const el of els) playing.get(el)?.revert()
+  const animation = animate(els, {
+    ...params,
+    onComplete: done => {
+      utils.cleanInlineStyles(done)
+      for (const el of els) if (playing.get(el) === done) playing.delete(el)
+    },
+  })
+  for (const el of els) playing.set(el, animation)
+  return animation
 }
