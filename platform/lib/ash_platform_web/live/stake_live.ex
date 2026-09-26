@@ -106,7 +106,14 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
         </div>
 
-        <dl :if={@dashboard} class="stake-benefit-grid" aria-label="Current staking benefits">
+        <dl
+          :if={@dashboard}
+          id="staking-benefits"
+          class="stake-benefit-grid"
+          aria-label="Current staking benefits"
+          phx-hook="MotionCount"
+          data-variant={AshPlatformWeb.Motion.standard("count")}
+        >
           <div class="stake-benefit-card stake-benefit-card-primary">
             <dt>Regent Labs USDC Earned</dt>
             <dd class="stake-earned-split">
@@ -302,7 +309,12 @@ defmodule AshPlatformWeb.StakeLive do
                 Your position could not be read just now. Everything else here is current, and every
                 action below still goes to your wallet.
               </p>
-              <dl class="stake-wallet-summary">
+              <dl
+                id="staking-wallet-summary"
+                class="stake-wallet-summary"
+                phx-hook="MotionCount"
+                data-variant={AshPlatformWeb.Motion.standard("count")}
+              >
                 <.metric
                   label="Available REGENT"
                   amount={@staking.wallet_token_balance}

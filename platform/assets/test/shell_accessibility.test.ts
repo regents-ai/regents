@@ -15,7 +15,10 @@ vi.mock("../js/auth_lazy", () => ({
   retireRefusedSession: vi.fn(),
 }))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
-vi.mock("../js/hooks/motion", () => ({ShellMotion: {}}))
+vi.mock("../js/hooks/home_token_menu", () => ({HomeTokenMenu: {}}))
+vi.mock("../js/hooks/motion/reveals", () => ({ShellViews: {}}))
+vi.mock("../js/hooks/motion/moments", () => ({MotionCount: {}, MotionList: {}}))
+vi.mock("../js/motion", () => ({mountMotion: vi.fn()}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {
     constructor(

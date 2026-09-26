@@ -348,7 +348,13 @@ defmodule AshPlatformWeb.RedeemLive do
               </div>
               <span class="redeem-network">Base</span>
             </div>
-            <section class="redeem-summary" aria-label="Redemption account status">
+            <section
+              id="redemption-summary"
+              class="redeem-summary"
+              aria-label="Redemption account status"
+              phx-hook="MotionCount"
+              data-variant={AshPlatformWeb.Motion.standard("count")}
+            >
               <.metric label="USDC balance">
                 <TokenDisplay.amount amount={@redemption.usdc_balance} unit="USDC" />
               </.metric>
@@ -436,14 +442,21 @@ defmodule AshPlatformWeb.RedeemLive do
           <p :if={@owned_collectibles.status == :empty} class="redeem-owned-status">
             No supported NFTs were found. Manual selection remains available.
           </p>
-          <div class="redeem-owned-list">
+          <div
+            id="redeem-owned-list"
+            class="redeem-owned-list"
+            phx-hook="MotionList"
+            data-layout-id="redeem-owned-list"
+            data-children=".redeem-nft-card"
+            data-variant={AshPlatformWeb.Motion.standard("list")}
+          >
             <%!-- Selection cards are compound grid controls, not primary action buttons. --%>
             <button
-              :for={{item, index} <- Enum.with_index(@visible_animata)}
+              :for={item <- @visible_animata}
               type="button"
               class="redeem-nft-card"
               data-collection={item.collection}
-              style={"--card-index: #{min(index, 12)}"}
+              data-layout-id={"animata-#{item.collection}-#{item.token_id}"}
               phx-click="select_owned_animata"
               phx-value-collection={item.collection}
               phx-value-token-id={item.token_id}
@@ -456,9 +469,9 @@ defmodule AshPlatformWeb.RedeemLive do
                                                                                                          "Animata II"}</span><strong>#{item.token_id}</strong><span class="redeem-nft-action">Select to redeem →</span>
             </button>
             <a
-              :for={{item, index} <- Enum.with_index(@visible_regents_club)}
+              :for={item <- @visible_regents_club}
               class="redeem-nft-card redeem-nft-card-club"
-              style={"--card-index: #{min(index + length(@visible_animata), 12)}"}
+              data-layout-id={"club-#{item.token_id}"}
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"

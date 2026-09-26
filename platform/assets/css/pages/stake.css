@@ -539,7 +539,6 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   transition:
-    transform 140ms var(--ease-out),
     border-color 180ms var(--ease-out),
     background-color 180ms var(--ease-out),
     color 180ms var(--ease-out),
@@ -593,13 +592,6 @@
   border-color: var(--ash-line-strong);
   background: transparent;
   color: var(--ash-muted);
-}
-
-.stake-actions button:not(:disabled):active,
-.stake-heading button:not(:disabled):active,
-.stake-result-dialog button:not(:disabled):active,
-.stake-shared-refresh:not(:disabled):active {
-  transform: scale(var(--active-scale));
 }
 
 .stake-actions button:disabled,

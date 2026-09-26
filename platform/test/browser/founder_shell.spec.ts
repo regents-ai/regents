@@ -406,7 +406,7 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 })
 
-test("rapid app switches settle only the latest scene and remove motion copies", async ({page}) => {
+test("rapid app switches settle on the latest view with no motion left behind", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
@@ -415,9 +415,9 @@ test("rapid app switches settle only the latest scene and remove motion copies",
   await patchTo(page, "/stake")
 
   await expect(page).toHaveURL(/\/stake$/)
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-motion-app", "regent_ops")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-app", "regent_ops")
   await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-  await expect(page.locator("[data-motion-copy]"), "outgoing copies are disposable").toHaveCount(0)
+  await expect(page.locator("#route-content"), "the glide tidies up after itself").not.toHaveAttribute("style")
   await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
 })
 
@@ -484,13 +484,11 @@ test("Formation handoff keeps focus visible and fits narrow, landscape, and zoom
   }
 })
 
-test("theme and reduced-motion preferences apply immediately", async ({browser}) => {
+test("the theme preference applies immediately under reduced motion", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-
-  await expect(page.locator("html")).toHaveAttribute("data-reduced-motion", "true")
 
   // With nothing saved the server renders the dark theme, and the switch says so
   // before it is touched.

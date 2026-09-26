@@ -27,7 +27,7 @@ defmodule AshPlatformWeb.Components.RegentLinks do
       <summary aria-label="$REGENT links">
         <.source_icon kind={:regent} />
       </summary>
-      <div class="rl-token-menu-panel">
+      <div class="rl-token-menu-panel" data-panel="menu">
         <nav class="rl-token-menu-content" aria-label="$REGENT">
           <button
             type="button"

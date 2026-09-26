@@ -102,7 +102,8 @@ defmodule AshPlatformWeb.TokenDisplayTest do
           {"100", nil, "100"},
           {"0.000000000000000001", "REGENT", "0.000000000000000001 REGENT"}
         ] do
-      assert String.trim(amount(%{amount: value, unit: unit})) == expected
+      assert String.trim(amount(%{amount: value, unit: unit})) ==
+               ~s(<span data-count>#{expected}</span>)
     end
   end
 
@@ -112,13 +113,13 @@ defmodule AshPlatformWeb.TokenDisplayTest do
     html = amount(%{amount: "7321632890.079463764963354621", unit: "REGENT"})
 
     assert html =~
-             ~s(<span aria-hidden="true" title="7,321,632,890.079463764963354621 REGENT">7.321 billion REGENT</span>)
+             ~s(<span aria-hidden="true" title="7,321,632,890.079463764963354621 REGENT" data-count>7.321 billion REGENT</span>)
 
     assert html =~
              ~s(<span class="visually-hidden">7,321,632,890.079463764963354621 REGENT</span>)
 
     usdc = amount(%{amount: "1.5", unit: "USDC"})
-    assert usdc =~ ~s(<span aria-hidden="true" title="1.5 USDC">1.50 USDC</span>)
+    assert usdc =~ ~s(<span aria-hidden="true" title="1.5 USDC" data-count>1.50 USDC</span>)
   end
 
   # A figure Base could not be read for is not a zero and not a blank.
