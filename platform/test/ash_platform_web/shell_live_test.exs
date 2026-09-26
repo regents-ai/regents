@@ -594,7 +594,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     assert has_element?(view, "#account-claim-title", "Claim a Regent Name")
     assert has_element?(view, "#account-claims-available", "You can claim 2 more names free.")
-    assert has_element?(view, "#account-claims-available", "You have 1 paid claim ready to use.")
+
+    assert has_element?(
+             view,
+             "#account-claims-available",
+             "You also have 1 paid claim, which this page can’t use yet."
+           )
+
     refute render(view) =~ "9 more"
     assert has_element?(view, "#account-claim-form input[name=name][value='']")
     assert has_element?(view, "#account-claim-availability[hidden]")
@@ -609,13 +615,13 @@ defmodule AshPlatformWeb.ShellLiveTest do
 
     {view, _html} = open_account(conn, account)
 
+    assert has_element?(view, "#account-claims-available", "No free claims on your wallets.")
+
     assert has_element?(
              view,
-             "#account-claims-available",
-             "No free claims on your wallets. Names cost 0.0025 ETH each."
+             ".account-claim__later",
+             "Names cost 0.0025 ETH each, and buying one from this page isn’t open yet."
            )
-
-    assert has_element?(view, ".account-claim__later", "isn’t open yet")
   end
 
   test "Account judges a typed name by the rules and by the names already claimed", %{
