@@ -82,7 +82,7 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert formation.header_controls == [:profile_actions]
     assert formation.content_transition_kind == :lifecycle
     assert formation.scroll_policy == :top
-    assert formation.sidebar_model.targets == []
+    assert formation.sidebar_model == RouteCatalog.fetch!(:app).sidebar_model
     assert formation.local_state == %{}
 
     assert RouteCatalog.fetch!(:app).sidebar_model.targets == [
@@ -160,9 +160,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
              _target ->
                false
            end)
-
-    assert %{"sidebar_model" => %{"targets" => []}} =
-             Enum.find(decoded["routes"], &(&1["route_id"] == "formation"))
   end
 
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}

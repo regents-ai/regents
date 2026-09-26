@@ -179,14 +179,9 @@ defmodule AshPlatformWeb.RouteCatalog do
 
   defp sidebar_model(nil), do: %SidebarModel{id: :public, targets: []}
 
-  defp sidebar_model(:formation) do
-    %SidebarModel{
-      id: :formation,
-      targets: []
-    }
-  end
-
-  defp sidebar_model(:regent_ops) do
+  # Formation keeps its own page but shares the Regents navigation, so its
+  # sidebar and phone menu lead back to the rest of the site.
+  defp sidebar_model(app_id) when app_id in [:regent_ops, :formation] do
     %SidebarModel{
       id: :regent_ops,
       targets: [
