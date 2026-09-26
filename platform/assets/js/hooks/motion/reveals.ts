@@ -13,7 +13,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {EASE_OUT, SLOW, byPointer, still} from "./shared"
+import {EASE_OUT, SLOW, byPointer, lastInputByPointer, still} from "./shared"
 import type {Hook} from "../../hook_composition"
 
 const tidy = (animation: JSAnimation) => utils.cleanInlineStyles(animation)
@@ -77,6 +77,42 @@ export const ShellViews: Hook = {
   },
 
   destroyed(this: ViewsHook) {
+    this.scope?.revert()
+  },
+}
+
+type TabsHook = {el: HTMLElement; scope?: Scope; active?: string}
+
+/**
+ * A panel whose tabs the server switches, such as Stake's stake and unstake
+ * form. The panel names the chosen tab in `data-active`, every tab in order in
+ * `data-tabs` and the version in `data-variant`; it glides in from the side of
+ * the chosen tab when that was picked with a mouse or finger.
+ */
+export const MotionTabs: Hook = {
+  mounted(this: TabsHook) {
+    const scope = createScope({root: this.el})
+    this.active = this.el.dataset.active
+
+    this.scope = scope.add(() => {
+      scope.add("glide", (step: number) => {
+        animate(this.el, {...TABS[this.el.dataset.variant ?? ""](step), onComplete: tidy})
+      })
+    })
+  },
+
+  updated(this: TabsHook) {
+    const from = this.active
+    const to = this.el.dataset.active
+    this.active = to
+    if (from === to || from === undefined || to === undefined) return
+    if (!lastInputByPointer() || still()) return
+
+    const tabs = (this.el.dataset.tabs ?? "").split(" ")
+    this.scope?.methods.glide(tabs.indexOf(to) < tabs.indexOf(from) ? -1 : 1)
+  },
+
+  destroyed(this: TabsHook) {
     this.scope?.revert()
   },
 }

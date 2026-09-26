@@ -335,7 +335,7 @@ defmodule AshPlatformWeb.StakeLive do
 
               <div class="stake-mode" role="group" aria-label="Stake or unstake">
                 <Regent.Primitives.button
-                  :for={mode <- ~w(stake unstake)}
+                  :for={mode <- modes()}
                   variant="secondary"
                   type="button"
                   phx-click={
@@ -353,7 +353,14 @@ defmodule AshPlatformWeb.StakeLive do
                 >{mode_label(mode)}</Regent.Primitives.button>
               </div>
 
-              <form id="staking-amount-form" phx-change="staking_amount_changed">
+              <form
+                id="staking-amount-form"
+                phx-change="staking_amount_changed"
+                phx-hook="MotionTabs"
+                data-active={@action}
+                data-tabs={Enum.join(modes(), " ")}
+                data-variant={AshPlatformWeb.Motion.standard("tabs")}
+              >
                 <Regent.Primitives.field id="staking-amount" label="Amount">
                   <div class="stake-amount">
                     <input
@@ -954,6 +961,8 @@ defmodule AshPlatformWeb.StakeLive do
     </p>
     """
   end
+
+  defp modes, do: ~w(stake unstake)
 
   defp mode_label("stake"), do: "Stake"
   defp mode_label("unstake"), do: "Unstake"

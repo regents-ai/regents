@@ -26,7 +26,7 @@ import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList} from "./hooks/motion/moments"
-import {ShellViews} from "./hooks/motion/reveals"
+import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {mountMotion} from "./motion"
 import {StakeWallet} from "./hooks/stake_wallet"
@@ -321,6 +321,7 @@ const hooks = {
   InfoDialog,
   MotionCount,
   MotionList,
+  MotionTabs,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   RedemptionWallet,
   StakeWallet,
