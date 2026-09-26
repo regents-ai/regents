@@ -1,4 +1,7 @@
+import type {JSAnimation} from "animejs"
 import type {Hook} from "../hook_composition"
+import {pop, unpop} from "./motion/moments"
+import {byPointer, still} from "./motion/shared"
 
 type TokenMenuHook = Hook & {el: HTMLDetailsElement; cleanup?: () => void}
 
@@ -48,7 +51,8 @@ export const HomeTokenMenu: Hook = {
 }
 
 // Copying the contract address off the $REGENT heading: green check and a
-// "CA copied" note beside it for a moment, then back to the copy glyph.
+// "CA copied" note beside it for a moment, then back to the copy glyph. A
+// copy made with a mouse or finger pops the note in and out.
 function installTokenCopy(root: ParentNode): () => void {
   const button = root.querySelector<HTMLButtonElement>("[data-token-copy]")
   if (!button) return () => {}
@@ -56,6 +60,7 @@ function installTokenCopy(root: ParentNode): () => void {
   const checkGlyph = button.querySelector<HTMLElement>("[data-check-glyph]")
   const toast = button.querySelector<HTMLElement>("[data-copy-toast]")
   let timer: number | undefined
+  let leaving: JSAnimation | undefined
 
   const restore = () => {
     button.classList.remove("is-copied")
@@ -64,7 +69,8 @@ function installTokenCopy(root: ParentNode): () => void {
     if (toast) toast.textContent = ""
   }
 
-  const click = async () => {
+  const click = async (event: MouseEvent) => {
+    const moving = byPointer(event) && !still()
     const address = button.dataset.copyAddress
     if (!address) return
     try {
@@ -77,12 +83,18 @@ function installTokenCopy(root: ParentNode): () => void {
     if (toast) toast.textContent = "CA copied"
     button.classList.add("is-copied")
     window.clearTimeout(timer)
-    timer = window.setTimeout(restore, 1500)
+    leaving?.revert()
+    if (toast && moving) pop(toast)
+    timer = window.setTimeout(() => {
+      if (toast && moving) leaving = unpop(toast, restore)
+      else restore()
+    }, 1500)
   }
 
   button.addEventListener("click", click)
   return () => {
     window.clearTimeout(timer)
+    leaving?.revert()
     button.removeEventListener("click", click)
   }
 }

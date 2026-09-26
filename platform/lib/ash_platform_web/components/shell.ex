@@ -24,7 +24,7 @@ defmodule AshPlatformWeb.Components.Shell do
       class="rg-sheet rg-frame"
       phx-hook="ShellBehavior"
       data-app={@route_spec.app_id}
-      data-motion-app={@route_spec.app_id}
+      data-variant={AshPlatformWeb.Motion.standard("tabs")}
       data-background={@route_spec.background_slot}
       data-content-transition={@route_spec.content_transition_kind}
       data-menu-open="false"
@@ -71,7 +71,7 @@ defmodule AshPlatformWeb.Components.Shell do
 
       <nav
         id="shell-sidebar"
-        data-motion-region
+        data-panel="drawer"
         aria-label="Context navigation"
         tabindex="-1"
       >
@@ -102,12 +102,13 @@ defmodule AshPlatformWeb.Components.Shell do
         type="button"
         class="shell-menu-scrim"
         data-shell-menu-scrim
+        data-backdrop
         aria-label="Close navigation"
         hidden
       ></Regent.Primitives.button>
 
       <div id="app-shell-scroller" tabindex="-1">
-        <main id="route-content" data-motion-region>
+        <main id="route-content">
           {render_slot(@content)}
         </main>
         <AshPlatformWeb.Layouts.product_links theme={@theme} />
@@ -151,7 +152,7 @@ defmodule AshPlatformWeb.Components.Shell do
           <span data-account-target="profile">{@account_control.label}</span>
           <span class="shell-chevron" aria-hidden="true">⌄</span>
         </summary>
-        <div class="account-menu__content shell-popover">
+        <div class="account-menu__content shell-popover" data-panel="menu">
           <.link
             patch="/account"
             class="account-menu__row account-menu__row--account"

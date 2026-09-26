@@ -9,7 +9,8 @@ defmodule AshPlatformWeb.TokenDisplay do
   dropped, never rounded up, so a figure never says more than the position
   behind it. A count such as a block number is a whole number with separators.
   Wherever a figure was shortened, the exact figure stays readable to
-  assistive technology and on hover.
+  assistive technology and on hover. The figure on screen is marked
+  `data-count`, so a part of the page that rolls its figures can find them.
   """
   use Phoenix.Component
 
@@ -54,13 +55,13 @@ defmodule AshPlatformWeb.TokenDisplay do
 
   defp figure(%{exact: same, shown: same} = assigns) do
     ~H"""
-    {@exact}
+    <span data-count>{@exact}</span>
     """
   end
 
   defp figure(assigns) do
     ~H"""
-    <span aria-hidden="true" title={@exact}>{@shown}</span>
+    <span aria-hidden="true" title={@exact} data-count>{@shown}</span>
     <span class="visually-hidden">{@exact}</span>
     """
   end

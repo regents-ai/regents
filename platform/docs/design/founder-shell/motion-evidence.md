@@ -1,28 +1,32 @@
 # Motion evidence
 
-The Design handoff provides `ShellMotion` from `./hooks/motion`.
+Regents moves the way Patchbay does (Patchbay `45a7c92`), with Anime.js 4.5.0. `AshPlatformWeb.Motion` names the version of each part; a live part of a page carries it in `data-variant`.
 
-Ash composes it after `shellBehavior`. The module do not replace the entrypoint, navigate, manage focus, or own route and product state. `ShellMotion` responds directly to the composed LiveView lifecycle; Ash does not call the controller manually.
+## Where each part is used
 
-The later Design shell markup provides this stable DOM protocol on the hook root:
+| Part | Version | Where | Code |
+| --- | --- | --- | --- |
+| Press | squish | Every button, `.rg-button`, `[role=button]` and menu summary, except the theme switch, which turns its own cube | `assets/js/motion.ts`, `hooks/motion/press.ts` |
+| Drawer | spring | The phone menu (`#shell-sidebar`, `data-panel="drawer"`) and its shade (`data-backdrop`) | `motion.ts`, `hooks/motion/slides.ts` |
+| Sheet | spring | Every `<dialog>` as it opens: supply info, stake and redeem receipts | `motion.ts`, `slides.ts` |
+| Menu | pop | The account menu and the $REGENT menu (`data-panel="menu"`) | `motion.ts`, `slides.ts` |
+| Toast | pop | The "copied" note in the $REGENT menu | `hooks/home_token_menu.ts`, `hooks/motion/moments.ts` |
+| List | bounce | Owned NFTs on Redeem, names on Account (`MotionList`) | `moments.ts` |
+| Count | roll | Staking benefits and wallet figures on Stake, the redemption summary (`MotionCount`, figures marked `data-count` by `TokenDisplay`) | `moments.ts` |
+| Tabs | glide | The app's page as the sidebar moves between views (`ShellViews`, composed after `shellBehavior`) | `hooks/motion/reveals.ts` |
+| Headline | rise | The `<h1>` of a page the server draws once, such as the blog | `motion.ts`, `reveals.ts` |
+| Grid | cascade | The blog's card grid | `motion.ts`, `reveals.ts` |
 
-- `data-motion-app="formation|autolaunch|techtree|regents-labs"` identifies the currently rendered app.
-- `data-motion-source="pointer|keyboard"` identifies the navigation input; keyboard is immediate.
-- `data-reduced-motion="true|false"` carries the existing theme-interface preference.
-- `data-motion-region` marks each of the five to eight semantic scene regions.
-- `data-motion-background` marks the single background slot.
-- `data-motion-header-controls` marks the app-local controls inside the fixed header frame.
+Note peel and stamp thunk stay in `AshPlatformWeb.Motion` until the site has a place for them. The "nope" press is not used: no press on the site is answered with a refusal.
 
-On mount, the hook records the already-correct app and performs no travel. Before a LiveView patch it captures detached visual copies of the outgoing regions. After the patch it compares the old and new app metadata, classifies the change as app-wide or content-only, mounts the pointer-inert copies for the outgoing half of the transition, and removes every copy on completion, interruption, or teardown.
+## Rules every part follows
 
-## Motion seam
+- A press from the keyboard, and any reader who asked their system for less motion, gets the result at once with no movement.
+- Only transform and opacity move. Each move ends at the element's normal look and removes the inline styles it wrote.
+- Pages inside a live view never run the headline rise or card cascade; their parts move from their hooks, one Anime.js scope per hook, reverted on teardown.
+- Motion never waits for, stops, disables or repeats a press. A wallet button reaches the wallet the moment it is pressed.
+- A menu or dialog that the page redraws while open does not move again.
 
-`createMotionController(root).transition(intent)` accepts element references for the already-authoritative destination. Direct loads, keyboard navigation, and reduced-motion changes settle immediately with no travel. Intra-app changes are a short content-only fade. App changes use a 270 ms total scene budget and one responsive `outQuart` easing throughout: outgoing semantic regions move slightly down while fading, backgrounds and app-local header controls crossfade, and incoming semantic regions enter from the nearest horizontal edge with edge-first timing. The caller groups the shell into five to eight semantic regions; the module does not create per-card cascades.
+## Browser check (2026-09-26)
 
-Each new intent cancels the current handles before reading the next targets. The hook creates disposable, inert outgoing visual copies so the authoritative destination can render immediately; it removes those copies on settlement, interruption, or teardown. Update-driven animations are deliberately kept out of the Anime.js Scope registry, preventing a persistent shell from retaining canceled work. A generation guard prevents stale completion callbacks from settling an older destination. Completion writes exact destination opacity and transform values. Final teardown cancels the active work and reverts the Anime.js 4.5.0 scope, so remount starts clean.
-
-## Deterministic proof
-
-Focused Vitest coverage seeks active handles directly, interrupts them with newer intent, invokes completion callbacks deterministically, verifies stale completion cannot win, repeats rapid intents to expose retained-registry growth, checks teardown/remount boundaries, and confirms the no-travel and static fallbacks. TypeScript checks the installed Anime.js 4.5.0 imports and public integration names.
-
-Verified on 2026-07-10 against installed `animejs@4.5.0`: 21 focused tests passed, the four owned TypeScript files passed strict focused type checking, and the owned diff passed whitespace validation. Repository-wide integration gates remain with Ash and the concurrent Privy lane.
+Each part was watched in a real browser with a recorder on inline style changes: it started from its first frame without a flash, reached its normal look and left no inline style. A keyboard press and reduced motion were checked for the press, drawer, menu, sheet, glide, toast and roll, and each opened or changed with no style writes. The blog's headline and cards were checked with three temporary posts that were removed afterwards.

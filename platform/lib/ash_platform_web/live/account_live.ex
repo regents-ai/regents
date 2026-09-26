@@ -245,8 +245,16 @@ defmodule AshPlatformWeb.AccountLive do
   # the browser; more are added as the reader reaches the end.
   defp names(assigns) do
     ~H"""
-    <ul id="account-names" class="account-names__list" phx-update="stream">
-      <li :for={{id, claim} <- @stream} id={id}>
+    <ul
+      id="account-names"
+      class="account-names__list"
+      phx-update="stream"
+      phx-hook="MotionList"
+      data-layout-id="account-names"
+      data-children="li"
+      data-variant={AshPlatformWeb.Motion.standard("list")}
+    >
+      <li :for={{id, claim} <- @stream} id={id} data-layout-id={id}>
         <strong>{claim.ens_fqdn}</strong>
         <div>
           <span>{String.capitalize(claim.claim_status)}</span>

@@ -40,7 +40,7 @@
   .rl-token-copy__glyph { display: inline-flex; }
   .rl-token-copy__glyph[hidden] { display: none; }
   .rl-token-copy__glyph--check { color: var(--color-success); }
-  .rl-token-copy__toast { margin-inline-start: auto; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; transition: opacity .2s ease; pointer-events: none; white-space: nowrap; }
+  .rl-token-copy__toast { margin-inline-start: auto; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; pointer-events: none; white-space: nowrap; }
   .rl-token-copy.is-copied .rl-token-copy__toast { opacity: 1; }
   .rl-hero { min-width: 0; }
   .rl-hero-stage {

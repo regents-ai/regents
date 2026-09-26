@@ -386,16 +386,6 @@ details[open] > summary .shell-chevron {
   border-top: 1px solid var(--hairline);
 }
 
-#shell-header button:active,
-#shell-header summary:active,
-.shell-menu-close:active {
-  transform: scale(var(--active-scale));
-}
-
-#shell-header .rg-theme-toggle:active {
-  transform: none;
-}
-
 @media (max-width: 48rem) {
   #app-shell {
     grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);

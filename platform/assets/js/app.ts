@@ -25,9 +25,11 @@ import {HolographicCard} from "./hooks/holographic_card"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
-import {ShellMotion} from "./hooks/motion"
+import {MotionCount, MotionList} from "./hooks/motion/moments"
+import {ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {ModalDialog} from "./hooks/modal_dialog"
+import {mountMotion} from "./motion"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
@@ -128,7 +130,6 @@ const shellBehavior: Hook = {
   mounted(this: ShellHook) {
     const shell = this.el
     const root = document.documentElement
-    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)")
 
     const initialState: ShellState = {
       routeId: shell.dataset.routeId ?? "",
@@ -139,11 +140,6 @@ const shellBehavior: Hook = {
     this.shellState = cachedShellState
       ? reconcileShellState(cachedShellState, initialState)
       : initialState
-
-    const setMotion = () => {
-      root.dataset.reducedMotion = motionPreference.matches ? "true" : "false"
-      shell.dataset.reducedMotion = motionPreference.matches ? "true" : "false"
-    }
 
     const menuButton = () =>
       shell.querySelector<HTMLButtonElement>("#mobile-menu-button")
@@ -191,8 +187,6 @@ const shellBehavior: Hook = {
 
     const onClick = (event: Event) => {
       const target = event.target instanceof Element ? event.target : null
-      shell.dataset.motionSource =
-        event instanceof MouseEvent && event.detail === 0 ? "keyboard" : "pointer"
 
       if (target?.closest("#mobile-menu-button")) {
         if (this.shellState) this.shellState.menuOpen = !this.shellState.menuOpen
@@ -253,15 +247,12 @@ const shellBehavior: Hook = {
     }
 
     const onHistoryNavigation = () => {
-      shell.dataset.motionSource = "keyboard"
       scroller()?.scrollTo({top: 0})
     }
 
     shell.addEventListener("click", onClick)
     shell.addEventListener("keydown", onKeydown)
-    motionPreference.addEventListener("change", setMotion)
     window.addEventListener("popstate", onHistoryNavigation)
-    setMotion()
     this.restoreState()
     scroller()?.scrollTo({top: 0})
     shell.dataset.behaviorReady = "true"
@@ -270,7 +261,6 @@ const shellBehavior: Hook = {
       closeMenu(false)
       shell.removeEventListener("click", onClick)
       shell.removeEventListener("keydown", onKeydown)
-      motionPreference.removeEventListener("change", setMotion)
       window.removeEventListener("popstate", onHistoryNavigation)
     }
   },
@@ -331,7 +321,9 @@ const hooks = {
   InfiniteScroll,
   InfoDialog,
   ModalDialog,
-  ShellBehavior: composeHooks(shellBehavior, ShellMotion),
+  MotionCount,
+  MotionList,
+  ShellBehavior: composeHooks(shellBehavior, ShellViews),
   RedemptionWallet,
   StakeWallet,
   VerifiedConnections,
@@ -356,4 +348,5 @@ void retireRefusedSession()
 liveSocket.connect()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
+mountMotion(document)
 window.liveSocket = liveSocket
