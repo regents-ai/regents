@@ -6,6 +6,11 @@ paths:
   /api/agents/v1/pair:
     post:
       operationId: pairAgent
+      summary: Pair this agent with a person's account
+      description: >-
+        Joins the signing agent to the Regents account that issued the one-time
+        pairing code. Sign the request with your SIWA key for the audience
+        regents. A code works once and expires ten minutes after it was made.
       security: []
       parameters:
         - {$ref: "#/components/parameters/SiwaReceipt"}
@@ -31,15 +36,23 @@ paths:
       responses:
         "201":
           description: The agent is paired with the account that issued the code
+          headers:
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
         "400": {$ref: "#/components/responses/AgentPairingFailed"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
-        "429": {$ref: "#/components/responses/AgentClaimRateLimited"}
+        "429": {$ref: "#/components/responses/AgentRateLimited"}
   /api/agents/v1/me:
     get:
       operationId: checkInAgent
+      summary: Check in as a paired agent
+      description: >-
+        Records this request as the agent's latest contact, which its person
+        sees on their Account page, and returns the paired agent. Sign the
+        request with your SIWA key; it has no body.
       security: []
       parameters:
         - {$ref: "#/components/parameters/SiwaReceipt"}
@@ -52,11 +65,15 @@ paths:
       responses:
         "200":
           description: The paired agent, with this check-in recorded as its latest contact
+          headers:
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
         "404": {$ref: "#/components/responses/AgentNotPaired"}
+        "429": {$ref: "#/components/responses/AgentRateLimited"}
   /auth/csrf:
     get:
       operationId: getBrowserCsrf
@@ -128,6 +145,21 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Session"}
 components:
+  headers:
+    RateLimit:
+      description: >-
+        What is left of the budget this request counted against, as
+        "policy";r=remaining;t=seconds until the window resets.
+      schema: {type: string}
+    RateLimitPolicy:
+      description: >-
+        The budget this request counted against, as "policy";q=requests;w=window
+        seconds. Pairing allows 10 requests and check-ins 60 per client address
+        per minute.
+      schema: {type: string}
+    RetryAfter:
+      description: Seconds to wait before the budget resets.
+      schema: {type: integer, minimum: 1}
   parameters:
     SiwaReceipt:
       name: x-siwa-receipt
@@ -206,6 +238,9 @@ components:
       description: CSRF token was absent or invalid
     AgentNotPaired:
       description: The signing agent is not paired with an account
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
@@ -214,6 +249,9 @@ components:
               value: {error: {code: not_paired, message: This agent is not paired with an account. Ask your person for a pairing code.}}
     AgentPairingFailed:
       description: The pairing code could not be claimed
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
@@ -222,20 +260,27 @@ components:
               value: {error: {code: pairing_failed, message: The pairing code could not be used.}}
     AgentVerificationFailed:
       description: SIWA verification did not verify the signed agent request
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             verificationFailed:
               value: {error: {code: verification_failed, message: The signed agent request could not be verified.}}
-    AgentClaimRateLimited:
-      description: Too many pairing claims were received from the client address
+    AgentRateLimited:
+      description: Too many requests were received from the client address
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+        Retry-After: {$ref: "#/components/headers/RetryAfter"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             rateLimited:
-              value: {error: {code: rate_limited, message: Too many pairing attempts. Please wait and try again.}}
+              value: {error: {code: rate_limited, message: Too many requests. Wait the number of seconds in Retry-After, then try again.}}
   schemas:
     PairedAgentEnvelope:
       type: object

@@ -12,7 +12,7 @@ defmodule AshPlatformWeb.AgentControllerTest do
     Application.put_env(:ash_platform, :agent_pairing_clock, fn -> @now end)
     Process.delete(:agent_verification_result)
     Process.delete(:capture_agent_verification_calls)
-    AshPlatform.AgentAuth.ClaimRateLimiter.reset()
+    AshPlatform.RateLimiter.reset()
 
     on_exit(fn -> Application.put_env(:ash_platform, :agent_pairing_clock, previous_clock) end)
 
@@ -91,17 +91,35 @@ defmodule AshPlatformWeb.AgentControllerTest do
     assert {:ok, []} = Agents.list_my_agents(actor: actor)
   end
 
-  test "pairing attempts from one address are limited", %{conn: conn} do
-    for _attempt <- 1..10 do
+  test "pairing attempts from one address are limited, and each answer says what is left",
+       %{conn: conn} do
+    first = pair(conn, "code", "hermes")
+    assert response(first, 401)
+    assert get_resp_header(first, "ratelimit-policy") == [~s("pair";q=10;w=60)]
+    assert [~s("pair";r=9;t=) <> _reset] = get_resp_header(first, "ratelimit")
+
+    for _attempt <- 2..10 do
       assert conn |> recycle() |> pair("code", "hermes") |> response(401)
     end
 
-    assert conn |> recycle() |> pair("code", "hermes") |> json_response(429) == %{
+    limited = conn |> recycle() |> pair("code", "hermes")
+
+    assert json_response(limited, 429) == %{
              "error" => %{
                "code" => "rate_limited",
-               "message" => "Too many pairing attempts. Please wait and try again."
+               "message" =>
+                 "Too many requests. Wait the number of seconds in Retry-After, then try again."
              }
            }
+
+    assert [~s("pair";r=0;t=) <> _reset] = get_resp_header(limited, "ratelimit")
+    assert [retry_after] = get_resp_header(limited, "retry-after")
+    assert String.to_integer(retry_after) in 1..60
+
+    # Check-ins count against their own budget.
+    check_in = conn |> recycle() |> get("/api/agents/v1/me")
+    assert response(check_in, 401)
+    assert get_resp_header(check_in, "ratelimit-policy") == [~s("check-in";q=60;w=60)]
   end
 
   test "a paired agent checks in; an unpaired one is told to ask for a code", %{conn: conn} do

@@ -284,13 +284,38 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert me["operationId"] == "checkInAgent"
     assert me["security"] == []
     assert Enum.map(me["parameters"], & &1["$ref"]) == signed_headers
-    assert Map.keys(me["responses"]) |> Enum.sort() == ["200", "401", "404"]
+    assert Map.keys(me["responses"]) |> Enum.sort() == ["200", "401", "404", "429"]
+
+    budget_headers = %{
+      "RateLimit" => %{"$ref" => "#/components/headers/RateLimit"},
+      "RateLimit-Policy" => %{"$ref" => "#/components/headers/RateLimitPolicy"}
+    }
+
+    assert pair["responses"]["201"]["headers"] == budget_headers
+    assert me["responses"]["200"]["headers"] == budget_headers
+
+    assert contract["components"]["responses"]["AgentRateLimited"]["headers"] ==
+             Map.put(budget_headers, "Retry-After", %{"$ref" => "#/components/headers/RetryAfter"})
 
     assert contract["components"]["schemas"]["AgentHarness"]["enum"] ==
              Enum.map(AshPlatform.Agents.Harness.values(), &Atom.to_string/1)
 
     assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
              ["name", "harness", "wallet", "paired_at", "last_contact_at"]
+  end
+
+  test "the public API description publishes the agent operations exactly as the contract states them",
+       %{conn: conn} do
+    contract = YamlElixir.read_from_file!(@contract)
+    public = conn |> get("/openapi.json") |> json_response(200)
+    agent_paths = ["/api/agents/v1/me", "/api/agents/v1/pair"]
+
+    assert Map.take(public["paths"], agent_paths) == Map.take(contract["paths"], agent_paths)
+
+    for ref <- refs(Map.take(contract["paths"], agent_paths), contract) do
+      ["#", "components", section, name] = String.split(ref, "/")
+      assert public["components"][section][name] == contract["components"][section][name]
+    end
   end
 
   test "the served contract is byte-identical and available over HTTP", %{conn: conn} do
@@ -300,4 +325,21 @@ defmodule AshPlatformWeb.ApiContractTest do
     assert response(conn, 200) == File.read!(@contract)
     assert get_resp_header(conn, "content-type") == ["application/yaml"]
   end
+
+  # Every component the given part of a document points at, followed through
+  # the components themselves.
+  defp refs(part, contract) do
+    part
+    |> direct_refs()
+    |> Enum.flat_map(fn ref ->
+      ["#", "components", section, name] = String.split(ref, "/")
+      [ref | refs(contract["components"][section][name], contract)]
+    end)
+    |> Enum.uniq()
+  end
+
+  defp direct_refs(%{"$ref" => ref}), do: [ref]
+  defp direct_refs(%{} = map), do: map |> Map.values() |> Enum.flat_map(&direct_refs/1)
+  defp direct_refs(list) when is_list(list), do: Enum.flat_map(list, &direct_refs/1)
+  defp direct_refs(_value), do: []
 end

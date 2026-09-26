@@ -1,10 +1,12 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Regents public read API",
+    "title": "Regents public API",
     "version": "1.0.0",
-    "description": "Public service health and owner-authorized historical name reads. Does not describe wallet transactions, session changes, or separate product APIs.",
-    "contact": {"name": "Regents Labs"}
+    "description": "Public service health, owner-authorized historical name reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs.",
+    "contact": {
+      "name": "Regents Labs"
+    }
   },
   "security": [],
   "paths": {
@@ -16,7 +18,14 @@
         "responses": {
           "200": {
             "description": "Web service is responding",
-            "content": {"text/plain": {"schema": {"type": "string", "const": "ok"}}}
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "const": "ok"
+                }
+              }
+            }
           }
         }
       }
@@ -26,68 +35,718 @@
         "operationId": "listMyHistoricalNameClaims",
         "summary": "Read historical name claims for the verified account",
         "description": "Read-only recorded name and transaction evidence. Both Privy credentials are required. Never accepts a chosen owner as authority. Responses use Cache-Control: no-store. Does not mint, transfer, or grant entitlements.",
-        "security": [{"PrivyAccessToken": [], "PrivyIdentityToken": []}],
+        "security": [
+          {
+            "PrivyAccessToken": [],
+            "PrivyIdentityToken": []
+          }
+        ],
         "parameters": [
           {
-            "name": "after", "in": "query", "required": false,
+            "name": "after",
+            "in": "query",
+            "required": false,
             "description": "The exact next cursor from the previous response, at most 2048 UTF-8 bytes. This is the only supported query parameter.",
-            "schema": {"type": "string", "minLength": 1, "maxLength": 2048}
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
           },
           {
-            "name": "X-Privy-User-Id", "in": "header", "required": false,
+            "name": "X-Privy-User-Id",
+            "in": "header",
+            "required": false,
             "description": "If supplied, must exactly match the verified account subject. It does not select another owner.",
-            "schema": {"type": "string"}
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Authorized historical records; next is null at the end",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsPage"}}}
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimsPage"
+                }
+              }
+            }
           },
-          "400": {"description": "Invalid query or cursor", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
-          "401": {"description": "Missing or invalid credentials", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
-          "403": {"description": "Account is not authorized for this read", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
-          "503": {"description": "Claims service unavailable or unconfigured", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimsError"}}}},
-          "default": {"description": "Other HTTP error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPError"}}}}
+          "400": {
+            "description": "Invalid query or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimsError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account is not authorized for this read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Claims service unavailable or unconfigured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimsError"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other HTTP error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/v1/pair": {
+      "post": {
+        "operationId": "pairAgent",
+        "summary": "Pair this agent with a person's account",
+        "description": "Joins the signing agent to the Regents account that issued the one-time pairing code. Sign the request with your SIWA key for the audience regents. A code works once and expires ten minutes after it was made.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          },
+          {
+            "$ref": "#/components/parameters/ContentDigest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "code",
+                  "name",
+                  "harness"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "harness": {
+                    "$ref": "#/components/schemas/AgentHarness"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The agent is paired with the account that issued the code",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairedAgentEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/AgentPairingFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AgentVerificationFailed"
+          },
+          "429": {
+            "$ref": "#/components/responses/AgentRateLimited"
+          }
+        }
+      }
+    },
+    "/api/agents/v1/me": {
+      "get": {
+        "operationId": "checkInAgent",
+        "summary": "Check in as a paired agent",
+        "description": "Records this request as the agent's latest contact, which its person sees on their Account page, and returns the paired agent. Sign the request with your SIWA key; it has no body.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The paired agent, with this check-in recorded as its latest contact",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairedAgentEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AgentVerificationFailed"
+          },
+          "404": {
+            "$ref": "#/components/responses/AgentNotPaired"
+          },
+          "429": {
+            "$ref": "#/components/responses/AgentRateLimited"
+          }
         }
       }
     }
   },
   "components": {
     "securitySchemes": {
-      "PrivyAccessToken": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Privy access token for the requesting account."},
-      "PrivyIdentityToken": {"type": "apiKey", "in": "header", "name": "Privy-Id-Token", "description": "Privy identity JWT, required alongside the access token. Not a Regents API key."}
+      "PrivyAccessToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Privy access token for the requesting account."
+      },
+      "PrivyIdentityToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Privy-Id-Token",
+        "description": "Privy identity JWT, required alongside the access token. Not a Regents API key."
+      }
     },
     "schemas": {
       "ClaimsPage": {
-        "type": "object", "required": ["claims", "next"],
+        "type": "object",
+        "required": [
+          "claims",
+          "next"
+        ],
         "properties": {
-          "claims": {"type": "array", "items": {"$ref": "#/components/schemas/Claim"}},
-          "next": {"type": ["string", "null"], "description": "Opaque continuation cursor; null means there are no more records."}
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            }
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque continuation cursor; null means there are no more records."
+          }
         }
       },
       "Claim": {
         "type": "object",
-        "required": ["id", "name", "ens_name", "owner_address", "status", "transaction", "ens_transaction", "claimed_at", "ens_assigned_at"],
+        "required": [
+          "id",
+          "name",
+          "ens_name",
+          "owner_address",
+          "status",
+          "transaction",
+          "ens_transaction",
+          "claimed_at",
+          "ens_assigned_at"
+        ],
         "properties": {
-          "id": {"type": "string", "description": "Recorded numeric identifier represented as a string."},
-          "name": {"type": ["string", "null"], "description": "Recorded fully qualified name."},
-          "ens_name": {"type": ["string", "null"], "description": "Recorded ENS name, when present."},
-          "owner_address": {"type": ["string", "null"], "description": "Historical wallet ownership evidence, not an entitlement grant."},
-          "status": {"type": ["string", "null"]},
-          "transaction": {"type": ["string", "null"]},
-          "ens_transaction": {"type": ["string", "null"]},
-          "claimed_at": {"type": ["string", "null"], "format": "date-time"},
-          "ens_assigned_at": {"type": ["string", "null"], "format": "date-time"}
+          "id": {
+            "type": "string",
+            "description": "Recorded numeric identifier represented as a string."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Recorded fully qualified name."
+          },
+          "ens_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Recorded ENS name, when present."
+          },
+          "owner_address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Historical wallet ownership evidence, not an entitlement grant."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transaction": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ens_transaction": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ens_assigned_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
         }
       },
       "ClaimsError": {
-        "type": "object", "required": ["error"],
-        "properties": {"error": {"type": "object", "required": ["code"], "properties": {"code": {"type": "string", "enum": ["authentication_required", "invalid_claims_query", "invalid_cursor", "claims_forbidden", "claims_unconfigured", "claims_unavailable"]}}}}
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "authentication_required",
+                  "invalid_claims_query",
+                  "invalid_cursor",
+                  "claims_forbidden",
+                  "claims_unconfigured",
+                  "claims_unavailable"
+                ]
+              }
+            }
+          }
+        }
       },
       "HTTPError": {
-        "type": "object", "required": ["errors"],
-        "properties": {"errors": {"type": "object", "required": ["detail", "code", "hint"], "properties": {"detail": {"type": "string"}, "code": {"type": "string"}, "hint": {"type": "string"}}}}
+        "type": "object",
+        "required": [
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "object",
+            "required": [
+              "detail",
+              "code",
+              "hint"
+            ],
+            "properties": {
+              "detail": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PairedAgentEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PairedAgent"
+          }
+        }
+      },
+      "PairedAgent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "harness",
+          "wallet",
+          "paired_at",
+          "last_contact_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "harness": {
+            "$ref": "#/components/schemas/AgentHarness"
+          },
+          "wallet": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "paired_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_contact_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentHarness": {
+        "type": "string",
+        "enum": [
+          "hermes",
+          "grok_bot",
+          "muse",
+          "openclaw",
+          "nemoclaw",
+          "ironclaw",
+          "pi"
+        ]
+      },
+      "AgentPairingError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "pairing_failed",
+                  "verification_failed",
+                  "rate_limited",
+                  "not_paired"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "SiwaReceipt": {
+        "name": "x-siwa-receipt",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "SiwaKeyId": {
+        "name": "x-key-id",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "SiwaTimestamp": {
+        "name": "x-timestamp",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^\\d+$"
+        }
+      },
+      "SiwaAgentWallet": {
+        "name": "x-agent-wallet-address",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        }
+      },
+      "SiwaAgentChainId": {
+        "name": "x-agent-chain-id",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "const": "8453"
+        }
+      },
+      "HttpSignatureInput": {
+        "name": "signature-input",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "HttpSignature": {
+        "name": "signature",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "ContentDigest": {
+        "name": "content-digest",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "headers": {
+      "RateLimit": {
+        "description": "What is left of the budget this request counted against, as \"policy\";r=remaining;t=seconds until the window resets.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RateLimitPolicy": {
+        "description": "The budget this request counted against, as \"policy\";q=requests;w=window seconds. Pairing allows 10 requests and check-ins 60 per client address per minute.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RetryAfter": {
+        "description": "Seconds to wait before the budget resets.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "responses": {
+      "AgentNotPaired": {
+        "description": "The signing agent is not paired with an account",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            },
+            "examples": {
+              "notPaired": {
+                "value": {
+                  "error": {
+                    "code": "not_paired",
+                    "message": "This agent is not paired with an account. Ask your person for a pairing code."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "AgentPairingFailed": {
+        "description": "The pairing code could not be claimed",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            },
+            "examples": {
+              "pairingFailed": {
+                "value": {
+                  "error": {
+                    "code": "pairing_failed",
+                    "message": "The pairing code could not be used."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "AgentVerificationFailed": {
+        "description": "SIWA verification did not verify the signed agent request",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            },
+            "examples": {
+              "verificationFailed": {
+                "value": {
+                  "error": {
+                    "code": "verification_failed",
+                    "message": "The signed agent request could not be verified."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "AgentRateLimited": {
+        "description": "Too many requests were received from the client address",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            },
+            "examples": {
+              "rateLimited": {
+                "value": {
+                  "error": {
+                    "code": "rate_limited",
+                    "message": "Too many requests. Wait the number of seconds in Retry-After",
+                    "then try again.": null
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

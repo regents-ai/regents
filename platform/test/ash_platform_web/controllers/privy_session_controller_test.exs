@@ -6,8 +6,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   alias AshPlatform.Accounts
   alias AshPlatform.Accounts.SessionAuthority
   alias AshPlatform.Actors.{Human, System}
-  alias AshPlatform.AgentAuth.ClaimRateLimiter
   alias AshPlatform.Formation
+  alias AshPlatform.RateLimiter
 
   @canonical_session_keys [
     "_csrf_token",
@@ -105,8 +105,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   test "BROWSER_FAILURE_DIAGNOSTIC: accepts every report but logs at most twenty per IP" do
-    ClaimRateLimiter.reset()
-    on_exit(&ClaimRateLimiter.reset/0)
+    RateLimiter.reset()
+    on_exit(&RateLimiter.reset/0)
 
     log =
       capture_log(fn ->
@@ -126,8 +126,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   test "BROWSER_FAILURE_DIAGNOSTIC: retryable closes cannot consume the actionable budget" do
-    ClaimRateLimiter.reset()
-    on_exit(&ClaimRateLimiter.reset/0)
+    RateLimiter.reset()
+    on_exit(&RateLimiter.reset/0)
 
     log =
       capture_log(fn ->
@@ -182,8 +182,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   end
 
   test "SESSION_FAILURE_DIAGNOSTIC: repeated rejected sessions share the actionable bound" do
-    ClaimRateLimiter.reset()
-    on_exit(&ClaimRateLimiter.reset/0)
+    RateLimiter.reset()
+    on_exit(&RateLimiter.reset/0)
     handler = "bounded-session-failure-#{Elixir.System.unique_integer([:positive])}"
     parent = self()
 
@@ -1175,11 +1175,11 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   defp release_budget do
     raised = Application.fetch_env!(:ash_platform, :session_bootstrap_rate_limit)
     Application.put_env(:ash_platform, :session_bootstrap_rate_limit, @release_budget)
-    ClaimRateLimiter.reset()
+    RateLimiter.reset()
 
     on_exit(fn ->
       Application.put_env(:ash_platform, :session_bootstrap_rate_limit, raised)
-      ClaimRateLimiter.reset()
+      RateLimiter.reset()
     end)
   end
 

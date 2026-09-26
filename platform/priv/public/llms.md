@@ -11,15 +11,16 @@
 ## Start here
 
 1. Read [developer documentation]({{origin}}/docs). It works without an account and has executable read-only HTTP examples.
-2. Fetch the [OpenAPI JSON specification]({{origin}}/openapi.json) for health and owner-authorized claims reads.
+2. Fetch the [OpenAPI JSON specification]({{origin}}/openapi.json) for health, owner-authorized claims reads and agent pairing.
 3. Request `Accept: text/markdown` at the [homepage]({{origin}}/), [docs]({{origin}}/docs), [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) or [Terms]({{origin}}/terms). HTML remains the default. Use the [sitemap]({{origin}}/sitemap.xml) for the public document directory.
 
 ## Available interfaces
 
 - `GET /healthz`: public plain-text health response, `ok`. No API key or wallet required.
 - `GET /api/v1/claims`: verified-account historical name reads. Requires both a Privy access bearer token and a Privy identity token. Follow the returned `next` cursor with the sole `after` parameter; stop at null. Missing or invalid credentials return 401. Never fabricate an owner association.
+- `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
 - [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
-- [Existing YAML contract]({{origin}}/api-contract.openapiv3.yaml): retained product interfaces; some listed operations may not be available yet. The read-only JSON specification above is the narrow integration entry point documented for this release.
+- [Existing YAML contract]({{origin}}/api-contract.openapiv3.yaml): retained product interfaces; some listed operations may not be available yet. The JSON specification above is the integration entry point documented for this release.
 
 The published [@regentslabs/cli](https://www.npmjs.com/package/@regentslabs/cli) version 0.5.0 was built against an earlier version of this service and is not supported for hosted operations in this release. Use the HTTP reads documented above instead.
 
@@ -35,7 +36,7 @@ When your person gives you a Regents pairing code, pair with their account using
 4. Pair: `uv run siwa_agent.py request POST {{origin}}/api/agents/v1/pair --body '{"code":"<code>","name":"<your name>","harness":"<harness>"}'`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`. Your person can correct it later.
 5. Check in when you do work for your person: `uv run siwa_agent.py request GET {{origin}}/api/agents/v1/me`. Your person sees the time of your latest contact on their Account page.
 
-A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `404 not_paired` from the check-in means your person unpaired you.
+A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `404 not_paired` from the check-in means your person unpaired you. Pairing allows 10 requests and check-ins 60 per minute; every answer carries `RateLimit` and `RateLimit-Policy` headers, and a `429 rate_limited` carries `Retry-After` in seconds to wait.
 
 ## Separate products
 

@@ -35,9 +35,40 @@ A successful response contains a `claims` array and a `next` cursor. Each claim 
 
 Missing or invalid credentials return 401. An invalid query or cursor returns 400; forbidden reads return 403. A temporarily unavailable or unconfigured claims service returns 503. Claims responses are not cacheable. A selected name or wallet address is not authentication.
 
+## Pair an agent with a person's account
+
+A person makes a one-time pairing code on their [Account]({{origin}}/account) page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
+
+Every agent request is signed for the audience `regents` through `https://siwa-server.fly.dev`. The [agent guide]({{origin}}/llms.txt) has the step-by-step setup, including where each agent keeps its own key. With the key made and signed in:
+
+```sh
+uv run siwa_agent.py request POST '{{origin}}/api/agents/v1/pair' \
+  --body '{"code":"<code>","name":"Sol","harness":"hermes"}'
+uv run siwa_agent.py request GET '{{origin}}/api/agents/v1/me'
+```
+
+`POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the same shape:
+
+```json
+{"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z"}}
+```
+
+Errors share one shape, `{"error": {"code": "…", "message": "…"}}`. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
+
+## Request limits
+
+Pairing allows 10 requests and check-ins 60 requests per client address per minute. Every agent answer says where the caller stands:
+
+```http
+RateLimit-Policy: "pair";q=10;w=60
+RateLimit: "pair";r=9;t=42
+```
+
+`q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. Past the limit the answer is `429 rate_limited` with a `Retry-After` header in seconds; wait that long, then try again.
+
 ## Contracts and availability
 
-The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health and owner-authorized claims reads above, including their schemas and authentication requirements. It intentionally does not describe wallet transactions or session changes.
+The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the owner-authorized claims read and agent pairing above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 The [existing YAML contract]({{origin}}/api-contract.openapiv3.yaml) also describes retained product interfaces; some listed operations may not be available yet. For new token-auction work use [Autolaunch](https://autolaunch.sh); for Skill evaluations use [Techtree](https://techtree.sh); for agent-tool reports and repairs use [Patchbay](https://patchbay.help). Each product owns its permissions and integration contract.
 

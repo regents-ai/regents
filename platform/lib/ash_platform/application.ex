@@ -10,7 +10,7 @@ defmodule AshPlatform.Application do
     children =
       [
         AshPlatformWeb.Telemetry,
-        {AshPlatform.AgentAuth.ClaimRateLimiter, []},
+        {AshPlatform.RateLimiter, []},
         {AshPlatform.OpenSea.HoldingsCache, []},
         database_child(),
         {Phoenix.PubSub, name: AshPlatform.PubSub},

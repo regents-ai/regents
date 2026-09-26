@@ -4,7 +4,7 @@ defmodule AshPlatformWeb.PrivySessionController do
   alias AshPlatform.{AccessContext, Formation}
   alias AshPlatform.Accounts.{SessionAuthority, VerifiedSession}
   alias AshPlatform.Actors.Human
-  alias AshPlatform.AgentAuth.ClaimRateLimiter
+  alias AshPlatform.RateLimiter
   alias AshPlatformWeb.ClientAddress
 
   require Logger
@@ -102,9 +102,9 @@ defmodule AshPlatformWeb.PrivySessionController do
     window = Keyword.fetch!(budget, :window_seconds)
     {key, source} = ClientAddress.key(conn)
 
-    case ClaimRateLimiter.admit({:session_bootstrap, key}, Keyword.fetch!(budget, :limit), window) do
-      :ok -> renew(conn, nil)
-      {:error, :rate_limited} -> rate_limited(conn, source, window)
+    case RateLimiter.admit({:session_bootstrap, key}, Keyword.fetch!(budget, :limit), window) do
+      {:ok, _budget} -> renew(conn, nil)
+      {:error, :rate_limited, _budget} -> rate_limited(conn, source, window)
     end
   end
 
@@ -166,11 +166,14 @@ defmodule AshPlatformWeb.PrivySessionController do
   defp report_bounded_sign_in_failure(conn, reason) do
     {key, _source} = ClientAddress.key(conn)
 
-    if ClaimRateLimiter.admit(
-         {:privy_browser_failure, browser_failure_bucket(reason), key},
-         @browser_failure_limit,
-         @browser_failure_window_seconds
-       ) == :ok do
+    if match?(
+         {:ok, _budget},
+         RateLimiter.admit(
+           {:privy_browser_failure, browser_failure_bucket(reason), key},
+           @browser_failure_limit,
+           @browser_failure_window_seconds
+         )
+       ) do
       report_sign_in_failure(reason)
     end
   end
