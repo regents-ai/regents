@@ -258,6 +258,17 @@
   font-size: 0.9rem;
 }
 
+/* How the last agent edit ended, beside the list or in the open agent. */
+.account-agents__notice {
+  margin: 0;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+}
+
+.account-agents__notice[role="alert"] {
+  border-inline-start-color: var(--ash-accent-warm);
+}
+
 .account-agents__pair {
   display: grid;
   gap: 0.75rem;

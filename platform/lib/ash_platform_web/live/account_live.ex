@@ -25,6 +25,7 @@ defmodule AshPlatformWeb.AccountLive do
   attr :agents, :any, default: nil
   attr :agent_pairing, :any, default: nil
   attr :agent_detail, :map, default: nil
+  attr :agent_notice, :any, default: nil
   attr :agents_now, DateTime, default: nil
 
   def page(assigns) do
@@ -118,6 +119,7 @@ defmodule AshPlatformWeb.AccountLive do
           agents={@agents}
           pairing={@agent_pairing}
           detail={@agent_detail}
+          notice={@agent_notice}
           now={@agents_now}
         />
 

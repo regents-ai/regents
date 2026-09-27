@@ -22,6 +22,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   attr :agents, :any, required: true
   attr :pairing, :any, default: nil
   attr :detail, :map, default: nil
+  attr :notice, :any, default: nil, doc: "`{:status | :alert, text}` for the last agent edit"
   attr :now, DateTime, required: true
 
   def paired_agents(assigns) do
@@ -36,6 +37,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
         <p>Agents you have paired with this account, most recent first.</p>
       </div>
 
+      <.agent_notice :if={is_nil(@detail)} id="account-agents-notice" notice={@notice} />
       <.agent_list agents={@agents} now={@now} />
 
       <div class="account-agents__pair">
@@ -51,7 +53,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
         <.pairing pairing={@pairing} />
       </div>
 
-      <.agent_dialog :if={@detail} detail={@detail} now={@now} />
+      <.agent_dialog :if={@detail} detail={@detail} notice={@notice} now={@now} />
     </section>
     """
   end
@@ -166,7 +168,21 @@ defmodule AshPlatformWeb.Components.PairedAgents do
     """
   end
 
+  attr :id, :string, required: true
+  attr :notice, :any, required: true
+
+  defp agent_notice(%{notice: {role, text}} = assigns) do
+    assigns = assign(assigns, role: role, text: text)
+
+    ~H"""
+    <p id={@id} class="account-agents__notice" role={to_string(@role)}>{@text}</p>
+    """
+  end
+
+  defp agent_notice(assigns), do: ~H""
+
   attr :detail, :map, required: true
+  attr :notice, :any, required: true
   attr :now, DateTime, required: true
 
   defp agent_dialog(assigns) do
@@ -229,6 +245,8 @@ defmodule AshPlatformWeb.Components.PairedAgents do
         </p>
         <.activity activity={@detail.activity} />
       </section>
+
+      <.agent_notice id="account-agent-dialog-notice" notice={@notice} />
 
       <div class="account-agent-dialog__actions">
         <Regent.Primitives.button
