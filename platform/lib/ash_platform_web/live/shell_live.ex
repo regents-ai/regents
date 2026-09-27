@@ -17,7 +17,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   alias AshPlatform.Accounts.LinkedIdentity.Providers
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Agents.{AgentActivity, PairedAgent, PairingCode}
+  alias AshPlatform.Agents.{AgentActivity, Harness, PairedAgent, PairingCode}
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.Redemption.Steps, as: RedemptionSteps
   alias AshPlatform.Staking.Facts, as: StakingFacts
@@ -69,6 +69,7 @@ defmodule AshPlatformWeb.ShellLive do
        paired_agents: nil,
        agent_pairing: nil,
        agent_detail: nil,
+       agent_notice: nil,
        agents_now: DateTime.utc_now(),
        route_params: params,
        regent: socket.assigns.current_regent,
@@ -371,7 +372,7 @@ defmodule AshPlatformWeb.ShellLive do
         _params,
         %{assigns: %{route_spec: %{route_id: :account}}} = socket
       ),
-      do: {:noreply, assign(socket, agent_pairing: issue_pairing_code(socket))}
+      do: {:noreply, assign(socket, agent_pairing: issue_pairing_code(socket), agent_notice: nil)}
 
   def handle_event(
         "open_agent",
@@ -379,10 +380,10 @@ defmodule AshPlatformWeb.ShellLive do
         %{assigns: %{route_spec: %{route_id: :account}}} = socket
       )
       when is_binary(id),
-      do: {:noreply, show_agent(socket, id, human_actor(socket))}
+      do: {:noreply, socket |> assign(agent_notice: nil) |> show_agent(id, human_actor(socket))}
 
   def handle_event("close_agent", _params, socket),
-    do: {:noreply, assign(socket, agent_detail: nil)}
+    do: {:noreply, assign(socket, agent_detail: nil, agent_notice: nil)}
 
   def handle_event(
         "change_agent_harness",
@@ -392,10 +393,12 @@ defmodule AshPlatformWeb.ShellLive do
       when is_binary(id) and is_binary(harness) do
     actor = human_actor(socket)
 
-    with {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor),
-         do: Agents.change_agent_harness(agent, harness, actor: actor)
+    result =
+      with {:ok, agent} <- my_agent(id, actor),
+           {:ok, changed} <- Agents.change_agent_harness(agent, harness, actor: actor),
+           do: {:ok, {:change_harness, changed}}
 
-    {:noreply, reload_paired_agents(socket, actor)}
+    {:noreply, agent_edited(socket, actor, result)}
   end
 
   def handle_event(
@@ -406,10 +409,12 @@ defmodule AshPlatformWeb.ShellLive do
       when is_binary(id) do
     actor = human_actor(socket)
 
-    with {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor),
-         do: Agents.unpair_agent(agent, actor: actor)
+    result =
+      with {:ok, agent} <- my_agent(id, actor),
+           :ok <- Agents.unpair_agent(agent, actor: actor),
+           do: {:ok, {:unpair, agent}}
 
-    {:noreply, reload_paired_agents(socket, actor)}
+    {:noreply, agent_edited(socket, actor, result)}
   end
 
   def handle_event(event, _params, socket)
@@ -660,6 +665,7 @@ defmodule AshPlatformWeb.ShellLive do
           agents={@paired_agents}
           agent_pairing={@agent_pairing}
           agent_detail={@agent_detail}
+          agent_notice={@agent_notice}
           agents_now={@agents_now}
         />
 
@@ -1094,13 +1100,22 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp load_paired_agents(socket, %{route_id: :account}) do
     case human_actor(socket) do
-      %Human{} = actor -> reload_paired_agents(socket, actor)
-      nil -> assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil)
+      %Human{} = actor ->
+        reload_paired_agents(socket, actor)
+
+      nil ->
+        assign(socket,
+          paired_agents: nil,
+          agent_pairing: nil,
+          agent_detail: nil,
+          agent_notice: nil
+        )
     end
   end
 
   defp load_paired_agents(socket, _route_spec),
-    do: assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil)
+    do:
+      assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil, agent_notice: nil)
 
   # The open agent is read again with the list, so its dialog closes on its own
   # once the agent is unpaired.
@@ -1155,6 +1170,39 @@ defmodule AshPlatformWeb.ShellLive do
         assign(socket, agent_detail: nil)
     end
   end
+
+  defp my_agent(id, actor) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor) do
+      {:ok, agent}
+    else
+      {:error, error} -> {:error, error}
+      _missing -> {:error, :not_found}
+    end
+  end
+
+  # Every agent edit says how it ended, and the list is read again either way,
+  # so what is shown is the account's record and not the click.
+  defp agent_edited(socket, actor, result) do
+    socket
+    |> reload_paired_agents(actor)
+    |> assign(agent_notice: agent_notice(result))
+  end
+
+  defp agent_notice({:ok, {:change_harness, agent}}),
+    do: {:status, "Saved. #{agent.name} runs on #{Harness.label(agent.harness)}."}
+
+  defp agent_notice({:ok, {:unpair, agent}}),
+    do: {:status, "#{agent.name} is unpaired. It will need a new code to pair again."}
+
+  defp agent_notice({:error, :not_found}),
+    do: {:alert, "This agent is no longer paired with your account. Nothing changed."}
+
+  defp agent_notice({:error, %Ash.Error.Invalid{}}),
+    do: {:alert, "Choose what it runs on from the list. Nothing changed."}
+
+  defp agent_notice({:error, _unavailable}),
+    do: {:alert, "Your agents couldn’t be updated just now. Nothing changed. Try again."}
 
   # A code already on screen stays there while a new one can't be made yet.
   defp issue_pairing_code(socket) do

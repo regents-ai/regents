@@ -84,10 +84,23 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     assert has_element?(view, "#account-agent-dialog .account-kicker", "Pi")
     assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/pi.svg"]))
 
+    assert has_element?(
+             view,
+             "#account-agent-dialog-notice[role=status]",
+             "Saved. Muse helper runs on Pi."
+           )
+
     view |> element("#account-agent-dialog button", "Unpair") |> render_click()
 
     refute has_element?(view, "#account-agent-dialog")
     refute has_element?(view, "#agent-#{agent.id}")
+
+    assert has_element?(
+             view,
+             "#account-agents-notice[role=status]",
+             "Muse helper is unpaired. It will need a new code to pair again."
+           )
+
     assert {:ok, []} = Agents.list_my_agents(actor: %Human{human_account_id: account.id})
   end
 
@@ -132,11 +145,74 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     render_hook(view, "open_agent", %{"id" => agent.id})
     refute has_element?(view, "#account-agent-dialog")
 
-    render_hook(view, "change_agent_harness", %{"agent" => agent.id, "harness" => "pi"})
-    render_hook(view, "unpair_agent", %{"id" => agent.id})
+    for {name, params} <- [
+          {"change_agent_harness", %{"agent" => agent.id, "harness" => "pi"}},
+          {"unpair_agent", %{"id" => agent.id}}
+        ] do
+      render_hook(view, name, params)
+
+      assert has_element?(
+               view,
+               "#account-agents-notice[role=alert]",
+               "This agent is no longer paired with your account. Nothing changed."
+             )
+    end
 
     assert {:ok, [%{harness: :hermes}]} =
              Agents.list_my_agents(actor: %Human{human_account_id: owner.id})
+  end
+
+  test "an agent unpaired elsewhere leaves the page, and a late press says so", %{conn: conn} do
+    account = register_account("agents-stale")
+    agent = pair!(account, "Echo", :hermes)
+    view = open_account(conn, account)
+
+    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    :ok = Agents.unpair_agent(agent, actor: %Human{human_account_id: account.id})
+
+    refute has_element?(view, "#account-agent-dialog")
+    refute has_element?(view, "#agent-#{agent.id}")
+
+    # A press sent before the page caught up.
+    stale = "This agent is no longer paired with your account. Nothing changed."
+
+    for {name, params} <- [
+          {"change_agent_harness", %{"agent" => agent.id, "harness" => "pi"}},
+          {"unpair_agent", %{"id" => agent.id}}
+        ] do
+      render_hook(view, name, params)
+      assert has_element?(view, "#account-agents-notice[role=alert]", stale)
+    end
+  end
+
+  test "a choice that isn't on the list, or an agent that isn't one, changes nothing", %{
+    conn: conn
+  } do
+    account = register_account("agents-invalid")
+    agent = pair!(account, "Nova", :hermes)
+    view = open_account(conn, account)
+
+    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    render_hook(view, "change_agent_harness", %{"agent" => agent.id, "harness" => "nope"})
+
+    assert has_element?(
+             view,
+             "#account-agent-dialog-notice[role=alert]",
+             "Choose what it runs on from the list. Nothing changed."
+           )
+
+    assert has_element?(view, "#account-agent-dialog .account-kicker", "Hermes")
+
+    render_hook(view, "unpair_agent", %{"id" => "not-an-agent"})
+
+    assert has_element?(
+             view,
+             "#account-agent-dialog-notice[role=alert]",
+             "This agent is no longer paired with your account. Nothing changed."
+           )
+
+    assert {:ok, [%{harness: :hermes}]} =
+             Agents.list_my_agents(actor: %Human{human_account_id: account.id})
   end
 
   defp pair!(account, name, harness) do
