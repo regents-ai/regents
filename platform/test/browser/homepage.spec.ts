@@ -794,3 +794,21 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
   }
   expect([...reached]).toEqual(expect.arrayContaining(["Open techtree ↗", "Stake REGENT", "autolaunch on GitHub"]))
 })
+// COPY_BUTTON: the $REGENT menu copies the contract address with the shared
+// copy button, which answers "Copied" in place of its label.
+test("[R14] the $REGENT menu copies the contract address", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 1440, height: 900}})
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  const page = await context.newPage()
+  await page.goto("/")
+  await waitForHomepage(page)
+
+  const menu = page.locator("details.rl-token-menu").first()
+  await menu.locator("summary").hover()
+  const copy = menu.getByRole("button", {name: "Copy $REGENT contract address"})
+  await copy.click()
+
+  await expect(copy.locator(".rg-copy__copied")).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^0x[0-9a-fA-F]{40}$/)
+  await context.close()
+})

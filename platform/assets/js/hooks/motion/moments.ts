@@ -1,7 +1,7 @@
 /**
- * Motion for things the server decides: a list that changes, a figure that
- * moves and a note that says something happened. The page renders every
- * result first; these only animate from the old picture to the new one.
+ * Motion for things the server decides: a list that changes and a figure that
+ * moves. The page renders every result first; these only animate from the old
+ * picture to the new one.
  */
 import {
   animate,
@@ -16,7 +16,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, SLOW, play, still} from "./shared"
+import {BASE, SLOW, still} from "./shared"
 import type {Hook} from "../../hook_composition"
 
 // How a list moves when the server adds, reorders or drops its items. Each is
@@ -134,18 +134,4 @@ export const MotionCount: Hook = {
 function join(hook: CountHook, split: TextSplitter) {
   if (!hook.splits.delete(split)) return
   split.revert()
-}
-
-/**
- * A note that pops in when something has just happened, and back out. The
- * note's stylesheet decides whether it shows; `done` puts it away once it
- * has popped out.
- */
-export const pop = (el: Element) =>
-  play(el, {scale: {from: 0.6}, opacity: {from: 0}, ease: spring({bounce: 0.45, duration: 360})})
-
-export function unpop(el: Element, done: () => void) {
-  const animation = play(el, {scale: 0.8, opacity: 0, ease: "in(3)", duration: BASE})
-  animation.then(done)
-  return animation
 }
