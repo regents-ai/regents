@@ -23,6 +23,10 @@ defmodule AshPlatformWeb.OnchainSteps do
 
   @recheck_ms 2_000
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
+  @failure_reasons ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
+
+  @doc "A reason the page gives for a press that sent nothing, or may have sent something."
+  defguard failure_reason(reason) when reason in @failure_reasons
 
   @doc "The assigns a wallet-button component starts with."
   def init(socket), do: assign(socket, presses: Presses.new(), review: nil, press_note: nil)

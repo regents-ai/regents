@@ -975,6 +975,54 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(#staking-amount[value="7"]))
   end
 
+  test "UNREADABLE_INPUT: a malformed or oversized event is refused with a note and nothing changes",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "unreadable-input")
+    set_amount(view, "1")
+    assert has_element?(view, ~s(#staking-amount[maxlength="64"]))
+
+    for {event, params} <- [
+          {"change", %{"amount" => %{"raw" => "1"}}},
+          {"change", %{"amount" => String.duplicate("1", 65)}},
+          {"change", %{"amount" => "2", "receiver" => ["0x"]}},
+          {"change", %{}},
+          {"step_failed", %{"step" => "stake", "reason" => "made_up"}},
+          {"select_staking_action", %{"mode" => "sideways"}},
+          {"fill_staking_amount", %{"portion" => ["max"]}},
+          {"check_again", %{"hash" => 7}},
+          {"no_such_event", %{"anything" => true}}
+        ] do
+      view |> actions() |> render_hook(event, params)
+
+      assert has_element?(
+               view,
+               "#staking-press-notice",
+               "That couldn’t be read, so nothing changed."
+             ),
+             "#{event} #{inspect(params)}"
+
+      assert actions_assigns(view).amount == "1"
+    end
+
+    view
+    |> actions()
+    |> render_hook("prepare_and_send", %{"form" => "amount=7", "step" => "stake"})
+
+    assert_reply(view, reply)
+    assert reply == %{}
+    assert actions_assigns(view).amount == "1"
+  end
+
+  test "EXACT_AMOUNT: every decimal place typed reaches the stake step", %{conn: conn} do
+    view = stake_as_signer(conn, "exact-amount")
+    set_amount(view, "123456789012.123456789012345678")
+
+    [%{data: "0x" <> <<_selector::binary-size(8), amount::binary-size(64), _rest::binary>>}] =
+      step(view, "stake")
+
+    assert String.to_integer(amount, 16) == 123_456_789_012_123_456_789_012_345_678
+  end
+
   defp hash(byte), do: "0x" <> String.duplicate(byte, 32)
 
   defp staking_contract, do: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
