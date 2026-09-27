@@ -6,6 +6,11 @@ defmodule AshPlatformWeb.EventInput do
   Each page keeps its own limits and its own meaning for the text.
   """
 
+  @failure_reasons ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
+
+  @doc "A reason the page gives for a wallet press that sent nothing, or may have sent something."
+  defguard failure_reason(reason) when reason in @failure_reasons
+
   @doc """
   The named fields of `params` that are present, each as bounded text:
   `{:ok, %{field => text}}`, or `:error` when `params` is not a map or any named
