@@ -99,15 +99,6 @@ defmodule AshPlatform.BaseRpcStub do
       "logs" => logs
     }
 
-  def transaction(hash, envelope),
-    do: %{
-      "hash" => hash,
-      "from" => envelope.expected_signer,
-      "to" => envelope.to,
-      "input" => envelope.data,
-      "value" => "0x0"
-    }
-
   @doc "Every block a pinned `eth_call` was executed against, taken from this test's mailbox."
   def call_blocks(blocks \\ []) do
     receive do

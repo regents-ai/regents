@@ -31,7 +31,6 @@ import {OnchainSteps} from "./hooks/onchain_steps"
 import {mountMotion} from "./motion"
 import {installCopyButtons} from "./copy_buttons"
 import {installPublicTools} from "./public_tools"
-import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
@@ -324,7 +323,6 @@ const hooks = {
   MotionTabs,
   OnchainSteps,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
-  RedemptionWallet,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

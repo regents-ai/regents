@@ -459,12 +459,6 @@
   font-size: 0.82rem;
 }
 
-/* While the wallet has a press, the button's words say so. The button itself
-   keeps taking presses; each one opens the wallet again. */
-[data-wallet-wait] { display: none; }
-[data-awaiting-wallet] [data-press-label] { display: none; }
-[data-awaiting-wallet] [data-wallet-wait] { display: inline; }
-
 /* Each press the wallet sent, newest first, with what Base says about it. */
 .stake-activity {
   display: grid;

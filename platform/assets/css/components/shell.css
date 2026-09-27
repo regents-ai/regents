@@ -39,8 +39,8 @@
   margin-inline-end: 1.7rem;
 }
 
-/* Beside the on-chain buttons when they will send from a wallet other than
-   the one the figures are for. */
+/* Beside the on-chain buttons while the wallet app has open a wallet the
+   signed-in account does not link. */
 .shell-sending-wallet {
   margin: 0.75rem 0 0;
   padding: 0.6rem 0.85rem;
@@ -50,9 +50,11 @@
   font-size: 0.9rem;
 }
 
-.shell-sending-wallet span {
-  white-space: nowrap;
-}
+/* While the wallet has a press, an on-chain button's words say so. The button
+   itself keeps taking presses; each one opens the wallet again. */
+[data-wallet-wait] { display: none; }
+[data-awaiting-wallet] [data-press-label] { display: none; }
+[data-awaiting-wallet] [data-wallet-wait] { display: inline; }
 
 #shell-header a,
 #shell-sidebar a {

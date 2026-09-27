@@ -6,12 +6,6 @@ defmodule AshPlatform.RedemptionTest do
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
   @animata_i "0x78402119ec6349a0d41f12b54938de7bf783c923"
-  @redeemer "0x71065b775a590c43933f10c0055dc7d74afabb0e"
-  @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
-  @redeem_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002a"
-  @claim_data "0x4e71d92d"
-  @approve_nft_data "0xa22cb46500000000000000000000000071065b775a590c43933f10c0055dc7d74afabb0e0000000000000000000000000000000000000000000000000000000000000001"
-  @approve_usdc_data "0x095ea7b300000000000000000000000071065b775a590c43933f10c0055dc7d74afabb0e0000000000000000000000000000000000000000000000000000000004c4b400"
 
   defmodule ChainStub do
     @behaviour AshPlatform.Redemption.ChainClient
@@ -115,65 +109,6 @@ defmodule AshPlatform.RedemptionTest do
 
     assert Redemption.next_step(%{base | usdc_balance_raw: "1"}, @wallet) == :insufficient_usdc
     assert Redemption.next_step(base, @wallet) == :ready
-  end
-
-  test "APPROVE_NFT: the collection approval is exact calldata taken from the selection alone" do
-    Process.put(:nft_approved, true)
-    assert {:ok, envelope} = Redemption.prepare_nft_approval(@wallet, "animata_i", 42)
-    assert envelope.action == "approve_nft_collection"
-    assert envelope.to == @animata_i
-    assert envelope.data == @approve_nft_data
-    assert envelope.arguments == %{collection: @animata_i, operator: @redeemer, approved: true}
-    refute_received {:overview, _, _, _}
-  end
-
-  test "APPROVE_80_USDC: the exact approval is the same calldata whatever the allowance was" do
-    Process.put(:usdc_allowance_raw, "80000000")
-    Process.put(:nft_approved, false)
-    assert {:ok, envelope} = Redemption.prepare_usdc_approval(@wallet, "animata_i", 42)
-    assert envelope.action == "approve_exact_usdc"
-    assert envelope.to == @usdc
-    assert envelope.data == @approve_usdc_data
-    assert envelope.arguments.amount_atomic == "80000000"
-    assert envelope.arguments.mode == "exact"
-    refute_received {:overview, _, _, _}
-  end
-
-  test "REDEEM_NOW: identical eligible clicks remain distinct direct requests" do
-    assert {:ok, first} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
-    assert {:ok, second} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
-    assert first.action == "redeem"
-    refute first.action_id == second.action_id
-  end
-
-  test "CLAIM_UNLOCKED: claim is built from the action alone" do
-    Process.put(:claimable_raw, "0")
-    assert {:ok, envelope} = Redemption.prepare_claim(@wallet)
-    assert envelope.action == "claim"
-    assert envelope.to == @redeemer
-    assert envelope.data == @claim_data
-    assert envelope.arguments == %{}
-    refute_received {:overview, _, _, _}
-  end
-
-  test "CHAIN_AUTHORITY: an unreadable owner and a stale allowance still build exact calldata" do
-    Process.put(:owner_unavailable, true)
-    Process.put(:usdc_allowance_raw, "0")
-    Process.put(:usdc_balance_raw, "1")
-
-    assert {:ok, envelope} = Redemption.prepare_redeem(@wallet, "animata_i", 42)
-    assert envelope.action == "redeem"
-    assert envelope.to == @redeemer
-    assert envelope.data == @redeem_data
-    assert envelope.arguments == %{collection: @animata_i, token_id: 42}
-    refute_received {:overview, _, _, _}
-  end
-
-  test "SHAPE_ONLY: an unusable collection or token id is the server's last refusal" do
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_iii", 42)
-    assert {:error, _} = Redemption.prepare_redeem(@wallet, "animata_i", 1_000)
-    assert {:error, _} = Redemption.prepare_redeem("not-a-wallet", "animata_i", 42)
-    refute_received {:overview, _, _, _}
   end
 
   defp facts do

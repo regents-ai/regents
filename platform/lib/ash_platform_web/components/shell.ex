@@ -213,23 +213,6 @@ defmodule AshPlatformWeb.Components.Shell do
     """
   end
 
-  attr(:sender, :string, default: nil)
-  attr(:shown, :string, required: true)
-
-  @doc """
-  Sits beside Stake and Redeem's on-chain buttons when the browser's wallet is
-  not the one the figures are for. Every press still goes to the browser's
-  wallet; this only says which one that is.
-  """
-  def sending_wallet_note(assigns) do
-    ~H"""
-    <p :if={@sender} class="shell-sending-wallet" role="note">
-      Buttons here send from <span>{RegentFormat.short_address(@sender)}</span>, the wallet open in your wallet app.
-      The figures are for <span>{RegentFormat.short_address(@shown)}</span>, the wallet you signed in with.
-    </p>
-    """
-  end
-
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)
   attr(:account_control, AshPlatform.AccessContext.AccountControl, required: true)
