@@ -11,7 +11,6 @@
     "lib/ash_platform_web/components/shell/theme_menu.ex",
     "assets/css/components/shell.css",
     "test/ash_platform_web/components/shell_render_test.exs",
-    "assets/css/tokens/material.css",
     "lib/ash_platform_web/components/background.ex",
     "docs/design/founder-shell/**"
   ],
