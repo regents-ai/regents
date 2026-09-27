@@ -545,8 +545,17 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await toggle.check()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
-  await page.getByRole("tab", {name: "Unstake", exact: true}).click()
+  const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
+  await unstakeTab.click()
   await expect(toggle).toBeHidden()
+  // The chosen mode's fill glides to the tab that was pressed.
+  await expect
+    .poll(async () => {
+      const ink = await page.locator(".stake-mode__ink").boundingBox()
+      const tab = await unstakeTab.boundingBox()
+      return ink && tab && Math.abs(ink.x - tab.x)
+    })
+    .toBeLessThan(1)
   await page.getByRole("tab", {name: "Stake", exact: true}).click()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
