@@ -215,6 +215,31 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
              Agents.list_my_agents(actor: %Human{human_account_id: account.id})
   end
 
+  test "AGENTS_FOLLOWED_ONLY_HERE: agent changes are heard while the Account page is open",
+       %{conn: conn} do
+    account = register_account("agents-follow")
+    view = open_account(conn, account)
+    topic = AshPlatform.Agents.PairedAgent.topic(account.id)
+
+    assert following?(view, topic)
+
+    render_patch(view, "/stake")
+    refute following?(view, topic)
+    agent = pair!(account, "Away", :hermes)
+
+    render_patch(view, "/account")
+    assert following?(view, topic)
+    assert has_element?(view, "#agent-#{agent.id}")
+
+    render_patch(view, "/account?again=1")
+
+    assert Registry.lookup(AshPlatform.PubSub, topic) |> Enum.count(&(elem(&1, 0) == view.pid)) ==
+             1
+  end
+
+  defp following?(view, topic),
+    do: Enum.any?(Registry.lookup(AshPlatform.PubSub, topic), &(elem(&1, 0) == view.pid))
+
   defp pair!(account, name, harness) do
     issued = Agents.issue_pairing_code!(actor: %Human{human_account_id: account.id})
     Agents.pair_agent!(issued.code, @agent_wallet, name, harness, actor: %System{})

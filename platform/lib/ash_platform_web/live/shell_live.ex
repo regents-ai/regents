@@ -5,20 +5,8 @@ defmodule AshPlatformWeb.ShellLive do
   import AshPlatformWeb.ShellLive.Identity
   import AshPlatformWeb.StakeLive
 
-  alias AshPlatform.{
-    Accounts,
-    Agents,
-    Ens,
-    Formation,
-    Names,
-    OpenSea,
-    Redemption,
-    Staking
-  }
-
-  alias AshPlatform.Accounts.LinkedIdentity.Providers
+  alias AshPlatform.{Formation, OpenSea, Redemption, Staking}
   alias AshPlatform.Actors.Human
-  alias AshPlatform.Agents.{AgentActivity, Harness, PairedAgent, PairingCode}
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.Redemption.Steps, as: RedemptionSteps
   alias AshPlatform.Staking.Facts, as: StakingFacts
@@ -33,20 +21,15 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
-  alias AshPlatformWeb.ShellLive.{Gallery, OpenSeaBudget}
+  alias AshPlatformWeb.ShellLive.{Account, Gallery, OpenSeaBudget}
 
-  @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
   # Names the budget it belongs to. The Redeem page has its own, unrelated
   # per-visitor limit on looking up owned NFTs, and the two refusals must never
   # read as the same thing.
   @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
-  @names_page_size 50
-  @blank_claim_name %{value: "", problems: [], availability: nil}
   @redemption_collections ~w(animata_i animata_ii)
-  @account_events ~w(load_more_names check_claim_name claim_name issue_pairing_code open_agent change_agent_harness unpair_agent)
-  # Far longer than any name a person claims; the name's own rules say what is too long.
-  @claim_name_limit 255
+  @account_events Account.events()
   # Longer than any collection or token ID; the token ID input stops there too.
   @redemption_selection_limits %{"collection" => 16, "token_id" => 16}
 
@@ -57,29 +40,15 @@ defmodule AshPlatformWeb.ShellLive do
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
-
-      with %Human{human_account_id: id} <- human_actor(socket),
-           do: Phoenix.PubSub.subscribe(AshPlatform.PubSub, PairedAgent.topic(id))
     end
 
     {:ok,
      socket
+     |> Account.init()
      |> Gallery.init()
      |> OpenSeaBudget.init()
-     |> stream(:account_names, [])
      |> assign(
        content_generation: 0,
-       account_ens: nil,
-       account_names: nil,
-       account_claims: nil,
-       account_claim_name: @blank_claim_name,
-       verified_connections: [],
-       verified_connections_notice: nil,
-       paired_agents: nil,
-       agent_pairing: nil,
-       agent_detail: nil,
-       agent_notice: nil,
-       agents_now: DateTime.utc_now(),
        route_params: params,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
@@ -118,11 +87,7 @@ defmodule AshPlatformWeb.ShellLive do
       |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
       |> assign_page(route_spec, uri)
-      |> load_account_ens(route_spec)
-      |> load_verified_connections(route_spec)
-      |> load_account_names(route_spec)
-      |> load_account_claims(route_spec)
-      |> load_paired_agents(route_spec)
+      |> Account.route(route_spec)
       |> assign_position_wallet(route_spec)
 
     cond do
@@ -145,21 +110,8 @@ defmodule AshPlatformWeb.ShellLive do
   # it. With no shared reading on screen there is no dashboard to attach it to,
   # and the page keeps saying so.
   @impl true
-  def handle_async(
-        {:agent_activity, id},
-        result,
-        %{assigns: %{agent_detail: %{agent: %{id: id}} = detail}} = socket
-      ) do
-    activity =
-      case result do
-        {:ok, {:ok, entries}} -> entries
-        _failed -> :unavailable
-      end
-
-    {:noreply, assign(socket, agent_detail: %{detail | activity: activity})}
-  end
-
-  def handle_async({:agent_activity, _id}, _result, socket), do: {:noreply, socket}
+  def handle_async({:agent_activity, _id} = name, result, socket),
+    do: {:noreply, Account.settle_activity(socket, name, result)}
 
   def handle_async(
         {:staking, generation} = name,
@@ -301,126 +253,8 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("toggle_my_passes", _params, socket),
     do: {:noreply, Gallery.toggle(socket)}
 
-  def handle_event(
-        "request_verified_connection",
-        %{"action" => action, "provider" => provider},
-        socket
-      ) do
-    with %Human{} <- human_actor(socket),
-         {:ok, provider} <- linked_identity_provider(provider),
-         {:ok, request} <- identity_request(action, provider, socket.assigns.verified_connections) do
-      {:noreply,
-       socket
-       |> assign(
-         verified_connections_notice: %{tone: :info, message: connection_started(request)}
-       )
-       |> push_event("verified-connections:request", request)}
-    else
-      _error ->
-        {:noreply,
-         assign(socket,
-           verified_connections_notice: %{
-             tone: :error,
-             message: "That connection couldn’t be updated. Refresh the page and try again."
-           }
-         )}
-    end
-  end
-
-  # An account event from a page that has since moved on changes nothing.
-  def handle_event(event, _params, %{assigns: %{route_spec: %{route_id: route_id}}} = socket)
-      when event in @account_events and route_id != :account,
-      do: {:noreply, socket}
-
-  def handle_event(
-        "load_more_names",
-        _params,
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      ),
-      do: {:noreply, load_more_names(socket)}
-
-  def handle_event(
-        "check_claim_name",
-        %{"name" => name},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      )
-      when is_binary(name) and byte_size(name) <= @claim_name_limit,
-      do: {:noreply, assign(socket, account_claim_name: check_claim_name(socket, name))}
-
-  def handle_event(
-        "claim_name",
-        %{"name" => name},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      )
-      when is_binary(name) and byte_size(name) <= @claim_name_limit,
-      do: {:noreply, claim_name(socket, name)}
-
-  def handle_event(
-        "issue_pairing_code",
-        _params,
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      ),
-      do: {:noreply, assign(socket, agent_pairing: issue_pairing_code(socket), agent_notice: nil)}
-
-  def handle_event(
-        "open_agent",
-        %{"id" => id},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      )
-      when is_binary(id),
-      do: {:noreply, socket |> assign(agent_notice: nil) |> show_agent(id, human_actor(socket))}
-
-  def handle_event("close_agent", _params, socket),
-    do: {:noreply, assign(socket, agent_detail: nil, agent_notice: nil)}
-
-  def handle_event(
-        "change_agent_harness",
-        %{"agent" => id, "harness" => harness},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      )
-      when is_binary(id) and is_binary(harness) do
-    actor = human_actor(socket)
-
-    result =
-      with {:ok, agent} <- my_agent(id, actor),
-           {:ok, changed} <- Agents.change_agent_harness(agent, harness, actor: actor),
-           do: {:ok, {:change_harness, changed}}
-
-    {:noreply, agent_edited(socket, actor, result)}
-  end
-
-  def handle_event(
-        "unpair_agent",
-        %{"id" => id},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      )
-      when is_binary(id) do
-    actor = human_actor(socket)
-
-    result =
-      with {:ok, agent} <- my_agent(id, actor),
-           :ok <- Agents.unpair_agent(agent, actor: actor),
-           do: {:ok, {:unpair, agent}}
-
-    {:noreply, agent_edited(socket, actor, result)}
-  end
-
-  # The browser only reports how its side ended. Whether the connection really
-  # landed is read from the account's own record, so the page never says
-  # "connected" on the browser's word alone.
-  def handle_event("refresh_verified_connections", params, socket) do
-    socket = reload_verified_connections(socket)
-
-    notice =
-      with {:ok, provider} <- linked_identity_provider(params["provider"]),
-           {:ok, action} <- identity_action(params["action"]) do
-        connection_outcome(params["error"], action, provider, socket.assigns.verified_connections)
-      else
-        _unknown_outcome -> connection_outcome(params["error"])
-      end
-
-    {:noreply, assign(socket, verified_connections_notice: notice)}
-  end
+  def handle_event(event, params, socket) when event in @account_events,
+    do: {:noreply, Account.handle_event(event, params, socket)}
 
   def handle_event(event, params, socket)
       when event in [
@@ -511,26 +345,10 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info({:redeem_step_landed, _name}, socket), do: {:noreply, socket}
 
-  # The session has already re-read the account by the time this arrives, so
-  # what the chain answered is on the socket; only the Account page reports
-  # whether the check found anything to record.
-  def handle_info(
-        {:ens_lookup_finished, _account_id},
-        %{assigns: %{route_spec: %{route_id: :account}}} = socket
-      ) do
-    case current_account(socket.assigns.access_context) do
-      %{ens_identity: %{}} -> {:noreply, assign(socket, account_ens: :ready)}
-      _unanswered -> {:noreply, assign(socket, account_ens: :unavailable)}
-    end
-  end
+  def handle_info({:ens_lookup_finished, _account_id}, socket),
+    do: {:noreply, Account.ens_finished(socket)}
 
-  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
-
-  # An agent paired, checked in, or was changed from another tab.
-  def handle_info(:agents_changed, %{assigns: %{route_spec: %{route_id: :account}}} = socket),
-    do: {:noreply, reload_paired_agents(socket, human_actor(socket))}
-
-  def handle_info(:agents_changed, socket), do: {:noreply, socket}
+  def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
 
   # Only the pages that asked for the reading hear that it failed, and what they
   # were already showing stays on screen.
@@ -909,130 +727,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp assign_position_wallet(socket, _route_spec), do: socket
 
-  # Sign-in read the wallet's primary name once. A wallet never answered for, or
-  # last answered for more than a day ago, is asked again when its own page
-  # opens, and the page takes the answer as it lands. Only the connected page
-  # asks, so the static render does not start a lookup the connected mount
-  # would start again a moment later.
-  defp load_account_ens(socket, %{route_id: :account}) do
-    case current_account(socket.assigns.access_context) do
-      %{wallet_address: nil} ->
-        assign(socket, account_ens: :ready)
-
-      %{ens_identity: nil} = account ->
-        assign(socket, account_ens: check_ens(socket, account))
-
-      %{ens_identity: identity} = account ->
-        if ens_stale?(identity), do: check_ens(socket, account)
-        assign(socket, account_ens: :ready)
-
-      nil ->
-        assign(socket, account_ens: nil)
-    end
-  end
-
-  defp load_account_ens(socket, _route_spec), do: assign(socket, account_ens: nil)
-
-  defp check_ens(socket, account) do
-    if connected?(socket) do
-      case Ens.refresh(account) do
-        :started -> :checking
-        :unconfigured -> :unavailable
-      end
-    else
-      :checking
-    end
-  end
-
-  defp ens_stale?(%{updated_at: read_at}),
-    do: DateTime.diff(DateTime.utc_now(), read_at, :hour) >= 24
-
-  defp load_verified_connections(socket, %{route_id: :account}) do
-    reload_verified_connections(socket)
-  end
-
-  defp load_verified_connections(socket, _route_spec) do
-    assign(socket, verified_connections: [], verified_connections_notice: nil)
-  end
-
-  defp reload_verified_connections(socket) do
-    case human_actor(socket) do
-      %Human{} = actor ->
-        case Accounts.list_my_linked_identities(actor: actor) do
-          {:ok, identities} -> assign(socket, verified_connections: identities)
-          {:error, _error} -> assign(socket, verified_connections: [])
-        end
-
-      nil ->
-        assign(socket, verified_connections: [])
-    end
-  end
-
-  defp linked_identity_provider(provider) do
-    case Map.fetch(@identity_providers, provider) do
-      {:ok, provider} -> {:ok, provider}
-      :error -> {:error, :invalid_provider}
-    end
-  end
-
-  defp identity_request("link", provider, _identities) do
-    {:ok, %{action: :link, provider: provider}}
-  end
-
-  defp identity_request("unlink", provider, identities) do
-    case Enum.find(identities, &(&1.provider == provider)) do
-      nil -> {:error, :not_connected}
-      identity -> {:ok, %{action: :unlink, provider: provider, subject: identity.subject}}
-    end
-  end
-
-  defp identity_request(_action, _provider, _identities), do: {:error, :invalid_action}
-
-  defp identity_action("link"), do: {:ok, :link}
-  defp identity_action("unlink"), do: {:ok, :unlink}
-  defp identity_action(_action), do: {:error, :invalid_action}
-
-  # X and GitHub take the whole tab to their own approval page and bring it
-  # back; Farcaster asks for a scan here.
-  defp connection_started(%{action: :link, provider: :farcaster}),
-    do: "Scan the code with Farcaster to approve the connection."
-
-  defp connection_started(%{action: :link, provider: provider}),
-    do: "Taking you to #{Providers.label(provider)} to approve the connection."
-
-  defp connection_started(%{action: :unlink, provider: provider}),
-    do: "Disconnecting #{Providers.label(provider)}…"
-
-  defp connection_outcome("already-connected"),
-    do: %{tone: :error, message: "That account is already connected to another Regent account."}
-
-  defp connection_outcome(error) when is_binary(error) and error != "",
-    do: %{tone: :error, message: "That connection couldn’t be verified. Try again."}
-
-  defp connection_outcome(_none), do: nil
-
-  defp connection_outcome(error, _action, _provider, _identities)
-       when is_binary(error) and error != "",
-       do: connection_outcome(error)
-
-  defp connection_outcome(_none, action, provider, identities) do
-    label = Providers.label(provider)
-
-    case {action, Enum.any?(identities, &(&1.provider == provider))} do
-      {:link, true} ->
-        %{tone: :success, message: "#{label} connected."}
-
-      {:link, false} ->
-        %{tone: :error, message: "#{label} didn’t come back connected. Try again."}
-
-      {:unlink, false} ->
-        %{tone: :success, message: "#{label} disconnected."}
-
-      {:unlink, true} ->
-        %{tone: :error, message: "#{label} is still connected. Try again."}
-    end
-  end
-
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do
       {:ok, nil} -> raise AshPlatformWeb.NotFoundError
@@ -1055,263 +749,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))
-
-  # The account page lists the names the signed-in wallets hold. That read is
-  # the account's own, made with the wallets its sign-in verified, so nothing
-  # the browser sends can widen it.
-  defp load_account_names(socket, %{route_id: :account}) do
-    case human_actor(socket) do
-      %Human{wallet_addresses: []} ->
-        first_names_page(socket, %{results: [], more?: false})
-
-      %Human{} = actor ->
-        case Names.list_my_claims(actor: actor, page: [limit: @names_page_size]) do
-          {:ok, page} -> first_names_page(socket, page)
-          {:error, _error} -> assign(socket, account_names: :unavailable)
-        end
-
-      nil ->
-        assign(socket, account_names: nil)
-    end
-  end
-
-  defp load_account_names(socket, _route_spec), do: assign(socket, account_names: nil)
-
-  defp load_paired_agents(socket, %{route_id: :account}) do
-    case human_actor(socket) do
-      %Human{} = actor ->
-        reload_paired_agents(socket, actor)
-
-      nil ->
-        assign(socket,
-          paired_agents: nil,
-          agent_pairing: nil,
-          agent_detail: nil,
-          agent_notice: nil
-        )
-    end
-  end
-
-  defp load_paired_agents(socket, _route_spec),
-    do:
-      assign(socket, paired_agents: nil, agent_pairing: nil, agent_detail: nil, agent_notice: nil)
-
-  # The open agent is read again with the list, so its dialog closes on its own
-  # once the agent is unpaired.
-  defp reload_paired_agents(socket, actor) do
-    agents =
-      case Agents.list_my_agents(actor: actor) do
-        {:ok, agents} -> agents
-        {:error, _error} -> :unavailable
-      end
-
-    socket =
-      assign(socket,
-        paired_agents: agents,
-        agents_now: DateTime.utc_now(),
-        agent_pairing: pairing_after(socket.assigns.agent_pairing, agents)
-      )
-
-    case socket.assigns.agent_detail do
-      %{agent: %{id: id}} -> show_agent(socket, id, actor)
-      nil -> socket
-    end
-  end
-
-  # A code on screen gives way to the agent that used it, so a spent code is
-  # never left there to send again.
-  defp pairing_after(%PairingCode.Issued{issued_at: issued_at} = shown, agents)
-       when is_list(agents) do
-    case Enum.find(agents, &(DateTime.compare(&1.paired_at, issued_at) != :lt)) do
-      nil -> shown
-      agent -> {:paired, agent}
-    end
-  end
-
-  defp pairing_after(shown, _agents), do: shown
-
-  # What the agent has done is read from the sign-in service in the background.
-  # Activity already on screen for this agent stays until the new reading lands.
-  defp show_agent(socket, id, actor) do
-    case Agents.get_my_agent(id, actor: actor) do
-      {:ok, %PairedAgent{} = agent} ->
-        activity =
-          case socket.assigns.agent_detail do
-            %{agent: %{id: ^id}, activity: shown} -> shown
-            _other -> :loading
-          end
-
-        socket
-        |> assign(agent_detail: %{agent: agent, activity: activity})
-        |> start_async({:agent_activity, id}, fn -> AgentActivity.recent(agent) end)
-
-      _missing ->
-        assign(socket, agent_detail: nil)
-    end
-  end
-
-  defp my_agent(id, actor) do
-    with {:ok, id} <- Ecto.UUID.cast(id),
-         {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor) do
-      {:ok, agent}
-    else
-      {:error, error} -> {:error, error}
-      _missing -> {:error, :not_found}
-    end
-  end
-
-  # Every agent edit says how it ended, and the list is read again either way,
-  # so what is shown is the account's record and not the click.
-  defp agent_edited(socket, actor, result) do
-    socket
-    |> reload_paired_agents(actor)
-    |> assign(agent_notice: agent_notice(result))
-  end
-
-  defp agent_notice({:ok, {:change_harness, agent}}),
-    do: {:status, "Saved. #{agent.name} runs on #{Harness.label(agent.harness)}."}
-
-  defp agent_notice({:ok, {:unpair, agent}}),
-    do: {:status, "#{agent.name} is unpaired. It will need a new code to pair again."}
-
-  defp agent_notice({:error, :not_found}),
-    do: {:alert, "This agent is no longer paired with your account. Nothing changed."}
-
-  defp agent_notice({:error, %Ash.Error.Invalid{}}),
-    do: {:alert, "Choose what it runs on from the list. Nothing changed."}
-
-  defp agent_notice({:error, _unavailable}),
-    do: {:alert, "Your agents couldn’t be updated just now. Nothing changed. Try again."}
-
-  # A code already on screen stays there while a new one can't be made yet.
-  defp issue_pairing_code(socket) do
-    case Agents.issue_pairing_code(actor: human_actor(socket)) do
-      {:ok, issued} ->
-        issued
-
-      {:error,
-       %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :issued_recently}]}} ->
-        case socket.assigns.agent_pairing do
-          %PairingCode.Issued{} = shown -> shown
-          _none -> :wait
-        end
-
-      {:error, _error} ->
-        :unavailable
-    end
-  end
-
-  # The list is oldest first and grows a page at a time as the reader reaches
-  # its end. The rows go to the browser and only the place to continue from is
-  # kept here; a page that cannot be read leaves the rows already shown in place.
-  defp first_names_page(socket, page) do
-    socket
-    |> stream(:account_names, page.results, reset: true)
-    |> assign(
-      account_names: %{
-        empty?: page.results == [],
-        more?: page.more?,
-        cursor: names_cursor(page.results),
-        stalled?: false
-      }
-    )
-  end
-
-  defp load_more_names(%{assigns: %{account_names: %{more?: true} = names}} = socket) do
-    case Names.list_my_claims(
-           actor: human_actor(socket),
-           page: [limit: @names_page_size, after: names.cursor]
-         ) do
-      {:ok, page} ->
-        socket
-        |> stream(:account_names, page.results)
-        |> assign(account_names: %{names | more?: page.more?, cursor: names_cursor(page.results)})
-
-      {:error, _error} ->
-        assign(socket, account_names: %{names | more?: false, stalled?: true})
-    end
-  end
-
-  defp load_more_names(socket), do: socket
-
-  defp names_cursor([]), do: nil
-  defp names_cursor(claims), do: List.last(claims).__metadata__.keyset
-
-  # The claims the signed-in wallets may still make, read the same way as the
-  # names they hold. A read that fails is shown as unanswered, never as none.
-  defp load_account_claims(socket, %{route_id: :account}) do
-    claims =
-      case human_actor(socket) do
-        %Human{wallet_addresses: []} -> %{free: 0, paid: 0}
-        %Human{} = actor -> claims_available(actor)
-        nil -> nil
-      end
-
-    assign(socket, account_claims: claims, account_claim_name: @blank_claim_name)
-  end
-
-  defp load_account_claims(socket, _route_spec),
-    do: assign(socket, account_claims: nil, account_claim_name: @blank_claim_name)
-
-  defp claims_available(actor) do
-    case Names.claims_available(actor: actor) do
-      {:ok, claims} -> claims
-      {:error, _error} -> :unavailable
-    end
-  end
-
-  # A name is judged as it is typed: the rules first, then whether a recorded
-  # claim already holds it. The claim itself is not made here.
-  defp check_claim_name(_socket, ""), do: @blank_claim_name
-
-  defp check_claim_name(socket, name) do
-    case Names.label_problems(name) do
-      [] -> %{value: name, problems: [], availability: label_availability(socket, name)}
-      problems -> %{value: name, problems: problems, availability: nil}
-    end
-  end
-
-  # The claim is made by the account's own sign-in and judged again where it
-  # is recorded, whatever the page showed. Afterwards everything the claim
-  # could have changed is read again, so a refusal is explained by what is
-  # true now: the name taken, or no free claim left.
-  defp claim_name(socket, name) do
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, claim} <- Names.claim_free_name(name, actor: actor) do
-      socket
-      |> load_account_names(socket.assigns.route_spec)
-      |> load_account_claims(socket.assigns.route_spec)
-      |> assign(
-        account_claim_name: %{@blank_claim_name | availability: {:claimed_now, claim.ens_fqdn}}
-      )
-    else
-      nil ->
-        socket
-
-      {:error, _error} ->
-        socket
-        |> load_account_claims(socket.assigns.route_spec)
-        |> then(&assign(&1, account_claim_name: refused_claim_name(&1, name)))
-    end
-  end
-
-  defp refused_claim_name(socket, name) do
-    case {check_claim_name(socket, name), socket.assigns.account_claims} do
-      {%{availability: :available} = claim_name, %{free: free}} when free > 0 ->
-        %{claim_name | availability: :not_claimed}
-
-      {claim_name, _claims} ->
-        claim_name
-    end
-  end
-
-  defp label_availability(socket, name) do
-    case Names.label_claimed?(name, actor: human_actor(socket)) do
-      {:ok, true} -> :claimed
-      {:ok, false} -> :available
-      {:error, _error} -> :unavailable
-    end
-  end
 
   defp maybe_start_redemption(socket, %{route_id: :redeem}, _),
     do: start_redemption_read(socket, lookup_owned: true)
