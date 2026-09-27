@@ -10,7 +10,7 @@ defmodule AshPlatformWeb.ContentSecurityPolicy do
   Privy's published policy: Privy's API, frame and wallet RPC, Cloudflare
   Turnstile, WalletConnect's relays, verify frames, wallet list, logos, RPC and
   event reporting, Coinbase Wallet's relay, and the Telegram sign-in this Privy
-  app offers. Privy's sign-in window writes its own style elements, so only this
+  app offers, whose script comes from both Privy and Telegram. Privy's sign-in window writes its own style elements, so only this
   profile allows them. Its pages also show pictures from other sites: an ENS
   avatar is whatever https address the name's holder set, so images may come
   from any https host.
@@ -46,7 +46,11 @@ defmodule AshPlatformWeb.ContentSecurityPolicy do
   ]
 
   @sign_in %{
-    "script-src" => ["https://challenges.cloudflare.com", "https://telegram.org"],
+    "script-src" => [
+      "https://auth.privy.io",
+      "https://challenges.cloudflare.com",
+      "https://telegram.org"
+    ],
     "style-src" => ["'unsafe-inline'"],
     "img-src" => ["blob:", "https:"],
     "frame-src" => [

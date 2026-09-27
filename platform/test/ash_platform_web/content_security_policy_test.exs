@@ -30,6 +30,8 @@ defmodule AshPlatformWeb.ContentSecurityPolicyTest do
   test "PAGE_POLICY: only sign-in pages admit Privy, and neither page may be framed" do
     refute ContentSecurityPolicy.reading() =~ "auth.privy.io"
     assert ContentSecurityPolicy.sign_in() =~ "frame-src https://auth.privy.io"
+    # Privy serves the Telegram sign-in script itself.
+    assert ContentSecurityPolicy.sign_in() =~ "script-src 'self' https://auth.privy.io"
 
     for policy <- [ContentSecurityPolicy.reading(), ContentSecurityPolicy.sign_in()] do
       assert policy =~ "default-src 'none'"
