@@ -411,7 +411,7 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     }
 
     assert {:noreply, returned} =
-             ShellLive.handle_async(name, {:ok, {4, {:error, :unavailable}}}, socket)
+             ShellLive.handle_async(name, {:ok, {:error, :unavailable}}, socket)
 
     assert returned.assigns.owned_collectibles == %{current | status: :unavailable}
     assert returned.assigns.redemption == %{block_number: 1_234}
@@ -650,18 +650,56 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     view |> redeem() |> render_hook("onchain_active_wallet", %{"address" => @wallet})
 
     assert_receive {:redemption_read_waiting, wallet_read}
-    assert_receive {:DOWN, ^public_read_ref, :process, ^public_read, _reason}
 
     refute render(view) =~ "Redemption details are unavailable right now."
     assert redemption_assigns(view).redemption_status == :loading
 
     Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    wallet_read_ref = Process.monitor(wallet_read)
     send(wallet_read, :continue_redemption_read)
+    assert_receive {:DOWN, ^wallet_read_ref, :process, ^wallet_read, :normal}
+    assert redemption_assigns(view).redemption.wallet_address == @wallet
+
+    # The replaced public read runs to its end, and its late answer is dropped.
+    send(public_read, :continue_redemption_read)
+    assert_receive {:DOWN, ^public_read_ref, :process, ^public_read, :normal}
     render_async(view)
 
     assigns = redemption_assigns(view)
     assert assigns.redemption_status == :ready
     assert assigns.redemption_wallet == @wallet
+    assert assigns.redemption.wallet_address == @wallet
+    assert has_element?(view, "#redemption-collections")
+  end
+
+  test "LATE_BASE_READ: a reading that answers after the page was left never lands",
+       %{conn: conn} do
+    previous_client = Application.get_env(:ash_platform, :redemption_chain_client)
+    Application.put_env(:ash_platform, :redemption_chain_client, GatedChainClient)
+
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :redemption_chain_client, previous_client)
+    end)
+
+    Application.put_env(:ash_platform, :test_redemption_read_gate, self())
+
+    view = mount_redeem(conn)
+    assert_receive {:redemption_read_waiting, left_read}
+    left_read_ref = Process.monitor(left_read)
+
+    render_patch(view, "/stake")
+    Application.delete_env(:ash_platform, :test_redemption_read_gate)
+    send(left_read, :continue_redemption_read)
+    assert_receive {:DOWN, ^left_read_ref, :process, ^left_read, :normal}
+
+    assigns = redemption_assigns(view)
+    assert assigns.redemption == nil
+    assert assigns.redemption_read == nil
+
+    # Coming back asks Base again rather than showing the dropped answer.
+    render_patch(view, "/redeem")
+    render_async(view)
+    assert redemption_assigns(view).redemption_status == :ready
     assert has_element?(view, "#redemption-collections")
   end
 
