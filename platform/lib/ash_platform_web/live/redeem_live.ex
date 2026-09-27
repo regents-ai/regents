@@ -32,7 +32,7 @@ defmodule AshPlatformWeb.RedeemLive do
   # Longer than any collection or token ID; the token ID input stops there too.
   @selection_limits %{"collection" => 16, "token_id" => 16}
 
-  import AshPlatformWeb.OnchainSteps, only: [failure_reason: 1]
+  import AshPlatformWeb.EventInput, only: [failure_reason: 1]
 
   @impl true
   def mount(socket),

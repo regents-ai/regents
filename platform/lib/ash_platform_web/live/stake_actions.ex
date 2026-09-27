@@ -23,7 +23,7 @@ defmodule AshPlatformWeb.StakeActions do
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
 
-  import AshPlatformWeb.OnchainSteps, only: [failure_reason: 1]
+  import AshPlatformWeb.EventInput, only: [failure_reason: 1]
 
   @blank_form %{for_other: false, receiver: "", acknowledged: nil}
   # Longer than any amount or address a person types; the inputs stop there too.
