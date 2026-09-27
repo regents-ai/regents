@@ -25,7 +25,6 @@ defmodule AshPlatformWeb.RouterGateCoverageTest do
 
     assert still_open == [
              {:get, "/healthz"},
-             {:get, "/metrics"},
              {:get, "/developers"},
              {:get, "/openapi.json"},
              {:get, "/sitemap.xml"},

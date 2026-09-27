@@ -62,7 +62,6 @@ defmodule AshPlatformWeb.Router do
 
   scope "/", AshPlatformWeb do
     get "/healthz", HealthController, :show
-    get "/metrics", MetricsController, :show
     get "/developers", PublicPagesController, :developers
     get "/openapi.json", PublicPagesController, :openapi
     get "/sitemap.xml", PublicPagesController, :sitemap

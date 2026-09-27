@@ -23,7 +23,8 @@ defmodule AshPlatform.Application do
         # Start a worker by calling: AshPlatform.Worker.start_link(arg)
         # {AshPlatform.Worker, arg},
         # Start to serve requests, typically the last entry
-        AshPlatformWeb.Endpoint
+        AshPlatformWeb.Endpoint,
+        metrics_child()
       ]
       |> Enum.reject(&is_nil/1)
 
@@ -36,6 +37,12 @@ defmodule AshPlatform.Application do
   defp database_child do
     if Application.get_env(:ash_platform, :database_startup_enabled, false),
       do: AshPlatform.Repo
+  end
+
+  # Metrics are served beside the site, never by a process that only runs a task.
+  defp metrics_child do
+    if Phoenix.Endpoint.server?(:ash_platform, AshPlatformWeb.Endpoint),
+      do: AshPlatformWeb.Metrics
   end
 
   # Tell Phoenix to update the endpoint configuration

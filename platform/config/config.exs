@@ -32,6 +32,8 @@ config :ash_platform,
 
 config :ash_platform, ecto_repos: [AshPlatform.Repo]
 
+config :ash_platform, :metrics_listener, ip: {127, 0, 0, 1}, port: 9091
+
 config :ash_platform, AshPlatform.Repo,
   database: "ash_platform_disabled",
   hostname: "127.0.0.1",

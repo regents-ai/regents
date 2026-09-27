@@ -12,7 +12,7 @@ primary_region = "iad"
   ASH_PLATFORM_DEPLOYMENT_ROLE = "staging"
 
 [metrics]
-  port = 4000
+  port = 9091
   path = "/metrics"
 
 [http_service]
