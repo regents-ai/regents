@@ -7,25 +7,24 @@ import {failure, NothingSent, sendStep, type Step, type StepChain} from "../wall
 /** What was on the Stake form when the server built the review. */
 export type Inputs = {action: string; amount: string; for_other: boolean; receiver: string; acknowledged: boolean}
 
-/**
- * Who sends, on which chain, and the steps the page's buttons name, all built on
- * the server. `send` names a step to send the moment the review arrives.
- */
+/** Who sends, on which chain, and the steps the page's buttons name, all built on the server. */
 export type Review = {
   component_id: string
   signer: Address
   chain: StepChain
   steps: Step[]
   inputs: Inputs
-  send?: string
 }
+
+/** The server's answer to a press ahead of the form: the review for it and the step to send, or nothing. */
+type Prepared = {review?: Review; send?: string}
 
 type Push = (event: string, payload: unknown) => void
 
 type StakeStepsHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEvent(event: string, payload: unknown): void
+  pushEvent(event: string, payload: unknown): Promise<unknown>
   review?: Review
   clicked?: (event: Event) => void
   walletChanged?: () => void
@@ -37,25 +36,18 @@ const presses = new WeakMap<HTMLElement, number>()
 
 export const StakeSteps: Hook = {
   mounted(this: StakeStepsHook) {
-    const push: Push = (event, payload) => this.pushEvent(event, payload)
-    // Presses made before the review caught up with the form, oldest first.
-    const waiting: Array<() => void> = []
+    const push: Push = (event, payload) => void this.pushEvent(event, payload)
 
     // Every hook on the page hears this event; keep only this page's review.
     this.handleEvent("onchain-steps:review", payload => {
       const review = payload as Review
-      if (review.component_id !== this.el.id) return
-      this.review = review
-      if (review.send) {
-        const release = waiting.shift()
-        void press(review, review.send, push).finally(() => release?.())
-      }
+      if (review.component_id === this.el.id) this.review = review
     })
 
     // Every press runs on its own and reaches the wallet, even while an earlier
     // one is still there. A press on the form's button whose review no longer
-    // matches the form asks the server for the matching step, which comes back
-    // with the review and is sent then.
+    // matches the form asks the server for the matching step and sends what
+    // comes back. With no wallet active, the press opens the connect step.
     this.clicked = event => {
       const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
       const name = button?.dataset.onchainStep
@@ -63,9 +55,15 @@ export const StakeSteps: Hook = {
       const release = mark(button)
       const form = button.dataset.onchainForm === undefined ? null : formInputs(this.el)
 
-      if (form && !sameInputs(this.review?.inputs, form)) {
-        waiting.push(release)
-        push("prepare_and_send", {form})
+      if (form && activeEthereumWallet() && !sameInputs(this.review?.inputs, form)) {
+        void this.pushEvent("prepare_and_send", {form})
+          .then(reply => {
+            const {review, send} = reply as Prepared
+            if (review && send) return press(review, send, push)
+          })
+          // A lost connection drops the question; the button comes back to press again.
+          .catch(() => {})
+          .finally(release)
       } else {
         void press(this.review, name, push).finally(release)
       }
@@ -96,11 +94,11 @@ export async function press(review: Review | undefined, name: string, push: Push
   let sending = false
 
   try {
-    if (!review || !step) throw new NothingSent("step_unknown")
     if (!activeEthereumWallet()) {
       window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
       throw new NothingSent("wallet_unavailable")
     }
+    if (!review || !step) throw new NothingSent("step_unknown")
     const wallet = () => {
       const active = activeEthereumWallet()
       return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
@@ -110,7 +108,7 @@ export async function press(review: Review | undefined, name: string, push: Push
     const transaction_hash = await sendStep(review.chain, review.signer, step, wallet, () => {
       sending = true
     })
-    push("step_sent", {step: name, transaction_hash, data: step.data})
+    push("step_sent", {step: name, transaction_hash, data: step.data, from: review.signer})
   } catch (error) {
     push("step_failed", {step: name, reason: failure(sending, error)})
   }

@@ -573,8 +573,10 @@ defmodule AshPlatformWeb.ShellLive do
         "prepare_and_send",
         %{"form" => form},
         %{assigns: %{route_spec: %{route_id: :stake}}} = socket
-      ),
-      do: {:noreply, StakeSteps.prepare_and_send(socket, staking_signer(socket.assigns), form)}
+      ) do
+    {reply, socket} = StakeSteps.prepare_and_send(socket, staking_signer(socket.assigns), form)
+    {:reply, reply, socket}
+  end
 
   def handle_event("check_staking_step", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, StakeSteps.check_again(socket, hash)}
@@ -836,7 +838,7 @@ defmodule AshPlatformWeb.ShellLive do
           form={@staking_form}
           next_step={StakeSteps.next_step(assigns)}
           approval_note={StakeSteps.approval_note(assigns)}
-          sent={StakeSteps.shown(@staking_sent, @staking)}
+          sent={StakeSteps.shown(@staking_sent)}
           press={@staking_press}
         />
 
@@ -1061,9 +1063,8 @@ defmodule AshPlatformWeb.ShellLive do
         browser_wallet
 
       account ->
-        if browser_wallet in account_wallets(account),
-          do: browser_wallet,
-          else: account_wallet(account) || browser_wallet
+        wallets = account_wallets(account)
+        if browser_wallet in wallets, do: browser_wallet, else: List.first(wallets)
     end
   end
 
@@ -1095,8 +1096,6 @@ defmodule AshPlatformWeb.ShellLive do
        do: browser
 
   defp other_sender(_shown, _browser), do: nil
-
-  defp account_wallet(account), do: normalized_wallet(Map.get(account, :wallet_address))
 
   # Sign-in read the wallet's primary name once. A wallet never answered for, or
   # last answered for more than a day ago, is asked again when its own page

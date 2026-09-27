@@ -68,22 +68,16 @@ defmodule AshPlatformWeb.StakeSteps do
 
   @doc """
   A press made before the review caught up with the form. The form is taken as
-  the page's own, the review rebuilt, and the step the button now stands for is
-  named in the push, so the browser sends it the moment it arrives.
+  the page's own and the review rebuilt; the reply carries it and names the step
+  the button now stands for, so the browser sends it at once. Signed out there
+  is no review, and the reply is empty.
   """
   def prepare_and_send(socket, signer, form) do
     socket = socket |> apply_form(form) |> sync(signer)
 
     case socket.assigns.staking_review do
-      nil ->
-        socket
-
-      review ->
-        push_event(
-          socket,
-          "onchain-steps:review",
-          Map.put(review, :send, next_step(socket.assigns))
-        )
+      nil -> {%{}, socket}
+      review -> {%{review: review, send: next_step(socket.assigns)}, socket}
     end
   end
 
@@ -93,7 +87,7 @@ defmodule AshPlatformWeb.StakeSteps do
   stake for someone else takes that acknowledgment back.
   """
   def change_form(form, params) do
-    receiver = Map.get(params, "receiver", form.receiver)
+    receiver = text(Map.get(params, "receiver", form.receiver))
     for_other = params["for_other"] == "true"
 
     acknowledged =
@@ -110,16 +104,23 @@ defmodule AshPlatformWeb.StakeSteps do
   def unacknowledge(socket),
     do: assign(socket, staking_form: %{socket.assigns.staking_form | acknowledged: nil})
 
-  @doc "The wallet sent a step. It is read on Base from now on."
-  def sent(socket, %{"step" => name, "transaction_hash" => hash, "data" => data})
-      when is_binary(name) and is_binary(hash) and is_binary(data) do
+  @doc """
+  The wallet sent a step. It is read on Base from now on, against the step built
+  for the wallet that sent it.
+  """
+  def sent(socket, %{"step" => name, "transaction_hash" => hash, "data" => data, "from" => from})
+      when is_binary(name) and is_binary(hash) and is_binary(data) and is_binary(from) do
     if Regex.match?(@hash, hash) do
       hash = String.downcase(hash)
+      from = String.downcase(from)
 
       built =
-        Enum.find(socket.assigns.staking_built, &(&1.step.step == name and &1.step.data == data))
+        Enum.find(
+          socket.assigns.staking_built,
+          &(&1.signer == from and &1.step.step == name and &1.step.data == data)
+        )
 
-      entry = %{hash: hash, name: name, built: built, outcome: :pending, reads: 0}
+      entry = %{hash: hash, name: name, built: built, outcome: :pending, reads: 0, limit: nil}
 
       socket
       |> assign(staking_press: nil)
@@ -143,7 +144,7 @@ defmodule AshPlatformWeb.StakeSteps do
   def check_again(socket, hash) do
     case entry(socket, hash) do
       %{built: %{}} = entry ->
-        entry = %{entry | outcome: :pending, reads: 0}
+        entry = %{entry | outcome: :pending, reads: 0, limit: nil}
         socket |> put_entry(entry) |> check(entry)
 
       _unknown ->
@@ -161,7 +162,15 @@ defmodule AshPlatformWeb.StakeSteps do
         {nil, socket}
 
       entry ->
-        entry = %{entry | outcome: outcome(result), reads: entry.reads + 1}
+        outcome = outcome(result)
+
+        entry = %{
+          entry
+          | outcome: outcome,
+            reads: entry.reads + 1,
+            limit: if(outcome == :reverted, do: contract_limit(entry, socket.assigns.staking))
+        }
+
         socket = put_entry(socket, entry)
 
         if entry.outcome == :pending and entry.reads < @recheck_limit,
@@ -172,15 +181,16 @@ defmodule AshPlatformWeb.StakeSteps do
 
   @doc """
   The step the primary button sends: the approval while one is needed and none
-  is still on its way to Base, then the action itself. Once an approval lands,
-  the wallet is read again and that reading says whether another is needed.
+  from this wallet is still on its way to Base, then the action itself. Once an
+  approval lands, the wallet is read again and that reading says whether another
+  is needed; one Base has stopped being asked about is on its way no longer.
   """
   def next_step(%{staking_review: nil, staking_action: action}), do: action
 
   def next_step(%{staking_review: review, staking_action: action, staking_sent: sent}) do
     case Steps.find(review, "approve") do
       nil -> action
-      approval -> if approval_sent?(sent, approval), do: action, else: "approve"
+      approval -> if approval_sent?(sent, review.signer, approval), do: action, else: "approve"
     end
   end
 
@@ -202,9 +212,9 @@ defmodule AshPlatformWeb.StakeSteps do
 
   @doc """
   Each sent step as the page shows it, newest first. A stake Base turned down
-  says so when the latest reading shows staking paused or full.
+  says so when the reading at the time showed staking paused or full.
   """
-  def shown(sent, staking), do: Enum.map(sent, &describe(&1, staking))
+  def shown(sent), do: Enum.map(sent, &describe/1)
 
   defp form(assigns),
     do:
@@ -251,11 +261,12 @@ defmodule AshPlatformWeb.StakeSteps do
 
   defp acknowledge(_unticked, _receiver), do: nil
 
-  defp approval_sent?(sent, approval),
+  defp approval_sent?(sent, signer, approval),
     do:
       Enum.any?(
         sent,
-        &(&1.name == "approve" and match?(%{step: ^approval}, &1.built) and &1.outcome == :pending)
+        &(match?(%{signer: ^signer, step: ^approval}, &1.built) and &1.outcome == :pending and
+            &1.reads < @recheck_limit)
       )
 
   defp check(socket, %{built: nil}), do: socket
@@ -286,16 +297,20 @@ defmodule AshPlatformWeb.StakeSteps do
     assign(socket, staking_sent: sent)
   end
 
-  defp describe(
-         %{hash: hash, name: name, built: built, outcome: outcome, reads: reads} = entry,
-         staking
-       ) do
+  defp describe(%{
+         hash: hash,
+         name: name,
+         built: built,
+         outcome: outcome,
+         reads: reads,
+         limit: limit
+       }) do
     %{
       hash: hash,
       title: title(name, built),
       outcome: if(outcome == :pending and reads >= @recheck_limit, do: :stalled, else: outcome),
       words:
-        turned_down(outcome, contract_limit(entry, staking)) ||
+        turned_down(outcome, limit) ||
           words(if(built, do: outcome, else: :not_this_step), name, built, reads),
       href: "https://basescan.org/tx/#{hash}"
     }

@@ -75,8 +75,8 @@ describe("a press on a Stake button", () => {
     await Promise.all([first, second])
     expect(methods(provider).filter(m => m === "eth_sendTransaction")).toHaveLength(2)
     expect(pushed).toEqual([
-      ["step_sent", {step: "approve", transaction_hash: hash, data: "0x095ea7b3"}],
-      ["step_sent", {step: "approve", transaction_hash: hash, data: "0x095ea7b3"}],
+      ["step_sent", {step: "approve", transaction_hash: hash, data: "0x095ea7b3", from: signer}],
+      ["step_sent", {step: "approve", transaction_hash: hash, data: "0x095ea7b3", from: signer}],
     ])
   })
 
@@ -161,7 +161,7 @@ describe("a press on a Stake button", () => {
     sends[0](hash)
     await sent
     expect(methods(provider)).toContain("wallet_addEthereumChain")
-    expect(pushed).toEqual([["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757"}]])
+    expect(pushed).toEqual([["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757", from: signer}]])
   })
 
   it("sends nothing when the wallet will not switch to Base", async () => {
@@ -221,15 +221,21 @@ function page(form: Inputs) {
 
 function mount(form: Inputs) {
   const events: Record<string, (payload: unknown) => void> = {}
+  // The server's replies, in the order the pushes that asked for them were made.
+  const replies: Array<{resolve: (reply: unknown) => void; reject: (error: unknown) => void}> = []
   const view = page(form)
   const hook = {
     el: view.el,
     handleEvent: (event: string, callback: (payload: unknown) => void) => { events[event] = callback },
-    pushEvent: push,
+    pushEvent: (event: string, payload: unknown) => {
+      push(event, payload)
+      return new Promise((resolve, reject) => replies.push({resolve, reject}))
+    },
   }
   ;(StakeSteps.mounted as (this: typeof hook) => void).call(hook)
   pushed = []
-  return {...view, review: (payload: unknown) => events["onchain-steps:review"](payload)}
+  replies.length = 0
+  return {...view, replies, review: (payload: unknown) => events["onchain-steps:review"](payload)}
 }
 
 describe("the Stake page hook", () => {
@@ -243,10 +249,10 @@ describe("the Stake page hook", () => {
     expect(view.primary.dataset.awaitingWallet).toBe("true")
     sends[0](hash)
     await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
-    expect(pushed).toEqual([["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757"}]])
+    expect(pushed).toEqual([["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757", from: signer}]])
   })
 
-  it("asks for the matching step when the form changed, and sends it when it arrives", async () => {
+  it("asks for the matching step when the form changed, and sends what comes back", async () => {
     const {sends} = wallet()
     const view = mount(inputs)
     view.review(review)
@@ -261,16 +267,39 @@ describe("the Stake page hook", () => {
     ])
     expect(view.primary.dataset.awaitingWallet).toBe("true")
 
-    const rebuilt = {...review, inputs: {...inputs, amount: "7"}, send: "stake"}
-    view.review(rebuilt)
-    view.review(rebuilt)
+    const rebuilt = {...review, inputs: {...inputs, amount: "7"}}
+    view.replies.forEach(({resolve}) => resolve({review: rebuilt, send: "stake"}))
     await vi.waitFor(() => expect(sends).toHaveLength(2))
     sends.forEach(send => send(hash))
     await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
     expect(pushed.slice(2)).toEqual([
-      ["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757"}],
-      ["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757"}],
+      ["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757", from: signer}],
+      ["step_sent", {step: "stake", transaction_hash: hash, data: "0x7acb7757", from: signer}],
     ])
+  })
+
+  it("gives the button back when the question is lost or the server has nothing to send", async () => {
+    const {sends} = wallet()
+    const view = mount(inputs)
+    view.review(review)
+    view.fields["staking-amount"].value = "7"
+
+    view.click(view.primary)
+    view.click(view.primary)
+    view.replies[0].reject(new Error("disconnected"))
+    view.replies[1].resolve({})
+    await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
+    expect(sends).toHaveLength(0)
+  })
+
+  it("opens the connect step at once when no wallet is active, whatever the form says", async () => {
+    const view = mount(inputs)
+    view.review(review)
+    view.fields["staking-amount"].value = "7"
+
+    view.click(view.primary)
+    await vi.waitFor(() => expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]]))
+    expect(dispatched).toContain("ash:wallet-connect")
   })
 
   it("sends a claim whatever is typed in the form", async () => {
