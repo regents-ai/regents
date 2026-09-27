@@ -143,6 +143,11 @@ defmodule AshPlatformWeb.TokenDisplay do
     end
   end
 
+  @doc "The price of one token, to three significant figures: 0.0000158 or 3.14."
+  def price(amount) do
+    amount |> Decimal.new() |> significant(3) |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
+
   defp significant(%Decimal{coef: 0} = zero, _digits), do: zero
 
   # The exponent of the leading digit decides how many decimal places keep

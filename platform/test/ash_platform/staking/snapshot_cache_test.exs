@@ -354,6 +354,8 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     assert :ok = SnapshotCache.refresh()
     assert_receive {:staking_snapshot, second}
     assert second.regent_price_usd == first.regent_price_usd
+    assert %DateTime{} = first.regent_price_read_at
+    assert second.regent_price_read_at == first.regent_price_read_at
     refute_received {:price_http, _}
   end
 
@@ -363,7 +365,7 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     clock = fixed_clock(0)
 
     assert :ok = SnapshotCache.refresh()
-    assert_receive {:staking_snapshot, _first}
+    assert_receive {:staking_snapshot, first}
     assert_received {:price_http, _}
     assert_received {:price_http, _}
 
@@ -371,6 +373,7 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     assert :ok = SnapshotCache.refresh()
     assert_receive {:staking_snapshot, second}
     assert second.regent_price_usd == "0.000006"
+    assert DateTime.compare(second.regent_price_read_at, first.regent_price_read_at) == :gt
     assert_received {:price_http, _}
     assert_received {:price_http, _}
   end

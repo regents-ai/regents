@@ -200,7 +200,14 @@ defmodule AshPlatform.Staking.SnapshotCache do
 
   defp settle(state, %{}, {:ok, snapshot, quote_result}) do
     state = remember_quote(state, quote_result)
-    snapshot = Map.put(snapshot, :regent_price_usd, state.quote || :unavailable)
+    # The price keeps its own time: it is fetched on its own schedule and was
+    # not taken at the block the rest of the reading was.
+    snapshot =
+      Map.merge(snapshot, %{
+        regent_price_usd: state.quote || :unavailable,
+        regent_price_read_at: state.quote_read_at
+      })
+
     Phoenix.PubSub.broadcast(AshPlatform.PubSub, @topic, {:staking_snapshot, snapshot})
     %{state | snapshot: snapshot}
   end
@@ -213,7 +220,9 @@ defmodule AshPlatform.Staking.SnapshotCache do
 
   # A last good quote stays until a later fetch replaces it. A failed fetch
   # never writes `:unavailable` over a figure that already landed.
-  defp remember_quote(state, {:ok, price}), do: %{state | quote: price, quote_fetched_at: now()}
+  defp remember_quote(state, {:ok, price}),
+    do: %{state | quote: price, quote_fetched_at: now(), quote_read_at: DateTime.utc_now()}
+
   defp remember_quote(state, _result), do: state
 
   # All refreshes reread the chain; a quote is fetched only when none exists or
@@ -279,7 +288,8 @@ defmodule AshPlatform.Staking.SnapshotCache do
       last_start: nil,
       refresh_timer: nil,
       quote: nil,
-      quote_fetched_at: nil
+      quote_fetched_at: nil,
+      quote_read_at: nil
     }
 
   defp boot_read_enabled?,

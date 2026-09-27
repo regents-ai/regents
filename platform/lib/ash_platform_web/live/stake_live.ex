@@ -114,7 +114,8 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
           <div class="stake-benefit-card stake-benefit-supply">
             <dt>Circulating MCAP</dt>
-            <dd>{@dashboard.market_cap || "—"}</dd>
+            <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
+            <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
           </div>
           <div class="stake-benefit-card stake-benefit-supply">
             <dt>Total REGENT</dt>
@@ -185,6 +186,49 @@ defmodule AshPlatformWeb.StakeLive do
             </dd>
           </div>
         </dl>
+        <form method="dialog">
+          <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
+        </form>
+      </dialog>
+
+      <dialog
+        :if={@dashboard && @dashboard.market_cap}
+        id="staking-value-dialog"
+        class="stake-supply-dialog"
+        aria-labelledby="staking-value-heading"
+        phx-hook="InfoDialog"
+      >
+        <p class="stake-dialog-kicker">Circulating MCAP</p>
+        <h2 id="staking-value-heading">How the market cap is valued</h2>
+        <p class="stake-dialog-summary">
+          Circulating REGENT times the price of one REGENT, in US dollars: {@dashboard.market_cap} USD.
+        </p>
+        <dl class="stake-holdings">
+          <div>
+            <dt>Circulating REGENT</dt>
+            <dd>
+              <strong><TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" /></strong>
+              <span>
+                Read from Base at block #{TokenDisplay.count(@staking.block_number)}, {read_time(
+                  @staking.read_at
+                )}.
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>REGENT price</dt>
+            <dd>
+              <strong>{@dashboard.price} USD</strong>
+              <span>
+                From DexScreener: REGENT’s price in ETH on the Uniswap pool it trades in, times
+                ETH’s price in USDC on Base. Read {read_time(@staking.regent_price_read_at)}.
+              </span>
+            </dd>
+          </div>
+        </dl>
+        <p class="stake-dialog-summary">
+          The price is read on its own schedule, so it was not taken at the same Base block as the supply.
+        </p>
         <form method="dialog">
           <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
         </form>
@@ -631,6 +675,21 @@ defmodule AshPlatformWeb.StakeLive do
     """
   end
 
+  defp value_info(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="stake-info"
+      aria-label="How the market cap is valued"
+      phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#staking-value-dialog")}
+    ><span aria-hidden="true">i</span></button>
+    """
+  end
+
+  # A clock time with its day, so a price kept from an earlier fetch reads as
+  # exactly as old as it is.
+  defp read_time(%DateTime{} = at), do: Calendar.strftime(at, "%-d %b %Y at %H:%M UTC")
+
   @doc "How long ago this contract reading was taken, in plain words."
   def snapshot_age(%{read_at: %DateTime{} = read_at}),
     do: read_at |> DateTime.diff(DateTime.utc_now()) |> abs() |> elapsed()
@@ -664,6 +723,7 @@ defmodule AshPlatformWeb.StakeLive do
       holdings: holdings(staking, emission_apr),
       emission_apr: emission_apr,
       market_cap: market_cap(staking),
+      price: price(staking),
       supply_bps: supply_basis_points(staking)
     }
   end
@@ -715,14 +775,17 @@ defmodule AshPlatformWeb.StakeLive do
     end
   end
 
-  # Price × circulating, or nothing: a missing price is a dash, never a guessed
-  # figure.
+  # Price × circulating, or nothing: a missing price is unavailable, never a
+  # guessed figure.
   defp market_cap(%{regent_price_usd: price, regent_circulating_supply: circulating})
        when is_binary(price) and is_binary(circulating) do
     price |> Decimal.new() |> Decimal.mult(Decimal.new(circulating)) |> TokenDisplay.short()
   end
 
   defp market_cap(_staking), do: nil
+
+  defp price(%{regent_price_usd: price}) when is_binary(price), do: TokenDisplay.price(price)
+  defp price(_staking), do: nil
 
   # The circulating supply moves with every claim and unlock, so the page writes
   # it to the two decimals a person can read out rather than to the eighteen the

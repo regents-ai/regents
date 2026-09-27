@@ -155,14 +155,45 @@ defmodule AshPlatformWeb.StakeLiveTest do
        }}
     end)
 
+    Application.put_env(:ash_platform, :test_staking_read_at, ~U[2026-09-27 08:00:00Z])
+
     view = mount_stake(conn)
     assert has_element?(view, ".stake-benefit-supply", "Circulating MCAP")
-    assert has_element?(view, ".stake-benefit-supply dd", "700k")
+    assert has_element?(view, ".stake-benefit-supply dd", "700k USD")
+
+    assert has_element?(
+             view,
+             ~s(.stake-benefit-supply button[aria-label="How the market cap is valued"])
+           )
+
+    # The supply and the price each carry their own time, and the page never
+    # says the price was taken at the supply's block.
+    dialog = "#staking-value-dialog"
+    assert has_element?(view, "#{dialog} .stake-holdings", "0.00002 USD")
+    assert has_element?(view, "#{dialog} .stake-holdings", "Read from Base at block #1,234")
+    assert has_element?(view, "#{dialog} .stake-holdings", "27 Sep 2026 at 08:00 UTC")
+    assert has_element?(view, "#{dialog} .stake-holdings", "From DexScreener")
+
+    price_read_at =
+      Calendar.strftime(SnapshotCache.snapshot().regent_price_read_at, "%-d %b %Y at %H:%M UTC")
+
+    assert has_element?(view, "#{dialog} .stake-holdings", "Read #{price_read_at}.")
+    assert has_element?(view, dialog, "not taken at the same Base block")
   end
 
-  test "MARKET_CAP_UNAVAILABLE: a missing price is a dash rather than a figure", %{conn: conn} do
+  test "MARKET_CAP_UNAVAILABLE: a missing price is written as unavailable, never a figure", %{
+    conn: conn
+  } do
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-benefit-supply dd", "—")
+
+    assert has_element?(
+             view,
+             ".stake-benefit-supply dd .figure-unavailable",
+             "Unavailable right now"
+           )
+
+    refute has_element?(view, "#staking-value-dialog")
+    refute has_element?(view, ".stake-benefit-supply dd", "USD")
   end
 
   test "NO_READ_FOR_A_VISITOR: an anonymous visit with no wallet reads Base not at all", %{
@@ -184,7 +215,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view = mount_stake(conn)
 
     assert has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
-    refute has_element?(view, ".figure-unavailable")
+    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
     refute render(view) =~ "yet"
   end
 
@@ -213,7 +244,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     share_new_snapshot()
     render_async(view)
     assert has_element?(view, ".stake-benefit-card-primary", "1,250.50 USDC")
-    refute has_element?(view, ".figure-unavailable")
+    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
   end
 
   test "CORE_READING_FAILS: the page keeps its layout without inventing contract facts", %{
@@ -257,7 +288,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute render(view) =~ "Staking details are unavailable right now."
     assert has_element?(view, "#staking-benefits")
     refute has_element?(view, "#staking-benefits-unavailable")
-    refute has_element?(view, ".figure-unavailable")
+    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
   end
 
   test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do

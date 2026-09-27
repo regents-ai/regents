@@ -56,6 +56,7 @@ defmodule AshPlatform.Staking.Facts do
     :reward_inventory_raw,
     :reward_inventory,
     :regent_price_usd,
+    :regent_price_read_at,
     :emission_apr_bps,
     :emission_apr_percent
   ]
