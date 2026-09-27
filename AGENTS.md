@@ -1,17 +1,17 @@
 # Regents
 
-Own regents.sh, its API, CLI and Regents contracts in this monorepo.
+Own regents.sh, its API and Regents contracts in this monorepo. The `regents` CLI lives in
+the separate regents-cli repository.
 
 - `platform/`: Phoenix/Ash application. Read its instructions for web changes.
-- `cli/`: CLI workspace; its API/JSON contracts and generated bindings stay local.
 - `contracts/`: Solidity, staking/distribution and retained historical evidence.
 - `identity/`: shared Ash identity domain and `regent_identity` schema consumed by every
   product. Read its README before changing sync, actor or ownership rules.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
-  OpenClaw, MCP and bundled-skill integrations are CLI code under `cli/` and stay there.
+  OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
 - Shared UI and Elixir libraries other than `identity/` remain separate siblings.
-- `make check` runs every component gate; `make check-platform`, `check-identity`, `check-cli`
-  and `check-contracts` run one. `REGENT_DEPS_ROOT` (the shared library root) and
+- `make check` runs every component gate; `make check-platform`, `check-identity` and
+  `check-contracts` run one. `REGENT_DEPS_ROOT` (the shared library root) and
   `MIX_TEST_PARTITION` (an underscore and a short id, unique to your working tree) are required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.
