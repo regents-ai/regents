@@ -66,8 +66,14 @@ defmodule AshPlatformWeb.AccountLive do
             />
             <div class="account-identity__name">
               <h2>{@account_control.label}</h2>
-              <p :if={short_address(@account) not in [nil, @account_control.label]}>
-                <code>{short_address(@account)}</code>
+              <%!-- The wallet is repeated only when the name above is something else. --%>
+              <p :if={
+                RegentFormat.short_address(@account.wallet_address) not in [
+                  nil,
+                  @account_control.label
+                ]
+              }>
+                <code>{RegentFormat.short_address(@account.wallet_address)}</code>
               </p>
             </div>
           </div>
@@ -381,11 +387,6 @@ defmodule AshPlatformWeb.AccountLive do
     |> Enum.uniq()
     |> Enum.reject(&(&1 == primary))
   end
-
-  # The card names the person the way the header does; the wallet is only
-  # repeated beneath when that name is something other than the wallet itself.
-  defp short_address(%{wallet_address: wallet}), do: RegentFormat.short_address(wallet)
-  defp short_address(nil), do: nil
 
   defp date(datetime), do: Calendar.strftime(datetime, "%-d %B %Y")
 end
