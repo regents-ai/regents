@@ -1218,13 +1218,30 @@ defmodule AshPlatformWeb.ShellLive do
         {:error, _error} -> :unavailable
       end
 
-    socket = assign(socket, paired_agents: agents, agents_now: DateTime.utc_now())
+    socket =
+      assign(socket,
+        paired_agents: agents,
+        agents_now: DateTime.utc_now(),
+        agent_pairing: pairing_after(socket.assigns.agent_pairing, agents)
+      )
 
     case socket.assigns.agent_detail do
       %{agent: %{id: id}} -> show_agent(socket, id, actor)
       nil -> socket
     end
   end
+
+  # A code on screen gives way to the agent that used it, so a spent code is
+  # never left there to send again.
+  defp pairing_after(%PairingCode.Issued{issued_at: issued_at} = shown, agents)
+       when is_list(agents) do
+    case Enum.find(agents, &(DateTime.compare(&1.paired_at, issued_at) != :lt)) do
+      nil -> shown
+      agent -> {:paired, agent}
+    end
+  end
+
+  defp pairing_after(shown, _agents), do: shown
 
   # What the agent has done is read from the sign-in service in the background.
   # Activity already on screen for this agent stays until the new reading lands.

@@ -1,7 +1,7 @@
 defmodule AshPlatform.Agents.PairingCode.Issued do
   @moduledoc false
-  @enforce_keys [:code, :expires_at]
-  defstruct [:code, :expires_at]
+  @enforce_keys [:code, :issued_at, :expires_at]
+  defstruct [:code, :issued_at, :expires_at]
 end
 
 defmodule AshPlatform.Agents.PairingCode.Actions.Issue do
@@ -25,7 +25,7 @@ defmodule AshPlatform.Agents.PairingCode.Actions.Issue do
            {:ok, existing} <- pairing_code(actor),
            :ok <- admit_issue(existing, now),
            {:ok, _record} <- store(existing, code, now, expires_at, actor) do
-        %PairingCode.Issued{code: code, expires_at: expires_at}
+        %PairingCode.Issued{code: code, issued_at: now, expires_at: expires_at}
       else
         {:error, error} -> Ash.DataLayer.rollback(PairingCode, error)
       end

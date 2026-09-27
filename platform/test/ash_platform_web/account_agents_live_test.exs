@@ -25,13 +25,17 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     assert has_element?(view, "#account-agents-pairing pre", "https://regents.sh/llms.txt")
     code = pairing_code(view)
 
+    assert has_element?(view, "#account-agents-pair", "Make a new code")
     view |> element("#account-agents-pair") |> render_click()
     assert pairing_code(view) == code
 
     assert {:ok, agent} =
              Agents.pair_agent(code, @agent_wallet, "Sol", :hermes, actor: %System{})
 
-    assert render(view) =~ "Sol"
+    # The spent code gives way to the agent that used it.
+    assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
+    refute has_element?(view, "#account-agents-pairing pre")
+    assert has_element?(view, "#account-agents-pair", "Pair an agent")
     assert has_element?(view, "#agent-#{agent.id} .account-agent__who span", "Hermes")
     assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/hermes.png"]))
     assert has_element?(view, "#agent-#{agent.id} .account-agent__contact", "just now")

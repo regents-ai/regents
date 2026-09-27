@@ -7,7 +7,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
 
   use AshPlatformWeb, :html
 
-  alias AshPlatform.Agents.Harness
+  alias AshPlatform.Agents.{Harness, PairingCode}
 
   @logos %{
     hermes: "/images/agents/hermes.png",
@@ -46,7 +46,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
           phx-click="issue_pairing_code"
           phx-disable-with="Making a code…"
         >
-          Pair an agent
+          {if match?(%PairingCode.Issued{}, @pairing), do: "Make a new code", else: "Pair an agent"}
         </Regent.Primitives.button>
         <.pairing pairing={@pairing} />
       </div>
@@ -66,8 +66,18 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   end
 
   defp agent_list(%{agents: []} = assigns) do
+    assigns = assign(assigns, :runtimes, Harness.values())
+
     ~H"""
-    <p>No agents are paired yet. Make a pairing code and give it to your agent.</p>
+    <div class="account-agents__empty">
+      <p>No agents are paired yet. Make a pairing code and give it to your agent.</p>
+      <p class="account-agents__runtimes">
+        Works with agents on
+        <span :for={harness <- @runtimes} class="account-agents__runtime">
+          <.harness_mark harness={harness} />{Harness.label(harness)}
+        </span>
+      </p>
+    </div>
     """
   end
 
@@ -80,7 +90,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
           class="account-agent__open"
           phx-click="open_agent"
           phx-value-id={agent.id}
-          aria-label={"#{agent.name}, #{Harness.label(agent.harness)}. Show details"}
+          aria-label={"#{agent.name}, #{Harness.label(agent.harness)}. See what it has done"}
         >
           <.harness_mark harness={agent.harness} />
           <span class="account-agent__who">
@@ -93,16 +103,8 @@ defmodule AshPlatformWeb.Components.PairedAgents do
               {ago(agent.last_contact_at, @now)}
             </time>
           </span>
+          <span class="account-agent__more" aria-hidden="true">See what it has done →</span>
         </button>
-        <Regent.Primitives.button
-          type="button"
-          variant="secondary"
-          phx-click="unpair_agent"
-          phx-value-id={agent.id}
-          data-confirm={"Unpair #{agent.name}? It will need a new code to pair again."}
-        >
-          Unpair
-        </Regent.Primitives.button>
       </li>
     </ul>
     """
@@ -116,6 +118,16 @@ defmodule AshPlatformWeb.Components.PairedAgents do
     ~H"""
     <p id="account-agents-pairing" role="status">
       A new code can be made once a minute. Try again shortly.
+    </p>
+    """
+  end
+
+  defp pairing(%{pairing: {:paired, agent}} = assigns) do
+    assigns = assign(assigns, :agent, agent)
+
+    ~H"""
+    <p id="account-agents-pairing" class="account-agents__paired" role="status">
+      {@agent.name} paired with your account. Its card is above; open it to see what it does.
     </p>
     """
   end
@@ -138,9 +150,11 @@ defmodule AshPlatformWeb.Components.PairedAgents do
 
     ~H"""
     <div id="account-agents-pairing" class="account-agents__code" role="status">
-      <p>
-        Send this to your agent. The code works once and expires at <time datetime={@expires_iso}>{@expires}</time>.
-      </p>
+      <ol class="account-agents__steps">
+        <li>Copy this message.</li>
+        <li>Paste it to your agent wherever you chat with it.</li>
+        <li>Your agent appears here once it pairs. This page updates on its own.</li>
+      </ol>
       <pre><code>{@message}</code></pre>
       <Regent.Primitives.button
         id="account-agents-copy"
@@ -150,6 +164,9 @@ defmodule AshPlatformWeb.Components.PairedAgents do
       >
         Copy message
       </Regent.Primitives.button>
+      <p class="account-agents__expiry">
+        The code works once, until <time datetime={@expires_iso}>{@expires}</time>.
+      </p>
     </div>
     """
   end
@@ -212,6 +229,9 @@ defmodule AshPlatformWeb.Components.PairedAgents do
 
       <section class="account-agent-dialog__activity" aria-labelledby="account-agent-activity-title">
         <h3 id="account-agent-activity-title">Recent activity</h3>
+        <p class="account-agent-dialog__note">
+          Every request this agent signed on a Regents site since it paired, newest first. Kept for 30 days.
+        </p>
         <.activity activity={@detail.activity} />
       </section>
 

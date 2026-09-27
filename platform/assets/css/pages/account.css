@@ -193,19 +193,28 @@
 
 .account-agent {
   display: grid;
-  align-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem;
   border: 1px solid var(--ash-line);
+  transition: border-color 160ms ease;
 }
 
-.account-agent > button:last-child {
-  justify-self: start;
+.account-agent:hover {
+  border-color: var(--ash-line-strong);
 }
 
 .account-agent__open:hover strong {
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+.account-agent__more {
+  grid-column: 1 / -1;
+  margin-block-start: 0.35rem;
+  color: var(--ash-muted);
+  font-size: 0.85rem;
+}
+
+.account-agent__open:hover .account-agent__more {
+  color: var(--ash-ink);
 }
 
 .account-agent__open:focus-visible {
@@ -260,6 +269,54 @@
   gap: 0.75rem;
   justify-items: start;
   width: 100%;
+}
+
+.account-agents__steps {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}
+
+.account-agents__steps li::marker {
+  color: var(--ash-muted);
+}
+
+.account-agents__expiry {
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+}
+
+.account-agents__paired {
+  padding: 0.75rem 1rem;
+  border-inline-start: 2px solid var(--ash-accent);
+  background: var(--ash-ground);
+}
+
+.account-agents__empty {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.account-agents__runtimes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  color: var(--ash-muted);
+  font-size: 0.9rem;
+}
+
+.account-agents__runtime {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ash-ink);
+}
+
+.account-agents__runtime .account-agent__mark {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .account-agents__code pre {
@@ -361,6 +418,12 @@
   display: grid;
   gap: 0.75rem;
   margin-block-end: 1.5rem;
+}
+
+.account-agent-dialog__note {
+  margin: 0;
+  color: var(--ash-muted);
+  font-size: 0.9rem;
 }
 
 .account-agent-dialog__log {
@@ -546,10 +609,13 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.35rem 0.85rem;
+  align-content: start;
   align-items: center;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 0;
+  padding: 0.75rem;
   border: 0;
   background: none;
   color: inherit;
