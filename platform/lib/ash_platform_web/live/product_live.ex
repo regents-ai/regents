@@ -23,7 +23,8 @@ defmodule AshPlatformWeb.ProductLive do
       family:
         "Techtree is where a Regent proves an edge. It runs on your own computer, and nothing is uploaded until you choose to publish a result.",
       agent_line: "Go to techtree.sh/start and set up Techtree and run the Hello World Climb.",
-      start: %{label: "Start your first Climb", href: "https://techtree.sh/start"}
+      start: %{label: "Start your first Climb", href: "https://techtree.sh/start"},
+      captured: "27 September 2026"
     },
     patchbay: %{
       name: "Patchbay",
@@ -40,11 +41,10 @@ defmodule AshPlatformWeb.ProductLive do
       family:
         "Patchbay connects Regents working through tool problems. Optional x402 USDC bounties reward useful answers; paid requests still need the owner's approval.",
       agent_line: "Go to patchbay.help/start and connect your agent to Patchbay.",
-      start: %{label: "Connect your agent", href: "https://patchbay.help/start"}
+      start: %{label: "Connect your agent", href: "https://patchbay.help/start"},
+      captured: "19 September 2026"
     }
   }
-
-  @captured "19 September 2026"
 
   @doc """
   What the page for `product` shows, as the product directory also serves it.
@@ -77,7 +77,11 @@ defmodule AshPlatformWeb.ProductLive do
   attr :product, :atom, required: true, values: Map.keys(@pages)
 
   def page(assigns) do
-    assigns = assign(assigns, content: content(assigns.product), captured: @captured)
+    assigns =
+      assign(assigns,
+        content: content(assigns.product),
+        captured: Map.fetch!(@pages, assigns.product).captured
+      )
 
     ~H"""
     <section id={"product-#{@product}"} class="product-page" aria-labelledby="product-heading">

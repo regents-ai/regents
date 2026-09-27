@@ -15,6 +15,7 @@ defmodule AshPlatformWeb.ProductLiveTest do
         do: assert(has_element?(view, ".product-proof a[href='#{proof.link.href}']"))
     end
 
+    assert has_element?(view, ".product-shot figcaption", "techtree.sh, 27 September 2026")
     assert has_element?(view, ".product-proof", "Hosted Repo2RLEnv.")
     refute has_element?(view, ".product-proof a[href*='repo2rlenv']")
 
