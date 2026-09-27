@@ -41,6 +41,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     effective = effective_repo_config(config)
     assert effective[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
     assert effective[:socket_options] == @socket_options
+    assert effective[:pool_size] == 5
     refute Keyword.has_key?(effective, :prepare)
     assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
   end
@@ -458,7 +459,7 @@ defmodule AshPlatform.DatabaseConfigTest do
 
       release = DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => url}))
 
-      assert runtime == [url: url, socket_options: @socket_options]
+      assert runtime == [pool_size: 5, url: url, socket_options: @socket_options]
       assert release == [url: url, socket_options: @socket_options]
     end
   end

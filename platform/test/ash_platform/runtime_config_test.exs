@@ -96,6 +96,7 @@ defmodule AshPlatform.RuntimeConfigTest do
     assert get_in(config, [:ash_platform, :database_startup_enabled])
 
     assert get_in(config, [:ash_platform, AshPlatform.Repo]) == [
+             pool_size: 5,
              ssl: [
                verify: :verify_peer,
                cacerts: :public_key.cacerts_get(),

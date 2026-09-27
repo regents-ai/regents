@@ -78,7 +78,7 @@ defmodule AshPlatformWeb.AccountAgentsLiveTest do
     |> render_change(%{"agent" => agent.id})
 
     assert has_element?(view, "#account-agent-dialog .account-kicker", "Pi")
-    assert has_element?(view, "#agent-#{agent.id} .account-agent__mark span", "P")
+    assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/pi.svg"]))
 
     view |> element("#account-agent-dialog button", "Unpair") |> render_click()
 

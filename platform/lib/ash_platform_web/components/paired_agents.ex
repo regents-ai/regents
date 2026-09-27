@@ -12,7 +12,11 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   @logos %{
     hermes: "/images/agents/hermes.png",
     grok_bot: "/images/agents/grok-bot.png",
-    muse: "/images/agents/muse.png"
+    muse: "/images/agents/muse.png",
+    openclaw: "/images/agents/openclaw.png",
+    nemoclaw: "/images/agents/nemoclaw.png",
+    ironclaw: "/images/agents/ironclaw.png",
+    pi: "/images/agents/pi.svg"
   }
 
   attr :agents, :any, required: true
@@ -258,12 +262,11 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   attr :harness, :atom, required: true
 
   defp harness_mark(assigns) do
-    assigns = assign(assigns, :logo, Map.get(@logos, assigns.harness))
+    assigns = assign(assigns, :logo, Map.fetch!(@logos, assigns.harness))
 
     ~H"""
     <span class="account-agent__mark" aria-hidden="true">
-      <img :if={@logo} src={@logo} alt="" width="48" height="48" />
-      <span :if={is_nil(@logo)}>{String.first(Harness.label(@harness))}</span>
+      <img src={@logo} alt="" width="48" height="48" />
     </span>
     """
   end

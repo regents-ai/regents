@@ -20,6 +20,8 @@ defmodule AshPlatform.DatabaseConfig do
     @production_database_host,
     "regents-sh-web" | @production_identities
   ]
+  # Connections one running site keeps open to the shared database.
+  @server_pool_size 5
   @deployment_role_variable "ASH_PLATFORM_DEPLOYMENT_ROLE"
   @deployment_role_error ~s(ASH_PLATFORM_DEPLOYMENT_ROLE must be set to "production" or "staging")
   @production_target_error "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
@@ -29,13 +31,16 @@ defmodule AshPlatform.DatabaseConfig do
   def runtime_config!(:test, _getenv), do: nil
 
   def runtime_config!(:prod, getenv) do
-    case deployment_role!(getenv) do
-      :production ->
-        database_url!(getenv, "DATABASE_POOLED_URL", @production_hosts, @production_identities)
+    config =
+      case deployment_role!(getenv) do
+        :production ->
+          database_url!(getenv, "DATABASE_POOLED_URL", @production_hosts, @production_identities)
 
-      :staging ->
-        database_url!(getenv, "DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
-    end
+        :staging ->
+          database_url!(getenv, "DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
+      end
+
+    Keyword.put(config, :pool_size, @server_pool_size)
   end
 
   def runtime_config!(:dev, getenv) do

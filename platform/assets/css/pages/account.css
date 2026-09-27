@@ -221,8 +221,6 @@
   overflow: hidden;
   border: 1px solid var(--ash-line);
   background: var(--ash-ground);
-  font-family: var(--font-family-title);
-  font-size: 1.35rem;
 }
 
 .account-agent__mark img {
