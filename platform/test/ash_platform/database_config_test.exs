@@ -151,7 +151,7 @@ defmodule AshPlatform.DatabaseConfigTest do
                "DATABASE_POOLED_URL" => @pooled,
                "DATABASE_DIRECT_URL" => @direct
              })
-           ) == [url: @pooled, socket_options: @socket_options]
+           ) == [url: @pooled, port: 5432, socket_options: @socket_options]
   end
 
   test "development rejects incomplete, wrong, production, and deployed-app targets" do
@@ -226,7 +226,7 @@ defmodule AshPlatform.DatabaseConfigTest do
   test "development non-MPG remote and local configurations remain unchanged" do
     remote = env(production_env(%{"DATABASE_POOLED_URL" => @pooled}))
     config = DatabaseConfig.runtime_config!(:dev, remote)
-    assert config == [url: @pooled, socket_options: @socket_options]
+    assert config == [url: @pooled, port: 5432, socket_options: @socket_options]
     refute Keyword.has_key?(config, :ssl)
 
     local = DatabaseConfig.runtime_config!(:dev, env(%{"USER" => "local-user"}))
@@ -264,7 +264,7 @@ defmodule AshPlatform.DatabaseConfigTest do
     assert_verified_tls(effective[:ssl], "direct.dzx6qo6xqzvojpv5.flympg.net")
   end
 
-  test "Fly MPG runtime options override the compiled sentinel port when URLs omit it" do
+  test "runtime options override the compiled sentinel port when URLs omit it" do
     compiled_config = Config.Reader.read!("config/config.exs", env: :prod, target: :host)
     assert get_in(compiled_config, [:ash_platform, AshPlatform.Repo])[:port] == 1
 
@@ -284,6 +284,10 @@ defmodule AshPlatform.DatabaseConfigTest do
               "postgresql://user:secret@pgbouncer.dzx6qo6xqzvojpv5.flympg.net/ash_platform"
           })
         )
+      ),
+      DatabaseConfig.runtime_config!(
+        :prod,
+        staging_env(%{"DATABASE_POOLED_URL" => @staging_internal})
       )
     ]
 
@@ -375,7 +379,7 @@ defmodule AshPlatform.DatabaseConfigTest do
       assert DatabaseConfig.runtime_config!(
                :dev,
                env(production_env(%{"DATABASE_POOLED_URL" => url}))
-             ) == [url: url, socket_options: @socket_options]
+             ) == [url: url, port: 5432, socket_options: @socket_options]
     end
   end
 
@@ -459,8 +463,8 @@ defmodule AshPlatform.DatabaseConfigTest do
 
       release = DatabaseConfig.release_config!(staging_env(%{"DATABASE_DIRECT_URL" => url}))
 
-      assert runtime == [pool_size: 5, url: url, socket_options: @socket_options]
-      assert release == [url: url, socket_options: @socket_options]
+      assert runtime == [pool_size: 5, url: url, port: 5432, socket_options: @socket_options]
+      assert release == [url: url, port: 5432, socket_options: @socket_options]
     end
   end
 

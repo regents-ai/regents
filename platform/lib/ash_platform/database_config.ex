@@ -149,14 +149,14 @@ defmodule AshPlatform.DatabaseConfig do
 
   defp bound_host?(_host), do: false
 
+  # A URL without a port connects to PostgreSQL's, never to config.exs's
+  # disabled placeholder.
   defp connection_options(value, host) do
-    options = [url: value, socket_options: [:inet6]]
+    options = [url: value, port: URI.parse(value).port || 5432, socket_options: [:inet6]]
 
     if fly_mpg_host?(host) do
       options =
-        options
-        |> Keyword.put(:port, 5432)
-        |> Keyword.put(:ssl,
+        Keyword.put(options, :ssl,
           verify: :verify_peer,
           cacerts: :public_key.cacerts_get(),
           server_name_indication: String.to_charlist(host),

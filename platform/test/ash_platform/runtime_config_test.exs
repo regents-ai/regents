@@ -105,8 +105,8 @@ defmodule AshPlatform.RuntimeConfigTest do
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
              ],
-             port: 5432,
              url: pooled,
+             port: 5432,
              socket_options: [:inet6]
            ]
 
@@ -200,8 +200,8 @@ defmodule AshPlatform.RuntimeConfigTest do
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
              ],
-             port: 5432,
              url: direct,
+             port: 5432,
              socket_options: [:inet6]
            ]
   end
@@ -287,8 +287,8 @@ defmodule AshPlatform.RuntimeConfigTest do
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
                ]
              ],
-             port: 5432,
              url: direct,
+             port: 5432,
              socket_options: [:inet6]
            ]
 
