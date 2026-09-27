@@ -16,7 +16,7 @@ server uses a test verifier. No configuration values, tokens or provider objects
 are displayed. The data panels request no transaction or extra signature.
 
 The production header and this page both render
-`AshPlatformWeb.Components.Shell.account_control/1`. The small
+`RegentsWeb.Components.Shell.account_control/1`. The small
 `assets/js/hooks/privy_showcase.ts` hook observes the existing wallet store; it
 does not create a second `PrivyProvider`. The existing trusted session hook still
 owns authentication. `PrivyShowcaseLive` owns only read-only data loading and drops
@@ -25,7 +25,7 @@ stale results on a wallet change. Source comments identify those boundaries.
 For real testing, use the configured development server and a Privy-allowed
 localhost origin. Supply `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, and the desired
 Base/ENS reader configuration to that process. Prepare the local PostgreSQL
-database (`ash_platform_dev` by default), run `mix ash_platform.setup_local_auth`,
+database (`regents_dev` by default), run `mix regents.setup_local_auth`,
 then `mix assets.build` and `mix phx.server`. Do not use browser-test configuration
 as proof of real Privy sign-in. A detailed source map is also on the reference page.
 
@@ -36,7 +36,7 @@ documents Regents' application-owned browser coordination; it does not yet turn
 that coordination into a cross-product template or change the other sites.
 
 The workshop renders the active components installed from `regent_ui` and
-`AshPlatformWeb.Components`, plus both layouts. It identifies the two panel
+`RegentsWeb.Components`, plus both layouts. It identifies the two panel
 component aliases. The shell preview includes working navigation and theme behavior
 but omits sign-in controls. It is Regents-owned, rather than a newly shared component.
 
@@ -129,7 +129,7 @@ migrations to support this gallery.
 Run the disposable test server in the test environment with that partition and port:
 
 ```sh
-env MIX_ENV=test ASH_PLATFORM_BROWSER_TEST=1 mix run --no-halt -e 'Ecto.Adapters.SQL.Sandbox.mode(AshPlatform.Repo, :auto)'
+env MIX_ENV=test REGENTS_BROWSER_TEST=1 mix run --no-halt -e 'Ecto.Adapters.SQL.Sandbox.mode(Regents.Repo, :auto)'
 ```
 
 That command belongs only in the isolated test context. Use its printed URL and
@@ -140,7 +140,7 @@ append `/showcase`.
 From the worktree, with the same partition:
 
 ```sh
-mix test test/ash_platform_web/showcase/showcase_test.exs
+mix test test/regents_web/showcase/showcase_test.exs
 npm run typecheck
 npm test -- assets/test/auth_lazy.test.ts assets/test/connected_wallet.test.ts assets/test/hook_composition.test.ts
 ```

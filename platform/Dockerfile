@@ -76,10 +76,10 @@ COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app
 
-COPY --from=build --chown=app:app /workspace/platform/_build/prod/rel/ash_platform ./
+COPY --from=build --chown=app:app /workspace/platform/_build/prod/rel/regents ./
 
 USER app
 
 EXPOSE 4000
 
-CMD ["/app/bin/ash_platform", "start"]
+CMD ["/app/bin/regents", "start"]

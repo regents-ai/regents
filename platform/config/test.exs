@@ -1,76 +1,76 @@
 import Config
-config :ash_platform, :local_showcase, true
+config :regents, :local_showcase, true
 port = String.to_integer(System.get_env("PORT", "4002"))
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :ash_platform, AshPlatformWeb.Endpoint,
+config :regents, RegentsWeb.Endpoint,
   url: [host: "127.0.0.1", port: port],
   http: [ip: {127, 0, 0, 1}, port: port],
   check_origin: ["http://127.0.0.1:#{port}"],
   secret_key_base: "ylCJZnscmD6l7Ykq52GK0o6GrbPmb8374FAcei9yvkWU1ww5Nv+S2v/Z7ihcqZd2",
-  server: System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
+  server: System.get_env("REGENTS_BROWSER_TEST") == "1"
 
 # Browser test servers run side by side, so each one's metrics take any free port.
-config :ash_platform, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
+config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
 
-config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
-config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
-config :ash_platform, :chain_client, AshPlatform.TestChainClient
-config :ash_platform, :staking_price_http_client, AshPlatform.TestStakingPriceHttpClient
+config :regents, :privy_verifier, Regents.TestPrivyVerifier
+config :regents, :staking_chain_client, Regents.TestStakingChainClient
+config :regents, :chain_client, Regents.TestChainClient
+config :regents, :staking_price_http_client, Regents.TestStakingPriceHttpClient
 
 # No ExUnit run reads Base at startup. A case that wants a shared reading asks
 # for one, which is the same path a signed-in visitor takes. The browser server
 # does take its one reading at startup, because a person opening the page in a
 # browser should meet the warm server a release gives them.
-config :ash_platform,
+config :regents,
        :staking_snapshot_boot_read,
-       System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
+       System.get_env("REGENTS_BROWSER_TEST") == "1"
 
 # Cache tests drive their own timer messages against the fixture provider.
-config :ash_platform, :staking_snapshot_refresh_interval_ms, 0
+config :regents, :staking_snapshot_refresh_interval_ms, 0
 
-config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
-config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient
-config :ash_platform, :opensea_api_key, "test-only-key"
-config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
+config :regents, :redemption_chain_client, Regents.TestRedemptionChainClient
+config :regents, :opensea_http_client, Regents.TestOpenSeaHttpClient
+config :regents, :opensea_api_key, "test-only-key"
+config :regents, :sprite_provider, Regents.TestSpriteProvider
 
-config :ash_platform,
+config :regents,
        :agent_verification_client,
-       AshPlatform.AgentAuth.DeterministicVerificationClient
+       Regents.AgentAuth.DeterministicVerificationClient
 
-config :ash_platform, :siwa,
+config :regents, :siwa,
   base_url: "https://siwa.test",
-  audience: "ash-platform-test",
+  audience: "regents-test",
   activity_read_token: "test-activity-read-token"
 
 # Reads from the sign-in service answer from stubs each test sets.
-config :ash_platform, :siwa_req_options, plug: {Req.Test, AshPlatform.Siwa}
-config :ash_platform, :database_startup_enabled, true
+config :regents, :siwa_req_options, plug: {Req.Test, Regents.Siwa}
+config :regents, :database_startup_enabled, true
 
 # ENS lookups answer from a stubbed mainnet whose replies are chosen by the
 # wallet asking, so no test reaches a real endpoint.
-config :ash_platform, :ethereum_read_rpc_url, "https://ethereum.test.invalid"
-config :ash_platform, :ethereum_rpc_module, AshPlatform.TestEnsChainClient
-config :ash_platform, :ens_lookup_deadline_ms, 200
-config :ash_platform, :ens_avatar_http_client, AshPlatform.TestEnsAvatarHttpClient
-config :ash_platform, :ens_avatar_deadline_ms, 200
+config :regents, :ethereum_read_rpc_url, "https://ethereum.test.invalid"
+config :regents, :ethereum_rpc_module, Regents.TestEnsChainClient
+config :regents, :ens_lookup_deadline_ms, 200
+config :regents, :ens_avatar_http_client, Regents.TestEnsAvatarHttpClient
+config :regents, :ens_avatar_deadline_ms, 200
 
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused
 # controller tests restore the release 30/300 themselves.
-config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
+config :regents, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
 # Tests key rate limits as production does, behind Fly's proxy.
-config :ash_platform, :behind_fly_proxy, true
+config :regents, :behind_fly_proxy, true
 
-config :ash_platform, AshPlatform.Repo,
+config :regents, Regents.Repo,
   username: System.get_env("USER"),
   password: nil,
   hostname: "127.0.0.1",
   port: 5432,
-  database: "ash_platform#{System.get_env("MIX_TEST_PARTITION")}_test",
+  database: "regents#{System.get_env("MIX_TEST_PARTITION")}_test",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10,
   # A case that sends two callers at one row shares one sandboxed connection

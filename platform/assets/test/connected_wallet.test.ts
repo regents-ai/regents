@@ -166,7 +166,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
   it("keeps the browser test wallet gone until the visitor connects again", async () => {
     stubWindow("http://127.0.0.1:4002")
     const testWallet = {address: first, provider: provider()}
-    window.__ashPlatformTestWallet = testWallet
+    window.__regentsTestWallet = testWallet
 
     expect(activeEthereumWallet()).toEqual(testWallet)
 

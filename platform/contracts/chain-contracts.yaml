@@ -1,5 +1,5 @@
 version: 1
-product: ash-platform
+product: regents
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
@@ -67,4 +67,4 @@ contracts:
             signature: aggregate3((address,bool,bytes)[])
             selector: "0x82ad56cb"
         action_ids: []
-    validation_command: mix test test/ash_platform/wallet_actions/manifest_test.exs
+    validation_command: mix test test/regents/wallet_actions/manifest_test.exs

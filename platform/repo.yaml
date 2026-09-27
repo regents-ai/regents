@@ -13,27 +13,27 @@ owns:
 source_of_truth:
   repo_contract: repo.yaml
   http_contracts:
-    - id: ash_platform_api
-      owner: ash-platform
+    - id: regents_api
+      owner: regents
       path: contracts/api-contract.openapiv3.yaml
       served_copy: priv/static/api-contract.openapiv3.yaml
   cli_contracts: []
   runtime_contracts: []
   chain_contracts:
-    - id: ash_platform_chain_contracts
-      owner: ash-platform
+    - id: regents_chain_contracts
+      owner: regents
       path: contracts/chain-contracts.yaml
 code_map:
   - id: endpoint
-    path: lib/ash_platform_web/endpoint.ex
+    path: lib/regents_web/endpoint.ex
   - id: routes
-    path: lib/ash_platform_web/router.ex
+    path: lib/regents_web/router.ex
   - id: accounts
-    path: lib/ash_platform/accounts.ex
+    path: lib/regents/accounts.ex
 domain_interfaces:
   - id: accounts
-    owner: ash-platform
-    path: lib/ash_platform/accounts.ex
+    owner: regents
+    path: lib/regents/accounts.ex
 protected_datasets:
   disposition: deliberate_later_ash_resources
   no_data_action_in_this_unit: true

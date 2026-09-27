@@ -1,15 +1,15 @@
-defmodule AshPlatform.NamesFixtures do
+defmodule Regents.NamesFixtures do
   @moduledoc """
   The imported names tables for tests. The Ash resources never migrate these
   tables, so tests that use them create them here and insert their own
   synthetic rows.
   """
 
-  alias AshPlatform.Repo
+  alias Regents.Repo
 
   @doc "Creates the retained claim, allowance and credit tables once in the prepared disposable database."
   def ensure_claims_table! do
-    expected = "ash_platform" <> System.fetch_env!("MIX_TEST_PARTITION") <> "_test"
+    expected = "regents" <> System.fetch_env!("MIX_TEST_PARTITION") <> "_test"
 
     unless Repo.config()[:database] == expected,
       do: raise("Claims fixtures require the prepared disposable database")

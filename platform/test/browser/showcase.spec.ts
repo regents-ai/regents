@@ -92,7 +92,7 @@ test("every wallet press reaches its isolated provider, including pending and fa
     "Connect the fixture first",
   )
   expect(
-    await page.evaluate(() => window.__ashPlatformTestWallet),
+    await page.evaluate(() => window.__regentsTestWallet),
   ).toBeUndefined()
 })
 

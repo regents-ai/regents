@@ -12,8 +12,8 @@ production, what it does not reproduce, and recovery.
 
 ## Deployment role
 
-Every production-mode boot must say which venue it is. `AshPlatform.DatabaseConfig`
-reads `ASH_PLATFORM_DEPLOYMENT_ROLE` and accepts exactly two values:
+Every production-mode boot must say which venue it is. `Regents.DatabaseConfig`
+reads `REGENTS_DEPLOYMENT_ROLE` and accepts exactly two values:
 
 | Role | Database hosts it will accept |
 | --- | --- |
@@ -41,7 +41,7 @@ database needs that table created before migrations can run.
 
 `bin/bootstrap-staging` does that once, on an empty database:
 
-1. It refuses unless `ASH_PLATFORM_DEPLOYMENT_ROLE` is exactly `staging`, before it
+1. It refuses unless `REGENTS_DEPLOYMENT_ROLE` is exactly `staging`, before it
    opens any connection.
 2. It resolves its target through the same release configuration the migrate
    command uses, which under the staging role can only be a staging host.
@@ -122,7 +122,7 @@ docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' \
 #    BEAM release plus migrations needs more than Fly's 256 MB default.
 fly machine run registry.fly.io/regents-staging@sha256:<digest> \
   --app regents-staging --rm --vm-memory 1024 \
-  --env ASH_PLATFORM_DEPLOYMENT_ROLE=staging -- /app/bin/bootstrap-staging
+  --env REGENTS_DEPLOYMENT_ROLE=staging -- /app/bin/bootstrap-staging
 
 # 5. Release the same digest. From the repository root, where fly.staging.toml
 #    is; --image builds nothing, so no build context is involved.
@@ -165,7 +165,7 @@ and anything that touches production. Each step below says which.
    does not prove the venue works.
 7. **Founder.** At this venue's own production deploy, which is the first promote
    that carries the `[env]` role line: run
-   `fly secrets unset ASH_PLATFORM_DEPLOYMENT_ROLE -a regents-sh-web --stage`
+   `fly secrets unset REGENTS_DEPLOYMENT_ROLE -a regents-sh-web --stage`
    immediately before `fly deploy -a regents-sh-web -c fly.toml --image <digest>`,
    so the role moves from the staged secret to `[env]` in that one deploy. Verify
    with `fly config env -a regents-sh-web` afterwards.
@@ -177,7 +177,7 @@ before the `[env]` line ships, and step 7 retires it.
 ## Secrets
 
 Staging carries every production runtime flag at its production value. The manager
-sets the surface flag `ASH_PLATFORM_APP_SURFACES`.
+sets the surface flag `REGENTS_APP_SURFACES`.
 The founder sets the ones whose values only he holds: `PRIVY_APP_ID`,
 `PRIVY_VERIFICATION_KEY` and `BASE_READ_RPC_URL`.
 
@@ -189,12 +189,12 @@ Three are staging's own, and all three are the manager's:
 - `DATABASE_POOLED_URL` and `DATABASE_DIRECT_URL` — both the attached
   `regents-staging-db.flycast` URL.
 
-`ASH_PLATFORM_DATABASE_CLUSTER_ID`, `ASH_PLATFORM_DATABASE_CLUSTER_NAME`, and
-`ASH_PLATFORM_DATABASE_TARGET_MODE` are not set on staging. They exist for the
+`REGENTS_DATABASE_CLUSTER_ID`, `REGENTS_DATABASE_CLUSTER_NAME`, and
+`REGENTS_DATABASE_TARGET_MODE` are not set on staging. They exist for the
 production rehearsal ceremony, which the staging role never enters.
 
 The deployment role itself is not a secret on staging: `fly.staging.toml` carries
-`ASH_PLATFORM_DEPLOYMENT_ROLE = "staging"` in `[env]`.
+`REGENTS_DEPLOYMENT_ROLE = "staging"` in `[env]`.
 
 ## Deploying a candidate
 
@@ -234,7 +234,7 @@ secret on `regents-sh-web` is gone. It needs production's memory ceiling too:
 ```sh
 fly machine run registry.fly.io/regents-staging@sha256:<digest> \
   --app regents-sh-web --rm --vm-memory 1024 \
-  --env ASH_PLATFORM_DEPLOYMENT_ROLE=production -- /app/bin/pending-migrations
+  --env REGENTS_DEPLOYMENT_ROLE=production -- /app/bin/pending-migrations
 ```
 
 Never run it from production's running release. On the first promote that release
@@ -271,7 +271,7 @@ repository would strip production of the image it redeploys from.
 ## Rolling production back
 
 **Founder.** A rollback is a production deploy too, his the same way the promote
-is. From the repository root, so `[env] ASH_PLATFORM_DEPLOYMENT_ROLE =
+is. From the repository root, so `[env] REGENTS_DEPLOYMENT_ROLE =
 "production"` in `fly.toml` goes back onto the machines with it:
 
 ```sh
@@ -288,7 +288,7 @@ from the file the deploy command is given, not from the image. Re-stage the secr
 before that deploy:
 
 ```sh
-fly secrets set ASH_PLATFORM_DEPLOYMENT_ROLE=production -a regents-sh-web --stage
+fly secrets set REGENTS_DEPLOYMENT_ROLE=production -a regents-sh-web --stage
 ```
 
 ## What staging shares with production
@@ -296,7 +296,7 @@ fly secrets set ASH_PLATFORM_DEPLOYMENT_ROLE=production -a regents-sh-web --stag
 - **The Privy identity realm.** Staging uses production's Privy app id and
   verification key, so a token minted at `staging.regents.sh` verifies against
   production's key, and adding that origin is a change to production's Privy
-  configuration. Sessions still do not cross: the `_ash_platform_key` cookie is
+  configuration. Sessions still do not cross: the `_regents_key` cookie is
   host-only, so `staging.regents.sh` and `regents.sh` cannot exchange one.
 - **The chain.** `contracts/base-mainnet.json`, chain 8453, is baked into the
   image and `BASE_READ_RPC_URL` points at Base mainnet. Staging is therefore
@@ -305,7 +305,7 @@ fly secrets set ASH_PLATFORM_DEPLOYMENT_ROLE=production -a regents-sh-web --stag
   founder's ordinary per-action signing authority. There is no testnet here and
   nothing on staging makes a transaction a rehearsal.
 - **Nothing through `DATABASE_URL`.** `fly postgres attach` leaves a `DATABASE_URL`
-  secret behind. No code reads it: `test/ash_platform_web/boundary_test.exs` fails
+  secret behind. No code reads it: `test/regents_web/boundary_test.exs` fails
   if any file under `config/`, `lib/`, or `rel/` contains the literal text
   `System.get_env("DATABASE_URL")`, which is how this repository would read it.
   The database staging reaches is the one `DATABASE_POOLED_URL` and

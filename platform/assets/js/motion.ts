@@ -2,7 +2,7 @@
  * The standard motion on every page: a squish when something is pressed, a
  * shake when the answer is no, panels that slide or pop open, and on pages the
  * server draws once, the headline rising in word by word and the cards
- * settling into place. The version of each is named in `AshPlatformWeb.Motion`.
+ * settling into place. The version of each is named in `RegentsWeb.Motion`.
  *
  * A live page draws its own parts again whenever it changes, so only what the
  * server drew once moves as the page opens; live parts move from their hooks.

@@ -217,7 +217,7 @@
     "global": null,
     "strategy": null
   },
-  "repo": "Elixir.AshPlatform.Repo",
+  "repo": "Elixir.Regents.Repo",
   "schema": null,
   "table": "agent_pairing_codes"
 }

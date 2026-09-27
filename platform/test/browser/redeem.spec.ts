@@ -314,8 +314,8 @@ test("Disconnect leaves Redeem unconnected, and a reload keeps it that way", asy
   expect(
     await page.evaluate(
       () =>
-        (window as Window & {__ashPlatformTestWallet?: {address: string}})
-          .__ashPlatformTestWallet?.address,
+        (window as Window & {__regentsTestWallet?: {address: string}})
+          .__regentsTestWallet?.address,
     ),
   ).toBe(wallet)
 
@@ -358,12 +358,12 @@ async function signIn(page: Page): Promise<void> {
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {
-      ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
+      ;(window as Window & {__regentsTestWallet?: unknown}).__regentsTestWallet = {
         address: wallet,
         provider: {
           request: async ({method, params}: {method: string; params?: unknown[]}) => {
             const testWindow = window as Window & {
-              __ashPlatformTestWallet?: {address: string}
+              __regentsTestWallet?: {address: string}
               __ashRedemptionWalletAnswer?: string
               __ashRedemptionTransactions?: Record<string, unknown>
             }
@@ -372,7 +372,7 @@ async function installWallet(page: Page): Promise<void> {
                 return "0x2105"
               case "eth_accounts":
               case "eth_requestAccounts":
-                return [testWindow.__ashPlatformTestWallet?.address ?? wallet]
+                return [testWindow.__regentsTestWallet?.address ?? wallet]
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
@@ -431,8 +431,8 @@ async function sendCount(page: Page): Promise<number> {
 
 async function selectWallet(page: Page, address: string): Promise<void> {
   await page.evaluate(next => {
-    const seam = (window as Window & {__ashPlatformTestWallet?: {address: string}})
-      .__ashPlatformTestWallet
+    const seam = (window as Window & {__regentsTestWallet?: {address: string}})
+      .__regentsTestWallet
     if (seam) seam.address = next
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, address)
@@ -440,7 +440,7 @@ async function selectWallet(page: Page, address: string): Promise<void> {
 
 async function signOutWallet(page: Page): Promise<void> {
   await page.evaluate(() => {
-    ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = undefined
+    ;(window as Window & {__regentsTestWallet?: unknown}).__regentsTestWallet = undefined
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   })
 }

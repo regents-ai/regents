@@ -1,4 +1,4 @@
-defmodule AshPlatform.Repo.Migrations.DropAgentActivities do
+defmodule Regents.Repo.Migrations.DropAgentActivities do
   @moduledoc """
   An agent's activity is now read from the sign-in service, which verifies
   every request an agent signs on any Regents site, so this site keeps no copy.

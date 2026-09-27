@@ -1,0 +1,90 @@
+defmodule RegentsWeb.ProfileApiTest do
+  use RegentsWeb.ConnCase, async: false
+
+  setup_all do
+    database = Regents.Repo.config()[:database]
+
+    unless database == "regents" <> System.fetch_env!("MIX_TEST_PARTITION") <> "_test",
+      do: raise("Profile tests require the prepared disposable database")
+
+    RegentIdentity.Migrator.up(Regents.Repo)
+    assert RegentIdentity.Migrator.up(Regents.Repo) == []
+    :ok
+  end
+
+  setup do
+    key = JOSE.JWK.generate_key({:ec, "P-256"})
+    {_, public} = key |> JOSE.JWK.to_public() |> JOSE.JWK.to_pem()
+    previous = Application.get_env(:regents, :privy)
+
+    Application.put_env(:regents, :privy,
+      app_id: "profile-fixture",
+      verification_key: public
+    )
+
+    on_exit(fn -> Application.put_env(:regents, :privy, previous || []) end)
+    %{key: key}
+  end
+
+  test "the shared profile API answers only signed ownership", %{key: key} do
+    assert build_conn() |> get("/api/v1/profile") |> response(401)
+
+    assert build_conn()
+           |> init_test_session(%{profile_id: "forged"})
+           |> get("/api/v1/profile")
+           |> response(401)
+
+    pair = pair(key, "alice")
+    assert api(:get, "/api/v1/profile", pair).status == 404
+    created = api(:post, "/api/v1/profile/sync", pair)
+    assert created.status == 200
+    profile = json_response(created, 200)["profile"]
+    assert profile["x"]["verified"]
+    assert profile["x"]["username"] == "alice"
+    refute Map.has_key?(profile, "privy_user_id")
+    assert api(:get, "/api/v1/profile", pair(key, "bob")).status == 404
+    updated = api(:patch, "/api/v1/profile", pair, %{display_name: "Shared name"})
+    assert json_response(updated, 200)["profile"]["profile_id"] == profile["profile_id"]
+    assert json_response(updated, 200)["profile"]["display_name"] == "Shared name"
+  end
+
+  defp api(method, path, pair, body \\ nil) do
+    build_conn()
+    |> put_req_header("authorization", "Bearer #{pair.access}")
+    |> put_req_header("privy-id-token", pair.identity)
+    |> put_req_header("content-type", "application/json")
+    |> dispatch(@endpoint, method, path, if(body, do: Jason.encode!(body), else: nil))
+  end
+
+  defp pair(key, subject) do
+    now = System.system_time(:second)
+
+    claims = %{
+      "iss" => "privy.io",
+      "aud" => "profile-fixture",
+      "sub" => subject,
+      "iat" => now - 1,
+      "exp" => now + 600
+    }
+
+    sign = fn claims ->
+      {_, token} = key |> JOSE.JWT.sign(%{"alg" => "ES256"}, claims) |> JOSE.JWS.compact()
+      token
+    end
+
+    accounts = [
+      %{
+        type: "wallet",
+        chain_type: "ethereum",
+        address: "0x1111111111111111111111111111111111111111",
+        lv: 1
+      },
+      %{type: "twitter_oauth", subject: "x-#{subject}", username: subject}
+    ]
+
+    %{
+      access: sign.(Map.put(claims, "sid", "fixture-session")),
+      identity: sign.(Map.put(claims, "linked_accounts", Jason.encode!(accounts)))
+    }
+  end
+end

@@ -41,7 +41,7 @@ export type AuthenticatedPrivy = {
 
 const recordSync = "__authenticatedPrivyRecordSync"
 
-// The deterministic partner of an access token. `AshPlatform.TestPrivyVerifier`
+// The deterministic partner of an access token. `Regents.TestPrivyVerifier`
 // builds the same partner on the server and has to stay in step with this.
 export function identityTokenFor(accessToken: string): string {
   return `${accessToken}-identity`

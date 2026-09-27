@@ -1,4 +1,4 @@
-defmodule AshPlatform.TestEnsAvatarHttpClient do
+defmodule Regents.TestEnsAvatarHttpClient do
   @moduledoc """
   A stubbed web for the one question asked of a name's picture: is it served?
 

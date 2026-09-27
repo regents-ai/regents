@@ -13,7 +13,7 @@ Status: implementation evidence only. Browser acceptance remains with the Platfo
 
 ## Verification performed
 
-- `mix test test/ash_platform_web/home_live_test.exs`: 4 tests, 0 failures.
+- `mix test test/regents_web/home_live_test.exs`: 4 tests, 0 failures.
 - `mix compile --warnings-as-errors`: passed.
 - `mix format --check-formatted` for the owned Elixir and test files: passed.
 - `git diff --check` for the three implementation files: passed.

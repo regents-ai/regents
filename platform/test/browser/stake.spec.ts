@@ -261,8 +261,8 @@ test("Disconnect leaves Stake unconnected, and a reload keeps it that way", asyn
   expect(
     await page.evaluate(
       () =>
-        (window as Window & {__ashPlatformTestWallet?: {address: string}})
-          .__ashPlatformTestWallet?.address,
+        (window as Window & {__regentsTestWallet?: {address: string}})
+          .__regentsTestWallet?.address,
     ),
   ).toBe(wallet)
 
@@ -607,7 +607,7 @@ async function signOut(page: Page): Promise<void> {
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {
-      ;(window as Window & {__ashPlatformTestWallet?: unknown}).__ashPlatformTestWallet = {
+      ;(window as Window & {__regentsTestWallet?: unknown}).__regentsTestWallet = {
         address: wallet,
         provider: {
           request: async ({method, params}: {method: string; params?: unknown[]}) => {
@@ -617,8 +617,8 @@ async function installWallet(page: Page): Promise<void> {
               case "eth_accounts":
               case "eth_requestAccounts":
                 return [
-                  (window as Window & {__ashPlatformTestWallet?: {address: string}})
-                    .__ashPlatformTestWallet?.address ?? wallet,
+                  (window as Window & {__regentsTestWallet?: {address: string}})
+                    .__regentsTestWallet?.address ?? wallet,
                 ]
               case "eth_call":
                 return `0x${"00".repeat(32)}`
@@ -682,8 +682,8 @@ async function sendCount(page: Page): Promise<number> {
 
 async function selectWallet(page: Page, address: string): Promise<void> {
   await page.evaluate(next => {
-    const seam = (window as Window & {__ashPlatformTestWallet?: {address: string}})
-      .__ashPlatformTestWallet
+    const seam = (window as Window & {__regentsTestWallet?: {address: string}})
+      .__regentsTestWallet
     if (seam) seam.address = next
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, address)

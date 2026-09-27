@@ -7,7 +7,7 @@ the repository and the running site on 2026-09-03, at `main` = `0a82684`.
 
 ## 1. What this is
 
-`ash-platform` is the Elixir/Phoenix application behind **https://regents.sh**. It is
+`regents` is the Elixir/Phoenix application behind **https://regents.sh**. It is
 deployed on Fly.io as the app **`regents-sh-web`**.
 
 Four public surfaces are open today:
@@ -47,14 +47,14 @@ and `mix assets.build` before any browser test.
 
 ### The shell and the route catalog
 
-Almost every signed-in route is one LiveView — `AshPlatformWeb.ShellLive` — switching
+Almost every signed-in route is one LiveView — `RegentsWeb.ShellLive` — switching
 on a `live_action`. What each route *is* (its label, sidebar, header controls,
 background, search behaviour, allowed parameters) is declared in
-**`lib/ash_platform_web/route_catalog.ex`**, not scattered through the shell.
+**`lib/regents_web/route_catalog.ex`**, not scattered through the shell.
 
 Adding or removing a route means touching three places together:
 `router.ex`, the `@entries` list and the `@specs` map in `route_catalog.ex`. A route
-present in one and absent from another fails `mix ash_platform.route_handoff --check`,
+present in one and absent from another fails `mix regents.route_handoff --check`,
 which runs in the gate.
 
 `/` (`HomeLive`), `/stake` and `/redeem` render through the shell's stake/redeem page
@@ -62,7 +62,7 @@ components; the home page is its own LiveView.
 
 ### The launch gate
 
-`AshPlatformWeb.Plugs.LaunchGate` closes every non-marketing surface when
+`RegentsWeb.Plugs.LaunchGate` closes every non-marketing surface when
 `app_surfaces` is off. It is read per request from config set in `config/runtime.exs`,
 so a Fly secret flips it without a rebuild. The marketing page and signing out stay open either way.
 
@@ -73,7 +73,7 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 - **The manifest is the authority.** `contracts/base-mainnet.json` pins every address,
   every read, every prepared action and its selector. `contracts/chain-contracts.yaml`
   pins a SHA-256 of that file; change the manifest and you must repin the digest, or
-  `test/ash_platform/wallet_actions/manifest_test.exs` fails.
+  `test/regents/wallet_actions/manifest_test.exs` fails.
 - **Selectors are proved at compile time.** `wallet_actions/abi.ex` and
   `redemption_abi.ex` declare each locally encoded selector and assert in
   `__after_compile__` that its signature exists in the pinned ABI JSON. A typo'd
@@ -98,12 +98,12 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 ### File map
 
 ```
-lib/ash_platform/
+lib/regents/
   staking/        snapshot cache, rpc_client, facts, supply arithmetic
   redemption/     rpc_client, actions, snapshot
   wallet_actions/ abi.ex, redemption_abi.ex, rpc.ex, envelope, observer
   formation/      regents, agent links, cloud runtimes
-lib/ash_platform_web/
+lib/regents_web/
   route_catalog.ex   the route allowlist and its behaviour metadata
   live/shell_live.ex the one shell LiveView (large; read the region you need)
   live/home_live.ex  the marketing page
@@ -131,7 +131,7 @@ mix assets.build && npx playwright test test/browser/<spec>.spec.ts
 "Checks" section.
 
 For asset-budget checks, run `mix compile` in dev first — `mix esbuild --minify`
-fails on unresolved `phoenix-colocated/ash_platform` until the colocated hooks exist.
+fails on unresolved `phoenix-colocated/regents` until the colocated hooks exist.
 Afterwards restore with `mix phx.digest.clean --all && mix assets.build`.
 
 ---
@@ -190,7 +190,7 @@ Follow the founder rules in `/Users/sean/Documents/regent/AGENTS.md`.
   worktree has no built assets — run `mix assets.build`.
 - Changing `contracts/base-mainnet.json` breaks two pinned tests until you repin:
   the evidence SHA-256 in `chain-contracts.yaml`, and the explicit interface id lists
-  in `test/ash_platform/contracts/chain_manifest_test.exs`.
+  in `test/regents/contracts/chain_manifest_test.exs`.
 - The machine has filled its disk more than once. `uv cache clean` reclaims ~79 GB
   safely; Docker's VM has held 131 GB. A full disk knocks Postgres into recovery mode
   and every command fails with `ENOSPC` until space is freed.

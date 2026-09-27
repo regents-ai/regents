@@ -62,7 +62,7 @@ let activeWallet: SelectedWallet | null = null
 
 declare global {
   interface Window {
-    __ashPlatformTestWallet?: {address: string; provider: EthereumProvider}
+    __regentsTestWallet?: {address: string; provider: EthereumProvider}
   }
 }
 
@@ -198,8 +198,8 @@ function disconnectedStorage(): Pick<Storage, "getItem" | "setItem" | "removeIte
 // including staying gone after the visitor disconnects it.
 function testEthereumWallet(): SelectedWallet | null {
   return window.location.origin === "http://127.0.0.1:4002" &&
-    window.__ashPlatformTestWallet &&
+    window.__regentsTestWallet &&
     !walletDisconnected()
-    ? window.__ashPlatformTestWallet
+    ? window.__regentsTestWallet
     : null
 }

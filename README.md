@@ -31,9 +31,8 @@ general informational directory for the varied apps and products made by Regents
 
 Run setup from the owning component. `identity/` is the one shared package that
 lives in this repository; the other shared libraries are independent repositories, and
-[platform setup](platform/README.md#quickstart) explains their paths. The internal
-OTP application/release name remains `ash_platform` so a repository rename does not
-change production release identities.
+[platform setup](platform/README.md#quickstart) explains their paths. The platform's
+OTP application and release are both named `regents`.
 
 ## Current boundaries
 

@@ -1,0 +1,45 @@
+defmodule Regents.AccessContextTest do
+  use ExUnit.Case, async: true
+
+  alias Regents.AccessContext
+
+  @wallet "0x1111111111111111111111111111111111111111"
+
+  test "anonymous account control exposes only sign in" do
+    assert %{kind: :sign_in, label: "Sign In", profile_path: nil} =
+             AccessContext.account_control(AccessContext.anonymous())
+  end
+
+  test "a signed human without a Regent has no profile target" do
+    account = %{wallet_address: @wallet, display_name: "Account label"}
+
+    assert %{kind: :signed_in, label: "Account label", profile_path: nil} =
+             AccessContext.account_control(AccessContext.human(account))
+  end
+
+  test "a wallet's ENS name and picture become the account control" do
+    account = %{
+      wallet_address: @wallet,
+      ens_name: "atlas.eth",
+      ens_avatar_url: "https://avatars.regents.test/atlas.png"
+    }
+
+    assert %{
+             kind: :signed_in,
+             label: "atlas.eth",
+             avatar_src: "https://avatars.regents.test/atlas.png"
+           } = AccessContext.account_control(AccessContext.human(account))
+  end
+
+  test "only a server-supplied Regent creates the canonical profile target" do
+    account = %{wallet_address: @wallet, display_name: "Human account label"}
+    regent = %{slug: "ada", display_name: "Ada Regent"}
+
+    assert %{
+             kind: :signed_in,
+             label: "Ada Regent",
+             profile_path: "/regents/ada",
+             avatar_src: "data:image/svg+xml;base64," <> _
+           } = AccessContext.account_control(AccessContext.human(account), regent)
+  end
+end

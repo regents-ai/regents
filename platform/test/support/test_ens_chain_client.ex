@@ -1,4 +1,4 @@
-defmodule AshPlatform.TestEnsChainClient do
+defmodule Regents.TestEnsChainClient do
   @moduledoc """
   A stubbed Ethereum mainnet for ENS reads.
 
