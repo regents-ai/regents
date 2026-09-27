@@ -813,7 +813,9 @@
               "additionalProperties": false,
               "required": [
                 "title",
-                "copy"
+                "copy",
+                "status",
+                "link"
               ],
               "properties": {
                 "title": {
@@ -821,6 +823,36 @@
                 },
                 "copy": {
                   "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "What the product offers today: live is available now, experimental can be tried but may change, planned cannot be used yet.",
+                  "enum": [
+                    "live",
+                    "experimental",
+                    "planned"
+                  ]
+                },
+                "link": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "description": "Where to try it. Always null when the status is planned.",
+                  "additionalProperties": false,
+                  "required": [
+                    "label",
+                    "href"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "href": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
                 }
               }
             }

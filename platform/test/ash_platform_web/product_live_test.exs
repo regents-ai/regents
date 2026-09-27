@@ -22,4 +22,21 @@ defmodule AshPlatformWeb.ProductLiveTest do
       refute html =~ promise
     end
   end
+
+  test "PRODUCT_API: each card in the product data has exactly the published fields", %{
+    conn: conn
+  } do
+    schema =
+      get(conn, "/openapi.json")
+      |> json_response(200)
+      |> get_in(["components", "schemas", "Product", "properties", "what_it_does", "items"])
+
+    for slug <- ~w(techtree patchbay),
+        proof <-
+          json_response(get(conn, "/api/v1/products/#{slug}"), 200)["product"]["what_it_does"] do
+      assert Map.keys(proof) |> Enum.sort() == Enum.sort(schema["required"])
+      assert proof["status"] in schema["properties"]["status"]["enum"]
+      if proof["status"] == "planned", do: assert(proof["link"] == nil)
+    end
+  end
 end
