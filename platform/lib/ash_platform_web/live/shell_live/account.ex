@@ -26,10 +26,10 @@ defmodule AshPlatformWeb.ShellLive.Account do
   # Far longer than any name a person claims; the name's own rules say what is too long.
   @claim_name_limit 255
 
-  def events,
-    do:
-      @page_events ++
-        ~w(request_verified_connection refresh_verified_connections close_agent)
+  @events @page_events ++
+            ~w(request_verified_connection refresh_verified_connections close_agent)
+
+  def handles?(event), do: event in @events
 
   def init(socket) do
     socket

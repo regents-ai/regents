@@ -1,13 +1,23 @@
 defmodule AshPlatformWeb.ShellLive do
+  @moduledoc """
+  One LiveView behind every product-shell page. It keeps what the pages share,
+  the route, the signed-in account (through the session hook) and the wallet
+  Privy has active, and hands each page's reads, events and messages to the
+  feature that owns them: `Account`, `Staking`, `Redemption` and `Gallery`.
+  Each feature starts what its page needs when the page opens and lets go of
+  it when the page is left.
+  """
+
   use AshPlatformWeb, :live_view
 
   import AshPlatformWeb.Components.Shell
-  import AshPlatformWeb.ShellLive.Identity
+
+  import AshPlatformWeb.ShellLive.Identity,
+    only: [authenticated?: 1, current_account: 1, linked_wallets: 1]
+
   import AshPlatformWeb.StakeLive
 
-  alias AshPlatform.{Formation, OpenSea, Redemption}
-  alias AshPlatform.OpenSea.HoldingsCache
-  alias AshPlatform.Redemption.Steps, as: RedemptionSteps
+  alias AshPlatform.Formation
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.EventInput
@@ -18,64 +28,42 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
-  alias AshPlatformWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Staking}
-
-  @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
-  @redemption_collections ~w(animata_i animata_ii)
-  @account_events Account.events()
-  # Longer than any collection or token ID; the token ID input stops there too.
-  @redemption_selection_limits %{"collection" => 16, "token_id" => 16}
+  alias AshPlatformWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Redemption, Staking}
 
   @impl true
   def mount(params, session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
-    socket = assign(socket, :theme, session["theme"])
 
     {:ok,
      socket
-     |> Account.init()
-     |> Gallery.init()
-     |> OpenSeaBudget.init()
-     |> Staking.init()
      |> assign(
+       theme: session["theme"],
+       route_spec: route_spec,
        route_params: params,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
-       redemption: nil,
-       redemption_collection: "animata_i",
-       redemption_token_id: "",
-       redemption_notice: nil,
-       redemption_read: nil,
-       redemption_generation: 0,
-       redemption_snapshot_selection: nil,
-       redemption_wallet: nil,
-       redemption_status: :loading,
-       redemption_refresh_block: nil,
-       owned_collectibles: %{status: :idle, animata: [], regents_club: []},
-       owned_collectibles_limit: 24,
-       open_sea_lookup: nil,
        browser_wallet: nil,
-       route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic])
-     )}
+     )
+     |> OpenSeaBudget.init()
+     |> Account.init()
+     |> Staking.init()
+     |> Redemption.init()
+     |> Gallery.init()}
   end
 
   @impl true
   def handle_params(params, uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
 
-    socket =
-      socket
-      |> assign(route_spec: route_spec, route_params: params)
-      |> load_regent_route(route_spec, params)
-      |> assign_page(route_spec, uri)
-      |> Account.route(route_spec)
-      |> Staking.route(route_spec)
-      |> assign_position_wallet(route_spec)
-
-    if connected?(socket),
-      do: {:noreply, maybe_start_redemption(socket, route_spec)},
-      else: {:noreply, socket}
+    {:noreply,
+     socket
+     |> assign(route_spec: route_spec, route_params: params)
+     |> load_regent_route(route_spec, params)
+     |> assign_page(route_spec, uri)
+     |> Account.route(route_spec)
+     |> Staking.route(route_spec)
+     |> Redemption.route(route_spec)}
   end
 
   @impl true
@@ -85,125 +73,24 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async({:staking, _generation} = name, result, socket),
     do: {:noreply, Staking.settle(socket, name, result)}
 
-  def handle_async(
-        {:redemption, generation} = name,
-        {:ok, {generation, {:ok, redemption}}},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :redeem},
-            redemption_generation: generation
-          }
-        } = socket
-      ) do
-    read = socket.assigns.redemption_read
-
-    refresh_block =
-      case read do
-        %{name: ^name, announce_refresh: true} -> redemption.block_number
-        _ -> socket.assigns.redemption_refresh_block
-      end
-
-    {:noreply,
-     socket
-     |> release_redemption_read(name)
-     |> assign(
-       redemption: redemption,
-       redemption_status: :ready,
-       redemption_refresh_block: refresh_block,
-       redemption_snapshot_selection: current_redemption_selection(socket.assigns)
-     )
-     |> maybe_start_open_sea_lookup(match?(%{name: ^name, lookup_owned: true}, read), generation)}
-  end
-
-  def handle_async(
-        {:redemption, generation} = name,
-        {:ok, {generation, {:error, reason}}},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :redeem},
-            redemption_generation: generation
-          }
-        } = socket
-      ) do
-    {:noreply, socket |> release_redemption_read(name) |> redemption_read_failed(refusal(reason))}
-  end
-
-  # A crashed read answered nothing about Base. Release the refresh control and
-  # preserve an existing snapshot; only an initial read has no data to retain.
-  def handle_async(
-        {:redemption, generation} = name,
-        {:exit, _reason},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :redeem},
-            redemption_generation: generation
-          }
-        } = socket
-      ) do
-    {:noreply, socket |> release_redemption_read(name) |> redemption_read_failed(:unavailable)}
-  end
-
-  # A read whose page has since moved on still releases its own marker, so the
-  # refresh control is never left disabled by a read nobody is waiting for.
-  def handle_async({:redemption, _generation} = name, _result, socket),
-    do: {:noreply, release_redemption_read(socket, name)}
-
-  def handle_async(
-        {:open_sea, wallet} = name,
-        {:ok, {:ok, items}},
-        %{
-          assigns: %{
-            route_spec: %{route_id: :redeem},
-            redemption_wallet: wallet,
-            open_sea_lookup: name
-          }
-        } = socket
-      ) do
-    status = if items.animata == [] and items.regents_club == [], do: :empty, else: :ready
-
-    {:noreply,
-     assign(socket, open_sea_lookup: nil, owned_collectibles: Map.put(items, :status, status))}
-  end
-
-  def handle_async(
-        {:open_sea, _wallet} = name,
-        _result,
-        %{assigns: %{open_sea_lookup: name}} = socket
-      ),
-      do:
-        {:noreply,
-         assign(socket,
-           open_sea_lookup: nil,
-           owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
-         )}
-
-  def handle_async({:open_sea, _}, _result, socket), do: {:noreply, socket}
+  def handle_async({feature, _key} = name, result, socket)
+      when feature in [:redemption, :open_sea],
+      do: {:noreply, Redemption.settle(socket, name, result)}
 
   def handle_async({:gallery_owned, _account_id} = name, result, socket),
     do: {:noreply, Gallery.settle(socket, name, result)}
 
   @impl true
-  def handle_event("toggle_my_passes", _params, socket),
-    do: {:noreply, Gallery.toggle(socket)}
-
-  def handle_event(event, params, socket) when event in @account_events,
-    do: {:noreply, Account.handle_event(event, params, socket)}
-
-  def handle_event(event, params, socket)
-      when event in [
-             "redemption_selection_changed",
-             "refresh_redemption",
-             "select_owned_animata",
-             "show_more_collectibles"
-           ],
-      do: handle_redemption_event(event, params, socket)
-
-  def handle_event(event, _params, socket) when event in ~w(refresh_shared_snapshot refresh_data),
-    do: {:noreply, Staking.handle_event(event, socket)}
-
-  # Anything else the page sent is not in a shape this page takes.
-  def handle_event(_event, _params, socket),
-    do: {:noreply, put_flash(socket, :error, EventInput.unreadable())}
+  def handle_event(event, params, socket) do
+    cond do
+      Account.handles?(event) -> {:noreply, Account.handle_event(event, params, socket)}
+      Redemption.handles?(event) -> {:noreply, Redemption.handle_event(event, params, socket)}
+      Staking.handles?(event) -> {:noreply, Staking.handle_event(event, socket)}
+      event == "toggle_my_passes" -> {:noreply, Gallery.toggle(socket)}
+      # Anything else the page sent is not in a shape this page takes.
+      true -> {:noreply, put_flash(socket, :error, EventInput.unreadable())}
+    end
+  end
 
   @impl true
   def handle_info({:staking_snapshot, protocol}, socket),
@@ -217,125 +104,16 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_info(:stake_step_landed, socket), do: {:noreply, Staking.step_landed(socket)}
 
-  # The Redeem buttons heard which wallet Privy has active; the figures follow
-  # it on the same terms as Stake's.
-  def handle_info(
-        {:redeem_active_wallet, active},
-        %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
-      ) do
-    socket = assign(socket, browser_wallet: active)
-    wallet = position_wallet(socket.assigns)
+  def handle_info({:redeem_active_wallet, active}, socket),
+    do: {:noreply, Redemption.active_wallet(socket, active)}
 
-    if wallet == socket.assigns.redemption_wallet,
-      do: {:noreply, socket},
-      else: {:noreply, adopt_redemption_wallet(socket, wallet)}
-  end
-
-  def handle_info({:redeem_active_wallet, _active}, socket), do: {:noreply, socket}
-
-  # A Redeem step landed: the figures are read again, and after a redemption
-  # the collection too.
-  def handle_info(
-        {:redeem_step_landed, name},
-        %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
-      ),
-      do: {:noreply, refresh_redemption(socket, name == "redeem")}
-
-  def handle_info({:redeem_step_landed, _name}, socket), do: {:noreply, socket}
+  def handle_info({:redeem_step_landed, name}, socket),
+    do: {:noreply, Redemption.step_landed(socket, name)}
 
   def handle_info({:ens_lookup_finished, _account_id}, socket),
     do: {:noreply, Account.ens_finished(socket)}
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
-
-  defp handle_redemption_event(
-         _event,
-         _params,
-         %{assigns: %{route_spec: %{route_id: route_id}}} = socket
-       )
-       when route_id != :redeem,
-       do: {:noreply, socket}
-
-  defp handle_redemption_event("redemption_selection_changed", params, socket) do
-    case EventInput.texts(params, @redemption_selection_limits) do
-      {:ok, fields} ->
-        select_redemption(
-          socket,
-          Map.get(fields, "collection", socket.assigns.redemption_collection),
-          Map.get(fields, "token_id", "")
-        )
-
-      :error ->
-        {:noreply, redemption_unreadable(socket)}
-    end
-  end
-
-  defp handle_redemption_event("select_owned_animata", params, socket) do
-    case EventInput.texts(params, %{"collection" => 16, "token-id" => 16}) do
-      {:ok, %{"collection" => collection, "token-id" => token_id}} ->
-        select_redemption(socket, collection, token_id)
-
-      _unreadable ->
-        {:noreply, redemption_unreadable(socket)}
-    end
-  end
-
-  defp handle_redemption_event("refresh_redemption", _params, socket),
-    do: {:noreply, refresh_redemption(socket, false)}
-
-  defp handle_redemption_event("show_more_collectibles", _params, socket) do
-    total =
-      length(socket.assigns.owned_collectibles.animata) +
-        length(socket.assigns.owned_collectibles.regents_club)
-
-    {:noreply,
-     assign(socket,
-       owned_collectibles_limit: min(socket.assigns.owned_collectibles_limit + 24, total)
-     )}
-  end
-
-  # Only the two collections are ever chosen; the token ID is read as typed.
-  defp select_redemption(socket, collection, token_id)
-       when collection in @redemption_collections do
-    socket =
-      assign(socket,
-        redemption_collection: collection,
-        redemption_token_id: token_id,
-        redemption_notice: nil
-      )
-
-    {:noreply, read_selection(socket)}
-  end
-
-  defp select_redemption(socket, _collection, _token_id),
-    do: {:noreply, redemption_unreadable(socket)}
-
-  defp redemption_unreadable(socket),
-    do: assign(socket, redemption_notice: %{tone: :error, message: EventInput.unreadable()})
-
-  # A landed redemption is the one moment the collection on screen is known to
-  # be out of date. The cache honours one such reset per wallet per cache
-  # window, so repeated landings buy no extra reads.
-  defp refresh_redemption(socket, refresh_owned) do
-    socket =
-      if refresh_owned and is_binary(socket.assigns.redemption_wallet) do
-        HoldingsCache.invalidate(socket.assigns.redemption_wallet)
-
-        socket
-        |> cancel_open_sea_lookup()
-        |> assign(
-          owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :refreshing)
-        )
-      else
-        socket
-      end
-
-    start_redemption_read(socket,
-      preserve_snapshot: true,
-      announce_refresh: true,
-      lookup_owned: true
-    )
-  end
 
   @impl true
   def render(assigns) do
@@ -403,9 +181,9 @@ defmodule AshPlatformWeb.ShellLive do
           collection={@redemption_collection}
           token_id={@redemption_token_id}
           notice={@redemption_notice}
-          reading={redemption_reading?(assigns)}
+          reading={Redemption.reading?(assigns)}
           refresh_block={@redemption_refresh_block}
-          step={redemption_step(assigns)}
+          step={Redemption.step(assigns)}
           owned_collectibles={@owned_collectibles}
           owned_collectibles_limit={@owned_collectibles_limit}
         />
@@ -427,11 +205,6 @@ defmodule AshPlatformWeb.ShellLive do
     </.shell>
     """
   end
-
-  defp assign_position_wallet(socket, %{route_id: :redeem}),
-    do: assign(socket, redemption_wallet: position_wallet(socket.assigns))
-
-  defp assign_position_wallet(socket, _route_spec), do: socket
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do
@@ -455,236 +228,4 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))
-
-  defp maybe_start_redemption(socket, %{route_id: :redeem}),
-    do: start_redemption_read(socket, lookup_owned: true)
-
-  defp maybe_start_redemption(socket, _route_spec) do
-    socket
-    |> cancel_redemption_read()
-    |> cancel_open_sea_lookup()
-    |> assign(
-      redemption: nil,
-      redemption_status: :loading,
-      redemption_refresh_block: nil,
-      redemption_notice: nil,
-      redemption_snapshot_selection: nil,
-      redemption_wallet: nil,
-      owned_collectibles: %{status: :idle, animata: [], regents_club: []},
-      owned_collectibles_limit: 24
-    )
-  end
-
-  defp start_redemption_read(socket, options) do
-    socket = cancel_redemption_read(socket)
-    generation = socket.assigns.redemption_generation + 1
-    name = {:redemption, generation}
-    wallet = socket.assigns.redemption_wallet
-    collection = socket.assigns.redemption_collection
-    token_id = parsed_token_id(socket.assigns.redemption_token_id)
-
-    preserve_snapshot =
-      Keyword.get(options, :preserve_snapshot, false) && not is_nil(socket.assigns.redemption)
-
-    announce_refresh = Keyword.get(options, :announce_refresh, false)
-
-    socket
-    |> assign(
-      redemption: if(preserve_snapshot, do: socket.assigns.redemption),
-      redemption_status: if(preserve_snapshot, do: :ready, else: :loading),
-      redemption_refresh_block:
-        if(announce_refresh, do: nil, else: socket.assigns.redemption_refresh_block),
-      redemption_notice: if(announce_refresh, do: nil, else: socket.assigns.redemption_notice),
-      redemption_generation: generation,
-      redemption_read: %{
-        name: name,
-        selection: {collection, token_id},
-        announce_refresh: announce_refresh,
-        lookup_owned: Keyword.get(options, :lookup_owned, false)
-      }
-    )
-    |> start_async(name, fn ->
-      {generation,
-       if(wallet,
-         do: Redemption.account_for_wallet(wallet, collection, token_id),
-         else: Redemption.overview()
-       )}
-    end)
-  end
-
-  # A keystroke that leaves the selection Base was asked about unchanged buys
-  # no read: the reading in flight or the snapshot on screen already answers
-  # it. Only a selection neither of them covers is read.
-  defp read_selection(socket) do
-    selection = current_redemption_selection(socket.assigns)
-
-    cond do
-      match?(%{selection: ^selection}, socket.assigns.redemption_read) -> socket
-      redemption_selection_ready?(socket.assigns) -> cancel_redemption_read(socket)
-      true -> start_redemption_read(socket, preserve_snapshot: true)
-    end
-  end
-
-  defp adopt_redemption_wallet(socket, wallet),
-    do:
-      socket
-      |> cancel_open_sea_lookup()
-      |> assign(
-        redemption_wallet: wallet,
-        redemption: public_redemption_snapshot(socket.assigns.redemption),
-        redemption_status: if(socket.assigns.redemption, do: :ready, else: :loading),
-        redemption_refresh_block: nil,
-        redemption_notice: nil,
-        redemption_snapshot_selection: nil,
-        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
-        owned_collectibles_limit: 24
-      )
-      |> start_redemption_read(preserve_snapshot: true, lookup_owned: true)
-
-  defp redemption_read_failed(socket, _) do
-    collectibles =
-      case socket.assigns.owned_collectibles do
-        %{status: :refreshing} = current -> Map.put(current, :status, :unavailable)
-        current -> current
-      end
-
-    if socket.assigns.redemption do
-      assign(socket,
-        redemption_status: :ready,
-        owned_collectibles: collectibles,
-        redemption_notice: %{tone: :error, message: @refresh_failure_notice}
-      )
-    else
-      assign(socket,
-        redemption: nil,
-        redemption_status: :error,
-        owned_collectibles: collectibles,
-        redemption_snapshot_selection: nil
-      )
-    end
-  end
-
-  defp cancel_redemption_read(%{assigns: %{redemption_read: nil}} = socket), do: socket
-
-  defp cancel_redemption_read(socket),
-    do:
-      socket |> cancel_async(socket.assigns.redemption_read.name) |> assign(redemption_read: nil)
-
-  defp release_redemption_read(%{assigns: %{redemption_read: %{name: name}}} = socket, name),
-    do: assign(socket, redemption_read: nil)
-
-  defp release_redemption_read(socket, _), do: socket
-  defp redemption_reading?(%{redemption_read: nil}), do: false
-  defp redemption_reading?(_), do: true
-
-  defp redemption_selection_ready?(assigns) do
-    not is_nil(Map.get(assigns, :redemption)) and
-      Map.get(assigns, :redemption_snapshot_selection) == current_redemption_selection(assigns)
-  end
-
-  defp current_redemption_selection(assigns),
-    do:
-      {Map.get(assigns, :redemption_collection),
-       parsed_token_id(Map.get(assigns, :redemption_token_id))}
-
-  defp redemption_step(assigns) do
-    if redemption_selection_ready?(assigns),
-      do: Redemption.next_step(assigns.redemption, assigns.redemption_wallet),
-      else: nil
-  end
-
-  # Editing a token ID re-reads Base, but it says nothing new about which
-  # collectibles the wallet holds. Only a wallet change or an explicit refresh
-  # asks for the collection again, so typing never spends the page's share of
-  # lookups and an outage cannot cost a visitor the panel for the rest of a
-  # minute.
-  defp maybe_start_open_sea_lookup(socket, true, generation),
-    do: start_open_sea_lookup(socket, generation)
-
-  defp maybe_start_open_sea_lookup(socket, false, _generation), do: socket
-
-  # A lookup past this connection's OpenSea share is shown as unavailable: the
-  # manual collection and token ID fields stay open and no wallet action is
-  # refused.
-  defp start_open_sea_lookup(
-         %{
-           assigns: %{
-             redemption_wallet: wallet,
-             route_spec: %{route_id: :redeem},
-             owned_collectibles: %{status: status}
-           }
-         } = socket,
-         _generation
-       )
-       when is_binary(wallet) and status in [:idle, :unavailable, :refreshing] do
-    case OpenSeaBudget.claim(socket) do
-      {:limited, socket} ->
-        assign(socket,
-          owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
-        )
-
-      {:ok, socket} ->
-        name = {:open_sea, wallet}
-
-        socket
-        |> assign(
-          open_sea_lookup: name,
-          owned_collectibles: loading_collectibles(socket.assigns.owned_collectibles)
-        )
-        |> start_async(name, fn -> OpenSea.fetch_owned_collectibles(wallet) end)
-    end
-  end
-
-  defp start_open_sea_lookup(socket, _), do: socket
-
-  defp loading_collectibles(%{status: :idle}),
-    do: %{status: :loading, animata: [], regents_club: []}
-
-  defp loading_collectibles(collectibles), do: collectibles
-  defp cancel_open_sea_lookup(%{assigns: %{open_sea_lookup: nil}} = socket), do: socket
-
-  defp cancel_open_sea_lookup(socket),
-    do: socket |> cancel_async(socket.assigns.open_sea_lookup) |> assign(open_sea_lookup: nil)
-
-  defp parsed_token_id(value) do
-    case RedemptionSteps.token_id(value) do
-      {:ok, token_id} -> token_id
-      :error -> nil
-    end
-  end
-
-  # Ash wraps a generic action's error in an error class, so the typed refusal
-  # the operation boundary returned is read back out of it and the copy can name
-  # what actually happened.
-  defp refusal(%Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: reason} | _]}),
-    do: reason
-
-  defp refusal(reason), do: reason
-
-  defp public_redemption_snapshot(nil), do: nil
-
-  defp public_redemption_snapshot(redemption) do
-    Map.merge(redemption, %{
-      wallet_address: nil,
-      selected_collection: nil,
-      token_id: nil,
-      nft_owner: nil,
-      nft_redeemed: false,
-      nft_owner_unavailable: false,
-      nft_approved: nil,
-      usdc_balance_raw: nil,
-      usdc_balance: nil,
-      usdc_allowance_raw: nil,
-      usdc_allowance: nil,
-      claimable_raw: nil,
-      claimable: nil,
-      vest_pool_raw: nil,
-      vest_pool: nil,
-      vest_released_raw: nil,
-      vest_released: nil,
-      vest_claimed_raw: nil,
-      vest_claimed: nil,
-      vest_start: nil
-    })
-  end
 end

@@ -183,6 +183,8 @@ defmodule AshPlatformWeb.ShellLive.Staking do
 
   def step_landed(socket), do: socket
 
+  def handles?(event), do: event in ~w(refresh_shared_snapshot refresh_data)
+
   def handle_event(
         "refresh_shared_snapshot",
         %{assigns: %{route_spec: %{route_id: route_id}}} = socket
