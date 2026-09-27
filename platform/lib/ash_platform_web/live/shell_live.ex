@@ -1079,8 +1079,9 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp assign_position_wallet(socket, _route_spec), do: socket
 
-  # Presses always go to the browser's wallet. When that is not the wallet the
-  # figures are for, the page names it beside the buttons.
+  # The wallet app's selected account, when it is not the wallet the figures are
+  # for. Redeem sends from it; Stake sends only from the signed-in wallet and
+  # asks the person to switch. Either way the page names it beside the buttons.
   defp other_sender(shown, browser)
        when is_binary(shown) and is_binary(browser) and shown != browser,
        do: browser
