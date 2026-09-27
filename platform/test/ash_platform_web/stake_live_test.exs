@@ -738,7 +738,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @wallet})
 
     assert_receive {:staking_read_waiting, second_read}
-    assert_receive {:DOWN, ^first_read_ref, :process, ^first_read, _reason}
 
     refute render(view) =~ "Staking details are unavailable right now."
     refute render(view) =~ @refresh_failure
@@ -750,7 +749,39 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert staking_assigns(view).staking_status == :ready
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+
+    # The replaced read is never stopped mid-read; it finishes, and its answer
+    # for the other wallet is dropped.
+    send(first_read, :continue_staking_read)
+    assert_receive {:DOWN, ^first_read_ref, :process, ^first_read, :normal}
+    render_async(view)
+
+    assert staking_assigns(view).staking.wallet_address == @wallet
+    assert staking_assigns(view).staking_wallet == @wallet
   end
+
+  test "SNAPSHOTS_FOLLOWED_ONLY_HERE: contract readings are heard only on Stake and Overview",
+       %{conn: conn} do
+    view = mount_stake(conn)
+    assert followers(view) == 1
+
+    render_patch(view, "/redeem")
+    assert followers(view) == 0
+    share_new_snapshot()
+    assert staking_assigns(view).staking == nil
+
+    render_patch(view, "/app")
+    assert followers(view) == 1
+
+    render_patch(view, "/stake")
+    assert followers(view) == 1
+    assert staking_assigns(view).staking_status == :ready
+  end
+
+  defp followers(view),
+    do:
+      Registry.lookup(AshPlatform.PubSub, SnapshotCache.topic())
+      |> Enum.count(&(elem(&1, 0) == view.pid))
 
   test "COLD_START_WALLET: connecting a wallet with no contract reading buys no chain read", %{
     conn: conn
