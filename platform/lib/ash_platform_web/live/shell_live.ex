@@ -295,11 +295,21 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_async({:open_sea, _}, _result, socket), do: {:noreply, socket}
 
-  def handle_async(:gallery_owned, {:ok, {:ok, ids}}, socket),
-    do: {:noreply, assign(socket, gallery_owned: %{status: :ready, ids: ids})}
+  # A lookup answers only for the account it was made for. Signing out or
+  # switching account ends this process, but a session can also end quietly
+  # under it, and then the passes it found are dropped.
+  def handle_async({:gallery_owned, account_id}, result, socket) do
+    case {current_account(socket.assigns.access_context), result} do
+      {%{id: ^account_id}, {:ok, {:ok, ids}}} ->
+        {:noreply, assign(socket, gallery_owned: %{status: :ready, ids: ids})}
 
-  def handle_async(:gallery_owned, _result, socket),
-    do: {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
+      {%{id: ^account_id}, _failed} ->
+        {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
+
+      _session_ended ->
+        {:noreply, assign(socket, gallery_mine: false, gallery_owned: %{status: :idle, ids: []})}
+    end
+  end
 
   # "My passes" reads the signed-in account's own wallets once; after that the
   # toggle only shows or hides what is already on the page. A lookup that
@@ -1566,7 +1576,7 @@ defmodule AshPlatformWeb.ShellLive do
 
         socket
         |> assign(gallery_owned: %{status: :loading, ids: []})
-        |> start_async(:gallery_owned, fn -> owned_pass_ids(wallets) end)
+        |> start_async({:gallery_owned, account.id}, fn -> owned_pass_ids(wallets) end)
     end
   end
 
