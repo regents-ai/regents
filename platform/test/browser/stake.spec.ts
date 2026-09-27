@@ -313,7 +313,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
     await expect(page.locator(".stake-snapshot-note")).toContainText(
-      /Confirmed at Base block #1,234, read .+ ago\./,
+      /Confirmed at Base block #1,234, read (just now|\d+ \w+ ago)\./,
     )
     await expect(page.locator("button.stake-shared-refresh")).toHaveCount(0)
 

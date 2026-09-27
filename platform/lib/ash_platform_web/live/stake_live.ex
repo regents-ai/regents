@@ -277,8 +277,9 @@ defmodule AshPlatformWeb.StakeLive do
 
             <p class="stake-snapshot-note">
               <span>
-                Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {snapshot_age(
-                  @staking
+                Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {RegentFormat.relative_time(
+                  @staking.read_at,
+                  DateTime.utc_now()
                 )}.
               </span>
               <span :if={@reading || @shared_reading} class="stake-inline-loading">
@@ -392,19 +393,6 @@ defmodule AshPlatformWeb.StakeLive do
   # A clock time with its day, so a price kept from an earlier fetch reads as
   # exactly as old as it is.
   defp read_time(%DateTime{} = at), do: Calendar.strftime(at, "%-d %b %Y at %H:%M UTC")
-
-  @doc "How long ago this contract reading was taken, in plain words."
-  def snapshot_age(%{read_at: %DateTime{} = read_at}),
-    do: read_at |> DateTime.diff(DateTime.utc_now()) |> abs() |> elapsed()
-
-  def snapshot_age(_staking), do: "just now"
-
-  defp elapsed(seconds) when seconds < 10, do: "moments ago"
-  defp elapsed(seconds) when seconds < 60, do: "#{seconds} seconds ago"
-  defp elapsed(seconds) when seconds < 120, do: "a minute ago"
-  defp elapsed(seconds) when seconds < 3_600, do: "#{div(seconds, 60)} minutes ago"
-  defp elapsed(seconds) when seconds < 7_200, do: "an hour ago"
-  defp elapsed(seconds), do: "#{div(seconds, 3_600)} hours ago"
 
   def token_amount(value),
     do:

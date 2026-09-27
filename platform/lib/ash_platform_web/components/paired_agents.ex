@@ -102,7 +102,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
           <span class="account-agent__contact">
             Last contact
             <time datetime={DateTime.to_iso8601(agent.last_contact_at)}>
-              {ago(agent.last_contact_at, @now)}
+              {RegentFormat.relative_time(agent.last_contact_at, @now)}
             </time>
           </span>
           <span class="account-agent__more" aria-hidden="true">See what it has done →</span>
@@ -211,7 +211,7 @@ defmodule AshPlatformWeb.Components.PairedAgents do
         <div>
           <dt>Last contact</dt>
           <dd>
-            {ago(@detail.agent.last_contact_at, @now)}
+            {RegentFormat.relative_time(@detail.agent.last_contact_at, @now)}
             <span>{moment(@detail.agent.last_contact_at)}</span>
           </dd>
         </div>
@@ -313,16 +313,4 @@ defmodule AshPlatformWeb.Components.PairedAgents do
   end
 
   defp moment(datetime), do: Calendar.strftime(datetime, "%-d %B %Y, %H:%M UTC")
-
-  defp ago(datetime, now) do
-    case DateTime.diff(now, datetime, :second) do
-      seconds when seconds < 60 -> "just now"
-      seconds when seconds < 120 -> "a minute ago"
-      seconds when seconds < 3_600 -> "#{div(seconds, 60)} minutes ago"
-      seconds when seconds < 7_200 -> "an hour ago"
-      seconds when seconds < 86_400 -> "#{div(seconds, 3_600)} hours ago"
-      seconds when seconds < 172_800 -> "yesterday"
-      seconds -> "#{div(seconds, 86_400)} days ago"
-    end
-  end
 end

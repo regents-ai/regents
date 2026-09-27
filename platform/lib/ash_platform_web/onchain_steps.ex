@@ -164,7 +164,7 @@ defmodule AshPlatformWeb.OnchainSteps do
   """
   def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
     if signer(linked, active) == nil do
-      "You're signed in with #{Enum.map_join(linked, " and ", &short/1)}, but your wallet app has #{short(active)} open."
+      "You're signed in with #{Enum.map_join(linked, " and ", &RegentFormat.short_address/1)}, but your wallet app has #{RegentFormat.short_address(active)} open."
     end
   end
 
@@ -204,6 +204,4 @@ defmodule AshPlatformWeb.OnchainSteps do
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id
-
-  defp short(address), do: RegentFormat.short_address(address)
 end
