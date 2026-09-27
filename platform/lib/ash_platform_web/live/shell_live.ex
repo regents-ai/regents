@@ -2,6 +2,7 @@ defmodule AshPlatformWeb.ShellLive do
   use AshPlatformWeb, :live_view
 
   import AshPlatformWeb.Components.Shell
+  import AshPlatformWeb.ShellLive.Identity
   import AshPlatformWeb.StakeLive
 
   alias AshPlatform.{
@@ -32,6 +33,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
+  alias AshPlatformWeb.ShellLive.{Gallery, OpenSeaBudget}
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
@@ -39,8 +41,6 @@ defmodule AshPlatformWeb.ShellLive do
   # per-visitor limit on looking up owned NFTs, and the two refusals must never
   # read as the same thing.
   @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
-  @open_sea_lookup_window 60_000
-  @default_open_sea_lookups_per_minute 6
   @names_page_size 50
   @blank_claim_name %{value: "", problems: [], availability: nil}
   @redemption_collections ~w(animata_i animata_ii)
@@ -64,6 +64,8 @@ defmodule AshPlatformWeb.ShellLive do
 
     {:ok,
      socket
+     |> Gallery.init()
+     |> OpenSeaBudget.init()
      |> stream(:account_names, [])
      |> assign(
        content_generation: 0,
@@ -94,9 +96,6 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
        owned_collectibles_limit: 24,
        open_sea_lookup: nil,
-       open_sea_lookup_starts: [],
-       gallery_mine: false,
-       gallery_owned: %{status: :idle, ids: []},
        staking: nil,
        staking_wallet: nil,
        staking_notice: nil,
@@ -295,39 +294,12 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_async({:open_sea, _}, _result, socket), do: {:noreply, socket}
 
-  # A lookup answers only for the account it was made for. Signing out or
-  # switching account ends this process, but a session can also end quietly
-  # under it, and then the passes it found are dropped.
-  def handle_async({:gallery_owned, account_id}, result, socket) do
-    case {current_account(socket.assigns.access_context), result} do
-      {%{id: ^account_id}, {:ok, {:ok, ids}}} ->
-        {:noreply, assign(socket, gallery_owned: %{status: :ready, ids: ids})}
+  def handle_async({:gallery_owned, _account_id} = name, result, socket),
+    do: {:noreply, Gallery.settle(socket, name, result)}
 
-      {%{id: ^account_id}, _failed} ->
-        {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
-
-      _session_ended ->
-        {:noreply, assign(socket, gallery_mine: false, gallery_owned: %{status: :idle, ids: []})}
-    end
-  end
-
-  # "My passes" reads the signed-in account's own wallets once; after that the
-  # toggle only shows or hides what is already on the page. A lookup that
-  # failed is tried again the next time the filter is switched on.
   @impl true
-  def handle_event(
-        "toggle_my_passes",
-        _params,
-        %{assigns: %{route_spec: %{route_id: :redeem_gallery}, gallery_mine: false}} = socket
-      ) do
-    case current_account(socket.assigns.access_context) do
-      nil -> {:noreply, socket}
-      account -> {:noreply, socket |> assign(gallery_mine: true) |> start_gallery_lookup(account)}
-    end
-  end
-
   def handle_event("toggle_my_passes", _params, socket),
-    do: {:noreply, assign(socket, gallery_mine: false)}
+    do: {:noreply, Gallery.toggle(socket)}
 
   def handle_event(
         "request_verified_connection",
@@ -929,32 +901,6 @@ defmodule AshPlatformWeb.ShellLive do
   defp staking_reading?(%{staking_read: nil}), do: false
   defp staking_reading?(_), do: true
 
-  defp current_account(%{principal: {:human, account}}), do: account
-  defp current_account(_access_context), do: nil
-
-  # Privy's active wallet is the only wallet that acts. Signed in, Stake and
-  # Redeem show it when it is one of the account's own wallets; any other wallet
-  # is one to switch away from, so the page stays on the account's first wallet
-  # and asks. Signed out, the page shows whatever wallet is active.
-  defp position_wallet(%{access_context: access_context, browser_wallet: browser_wallet}) do
-    case current_account(access_context) do
-      nil ->
-        browser_wallet
-
-      account ->
-        wallets = account_wallets(account)
-        if browser_wallet in wallets, do: browser_wallet, else: List.first(wallets)
-    end
-  end
-
-  # The signed-in account's wallets, the only ones that may act; `nil` signed out.
-  defp linked_wallets(access_context) do
-    case current_account(access_context) do
-      nil -> nil
-      account -> account_wallets(account)
-    end
-  end
-
   defp assign_position_wallet(socket, %{route_id: :stake}),
     do: assign(socket, staking_wallet: position_wallet(socket.assigns))
 
@@ -1367,18 +1313,6 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  defp human_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
-    do: %Human{human_account_id: account.id, wallet_addresses: account_wallets(account)}
-
-  defp human_actor(_socket), do: nil
-
-  defp account_wallets(account) do
-    [account.wallet_address | List.wrap(account.wallet_addresses)]
-    |> Enum.filter(&is_binary/1)
-    |> Enum.map(&String.downcase/1)
-    |> Enum.uniq()
-  end
-
   defp maybe_start_redemption(socket, %{route_id: :redeem}, _),
     do: start_redemption_read(socket, lookup_owned: true)
 
@@ -1526,12 +1460,9 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp maybe_start_open_sea_lookup(socket, false, _generation), do: socket
 
-  # Every owned-collectible lookup spends the server's own OpenSea credentials on
-  # behalf of a visitor who needs no account, so one connection may only start
-  # @default_open_sea_lookups_per_minute of them a minute. A page past its share
-  # is told the lookup is unavailable, which is the same thing it is told when
-  # OpenSea itself cannot answer: the manual collection and token ID fields stay
-  # open and no wallet action is refused.
+  # A lookup past this connection's OpenSea share is shown as unavailable: the
+  # manual collection and token ID fields stay open and no wallet action is
+  # refused.
   defp start_open_sea_lookup(
          %{
            assigns: %{
@@ -1543,7 +1474,7 @@ defmodule AshPlatformWeb.ShellLive do
          _generation
        )
        when is_binary(wallet) and status in [:idle, :unavailable, :refreshing] do
-    case claim_open_sea_lookup(socket) do
+    case OpenSeaBudget.claim(socket) do
       {:limited, socket} ->
         assign(socket,
           owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
@@ -1562,58 +1493,6 @@ defmodule AshPlatformWeb.ShellLive do
   end
 
   defp start_open_sea_lookup(socket, _), do: socket
-
-  # The gallery's "My passes" draws on the same per-connection budget, one
-  # claim for all of the account's wallets.
-  defp start_gallery_lookup(%{assigns: %{gallery_owned: %{status: status}}} = socket, account)
-       when status in [:idle, :unavailable] do
-    case claim_open_sea_lookup(socket) do
-      {:limited, socket} ->
-        assign(socket, gallery_owned: %{status: :unavailable, ids: []})
-
-      {:ok, socket} ->
-        wallets = account_wallets(account)
-
-        socket
-        |> assign(gallery_owned: %{status: :loading, ids: []})
-        |> start_async({:gallery_owned, account.id}, fn -> owned_pass_ids(wallets) end)
-    end
-  end
-
-  defp start_gallery_lookup(socket, _account), do: socket
-
-  defp owned_pass_ids(wallets) do
-    wallets
-    |> Enum.reduce_while({:ok, []}, fn wallet, {:ok, ids} ->
-      case OpenSea.fetch_owned_collectibles(wallet) do
-        {:ok, %{regents_club: club}} -> {:cont, {:ok, Enum.map(club, & &1.token_id) ++ ids}}
-        _unavailable -> {:halt, :unavailable}
-      end
-    end)
-    |> case do
-      {:ok, ids} -> {:ok, ids |> Enum.uniq() |> Enum.sort()}
-      :unavailable -> :unavailable
-    end
-  end
-
-  defp claim_open_sea_lookup(socket) do
-    now = System.monotonic_time(:millisecond)
-
-    recent =
-      Enum.filter(socket.assigns.open_sea_lookup_starts, &(&1 > now - @open_sea_lookup_window))
-
-    if length(recent) >= open_sea_lookups_per_minute(),
-      do: {:limited, assign(socket, open_sea_lookup_starts: recent)},
-      else: {:ok, assign(socket, open_sea_lookup_starts: [now | recent])}
-  end
-
-  defp open_sea_lookups_per_minute,
-    do:
-      Application.get_env(
-        :ash_platform,
-        :opensea_lookups_per_minute,
-        @default_open_sea_lookups_per_minute
-      )
 
   defp loading_collectibles(%{status: :idle}),
     do: %{status: :loading, animata: [], regents_club: []}
@@ -1643,9 +1522,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: %Human{human_account_id: account.id}
 
   defp staking_actor(_socket), do: nil
-
-  defp authenticated?(%{principal: {:human, _}}), do: true
-  defp authenticated?(_), do: false
 
   # A different wallet's position is not this one's. The contract reading stays
   # exactly as it is while the new wallet is looked up at its own fresh block.
