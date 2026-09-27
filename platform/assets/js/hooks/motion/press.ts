@@ -16,5 +16,5 @@ export const nope = (el: Element) =>
 // Something was refused. Unlike a press, the shake plays however the refused
 // thing was asked for, because it is the answer, not decoration.
 export function deny(el: Element) {
-  if (!still()) nope(el)
+  if (!still(el)) nope(el)
 }

@@ -1,8 +1,8 @@
 /**
- * Regents' standard motion on every page: a squish when something is pressed,
- * panels that slide or pop open, and on pages the server draws once, the
- * headline rising in word by word and the cards settling into place. The
- * version of each is named in `AshPlatformWeb.Motion`.
+ * The standard motion on every page: a squish when something is pressed, a
+ * shake when the answer is no, panels that slide or pop open, and on pages the
+ * server draws once, the headline rising in word by word and the cards
+ * settling into place. The version of each is named in `AshPlatformWeb.Motion`.
  *
  * A live page draws its own parts again whenever it changes, so only what the
  * server drew once moves as the page opens; live parts move from their hooks.
@@ -11,8 +11,8 @@
  * the wallet the moment it is pressed, and the motion plays alongside.
  */
 import {splitText} from "animejs"
-import {squish} from "./hooks/motion/press"
-import {cascadeCards, riseHeadline} from "./hooks/motion/reveals"
+import {deny, nope, squish} from "./hooks/motion/press"
+import {GRIDS, HEADLINES} from "./hooks/motion/reveals"
 import {byPointer, lastInputByPointer, still, watchInput} from "./hooks/motion/shared"
 import {backdrop, drawer, menu, sheet} from "./hooks/motion/slides"
 
@@ -21,8 +21,9 @@ import {backdrop, drawer, menu, sheet} from "./hooks/motion/slides"
 const PRESSABLE =
   ":is(button, .rg-button, [role='button'], summary:has(~ [data-panel='menu'])):not(.rg-theme-toggle)"
 
-// The blog's card grid, drawn by the design system.
-const CARDS = ".rg-blog__grid"
+// The first cards of a list cascade in; later ones start below the fold and
+// are simply there.
+const CASCADE = 12
 
 const live = (el: Element) => el.closest("[data-phx-session]") !== null
 
@@ -32,22 +33,33 @@ export function mountMotion(doc: Document) {
   doc.addEventListener("toggle", toggle, true)
 
   const main = doc.querySelector("main")
-  if (main === null || live(main) || still()) return
+  if (main === null || live(main) || still(main)) return
 
-  const headline = main.querySelector("h1")
+  const headline = main.querySelector<HTMLElement>("h1")
   if (headline !== null) rise(headline)
 
-  for (const grid of main.querySelectorAll(CARDS)) cascadeCards([...grid.children])
+  for (const list of main.querySelectorAll("[data-cascade]")) GRIDS.cascade([...list.children].slice(0, CASCADE))
+
+  // A form the server sent back refused says why, and the reason shakes once.
+  for (const reason of main.querySelectorAll("[role='alert']")) deny(reason)
 }
 
 // By the time a press reaches the document, the page has already acted on
-// it, so a control that opens a drawer says it is open.
+// it, so a control that opens a drawer says it is open. A button that says it
+// cannot be used yet shakes its head instead of squishing. A wallet button
+// squishes only its `data-press-label`, so the button itself never shrinks
+// and a quick second press near its edge still lands on it.
 function press(event: MouseEvent) {
-  if (!(event.target instanceof Element) || !byPointer(event) || still()) return
+  if (!(event.target instanceof Element) || !byPointer(event)) return
   const control = event.target.closest(PRESSABLE)
-  if (control === null) return
+  if (control === null || still(control)) return
 
-  squish(control)
+  if (control.getAttribute("aria-disabled") === "true") {
+    nope(control)
+    return
+  }
+
+  squish(control.querySelector("[data-press-label]") ?? control)
 
   if (control.getAttribute("aria-expanded") !== "true") return
   const panel = event.target.ownerDocument.getElementById(control.getAttribute("aria-controls") ?? "")
@@ -63,9 +75,9 @@ function press(event: MouseEvent) {
 // having been open all along, so it does not move again.
 function toggle(event: Event) {
   if (!(event instanceof ToggleEvent) || event.oldState !== "closed" || event.newState !== "open") return
-  if (!lastInputByPointer() || still()) return
-
   const {target} = event
+  if (!(target instanceof HTMLElement) || !lastInputByPointer() || still(target)) return
+
   if (target instanceof HTMLDialogElement) sheet(target)
   if (target instanceof HTMLDetailsElement) {
     const panel = target.querySelector(":scope > [data-panel='menu']")
@@ -76,5 +88,5 @@ function toggle(event: Event) {
 // The words are joined back into plain text once they have risen.
 function rise(headline: HTMLElement) {
   const split = splitText(headline, {words: {wrap: "clip"}})
-  riseHeadline(split).then(() => split.revert())
+  HEADLINES.rise(split).then(() => split.revert())
 }

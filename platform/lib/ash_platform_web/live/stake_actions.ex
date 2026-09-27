@@ -550,177 +550,184 @@ defmodule AshPlatformWeb.StakeActions do
           />
         </dl>
 
-        <div class="stake-mode" role="group" aria-label="Stake or unstake">
-          <Regent.Primitives.button
-            :for={mode <- modes()}
-            variant="secondary"
-            type="button"
-            phx-click={
-              if @action == mode,
-                do:
-                  JS.transition("is-mode-hinted",
-                    to: "#staking-amount-form .stake-submit",
-                    time: 650,
-                    blocking: false
-                  ),
-                else: "select_staking_action"
-            }
-            phx-target={@myself}
-            phx-value-mode={mode}
-            aria-pressed={to_string(@action == mode)}
-          >{mode_label(mode)}</Regent.Primitives.button>
-        </div>
-
-        <form
-          id="staking-amount-form"
-          phx-change="change"
-          phx-target={@myself}
+        <div
+          id="staking-modes"
+          class="stake-modes"
           phx-hook="MotionTabs"
           data-active={@action}
-          data-tabs={Enum.join(modes(), " ")}
           data-variant={AshPlatformWeb.Motion.standard("tabs")}
         >
-          <input type="hidden" name="action" value={@action} data-onchain-input="action" />
-          <Regent.Primitives.field id="staking-amount" label="Amount">
-            <div class="stake-amount">
-              <input
-                id="staking-amount"
-                name="amount"
-                value={@amount}
-                maxlength="64"
-                inputmode="decimal"
-                autocomplete="off"
-                placeholder="0.0"
-                phx-debounce="200"
-                data-onchain-input="amount"
-                aria-describedby="staking-available staking-amount-feedback"
-              />
-              <span>REGENT</span>
-            </div>
-          </Regent.Primitives.field>
-          <div class="stake-amount-tools">
-            <div class="stake-amount-action">
-              <Regent.Primitives.button
-                id="staking-primary"
-                class={"stake-primary stake-submit" <> armed_class(@amount)}
-                type="button"
-                data-onchain-step={@signed_in && @next_step}
-                data-account-target={!@signed_in && "sign-in"}
-                phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-              ><.press_label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
-              <p id="staking-available">
-                Available <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
-              </p>
-            </div>
-            <div class="stake-amount-shortcuts">
-              <Regent.Primitives.button
-                variant="secondary"
-                type="button"
-                phx-click="fill_staking_amount"
-                phx-target={@myself}
-                phx-value-portion="half"
-                disabled={not fillable?(@spendable, "half")}
-              >50%</Regent.Primitives.button>
-              <Regent.Primitives.button
-                variant="secondary"
-                type="button"
-                phx-click="fill_staking_amount"
-                phx-target={@myself}
-                phx-value-portion="max"
-                disabled={not fillable?(@spendable, "max")}
-              >Max</Regent.Primitives.button>
-            </div>
+          <div class="stake-mode" role="tablist" aria-label="Stake or unstake">
+            <Regent.Primitives.button
+              :for={mode <- modes()}
+              variant="secondary"
+              type="button"
+              phx-click={
+                if @action == mode,
+                  do:
+                    JS.transition("is-mode-hinted",
+                      to: "#staking-amount-form .stake-submit",
+                      time: 650,
+                      blocking: false
+                    ),
+                  else: "select_staking_action"
+              }
+              phx-target={@myself}
+              phx-value-mode={mode}
+              role="tab"
+              id={"staking-tab-#{mode}"}
+              data-tab={mode}
+              aria-selected={to_string(@action == mode)}
+              aria-controls="staking-tabpanel"
+            >{mode_label(mode)}</Regent.Primitives.button>
           </div>
-          <%!-- Always on the page, so the fields after it keep their focus while it fills. --%>
-          <p
-            id="staking-review"
-            class="stake-review"
-            aria-live="polite"
-            hidden={!(@signed_in && @review_line)}
-          >
-            {@signed_in && @review_line}
-          </p>
-          <.mismatch :if={@signed_in} note={@mismatch_note} />
-          <p
-            id="staking-amount-feedback"
-            class="stake-amount-notice"
-            role="status"
-            data-visible={to_string(not is_nil(@amount_notice))}
-          >
-            {@amount_notice}
-          </p>
 
-          <div id="staking-recipient-controls" class="stake-recipient" hidden={@action != "stake"}>
-            <label class="stake-check" for="staking-for-other">
-              <input
-                id="staking-for-other"
-                name="for_other"
-                type="checkbox"
-                value="true"
-                checked={@form.for_other}
-                data-onchain-input="for_other"
-                aria-controls="staking-recipient-fields"
-                aria-expanded={to_string(@form.for_other)}
-              />
-              <span>Stake for a different address</span>
-            </label>
-            <div id="staking-recipient-fields" hidden={!@form.for_other}>
-              <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
-                <input
-                  id="staking-recipient"
-                  name="receiver"
-                  type="text"
-                  maxlength="64"
-                  value={@form.receiver}
-                  autocomplete="off"
-                  spellcheck="false"
-                  autocapitalize="none"
-                  placeholder="0x…"
-                  phx-debounce="200"
-                  data-onchain-input="receiver"
-                  aria-describedby="staking-recipient-error"
-                  aria-invalid={to_string(@receiver_invalid)}
-                />
+          <div id="staking-tabpanel" role="tabpanel" aria-labelledby={"staking-tab-#{@action}"}>
+            <form id="staking-amount-form" phx-change="change" phx-target={@myself}>
+              <input type="hidden" name="action" value={@action} data-onchain-input="action" />
+              <Regent.Primitives.field id="staking-amount" label="Amount">
+                <div class="stake-amount">
+                  <input
+                    id="staking-amount"
+                    name="amount"
+                    value={@amount}
+                    maxlength="64"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    placeholder="0.0"
+                    phx-debounce="200"
+                    data-onchain-input="amount"
+                    aria-describedby="staking-available staking-amount-feedback"
+                  />
+                  <span>REGENT</span>
+                </div>
               </Regent.Primitives.field>
-              <p id="staking-recipient-error" role="status" hidden={!@receiver_invalid}>
-                Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
-              </p>
-              <label
-                :if={@receiver}
-                id="staking-recipient-warning"
-                class="stake-check"
-                for="staking-recipient-acknowledged"
+              <div class="stake-amount-tools">
+                <div class="stake-amount-action">
+                  <Regent.Primitives.button
+                    id="staking-primary"
+                    class={"stake-primary stake-submit" <> armed_class(@amount)}
+                    type="button"
+                    data-onchain-step={@signed_in && @next_step}
+                    data-account-target={!@signed_in && "sign-in"}
+                    phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+                  ><.press_label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
+                  <p id="staking-available">
+                    Available
+                    <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
+                  </p>
+                </div>
+                <div class="stake-amount-shortcuts">
+                  <Regent.Primitives.button
+                    variant="secondary"
+                    type="button"
+                    phx-click="fill_staking_amount"
+                    phx-target={@myself}
+                    phx-value-portion="half"
+                    disabled={not fillable?(@spendable, "half")}
+                  >50%</Regent.Primitives.button>
+                  <Regent.Primitives.button
+                    variant="secondary"
+                    type="button"
+                    phx-click="fill_staking_amount"
+                    phx-target={@myself}
+                    phx-value-portion="max"
+                    disabled={not fillable?(@spendable, "max")}
+                  >Max</Regent.Primitives.button>
+                </div>
+              </div>
+              <%!-- Always on the page, so the fields after it keep their focus while it fills. --%>
+              <p
+                id="staking-review"
+                class="stake-review"
+                aria-live="polite"
+                hidden={!(@signed_in && @review_line)}
               >
-                <input
-                  id="staking-recipient-acknowledged"
-                  name="acknowledged"
-                  type="checkbox"
-                  value="true"
-                  checked={Steps.acknowledged?(@form)}
-                  data-onchain-input="acknowledged"
-                />
-                <span id="staking-recipient-warning-text">
-                  Warning: the wallet {@receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
-                </span>
-              </label>
-            </div>
+                {@signed_in && @review_line}
+              </p>
+              <.mismatch :if={@signed_in} note={@mismatch_note} />
+              <p
+                id="staking-amount-feedback"
+                class="stake-amount-notice"
+                role="status"
+                data-visible={to_string(not is_nil(@amount_notice))}
+              >
+                {@amount_notice}
+              </p>
+
+              <div id="staking-recipient-controls" class="stake-recipient" hidden={@action != "stake"}>
+                <label class="stake-check" for="staking-for-other">
+                  <input
+                    id="staking-for-other"
+                    name="for_other"
+                    type="checkbox"
+                    value="true"
+                    checked={@form.for_other}
+                    data-onchain-input="for_other"
+                    aria-controls="staking-recipient-fields"
+                    aria-expanded={to_string(@form.for_other)}
+                  />
+                  <span>Stake for a different address</span>
+                </label>
+                <div id="staking-recipient-fields" hidden={!@form.for_other}>
+                  <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
+                    <input
+                      id="staking-recipient"
+                      name="receiver"
+                      type="text"
+                      maxlength="64"
+                      value={@form.receiver}
+                      autocomplete="off"
+                      spellcheck="false"
+                      autocapitalize="none"
+                      placeholder="0x…"
+                      phx-debounce="200"
+                      data-onchain-input="receiver"
+                      aria-describedby="staking-recipient-error"
+                      aria-invalid={to_string(@receiver_invalid)}
+                    />
+                  </Regent.Primitives.field>
+                  <p id="staking-recipient-error" role="status" hidden={!@receiver_invalid}>
+                    Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
+                  </p>
+                  <label
+                    :if={@receiver}
+                    id="staking-recipient-warning"
+                    class="stake-check"
+                    for="staking-recipient-acknowledged"
+                  >
+                    <input
+                      id="staking-recipient-acknowledged"
+                      name="acknowledged"
+                      type="checkbox"
+                      value="true"
+                      checked={Steps.acknowledged?(@form)}
+                      data-onchain-input="acknowledged"
+                    />
+                    <span id="staking-recipient-warning-text">
+                      Warning: the wallet {@receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
+                <div>
+                  <dt>Position after</dt><dd>
+                    <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
+                </div>
+              </dl>
+
+              <p :if={@signed_in && @approval_note} class="stake-approval-note">
+                {@approval_note}
+              </p>
+            </form>
           </div>
-
-          <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
-            <div>
-              <dt>Position after</dt><dd>
-                <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
-              </dd>
-            </div>
-            <div>
-              <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
-            </div>
-          </dl>
-
-          <p :if={@signed_in && @approval_note} class="stake-approval-note">
-            {@approval_note}
-          </p>
-        </form>
+        </div>
 
         <.activity sent={@sent} press={@press_note} myself={@myself} />
 

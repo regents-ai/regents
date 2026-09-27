@@ -545,9 +545,9 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await toggle.check()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
-  await page.getByRole("button", {name: "Unstake", exact: true}).click()
+  await page.getByRole("tab", {name: "Unstake", exact: true}).click()
   await expect(toggle).toBeHidden()
-  await page.getByRole("button", {name: "Stake", exact: true}).click()
+  await page.getByRole("tab", {name: "Stake", exact: true}).click()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
   // The signed-in position stays put while the open wallet changes, so the
