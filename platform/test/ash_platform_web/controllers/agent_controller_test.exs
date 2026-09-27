@@ -14,7 +14,10 @@ defmodule AshPlatformWeb.AgentControllerTest do
     Process.delete(:capture_agent_verification_calls)
     AshPlatform.RateLimiter.reset()
 
-    on_exit(fn -> Application.put_env(:ash_platform, :agent_pairing_clock, previous_clock) end)
+    on_exit(fn ->
+      Application.put_env(:ash_platform, :agent_pairing_clock, previous_clock)
+      AshPlatform.RateLimiter.reset()
+    end)
 
     :ok
   end
