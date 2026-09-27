@@ -110,6 +110,36 @@ test("[U1] a navigation tab brings its section into view", async ({page}) => {
     .toBe(true)
 })
 
+// Each header control means the same place on the homepage and the blog, by
+// keyboard and at phone width.
+for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
+  test(`[R12] header tabs and App keep one meaning on home and blog at ${name}`, async ({page}) => {
+    await page.setViewportSize({width, height})
+
+    for (const start of ["/", "/blog"]) {
+      await page.goto(start)
+      const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
+      await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Stake"])
+      await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/app")
+      await assertNoOverflow(page)
+
+      await page.locator("#home-nav-patchbay").focus()
+      await page.keyboard.press("Enter")
+      await expect(page).toHaveURL(/\/#patchbay$/)
+
+      await page.locator("#home-nav-stake").focus()
+      await page.keyboard.press("Enter")
+      await expect(page).toHaveURL(/\/stake$/)
+      await expect(page.locator("#regent-staking")).toBeVisible()
+    }
+
+    await page.goto("/")
+    await page.locator(".rl-header-links a.rl-action").click()
+    await expect(page).toHaveURL(/\/app$/)
+    await expect(page.locator("#regent-ops-overview h1")).toBeVisible()
+  })
+}
+
 // Display titles and body copy keep their separate canonical typographic roles.
 test("[U1][U2] the tagline retains its sentence case", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})

@@ -106,11 +106,11 @@ defmodule AshPlatformWeb.HomeLive do
           />
         </.link>
 
-        <nav class="rl-product-tabs" aria-label="Homepage sections">
+        <nav class="rl-product-tabs" aria-label="Products and staking">
           <a
-            :for={{label, anchor} <- nav_links()}
-            id={"home-nav-#{anchor}"}
-            href={nav_href(anchor, @blog?)}
+            :for={{label, id, href} <- nav_links(@blog?)}
+            id={"home-nav-#{id}"}
+            href={href}
             class="rg-button rl-product-tab"
           >
             {label}
@@ -124,7 +124,7 @@ defmodule AshPlatformWeb.HomeLive do
             theme={@theme}
           />
           <RegentLinks.header_links id="home-token-menu" />
-          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
+          <a href={~p"/app"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
         </div>
       </div>
     </header>
@@ -519,18 +519,17 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  # While only the homepage is public, every tab names a section on this page.
-  defp nav_links,
-    do: [
-      {"Autolaunch", "autolaunch"},
-      {"Techtree", "techtree"},
-      {"Patchbay", "patchbay"},
-      {"Protocol", "regent"}
-    ]
+  # Each product tab jumps to its section of the homepage; Stake opens the staking page.
+  defp nav_links(blog?) do
+    sections =
+      for anchor <- ~w(autolaunch techtree patchbay),
+          do: {String.capitalize(anchor), anchor, section_href(anchor, blog?)}
 
-  defp nav_href("regent", false), do: ~p"/stake"
-  defp nav_href(anchor, true), do: "/##{anchor}"
-  defp nav_href(anchor, false), do: "##{anchor}"
+    sections ++ [{"Stake", "stake", ~p"/stake"}]
+  end
+
+  defp section_href(anchor, true), do: "/##{anchor}"
+  defp section_href(anchor, false), do: "##{anchor}"
 
   # The three products and their public website destinations. The product pages
   # in the app read the same list, so the copy lives once.

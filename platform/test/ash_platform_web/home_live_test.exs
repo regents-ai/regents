@@ -19,7 +19,7 @@ defmodule AshPlatformWeb.HomeLiveTest do
 
   # Stake is the one product page the homepage sends visitors to; every other
   # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/stake /llms.txt /docs /about /contact /privacy /terms)
+  @open_paths ~w(/app /stake /llms.txt /docs /about /contact /privacy /terms)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -34,11 +34,26 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "the protocol header control opens staking", %{conn: conn} do
+  test "NAV_MEANINGS: Stake opens staking and App opens the overview", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert attribute(html, "#home-nav-regent", "href") == ["/stake"]
-    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
+    assert attribute(html, "#home-nav-stake", "href") == ["/stake"]
+    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/app"]
+
+    assert attribute(html, ".rl-product-tabs a", "href") ==
+             ~w(#autolaunch #techtree #patchbay /stake)
+  end
+
+  test "NAV_MEANINGS: the blog header sends each tab and App where the homepage does", %{
+    conn: conn
+  } do
+    html = conn |> get("/blog") |> html_response(200)
+
+    assert attribute(html, "#home-nav-stake", "href") == ["/stake"]
+    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/app"]
+
+    assert attribute(html, ".rl-product-tabs a", "href") ==
+             ~w(/#autolaunch /#techtree /#patchbay /stake)
   end
 
   test "PROOF_STATUS: every homepage card says what its product offers today", %{conn: conn} do
