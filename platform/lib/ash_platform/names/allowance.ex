@@ -35,10 +35,10 @@ defmodule AshPlatform.Names.Allowance do
     end
 
     # Spends one free claim in a single statement, so two claims racing for a
-    # wallet's last one cannot both succeed: the loser matches no row.
+    # wallet's last one cannot both succeed: the loser's update is refused.
     update :use_free_claim do
       accept []
-      change filter(expr(free_mints_used < snapshot_total))
+      validate AshPlatform.Names.Validations.FreeClaimLeft
       change atomic_update(:free_mints_used, expr(free_mints_used + 1))
       change atomic_update(:updated_at, expr(now()))
     end

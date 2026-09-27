@@ -96,4 +96,14 @@ defmodule AshPlatform.Names.ClaimFreeTest do
     assert claim_count() == 1
     assert used(@main) == 1
   end
+
+  test "an out-of-date copy of a wallet's last free claim is spent once" do
+    insert_allowance(@main, 1, 0)
+    assert {:ok, [stale]} = Names.list_my_allowances(actor: actor([@main]))
+
+    assert {:ok, _spent} = Names.use_free_claim(stale, actor: actor([@main]))
+    assert {:error, %Ash.Error.Invalid{}} = Names.use_free_claim(stale, actor: actor([@main]))
+
+    assert used(@main) == 1
+  end
 end
