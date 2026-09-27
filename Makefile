@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform check-required-fixes check-identity check-contracts
+.PHONY: help check check-platform check-required-fixes check-identity check-contracts release
 
 # Every test run on a machine uses its own databases, named from MIX_TEST_PARTITION.
 REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
@@ -7,7 +7,8 @@ REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
 help:
 	@echo "make check runs every component gate. Run check-platform, check-required-fixes,"
 	@echo "check-identity or check-contracts for one component. Set MIX_TEST_PARTITION"
-	@echo "(an underscore and a short id) first."
+	@echo "(an underscore and a short id) first. make release checks, then builds and"
+	@echo "smoke-checks the committed tree."
 check: check-platform check-required-fixes check-identity check-contracts
 check-platform:
 	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test
@@ -24,3 +25,9 @@ check-identity:
 	cd identity && REGENT_IDENTITY_TEST_DATABASE=$(REGENT_IDENTITY_TEST_DATABASE) mix check
 check-contracts:
 	cd contracts && bin/gate.sh
+# The release checks and builds exactly the committed tree, so every change must
+# be committed first. A failing gate stops it before anything is built.
+release:
+	@test -z "$$(git status --porcelain)" || { echo "Commit every change first: the release checks and builds the committed tree." >&2; exit 1; }
+	$(MAKE) check
+	scripts/release.sh
