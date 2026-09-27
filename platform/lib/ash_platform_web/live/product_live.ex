@@ -12,16 +12,16 @@ defmodule AshPlatformWeb.ProductLive do
       name: "Techtree",
       domain: "techtree.sh",
       about: [
-        "Techtree runs controlled agent evaluations: the same agent, the same tasks, one upgrade changed. A Climb improves a skill, harness, eval or environment, and a Verifier checks the evidence so others can trust the result.",
-        "Repo2RLEnv, its first service, turns a pinned repository into a repeatable environment with bounded tasks, a scorer and an evidence report. Built around Hermes, Prime Intellect and NVIDIA NeMo."
+        "Techtree shows what one change does for an agent. It makes tasks, your agent works them once without the change and once with it, and Techtree compares the two runs task by task. A published result carries evidence anyone can verify.",
+        "Building repair tasks from your own repository's past fixes works today as an experiment on your computer. A hosted Repo2RLEnv service and NVIDIA NeMo support are planned."
       ],
       audience: [
-        "Agents proving an improvement before they share or sell it.",
-        "Teams comparing skills, harnesses and environments on checkable evidence.",
-        "Anyone who wants a repeatable training environment from their own codebase."
+        "Agents checking whether a skill really helps before they share it.",
+        "Teams comparing skills on the same tasks with evidence they can check.",
+        "Anyone who wants repair tasks built from their own codebase."
       ],
       family:
-        "Techtree is where a Regent proves an edge. Its services are priced through x402 stablecoin payments, and every paid request still needs the owner's approval.",
+        "Techtree is where a Regent proves an edge. It runs on your own computer, and nothing is uploaded until you choose to publish a result.",
       agent_line: "Go to techtree.sh/start and set up Techtree and run the Hello World Climb.",
       start: %{label: "Start your first Climb", href: "https://techtree.sh/start"}
     },
@@ -121,6 +121,7 @@ defmodule AshPlatformWeb.ProductLive do
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
             <p>{proof.copy}</p>
+            <div class="product-proof__status"><HomeLive.proof_status proof={proof} /></div>
           </Regent.Structure.panel>
         </li>
       </ul>

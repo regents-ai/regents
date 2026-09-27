@@ -15,7 +15,7 @@ defmodule AshPlatformWeb.HomeLive do
 
     chapters =
       Enum.map_join(products(), "\n\n", fn product ->
-        proofs = Enum.map_join(product.proofs, "\n", &"- **#{&1.title}** #{&1.copy}")
+        proofs = Enum.map_join(product.proofs, "\n", &proof_markdown/1)
 
         ["## #{product.title}", product.description, proofs]
         |> Enum.reject(&is_nil/1)
@@ -49,6 +49,13 @@ defmodule AshPlatformWeb.HomeLive do
     [About](#{PublicDocuments.url("/about")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy](#{PublicDocuments.url("/privacy")})
     """
   end
+
+  defp proof_markdown(%{link: nil} = proof),
+    do: "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)})"
+
+  defp proof_markdown(proof),
+    do:
+      "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)}: [#{proof.link.label}](#{proof.link.href}))"
 
   defp staking_summary, do: @staking_summary
 
@@ -259,17 +266,13 @@ defmodule AshPlatformWeb.HomeLive do
           <h2 id={"#{@chapter.anchor}-title"}>{@chapter.title}</h2>
           <%= if @chapter.anchor == "techtree" do %>
             <p>
-              Upgrade your <a
+              Give Techtree to your
+              <a
                 href="https://hermes-agent.nousresearch.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-              >Hermes</a>,
-              <a
-                href="https://github.com/PrimeIntellect-ai/prime-agent"
-                target="_blank"
-                rel="noopener noreferrer"
-              >Prime</a>
-              agent, or Codex with cutting-edge skill and environment plugins, then see how you compare in the leaderboards.
+              >Hermes</a>
+              agent or a coding agent. It makes tasks, runs them with and without your skill, and shows the difference. Everything stays on your computer until you choose to share it.
             </p>
           <% else %>
             <p>{@chapter.description}</p>
@@ -314,6 +317,9 @@ defmodule AshPlatformWeb.HomeLive do
         data-holo-ink
         data-holo-tilt="0"
       >
+        <:actions>
+          <.proof_status proof={proof} />
+        </:actions>
         <:media>
           <Regent.HolographicCard.foil
             id={"home-proof-foil-#{@brand}-#{index}"}
@@ -328,6 +334,31 @@ defmodule AshPlatformWeb.HomeLive do
     </div>
     """
   end
+
+  # What a proof's product offers today, in the product's own words, and where to
+  # try it when it can be tried.
+  attr :proof, :map, required: true
+
+  def proof_status(assigns) do
+    ~H"""
+    <Regent.Primitives.status data-proof-status={@proof.status}>
+      {status_label(@proof.status)}
+    </Regent.Primitives.status>
+    <a
+      :if={@proof.link}
+      href={@proof.link.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="rg-button rg-button--secondary"
+    ><span class="rg-button__label">
+      {@proof.link.label} <span aria-hidden="true">↗</span>
+    </span></a>
+    """
+  end
+
+  defp status_label(:live), do: "Available now"
+  defp status_label(:experimental), do: "Experimental"
+  defp status_label(:planned), do: "Planned"
 
   # Original static diagrams: registration marks and sparse geometry, not charts.
   defp artwork_variant("techtree", index), do: index
@@ -514,7 +545,8 @@ defmodule AshPlatformWeb.HomeLive do
       },
       %{
         name: "techtree",
-        line: "Prove agent improvements. Buy and sell skill, harness, and environment upgrades.",
+        line:
+          "See what a skill changes for your agent: the same tasks, run both ways, with evidence others can check.",
         site: "https://techtree.sh",
         github: "https://github.com/regents-ai/techtree"
       },
@@ -527,7 +559,10 @@ defmodule AshPlatformWeb.HomeLive do
     ]
   end
 
-  # Section order matches the hero and header navigation.
+  # Section order matches the hero and header navigation. Every proof says what
+  # its product offers today: :live, :experimental or :planned, as the product's
+  # own site labels it, with a link only to something that can be tried now.
+  # Techtree's were checked against techtree.sh/start on 27 September 2026.
   @doc false
   def products do
     [
@@ -543,17 +578,23 @@ defmodule AshPlatformWeb.HomeLive do
         proofs: [
           %{
             title: "Fair auctions.",
-            copy: "Fair, fast auctions via Uniswap contracts on Base with two options."
+            copy: "Fair, fast auctions via Uniswap contracts on Base with two options.",
+            status: :live,
+            link: nil
           },
           %{
             title: "Agent revenue.",
             copy:
-              "Agent and x402 stablecoin revenue is growing. Launch for capital formation and revshare."
+              "Agent and x402 stablecoin revenue is growing. Launch for capital formation and revshare.",
+            status: :live,
+            link: nil
           },
           %{
             title: "Based stocks.",
             copy:
-              "Create your best paired token to any tokenized stock on Base. Launch for the memes."
+              "Create your best paired token to any tokenized stock on Base. Launch for the memes.",
+            status: :live,
+            link: nil
           }
         ]
       },
@@ -567,18 +608,25 @@ defmodule AshPlatformWeb.HomeLive do
         story: nil,
         proofs: [
           %{
-            title: "Prove progress.",
+            title: "Take a quick look.",
             copy:
-              "Improve anything: skill, harness, eval, or environment and prove it to others through 'verifiers'"
+              "Run the Hello World Climb: the same tasks without a skill and with one, then the difference.",
+            status: :live,
+            link: %{label: "Run the example", href: "https://techtree.sh/start#example"}
           },
           %{
-            title: "Repo2RLEnv.",
+            title: "Test a skill.",
             copy:
-              "Use our x402 service for Repo2RLEnv, the fastest way to improve any agent on your codebase"
+              "Techtree makes tasks from your skill, runs them both ways and says whether it helped.",
+            status: :experimental,
+            link: %{label: "Test a skill", href: "https://techtree.sh/start#skill"}
           },
           %{
-            title: "Share and earn.",
-            copy: "Share your advancements with the world and earn"
+            title: "Hosted Repo2RLEnv.",
+            copy:
+              "A hosted service that turns your repository's past fixes into repeatable repair tasks.",
+            status: :planned,
+            link: nil
           }
         ]
       },
@@ -595,16 +643,22 @@ defmodule AshPlatformWeb.HomeLive do
           %{
             title: "A new tool standard.",
             copy:
-              "WebMCP is the new tool standard for websites, including Cloudflare, Vercel, and Shopify"
+              "WebMCP is the new tool standard for websites, including Cloudflare, Vercel, and Shopify",
+            status: :live,
+            link: nil
           },
           %{
             title: "Agents help agents.",
             copy:
-              "Agents can use WebMCP to access the patchbay.help message board to ask questions and troubleshoot WebMCP issues."
+              "Agents can use WebMCP to access the patchbay.help message board to ask questions and troubleshoot WebMCP issues.",
+            status: :live,
+            link: nil
           },
           %{
             title: "Reward useful assistance.",
-            copy: "Agents can use x402 USDC for priority questions and reward their assistance."
+            copy: "Agents can use x402 USDC for priority questions and reward their assistance.",
+            status: :live,
+            link: nil
           }
         ]
       }

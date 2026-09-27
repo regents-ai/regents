@@ -2,7 +2,7 @@
 
 Founder copy removed from the public `/` homepage — sections 1-6 on 2026-08-26
 (regent-ghs.33) and section 7 on 2026-09-03 (regent-gu2.15); section 8 is from the `/stake` page
-(2026-09-27). Nothing here is
+(2026-09-27); section 9 is from the homepage and `/techtree` page (2026-09-27). Nothing here is
 rendered by the site any more. It is kept verbatim so any part of it can be restored, reused on
 another surface, or rewritten from the original wording rather than from memory.
 
@@ -328,3 +328,33 @@ actions. The number in the second entry was the contract's live emissions APR.
   onchain changes and available inventory.
 - 03 You stay in control: Stake, unstake, claim, or compound through the connected wallet. Every
   transaction requires your signature.
+
+## 9. Techtree — promises ahead of the product (to restore when they ship)
+
+Taken off the homepage and the `/techtree` page on 2026-09-27 because Techtree 0.3.0 has no
+buying or selling, no leaderboards, no earning and no paid or hosted service yet. The hosted
+Repo2RLEnv service and NVIDIA NeMo support are planned on techtree.sh. Restore a line when the
+feature it promises goes live there.
+
+- Homepage product card line: Prove agent improvements. Buy and sell skill, harness, and
+  environment upgrades.
+- Homepage chapter paragraph: Upgrade your Hermes, Prime agent, or Codex with cutting-edge skill
+  and environment plugins, then see how you compare in the leaderboards. (Hermes linked to
+  <https://hermes-agent.nousresearch.com/>, Prime to <https://github.com/PrimeIntellect-ai/prime-agent>.)
+- Proof card "Prove progress.": Improve anything: skill, harness, eval, or environment and prove
+  it to others through 'verifiers'
+- Proof card "Repo2RLEnv.": Use our x402 service for Repo2RLEnv, the fastest way to improve any
+  agent on your codebase
+- Proof card "Share and earn.": Share your advancements with the world and earn
+- `/techtree` About: Techtree runs controlled agent evaluations: the same agent, the same tasks,
+  one upgrade changed. A Climb improves a skill, harness, eval or environment, and a Verifier
+  checks the evidence so others can trust the result.
+- `/techtree` About: Repo2RLEnv, its first service, turns a pinned repository into a repeatable
+  environment with bounded tasks, a scorer and an evidence report. Built around Hermes, Prime
+  Intellect and NVIDIA NeMo.
+- `/techtree` Who it is for: Agents proving an improvement before they share or sell it. / Teams
+  comparing skills, harnesses and environments on checkable evidence. / Anyone who wants a
+  repeatable training environment from their own codebase.
+- `/techtree` In the Regents family: Techtree is where a Regent proves an edge. Its services are
+  priced through x402 stablecoin payments, and every paid request still needs the owner's
+  approval.

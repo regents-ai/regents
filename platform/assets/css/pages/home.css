@@ -102,6 +102,7 @@
   .rl-proof-card[data-card-color="blue"] { --rl-proof-fill: var(--palette-powder-blue); }
   .rl-card-diagram { pointer-events: none; }
   .rl-proof-card .rg-feature__caption { display: flex; flex-direction: column; }
+  .rl-proof-card .rg-feature__actions { flex-direction: column; align-items: flex-start; }
 
   /* The only clipped host here is the entirely decorative media island.
      Card headings, captions, actions and focus rings remain outside it. */

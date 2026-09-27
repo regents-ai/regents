@@ -121,6 +121,13 @@
   padding: var(--rg-panel-padding);
 }
 
+.product-proof__status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
 .product-proof h3 {
   font-size: clamp(1.25rem, 2.2vw, 1.75rem);
   letter-spacing: -0.02em;
