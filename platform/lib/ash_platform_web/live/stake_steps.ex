@@ -55,7 +55,9 @@ defmodule AshPlatformWeb.StakeSteps do
     else
       built =
         review.steps
-        |> Enum.map(&%{signer: review.signer, step: &1, inputs: review.inputs})
+        |> Enum.map(
+          &%{signer: review.signer, chain: review.chain, step: &1, inputs: review.inputs}
+        )
         |> Kernel.++(socket.assigns.staking_built)
         |> Enum.uniq_by(&{&1.signer, &1.step})
         |> Enum.take(@built_limit)
@@ -271,12 +273,12 @@ defmodule AshPlatformWeb.StakeSteps do
 
   defp check(socket, %{built: nil}), do: socket
 
-  defp check(socket, %{hash: hash, reads: reads, built: %{signer: signer, step: step}}) do
+  defp check(socket, %{hash: hash, reads: reads, built: %{step: step} = built}) do
     client = ChainClient.module()
 
     start_async(socket, {:staking_step, hash}, fn ->
       if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(client, hash, signer, step)
+      Outcome.of(client, built, step, hash)
     end)
   end
 
@@ -340,7 +342,7 @@ defmodule AshPlatformWeb.StakeSteps do
   defp title("approve", _built), do: "REGENT approval"
 
   defp title("stake", %{inputs: %{for_other: true, receiver: receiver}} = built),
-    do: "Stake #{amount(built)} REGENT for #{RegentFormat.short_wallet(String.trim(receiver))}"
+    do: "Stake #{amount(built)} REGENT for #{RegentFormat.short_address(String.trim(receiver))}"
 
   defp title("stake", built), do: "Stake #{amount(built)} REGENT"
   defp title("unstake", built), do: "Unstake #{amount(built)} REGENT"

@@ -36,7 +36,8 @@ defmodule RegentIdentity.HTTPTest do
             %{
               "type" => "wallet",
               "chain_type" => "ethereum",
-              "address" => "0x1111111111111111111111111111111111111111"
+              "address" => "0x1111111111111111111111111111111111111111",
+              "lv" => 1
             }
           ])
         ),

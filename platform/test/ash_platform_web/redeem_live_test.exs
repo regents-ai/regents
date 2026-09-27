@@ -151,8 +151,8 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     select(view, "animata_i", "42")
 
     assert redemption_assigns(view).redemption_wallet == @wallet
-    assert has_element?(view, ".shell-sending-wallet", "0x2222…2222")
-    assert has_element?(view, ".shell-sending-wallet", "0x1111…1111")
+    assert has_element?(view, ".shell-sending-wallet", "0x2222..2222")
+    assert has_element?(view, ".shell-sending-wallet", "0x1111..1111")
 
     render_hook(view, "prepare_redemption", %{
       "action" => "redeem",

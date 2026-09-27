@@ -31,10 +31,10 @@ defmodule AshPlatform.StakingTest do
     end
 
     @impl true
-    def transaction(_hash), do: {:ok, nil}
+    def transaction(_chain, _hash), do: {:ok, nil}
 
     @impl true
-    def receipt(_hash), do: {:ok, nil}
+    def receipt(_chain, _hash), do: {:ok, nil}
 
     defp protocol do
       %{

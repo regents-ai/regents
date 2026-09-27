@@ -107,7 +107,8 @@ defmodule AshPlatformWeb.OwnedClaimsControllerTest do
       token
     end
 
-    linked = Enum.map(wallets, &%{type: "wallet", chain_type: "ethereum", address: &1})
+    linked =
+      Enum.map(wallets, &%{type: "wallet", chain_type: "ethereum", address: &1, lv: now - 60})
 
     identity =
       claims

@@ -40,7 +40,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert has_element?(view, ~s(a[href="/redeem"]), "Redeem Animata")
     refute has_element?(view, ~s(a[href="/regents/viewer"]))
     refute html =~ ~s(href="/hermes")
-    refute html =~ "0x1111…1111"
+    refute html =~ "0x1111..1111"
   end
 
   # Each metric is a term and its value inside a definition list, so the pairing
@@ -91,7 +91,7 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     html = render_async(view)
 
     assert has_element?(view, "details#regent-ops-account[open]")
-    assert html =~ "0x1111…1111"
+    assert html =~ "0x1111..1111"
     assert html =~ "10 REGENT"
     assert html =~ "4.25 USDC"
     assert html =~ "5 REGENT"

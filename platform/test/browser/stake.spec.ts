@@ -209,8 +209,8 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await selectWallet(page, otherWallet)
   await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
   const note = page.locator(".shell-sending-wallet").first()
-  await expect(note).toContainText("0x2222…2222")
-  await expect(note).toContainText("0x1111…1111")
+  await expect(note).toContainText("0x2222..2222")
+  await expect(note).toContainText("0x1111..1111")
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
@@ -576,7 +576,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(submit).toHaveText(/Stake REGENT/)
   await submit.click()
   await expect.poll(() => sendCount(page)).toBe(2)
-  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222…2222")
+  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222..2222")
   expect(await sent(page, 2)).toEqual({
     to: stakingContract,
     call: {functionName: "stake", args: [2n * 10n ** 18n, otherWallet]},

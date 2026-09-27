@@ -13,8 +13,6 @@ defmodule AshPlatformWeb.AccountLive do
   import AshPlatformWeb.Components.PairedAgents
   import AshPlatformWeb.Components.VerifiedConnections
 
-  alias AshPlatform.PublicIdentity
-
   attr :account, :map, default: nil
   attr :account_control, :map, required: true
   attr :ens, :atom, default: nil
@@ -67,8 +65,8 @@ defmodule AshPlatformWeb.AccountLive do
             />
             <div class="account-identity__name">
               <h2>{@account_control.label}</h2>
-              <p :if={short_wallet(@account) not in [nil, @account_control.label]}>
-                <code>{short_wallet(@account)}</code>
+              <p :if={short_address(@account) not in [nil, @account_control.label]}>
+                <code>{short_address(@account)}</code>
               </p>
             </div>
           </div>
@@ -387,10 +385,8 @@ defmodule AshPlatformWeb.AccountLive do
 
   # The card names the person the way the header does; the wallet is only
   # repeated beneath when that name is something other than the wallet itself.
-  defp short_wallet(%{wallet_address: wallet}) when is_binary(wallet),
-    do: PublicIdentity.short_wallet(wallet)
-
-  defp short_wallet(_account), do: nil
+  defp short_address(%{wallet_address: wallet}), do: RegentFormat.short_address(wallet)
+  defp short_address(nil), do: nil
 
   defp date(datetime), do: Calendar.strftime(datetime, "%-d %B %Y")
 end

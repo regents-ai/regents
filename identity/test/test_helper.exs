@@ -6,8 +6,6 @@ unless Regex.match?(~r/^regent_identity_test_[a-z0-9_]+$/, name),
 
 {:ok, _} = RegentIdentity.TestRepo.start_link()
 
-Ecto.Migrator.run(RegentIdentity.TestRepo, Path.expand("../priv/repo/migrations", __DIR__), :up,
-  all: true
-)
+RegentIdentity.Migrator.up(RegentIdentity.TestRepo)
 
 Ecto.Adapters.SQL.Sandbox.mode(RegentIdentity.TestRepo, :manual)

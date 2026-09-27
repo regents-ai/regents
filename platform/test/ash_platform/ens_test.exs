@@ -71,7 +71,7 @@ defmodule AshPlatform.EnsTest do
     identity = :unnamed |> account() |> resolve()
 
     assert %{ens_name: nil, ens_avatar_url: nil} = identity
-    assert PublicIdentity.label(identity) == "0xaaaa…0004"
+    assert PublicIdentity.label(identity) == "0xaaaa..0004"
 
     assert PublicIdentity.avatar_src(identity) ==
              PublicIdentity.avatar_src(%{wallet_address: TestEnsChainClient.wallet(:unnamed)})
@@ -81,7 +81,7 @@ defmodule AshPlatform.EnsTest do
     identity = :impostor |> account() |> resolve()
 
     assert %{ens_name: nil, ens_avatar_url: nil} = identity
-    assert PublicIdentity.label(identity) == "0xaaaa…0005"
+    assert PublicIdentity.label(identity) == "0xaaaa..0005"
   end
 
   test "a chain that refuses to answer keeps the last known name and picture" do

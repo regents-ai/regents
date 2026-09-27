@@ -74,10 +74,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     def wallet_snapshot(_wallet), do: exit(:simulated_refresh_crash)
 
     @impl true
-    def transaction(_hash), do: exit(:simulated_refresh_crash)
+    def transaction(_chain, _hash), do: exit(:simulated_refresh_crash)
 
     @impl true
-    def receipt(_hash), do: exit(:simulated_refresh_crash)
+    def receipt(_chain, _hash), do: exit(:simulated_refresh_crash)
   end
 
   defmodule GatedChainClient do
@@ -102,10 +102,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end
 
     @impl true
-    def transaction(hash), do: AshPlatform.TestStakingChainClient.transaction(hash)
+    def transaction(chain, hash), do: AshPlatform.TestStakingChainClient.transaction(chain, hash)
 
     @impl true
-    def receipt(hash), do: AshPlatform.TestStakingChainClient.receipt(hash)
+    def receipt(chain, hash), do: AshPlatform.TestStakingChainClient.receipt(chain, hash)
   end
 
   test "PUBLIC_FACTS: anonymous visitors see benefits, contract facts, and a wallet connection",
@@ -480,8 +480,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert staking_assigns(view).staking_wallet == @wallet
     assert staking_assigns(view).staking_review.signer == @wallet
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|)
-    assert has_element?(view, ".shell-sending-wallet", "0x2222…2222")
-    assert has_element?(view, ".shell-sending-wallet", "0x1111…1111")
+    assert has_element?(view, ".shell-sending-wallet", "0x2222..2222")
+    assert has_element?(view, ".shell-sending-wallet", "0x1111..1111")
 
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")
@@ -841,7 +841,13 @@ defmodule AshPlatformWeb.StakeLiveTest do
     [%{data: data}] = step(view, "claim_usdc")
 
     Application.put_env(:ash_platform, :test_staking_transactions, %{
-      @hash => %{"from" => @other, "to" => staking_contract(), "input" => data, "value" => "0x0"}
+      @hash => %{
+        "chainId" => "0x2105",
+        "from" => @other,
+        "to" => staking_contract(),
+        "input" => data,
+        "value" => "0x0"
+      }
     })
 
     send_step(view, "claim_usdc", @hash)
@@ -993,7 +999,15 @@ defmodule AshPlatformWeb.StakeLiveTest do
   defp land(view, name, hash, status) do
     [%{to: to, data: data, value: value}] = step(view, name)
     signer = staking_assigns(view).staking_review.signer
-    transaction = %{"from" => signer, "to" => to, "input" => data, "value" => value}
+
+    transaction = %{
+      "chainId" => "0x2105",
+      "from" => signer,
+      "to" => to,
+      "input" => data,
+      "value" => value
+    }
+
     put_chain(:test_staking_transactions, hash, transaction)
     put_chain(:test_staking_receipts, hash, %{"status" => status})
   end
@@ -1001,7 +1015,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # The page's approval step as Base shows it when `from` sent it.
   defp approval_from(view, from) do
     [%{to: to, data: data, value: value}] = step(view, "approve")
-    %{"from" => from, "to" => to, "input" => data, "value" => value}
+    %{"chainId" => "0x2105", "from" => from, "to" => to, "input" => data, "value" => value}
   end
 
   defp put_chain(key, hash, value) do
