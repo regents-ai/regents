@@ -126,6 +126,46 @@ defmodule AshPlatformWeb.RegentOpsLiveTest do
     assert html =~ "100 REGENT"
     assert has_element?(view, "dl.regent-ops-summary")
     refute html =~ "Network details are unavailable right now."
+
+    # The failure is the answer: nothing is left pulsing as if still on its way.
+    refute has_element?(view, "#overview-wallet-skeleton")
+
+    assert has_element?(
+             view,
+             "dl.regent-ops-balances .figure-unavailable",
+             "Unavailable right now"
+           )
+  end
+
+  # The contract reading failed on arrival and came back later. The account's
+  # wallet was never read while there was nothing to show it beside, so it is
+  # read the moment the contract figures return, rather than left waiting.
+  test "a contract reading that recovers brings the account's wallet with it", %{conn: conn} do
+    SnapshotCache.clear()
+    on_exit(&SnapshotCache.clear/0)
+
+    {:ok, account} =
+      Accounts.register_verified("did:privy:regent-ops-recover", @wallet, [@wallet],
+        actor: %System{}
+      )
+
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/app")
+
+    assert html =~ "Network details are unavailable right now."
+    refute has_element?(view, "#overview-network-skeleton")
+
+    Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
+    assert :ok = SnapshotCache.refresh(self())
+    assert_receive {:staking_snapshot, _reading}
+    html = render_async(view)
+
+    refute html =~ "Network details are unavailable right now."
+    refute has_element?(view, "#overview-wallet-skeleton")
+    assert has_element?(view, "dl.regent-ops-balances", "10 REGENT")
+    assert has_element?(view, "dl.regent-ops-balances", "4.25 USDC")
   end
 
   # The shared contract reading already exists before anyone opens the page,

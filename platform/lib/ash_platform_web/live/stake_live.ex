@@ -123,7 +123,11 @@ defmodule AshPlatformWeb.StakeLive do
         </dl>
         <dl
           :if={!@dashboard}
-          id="staking-benefits-skeleton"
+          id={
+            if @status == :loading,
+              do: "staking-benefits-skeleton",
+              else: "staking-benefits-unavailable"
+          }
           class="stake-benefit-grid"
           aria-label="Current staking benefits"
           aria-busy={to_string(@status == :loading)}
@@ -133,20 +137,20 @@ defmodule AshPlatformWeb.StakeLive do
             <dd class="stake-earned-split">
               <span :for={label <- ["Last 7 days", "Lifetime"]} class="stake-earned-part">
                 <span class="stake-earned-label">{label}</span>
-                <span class="stake-earned-figure"><Loading.skeleton /></span>
+                <span class="stake-earned-figure"><.unread loading={@status == :loading} /></span>
               </span>
             </dd>
           </div>
           <div class="stake-benefit-card">
             <dt>REGENT Staked</dt>
-            <dd><Loading.skeleton kind="metric" /></dd>
+            <dd><.unread loading={@status == :loading} kind="metric" /></dd>
           </div>
           <div
             :for={label <- ["Circulating REGENT", "Circulating MCAP", "Total REGENT"]}
             class="stake-benefit-card stake-benefit-supply"
           >
             <dt>{label}</dt>
-            <dd><Loading.skeleton /></dd>
+            <dd><.unread loading={@status == :loading} /></dd>
           </div>
         </dl>
       </header>
@@ -241,7 +245,11 @@ defmodule AshPlatformWeb.StakeLive do
 
             <Loading.panel
               :if={@wallet && !@wallet_ready}
-              id="staking-wallet-skeleton"
+              id={
+                if @reading || @status == :loading,
+                  do: "staking-wallet-skeleton",
+                  else: "staking-wallet-unavailable"
+              }
               label="Your wallet position"
               labels={["Available REGENT", "Currently staked", "Claimable USDC", "Claimable REGENT"]}
               loading={@reading || @status == :loading}
@@ -535,7 +543,11 @@ defmodule AshPlatformWeb.StakeLive do
           </section>
           <Loading.panel
             :if={!@staking}
-            id="staking-contract-skeleton"
+            id={
+              if @status == :loading,
+                do: "staking-contract-skeleton",
+                else: "staking-contract-unavailable"
+            }
             class="stake-overview rg-panel rg-panel--surface rg-panel__body"
             label="REGENT supply"
             labels={["Total staked", "Circulating supply", "Total supply"]}
@@ -578,6 +590,14 @@ defmodule AshPlatformWeb.StakeLive do
     </section>
     """
   end
+
+  attr :loading, :boolean, required: true
+  attr :kind, :string, default: "line"
+
+  # A figure not yet read holds its place while it is on its way; once the read
+  # has failed it says so, and never stands in as a zero.
+  defp unread(%{loading: true} = assigns), do: ~H"<Loading.skeleton kind={@kind} />"
+  defp unread(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
 
   attr :reading, :boolean, required: true
   attr :label, :string, required: true

@@ -1,6 +1,11 @@
 defmodule AshPlatformWeb.Components.Loading do
-  @moduledoc "Layout-preserving placeholders for independently loaded page regions."
+  @moduledoc """
+  Layout-preserving placeholders for independently loaded page regions. A region
+  whose read failed keeps the same layout and says so in words; a placeholder
+  only ever stands for a read still on its way.
+  """
   use Phoenix.Component
+  alias AshPlatformWeb.TokenDisplay
 
   attr :kind, :string, default: "line", values: ~w(line title metric control inline)
 
@@ -25,19 +30,23 @@ defmodule AshPlatformWeb.Components.Loading do
       aria-busy={to_string(@loading)}
     >
       <h3>{@label}</h3>
-      <p class="visually-hidden">{if @loading, do: "Loading data.", else: "Data unavailable."}</p>
+      <p :if={@loading} class="visually-hidden">Loading data.</p>
       <dl :if={@labels != []} class="loading-metrics">
         <div :for={label <- @labels}>
           <dt>{label}</dt>
-          <dd><.skeleton kind="metric" /></dd>
+          <dd>
+            <.skeleton :if={@loading} kind="metric" />
+            <TokenDisplay.amount :if={!@loading} amount={:unavailable} />
+          </dd>
         </div>
       </dl>
-      <div :if={@labels == []} class="loading-lines">
+      <div :if={@labels == [] && @loading} class="loading-lines">
         <.skeleton kind="title" />
         <.skeleton />
         <.skeleton />
         <.skeleton kind="control" />
       </div>
+      <p :if={@labels == [] && !@loading}><TokenDisplay.amount amount={:unavailable} /></p>
     </div>
     """
   end

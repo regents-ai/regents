@@ -22,7 +22,7 @@ defmodule AshPlatformWeb.RegentOpsLive do
         :wallet_loading,
         assigns.reading ||
           (not is_nil(assigns.account) and not is_nil(assigns.account.wallet_address) and
-             (is_nil(assigns.staking) or is_nil(assigns.staking.wallet_address)))
+             (is_nil(assigns.staking) or is_nil(assigns.staking.wallet_block_number)))
       )
 
     ~H"""

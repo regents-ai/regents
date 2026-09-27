@@ -226,9 +226,26 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert staking_assigns(view).staking_status == :error
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
     assert has_element?(view, ".stake-layout")
-    assert has_element?(view, "#staking-contract-skeleton[aria-busy=false]")
+    refute has_element?(view, "#staking-contract-skeleton")
+    refute has_element?(view, "#staking-benefits-skeleton")
+    refute has_element?(view, ".loading-skeleton")
     refute has_element?(view, "#staking-supply-bar")
     refute has_element?(view, "button[data-onchain-step]")
+
+    # The same figures, in the same places, each saying it could not be read,
+    # and never a zero in its place.
+    for label <- ["REGENT Staked", "Circulating REGENT", "Circulating MCAP", "Total REGENT"] do
+      assert has_element?(view, "#staking-benefits-unavailable .stake-benefit-card", label)
+    end
+
+    assert has_element?(
+             view,
+             "#staking-benefits-unavailable[aria-busy=false] .figure-unavailable",
+             "Unavailable right now"
+           )
+
+    assert has_element?(view, "#staking-contract-unavailable .figure-unavailable")
+    refute render(view) =~ "0 REGENT"
 
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
     Application.delete_env(:ash_platform, :test_staking_protocol_error)
@@ -238,6 +255,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert staking_assigns(view).staking_status == :ready
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
     refute render(view) =~ "Staking details are unavailable right now."
+    assert has_element?(view, "#staking-benefits")
+    refute has_element?(view, "#staking-benefits-unavailable")
+    refute has_element?(view, ".figure-unavailable")
   end
 
   test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do

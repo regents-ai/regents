@@ -1004,6 +1004,28 @@ defmodule AshPlatformWeb.ShellLive do
   # arrives that wallet is looked up, rather than leaving somebody to ask for a
   # reading they already asked for. A wallet the page has an answer for, however
   # that answer turned out, is left alone.
+  # The Overview reads the signed-in account's own wallet, so one never read
+  # because the contract reading was missing is read once that reading arrives.
+  defp read_unanswered_wallet(
+         %{
+           assigns: %{
+             route_spec: %{route_id: :app},
+             staking: %{wallet_block_number: nil},
+             staking_read: nil
+           }
+         } = socket
+       ) do
+    case staking_actor(socket) do
+      %Human{} = actor ->
+        start_wallet_read(socket, socket.assigns.content_generation, fn ->
+          Staking.account(actor: actor)
+        end)
+
+      nil ->
+        socket
+    end
+  end
+
   defp read_unanswered_wallet(%{assigns: %{staking_wallet: nil}} = socket), do: socket
 
   defp read_unanswered_wallet(
