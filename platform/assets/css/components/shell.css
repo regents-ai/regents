@@ -6,8 +6,8 @@
   min-width: 0;
   height: 100dvh;
   overflow: visible;
-  background: var(--ash-ground);
-  color: var(--ash-ink);
+  background: var(--color-bg);
+  color: var(--color-fg);
   font-family: var(--font-family-ui);
   line-height: 1.55;
 }
@@ -27,8 +27,8 @@
   align-items: stretch;
   min-width: 0;
   min-height: 4rem;
-  border-block-end: 1px solid var(--ash-line);
-  background: var(--ash-ground);
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
 
 #shell-header .shell-spacer {
@@ -45,8 +45,8 @@
   margin: 0.75rem 0 0;
   padding: 0.6rem 0.85rem;
   border: 1px solid var(--ash-accent-warm);
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
   font-size: 0.9rem;
 }
 
@@ -90,7 +90,7 @@
   height: 100%;
   padding: 0.45rem 0.85rem;
   border: 0;
-  border-inline-start: 1px solid var(--ash-line);
+  border-inline-start: 1px solid var(--color-border);
   border-radius: 0;
   background: transparent;
   color: inherit;
@@ -116,12 +116,12 @@
   .shell-brand:hover,
   .account-control summary:hover,
   .mobile-menu-button:hover {
-    background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
   }
 }
 
 .account-control details[open] summary {
-  background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
+  background: color-mix(in oklch, var(--color-fg) 6%, transparent);
 }
 
 .account-avatar {
@@ -163,7 +163,7 @@
 
 .shell-chevron {
   margin-left: 0.25rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   transition: transform var(--duration-fast) var(--ease-out);
 }
@@ -179,7 +179,7 @@ details[open] > summary .shell-chevron {
   display: grid;
   min-width: 13rem;
   border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel);
+  background: var(--color-surface);
 }
 
 .account-menu__content > a {
@@ -189,7 +189,7 @@ details[open] > summary .shell-chevron {
 
 @media (hover: hover) {
   .account-menu__content > a:hover {
-    background: color-mix(in oklch, var(--ash-ink) 8%, transparent);
+    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
   }
 }
 
@@ -211,7 +211,7 @@ details[open] > summary .shell-chevron {
   min-height: 3rem;
   padding: 0.8rem 0.85rem;
   border: 0;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
   border-radius: 0;
   background: transparent;
   color: inherit;
@@ -220,7 +220,7 @@ details[open] > summary .shell-chevron {
 
 @media (hover: hover) {
   .account-menu__row:hover {
-    background: color-mix(in oklch, var(--ash-ink) 8%, transparent);
+    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
   }
 }
 
@@ -264,8 +264,8 @@ details[open] > summary .shell-chevron {
   z-index: 2;
   min-height: 0;
   overflow: auto;
-  border-inline-end: 1px solid var(--ash-line);
-  background: var(--ash-ground);
+  border-inline-end: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
 
 #shell-sidebar ul {
@@ -290,10 +290,10 @@ details[open] > summary .shell-chevron {
   min-height: 2.75rem;
   padding: 0.65rem 0.85rem;
   border: 0;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
   border-radius: 0;
   background: transparent;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.07em;
@@ -305,7 +305,7 @@ details[open] > summary .shell-chevron {
   #shell-sidebar li > a:hover,
   #shell-sidebar li > button:hover,
   #shell-sidebar [data-tree] > a:hover {
-    background: color-mix(in oklch, var(--ash-ink) 6%, transparent);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
     color: var(--ash-accent-warm);
   }
 }
@@ -313,7 +313,7 @@ details[open] > summary .shell-chevron {
 #shell-sidebar [aria-current="page"],
 #shell-sidebar [aria-pressed="true"] {
   background: var(--ash-panel-strong);
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 /* A heading opens a group of destinations; it is not a destination itself. */
@@ -322,7 +322,7 @@ details[open] > summary .shell-chevron {
   align-items: flex-end;
   min-height: 2.75rem;
   padding: 2.25rem 0.85rem 0.4rem;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
   color: var(--ash-accent);
   font-family: var(--font-family-ui);
   font-size: 0.62rem;
@@ -339,13 +339,13 @@ details[open] > summary .shell-chevron {
 #shell-sidebar [data-tree] > span {
   display: flex;
   padding: 0.35rem 0.85rem 0.55rem;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
 }
 
 #shell-sidebar [data-tree] > span a {
   padding: 0.2rem 0.45rem;
-  border: 1px solid var(--ash-line);
-  color: var(--ash-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.66rem;
   letter-spacing: 0.1em;
@@ -355,7 +355,7 @@ details[open] > summary .shell-chevron {
 #shell-sidebar [data-tree] > span a[aria-pressed="true"] {
   border-color: var(--ash-line-strong);
   background: var(--ash-panel-strong);
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 #app-shell-scroller {
@@ -438,7 +438,7 @@ details[open] > summary .shell-chevron {
     display: none;
     width: min(20rem, calc(100% - 3rem));
     border-inline-end: 1px solid var(--ash-line-strong);
-    background: var(--ash-ground);
+    background: var(--color-bg);
   }
 
   #app-shell[data-menu-open="true"] #shell-sidebar {
@@ -450,10 +450,10 @@ details[open] > summary .shell-chevron {
     width: 100%;
     min-height: 2.75rem;
     border: 0;
-    border-block-end: 1px solid var(--ash-line);
+    border-block-end: 1px solid var(--color-border);
     border-radius: 0;
     background: transparent;
-    color: var(--ash-muted);
+    color: var(--color-fg-muted);
     font-family: var(--font-family-ui);
     font-size: 0.72rem;
     letter-spacing: 0.1em;
@@ -470,7 +470,7 @@ details[open] > summary .shell-chevron {
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: color-mix(in oklch, var(--ash-ground) 72%, transparent);
+    background: color-mix(in oklch, var(--color-bg) 72%, transparent);
   }
 
   .shell-menu-scrim[hidden] {
@@ -508,7 +508,7 @@ details[open] > summary .shell-chevron {
 .account-control > .rg-button { margin: var(--space-1); height: auto; }
 @media (min-width: 48rem) and (max-width: 63.99rem) {
   #app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
-  #shell-sidebar { border-inline-end: 0; border-block-end: 1px solid var(--ash-line); }
+  #shell-sidebar { border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
   #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 47.99rem) {

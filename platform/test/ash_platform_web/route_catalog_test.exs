@@ -64,7 +64,6 @@ defmodule AshPlatformWeb.RouteCatalogTest do
     assert account.canonical_root == "/app"
     assert account.header_controls == [:profile_actions]
     assert account.background_slot == :regents_labs
-    assert account.content_transition_kind == :detail
     assert account.local_state == %{}
   end
 

@@ -22,7 +22,7 @@
 }
 
 .product-kicker {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
@@ -52,7 +52,7 @@
 
 .product-lede {
   max-width: 56ch;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 1.05rem;
   line-height: 1.5;
 }
@@ -76,7 +76,7 @@
 .product-shot img {
   width: 100%;
   height: auto;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
 }
 
 .product-shot__light,
@@ -90,7 +90,7 @@
 }
 
 .product-shot figcaption {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.07em;
@@ -161,7 +161,7 @@
   content: "◇";
   display: inline-block;
   width: 1.25rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   text-indent: 0;
 }
 
@@ -172,8 +172,8 @@
 
 .product-agent-line code {
   padding: 0.65rem 0.85rem;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-ground);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
   font-size: 0.9rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -196,11 +196,11 @@
   display: grid;
   gap: 0.2rem;
   padding-block: 0.6rem;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .product-facts dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.1em;

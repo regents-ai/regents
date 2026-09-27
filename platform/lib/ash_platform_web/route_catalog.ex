@@ -88,34 +88,34 @@ defmodule AshPlatformWeb.RouteCatalog do
   ]
 
   @specs %{
-    home: {:home, nil, nil, "Regent", "/", [], :home, :landing, %{}},
+    home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regents_labs, :overview, %{}},
+       [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
-       :regents_labs, :detail, %{}},
+       :regents_labs, %{}},
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regent_record, :detail, %{}},
+       [:wallet_status, :network_status, :profile_actions], :regent_record, %{}},
     stake:
       {:stake, :regent_ops, "Regents Labs", "Stake", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}},
+       [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     redeem:
       {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regents_labs, :workflow, %{}},
+       [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     redeem_gallery:
       {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/app",
-       [:profile_actions], :regents_labs, :detail, %{}},
+       [:profile_actions], :regents_labs, %{}},
     autolaunch:
       {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
-       :regents_labs, :detail, %{}},
+       :regents_labs, %{}},
     techtree:
       {:techtree, :regent_ops, "Regents Labs", "Techtree", "/app", [:profile_actions],
-       :regents_labs, :detail, %{}},
+       :regents_labs, %{}},
     patchbay:
       {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
-       :regents_labs, :detail, %{}}
+       :regents_labs, %{}}
   }
 
   def entries, do: @entries
@@ -148,7 +148,7 @@ defmodule AshPlatformWeb.RouteCatalog do
   defp valid_parameter?(:slug, value), do: is_binary(value) and Regex.match?(@slug, value)
 
   defp build_spec(action, params) do
-    {route_id, app_id, app_label, page_label, root, controls, background, transition, local_state} =
+    {route_id, app_id, app_label, page_label, root, controls, background, local_state} =
       Map.fetch!(@specs, action)
 
     %Spec{
@@ -161,7 +161,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       sidebar_model: sidebar_model(app_id),
       header_controls: controls,
       background_slot: background,
-      content_transition_kind: transition,
       scroll_policy: :top,
       local_state: local_state
     }
@@ -193,7 +192,6 @@ defmodule AshPlatformWeb.RouteCatalog do
       "app_id" => spec.app_id,
       "background_slot" => spec.background_slot,
       "canonical_root" => spec.canonical_root,
-      "content_transition_kind" => spec.content_transition_kind,
       "destination" => spec.destination,
       "header_controls" => spec.header_controls,
       "live_action" => entry.live_action,

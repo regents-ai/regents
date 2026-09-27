@@ -26,7 +26,6 @@ defmodule AshPlatformWeb.Components.Shell do
       data-app={@route_spec.app_id}
       data-variant={AshPlatformWeb.Motion.standard("tabs")}
       data-background={@route_spec.background_slot}
-      data-content-transition={@route_spec.content_transition_kind}
       data-menu-open="false"
       data-route-id={@route_spec.route_id}
       data-destination={@route_spec.destination}

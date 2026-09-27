@@ -14,8 +14,8 @@
   padding: var(--space-2);
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
   box-shadow: none;
   font-family: var(--font-family-ui);
   font-size: 0.8125rem;
@@ -35,10 +35,10 @@
   margin-top: 0.5rem;
   min-height: 2.75rem;
   padding: var(--space-1) var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--ash-ink) 65%, var(--ash-panel));
+  border: 1px solid color-mix(in srgb, var(--color-fg) 65%, var(--color-surface));
   border-radius: 0;
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
   font: inherit;
   pointer-events: auto;
 }

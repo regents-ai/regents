@@ -25,20 +25,12 @@
 }
 
 :root {
-  /* Background, Surface, Text and Border, taken outright. */
-  --ash-ground: var(--color-bg);
-  --ash-panel: var(--color-surface);
-  --ash-ink: var(--color-fg);
-  --ash-line: var(--color-border);
-
   /* One step past the panel, for the row the visitor is standing on and for the
      cells that carry a figure: Border folded into Surface, away from the page. */
   --ash-panel-strong: light-dark(
     color-mix(in oklab, var(--color-border) 55%, var(--color-surface)),
     color-mix(in oklab, var(--color-border) 50%, var(--color-surface))
   );
-
-  --ash-muted: color-mix(in oklch, var(--ash-ink) 65%, transparent);
 
   /* The edge of a control has to be found before the control can be used, so it
      is drawn at 3:1 against both the fill inside it and the page outside it:
@@ -56,11 +48,6 @@
      4.6:1, and both clear 5:1 on Surface. */
   --ash-accent: light-dark(color-mix(in oklab, var(--palette-powder-blue) 50%, var(--palette-charcoal)), var(--palette-powder-blue));
   --ash-accent-warm: light-dark(color-mix(in oklab, var(--palette-tangerine-tango) 68%, var(--palette-charcoal)), var(--palette-tangerine-tango));
-
-  /* Collection art is a picture, not a surface: it keeps Primary as its ground in
-     both themes so a single Surface-white monogram reads on every card. */
-  --ash-art: var(--palette-charcoal);
-  --ash-art-ink: var(--color-surface);
 
   /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
      in front of it reads the same whichever ground it was opened from. */

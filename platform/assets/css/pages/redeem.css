@@ -16,8 +16,8 @@
 .redeem-owned,
 .redeem-contract-details {
   min-width: 0;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-panel);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .redeem-page h1,
@@ -39,7 +39,7 @@
 .redeem-contract-details dt,
 .redeem-collection-copy dt,
 .redeem-nft-type {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
@@ -80,7 +80,7 @@
 
 .redeem-lede {
   max-width: 52ch;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: clamp(1rem, 1.7vw, 1.2rem);
   text-wrap: pretty;
 }
@@ -113,7 +113,7 @@
 }
 
 .redeem-equation b {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-weight: 400;
 }
 
@@ -176,7 +176,7 @@
 .redeem-section-heading > p {
   max-width: 34ch;
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
   text-align: right;
 }
@@ -213,12 +213,12 @@
   align-content: start;
   min-width: 0;
   padding: 0.9rem;
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .redeem-collection-copy > p {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.68rem;
   letter-spacing: 0.14em;
@@ -255,7 +255,7 @@
 .redeem-refresh-status {
   min-height: 1.3rem;
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.82rem;
 }
 
@@ -292,7 +292,7 @@
   gap: 0.4rem;
   margin: 0;
   padding: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
   list-style: none;
 }
@@ -319,7 +319,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
   padding: 0;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   list-style: none;
 }
 
@@ -333,7 +333,7 @@
 }
 
 .redeem-stepper li + li {
-  border-left: 1px solid var(--ash-line);
+  border-left: 1px solid var(--color-border);
 }
 
 .redeem-stepper li > span {
@@ -342,15 +342,15 @@
   height: 1.6rem;
   place-items: center;
   border: 1px solid var(--ash-line-strong);
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
 }
 
 .redeem-stepper li[data-state="current"] > span {
-  border-color: var(--ash-ink);
-  background: var(--ash-ink);
-  color: var(--ash-ground);
+  border-color: var(--color-fg);
+  background: var(--color-fg);
+  color: var(--color-bg);
 }
 
 .redeem-stepper li[data-state="complete"] > span {
@@ -360,7 +360,7 @@
 
 .redeem-stepper p {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.66rem;
   letter-spacing: 0.06em;
@@ -368,7 +368,7 @@
 }
 
 .redeem-stepper li[data-state="current"] p {
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 #redemption-selection {
@@ -384,7 +384,7 @@
 }
 
 #redemption-selection label {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -399,7 +399,7 @@
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
   background: var(--ash-panel-strong);
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-family: inherit;
   font-size: 1rem;
 }
@@ -435,7 +435,7 @@
 }
 
 .redeem-next-step #redemption-step-hint {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
 }
 
@@ -455,8 +455,8 @@
 .redeem-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-block-start: 1px solid var(--ash-line);
-  border-inline-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
 }
 
 .redeem-metric {
@@ -464,8 +464,8 @@
   gap: 0.3rem;
   min-width: 0;
   padding: 0.9rem;
-  border-block-end: 1px solid var(--ash-line);
-  border-inline-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
   background: var(--ash-panel-strong);
 }
 
@@ -534,7 +534,7 @@
 }
 
 .redeem-vest dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -561,7 +561,7 @@
 
 .redeem-snapshot-note {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.82rem;
 }
 
@@ -569,7 +569,7 @@
 
 .redeem-owned-status {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
 }
 
@@ -593,10 +593,10 @@
   min-height: 15rem;
   overflow: visible;
   padding: 0;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   border-radius: 0;
   background: var(--ash-panel-strong);
-  color: var(--ash-ink);
+  color: var(--color-fg);
   text-align: left;
   text-decoration: none;
   transition:
@@ -637,7 +637,7 @@
 
 .redeem-nft-action {
   margin-bottom: 0.8rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.68rem;
   letter-spacing: 0.08em;
@@ -661,7 +661,7 @@
 .redeem-contract-details[open] summary > span:last-child { transform: rotate(45deg); }
 
 .redeem-contract-details summary > span:last-child {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   transition: transform 180ms var(--ease-out);
 }
@@ -677,7 +677,7 @@
   grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
   gap: 1rem;
   padding-block: 0.85rem;
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .redeem-contract-details dd,
@@ -705,7 +705,7 @@
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
   background: transparent;
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -718,13 +718,13 @@
 
 .redeem-page button.redeem-primary,
 .redeem-result-dialog button.redeem-primary {
-  border-color: var(--ash-ink);
-  background: var(--ash-ink);
-  color: var(--ash-ground);
+  border-color: var(--color-fg);
+  background: var(--color-fg);
+  color: var(--color-bg);
 }
 
 .redeem-page button:disabled {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   cursor: not-allowed;
 }
 
@@ -732,14 +732,14 @@
 .redeem-result-dialog button.redeem-primary:disabled {
   border-color: var(--ash-line-strong);
   background: transparent;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 /* The collection cards are their own control: no cell chrome, just the art. */
 .redeem-nft-card {
   min-height: 15rem;
   padding: 0;
-  border-color: var(--ash-line);
+  border-color: var(--color-border);
   background: var(--ash-panel-strong);
   font-family: inherit;
   font-size: inherit;
@@ -771,8 +771,8 @@
   width: min(34rem, calc(100vw - 2rem));
   padding: clamp(1.1rem, 4vw, 1.75rem);
   border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
 }
 
 .redeem-result-dialog::backdrop { background: var(--ash-scrim); }
@@ -781,7 +781,7 @@
 .redeem-dialog-summary,
 .redeem-dialog-detail { margin-block: 0 0.75rem; }
 .redeem-dialog-summary { font-size: 1.05rem; }
-.redeem-dialog-detail { color: var(--ash-muted); }
+.redeem-dialog-detail { color: var(--color-fg-muted); }
 .redeem-dialog-meta { margin: 0; }
 .redeem-result-dialog a { margin-block-end: 1rem; }
 .redeem-result-dialog a[hidden] { display: none; }
@@ -796,14 +796,14 @@
 
   .redeem-page button.redeem-primary:not(:disabled):hover,
   .redeem-result-dialog button.redeem-primary:not(:disabled):hover {
-    border-color: var(--ash-ink);
-    background: var(--ash-ink);
-    color: var(--ash-ground);
+    border-color: var(--color-fg);
+    background: var(--color-fg);
+    color: var(--color-bg);
   }
 
   .redeem-nft-card:hover {
     border-color: var(--ash-accent);
-    color: var(--ash-ink);
+    color: var(--color-fg);
     translate: 0 -0.2rem;
   }
 }
@@ -818,7 +818,7 @@
 @media (max-width: 50rem) {
   .redeem-collection-grid { grid-template-columns: minmax(0, 1fr); }
   .redeem-collection-card { grid-template-columns: minmax(8rem, 0.55fr) minmax(0, 1fr); grid-template-rows: auto; }
-  .redeem-collection-copy { border-top: 0; border-left: 1px solid var(--ash-line); }
+  .redeem-collection-copy { border-top: 0; border-left: 1px solid var(--color-border); }
   .redeem-section-heading { flex-direction: column; }
   .redeem-section-heading > p { text-align: left; }
 }
@@ -830,10 +830,10 @@
   .redeem-position,
   .redeem-owned { padding: 1rem; }
   .redeem-collection-card { grid-template-columns: minmax(0, 1fr); grid-template-rows: 9rem auto; }
-  .redeem-collection-copy { border-top: 1px solid var(--ash-line); border-left: 0; }
+  .redeem-collection-copy { border-top: 1px solid var(--color-border); border-left: 0; }
   .redeem-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .redeem-stepper li:nth-child(odd) { border-left: 0; }
-  .redeem-stepper li:nth-child(n + 3) { border-top: 1px solid var(--ash-line); }
+  .redeem-stepper li:nth-child(n + 3) { border-top: 1px solid var(--color-border); }
   #redemption-selection,
   .redeem-summary,
   .redeem-vest dl { grid-template-columns: minmax(0, 1fr); }

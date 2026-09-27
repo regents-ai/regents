@@ -123,6 +123,7 @@ defmodule AshPlatform.MixProject do
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --check-unused",
+        "cmd mix hex.audit",
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",

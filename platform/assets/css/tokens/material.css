@@ -1,9 +1,0 @@
-/* Compatibility aliases for retained application cells; no glass surfaces. */
-:root {
-  --material-radius: 0px;
-  --material-blur: 0px;
-  --material-fill: var(--color-surface);
-  --material-stroke: var(--color-border);
-  --material-shadow: none;
-  --shell-background-ground: var(--color-bg);
-}

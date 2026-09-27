@@ -13,9 +13,9 @@
 .regent-ops-product,
 .regent-ops-details {
   min-width: 0;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--ash-panel);
+  background: var(--color-surface);
 }
 
 .regent-ops-details summary {
@@ -40,7 +40,7 @@
 
 .regent-ops-kicker,
 .regent-ops-metric dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
@@ -70,7 +70,7 @@
 
 .regent-ops-lede {
   max-width: 56ch;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 1.05rem;
   line-height: 1.5;
 }
@@ -120,7 +120,7 @@
 }
 
 .regent-ops-product > p:not(.regent-ops-kicker) {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   line-height: 1.5;
 }
 
@@ -205,7 +205,7 @@
 .regent-ops-summary {
   align-self: start;
   padding: 0 1rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   border-radius: 0;
 }
 
@@ -222,7 +222,7 @@
 }
 
 .regent-ops-wallet {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono);
 }
 
@@ -231,7 +231,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding-block: 0.5rem;
-  border-bottom: 1px solid var(--ash-line);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .regent-ops-metric:last-child {
@@ -260,7 +260,7 @@
 
 .regent-ops-status {
   padding: 1rem 1.5rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   border-radius: 0;
   background: var(--ash-panel-strong);
 }

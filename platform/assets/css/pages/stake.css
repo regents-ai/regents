@@ -13,8 +13,8 @@
 .stake-actions,
 .stake-contract-details {
   min-width: 0;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-panel);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .stake-heading {
@@ -56,7 +56,7 @@
 
 .stake-lede {
   max-width: 58ch;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: clamp(1rem, 1.7vw, 1.2rem);
   text-wrap: pretty;
 }
@@ -70,7 +70,7 @@
 .stake-metric dt,
 .stake-dialog-kicker,
 .stake-preview dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
@@ -81,7 +81,7 @@
 .stake-fine-print,
 .stake-snapshot-note,
 .stake-wallet-block {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .stake-footer,
@@ -126,8 +126,8 @@
 .stake-benefit-grid {
   display: grid;
   margin: 0;
-  border-block-start: 1px solid var(--ash-line);
-  border-inline-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
 }
 
 .stake-benefit-card {
@@ -135,8 +135,8 @@
   gap: 0.45rem;
   align-content: start;
   padding: 1rem;
-  border-block-end: 1px solid var(--ash-line);
-  border-inline-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
   background: var(--ash-panel-strong);
 }
 
@@ -169,7 +169,7 @@
 
 .stake-earned-part + .stake-earned-part {
   padding-left: 0.75rem;
-  border-left: 1px solid var(--ash-line);
+  border-left: 1px solid var(--color-border);
 }
 
 .stake-earned-figure {
@@ -237,7 +237,7 @@
   flex: 0 0 auto;
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--ash-line-strong);
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
 }
@@ -270,7 +270,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .stake-connect-flow li {
@@ -279,7 +279,7 @@
   gap: 0.7rem;
   align-items: center;
   padding-block: 0.8rem;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .stake-connect-flow li > span {
@@ -288,7 +288,7 @@
   height: 1.8rem;
   place-items: center;
   border: 1px solid var(--ash-line-strong);
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-mono);
   font-size: 0.74rem;
 }
@@ -307,8 +307,8 @@
 .stake-wallet-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-block-start: 1px solid var(--ash-line);
-  border-inline-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
 }
 
 .stake-metric {
@@ -316,8 +316,8 @@
   gap: 0.35rem;
   min-width: 0;
   padding: 0.9rem;
-  border-block-end: 1px solid var(--ash-line);
-  border-inline-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
   background: var(--ash-panel-strong);
 }
 
@@ -339,7 +339,7 @@
 .stake-mode button {
   border: 0;
   background: transparent;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .stake-mode button + button {
@@ -352,7 +352,7 @@
 }
 
 .stake-actions label {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -377,7 +377,7 @@
   padding: 0.65rem 0.85rem;
   border: 0;
   background: transparent;
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-size: clamp(1.25rem, 3vw, 1.65rem);
   font-variant-numeric: tabular-nums;
 }
@@ -388,7 +388,7 @@
 
 .stake-amount > span {
   padding-inline: 0.9rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -413,7 +413,7 @@
 
 .stake-amount-tools p {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
 }
@@ -426,7 +426,7 @@
 .stake-amount-notice {
   min-height: 1.25rem;
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.82rem;
 }
 
@@ -439,7 +439,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
 }
 
 .stake-preview div {
@@ -455,7 +455,7 @@
 
 .stake-approval-note {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.82rem;
 }
 
@@ -477,14 +477,14 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .stake-sent li {
   display: grid;
   gap: 0.3rem;
   padding-block: 0.75rem;
-  border-bottom: 1px solid var(--ash-line);
+  border-bottom: 1px solid var(--color-border);
   overflow-wrap: anywhere;
 }
 
@@ -511,7 +511,7 @@
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
   background: transparent;
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -541,7 +541,7 @@
   padding-inline: 1rem;
   border: 1px solid var(--ash-line-strong);
   border-radius: 0;
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -553,9 +553,9 @@
 
 .stake-actions button.stake-primary,
 .stake-heading button.stake-primary {
-  border-color: var(--ash-ink);
-  background: var(--ash-ink);
-  color: var(--ash-ground);
+  border-color: var(--color-fg);
+  background: var(--color-fg);
+  color: var(--color-bg);
 }
 
 .stake-actions button.stake-submit {
@@ -567,12 +567,12 @@
 .stake-heading button.stake-primary:disabled {
   border-color: var(--ash-line-strong);
   background: transparent;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .stake-actions button:disabled,
 .stake-shared-refresh:disabled {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   cursor: not-allowed;
 }
 
@@ -580,7 +580,7 @@
   display: grid;
   gap: 0.75rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .stake-rewards h3 {
@@ -687,7 +687,7 @@
 .stake-contract-details[open] summary > span:last-child { transform: rotate(45deg); }
 
 .stake-contract-details summary > span:last-child {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   transition: transform 180ms var(--ease-out);
 }
@@ -696,7 +696,7 @@
   display: grid;
   gap: 1rem;
   padding: 0 clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 2rem);
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .stake-contract-link {
@@ -708,7 +708,7 @@
   grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
   gap: 1rem;
   padding-block: 0.85rem;
-  border-top: 1px solid var(--ash-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .stake-contract-facts dd {
@@ -752,8 +752,8 @@
   width: min(34rem, calc(100vw - 2rem));
   padding: clamp(1.1rem, 4vw, 1.75rem);
   border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
 }
 
 .stake-supply-dialog {
@@ -771,14 +771,14 @@
 .stake-holdings {
   display: grid;
   margin: 0 0 1.25rem;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .stake-holdings > div {
   display: grid;
   gap: 0.3rem;
   padding-block: 0.8rem;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .stake-holdings dt {
@@ -791,12 +791,12 @@
   gap: 0.3rem;
   min-width: 0;
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.88rem;
 }
 
 .stake-holdings dd strong {
-  color: var(--ash-ink);
+  color: var(--color-fg);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -823,9 +823,9 @@
 
   .stake-actions button.stake-primary:not(:disabled):hover,
   .stake-heading button.stake-primary:not(:disabled):hover {
-    border-color: var(--ash-ink);
-    background: var(--ash-ink);
-    color: var(--ash-ground);
+    border-color: var(--color-fg);
+    background: var(--color-fg);
+    color: var(--color-bg);
   }
 }
 
@@ -915,9 +915,9 @@
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.8rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--ash-panel);
+  background: var(--color-surface);
   color: inherit;
   font: inherit;
 }
@@ -942,8 +942,8 @@
    button keeps its own size, so the chosen mode, the supply tiles and the
    info mark are skinned outside the page layer to beat them. */
 .stake-mode button[aria-pressed="true"] {
-  background: var(--ash-ink);
-  color: var(--ash-ground);
+  background: var(--color-fg);
+  color: var(--color-bg);
 }
 
 /* The small mark beside a circulating figure that opens the account of what
@@ -960,7 +960,7 @@
   border: 1px solid currentColor;
   border-radius: 50%;
   background: transparent;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-title);
   font-size: 0.72rem;
   font-style: italic;
@@ -972,7 +972,7 @@
 
 .stake-page .stake-info:hover,
 .stake-page .stake-info:focus-visible {
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 .stake-page .stake-info:focus-visible {

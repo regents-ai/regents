@@ -12,8 +12,8 @@
 .account-heading,
 .account-panel {
   min-width: 0;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-panel);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .account-page h1,
@@ -29,7 +29,7 @@
 
 .account-kicker,
 .account-details dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   font-weight: 400;
@@ -63,7 +63,7 @@
 
 .account-lede {
   max-width: 56ch;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 1.05rem;
   line-height: 1.5;
 }
@@ -147,7 +147,7 @@
   display: grid;
   gap: 0.35rem;
   padding-block-start: 0.75rem;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .account-details dd {
@@ -193,7 +193,7 @@
 
 .account-agent {
   display: grid;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
   transition: border-color 160ms ease;
 }
 
@@ -209,12 +209,12 @@
 .account-agent__more {
   grid-column: 1 / -1;
   margin-block-start: 0.35rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.85rem;
 }
 
 .account-agent__open:hover .account-agent__more {
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 .account-agent__open:focus-visible {
@@ -228,8 +228,8 @@
   width: 3rem;
   height: 3rem;
   overflow: hidden;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-ground);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
 
 .account-agent__mark img {
@@ -250,7 +250,7 @@
 
 .account-agent__who span,
 .account-agent__contact {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .account-agent__contact {
@@ -279,18 +279,18 @@
 }
 
 .account-agents__steps li::marker {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .account-agents__expiry {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.9rem;
 }
 
 .account-agents__paired {
   padding: 0.75rem 1rem;
   border-inline-start: 2px solid var(--ash-accent);
-  background: var(--ash-ground);
+  background: var(--color-bg);
 }
 
 .account-agents__empty {
@@ -303,7 +303,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1rem;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.9rem;
 }
 
@@ -311,7 +311,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--ash-ink);
+  color: var(--color-fg);
 }
 
 .account-agents__runtime .account-agent__mark {
@@ -324,8 +324,8 @@
   margin: 0;
   padding: 0.75rem;
   overflow-x: auto;
-  border: 1px solid var(--ash-line);
-  background: var(--ash-ground);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -338,8 +338,8 @@
   overflow: auto;
   padding: clamp(1.1rem, 4vw, 2rem);
   border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel);
-  color: var(--ash-ink);
+  background: var(--color-surface);
+  color: var(--color-fg);
 }
 
 .account-agent-dialog::backdrop {
@@ -387,11 +387,11 @@
   display: grid;
   gap: 0.35rem;
   padding-block: 0.75rem;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .account-agent-dialog__facts dt {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -406,7 +406,7 @@
 }
 
 .account-agent-dialog__facts dd > span {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.9rem;
 }
 
@@ -422,7 +422,7 @@
 
 .account-agent-dialog__note {
   margin: 0;
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.9rem;
 }
 
@@ -430,7 +430,7 @@
   display: grid;
   margin: 0;
   padding: 0;
-  border-block-start: 1px solid var(--ash-line);
+  border-block-start: 1px solid var(--color-border);
   list-style: none;
 }
 
@@ -439,12 +439,12 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.2rem 1rem;
   padding-block: 0.65rem;
-  border-block-end: 1px solid var(--ash-line);
+  border-block-end: 1px solid var(--color-border);
 }
 
 .account-agent-dialog__log li > span:nth-child(2),
 .account-agent-dialog__log time {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
   font-size: 0.9rem;
 }
 
@@ -471,7 +471,7 @@
 }
 
 .account-names__heading p {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .account-names__list {
@@ -488,7 +488,7 @@
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
 }
 
 .account-names__list li > div {
@@ -499,7 +499,7 @@
 }
 
 .account-names__list span {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .account-names__list strong {
@@ -507,7 +507,7 @@
 }
 
 .account-names__more {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 /* Claim a Regent Name */
@@ -534,7 +534,7 @@
 
 .account-claim__name span,
 .account-claim__later {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .account-claim__available {
@@ -566,7 +566,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem;
-  border: 1px solid var(--ash-line);
+  border: 1px solid var(--color-border);
 }
 
 .verified-connections__list li > div {
@@ -576,7 +576,7 @@
 
 /* Only the text cell is muted; the row's button keeps the shared button's ink. */
 .verified-connections__list li > div span {
-  color: var(--ash-muted);
+  color: var(--color-fg-muted);
 }
 
 .verified-connections__notice {

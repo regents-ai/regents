@@ -8,14 +8,14 @@
   gap: 1rem;
   margin: 0;
 }
-.loading-metrics dt { margin-bottom: 0.5rem; color: var(--ash-muted); }
+.loading-metrics dt { margin-bottom: 0.5rem; color: var(--color-fg-muted); }
 .loading-metrics dd { margin: 0; }
 .loading-skeleton {
   display: block;
   width: 100%;
   height: 1em;
   border-radius: var(--radius-sm);
-  background: color-mix(in oklch, var(--ash-ink) 12%, transparent);
+  background: color-mix(in oklch, var(--color-fg) 12%, transparent);
 }
 .loading-skeleton--title { width: 70%; height: 1.5rem; }
 .loading-skeleton--metric { width: 80%; height: 2rem; }
