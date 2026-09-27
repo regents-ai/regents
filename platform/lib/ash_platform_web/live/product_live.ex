@@ -46,32 +46,51 @@ defmodule AshPlatformWeb.ProductLive do
 
   @captured "19 September 2026"
 
+  @doc """
+  What the page for `product` shows, as the product directory also serves it.
+  The home page's chapter and directory entry supply the heading, summary and
+  links, so that copy still lives once.
+  """
+  def content(product) do
+    page = Map.fetch!(@pages, product)
+    anchor = Atom.to_string(product)
+    chapter = Enum.find(HomeLive.products(), &(&1.anchor == anchor))
+    site = Enum.find(HomeLive.hero_products(), &(&1.name == anchor))
+
+    %{
+      name: page.name,
+      domain: page.domain,
+      site: site.site,
+      github: site.github,
+      kicker: "#{page.domain} · #{chapter.eyebrow}",
+      headline: chapter.title,
+      summary: site.line,
+      what_it_does: chapter.proofs,
+      about: page.about,
+      audience: page.audience,
+      family: page.family,
+      agent_line: page.agent_line,
+      start: page.start
+    }
+  end
+
   attr :product, :atom, required: true, values: Map.keys(@pages)
 
   def page(assigns) do
-    product = assigns.product
-    anchor = Atom.to_string(product)
-
-    assigns =
-      assign(assigns,
-        page: Map.fetch!(@pages, product),
-        chapter: Enum.find(HomeLive.products(), &(&1.anchor == anchor)),
-        site: Enum.find(HomeLive.hero_products(), &(&1.name == anchor)),
-        captured: @captured
-      )
+    assigns = assign(assigns, content: content(assigns.product), captured: @captured)
 
     ~H"""
     <section id={"product-#{@product}"} class="product-page" aria-labelledby="product-heading">
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="product-kicker">{@page.domain} · {@chapter.eyebrow}</p>
-        <h1 id="product-heading" tabindex="-1">{@chapter.title}</h1>
-        <p class="product-lede">{@site.line}</p>
-        <nav class="product-actions" aria-label={"#{@page.name} site"}>
-          <.external href={@site.site} class="rg-button">
-            Open {@page.name}
+        <p class="product-kicker">{@content.kicker}</p>
+        <h1 id="product-heading" tabindex="-1">{@content.headline}</h1>
+        <p class="product-lede">{@content.summary}</p>
+        <nav class="product-actions" aria-label={"#{@content.name} site"}>
+          <.external href={@content.site} class="rg-button">
+            Open {@content.name}
           </.external>
-          <.external href={@page.start.href} class="rg-button rg-button--secondary">
-            {@page.start.label}
+          <.external href={@content.start.href} class="rg-button rg-button--secondary">
+            {@content.start.label}
           </.external>
         </nav>
       </header>
@@ -82,23 +101,23 @@ defmodule AshPlatformWeb.ProductLive do
           src={"/images/products/#{@product}-light.webp"}
           width="1440"
           height="900"
-          alt={"#{@page.name} at #{@page.domain}"}
+          alt={"#{@content.name} at #{@content.domain}"}
         />
         <img
           class="product-shot__dark"
           src={"/images/products/#{@product}-dark.webp"}
           width="1440"
           height="900"
-          alt={"#{@page.name} at #{@page.domain}"}
+          alt={"#{@content.name} at #{@content.domain}"}
         />
-        <figcaption>{@page.domain}, {@captured}</figcaption>
+        <figcaption>{@content.domain}, {@captured}</figcaption>
       </figure>
 
       <Regent.Structure.section_bar class="rg-support-band">
         <h2 class="rg-section-bar__label">What it does</h2>
       </Regent.Structure.section_bar>
-      <ul class="product-proofs" aria-label={"What #{@page.name} does"}>
-        <li :for={proof <- @chapter.proofs}>
+      <ul class="product-proofs" aria-label={"What #{@content.name} does"}>
+        <li :for={proof <- @content.what_it_does}>
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
             <p>{proof.copy}</p>
@@ -109,26 +128,26 @@ defmodule AshPlatformWeb.ProductLive do
       <div class="product-columns">
         <Regent.Structure.panel class="product-column rg-panel__body">
           <h2 class="product-kicker">About</h2>
-          <p :for={paragraph <- @page.about}>{paragraph}</p>
+          <p :for={paragraph <- @content.about}>{paragraph}</p>
         </Regent.Structure.panel>
         <Regent.Structure.panel class="product-column rg-panel__body">
           <h2 class="product-kicker">Who it is for</h2>
           <ul class="product-audience">
-            <li :for={line <- @page.audience}>{line}</li>
+            <li :for={line <- @content.audience}>{line}</li>
           </ul>
         </Regent.Structure.panel>
       </div>
 
       <Regent.Structure.panel class="product-family rg-panel__body">
         <h2 class="product-kicker">In the Regents family</h2>
-        <p>{@page.family}</p>
-        <p :if={@page.agent_line} class="product-agent-line">
+        <p>{@content.family}</p>
+        <p :if={@content.agent_line} class="product-agent-line">
           <span class="product-kicker">Give this to your agent</span>
-          <code>{@page.agent_line}</code>
+          <code>{@content.agent_line}</code>
         </p>
-        <nav class="product-family__links" aria-label={"#{@page.name} links"}>
-          <.external href={@site.site}>Open {@page.name}</.external>
-          <.external href={@site.github}>Source on GitHub</.external>
+        <nav class="product-family__links" aria-label={"#{@content.name} links"}>
+          <.external href={@content.site}>Open {@content.name}</.external>
+          <.external href={@content.github}>Source on GitHub</.external>
         </nav>
       </Regent.Structure.panel>
     </section>

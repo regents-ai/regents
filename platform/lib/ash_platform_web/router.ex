@@ -10,7 +10,8 @@ defmodule AshPlatformWeb.Router do
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug AshPlatformWeb.Plugs.LaunchGate
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    # Browser agents may use the tools the pages register, from this site only.
+    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
   end
 
   pipeline :api do
@@ -24,7 +25,7 @@ defmodule AshPlatformWeb.Router do
     plug AshPlatformWeb.Plugs.Theme
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
   end
 
   def enforce_session_authority(conn, _opts) do
@@ -79,6 +80,9 @@ defmodule AshPlatformWeb.Router do
   scope "/api/v1" do
     pipe_through :api
     get "/claims", AshPlatformWeb.OwnedClaimsController, :index
+    get "/products", AshPlatformWeb.ProductsController, :index
+    get "/products/:slug", AshPlatformWeb.ProductsController, :show
+    get "/staking/position", AshPlatformWeb.StakingPositionController, :show
     forward "/profile", RegentIdentity.HTTP, otp_app: :ash_platform
   end
 

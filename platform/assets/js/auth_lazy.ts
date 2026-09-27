@@ -52,7 +52,11 @@ export type PrivyBridgeHandle = {
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
+  tokens?: () => Promise<PrivyTokenPair>
 }
+
+// Privy's access and identity tokens, which travel together.
+export type PrivyTokenPair = {accessToken: string; identityToken: string}
 
 export type PrivyBridgeStartupOptions = {
   mode?: "ordinary" | "sign-out-only"
@@ -90,6 +94,13 @@ const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
 const terminalSignInFailures = new WeakMap<Document, TerminalSignInFailureKind>()
 const walletSignOuts = new WeakMap<Document, Promise<void>>()
+const accountTokenSources = new WeakMap<Document, () => Promise<PrivyTokenPair>>()
+
+/** The signed-in person's token pair, for a read this page makes on their behalf. */
+export function accountTokens(documentRoot: Document = document): Promise<PrivyTokenPair> {
+  const source = accountTokenSources.get(documentRoot)
+  return source ? source() : Promise.reject(new Error("Sign-in is not installed on this page."))
+}
 
 // Called only after server revocation/anonymous truth. Cleanup is shared by
 // explicit and provider logout; no extension can keep the page signed in.
@@ -868,6 +879,13 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
+    async tokens(): Promise<PrivyTokenPair> {
+      assertActive()
+      if (state !== "ordinary") throw new Error("Provider sign out is still in progress.")
+      if (!handle) await (preparing ?? prepare())
+      if (!handle?.tokens) throw new Error("Privy bridge is not ready")
+      return handle.tokens()
+    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -900,6 +918,7 @@ export function installAccountAuthLazyLoader(
     importBridge,
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
+  accountTokenSources.set(documentRoot, () => loader.tokens())
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -1103,6 +1122,7 @@ export function installAccountAuthLazyLoader(
   }
   return () => {
     installed = false
+    accountTokenSources.delete(documentRoot)
     loader.dispose()
 
     walletEvents.removeEventListener("storage", onWalletStorage)

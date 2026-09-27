@@ -8,6 +8,18 @@ defmodule AshPlatformWeb.PublicDocuments do
   @openapi_path Path.join(@directory, "openapi.json")
   @external_resource @openapi_path
   @openapi @openapi_path |> File.read!() |> Jason.decode!()
+
+  # Every browser tool the pages register, described once; the browser code
+  # imports the same file.
+  @tool_manifest_path Application.app_dir(:ash_platform, "priv/tool_manifest.json")
+  @external_resource @tool_manifest_path
+  @tools @tool_manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+  @needs %{"none" => "Nothing", "session" => "The person's sign-in"}
+  @tool_table """
+  | Tool | Needs | What it does |
+  | --- | --- | --- |
+  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
+  """
   @documents ~w(/ /docs /about /contact /privacy /terms)
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree and Patchbay. Explore REGENT staking, redemption and developer documentation."
@@ -191,7 +203,11 @@ defmodule AshPlatformWeb.PublicDocuments do
     }
   end
 
-  defp source(name), do: String.replace(@sources[name], "{{origin}}", url(""))
+  defp source(name) do
+    @sources[name]
+    |> String.replace("{{tools}}", @tool_table)
+    |> String.replace("{{origin}}", url(""))
+  end
 
   def recovery_links do
     [

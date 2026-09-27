@@ -36,6 +36,7 @@ import {
   type IdentityState,
   type PrivyBridgeHandle,
   type PrivyBridgeStartupOptions,
+  type PrivyTokenPair,
   type SessionMutationCoordinator,
   type SignInFailureDiagnostic,
   type SignInFailureKind,
@@ -309,7 +310,7 @@ export {clearLocalSession, csrfToken}
 // Privy's two tokens have two different jobs: the access token proves this
 // browser's Privy session and the identity token carries the signed accounts
 // that session is entitled to. Regent needs both, so they travel together.
-export type PrivyTokenPair = {accessToken: string; identityToken: string}
+export type {PrivyTokenPair}
 
 type PrivyTokenSources = {
   getIdentityToken: () => Promise<string | null>
@@ -656,6 +657,7 @@ type AccountBridgeProps = {
     identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
     finishSignOutOnly: () => void,
     ready: boolean,
+    tokens: NonNullable<PrivyBridgeHandle["tokens"]>,
   ) => void
 }
 
@@ -1130,10 +1132,18 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
     ? signOutOnlyBridge.identity
     : ordinaryIdentityHandler
   const finishSignOutOnly = signOutOnlyBridge.finish
+  // The pair a signed-in read carries. A bridge started only to sign out never
+  // lends one.
+  const tokens = React.useCallback(
+    () => signOutOnly
+      ? Promise.reject(new Error("Provider sign out is still in progress."))
+      : acquireTokensRef.current(),
+    [signOutOnly],
+  )
 
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready),
-    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, tokens),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, tokens],
   )
 
   return null
@@ -1156,6 +1166,7 @@ export function startPrivyBridge(
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
+    let currentTokens: PrivyBridgeHandle["tokens"] | null = null
     let resolved = false
     let currentReady = false
     const controller = new AbortController()
@@ -1194,18 +1205,26 @@ export function startPrivyBridge(
       finishSignOutOnly() {
         currentFinishSignOutOnly?.()
       },
+      tokens() {
+        if (controller.signal.aborted) return Promise.reject(new StalePrivyOperation())
+        return currentTokens
+          ? currentTokens()
+          : Promise.reject(new Error("Privy bridge is not ready"))
+      },
     }
     const publishRequestHandler: AccountBridgeProps["publishRequestHandler"] = (
       requestHandler,
       identityHandler,
       finishSignOutOnly,
       ready,
+      tokens,
     ) => {
       if (controller.signal.aborted) return
       currentReady = ready
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly
+      currentTokens = tokens
       if (!ready || resolved) return
       clearTimeout(timeout)
       resolved = true

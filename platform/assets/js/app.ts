@@ -29,6 +29,7 @@ import {MotionCount, MotionList} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {mountMotion} from "./motion"
+import {installPublicTools} from "./public_tools"
 import {StakeWallet} from "./hooks/stake_wallet"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
@@ -346,6 +347,7 @@ holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 void retireRefusedSession()
 liveSocket.connect()
 installAccountAuthLazyLoader()
+installPublicTools()
 installCrossTabCsrf()
 mountMotion(document)
 window.liveSocket = liveSocket

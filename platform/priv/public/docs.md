@@ -10,7 +10,11 @@ Public documentation and health reads do not require an API key or wallet. Read 
 curl --fail '{{origin}}/healthz'
 curl --fail -H 'Accept: text/markdown' '{{origin}}/docs'
 curl --fail '{{origin}}/openapi.json'
+curl --fail '{{origin}}/api/v1/products'
+curl --fail '{{origin}}/api/v1/products/techtree'
 ```
+
+`GET /api/v1/products` lists Autolaunch, Techtree and Patchbay with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404.
 
 The health response is the plain text `ok`. A health response confirms the web service is responding, not that every wallet or external service is available.
 
@@ -34,6 +38,10 @@ curl --fail-with-body '{{origin}}/api/v1/claims' \
 A successful response contains a `claims` array and a `next` cursor. Each claim contains its recorded name, wallet owner, status, transaction evidence and timestamps; absent historical fields may be null. Use the exact returned cursor as the sole `after` query parameter for the next page. Stop when `next` is null. Do not invent an owner filter or a page-size parameter.
 
 Missing or invalid credentials return 401. An invalid query or cursor returns 400; forbidden reads return 403. A temporarily unavailable or unconfigured claims service returns 503. Claims responses are not cacheable. A selected name or wallet address is not authentication.
+
+## Read your stake
+
+`GET /api/v1/staking/position`, with the same two tokens, returns what [Stake]({{origin}}/stake) shows for the wallet on that sign-in: the REGENT it has staked and holds, the USDC and REGENT it can claim, and the contract's totals. Every figure is a Base reading with the block it was read at; amounts are exact decimal strings, and a figure that could not be read is `"unavailable"`. A sign-in with no wallet returns 409 `wallet_required`; before Base has answered once, 503 `staking_unavailable`.
 
 ## Pair an agent with a person's account
 
@@ -70,7 +78,7 @@ RateLimit: "pair";r=9;t=42
 
 ## Contracts and availability
 
-The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the owner-authorized claims read and agent pairing above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
+The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the product directory, the owner-authorized claims and stake reads and agent pairing above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
@@ -82,6 +90,10 @@ The published [@regentslabs/cli package](https://www.npmjs.com/package/@regentsl
 
 Visit [Stake]({{origin}}/stake) or [Redeem]({{origin}}/redeem) for the corresponding wallet flow. Every transaction requires the user's explicit wallet approval. Network fees and contract conditions apply; staking returns are not guaranteed. Public documentation does not authorize a payment, signature, credential change or other mutation.
 
-Regents does not advertise a hosted MCP endpoint or native WebMCP tool registry in this release. Page URLs and CLI commands are not interchangeable with browser tools. Inspect each separate product's actual documented capabilities before attempting an action.
+## In the browser (WebMCP)
+
+Every page offers these tools to browsers that support WebMCP. They make the same reads as the API above and never open a wallet or sign. The signed-in reads work once the person has signed in on Regents.
+
+{{tools}}
 
 Need help? Read [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).

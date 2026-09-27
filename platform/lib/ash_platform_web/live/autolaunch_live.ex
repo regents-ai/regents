@@ -2,10 +2,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias AshPlatformWeb.ProductLive
+  alias AshPlatformWeb.{HomeLive, ProductLive}
 
   # The Autolaunch page carries its own copy: the two launch kinds and their
   # figures, taken from autolaunch.sh's own guide. Nothing here reads a chain.
+  # The product directory serves the same copy through `content/0`.
   @launches [
     %{
       kicker: "Revstake · on Base",
@@ -15,11 +16,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
         "Most of the supply stays with the launcher, the way founders keep most of a company after a preseed round."
       ],
       facts: [
-        {"Auction", "48 hours, priced in REGENT"},
-        {"Supply", "100 billion tokens"},
-        {"Sold in the auction", "Up to 10%"},
-        {"Locked with REGENT for trading", "Up to 5%"},
-        {"To the launch's treasury", "85%, released over one year"}
+        %{label: "Auction", value: "48 hours, priced in REGENT"},
+        %{label: "Supply", value: "100 billion tokens"},
+        %{label: "Sold in the auction", value: "Up to 10%"},
+        %{label: "Locked with REGENT for trading", value: "Up to 5%"},
+        %{label: "To the launch's treasury", value: "85%, released over one year"}
       ]
     },
     %{
@@ -30,11 +31,11 @@ defmodule AshPlatformWeb.AutolaunchLive do
         "There is no creator allocation. Unsold tokens are burned."
       ],
       facts: [
-        {"Auction", "24 hours, priced in the paired stock"},
-        {"Supply", "1 billion tokens"},
-        {"Sold in the auction", "Up to 80%"},
-        {"Locked with the stock for trading", "Up to 20%"},
-        {"To the creator", "None"}
+        %{label: "Auction", value: "24 hours, priced in the paired stock"},
+        %{label: "Supply", value: "1 billion tokens"},
+        %{label: "Sold in the auction", value: "Up to 80%"},
+        %{label: "Locked with the stock for trading", value: "Up to 20%"},
+        %{label: "To the creator", value: "None"}
       ]
     }
   ]
@@ -63,28 +64,51 @@ defmodule AshPlatformWeb.AutolaunchLive do
     "Traders who want a memecoin tied to a real onchain stock."
   ]
 
+  @doc """
+  What the Autolaunch page shows, as the product directory also serves it. The
+  home page's directory entry supplies the site and source links.
+  """
+  def content do
+    site = Enum.find(HomeLive.hero_products(), &(&1.name == "autolaunch"))
+
+    %{
+      name: "Autolaunch",
+      domain: "autolaunch.sh",
+      site: site.site,
+      github: site.github,
+      kicker: "autolaunch.sh · Auctions opened 24 September 2026",
+      headline: "Raise early funds for an agent. Share what it earns.",
+      summary:
+        "Autolaunch runs fair token auctions on Base. Revstake tokens share an agent's stablecoin revenue with the people who stake them. Memestake tokens pair a memecoin with a real onchain stock.",
+      launches: @launches,
+      why_fair: @proofs,
+      audience: @audience,
+      before_you_bid: [
+        "A Revstake token rests on a promise. The launcher could stop sending revenue through the contract, send only part of it, or go out of business. Back launchers you trust, and read each token's details before you bid.",
+        "Every bid, launch and stake happens in your own wallet, and each one asks for your signature."
+      ],
+      family:
+        "Revstake auctions are priced in REGENT. 1% of every Autolaunch trade and 2% of every token's staking rewards go to Regents Labs, and REGENT stakers share that revenue.",
+      agent_line: "Read autolaunch.sh/llms.txt and explain how Autolaunch works.",
+      start: %{label: "How it works", href: "https://autolaunch.sh/how-it-works"}
+    }
+  end
+
   def page(assigns) do
-    assigns = assign(assigns, launches: @launches, proofs: @proofs, audience: @audience)
+    assigns = assign(assigns, content: content())
 
     ~H"""
     <section id="product-autolaunch" class="product-page" aria-labelledby="product-heading">
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="product-kicker">autolaunch.sh · Auctions opened 24 September 2026</p>
-        <h1 id="product-heading" tabindex="-1">
-          Raise early funds for an agent. Share what it earns.
-        </h1>
-        <p class="product-lede">
-          Autolaunch runs fair token auctions on Base. Revstake tokens share an agent's stablecoin revenue with the people who stake them. Memestake tokens pair a memecoin with a real onchain stock.
-        </p>
+        <p class="product-kicker">{@content.kicker}</p>
+        <h1 id="product-heading" tabindex="-1">{@content.headline}</h1>
+        <p class="product-lede">{@content.summary}</p>
         <nav class="product-actions" aria-label="Autolaunch site">
-          <ProductLive.external href="https://autolaunch.sh" class="rg-button">
-            Open Autolaunch
+          <ProductLive.external href={@content.site} class="rg-button">
+            Open {@content.name}
           </ProductLive.external>
-          <ProductLive.external
-            href="https://autolaunch.sh/how-it-works"
-            class="rg-button rg-button--secondary"
-          >
-            How it works
+          <ProductLive.external href={@content.start.href} class="rg-button rg-button--secondary">
+            {@content.start.label}
           </ProductLive.external>
         </nav>
       </header>
@@ -103,16 +127,16 @@ defmodule AshPlatformWeb.AutolaunchLive do
       </Regent.Structure.section_bar>
       <div class="product-columns">
         <Regent.Structure.panel
-          :for={launch <- @launches}
+          :for={launch <- @content.launches}
           class="product-column rg-panel__body"
         >
           <p class="product-kicker">{launch.kicker}</p>
           <h3 class="product-launch-title">{launch.title}</h3>
           <p :for={paragraph <- launch.copy}>{paragraph}</p>
           <dl class="product-facts">
-            <div :for={{label, value} <- launch.facts}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
+            <div :for={fact <- launch.facts}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
             </div>
           </dl>
         </Regent.Structure.panel>
@@ -122,7 +146,7 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <h2 class="rg-section-bar__label">Why the auction is fair</h2>
       </Regent.Structure.section_bar>
       <ul class="product-proofs" aria-label="Why the Autolaunch auction is fair">
-        <li :for={proof <- @proofs}>
+        <li :for={proof <- @content.why_fair}>
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
             <p>{proof.copy}</p>
@@ -134,35 +158,26 @@ defmodule AshPlatformWeb.AutolaunchLive do
         <Regent.Structure.panel class="product-column rg-panel__body">
           <h2 class="product-kicker">Who it is for</h2>
           <ul class="product-audience">
-            <li :for={line <- @audience}>{line}</li>
+            <li :for={line <- @content.audience}>{line}</li>
           </ul>
         </Regent.Structure.panel>
         <Regent.Structure.panel class="product-column rg-panel__body">
           <h2 class="product-kicker">Before you bid</h2>
-          <p>
-            A Revstake token rests on a promise. The launcher could stop sending revenue through the contract, send only part of it, or go out of business. Back launchers you trust, and read each token's details before you bid.
-          </p>
-          <p>
-            Every bid, launch and stake happens in your own wallet, and each one asks for your signature.
-          </p>
+          <p :for={paragraph <- @content.before_you_bid}>{paragraph}</p>
         </Regent.Structure.panel>
       </div>
 
       <Regent.Structure.panel class="product-family rg-panel__body">
         <h2 class="product-kicker">In the Regents family</h2>
-        <p>
-          Revstake auctions are priced in REGENT. 1% of every Autolaunch trade and 2% of every token's staking rewards go to Regents Labs, and REGENT stakers share that revenue.
-        </p>
+        <p>{@content.family}</p>
         <p class="product-agent-line">
           <span class="product-kicker">Give this to your agent</span>
-          <code>Read autolaunch.sh/llms.txt and explain how Autolaunch works.</code>
+          <code>{@content.agent_line}</code>
         </p>
         <nav class="product-family__links" aria-label="Autolaunch links">
-          <ProductLive.external href="https://autolaunch.sh">Open Autolaunch</ProductLive.external>
+          <ProductLive.external href={@content.site}>Open {@content.name}</ProductLive.external>
           <.link navigate="/stake">Stake REGENT</.link>
-          <ProductLive.external href="https://github.com/regents-ai/autolaunch">
-            Source on GitHub
-          </ProductLive.external>
+          <ProductLive.external href={@content.github}>Source on GitHub</ProductLive.external>
         </nav>
       </Regent.Structure.panel>
     </section>

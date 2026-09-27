@@ -7,24 +7,17 @@ defmodule AshPlatformWeb.OwnedClaimsController do
       |> put_resp_header("cache-control", "no-store")
       |> put_resp_header("vary", "Authorization, Privy-Id-Token")
 
-    with {["Bearer " <> access], [identity]} <-
-           {get_req_header(conn, "authorization"), get_req_header(conn, "privy-id-token")},
-         true <- byte_size(access) in 1..32_768 and byte_size(identity) in 1..32_768,
-         {:ok, actor} <-
-           RegentPrivy.Session.verify(
-             %{access: access, identity: identity},
-             Application.get_env(:ash_platform, :privy, [])
-           ),
-         true <- get_req_header(conn, "x-privy-user-id") in [[], [actor.privy_user_id]] do
-      case pagination(params) do
-        {:ok, page} -> render_claims(conn, actor, page)
-        :error -> conn |> put_status(400) |> json(%{error: %{code: "invalid_claims_query"}})
-      end
-    else
-      {:error, {:configuration, _}} ->
+    case AshPlatformWeb.PrivyPair.verify(conn) do
+      {:ok, actor} ->
+        case pagination(params) do
+          {:ok, page} -> render_claims(conn, actor, page)
+          :error -> conn |> put_status(400) |> json(%{error: %{code: "invalid_claims_query"}})
+        end
+
+      {:error, :unconfigured} ->
         conn |> put_status(503) |> json(%{error: %{code: "claims_unconfigured"}})
 
-      _ ->
+      {:error, :unauthenticated} ->
         conn |> put_status(401) |> json(%{error: %{code: "authentication_required"}})
     end
   end

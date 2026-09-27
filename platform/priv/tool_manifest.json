@@ -1,0 +1,136 @@
+{
+  "tools": [
+    {
+      "name": "regents_about",
+      "title": "Read about Regents",
+      "description": "Read the Regents Labs About page or the developer documentation as Markdown, exactly as regents.sh/about and regents.sh/docs serve it. page chooses which one: about says who Regents Labs is, what Autolaunch, Techtree and Patchbay do and how REGENT staking works; docs covers the public reads, signed-in reads, agent pairing and these browser tools.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": [
+              "about",
+              "docs"
+            ],
+            "description": "about for the About page, docs for the developer documentation."
+          }
+        },
+        "required": [
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /about, GET /docs",
+      "scope": "site"
+    },
+    {
+      "name": "regents_products",
+      "title": "List Regents products",
+      "description": "List the products in the Regents family, in the order the site lists them: Autolaunch, Techtree and Patchbay. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /autolaunch, /techtree and /patchbay pages show; read one in full with regents_product.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/products",
+      "scope": "site"
+    },
+    {
+      "name": "regents_product",
+      "title": "Read a product",
+      "description": "Read everything one product's page on regents.sh shows: its heading, summary, what it does, who it is for, its place in the Regents family, a line to give an agent and where to start. Autolaunch also gives its two launch kinds with their figures, why its auction is fair and what to know before bidding.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "enum": [
+              "autolaunch",
+              "techtree",
+              "patchbay"
+            ]
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/products/{slug}",
+      "scope": "site"
+    },
+    {
+      "name": "regents_stake_position",
+      "title": "Read your stake",
+      "description": "Read what regents.sh/stake shows for the signed-in person's wallet: their REGENT staked, REGENT and USDC in the wallet, USDC and REGENT ready to claim, and the contract's totals (REGENT staked, USDC received in the last seven days and in all, supply and emission rate). Figures are Base readings with the block each was read at; amounts are exact decimal strings, and a figure that could not be read says unavailable. Needs the person to be signed in on regents.sh; it never opens a wallet.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "session",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/staking/position",
+      "scope": "site"
+    },
+    {
+      "name": "regents_claims",
+      "title": "Read your name claims",
+      "description": "Read the signed-in person's historical Regent name claims, oldest record first: each claim's recorded name, owner wallet, status, transaction evidence and times. Pass next back as after for the following page; stop when next is null. It never mints a name, assigns an ENS name or changes ownership. Needs the person to be signed in on regents.sh.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "description": "The next value from the previous page, unchanged."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "session",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/claims",
+      "scope": "site"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "info": {
     "title": "Regents public API",
     "version": "1.0.0",
-    "description": "Public service health, owner-authorized historical name reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs.",
+    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs.",
     "contact": {
       "name": "Regents Labs"
     }
@@ -23,6 +23,89 @@
                 "schema": {
                   "type": "string",
                   "const": "ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "listProducts",
+        "summary": "List the Regents products",
+        "description": "Autolaunch, Techtree and Patchbay, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
+        "responses": {
+          "200": {
+            "description": "The product directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter was sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/{slug}": {
+      "get": {
+        "operationId": "getProduct",
+        "summary": "Read one product",
+        "description": "Everything the product's page on Regents shows.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "autolaunch",
+                "techtree",
+                "patchbay"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter was sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No product has this slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductError"
                 }
               }
             }
@@ -120,6 +203,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/staking/position": {
+      "get": {
+        "operationId": "getMyStakingPosition",
+        "summary": "Read what Stake shows for the verified sign-in's wallet",
+        "description": "The shared contract reading beside a fresh reading of the wallet on the verified sign-in. Both Privy credentials are required; the wallet is never chosen by the caller. Responses use Cache-Control: no-store. Never opens a wallet or prepares a transaction.",
+        "security": [
+          {
+            "PrivyAccessToken": [],
+            "PrivyIdentityToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Privy-User-Id",
+            "in": "header",
+            "required": false,
+            "description": "If supplied, must exactly match the verified account subject.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The position",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingPosition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter was sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The sign-in has no wallet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Base has not answered yet, or sign-in checks are not set up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingError"
                 }
               }
             }
@@ -526,6 +685,388 @@
                   "verification_failed",
                   "rate_limited",
                   "not_paired"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ProductSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slug",
+          "name",
+          "summary",
+          "site",
+          "page",
+          "github"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "enum": [
+              "autolaunch",
+              "techtree",
+              "patchbay"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "site": {
+            "type": "string",
+            "format": "uri",
+            "description": "The product's own website."
+          },
+          "page": {
+            "type": "string",
+            "format": "uri",
+            "description": "The product's page on Regents."
+          },
+          "github": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "ProductList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "products"
+        ],
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductSummary"
+            }
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Everything the product's page on Regents shows. Techtree and Patchbay carry what_it_does and about; Autolaunch carries launches, why_fair and before_you_bid.",
+        "required": [
+          "slug",
+          "name",
+          "domain",
+          "site",
+          "page",
+          "github",
+          "kicker",
+          "headline",
+          "summary",
+          "audience",
+          "family",
+          "agent_line",
+          "start"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "enum": [
+              "autolaunch",
+              "techtree",
+              "patchbay"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "site": {
+            "type": "string",
+            "format": "uri"
+          },
+          "page": {
+            "type": "string",
+            "format": "uri"
+          },
+          "github": {
+            "type": "string",
+            "format": "uri"
+          },
+          "kicker": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "what_it_does": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "copy"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "copy": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "about": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "launches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kicker",
+                "title",
+                "copy",
+                "facts"
+              ],
+              "properties": {
+                "kicker": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "copy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "facts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "why_fair": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "copy"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "copy": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "before_you_bid": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audience": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "family": {
+            "type": "string"
+          },
+          "agent_line": {
+            "type": "string",
+            "description": "A line to give an agent."
+          },
+          "start": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "href"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      },
+      "ProductEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product"
+        ],
+        "properties": {
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          }
+        }
+      },
+      "ProductError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "product_not_found",
+                  "invalid_query"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "StakingPosition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position"
+        ],
+        "properties": {
+          "position": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The contract reading and the wallet reading the Stake page shows, merged. Amounts are exact decimal strings, and each has a _raw companion in base units. block_number belongs to the contract figures and wallet_block_number to the wallet's. A figure that could not be read is the string unavailable.",
+            "properties": {
+              "chain_id": {},
+              "chain_label": {},
+              "block_number": {},
+              "block_hash": {},
+              "read_at": {},
+              "contract_address": {},
+              "stake_token_address": {},
+              "usdc_address": {},
+              "paused": {},
+              "total_staked_raw": {},
+              "total_staked": {},
+              "remaining_capacity_raw": {},
+              "usdc_received_from_block": {},
+              "usdc_received_7d_raw": {},
+              "usdc_received_7d": {},
+              "usdc_received_lifetime_raw": {},
+              "usdc_received_lifetime": {},
+              "regent_total_supply_raw": {},
+              "regent_total_supply": {},
+              "regent_circulating_supply_raw": {},
+              "regent_circulating_supply": {},
+              "clanker_vault_address": {},
+              "clanker_vault_held_raw": {},
+              "clanker_vault_held": {},
+              "clanker_vault_locked_until": {},
+              "clanker_vault_vested_by": {},
+              "treasury_address": {},
+              "treasury_held_raw": {},
+              "treasury_held": {},
+              "animata_redeemer_address": {},
+              "animata_redeemer_held_raw": {},
+              "animata_redeemer_held": {},
+              "reward_inventory_raw": {},
+              "reward_inventory": {},
+              "regent_price_usd": {},
+              "emission_apr_bps": {},
+              "emission_apr_percent": {},
+              "wallet_block_number": {},
+              "wallet_block_hash": {},
+              "wallet_address": {},
+              "wallet_token_balance_raw": {},
+              "wallet_token_balance": {},
+              "wallet_usdc_balance_raw": {},
+              "wallet_usdc_balance": {},
+              "wallet_stake_allowance_raw": {},
+              "wallet_stake_balance_raw": {},
+              "wallet_stake_balance": {},
+              "wallet_claimable_usdc_raw": {},
+              "wallet_claimable_usdc": {},
+              "wallet_claimable_regent_raw": {},
+              "wallet_claimable_regent": {},
+              "wallet_funded_claimable_regent_raw": {},
+              "wallet_funded_claimable_regent": {}
+            }
+          }
+        }
+      },
+      "StakingError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_query",
+                  "wallet_required",
+                  "authentication_required",
+                  "staking_unconfigured",
+                  "staking_unavailable"
                 ]
               },
               "message": {
