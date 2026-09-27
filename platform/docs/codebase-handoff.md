@@ -30,8 +30,8 @@ Base (chain 8453) for every on-chain figure.
 ## 2. Environment
 
 - Application root: `/Users/sean/Documents/regent/repos/regents/platform`.
-- Set `REGENT_DEPS_ROOT` to the selected shared repository root; package paths and
-  component checks are documented in the current README and `mix.exs`.
+- Shared libraries are git pins at the top of `mix.exs`; component checks are
+  documented in the current README.
 - Follow the workspace `regent-workflow`. Use ordinary Git worktrees for concurrent
   writers, unique ports and disposable test databases. Historical ticket paths and
   reserved-port lists are no longer current assignments.
@@ -139,23 +139,19 @@ Afterwards restore with `mix phx.digest.clean --all && mix assets.build`.
 ## 5. Releasing to production
 
 `fly.toml` **has no `app` field**, so `-a regents-sh-web` is mandatory on every fly
-command, and the file is not copied into the build context by the context script —
-copy it in by hand.
+command. The build context is the repository at the pushed commit; the build fetches
+the pinned shared libraries from GitHub.
 
 ```bash
-scripts/build-release-context.sh <context-dir> amd64
-cp fly.toml <context-dir>/fly.toml
+mkdir <context-dir> && git archive <sha> | tar -x -C <context-dir>
 cd <context-dir>
-fly deploy -a regents-sh-web --build-only --push --remote-only --image-label main-<sha>
-fly deploy -a regents-sh-web --image registry.fly.io/regents-sh-web:main-<sha>
+cp platform/Dockerfile Dockerfile && cp platform/Dockerfile.dockerignore .dockerignore
+fly deploy . -a regents-sh-web -c platform/fly.toml --build-only --push --remote-only --image-label main-<sha12>
+fly deploy -a regents-sh-web -c platform/fly.toml --image registry.fly.io/regents-sh-web:main-<sha12> --ha=false
 ```
 
 The release runs `/app/bin/migrate` before boot, so any migration you add ships and
 runs automatically.
-
-**Known debt:** the sealed offline supply is pinned to the lockfile from 2026-08-12
-and has drifted, so the context script's lockfile checks refuse the current lockfiles
-until the supply is resealed. Reseal it rather than working around the checks.
 
 **Verify live in a real browser, not by trusting the deploy output.** The in-app
 browser pane reports `document.hidden === true`, so animation and WebGPU look dead in
@@ -215,7 +211,7 @@ here. The empty `regents_app.comments` table was dropped on 2026-09-19. Read-onl
 `/autolaunch`, `/techtree` and `/patchbay` information pages are briefed in the
 workspace `docs/backlogs/regents.md`.
 
-**Other open work:** reseal the release supply; a common-sense audit of every
+**Other open work:** a common-sense audit of every
 interaction; a stray "Missed 1 notifications" warning from
 `SessionAuthority.bind/revoke`.
 

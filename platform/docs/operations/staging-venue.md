@@ -90,29 +90,19 @@ The staging app has no image in its registry until something pushes one, so the
 bootstrap cannot run before the first build. Build once, then reuse that exact
 digest for both the bootstrap machine and the deploy.
 
-The image is built here, offline, and pushed by hand. Fly's remote builder is not
-used: it fetches from the network during the build, which is exactly what this
-repository's sealed supply exists to avoid, and it archives its own view of the
-build context rather than the one `Dockerfile.dockerignore` describes.
-
-The sealed build resolves nothing over the network, so it only completes on a
-machine that already holds the four pinned base images and the app stage's
-`apt-get` layer. Warm a cold machine by running the same build once online —
-`docker build --platform linux/amd64 -f <context>/Dockerfile -t warm <context>` —
-and then run the sealed build, which reuses what that left in the daemon's store.
-The assembly script leaves out env-shaped files itself and refuses to publish a
-context that holds one. Still list the context before an upload: the script can
-vouch for it only up to the moment it hands it over, never for anything that
-lands in it afterwards.
+The build context is the repository at the candidate commit, exported with
+`git archive`, so it holds only committed files. The build fetches Hex and npm
+packages and the pinned shared libraries from GitHub.
 
 ```sh
-# 1. Assemble the sealed build context. It nests this checkout under
-#    <context>/ash-platform, so no command below runs from the context root.
-scripts/build-release-context.sh <context> amd64
+# 1. Export the candidate commit and put the Dockerfile and its ignore rules at
+#    the context root.
+mkdir <context> && git archive <candidate-sha> | tar -x -C <context>
+cp <context>/platform/Dockerfile <context>/Dockerfile
+cp <context>/platform/Dockerfile.dockerignore <context>/.dockerignore
 
-# 2. Build it locally and offline, the command the script itself prints, tagged
-#    for the staging registry with the candidate's commit sha. Any directory.
-docker build --network=none --pull=false --platform linux/amd64 \
+# 2. Build it for the staging registry, tagged with the candidate's commit sha.
+docker build --platform linux/amd64 \
   -f <context>/Dockerfile -t registry.fly.io/regents-staging:<candidate-sha> <context>
 
 # 3. Push it, then read back the digest the registry assigned. That digest, not
@@ -208,8 +198,8 @@ The deployment role itself is not a secret on staging: `fly.staging.toml` carrie
 
 ## Deploying a candidate
 
-There is one deploy procedure, in [First deploy](#first-deploy): assemble the
-context, build it locally and offline, push it, and deploy that digest with
+There is one deploy procedure, in [First deploy](#first-deploy): export the
+context, build it, push it, and deploy that digest with
 `--image`. A later deploy is those steps with the bootstrap left out — the
 database already exists — and nothing else differs.
 
@@ -256,7 +246,7 @@ The database it reads is production's exact target,
 database `regents_prod`, schema `regents_app`.
 
 With both preconditions recorded, promote from the repository root, where
-`fly.toml` is. `--image` builds nothing, so the assembled context plays no part.
+`fly.toml` is. `--image` builds nothing, so the exported context plays no part.
 **Founder.** This is a production deploy, his the same way step 7 of
 [Creating the venue](#creating-the-venue) is:
 

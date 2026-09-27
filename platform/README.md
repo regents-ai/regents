@@ -18,24 +18,15 @@ monorepo, not in this app.
 
 ## Shared dependencies
 
-From a directory containing sibling product repositories, acquire the shared libraries:
-
-```sh
-git clone https://github.com/regents-ai/design-system.git
-git clone https://github.com/regents-ai/elixir-utils.git
-```
-
-The expected layout is `<workspace>/<product>/platform`,
-`<workspace>/design-system/regent_ui` and `<workspace>/elixir-utils/`.
-From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
-it is elsewhere. Record both shared repository commit IDs with check results;
-release builds and isolated agent worktrees must use their selected immutable
-revisions, rather than updating sibling checkouts during verification.
+The shared libraries from design-system and elixir-utils are git dependencies,
+each pinned to one commit at the top of `mix.exs`; `mix deps.get` fetches them.
+To move a pin, change its ref and run `mix deps.update <name>`.
+`regent_identity` comes from this repository's own `identity/` folder.
 Do not clone recursive Solidity submodules for a web-only change.
 
 ## Quickstart
 
-Run these commands from `platform/` after acquiring the shared dependencies.
+Run these commands from `platform/`.
 You need Erlang, Elixir, Node, and PostgreSQL at the versions pinned in `.tool-versions`.
 
 ```bash
@@ -128,7 +119,8 @@ rel/                    Release overlays, including the migrate command
 ## Checks
 
 The full platform gate is `make check-platform`, run from the repository root with
-`REGENT_DEPS_ROOT` and `MIX_TEST_PARTITION` set. For focused changes, run the checks that
+`MIX_TEST_PARTITION` set. `make check-required-fixes` confirms every shared library is
+pinned and carries each required fix. For focused changes, run the checks that
 exercise the changed behavior; retain the full gate for protected changes.
 
 It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck and the Vitest unit suite. `mix precommit`
@@ -184,9 +176,7 @@ the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 
-Resolve `REGENT_IDENTITY_PATH`, `REGENT_PRIVY_PATH` and `REGENT_UI_PATH` to the
-recorded dependency snapshots for isolated work. Run `mix assets.build` after
-changing a shared package. All deployments must use one Privy application and
+Run `mix assets.build` after moving a shared library pin. All deployments must use one Privy application and
 one PostgreSQL destination before profiles can be shared between sites.
 Regents owns the explicit identity migration; consumers do not run it on startup.
 Do not repoint existing databases or replay migration histories: legacy identity

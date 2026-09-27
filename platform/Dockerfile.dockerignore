@@ -2,7 +2,6 @@
 !platform/assets/**
 !platform/config/**
 !platform/contracts/**
-!platform/deps/**
 !platform/lib/**
 !platform/priv/**
 !platform/rel/**
@@ -10,51 +9,12 @@
 !platform/mix.lock
 !platform/package.json
 !platform/package-lock.json
-# The RegentUI source enters as narrowly as the build uses it: the project file
-# and modules Mix compiles, and the stylesheets, scripts and fonts that
-# mix regent_ui.assets copies. Its own tests, lockfile and tooling files are not
-# build inputs and stay out.
-!design-system/regent_ui/mix.exs
-!design-system/regent_ui/lib/**
-!design-system/regent_ui/assets/css/**
-!design-system/regent_ui/assets/js/**
-!design-system/regent_ui/priv/static/fonts/**
-!elixir-utils/privy/**
-!elixir-utils/blog/mix.exs
-!elixir-utils/blog/lib/**
-!elixir-utils/blog/priv/**
-!elixir-utils/agent_access/mix.exs
-!elixir-utils/agent_access/lib/**
-!elixir-utils/ens/mix.exs
-!elixir-utils/ens/lib/**
-!elixir-utils/format/mix.exs
-!elixir-utils/format/lib/**
-!elixir-utils/siwa/siwa-elixir/apps/siwa/mix.exs
-!elixir-utils/siwa/siwa-elixir/apps/siwa/lib/**
 !blog/**
-!mix-cache/**
-!npm-cache/**
-!rustler-precompiled/**
-!esbuild-linux-arm64
-!esbuild-linux-x64
-
-# Dependencies enter as source. A dependency's priv carries compiler output,
-# including extensionless host binaries. Two subtrees under it are shipped
-# source rather than output: priv/static holds the JavaScript clients the
-# asset build resolves through package main entries, and priv/templates is
-# where Phoenix copies its generator templates during its own compile.
-platform/deps/**/priv/**
-!platform/deps/**/priv/static/**
-!platform/deps/**/priv/templates/**
+!identity/**
+identity/_build/
+identity/deps/
 
 # The copied source trees must never carry runtime environment files.
 **/.env
 **/.env.*
 **/.envrc
-
-!regents/
-!regents/identity/
-!regents/identity/**
-regents/identity/**/.env*
-regents/identity/**/_build/
-regents/identity/**/deps/

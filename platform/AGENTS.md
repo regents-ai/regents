@@ -7,4 +7,4 @@ root `contracts/`. Keep internal OTP/release names stable during layout changes.
 
 Follow the root instructions and the workspace's `regent-workflow`. Use the
 assignment's acceptance and applicable focused checks. Browser fixtures belong to
-the prepared local database. Shared dependencies resolve through `REGENT_DEPS_ROOT`.
+the prepared local database. Shared libraries are git pins in `mix.exs`.

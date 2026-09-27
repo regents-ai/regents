@@ -117,9 +117,8 @@ Ash action with an in-memory data layer.
 
 ## Run in an isolated worktree
 
-Give the worktree its own `MIX_TEST_PARTITION`, a unique `PORT` and, when the shared
-repositories are elsewhere, `REGENT_DEPS_ROOT`, so Mix uses the pinned shared
-dependencies, a unique local database and port. Install locked Mix and npm
+Give the worktree its own `MIX_TEST_PARTITION` and a unique `PORT`, so it uses a
+unique local database and port. Install locked Mix and npm
 dependencies, then run `mix assets.build`.
 
 A prepared test database can be created with `MIX_ENV=test mix ecto.create`. This

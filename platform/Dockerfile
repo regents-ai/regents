@@ -8,16 +8,13 @@ FROM native AS assets
 ENV npm_config_nodedir=/usr/local
 WORKDIR /workspace/platform
 COPY --from=node /usr/local /usr/local
-COPY npm-cache/_cacache /root/.npm/_cacache
 COPY platform/package.json platform/package-lock.json ./
-RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 FROM native AS build
 
 ENV MIX_ENV=prod
-ENV REGENT_DEPS_ROOT=/workspace
 ENV HOME=/root
-ENV RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=/workspace/rustler-precompiled
 WORKDIR /workspace/platform
 
 COPY --from=elixir /usr/local /usr/local
@@ -25,22 +22,11 @@ COPY --from=assets /usr/local/bin/node /usr/local/bin/node
 COPY --from=assets /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
-COPY mix-cache /root/.mix
-COPY rustler-precompiled /workspace/rustler-precompiled
-# The context carries exactly one bundler executable, the one for the target
-# it was assembled for, and Mix looks it up by that architecture-specific name.
-COPY esbuild-linux-* _build/
-COPY platform/deps deps
+# Shared Regent libraries arrive here from GitHub at the commits mix.lock pins.
+RUN mix local.hex --force && mix local.rebar --force
 COPY platform/mix.exs platform/mix.lock ./
-COPY elixir-utils/privy /workspace/elixir-utils/privy
-COPY elixir-utils/blog /workspace/elixir-utils/blog
-COPY elixir-utils/agent_access /workspace/elixir-utils/agent_access
-COPY elixir-utils/ens /workspace/elixir-utils/ens
-COPY elixir-utils/format /workspace/elixir-utils/format
-COPY elixir-utils/chain /workspace/elixir-utils/chain
-COPY elixir-utils/siwa/siwa-elixir/apps/siwa /workspace/elixir-utils/siwa/siwa-elixir/apps/siwa
-COPY regents/identity /workspace/regents/identity
-COPY design-system/regent_ui /workspace/design-system/regent_ui
+COPY identity /workspace/identity
+RUN mix deps.get --only prod
 COPY platform/config config
 RUN mix deps.compile
 

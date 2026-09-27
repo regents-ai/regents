@@ -50,12 +50,12 @@ change cache lifetimes or disable transaction presses.
 
 ## Local build
 
-Run from `platform/`, with explicit dependencies:
+Run from `platform/`:
 
 ```sh
-env REGENT_DEPS_ROOT=/Users/sean/Documents/regent/repos MIX_ENV=dev mix compile --warnings-as-errors
-env REGENT_DEPS_ROOT=/Users/sean/Documents/regent/repos MIX_ENV=dev mix assets.build
-env REGENT_DEPS_ROOT=/Users/sean/Documents/regent/repos MIX_ENV=dev npm run typecheck
+MIX_ENV=dev mix compile --warnings-as-errors
+MIX_ENV=dev mix assets.build
+MIX_ENV=dev npm run typecheck
 ```
 
 The existing asset alias stages `regent_ui` and identity assets before esbuild.

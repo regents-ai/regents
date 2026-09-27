@@ -9,10 +9,11 @@ the separate regents-cli repository.
   product. Read its README before changing sync, actor or ownership rules.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
   OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
-- Shared UI and Elixir libraries other than `identity/` remain separate siblings.
-- `make check` runs every component gate; `make check-platform`, `check-identity` and
-  `check-contracts` run one. `REGENT_DEPS_ROOT` (the shared library root) and
-  `MIX_TEST_PARTITION` (an underscore and a short id, unique to your working tree) are required.
+- Shared UI and Elixir libraries other than `identity/` come from GitHub, each pinned to
+  one commit in `platform/mix.exs`.
+- `make check` runs every component gate; `make check-platform`, `check-required-fixes`,
+  `check-identity` and `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
+  a short id, unique to your working tree) is required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.
 - Preserve uncommitted work, public command/API shapes and protected source evidence.

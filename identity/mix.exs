@@ -1,9 +1,11 @@
 defmodule RegentIdentity.MixProject do
   use Mix.Project
 
-  def project do
-    shared = System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__))
+  # regent_privy, pinned to the same published elixir-utils commit as the site.
+  @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
+  @elixir_utils_ref "b8691b1ae91797f9acd5b2c9f6aa392d111cbd54"
 
+  def project do
     [
       app: :regent_identity,
       version: "0.1.0",
@@ -14,8 +16,7 @@ defmodule RegentIdentity.MixProject do
         {:ash_postgres, "~> 2.13"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},
-        {:regent_privy,
-         path: System.get_env("REGENT_PRIVY_PATH", Path.join(shared, "elixir-utils/privy"))}
+        {:regent_privy, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy"}
       ],
       aliases: [check: ["compile --warnings-as-errors", "format --check-formatted", "test"]]
     ]
