@@ -33,15 +33,12 @@
   .rl-token-menu :is(summary, a, button):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 
   /* The $REGENT heading doubles as the copy-the-contract-address control. */
-  .rl-token-copy { position: relative; display: flex; align-items: center; gap: .4rem; width: 100%; padding: .5rem .625rem; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-family-title); text-align: start; cursor: pointer; }
+  .rl-token-copy { display: flex; justify-content: flex-start; width: 100%; min-height: 0; padding: .5rem .625rem; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-family-title); text-align: start; cursor: pointer; }
+  .rl-token-copy .rg-copy__idle { display: inline-flex; align-items: center; gap: .4rem; }
+  .rl-token-copy .rg-copy__copied { color: var(--color-success); }
   .rl-token-copy__icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
-  .rl-token-copy:hover .rl-token-copy__icon, .rl-token-copy.is-copied .rl-token-copy__icon { opacity: 1; }
+  .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
-  .rl-token-copy__glyph { display: inline-flex; }
-  .rl-token-copy__glyph[hidden] { display: none; }
-  .rl-token-copy__glyph--check { color: var(--color-success); }
-  .rl-token-copy__toast { margin-inline-start: auto; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; pointer-events: none; white-space: nowrap; }
-  .rl-token-copy.is-copied .rl-token-copy__toast { opacity: 1; }
   .rl-hero { min-width: 0; }
   .rl-hero-stage {
     position: relative; isolation: isolate; min-width: 0;

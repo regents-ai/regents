@@ -29,28 +29,18 @@ defmodule AshPlatformWeb.Components.RegentLinks do
       </summary>
       <div class="rl-token-menu-panel" data-panel="menu">
         <nav class="rl-token-menu-content" aria-label="$REGENT">
-          <button
-            type="button"
+          <Regent.Primitives.copy_button
+            id={"#{@id}-copy"}
+            text={TokenLinks.address()}
+            variant="quiet"
             class="rl-token-copy"
-            data-token-copy
-            data-copy-address={TokenLinks.address()}
             aria-label="Copy $REGENT contract address"
           >
             <span class="rl-token-copy__label">$REGENT</span>
             <span class="rl-token-copy__icon" aria-hidden="true">
-              <span class="rl-token-copy__glyph" data-copy-glyph>
-                <.source_icon kind={:copy} />
-              </span>
-              <span
-                class="rl-token-copy__glyph rl-token-copy__glyph--check"
-                data-check-glyph
-                hidden
-              >
-                <.source_icon kind={:check} />
-              </span>
+              <.source_icon kind={:copy} />
             </span>
-            <span class="rl-token-copy__toast" data-copy-toast role="status" aria-live="polite"></span>
-          </button>
+          </Regent.Primitives.copy_button>
           <a
             class="rg-button rl-token-link"
             href={TokenLinks.buy()}
@@ -113,14 +103,6 @@ defmodule AshPlatformWeb.Components.RegentLinks do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" />
-    </svg>
-    """
-  end
-
-  def source_icon(%{kind: :check} = assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
     </svg>
     """
   end
