@@ -230,7 +230,7 @@ defmodule AshPlatformWeb.RedeemLive do
                   {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
                 </h2>
               </div>
-              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_wallet(
+              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_address(
                 @wallet
               )}</span>
             </div>

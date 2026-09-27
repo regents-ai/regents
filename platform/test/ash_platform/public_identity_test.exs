@@ -22,7 +22,7 @@ defmodule AshPlatform.PublicIdentityTest do
              | display_name: nil,
                regent_nameclaim: nil,
                ens_name: nil
-           }) == "0x1111…a1b2"
+           }) == "0x1111..a1b2"
   end
 
   test "wallet avatars are local, deterministic, and address-specific" do

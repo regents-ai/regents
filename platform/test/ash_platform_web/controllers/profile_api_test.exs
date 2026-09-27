@@ -76,7 +76,8 @@ defmodule AshPlatformWeb.ProfileApiTest do
       %{
         type: "wallet",
         chain_type: "ethereum",
-        address: "0x1111111111111111111111111111111111111111"
+        address: "0x1111111111111111111111111111111111111111",
+        lv: 1
       },
       %{type: "twitter_oauth", subject: "x-#{subject}", username: subject}
     ]

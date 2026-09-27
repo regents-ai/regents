@@ -71,10 +71,10 @@ defmodule AshPlatform.TestStakingChainClient do
   # A sent step is on this stand-in chain once a test names it: a hash with no
   # transaction is still waiting, and one with no receipt has not landed yet.
   @impl true
-  def transaction(hash), do: sent(:test_staking_transactions, hash)
+  def transaction(_chain, hash), do: sent(:test_staking_transactions, hash)
 
   @impl true
-  def receipt(hash), do: sent(:test_staking_receipts, hash)
+  def receipt(_chain, hash), do: sent(:test_staking_receipts, hash)
 
   defp sent(key, hash),
     do: {:ok, :ash_platform |> Application.get_env(key, %{}) |> Map.get(hash)}

@@ -217,7 +217,7 @@ test("Redeem keeps submitted results when the active wallet changes", async ({pa
 
   await selectWallet(page, otherWallet)
   await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
-  await expect(page.locator(".shell-sending-wallet").first()).toContainText("0x2222…2222")
+  await expect(page.locator(".shell-sending-wallet").first()).toContainText("0x2222..2222")
   await expect(page.getByLabel("Token ID")).toBeVisible()
   const dialog = page.locator("#redemption-result-dialog")
   await expect(dialog.getByText("The selected NFT collection was approved successfully.")).toBeVisible()
@@ -277,8 +277,8 @@ test("Redeem sends from the open wallet while the figures stay the account's", a
   await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   const note = page.locator(".shell-sending-wallet").first()
-  await expect(note).toContainText("0x2222…2222")
-  await expect(note).toContainText("0x1111…1111")
+  await expect(note).toContainText("0x2222..2222")
+  await expect(note).toContainText("0x1111..1111")
 
   await page.getByLabel("Token ID").fill("42")
   await page.locator(".redeem-next-step button").click()

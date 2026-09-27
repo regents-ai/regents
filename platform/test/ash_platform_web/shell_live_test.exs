@@ -99,7 +99,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
       |> init_test_session(%{human_account_id: account.id})
       |> live("/app")
 
-    assert has_element?(view, "#account-control [data-account-target=profile]", "0x1111…1111")
+    assert has_element?(view, "#account-control [data-account-target=profile]", "0x1111..1111")
 
     assert has_element?(
              view,
@@ -151,7 +151,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     assert_patch(view, "/stake")
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
-    assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222…2222")
+    assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222..2222")
     assert has_element?(view, "#account-control [data-account-target=sign-out]", "Disconnect")
   end
 
@@ -187,7 +187,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
       |> init_test_session(%{human_account_id: account.id})
       |> live("/app")
 
-    assert has_element?(view, "#account-control [data-account-target=profile]", "0xaaaa…0001")
+    assert has_element?(view, "#account-control [data-account-target=profile]", "0xaaaa..0001")
 
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, AshPlatform.Ens.topic(account.id))
     assert AshPlatform.Ens.refresh(account) == :started
@@ -252,7 +252,7 @@ defmodule AshPlatformWeb.ShellLiveTest do
     {view, html} = open_account(conn, account)
 
     refute html =~ "Sign in to see your account"
-    assert has_element?(view, "#account-identity h2", "0x6666…6666")
+    assert has_element?(view, "#account-identity h2", "0x6666..6666")
     assert has_element?(view, "#account-identity canvas[data-holo-canvas]")
     assert has_element?(view, ".account-details code", wallet)
     assert has_element?(view, "#account-wallet-copy[data-copy-text='#{wallet}']", "Copy")

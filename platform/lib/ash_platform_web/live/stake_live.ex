@@ -257,7 +257,7 @@ defmodule AshPlatformWeb.StakeLive do
                 </h2>
               </div>
               <span :if={@wallet} class="stake-signer" title={@wallet}>
-                <span aria-hidden="true"></span>{RegentFormat.short_wallet(@wallet)}
+                <span aria-hidden="true"></span>{RegentFormat.short_address(@wallet)}
               </span>
             </div>
 
@@ -955,9 +955,9 @@ defmodule AshPlatformWeb.StakeLive do
   defp signer_note(assigns) do
     ~H"""
     <p :if={@sender && @signer} class="shell-sending-wallet" role="note">
-      Your wallet app has <span>{RegentFormat.short_wallet(@sender)}</span>
+      Your wallet app has <span>{RegentFormat.short_address(@sender)}</span>
       selected,
-      which isn't linked to your account. Switch to <span>{RegentFormat.short_wallet(@signer)}</span>
+      which isn't linked to your account. Switch to <span>{RegentFormat.short_address(@signer)}</span>
       or another wallet on your account first.
     </p>
     """

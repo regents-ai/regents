@@ -224,7 +224,10 @@ defmodule AshPlatformWeb.RegentOpsLive do
               <div>
                 <p class="regent-ops-kicker">Active Regent identity</p>
                 <h3>{@account_control.label}</h3>
-                <p class="regent-ops-wallet">{short_wallet(@account && @account.wallet_address)}</p>
+                <p class="regent-ops-wallet">
+                  {RegentFormat.short_address(@account && @account.wallet_address) ||
+                    "No verified wallet"}
+                </p>
               </div>
 
               <Loading.panel
@@ -293,6 +296,4 @@ defmodule AshPlatformWeb.RegentOpsLive do
     </a>
     """
   end
-
-  defp short_wallet(wallet), do: RegentFormat.short_wallet(wallet) || "No verified wallet"
 end

@@ -69,7 +69,7 @@ defmodule AshPlatformWeb.RegentProfileLiveTest do
              ~s(img[src="https://images.regents.sh/projection-atlas.png"])
            )
 
-    assert has_element?(view, ~s(code[title="#{wallet}"]), "0x2222…2222")
+    assert has_element?(view, ~s(code[title="#{wallet}"]), "0x2222..2222")
     refute html =~ account.privy_user_id
     refute html =~ runtime.provider_sprite_id
     refute html =~ runtime.url

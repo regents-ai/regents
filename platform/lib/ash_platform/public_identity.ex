@@ -15,7 +15,7 @@ defmodule AshPlatform.PublicIdentity do
     |> preferred_labels()
     |> Enum.find_value(&present/1)
     |> case do
-      nil -> short_wallet(Map.get(identity, :wallet_address))
+      nil -> RegentFormat.short_address(Map.get(identity, :wallet_address)) || "Account"
       label -> label
     end
   end
@@ -54,14 +54,6 @@ defmodule AshPlatform.PublicIdentity do
   end
 
   defp present(_value), do: nil
-
-  def short_wallet(<<"0x", hex::binary-size(40)>> = wallet) do
-    if String.match?(hex, ~r/\A[0-9a-fA-F]{40}\z/),
-      do: RegentFormat.short_wallet(wallet),
-      else: "Account"
-  end
-
-  def short_wallet(_wallet), do: "Account"
 
   defp normalize_wallet(wallet) when is_binary(wallet) do
     wallet = String.trim(wallet)

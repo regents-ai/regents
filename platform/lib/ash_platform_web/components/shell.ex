@@ -224,8 +224,8 @@ defmodule AshPlatformWeb.Components.Shell do
   def sending_wallet_note(assigns) do
     ~H"""
     <p :if={@sender} class="shell-sending-wallet" role="note">
-      Buttons here send from <span>{RegentFormat.short_wallet(@sender)}</span>, the wallet open in your wallet app.
-      The figures are for <span>{RegentFormat.short_wallet(@shown)}</span>, the wallet you signed in with.
+      Buttons here send from <span>{RegentFormat.short_address(@sender)}</span>, the wallet open in your wallet app.
+      The figures are for <span>{RegentFormat.short_address(@shown)}</span>, the wallet you signed in with.
     </p>
     """
   end
