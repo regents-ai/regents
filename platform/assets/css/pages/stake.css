@@ -873,7 +873,7 @@
 .stake-recipient [hidden],
 .stake-recipient .stake-check[hidden],
 .stake-recipient[hidden],
-.stake-page[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
+.stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
   display: none;
 }
 

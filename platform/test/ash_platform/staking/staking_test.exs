@@ -30,12 +30,6 @@ defmodule AshPlatform.StakingTest do
       end
     end
 
-    @impl true
-    def transaction(_chain, _hash), do: {:ok, nil}
-
-    @impl true
-    def receipt(_chain, _hash), do: {:ok, nil}
-
     defp protocol do
       %{
         chain_id: 8453,
@@ -244,8 +238,7 @@ defmodule AshPlatform.StakingTest do
 
   defp step_names(reading, action \\ "stake") do
     form = %{action: action, amount: "1", for_other: false, receiver: "", acknowledged: nil}
-    %{steps: steps} = Steps.review("regent-staking", @wallet, reading, form)
-    Enum.map(steps, & &1.step)
+    @wallet |> Steps.steps(reading, form) |> Enum.map(& &1.step)
   end
 
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)

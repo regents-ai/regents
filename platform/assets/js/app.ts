@@ -27,10 +27,10 @@ import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
+import {OnchainSteps} from "./hooks/onchain_steps"
 import {mountMotion} from "./motion"
 import {installCopyButtons} from "./copy_buttons"
 import {installPublicTools} from "./public_tools"
-import {StakeSteps} from "./hooks/stake_steps"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
@@ -322,9 +322,9 @@ const hooks = {
   MotionCount,
   MotionList,
   MotionTabs,
+  OnchainSteps,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   RedemptionWallet,
-  StakeSteps,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

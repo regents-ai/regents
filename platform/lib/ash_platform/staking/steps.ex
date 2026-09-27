@@ -37,32 +37,24 @@ defmodule AshPlatform.Staking.Steps do
   def __after_compile__(_env, _bytecode),
     do: Enum.each(Map.values(@calls), &Abi.declared!(@abi, "function", &1))
 
+  @doc "Base, as the wallet is asked to switch to it."
+  def chain, do: @base
+
   @doc """
-  The review for `signer` from the form on screen: the chosen action, the
-  amount as typed, and whether the stake goes to another address. The review
-  carries those inputs back, so the page can tell a press made before its
-  review caught up with what was typed.
+  The steps for `signer` from the form on screen: the chosen action, the amount
+  as typed, and whether the stake goes to another address. The claims are
+  always there.
   """
-  def review(component_id, signer, staking, form) do
-    steps =
+  def steps(signer, staking, form) do
+    action_steps =
       case {Actions.parse_amount(form.amount), form.action} do
         {{:ok, amount}, "stake"} -> stake_steps(signer, staking, amount, form)
         {{:ok, amount}, "unstake"} -> [step("unstake", [amount, signer])]
         _no_amount -> []
       end
 
-    component_id
-    |> Review.new(signer, @base, steps ++ claim_steps(signer))
-    |> Map.put(:inputs, %{
-      action: form.action,
-      amount: form.amount,
-      for_other: form.for_other,
-      receiver: form.receiver,
-      acknowledged: acknowledged?(form)
-    })
+    action_steps ++ claim_steps(signer)
   end
-
-  def find(%{steps: steps}, name), do: Enum.find(steps, &(&1.step == name))
 
   @doc """
   Where a stake goes: the signer's own position, or another address that is

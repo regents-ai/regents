@@ -26,7 +26,7 @@ defmodule AshPlatform.Staking.StepsTest do
   defp reading(allowance, wallet \\ @signer),
     do: %{wallet_address: wallet, wallet_stake_allowance_raw: allowance}
 
-  defp steps(staking, form), do: Steps.review("regent-staking", @signer, staking, form).steps
+  defp steps(staking, form), do: Steps.steps(@signer, staking, form)
 
   defp names(staking, form), do: Enum.map(steps(staking, form), & &1.step)
 
@@ -103,20 +103,5 @@ defmodule AshPlatform.Staking.StepsTest do
     end
 
     assert Steps.receiver(form()) == {:ok, :signer}
-  end
-
-  test "the review carries the form it was built from" do
-    review = Steps.review("regent-staking", @signer, nil, form(%{amount: "2"}))
-
-    assert review.inputs == %{
-             action: "stake",
-             amount: "2",
-             for_other: false,
-             receiver: "",
-             acknowledged: false
-           }
-
-    assert review.chain.chain_id == 8453
-    assert review.signer == @signer
   end
 end
