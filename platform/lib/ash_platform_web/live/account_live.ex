@@ -79,15 +79,12 @@ defmodule AshPlatformWeb.AccountLive do
               <dt>Wallet</dt>
               <dd :if={@account.wallet_address} class="account-wallet">
                 <code>{@account.wallet_address}</code>
-                <Regent.Primitives.button
+                <Regent.Primitives.copy_button
                   id="account-wallet-copy"
-                  type="button"
-                  variant="secondary"
-                  phx-hook="CopyText"
-                  data-copy-text={@account.wallet_address}
+                  text={@account.wallet_address}
                 >
                   Copy
-                </Regent.Primitives.button>
+                </Regent.Primitives.copy_button>
               </dd>
               <dd :if={is_nil(@account.wallet_address)}>No wallet linked</dd>
             </div>

@@ -20,7 +20,6 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
-import {CopyText} from "./hooks/copy_text"
 import {HolographicCard} from "./hooks/holographic_card"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
@@ -29,6 +28,7 @@ import {MotionCount, MotionList} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {mountMotion} from "./motion"
+import {installCopyButtons} from "./copy_buttons"
 import {installPublicTools} from "./public_tools"
 import {StakeSteps} from "./hooks/stake_steps"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
@@ -314,7 +314,6 @@ const showcaseHooks = window.location.pathname.startsWith("/showcase")
 const hooks = {
   ...showcaseHooks,
   ...colocatedHooks,
-  CopyText,
   HolographicCard,
   HomePrism,
   HomeTokenMenu,
@@ -349,5 +348,6 @@ liveSocket.connect()
 installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
+installCopyButtons()
 mountMotion(document)
 window.liveSocket = liveSocket

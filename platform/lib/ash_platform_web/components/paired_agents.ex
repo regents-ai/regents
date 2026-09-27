@@ -156,14 +156,9 @@ defmodule AshPlatformWeb.Components.PairedAgents do
         <li>Your agent appears here once it pairs. This page updates on its own.</li>
       </ol>
       <pre><code>{@message}</code></pre>
-      <Regent.Primitives.button
-        id="account-agents-copy"
-        type="button"
-        phx-hook="CopyText"
-        data-copy-text={@message}
-      >
+      <Regent.Primitives.copy_button id="account-agents-copy" text={@message} variant="primary">
         Copy message
-      </Regent.Primitives.button>
+      </Regent.Primitives.copy_button>
       <p class="account-agents__expiry">
         The code works once, until <time datetime={@expires_iso}>{@expires}</time>.
       </p>
