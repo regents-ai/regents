@@ -309,7 +309,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await page.goto("/stake")
 
     await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-    await expect(page.getByText("Staking active")).toBeVisible()
+    await expect(page.locator("#staking-contract-overview")).toContainText("REGENT supply")
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
     await expect(page.locator(".stake-snapshot-note")).toContainText(

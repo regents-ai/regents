@@ -648,7 +648,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
     assert render(view) =~ @refresh_failure
 
     Application.delete_env(:ash_platform, :test_staking_wallet_error)
@@ -656,14 +656,14 @@ defmodule AshPlatformWeb.StakeLiveTest do
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
     assert render(view) =~ @refresh_failure
 
     Application.put_env(:ash_platform, :staking_chain_client, previous_client)
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
     refute render(view) =~ @refresh_failure
   end
 
@@ -675,7 +675,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
-    assert has_element?(view, ".stake-overview", "Live contract position")
+    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
 
     assert has_element?(
@@ -726,7 +726,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
     first_render = conn |> get("/stake") |> html_response(200)
     assert first_render =~ ~s(id="staking-benefits-skeleton")
     assert first_render =~ ~s(id="staking-contract-skeleton")
-    assert first_render =~ ~s(id="staking-revenue-sources")
     refute first_render =~ "Loading staking contract data"
     Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
     Application.put_env(:ash_platform, :test_staking_read_watcher, self())

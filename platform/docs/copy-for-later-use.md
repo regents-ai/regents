@@ -1,7 +1,8 @@
 # Copy for later use
 
 Founder copy removed from the public `/` homepage — sections 1-6 on 2026-08-26
-(regent-ghs.33) and section 7 on 2026-09-03 (regent-gu2.15). Nothing here is
+(regent-ghs.33) and section 7 on 2026-09-03 (regent-gu2.15); section 8 is from the `/stake` page
+(2026-09-27). Nothing here is
 rendered by the site any more. It is kept verbatim so any part of it can be restored, reused on
 another surface, or rewritten from the original wording rather than from memory.
 
@@ -312,3 +313,18 @@ wording of the same chapter.
 - Behaviour: put the instruction below on the clipboard
 - Instruction: Help me use Techtree and Autolaunch with this Hermes agent. Check which Regent tools
   and skills are available, then guide me through the next step.
+
+## 8. Stake — "Why stake" panel (to rewrite)
+
+**To do, Sean:** rewrite this panel in your own words. It was taken off `/stake` on 2026-09-27
+because every line read as AI-written. It sat in the left column below the stake and claim
+actions. The number in the second entry was the contract's live emissions APR.
+
+- Kicker: Why stake
+- Heading: One position, two reward sources
+- 01 USDC revenue rewards: Eligible USDC deposited into the contract is accounted across stakers
+  according to stake share.
+- 02 REGENT emissions: The contract currently reports a {live APR} emissions APR, subject to
+  onchain changes and available inventory.
+- 03 You stay in control: Stake, unstake, claim, or compound through the connected wallet. Every
+  transaction requires your signature.

@@ -11,7 +11,6 @@
 .stake-heading,
 .stake-overview,
 .stake-actions,
-.stake-how-it-works,
 .stake-contract-details {
   min-width: 0;
   border: 1px solid var(--ash-line);
@@ -35,9 +34,7 @@
 .stake-heading-copy > *,
 .stake-actions h2,
 .stake-actions h3,
-.stake-overview h2,
-.stake-how-it-works h2,
-.stake-how-it-works h3 {
+.stake-overview h2 {
   margin: 0;
 }
 
@@ -207,62 +204,17 @@
 }
 
 .stake-actions,
-.stake-overview,
-.stake-how-it-works {
+.stake-overview {
   padding: var(--rg-panel-padding);
 }
 
-/* Each column stacks its panels: the actions above why to stake on the left,
-   where the USDC comes from above what the contract reports on the right. */
+/* Each column stacks its panels: the actions on the left, the REGENT supply
+   on the right. */
 .stake-column {
   display: grid;
   gap: clamp(1rem, 2.4vw, 1.5rem);
   align-content: start;
   min-width: 0;
-}
-
-.stake-revenue {
-  display: grid;
-  gap: 1.25rem;
-  align-content: start;
-}
-
-/* Hairline rows: the list draws its top edge and each source draws its own
-   bottom one, so open and closed sources keep the same rhythm. */
-.stake-revenue-list {
-  border-block-start: 1px solid var(--ash-line);
-}
-
-.stake-revenue-source {
-  border-block-end: 1px solid var(--ash-line);
-}
-
-.stake-revenue-source > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 2.8rem;
-  padding-block: 0.6rem;
-  color: var(--ash-ink);
-  font-family: var(--font-family-title);
-  font-weight: 400;
-  font-size: 0.9rem;
-  list-style: none;
-  cursor: pointer;
-}
-
-.stake-revenue-source > summary::-webkit-details-marker {
-  display: none;
-}
-
-.stake-revenue-source ul {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0 0 0.9rem 1.1rem;
-  color: var(--ash-muted);
-  font-size: 0.85rem;
 }
 
 .stake-actions {
@@ -271,17 +223,14 @@
 }
 
 .stake-section-heading,
-.stake-overview-heading,
-
-.stake-section-heading h2,
-.stake-overview-heading h2 {
+.stake-section-heading h2 {
   margin-top: 0.3rem;
   font-size: clamp(1.3rem, 2.4vw, 1.85rem);
   letter-spacing: -0.02em;
 }
 
-.stake-signer,
-.stake-network {
+/* A wallet address keeps its own case: it is an identifier, not a label. */
+.stake-signer {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -289,17 +238,8 @@
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--ash-line-strong);
   color: var(--ash-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-}
-
-.stake-network { text-transform: uppercase; }
-
-/* A wallet address keeps its own case: it is an identifier, not a label. */
-.stake-signer {
   font-family: var(--font-family-mono);
-  letter-spacing: 0;
+  font-size: 0.72rem;
 }
 
 .stake-signer > span {
@@ -688,28 +628,6 @@
   gap: clamp(1.25rem, 3vw, 2.2rem);
 }
 
-.stake-contract-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  color: var(--ash-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.stake-contract-status > span {
-  width: 0.45rem;
-  height: 0.45rem;
-  background: var(--ash-accent);
-}
-
-.stake-contract-status[data-state="paused"] > span {
-  background: var(--ash-muted);
-}
-
 /* One track holds both proportions: its full width is the total supply, the
    band inside it is the circulating supply, and the fill inside that band is
    what is staked. */
@@ -752,44 +670,6 @@
 
 @keyframes stake-pulse {
   to { opacity: 0.35; }
-}
-
-/* The three reasons stack under their heading inside the left column, each
-   drawing its own top rule; only a single-column page wide enough for it puts
-   them side by side. */
-.stake-how-it-works {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-}
-
-.stake-how-it-works h2 {
-  font-size: clamp(1.3rem, 2.4vw, 1.85rem);
-  letter-spacing: -0.02em;
-}
-
-.stake-how-it-works article {
-  display: grid;
-  gap: 0.55rem;
-  align-content: start;
-  padding-top: 1rem;
-  border-top: 1px solid var(--ash-line);
-}
-
-.stake-how-it-works article > span {
-  color: var(--ash-accent-warm);
-  font-family: var(--font-family-title);
-  font-size: 0.9rem;
-}
-
-.stake-how-it-works article h3 {
-  font-size: 1.05rem;
-}
-
-.stake-how-it-works article p {
-  margin: 0;
-  color: var(--ash-muted);
-  font-size: 0.88rem;
 }
 
 .stake-contract-details summary {
@@ -954,11 +834,6 @@
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (min-width: 46.01rem) and (max-width: 64rem) {
-  .stake-how-it-works { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 3vw, 2rem); }
-  .stake-how-it-works > div { grid-column: 1 / -1; }
-}
-
 @media (max-width: 46rem) {
   .stake-wallet-summary { grid-template-columns: minmax(0, 1fr); }
   .stake-section-heading { flex-direction: column; }
@@ -968,8 +843,7 @@
   .stake-button-row button { flex-basis: 100%; }
   .stake-heading,
   .stake-actions,
-  .stake-overview,
-  .stake-how-it-works { padding: 1rem; }
+  .stake-overview { padding: 1rem; }
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
   /* Available, then the 50% and Max shortcuts beside it, then the submit

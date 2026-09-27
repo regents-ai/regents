@@ -32,44 +32,12 @@ defmodule AshPlatformWeb.StakeLive do
     {"claim_and_restake_regent", "Claim and restake"}
   ]
 
-  # Where the contract's USDC comes from, product by product. This is copy
-  # rather than a reading: no chain answers for it, so it is written once here
-  # and never assembled from figures the page happens to hold.
-  @revenue_sources [
-    %{
-      product: "Regents Labs",
-      streams: [
-        "REGENT/ETH Uniswap v4 Pool Fee (0.1-0.3% on volume)",
-        "Protocol x402 Services"
-      ]
-    },
-    %{
-      product: "Autolaunch",
-      streams: [
-        "All Tokens Uniswap v4 Hooks (1% on volume)",
-        "All Tokens USDC Revenue (2% on volume)"
-      ]
-    },
-    %{
-      product: "Techtree",
-      streams: [
-        "Paid Artifact Revenue (5% on volume)",
-        "Protocol Environment Revenue"
-      ]
-    },
-    %{
-      product: "Patchbay",
-      streams: ["Priority Question Revenue (10% on volume)"]
-    }
-  ]
-
   def page(assigns) do
     claims = claims(assigns.available_claims)
 
     assigns =
       assigns
       |> assign(:dashboard, staking_dashboard(assigns.staking))
-      |> assign(:revenue_sources, @revenue_sources)
       |> assign(:wallet_ready, wallet_ready?(assigns.staking, assigns.wallet))
       |> assign(:preview, position_preview(assigns))
       |> assign(:claims, claims)
@@ -505,89 +473,19 @@ defmodule AshPlatformWeb.StakeLive do
               </div>
             </div>
           </section>
-
-          <section
-            class="stake-how-it-works rg-panel rg-panel--surface rg-panel__body"
-            aria-labelledby="staking-explainer-heading"
-          >
-            <div>
-              <p class="stake-section-kicker">Why stake</p>
-              <h2 id="staking-explainer-heading">One position, two reward sources</h2>
-            </div>
-            <article>
-              <span aria-hidden="true">01</span><h3>USDC revenue rewards</h3><p>
-                Eligible USDC deposited into the contract is accounted across stakers according to stake share.
-              </p>
-            </article>
-            <article>
-              <span aria-hidden="true">02</span><h3>REGENT emissions</h3><p>
-                The contract currently reports a
-                <span :if={@dashboard}>{@dashboard.emission_apr}</span><span
-                  :if={!@dashboard}
-                  aria-busy={to_string(@status == :loading)}
-                ><Loading.skeleton kind="inline" /></span>
-                emissions APR, subject to onchain changes and available inventory.
-              </p>
-            </article>
-            <article>
-              <span aria-hidden="true">03</span><h3>You stay in control</h3><p>
-                Stake, unstake, claim, or compound through the connected wallet. Every transaction requires your signature.
-              </p>
-            </article>
-          </section>
         </div>
 
         <div class="stake-column">
           <Regent.Structure.section_bar class="rg-support-band">
             <h2 class="rg-section-bar__label">Supply &amp; revenue</h2>
           </Regent.Structure.section_bar>
-          <section
-            id="staking-revenue-sources"
-            class="stake-overview stake-revenue rg-panel rg-panel--surface rg-panel__body rg-support-panel"
-            aria-labelledby="staking-revenue-heading"
-          >
-            <div class="stake-overview-heading">
-              <div>
-                <p class="stake-section-kicker">Where the USDC comes from</p>
-                <h2 id="staking-revenue-heading">USDC Revenue Sources</h2>
-              </div>
-            </div>
-
-            <div class="stake-revenue-list">
-              <Regent.Primitives.disclosure
-                :for={source <- @revenue_sources}
-                id={"staking-revenue-#{String.replace(String.downcase(source.product), " ", "-")}"}
-                summary={source.product}
-                class="stake-revenue-source"
-              >
-                <ul>
-                  <li :for={stream <- source.streams}>{stream}</li>
-                </ul>
-              </Regent.Primitives.disclosure>
-            </div>
-          </section>
 
           <section
             :if={@staking}
             id="staking-contract-overview"
             class="stake-overview rg-panel rg-panel--surface rg-panel__body"
-            aria-labelledby="staking-overview-heading"
+            aria-label="REGENT supply"
           >
-            <div class="stake-overview-heading">
-              <div>
-                <p
-                  class="stake-contract-status"
-                  data-state={if @staking.paused, do: "paused", else: "active"}
-                >
-                  <span aria-hidden="true"></span>{if @staking.paused,
-                    do: "Staking paused",
-                    else: "Staking active"}
-                </p>
-                <h2 id="staking-overview-heading">Live contract position</h2>
-              </div>
-              <span class="stake-network">Base</span>
-            </div>
-
             <Regent.Structure.ratio_card
               id="staking-supply-bar"
               title="REGENT supply"
@@ -639,7 +537,7 @@ defmodule AshPlatformWeb.StakeLive do
             :if={!@staking}
             id="staking-contract-skeleton"
             class="stake-overview rg-panel rg-panel--surface rg-panel__body"
-            label="Live contract position"
+            label="REGENT supply"
             labels={["Total staked", "Circulating supply", "Total supply"]}
             loading={@status == :loading}
           />
