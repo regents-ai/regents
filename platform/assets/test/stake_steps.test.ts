@@ -1,7 +1,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {formInputs, press, StakeSteps, type Inputs, type Review} from "../js/hooks/stake_steps"
-import {replaceConnectedEthereumWallets, type EthereumProvider} from "../js/wallet_actions/connected_wallet"
+import {
+  replaceActiveEthereumWallet,
+  replaceConnectedEthereumWallets,
+  type EthereumProvider,
+} from "../js/wallet_actions/connected_wallet"
 
 const signer = "0x1111111111111111111111111111111111111111"
 const hash = `0x${"ab".repeat(32)}`
@@ -18,8 +22,8 @@ const review: Review = {
   inputs,
 }
 
-// A stand-in wallet: answers by method name, and holds every send until released.
-function wallet(answers: Record<string, unknown> = {}) {
+// A stand-in wallet Privy has active: answers by method name, and holds every send until released.
+function wallet(answers: Record<string, unknown> = {}, address = signer) {
   const sends: Array<(value: unknown) => void> = []
   const provider: EthereumProvider = {
     request: vi.fn(async ({method}) => {
@@ -29,7 +33,8 @@ function wallet(answers: Record<string, unknown> = {}) {
       return answer
     }),
   }
-  replaceConnectedEthereumWallets([[signer, {provider, disconnect: () => {}}]])
+  replaceConnectedEthereumWallets([[address, {provider, disconnect: () => {}}]])
+  replaceActiveEthereumWallet({address, provider})
   return {provider, sends}
 }
 
@@ -54,6 +59,7 @@ beforeEach(() => {
 
 afterEach(() => {
   replaceConnectedEthereumWallets([])
+  replaceActiveEthereumWallet(null)
   vi.unstubAllGlobals()
 })
 
@@ -110,7 +116,27 @@ describe("a press on a Stake button", () => {
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "send_unconfirmed"}]])
   })
 
-  it("sends nothing from another account", async () => {
+  it("says the wallet has no ETH for the fee when it refuses for that", async () => {
+    const {provider} = wallet()
+    vi.mocked(provider.request).mockImplementation(async ({method}) => {
+      if (method === "eth_sendTransaction") {
+        throw new Error("request failed", {cause: new Error("insufficient funds for gas * price + value")})
+      }
+      return ({eth_chainId: "0x2105", eth_accounts: [signer]} as Record<string, unknown>)[method]
+    })
+    await press(review, "stake", push)
+    expect(pushed).toEqual([["step_failed", {step: "stake", reason: "insufficient_funds"}]])
+  })
+
+  it("sends nothing when Privy's active wallet is not the one the page shows", async () => {
+    const {provider} = wallet({}, "0x4444444444444444444444444444444444444444")
+    await press(review, "stake", push)
+    expect(methods(provider)).toEqual([])
+    expect(dispatched).toEqual([])
+    expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])
+  })
+
+  it("sends nothing when the wallet app answers for another account", async () => {
     const {provider} = wallet({eth_accounts: ["0x4444444444444444444444444444444444444444"]})
     await press(review, "stake", push)
     expect(methods(provider)).not.toContain("eth_sendTransaction")
@@ -148,8 +174,7 @@ describe("a press on a Stake button", () => {
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "network_mismatch"}]])
   })
 
-  it("opens the connect step when the signed-in wallet is not connected here", async () => {
-    replaceConnectedEthereumWallets([])
+  it("opens the connect step when no wallet is active here", async () => {
     await press(review, "stake", push)
     expect(dispatched).toEqual(["ash:wallet-connect"])
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])

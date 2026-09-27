@@ -195,10 +195,10 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   expect(await sendCount(page)).toBe(0)
 })
 
-// The figures and the sender are the account that signed in. With another
-// wallet open in the wallet app, a press sends nothing and says what to do; a
-// note names both wallets.
-test("Stake sends only from the signed-in wallet while the figures stay the account's", async ({page}) => {
+// Privy's active wallet is the only one that acts. When it is not one of the
+// account's wallets, the figures stay the account's, a press sends nothing and
+// says what to do, and a note names both wallets.
+test("Stake sends nothing from a wallet that is not the account's", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
@@ -215,7 +215,7 @@ test("Stake sends only from the signed-in wallet while the figures stay the acco
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
   await expect(page.locator("#staking-press-notice")).toContainText(
-    "Check the wallet you signed in with is connected and open",
+    "Select a wallet on your account in your wallet app",
   )
   expect(await sendCount(page)).toBe(0)
 

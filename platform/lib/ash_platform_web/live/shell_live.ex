@@ -836,7 +836,7 @@ defmodule AshPlatformWeb.ShellLive do
           form={@staking_form}
           next_step={StakeSteps.next_step(assigns)}
           approval_note={StakeSteps.approval_note(assigns)}
-          sent={StakeSteps.shown(@staking_sent)}
+          sent={StakeSteps.shown(@staking_sent, @staking)}
           press={@staking_press}
         />
 
@@ -1051,18 +1051,25 @@ defmodule AshPlatformWeb.ShellLive do
   defp actions(access_context),
     do: if(current_account(access_context), do: :ready, else: :sign_in)
 
-  # Signed in, Stake and Redeem show the account's own wallet whatever the
-  # browser has active; an account without a wallet, or no sign-in at all,
-  # shows the browser's wallet.
+  # Privy's active wallet is the only wallet that acts. Signed in, Stake and
+  # Redeem show it when it is one of the account's own wallets; any other wallet
+  # is one to switch away from, so the page stays on the account's first wallet
+  # and asks. Signed out, the page shows whatever wallet is active.
   defp position_wallet(%{access_context: access_context, browser_wallet: browser_wallet}) do
     case current_account(access_context) do
-      nil -> browser_wallet
-      account -> account_wallet(account) || browser_wallet
+      nil ->
+        browser_wallet
+
+      account ->
+        if browser_wallet in account_wallets(account),
+          do: browser_wallet,
+          else: account_wallet(account) || browser_wallet
     end
   end
 
-  # The Stake page's steps are sent by the wallet the account signed in with, as
-  # the page shows it. Without a sign-in there is no one to send them.
+  # The Stake page's steps are sent by the wallet the page shows, which is
+  # Privy's active wallet whenever it is the account's. Without a sign-in there
+  # is no one to send them.
   defp staking_signer(%{access_context: access_context, staking_wallet: wallet}),
     do: if(current_account(access_context), do: wallet)
 
@@ -1080,8 +1087,9 @@ defmodule AshPlatformWeb.ShellLive do
   defp assign_position_wallet(socket, _route_spec), do: socket
 
   # The wallet app's selected account, when it is not the wallet the figures are
-  # for. Redeem sends from it; Stake sends only from the signed-in wallet and
-  # asks the person to switch. Either way the page names it beside the buttons.
+  # for: signed in, a wallet that is not the account's. Redeem sends from it;
+  # Stake sends nothing and asks the person to switch. Either way the page names
+  # it beside the buttons.
   defp other_sender(shown, browser)
        when is_binary(shown) and is_binary(browser) and shown != browser,
        do: browser
@@ -1786,23 +1794,6 @@ defmodule AshPlatformWeb.ShellLive do
 
   defp refusal(reason), do: reason
 
-  defp staking_preparation_error(:chain_unavailable),
-    do: "Base could not be reached to check this wallet. Nothing was prepared. Try again shortly."
-
-  defp staking_preparation_error(:staking_paused), do: "Staking is paused on Base right now."
-
-  defp staking_preparation_error(:amount_above_balance),
-    do: "That is more REGENT than this wallet holds."
-
-  defp staking_preparation_error(:amount_above_capacity),
-    do: "That is more REGENT than the staking contract can still take."
-
-  defp staking_preparation_error(:amount_above_stake),
-    do: "That is more REGENT than this wallet has staked."
-
-  defp staking_preparation_error(_reason),
-    do: "That action could not be prepared. Check the amount and wallet."
-
   defp staking_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
     do: %Human{human_account_id: account.id}
 
@@ -1884,7 +1875,14 @@ defmodule AshPlatformWeb.ShellLive do
   defp limit_copy(:chain_unavailable),
     do: "Your position is unavailable right now, so this amount is not checked against it."
 
-  defp limit_copy(reason), do: staking_preparation_error(reason)
+  defp limit_copy(:staking_paused), do: "Staking is paused on Base right now."
+  defp limit_copy(:amount_above_balance), do: "That is more REGENT than this wallet holds."
+
+  defp limit_copy(:amount_above_capacity),
+    do: "That is more REGENT than the staking contract can still take."
+
+  defp limit_copy(:amount_above_stake), do: "That is more REGENT than this wallet has staked."
+
   defp portioned(balance, "half"), do: div(balance, 2)
   defp portioned(balance, "max"), do: balance
 end

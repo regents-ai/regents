@@ -969,14 +969,15 @@ defmodule AshPlatformWeb.StakeLive do
   attr :sender, :string, default: nil
   attr :signer, :string, default: nil
 
-  # The buttons send from the wallet the account signed in with. When the wallet
-  # app has another account selected, both are named so the person can switch.
+  # Only the wallet the wallet app has selected can act, and only when it is one
+  # of the account's own. When it is not, both are named so the person can switch.
   defp signer_note(assigns) do
     ~H"""
     <p :if={@sender && @signer} class="shell-sending-wallet" role="note">
-      Your wallet app has <span>{RegentFormat.short_wallet(@sender)}</span> selected.
-      Buttons here send from <span>{RegentFormat.short_wallet(@signer)}</span>,
-      the wallet you signed in with, so switch to it in your wallet app first.
+      Your wallet app has <span>{RegentFormat.short_wallet(@sender)}</span>
+      selected,
+      which isn't linked to your account. Switch to <span>{RegentFormat.short_wallet(@signer)}</span>
+      or another wallet on your account first.
     </p>
     """
   end

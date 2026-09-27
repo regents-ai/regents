@@ -22,7 +22,7 @@ defmodule AshPlatformWeb.StakeSteps do
   # moved on, so a press made just before a keystroke is still recognised.
   @built_limit 32
   @shown_limit 8
-  @failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined send_unconfirmed)
+  @failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
   @hash ~r/^0x[0-9a-fA-F]{64}$/
 
   @blank_form %{for_other: false, receiver: "", acknowledged: nil}
@@ -200,8 +200,11 @@ defmodule AshPlatformWeb.StakeSteps do
     end
   end
 
-  @doc "Each sent step as the page shows it, newest first."
-  def shown(sent), do: Enum.map(sent, &describe/1)
+  @doc """
+  Each sent step as the page shows it, newest first. A stake Base turned down
+  says so when the latest reading shows staking paused or full.
+  """
+  def shown(sent, staking), do: Enum.map(sent, &describe(&1, staking))
 
   defp form(assigns),
     do:
@@ -283,15 +286,41 @@ defmodule AshPlatformWeb.StakeSteps do
     assign(socket, staking_sent: sent)
   end
 
-  defp describe(%{hash: hash, name: name, built: built, outcome: outcome, reads: reads}) do
+  defp describe(
+         %{hash: hash, name: name, built: built, outcome: outcome, reads: reads} = entry,
+         staking
+       ) do
     %{
       hash: hash,
       title: title(name, built),
       outcome: if(outcome == :pending and reads >= @recheck_limit, do: :stalled, else: outcome),
-      words: words(if(built, do: outcome, else: :not_this_step), name, built, reads),
+      words:
+        turned_down(outcome, contract_limit(entry, staking)) ||
+          words(if(built, do: outcome, else: :not_this_step), name, built, reads),
       href: "https://basescan.org/tx/#{hash}"
     }
   end
+
+  # Only a stake, or a claim that restakes, is refused while staking is paused
+  # or would take the contract past what it can hold.
+  defp contract_limit(%{name: "claim_and_restake_regent"}, %{} = staking),
+    do: Staking.limit_refusal(staking, "claim_and_restake_regent", nil)
+
+  defp contract_limit(%{name: "stake", built: %{inputs: %{amount: amount}}}, %{} = staking) do
+    {:ok, raw} = Staking.parse_amount(amount)
+    Staking.limit_refusal(staking, "stake", raw)
+  end
+
+  defp contract_limit(_entry, _staking), do: nil
+
+  defp turned_down(:reverted, :staking_paused),
+    do: "Staking is paused on Base right now, so this did not go through and nothing moved."
+
+  defp turned_down(:reverted, :amount_above_capacity),
+    do:
+      "The staking contract cannot take that much more REGENT, so this did not go through and nothing moved."
+
+  defp turned_down(_outcome, _limit), do: nil
 
   defp title("approve", _built), do: "REGENT approval"
 
@@ -383,8 +412,7 @@ defmodule AshPlatformWeb.StakeSteps do
     do: "This page is out of date. Refresh it and press again."
 
   defp failure_copy("wallet_unavailable", _name, _assigns),
-    do:
-      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
+    do: "Nothing was sent. Select a wallet on your account in your wallet app, then press again."
 
   defp failure_copy("network_mismatch", _name, _assigns),
     do:
@@ -392,6 +420,10 @@ defmodule AshPlatformWeb.StakeSteps do
 
   defp failure_copy("wallet_declined", _name, _assigns),
     do: "Your wallet declined this. Nothing was sent."
+
+  defp failure_copy("insufficient_funds", _name, _assigns),
+    do:
+      "Your wallet does not have enough ETH on Base to pay the network fee. Nothing was sent. Add a little ETH on Base, then press again."
 
   defp failure_copy("send_unconfirmed", _name, _assigns),
     do: "Your wallet may have sent this. Check your wallet activity."

@@ -21,6 +21,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
+  @second "0x3333333333333333333333333333333333333333"
   @hash "0x" <> String.duplicate("a", 64)
   @receipt_block 1_249
   @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
@@ -417,7 +418,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert_offers_sign_in(view)
   end
 
-  test "WALLET_MISMATCH: presses send from the open wallet while the figures stay the account's",
+  test "WALLET_MISMATCH: a wallet that is not the account's sends nothing and the figures stay",
        %{conn: conn} do
     view = stake_as_signer(conn, "wallet-mismatch")
     refute has_element?(view, ".shell-sending-wallet")
@@ -432,6 +433,34 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")
+  end
+
+  test "LINKED_WALLET: the active wallet acts whenever it is one of the account's own", %{
+    conn: conn
+  } do
+    seed_snapshot()
+
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:linked-wallet", @wallet, [@wallet, @second],
+               actor: %System{}
+             )
+
+    {:ok, view, _html} =
+      conn |> init_test_session(%{human_account_id: account.id}) |> live("/stake")
+
+    activate(view, @second)
+    assert staking_assigns(view).staking_wallet == @second
+    assert staking_assigns(view).staking_review.signer == @second
+    assert has_element?(view, ".stake-signer[title='#{@second}']")
+    refute has_element?(view, ".shell-sending-wallet")
+
+    send_landed(view, "claim_usdc", @hash, "0x1")
+    assert has_element?(view, "#staking-sent-#{@hash}", "Done. Your USDC rewards were claimed.")
+
+    # A wallet that is not the account's is one to switch away from.
+    activate(view, @other)
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert has_element?(view, ".shell-sending-wallet", "isn't linked to your account")
   end
 
   test "ACCOUNT_POSITION: a signed-in page opens on the account's wallet before the browser reports one",
@@ -747,7 +776,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     for {reason, words} <- [
           {"wallet_declined", "Your wallet declined this. Nothing was sent."},
           {"network_mismatch", "Switch it to Base"},
-          {"wallet_unavailable", "Check the wallet you signed in with is connected"},
+          {"wallet_unavailable", "Select a wallet on your account in your wallet app"},
+          {"insufficient_funds", "not have enough ETH on Base to pay the network fee"},
           {"send_unconfirmed", "Your wallet may have sent this."},
           {"step_unknown", "Enter an amount in REGENT above zero."}
         ] do
@@ -767,6 +797,40 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     send_landed(view, "claim_usdc", @hash, "0x1")
     refute has_element?(view, "#staking-press-notice")
+  end
+
+  test "TURNED_DOWN: a stake Base refused says when staking is paused or full", %{conn: conn} do
+    view = stake_as_signer(conn, "turned-down")
+    set_amount(view, "1")
+    send_landed(view, "stake", hash("31"), "0x0")
+    assert has_element?(view, "#staking-sent-#{hash("31")}", "the approval had not landed yet")
+
+    Application.put_env(:ash_platform, :test_staking_paused, true)
+    share_new_snapshot()
+    render_async(view)
+
+    for {name, byte} <- [{"stake", "32"}, {"claim_and_restake_regent", "33"}] do
+      send_landed(view, name, hash(byte), "0x0")
+      assert has_element?(view, "#staking-sent-#{hash(byte)}", "Staking is paused on Base")
+    end
+
+    # The words follow the reading, so a line already shown says why once it is known.
+    assert has_element?(view, "#staking-sent-#{hash("31")}", "Staking is paused on Base")
+
+    Application.put_env(:ash_platform, :test_staking_paused, false)
+    Application.put_env(:ash_platform, :test_staking_denominator, "0")
+    share_new_snapshot()
+    render_async(view)
+
+    assert has_element?(
+             view,
+             "#staking-sent-#{hash("32")}",
+             "cannot take that much more REGENT"
+           )
+
+    # A claim that pays out is never refused for either reason.
+    send_landed(view, "claim_usdc", hash("34"), "0x0")
+    assert has_element?(view, "#staking-sent-#{hash("34")}", "There may be no USDC to claim yet")
   end
 
   test "STAKE_FOR_SOMEONE: the step to another wallet exists only for the address acknowledged",
@@ -827,7 +891,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # Base answers for `hash` as though it carried the page's own `name` step.
   defp land(view, name, hash, status) do
     [%{to: to, data: data, value: value}] = step(view, name)
-    transaction = %{"from" => @wallet, "to" => to, "input" => data, "value" => value}
+    signer = staking_assigns(view).staking_review.signer
+    transaction = %{"from" => signer, "to" => to, "input" => data, "value" => value}
     put_chain(:test_staking_transactions, hash, transaction)
     put_chain(:test_staking_receipts, hash, %{"status" => status})
   end

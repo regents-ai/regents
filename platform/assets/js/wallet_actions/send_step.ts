@@ -15,7 +15,7 @@ export class NothingSent extends Error {
   }
 }
 
-export type Failure = NothingSent["reason"] | "wallet_declined" | "send_unconfirmed"
+export type Failure = NothingSent["reason"] | "wallet_declined" | "insufficient_funds" | "send_unconfirmed"
 
 /**
  * Sends one step from the signed-in wallet. Chain and account are read again on
@@ -55,7 +55,9 @@ export async function sendStep(
 /** Why a press ended without a hash. After `sending`, the wallet may have sent it. */
 export function failure(sending: boolean, error: unknown): Failure {
   if (!sending) return error instanceof NothingSent ? error.reason : "wallet_unavailable"
-  return hasCode(error, 4001) ? "wallet_declined" : "send_unconfirmed"
+  if (hasCode(error, 4001)) return "wallet_declined"
+  // No EIP-1193 code names this; wallets and nodes all say it in these words.
+  return hasMessage(error, /insufficient funds/i) ? "insufficient_funds" : "send_unconfirmed"
 }
 
 async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {
@@ -91,10 +93,20 @@ async function accounts(provider: EthereumProvider): Promise<string[]> {
   return Array.isArray(value) ? value.filter((a): a is string => typeof a === "string") : []
 }
 
-// Wallets wrap the EIP-1193 code in `cause` chains of their own.
+// Wallets wrap the EIP-1193 error in `cause` chains of their own.
 function hasCode(error: unknown, code: number): boolean {
-  for (let e = error, seen = 0; e && typeof e === "object" && seen < 8; e = (e as {cause?: unknown}).cause, seen++) {
-    if ((e as {code?: unknown}).code === code) return true
-  }
-  return false
+  return causes(error).some(e => (e as {code?: unknown}).code === code)
+}
+
+function hasMessage(error: unknown, words: RegExp): boolean {
+  return causes(error).some(e => {
+    const message = (e as {message?: unknown}).message
+    return typeof message === "string" && words.test(message)
+  })
+}
+
+function causes(error: unknown): object[] {
+  const chain: object[] = []
+  for (let e = error; e && typeof e === "object" && chain.length < 8; e = (e as {cause?: unknown}).cause) chain.push(e)
+  return chain
 }

@@ -1,7 +1,7 @@
 import type {Address} from "viem"
 
 import type {Hook} from "../hook_composition"
-import {activeEthereumWallet, connectedEthereumWallet} from "../wallet_actions/connected_wallet"
+import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {failure, NothingSent, sendStep, type Step, type StepChain} from "../wallet_actions/send_step"
 
 /** What was on the Stake form when the server built the review. */
@@ -86,7 +86,8 @@ export const StakeSteps: Hook = {
 }
 
 /**
- * Sends the named step from the signed-in wallet and reports only what the
+ * Sends the named step from Privy's active wallet, the only wallet that acts,
+ * when it is the signer the server built the step for. Reports only what the
  * wallet answered: the hash and the calldata it carried, or why nothing was
  * sent. The server decides what the hash did.
  */
@@ -96,11 +97,15 @@ export async function press(review: Review | undefined, name: string, push: Push
 
   try {
     if (!review || !step) throw new NothingSent("step_unknown")
-    const wallet = () => connectedEthereumWallet(review.signer)
-    if (!wallet()) {
+    if (!activeEthereumWallet()) {
       window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
       throw new NothingSent("wallet_unavailable")
     }
+    const wallet = () => {
+      const active = activeEthereumWallet()
+      return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
+    }
+    if (!wallet()) throw new NothingSent("wallet_unavailable")
 
     const transaction_hash = await sendStep(review.chain, review.signer, step, wallet, () => {
       sending = true
