@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.RedeemLive do
   alias AshPlatform.ChainClient
   alias AshPlatform.Redemption.Steps
   alias AshPlatformWeb.Components.Loading
-  alias AshPlatformWeb.{OnchainSteps, TokenDisplay}
+  alias AshPlatformWeb.{EventInput, OnchainSteps, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
 
@@ -29,6 +29,10 @@ defmodule AshPlatformWeb.RedeemLive do
   }
   @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
   @collections %{"animata_i" => "Animata I", "animata_ii" => "Animata II"}
+  # Longer than any collection or token ID; the token ID input stops there too.
+  @selection_limits %{"collection" => 16, "token_id" => 16}
+
+  import AshPlatformWeb.OnchainSteps, only: [failure_reason: 1]
 
   @impl true
   def mount(socket),
@@ -60,18 +64,22 @@ defmodule AshPlatformWeb.RedeemLive do
 
   # A press made before the review caught up with the selection: the selection
   # is taken as the page shows it, and the reply carries the review for it.
-  def handle_event("prepare_and_send", %{"form" => %{} = form, "step" => name}, socket)
+  def handle_event("prepare_and_send", %{"form" => form, "step" => name}, socket)
       when is_binary(name) do
-    socket =
-      socket
-      |> assign(
-        selection: %{collection: text(form["collection"]), token_id: text(form["token_id"])}
-      )
-      |> sync()
+    case EventInput.texts(form, @selection_limits) do
+      {:ok, fields} ->
+        socket
+        |> assign(
+          selection: %{
+            collection: Map.get(fields, "collection", ""),
+            token_id: Map.get(fields, "token_id", "")
+          }
+        )
+        |> sync()
+        |> prepare(name)
 
-    case socket.assigns.review do
-      %{} = review -> {:reply, %{review: review, send: name}, socket}
-      nil -> {:reply, %{}, socket}
+      :error ->
+        {:reply, %{}, assign(socket, press_note: EventInput.unreadable(), press_step: nil)}
     end
   end
 
@@ -79,13 +87,17 @@ defmodule AshPlatformWeb.RedeemLive do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
-      when is_binary(name) and is_binary(reason) do
+      when is_binary(name) and failure_reason(reason) do
     {:noreply,
      assign(socket, press_note: failure_note(reason, name, socket.assigns), press_step: name)}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  # Anything else the page sent is not in a shape this panel takes.
+  def handle_event(_event, _params, socket),
+    do: {:noreply, assign(socket, press_note: EventInput.unreadable(), press_step: nil)}
 
   # A step that landed moved this wallet's figures, so the page reads them again.
   @impl true
@@ -123,8 +135,10 @@ defmodule AshPlatformWeb.RedeemLive do
     OnchainSteps.put_review(socket, review)
   end
 
-  defp text(value) when is_binary(value), do: value
-  defp text(_value), do: ""
+  defp prepare(%{assigns: %{review: nil}} = socket, _name), do: {:reply, %{}, socket}
+
+  defp prepare(%{assigns: %{review: review}} = socket, name),
+    do: {:reply, %{review: review, send: name}, socket}
 
   # A redemption with no token ID behind it says so; every other reason has the
   # shared words.
@@ -202,7 +216,10 @@ defmodule AshPlatformWeb.RedeemLive do
       |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
       |> assign(:flow_sent, shown(assigns.presses, @every_control))
       |> assign(:claim_sent, shown(assigns.presses, ["claim"]))
-      |> assign(:flow_press, if(assigns.press_step in @every_control, do: assigns.press_note))
+      |> assign(
+        :flow_press,
+        if(assigns.press_step in [nil | @every_control], do: assigns.press_note)
+      )
       |> assign(:claim_press, if(assigns.press_step == "claim", do: assigns.press_note))
       |> assign(:wallet_ready, wallet_ready?(assigns.redemption, assigns.wallet))
       |> assign(:vest_progress, vest_progress(assigns.redemption))
@@ -456,6 +473,7 @@ defmodule AshPlatformWeb.RedeemLive do
                       id="redemption-token-id"
                       name="token_id"
                       value={@token_id}
+                      maxlength="16"
                       data-onchain-input="token_id"
                       phx-debounce="300"
                       inputmode="numeric"

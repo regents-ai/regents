@@ -24,6 +24,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.Staking.SnapshotCache
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.AutolaunchLive
+  alias AshPlatformWeb.EventInput
   alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.PublicDocuments
   alias AshPlatformWeb.RedeemGalleryLive
@@ -42,6 +43,12 @@ defmodule AshPlatformWeb.ShellLive do
   @default_open_sea_lookups_per_minute 6
   @names_page_size 50
   @blank_claim_name %{value: "", problems: [], availability: nil}
+  @redemption_collections ~w(animata_i animata_ii)
+  @account_events ~w(load_more_names check_claim_name claim_name issue_pairing_code open_agent change_agent_harness unpair_agent)
+  # Far longer than any name a person claims; the name's own rules say what is too long.
+  @claim_name_limit 255
+  # Longer than any collection or token ID; the token ID input stops there too.
+  @redemption_selection_limits %{"collection" => 16, "token_id" => 16}
 
   @impl true
   def mount(params, session, socket) do
@@ -338,6 +345,11 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
+  # An account event from a page that has since moved on changes nothing.
+  def handle_event(event, _params, %{assigns: %{route_spec: %{route_id: route_id}}} = socket)
+      when event in @account_events and route_id != :account,
+      do: {:noreply, socket}
+
   def handle_event(
         "load_more_names",
         _params,
@@ -345,27 +357,21 @@ defmodule AshPlatformWeb.ShellLive do
       ),
       do: {:noreply, load_more_names(socket)}
 
-  def handle_event("load_more_names", _params, socket), do: {:noreply, socket}
-
   def handle_event(
         "check_claim_name",
         %{"name" => name},
         %{assigns: %{route_spec: %{route_id: :account}}} = socket
       )
-      when is_binary(name),
+      when is_binary(name) and byte_size(name) <= @claim_name_limit,
       do: {:noreply, assign(socket, account_claim_name: check_claim_name(socket, name))}
-
-  def handle_event("check_claim_name", _params, socket), do: {:noreply, socket}
 
   def handle_event(
         "claim_name",
         %{"name" => name},
         %{assigns: %{route_spec: %{route_id: :account}}} = socket
       )
-      when is_binary(name),
+      when is_binary(name) and byte_size(name) <= @claim_name_limit,
       do: {:noreply, claim_name(socket, name)}
-
-  def handle_event("claim_name", _params, socket), do: {:noreply, socket}
 
   def handle_event(
         "issue_pairing_code",
@@ -417,10 +423,6 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, agent_edited(socket, actor, result)}
   end
 
-  def handle_event(event, _params, socket)
-      when event in ~w(issue_pairing_code open_agent change_agent_harness unpair_agent),
-      do: {:noreply, socket}
-
   # The browser only reports how its side ended. Whether the connection really
   # landed is read from the account's own record, so the page never says
   # "connected" on the browser's word alone.
@@ -454,6 +456,10 @@ defmodule AshPlatformWeb.ShellLive do
   # asked for on its own.
   def handle_event("refresh_data", _params, socket),
     do: {:noreply, socket |> read_connected_wallet() |> read_shared_snapshot()}
+
+  # Anything else the page sent is not in a shape this page takes.
+  def handle_event(_event, _params, socket),
+    do: {:noreply, put_flash(socket, :error, EventInput.unreadable())}
 
   # One visitor's refresh re-reads the contract for everyone. Only the contract
   # figures are replaced: each page keeps whatever it knows about its own
@@ -562,29 +568,27 @@ defmodule AshPlatformWeb.ShellLive do
        do: {:noreply, socket}
 
   defp handle_redemption_event("redemption_selection_changed", params, socket) do
-    socket =
-      assign(socket,
-        redemption_collection: params["collection"] || socket.assigns.redemption_collection,
-        redemption_token_id: params["token_id"] || "",
-        redemption_notice: nil
-      )
+    case EventInput.texts(params, @redemption_selection_limits) do
+      {:ok, fields} ->
+        select_redemption(
+          socket,
+          Map.get(fields, "collection", socket.assigns.redemption_collection),
+          Map.get(fields, "token_id", "")
+        )
 
-    {:noreply, read_selection(socket)}
+      :error ->
+        {:noreply, redemption_unreadable(socket)}
+    end
   end
 
-  defp handle_redemption_event(
-         "select_owned_animata",
-         %{"collection" => collection, "token-id" => token_id},
-         socket
-       ) do
-    socket =
-      assign(socket,
-        redemption_collection: collection,
-        redemption_token_id: token_id,
-        redemption_notice: nil
-      )
+  defp handle_redemption_event("select_owned_animata", params, socket) do
+    case EventInput.texts(params, %{"collection" => 16, "token-id" => 16}) do
+      {:ok, %{"collection" => collection, "token-id" => token_id}} ->
+        select_redemption(socket, collection, token_id)
 
-    {:noreply, read_selection(socket)}
+      _unreadable ->
+        {:noreply, redemption_unreadable(socket)}
+    end
   end
 
   defp handle_redemption_event("refresh_redemption", _params, socket),
@@ -600,6 +604,25 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles_limit: min(socket.assigns.owned_collectibles_limit + 24, total)
      )}
   end
+
+  # Only the two collections are ever chosen; the token ID is read as typed.
+  defp select_redemption(socket, collection, token_id)
+       when collection in @redemption_collections do
+    socket =
+      assign(socket,
+        redemption_collection: collection,
+        redemption_token_id: token_id,
+        redemption_notice: nil
+      )
+
+    {:noreply, read_selection(socket)}
+  end
+
+  defp select_redemption(socket, _collection, _token_id),
+    do: {:noreply, redemption_unreadable(socket)}
+
+  defp redemption_unreadable(socket),
+    do: assign(socket, redemption_notice: %{tone: :error, message: EventInput.unreadable()})
 
   # A landed redemption is the one moment the collection on screen is known to
   # be out of date. The cache honours one such reset per wallet per cache

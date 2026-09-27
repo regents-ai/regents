@@ -686,6 +686,51 @@ defmodule AshPlatformWeb.RedeemLiveTest do
            )
   end
 
+  test "UNREADABLE_INPUT: a malformed or oversized event is refused with a note and nothing changes",
+       %{conn: conn} do
+    view = redeem_as_signer(conn, "unreadable-input")
+    select(view, "animata_i", "42")
+    assert has_element?(view, ~s(#redemption-token-id[maxlength="16"]))
+    unreadable = "That couldn’t be read, so nothing changed."
+
+    for {event, params} <- [
+          {"redemption_selection_changed", %{"collection" => ["animata_i"], "token_id" => "7"}},
+          {"redemption_selection_changed", %{"token_id" => String.duplicate("7", 17)}},
+          {"redemption_selection_changed", %{"collection" => "animata_iii", "token_id" => "7"}},
+          {"select_owned_animata", %{"collection" => "animata_ii", "token-id" => %{"id" => 7}}},
+          {"select_owned_animata", %{"collection" => "animata_ii"}}
+        ] do
+      render_hook(view, event, params)
+      assert has_element?(view, ".redeem-notice[role=alert]", unreadable), inspect(params)
+
+      assert {redemption_assigns(view).redemption_collection,
+              redemption_assigns(view).redemption_token_id} == {"animata_i", "42"}
+    end
+
+    for {event, params} <- [
+          {"step_failed", %{"step" => "redeem", "reason" => "made_up"}},
+          {"no_such_event", %{}}
+        ] do
+      view |> redeem() |> render_hook(event, params)
+      assert has_element?(view, "#redemption-activity-press", unreadable), event
+    end
+
+    view
+    |> redeem()
+    |> render_hook("prepare_and_send", %{
+      "form" => %{"collection" => "animata_i", "token_id" => String.duplicate("4", 17)},
+      "step" => "redeem"
+    })
+
+    assert_reply(view, reply)
+    assert reply == %{}
+    assert redeem_assigns(view).selection == %{collection: "animata_i", token_id: "42"}
+
+    # A good selection clears the page's note.
+    select(view, "animata_ii", "16")
+    assert redemption_assigns(view).redemption_notice == nil
+  end
+
   defp control(action),
     do: ~s|.redeem-next-step button[data-onchain-step="#{action}"]:not([disabled])|
 

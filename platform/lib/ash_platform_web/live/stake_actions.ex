@@ -19,11 +19,21 @@ defmodule AshPlatformWeb.StakeActions do
   alias AshPlatform.{ChainClient, Staking}
   alias AshPlatform.Staking.{SnapshotCache, Steps}
   alias AshPlatformWeb.Components.Loading
-  alias AshPlatformWeb.{OnchainSteps, StakeLive, TokenDisplay}
+  alias AshPlatformWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
 
+  import AshPlatformWeb.OnchainSteps, only: [failure_reason: 1]
+
   @blank_form %{for_other: false, receiver: "", acknowledged: nil}
+  # Longer than any amount or address a person types; the inputs stop there too.
+  @form_limits %{
+    "action" => 16,
+    "amount" => 64,
+    "for_other" => 16,
+    "receiver" => 64,
+    "acknowledged" => 16
+  }
   @claims [
     {"claim_usdc", "Claim USDC"},
     {"claim_regent", "Claim REGENT"},
@@ -107,27 +117,27 @@ defmodule AshPlatformWeb.StakeActions do
     end
   end
 
-  def handle_event("change", %{"amount" => amount} = params, socket) when is_binary(amount) do
-    {:noreply,
-     socket
-     |> assign(amount: amount, form: change_form(socket.assigns.form, params))
-     |> sync()}
+  def handle_event("change", params, socket) do
+    case EventInput.texts(params, @form_limits) do
+      {:ok, %{"amount" => amount} = fields} ->
+        {:noreply,
+         socket
+         |> assign(amount: amount, form: change_form(socket.assigns.form, fields, params))
+         |> sync()}
+
+      _unreadable ->
+        {:noreply, assign(socket, press_note: EventInput.unreadable())}
+    end
   end
 
   # A press made before the review caught up with the form: the form is taken
   # as the page's own, and the reply carries the review for it and the step the
   # pressed button now stands for.
-  def handle_event("prepare_and_send", %{"form" => %{} = form, "step" => name}, socket)
+  def handle_event("prepare_and_send", %{"form" => form, "step" => name}, socket)
       when is_binary(name) do
-    socket = socket |> apply_form(form) |> sync()
-
-    case socket.assigns.review do
-      %{} = review ->
-        send = if name in @claim_steps, do: name, else: next_step(socket.assigns)
-        {:reply, %{review: review, send: send}, socket}
-
-      nil ->
-        {:reply, %{}, socket}
+    case EventInput.texts(form, @form_limits) do
+      {:ok, fields} -> prepare(socket |> apply_form(fields) |> sync(), name)
+      :error -> {:reply, %{}, assign(socket, press_note: EventInput.unreadable())}
     end
   end
 
@@ -135,12 +145,16 @@ defmodule AshPlatformWeb.StakeActions do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
-      when is_binary(name) and is_binary(reason) do
+      when is_binary(name) and failure_reason(reason) do
     {:noreply, assign(socket, press_note: failure_note(reason, name, socket.assigns))}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  # Anything else the page sent is not in a shape this panel takes.
+  def handle_event(_event, _params, socket),
+    do: {:noreply, assign(socket, press_note: EventInput.unreadable())}
 
   # A step that landed moved this wallet's figures and the contract's, so the
   # page reads both again, and the steps follow what the new reading says. A
@@ -162,6 +176,13 @@ defmodule AshPlatformWeb.StakeActions do
       _entry ->
         {:noreply, socket}
     end
+  end
+
+  defp prepare(%{assigns: %{review: nil}} = socket, _name), do: {:reply, %{}, socket}
+
+  defp prepare(%{assigns: %{review: review}} = socket, name) do
+    send = if name in @claim_steps, do: name, else: next_step(socket.assigns)
+    {:reply, %{review: review, send: send}, socket}
   end
 
   # The review follows the signer and the form. With no eligible signer there is
@@ -205,13 +226,13 @@ defmodule AshPlatformWeb.StakeActions do
 
   # Ticking the warning acknowledges exactly the address shown; any change to
   # the address or to the choice to stake for someone else takes it back.
-  defp change_form(form, params) do
-    receiver = text(Map.get(params, "receiver", form.receiver))
-    for_other = params["for_other"] == "true"
+  defp change_form(form, fields, params) do
+    receiver = Map.get(fields, "receiver", form.receiver)
+    for_other = fields["for_other"] == "true"
 
     acknowledged =
       cond do
-        params["_target"] == ["acknowledged"] -> acknowledge(params["acknowledged"], receiver)
+        params["_target"] == ["acknowledged"] -> acknowledge(fields["acknowledged"], receiver)
         receiver != form.receiver or for_other != form.for_other -> nil
         true -> form.acknowledged
       end
@@ -566,6 +587,7 @@ defmodule AshPlatformWeb.StakeActions do
                 id="staking-amount"
                 name="amount"
                 value={@amount}
+                maxlength="64"
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="0.0"
@@ -648,6 +670,7 @@ defmodule AshPlatformWeb.StakeActions do
                   id="staking-recipient"
                   name="receiver"
                   type="text"
+                  maxlength="64"
                   value={@form.receiver}
                   autocomplete="off"
                   spellcheck="false"

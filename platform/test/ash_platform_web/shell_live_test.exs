@@ -37,6 +37,41 @@ defmodule AshPlatformWeb.ShellLiveTest do
     refute_push_event(view, "verified-connections:request", _payload)
   end
 
+  test "an event the page doesn't take is refused with a note; account events elsewhere do nothing",
+       %{conn: conn} do
+    unreadable = "That couldn’t be read, so nothing changed."
+    {:ok, view, _html} = live(conn, "/stake")
+
+    for {event, params} <- [
+          {"claim_name", %{"name" => "someone"}},
+          {"open_agent", %{"id" => "7"}},
+          {"load_more_names", %{}}
+        ] do
+      render_hook(view, event, params)
+      refute has_element?(view, "#flash-region", unreadable), event
+    end
+
+    render_hook(view, "no_such_event", %{"anything" => [1, 2]})
+    assert has_element?(view, "#flash-region", unreadable)
+
+    account = register_account("unreadable-account", "0x3333333333333333333333333333333333333333")
+
+    for {event, params} <- [
+          {"check_claim_name", %{"name" => String.duplicate("a", 256)}},
+          {"claim_name", %{"name" => %{"label" => "a"}}},
+          {"open_agent", %{"id" => ["7"]}},
+          {"change_agent_harness", %{"agent" => "7"}}
+        ] do
+      {:ok, view, _html} =
+        conn
+        |> init_test_session(%{human_account_id: account.id})
+        |> live("/account")
+
+      render_hook(view, event, params)
+      assert has_element?(view, "#flash-region", unreadable), event
+    end
+  end
+
   test "direct deep links render the persistent shell", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/redeem")
 
