@@ -5,12 +5,9 @@ defmodule AshPlatformWeb.ShellLive do
   import AshPlatformWeb.ShellLive.Identity
   import AshPlatformWeb.StakeLive
 
-  alias AshPlatform.{Formation, OpenSea, Redemption, Staking}
-  alias AshPlatform.Actors.Human
+  alias AshPlatform.{Formation, OpenSea, Redemption}
   alias AshPlatform.OpenSea.HoldingsCache
   alias AshPlatform.Redemption.Steps, as: RedemptionSteps
-  alias AshPlatform.Staking.Facts, as: StakingFacts
-  alias AshPlatform.Staking.SnapshotCache
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.EventInput
@@ -21,13 +18,9 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
-  alias AshPlatformWeb.ShellLive.{Account, Gallery, OpenSeaBudget}
+  alias AshPlatformWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Staking}
 
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
-  # Names the budget it belongs to. The Redeem page has its own, unrelated
-  # per-visitor limit on looking up owned NFTs, and the two refusals must never
-  # read as the same thing.
-  @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
   @redemption_collections ~w(animata_i animata_ii)
   @account_events Account.events()
   # Longer than any collection or token ID; the token ID input stops there too.
@@ -38,17 +31,13 @@ defmodule AshPlatformWeb.ShellLive do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
     socket = assign(socket, :theme, session["theme"])
 
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(AshPlatform.PubSub, SnapshotCache.topic())
-    end
-
     {:ok,
      socket
      |> Account.init()
      |> Gallery.init()
      |> OpenSeaBudget.init()
+     |> Staking.init()
      |> assign(
-       content_generation: 0,
        route_params: params,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
@@ -65,12 +54,6 @@ defmodule AshPlatformWeb.ShellLive do
        owned_collectibles: %{status: :idle, animata: [], regents_club: []},
        owned_collectibles_limit: 24,
        open_sea_lookup: nil,
-       staking: nil,
-       staking_wallet: nil,
-       staking_notice: nil,
-       staking_read: nil,
-       staking_shared_reading: false,
-       staking_status: :loading,
        browser_wallet: nil,
        route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic])
@@ -80,77 +63,27 @@ defmodule AshPlatformWeb.ShellLive do
   @impl true
   def handle_params(params, uri, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
-    generation = socket.assigns.content_generation + 1
 
     socket =
       socket
-      |> assign(content_generation: generation, route_spec: route_spec, route_params: params)
+      |> assign(route_spec: route_spec, route_params: params)
       |> load_regent_route(route_spec, params)
       |> assign_page(route_spec, uri)
       |> Account.route(route_spec)
+      |> Staking.route(route_spec)
       |> assign_position_wallet(route_spec)
 
-    cond do
-      route_spec.route_id == :account ->
-        {:noreply, socket}
-
-      connected?(socket) ->
-        {:noreply,
-         socket
-         |> maybe_start_staking(route_spec, generation)
-         |> maybe_start_redemption(route_spec, generation)}
-
-      true ->
-        {:noreply, paint_initial_staking(socket, route_spec)}
-    end
+    if connected?(socket),
+      do: {:noreply, maybe_start_redemption(socket, route_spec)},
+      else: {:noreply, socket}
   end
 
-  # A wallet reading answers for one account at its own block and says nothing
-  # about the contract, so it is set beside the shared reading rather than over
-  # it. With no shared reading on screen there is no dashboard to attach it to,
-  # and the page keeps saying so.
   @impl true
   def handle_async({:agent_activity, _id} = name, result, socket),
     do: {:noreply, Account.settle_activity(socket, name, result)}
 
-  def handle_async(
-        {:staking, generation} = name,
-        {:ok, {generation, {:ok, wallet_facts}}},
-        %{assigns: %{content_generation: generation, staking: staking}} = socket
-      )
-      when is_map(staking) do
-    {:noreply,
-     socket
-     |> release_staking_read(name)
-     |> assign(
-       staking: StakingFacts.merge(staking, wallet_facts),
-       staking_status: :ready,
-       staking_notice: clear_staking_refresh_failure(socket.assigns.staking_notice)
-     )}
-  end
-
-  # A failed or crashed wallet read says nothing about the contract reading
-  # beside it, so that reading stays exactly where it is and only this wallet's
-  # own figures are marked unavailable. The page keeps its layout and every
-  # control on it.
-  def handle_async(
-        {:staking, generation} = name,
-        {:ok, {generation, {:error, _reason}}},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
-  end
-
-  def handle_async(
-        {:staking, generation} = name,
-        {:exit, _reason},
-        %{assigns: %{content_generation: generation}} = socket
-      ) do
-    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
-  end
-
-  def handle_async({:staking, _generation} = name, _result, socket),
-    do: {:noreply, release_staking_read(socket, name)}
+  def handle_async({:staking, _generation} = name, result, socket),
+    do: {:noreply, Staking.settle(socket, name, result)}
 
   def handle_async(
         {:redemption, generation} = name,
@@ -265,59 +198,24 @@ defmodule AshPlatformWeb.ShellLive do
            ],
       do: handle_redemption_event(event, params, socket)
 
-  def handle_event("refresh_shared_snapshot", _params, socket),
-    do: {:noreply, read_shared_snapshot(socket)}
-
-  # The Stake footer asks for both readings at once, on the same terms each is
-  # asked for on its own.
-  def handle_event("refresh_data", _params, socket),
-    do: {:noreply, socket |> read_connected_wallet() |> read_shared_snapshot()}
+  def handle_event(event, _params, socket) when event in ~w(refresh_shared_snapshot refresh_data),
+    do: {:noreply, Staking.handle_event(event, socket)}
 
   # Anything else the page sent is not in a shape this page takes.
   def handle_event(_event, _params, socket),
     do: {:noreply, put_flash(socket, :error, EventInput.unreadable())}
 
-  # One visitor's refresh re-reads the contract for everyone. Only the contract
-  # figures are replaced: each page keeps whatever it knows about its own
-  # connected wallet, still labelled with the block that wallet was read at, and
-  # a wallet already answered for is never re-read on its own.
   @impl true
-  def handle_info(
-        {:staking_snapshot, protocol},
-        %{assigns: %{route_spec: %{route_id: route_id}}} = socket
-      )
-      when route_id in [:stake, :app] do
-    {:noreply,
-     socket
-     |> assign(
-       staking: StakingFacts.adopt_protocol(socket.assigns.staking, protocol),
-       staking_shared_reading: false,
-       staking_status: :ready
-     )
-     |> read_unanswered_wallet()}
-  end
+  def handle_info({:staking_snapshot, protocol}, socket),
+    do: {:noreply, Staking.snapshot(socket, protocol)}
 
-  def handle_info({:staking_snapshot, _protocol}, socket), do: {:noreply, socket}
+  def handle_info({:staking_snapshot_unavailable, _reason}, socket),
+    do: {:noreply, Staking.snapshot_unavailable(socket)}
 
-  # The Stake actions heard which wallet Privy has active. Signed in, the figures
-  # follow it when it is the account's own; any other wallet leaves them on the
-  # account's first wallet while the actions ask the person to switch.
-  def handle_info(
-        {:stake_active_wallet, active},
-        %{assigns: %{route_spec: %{route_id: :stake}}} = socket
-      ) do
-    socket = assign(socket, browser_wallet: active)
-    wallet = position_wallet(socket.assigns)
+  def handle_info({:stake_active_wallet, active}, socket),
+    do: {:noreply, Staking.active_wallet(socket, active)}
 
-    if wallet == socket.assigns.staking_wallet,
-      do: {:noreply, socket},
-      else: {:noreply, adopt_staking_wallet(socket, wallet)}
-  end
-
-  def handle_info({:stake_active_wallet, _active}, socket), do: {:noreply, socket}
-
-  # A Stake step landed: this wallet's figures moved, so they are read again.
-  def handle_info(:stake_step_landed, socket), do: {:noreply, read_connected_wallet(socket)}
+  def handle_info(:stake_step_landed, socket), do: {:noreply, Staking.step_landed(socket)}
 
   # The Redeem buttons heard which wallet Privy has active; the figures follow
   # it on the same terms as Stake's.
@@ -349,15 +247,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: {:noreply, Account.ens_finished(socket)}
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
-
-  # Only the pages that asked for the reading hear that it failed, and what they
-  # were already showing stays on screen.
-  def handle_info({:staking_snapshot_unavailable, _reason}, socket) do
-    {:noreply,
-     socket
-     |> assign(staking_shared_reading: false)
-     |> shared_read_failed()}
-  end
 
   defp handle_redemption_event(
          _event,
@@ -466,7 +355,7 @@ defmodule AshPlatformWeb.ShellLive do
 
         <RegentOpsLive.page
           :if={@route_spec.route_id == :app}
-          reading={not is_nil(@staking_read)}
+          reading={Staking.reading?(assigns)}
           staking={@staking}
           status={@staking_status}
           notice={@staking_notice}
@@ -499,7 +388,7 @@ defmodule AshPlatformWeb.ShellLive do
           wallet={@staking_wallet}
           linked={linked_wallets(@access_context)}
           notice={@staking_notice}
-          reading={staking_reading?(assigns)}
+          reading={Staking.reading?(assigns)}
           shared_reading={@staking_shared_reading}
         />
 
@@ -539,189 +428,6 @@ defmodule AshPlatformWeb.ShellLive do
     """
   end
 
-  # An anonymous visitor to either page buys no chain read at all: the shared
-  # contract reading is already on the server and is painted as it is. Only a
-  # signed-in account has a wallet to look up here, and that lookup takes its
-  # own fresh block.
-  defp maybe_start_staking(socket, %{route_id: :app}, generation) do
-    socket = socket |> clear_staking_wallet() |> paint_shared_snapshot()
-
-    case staking_actor(socket) do
-      %Human{} = actor ->
-        start_wallet_read(socket, generation, fn -> Staking.account(actor: actor) end)
-
-      nil ->
-        socket
-    end
-  end
-
-  defp maybe_start_staking(socket, %{route_id: :stake}, generation),
-    do: socket |> paint_shared_snapshot() |> start_staking_read(generation)
-
-  defp maybe_start_staking(socket, _route, _generation),
-    do: socket |> clear_staking_wallet() |> assign(staking: nil, staking_status: :loading)
-
-  # With no successful shared reading yet, there is nothing honest to show and
-  # nothing this visitor can do about it alone; the page says so and a signed-in
-  # visitor is offered the control that takes one.
-  # The disconnected HTTP render can use the server cache immediately. Never
-  # start a chain or per-wallet request here; those remain asynchronous after
-  # connection, and no private wallet facts enter this shared projection.
-  defp paint_initial_staking(socket, %{route_id: route_id}) when route_id in [:app, :stake],
-    do: paint_shared_snapshot(socket, :loading)
-
-  defp paint_initial_staking(socket, _route), do: socket
-
-  defp paint_shared_snapshot(socket, empty_status \\ :error) do
-    case SnapshotCache.snapshot() do
-      nil ->
-        assign(socket, staking: nil, staking_status: empty_status)
-
-      protocol ->
-        assign(socket,
-          staking: StakingFacts.merge(protocol, StakingFacts.blank_wallet()),
-          staking_status: :ready
-        )
-    end
-  end
-
-  defp clear_staking_wallet(socket), do: assign(socket, staking_wallet: nil, staking_notice: nil)
-
-  # A wallet reading that failed leaves every figure it would have carried
-  # marked unavailable, beside the contract reading it never spoke about. With
-  # no contract reading to sit beside there is nothing to mark.
-  defp wallet_read_failed(%{assigns: %{staking: nil}} = socket), do: shared_read_failed(socket)
-
-  defp wallet_read_failed(socket) do
-    assign(socket,
-      staking:
-        StakingFacts.merge(
-          socket.assigns.staking,
-          StakingFacts.unavailable_wallet(socket.assigns.staking_wallet)
-        ),
-      staking_status: :ready,
-      staking_notice: %{tone: :error, message: @refresh_failure_notice}
-    )
-  end
-
-  # Only the contract reading can leave a page with nothing honest to show. A
-  # reading that fails leaves the previous one exactly where it was.
-  defp shared_read_failed(socket) do
-    if socket.assigns.staking do
-      assign(socket,
-        staking_status: :ready,
-        staking_notice: %{
-          tone: :error,
-          message: @refresh_failure_notice
-        }
-      )
-    else
-      assign(socket, staking: nil, staking_status: :error)
-    end
-  end
-
-  defp clear_staking_refresh_failure(%{message: @refresh_failure_notice}), do: nil
-  defp clear_staking_refresh_failure(notice), do: notice
-
-  # This socket's own connected wallet, read again at a fresh block. Any
-  # connected wallet may do this, signed in or not.
-  defp read_connected_wallet(socket),
-    do: start_staking_read(socket, socket.assigns.content_generation)
-
-  # Re-reading the contract replaces what every visitor sees, so only a
-  # signed-in session may ask for it, and the socket's own session decides that
-  # here rather than the markup that offered the control.
-  defp read_shared_snapshot(socket) do
-    if authenticated?(socket.assigns.access_context) do
-      request_shared_refresh(socket)
-    else
-      socket
-    end
-  end
-
-  defp request_shared_refresh(socket) do
-    case SnapshotCache.refresh() do
-      :ok ->
-        assign(socket, staking_shared_reading: true, staking_notice: nil)
-
-      {:error, :refresh_too_soon} ->
-        assign(socket,
-          staking_notice: %{tone: :info, message: @shared_refresh_budget_notice}
-        )
-    end
-  end
-
-  # A wallet connected while there was no contract reading has nothing to be
-  # shown beside, so nothing was bought for it. The moment a contract reading
-  # arrives that wallet is looked up, rather than leaving somebody to ask for a
-  # reading they already asked for. A wallet the page has an answer for, however
-  # that answer turned out, is left alone.
-  # The Overview reads the signed-in account's own wallet, so one never read
-  # because the contract reading was missing is read once that reading arrives.
-  defp read_unanswered_wallet(
-         %{
-           assigns: %{
-             route_spec: %{route_id: :app},
-             staking: %{wallet_block_number: nil},
-             staking_read: nil
-           }
-         } = socket
-       ) do
-    case staking_actor(socket) do
-      %Human{} = actor ->
-        start_wallet_read(socket, socket.assigns.content_generation, fn ->
-          Staking.account(actor: actor)
-        end)
-
-      nil ->
-        socket
-    end
-  end
-
-  defp read_unanswered_wallet(%{assigns: %{staking_wallet: nil}} = socket), do: socket
-
-  defp read_unanswered_wallet(
-         %{assigns: %{staking: %{wallet_address: wallet}, staking_wallet: wallet}} = socket
-       ),
-       do: socket
-
-  defp read_unanswered_wallet(socket),
-    do: start_staking_read(socket, socket.assigns.content_generation)
-
-  # With no wallet connected there is nothing about this visitor to read, and
-  # the shared contract reading on screen already answers for everyone.
-  defp start_staking_read(%{assigns: %{staking_wallet: nil}} = socket, _generation), do: socket
-
-  defp start_staking_read(socket, generation) do
-    wallet = socket.assigns.staking_wallet
-    start_wallet_read(socket, generation, fn -> Staking.account_for_wallet(wallet) end)
-  end
-
-  # A wallet reading answers for one account and carries no contract figures, so
-  # with no shared reading on screen there is nothing for it to be shown beside.
-  # Buying one anyway spends four round trips on an answer that would be thrown
-  # away, so it is not bought until the contract reading is there.
-  defp start_wallet_read(%{assigns: %{staking: nil}} = socket, _generation, _read), do: socket
-
-  defp start_wallet_read(socket, generation, read) do
-    name = {:staking, generation}
-
-    socket
-    |> cancel_async(name)
-    |> assign(staking_read: %{name: name})
-    |> start_async(name, fn -> {generation, read.()} end)
-  end
-
-  defp release_staking_read(%{assigns: %{staking_read: %{name: name}}} = socket, name),
-    do: assign(socket, staking_read: nil)
-
-  defp release_staking_read(socket, _), do: socket
-  defp staking_reading?(%{staking_read: nil}), do: false
-  defp staking_reading?(_), do: true
-
-  defp assign_position_wallet(socket, %{route_id: :stake}),
-    do: assign(socket, staking_wallet: position_wallet(socket.assigns))
-
   defp assign_position_wallet(socket, %{route_id: :redeem}),
     do: assign(socket, redemption_wallet: position_wallet(socket.assigns))
 
@@ -750,10 +456,10 @@ defmodule AshPlatformWeb.ShellLive do
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))
 
-  defp maybe_start_redemption(socket, %{route_id: :redeem}, _),
+  defp maybe_start_redemption(socket, %{route_id: :redeem}),
     do: start_redemption_read(socket, lookup_owned: true)
 
-  defp maybe_start_redemption(socket, _, _) do
+  defp maybe_start_redemption(socket, _route_spec) do
     socket
     |> cancel_redemption_read()
     |> cancel_open_sea_lookup()
@@ -954,28 +660,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: reason
 
   defp refusal(reason), do: reason
-
-  defp staking_actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
-    do: %Human{human_account_id: account.id}
-
-  defp staking_actor(_socket), do: nil
-
-  # A different wallet's position is not this one's. The contract reading stays
-  # exactly as it is while the new wallet is looked up at its own fresh block.
-  defp adopt_staking_wallet(socket, wallet),
-    do:
-      socket
-      |> assign(
-        staking: forget_wallet_facts(socket.assigns.staking),
-        staking_wallet: wallet,
-        staking_notice: nil
-      )
-      |> start_staking_read(socket.assigns.content_generation)
-
-  defp forget_wallet_facts(nil), do: nil
-
-  defp forget_wallet_facts(staking),
-    do: StakingFacts.merge(staking, StakingFacts.blank_wallet())
 
   defp public_redemption_snapshot(nil), do: nil
 
