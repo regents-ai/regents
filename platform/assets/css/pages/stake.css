@@ -336,16 +336,30 @@
 }
 
 .stake-mode {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
 }
 
 .stake-mode button {
+  position: relative;
+  z-index: 1;
   border: 0;
-  background: transparent;
   color: var(--color-fg-muted);
+}
+
+/* The chosen mode's fill, which glides to the other tab when it is chosen. */
+.stake-mode__ink {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 50%;
+  background: var(--color-fg);
+  transform-origin: 0 50%;
+  pointer-events: none;
 }
 
 .stake-mode button + button {
@@ -940,9 +954,14 @@
 
 /* The vendored controls paint their own surface and edge, and the native
    button keeps its own size, so the chosen mode, the supply tiles and the
-   info mark are skinned outside the page layer to beat them. */
+   info mark are skinned outside the page layer to beat them. The mode
+   buttons paint no surface of their own: the row carries it, and the chosen
+   mode's fill is the ink gliding beneath them. */
+.stake-mode button {
+  background: transparent;
+}
+
 .stake-mode button[aria-selected="true"] {
-  background: var(--color-fg);
   color: var(--color-bg);
 }
 

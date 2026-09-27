@@ -580,6 +580,12 @@ defmodule AshPlatformWeb.StakeActions do
               aria-selected={to_string(@action == mode)}
               aria-controls="staking-tabpanel"
             >{mode_label(mode)}</Regent.Primitives.button>
+            <span
+              class="stake-mode__ink"
+              data-ink
+              aria-hidden="true"
+              phx-mounted={JS.ignore_attributes(["style"])}
+            ></span>
           </div>
 
           <div id="staking-tabpanel" role="tabpanel" aria-labelledby={"staking-tab-#{@action}"}>
