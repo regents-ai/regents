@@ -3,6 +3,9 @@ import Config
 config :ash_platform, AshPlatformWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
+# Every request reaches production through Fly's proxy, which sets Fly-Client-IP.
+config :ash_platform, :behind_fly_proxy, true
+
 # The private port fly.toml names under [metrics]; Fly routes no public traffic to it.
 config :ash_platform, :metrics_listener, ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: 9091
 

@@ -1,6 +1,8 @@
 defmodule AshPlatformWeb.Router do
   use AshPlatformWeb, :router
 
+  alias AshPlatformWeb.ContentSecurityPolicy
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -10,8 +12,13 @@ defmodule AshPlatformWeb.Router do
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug AshPlatformWeb.Plugs.LaunchGate
     plug :protect_from_forgery
-    # Browser agents may use the tools the pages register, from this site only.
-    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
+
+    # These pages can start wallet sign-in. Browser agents may use the tools the
+    # pages register, from this site only.
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.sign_in(),
+      "permissions-policy" => "tools=(self)"
+    }
   end
 
   pipeline :api do
@@ -25,7 +32,13 @@ defmodule AshPlatformWeb.Router do
     plug AshPlatformWeb.Plugs.Theme
     plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
+
+    # Reading only: these pages never start sign-in, so they send no referrer.
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.reading(),
+      "permissions-policy" => "tools=(self)",
+      "referrer-policy" => "no-referrer"
+    }
   end
 
   def enforce_session_authority(conn, _opts) do
@@ -42,7 +55,11 @@ defmodule AshPlatformWeb.Router do
       plug AshPlatformWeb.Plugs.Theme
       plug :put_root_layout, html: {AshPlatformWeb.Layouts, :root}
       plug :protect_from_forgery
-      plug :put_secure_browser_headers
+
+      # The showcase includes the sign-in window and frames its own preview.
+      plug :put_secure_browser_headers, %{
+        "content-security-policy" => ContentSecurityPolicy.showcase()
+      }
     end
 
     scope "/showcase", AshPlatformWeb do

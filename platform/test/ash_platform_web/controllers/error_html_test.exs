@@ -4,12 +4,13 @@ defmodule AshPlatformWeb.ErrorHTMLTest do
   # Bring render_to_string/4 for testing custom views
   import Phoenix.Template, only: [render_to_string: 4]
 
-  test "renders 404.html" do
-    assert render_to_string(AshPlatformWeb.ErrorHTML, "404", "html", []) =~ "Not Found</h1>"
+  test "ERROR_HEADLINES: a missing page says so in plain words" do
+    assert render_to_string(AshPlatformWeb.ErrorHTML, "404", "html", []) =~
+             "We can’t find that page</h1>"
   end
 
-  test "renders 500.html" do
+  test "ERROR_HEADLINES: any other failure says something went wrong" do
     assert render_to_string(AshPlatformWeb.ErrorHTML, "500", "html", []) =~
-             "Internal Server Error</h1>"
+             "Something went wrong</h1>"
   end
 end

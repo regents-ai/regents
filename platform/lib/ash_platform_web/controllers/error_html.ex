@@ -19,7 +19,7 @@ defmodule AshPlatformWeb.ErrorHTML do
 
     assigns =
       assign(assigns,
-        title: Phoenix.Controller.status_message_from_template(template),
+        title: headline(template),
         theme: theme
       )
 
@@ -53,4 +53,7 @@ defmodule AshPlatformWeb.ErrorHTML do
     </html>
     """
   end
+
+  defp headline("404" <> _format), do: "We can’t find that page"
+  defp headline(_template), do: "Something went wrong"
 end

@@ -62,6 +62,9 @@ config :ash_platform, :ens_avatar_deadline_ms, 200
 # controller tests restore the release 30/300 themselves.
 config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
+# Tests key rate limits as production does, behind Fly's proxy.
+config :ash_platform, :behind_fly_proxy, true
+
 if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
   config :ash_platform,
          :wallet_transaction_observer,

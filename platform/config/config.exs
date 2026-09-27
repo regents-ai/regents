@@ -47,6 +47,9 @@ config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttp
 config :ash_platform, :siwa, base_url: nil, audience: nil, activity_read_token: nil
 config :ash_platform, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
+# Rate limits key on the direct peer. Production turns on Fly's client header.
+config :ash_platform, :behind_fly_proxy, false
+
 config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
 config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 # ENS lives on Ethereum mainnet, which has no public endpoint this product is

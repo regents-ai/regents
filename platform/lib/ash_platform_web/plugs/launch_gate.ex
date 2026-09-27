@@ -7,10 +7,13 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   in either state. The Privacy Policy and Terms of Use stay open with them.
   """
 
-  import Phoenix.Controller, only: [get_format: 1, json: 2, put_secure_browser_headers: 1]
+  import Phoenix.Controller, only: [get_format: 1, json: 2, put_secure_browser_headers: 2]
   import Plug.Conn
 
-  alias AshPlatformWeb.HoldingController
+  alias AshPlatformWeb.{ContentSecurityPolicy, HoldingController}
+
+  # A closed answer carries the same browser headers as the open page it stands in for.
+  @browser_headers %{"content-security-policy" => ContentSecurityPolicy.sign_in()}
 
   @doc "True while the product surfaces are open."
   def app_surfaces_enabled?, do: Application.fetch_env!(:ash_platform, :app_surfaces)
@@ -41,12 +44,16 @@ defmodule AshPlatformWeb.Plugs.LaunchGate do
   defp closed(conn, "json"),
     do:
       conn
-      |> put_secure_browser_headers()
+      |> put_secure_browser_headers(@browser_headers)
       |> unavailable()
       |> json(%{error: "This part of Regent isn't open yet."})
 
   defp closed(conn, "html"),
-    do: conn |> put_secure_browser_headers() |> unavailable() |> HoldingController.call(:show)
+    do:
+      conn
+      |> put_secure_browser_headers(@browser_headers)
+      |> unavailable()
+      |> HoldingController.call(:show)
 
   defp unavailable(conn) do
     conn

@@ -1,27 +1,34 @@
 defmodule AshPlatformWeb.ClientAddress do
   @moduledoc """
-  The rate-limit key for the client behind a request, and where it came from.
+  The address a request's rate limits are keyed by.
 
-  Fly terminates the connection, so the peer is the proxy and the client
-  address arrives in one header the proxy sets itself. Anything but exactly one
-  parseable value keys the proxy-wide peer bucket rather than a second header a
-  client could forge itself a private budget with.
+  Production runs only behind Fly's proxy, which terminates the connection, so
+  the peer is the proxy and the client address arrives in the one header the
+  proxy sets itself, replacing any value a client sent. Anywhere else nothing
+  replaces that header, so the direct peer decides and no request header is
+  read. `X-Forwarded-For` is never read: a client writes its first entries.
   """
 
-  import Plug.Conn, only: [get_req_header: 2]
+  @behind_fly_proxy Application.compile_env!(:ash_platform, :behind_fly_proxy)
 
-  @spec key(Plug.Conn.t()) :: {:inet.ip_address(), :client_header | :peer_fallback}
+  @doc """
+  The limiter key for `conn` and where it came from.
+
+  Behind Fly, anything but exactly one parseable `Fly-Client-IP` keys the
+  proxy-wide peer bucket rather than a second header a client could forge
+  itself a private budget with.
+  """
+  @spec key(Plug.Conn.t()) :: {:inet.ip_address(), :client_header | :peer | :peer_fallback}
   def key(conn) do
-    case get_req_header(conn, "fly-client-ip") do
-      [value] -> parsed(value, conn.remote_ip)
-      _absent_or_duplicated -> {normalized(conn.remote_ip), :peer_fallback}
-    end
+    if @behind_fly_proxy, do: fly_client(conn), else: {normalized(conn.remote_ip), :peer}
   end
 
-  defp parsed(value, remote_ip) do
-    case value |> :binary.bin_to_list() |> :inet.parse_strict_address() do
-      {:ok, address} -> {normalized(address), :client_header}
-      {:error, :einval} -> {normalized(remote_ip), :peer_fallback}
+  defp fly_client(conn) do
+    with [value] <- Plug.Conn.get_req_header(conn, "fly-client-ip"),
+         {:ok, address} <- value |> :binary.bin_to_list() |> :inet.parse_strict_address() do
+      {normalized(address), :client_header}
+    else
+      _absent_duplicated_or_unparseable -> {normalized(conn.remote_ip), :peer_fallback}
     end
   end
 
