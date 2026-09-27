@@ -62,11 +62,8 @@ new status. GET never updates those records. Mounting Phoenix endpoints use `Reg
 enforce an 8 KiB profile-body limit before parsing; the adapter also bounds
 known profile fields and requires JSON even for already-parsed bodies.
 
-## Release preparation
+## Migrations
 
-`mix regent_identity.stage` exports identity and Privy from prepared dependency
-snapshots. Set `REGENT_IDENTITY_REVISION` and `REGENT_PRIVY_REVISION` to their full
-candidate commits; altered snapshot files are refused. It never runs migrations.
 Regents is the single migration owner: explicitly run
 `RegentIdentity.Migrator.up(Product.Repo)` only against the identified destination.
 It uses `regent_identity.schema_migrations`, separate from product histories.
