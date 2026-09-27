@@ -329,6 +329,12 @@
   overflow-wrap: anywhere;
 }
 
+/* The tabs and their panel share one motion island but lay out as two of
+   the actions panel's rows. */
+.stake-modes {
+  display: contents;
+}
+
 .stake-mode {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -935,7 +941,7 @@
 /* The vendored controls paint their own surface and edge, and the native
    button keeps its own size, so the chosen mode, the supply tiles and the
    info mark are skinned outside the page layer to beat them. */
-.stake-mode button[aria-pressed="true"] {
+.stake-mode button[aria-selected="true"] {
   background: var(--color-fg);
   color: var(--color-bg);
 }
