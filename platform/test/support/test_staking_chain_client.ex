@@ -68,11 +68,16 @@ defmodule AshPlatform.TestStakingChainClient do
     end
   end
 
+  # A sent step is on this stand-in chain once a test names it: a hash with no
+  # transaction is still waiting, and one with no receipt has not landed yet.
   @impl true
-  def allowance(_wallet, amount) do
-    current = Application.get_env(:ash_platform, :test_staking_allowance, 0)
-    {:ok, if(current >= amount, do: :sufficient, else: :insufficient)}
-  end
+  def transaction(hash), do: sent(:test_staking_transactions, hash)
+
+  @impl true
+  def receipt(hash), do: sent(:test_staking_receipts, hash)
+
+  defp sent(key, hash),
+    do: {:ok, :ash_platform |> Application.get_env(key, %{}) |> Map.get(hash)}
 
   # A test may watch the process doing a read, so an ordering proof can wait for
   # that read to finish rather than for a duration.

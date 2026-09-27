@@ -7,13 +7,13 @@ defmodule AshPlatform.TestWalletTransactionObserver do
   # observation is unavailable, so a test that forgot to arrange an outcome can
   # never fabricate a confirmed transaction.
   @impl true
-  def observe(transaction, scope) do
+  def observe(transaction) do
     case Application.get_env(:ash_platform, :test_wallet_observation_watcher) do
       nil ->
         :unavailable
 
       watcher ->
-        send(watcher, {:wallet_observation, scope, transaction, self()})
+        send(watcher, {:wallet_observation, transaction, self()})
 
         receive do
           {:wallet_observation_result, :crash} -> raise "simulated Base observation crash"

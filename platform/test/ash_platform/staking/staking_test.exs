@@ -2,7 +2,7 @@ defmodule AshPlatform.StakingTest do
   use AshPlatformWeb.ConnCase, async: false
 
   alias AshPlatform.Staking
-  alias AshPlatform.Staking.Facts
+  alias AshPlatform.Staking.{Facts, Steps}
 
   @wallet "0x1111111111111111111111111111111111111111"
   @other "0x2222222222222222222222222222222222222222"
@@ -31,10 +31,10 @@ defmodule AshPlatform.StakingTest do
     end
 
     @impl true
-    def allowance(wallet, amount) do
-      send(Process.get(:staking_test_pid, self()), {:allowance, wallet, amount})
-      {:ok, Process.get(:allowance, :insufficient)}
-    end
+    def transaction(_hash), do: {:ok, nil}
+
+    @impl true
+    def receipt(_hash), do: {:ok, nil}
 
     defp protocol do
       %{
@@ -115,61 +115,12 @@ defmodule AshPlatform.StakingTest do
     refute_received :protocol
   end
 
-  test "FRESH_ACTION_ID: identical clicks create distinct direct wallet envelopes" do
-    assert {:ok, first} = Staking.prepare_unstake(@wallet, "1")
-    assert {:ok, second} = Staking.prepare_unstake(@wallet, "1")
-    assert first.action == "unstake"
-    assert second.action == "unstake"
-    refute first.action_id == second.action_id
-  end
-
-  test "CURRENT_ALLOWANCE: a sufficient stake asks only for Stake" do
-    Process.put(:allowance, :sufficient)
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1.25")
-    assert envelope.action == "stake"
-    assert envelope.approval == nil
-    assert envelope.arguments.amount_atomic == "1250000000000000000"
-    assert_receive {:allowance, @wallet, 1_250_000_000_000_000_000}
-  end
-
-  test "CURRENT_ALLOWANCE: an insufficient stake carries its exact approval" do
-    Process.put(:allowance, :insufficient)
-    assert {:ok, envelope} = Staking.prepare_stake(@wallet, "1")
-    assert envelope.approval.mode == "exact"
-    assert envelope.approval.amount == "1000000000000000000"
-    assert envelope.approval.spender == envelope.to
-  end
-
-  test "CURRENT_CHAIN_LIMITS: Base, not the server, decides amounts and claims" do
-    Process.put(:token_raw, "1")
-    assert {:ok, %{action: "stake"}} = Staking.prepare_stake(@wallet, "1")
-
-    Process.put(:stake_raw, "1")
-    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
-
-    Process.put(:claimable_usdc_raw, "0")
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
-  end
-
-  test "ONLY_SHAPE_REFUSALS: amount shape and signer shape are the server's last two refusals" do
-    assert {:error, _} = Staking.prepare_stake(@wallet, "0")
-    assert {:error, _} = Staking.prepare_stake("not-a-wallet", "1")
-  end
-
   test "EXACT_AMOUNTS: values are positive decimals with at most 18 places" do
     assert {:ok, 1_000_000_000_000_000_001} = Staking.parse_amount("1.000000000000000001")
 
     for invalid <- ["", "0", "-1", "1e3", "1.0000000000000000001", "NaN"] do
       assert {:error, :invalid_amount} = Staking.parse_amount(invalid)
     end
-  end
-
-  test "DIRECT_CONTROLS: every claim returns a sendable envelope without persisted state" do
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
-
-    assert {:ok, %{action: "claim_and_restake_regent"}} =
-             Staking.prepare_claim_and_restake_regent(@wallet)
   end
 
   test "CLAIM_READING: the reading names each claim's reason and withholds nothing" do
@@ -207,27 +158,16 @@ defmodule AshPlatform.StakingTest do
              "claim_and_restake_regent" => :chain_unavailable
            }
 
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
-
-    assert {:ok, %{action: "claim_and_restake_regent"}} =
-             Staking.prepare_claim_and_restake_regent(@wallet)
-  end
-
-  test "PAUSED: Base, not the server, decides a claim while the contract is paused" do
-    Process.put(:paused, true)
-
-    assert {:ok, %{action: "claim_and_restake_regent"}} =
-             Staking.prepare_claim_and_restake_regent(@wallet)
-
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
-    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
+    # What the reading says lights a claim or not; every claim is still a step.
+    for reading <- [funded, empty, short, nil] do
+      assert step_names(reading) ==
+               ~w(approve stake claim_usdc claim_regent claim_and_restake_regent)
+    end
   end
 
   # A wallet reading nobody could get is one wallet's figures and nothing else.
-  # The contract reading it sits beside is untouched, and every control that
-  # ends in a wallet request still prepares exactly what it always did.
+  # The contract reading it sits beside is untouched, and every button that
+  # ends in a wallet request still has its step.
   test "UNAVAILABLE_POSITION: a failed wallet read costs that wallet's figures alone" do
     assert {:ok, protocol} = Staking.overview()
     reading = Facts.merge(protocol, Facts.unavailable_wallet(@wallet))
@@ -257,14 +197,13 @@ defmodule AshPlatform.StakingTest do
              "claim_and_restake_regent" => :chain_unavailable
            }
 
-    # Every wallet request is still prepared in full.
-    assert {:ok, %{action: "stake"}} = Staking.prepare_stake(@wallet, "1")
-    assert {:ok, %{action: "unstake"}} = Staking.prepare_unstake(@wallet, "1")
-    assert {:ok, %{action: "claim_usdc"}} = Staking.prepare_claim_usdc(@wallet)
-    assert {:ok, %{action: "claim_regent"}} = Staking.prepare_claim_regent(@wallet)
+    # Every wallet request is still a step, with the approval asked for first
+    # because the allowance could not be read.
+    assert step_names(reading) ==
+             ~w(approve stake claim_usdc claim_regent claim_and_restake_regent)
 
-    assert {:ok, %{action: "claim_and_restake_regent"}} =
-             Staking.prepare_claim_and_restake_regent(@wallet)
+    assert step_names(reading, "unstake") ==
+             ~w(unstake claim_usdc claim_regent claim_and_restake_regent)
   end
 
   # The seven-day window is read beside the contract's answers rather than with
@@ -301,6 +240,12 @@ defmodule AshPlatform.StakingTest do
     with {:ok, protocol} <- Staking.overview(),
          {:ok, wallet_facts} <- Staking.account_for_wallet(wallet),
          do: {:ok, Facts.merge(protocol, wallet_facts)}
+  end
+
+  defp step_names(reading, action \\ "stake") do
+    form = %{action: action, amount: "1", for_other: false, receiver: "", acknowledged: nil}
+    %{steps: steps} = Steps.review("regent-staking", @wallet, reading, form)
+    Enum.map(steps, & &1.step)
   end
 
   defp restore_env(key, nil), do: Application.delete_env(:ash_platform, key)

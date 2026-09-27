@@ -37,6 +37,7 @@ COPY elixir-utils/blog /workspace/elixir-utils/blog
 COPY elixir-utils/agent_access /workspace/elixir-utils/agent_access
 COPY elixir-utils/ens /workspace/elixir-utils/ens
 COPY elixir-utils/format /workspace/elixir-utils/format
+COPY elixir-utils/chain /workspace/elixir-utils/chain
 COPY elixir-utils/siwa/siwa-elixir/apps/siwa /workspace/elixir-utils/siwa/siwa-elixir/apps/siwa
 COPY regents/identity /workspace/regents/identity
 COPY design-system/regent_ui /workspace/design-system/regent_ui

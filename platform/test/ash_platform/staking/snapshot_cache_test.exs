@@ -22,8 +22,10 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     def wallet_snapshot(wallet), do: AshPlatform.TestStakingChainClient.wallet_snapshot(wallet)
 
     @impl true
-    def allowance(wallet, amount),
-      do: AshPlatform.TestStakingChainClient.allowance(wallet, amount)
+    def transaction(hash), do: AshPlatform.TestStakingChainClient.transaction(hash)
+
+    @impl true
+    def receipt(hash), do: AshPlatform.TestStakingChainClient.receipt(hash)
   end
 
   defmodule CrashingChainClient do
@@ -36,7 +38,10 @@ defmodule AshPlatform.Staking.SnapshotCacheTest do
     def wallet_snapshot(_wallet), do: exit(:simulated_reading_crash)
 
     @impl true
-    def allowance(_wallet, _amount), do: {:ok, :insufficient}
+    def transaction(_hash), do: exit(:simulated_reading_crash)
+
+    @impl true
+    def receipt(_hash), do: exit(:simulated_reading_crash)
   end
 
   setup do

@@ -1,18 +1,18 @@
 defmodule AshPlatform.WalletActions.Envelope do
   @moduledoc false
 
-  alias AshPlatform.WalletActions.{Abi, Address}
+  alias AshPlatform.WalletActions.Address
 
   @ttl_seconds 600
-  @staking_actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
-  @confirmable_after_expiry_resources ~w(regent_staking animata_redemption)
+  @confirmable_after_expiry_resources ~w(animata_redemption)
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
     require_calldata!(data)
     signer = normalize_address!(signer)
-    {to, resource, contract_name} = identity!(action, opts)
-    to = normalize_address!(to)
+    to = opts |> Keyword.fetch!(:to) |> normalize_address!()
+    resource = Keyword.fetch!(opts, :resource)
+    contract_name = Keyword.fetch!(opts, :contract_name)
     value = "0"
     chain_id = 8453
     risk_copy = Keyword.fetch!(opts, :risk_copy)
@@ -207,22 +207,6 @@ defmodule AshPlatform.WalletActions.Envelope do
       {:ok, address} -> address
       :error -> raise ArgumentError, "invalid address"
     end
-  end
-
-  defp identity!(action, opts) when action in @staking_actions do
-    {
-      Keyword.get(opts, :to, Abi.staking_address()),
-      Keyword.get(opts, :resource, "regent_staking"),
-      Keyword.get(opts, :contract_name, "RegentRevenueStaking")
-    }
-  end
-
-  defp identity!(_action, opts) do
-    {
-      Keyword.fetch!(opts, :to),
-      Keyword.fetch!(opts, :resource),
-      Keyword.fetch!(opts, :contract_name)
-    }
   end
 
   defp require_nonempty!(value, _field) when is_binary(value) and value != "", do: :ok

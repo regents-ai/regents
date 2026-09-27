@@ -9,8 +9,9 @@ defmodule AshPlatformWeb.StakeLiveTest do
   # Invariants covered:
   # - smoke: 200 mount and the supply-bar landmark
   # - signed-out vs signed-in gating of send controls and refresh_data
-  # - wallet handoff via browser data attributes (no prepare_staking event)
+  # - the server builds every wallet step and pushes them before any press
   # - allowance/approval branch, including a missing allowance
+  # - a sent step is read on Base and its outcome is written by the server
   # - refresh_data is signed-in only; a rate-limited refusal keeps the last reading
   # - an unavailable figure renders as unavailable without hiding the page (gu2.18)
   # - a zero seven-day window is the 0.00 figure, not unavailable or never-asked (gu2.18)
@@ -38,7 +39,6 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     on_exit(fn ->
       for key <- [
-            :test_staking_allowance,
             :test_staking_balances,
             :test_staking_circulating,
             :test_staking_denominator,
@@ -49,7 +49,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
             :test_staking_read_at,
             :test_staking_usdc_7d,
             :test_staking_price_handler,
-            :test_wallet_observation_watcher,
+            :test_staking_transactions,
+            :test_staking_receipts,
             :staking_snapshot_clock
           ] do
         Application.delete_env(:ash_platform, key)
@@ -71,7 +72,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     def wallet_snapshot(_wallet), do: exit(:simulated_refresh_crash)
 
     @impl true
-    def allowance(_wallet, _amount), do: {:ok, :insufficient}
+    def transaction(_hash), do: exit(:simulated_refresh_crash)
+
+    @impl true
+    def receipt(_hash), do: exit(:simulated_refresh_crash)
   end
 
   defmodule GatedChainClient do
@@ -96,8 +100,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end
 
     @impl true
-    def allowance(wallet, amount),
-      do: AshPlatform.TestStakingChainClient.allowance(wallet, amount)
+    def transaction(hash), do: AshPlatform.TestStakingChainClient.transaction(hash)
+
+    @impl true
+    def receipt(hash), do: AshPlatform.TestStakingChainClient.receipt(hash)
   end
 
   test "PUBLIC_FACTS: anonymous visitors see benefits, contract facts, and a wallet connection",
@@ -124,8 +130,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     end
 
     refute has_element?(view, "#staking-amount")
-    refute has_element?(view, "button[data-staking-action]")
-    refute has_element?(view, "#regent-staking[data-staking-allowance]")
+    refute has_element?(view, "button[data-onchain-step]")
   end
 
   test "HERO_SUPPLY: the hero carries circulating and total REGENT", %{conn: conn} do
@@ -200,7 +205,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     refute has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
     assert has_element?(view, ".stake-benefit-card-primary", "5,074.87 USDC")
     assert_every_claim_live(view)
-    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
 
     Application.delete_env(:ash_platform, :test_staking_usdc_7d)
     share_new_snapshot()
@@ -221,7 +226,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-layout")
     assert has_element?(view, "#staking-contract-skeleton[aria-busy=false]")
     refute has_element?(view, "#staking-supply-bar")
-    refute has_element?(view, "button[data-staking-action]")
+    refute has_element?(view, "button[data-onchain-step]")
 
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
     Application.delete_env(:ash_platform, :test_staking_protocol_error)
@@ -358,24 +363,31 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert render(view) =~ "5 REGENT"
   end
 
-  test "POST_CONFIRMATION_REFRESH: the wallet is re-read at the receipt's block, not the cached one",
+  test "CONFIRMED_STEP_REFRESHES: a step Base confirmed re-reads the wallet and the shared totals",
        %{conn: conn} do
-    view = conn |> mount_stake() |> activate(@wallet)
+    view = stake_as_signer(conn, "confirmed-refresh")
+    on_exit(fn -> SnapshotCache.clear() end)
+    set_amount(view, "1")
 
     assert staking_assigns(view).staking.wallet_block_number ==
              TestStakingChainClient.wallet_block()
 
+    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+
+    reverted = hash("0b")
+    send_landed(view, "stake", reverted, "0x0")
+    assert has_element?(view, ~s(#staking-sent-#{reverted}[data-outcome="reverted"]))
+    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+
     Application.put_env(:ash_platform, :test_staking_wallet_block, @receipt_block)
     on_exit(fn -> Application.delete_env(:ash_platform, :test_staking_wallet_block) end)
 
-    render_hook(view, "refresh_staking", %{})
-    render_async(view)
+    send_landed(view, "stake", @hash, "0x1")
 
-    staking = staking_assigns(view).staking
-    assert staking.wallet_block_number == @receipt_block
-    assert staking.wallet_block_number > TestStakingChainClient.wallet_block()
-    assert staking.block_number == TestStakingChainClient.protocol_block()
-    assert SnapshotCache.snapshot().block_number == TestStakingChainClient.protocol_block()
+    assert has_element?(view, ~s(#staking-sent-#{@hash}[data-outcome="confirmed"]))
+    assert staking_assigns(view).staking.wallet_block_number == @receipt_block
+    assert {timer, _token} = :sys.get_state(SnapshotCache).refresh_timer
+    assert Process.read_timer(timer) <= 10_000
   end
 
   test "ANONYMOUS_ACTIVE_WALLET: any connected wallet is read without a Regent login", %{
@@ -413,8 +425,8 @@ defmodule AshPlatformWeb.StakeLiveTest do
     activate(view, @other)
 
     assert staking_assigns(view).staking_wallet == @wallet
-    assert has_element?(view, ~s(#regent-staking[data-staking-wallet="#{@wallet}"]))
-    assert has_element?(view, ~s|button[data-staking-action="stake"]|)
+    assert staking_assigns(view).staking_review.signer == @wallet
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|)
     assert has_element?(view, ".shell-sending-wallet", "0x2222…2222")
     assert has_element?(view, ".shell-sending-wallet", "0x1111…1111")
 
@@ -451,24 +463,54 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
     refute has_element?(view, "#staking-amount")
-    refute has_element?(view, "#regent-staking[data-staking-allowance]")
     refute render(view) =~ "Currently staked"
   end
 
-  test "DIRECT_STAKE: canonical browser data renders without a server preparation event", %{
+  test "SERVER_BUILT_STEPS: the page is handed every wallet step before anyone presses", %{
     conn: conn
   } do
-    view = stake_as_signer(conn, "direct-stake")
+    view = stake_as_signer(conn, "server-built")
     set_amount(view, "1")
 
-    assert has_element?(
-             view,
-             ~s(#regent-staking[data-staking-chain-id="8453"][data-staking-wallet="#{@wallet}"][data-staking-allowance="0"])
-           )
+    assert_push_event(view, "onchain-steps:review", %{
+      component_id: "regent-staking",
+      signer: @wallet,
+      chain: %{chain_id: 8453},
+      inputs: %{action: "stake", amount: "1"},
+      steps: [
+        %{step: "approve", data: "0x095ea7b3" <> _},
+        %{step: "stake", data: "0x7acb7757" <> _},
+        %{step: "claim_usdc"},
+        %{step: "claim_regent"},
+        %{step: "claim_and_restake_regent"}
+      ]
+    })
 
-    assert has_element?(view, ~s(button[data-staking-action="stake"]))
-    refute has_element?(view, "[phx-click=prepare_staking]")
-    refute_push_event(view, "staking:wallet-action", _)
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|, "Approve REGENT")
+    assert has_element?(view, ".stake-approval-note", "needs an exact REGENT approval first")
+
+    # An approval on its way moves the button on to the stake itself, and one
+    # Base turned down brings the approval back.
+    send_step(view, "approve", @hash)
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|, "Stake REGENT")
+    assert has_element?(view, ".stake-approval-note", "Approval sent.")
+
+    # Asked again straight away, Base's answer comes back without the wait.
+    land(view, "approve", @hash, "0x0")
+    render_hook(view, "check_staking_step", %{"hash" => @hash})
+    render_async(view)
+    assert has_element?(view, ~s(#staking-sent-#{@hash}[data-outcome="reverted"]))
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
+
+    # A landed approval leaves it to the wallet reading taken after it. This one
+    # still shows no allowance, as it does once a stake has spent the approval.
+    send_landed(view, "approve", hash("0a"), "0x1")
+    assert has_element?(view, ~s(#staking-sent-#{hash("0a")}[data-outcome="confirmed"]))
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
+
+    view |> element(~s(button[phx-value-mode="unstake"])) |> render_click()
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="unstake"]|, "Unstake REGENT")
+    refute has_element?(view, ".stake-approval-note")
   end
 
   test "AMOUNT_LIMITS: Max follows capacity and an over-limit amount still reaches the wallet", %{
@@ -481,8 +523,10 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ~s(#staking-amount[value="5"]))
 
     set_amount(view, "11")
-    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
-    refute_push_event(view, "staking:wallet-action", _)
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]:not([disabled])|)
+
+    assert %{steps: [%{step: "approve"}, %{step: "stake"} | _claims]} =
+             staking_assigns(view).staking_review
   end
 
   test "REVENUE_SHARE: the preview reads a staker's share of revenue against the whole supply", %{
@@ -565,12 +609,11 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     refute render(view) =~ "Staking details are unavailable right now."
     assert_every_claim_live(view)
-    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
 
     set_amount(view, "3")
-    assert has_element?(view, ~s|button[data-staking-action="stake"]:not([disabled])|)
-    refute has_element?(view, "#regent-staking[data-staking-allowance]")
-    assert render(view) =~ "will first request an exact REGENT approval"
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]:not([disabled])|)
+    assert has_element?(view, ".stake-approval-note", "needs an exact REGENT approval first")
   end
 
   test "WALLET_DURING_FIRST_READ: replacing the open wallet read never reports Base unavailable",
@@ -625,169 +668,214 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert has_element?(view, ".stake-wallet-summary", "Currently staked")
   end
 
-  test "OBSERVATION_REPORTS: a well-formed observation returns the Base outcome to the page", %{
+  test "STEP_OUTCOMES: the server reads each sent step on Base and says what happened", %{
     conn: conn
   } do
-    view = watched_stake(conn)
+    view = stake_as_signer(conn, "step-outcomes")
 
-    render_hook(view, "observe_staking_transaction", observation("obs-1"))
+    for {name, hash, status, words} <- [
+          {"claim_usdc", hash("01"), "0x1", "Done. Your USDC rewards were claimed."},
+          {"claim_regent", hash("02"), "0x0", "There may be no REGENT rewards to claim yet"},
+          {"claim_and_restake_regent", hash("03"), "0x1", "added to your stake"}
+        ] do
+      send_landed(view, name, hash, status)
+      assert has_element?(view, "#staking-sent-#{hash}", words)
+    end
 
-    assert_receive {:wallet_observation, :staking, transaction, observer}
-    assert transaction["hash"] == @hash
-    assert transaction["signer"] == @wallet
-    refute Map.has_key?(transaction, "observation_id")
+    # Nothing on Base yet is still waiting, and Base is asked again.
+    waiting = hash("04")
+    send_step(view, "claim_usdc", waiting)
 
-    send(observer, {:wallet_observation_result, :success})
-    render_async(view)
+    assert has_element?(
+             view,
+             ~s(#staking-sent-#{waiting}[data-outcome="pending"]),
+             "Waiting for Base"
+           )
 
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-1",
-      result: :success
-    })
+    land(view, "claim_usdc", waiting, "0x1")
+    render_async(view, 3_000)
+    assert has_element?(view, ~s(#staking-sent-#{waiting}[data-outcome="confirmed"]))
   end
 
-  test "CONFIRMED_STAKE_REFRESHES_TOTALS: a confirmed transaction brings the shared reading forward",
+  test "EVERY_PRESS_IS_FOLLOWED: repeated presses each get their own line", %{conn: conn} do
+    view = stake_as_signer(conn, "every-press")
+
+    for byte <- ~w(11 12 13), do: send_step(view, "claim_usdc", hash(byte))
+
+    for byte <- ~w(11 12 13) do
+      assert has_element?(view, "#staking-sent-#{hash(byte)}", "USDC claim")
+    end
+  end
+
+  test "NOT_THIS_STEP: a hash that is not the step this page built is not followed", %{
+    conn: conn
+  } do
+    view = stake_as_signer(conn, "not-this-step")
+    [%{data: data}] = step(view, "claim_usdc")
+
+    Application.put_env(:ash_platform, :test_staking_transactions, %{
+      @hash => %{"from" => @other, "to" => staking_contract(), "input" => data, "value" => "0x0"}
+    })
+
+    send_step(view, "claim_usdc", @hash)
+    render_async(view)
+    assert has_element?(view, "#staking-sent-#{@hash}", "not the one this page prepared")
+
+    # Calldata the page never built is not read on Base at all.
+    unknown = hash("21")
+
+    render_hook(view, "step_sent", %{
+      "step" => "stake",
+      "transaction_hash" => unknown,
+      "data" => "0x7acb7757"
+    })
+
+    assert has_element?(view, "#staking-sent-#{unknown}", "not the one this page prepared")
+
+    render_hook(view, "step_sent", %{
+      "step" => "stake",
+      "transaction_hash" => "0x12",
+      "data" => "0x"
+    })
+
+    refute has_element?(view, "#staking-sent-0x12")
+  end
+
+  test "PRESS_FAILURES: a press the wallet did not send says why in plain words", %{conn: conn} do
+    view = stake_as_signer(conn, "press-failures")
+
+    for {reason, words} <- [
+          {"wallet_declined", "Your wallet declined this. Nothing was sent."},
+          {"network_mismatch", "Switch it to Base"},
+          {"wallet_unavailable", "Check the wallet you signed in with is connected"},
+          {"send_unconfirmed", "Your wallet may have sent this."},
+          {"step_unknown", "Enter an amount in REGENT above zero."}
+        ] do
+      render_hook(view, "step_failed", %{"step" => "stake", "reason" => reason})
+      assert has_element?(view, "#staking-press-notice", words)
+    end
+
+    set_amount(view, "1")
+    stake_for(view, "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe")
+    render_hook(view, "step_failed", %{"step" => "stake", "reason" => "step_unknown"})
+
+    assert has_element?(
+             view,
+             "#staking-press-notice",
+             "Tick the warning about the receiving address"
+           )
+
+    send_landed(view, "claim_usdc", @hash, "0x1")
+    refute has_element?(view, "#staking-press-notice")
+  end
+
+  test "STAKE_FOR_SOMEONE: the step to another wallet exists only for the address acknowledged",
        %{conn: conn} do
-    view = watched_stake(conn)
-    on_exit(fn -> SnapshotCache.clear() end)
-    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+    other = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"
+    view = stake_as_signer(conn, "stake-for")
+    set_amount(view, "1")
 
-    render_hook(view, "observe_staking_transaction", observation("obs-failed"))
-    assert_receive {:wallet_observation, :staking, _transaction, failed_observer}
-    send(failed_observer, {:wallet_observation_result, :reverted})
-    render_async(view)
-    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+    stake_for(view, "not an address")
+    assert has_element?(view, "#staking-recipient-error:not([hidden])")
+    refute has_element?(view, "#staking-recipient-warning")
 
-    render_hook(view, "observe_staking_transaction", observation("obs-confirmed"))
-    assert_receive {:wallet_observation, :staking, _transaction, observer}
-    send(observer, {:wallet_observation_result, :success})
-    render_async(view)
+    stake_for(view, other)
+    assert has_element?(view, "#staking-recipient-warning-text", String.downcase(other))
+    assert step(view, "stake") == []
 
-    assert {timer, _token} = :sys.get_state(SnapshotCache).refresh_timer
-    assert Process.read_timer(timer) <= 10_000
+    acknowledge(view, other)
+    assert [%{data: data}] = step(view, "stake")
+    assert data =~ "de0b295669a9fd93d5f28d9ec85e40f4cb697bae"
+
+    # Another address takes the acknowledgment back.
+    stake_for(view, @other)
+    assert step(view, "stake") == []
+    refute has_element?(view, "#staking-recipient-acknowledged[checked]")
   end
 
-  test "OBSERVATION_IS_NOT_REPEATED: a duplicate observation id observes Base once", %{conn: conn} do
-    view = watched_stake(conn)
-
-    render_hook(view, "observe_staking_transaction", observation("obs-1"))
-    assert_receive {:wallet_observation, :staking, _transaction, observer}
-
-    render_hook(view, "observe_staking_transaction", observation("obs-1"))
-    refute_receive {:wallet_observation, _scope, _transaction, _observer}, 200
-
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-1",
-      result: :unavailable
-    })
-
-    send(observer, {:wallet_observation_result, :success})
-    render_async(view)
-  end
-
-  test "OBSERVATION_IS_CAPPED: a ninth live observation on one socket observes nothing", %{
+  test "PREPARE_AND_SEND: a press ahead of the form gets the matching step to send", %{
     conn: conn
   } do
-    view = watched_stake(conn)
+    view = stake_as_signer(conn, "prepare-and-send")
 
-    observers =
-      for index <- 1..8 do
-        render_hook(view, "observe_staking_transaction", observation("obs-#{index}"))
-        assert_receive {:wallet_observation, :staking, _transaction, observer}
-        observer
-      end
-
-    render_hook(view, "observe_staking_transaction", observation("obs-9"))
-    refute_receive {:wallet_observation, _scope, _transaction, _observer}, 200
-
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-9",
-      result: :unavailable
-    })
-
-    [first | held] = observers
-    send(first, {:wallet_observation_result, :success})
-
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-1",
-      result: :success
-    })
-
-    render_hook(view, "observe_staking_transaction", observation("obs-9"))
-    assert_receive {:wallet_observation, :staking, _transaction, ninth}
-
-    for observer <- [ninth | held], do: send(observer, {:wallet_observation_result, :success})
-    render_async(view)
-  end
-
-  test "OBSERVATION_SURVIVES_A_CRASH: a crashed observer releases its place and reports", %{
-    conn: conn
-  } do
-    view = watched_stake(conn)
-
-    render_hook(view, "observe_staking_transaction", observation("obs-1"))
-    assert_receive {:wallet_observation, :staking, _transaction, observer}
-
-    send(observer, {:wallet_observation_result, :crash})
-
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-1",
-      result: :unavailable
-    })
-
-    render_hook(view, "observe_staking_transaction", observation("obs-1"))
-    assert_receive {:wallet_observation, :staking, _transaction, retried}
-
-    send(retried, {:wallet_observation_result, :success})
-    render_async(view)
-
-    assert_push_event(view, "staking:transaction-result", %{
-      observation_id: "obs-1",
-      result: :success
-    })
-  end
-
-  test "OBSERVATION_NEEDS_AN_ID: a malformed observation observes nothing", %{conn: conn} do
-    view = watched_stake(conn)
-
-    render_hook(
-      view,
-      "observe_staking_transaction",
-      Map.delete(observation("obs-1"), "observation_id")
-    )
-
-    render_hook(view, "observe_staking_transaction", %{"hash" => @hash})
-    render_hook(view, "observe_staking_transaction", %{"observation_id" => ""})
-    render_hook(view, "observe_staking_transaction", %{"observation_id" => 7})
-
-    render_hook(view, "observe_staking_transaction", %{
-      "observation_id" => String.duplicate("i", 129)
-    })
-
-    refute_receive {:wallet_observation, _scope, _transaction, _observer}, 200
-  end
-
-  defp watched_stake(conn) do
-    view = mount_stake(conn)
-    Application.put_env(:ash_platform, :test_wallet_observation_watcher, self())
-    view
-  end
-
-  defp observation(id),
-    do: %{
-      "observation_id" => id,
-      "hash" => @hash,
-      "signer" => @wallet,
-      "to" => "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
-      "data" => "0xa9059cbb"
+    form = %{
+      "action" => "stake",
+      "amount" => "7",
+      "for_other" => false,
+      "receiver" => "",
+      "acknowledged" => false
     }
+
+    render_hook(view, "prepare_and_send", %{"form" => form})
+
+    assert_push_event(view, "onchain-steps:review", %{
+      send: "approve",
+      inputs: %{amount: "7"},
+      steps: [%{step: "approve"}, %{step: "stake"} | _claims]
+    })
+
+    assert has_element?(view, ~s(#staking-amount[value="7"]))
+  end
+
+  defp hash(byte), do: "0x" <> String.duplicate(byte, 32)
+
+  defp staking_contract, do: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
+
+  defp step(view, name),
+    do: Enum.filter(staking_assigns(view).staking_review.steps, &(&1.step == name))
+
+  # Base answers for `hash` as though it carried the page's own `name` step.
+  defp land(view, name, hash, status) do
+    [%{to: to, data: data, value: value}] = step(view, name)
+    transaction = %{"from" => @wallet, "to" => to, "input" => data, "value" => value}
+    put_chain(:test_staking_transactions, hash, transaction)
+    put_chain(:test_staking_receipts, hash, %{"status" => status})
+  end
+
+  defp put_chain(key, hash, value) do
+    entries = Application.get_env(:ash_platform, key, %{})
+    Application.put_env(:ash_platform, key, Map.put(entries, hash, value))
+  end
+
+  # What the browser reports after the wallet sent `name` from the page's review.
+  # Base is read at once; a step it does not know yet is read again later.
+  defp send_step(view, name, hash) do
+    [%{data: data}] = step(view, name)
+    render_hook(view, "step_sent", %{"step" => name, "transaction_hash" => hash, "data" => data})
+  end
+
+  # A step Base already answered for, sent and read.
+  defp send_landed(view, name, hash, status) do
+    land(view, name, hash, status)
+    send_step(view, name, hash)
+    render_async(view)
+  end
+
+  defp stake_for(view, receiver) do
+    view
+    |> form("#staking-amount-form", %{"for_other" => "true", "receiver" => receiver})
+    |> render_change(%{"_target" => ["receiver"]})
+  end
+
+  defp acknowledge(view, receiver) do
+    view
+    |> form("#staking-amount-form", %{
+      "for_other" => "true",
+      "receiver" => receiver,
+      "acknowledged" => "true"
+    })
+    |> render_change(%{"_target" => ["acknowledged"]})
+  end
 
   defp assert_every_claim_live(view) do
     for action <- ~w(claim_usdc claim_regent claim_and_restake_regent) do
-      assert has_element?(view, ~s|button[data-staking-action="#{action}"]:not([disabled])|)
+      assert has_element?(
+               view,
+               ~s|button[data-claim="#{action}"][data-onchain-step="#{action}"]:not([disabled])|
+             )
     end
 
-    refute has_element?(view, "button[data-staking-action][disabled]")
+    refute has_element?(view, "button[data-onchain-step][disabled]")
   end
 
   defp set_amount(view, amount),
@@ -820,7 +908,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   defp assert_offers_sign_in(view) do
-    refute has_element?(view, "button[data-staking-action]")
+    refute has_element?(view, "button[data-onchain-step]")
 
     for label <- ["Stake REGENT" | @claim_controls] do
       assert has_element?(view, sign_in_control(), label)
@@ -832,7 +920,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
   end
 
   defp sign_in_control,
-    do: ~s|#regent-staking button[data-account-target="sign-in"]:not([data-staking-action])|
+    do: ~s|#regent-staking button[data-account-target="sign-in"]:not([data-onchain-step])|
 
   defp signed_in_stake(conn, suffix) do
     assert {:ok, account} =

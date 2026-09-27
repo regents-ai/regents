@@ -3,8 +3,9 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
 
   alias AshPlatform.WalletActions.Rpc
 
-  @callback observe(map(), :staking | :redemption) ::
-              :success | :reverted | :delayed | :unavailable
+  @rpc_options [client_key: :redemption_http_client, log_scope: "redemption transaction"]
+
+  @callback observe(map()) :: :success | :reverted | :delayed | :unavailable
 
   # Base confirms a block about every two seconds, so one poll per block for a
   # minute covers an ordinary confirmation many times over.
@@ -13,18 +14,18 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
   @doc false
   def delays, do: @delays
 
-  def observe(transaction, scope) when scope in [:staking, :redemption] do
+  def observe(transaction) do
     module = Application.get_env(:ash_platform, :wallet_transaction_observer, __MODULE__)
 
     if module == __MODULE__,
-      do: observe_rpc(transaction, scope, @delays),
-      else: module.observe(transaction, scope)
+      do: observe_rpc(transaction, @delays),
+      else: module.observe(transaction)
   end
 
   @doc false
-  def observe_rpc(transaction, scope, delays) when scope in [:staking, :redemption] do
+  def observe_rpc(transaction, delays) do
     case exact_transaction(transaction) do
-      {:ok, exact} -> poll(exact, rpc_options(scope), delays, :delayed)
+      {:ok, exact} -> poll(exact, @rpc_options, delays, :delayed)
       :error -> :unavailable
     end
   end
@@ -82,10 +83,4 @@ defmodule AshPlatform.WalletActions.TransactionObserver do
   end
 
   defp exact_transaction(_transaction), do: :error
-
-  defp rpc_options(:staking),
-    do: [client_key: :staking_http_client, log_scope: "staking transaction"]
-
-  defp rpc_options(:redemption),
-    do: [client_key: :redemption_http_client, log_scope: "redemption transaction"]
 end

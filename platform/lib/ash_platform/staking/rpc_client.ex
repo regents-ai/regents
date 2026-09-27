@@ -40,18 +40,10 @@ defmodule AshPlatform.Staking.RpcClient do
     do: bounded(fn -> read_wallet(Abi.normalize_address!(wallet_address)) end)
 
   @impl true
-  def allowance(signer, amount) do
-    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
-         {:ok, allowance} <-
-           Rpc.call_uint(
-             Abi.stake_token_address(),
-             Abi.encode_erc20("allowance", [signer, Abi.staking_address()]),
-             block,
-             @rpc_opts
-           ) do
-      {:ok, if(allowance >= amount, do: :sufficient, else: :insufficient)}
-    end
-  end
+  def transaction(hash), do: Rpc.request("eth_getTransactionByHash", [hash], @rpc_opts)
+
+  @impl true
+  def receipt(hash), do: Rpc.request("eth_getTransactionReceipt", [hash], @rpc_opts)
 
   # One `latest` block owns every figure below it. The contract's current
   # answers come back together, the one balance that could not be asked for

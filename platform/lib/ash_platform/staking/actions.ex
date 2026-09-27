@@ -3,19 +3,9 @@ defmodule AshPlatform.Staking.Actions do
   alias AshPlatform.Accounts
   alias AshPlatform.Actors.Human
   alias AshPlatform.Staking.ChainClient
-  alias AshPlatform.WalletActions.{Abi, Address, Envelope}
+  alias AshPlatform.WalletActions.Address
 
-  @resource "regent_staking"
-  @contract_name "RegentRevenueStaking"
-  @actions ~w(stake unstake claim_usdc claim_regent claim_and_restake_regent)
   @claims ~w(claim_usdc claim_regent claim_and_restake_regent)
-  @risk %{
-    "stake" => "Stake REGENT from your connected wallet.",
-    "unstake" => "Return the selected amount of staked REGENT to your connected wallet.",
-    "claim_usdc" => "Claim all currently available USDC staking rewards.",
-    "claim_regent" => "Claim all currently available REGENT rewards.",
-    "claim_and_restake_regent" => "Claim available REGENT rewards and add them to your stake."
-  }
 
   def overview(_input, _context), do: ChainClient.module().protocol_snapshot()
 
@@ -31,74 +21,6 @@ defmodule AshPlatform.Staking.Actions do
     with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          do: ChainClient.module().wallet_snapshot(signer)
   end
-
-  def prepare(action, input, _context) do
-    with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
-         {:ok, amount} <- requested_amount(action, input.arguments),
-         {:ok, data, approval, arguments} <- calldata(action, amount, signer),
-         envelope <-
-           Envelope.new(action, signer, data,
-             to: Abi.staking_address(),
-             resource: @resource,
-             contract_name: @contract_name,
-             risk_copy: Map.fetch!(@risk, action),
-             approval: approval,
-             arguments: arguments
-           ),
-         true <- valid_envelope?(envelope) do
-      {:ok, envelope}
-    else
-      false -> refusal(:stale_or_invalid_action)
-      error -> error
-    end
-  end
-
-  defp valid_envelope?(envelope),
-    do:
-      Envelope.valid_for_confirmation?(envelope,
-        resource: @resource,
-        to: Abi.staking_address(),
-        signer: envelope.expected_signer,
-        contract_name: @contract_name,
-        actions: @actions
-      )
-
-  defp calldata("stake", amount, signer) do
-    approval = %{
-      token: Abi.normalize_address!(Abi.stake_token_address()),
-      spender: Abi.normalize_address!(Abi.staking_address()),
-      amount: Integer.to_string(amount),
-      data: Abi.encode_erc20("approve", [Abi.staking_address(), amount]),
-      mode: "exact"
-    }
-
-    with {:ok, allowance} <- ChainClient.module().allowance(signer, amount) do
-      {:ok, Abi.encode_action("stake", [amount, signer]),
-       if(allowance == :sufficient, do: nil, else: approval),
-       %{amount_atomic: Integer.to_string(amount), receiver: signer}}
-    end
-  end
-
-  defp calldata("unstake", amount, signer),
-    do:
-      {:ok, Abi.encode_action("unstake", [amount, signer]), nil,
-       %{amount_atomic: Integer.to_string(amount), recipient: signer}}
-
-  defp calldata("claim_usdc", _, signer),
-    do: {:ok, Abi.encode_action("claim_usdc", [signer]), nil, %{recipient: signer}}
-
-  defp calldata("claim_regent", _, signer),
-    do: {:ok, Abi.encode_action("claim_regent", [signer]), nil, %{recipient: signer}}
-
-  defp calldata("claim_and_restake_regent", _, _),
-    do: {:ok, Abi.encode_action("claim_and_restake_regent", []), nil, %{}}
-
-  defp calldata(_, _, _), do: {:error, :unknown_action}
-
-  defp requested_amount(action, arguments) when action in ["stake", "unstake"],
-    do: parse_amount(arguments.amount)
-
-  defp requested_amount(_, _), do: {:ok, nil}
 
   def parse_amount(value) when is_binary(value) do
     value = String.trim(value)
@@ -168,8 +90,8 @@ defmodule AshPlatform.Staking.Actions do
   What the last Base reading says about each claim, keyed by action.
 
   A reason here is what decides whether a claim reads as available: every claim
-  control stays clickable, the click prepares exact calldata, and the contract
-  decides the outcome. `nil` means the reading had nothing to say against that
+  control stays clickable, every press sends the claim step the server built,
+  and the contract decides the outcome. `nil` means the reading had nothing to say against that
   claim, so it is offered as available.
   """
   def available_claims(nil), do: Map.new(@claims, &{&1, :chain_unavailable})
@@ -224,12 +146,4 @@ defmodule AshPlatform.Staking.Actions do
   end
 
   defp atomic(_value), do: :error
-
-  defp refusal(reason),
-    do:
-      {:error,
-       Ash.Error.Invalid.Unavailable.exception(
-         resource: AshPlatform.Staking.Snapshot,
-         reason: reason
-       )}
 end

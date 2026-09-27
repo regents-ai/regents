@@ -60,6 +60,7 @@ defmodule AshPlatform.MixProject do
        path: System.get_env("REGENT_BLOG_PATH", Path.join(shared, "elixir-utils/blog"))},
       {:regent_agent_access, path: Path.join(shared, "elixir-utils/agent_access")},
       {:regent_format, path: Path.join(shared, "elixir-utils/format")},
+      {:regent_chain, path: Path.join(shared, "elixir-utils/chain")},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},

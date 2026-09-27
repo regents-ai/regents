@@ -9,13 +9,13 @@ From `repos/regents/platform/` in an isolated prepared worktree:
 
 ```sh
 mix test test/ash_platform/staking test/ash_platform_web/stake_live_test.exs
-npm test -- --run assets/test/stake_wallet.test.ts assets/test/privy_bridge.test.ts
+npm test -- --run assets/test/stake_steps.test.ts assets/test/privy_bridge.test.ts
 npx playwright test test/browser/stake.spec.ts
 ```
 
-The browser test uses an in-memory wallet provider and test-only chain boundary. It simulates an
-exact REGENT approval and stake, returns deterministic successful receipts, confirms through the
-Ash staking boundary, and refreshes the position. It never contacts a wallet or sends a live
+The browser test uses an in-memory wallet provider and a test-only chain boundary. It presses an
+exact REGENT approval and stake, checks the wallet received exactly the steps the server built, and
+reads their outcome back through the same stand-in chain. It never contacts a wallet or sends a live
 transaction.
 
 ## Manual local check
@@ -30,13 +30,15 @@ transaction.
 5. Confirm the page shows Base, the deployed staking contract, your REGENT balance, your current
    stake, and your available USDC and REGENT rewards.
 6. Choose one action and review the exact amount, recipient, contract, network, and risk text.
-7. Only if you intentionally want to make a Base mainnet transaction, choose **Confirm in wallet**
-   and review every wallet prompt. A stake may require one exact REGENT approval followed by the
-   staking transaction.
+7. Only if you intentionally want to make a Base mainnet transaction, press the action and review
+   every wallet prompt. A stake may need one exact REGENT approval first: the button reads
+   **Approve REGENT** until the approval is sent, then **Stake REGENT**.
 
-The server only prepares and verifies actions. The connected wallet signs. The page reports
-success only after a successful Base receipt is independently verified and the onchain position is
-read again.
+The server builds every wallet step (the `regent_chain` package from `elixir-utils/chain`) and
+pushes them to the page before anyone presses. The button only sends the step it names from the
+wallet the account signed in with. The server then reads the transaction on Base at the latest
+block every two seconds, checks it is exactly the step it built, and says whether it went through.
+A confirmed step reads the wallet's position and the shared totals again.
 
 ## Supported actions
 
@@ -48,7 +50,7 @@ read again.
 
 Selecting **Stake for a different address** reveals a plain Ethereum address input. The warning must be checked for that exact address. Editing the address, switching modes, or changing the connected wallet clears that acknowledgment. The payer supplies REGENT and signs the approval and stake; the receiving address owns the stake and future rewards. Only transactions from that receiving address can withdraw its stake or claim its rewards. A contract wallet must be able to call those functions.
 
-No automatic restaking, operator treasury action or ENS recipient resolution is included. This page flow does not change the separate CLI/server preparation interfaces.
+No automatic restaking, operator treasury action or ENS recipient resolution is included.
 
 ## Dependency and audit note
 

@@ -9,7 +9,6 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @treasury "0x3333333333333333333333333333333333333333"
-  @amount 1_500_000_000_000_000_000
 
   # One REGENT, and the four holdings this stubbed chain keeps out of
   # circulation: forty billion in the Clanker vault, twenty billion in the
@@ -296,13 +295,20 @@ defmodule AshPlatform.Staking.RpcClientTest do
     assert hash == Stub.latest_hash()
   end
 
-  test "CURRENT_ALLOWANCE: a fresh latest-block read reports sufficient or insufficient" do
-    Stub.put(%{allowance: @amount})
-    assert {:ok, :sufficient} = RpcClient.allowance(@wallet, @amount)
-    assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
+  test "SENT_STEP: a sent hash reads as nothing until Base has it, then as Base answers" do
+    hash = "0x" <> String.duplicate("ab", 32)
+    assert {:ok, nil} = RpcClient.transaction(hash)
+    assert {:ok, nil} = RpcClient.receipt(hash)
 
-    Stub.put(%{allowance: @amount - 1})
-    assert {:ok, :insufficient} = RpcClient.allowance(@wallet, @amount)
+    Stub.put(%{
+      transactions: %{hash => %{"hash" => hash, "from" => @wallet}},
+      receipts: %{hash => Stub.receipt(hash, "0x10", [], "0x0")}
+    })
+
+    assert {:ok, %{"hash" => ^hash, "from" => @wallet}} = RpcClient.transaction(hash)
+    assert {:ok, %{"status" => "0x0"}} = RpcClient.receipt(hash)
+    assert_received {:rpc, "eth_getTransactionByHash", [^hash]}
+    assert_received {:rpc, "eth_getTransactionReceipt", [^hash]}
   end
 
   test "CURRENT_CAPACITY: remaining capacity is floored at zero" do

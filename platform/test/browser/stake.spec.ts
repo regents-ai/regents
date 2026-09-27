@@ -9,8 +9,12 @@ const sendsKey = "regent:test:staking-wallet-sends"
 const disconnectedKey = "regent:wallet-disconnected:v1"
 // The sign-in this page's staking bearer names is the wallet above.
 const stakingBearer = "valid-staking"
-const approvalIncomplete =
-  "The wallet token approval step has not been completed yet, check popup windows or try again"
+const stakingContract = "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
+const stakingAbi = parseAbi([
+  "function approve(address spender,uint256 amount)",
+  "function stake(uint256 amount,address receiver)",
+  "function claimUSDC(address receiver)",
+])
 const bridgePattern =
   /\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js\?(?:vsn=d&)?regent_retry=\d+$/
 const bridgeStub = `
@@ -26,7 +30,7 @@ export async function startPrivyBridge() {
 }
 `
 
-test("Stake hands each click directly to the active Base wallet and presents every result", async ({page}) => {
+test("Stake sends each press straight to the signed-in wallet and follows it on Base", async ({page}) => {
   await installWallet(page)
 
   await page.goto("/stake")
@@ -62,6 +66,7 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   await page.emulateMedia({reducedMotion: "no-preference"})
 
   // A press with no wallet open asks the wallet app to connect, in place.
+  await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
   await expect
     .poll(() => page.evaluate(key => localStorage.getItem(key), disconnectedKey))
@@ -74,76 +79,61 @@ test("Stake hands each click directly to the active Base wallet and presents eve
   await expect(page.locator(".stake-wallet-block")).toContainText("Base block #1,240")
   await expect(page.locator(".stake-snapshot-note")).toContainText("Base block #1,234")
 
-  await page.getByLabel("Amount", {exact: true}).fill("1")
+  const primary = page.locator("#staking-primary")
+  const activity = page.locator("#staking-activity")
 
-  // The test wallet reports zero allowance. One accepted Stake click therefore
-  // receives the exact approval prompt immediately followed by the Stake prompt.
-  await page.locator("button.stake-primary").click()
-  await expect.poll(() => sendCount(page)).toBe(2)
-
-  const dialog = page.locator("#staking-result-dialog")
-  await expect(dialog.getByText("REGENT spending was approved successfully.")).toBeVisible()
-  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
+  // The test wallet reports zero allowance, so the button asks for the exact
+  // approval first, and the stake once the approval is sent.
+  await expect(primary).toHaveText(/Approve REGENT/)
+  await expect(page.locator(".stake-approval-note")).toContainText("exact REGENT approval first")
+  await primary.click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  expect(await sent(page, 1)).toEqual({
+    to: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
+    call: {functionName: "approve", args: [stakingContract, 10n ** 18n]},
+  })
+  await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("REGENT approval")
+  await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("Sent. Waiting for Base.")
+  await expect(activity.locator(`#staking-sent-${expectedHash(1)} a`)).toHaveAttribute(
     "href",
     `https://basescan.org/tx/${expectedHash(1)}`,
   )
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog.getByText("1 REGENT was staked successfully.")).toBeVisible()
-  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
-    "href",
-    `https://basescan.org/tx/${expectedHash(2)}`,
-  )
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog).toBeHidden()
 
-  // An identical customer click is a new request, not a deduplicated or locked
-  // operation. It receives the same two direct wallet prompts.
-  await page.locator("button.stake-primary").click()
-  await expect.poll(() => sendCount(page)).toBe(4)
+  await expect(primary).toHaveText(/Stake REGENT/)
+  await primary.click()
+  await expect.poll(() => sendCount(page)).toBe(2)
+  expect(await sent(page, 2)).toEqual({
+    to: stakingContract,
+    call: {functionName: "stake", args: [10n ** 18n, wallet]},
+  })
+  await expect(activity.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 1 REGENT")
 
-  await expect(dialog.getByText("REGENT spending was approved successfully.")).toBeVisible()
-  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
-    "href",
-    `https://basescan.org/tx/${expectedHash(3)}`,
-  )
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog.getByText("1 REGENT was staked successfully.")).toBeVisible()
-  await expect(dialog.getByRole("link", {name: "View on BaseScan"})).toHaveAttribute(
-    "href",
-    `https://basescan.org/tx/${expectedHash(4)}`,
-  )
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog).toBeHidden()
+  // The same press again is a new request, not a deduplicated or locked one.
+  await primary.click()
+  await expect.poll(() => sendCount(page)).toBe(3)
+  await expect(activity.locator(`#staking-sent-${expectedHash(3)}`)).toContainText("Stake 1 REGENT")
 
   // Every claim is offered whatever the last reading from Base said about it,
-  // so no control is ever disabled and each carries its own action for the hook.
-  await expect(page.locator("button[data-staking-action][disabled]")).toHaveCount(0)
+  // so no control is ever disabled and each names its own step.
+  await expect(page.locator("button[data-onchain-step][disabled]")).toHaveCount(0)
   for (const action of ["claim_usdc", "claim_regent", "claim_and_restake_regent"]) {
-    await expect(page.locator(`button[data-staking-action="${action}"]`)).toBeEnabled()
+    await expect(page.locator(`#staking-${action}[data-onchain-step="${action}"]`)).toBeEnabled()
   }
 
   await page.getByRole("button", {name: "Claim USDC (available)", exact: true}).click()
-  await expect.poll(() => sendCount(page)).toBe(5)
-
-  await expect(dialog.getByText("Your available USDC rewards were claimed.")).toBeVisible()
-  const resultLink = dialog.getByRole("link", {name: "View on BaseScan"})
-  await expect(resultLink).toHaveAttribute(
-    "href",
-    `https://basescan.org/tx/${expectedHash(5)}`,
-  )
+  await expect.poll(() => sendCount(page)).toBe(4)
+  expect(await sent(page, 4)).toEqual({
+    to: stakingContract,
+    call: {functionName: "claimUSDC", args: [wallet]},
+  })
+  const resultLink = activity.locator(`#staking-sent-${expectedHash(4)} a`)
   await expect(resultLink).toHaveAttribute("target", "_blank")
   await expect(resultLink).toHaveAttribute("rel", "noopener noreferrer")
-  await page.mouse.click(1, 1)
-  await expect(dialog).toBeHidden()
-
-  await expect(page.locator(".stake-review, .stake-submission")).toHaveCount(0)
-  await expect(page.getByText(/transaction hash|Confirmed on Base|Retry/i)).toHaveCount(0)
-  expect(await page.evaluate(() => sessionStorage.getItem("regent:staking:submitted"))).toBeNull()
 
   await page.reload()
   await expect(page.locator("#account-menu")).toBeVisible()
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
-  expect(await sendCount(page)).toBe(5)
+  expect(await sendCount(page)).toBe(4)
 })
 
 // Nothing is sent for a visitor who has not signed in. Every control that would
@@ -162,7 +152,7 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
 
   // The position is read and shown; every control asks for the sign-in instead.
   await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
-  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
   await expect(page.locator("button.stake-submit")).toHaveAttribute(
     "data-account-target",
     "sign-in",
@@ -191,12 +181,12 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
 
   await page.goto("/stake")
   await expect(page.locator("#account-menu")).toBeVisible()
-  await expect(page.locator("button[data-staking-action='claim_usdc']")).toBeEnabled()
+  await expect(page.locator("#staking-claim_usdc[data-onchain-step]")).toBeEnabled()
 
   await signOut(page)
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page).toHaveURL(/\/stake$/)
-  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-submit").click()
@@ -205,9 +195,10 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   expect(await sendCount(page)).toBe(0)
 })
 
-// The figures belong to the account that signed in. A press is always sent,
-// from the wallet open in the wallet app, and a note names both wallets.
-test("Stake sends from the open wallet while the figures stay the account's", async ({page}) => {
+// The figures and the sender are the account that signed in. With another
+// wallet open in the wallet app, a press sends nothing and says what to do; a
+// note names both wallets.
+test("Stake sends only from the signed-in wallet while the figures stay the account's", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
@@ -223,16 +214,20 @@ test("Stake sends from the open wallet while the figures stay the account's", as
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
-  await expect.poll(() => sendCount(page)).toBe(2)
-
-  const transactions = await page.evaluate(() => (window as Window & {
-    __ashStakingTransactions?: Record<string, {from: string}>
-  }).__ashStakingTransactions!)
-  expect(transactions[expectedHash(1)]!.from.toLowerCase()).toBe(otherWallet)
-  expect(transactions[expectedHash(2)]!.from.toLowerCase()).toBe(otherWallet)
+  await expect(page.locator("#staking-press-notice")).toContainText(
+    "Check the wallet you signed in with is connected and open",
+  )
+  expect(await sendCount(page)).toBe(0)
 
   await selectWallet(page, wallet)
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
+  await page.locator("button.stake-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  const transactions = await page.evaluate(() => (window as Window & {
+    __ashStakingTransactions?: Record<string, {from: string}>
+  }).__ashStakingTransactions!)
+  expect(transactions[expectedHash(1)]!.from.toLowerCase()).toBe(wallet)
+  await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
 // Disconnect ends the wallet connection, and it stays ended across reloads
@@ -279,8 +274,7 @@ async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
   await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
-  await expect(page.locator("#regent-staking[data-staking-wallet]")).toHaveCount(0)
-  await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
+  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
 }
 
 // A signed-in document asks for the Privy bridge on load. These acceptance
@@ -369,8 +363,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(connect).toHaveAttribute("data-account-target", "sign-in")
     await expect(page.getByText("Available REGENT", {exact: true})).toHaveCount(0)
     await expect(page.getByText("Currently staked", {exact: true})).toHaveCount(0)
-    await expect(page.locator("button[data-staking-action]")).toHaveCount(0)
-    await expect(page.locator("#regent-staking[data-staking-allowance]")).toHaveCount(0)
+    await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
 
     const fit = await page.evaluate(viewport => {
       const addresses = [...document.querySelectorAll<HTMLElement>(".stake-contract-facts code")]
@@ -452,11 +445,10 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
   }
 })
 
-// An approval that never returns a usable hash buys nothing on Base, so the page
-// hands out no receipt for it and never sends the stake behind it. It does say
-// which step is unfinished, and leaves the amount exactly where the customer
-// typed it, so the same click can be made again.
-test("Stake names the unfinished approval step when an approval returns no usable hash", async ({page}) => {
+// An approval whose wallet answer is not a transaction hash may still have been
+// sent, so the page says to check the wallet, and leaves the amount exactly
+// where the customer typed it so the same press can be made again.
+test("Stake says to check the wallet when an approval returns no usable hash", async ({page}) => {
   await installWallet(page)
   await signIn(page)
   await page.goto("/stake")
@@ -469,20 +461,19 @@ test("Stake names the unfinished approval step when an approval returns no usabl
 
   await page.locator("button.stake-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
-  await expect(page.locator("#staking-result-dialog")).toContainText(approvalIncomplete)
-  await expect(page.locator("#staking-result-dialog a[data-staking-result-link]")).toBeHidden()
-  await page.locator("#staking-result-dialog").getByRole("button", {name: "Done"}).click()
+  await expect(page.locator("#staking-press-notice")).toHaveText(
+    "Your wallet may have sent this. Check your wallet activity.",
+  )
+  await expect(page.locator("#staking-activity li")).toHaveCount(0)
   await expect(page.locator("button.stake-submit")).toBeEnabled()
+  await expect(page.locator("button.stake-submit")).toHaveText(/Approve REGENT/)
   await expect(page.getByLabel("Amount", {exact: true})).toHaveValue("1")
-
-  // The wallet is offered again only once the click is over, so the count here
-  // is final: the approval was the one and only transaction the wallet saw.
   expect(await sendCount(page)).toBe(1)
 })
 
 // The approval prompt a customer dismisses, or never finds behind the browser
 // window, is the common way a stake stops before it starts.
-test("Stake names the unfinished approval step when the wallet rejects the approval", async ({page}) => {
+test("Stake says the wallet declined when the approval is rejected", async ({page}) => {
   await installWallet(page)
   await signIn(page)
   await page.goto("/stake")
@@ -493,23 +484,19 @@ test("Stake names the unfinished approval step when the wallet rejects the appro
       .__ashStakingRejectedApproval = true
   })
 
-  await page.locator("button.stake-primary").click()
+  const primary = page.locator("button.stake-primary")
+  await primary.click()
   await expect.poll(() => sendCount(page)).toBe(1)
+  await expect(page.locator("#staking-press-notice")).toHaveText(
+    "Your wallet declined this. Nothing was sent.",
+  )
+  await expect(primary).toHaveText(/Approve REGENT/)
 
-  const dialog = page.locator("#staking-result-dialog")
-  await expect(dialog.getByRole("heading", {name: "Stake not completed"})).toBeVisible()
-  await expect(dialog.getByText(approvalIncomplete, {exact: true})).toBeVisible()
-
-  // Dismissing the notice retires it, and the next approval — the wallet takes
-  // this one — is confirmed on its own terms with no trace of it.
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog).toBeHidden()
-
-  await page.locator("button.stake-primary").click()
-  await expect.poll(() => sendCount(page)).toBe(3)
-
-  await expect(dialog.getByText("REGENT spending was approved successfully.")).toBeVisible()
-  await expect(dialog.getByText(approvalIncomplete)).toHaveCount(0)
+  // The next press — the wallet takes this one — clears the notice.
+  await primary.click()
+  await expect.poll(() => sendCount(page)).toBe(2)
+  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("REGENT approval")
+  await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
 test("Alternate stake requires fresh address consent and credits that address", async ({page}) => {
@@ -522,7 +509,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
   const acknowledgment = page.locator("#staking-recipient-acknowledged")
   const warning = page.locator("#staking-recipient-warning")
-  const dialog = page.locator("#staking-result-dialog")
+  const notice = page.locator("#staking-press-notice")
   const submit = page.locator("button.stake-submit")
 
   await expect(receiver).toBeHidden()
@@ -535,9 +522,8 @@ test("Alternate stake requires fresh address consent and credits that address", 
     await expect(receiver).toHaveAttribute("aria-invalid", "true")
     await expect(warning).toBeHidden()
     await submit.click()
-    await expect(dialog).toContainText(/Enter a valid Ethereum|Use a receiving wallet/)
+    await expect(notice).toHaveText("Enter a valid receiving address. Nothing was sent.")
     expect(await sendCount(page)).toBe(0)
-    await dialog.getByRole("button", {name: "Done"}).click()
   }
 
   await receiver.fill(otherWallet)
@@ -545,13 +531,14 @@ test("Alternate stake requires fresh address consent and credits that address", 
     `the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens`,
   )
   await submit.click()
-  await expect(dialog).toContainText("Acknowledge the warning")
+  await expect(notice).toHaveText("Tick the warning about the receiving address first. Nothing was sent.")
   expect(await sendCount(page)).toBe(0)
-  await dialog.getByRole("button", {name: "Done"}).click()
 
   await acknowledgment.check()
   await receiver.fill(wallet)
+  await expect(warning).toContainText(`the wallet ${wallet} will accrue`)
   await receiver.fill(otherWallet)
+  await expect(warning).toContainText(`the wallet ${otherWallet} will accrue`)
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
   await toggle.uncheck()
@@ -567,7 +554,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   // chosen destination and its acknowledgment stay too.
   await selectWallet(page, otherWallet)
   await selectWallet(page, wallet)
-  await expect(page.locator("#regent-staking")).toHaveAttribute("data-staking-wallet", wallet)
+  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
   await expect(receiver).toHaveValue(otherWallet)
   await expect(acknowledgment).toBeChecked()
   // A normal LiveView amount update preserves the acknowledged destination.
@@ -585,20 +572,15 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(acknowledgment).toBeFocused()
   await page.locator("#staking-amount-form").screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
   await submit.click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  await expect(submit).toHaveText(/Stake REGENT/)
+  await submit.click()
   await expect.poll(() => sendCount(page)).toBe(2)
-  await expect(dialog).toContainText("REGENT spending was approved successfully.")
-  await dialog.getByRole("button", {name: "Done"}).click()
-  await expect(dialog).toContainText(`2 REGENT was staked for ${otherWallet}.`)
-  await expect(dialog.locator("[data-staking-result-receiver]")).toHaveText(otherWallet)
-  const transactions = await page.evaluate(() => (window as Window & {
-    __ashStakingTransactions?: Record<string, {from: string; data: Hex}>
-  }).__ashStakingTransactions!)
-  const stake = transactions[expectedHash(2)]!
-  expect(stake.from.toLowerCase()).toBe(wallet)
-  expect(decodeFunctionData({abi: parseAbi(["function stake(uint256 amount,address receiver)"]), data: stake.data})).toEqual({
-    functionName: "stake", args: [2n * 10n ** 18n, otherWallet],
+  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222…2222")
+  expect(await sent(page, 2)).toEqual({
+    to: stakingContract,
+    call: {functionName: "stake", args: [2n * 10n ** 18n, otherWallet]},
   })
-  await dialog.getByRole("button", {name: "Done"}).click()
   await toggle.uncheck()
   await expect(receiver).toBeHidden()
   await expect(page.locator(".stake-preview")).toBeVisible()
@@ -660,6 +642,19 @@ async function installWallet(page: Page): Promise<void> {
     },
     {wallet, sendsKey},
   )
+}
+
+// The `index`th transaction the wallet sent: where it went and the call it made.
+async function sent(page: Page, index: number): Promise<{to: string; call: unknown}> {
+  const transaction = await page.evaluate(hash => (window as Window & {
+    __ashStakingTransactions?: Record<string, {from: string; to: string; data: Hex}>
+  }).__ashStakingTransactions![hash]!, expectedHash(index))
+  expect(transaction.from.toLowerCase()).toBe(wallet)
+  const {functionName, args} = decodeFunctionData({abi: stakingAbi, data: transaction.data})
+  return {
+    to: transaction.to.toLowerCase(),
+    call: {functionName, args: args.map(arg => (typeof arg === "string" ? arg.toLowerCase() : arg))},
+  }
 }
 
 function expectedHash(index: number): string {

@@ -25,7 +25,7 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
   end
 
   setup do
-    BaseRpcStub.install(:staking_http_client, fn _data, _state -> :unavailable end)
+    BaseRpcStub.install(:redemption_http_client, fn _data, _state -> :unavailable end)
     :ok
   end
 
@@ -40,7 +40,7 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
       transactions: %{@hash => transaction()}
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0]) == :success
+    assert TransactionObserver.observe_rpc(payload(), [0]) == :success
     assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
     refute_received {:rpc, "eth_getBlockByNumber", ["safe", false]}
   end
@@ -54,11 +54,11 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
       }
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0]) == :delayed
+    assert TransactionObserver.observe_rpc(payload(), [0]) == :delayed
 
     BaseRpcStub.put(%{receipts: %{}, transactions: %{}, blocks: %{}})
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0]) == :delayed
+    assert TransactionObserver.observe_rpc(payload(), [0]) == :delayed
   end
 
   # Base confirms a block about every two seconds, so the schedule a person
@@ -72,7 +72,7 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
   test "re-reads the head on every scheduled poll before an exhausted schedule is delayed" do
     BaseRpcStub.put(%{receipts: %{}, transactions: %{}})
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :delayed
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :delayed
     assert reads("eth_getBlockByNumber", ["latest", false]) == 3
   end
 
@@ -80,7 +80,7 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
   # names, so a failed read is a read to repeat, not an answer. It never becomes
   # an answer either: only a canonical receipt confirms or reverts.
   test "a failed read re-polls inside the schedule and still confirms" do
-    Application.put_env(:ash_platform, :staking_http_client, UnreadableUntil)
+    Application.put_env(:ash_platform, :redemption_http_client, UnreadableUntil)
     Process.put(:unreadable_reads, 2)
 
     BaseRpcStub.put(%{
@@ -88,15 +88,15 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
       transactions: %{@hash => transaction()}
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :success
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :success
     assert Process.get(:unreadable_reads) == 0
   end
 
   test "a chain that stays unreadable is reported only once the schedule is exhausted" do
-    Application.put_env(:ash_platform, :staking_http_client, UnreadableUntil)
+    Application.put_env(:ash_platform, :redemption_http_client, UnreadableUntil)
     Process.put(:unreadable_reads, 99)
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :unavailable
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :unavailable
     assert Process.get(:unreadable_reads) == 96
   end
 
@@ -109,23 +109,23 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
       transactions: %{@hash => Map.put(transaction(), "input", "0xdeadbeef")}
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :unavailable
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :unavailable
     assert reads("eth_getBlockByNumber", ["latest", false]) == 1
 
     BaseRpcStub.put(%{chain_id: "0x1"})
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :unavailable
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :unavailable
     assert reads("eth_chainId", []) == 1
 
-    Application.put_env(:ash_platform, :staking_http_client, UnreadableUntil)
+    Application.put_env(:ash_platform, :redemption_http_client, UnreadableUntil)
     Process.put(:unreadable_reads, 99)
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :unavailable
+    assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :unavailable
     assert Process.get(:unreadable_reads) == 96
   end
 
   test "an unreadable chain never answers success or revert, whatever the receipt says" do
-    Application.put_env(:ash_platform, :staking_http_client, UnreadableUntil)
+    Application.put_env(:ash_platform, :redemption_http_client, UnreadableUntil)
 
     for receipt <- [
           BaseRpcStub.receipt(@hash, "0x10", []),
@@ -138,7 +138,7 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
         transactions: %{@hash => transaction()}
       })
 
-      assert TransactionObserver.observe_rpc(payload(), :staking, [0, 0, 0]) == :unavailable
+      assert TransactionObserver.observe_rpc(payload(), [0, 0, 0]) == :unavailable
     end
   end
 
@@ -148,13 +148,13 @@ defmodule AshPlatform.WalletActions.TransactionObserverTest do
       transactions: %{@hash => transaction()}
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0]) == :reverted
+    assert TransactionObserver.observe_rpc(payload(), [0]) == :reverted
 
     BaseRpcStub.put(%{
       transactions: %{@hash => Map.put(transaction(), "input", "0xdeadbeef")}
     })
 
-    assert TransactionObserver.observe_rpc(payload(), :staking, [0]) == :unavailable
+    assert TransactionObserver.observe_rpc(payload(), [0]) == :unavailable
   end
 
   defp payload,

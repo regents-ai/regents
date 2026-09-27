@@ -8,9 +8,9 @@ defmodule AshPlatform.TestBrowserWalletTransactionObserver do
   # and every other well-formed hash confirms. Only the browser server selects
   # this; ExUnit uses the observer that answers nothing on its own.
   @impl true
-  def observe(%{"hash" => "0x" <> hash}, _scope) do
+  def observe(%{"hash" => "0x" <> hash}) do
     if String.starts_with?(hash, String.duplicate("f", 62)), do: :reverted, else: :success
   end
 
-  def observe(_transaction, _scope), do: :unavailable
+  def observe(_transaction), do: :unavailable
 end

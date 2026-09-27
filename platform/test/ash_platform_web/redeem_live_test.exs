@@ -630,12 +630,12 @@ defmodule AshPlatformWeb.RedeemLiveTest do
     observers =
       for index <- 1..8 do
         render_hook(view, "observe_redemption_transaction", observation("obs-#{index}"))
-        assert_receive {:wallet_observation, :redemption, _transaction, observer}
+        assert_receive {:wallet_observation, _transaction, observer}
         observer
       end
 
     render_hook(view, "observe_redemption_transaction", observation("obs-9"))
-    refute_receive {:wallet_observation, _scope, _transaction, _observer}, 200
+    refute_receive {:wallet_observation, _transaction, _observer}, 200
 
     assert_push_event(view, "redemption:transaction-result", %{
       observation_id: "obs-9",

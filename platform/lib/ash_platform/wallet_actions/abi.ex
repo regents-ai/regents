@@ -14,7 +14,6 @@ defmodule AshPlatform.WalletActions.Abi do
   @abi @abi_path |> File.read!() |> Jason.decode!()
   @multicall3_abi @multicall3_abi_path |> File.read!() |> Jason.decode!()
   @staking get_in(@manifest, ["contracts", "regent_revenue_staking"])
-  @actions Map.new(@staking["prepared_actions"], &{&1["id"], &1})
   @reads Map.new(@staking["reads"], &{&1["id"], &1})
 
   @address_bound Integer.pow(2, 160)
@@ -292,11 +291,6 @@ defmodule AshPlatform.WalletActions.Abi do
 
   defp word(value) when is_integer(value) and value >= 0,
     do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
-
-  def encode_action(id, arguments) when is_binary(id) and is_list(arguments) do
-    entry = Map.fetch!(@actions, id)
-    encode(entry, arguments)
-  end
 
   def encode_read(id, arguments \\ []) when is_binary(id) and is_list(arguments) do
     entry = Map.fetch!(@reads, id)

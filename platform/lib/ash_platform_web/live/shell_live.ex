@@ -32,6 +32,7 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
+  alias AshPlatformWeb.StakeSteps
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
@@ -104,7 +105,8 @@ defmodule AshPlatformWeb.ShellLive do
        route_spec: route_spec,
        shell_instance: System.unique_integer([:positive, :monotonic]),
        wallet_observations: MapSet.new()
-     )}
+     )
+     |> assign(StakeSteps.assigns())}
   end
 
   @impl true
@@ -132,6 +134,8 @@ defmodule AshPlatformWeb.ShellLive do
         {:noreply,
          socket
          |> maybe_start_staking(route_spec, generation)
+         |> StakeSteps.forget_review()
+         |> sync_staking_steps()
          |> maybe_start_redemption(route_spec, generation)}
 
       true ->
@@ -173,7 +177,8 @@ defmodule AshPlatformWeb.ShellLive do
        staking: StakingFacts.merge(staking, wallet_facts),
        staking_status: :ready,
        staking_notice: clear_staking_refresh_failure(socket.assigns.staking_notice)
-     )}
+     )
+     |> sync_staking_steps()}
   end
 
   # A failed or crashed wallet read says nothing about the contract reading
@@ -185,7 +190,8 @@ defmodule AshPlatformWeb.ShellLive do
         {:ok, {generation, {:error, _reason}}},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
+    {:noreply,
+     socket |> release_staking_read(name) |> wallet_read_failed() |> sync_staking_steps()}
   end
 
   def handle_async(
@@ -193,7 +199,8 @@ defmodule AshPlatformWeb.ShellLive do
         {:exit, _reason},
         %{assigns: %{content_generation: generation}} = socket
       ) do
-    {:noreply, socket |> release_staking_read(name) |> wallet_read_failed()}
+    {:noreply,
+     socket |> release_staking_read(name) |> wallet_read_failed() |> sync_staking_steps()}
   end
 
   def handle_async({:staking, _generation} = name, _result, socket),
@@ -299,27 +306,32 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async(:gallery_owned, _result, socket),
     do: {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
 
-  def handle_async(
-        {:wallet_transaction, scope, observation_id} = name,
-        {:ok, result},
-        socket
-      )
-      when scope in [:staking, :redemption] and
-             result in [:success, :reverted, :delayed, :unavailable] do
-    if scope == :staking and result == :success, do: SnapshotCache.refresh_soon()
-
+  def handle_async({:redemption_transaction, observation_id} = name, {:ok, result}, socket)
+      when result in [:success, :reverted, :delayed, :unavailable] do
     {:noreply,
      socket
      |> release_wallet_observation(name)
-     |> push_transaction_result(scope, observation_id, result)}
+     |> push_transaction_result(observation_id, result)}
   end
 
-  def handle_async({:wallet_transaction, scope, observation_id} = name, _result, socket)
-      when scope in [:staking, :redemption] do
+  def handle_async({:redemption_transaction, observation_id} = name, _result, socket) do
     {:noreply,
      socket
      |> release_wallet_observation(name)
-     |> push_transaction_result(scope, observation_id, :unavailable)}
+     |> push_transaction_result(observation_id, :unavailable)}
+  end
+
+  # A step that landed moved this wallet's figures and the contract's, so both
+  # are read again, and the steps follow what the new reading says.
+  def handle_async({:staking_step, hash}, result, socket) do
+    case StakeSteps.checked(socket, hash, result) do
+      {:confirmed, socket} ->
+        SnapshotCache.refresh_soon()
+        {:noreply, read_connected_wallet(socket)}
+
+      {_outcome, socket} ->
+        {:noreply, socket}
+    end
   end
 
   # "My passes" reads the signed-in account's own wallets once; after that the
@@ -499,7 +511,11 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("select_staking_action", %{"mode" => mode}, socket)
       when mode in ["stake", "unstake"],
       do:
-        {:noreply, assign(socket, staking_action: mode, staking_amount: "", staking_notice: nil)}
+        {:noreply,
+         socket
+         |> assign(staking_action: mode, staking_amount: "", staking_notice: nil)
+         |> StakeSteps.unacknowledge()
+         |> sync_staking_steps()}
 
   def handle_event("select_staking_action", _params, socket), do: {:noreply, socket}
 
@@ -511,20 +527,27 @@ defmodule AshPlatformWeb.ShellLive do
 
       amount ->
         {:noreply,
-         assign(socket,
-           staking_amount: token_amount(portioned(amount, portion)),
-           staking_notice: nil
-         )}
+         socket
+         |> assign(staking_amount: token_amount(portioned(amount, portion)), staking_notice: nil)
+         |> sync_staking_steps()}
     end
   end
 
   def handle_event("fill_staking_amount", _params, socket), do: {:noreply, socket}
 
-  def handle_event("staking_amount_changed", %{"amount" => amount}, socket),
-    do: {:noreply, assign(socket, staking_amount: amount, staking_notice: nil)}
+  def handle_event("staking_form_changed", %{"amount" => amount} = params, socket)
+      when is_binary(amount) do
+    {:noreply,
+     socket
+     |> assign(
+       staking_amount: amount,
+       staking_notice: nil,
+       staking_form: StakeSteps.change_form(socket.assigns.staking_form, params)
+     )
+     |> sync_staking_steps()}
+  end
 
-  def handle_event("refresh_staking", _params, socket),
-    do: {:noreply, read_connected_wallet(socket)}
+  def handle_event("staking_form_changed", _params, socket), do: {:noreply, socket}
 
   def handle_event("refresh_shared_snapshot", _params, socket),
     do: {:noreply, read_shared_snapshot(socket)}
@@ -534,21 +557,38 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_event("refresh_data", _params, socket),
     do: {:noreply, socket |> read_connected_wallet() |> read_shared_snapshot()}
 
+  # What the wallet said about a Stake press. Only the Stake page's buttons
+  # send these.
+  def handle_event("step_sent", params, %{assigns: %{route_spec: %{route_id: :stake}}} = socket),
+    do: {:noreply, StakeSteps.sent(socket, params)}
+
   def handle_event(
-        "observe_staking_transaction",
+        "step_failed",
         params,
         %{assigns: %{route_spec: %{route_id: :stake}}} = socket
       ),
-      do: {:noreply, start_transaction_observation(socket, :staking, params)}
+      do: {:noreply, StakeSteps.failed(socket, params)}
 
-  def handle_event("observe_staking_transaction", _params, socket), do: {:noreply, socket}
+  def handle_event(
+        "prepare_and_send",
+        %{"form" => form},
+        %{assigns: %{route_spec: %{route_id: :stake}}} = socket
+      ),
+      do: {:noreply, StakeSteps.prepare_and_send(socket, staking_signer(socket.assigns), form)}
+
+  def handle_event("check_staking_step", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, StakeSteps.check_again(socket, hash)}
+
+  def handle_event(event, _params, socket)
+      when event in ~w(step_sent step_failed prepare_and_send check_staking_step),
+      do: {:noreply, socket}
 
   def handle_event(
         "observe_redemption_transaction",
         params,
         %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
       ),
-      do: {:noreply, start_transaction_observation(socket, :redemption, params)}
+      do: {:noreply, start_transaction_observation(socket, params)}
 
   def handle_event("observe_redemption_transaction", _params, socket), do: {:noreply, socket}
 
@@ -569,7 +609,8 @@ defmodule AshPlatformWeb.ShellLive do
        staking_shared_reading: false,
        staking_status: :ready
      )
-     |> read_unanswered_wallet()}
+     |> read_unanswered_wallet()
+     |> sync_staking_steps()}
   end
 
   def handle_info({:staking_snapshot, _protocol}, socket), do: {:noreply, socket}
@@ -792,6 +833,11 @@ defmodule AshPlatformWeb.ShellLive do
           available_claims={Staking.available_claims(@staking)}
           actions={actions(@access_context)}
           sender={other_sender(@staking_wallet, @browser_wallet)}
+          form={@staking_form}
+          next_step={StakeSteps.next_step(assigns)}
+          approval_note={StakeSteps.approval_note(assigns)}
+          sent={StakeSteps.shown(@staking_sent)}
+          press={@staking_press}
         />
 
         <.redemption_page
@@ -882,7 +928,9 @@ defmodule AshPlatformWeb.ShellLive do
         staking_action: "stake",
         staking_amount: "",
         staking_wallet: nil,
-        staking_notice: nil
+        staking_notice: nil,
+        staking_form: StakeSteps.blank_form(),
+        staking_press: nil
       )
 
   # A wallet reading that failed leaves every figure it would have carried
@@ -1012,6 +1060,16 @@ defmodule AshPlatformWeb.ShellLive do
       account -> account_wallet(account) || browser_wallet
     end
   end
+
+  # The Stake page's steps are sent by the wallet the account signed in with, as
+  # the page shows it. Without a sign-in there is no one to send them.
+  defp staking_signer(%{access_context: access_context, staking_wallet: wallet}),
+    do: if(current_account(access_context), do: wallet)
+
+  defp sync_staking_steps(%{assigns: %{route_spec: %{route_id: :stake}}} = socket),
+    do: StakeSteps.sync(socket, staking_signer(socket.assigns))
+
+  defp sync_staking_steps(socket), do: socket
 
   defp assign_position_wallet(socket, %{route_id: :stake}),
     do: assign(socket, staking_wallet: position_wallet(socket.assigns))
@@ -1518,22 +1576,22 @@ defmodule AshPlatformWeb.ShellLive do
   # buys no chain reads, but it is still answered: the transaction was sent, so
   # the page is told the confirmation is unavailable rather than left waiting on
   # a result that would never arrive. The wallet send path is never refused.
-  defp start_transaction_observation(socket, scope, params) do
+  defp start_transaction_observation(socket, params) do
     observation_id = params["observation_id"]
 
     if is_binary(observation_id) and byte_size(observation_id) in 1..128 do
-      name = {:wallet_transaction, scope, observation_id}
+      name = {:redemption_transaction, observation_id}
       observations = socket.assigns.wallet_observations
 
       if MapSet.member?(observations, name) or
            MapSet.size(observations) >= @max_wallet_observations do
-        push_transaction_result(socket, scope, observation_id, :unavailable)
+        push_transaction_result(socket, observation_id, :unavailable)
       else
         transaction = Map.take(params, ["hash", "signer", "to", "data"])
 
         socket
         |> assign(wallet_observations: MapSet.put(observations, name))
-        |> start_async(name, fn -> TransactionObserver.observe(transaction, scope) end)
+        |> start_async(name, fn -> TransactionObserver.observe(transaction) end)
       end
     else
       socket
@@ -1544,14 +1602,12 @@ defmodule AshPlatformWeb.ShellLive do
     do:
       assign(socket, wallet_observations: MapSet.delete(socket.assigns.wallet_observations, name))
 
-  defp push_transaction_result(socket, scope, observation_id, result) do
-    event =
-      if scope == :staking,
-        do: "staking:transaction-result",
-        else: "redemption:transaction-result"
-
-    push_event(socket, event, %{observation_id: observation_id, result: result})
-  end
+  defp push_transaction_result(socket, observation_id, result),
+    do:
+      push_event(socket, "redemption:transaction-result", %{
+        observation_id: observation_id,
+        result: result
+      })
 
   defp cancel_redemption_read(%{assigns: %{redemption_read: nil}} = socket), do: socket
 
@@ -1765,7 +1821,9 @@ defmodule AshPlatformWeb.ShellLive do
         staking_amount: "",
         staking_notice: nil
       )
+      |> StakeSteps.unacknowledge()
       |> start_staking_read(socket.assigns.content_generation)
+      |> sync_staking_steps()
 
   defp forget_wallet_facts(nil), do: nil
 

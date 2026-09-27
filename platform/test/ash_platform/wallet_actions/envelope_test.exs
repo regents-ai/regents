@@ -120,16 +120,16 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     end
   end
 
-  test "an expired staking envelope is observation-only and remains signature-verifiable" do
+  test "an expired redemption envelope is observation-only and remains signature-verifiable" do
     old = DateTime.utc_now() |> DateTime.add(-601, :second)
     previous = Application.get_env(:ash_platform, :wallet_action_clock)
     Application.put_env(:ash_platform, :wallet_action_clock, fn -> old end)
 
     envelope =
-      Envelope.new("stake", @signer, @data,
+      Envelope.new("redeem", @signer, @data,
         to: @target,
-        resource: "regent_staking",
-        contract_name: "RegentRevenueStaking",
+        resource: "animata_redemption",
+        contract_name: "AnimataRedeemer",
         risk_copy: "Review"
       )
 
@@ -141,9 +141,9 @@ defmodule AshPlatform.WalletActions.EnvelopeTest do
     validation = [
       to: @target,
       signer: @signer,
-      resource: "regent_staking",
-      contract_name: "RegentRevenueStaking",
-      action: "stake"
+      resource: "animata_redemption",
+      contract_name: "AnimataRedeemer",
+      action: "redeem"
     ]
 
     refute Envelope.valid?(envelope, validation)

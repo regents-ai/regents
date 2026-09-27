@@ -30,7 +30,7 @@ import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {mountMotion} from "./motion"
 import {installPublicTools} from "./public_tools"
-import {StakeWallet} from "./hooks/stake_wallet"
+import {StakeSteps} from "./hooks/stake_steps"
 import {RedemptionWallet} from "./hooks/redemption_wallet"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
@@ -325,7 +325,7 @@ const hooks = {
   MotionTabs,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   RedemptionWallet,
-  StakeWallet,
+  StakeSteps,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
