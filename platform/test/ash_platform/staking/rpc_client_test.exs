@@ -8,7 +8,6 @@ defmodule AshPlatform.Staking.RpcClientTest do
   alias AshPlatform.WalletActions.Abi
 
   @wallet "0x1111111111111111111111111111111111111111"
-  @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
   @treasury "0x3333333333333333333333333333333333333333"
 
   # One REGENT, and the four holdings this stubbed chain keeps out of
@@ -294,22 +293,6 @@ defmodule AshPlatform.Staking.RpcClientTest do
 
     assert String.downcase(address) == String.downcase(Abi.multicall3_address())
     assert hash == Stub.latest_hash()
-  end
-
-  test "SENT_STEP: a sent hash reads as nothing until Base has it, then as Base answers" do
-    hash = "0x" <> String.duplicate("ab", 32)
-    assert {:ok, nil} = RpcClient.transaction(@base, hash)
-    assert {:ok, nil} = RpcClient.receipt(@base, hash)
-
-    Stub.put(%{
-      transactions: %{hash => %{"hash" => hash, "from" => @wallet}},
-      receipts: %{hash => Stub.receipt(hash, "0x10", [], "0x0")}
-    })
-
-    assert {:ok, %{"hash" => ^hash, "from" => @wallet}} = RpcClient.transaction(@base, hash)
-    assert {:ok, %{"status" => "0x0"}} = RpcClient.receipt(@base, hash)
-    assert_received {:rpc, "eth_getTransactionByHash", [^hash]}
-    assert_received {:rpc, "eth_getTransactionReceipt", [^hash]}
   end
 
   test "CURRENT_CAPACITY: remaining capacity is floored at zero" do

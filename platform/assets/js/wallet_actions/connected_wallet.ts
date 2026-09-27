@@ -103,7 +103,7 @@ export function selectConnectedEthereumWallet(
 
 /**
  * The wallet Privy currently has selected, when that selection is an Ethereum
- * wallet that is still connected. Stake reads this and nothing else: an absent,
+ * wallet that is still connected. Wallet actions read this and nothing else: an absent,
  * Solana or stale selection is no wallet, never a substitute one.
  */
 export function replaceActiveEthereumWallet(wallet: SelectedWallet | null): void {
@@ -194,7 +194,7 @@ function disconnectedStorage(): Pick<Storage, "getItem" | "setItem" | "removeIte
 }
 
 // The browser test seam stands in for Privy's selection as well as for the
-// connected set, so the same wallet drives Stake there as in a real browser —
+// connected set, so the same wallet drives the wallet buttons there as in a real browser —
 // including staying gone after the visitor disconnects it.
 function testEthereumWallet(): SelectedWallet | null {
   return window.location.origin === "http://127.0.0.1:4002" &&

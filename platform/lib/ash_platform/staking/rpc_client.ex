@@ -39,14 +39,6 @@ defmodule AshPlatform.Staking.RpcClient do
   def wallet_snapshot(wallet_address),
     do: bounded(fn -> read_wallet(Abi.normalize_address!(wallet_address)) end)
 
-  @impl true
-  def transaction(%{chain_id: 8453}, hash),
-    do: Rpc.request("eth_getTransactionByHash", [hash], @rpc_opts)
-
-  @impl true
-  def receipt(%{chain_id: 8453}, hash),
-    do: Rpc.request("eth_getTransactionReceipt", [hash], @rpc_opts)
-
   # One `latest` block owns every figure below it. The contract's current
   # answers come back together, the one balance that could not be asked for
   # until the treasury named itself is asked for at that same block, and the

@@ -16,6 +16,7 @@ config :ash_platform, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
 
 config :ash_platform, :privy_verifier, AshPlatform.TestPrivyVerifier
 config :ash_platform, :staking_chain_client, AshPlatform.TestStakingChainClient
+config :ash_platform, :chain_client, AshPlatform.TestChainClient
 config :ash_platform, :staking_price_http_client, AshPlatform.TestStakingPriceHttpClient
 
 # No ExUnit run reads Base at startup. A case that wants a shared reading asks

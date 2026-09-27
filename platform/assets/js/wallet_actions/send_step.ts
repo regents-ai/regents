@@ -6,7 +6,12 @@ import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 export type StepChain = {chain_id: number; name: string; rpc_url: string}
 
 /** One transaction a button sends, built on the server. */
-export type Step = {step: string; to: Address; data: Hex; value: Hex}
+export type TransactionStep = {kind: "transaction"; step: string; to: Address; data: Hex; value: Hex}
+
+/** One EIP-712 signature a button asks for, built on the server. */
+export type SignatureStep = {kind: "signature"; step: string; typed_data: Record<string, unknown>}
+
+export type Step = TransactionStep | SignatureStep
 
 /** Nothing reached the wallet's send; the reason picks the words the server shows. */
 export class NothingSent extends Error {
@@ -18,28 +23,18 @@ export class NothingSent extends Error {
 export type Failure = NothingSent["reason"] | "wallet_declined" | "insufficient_funds" | "send_unconfirmed"
 
 /**
- * Sends one step from the signed-in wallet. Chain and account are read again on
- * every press, and `eth_chainId` is the last read before the send, so a wallet
- * that changes network part-way is refused before it sees the transaction.
+ * Sends one transaction from the signed-in wallet. Chain and account are read
+ * again on every press, and `eth_chainId` is the last read before the send, so a
+ * wallet that changes network part-way is refused before it sees the transaction.
  */
 export async function sendStep(
   chain: StepChain,
   signer: Address,
-  step: Step,
+  step: TransactionStep,
   wallet: () => SelectedWallet | null,
   sending: () => void,
 ): Promise<Hash> {
-  const selected = wallet()
-  if (!selected) throw new NothingSent("wallet_unavailable")
-  const {provider} = selected
-
-  if ((await chainId(provider)) !== chain.chain_id) await switchChain(provider, chain)
-
-  const [account] = await accounts(provider)
-  if (!account || getAddress(account) !== getAddress(signer)) throw new NothingSent("wallet_unavailable")
-  if ((await chainId(provider)) !== chain.chain_id) throw new NothingSent("network_mismatch")
-  // Privy may have swapped the wallet during those reads; this check makes no request.
-  if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
+  const provider = await ready(chain, signer, wallet)
 
   sending()
   const hash = await provider.request({
@@ -52,12 +47,57 @@ export async function sendStep(
   return hash as Hash
 }
 
+/**
+ * Asks the signed-in wallet to sign the server's typed data, after the same
+ * chain and account reads as a send. Returns the signature only; the server
+ * keeps the typed data it built.
+ */
+export async function signStep(
+  chain: StepChain,
+  signer: Address,
+  step: SignatureStep,
+  wallet: () => SelectedWallet | null,
+  sending: () => void,
+): Promise<Hex> {
+  const provider = await ready(chain, signer, wallet)
+
+  sending()
+  const signature = await provider.request({
+    method: "eth_signTypedData_v4",
+    params: [getAddress(signer), JSON.stringify(step.typed_data)],
+  })
+  if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    throw new Error("The wallet did not return a signature.")
+  }
+  return signature as Hex
+}
+
 /** Why a press ended without a hash. After `sending`, the wallet may have sent it. */
 export function failure(sending: boolean, error: unknown): Failure {
   if (!sending) return error instanceof NothingSent ? error.reason : "wallet_unavailable"
   if (hasCode(error, 4001)) return "wallet_declined"
   // No EIP-1193 code names this; wallets and nodes all say it in these words.
   return hasMessage(error, /insufficient funds/i) ? "insufficient_funds" : "send_unconfirmed"
+}
+
+// The wallet is on the step's chain and account, and still the one Privy holds.
+async function ready(
+  chain: StepChain,
+  signer: Address,
+  wallet: () => SelectedWallet | null,
+): Promise<EthereumProvider> {
+  const selected = wallet()
+  if (!selected) throw new NothingSent("wallet_unavailable")
+  const {provider} = selected
+
+  if ((await chainId(provider)) !== chain.chain_id) await switchChain(provider, chain)
+
+  const [account] = await accounts(provider)
+  if (!account || getAddress(account) !== getAddress(signer)) throw new NothingSent("wallet_unavailable")
+  if ((await chainId(provider)) !== chain.chain_id) throw new NothingSent("network_mismatch")
+  // Privy may have swapped the wallet during those reads; this check makes no request.
+  if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
+  return provider
 }
 
 async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {

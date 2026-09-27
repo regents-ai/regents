@@ -215,7 +215,7 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
   await expect(page.locator("#staking-press-notice")).toContainText(
-    "Select a wallet on your account in your wallet app",
+    "Switch to a wallet on your account in your wallet app",
   )
   expect(await sendCount(page)).toBe(0)
 
