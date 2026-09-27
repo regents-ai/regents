@@ -22,8 +22,7 @@
 
 .redeem-page h1,
 .redeem-page h2,
-.redeem-page h3,
-.redeem-result-dialog h2 {
+.redeem-page h3 {
   margin: 0;
   font-family: var(--font-family-title);
   font-weight: 400;
@@ -34,8 +33,6 @@
 .redeem-vest-heading > span,
 .redeem-network,
 .redeem-signer,
-.redeem-dialog-kicker,
-.redeem-dialog-meta dt,
 .redeem-contract-details dt,
 .redeem-collection-copy dt,
 .redeem-nft-type {
@@ -241,8 +238,7 @@
   overflow-wrap: anywhere;
 }
 
-.redeem-collection-copy a,
-.redeem-result-dialog a {
+.redeem-collection-copy a {
   display: inline-flex;
   align-items: center;
   min-height: 2.8rem;
@@ -671,8 +667,7 @@
   padding: 0 clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 2rem);
 }
 
-.redeem-contract-details dl > div,
-.redeem-dialog-meta > div {
+.redeem-contract-details dl > div {
   display: grid;
   grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
   gap: 1rem;
@@ -680,8 +675,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-.redeem-contract-details dd,
-.redeem-dialog-meta dd {
+.redeem-contract-details dd {
   display: grid;
   gap: 0.3rem;
   min-width: 0;
@@ -698,8 +692,7 @@
 
 /* Controls */
 
-.redeem-page button,
-.redeem-result-dialog button {
+.redeem-page button {
   min-height: 2.8rem;
   padding-inline: 1rem;
   border: 1px solid var(--ash-line-strong);
@@ -716,8 +709,7 @@
     color 180ms var(--ease-out);
 }
 
-.redeem-page button.redeem-primary,
-.redeem-result-dialog button.redeem-primary {
+.redeem-page button.redeem-primary {
   border-color: var(--color-fg);
   background: var(--color-fg);
   color: var(--color-bg);
@@ -728,8 +720,7 @@
   cursor: not-allowed;
 }
 
-.redeem-page button.redeem-primary:disabled,
-.redeem-result-dialog button.redeem-primary:disabled {
+.redeem-page button.redeem-primary:disabled {
   border-color: var(--ash-line-strong);
   background: transparent;
   color: var(--color-fg-muted);
@@ -767,35 +758,58 @@
   margin: 0;
 }
 
-.redeem-result-dialog {
-  width: min(34rem, calc(100vw - 2rem));
-  padding: clamp(1.1rem, 4vw, 1.75rem);
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
+/* Each press the wallet sent, newest first, with what Base says about it. */
+.redeem-activity {
+  display: grid;
+  gap: 0.6rem;
 }
 
-.redeem-result-dialog::backdrop { background: var(--ash-scrim); }
-.redeem-result-dialog h2 { margin: 0.25rem 0 0.75rem; }
-.redeem-dialog-kicker,
-.redeem-dialog-summary,
-.redeem-dialog-detail { margin-block: 0 0.75rem; }
-.redeem-dialog-summary { font-size: 1.05rem; }
-.redeem-dialog-detail { color: var(--color-fg-muted); }
-.redeem-dialog-meta { margin: 0; }
-.redeem-result-dialog a { margin-block-end: 1rem; }
-.redeem-result-dialog a[hidden] { display: none; }
-.redeem-result-dialog form { display: flex; justify-content: flex-end; }
+.redeem-activity[hidden] { display: none; }
+
+.redeem-sent {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.redeem-sent li {
+  display: grid;
+  gap: 0.3rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+.redeem-sent strong {
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.redeem-sent li[data-outcome="reverted"] span,
+.redeem-sent li[data-outcome="not_this_step"] span {
+  color: var(--ash-accent);
+}
+
+.redeem-sent a {
+  justify-self: start;
+  min-height: 2.2rem;
+  color: var(--ash-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.redeem-sent button { justify-self: start; }
+
 
 @media (hover: hover) and (pointer: fine) {
-  .redeem-page button:not(:disabled):hover,
-  .redeem-result-dialog button:not(:disabled):hover {
+  .redeem-page button:not(:disabled):hover {
     border-color: var(--ash-accent);
     color: var(--ash-accent);
   }
 
-  .redeem-page button.redeem-primary:not(:disabled):hover,
-  .redeem-result-dialog button.redeem-primary:not(:disabled):hover {
+  .redeem-page button.redeem-primary:not(:disabled):hover {
     border-color: var(--color-fg);
     background: var(--color-fg);
     color: var(--color-bg);
@@ -841,15 +855,13 @@
   .redeem-next-step > div:first-child { flex-basis: auto; }
   .redeem-next-step button { width: 100%; }
   .redeem-owned-list { grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); }
-  .redeem-contract-details dl > div,
-  .redeem-dialog-meta > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+  .redeem-contract-details dl > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .redeem-intro-video { display: none; }
   .redeem-intro-poster { display: block; }
   .redeem-page button,
-  .redeem-result-dialog button,
   .redeem-nft-card,
   .redeem-contract-details summary > span:last-child { transition: none; }
 }

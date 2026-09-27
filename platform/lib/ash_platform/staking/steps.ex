@@ -14,8 +14,6 @@ defmodule AshPlatform.Staking.Steps do
   alias AshPlatform.WalletActions.Abi
   alias RegentChain.{Address, Call, Review}
 
-  @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
-
   @approve "approve(address,uint256)"
   @calls %{
     "stake" => "stake(uint256,address)",
@@ -36,9 +34,6 @@ defmodule AshPlatform.Staking.Steps do
   @doc false
   def __after_compile__(_env, _bytecode),
     do: Enum.each(Map.values(@calls), &Abi.declared!(@abi, "function", &1))
-
-  @doc "Base, as the wallet is asked to switch to it."
-  def chain, do: @base
 
   @doc """
   The steps for `signer` from the form on screen: the chosen action, the amount

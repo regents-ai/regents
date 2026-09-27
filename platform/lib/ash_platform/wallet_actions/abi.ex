@@ -16,7 +16,6 @@ defmodule AshPlatform.WalletActions.Abi do
   @staking get_in(@manifest, ["contracts", "regent_revenue_staking"])
   @reads Map.new(@staking["reads"], &{&1["id"], &1})
 
-  @address_bound Integer.pow(2, 160)
   @word_bytes 32
 
   # The evidence manifest stays byte-for-byte frozen, so each read it does not
@@ -63,11 +62,6 @@ defmodule AshPlatform.WalletActions.Abi do
   @aggregate3_selector "0x82ad56cb"
 
   @event_signatures %{
-    approval: "Approval(address,address,uint256)",
-    stake_updated: "StakeUpdated(address,uint256,uint256)",
-    usdc_reward_claimed: "USDCRewardClaimed(address,uint256,address)",
-    reward_token_claimed: "RewardTokenClaimed(address,uint256,address)",
-    reward_token_compounded: "RewardTokenCompounded(address,uint256,uint256,uint256)",
     usdc_revenue_deposited:
       "USDCRevenueDeposited(uint256,uint256,uint256,uint8,address,bytes32,bytes32)"
   }
@@ -76,9 +70,7 @@ defmodule AshPlatform.WalletActions.Abi do
   @usdc_revenue_data_words 4
 
   # A derived selector or topic is only proof if the deployed ABI really declares
-  # the signature it was derived from. `Approval` belongs to the REGENT token, not
-  # to this contract, so only the staking events are proved against this ABI.
-  # A module cannot call its own checker while it is being compiled, so the proof
+  # the signature it was derived from. A module cannot call its own checker while it is being compiled, so the proof
   # runs the moment it is.
   @after_compile __MODULE__
   @declarations [
@@ -87,7 +79,7 @@ defmodule AshPlatform.WalletActions.Abi do
     {"function", @emission_apr_signature},
     {"function", @treasury_recipient_signature},
     {"function", @reward_inventory_signature}
-    | for({id, signature} <- @event_signatures, id != :approval, do: {"event", signature})
+    | for({_id, signature} <- @event_signatures, do: {"event", signature})
   ]
 
   @doc false
@@ -311,22 +303,6 @@ defmodule AshPlatform.WalletActions.Abi do
   def event_topic(id), do: id |> event_signature() |> topic0()
 
   @doc """
-  The one log in this receipt that is exactly this event.
-
-  Emitter, `topic0`, indexed count and data width all have to be exact, and the
-  event has to appear exactly once: absent and duplicated are both `:error`,
-  while logs belonging to other events are ignored.
-  """
-  def one_event(logs, topic, emitter, indexed_count, data_words) when is_list(logs) do
-    case Enum.filter(logs, &emitted?(&1, topic, emitter)) do
-      [log] -> decode_event(log, indexed_count, data_words)
-      _absent_or_duplicated -> :error
-    end
-  end
-
-  def one_event(_logs, _topic, _emitter, _indexed_count, _data_words), do: :error
-
-  @doc """
   The USDC every `USDCRevenueDeposited` in `logs` recorded, added together.
 
   `amountReceived` is the first of the event's four unindexed words and is the
@@ -354,72 +330,6 @@ defmodule AshPlatform.WalletActions.Abi do
   end
 
   def usdc_revenue_received(_logs), do: :error
-
-  @doc "The address a 32-byte word names, which requires its leading twelve bytes to be zero."
-  def word_address(value) when is_integer(value) and value > 0 and value < @address_bound,
-    do:
-      {:ok,
-       "0x" <>
-         (value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))}
-
-  def word_address(_value), do: :error
-
-  @doc "The exact ERC-20 approval this transaction had to record."
-  def approval_recorded?(logs, token, owner, spender, value) do
-    with {:ok, {[owner_word, spender_word], [^value]}} <-
-           one_event(logs, event_topic(:approval), token, 2, 1),
-         {:ok, ^owner} <- word_address(owner_word),
-         {:ok, ^spender} <- word_address(spender_word) do
-      true
-    else
-      _contradiction -> false
-    end
-  end
-
-  @doc """
-  The post-action stake fact a Stake or Unstake had to record for `account`.
-
-  There is no previous-stake field, and the global total is never this account's
-  balance: only their relationship is checked here.
-  """
-  def stake_updated?(logs, account), do: match?({:ok, _post_action}, stake_updated(logs, account))
-
-  @doc "The compounded reward plus its companion `StakeUpdated` carrying identical post-action fields."
-  def reward_compounded?(logs, account) do
-    with {:ok, {[account_word], [amount, new_balance, total]}} <-
-           one_event(logs, event_topic(:reward_token_compounded), staking_address(), 1, 3),
-         {:ok, ^account} <- word_address(account_word),
-         true <- amount > 0,
-         {:ok, [^new_balance, ^total]} <- stake_updated(logs, account) do
-      true
-    else
-      _contradiction -> false
-    end
-  end
-
-  @doc "A positive reward claim whose account and envelope-pinned recipient are both the signer."
-  def reward_claimed?(logs, id, account)
-      when id in [:usdc_reward_claimed, :reward_token_claimed] do
-    with {:ok, {[account_word], [amount, recipient_word]}} <-
-           one_event(logs, event_topic(id), staking_address(), 1, 2),
-         {:ok, ^account} <- word_address(account_word),
-         {:ok, ^account} <- word_address(recipient_word) do
-      amount > 0
-    else
-      _contradiction -> false
-    end
-  end
-
-  defp stake_updated(logs, account) do
-    with {:ok, {[account_word], [new_balance, total] = post_action}} <-
-           one_event(logs, event_topic(:stake_updated), staking_address(), 1, 2),
-         {:ok, ^account} <- word_address(account_word),
-         true <- new_balance <= total do
-      {:ok, post_action}
-    else
-      _contradiction -> :error
-    end
-  end
 
   defp emitted?(%{"address" => address, "topics" => [topic | _indexed]}, expected, emitter)
        when is_binary(topic),

@@ -19,9 +19,9 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
   # that build prepared actions and confirm them, and none of them may so much
   # as name it.
   @send_path_modules [
-    "lib/ash_platform/wallet_actions/envelope.ex",
-    "lib/ash_platform/staking/actions.ex",
-    "lib/ash_platform/redemption/actions.ex"
+    "lib/ash_platform/staking/steps.ex",
+    "lib/ash_platform/redemption/steps.ex",
+    "lib/ash_platform_web/onchain_steps.ex"
   ]
 
   setup_all do
@@ -533,37 +533,15 @@ defmodule AshPlatform.Contracts.ChainManifestTest do
     assert Enum.map(declaration["outputs"], & &1["type"]) == ["uint256"]
   end
 
-  # Every topic the confirmation path decodes is derived from its exact deployed
+  # The one topic the revenue reading decodes is derived from its exact deployed
   # signature, and proved here against Foundry rather than against itself.
-  test "every decoded event topic is an independent Keccak-256 of its deployed signature" do
-    staking =
-      Map.new(
-        [
-          :approval,
-          :stake_updated,
-          :usdc_reward_claimed,
-          :reward_token_claimed,
-          :reward_token_compounded
-        ],
-        &{AshPlatform.WalletActions.Abi.event_signature(&1),
-         AshPlatform.WalletActions.Abi.event_topic(&1)}
-      )
+  test "the decoded revenue event topic is an independent Keccak-256 of its deployed signature" do
+    signature = AshPlatform.WalletActions.Abi.event_signature(:usdc_revenue_deposited)
 
-    redemption =
-      Map.new(
-        [:approval_for_all, :redeemed, :claimed],
-        &{AshPlatform.WalletActions.RedemptionAbi.event_signature(&1),
-         AshPlatform.WalletActions.RedemptionAbi.event_topic(&1)}
-      )
+    assert signature ==
+             "USDCRevenueDeposited(uint256,uint256,uint256,uint8,address,bytes32,bytes32)"
 
-    for {signature, topic} <- Map.merge(staking, redemption) do
-      assert keccak(signature) == topic, "#{signature} topic0 disagrees with cast keccak"
-    end
-
-    assert staking["StakeUpdated(address,uint256,uint256)"]
-    assert staking["RewardTokenCompounded(address,uint256,uint256,uint256)"]
-    assert redemption["Redeemed(address,address,uint256,uint256)"]
-    assert redemption["Claimed(address,uint256)"]
+    assert keccak(signature) == AshPlatform.WalletActions.Abi.event_topic(:usdc_revenue_deposited)
   end
 
   defp assert_selectors(rows) do

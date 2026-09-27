@@ -1,9 +1,26 @@
 defmodule AshPlatformWeb.RedeemLive do
-  @moduledoc false
-  use Phoenix.Component
+  @moduledoc """
+  The Redeem page and its wallet buttons.
+
+  Every wallet step is built on the server and pushed to the page before anyone
+  presses; the browser sends only what the review holds and reports what the
+  wallet said. `skills/onchain-buttons` has the rules and
+  `AshPlatformWeb.OnchainSteps` the shared half.
+
+  The shell owns the readings, the selection and every other control here; this
+  component owns the presses. Only Privy's active wallet acts, and only when the
+  signed-in account links it (`linked`, `nil` signed out). The component tells
+  the shell which wallet Privy has active, so the figures follow it, and when a
+  step lands, so they are read again.
+  """
+  use AshPlatformWeb, :live_component
+
+  alias AshPlatform.ChainClient
+  alias AshPlatform.Redemption.Steps
   alias AshPlatformWeb.Components.Loading
-  alias AshPlatformWeb.Components.Shell
-  alias AshPlatformWeb.TokenDisplay
+  alias AshPlatformWeb.{OnchainSteps, TokenDisplay}
+  alias Phoenix.LiveView.JS
+  alias RegentChain.{Presses, Review}
 
   @control_labels %{
     "approve_nft_collection" => "Approve NFT collection",
@@ -11,36 +28,193 @@ defmodule AshPlatformWeb.RedeemLive do
     "redeem" => "Redeem Animata"
   }
   @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
+  @collections %{"animata_i" => "Animata I", "animata_ii" => "Animata II"}
 
-  attr :redemption, :map, default: nil
-  attr :status, :atom, required: true
-  attr :wallet, :string, default: nil
-  attr :collection, :string, required: true
-  attr :token_id, :string, required: true
-  attr :notice, :map, default: nil
-  attr :reading, :boolean, default: false
-  attr :signed_in, :boolean, default: false
-  attr :refresh_block, :any, default: nil
-  attr :step, :atom, default: nil
-  attr :owned_collectibles, :map, default: %{status: :idle, animata: [], regents_club: []}
-  attr :owned_collectibles_limit, :integer, default: 24
-  attr :actions, :atom, default: :sign_in, values: [:ready, :sign_in]
-  attr :sender, :string, default: nil
+  @impl true
+  def mount(socket),
+    do:
+      {:ok,
+       socket
+       |> OnchainSteps.init()
+       |> assign(active: nil, press_step: nil, selection: %{collection: "", token_id: ""})}
 
-  def redemption_page(assigns) do
+  @impl true
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(selection: %{collection: assigns.collection, token_id: assigns.token_id})
+     |> sync()}
+  end
+
+  @impl true
+  def handle_event("onchain_active_wallet", params, socket) do
+    active = OnchainSteps.active_wallet(params)
+    send(self(), {:redeem_active_wallet, active})
+
+    socket =
+      if active == socket.assigns.active, do: socket, else: assign(socket, press_note: nil)
+
+    {:noreply, socket |> assign(active: active) |> sync()}
+  end
+
+  # A press made before the review caught up with the selection: the selection
+  # is taken as the page shows it, and the reply carries the review for it.
+  def handle_event("prepare_and_send", %{"form" => %{} = form, "step" => name}, socket)
+      when is_binary(name) do
+    socket =
+      socket
+      |> assign(
+        selection: %{collection: text(form["collection"]), token_id: text(form["token_id"])}
+      )
+      |> sync()
+
+    case socket.assigns.review do
+      %{} = review -> {:reply, %{review: review, send: name}, socket}
+      nil -> {:reply, %{}, socket}
+    end
+  end
+
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
+
+  def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
+      when is_binary(name) and is_binary(reason) do
+    {:noreply,
+     assign(socket, press_note: failure_note(reason, name, socket.assigns), press_step: name)}
+  end
+
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  # A step that landed moved this wallet's figures, so the page reads them again.
+  @impl true
+  def handle_async({:onchain_step, hash}, result, socket) do
+    socket = OnchainSteps.checked(socket, hash, result)
+
+    case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
+      %{outcome: :confirmed, name: name} -> send(self(), {:redeem_step_landed, name})
+      _entry -> :ok
+    end
+
+    {:noreply, socket}
+  end
+
+  # The review follows the signer and the selection. With no eligible signer
+  # there is no review, and every press says why nothing was sent.
+  defp sync(socket) do
+    %{linked: linked, active: active, selection: selection} = socket.assigns
+
+    review =
+      case OnchainSteps.signer(linked, active) do
+        nil ->
+          nil
+
+        signer ->
+          Review.new(
+            socket.assigns.id,
+            signer,
+            ChainClient.base(),
+            Steps.steps(selection),
+            %{"collection" => selection.collection, "token_id" => selection.token_id}
+          )
+      end
+
+    OnchainSteps.put_review(socket, review)
+  end
+
+  defp text(value) when is_binary(value), do: value
+  defp text(_value), do: ""
+
+  # A redemption with no token ID behind it says so; every other reason has the
+  # shared words.
+  defp failure_note("step_unknown", "redeem", %{linked: linked, active: active} = assigns)
+       when is_list(linked) and is_binary(active) do
+    (OnchainSteps.signer(linked, active) && Steps.token_id(assigns.selection.token_id) == :error &&
+       "Enter a token ID from 1 to 999. Nothing was sent.") ||
+      OnchainSteps.failure_note("step_unknown", linked, active, "Base")
+  end
+
+  defp failure_note(reason, _name, %{linked: linked, active: active}),
+    do: OnchainSteps.failure_note(reason, linked, active, "Base")
+
+  # Each sent step as the page shows it, newest first, beside the buttons that
+  # send it: the redemption flow's steps, or the claim.
+  defp shown(presses, names) do
+    for entry <- Presses.shown(presses), entry.name in names do
+      shown = OnchainSteps.describe(entry, "Base")
+
+      %{
+        hash: entry.hash,
+        title: title(entry.name, entry.review.inputs),
+        state: shown.state,
+        words: step_words(shown.state, entry.name, entry.review.inputs) || shown.words,
+        href: "https://basescan.org/tx/#{entry.hash}"
+      }
+    end
+  end
+
+  defp step_words(:confirmed, name, inputs), do: confirmed(name, inputs)
+  defp step_words(:reverted, name, _inputs), do: reverted(name)
+  defp step_words(_state, _name, _inputs), do: nil
+
+  defp title("approve_nft_collection", inputs), do: "#{collection(inputs)} approval"
+  defp title("approve_exact_usdc", _inputs), do: "80 USDC approval"
+  defp title("redeem", inputs), do: "Redeem #{animata(inputs)}"
+  defp title("claim", _inputs), do: "REGENT claim"
+
+  defp confirmed("approve_nft_collection", inputs),
+    do: "Done. #{collection(inputs)} is approved for redemption."
+
+  defp confirmed("approve_exact_usdc", _inputs),
+    do: "Done. Exactly 80 USDC is approved for redemption."
+
+  defp confirmed("redeem", inputs),
+    do: "Done. #{animata(inputs)} was redeemed. Your collection and vest are updating."
+
+  defp confirmed("claim", _inputs), do: "Done. Your unlocked REGENT was claimed."
+
+  defp reverted("approve_nft_collection"),
+    do: "The approval did not go through and nothing moved. Press Approve NFT collection again."
+
+  defp reverted("approve_exact_usdc"),
+    do: "The approval did not go through and nothing moved. Press Approve 80 USDC again."
+
+  defp reverted("redeem"),
+    do:
+      "The redemption did not go through and nothing moved. This usually means the wallet does not own this Animata, it was already redeemed, an approval had not landed yet, or the wallet holds less than 80 USDC."
+
+  defp reverted("claim"),
+    do: "The claim did not go through and nothing moved. There may be no unlocked REGENT yet."
+
+  defp collection(%{"collection" => id}), do: Map.fetch!(@collections, id)
+
+  defp animata(%{"token_id" => token_id} = inputs) do
+    {:ok, id} = Steps.token_id(token_id)
+    "#{collection(inputs)} ##{id}"
+  end
+
+  @impl true
+  def render(assigns) do
     assigns =
       assigns
+      |> assign(:signed_in, is_list(assigns.linked))
+      |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
+      |> assign(:flow_sent, shown(assigns.presses, @every_control))
+      |> assign(:claim_sent, shown(assigns.presses, ["claim"]))
+      |> assign(:flow_press, if(assigns.press_step in @every_control, do: assigns.press_note))
+      |> assign(:claim_press, if(assigns.press_step == "claim", do: assigns.press_note))
       |> assign(:wallet_ready, wallet_ready?(assigns.redemption, assigns.wallet))
       |> assign(:vest_progress, vest_progress(assigns.redemption))
-      |> assign(:token_selected, token_selected?(assigns.token_id))
+      |> assign(:token_selected, Steps.token_id(assigns.token_id) != :error)
       |> assign_owned_collectibles()
 
     assigns = assign(assigns, :controls, controls(assigns.step, assigns.token_selected))
 
     ~H"""
     <section
-      id="animata-redemption"
-      phx-hook="RedemptionWallet"
+      id={@id}
+      phx-hook="OnchainSteps"
       class="redeem-page"
       aria-busy={to_string(@reading)}
     >
@@ -101,30 +275,6 @@ defmodule AshPlatformWeb.RedeemLive do
           <:caption>FIG. 02 — Animata I and II artwork</:caption>
         </Regent.Structure.technical_figure>
       </section>
-
-      <dialog
-        id="redemption-result-dialog"
-        class="redeem-result-dialog"
-        aria-labelledby="redemption-result-heading"
-        phx-update="ignore"
-      >
-        <p class="redeem-dialog-kicker">Base transaction receipt</p>
-        <h2 id="redemption-result-heading" data-redemption-result-title>Transaction update</h2>
-        <p class="redeem-dialog-summary" data-redemption-result-text></p>
-        <p class="redeem-dialog-detail" data-redemption-result-detail></p>
-        <dl class="redeem-dialog-meta">
-          <div>
-            <dt>Network</dt><dd>Base</dd>
-          </div>
-          <div>
-            <dt>Wallet</dt><dd data-redemption-result-wallet>—</dd>
-          </div>
-        </dl>
-        <a data-redemption-result-link hidden target="_blank" rel="noopener noreferrer"></a>
-        <form method="dialog">
-          <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
-        </form>
-      </dialog>
 
       <div :if={@status == :loading} class="redeem-content" aria-busy="true">
         <section class="redeem-collections rg-panel rg-panel--surface rg-panel__body">
@@ -286,7 +436,11 @@ defmodule AshPlatformWeb.RedeemLive do
               <form id="redemption-selection" phx-change="redemption_selection_changed">
                 <div>
                   <Regent.Primitives.field id="redemption-collection" label="Collection">
-                    <select id="redemption-collection" name="collection">
+                    <select
+                      id="redemption-collection"
+                      name="collection"
+                      data-onchain-input="collection"
+                    >
                       <option value="animata_i" selected={@collection == "animata_i"}>
                         Animata I
                       </option>
@@ -302,6 +456,7 @@ defmodule AshPlatformWeb.RedeemLive do
                       id="redemption-token-id"
                       name="token_id"
                       value={@token_id}
+                      data-onchain-input="token_id"
                       phx-debounce="300"
                       inputmode="numeric"
                       autocomplete="off"
@@ -323,15 +478,23 @@ defmodule AshPlatformWeb.RedeemLive do
                 <div :if={@controls != []}>
                   <Regent.Primitives.button
                     :for={control <- @controls}
+                    id={"redemption-#{control.action}"}
                     type="button"
                     class="redeem-primary"
-                    data-redemption-action={@actions != :sign_in && control.action}
-                    data-account-target={@actions == :sign_in && "sign-in"}
+                    data-onchain-step={@signed_in && control.action}
+                    data-account-target={!@signed_in && "sign-in"}
+                    phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
                     aria-describedby="redemption-step-hint"
-                  >{control.label}</Regent.Primitives.button>
+                  ><.press_label label={control.label} /></Regent.Primitives.button>
                 </div>
               </section>
-              <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
+              <.mismatch :if={@signed_in} note={@mismatch_note} />
+              <.activity
+                id="redemption-activity"
+                sent={@flow_sent}
+                press={@flow_press}
+                myself={@myself}
+              />
             </div>
           </section>
 
@@ -389,14 +552,20 @@ defmodule AshPlatformWeb.RedeemLive do
             </div>
 
             <Regent.Primitives.button
+              id="redemption-claim"
               type="button"
               class="redeem-claim"
-              data-redemption-action={@actions != :sign_in && "claim"}
-              data-account-target={@actions == :sign_in && "sign-in"}
-            >
-              Claim unlocked REGENT
-            </Regent.Primitives.button>
-            <Shell.sending_wallet_note sender={@sender} shown={@wallet} />
+              data-onchain-step={@signed_in && "claim"}
+              data-account-target={!@signed_in && "sign-in"}
+              phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+            ><.press_label label="Claim unlocked REGENT" /></Regent.Primitives.button>
+            <.mismatch :if={@signed_in} note={@mismatch_note} />
+            <.activity
+              id="redemption-claim-activity"
+              sent={@claim_sent}
+              press={@claim_press}
+              myself={@myself}
+            />
             <div class="redeem-position-footer">
               <p class="redeem-snapshot-note">
                 <span>Confirmed at Base block {TokenDisplay.count(@redemption.block_number)}.</span><span :if={
@@ -592,15 +761,6 @@ defmodule AshPlatformWeb.RedeemLive do
     do:
       "The last reading from Base does not yet say which step is needed, so any of these steps can be sent."
 
-  defp token_selected?(token_id) when is_binary(token_id) do
-    case Integer.parse(token_id) do
-      {id, ""} -> id in 1..999
-      _ -> false
-    end
-  end
-
-  defp token_selected?(_token_id), do: false
-
   defp flow_state(1, :token_selection_required), do: "current"
   defp flow_state(1, nil), do: "current"
   defp flow_state(1, _), do: "complete"
@@ -715,6 +875,62 @@ defmodule AshPlatformWeb.RedeemLive do
         {render_slot(@inner_block)}
       </p>
     </div>
+    """
+  end
+
+  attr :label, :string, required: true
+
+  # The words swap for "Confirm in wallet" while the wallet has this button's
+  # press. The button itself keeps taking presses.
+  defp press_label(assigns) do
+    ~H"""
+    <span data-press-label>{@label}</span><span data-wallet-wait>Confirm in wallet</span>
+    """
+  end
+
+  attr :note, :string, default: nil
+
+  # Only the wallet the wallet app has open can act, and only when it is one of
+  # the account's own. When it is not, both are named so the person can switch.
+  defp mismatch(assigns) do
+    ~H"""
+    <p :if={@note} class="shell-sending-wallet" role="note">{@note}</p>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :sent, :list, required: true
+  attr :press, :string, default: nil
+  attr :myself, :any, required: true
+
+  # What happened to each press, newest first, read on Base by the server.
+  defp activity(assigns) do
+    ~H"""
+    <section
+      id={@id}
+      class="redeem-activity"
+      aria-label="Your transactions"
+      hidden={@sent == [] and is_nil(@press)}
+    >
+      <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">{@press}</p>
+      <ol :if={@sent != []} class="redeem-sent" aria-live="polite">
+        <li :for={entry <- @sent} id={"#{@id}-#{entry.hash}"} data-outcome={entry.state}>
+          <strong>{entry.title}</strong>
+          <span>{entry.words}</span>
+          <a href={entry.href} target="_blank" rel="noopener noreferrer">
+            View on BaseScan <span aria-hidden="true">↗</span>
+          </a>
+          <Regent.Primitives.button
+            :if={entry.state == :stalled}
+            variant="secondary"
+            type="button"
+            phx-click="check_again"
+            phx-target={@myself}
+            phx-value-hash={entry.hash}
+          >Check again</Regent.Primitives.button>
+        </li>
+      </ol>
+    </section>
     """
   end
 

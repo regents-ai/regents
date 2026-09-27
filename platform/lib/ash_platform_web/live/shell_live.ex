@@ -2,7 +2,6 @@ defmodule AshPlatformWeb.ShellLive do
   use AshPlatformWeb, :live_view
 
   import AshPlatformWeb.Components.Shell
-  import AshPlatformWeb.RedeemLive
   import AshPlatformWeb.StakeLive
 
   alias AshPlatform.{
@@ -20,15 +19,15 @@ defmodule AshPlatformWeb.ShellLive do
   alias AshPlatform.Actors.Human
   alias AshPlatform.Agents.{AgentActivity, PairedAgent, PairingCode}
   alias AshPlatform.OpenSea.HoldingsCache
+  alias AshPlatform.Redemption.Steps, as: RedemptionSteps
   alias AshPlatform.Staking.Facts, as: StakingFacts
   alias AshPlatform.Staking.SnapshotCache
-  alias AshPlatform.WalletActions.Address
-  alias AshPlatform.WalletActions.TransactionObserver
   alias AshPlatformWeb.AccountLive
   alias AshPlatformWeb.AutolaunchLive
   alias AshPlatformWeb.ProductLive
   alias AshPlatformWeb.PublicDocuments
   alias AshPlatformWeb.RedeemGalleryLive
+  alias AshPlatformWeb.RedeemLive
   alias AshPlatformWeb.RegentOpsLive
   alias AshPlatformWeb.RegentProfileLive
   alias AshPlatformWeb.RouteCatalog
@@ -39,8 +38,6 @@ defmodule AshPlatformWeb.ShellLive do
   # per-visitor limit on looking up owned NFTs, and the two refusals must never
   # read as the same thing.
   @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
-  @redemption_preparation_failure_notice "That action could not be prepared. Check the wallet and selection."
-  @max_wallet_observations 8
   @open_sea_lookup_window 60_000
   @default_open_sea_lookups_per_minute 6
   @names_page_size 50
@@ -100,8 +97,7 @@ defmodule AshPlatformWeb.ShellLive do
        staking_status: :loading,
        browser_wallet: nil,
        route_spec: route_spec,
-       shell_instance: System.unique_integer([:positive, :monotonic]),
-       wallet_observations: MapSet.new()
+       shell_instance: System.unique_integer([:positive, :monotonic])
      )}
   end
 
@@ -297,21 +293,6 @@ defmodule AshPlatformWeb.ShellLive do
   def handle_async(:gallery_owned, _result, socket),
     do: {:noreply, assign(socket, gallery_owned: %{status: :unavailable, ids: []})}
 
-  def handle_async({:redemption_transaction, observation_id} = name, {:ok, result}, socket)
-      when result in [:success, :reverted, :delayed, :unavailable] do
-    {:noreply,
-     socket
-     |> release_wallet_observation(name)
-     |> push_transaction_result(observation_id, result)}
-  end
-
-  def handle_async({:redemption_transaction, observation_id} = name, _result, socket) do
-    {:noreply,
-     socket
-     |> release_wallet_observation(name)
-     |> push_transaction_result(observation_id, :unavailable)}
-  end
-
   # "My passes" reads the signed-in account's own wallets once; after that the
   # toggle only shows or hides what is already on the page. A lookup that
   # failed is tried again the next time the filter is switched on.
@@ -454,9 +435,7 @@ defmodule AshPlatformWeb.ShellLive do
 
   def handle_event(event, params, socket)
       when event in [
-             "redemption_active_wallet",
              "redemption_selection_changed",
-             "prepare_redemption",
              "refresh_redemption",
              "select_owned_animata",
              "show_more_collectibles"
@@ -470,15 +449,6 @@ defmodule AshPlatformWeb.ShellLive do
   # asked for on its own.
   def handle_event("refresh_data", _params, socket),
     do: {:noreply, socket |> read_connected_wallet() |> read_shared_snapshot()}
-
-  def handle_event(
-        "observe_redemption_transaction",
-        params,
-        %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
-      ),
-      do: {:noreply, start_transaction_observation(socket, params)}
-
-  def handle_event("observe_redemption_transaction", _params, socket), do: {:noreply, socket}
 
   # One visitor's refresh re-reads the contract for everyone. Only the contract
   # figures are replaced: each page keeps whatever it knows about its own
@@ -522,6 +492,32 @@ defmodule AshPlatformWeb.ShellLive do
   # A Stake step landed: this wallet's figures moved, so they are read again.
   def handle_info(:stake_step_landed, socket), do: {:noreply, read_connected_wallet(socket)}
 
+  # The Redeem buttons heard which wallet Privy has active; the figures follow
+  # it on the same terms as Stake's.
+  def handle_info(
+        {:redeem_active_wallet, active},
+        %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
+      ) do
+    socket = assign(socket, browser_wallet: active)
+    wallet = position_wallet(socket.assigns)
+
+    if wallet == socket.assigns.redemption_wallet,
+      do: {:noreply, socket},
+      else: {:noreply, adopt_redemption_wallet(socket, wallet)}
+  end
+
+  def handle_info({:redeem_active_wallet, _active}, socket), do: {:noreply, socket}
+
+  # A Redeem step landed: the figures are read again, and after a redemption
+  # the collection too.
+  def handle_info(
+        {:redeem_step_landed, name},
+        %{assigns: %{route_spec: %{route_id: :redeem}}} = socket
+      ),
+      do: {:noreply, refresh_redemption(socket, name == "redeem")}
+
+  def handle_info({:redeem_step_landed, _name}, socket), do: {:noreply, socket}
+
   # The session has already re-read the account by the time this arrives, so
   # what the chain answered is on the socket; only the Account page reports
   # whether the check found anything to record.
@@ -560,15 +556,6 @@ defmodule AshPlatformWeb.ShellLive do
        when route_id != :redeem,
        do: {:noreply, socket}
 
-  defp handle_redemption_event("redemption_active_wallet", params, socket) do
-    socket = assign(socket, browser_wallet: normalized_wallet(params["address"]))
-    wallet = position_wallet(socket.assigns)
-
-    if wallet == socket.assigns.redemption_wallet,
-      do: {:noreply, socket},
-      else: {:noreply, adopt_redemption_wallet(socket, wallet)}
-  end
-
   defp handle_redemption_event("redemption_selection_changed", params, socket) do
     socket =
       assign(socket,
@@ -595,62 +582,8 @@ defmodule AshPlatformWeb.ShellLive do
     {:noreply, read_selection(socket)}
   end
 
-  defp handle_redemption_event(
-         "prepare_redemption",
-         %{"action" => action, "attempt_id" => attempt_id} = params,
-         socket
-       )
-       when is_binary(attempt_id) and attempt_id != "" do
-    signed_in = actions(socket.assigns.access_context) == :ready
-
-    case redemption_attempt(signed_in, action, normalized_wallet(params["signer"]), socket) do
-      {:ok, envelope} ->
-        {:noreply,
-         socket
-         |> assign(redemption_notice: nil)
-         |> push_event("redemption:wallet-action", %{
-           attempt_id: attempt_id,
-           envelope: envelope
-         })}
-
-      {:refused, notice} ->
-        {:noreply,
-         socket
-         |> assign(redemption_notice: notice)
-         |> push_event("redemption:wallet-refusal", %{
-           attempt_id: attempt_id,
-           sign_in: not signed_in
-         })}
-    end
-  end
-
-  defp handle_redemption_event("prepare_redemption", _params, socket), do: {:noreply, socket}
-
-  defp handle_redemption_event("refresh_redemption", params, socket) do
-    socket =
-      if params["refresh_owned"] in [true, "true"] and
-           is_binary(socket.assigns.redemption_wallet) do
-        # A confirmed redemption is the one moment the collection on screen is
-        # known to be out of date. The cache honours one such reset per wallet
-        # per cache window, so a page repeating the request buys no extra reads.
-        HoldingsCache.invalidate(socket.assigns.redemption_wallet)
-
-        socket
-        |> cancel_open_sea_lookup()
-        |> assign(
-          owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :refreshing)
-        )
-      else
-        socket
-      end
-
-    {:noreply,
-     start_redemption_read(socket,
-       preserve_snapshot: true,
-       announce_refresh: true,
-       lookup_owned: true
-     )}
-  end
+  defp handle_redemption_event("refresh_redemption", _params, socket),
+    do: {:noreply, refresh_redemption(socket, false)}
 
   defp handle_redemption_event("show_more_collectibles", _params, socket) do
     total =
@@ -663,23 +596,29 @@ defmodule AshPlatformWeb.ShellLive do
      )}
   end
 
-  # Nothing is prepared for a visitor who has not signed in. A signed-in press is
-  # prepared for whichever wallet the browser will send it from, since none of
-  # these transactions names its sender.
-  defp redemption_attempt(true, action, signer, socket) when is_binary(signer) do
-    case prepare_redemption(action, signer, socket) do
-      {:ok, envelope} ->
-        {:ok, envelope}
+  # A landed redemption is the one moment the collection on screen is known to
+  # be out of date. The cache honours one such reset per wallet per cache
+  # window, so repeated landings buy no extra reads.
+  defp refresh_redemption(socket, refresh_owned) do
+    socket =
+      if refresh_owned and is_binary(socket.assigns.redemption_wallet) do
+        HoldingsCache.invalidate(socket.assigns.redemption_wallet)
 
-      {:error, _reason} ->
-        {:refused, %{tone: :error, message: @redemption_preparation_failure_notice}}
-    end
+        socket
+        |> cancel_open_sea_lookup()
+        |> assign(
+          owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :refreshing)
+        )
+      else
+        socket
+      end
+
+    start_redemption_read(socket,
+      preserve_snapshot: true,
+      announce_refresh: true,
+      lookup_owned: true
+    )
   end
-
-  defp redemption_attempt(true, _action, nil, _socket),
-    do: {:refused, %{tone: :error, message: @redemption_preparation_failure_notice}}
-
-  defp redemption_attempt(false, _action, _signer, _socket), do: {:refused, nil}
 
   @impl true
   def render(assigns) do
@@ -735,22 +674,22 @@ defmodule AshPlatformWeb.ShellLive do
           shared_reading={@staking_shared_reading}
         />
 
-        <.redemption_page
+        <.live_component
           :if={@route_spec.route_id == :redeem}
+          module={RedeemLive}
+          id="animata-redemption"
           redemption={@redemption}
           status={@redemption_status}
           wallet={@redemption_wallet}
+          linked={linked_wallets(@access_context)}
           collection={@redemption_collection}
           token_id={@redemption_token_id}
           notice={@redemption_notice}
           reading={redemption_reading?(assigns)}
-          signed_in={authenticated?(@access_context)}
           refresh_block={@redemption_refresh_block}
           step={redemption_step(assigns)}
           owned_collectibles={@owned_collectibles}
           owned_collectibles_limit={@owned_collectibles_limit}
-          actions={actions(@access_context)}
-          sender={other_sender(@redemption_wallet, @browser_wallet)}
         />
 
         <RedeemGalleryLive.page
@@ -954,11 +893,6 @@ defmodule AshPlatformWeb.ShellLive do
   defp current_account(%{principal: {:human, account}}), do: account
   defp current_account(_access_context), do: nil
 
-  # Sending a transaction is something a signed-in visitor does. Reading these
-  # pages and connecting a wallet to see a position stay open to everyone.
-  defp actions(access_context),
-    do: if(current_account(access_context), do: :ready, else: :sign_in)
-
   # Privy's active wallet is the only wallet that acts. Signed in, Stake and
   # Redeem show it when it is one of the account's own wallets; any other wallet
   # is one to switch away from, so the page stays on the account's first wallet
@@ -989,16 +923,6 @@ defmodule AshPlatformWeb.ShellLive do
     do: assign(socket, redemption_wallet: position_wallet(socket.assigns))
 
   defp assign_position_wallet(socket, _route_spec), do: socket
-
-  # The wallet app's selected account, when it is not the wallet the figures are
-  # for: signed in, a wallet that is not the account's. Redeem sends from it;
-  # Stake sends nothing and asks the person to switch. Either way the page names
-  # it beside the buttons.
-  defp other_sender(shown, browser)
-       when is_binary(shown) and is_binary(browser) and shown != browser,
-       do: browser
-
-  defp other_sender(_shown, _browser), do: nil
 
   # Sign-in read the wallet's primary name once. A wallet never answered for, or
   # last answered for more than a day ago, is asked again when its own page
@@ -1482,44 +1406,6 @@ defmodule AshPlatformWeb.ShellLive do
     end
   end
 
-  # Every observation polls Base for up to one minute, so a socket may only ever
-  # hold @max_wallet_observations of them at once. A repeated or overflowing push
-  # buys no chain reads, but it is still answered: the transaction was sent, so
-  # the page is told the confirmation is unavailable rather than left waiting on
-  # a result that would never arrive. The wallet send path is never refused.
-  defp start_transaction_observation(socket, params) do
-    observation_id = params["observation_id"]
-
-    if is_binary(observation_id) and byte_size(observation_id) in 1..128 do
-      name = {:redemption_transaction, observation_id}
-      observations = socket.assigns.wallet_observations
-
-      if MapSet.member?(observations, name) or
-           MapSet.size(observations) >= @max_wallet_observations do
-        push_transaction_result(socket, observation_id, :unavailable)
-      else
-        transaction = Map.take(params, ["hash", "signer", "to", "data"])
-
-        socket
-        |> assign(wallet_observations: MapSet.put(observations, name))
-        |> start_async(name, fn -> TransactionObserver.observe(transaction) end)
-      end
-    else
-      socket
-    end
-  end
-
-  defp release_wallet_observation(socket, name),
-    do:
-      assign(socket, wallet_observations: MapSet.delete(socket.assigns.wallet_observations, name))
-
-  defp push_transaction_result(socket, observation_id, result),
-    do:
-      push_event(socket, "redemption:transaction-result", %{
-        observation_id: observation_id,
-        result: result
-      })
-
   defp cancel_redemption_read(%{assigns: %{redemption_read: nil}} = socket), do: socket
 
   defp cancel_redemption_read(socket),
@@ -1657,36 +1543,12 @@ defmodule AshPlatformWeb.ShellLive do
   defp cancel_open_sea_lookup(socket),
     do: socket |> cancel_async(socket.assigns.open_sea_lookup) |> assign(open_sea_lookup: nil)
 
-  defp prepare_redemption(action, wallet, socket) do
-    collection = socket.assigns.redemption_collection
-    token_id = parsed_token_id(socket.assigns.redemption_token_id)
-
-    case action do
-      "approve_nft_collection" when is_integer(token_id) ->
-        Redemption.prepare_nft_approval(wallet, collection, token_id)
-
-      "approve_exact_usdc" when is_integer(token_id) ->
-        Redemption.prepare_usdc_approval(wallet, collection, token_id)
-
-      "redeem" when is_integer(token_id) ->
-        Redemption.prepare_redeem(wallet, collection, token_id)
-
-      "claim" ->
-        Redemption.prepare_claim(wallet)
-
-      _ ->
-        {:error, :invalid_token_selection}
+  defp parsed_token_id(value) do
+    case RedemptionSteps.token_id(value) do
+      {:ok, token_id} -> token_id
+      :error -> nil
     end
   end
-
-  defp parsed_token_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {token_id, ""} when token_id in 1..999 -> token_id
-      _ -> nil
-    end
-  end
-
-  defp parsed_token_id(_value), do: nil
 
   # Ash wraps a generic action's error in an error class, so the typed refusal
   # the operation boundary returned is read back out of it and the copy can name
@@ -1746,12 +1608,5 @@ defmodule AshPlatformWeb.ShellLive do
       vest_claimed: nil,
       vest_start: nil
     })
-  end
-
-  defp normalized_wallet(address) do
-    case Address.normalize(address) do
-      {:ok, wallet} -> wallet
-      :error -> nil
-    end
   end
 end

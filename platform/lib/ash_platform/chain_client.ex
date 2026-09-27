@@ -17,6 +17,10 @@ defmodule AshPlatform.ChainClient do
               {:ok, map() | nil} | {:error, term()}
 
   @rpc_opts [log_scope: "wallet steps"]
+  @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
+
+  @doc "Base, as a wallet is asked to switch to it."
+  def base, do: @base
 
   @doc "The reader wallet steps use: this module, or the site's test stand-in."
   def module, do: Application.get_env(:ash_platform, :chain_client, __MODULE__)

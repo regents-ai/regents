@@ -252,7 +252,7 @@ test("Disconnect leaves Stake unconnected, and a reload keeps it that way", asyn
   await expectDisconnected(page)
   await expect(sibling.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(sibling.locator(".redeem-wallet-flow")).toHaveCount(0)
-  await expect(sibling.locator("[data-redemption-action]")).toHaveCount(0)
+  await expect(sibling.locator("[data-onchain-step]")).toHaveCount(0)
   await sibling.close()
   expect(await page.evaluate(key => localStorage.getItem(key), disconnectedKey)).toBe("true")
 

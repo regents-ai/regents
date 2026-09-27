@@ -31,7 +31,6 @@ config :ash_platform,
 config :ash_platform, :staking_snapshot_refresh_interval_ms, 0
 
 config :ash_platform, :redemption_chain_client, AshPlatform.TestRedemptionChainClient
-config :ash_platform, :wallet_transaction_observer, AshPlatform.TestWalletTransactionObserver
 config :ash_platform, :opensea_http_client, AshPlatform.TestOpenSeaHttpClient
 config :ash_platform, :opensea_api_key, "test-only-key"
 config :ash_platform, :sprite_provider, AshPlatform.TestSpriteProvider
@@ -65,12 +64,6 @@ config :ash_platform, :session_bootstrap_rate_limit, limit: 100_000, window_seco
 
 # Tests key rate limits as production does, behind Fly's proxy.
 config :ash_platform, :behind_fly_proxy, true
-
-if System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
-  config :ash_platform,
-         :wallet_transaction_observer,
-         AshPlatform.TestBrowserWalletTransactionObserver
-end
 
 config :ash_platform, AshPlatform.Repo,
   username: System.get_env("USER"),

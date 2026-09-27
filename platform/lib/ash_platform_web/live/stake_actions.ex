@@ -16,7 +16,7 @@ defmodule AshPlatformWeb.StakeActions do
   """
   use AshPlatformWeb, :live_component
 
-  alias AshPlatform.Staking
+  alias AshPlatform.{ChainClient, Staking}
   alias AshPlatform.Staking.{SnapshotCache, Steps}
   alias AshPlatformWeb.Components.Loading
   alias AshPlatformWeb.{OnchainSteps, StakeLive, TokenDisplay}
@@ -176,7 +176,7 @@ defmodule AshPlatformWeb.StakeActions do
           Review.new(
             socket.assigns.id,
             signer,
-            Steps.chain(),
+            ChainClient.base(),
             Steps.steps(signer, staking, staking_form(socket.assigns)),
             inputs(socket.assigns)
           )

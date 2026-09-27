@@ -6,8 +6,8 @@ defmodule AshPlatform.WalletActions.Address do
   mistyped address fails here rather than reaching a wallet. All-lowercase and
   all-uppercase hex assert no checksum and stay valid unchecksummed input.
 
-  Envelopes and RPC parameters carry `canonical/1`, comparisons use the decoded
-  bytes through `equal?/2`, and `format/1` exists only for display.
+  Stored and compared text uses `canonical/1`, comparisons use the decoded bytes
+  through `equal?/2`, and `format/1` exists only for display.
   """
 
   @bytes 20
