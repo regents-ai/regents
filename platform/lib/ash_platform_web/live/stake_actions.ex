@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.StakeActions do
 
   alias AshPlatform.{ChainClient, Staking}
   alias AshPlatform.Staking.{SnapshotCache, Steps}
-  alias AshPlatformWeb.Components.Loading
+  alias AshPlatformWeb.Components.{Loading, TransactionReceipt}
   alias AshPlatformWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -774,7 +774,19 @@ defmodule AshPlatformWeb.StakeActions do
         </div>
 
         <.activity sent={@sent} press={@press_note} myself={@myself} />
-        <.receipt :if={@receipt} receipt={@receipt} />
+        <TransactionReceipt.receipt
+          :if={@receipt}
+          id="staking-receipt-dialog"
+          title={receipt_title(@receipt)}
+          summary={receipt_summary(@receipt)}
+          hash={@receipt.hash}
+          close_event="close_receipt"
+          position={@receipt.position}
+          figures={[
+            %{label: "Your stake now", key: :staked, unit: "REGENT"},
+            %{label: "USDC ready to claim", key: :claimable_usdc, unit: "USDC"}
+          ]}
+        />
 
         <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
           <div>
@@ -875,65 +887,7 @@ defmodule AshPlatformWeb.StakeActions do
     """
   end
 
-  attr :receipt, :map, required: true
-
-  # What a stake or unstake Base confirmed did, and where the wallet stands now.
-  defp receipt(assigns) do
-    ~H"""
-    <dialog
-      id="staking-receipt-dialog"
-      class="stake-supply-dialog"
-      aria-labelledby="staking-receipt-heading"
-      phx-hook="InfoDialog"
-      data-open
-      data-close-event="close_receipt"
-    >
-      <p class="stake-dialog-kicker">Base transaction receipt</p>
-      <h2 id="staking-receipt-heading">{receipt_title(@receipt)}</h2>
-      <p class="stake-dialog-summary">{receipt_summary(@receipt)}</p>
-      <dl class="stake-holdings">
-        <div>
-          <dt>Your stake now</dt>
-          <dd>
-            <strong><.receipt_figure position={@receipt.position} key={:staked} unit="REGENT" /></strong>
-          </dd>
-        </div>
-        <div>
-          <dt>USDC ready to claim</dt>
-          <dd>
-            <strong><.receipt_figure position={@receipt.position} key={:claimable_usdc} unit="USDC" /></strong>
-          </dd>
-        </div>
-        <div>
-          <dt>Transaction</dt>
-          <dd>
-            <a
-              href={"https://basescan.org/tx/#{@receipt.hash}"}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View on BaseScan <span aria-hidden="true">↗</span>
-            </a>
-          </dd>
-        </div>
-      </dl>
-      <form method="dialog">
-        <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
-      </form>
-    </dialog>
-    """
-  end
-
-  attr :position, :any, required: true
-  attr :key, :atom, required: true
-  attr :unit, :string, required: true
-
-  defp receipt_figure(%{position: :reading} = assigns), do: ~H"Reading from Base…"
-  defp receipt_figure(%{position: :unavailable} = assigns), do: ~H"Could not be read just now"
-
-  defp receipt_figure(assigns),
-    do: ~H"<TokenDisplay.amount amount={Map.fetch!(@position, @key)} unit={@unit} />"
-
+  # The receipt's words for what Base confirmed.
   defp receipt_title(%{
          name: "stake",
          review: %{inputs: %{"for_other" => "true", "receiver" => receiver}} = review

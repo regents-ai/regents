@@ -592,6 +592,48 @@ defmodule AshPlatformWeb.RedeemLiveTest do
            )
   end
 
+  test "REDEEM_RECEIPT: a redemption Base confirmed opens a receipt with the vest read after it",
+       %{conn: conn} do
+    view = redeem_as_signer(conn, "redeem-receipt")
+    select(view, "animata_i", "42")
+
+    send_landed(view, "redeem", hash("31"), "0x0")
+    send_landed(view, "approve_exact_usdc", hash("32"), "0x1")
+    refute has_element?(view, "#redemption-receipt-dialog")
+
+    send_landed(view, "redeem", @hash, "0x1")
+    render_async(view)
+
+    assert has_element?(view, "#redemption-receipt-dialog h2", "You redeemed Animata I #42")
+    assert has_element?(view, "#redemption-receipt-dialog", "its REGENT now vests to you")
+    assert has_element?(view, "#redemption-receipt-dialog dt", "Claimable now")
+    assert has_element?(view, "#redemption-receipt-dialog dt", "Vesting total")
+    refute has_element?(view, "#redemption-receipt-dialog", "Reading from Base")
+
+    assert has_element?(
+             view,
+             ~s(#redemption-receipt-dialog a[href="https://basescan.org/tx/#{@hash}"]),
+             "View on BaseScan"
+           )
+
+    view |> redeem() |> render_hook("close_receipt", %{})
+    refute has_element?(view, "#redemption-receipt-dialog")
+  end
+
+  test "CLAIM_RECEIPT: a claim Base confirmed says the REGENT is in the wallet", %{conn: conn} do
+    view = redeem_as_signer(conn, "claim-receipt")
+
+    send_landed(view, "claim", @hash, "0x1")
+
+    assert has_element?(view, "#redemption-receipt-dialog h2", "You claimed your unlocked REGENT")
+
+    assert has_element?(
+             view,
+             "#redemption-receipt-dialog",
+             "The unlocked REGENT is in your wallet."
+           )
+  end
+
   test "PRESS_FAILURES: a press the wallet did not send says why beside its own button", %{
     conn: conn
   } do
