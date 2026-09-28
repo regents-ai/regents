@@ -15,9 +15,9 @@ defmodule AshPlatformWeb.RedeemLive do
   """
   use AshPlatformWeb, :live_component
 
-  alias AshPlatform.ChainClient
+  alias AshPlatform.{ChainClient, Redemption}
   alias AshPlatform.Redemption.Steps
-  alias AshPlatformWeb.Components.Loading
+  alias AshPlatformWeb.Components.{Loading, TransactionReceipt}
   alias AshPlatformWeb.{EventInput, OnchainSteps, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -40,7 +40,12 @@ defmodule AshPlatformWeb.RedeemLive do
       {:ok,
        socket
        |> OnchainSteps.init()
-       |> assign(active: nil, press_step: nil, selection: %{collection: "", token_id: ""})}
+       |> assign(
+         active: nil,
+         press_step: nil,
+         selection: %{collection: "", token_id: ""},
+         receipt: nil
+       )}
 
   @impl true
   def update(assigns, socket) do
@@ -95,6 +100,9 @@ defmodule AshPlatformWeb.RedeemLive do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
+  def handle_event("close_receipt", _params, socket),
+    do: {:noreply, assign(socket, receipt: nil)}
+
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
     do: {:noreply, assign(socket, press_note: EventInput.unreadable(), press_step: nil)}
@@ -105,12 +113,54 @@ defmodule AshPlatformWeb.RedeemLive do
     socket = OnchainSteps.checked(socket, hash, result)
 
     case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
-      %{outcome: :confirmed, name: name} -> send(self(), {:redeem_step_landed, name})
-      _entry -> :ok
-    end
+      %{outcome: :confirmed, name: name} = entry ->
+        send(self(), {:redeem_step_landed, name})
+        {:noreply, open_receipt(socket, entry)}
 
-    {:noreply, socket}
+      _entry ->
+        {:noreply, socket}
+    end
   end
+
+  # Only the latest receipt's reading is shown; an earlier one's answer is dropped.
+  def handle_async(
+        {:receipt_position, hash},
+        result,
+        %{assigns: %{receipt: %{hash: hash}}} = socket
+      ),
+      do: {:noreply, update(socket, :receipt, &%{&1 | position: position(result)})}
+
+  def handle_async({:receipt_position, _hash}, _result, socket), do: {:noreply, socket}
+
+  # A redemption or claim that landed opens its receipt, with the wallet's
+  # vest read again after it.
+  defp open_receipt(socket, %{name: name, hash: hash, review: review})
+       when name in ~w(redeem claim) do
+    signer = review.signer
+
+    socket
+    |> assign(receipt: %{hash: hash, name: name, inputs: review.inputs, position: :reading})
+    |> start_async({:receipt_position, hash}, fn ->
+      Redemption.account_for_wallet(signer, nil, nil)
+    end)
+  end
+
+  defp open_receipt(socket, _entry), do: socket
+
+  defp position({:ok, {:ok, facts}}),
+    do: %{claimable: facts.claimable, vest_pool: facts.vest_pool}
+
+  defp position(_failed), do: :unavailable
+
+  defp receipt_title(%{name: "redeem", inputs: inputs}), do: "You redeemed #{animata(inputs)}"
+  defp receipt_title(%{name: "claim"}), do: "You claimed your unlocked REGENT"
+
+  defp receipt_summary(%{name: "redeem"}),
+    do:
+      "Base confirmed it. The Animata and 80 USDC left your wallet, and its REGENT now vests to you."
+
+  defp receipt_summary(%{name: "claim"}),
+    do: "Base confirmed it. The unlocked REGENT is in your wallet."
 
   # The review follows the signer and the selection. With no eligible signer
   # there is no review, and every press says why nothing was sent.
@@ -700,6 +750,20 @@ defmodule AshPlatformWeb.RedeemLive do
           </dl>
         </Regent.Primitives.disclosure>
       </div>
+
+      <TransactionReceipt.receipt
+        :if={@receipt}
+        id="redemption-receipt-dialog"
+        title={receipt_title(@receipt)}
+        summary={receipt_summary(@receipt)}
+        hash={@receipt.hash}
+        close_event="close_receipt"
+        position={@receipt.position}
+        figures={[
+          %{label: "Claimable now", key: :claimable, unit: "REGENT"},
+          %{label: "Vesting total", key: :vest_pool, unit: "REGENT"}
+        ]}
+      />
     </section>
     """
   end

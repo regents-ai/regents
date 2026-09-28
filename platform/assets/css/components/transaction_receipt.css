@@ -1,0 +1,55 @@
+/* The pop-up a confirmed wallet step opens: what happened and where the wallet
+   stands now, one figure to a row. */
+.transaction-receipt {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: clamp(1.1rem, 4vw, 1.75rem);
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+
+.transaction-receipt::backdrop { background: var(--ash-scrim); }
+
+.transaction-receipt__kicker {
+  margin-block: 0 0.75rem;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.transaction-receipt h2 {
+  margin: 0.25rem 0 0.75rem;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.transaction-receipt__summary { margin-block: 0 0.75rem; font-size: 1.05rem; }
+
+.transaction-receipt dl {
+  display: grid;
+  margin: 0 0 1.25rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.transaction-receipt dl > div {
+  display: grid;
+  gap: 0.3rem;
+  padding-block: 0.8rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.transaction-receipt dt { font-family: var(--font-family-title); font-size: 1rem; }
+
+.transaction-receipt dd {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.transaction-receipt a { color: var(--ash-accent); }
+.transaction-receipt form { display: flex; justify-content: flex-end; }
