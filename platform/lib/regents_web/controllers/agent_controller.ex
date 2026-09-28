@@ -1,14 +1,16 @@
 defmodule RegentsWeb.AgentController do
   @moduledoc """
   The two requests an agent signs with its SIWA key: joining a person's
-  account with the code they gave it, and checking in afterwards.
+  account with the code they gave it, and checking in afterwards. A check-in
+  also answers with the account the agent is paired with, named as the
+  person's own Account page names it.
   """
 
   use RegentsWeb, :controller
 
+  alias Regents.{Accounts, Agents, RateLimiter}
   alias Regents.Actors.System
   alias Regents.AgentAuth.VerificationClient
-  alias Regents.{Agents, RateLimiter}
   alias RegentsWeb.ClientAddress
 
   # Requests per client address per minute. Check-ins get their own, larger
@@ -83,7 +85,7 @@ defmodule RegentsWeb.AgentController do
 
   defp check_in(conn, wallet) do
     case Agents.check_in_agent(wallet, actor: %System{}) do
-      {:ok, agent} -> json(conn, %{data: public_agent(agent)})
+      {:ok, agent} -> json(conn, %{data: Map.put(public_agent(agent), :account, account(agent))})
       {:error, _not_paired} -> not_paired(conn)
     end
   end
@@ -112,6 +114,16 @@ defmodule RegentsWeb.AgentController do
       paired_at: DateTime.to_iso8601(agent.paired_at),
       last_contact_at: DateTime.to_iso8601(agent.last_contact_at)
     }
+  end
+
+  defp account(agent) do
+    account =
+      Accounts.get_public_profile_source!(agent.human_account_id,
+        actor: %System{},
+        load: [:ens_name]
+      )
+
+    %{display_name: account.display_name, ens_name: account.ens_name}
   end
 
   defp pairing_failed(conn) do

@@ -38,11 +38,13 @@ Every regents.sh page offers these tools to browsers that support WebMCP (`docum
 
 When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need a shell with `uv`; no wallet funds, registration or API key.
 
+With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`): sign in once with `regents auth login --site regents`, pair with `regents protocol agents pair --code <code> --name "<your name>" --harness <harness>`, and check in with `regents protocol agents me`. To sign each request yourself instead:
+
 1. Get the client: `curl -O https://raw.githubusercontent.com/regents-ai/elixir-utils/main/siwa/siwa-elixir/agent/siwa_agent.py`
 2. Set `export SIWA_AUDIENCE=regents`, `export SIWA_BROKER=https://siwa-server.fly.dev` and `export SIWA_AGENT_HOME=~/.siwa-agent/<your-name>` (one word, no spaces). Each agent keeps its own folder, so agents sharing a machine never share a key.
 3. Make your key once with `uv run siwa_agent.py keygen`, then `uv run siwa_agent.py sign-in`. The key file stays on your machine; never share it.
 4. Pair: `uv run siwa_agent.py request POST {{origin}}/api/agents/v1/pair --body '{"code":"<code>","name":"<your name>","harness":"<harness>"}'`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`. Your person can correct it later.
-5. Check in when you do work for your person: `uv run siwa_agent.py request GET {{origin}}/api/agents/v1/me`. Your person sees the time of your latest contact on their Account page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
+5. Check in when you do work for your person: `uv run siwa_agent.py request GET {{origin}}/api/agents/v1/me`. The answer names the account you are paired with: `account.display_name` and `account.ens_name`, each `null` until your person has one. Your person sees the time of your latest contact on their Account page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
 
 A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `404 not_paired` from the check-in means your person unpaired you. Pairing allows 10 requests and check-ins 60 per minute; every answer carries `RateLimit` and `RateLimit-Policy` headers, and a `429 rate_limited` carries `Retry-After` in seconds to wait.
 

@@ -384,7 +384,7 @@
       "get": {
         "operationId": "checkInAgent",
         "summary": "Check in as a paired agent",
-        "description": "Records this request as the agent's latest contact, which its person sees on their Account page, and returns the paired agent. Sign the request with your SIWA key; it has no body.",
+        "description": "Records this request as the agent's latest contact, which its person sees on their Account page, and returns the paired agent with the names of the account it is paired with. Sign the request with your SIWA key; it has no body.",
         "security": [],
         "parameters": [
           {
@@ -423,7 +423,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PairedAgentEnvelope"
+                  "$ref": "#/components/schemas/CheckedInAgentEnvelope"
                 }
               }
             }
@@ -648,6 +648,79 @@
           "last_contact_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "CheckedInAgentEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CheckedInAgent"
+          }
+        }
+      },
+      "CheckedInAgent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "harness",
+          "wallet",
+          "paired_at",
+          "last_contact_at",
+          "account"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "harness": {
+            "$ref": "#/components/schemas/AgentHarness"
+          },
+          "wallet": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "paired_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_contact_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account": {
+            "$ref": "#/components/schemas/PairedAccount"
+          }
+        }
+      },
+      "PairedAccount": {
+        "description": "The names of the account an agent is paired with, as its person sees them on their Account page. Either is null until the person has one.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "ens_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "ens_name": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

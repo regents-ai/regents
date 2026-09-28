@@ -132,11 +132,25 @@ defmodule RegentsWeb.AgentControllerTest do
     Process.put(:agent_verification_result, {:ok, %{wallet: @agent_wallet}})
     Process.put(:capture_agent_verification_calls, true)
 
-    assert %{"data" => %{"name" => "Sol", "harness" => "hermes"}} =
+    assert %{"data" => %{"name" => "Sol", "harness" => "hermes"} = agent} =
              conn |> get("/api/agents/v1/me") |> json_response(200)
 
     # A check-in is signed without a body, so none is sent to be checked.
     assert_received {:agent_verification, %{method: "GET", body: nil}}
+
+    # A person who has set neither name yet.
+    assert agent["account"] == %{"display_name" => nil, "ens_name" => nil}
+
+    # The account is named as the person's own Account page names it.
+    Regents.Repo.query!(
+      "update regent_names.platform_human_users set display_name = 'Ada' where id = $1",
+      [actor.human_account_id]
+    )
+
+    Accounts.put_ens_identity(actor.human_account_id, "ada.eth", nil, actor: %System{})
+
+    assert %{"data" => %{"account" => %{"display_name" => "Ada", "ens_name" => "ada.eth"}}} =
+             conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
 
     Process.put(:agent_verification_result, {:ok, %{wallet: "0x" <> String.duplicate("4", 40)}})
 
