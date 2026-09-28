@@ -51,49 +51,50 @@ defmodule AshPlatformWeb.StakeLive do
           </div>
         </div>
 
-        <dl
-          :if={@dashboard}
-          id="staking-benefits"
-          class="stake-benefit-grid"
-          aria-label="Current staking benefits"
-          phx-hook="MotionCount"
-          data-variant={AshPlatformWeb.Motion.standard("count")}
-        >
-          <div class="stake-benefit-card stake-benefit-card-primary">
-            <dt>Regent Labs USDC Earned</dt>
-            <dd class="stake-earned-split">
-              <span class="stake-earned-part">
-                <span class="stake-earned-label">Last 7 days</span>
-                <span class="stake-earned-figure">
-                  <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
+        <div :if={@dashboard} id="staking-benefits-flash" class="figure-flash" phx-hook="FigureFlash">
+          <dl
+            id="staking-benefits"
+            class="stake-benefit-grid"
+            aria-label="Current staking benefits"
+            phx-hook="MotionCount"
+            data-variant={AshPlatformWeb.Motion.standard("count")}
+          >
+            <div class="stake-benefit-card stake-benefit-card-primary" data-flash>
+              <dt>Regent Labs USDC Earned</dt>
+              <dd class="stake-earned-split">
+                <span class="stake-earned-part">
+                  <span class="stake-earned-label">Last 7 days</span>
+                  <span class="stake-earned-figure">
+                    <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
+                  </span>
                 </span>
-              </span>
-              <span class="stake-earned-part">
-                <span class="stake-earned-label">Lifetime</span>
-                <span class="stake-earned-figure">
-                  <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
+                <span class="stake-earned-part">
+                  <span class="stake-earned-label">Lifetime</span>
+                  <span class="stake-earned-figure">
+                    <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
+                  </span>
                 </span>
-              </span>
-            </dd>
-          </div>
-          <div class="stake-benefit-card">
-            <dt>REGENT Staked</dt>
-            <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Circulating REGENT</dt>
-            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Circulating MCAP</dt>
-            <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
-            <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Total REGENT</dt>
-            <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
-          </div>
-        </dl>
+              </dd>
+            </div>
+            <div class="stake-benefit-card" data-flash>
+              <dt>REGENT Staked</dt>
+              <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply" data-flash>
+              <dt>Circulating REGENT</dt>
+              <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply" data-flash>
+              <dt>Circulating MCAP</dt>
+              <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
+              <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply" data-flash>
+              <dt>Total REGENT</dt>
+              <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
+            </div>
+          </dl>
+        </div>
         <dl
           :if={!@dashboard}
           id={

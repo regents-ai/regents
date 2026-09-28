@@ -18,7 +18,9 @@ export type Review = {
   inputs: Record<string, string>
 }
 
-type Push = (event: string, payload: unknown) => void
+// Settles once the server has answered and the page shows the answer, so a
+// button goes straight from waiting on the wallet to confirming.
+type Push = (event: string, payload: unknown) => Promise<void>
 
 type OnchainStepsHook = Hook & {
   el: HTMLElement
@@ -40,7 +42,8 @@ const presses = new WeakMap<HTMLElement, number>()
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
-    const push: Push = (event, payload) => void this.pushEventTo(this.el, event, payload)
+    const push: Push = (event, payload) =>
+      this.pushEventTo(this.el, event, payload).then(() => undefined, () => undefined)
 
     // Every hook on the page hears this event; keep only this component's review.
     // No review means no eligible wallet: a press then sends nothing.
@@ -64,7 +67,7 @@ export const OnchainSteps: Hook = {
           .then(([result]) => {
             const reply = result?.status === "fulfilled" ? result.value.reply as {review?: Review; send?: string} : {}
             if (reply.review && reply.send) return press(reply.review, reply.send, push)
-            push("step_failed", {step: name, reason: "step_unknown"})
+            return push("step_failed", {step: name, reason: "step_unknown"})
           })
           // A lost connection drops the question; the button comes back to press again.
           .catch(() => {})
@@ -117,13 +120,13 @@ export async function press(review: Review | undefined, name: string, push: Push
 
     if (step.kind === "signature") {
       const signature: Hex = await signStep(review.chain, review.signer, step, wallet, started)
-      push("step_signed", {review_id: review.id, step: name, signature})
+      await push("step_signed", {review_id: review.id, step: name, signature})
     } else {
       const transaction_hash = await sendStep(review.chain, review.signer, step, wallet, started)
-      push("step_sent", {review_id: review.id, step: name, transaction_hash})
+      await push("step_sent", {review_id: review.id, step: name, transaction_hash})
     }
   } catch (error) {
-    push("step_failed", {step: name, reason: failure(sending, error)})
+    await push("step_failed", {step: name, reason: failure(sending, error)})
   }
 }
 

@@ -7,7 +7,7 @@ defmodule AshPlatformWeb.OnchainSteps do
   it to `put_review/2`, which remembers it and pushes it to the page before
   anyone presses. The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
-  two seconds, until it lands or the page stops asking. Nothing is kept beyond
+  quarter second, until it lands or the page stops asking. Nothing is kept beyond
   the page.
 
   The only wallet that may act is Privy's active wallet when it is one of the
@@ -21,7 +21,7 @@ defmodule AshPlatformWeb.OnchainSteps do
   alias AshPlatform.ChainClient
   alias RegentChain.{Outcome, Presses}
 
-  @recheck_ms 2_000
+  @recheck_ms 250
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
@@ -178,6 +178,13 @@ defmodule AshPlatformWeb.OnchainSteps do
     state = if Presses.stalled?(entry), do: :stalled, else: entry.outcome
     %{hash: entry.hash, state: state, words: words(state, chain_name)}
   end
+
+  @doc """
+  Whether a step named in `names` was sent and is still being read, for the
+  button that sends them to say "Confirming". It never stops a press.
+  """
+  def confirming?(presses, names),
+    do: Enum.any?(presses.sent, &(&1.name in names and Presses.reading?(&1)))
 
   defp words(:pending, chain_name), do: "Sent. Waiting for #{chain_name}."
 

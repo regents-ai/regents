@@ -1,0 +1,15 @@
+/* A figure that changed flashes softly behind itself (FigureFlash animates the
+   opacity of this layer); the wrapper adds no box of its own. */
+.figure-flash { display: contents; }
+
+[data-flash] { position: relative; isolation: isolate; }
+
+[data-flash]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--ash-accent) 22%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}

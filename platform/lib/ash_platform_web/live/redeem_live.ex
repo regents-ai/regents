@@ -17,7 +17,14 @@ defmodule AshPlatformWeb.RedeemLive do
 
   alias AshPlatform.{ChainClient, Redemption}
   alias AshPlatform.Redemption.Steps
-  alias AshPlatformWeb.Components.{Loading, SubmittedTransactions, TransactionReceipt}
+
+  alias AshPlatformWeb.Components.{
+    Loading,
+    OnchainButton,
+    SubmittedTransactions,
+    TransactionReceipt
+  }
+
   alias AshPlatformWeb.{EventInput, OnchainSteps, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -266,6 +273,8 @@ defmodule AshPlatformWeb.RedeemLive do
       |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
       |> assign(:flow_sent, shown(assigns.presses, @every_control))
       |> assign(:claim_sent, shown(assigns.presses, ["claim"]))
+      |> assign(:flow_confirming, OnchainSteps.confirming?(assigns.presses, @every_control))
+      |> assign(:claim_confirming, OnchainSteps.confirming?(assigns.presses, ["claim"]))
       |> assign(
         :flow_press,
         if(assigns.press_step in [nil | @every_control], do: assigns.press_note)
@@ -551,9 +560,10 @@ defmodule AshPlatformWeb.RedeemLive do
                     class="redeem-primary"
                     data-onchain-step={@signed_in && control.action}
                     data-account-target={!@signed_in && "sign-in"}
+                    data-confirming={@flow_confirming}
                     phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
                     aria-describedby="redemption-step-hint"
-                  ><.press_label label={control.label} /></Regent.Primitives.button>
+                  ><OnchainButton.label label={control.label} /></Regent.Primitives.button>
                 </div>
               </section>
               <.mismatch :if={@signed_in} note={@mismatch_note} />
@@ -625,8 +635,9 @@ defmodule AshPlatformWeb.RedeemLive do
               class="redeem-claim"
               data-onchain-step={@signed_in && "claim"}
               data-account-target={!@signed_in && "sign-in"}
+              data-confirming={@claim_confirming}
               phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-            ><.press_label label="Claim unlocked REGENT" /></Regent.Primitives.button>
+            ><OnchainButton.label label="Claim unlocked REGENT" /></Regent.Primitives.button>
             <.mismatch :if={@signed_in} note={@mismatch_note} />
             <.activity
               id="redemption-claim-activity"
@@ -957,16 +968,6 @@ defmodule AshPlatformWeb.RedeemLive do
         {render_slot(@inner_block)}
       </p>
     </div>
-    """
-  end
-
-  attr :label, :string, required: true
-
-  # The words swap for "Confirm in wallet" while the wallet has this button's
-  # press. The button itself keeps taking presses.
-  defp press_label(assigns) do
-    ~H"""
-    <span data-press-label>{@label}</span><span data-wallet-wait>Confirm in wallet</span>
     """
   end
 

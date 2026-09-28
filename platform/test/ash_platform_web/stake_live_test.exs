@@ -485,10 +485,12 @@ defmodule AshPlatformWeb.StakeLiveTest do
     set_amount(view, "1")
     send_step(view, "stake", @hash)
     assert has_element?(view, ~s(#staking-activity-#{@hash}[data-outcome="pending"]))
+    assert has_element?(view, "#staking-primary[data-confirming]")
 
     land(view, "stake", @hash, "0x1")
     set_amount(view, "3")
     render_async(view, 3_000)
+    refute has_element?(view, "#staking-primary[data-confirming]")
 
     assert has_element?(view, "#staking-receipt-dialog h2", "You staked 1 REGENT")
     assert actions_assigns(view).amount == "3"
